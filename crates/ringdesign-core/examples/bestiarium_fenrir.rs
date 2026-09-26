@@ -228,8 +228,103 @@ impl Stock {
 const BORE_CLEAR_MM: f64 = 0.35;
 /// How deep the sculpt reaches under the stock's surface, mm.
 const BURY_MM: f64 = 0.6;
-/// No sculpt within this radius of the moon's axis, so the stone drops into its claws.
+/// No sculpt within this radius of the moon's axis over the table, so the stone drops into its claws.
 const KEEP_OUT_MM: f64 = 5.06;
+/// The gums round the moon stand this high over the table, over the fangs' collar, mm.
+const GUM_H: f64 = 1.0;
+/// Half the angle each open mouth corner spans at the moon's side, degrees.
+const CORNER_DEG: f64 = 15.0;
+
+/// A point `rho` from the moon's axis, `deg` from +x toward +u, at height `h`.
+fn rim(rho: f64, deg: f64, h: f64) -> P3 {
+    let (s, c) = deg.to_radians().sin_cos();
+    [rho * c, MOON_U + rho * s, h]
+}
+
+/// Distance from `p` to the box `lo`..`hi`, zero inside.
+fn box_gap(p: P3, lo: P3, hi: P3) -> f64 {
+    let d: P3 = std::array::from_fn(|k| (lo[k] - p[k]).max(p[k] - hi[k]).max(0.0));
+    len(d)
+}
+
+/// Distance in the section plane to an isosceles trapezoid `r1` half-wide at `y = -he`, `r2` at `y = he`.
+fn trapezoid(p: [f64; 2], r1: f64, r2: f64, he: f64) -> f64 {
+    let (x, y) = (p[0].abs(), p[1]);
+    let k1 = [r2, he];
+    let k2 = [r2 - r1, 2.0 * he];
+    let ca = [x - x.min(if y < 0.0 { r1 } else { r2 }), y.abs() - he];
+    let t = (((k1[0] - x) * k2[0] + (k1[1] - y) * k2[1]) / (k2[0] * k2[0] + k2[1] * k2[1])).clamp(0.0, 1.0);
+    let cb = [x - k1[0] + k2[0] * t, y - k1[1] + k2[1] * t];
+    let s = if cb[0] < 0.0 && ca[1] < 0.0 { -1.0 } else { 1.0 };
+    s * (ca[0] * ca[0] + ca[1] * ca[1]).min(cb[0] * cb[0] + cb[1] * cb[1]).sqrt()
+}
+
+/// A tooth: a thick body from `root` to `knee`, then a short point to `tip`, with radii at the three.
+struct Tooth {
+    name: String,
+    root: P3,
+    knee: P3,
+    tip: P3,
+    r: [f64; 3],
+}
+
+impl Tooth {
+    fn sdf(&self, q: P3) -> f64 {
+        smin(round_cone(q, self.root, self.knee, self.r[0], self.r[1]), round_cone(q, self.knee, self.tip, self.r[1], self.r[2]), 0.12)
+    }
+}
+
+/// A lock of fur swept through `pts` (point, radius), flattened along `n` by `flat`, strands along it.
+struct Lock {
+    name: String,
+    pts: Vec<(P3, f64)>,
+    n: P3,
+    flat: f64,
+    lo: P3,
+    hi: P3,
+}
+
+impl Lock {
+    fn new(name: String, pts: Vec<(P3, f64)>, n: P3, flat: f64) -> Self {
+        let pad = pts.iter().map(|p| p.1).fold(0.0, f64::max) + 0.1;
+        let lo = std::array::from_fn(|k| pts.iter().map(|p| p.0[k]).fold(f64::MAX, f64::min) - pad);
+        let hi = std::array::from_fn(|k| pts.iter().map(|p| p.0[k]).fold(f64::MIN, f64::max) + pad);
+        Self { name, pts, n, flat, lo, hi }
+    }
+    fn squash(&self, p: P3) -> P3 {
+        let o = self.pts[0].0;
+        let d = sub(p, o);
+        let k = dot(d, self.n);
+        add(o, add(sub(d, mul(self.n, k)), mul(self.n, k * self.flat)))
+    }
+    fn sdf(&self, s: P3) -> f64 {
+        let gap = box_gap(s, self.lo, self.hi);
+        if gap > 0.6 {
+            return gap;
+        }
+        let q = self.squash(s);
+        let mut near: Vec<(f64, f64)> = Vec::with_capacity(self.pts.len());
+        for w in self.pts.windows(2) {
+            let ((a, ra), (b, rb)) = (w[0], w[1]);
+            let d = round_cone(q, self.squash(a), self.squash(b), ra, rb);
+            let dir = sub(b, a);
+            let side = cross(self.n, dir);
+            let side = mul(side, 1.0 / len(side).max(1e-9));
+            let t = (dot(sub(s, a), dir) / dot(dir, dir).max(1e-12)).clamp(0.0, 1.0);
+            let across = dot(sub(s, a), side) / lerp(ra, rb, t).max(0.05);
+            let groove = (0.5 - 0.5 * (3.0 * PI * across).cos()) * smooth(1.05, 0.65, across.abs());
+            near.push((d, groove));
+        }
+        let d = near.iter().fold(f64::MAX, |m, x| m.min(x.0));
+        let (mut wsum, mut gsum) = (0.0, 0.0);
+        for (di, gi) in &near {
+            let w = (-(di - d) / 0.04).exp();
+            wsum += w;
+            gsum += w * gi;
+        }
+        d + 0.07 * (gsum / wsum.max(1e-12)) * smooth(0.35, 0.0, d)
+    }
+}
 
 /// The wolf's head as a signed distance field, in face coordinates: `x` across, `u` toward the ears, `h` out of the table.
 struct Wolf {
@@ -237,205 +332,339 @@ struct Wolf {
     bore: f64,
     relief: Relief,
     stock: Stock,
+    teeth: Vec<Tooth>,
+    locks: Vec<Lock>,
+    /// The head's surface height where each eye sits.
+    eye_h: f64,
+}
+
+/// Where the upper lip's inner edge stands from the moon's axis, and how high: scalloped over the incisors, lifted over the canine.
+fn upper_lip(deg: f64) -> (f64, f64) {
+    let a = deg.clamp(CORNER_DEG, 90.0);
+    let bump = |c: f64, w: f64| (-((a - c) / w).powi(2)).exp();
+    let rho = 5.36 + 0.3 * (bump(90.0, 5.5) + bump(73.4, 5.5)) + 0.42 * bump(57.0, 6.5) + 0.12 * smooth(35.0, CORNER_DEG, a);
+    let h = lerp(1.35, 2.45, smooth(CORNER_DEG, 85.0, a)) + 0.35 * bump(57.0, 7.0);
+    (rho, h)
+}
+
+/// Where the lower lip's inner edge stands from the moon's axis, and how high: on the moon's round at the corners,
+/// then straight on to the chin in a V.
+fn lower_lip(deg: f64) -> (f64, f64) {
+    let a = deg.clamp(-90.0, -CORNER_DEG);
+    let h = lerp(1.2, 0.95, smooth(-CORNER_DEG, -90.0, a));
+    if a >= -40.0 {
+        return (5.36, h);
+    }
+    let p = rim(5.36, -40.0, 0.0);
+    let c = [0.0, MOON_U - 6.9];
+    let (s, co) = a.to_radians().sin_cos();
+    let (dx, du) = (c[0] - p[0], c[1] - p[1]);
+    let t = (p[0] * du - (p[1] - MOON_U) * dx) / (co * du - s * dx);
+    (t.max(5.36), h)
+}
+
+/// Fur sculpted into the head's masses, 0..1: flames flowing up and back off the forehead, and down over the jaw and throat.
+fn pelt(s: P3) -> f64 {
+    let (x, u) = (s[0], s[1]);
+    let region = |cx: f64, cu: f64, r0: f64, arc: f64, pitch: f64, length: f64, seed: i64| {
+        let (dx, du) = (x - cx, u - cu);
+        flames(dx.hypot(du) - r0, du.atan2(dx) * arc, pitch, length, 0.18, 0.12, seed).h
+    };
+    let crown = region(0.0, 5.0, 1.0, 3.0, 0.95, 2.8, 3) * smooth(6.0, 6.8, u) * (1.0 - smooth(9.4, 10.4, u));
+    let jaw = region(0.0, MOON_U - 3.5, 2.5, 4.0, 0.95, 2.8, 9) * (1.0 - smooth(MOON_U - 3.5, MOON_U - 1.5, u)) * (1.0 - smooth(3.6, 4.6, x));
+    let eye = smooth(1.0, 1.7, (x - 2.75).hypot(u - 5.55));
+    let rho = x.hypot(u - MOON_U);
+    let ang = (u - MOON_U).atan2(x).to_degrees();
+    let lip = if ang >= 0.0 { upper_lip(ang).0 } else { lower_lip(ang).0 };
+    crown.max(jaw) * eye * smooth(lip + 0.35, lip + 1.0, rho)
 }
 
 impl Wolf {
     fn face(&self, p: P3) -> P3 {
         [p[0], -p[2], p[1] - self.table]
     }
-    /// A point at radius `rho` from the moon's axis, `deg` from +x toward +u, at height `h`.
-    fn rim(rho: f64, deg: f64, h: f64) -> P3 {
-        let (s, c) = deg.to_radians().sin_cos();
-        [rho * c, MOON_U + rho * s, h]
+    fn new(table: f64, bore: f64, relief: Relief, stock: Stock) -> Self {
+        let mut w = Self { table, bore, relief, stock, teeth: Vec::new(), locks: Vec::new(), eye_h: 0.0 };
+        w.eye_h = w.surface_h(2.75, 5.55);
+        w.teeth = Self::dentition();
+        w.locks = w.fur_locks();
+        w
     }
-    /// The surface point under face point (`x`, `u`), raised `lift`.
+    /// The head's top surface over face point (`x`, `u`): the stock's, or the head's masses where they stand higher.
+    fn surface_h(&self, x: f64, u: f64) -> f64 {
+        let floor = self.relief.at(x, u);
+        let mut h = 7.0;
+        while h > floor && self.masses([x, u, h]) > 0.0 {
+            h -= 0.1;
+        }
+        if h <= floor {
+            return floor;
+        }
+        let (mut lo, mut hi) = (h, h + 0.1);
+        for _ in 0..24 {
+            let m = 0.5 * (lo + hi);
+            if self.masses([x, u, m]) > 0.0 {
+                hi = m;
+            } else {
+                lo = m;
+            }
+        }
+        lo.max(floor)
+    }
+    /// The surface point over face point (`x`, `u`), raised `lift`.
     fn on(&self, x: f64, u: f64, lift: f64) -> P3 {
-        [x, u, self.relief.at(x, u) + lift]
+        [x, u, self.surface_h(x, u) + lift]
     }
-    /// A flattened cone from `base` toward `tip`, its broad face turned to `face`, hollowed on that side, grooved along its length.
-    fn blade(s: P3, base: P3, tip: P3, face: P3, r: (f64, f64), flat: f64, hollow: f64, strands: f64) -> f64 {
-        let axis = sub(tip, base);
-        let l = len(axis);
-        let a = mul(axis, 1.0 / l);
-        let n0 = sub(face, mul(a, dot(face, a)));
-        let n = mul(n0, 1.0 / len(n0));
-        let w = [a[1] * n[2] - a[2] * n[1], a[2] * n[0] - a[0] * n[2], a[0] * n[1] - a[1] * n[0]];
-        let p = sub(s, base);
-        let local = [dot(p, w), dot(p, a), dot(p, n) * flat];
-        let mut body = round_cone(local, [0.0; 3], [0.0, l, 0.0], r.0, r.1);
-        if strands > 0.0 && body < 0.3 {
-            let half = lerp(r.0, r.1, (local[1] / l).clamp(0.0, 1.0)).max(0.05);
-            let across = local[0] / half;
-            body += strands * (0.5 - 0.5 * (PI * 2.2 * across + 0.7 * local[1]).cos()) * smooth(1.0, 0.6, across.abs());
-        }
-        if hollow <= 0.0 {
-            return body;
-        }
-        let dip = round_cone([local[0] * 1.2, local[1], local[2] - hollow * flat], [0.0, 0.2 * l, 0.0], [0.0, 0.9 * l, 0.0], 0.7 * r.0, 0.05);
-        smax(body, -dip, 0.15)
-    }
-    /// Surface normal of the stock under face point (`x`, `u`), from the relief's slope.
+    /// The top surface's normal over face point (`x`, `u`).
     fn up(&self, x: f64, u: f64) -> P3 {
-        let e = 0.3;
-        let gx = self.relief.at(x + e, u) - self.relief.at(x - e, u);
-        let gu = self.relief.at(x, u + e) - self.relief.at(x, u - e);
+        let e = 0.25;
+        let gx = self.surface_h(x + e, u) - self.surface_h(x - e, u);
+        let gu = self.surface_h(x, u + e) - self.surface_h(x, u - e);
         let n = [-gx, -gu, 2.0 * e];
         mul(n, 1.0 / len(n))
     }
-    /// A pointed flame of fur swept along a curve on the surface from `root`, `deg` from +x toward +u, `l` long:
-    /// `bend` bows its middle and `curl` its tip sideways, `w` its root half-width; three strands converge at the tip.
-    fn lock(&self, s: P3, root: (f64, f64), deg: f64, l: f64, bend: f64, w: f64) -> f64 {
-        self.lock_from(s, root, None, deg, l, bend, w)
-    }
-    /// [`Self::lock`] starting at height `root_h` and draping onto the surface by 60% of its length.
-    fn lock_from(&self, s: P3, root: (f64, f64), root_h: Option<f64>, deg: f64, l: f64, bend: f64, w: f64) -> f64 {
-        let (sn, cs) = deg.to_radians().sin_cos();
-        let centre = (root.0 + 0.5 * l * cs, root.1 + 0.5 * l * sn);
-        if (s[0] - centre.0).hypot(s[1] - centre.1) > 0.5 * l + w + 1.0 {
-            return 1.0 + (s[0] - centre.0).hypot(s[1] - centre.1) - 0.5 * l - w;
-        }
-        let n = if root_h.is_some() {
-            let (sn, cs) = deg.to_radians().sin_cos();
-            self.up(root.0 + 0.6 * l * cs, root.1 + 0.6 * l * sn)
-        } else {
-            self.up(root.0, root.1)
-        };
-        let flat = 2.3;
-        let squash = |p: P3, o: P3| {
-            let d = sub(p, o);
-            let k = dot(d, n);
-            add(o, add(sub(d, mul(n, k)), mul(n, k * flat)))
-        };
-        let steps = 9;
-        let pts: Vec<(P3, f64)> = (0..=steps)
-            .map(|i| {
-                let t = i as f64 / steps as f64;
-                let b = bend * (PI * t).sin() - 0.6 * bend * t * t;
-                let (x, u) = (root.0 + t * l * cs - b * sn, root.1 + t * l * sn + b * cs);
-                let lift = lerp(0.2 + 0.3 * w, 0.05, t.powf(0.7));
-                let r = w * (1.0 - t).powf(0.75) + 0.05;
-                let mut p = self.on(x, u, lift);
-                if let Some(h) = root_h {
-                    p[2] = p[2].max(lerp(h, p[2], smooth(0.0, 0.6, t)));
-                }
-                (p, r)
-            })
-            .collect();
-        let o = pts[0].0;
-        let q = squash(s, o);
-        let mut best = (f64::MAX, 0usize);
-        for i in 0..steps {
-            let (a, ra) = pts[i];
-            let (b, rb) = pts[i + 1];
-            let d = round_cone(q, squash(a, o), squash(b, o), ra, rb);
-            if d < best.0 {
-                best = (d, i);
+    /// Four teeth a jaw a side: a canine crossing in front of the fang's root, two premolars and a molar at the corner,
+    /// each a thick body with a short point, standing clear of the stone.
+    fn dentition() -> Vec<Tooth> {
+        let mut teeth = Vec::new();
+        for (side, sx) in [("right", 1.0), ("left", -1.0)] {
+            let m = |p: P3| [p[0] * sx, p[1], p[2]];
+            for (name, a, l, r, lean) in [("upper canine", 58.0, 2.5, 0.62, 8.0), ("upper premolar", 42.0, 1.35, 0.52, 2.0), ("upper second premolar", 30.0, 1.05, 0.52, 1.0), ("upper molar", 20.0, 0.85, 0.54, 0.0)] {
+                let (rho, h) = upper_lip(a);
+                let root = rim(rho + 0.35, a, h - 0.15);
+                let tip = rim(KEEP_OUT_MM + 0.55, a + lean, (h - 0.15 - l).max(GUM_H + 0.1));
+                let knee = lerp3(root, tip, 0.82);
+                teeth.push(Tooth { name: format!("{name}, {side}"), root: m(root), knee: m(knee), tip: m(tip), r: [r, 0.48, 0.08] });
+            }
+            for (name, a, l, r, lean) in [("lower canine", -58.0, 2.2, 0.6, -8.0), ("lower premolar", -43.0, 1.2, 0.52, -2.0), ("lower second premolar", -31.0, 0.95, 0.52, -1.0), ("lower molar", -21.0, 0.8, 0.54, 0.0)] {
+                let (rho, h) = lower_lip(a);
+                let root = rim(rho + 0.35, a, h - 0.2);
+                let tip = rim(KEEP_OUT_MM + 0.55, a + lean, h - 0.2 + l);
+                let knee = lerp3(root, tip, 0.82);
+                teeth.push(Tooth { name: format!("{name}, {side}"), root: m(root), knee: m(knee), tip: m(tip), r: [r, 0.48, 0.08] });
             }
         }
-        let (mut d, i) = best;
-        if d < 0.25 {
-            let (a, ra) = pts[i];
-            let (b, rb) = pts[i + 1];
-            let dir = sub(b, a);
-            let side = cross(n, dir);
-            let side = mul(side, 1.0 / len(side).max(1e-9));
-            let t = (dot(sub(s, a), dir) / dot(dir, dir)).clamp(0.0, 1.0);
-            let across = dot(sub(s, a), side) / lerp(ra, rb, t).max(0.05);
-            d += 0.07 * (0.5 - 0.5 * (3.0 * PI * across).cos()) * smooth(1.1, 0.7, across.abs());
+        teeth
+    }
+    /// A lock over the head's top surface from `root` along `deg` (+x toward +u), `l` long, bowed by `bend`, `w`
+    /// half-wide at its widest, pointed at both ends; shortened to end on its surface where that surface falls away.
+    fn lock_path(&self, root: (f64, f64), deg: f64, l: f64, bend: f64, w: f64) -> Vec<(P3, f64)> {
+        let path = self.lock_try(root, deg, l, bend, w);
+        if path.len() == 11 {
+            return path;
         }
-        d
+        let keep = (path.len().saturating_sub(2)) as f64 / 10.0;
+        self.lock_try(root, deg, l * keep.max(0.3), bend * keep.max(0.3), w)
+    }
+    fn lock_try(&self, root: (f64, f64), deg: f64, l: f64, bend: f64, w: f64) -> Vec<(P3, f64)> {
+        let (sn, cs) = deg.to_radians().sin_cos();
+        let mut last_h = f64::NAN;
+        (0..=10)
+            .map_while(|i| {
+                let t = i as f64 / 10.0;
+                let b = bend * (PI * t).sin() - 0.5 * bend * t * t;
+                let (x, u) = (root.0 + t * l * cs - b * sn, root.1 + t * l * sn + b * cs);
+                let r = w * (PI * t.powf(0.55)).sin().max(0.0).powf(0.75) + 0.04;
+                let p = self.on(x, u, 0.12 * r);
+                if !last_h.is_nan() && (p[2] - last_h).abs() > 1.2 {
+                    return None;
+                }
+                last_h = p[2];
+                Some((p, r))
+            })
+            .collect()
+    }
+    fn fur_locks(&self) -> Vec<Lock> {
+        let mut locks = Vec::new();
+        // Three overlapping tiers on each cheek sweeping back toward the ears and neck: short by the eyes, long at the
+        // jowls, the outer tier running on over the head's walls onto the painted ruff.
+        let tiers: [(&str, f64, &[(f64, f64, f64, f64, f64)]); 3] = [
+            ("jowl", 3.0, &[(6.6, 3.6, 34.0, 3.8, 0.95), (6.9, 1.6, 28.0, 4.2, 1.0), (6.9, -0.4, 22.0, 4.4, 1.0), (6.6, -2.4, 18.0, 4.0, 0.95)]),
+            ("cheek", 2.8, &[(5.2, 4.6, 52.0, 3.0, 0.85), (5.5, 2.8, 44.0, 3.3, 0.88), (5.6, 1.0, 38.0, 3.4, 0.9), (5.5, -0.8, 32.0, 3.2, 0.88), (5.2, -2.6, 28.0, 2.9, 0.85)]),
+            ("face", 2.6, &[(3.9, 4.1, 72.0, 2.3, 0.72), (4.1, 2.6, 64.0, 2.5, 0.75), (4.2, 1.1, 56.0, 2.6, 0.76), (4.1, -0.4, 50.0, 2.4, 0.74), (3.9, -1.9, 44.0, 2.2, 0.72)]),
+        ];
+        for (sx, side) in [(1.0, "right"), (-1.0, "left")] {
+            for (tier, flat, specs) in tiers {
+                for (k, &(x, u, deg, l, w)) in specs.iter().enumerate() {
+                    let deg = if sx > 0.0 { deg } else { 180.0 - deg };
+                    let bend = 0.22 * l * if k % 2 == 0 { 1.0 } else { -0.7 };
+                    let path = self.lock_path((x * sx, u), deg, l, bend * sx, w);
+                    if path.len() < 4 {
+                        continue;
+                    }
+                    let mid = path[path.len() / 2].0;
+                    let n = self.up(mid[0], mid[1]);
+                    locks.push(Lock::new(format!("{tier} lock {} {side}", k + 1), path, n, flat));
+                }
+            }
+        }
+        // A short tuft hanging from the chin.
+        let pts: Vec<(P3, f64)> = (0..=8)
+            .map(|i| {
+                let t = i as f64 / 8.0;
+                (lerp3([0.0, MOON_U - 7.7, -0.4], [0.0, MOON_U - 8.6, -1.9], t), 0.6 * (1.0 - t).powf(0.8) + 0.04)
+            })
+            .collect();
+        locks.push(Lock::new("chin tuft".into(), pts, [0.0, -0.83, 0.55], 1.6));
+        locks
+    }
+    /// A raised fold of skin along a bowed curve from `a` to `b` (face `x`, `u`), dying out toward `b`.
+    fn fold(q: P3, a: (f64, f64), b: (f64, f64), bow: f64, amp: f64) -> f64 {
+        let mid = (0.5 * (a.0 + b.0), 0.5 * (a.1 + b.1) + bow);
+        let mut best = (f64::MAX, 0.0);
+        for i in 0..=16 {
+            let t = i as f64 / 16.0;
+            let x = (1.0 - t) * (1.0 - t) * a.0 + 2.0 * t * (1.0 - t) * mid.0 + t * t * b.0;
+            let u = (1.0 - t) * (1.0 - t) * a.1 + 2.0 * t * (1.0 - t) * mid.1 + t * t * b.1;
+            let d = (q[0] - x).hypot(q[1] - u);
+            if d < best.0 {
+                best = (d, t);
+            }
+        }
+        let taper = smooth(0.0, 0.2, best.1) * (1.0 - smooth(0.45, 1.0, best.1));
+        amp * (-(best.0 / 0.13).powi(2)).exp() * taper
+    }
+    /// The muzzle: a narrow trapezoid section with a flat nasal bridge, from the stop to the nose.
+    fn muzzle(s: P3) -> f64 {
+        let (st, nz) = ([0.0, 5.7, 1.35], [0.0, 1.55, 3.05]);
+        let axis = sub(nz, st);
+        let l = len(axis);
+        let a = mul(axis, 1.0 / l);
+        let b = [0.0, a[2], -a[1]];
+        let ps = sub(s, st);
+        let t = dot(ps, a) / l;
+        let tc = t.clamp(0.0, 1.0);
+        let sec = [s[0], dot(ps, b)];
+        let body = trapezoid(sec, lerp(2.0, 1.35, tc), lerp(1.0, 0.72, tc), lerp(1.75, 1.45, tc)) - 0.28;
+        smax(body, (t - 1.0) * l, 0.3).max(-t * l - 1.0)
+    }
+    /// The furred masses: skull, cheeks, the jaws with their gums, tongue and chin, and the throat under them.
+    fn hide_masses(s: P3) -> f64 {
+        let skull = ellipsoid(sub(s, [0.0, 7.1, -0.8]), [5.0, 3.1, 3.3]);
+        let cheek = ellipsoid(sub(s, [5.0, 2.7, -1.1]), [2.7, 3.3, 1.85]);
+        let d = smin(skull, cheek, 1.2);
+        let rho = s[0].hypot(s[1] - MOON_U);
+        let ang = (s[1] - MOON_U).atan2(s[0]).to_degrees();
+        let (ur, uh) = upper_lip(ang);
+        let ua = ang.clamp(CORNER_DEG, 90.0);
+        let upper = round_cone(s, rim(ur + 1.3, ua, -1.4), rim(ur + 0.4, ua, uh), 1.3, 0.42);
+        let (lr, lh) = lower_lip(ang);
+        let la = ang.clamp(-90.0, -CORNER_DEG);
+        let ramus = round_cone(s, rim(lr + 0.95, la, -0.55), rim(lr + 0.42, la, lh), 0.62, 0.42);
+        let chin = ellipsoid(sub(s, [0.0, MOON_U - 7.3, -0.3]), [1.45, 1.0, 1.0]);
+        let tongue = ellipsoid(sub(s, [0.0, MOON_U - 5.95, GUM_H + 0.05]), [1.6, 0.75, 0.38]);
+        let tongue = tongue + 0.08 * (-(s[0] / 0.18).powi(2)).exp() * smooth(0.5, 0.0, tongue.abs());
+        let beyond = |deg: f64| deg.to_radians() * rho.max(1.0);
+        let gums = if ang >= 0.0 { (rho - ur - 0.2).max(s[2] - GUM_H).max(beyond(CORNER_DEG - ang)) } else { (rho - lr - 0.2).max(s[2] - GUM_H).max(beyond(ang + CORNER_DEG)) };
+        let jaws = smin(smin(upper, smin(ramus, chin, 0.6), 0.3), smin(gums.max(-1.6 - s[2]), tongue, 0.25), 0.3);
+        let throat = round_cone(s, [0.0, MOON_U - 6.2, -0.9], [0.0, MOON_U - 5.2, -3.4], 2.3, 1.7);
+        let throat = smax(throat, -(s[2] + 0.2 - 0.15 * s[0] * s[0]), 0.5);
+        smin(d, smin(jaws, throat, 0.8), 0.6)
+    }
+    /// Smooth features on the masses: brows, muzzle, nose and ears, with the mouth's corners open.
+    fn features(s: P3, d: f64) -> f64 {
+        let brow = round_cone(s, [1.1, 5.8, 3.05], [3.75, 7.35, 2.45], 0.52, 0.4);
+        let mut d = smin(d, brow, 0.5);
+        d = smin(d, Self::muzzle(s), 0.9);
+        let nose = ellipsoid(sub(s, [0.0, 1.25, 4.15]), [1.45, 0.92, 0.95]);
+        d = smin(d, nose, 0.45);
+        d = smax(d, -Self::corner(s), 0.3);
+        smin(d, Self::ear(s), 0.8)
+    }
+    /// The open corner of the mouth at the moon's side, down to the table.
+    fn corner(s: P3) -> f64 {
+        round_cone([s[0], s[1], 0.0], rim(5.2, 0.0, 0.0), rim(7.2, -4.0, 0.0), 1.0, 0.55).max(-0.2 - s[2])
+    }
+    /// The head's masses and smooth features without fur or detail, which the fur's locks lie on.
+    fn masses(&self, q: P3) -> f64 {
+        let s = [q[0].abs(), q[1], q[2]];
+        Self::features(s, Self::hide_masses(s))
     }
     fn head(&self, q: P3) -> f64 {
         let s = [q[0].abs(), q[1], q[2]];
-        let skull = ellipsoid(sub(s, [0.0, 7.0, -1.0]), [5.4, 3.3, 3.5]);
-        let cheek = ellipsoid(sub(s, [5.3, 3.0, -1.1]), [2.8, 3.5, 2.6]);
-        let mut d = smin(skull, cheek, 1.3);
-        if d < 0.3 {
-            let phi = (s[1] - 5.9).atan2(s[0]);
-            let r = s[0].hypot(s[1] - 5.9);
-            d += 0.08 * smooth(2.0, 2.8, r) * (0.5 - 0.5 * (phi * 18.0).cos());
+        let hide = Self::hide_masses(s);
+        let hide = hide - 0.32 * pelt(s) * smooth(0.6, 0.0, hide.abs());
+        let mut d = Self::features(s, hide);
+        let near = smooth(0.6, 0.0, d.abs());
+        // The stop furrow between the brows.
+        d += 0.3 * near * (-(q[0] / 0.2).powi(2)).exp() * smooth(5.5, 6.1, q[1]) * (1.0 - smooth(8.3, 9.0, q[1]));
+        // Three raised folds across the bridge, unequal and bowed toward the eyes on alternating sides; two by each nose corner.
+        let folds = Self::fold(q, (2.3, 2.3), (0.25, 2.8), 0.22, 0.15)
+            + Self::fold(q, (-1.85, 3.4), (-0.3, 3.85), 0.26, 0.14)
+            + Self::fold(q, (1.35, 4.6), (0.3, 4.8), 0.18, 0.12)
+            + Self::fold(s, (1.35, 1.05), (2.55, 1.75), 0.1, 0.11)
+            + Self::fold(s, (1.2, 0.65), (2.45, 1.15), -0.08, 0.09);
+        d -= folds * near;
+        // Nostrils with a septum between them, and the groove under the nose.
+        d = smax(d, -ellipsoid(sub(s, [0.7, 0.9, 4.6]), [0.3, 0.24, 0.36]), 0.18);
+        d += 0.12 * near * (-(s[0] / 0.16).powi(2)).exp() * smooth(1.0, 0.6, s[1]) * smooth(0.2, 0.45, s[1]);
+        // Eyes sunk under the brows: a pocket into the surface, continuous with the brow, a low ball with a drilled pupil.
+        let eye = turn(sub(s, [2.75, 5.55, self.eye_h + 0.2]), 0, 1, -28.0);
+        d = smax(d, -ellipsoid(eye, [1.45, 0.72, 0.62]), 0.3);
+        let ball = ellipsoid(sub(eye, [0.0, -0.05, -0.84]), [1.2, 0.52, 0.34]);
+        let ball = smax(ball, -ellipsoid(sub(eye, [0.2, -0.02, -0.5]), [0.24, 0.24, 0.2]), 0.12);
+        d = smin(d, ball, 0.18);
+        let teeth = self.teeth.iter().fold(f64::MAX, |m, t| m.min(t.sdf(q)));
+        d = smin(d, teeth, 0.15);
+        let fur = self.locks.iter().fold(f64::MAX, |m, l| m.min(l.sdf(q)));
+        let d = smin(d, fur, 0.35);
+        smax(d, -Self::corner(s), 0.3)
+    }
+    /// The feature a face point lies on, and that feature's tip.
+    fn label(&self, q: P3) -> (String, P3) {
+        let s = [q[0].abs(), q[1], q[2]];
+        let side = if q[0] >= 0.0 { "right" } else { "left" };
+        let mut best = ("head".to_string(), q, f64::MAX);
+        let mut take = |name: String, d: f64, tip: P3| {
+            if d.abs() < best.2 {
+                best = (name, tip, d.abs());
+            }
+        };
+        take(format!("ear, {side}"), Self::ear(s), [5.9 * q[0].signum(), 9.8, 4.2]);
+        for t in &self.teeth {
+            take(t.name.clone(), t.sdf(q), t.tip);
         }
-        let brow = ellipsoid(turn(sub(s, [2.65, 6.45, 2.65]), 0, 1, -24.0), [2.05, 0.66, 0.75]);
-        d = smin(d, brow, 0.8);
-        let muzzle = round_cone(s, [0.0, 6.0, 1.9], [0.0, 1.8, 3.7], 1.85, 1.4);
-        let pads = round_cone(s, [1.15, 1.7, 3.2], [2.3, 5.3, 1.6], 1.15, 1.5);
-        d = smin(d, smin(muzzle, pads, 0.9), 1.1);
-        // The fold between muzzle and cheek, from the eye's inner corner to the corner of the lip.
-        let fold = round_cone(s, [2.15, 5.1, 2.55], [3.7, 1.2, 2.0], 0.22, 0.16);
-        d = smax(d, -fold, 0.3);
-        let nose = ellipsoid(sub(s, [0.0, 1.35, 4.2]), [1.7, 1.0, 1.0]);
-        d = smin(d, nose, 0.5);
-        // Upper and lower jaws as two masses over the mouth's region, the chin under them.
-        let upper = ellipsoid(sub(s, [0.0, MOON_U + 3.2, -0.2]), [7.0, 4.6, 3.2]);
-        d = smin(d, upper, 1.2);
-        // A slender mandible along the moon's lower arc, the chin at its point.
-        let mut mandible = f64::MAX;
-        let arc = |a: f64| Self::rim(6.05, a, lerp(0.35, 0.15, smooth(-38.0, -90.0, a)));
-        for k in 0..24 {
-            let (a0, a1) = (lerp(-30.0, -90.0, k as f64 / 24.0), lerp(-30.0, -90.0, (k + 1) as f64 / 24.0));
-            let (r0, r1) = (lerp(0.95, 0.8, (-30.0 - a0) / 60.0), lerp(0.95, 0.8, (-30.0 - a1) / 60.0));
-            mandible = mandible.min(round_cone(s, arc(a0), arc(a1), r0, r1));
+        for l in &self.locks {
+            take(l.name.clone(), l.sdf(q), l.pts.last().unwrap().0);
         }
-        let chin = ellipsoid(sub(s, [0.0, MOON_U - 6.55, -0.15]), [1.9, 1.05, 1.1]);
-        d = smin(d, smin(mandible, chin, 0.6), 0.9);
-        for u in [2.5, 3.1, 3.7, 4.3, 4.9] {
-            let h = 3.75 + (6.0 - u) / 4.2 * 1.35 - 0.05;
-            let groove = round_cone(s, [0.0, u, h + 0.05], [1.5, u + 0.35, h - 0.65], 0.2, 0.14);
-            d = smax(d, -groove, 0.15);
+        if best.2 > 0.08 {
+            return ("head mass".into(), q);
         }
-        let nostril = ellipsoid(sub(s, [0.62, 0.95, 4.75]), [0.4, 0.28, 0.4]);
-        d = smax(d, -nostril, 0.12);
-        let eye = turn(sub(s, [3.0, 5.85, 2.45]), 0, 1, -26.0);
-        d = smax(d, -ellipsoid(sub(eye, [0.0, 0.0, 0.5]), [1.6, 0.72, 0.42]), 0.2);
-        let ball = ellipsoid(sub(eye, [0.0, -0.05, 0.28]), [1.35, 0.55, 0.3]);
-        let ball = smax(ball, -ellipsoid(sub(eye, [0.22, -0.02, 0.6]), [0.26, 0.26, 0.2]), 0.06);
-        d = smin(d, ball, 0.1);
-
-        // A gum channel carved round the moon, its floor over the fangs' collar, and snarl creases at the corners.
-        let rho = s[0].hypot(s[1] - MOON_U);
-        let mouth = (rho - 5.9).max(1.0 - s[2]);
-        d = smax(d, -mouth, 0.3);
-        let crease = round_cone([s[0], s[1], 0.0], [5.7, MOON_U - 0.5, 0.0], [7.7, MOON_U - 2.7, 0.0], 0.55, 0.15).max(0.9 - s[2]);
-        d = smax(d, -crease, 0.25);
-        // Teeth rooted in the jaws' walls: canines longest, crossing at the moon's side, incisors toward the fangs.
-        let tooth = |root: (f64, f64, f64), tip: (f64, f64, f64), fat: f64| round_cone(s, Self::rim(root.0, root.1, root.2), Self::rim(tip.0, tip.1, tip.2), fat, 0.1);
-        let mut teeth = f64::MAX;
-        teeth = teeth.min(tooth((6.5, 33.0, 1.9), (5.3, 6.0, 0.9), 0.6));
-        teeth = teeth.min(tooth((6.5, -35.0, 0.9), (5.4, -10.0, 1.9), 0.55));
-        for (a, fat) in [(48.0, 0.42), (60.0, 0.38)] {
-            teeth = teeth.min(tooth((6.35, a, 2.0), (5.3, a - 3.0, 1.1), fat));
-        }
-        for (a, fat) in [(-49.0, 0.4), (-61.0, 0.36)] {
-            teeth = teeth.min(tooth((6.35, a, 0.7), (5.3, a + 3.0, 1.45), fat));
-        }
-        teeth = teeth.min(tooth((6.5, 17.0, 1.5), (5.55, 15.0, 1.0), 0.45));
-        d = smin(d, teeth, 0.12);
-        let ear = Self::blade(s, [4.3, 7.9, 1.6], [5.9, 9.8, 4.2], [0.0, -0.75, 1.0], (1.95, 0.25), 2.4, 0.55, 0.0);
-        d = smin(d, ear, 0.9);
-        // Cheek tufts framing the face, and a beard hanging from the chin.
-        let mut fur = f64::MAX;
-        for (x, u, deg, l, bend, w) in [
-            (6.0, 6.3, 52.0, 2.6, 0.35, 1.0),
-            (6.6, 5.1, 36.0, 2.8, 0.4, 1.05),
-            (7.0, 3.7, 18.0, 3.0, 0.45, 1.1),
-            (7.2, 2.2, 2.0, 3.1, 0.45, 1.1),
-            (7.2, 0.6, -14.0, 3.1, 0.45, 1.1),
-            (7.1, -1.0, -30.0, 3.0, 0.45, 1.05),
-            (6.8, -2.6, -46.0, 2.8, 0.4, 1.0),
-            (6.3, -4.1, -62.0, 2.6, 0.35, 0.95),
-        ] {
-            fur = smin(fur, self.lock(s, (x, u), deg, l, bend, w), 0.45);
-        }
-        d = smin(d, fur, 0.35);
-        d
+        (best.0, best.1)
+    }
+    /// A pricked ear laid forward over the head's top corner: a curved triangular plate 1.1 mm thick with a rolled rim,
+    /// cupped 0.25 mm deep on its outer face.
+    fn ear(s: P3) -> f64 {
+        let (base, tip) = ([4.3, 7.9, 1.6], [5.9, 9.8, 4.2]);
+        let axis = sub(tip, base);
+        let l = len(axis);
+        let a = mul(axis, 1.0 / l);
+        let face = [0.0, -0.75, 1.0];
+        let n0 = sub(face, mul(a, dot(face, a)));
+        let n = mul(n0, 1.0 / len(n0));
+        let w = cross(a, n);
+        let p = sub(s, base);
+        let (x, y, z) = (dot(p, w), dot(p, a), dot(p, n));
+        let t = (y / l).clamp(0.0, 1.0);
+        let half = 1.8 * (1.0 - t).powf(0.85);
+        let outline = (x.abs() - half).max(-y).max(y - l) * 0.9;
+        let z = z - 0.35 * t * t;
+        let (r, h) = (0.5, 0.55);
+        let q = [outline + r, z.abs() - h + r];
+        let plate = len([q[0].max(0.0), q[1].max(0.0), 0.0]) + q[0].max(q[1]).min(0.0) - r;
+        let cup = ellipsoid([x / (0.62 * half.max(0.05)), y - 0.5 * l, z - (h + 0.9)], [1.0, 0.36 * l, 1.15]);
+        smax(plate, -cup, 0.25)
     }
     fn sdf(&self, p: P3) -> f64 {
         let q = self.face(p);
         let d = self.head(q);
         let rho = q[0].hypot(q[1] - MOON_U);
         let keep = (KEEP_OUT_MM - rho).min(q[2] - 0.1);
-        let d = smax(d, keep, 0.12);
-        let d = smax(d, -(self.stock.at(p) + BURY_MM), 0.3);
+        let d = smax(d, keep, 0.2);
+        let g = self.stock.at(p);
+        // A skirt just under the stock's surface near the head, so the head meets the stock tangentially.
+        let d = smin(d, (g + 0.08).max(d - 0.9), 0.45);
+        let d = smax(d, -(g + BURY_MM), 0.3);
         smax(d, self.bore + BORE_CLEAR_MM - p[0].hypot(p[1]), 0.2)
     }
 }
@@ -446,11 +675,24 @@ struct Nets {
     f: Vec<[u32; 3]>,
 }
 
-/// A closed 2-manifold from a sampled distance field by marching tetrahedra on the Kuhn split of each cube.
+/// A closed 2-manifold from a sampled distance field by marching tetrahedra on the Kuhn split of each cube,
+/// the field sampled only in blocks a coarse pass finds within reach of the surface.
 fn tetra_mesh(lo: P3, hi: P3, step: f64, field: &(dyn Fn(P3) -> f64 + Sync)) -> Nets {
     use std::collections::HashMap;
     let n: [usize; 3] = std::array::from_fn(|k| ((hi[k] - lo[k]) / step).ceil() as usize + 1);
     let at = |i: usize, j: usize, k: usize| -> P3 { [lo[0] + i as f64 * step, lo[1] + j as f64 * step, lo[2] + k as f64 * step] };
+    const B: usize = 8;
+    let nb: [usize; 3] = std::array::from_fn(|k| (n[k] - 1).div_ceil(B));
+    let reach = 2.5 * step * B as f64 * 3f64.sqrt();
+    let live: Vec<bool> = (0..nb[0] * nb[1] * nb[2])
+        .into_par_iter()
+        .map(|m| {
+            let (bi, bj, bk) = (m % nb[0], (m / nb[0]) % nb[1], m / (nb[0] * nb[1]));
+            let c = at(bi * B + B / 2, bj * B + B / 2, bk * B + B / 2);
+            field(c).abs() < reach
+        })
+        .collect();
+    let block = |i: usize, j: usize, k: usize| live[((k / B).min(nb[2] - 1) * nb[1] + (j / B).min(nb[1] - 1)) * nb[0] + (i / B).min(nb[0] - 1)];
     let values: Vec<f32> = (0..n[2])
         .into_par_iter()
         .flat_map_iter(|k| {
@@ -458,7 +700,10 @@ fn tetra_mesh(lo: P3, hi: P3, step: f64, field: &(dyn Fn(P3) -> f64 + Sync)) -> 
             for j in 0..n[1] {
                 for i in 0..n[0] {
                     let border = i == 0 || j == 0 || k == 0 || i == n[0] - 1 || j == n[1] - 1 || k == n[2] - 1;
-                    let v = if border { 1.0 } else { field(at(i, j, k)) as f32 };
+                    let near = [(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0), (1, 0, 1), (0, 1, 1), (1, 1, 1)]
+                        .iter()
+                        .any(|&(a, b, c)| block(i.saturating_sub(a), j.saturating_sub(b), k.saturating_sub(c)));
+                    let v = if border { 1.0 } else if near { field(at(i, j, k)) as f32 } else { 1.0 };
                     slab.push(if v.abs() < 1e-5 { 1e-5 } else { v });
                 }
             }
@@ -523,9 +768,88 @@ fn cross(a: P3, b: P3) -> P3 {
     [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
 }
 
+/// The field's gradient at `p` by central differences.
+fn gradient(field: &(dyn Fn(P3) -> f64 + Sync), p: P3) -> P3 {
+    let e = 1e-3;
+    std::array::from_fn(|k| {
+        let (mut a, mut b) = (p, p);
+        a[k] += e;
+        b[k] -= e;
+        (field(a) - field(b)) / (2.0 * e)
+    })
+}
+
+/// Relax each vertex toward its neighbours' centroid within its tangent plane, then step it back onto the surface.
+/// Vertices where the surface turns sharply stay put, no vertex moves more than a third of its shortest edge, and a
+/// triangle that turns over puts its corners back.
+fn relax(mesh: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), rounds: usize) {
+    let mut ring: Vec<Vec<u32>> = vec![Vec::new(); mesh.v.len()];
+    for t in &mesh.f {
+        for e in 0..3 {
+            let (a, b) = (t[e], t[(e + 1) % 3]);
+            ring[a as usize].push(b);
+            ring[b as usize].push(a);
+        }
+    }
+    for r in &mut ring {
+        r.sort_unstable();
+        r.dedup();
+    }
+    let unit = |g: P3| mul(g, 1.0 / len(g).max(1e-12));
+    for _ in 0..rounds {
+        let normals: Vec<P3> = mesh.v.par_iter().map(|p| unit(gradient(field, *p))).collect();
+        let before = mesh.v.clone();
+        let next: Vec<P3> = (0..mesh.v.len())
+            .into_par_iter()
+            .map(|i| {
+                let p = before[i];
+                let n = normals[i];
+                if ring[i].iter().any(|j| dot(normals[*j as usize], n) < 0.87) {
+                    return p;
+                }
+                let shortest = ring[i].iter().map(|j| len(sub(before[*j as usize], p))).fold(f64::MAX, f64::min);
+                let c = ring[i].iter().fold([0.0; 3], |s, j| add(s, before[*j as usize]));
+                let c = mul(c, 1.0 / ring[i].len().max(1) as f64);
+                let dv = sub(c, p);
+                let dv = mul(sub(dv, mul(n, dot(dv, n))), 0.5);
+                let cap = shortest / 3.0;
+                let dv = if len(dv) > cap { mul(dv, cap / len(dv)) } else { dv };
+                let mut q = add(p, dv);
+                for _ in 0..2 {
+                    let f = field(q);
+                    let g = gradient(field, q);
+                    let step = mul(g, f / dot(g, g).max(1e-9));
+                    if len(step) > cap {
+                        return p;
+                    }
+                    q = sub(q, step);
+                }
+                q
+            })
+            .collect();
+        mesh.v = next;
+        let mut undo = vec![false; mesh.v.len()];
+        for t in &mesh.f {
+            let [a, b, c] = t.map(|x| mesh.v[x as usize]);
+            let nf = cross(sub(b, a), sub(c, a));
+            let nv = t.iter().fold([0.0; 3], |s, x| add(s, normals[*x as usize]));
+            if dot(nf, nv) <= 0.3 * len(nf) * len(nv) {
+                for &x in t {
+                    undo[x as usize] = true;
+                }
+            }
+        }
+        for (i, u) in undo.iter().enumerate() {
+            if *u {
+                mesh.v[i] = before[i];
+            }
+        }
+    }
+}
+
 /// Quadric edge-collapse decimation of a closed manifold to `target` faces, never past `max_cost` or a collapse
-/// that breaks the link condition, flips a face or leaves one sharper than `min_deg`.
-fn decimate(mesh: &Nets, target: usize, max_cost: f64, min_deg: f64) -> Nets {
+/// that breaks the link condition, turns a face more than `max_turn_deg` or leaves one sharper than `min_deg`.
+fn decimate(mesh: &Nets, target: usize, max_cost: f64, min_deg: f64, max_turn_deg: f64) -> Nets {
     use std::cmp::Ordering;
     use std::collections::{BinaryHeap, HashSet};
     #[derive(PartialEq)]
@@ -624,6 +948,7 @@ fn decimate(mesh: &Nets, target: usize, max_cost: f64, min_deg: f64) -> Nets {
     }
     let mut count = faces.len();
     let min_cos = min_deg.to_radians().cos();
+    let turn_cos = max_turn_deg.to_radians().cos();
     while count > target {
         let Some(Item(cost, a, b, va, vb)) = heap.pop() else { break };
         if cost > max_cost {
@@ -659,7 +984,7 @@ fn decimate(mesh: &Nets, target: usize, max_cost: f64, min_deg: f64) -> Nets {
             let old = t.map(|x| pos[x as usize]);
             let new = t.map(|x| if x == a || x == b { p } else { pos[x as usize] });
             let (n0, n1) = (cross(sub(old[1], old[0]), sub(old[2], old[0])), cross(sub(new[1], new[0]), sub(new[2], new[0])));
-            if len(n1) < 1e-10 || dot(n0, n1) <= 0.3 * len(n0) * len(n1) {
+            if len(n1) < 1e-10 || dot(n0, n1) <= turn_cos * len(n0) * len(n1) {
                 ok = false;
                 break;
             }
@@ -720,15 +1045,15 @@ fn decimate(mesh: &Nets, target: usize, max_cost: f64, min_deg: f64) -> Nets {
 
 /// [`decimate`] to `target` faces, backing off toward the raw mesh until the result does not cross itself.
 fn clean_decimate(raw: &Nets, target: usize) -> Nets {
-    for (k, cap) in [3e-3, 1.5e-3, 7e-4, 3e-4].into_iter().enumerate() {
-        let nets = decimate(raw, target + 15_000 * k, cap, 1.5 + k as f64);
+    for (k, cap) in [2e-3, 1e-3, 5e-4, 2e-4].into_iter().enumerate() {
+        let nets = decimate(raw, target + 20_000 * k, cap, 2.0 + k as f64, 18.0);
         let crossings = csg::self_crossings(&csg::Solid { v: nets.v.clone(), f: nets.f.clone() });
         if crossings == 0 {
             return nets;
         }
         println!("  decimation {k}: {crossings} crossings, backing off");
     }
-    decimate(raw, raw.f.len(), 0.0, 0.0)
+    decimate(raw, raw.f.len(), 0.0, 0.0, 0.0)
 }
 
 /// Undirected edges used other than twice, and whether the mesh encloses positive volume.
@@ -742,26 +1067,22 @@ fn closure(v: &[P3], f: &[[u32; 3]]) -> (usize, f64) {
         }
     }
     let bad = uses.values().filter(|u| **u != 1001).count();
-    let vol = f.iter().map(|t| {
-        let [a, b, c] = t.map(|i| v[i as usize]);
-        dot(a, [b[1] * c[2] - b[2] * c[1], b[2] * c[0] - b[0] * c[2], b[0] * c[1] - b[1] * c[0]]) / 6.0
-    }).sum();
+    let vol = f
+        .iter()
+        .map(|t| {
+            let [a, b, c] = t.map(|i| v[i as usize]);
+            dot(a, [b[1] * c[2] - b[2] * c[1], b[2] * c[0] - b[0] * c[2], b[0] * c[1] - b[1] * c[0]]) / 6.0
+        })
+        .sum();
     (bad, vol)
 }
 
 fn to_mesh(nets: &Nets, field: &(dyn Fn(P3) -> f64 + Sync)) -> Mesh {
-    let e = 1e-3;
     let normals: Vec<Vec3> = nets
         .v
         .par_iter()
         .map(|p| {
-            let g: P3 = std::array::from_fn(|k| {
-                let mut a = *p;
-                let mut b = *p;
-                a[k] += e;
-                b[k] -= e;
-                field(a) - field(b)
-            });
+            let g = gradient(field, *p);
             let l = len(g).max(1e-12);
             Vec3((g[0] / l) as f32, (g[1] / l) as f32, (g[2] / l) as f32)
         })
@@ -787,8 +1108,8 @@ fn atlas_rows(d: &RingDesign) -> usize {
 }
 
 /// Marching grid of the head, mm, and the faces it is decimated to.
-const SCULPT_STEP: f64 = 0.11;
-const SCULPT_FACES: usize = 90_000;
+const SCULPT_STEP: f64 = 0.09;
+const SCULPT_FACES: usize = 120_000;
 /// Seam bead where the head meets the stock, mm.
 const HEAD_BLEND_MM: f64 = 0.0;
 /// The ruff's relief and the palm's fetter, mm.
@@ -860,8 +1181,12 @@ fn sculpt_preview(out: &Path, step: f64) -> Result<()> {
     let wolf = wolf_of(&d, &a)?;
     let (lo, hi) = sculpt_box(wolf.table);
     let field = |p: P3| wolf.sdf(p);
-    let raw = tetra_mesh(lo, hi, step, &field);
+    let t = Instant::now();
+    let mut raw = tetra_mesh(lo, hi, step, &field);
+    println!("  marched {} triangles in {:.1} s", raw.f.len(), t.elapsed().as_secs_f64());
+    relax(&mut raw, &field, 3);
     let nets = clean_decimate(&raw, SCULPT_FACES);
+    println!("  relaxed and decimated to {} in {:.1} s", nets.f.len(), t.elapsed().as_secs_f64());
     let sculpt = to_mesh(&nets, &field);
     stone_and_fangs(&mut d)?;
     let lib = AlphaLibrary::builtin();
@@ -873,12 +1198,16 @@ fn sculpt_preview(out: &Path, step: f64) -> Result<()> {
     for (name, yaw, pitch) in [("face", 0.0, PI * 0.5), ("hero", 0.55, 1.0), ("low", 0.3, 0.45), ("side", PI * 0.5, 0.25)] {
         render::write_png_parts(out.join(format!("sculpt-{name}.png")), &parts, yaw, pitch, 800)?;
     }
+    let mut close = vec![Part::metal(&sculpt, render::GOLD), Part::metal(&built.mesh, render::GOLD)];
+    close.extend(gems.iter().map(|(m, tint)| Part::tinted_stone(m, *tint)));
+    render::write_png_parts(out.join("sculpt-close-face.png"), &close, 0.0, PI * 0.5, 1100)?;
+    render::write_png_parts(out.join("sculpt-close-hero.png"), &close, 0.55, 0.95, 1100)?;
     Ok(())
 }
 
 /// The head's grid box in world millimetres over a table at `table`.
 fn sculpt_box(table: f64) -> (P3, P3) {
-    ([-11.0, table - 5.5, -11.5], [11.0, table + 6.5, 13.5])
+    ([-13.5, table - 6.5, -12.5], [13.5, table + 6.8, 15.0])
 }
 
 /// The wolf's field over the design's own stock.
@@ -888,7 +1217,7 @@ fn wolf_of(d: &RingDesign, a: &Atlas) -> Result<Wolf> {
     let coarse = Atlas::of(d, 1024, 384)?;
     let (lo, hi) = sculpt_box(table);
     let stock = Stock::of(&coarse, &relief, table, lo, hi, 0.25);
-    Ok(Wolf { table, bore: d.inner_radius_mm(), relief, stock })
+    Ok(Wolf::new(table, d.inner_radius_mm(), relief, stock))
 }
 
 /// The head as a stored part, joined to the stock.
@@ -896,7 +1225,8 @@ fn head_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
     let t = Instant::now();
     let (lo, hi) = sculpt_box(wolf.table);
     let field = |p: P3| wolf.sdf(p);
-    let raw = tetra_mesh(lo, hi, SCULPT_STEP, &field);
+    let mut raw = tetra_mesh(lo, hi, SCULPT_STEP, &field);
+    relax(&mut raw, &field, 3);
     let nets = clean_decimate(&raw, SCULPT_FACES);
     let (bad, volume) = closure(&nets.v, &nets.f);
     ensure!(bad == 0 && volume > 0.0, "The head does not close: {bad} open edges");
@@ -914,41 +1244,61 @@ fn head_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
     Ok((Feature { id: 4, name: "Fenrir's head".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh }, component: joined(HEAD_BLEND_MM) }, stats))
 }
 
-/// The pelt at hide point (`along` from the head, `across`): height 0..1 and the crest groove 0..1.
-/// A low pelt everywhere, and on it long flames pointed at both ends, bowed in an S, three strands each,
-/// shingled half a lock apart and flowing away from the head.
-fn fur(along: f64, across: f64) -> (f64, f64) {
-    let pitch = 1.3;
-    let length = 5.2;
+/// Where a point falls in a field of flame locks.
+#[derive(Clone, Copy, Default)]
+struct Flame {
+    /// Height 0..1.
+    h: f64,
+    /// Across the winning lock, -1..1.
+    across: f64,
+}
+
+/// Flame locks on a chart where `along` runs with the fur and `across` over it: rows `pitch` apart, locks about `length`
+/// long and shingled half a lock apart, each bowed in an S of `bow` of its length, pointed at both ends, rounded across,
+/// its length varied by a quarter and its heading by ten degrees; neighbours joined by a soft maximum of `soft`.
+fn flames(along: f64, across: f64, pitch: f64, length: f64, bow: f64, soft: f64, seed: i64) -> Flame {
     let step = length * 0.45;
     let row = (across / pitch).round() as i64;
-    let (mut best, mut crest) = (0.0f64, 0.0f64);
+    let mut out = Flame::default();
+    let mut acc = 0.0f64;
     for j in row - 1..=row + 1 {
         let shift = if j.rem_euclid(2) == 0 { 0.0 } else { 0.5 * step };
         let i0 = ((along - shift) / step).floor() as i64;
         for i in i0 - 3..=i0 {
-            let t = (along - shift - i as f64 * step) / length;
+            let len_i = length * (0.75 + 0.5 * skin::hash(i * 7 + seed, j * 13 - seed));
+            let tilt = ((skin::hash(j * 5 + seed, i * 11 + 3 * seed) - 0.5) * 20.0).to_radians();
+            let (ds, dc) = (along - (i as f64 * step + shift), across - j as f64 * pitch);
+            let (sn, cs) = tilt.sin_cos();
+            let (sl, cl) = (ds * cs + dc * sn, -ds * sn + dc * cs);
+            let t = sl / len_i;
             if !(0.0..1.0).contains(&t) {
                 continue;
             }
-            let wave = if (i + j).rem_euclid(2) == 0 { 1.0 } else { -1.0 };
-            let centre = j as f64 * pitch + 0.38 * wave * (1.4 * PI * t + 0.3).sin() + 0.2 * across.signum() * t;
-            let half = 0.62 * pitch * (PI * t.powf(0.7)).sin().max(0.0).powf(0.8);
-            let y = across - centre;
+            let centre = bow * len_i * (2.0 * PI * t).sin() * (PI * t).sin();
+            let half = 0.6 * pitch * (PI * t.powf(0.7)).sin().max(0.0).powf(0.8);
+            let y = cl - centre;
             if y.abs() >= half {
                 continue;
             }
             let q = y / half;
-            let body = (q * PI * 0.5).cos().max(0.0).powf(1.2);
-            let grooves = 0.5 - 0.5 * (3.0 * PI * q).cos();
-            let h = body * (PI * t.powf(0.75)).sin().max(0.0).powf(0.7) * (0.8 + 0.2 * t) * (1.0 - 0.16 * grooves * smooth(0.08, 0.3, t));
-            if h > best {
-                best = h;
-                crest = (1.0 - smooth(0.0, 0.2, q.abs())) * smooth(0.1, 0.3, t) * (1.0 - smooth(0.75, 0.95, t));
+            let h = (q * PI * 0.5).cos().max(0.0).powf(1.2) * (PI * t.powf(0.75)).sin().max(0.0).powf(0.7) * (0.8 + 0.2 * t);
+            if h > out.h {
+                out = Flame { h, across: q };
             }
+            acc = if soft > 0.0 { smax(acc, h, soft) } else { acc.max(h) };
         }
     }
-    (0.28 + 0.72 * best, crest)
+    if soft > 0.0 {
+        out.h = acc;
+    }
+    out
+}
+
+/// The painted pelt at hide point (`along` from the head, `across`): height 0..1, and the hair line 0..1 running along its lock.
+fn fur(along: f64, across: f64) -> (f64, f64) {
+    let f = flames(along, across, 1.3, 4.6, 0.2, 0.0, 17);
+    let hair = (0.5 - 0.5 * (2.0 * PI * f.across * 0.6 * 1.3 / 0.22).cos()) * smooth(0.3, 0.6, f.h);
+    (0.1 + 0.9 * f.h, hair)
 }
 
 /// The Gleipnir cord tile: parallel strands laid in an S across the band, each rounded across by stacked strokes and
@@ -1071,8 +1421,9 @@ fn fold_sites(d: &RingDesign, lib: &AlphaLibrary) -> Result<Vec<P3>> {
 /// A painted alpha stored as portable 16-bit PNG and shown as one tile over the chart.
 fn portable(d: &mut RingDesign, lib: &mut AlphaLibrary, mut alpha: Alpha, height: f64, win: Window, bench: bool) -> Result<()> {
     let name = alpha.name.clone();
+    let levels = if bench { 8.0 } else { 255.0 };
     for v in &mut alpha.data {
-        *v = (*v * 255.0).round() / 255.0;
+        *v = (*v * levels).round() / levels;
     }
     lib.insert(Alpha::from_png16(&name, &alpha.to_png16()?)?);
     let mut layer = skin::hide_layer(d, &name, height, win);
@@ -1090,7 +1441,7 @@ fn window(centre: f64, span: f64) -> Window {
     w
 }
 
-fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value)> {
+fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Wolf)> {
     let mut d = base()?;
     d.build = params;
     let a = Atlas::of(&d, AW, atlas_rows(&d))?;
@@ -1105,19 +1456,20 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value)> {
         d.layers.layers.retain(|e| e.name != "Ruff" && e.name != "Graver's hair lines");
         let clear = |s: &Sample| {
             let r = s.p[0].hypot(s.p[1]);
-            smooth(a.bore + 1.0, a.bore + 1.5, r) * smooth(-0.05, 0.7, wolf.sdf(s.p)) * off_folds(s.p, caps)
+            let q = wolf.face(s.p);
+            let mouth = smooth(7.0, 8.2, q[0].hypot(q[1] - MOON_U));
+            smooth(a.bore + 1.0, a.bore + 1.5, r) * smooth(0.15, 0.8, wolf.sdf(s.p)) * off_folds(s.p, caps) * mouth
         };
         let ruff = a.paint("Ruff", |s| {
             let h = hide.at(s);
-            let (lock, crest) = fur(h.along.abs(), h.across);
-            ((lock - 0.22 * crest * lock) * clear(s)).min(room[s.i] / RUFF_MM)
+            let (lock, _) = fur(h.along.abs(), h.across);
+            (lock * clear(s)).min(room[s.i] / RUFF_MM)
         });
         portable(d, &mut lib, ruff, RUFF_MM, window(90.0, 262.0), false)?;
         let hair = a.paint("Graver's hair lines", |s| {
             let h = hide.at(s);
-            let (lock, _) = fur(h.along.abs(), h.across);
-            let line = (h.across * 7.5 + 0.9 * (h.along.abs() * 0.8).sin()).fract();
-            (1.0 - smooth(0.0, 0.18, (line - 0.5).abs())) * smooth(0.35, 0.6, lock) * clear(s)
+            let (_, line) = fur(h.along.abs(), h.across);
+            line * clear(s)
         });
         portable(d, &mut lib, hair, HAIR_LINES_MM, window(90.0, 262.0), true)?;
         Ok(lib)
@@ -1181,7 +1533,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value)> {
         "ruff_window_deg": [90.0 - 131.0, 90.0 + 131.0],
         "fold_caps": caps.iter().map(|p| json!({"theta_deg": p[1].atan2(p[0]).to_degrees(), "z_mm": p[2], "r_mm": p[0].hypot(p[1])})).collect::<Vec<_>>(),
     });
-    Ok((d, lib, composition))
+    Ok((d, lib, composition, wolf))
 }
 
 fn solid(m: &Mesh) -> csg::Solid {
@@ -1263,6 +1615,7 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
     }
     render::write_png_parts(out.join("face-300.png"), &parts, 0.0, PI * 0.5, 300)?;
+    render::write_png_parts(out.join("hero-300.png"), &parts, 0.55, 0.95, 300)?;
     let mut bare = base()?;
     bare.name = d.name.clone();
     let b = mesh::try_build(&bare, lib, params)?;
@@ -1276,7 +1629,7 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
     let (theta_steps, profile_steps) = if draft { (768, 320) } else { (EXPORT_THETA, 448) };
     let params = BuildParams { theta_steps, profile_steps, refine: None, ..Default::default() };
     let start = Instant::now();
-    let (d, lib, composition) = author(params)?;
+    let (d, lib, composition, wolf) = author(params)?;
     let built = mesh::try_build(&d, &lib, params)?;
     let build_s = start.elapsed().as_secs_f64();
     println!("  built {} triangles in {build_s:.1} s; notes {:?} {:?}", built.mesh.faces.len(), built.solids.notes, built.parts.notes);
@@ -1320,6 +1673,40 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         println!("  cold reload with an empty library: {}", if same { "identical" } else { "DIFFERENT" });
         cold = json!({"identical_vertices_faces_normals": same, "ms": t.elapsed().as_secs_f64() * 1000.0});
     }
+    let t_lands = Instant::now();
+    let head_id: ringdesign_core::sketch::Id = 4;
+    let lands_head = head_lands(&wolf, &built, head_id);
+    let lands_fangs = fang_lands(&built);
+    let rule = |feature: &str| -> Option<(f64, &'static str)> {
+        if feature.starts_with("ear") {
+            Some((1.0, "ear point: the last 1.0 mm to the tip tapers from a thick root; cast in place and polished"))
+        } else if feature.contains("canine") || feature.contains("molar") {
+            Some((0.6, "tooth point: the last 0.6 mm of each tooth; cast from a root of 1.0 mm or more and polished"))
+        } else if feature.contains("lock") || feature.contains("tuft") {
+            Some((0.9, "fur-lock point: the last 0.9 mm of each lock lies on the metal it grows from; chased at the bench"))
+        } else if feature.contains("Claw") {
+            Some((f64::MAX, "fang point: closed over the moonstone and polished at the bench"))
+        } else if feature.contains("rail") {
+            Some((f64::MAX, "seat rail: the claw head's rail, notched by the stone where it passes under the girdle; buried in the gums except in the corner gaps, burnished to the stone at the bench"))
+        } else {
+            None
+        }
+    };
+    let mut unnamed: Vec<String> = Vec::new();
+    let mut exceptions: Vec<Value> = Vec::new();
+    for l in lands_head.iter().chain(&lands_fangs) {
+        if l.min_section_mm >= 0.8 {
+            continue;
+        }
+        match rule(&l.feature) {
+            Some((limit, bench)) if l.sub_floor_from_tip_mm <= limit => exceptions.push(json!({"feature": l.feature, "min_section_mm": l.min_section_mm, "sub_floor_from_tip_mm": l.sub_floor_from_tip_mm, "treatment": bench})),
+            _ => unnamed.push(format!("{} {:.2} mm, {:.2} mm from its tip", l.feature, l.min_section_mm, l.sub_floor_from_tip_mm)),
+        }
+    }
+    let head_min = lands_head.iter().filter(|l| rule(&l.feature).is_none()).map(|l| l.min_section_mm).fold(f64::MAX, f64::min);
+    let crease_census = census(&wolf, &built.mesh);
+    let seam_run = seam_creases(&built, head_id);
+    println!("  lands and census in {:.1} s; unnamed sub-floor {:?}; head mass min {head_min:.3} mm; longest 60 deg seam run {seam_run:.2} mm", t_lands.elapsed().as_secs_f64(), unnamed);
     let gates = [
         ("finished mesh watertight with zero degenerates", built.report.validation.watertight && built.report.quality.degenerate_faces == 0),
         ("finished mesh has zero self crossings", cross == 0),
@@ -1331,6 +1718,7 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         ("one stone in report and preview, no warnings", stone_count == 1 && previewed == 1 && warnings.is_empty()),
         ("investment pattern watertight with zero degenerates and crossings", pattern_validation.watertight && pattern_quality.degenerate_faces == 0 && pattern_cross == 0),
         ("cold reload identical", !verify || cold["identical_vertices_faces_normals"] == true),
+        ("lost-wax land widths >= 0.8 mm or named", unnamed.is_empty()),
     ];
     let report = json!({
         "name": d.name,
@@ -1349,6 +1737,8 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         "pattern": {"validation": pattern_validation, "quality": pattern_quality, "self_crossings": pattern_cross, "release": {"obstructions": inspection.release.obstructions.len()}},
         "design": {"bytes": design_bytes, "format_version": format, "layers": d.layers.layers.iter().map(|e| e.name.clone()).collect::<Vec<_>>(), "stamps": d.stamps.len(), "cad_features": d.cad.as_ref().map_or(0, |c| c.features.len())},
         "cold_reload": cold,
+        "land_widths": {"floor_mm": 0.8, "head": lands_head, "fangs_and_rail": lands_fangs, "head_min_section_mm": head_min, "exceptions": exceptions, "unnamed": unnamed},
+        "census": {"edges_60_deg_by_zone": crease_census, "seam_crease_run_mm": seam_run},
         "gates": gates.iter().map(|(g, p)| json!({"gate": g, "pass": p})).collect::<Vec<_>>(),
     });
     std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
@@ -1394,6 +1784,345 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
     let failed: Vec<_> = gates.iter().filter(|g| !g.1).map(|g| g.0).collect();
     ensure!(failed.is_empty(), "Failed gates: {failed:?}");
     Ok(())
+}
+
+/// Faces of a closed mesh hashed by cell, for rays.
+struct Rays<'a> {
+    v: &'a [P3],
+    f: &'a [[u32; 3]],
+    cell: f64,
+    map: std::collections::HashMap<[i32; 3], Vec<u32>>,
+}
+
+impl<'a> Rays<'a> {
+    fn new(v: &'a [P3], f: &'a [[u32; 3]], cell: f64, keep: impl Fn(P3) -> bool) -> Self {
+        let mut map: std::collections::HashMap<[i32; 3], Vec<u32>> = std::collections::HashMap::new();
+        for (i, t) in f.iter().enumerate() {
+            let p = t.map(|k| v[k as usize]);
+            if !p.iter().any(|q| keep(*q)) {
+                continue;
+            }
+            let lo: [i32; 3] = std::array::from_fn(|k| (p.iter().map(|q| q[k]).fold(f64::MAX, f64::min) / cell).floor() as i32);
+            let hi: [i32; 3] = std::array::from_fn(|k| (p.iter().map(|q| q[k]).fold(f64::MIN, f64::max) / cell).floor() as i32);
+            for x in lo[0]..=hi[0] {
+                for y in lo[1]..=hi[1] {
+                    for z in lo[2]..=hi[2] {
+                        map.entry([x, y, z]).or_default().push(i as u32);
+                    }
+                }
+            }
+        }
+        Self { v, f, cell, map }
+    }
+    /// Distance along unit `d` from `o` to the nearest face beyond `min` and within `max`, faces holding `skip` aside.
+    fn hit(&self, o: P3, d: P3, min: f64, max: f64, skip: u32) -> Option<f64> {
+        let mut seen = std::collections::HashSet::new();
+        let mut best: Option<f64> = None;
+        let steps = (max / (self.cell / 3.0)).ceil() as usize;
+        for k in 0..=steps {
+            let s = k as f64 * self.cell / 3.0;
+            if best.is_some_and(|b| b < s - self.cell) {
+                break;
+            }
+            let p = add(o, mul(d, s));
+            let key: [i32; 3] = std::array::from_fn(|i| (p[i] / self.cell).floor() as i32);
+            if !seen.insert(key) {
+                continue;
+            }
+            let Some(list) = self.map.get(&key) else { continue };
+            for &fi in list {
+                if self.f[fi as usize].contains(&skip) {
+                    continue;
+                }
+                let [a, b, c] = self.f[fi as usize].map(|x| self.v[x as usize]);
+                let (e1, e2) = (sub(b, a), sub(c, a));
+                let pv = cross(d, e2);
+                let det = dot(e1, pv);
+                if det.abs() < 1e-14 {
+                    continue;
+                }
+                let tv = sub(o, a);
+                let u = dot(tv, pv) / det;
+                if !(0.0..=1.0).contains(&u) {
+                    continue;
+                }
+                let qv = cross(tv, e1);
+                let w = dot(d, qv) / det;
+                if w < 0.0 || u + w > 1.0 {
+                    continue;
+                }
+                let t = dot(e2, qv) / det;
+                if t > min && t < max && best.is_none_or(|b| t < b) {
+                    best = Some(t);
+                }
+            }
+        }
+        best
+    }
+}
+
+/// Section at a surface point by the median of seven rays into the metal: along `-n` and six at 25 degrees round it.
+fn section(rays: &Rays, p: P3, n: P3, skip: u32) -> f64 {
+    let a = if n[0].abs() < 0.9 { [1.0, 0.0, 0.0] } else { [0.0, 1.0, 0.0] };
+    let e1 = cross(n, a);
+    let e1 = mul(e1, 1.0 / len(e1));
+    let e2 = cross(n, e1);
+    let o = add(p, mul(n, -1e-4));
+    let (s, c) = 25f64.to_radians().sin_cos();
+    let mut hits: Vec<f64> = std::iter::once(mul(n, -1.0))
+        .chain((0..6).map(|k| {
+            let (ks, kc) = (k as f64 * PI / 3.0).sin_cos();
+            add(mul(n, -c), add(mul(e1, s * kc), mul(e2, s * ks)))
+        }))
+        .map(|d| rays.hit(o, d, 0.01, 4.0, skip).unwrap_or(4.0))
+        .collect();
+    hits.sort_by(f64::total_cmp);
+    hits[3]
+}
+
+/// Area-weighted vertex normals of a closed mesh.
+fn vertex_normals(v: &[P3], f: &[[u32; 3]]) -> Vec<P3> {
+    let mut n = vec![[0.0; 3]; v.len()];
+    for t in f {
+        let [a, b, c] = t.map(|x| v[x as usize]);
+        let fnrm = cross(sub(b, a), sub(c, a));
+        for &x in t {
+            n[x as usize] = add(n[x as usize], fnrm);
+        }
+    }
+    n.into_iter().map(|x| mul(x, 1.0 / len(x).max(1e-12))).collect()
+}
+
+/// One feature's measured section: its thinnest, and how far from its tip the metal stays under the floor.
+#[derive(serde::Serialize, Clone)]
+struct Land {
+    feature: String,
+    samples: usize,
+    min_section_mm: f64,
+    sub_floor_samples: usize,
+    /// The furthest a sample under 0.8 mm stands from the feature's tip, mm.
+    sub_floor_from_tip_mm: f64,
+}
+
+/// Sections of the finished ring's head by rays into the metal, gathered by the feature each vertex lies on; seam and
+/// crease vertices, whose normals the boolean leaves ragged, are left out.
+fn head_lands(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id) -> Vec<Land> {
+    let m = &built.mesh;
+    let v: Vec<P3> = m.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect();
+    let mine: Vec<usize> = (0..v.len()).filter(|&i| m.origin.get(i).is_some_and(|o| built.parts.feature_of(*o) == Some(head_id))).collect();
+    if mine.is_empty() {
+        return Vec::new();
+    }
+    let (lo, hi) = mine.iter().fold(([f64::MAX; 3], [f64::MIN; 3]), |(lo, hi), &i| (std::array::from_fn(|k| lo[k].min(v[i][k] - 4.5)), std::array::from_fn(|k| hi[k].max(v[i][k] + 4.5))));
+    let rays = Rays::new(&v, &m.faces, 0.2, |p| (0..3).all(|k| p[k] >= lo[k] && p[k] <= hi[k]));
+    let normals = vertex_normals(&v, &m.faces);
+    let mut incident: Vec<Vec<u32>> = vec![Vec::new(); v.len()];
+    for (fi, t) in m.faces.iter().enumerate() {
+        for &x in t {
+            incident[x as usize].push(fi as u32);
+        }
+    }
+    let smooth_here = |i: usize| {
+        incident[i].iter().all(|fi| {
+            let [a, b, c] = m.faces[*fi as usize].map(|x| v[x as usize]);
+            let n = cross(sub(b, a), sub(c, a));
+            dot(n, normals[i]) > 0.5 * len(n)
+        })
+    };
+    let rows: Vec<(String, f64, f64, P3)> = mine
+        .par_iter()
+        .filter(|&&i| smooth_here(i))
+        .map(|&i| {
+            let t = section(&rays, v[i], normals[i], i as u32);
+            let (name, tip) = wolf.label(wolf.face(v[i]));
+            (name, t, len(sub(wolf.face(v[i]), tip)), wolf.face(v[i]))
+        })
+        .collect();
+    for who in ["head mass", "ear, right"] {
+        let mut thin: Vec<[i64; 3]> = rows.iter().filter(|r| r.0 == who && r.1 < 0.8).map(|r| r.3.map(|c| (c * 2.0).round() as i64)).collect();
+        thin.sort_unstable();
+        thin.dedup();
+        if !thin.is_empty() {
+            println!("  thin {who} near (face mm): {:?}", thin.iter().step_by((thin.len() / 16).max(1)).take(16).map(|c| c.map(|x| x as f64 / 2.0)).collect::<Vec<_>>());
+        }
+    }
+    let mut out: Vec<Land> = Vec::new();
+    for (name, t, from_tip, _) in rows {
+        let k = match out.iter().position(|l| l.feature == name) {
+            Some(k) => k,
+            None => {
+                out.push(Land { feature: name.clone(), samples: 0, min_section_mm: f64::MAX, sub_floor_samples: 0, sub_floor_from_tip_mm: 0.0 });
+                out.len() - 1
+            }
+        };
+        let l = &mut out[k];
+        l.samples += 1;
+        l.min_section_mm = l.min_section_mm.min(t);
+        if t < 0.8 {
+            l.sub_floor_samples += 1;
+            l.sub_floor_from_tip_mm = l.sub_floor_from_tip_mm.max(from_tip);
+        }
+    }
+    out.sort_by(|a, b| a.feature.cmp(&b.feature));
+    out
+}
+
+/// Sections of each claw and rail of the fangs' made head, by patch, the tip taken as the claw's highest point.
+fn fang_lands(built: &mesh::BuildResult) -> Vec<Land> {
+    let mut out = Vec::new();
+    for c in built.parts.evaluated.iter().flat_map(|e| e.components.iter()) {
+        let Some(made) = &c.made else { continue };
+        if !made.key.contains("claw") {
+            continue;
+        }
+        let s = made.solid();
+        let normals = vertex_normals(&s.v, &s.f);
+        let rays = Rays::new(&s.v, &s.f, 0.2, |_| true);
+        for (pi, name) in made.named.names.iter().enumerate() {
+            let mut verts: Vec<usize> = s.f.iter().zip(&made.named.patch).filter(|(_, p)| **p as usize == pi).flat_map(|(t, _)| t.map(|x| x as usize)).collect();
+            verts.sort_unstable();
+            verts.dedup();
+            if verts.is_empty() {
+                continue;
+            }
+            let tip = verts.iter().map(|&i| s.v[i]).fold([0.0, f64::MIN, 0.0], |b, p| if p[1] > b[1] { p } else { b });
+            let mut land = Land { feature: format!("{}: {name}", c.name), samples: 0, min_section_mm: f64::MAX, sub_floor_samples: 0, sub_floor_from_tip_mm: 0.0 };
+            for &i in &verts {
+                let t = section(&rays, s.v[i], normals[i], i as u32);
+                land.samples += 1;
+                land.min_section_mm = land.min_section_mm.min(t);
+                if t < 0.8 {
+                    land.sub_floor_samples += 1;
+                    land.sub_floor_from_tip_mm = land.sub_floor_from_tip_mm.max(len(sub(s.v[i], tip)));
+                }
+            }
+            out.push(land);
+        }
+    }
+    out
+}
+
+/// Dihedral census of the finished mesh by zone: edges at or over 60 and 90 degrees, their length, and 1 mm cells.
+fn census(wolf: &Wolf, m: &Mesh) -> Value {
+    use std::collections::{HashMap, HashSet};
+    let v: Vec<P3> = m.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect();
+    let fnrm: Vec<P3> = m
+        .faces
+        .iter()
+        .map(|t| {
+            let [a, b, c] = t.map(|x| v[x as usize]);
+            let n = cross(sub(b, a), sub(c, a));
+            mul(n, 1.0 / len(n).max(1e-30))
+        })
+        .collect();
+    let mut edges: HashMap<(u32, u32), Vec<u32>> = HashMap::new();
+    for (i, t) in m.faces.iter().enumerate() {
+        for e in 0..3 {
+            let (a, b) = (t[e], t[(e + 1) % 3]);
+            edges.entry((a.min(b), a.max(b))).or_default().push(i as u32);
+        }
+    }
+    let ear_tips = [[5.9, 9.8, 4.2], [-5.9, 9.8, 4.2]];
+    let mut zones: HashMap<&str, (usize, f64, usize, HashSet<[i64; 3]>)> = HashMap::new();
+    for ((a, b), fs) in &edges {
+        if fs.len() != 2 {
+            continue;
+        }
+        let ang = dot(fnrm[fs[0] as usize], fnrm[fs[1] as usize]).clamp(-1.0, 1.0).acos().to_degrees();
+        if ang < 60.0 {
+            continue;
+        }
+        let mid = mul(add(v[*a as usize], v[*b as usize]), 0.5);
+        let q = wolf.face(mid);
+        let rho = q[0].hypot(q[1] - MOON_U);
+        let zone = if q[2] > 0.3 && rho > 7.0 && q[1] < 7.0 && q[0].abs() < 9.0 {
+            "cheeks, brow and muzzle"
+        } else if q[2] > 0.3 && q[1] >= 7.0 {
+            if ear_tips.iter().any(|t| len(sub(q, *t)) < 1.0) { "ear tips" } else { "ears and crown" }
+        } else if q[2] > 0.0 && rho <= 7.0 {
+            "mouth, teeth, fangs and rail"
+        } else {
+            "elsewhere"
+        };
+        let z = zones.entry(zone).or_insert((0, 0.0, 0, HashSet::new()));
+        z.0 += 1;
+        z.1 += len(sub(v[*a as usize], v[*b as usize]));
+        if ang >= 90.0 {
+            z.2 += 1;
+        }
+        z.3.insert(std::array::from_fn(|k| mid[k].floor() as i64));
+    }
+    if let Some(z) = zones.get("cheeks, brow and muzzle") {
+        let mut cells: Vec<[i64; 3]> = z.3.iter().map(|c| wolf.face([c[0] as f64 + 0.5, c[1] as f64 + 0.5, c[2] as f64 + 0.5]).map(|x| x.round() as i64)).collect();
+        cells.sort_unstable();
+        println!("  60 deg face-zone cells (face mm): {:?}", cells.iter().step_by((cells.len() / 24).max(1)).collect::<Vec<_>>());
+    }
+    let mut out = serde_json::Map::new();
+    for (zone, (n, l, n90, cells)) in zones {
+        out.insert(zone.into(), json!({"edges_60": n, "length_mm": l, "edges_90": n90, "cells_1mm": cells.len()}));
+    }
+    Value::Object(out)
+}
+
+/// The longest run of seam edges turning 60 degrees or more where the head meets the stock, mm.
+fn seam_creases(built: &mesh::BuildResult, head_id: ringdesign_core::sketch::Id) -> f64 {
+    use std::collections::HashMap;
+    let m = &built.mesh;
+    let v: Vec<P3> = m.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect();
+    let head = |i: u32| m.origin.get(i as usize).is_some_and(|o| built.parts.feature_of(*o) == Some(head_id));
+    let fnrm: Vec<P3> = m
+        .faces
+        .iter()
+        .map(|t| {
+            let [a, b, c] = t.map(|x| v[x as usize]);
+            let n = cross(sub(b, a), sub(c, a));
+            mul(n, 1.0 / len(n).max(1e-30))
+        })
+        .collect();
+    let mut edges: HashMap<(u32, u32), Vec<u32>> = HashMap::new();
+    for (i, t) in m.faces.iter().enumerate() {
+        for e in 0..3 {
+            let (a, b) = (t[e], t[(e + 1) % 3]);
+            edges.entry((a.min(b), a.max(b))).or_default().push(i as u32);
+        }
+    }
+    let mut graph: HashMap<u32, Vec<(u32, f64)>> = HashMap::new();
+    for ((a, b), fs) in &edges {
+        if fs.len() != 2 {
+            continue;
+        }
+        let mixed = |f: u32| {
+            let hs = m.faces[f as usize].iter().filter(|x| head(**x)).count();
+            hs > 0 && hs < 3
+        };
+        if !(mixed(fs[0]) || mixed(fs[1])) {
+            continue;
+        }
+        let ang = dot(fnrm[fs[0] as usize], fnrm[fs[1] as usize]).clamp(-1.0, 1.0).acos().to_degrees();
+        if ang >= 60.0 {
+            let l = len(sub(v[*a as usize], v[*b as usize]));
+            graph.entry(*a).or_default().push((*b, l));
+            graph.entry(*b).or_default().push((*a, l));
+        }
+    }
+    let mut seen = std::collections::HashSet::new();
+    let mut longest: f64 = 0.0;
+    for &start in graph.keys() {
+        if !seen.insert(start) {
+            continue;
+        }
+        let (mut stack, mut total) = (vec![start], 0.0);
+        while let Some(x) = stack.pop() {
+            for &(y, l) in &graph[&x] {
+                total += 0.5 * l;
+                if seen.insert(y) {
+                    stack.push(y);
+                }
+            }
+        }
+        longest = longest.max(total);
+    }
+    longest
 }
 
 /// Points where one face of `mesh` pierces another.
@@ -1464,7 +2193,7 @@ fn crossing_sites(mesh: &Mesh) -> Vec<P3> {
 /// Crossings as each layer joins the bare stock, without the parts.
 fn probe(theta_steps: usize) -> Result<()> {
     let params = BuildParams { theta_steps, profile_steps: 320, refine: None, ..Default::default() };
-    let (d, lib, _) = author(params)?;
+    let (d, lib, _, _) = author(params)?;
     let mut part = d.clone();
     part.cad = None;
     part.layers.layers.clear();
