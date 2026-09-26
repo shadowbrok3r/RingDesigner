@@ -1,0 +1,230 @@
+{
+  "ring": "Kraken — the deep's grip",
+  "round": 1,
+  "candidate_head": "856ff67",
+  "verdict": "revise",
+  "score": 6.0,
+  "summary": "Revise at 6.0. I verified the mesh, field, DFM, stone, reload, pattern and template gates myself: I re-ran the committed binary at 768x320 with --verify and ran the collection template tool at 1536x448. The lost-wax CAD land widths are not asserted, and that alone forces a revise. The Tentacle claws taper to 0.50 mm before their Point cones, and nothing in report.json or gates_passed names it. The shoulders are the ring's best work: cupped, graded suckers on crossing arms that read as tentacles at full size. The concept fails at the focal point. The stone is held by a generic thorn basket, not by the arms: on a cabochon both Seat rails land at the girdle and fuse into one polished collar, and the Point tips read as thorns. The arms also run as parallel lanes, the mantle reads as crocodile hide, the curls are bare mirrored volutes, and side-on the outline is a plain solitaire. At 300 px the hero reads as a blue cabochon solitaire on a textured band. One round can get it to 7.5: tentacle-tip claws continuous with the arms, a real diagonal wrap, papillae instead of tiles, and suckers carried into the curls.",
+  "strengths": [
+    "Shoulder arms read unmistakably as tentacles at full size: cupped, graded, staggered suckers (1.05 mm down to 0.42 mm, dimples at least 0.21 mm), with SmoothMax fillets where arms cross that look organic.",
+    "The side view is the ring's best angle: an arm coiling round the side face with its suckers turned outward.",
+    "One creature from face to palm. Arms and suckers are analytic curve layers with no painted atlas, so the whole ring lifts to a 57-node, 64 KB graph with no design.set patches.",
+    "The 10 mm labradorite is large and visible from every view, in a made head with no metal inside it.",
+    "Engineering is clean at both resolutions: watertight, no self-crossings on any part, a 2.0 mm wall, 0 DFM findings, identical cold reloads and a clean investment pattern."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "pass",
+      "reason": "One creature throughout: the claw head, suckered arms on the crown and shoulders, curls at the palm and back shoulders, and mantle skin between. Two elements pull against it: the thorn basket reads as a generic solitaire, and the mantle reads as crocodile hide (punch items 2 and 4)."
+    },
+    {
+      "item": "Figurative motifs are stamps or parts with true outlines, not painted smudges",
+      "result": "pass",
+      "reason": "The arms and suckers are analytic curve layers with exact outlines and cupped dimples, and the claws are a CAD part. Nothing is painted."
+    },
+    {
+      "item": "Faces and eyes read well (a poor face is a defect)",
+      "result": "pass",
+      "reason": "The ring has no face, so there is no poor face."
+    },
+    {
+      "item": "Stones sit in made settings and are visible",
+      "result": "pass",
+      "reason": "The 10 mm labradorite sits in a made six-claw head and is fully visible in every view. One stone is reported and one previewed, with no metal inside it."
+    },
+    {
+      "item": "Shoulder ornament is not cut off toward the face",
+      "result": "pass",
+      "reason": "Each arm roots at a claw foot under the head at 0.35 of its height and rises over 3 mm. Nothing stops in a wall at the face. The arms slide under the collar instead of becoming the claws (item 2)."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "fail",
+      "reason": "The focal element is mechanical. The base rail (0.81 mm radius, z -0.12) and gallery rail (0.65 mm radius, z -0.135) both sit at the cabochon's girdle, because the pavilion is 0.1 mm and the head depth 0.3 mm. They fuse into one polished torus collar, with six identical Point cones standing on it like thorns. The Tube arms' near-vertical flanks also stair-step into a comb fringe, visible in side.png at the right-hand curl and in shoulder.png."
+    },
+    {
+      "item": "A silhouette distinct from the other Bestiarium rings",
+      "result": "fail",
+      "reason": "Side-on it is a plain D-band circle carrying a round claw basket: maximum relief is 2.18 mm and nothing leaves the surface. Arachne's jointed legs stand off her band. Kraken differs from her only by being a generic solitaire, and a round cabochon in claws is also Fenrir's planned head (10 mm round cab) and close to Harpyia's (8 mm round in talons)."
+    },
+    {
+      "item": "Reads as a kraken's arms gripping a stone at a glance at 300 px, without the caption",
+      "result": "fail",
+      "reason": "On the 300 px contact sheet the hero reads as a blue cabochon solitaire on a textured band, and the face view as a solitaire flanked by braided lanes. The suckers turn into grain. The stone is gripped by the basket, not the arms, so the key word of the brief is missing."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "fail",
+      "reason": "The large forms (stone, 3 mm arms) and medium forms (suckers, curls) are legible, and on the shoulders they beat Caiman. The small forms are thin. 'Skin grain' is the mantle tiling at the same ~1 mm cells at 0.03 mm, so it is not finer. The arm tops are bare polished tubes, and the plain collar dominates the face view. Density on the face and crown falls short of Caiman's hero."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Draft build 768x320 mesh",
+      "claimed": "Watertight, 0 degenerate faces, 0 boundary and 0 non-manifold edges; every draft gate passes.",
+      "verified": "I re-ran target/release/examples/bestiarium_kraken with --draft --verify into the scratchpad. The binary was built at 08:17:43, after the last source edit at 08:17:30. Result: 498,176 triangles, watertight, 0 boundary, 0 non-manifold, 0 degenerate, 0 self-crossings, 'gates passed'.",
+      "pass": true
+    },
+    {
+      "gate": "Export build 1536x448 mesh",
+      "claimed": "Watertight, 0 degenerate, 0 boundary and 0 non-manifold edges; 1,375,278 triangles.",
+      "verified": "report.json and mesh.json show 1,375,278 triangles, watertight, 0 boundary, 0 non-manifold, 0 degenerate. The worst sliver has a 0.0028 deg corner and an aspect of 20,578; these are slivers, not degenerate faces.",
+      "pass": true
+    },
+    {
+      "gate": "Self-crossings on the ring, the cabochon and the claw head",
+      "claimed": "0 on each.",
+      "verified": "mesh_self_crossings is 0, and made_parts reads 'Round cabochon 10 mm' 0 and 'Tentacle claws' 0, at both resolutions.",
+      "pass": true
+    },
+    {
+      "gate": "Solids and parts notes empty",
+      "claimed": "Empty.",
+      "verified": "solids_notes and parts_notes are empty at both resolutions.",
+      "pass": true
+    },
+    {
+      "gate": "Nothing inside the finger hole",
+      "claimed": "The nearest vertex equals the bore radius, 9.2588 mm.",
+      "verified": "The nearest vertex is at 9.258838 mm against a bore of 9.258839 mm, with 0 vertices inside.",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax field verdict and wall",
+      "claimed": "Castable; thinnest wall 1.997 mm at 270 deg.",
+      "verified": "Castable; thinnest wall 1.9974 mm at 270 deg, above the 0.8 mm floor, at both resolutions.",
+      "pass": true
+    },
+    {
+      "gate": "Two-part undercut (reported only, wax)",
+      "claimed": "18.7%.",
+      "verified": "18.73% at export and 18.74% at draft, worst -88.5 deg; the claw head alone accounts for 95.5 mm2. It does not gate under lost wax.",
+      "pass": true
+    },
+    {
+      "gate": "DFM findings",
+      "claimed": "0.",
+      "verified": "0 at both resolutions. The finest sucker dimple is 0.212 mm on the rim arms, above the 0.15 mm investment detail floor and the example's own 0.2 mm gate (0.4 x CUP_SPAN 0.5).",
+      "pass": true
+    },
+    {
+      "gate": "Stones reported, previewed and clear of metal",
+      "claimed": "1 reported and previewed; no metal inside it.",
+      "verified": "1 reported and 1 previewed (4.15 ct); metal_inside_stone is 0.",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical",
+      "claimed": "Identical at export.",
+      "verified": "cold_reload_identical is true in the export report, and my own --draft --verify run printed 'cold reload with an empty library: identical'.",
+      "pass": true
+    },
+    {
+      "gate": "Investment pattern",
+      "claimed": "Clean.",
+      "verified": "pattern-report.json: watertight, 0 degenerate faces, 0 self-crossings, notes empty, scale 1.0194 (Silver 925 shrink of 1.9%).",
+      "pass": true
+    },
+    {
+      "gate": "Template gate",
+      "claimed": "Lifts with 0 design.set patches; 57 nodes; 64,063 bytes against the 300 KB procedural budget; cold reloads and the export mesh check pass.",
+      "verified": "I ran collection_templates on a scratch copy of the design with a scratch manifest (exposed_controls []). The binary was built at 08:12 and no core or graph source is newer. Result: lift method, 57 nodes, 0 patches, 64,063 bytes, procedural budget 300,000. Cold design, graph and editable reloads are all true, and vertices, faces and normals are identical at 1536x448 (1,375,278 triangles). The commit has no manifest entry and exposes no controls yet (item 9).",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax CAD land widths asserted (claw wire and free sections at or above 0.8 mm, or named exceptions)",
+      "claimed": "Not claimed: neither the author's report nor report.json mentions it.",
+      "verified": "gates_passed has no land-width term, and report.json names no claw or rail section. The Tentacle law in setting.rs sets claw radius to 0.60 -> 0.277 -> 0.14 x wire. At the 1.8 mm wire that is 2.16 mm at the foot, 1.00 mm at 85% of the claw and 0.50 mm at the base of the Point cone. The last ~9% of all six claws, plus the cones, are under the 0.8 mm floor and are neither asserted nor named. The rails are 1.62 mm and 1.30 mm, which is fine.",
+      "pass": false
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P0 (gate)",
+      "zone": "CAD part 'Tentacle claws' (#3) at the head (theta 65-115 deg); report.json and gates_passed",
+      "change": "Assert the lost-wax land widths. Add a land_widths block to report.json and a matching term to gates_passed: for each claw, its minimum section and the arc length below 0.8 mm, plus the base and gallery rail sections. Either keep every section at or above 0.8 mm (a head rebuilt per item 2 with ends of at least 0.8 mm and domed tips), or name each sub-floor stretch as an exception with its bench treatment. Today the claws run 2.16 -> 1.00 -> 0.50 mm into a Point cone, and nothing is named.",
+      "acceptance": "report.json carries land_widths with claw_min_section_mm, the sub-floor length per claw, the rail sections and an exceptions list. gates_passed is false whenever a section under 0.8 mm is not named. Both the --draft --verify run and the export run print 'gates passed'."
+    },
+    {
+      "number": 2,
+      "priority": "P1",
+      "zone": "Head, theta 70-110 deg: CAD #3 'Tentacle claws' and the six arm roots at the feet (theta 65.25 / 90.25 / 114.75, v 0.91-8.20)",
+      "change": "Make the arms grip the stone. Replace the builder head, whose two Seat rails fuse into one collar at a cabochon's girdle and whose Point tips read as thorns. Build six tentacle-tip claws as CAD Twist sweeps: a 2.0 mm round section at the root, end_scale at least 0.45 so the end is at least 0.9 mm, a domed end, and no rails. Put each in its claw's radial plane, rooted in the matching arm's foot from feet(), climbing the cabochon's flank and curling over the dome to rest at least 1.0 mm inboard of the girdle. If sweeps cannot seat the stone this round, the minimum is: a builder option to drop the rails (rails 'None', with the default kept at Seat so saved designs stay bit-identical), tip 'Dome', and ROOT_HEIGHT raised from 0.35 so each arm rises into its claw leg.",
+      "acceptance": "face.png shows no continuous ring of metal round the girdle between the claws. In stones.png each of the six claws is visibly continuous with an arm, with no step or gap between the arm relief and the claw, and ends in a rounded tip resting on the dome. metal_inside_stone is 0, self-crossings are 0 on every part, and the claw sections pass item 1."
+    },
+    {
+      "number": 3,
+      "priority": "P1",
+      "zone": "Crown and shoulders, theta 20-70 and 110-160 deg; layers 'Arm, lower right', 'Arm, upper left', 'Arm, right rim', 'Arm, left rim'",
+      "change": "Break the lanes. There are only 2 crossings (theta 51.5 and 128.5 deg), and the rim arms ride the band edges at v 0.9 and 8.2, where the hero reads them as edge bead rows. The face view shows two parallel lanes per shoulder. Re-route so each long arm crosses the crest diagonally at least once per shoulder, bring the rim arms up over the crown before they run to the back, and alternate over and under.",
+      "acceptance": "report.kraken.crossings has at least 6 entries, with both an over and an under on each shoulder. In face.png no two arms run side by side as parallel lanes across a shoulder, and each shoulder shows at least two visible crossings. In hero.png the lower band edge no longer reads as a milgrain-like bead row."
+    },
+    {
+      "number": 4,
+      "priority": "P1",
+      "zone": "Whole outer surface: layers 'Mantle skin' (Voronoi, 3 rows, gamma 3, bias -0.26, 0.24 mm) and 'Skin grain'",
+      "change": "Turn the crocodile tiles into cephalopod papillae. The mantle reads as a closed network of polygonal tiles, which is Caiman's and Lorica's vocabulary. 'Skin grain' is the same tiling at the same cell size (MANTLE_ROWS 3) added at 0.03 mm, so it adds no small form. Raise the threshold (bias about -0.6, gamma 5 or more) so only cell centres stand as round warts, with at least half the ground smooth between them. Add a second papilla layer at 6-7 rows (about 0.5 mm cells) at 0.08-0.10 mm for size variation. Drop 'Skin grain', or make it genuinely finer (9 rows or more, at least 0.05 mm).",
+      "acceptance": "A 2x crop of palm.png between the curls shows separate round bumps of at least two sizes on smooth skin, with no continuous polygon network. DFM stays at 0."
+    },
+    {
+      "number": 5,
+      "priority": "P2",
+      "zone": "Palm, theta 230-310 deg (four curls), plus the shoulder and back-shoulder curls; the CurveBeads span on all six arm layers",
+      "change": "Carry the suckers into the curls. The sucker span stops at curl_from, so every curl is a bare volute. The four palm curls sit in mirrored facing pairs and read as baroque scrollwork. Run each sucker row at least two-thirds of a turn into its curl's inner edge (suckers at least 0.4 mm, dimples at least 0.2 mm). Vary the palm curls: radii at least 30% apart, 0.75 to 1.5 turns, and no two mirror images.",
+      "acceptance": "In palm.png each curl shows at least 4 suckers along its inner edge within its first turn, and the four palm curls visibly differ in size and turn count."
+    },
+    {
+      "number": 6,
+      "priority": "P2",
+      "zone": "Arm flanks on the side faces, most visible in side.png at the right-hand curl and in shoulder.png near the head; WireProfile::Tube",
+      "change": "Remove the comb fringe. The Tube section stands 1.7 mm on a 3.0 mm base, so its flank is near vertical where it meets the band, and the grid stair-steps it into a comb fringe along each flank. This is the vertical wall the doctrine avoids by making WireProfile::Round a cosine dome. Either lower the flank angle (height no more than 0.45 x width at the foot, or the Round section) or refine the export build.",
+      "acceptance": "2x crops of side.png at the curl and of shoulder.png at the arm flanks show clean flanks with no periodic teeth."
+    },
+    {
+      "number": 7,
+      "priority": "P2",
+      "zone": "Shoulder curls near theta 35 and 145 deg ('Arm, upper right' and 'Arm, lower left')",
+      "change": "Give the ring an outline of its own. With maximum relief at 2.18 mm, side-on it is a plain circle carrying the round claw basket that Fenrir and Harpyia also carry. After item 2, rebuild the last 6-8 mm of these two curls as CAD tentacle tips: Twist sweeps with a root of at least 1.6 mm and an end of at least 0.8 mm, standing at least 2 mm proud of the band and curling back.",
+      "acceptance": "In side.png both curls break the band's outer circle by at least 2 mm. The wall stays at or above 0.8 mm, and the land widths are asserted per item 1."
+    },
+    {
+      "number": 8,
+      "priority": "P2",
+      "zone": "Arm tops on all six arms (face.png, hero.png)",
+      "change": "Put small forms on the bare tops. Add an uncupped papilla bead row along each arm's outer edge, opposite the suckers: about 0.45 mm, pitch 1.6 mm, height 0.10-0.12 mm, graded. A second bead-only curve layer on the same path would do it. Raise SWELL from 0.07 to about 0.12 so the 6.5 mm muscle swell reads.",
+      "acceptance": "In a 2x crop of face.png the arm tops show a visible papilla row and a visible swell along each arm. DFM stays at 0."
+    },
+    {
+      "number": 9,
+      "priority": "P3",
+      "zone": "Kraken's entry in the template manifest",
+      "change": "Hand the lead the exposed-controls allowlist the plan asks for: size, flare (the key-90 width), tentacle height and stone size. The commit has no collection.json entry and exposes no controls.",
+      "acceptance": "Running collection_templates bestiarium --only kraken --verify-export with that allowlist lists the four controls, with 0 design.set patches and identical export geometry."
+    }
+  ],
+  "viewed_images": [
+    ".claude/collection-review/kraken-round1/hero.png",
+    ".claude/collection-review/kraken-round1/face.png",
+    ".claude/collection-review/kraken-round1/side.png",
+    ".claude/collection-review/kraken-round1/shoulder.png",
+    ".claude/collection-review/kraken-round1/palm.png",
+    ".claude/collection-review/kraken-round1/reverse.png",
+    ".claude/collection-review/kraken-round1/stones.png",
+    ".claude/collection-review/kraken-round1/bare-vs-finished.png",
+    ".claude/collection-review/kraken-round1/contact-300.png (hero, face, side, palm, shoulder, reverse at 300 px)",
+    ".claude/collection-review/kraken-round1/crop-head-hero.png",
+    ".claude/collection-review/kraken-round1/crop-face-left.png",
+    ".claude/collection-review/kraken-round1/crop-palm-centre.png",
+    ".claude/collection-review/kraken-round1/crop-side-curl.png",
+    ".claude/collection-review/kraken-round1/crop-shoulder-edge.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png",
+    ".claude/collection-review/zbrush_top.png",
+    ".claude/collection-review/zbrush_sheet.png",
+    ".claude/collection-review/refs/arachne/hero.png",
+    ".claude/collection-review/refs/arachne/face.png",
+    ".claude/collection-review/refs/arachne/side.png"
+  ]
+}

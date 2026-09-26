@@ -1,0 +1,1413 @@
+{
+  "name": "Kraken — the deep's grip",
+  "process": "Lost wax",
+  "size": "US 8.5",
+  "bore_mm": 18.51767672519549,
+  "build": [
+    1536,
+    448
+  ],
+  "triangles": 1770028,
+  "build_s": 13.971415974,
+  "watertight": true,
+  "boundary_edges": 0,
+  "non_manifold_edges": 0,
+  "degenerate_faces": 0,
+  "min_angle_deg": 0.0008904392530562236,
+  "worst_aspect": 64346.32129517579,
+  "mesh_self_crossings": 0,
+  "made_parts": [
+    [
+      "Round cabochon 10 mm",
+      0
+    ],
+    [
+      "Bed",
+      0
+    ],
+    [
+      "Claw, rising left",
+      0
+    ],
+    [
+      "Claw, rising left tip",
+      0
+    ],
+    [
+      "Claw, rising",
+      0
+    ],
+    [
+      "Claw, rising tip",
+      0
+    ],
+    [
+      "Claw, rising right",
+      0
+    ],
+    [
+      "Claw, rising right tip",
+      0
+    ],
+    [
+      "Claw, rising left sucker 1",
+      0
+    ],
+    [
+      "Claw, rising left sucker 2",
+      0
+    ],
+    [
+      "Claw, rising left sucker 3",
+      0
+    ],
+    [
+      "Claw, rising left sucker 1 dimple",
+      0
+    ],
+    [
+      "Claw, rising left sucker 2 dimple",
+      0
+    ],
+    [
+      "Claw, rising left sucker 3 dimple",
+      0
+    ],
+    [
+      "Claw, rising sucker 1",
+      0
+    ],
+    [
+      "Claw, rising sucker 2",
+      0
+    ],
+    [
+      "Claw, rising sucker 3",
+      0
+    ],
+    [
+      "Claw, rising sucker 1 dimple",
+      0
+    ],
+    [
+      "Claw, rising sucker 2 dimple",
+      0
+    ],
+    [
+      "Claw, rising sucker 3 dimple",
+      0
+    ],
+    [
+      "Claw, rising right sucker 1",
+      0
+    ],
+    [
+      "Claw, rising right sucker 2",
+      0
+    ],
+    [
+      "Claw, rising right sucker 3",
+      0
+    ],
+    [
+      "Claw, rising right sucker 1 dimple",
+      0
+    ],
+    [
+      "Claw, rising right sucker 2 dimple",
+      0
+    ],
+    [
+      "Claw, rising right sucker 3 dimple",
+      0
+    ],
+    [
+      "Claws, falling hand",
+      0
+    ],
+    [
+      "Claws, falling hand, dimples",
+      0
+    ],
+    [
+      "right high tip",
+      0
+    ],
+    [
+      "right high tip joint",
+      0
+    ],
+    [
+      "right high tip coil",
+      0
+    ],
+    [
+      "right high tip end",
+      0
+    ],
+    [
+      "right high tip sucker 1",
+      0
+    ],
+    [
+      "right high tip sucker 2",
+      0
+    ],
+    [
+      "right high tip sucker 3",
+      0
+    ],
+    [
+      "right high tip sucker 4",
+      0
+    ],
+    [
+      "right high tip sucker 5",
+      0
+    ],
+    [
+      "right high tip sucker 1 dimple",
+      0
+    ],
+    [
+      "right high tip sucker 2 dimple",
+      0
+    ],
+    [
+      "right high tip sucker 3 dimple",
+      0
+    ],
+    [
+      "right high tip sucker 4 dimple",
+      0
+    ],
+    [
+      "right high tip sucker 5 dimple",
+      0
+    ],
+    [
+      "left low tip",
+      0
+    ],
+    [
+      "left low tip joint",
+      0
+    ],
+    [
+      "left low tip coil",
+      0
+    ],
+    [
+      "left low tip end",
+      0
+    ],
+    [
+      "left low tip sucker 1",
+      0
+    ],
+    [
+      "left low tip sucker 2",
+      0
+    ],
+    [
+      "left low tip sucker 3",
+      0
+    ],
+    [
+      "left low tip sucker 4",
+      0
+    ],
+    [
+      "left low tip sucker 5",
+      0
+    ],
+    [
+      "left low tip sucker 1 dimple",
+      0
+    ],
+    [
+      "left low tip sucker 2 dimple",
+      0
+    ],
+    [
+      "left low tip sucker 3 dimple",
+      0
+    ],
+    [
+      "left low tip sucker 4 dimple",
+      0
+    ],
+    [
+      "left low tip sucker 5 dimple",
+      0
+    ]
+  ],
+  "solids_notes": [],
+  "parts_notes": [],
+  "stamps": 0,
+  "bore_radius_mm": 9.25883881437101,
+  "nearest_axis_mm": 9.258838362597745,
+  "vertices_in_finger_hole": 0,
+  "field_verdict": "Castable",
+  "field_notes": [
+    "Lost wax: 11.44% of the surface would undercut a two-part pull (worst 59.4 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Undercut 270–76° on the crest: 70.6 mm² leaning to 56° — no single layer explains it.",
+    "Undercut 83–83° on the crest: 0.1 mm² leaning to 1° — caused by \"Mantle papillae\"; muting it clears it.",
+    "Undercut 99–103° on the crest: 0.2 mm² leaning to 2° — caused by \"Mantle papillae\"; muting it clears it.",
+    "Undercut 112–162° on the crest: 34.5 mm² leaning to 59° — no single layer explains it.",
+    "Undercut 169–200° on the crest: 20.8 mm² leaning to 51° — no single layer explains it.",
+    "Undercut 207–263° on the crest: 22.0 mm² leaning to 53° — no single layer explains it.",
+    "Measured with the ring as built: 55 CAD parts (35 joined, 20 cut), 391.5 mm² of part surface; under lost wax they are reported, never gating.",
+    "Lost wax: Cylinder \"Bed\" (#4) would undercut a two-part pull over 0.8 mm² (worst -11°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Claw, rising left\" (#5) would undercut a two-part pull over 9.5 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising left tip\" (#7) would undercut a two-part pull over 0.7 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Claw, rising\" (#8) would undercut a two-part pull over 19.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising tip\" (#10) would undercut a two-part pull over 0.8 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"Claw, rising right\" (#11) would undercut a two-part pull over 14.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising right tip\" (#13) would undercut a two-part pull over 1.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising left sucker 1\" (#15) would undercut a two-part pull over 0.3 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising left sucker 2\" (#17) would undercut a two-part pull over 0.2 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising left sucker 3\" (#19) would undercut a two-part pull over 0.2 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising left sucker 1 dimple\" (#21) would undercut a two-part pull over 0.0 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising left sucker 2 dimple\" (#23) would undercut a two-part pull over 0.0 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising left sucker 3 dimple\" (#25) would undercut a two-part pull over 0.0 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising sucker 1\" (#27) would undercut a two-part pull over 0.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising sucker 2\" (#29) would undercut a two-part pull over 0.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising sucker 3\" (#31) would undercut a two-part pull over 0.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising sucker 1 dimple\" (#33) would undercut a two-part pull over 0.1 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising sucker 2 dimple\" (#35) would undercut a two-part pull over 0.1 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising sucker 3 dimple\" (#37) would undercut a two-part pull over 0.0 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising right sucker 1\" (#39) would undercut a two-part pull over 0.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising right sucker 2\" (#41) would undercut a two-part pull over 0.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising right sucker 3\" (#43) would undercut a two-part pull over 0.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising right sucker 1 dimple\" (#45) would undercut a two-part pull over 0.1 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising right sucker 2 dimple\" (#47) would undercut a two-part pull over 0.0 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"Claw, rising right sucker 3 dimple\" (#49) would undercut a two-part pull over 0.0 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Claws, falling hand\" (#50) would undercut a two-part pull over 47.9 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Mirror \"Claws, falling hand, dimples\" (#51) would undercut a two-part pull over 0.4 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"right high tip\" (#52) would undercut a two-part pull over 15.8 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip joint\" (#54) would undercut a two-part pull over 0.2 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"right high tip coil\" (#55) would undercut a two-part pull over 4.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip end\" (#57) would undercut a two-part pull over 0.5 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip sucker 1\" (#59) would undercut a two-part pull over 0.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip sucker 2\" (#61) would undercut a two-part pull over 0.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip sucker 3\" (#63) would undercut a two-part pull over 0.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip sucker 4\" (#65) would undercut a two-part pull over 0.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip sucker 5\" (#67) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip sucker 1 dimple\" (#69) would undercut a two-part pull over 0.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip sucker 2 dimple\" (#71) would undercut a two-part pull over 0.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip sucker 3 dimple\" (#73) would undercut a two-part pull over 0.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip sucker 4 dimple\" (#75) would undercut a two-part pull over 0.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"right high tip sucker 5 dimple\" (#77) would undercut a two-part pull over 0.0 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"left low tip\" (#78) would undercut a two-part pull over 10.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip joint\" (#80) would undercut a two-part pull over 0.5 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Twisted sweep \"left low tip coil\" (#81) would undercut a two-part pull over 1.6 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip end\" (#83) would undercut a two-part pull over 0.7 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip sucker 1\" (#85) would undercut a two-part pull over 0.2 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip sucker 2\" (#87) would undercut a two-part pull over 0.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip sucker 3\" (#89) would undercut a two-part pull over 0.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip sucker 4\" (#91) would undercut a two-part pull over 0.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip sucker 5\" (#93) would undercut a two-part pull over 0.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip sucker 1 dimple\" (#95) would undercut a two-part pull over 0.0 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip sucker 2 dimple\" (#97) would undercut a two-part pull over 0.0 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip sucker 3 dimple\" (#99) would undercut a two-part pull over 0.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip sucker 4 dimple\" (#101) would undercut a two-part pull over 0.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Lost wax: Sphere \"left low tip sucker 5 dimple\" (#103) would undercut a two-part pull over 0.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+  ],
+  "undercut_percent": 16.722692087612803,
+  "worst_draft_deg": -90.0,
+  "thinnest_wall_mm": 1.9990756752699586,
+  "thinnest_wall_theta_deg": 270.0,
+  "investment_min_section_mm": 0.8,
+  "dfm_findings": [],
+  "stones_reported": 1,
+  "stones_previewed": 1,
+  "stone_carats": 4.1469023027385274,
+  "stone_warnings": [],
+  "closest_stones": null,
+  "metal_inside_stone": 0,
+  "kraken": {
+    "claws": [
+      {
+        "name": "Claw, rising left",
+        "lean_deg": 30.237883530914523,
+        "reach_mm": 1.0,
+        "curl_deg": 0.0,
+        "length_mm": 7.979601879323368,
+        "root_mm": 2.0,
+        "tip_mm": 0.9,
+        "min_gap_mm": 0.11039599641559183,
+        "tightest_bend": 1.8531271290015903,
+        "tip_inboard_mm": 1.000000099321122,
+        "touch_bearing_deg": 12.00000250809098,
+        "tip_over_girdle_mm": 3.0649055347023992,
+        "top_over_girdle_mm": 3.0649055347023992,
+        "root_axis_under_band_mm": 1.0499999999999998,
+        "root_face_over_band_mm": -0.5449100884676468,
+        "foot_plan": [
+          -2.207816624767863,
+          5.603342903709932
+        ],
+        "root_plan": [
+          -2.9341972674118177,
+          7.918422455368294
+        ],
+        "foot": [
+          117.25,
+          6.174392612004312
+        ],
+        "heading": [
+          132.5,
+          6.931986797526313
+        ],
+        "suckers": [
+          {
+            "at": [
+              -1.072053,
+              6.322062,
+              0.556385
+            ],
+            "facing": [
+              -0.4790163723870562,
+              0.7984913954130058,
+              0.36462968397613477
+            ],
+            "diameter_mm": 0.7
+          },
+          {
+            "at": [
+              -0.526782,
+              6.105974,
+              1.403993
+            ],
+            "facing": [
+              -0.4181376402202033,
+              0.7786427278143886,
+              0.4678422984861971
+            ],
+            "diameter_mm": 0.6
+          },
+          {
+            "at": [
+              0.011217,
+              5.701635,
+              2.228064
+            ],
+            "facing": [
+              -0.32578769856809986,
+              0.7118050498889381,
+              0.6222507102561695
+            ],
+            "diameter_mm": 0.5
+          }
+        ]
+      },
+      {
+        "name": "Claw, rising",
+        "lean_deg": 26.551553851541684,
+        "reach_mm": 1.8,
+        "curl_deg": 190.0,
+        "length_mm": 12.090539083424966,
+        "root_mm": 2.0,
+        "tip_mm": 0.9,
+        "min_gap_mm": 0.11452886697326925,
+        "tightest_bend": 1.3825621574927727,
+        "tip_inboard_mm": 1.7999999611551698,
+        "touch_bearing_deg": 46.00000003977401,
+        "tip_over_girdle_mm": 5.212494739726414,
+        "top_over_girdle_mm": 5.3754564411304075,
+        "root_axis_under_band_mm": 1.0500000000000003,
+        "root_face_over_band_mm": -0.6010699576210112,
+        "foot_plan": [
+          0.5539765022568934,
+          6.204148272260646
+        ],
+        "root_plan": [
+          0.0,
+          8.9
+        ],
+        "foot": [
+          120.24999999999999,
+          4.147828165732958
+        ],
+        "heading": [
+          136.75,
+          4.5455651131320085
+        ],
+        "suckers": [
+          {
+            "at": [
+              1.6433419999999999,
+              6.383547,
+              0.573369
+            ],
+            "facing": [
+              -0.16876822675682865,
+              0.9301732824875858,
+              0.32602906340328897
+            ],
+            "diameter_mm": 0.7
+          },
+          {
+            "at": [
+              2.027131,
+              6.003597999999999,
+              1.500543
+            ],
+            "facing": [
+              -0.11364904478867367,
+              0.8775561147595329,
+              0.4658102189376868
+            ],
+            "diameter_mm": 0.6
+          },
+          {
+            "at": [
+              2.31337,
+              5.465834,
+              2.352982
+            ],
+            "facing": [
+              -0.0778917228178595,
+              0.8124566084346663,
+              0.5777950665480842
+            ],
+            "diameter_mm": 0.5
+          }
+        ]
+      },
+      {
+        "name": "Claw, rising right",
+        "lean_deg": 25.979618274802604,
+        "reach_mm": 1.5,
+        "curl_deg": 0.0,
+        "length_mm": 8.97923325017386,
+        "root_mm": 2.0,
+        "tip_mm": 0.9,
+        "min_gap_mm": 0.1121500895242954,
+        "tightest_bend": 2.0778579882247654,
+        "tip_inboard_mm": 1.5000001535762557,
+        "touch_bearing_deg": 77.00000340279082,
+        "tip_over_girdle_mm": 3.6410877085264683,
+        "top_over_girdle_mm": 3.6410877085264683,
+        "root_axis_under_band_mm": 1.0500000000000003,
+        "root_face_over_band_mm": -0.6074390710993862,
+        "foot_plan": [
+          3.481473064847477,
+          4.970301034185843
+        ],
+        "root_plan": [
+          3.1249999999999996,
+          7.812658773652743
+        ],
+        "foot": [
+          114.99999999999999,
+          1.9886847369952538
+        ],
+        "heading": [
+          132.25,
+          1.9886847369952538
+        ],
+        "suckers": [
+          {
+            "at": [
+              4.459319,
+              4.620175,
+              0.59925
+            ],
+            "facing": [
+              0.19192422567946207,
+              0.9013047597625844,
+              0.3883488401252783
+            ],
+            "diameter_mm": 0.7
+          },
+          {
+            "at": [
+              4.6005899999999995,
+              4.062422,
+              1.49474
+            ],
+            "facing": [
+              0.21306901127659914,
+              0.8219194345587416,
+              0.5282518712964973
+            ],
+            "diameter_mm": 0.6
+          },
+          {
+            "at": [
+              4.600944,
+              3.431097,
+              2.271919
+            ],
+            "facing": [
+              0.21486314745757382,
+              0.77716981765784,
+              0.5914735010009364
+            ],
+            "diameter_mm": 0.5
+          }
+        ]
+      },
+      {
+        "name": "Claw, falling left",
+        "lean_deg": 25.979273176141803,
+        "reach_mm": 1.5,
+        "curl_deg": 0.0,
+        "length_mm": 8.979274936983446,
+        "root_mm": 2.0,
+        "tip_mm": 0.9,
+        "min_gap_mm": 0.11215006377958314,
+        "tightest_bend": 2.0779080838415824,
+        "tip_inboard_mm": 1.4999998503591612,
+        "touch_bearing_deg": 103.0000032111054,
+        "tip_over_girdle_mm": 3.641087954767726,
+        "top_over_girdle_mm": 3.641087954767726,
+        "root_axis_under_band_mm": 1.0500000000000003,
+        "root_face_over_band_mm": -0.6074438150683981,
+        "foot_plan": [
+          3.4814722820900785,
+          -4.9703001194285426
+        ],
+        "root_plan": [
+          3.1249999999999996,
+          -7.812658773652743
+        ],
+        "foot": [
+          65.0,
+          1.9886847369952538
+        ],
+        "heading": [
+          47.75,
+          1.9886847369952538
+        ],
+        "suckers": [
+          {
+            "at": [
+              4.459309,
+              -4.620176,
+              0.599251
+            ],
+            "facing": [
+              0.19191398996774006,
+              -0.9013070242343159,
+              0.38834864300077643
+            ],
+            "diameter_mm": 0.7
+          },
+          {
+            "at": [
+              4.600579,
+              -4.062425999999999,
+              1.494742
+            ],
+            "facing": [
+              0.21305849510263614,
+              -0.8219224450226374,
+              0.5282514288031881
+            ],
+            "diameter_mm": 0.6
+          },
+          {
+            "at": [
+              4.6009329999999995,
+              -3.4311,
+              2.2719229999999997
+            ],
+            "facing": [
+              0.2148526015498608,
+              -0.77717103258258,
+              0.5914757355308695
+            ],
+            "diameter_mm": 0.5
+          }
+        ]
+      },
+      {
+        "name": "Claw, falling",
+        "lean_deg": 26.551553851541698,
+        "reach_mm": 1.8,
+        "curl_deg": 190.0,
+        "length_mm": 12.090539083424966,
+        "root_mm": 2.0,
+        "tip_mm": 0.9,
+        "min_gap_mm": 0.11452886697326858,
+        "tightest_bend": 1.3825621574927727,
+        "tip_inboard_mm": 1.7999999618658125,
+        "touch_bearing_deg": 133.999999960226,
+        "tip_over_girdle_mm": 5.212494739726415,
+        "top_over_girdle_mm": 5.375456441130408,
+        "root_axis_under_band_mm": 1.0500000000000003,
+        "root_face_over_band_mm": -0.6010699576210112,
+        "foot_plan": [
+          0.5539765022568941,
+          -6.204148272260645
+        ],
+        "root_plan": [
+          7.960204194457795e-16,
+          -8.9
+        ],
+        "foot": [
+          59.75,
+          4.147828165732958
+        ],
+        "heading": [
+          43.25,
+          4.5455651131320085
+        ],
+        "suckers": [
+          {
+            "at": [
+              1.6433419999999999,
+              -6.383547,
+              0.573369
+            ],
+            "facing": [
+              -0.1687682267568283,
+              -0.9301732824875857,
+              0.326029063403289
+            ],
+            "diameter_mm": 0.7
+          },
+          {
+            "at": [
+              2.027131,
+              -6.003597999999999,
+              1.500543
+            ],
+            "facing": [
+              -0.11364904478867335,
+              -0.8775561147595329,
+              0.465810218937687
+            ],
+            "diameter_mm": 0.6
+          },
+          {
+            "at": [
+              2.31337,
+              -5.465834,
+              2.352982
+            ],
+            "facing": [
+              -0.07789172281785929,
+              -0.8124566084346663,
+              0.5777950665480843
+            ],
+            "diameter_mm": 0.5
+          }
+        ]
+      },
+      {
+        "name": "Claw, falling right",
+        "lean_deg": 30.238190346728814,
+        "reach_mm": 1.0,
+        "curl_deg": 0.0,
+        "length_mm": 7.9795613736509425,
+        "root_mm": 2.0,
+        "tip_mm": 0.9,
+        "min_gap_mm": 0.11039581535414678,
+        "tightest_bend": 1.853131153413738,
+        "tip_inboard_mm": 0.9999998819619744,
+        "touch_bearing_deg": 168.00000093109097,
+        "tip_over_girdle_mm": 3.064905147131439,
+        "top_over_girdle_mm": 3.064905147131439,
+        "root_axis_under_band_mm": 1.0500000000000003,
+        "root_face_over_band_mm": -0.5449049592123525,
+        "foot_plan": [
+          -2.207816814942351,
+          -5.603343309657646
+        ],
+        "root_plan": [
+          -2.9341972674118177,
+          -7.918422455368292
+        ],
+        "foot": [
+          62.75,
+          6.174392612004312
+        ],
+        "heading": [
+          47.5,
+          6.931986797526313
+        ],
+        "suckers": [
+          {
+            "at": [
+              -1.072044,
+              -6.322069,
+              0.556383
+            ],
+            "facing": [
+              -0.47900521226171205,
+              -0.7984989114548974,
+              0.3646278857019254
+            ],
+            "diameter_mm": 0.7
+          },
+          {
+            "at": [
+              -0.526772,
+              -6.105982,
+              1.403989
+            ],
+            "facing": [
+              -0.4181271421084651,
+              -0.778650549593458,
+              0.467838663055987
+            ],
+            "diameter_mm": 0.6
+          },
+          {
+            "at": [
+              0.011227,
+              -5.7016409999999995,
+              2.2280599999999997
+            ],
+            "facing": [
+              -0.32577655676020656,
+              -0.7118125075135656,
+              0.6222480126225509
+            ],
+            "diameter_mm": 0.5
+          }
+        ]
+      }
+    ],
+    "claw_gap_mm": 0.5490341304873217,
+    "feet_skin_mm": [
+      [
+        "Claw, rising left to Claw, rising",
+        1.2263878656972298
+      ],
+      [
+        "Claw, rising to Claw, rising right",
+        1.5768876484516259
+      ],
+      [
+        "Claw, falling left to Claw, falling",
+        1.5768872824178537
+      ],
+      [
+        "Claw, falling to Claw, falling right",
+        1.2263879652331529
+      ]
+    ],
+    "shoulder_tips": [
+      {
+        "name": "right high tip",
+        "theta_deg": 27.00000000000001,
+        "across_mm": -0.07148335582956676,
+        "toward_stone": true,
+        "root_mm": 1.8,
+        "end_mm": 0.9,
+        "length_mm": 15.345103605606983,
+        "turn_deg": 440.0,
+        "lean_deg": -38.0,
+        "lift_mm": 1.3610109502166878,
+        "turn_gap_mm": 0.7032575247188708,
+        "top_mm": 5.443845065888093,
+        "tightest_bend": 1.4702877333014748,
+        "root_axis_under_band_mm": 1.05,
+        "root_face_over_band_mm": -0.5999999999999999,
+        "suckers": [
+          {
+            "at": [
+              0.057935999999999994,
+              0.9576939999999999,
+              3.0827999999999998
+            ],
+            "facing": [
+              0.05850774292465543,
+              0.9671427591188927,
+              -0.2474100392097256
+            ],
+            "diameter_mm": 0.6
+          },
+          {
+            "at": [
+              0.081319,
+              1.344211,
+              3.762399
+            ],
+            "facing": [
+              0.038705617094723865,
+              0.6398103129460463,
+              -0.7675575800245863
+            ],
+            "diameter_mm": 0.5625
+          },
+          {
+            "at": [
+              0.125555,
+              2.075439,
+              4.095383
+            ],
+            "facing": [
+              0.004269202491058664,
+              0.07057062997211908,
+              -0.9974976491678708
+            ],
+            "diameter_mm": 0.525
+          },
+          {
+            "at": [
+              0.170146,
+              2.812537,
+              3.9173799999999996
+            ],
+            "facing": [
+              -0.03664350788182019,
+              -0.6057233033627093,
+              -0.7948311349547665
+            ],
+            "diameter_mm": 0.48750000000000004
+          },
+          {
+            "at": [
+              0.19646999999999998,
+              3.247676,
+              3.2733909999999997
+            ],
+            "facing": [
+              -0.05937217895134149,
+              -0.9814320309680484,
+              -0.18239000234799496
+            ],
+            "diameter_mm": 0.45
+          }
+        ]
+      },
+      {
+        "name": "left low tip",
+        "theta_deg": 152.99999999999997,
+        "across_mm": 0.08814978746616126,
+        "toward_stone": false,
+        "root_mm": 1.8,
+        "end_mm": 0.9,
+        "length_mm": 10.714911096950878,
+        "turn_deg": 360.0,
+        "lean_deg": -38.0,
+        "lift_mm": 1.126305179079025,
+        "turn_gap_mm": 0.7811896614320684,
+        "top_mm": 3.612572253959123,
+        "tightest_bend": 1.4297484707252346,
+        "root_axis_under_band_mm": 1.0499999999999998,
+        "root_face_over_band_mm": -0.5999999999999998,
+        "suckers": [
+          {
+            "at": [
+              -0.5251129999999999,
+              0.9098339999999999,
+              1.497174
+            ],
+            "facing": [
+              -0.47960645917392014,
+              0.8309863852115735,
+              -0.28184973285716847
+            ],
+            "diameter_mm": 0.6
+          },
+          {
+            "at": [
+              -0.722074,
+              1.2510949999999998,
+              2.105266
+            ],
+            "facing": [
+              -0.2700714306712484,
+              0.46793715478513837,
+              -0.8414845462079351
+            ],
+            "diameter_mm": 0.5625
+          },
+          {
+            "at": [
+              -1.074288,
+              1.861356,
+              2.313513
+            ],
+            "facing": [
+              0.09247075586505672,
+              -0.16021873284700724,
+              -0.982740615297162
+            ],
+            "diameter_mm": 0.525
+          },
+          {
+            "at": [
+              -1.351311,
+              2.341338,
+              1.952019
+            ],
+            "facing": [
+              0.44818048469920124,
+              -0.7765364160108296,
+              -0.4428605285457769
+            ],
+            "diameter_mm": 0.48750000000000004
+          },
+          {
+            "at": [
+              -1.105651,
+              2.6829609999999997,
+              1.3206149999999999
+            ],
+            "facing": [
+              0.7648582342971675,
+              -0.3091542995693662,
+              0.5651685593569356
+            ],
+            "diameter_mm": 0.45
+          }
+        ]
+      }
+    ],
+    "arms": [
+      {
+        "name": "Arm, right high",
+        "claw": "Claw, falling right",
+        "foot_theta_deg": 62.75,
+        "foot_v_mm": 6.174392612004312,
+        "points": 10,
+        "length_mm": 7.8710592208225805,
+        "suckers": 8,
+        "finest_sucker_mm": 0.2987528890181579,
+        "papillae": 3,
+        "smallest_papilla_mm": 0.3012406258408244,
+        "thinnest_mm": 1.6,
+        "passes_over": 1,
+        "passes_under": 0,
+        "curl_radius_mm": null,
+        "curl_turns": null,
+        "curl_suckers": 0,
+        "curl_sucker_turns": 0.0
+      },
+      {
+        "name": "Arm, right crest",
+        "claw": "Claw, falling",
+        "foot_theta_deg": 59.75,
+        "foot_v_mm": 4.147828165732958,
+        "points": 53,
+        "length_mm": 31.234656947142685,
+        "suckers": 35,
+        "finest_sucker_mm": 0.25154293760405655,
+        "papillae": 15,
+        "smallest_papilla_mm": 0.30895,
+        "thinnest_mm": 0.9651200000000002,
+        "passes_over": 1,
+        "passes_under": 2,
+        "curl_radius_mm": 1.2,
+        "curl_turns": 1.45,
+        "curl_suckers": 9,
+        "curl_sucker_turns": 0.9561732972543222
+      },
+      {
+        "name": "Arm, right low",
+        "claw": "Claw, falling left",
+        "foot_theta_deg": 65.0,
+        "foot_v_mm": 1.9886847369952538,
+        "points": 47,
+        "length_mm": 35.84493684161519,
+        "suckers": 42,
+        "finest_sucker_mm": 0.26824610578958297,
+        "papillae": 20,
+        "smallest_papilla_mm": 0.29167548209632044,
+        "thinnest_mm": 1.39264,
+        "passes_over": 1,
+        "passes_under": 1,
+        "curl_radius_mm": 2.03,
+        "curl_turns": 0.85,
+        "curl_suckers": 12,
+        "curl_sucker_turns": 0.85
+      },
+      {
+        "name": "Arm, left low",
+        "claw": "Claw, rising right",
+        "foot_theta_deg": 114.99999999999999,
+        "foot_v_mm": 1.9886847369952538,
+        "points": 11,
+        "length_mm": 8.656582356789503,
+        "suckers": 9,
+        "finest_sucker_mm": 0.29343502603269506,
+        "papillae": 4,
+        "smallest_papilla_mm": 0.3002324624720703,
+        "thinnest_mm": 1.5904,
+        "passes_over": 1,
+        "passes_under": 0,
+        "curl_radius_mm": null,
+        "curl_turns": null,
+        "curl_suckers": 0,
+        "curl_sucker_turns": 0.0
+      },
+      {
+        "name": "Arm, left crest",
+        "claw": "Claw, rising",
+        "foot_theta_deg": 120.24999999999999,
+        "foot_v_mm": 4.147828165732958,
+        "points": 49,
+        "length_mm": 31.75437690659557,
+        "suckers": 35,
+        "finest_sucker_mm": 0.2507022818015625,
+        "papillae": 15,
+        "smallest_papilla_mm": 0.312,
+        "thinnest_mm": 0.9993600000000001,
+        "passes_over": 1,
+        "passes_under": 2,
+        "curl_radius_mm": 1.56,
+        "curl_turns": 1.1,
+        "curl_suckers": 8,
+        "curl_sucker_turns": 0.6885599335727036
+      },
+      {
+        "name": "Arm, left high",
+        "claw": "Claw, rising left",
+        "foot_theta_deg": 117.25,
+        "foot_v_mm": 6.174392612004312,
+        "points": 58,
+        "length_mm": 42.79565834196491,
+        "suckers": 50,
+        "finest_sucker_mm": 0.22070312410130835,
+        "papillae": 21,
+        "smallest_papilla_mm": 0.30915000000000004,
+        "thinnest_mm": 1.0224,
+        "passes_over": 1,
+        "passes_under": 1,
+        "curl_radius_mm": 2.64,
+        "curl_turns": 1.25,
+        "curl_suckers": 18,
+        "curl_sucker_turns": 0.9419195163742191
+      }
+    ],
+    "crossings": [
+      {
+        "a": 0,
+        "b": 1,
+        "at_a_mm": 5.277422395621079,
+        "at_b_mm": 4.886378494217966,
+        "over": 0,
+        "theta_deg": 38.051482338767244
+      },
+      {
+        "a": 3,
+        "b": 4,
+        "at_a_mm": 6.109306911103469,
+        "at_b_mm": 4.973689707638383,
+        "over": 3,
+        "theta_deg": 143.04472088006324
+      },
+      {
+        "a": 1,
+        "b": 2,
+        "at_a_mm": 10.028711420198201,
+        "at_b_mm": 11.019439839355663,
+        "over": 1,
+        "theta_deg": 15.606278959607222
+      },
+      {
+        "a": 4,
+        "b": 5,
+        "at_a_mm": 10.26822570190349,
+        "at_b_mm": 10.891103184053026,
+        "over": 4,
+        "theta_deg": 166.28697505904563
+      },
+      {
+        "a": 4,
+        "b": 5,
+        "at_a_mm": 19.405487185650944,
+        "at_b_mm": 20.020440832862313,
+        "over": 5,
+        "theta_deg": 204.59865772591633
+      },
+      {
+        "a": 1,
+        "b": 2,
+        "at_a_mm": 19.530588792886366,
+        "at_b_mm": 20.30968543825984,
+        "over": 2,
+        "theta_deg": 335.82169792599984
+      }
+    ],
+    "side_faces": [
+      0.035512227446343816,
+      0.9943423684976269,
+      8.09678785776639,
+      9.091130226264017
+    ],
+    "band_v_len_mm": 9.091130226264017,
+    "crest_v_mm": 4.560371589908057,
+    "circumference_mm": 75.13960032938488
+  },
+  "land_widths": {
+    "floor_mm": 0.8,
+    "claws": [
+      {
+        "name": "Claw, rising left",
+        "root_mm": 2.0,
+        "end_mm": 0.9,
+        "min_section_mm": 0.9,
+        "measured_min_mm": 0.8999983180873729,
+        "under_floor_mm": 0.0
+      },
+      {
+        "name": "Claw, rising",
+        "root_mm": 2.0,
+        "end_mm": 0.9,
+        "min_section_mm": 0.9,
+        "measured_min_mm": 0.8999456982255941,
+        "under_floor_mm": 0.0
+      },
+      {
+        "name": "Claw, rising right",
+        "root_mm": 2.0,
+        "end_mm": 0.9,
+        "min_section_mm": 0.9,
+        "measured_min_mm": 0.899998484989641,
+        "under_floor_mm": 0.0
+      },
+      {
+        "name": "Claw, falling left (reflection of Claw, rising right)",
+        "root_mm": 2.0,
+        "end_mm": 0.9,
+        "min_section_mm": 0.9,
+        "measured_min_mm": 0.899998484989641,
+        "under_floor_mm": 0.0
+      },
+      {
+        "name": "Claw, falling (reflection of Claw, rising)",
+        "root_mm": 2.0,
+        "end_mm": 0.9,
+        "min_section_mm": 0.9,
+        "measured_min_mm": 0.8999456982255941,
+        "under_floor_mm": 0.0
+      },
+      {
+        "name": "Claw, falling right (reflection of Claw, rising left)",
+        "root_mm": 2.0,
+        "end_mm": 0.9,
+        "min_section_mm": 0.9,
+        "measured_min_mm": 0.8999983180873729,
+        "under_floor_mm": 0.0
+      }
+    ],
+    "shoulder_tips": [
+      {
+        "name": "right high tip",
+        "root_mm": 1.8,
+        "end_mm": 1.18354383741937,
+        "min_section_mm": 1.18354383741937,
+        "measured_min_mm": 1.183454083594111,
+        "under_floor_mm": 0.0
+      },
+      {
+        "name": "right high tip coil",
+        "root_mm": 1.18354383741937,
+        "end_mm": 0.9,
+        "min_section_mm": 0.9,
+        "measured_min_mm": 0.8999780806278174,
+        "under_floor_mm": 0.0
+      },
+      {
+        "name": "left low tip",
+        "root_mm": 1.8,
+        "end_mm": 1.1176953036820496,
+        "min_section_mm": 1.1176953036820496,
+        "measured_min_mm": 1.1176112868383732,
+        "under_floor_mm": 0.0
+      },
+      {
+        "name": "left low tip coil",
+        "root_mm": 1.1176953036820496,
+        "end_mm": 0.9,
+        "min_section_mm": 0.9,
+        "measured_min_mm": 0.8999699484119463,
+        "under_floor_mm": 0.0
+      }
+    ],
+    "tip_balls": [
+      [
+        "Claw, rising left tip",
+        0.936
+      ],
+      [
+        "Claw, rising tip",
+        0.936
+      ],
+      [
+        "Claw, rising right tip",
+        0.936
+      ],
+      [
+        "right high tip joint",
+        1.230886
+      ],
+      [
+        "right high tip end",
+        0.9359999999999999
+      ],
+      [
+        "left low tip joint",
+        1.162404
+      ],
+      [
+        "left low tip end",
+        0.9359999999999999
+      ]
+    ],
+    "rails": [],
+    "free_parts": [],
+    "bed_mm": [
+      8.7,
+      3.2
+    ],
+    "min_section_mm": 0.8999456982255941,
+    "detail_floor_mm": 0.15,
+    "details": [
+      {
+        "name": "Claw, rising left sucker 1",
+        "diameter_mm": 0.7,
+        "dimple_mm": 0.338886042793149,
+        "lip_mm": 0.18055697860342548
+      },
+      {
+        "name": "Claw, rising left sucker 2",
+        "diameter_mm": 0.6,
+        "dimple_mm": 0.2904737509655562,
+        "lip_mm": 0.15476312451722188
+      },
+      {
+        "name": "Claw, rising left sucker 3",
+        "diameter_mm": 0.5,
+        "dimple_mm": 0.24206145913796356,
+        "lip_mm": 0.12896927043101822
+      },
+      {
+        "name": "Claw, rising sucker 1",
+        "diameter_mm": 0.7,
+        "dimple_mm": 0.338886042793149,
+        "lip_mm": 0.18055697860342548
+      },
+      {
+        "name": "Claw, rising sucker 2",
+        "diameter_mm": 0.6,
+        "dimple_mm": 0.2904737509655562,
+        "lip_mm": 0.15476312451722188
+      },
+      {
+        "name": "Claw, rising sucker 3",
+        "diameter_mm": 0.5,
+        "dimple_mm": 0.24206145913796356,
+        "lip_mm": 0.12896927043101822
+      },
+      {
+        "name": "Claw, rising right sucker 1",
+        "diameter_mm": 0.7,
+        "dimple_mm": 0.338886042793149,
+        "lip_mm": 0.18055697860342548
+      },
+      {
+        "name": "Claw, rising right sucker 2",
+        "diameter_mm": 0.6,
+        "dimple_mm": 0.2904737509655562,
+        "lip_mm": 0.15476312451722188
+      },
+      {
+        "name": "Claw, rising right sucker 3",
+        "diameter_mm": 0.5,
+        "dimple_mm": 0.24206145913796356,
+        "lip_mm": 0.12896927043101822
+      },
+      {
+        "name": "right high tip sucker 1",
+        "diameter_mm": 0.6,
+        "dimple_mm": 0.2904737509655562,
+        "lip_mm": 0.15476312451722188
+      },
+      {
+        "name": "right high tip sucker 2",
+        "diameter_mm": 0.5625,
+        "dimple_mm": 0.272319141530209,
+        "lip_mm": 0.1450904292348955
+      },
+      {
+        "name": "right high tip sucker 3",
+        "diameter_mm": 0.525,
+        "dimple_mm": 0.2541645320948618,
+        "lip_mm": 0.13541773395256912
+      },
+      {
+        "name": "right high tip sucker 4",
+        "diameter_mm": 0.48750000000000004,
+        "dimple_mm": 0.2360099226595145,
+        "lip_mm": 0.12574503867024278
+      },
+      {
+        "name": "right high tip sucker 5",
+        "diameter_mm": 0.45,
+        "dimple_mm": 0.21785531322416726,
+        "lip_mm": 0.11607234338791637
+      },
+      {
+        "name": "left low tip sucker 1",
+        "diameter_mm": 0.6,
+        "dimple_mm": 0.2904737509655562,
+        "lip_mm": 0.15476312451722188
+      },
+      {
+        "name": "left low tip sucker 2",
+        "diameter_mm": 0.5625,
+        "dimple_mm": 0.272319141530209,
+        "lip_mm": 0.1450904292348955
+      },
+      {
+        "name": "left low tip sucker 3",
+        "diameter_mm": 0.525,
+        "dimple_mm": 0.2541645320948618,
+        "lip_mm": 0.13541773395256912
+      },
+      {
+        "name": "left low tip sucker 4",
+        "diameter_mm": 0.48750000000000004,
+        "dimple_mm": 0.2360099226595145,
+        "lip_mm": 0.12574503867024278
+      },
+      {
+        "name": "left low tip sucker 5",
+        "diameter_mm": 0.45,
+        "dimple_mm": 0.21785531322416726,
+        "lip_mm": 0.11607234338791637
+      }
+    ],
+    "reflected": "Claws, falling hand: the rising hand's three claws, tip balls, suckers and dimples reflected across the ring at the stone; each measures as its source",
+    "exceptions": [],
+    "passed": true
+  },
+  "tips_proud_mm": [
+    [
+      "right high tip",
+      2.1206637830460604
+    ],
+    [
+      "left low tip",
+      2.4372364466732463
+    ]
+  ],
+  "crossings": 6,
+  "layers": [
+    "Mantle papillae",
+    "Fine papillae",
+    "Arm, right high",
+    "Arm, right crest",
+    "Arm, right low",
+    "Arm, left low",
+    "Arm, left crest",
+    "Arm, left high"
+  ],
+  "cad_features": 103,
+  "design_bytes": 236662,
+  "design_format": 6,
+  "grams_18k": 23.493150452854316,
+  "grams_silver": 15.621889518072575,
+  "cold_reload_identical": true,
+  "gates_passed": true
+}

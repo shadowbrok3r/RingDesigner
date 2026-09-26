@@ -1,0 +1,114 @@
+{
+ "ring": "Phoenix — reborn",
+ "round": 3,
+ "candidate_head": "74dceafd8de06c6f0a96461b2854d2a9d63c5f19",
+ "verdict": "cut",
+ "score": 7.0,
+ "summary": "Cut, 7.0 (round 1: 6.0, round 2: 6.5, Caiman: 7, ship bar: 7.5). This is the best Phoenix so far and every gate is green and verified. The body now has wing lobes. The bird is one continuous figure from head to palm with six fanned primaries. Flame licks fill the cheeks (74% relief, largest bare disc 1.09 mm), a pyre sits under the tail crossing, and the opal is flush set with no bezel wall. It still fails the glance test, and this was the last round. At 300 px it reads as an ornate textured band with an orange cabochon. The bird is a small emblem at the top of each side face and cannot be read from the hero or face angles. The flame licks repeat at a fixed 3.3 mm pitch and read as a running scroll border, not fire. The crown reads as smooth reptile scutes. The silhouette has four even humps round the opal: the breast bumps at 76/104 deg equal the east lobe, so no pair of wings stands out. Mechanical notes remain: a ribbed, crenellated edge along both crown fillets in the face, palm and stones views, and a boxed frame round the pyre. Of the round 2 items, 1 and 7 are met, 2 is largely met, and 3 to 6 are partly met. The breast's DFM departure is honestly met in substance (see breast_dfm_ruling), so the cut rests on the score alone.",
+ "strengths": [
+  "The body has a silhouette now. Side-view outline radius (44.85 px/mm off the 18.52 mm bore): east lobe 15.74 mm at 46-48 deg over a 14.58 mm waist at 64 deg (+1.16 mm), and west lobe 16.06 mm at 128 deg over a 14.33 mm waist at 116-118 deg (+1.73 mm). bare-vs-finished shows a lobed body, not a lens.",
+  "The cheek bird is a continuous figure. It has a crested raptor head, shingled breast, wings out to 12/168 deg with six primaries (bays 0.351-0.515 mm reported), stepped covert tiers, and tail streamers rooted under the wings that run to a seven-tongue pyre at the palm crossing. On the reverse cheek the primaries read as a palisade of rounded flame-like tips, which is the best fire-feather idea in the ring.",
+  "Density is now real: 74% cheek relief overall, 86-89% in the 30-150 deg sectors under the bird, largest bare disc 1.09 mm (round 2: 53% and half-bare sectors).",
+  "The opal is flush set in the breast with no plain bezel wall, and 14 graded sapphires sit in bead heads on the parting line. The palm plume with bench-cut barbs still reads at 300 px.",
+  "Engineering is complete and auditable. Draft and export reports and the template gate are committed. 71 made parts are clean. All 43 raw sand findings are sectioned with 0 slots. The template lifts at 67 nodes with 0 patches and cold parity."
+ ],
+ "round2_items": [
+  {
+   "number": 1,
+   "item": "Two raised wing lobes in thickness, still one dome per section",
+   "status": "met",
+   "evidence": "Wing peaks stand 1.16 mm (east) and 1.73 mm (west) above their waists in side.png's silhouette, against >= 0.8 mm asked; the author reports 1.18/1.63. The bare body is no longer a lens. Thickness >= width at all 14 keys, field Castable 0.000 undercut, clamps <= 0.00006 mm, release 0/0 at both pitches. Caveat: the added breast keys (76/104 deg at 1.62) raise two more humps of 15.60-15.70 mm, level with the east lobe. The outline reads as four humps round the opal, and at 300 px the lobes read as lumpy shoulders, not wings."
+  },
+  {
+   "number": 2,
+   "item": "Bird the width of the shoulders, one continuous body, six fanned primaries, far wing joined, streamers rooted",
+   "status": "partly (largely met)",
+   "evidence": "Met at 1:1. Wings reach 12/168 deg (past 2 and 10 o'clock). Six primaries are fanned, and at least 5 rounded tips can be counted per wing in reverse.png. Covert tiers step. The far wing joins at a shoulder. The streamers leave the body under tail coverts with no free lance points. The largest bare disc is 1.09 mm, just over the ~1 mm asked. Not met at 300 px: the wings read as a dense band of texture at the top of the side face, not as shoulder, fan and tips (contact-300 side tile)."
+  },
+  {
+   "number": 3,
+   "item": "Head, curving neck and breast shingles; head legible from the hero angle",
+   "status": "partly",
+   "evidence": "side.png at 1:1: a domed crested head with a spiral eye and a hooked curl for the beak sits on zig-zag shingle rows, and round 2's lumps are gone. The neck does not read as a separate curve. hero.png at 1:1 (near cheek under the opal): the head is still a lump with a curl, with no readable beak or eye. That was the acceptance test."
+  },
+  {
+   "number": 4,
+   "item": "Fill the bare half of each cheek with fire; pyre at the palm; 0.35-0.5 mm vane grooves",
+   "status": "partly",
+   "evidence": "Coverage is met: largest bare disc 1.09 mm against ~2 mm allowed, with 60-66% relief even in the 150-360 deg sectors. There are clusters of three S-licks along both streamers, crowns at their ends, and a seven-tongue pyre. The small scale is nominal: grooved(0.04, 0.18) cuts grooves 0.04 mm deep and about 0.23 mm wide at half depth, which barely show at 1:1 and will largely fill in the pour. The licks repeat one unit at a fixed 3.3 mm pitch. At 300 px the cheeks read as a running scroll or chain border, not flame."
+  },
+  {
+   "number": 5,
+   "item": "Crown plates with scalloped flame-tongue fronts; palm parting-line ridge",
+   "status": "partly",
+   "evidence": "shoulder.png at 3x nearest-neighbour: the step fronts are continuous, with no periodic sawtooth. The palm ridge is built: 0.32 mm wide, 0.1 mm proud, flat-topped. face.png at 300 px reads as smooth lumpy tiles, not feathers with scalloped edges. shoulder.png reads as crocodile-like scutes, and palm.png's transverse joints read as tread."
+  },
+  {
+   "number": 6,
+   "item": "No more than 0.5 mm of plain bezel wall; 2-3 rows of rounded breast feathers; no stair-stepping",
+   "status": "partly",
+   "evidence": "Bezel wall eliminated (flush set). Three rows at 0.62/0.44/0.26 mm with 1.5 mm scallops, anti-aliased, with no pixel stair-steps in stones.png. They still read as a concentric oval terrace with wavy edges (face.png, stones.png), not feathers. The rows are smooth ramps along the ring near the parting line, and at 76.7 and 103.4 deg the 0.62 row front ends in a knife-edge crest (see breast_dfm_ruling)."
+  },
+  {
+   "number": 7,
+   "item": "Gates and evidence committed",
+   "status": "met",
+   "evidence": "report.json (export 1536x448), report-draft.json (768x320) and template-gate.json are committed at 74dceaf, all green, and the worktree is clean. Sections: draft 18 findings (13 shallow, 5 open), export 25 (16 shallow, 9 open), 0 slots, deepest notch 0.758 mm at aspect <= 0.26."
+  }
+ ],
+ "checklist": {
+  "one_theme_face_to_palm": "pass, with reservation: the bird and flames on the cheeks, ember sapphires down the spine, the palm plume and the pyre. The crown plates read as reptile scutes and tread, a borrowed vocabulary that weakens the phoenix face to palm.",
+  "figurative_motifs_true_outlines": "pass: the painted bird, licks and pyre render with crisp outlines at 1600 px with 0.000 mm cheek clamp, so they pass the lead's painted-figure ruling.",
+  "stones_in_visible_made_settings": "pass: 8 x 6 fire opal in a flush (bur) setting, and 14 graded orange sapphires in visible bead heads. 15 reported and 15 previewed, 0 tight pairs, 0.98 mm run bridges flagged tight.",
+  "shoulder_ornament_not_cut_off": "pass: the sapphire runs and crown plates carry into the breast, and the cheek figure runs unbroken from head to palm. The plates end on smooth featureless breast bumps either side of the opal, which is a soft spot but not a cut-off.",
+  "no_flat_blocky_mechanical": "fail: a ribbed, crenellated edge runs along both crown fillets where the 1 mm side-face relief meets the rim (face.png, palm.png, stones.png). The pyre sits in a raised rectangular frame (side.png, bottom). The flame licks repeat one 3-lick unit at a fixed 3.3 mm pitch. The palm crown reads as transverse tread.",
+  "distinct_silhouette": "partial: the lobed body now differs from every lens in the set, but it reads as four even humps round a cabochon, a molten knuckle rather than wings. It is still far weaker than Arachne's legs or the ZBrush Hypnos wings, where the figure is the outline.",
+  "reads_as_phoenix_at_300px": "fail: contact-300 reads as an ornate textured band with an orange cab. The bird is a small emblem at the top of the side view only, nothing reads as fire or rebirth, and the author concedes the bird is only moderately legible.",
+  "large_medium_small_density_vs_caiman": "partial: coverage now matches Caiman (74% cheek relief, plates face to palm, beads). The hierarchy is less legible than Caiman's crisp hide: large forms are soft blobs, medium forms are a repeated unit, and the small grooves are 0.04 mm deep and effectively absent."
+ },
+ "gates": {
+  "all_green": true,
+  "honestly_met": true,
+  "export_1536x448": "1,360,344 triangles, watertight (0 boundary, 0 non-manifold), 0 degenerate, 0 self-crossings, 71 made parts all clean, bore 0 vertices inside. Delft SandTwoPart Castable, undercut 0.000 mm2, worst draft -0.002 deg, drag 3.0% ((44.01 + 6.38) / 1688.84 mm2), thinnest wall 3.336 mm at 227.8 deg. Release 0 obstructions / 0 unresolved at 0.100 and 0.075 mm. Clamps: plumage 0.00006, breast 0.000, cheeks 0.000 mm. DFM 0. Stones 15 reported, 15 previewed, 1.457 ct, 0 tight pairs. Pattern scale 1.0194: 0 open, 0 repeated, 0 degenerate, 0 crossings. Cold reload identical.",
+  "draft_768x320": "500,296 triangles, watertight, 0 degenerate, 0 crossings, 71 parts clean, bore clear. Castable, 0 undercut, release 0/0 at both pitches, same clamps, DFM 0, 15/15 stones, clean pattern, cold reload identical.",
+  "template": "Lift, 67 nodes, 0 design.set patches, 991,203 bytes against the 3 MB painted budget, source identical, vertices/faces/normals identical, cold design and graph reloads pass, 0 detail findings.",
+  "sand_sections": "Every raw finding is sectioned: draft 18, export 25, 0 slots, deepest notch 0.758 mm at aspect <= 0.26.",
+  "notes": "The export release notes 'some faces have negative draft without a resolved interval obstruction' (mesh worst -3.06 deg) with 0 obstructions and 0 unresolved. The field verdict, which the doctrine judges by, is 0.000%. Release status 'Review', as in round 2. The only departure, the breast ceiling, is disclosed in README line 53 and ruled on below."
+ },
+ "breast_dfm_ruling": {
+  "ruling": "Honestly met in substance; the device used to clear it is improper and should be reverted.",
+  "mechanism": "breast() sets ceiling = max(2.5 x peak, 1.0) = 2.012 mm for a 0.805 mm peak, so the baked alpha never exceeds 0.40. Alpha::min_feature_px counts ink only at alpha >= 0.5 and returns None for a single-phase mask, so findings_in never measures the layer. The geometry is unchanged, because height = alpha x ceiling. The instrument is blinded, not satisfied. README line 53 discloses it.",
+  "the_finding_it_cleared": "The 0.11 mm 'strokes' finding was recorded against an earlier breast (commit log before d12aa32). A replica of the tool's measure on the current table normalised to its own peak (threshold 0.402 mm, EDT granulometry, 10% loss) gives finest ink 18.6 px = 0.72 mm at the chart's 0.0388 mm/px (0.81 mm at the breast's own 0.0436), and no gap finding. With an honest ceiling the layer would pass today, so the device is now unnecessary as well as improper.",
+  "independent_measure_detail_floor_0_30": "Table resampled to a 0.02 mm metal grid (u 0.0436 mm/col at r 14.2; plan z 0.0644 mm/row calibrated on the e1 fronts at theta 90), which is conservative against surface arc. (a) Binary granulometry at 11 levels from 0.10 to 0.71 mm: finest ink >= 0.33 mm except 0.293 at 0.71 mm, a level set of the smooth fill plane with no edge. Finest gap >= 0.305 mm except 0.287 at 0.10 mm, the V-cusps between scallop lobes, which are pointed gaps the doctrine forgives like pointed tips. (b) Grey opening with a 0.30 mm flat disc: 99% of the relief loses <= 0.05 mm, and 0.16 of 32.06 mm3 (0.5%) is lost. The only real sub-floor detail is four knife-edge crests, 0.23 mm2 each, at theta 76.7 / 103.4 deg on both sides of the parting line (table rows 91 / 178). There the fill plane falls away inside the lip ellipse and meets the 0.62 mm row front (step 0.44 -> ~0.58 on one side, falling slope on the other), and the sand will round them down by up to 0.11 mm. Closing at 0.30 mm fills only cusp points (0.015 mm2). This is local softening of four row ends, not mush.",
+  "section_0_8": "Not affected. The breast only adds metal on the crown and creates no web. The thinnest wall is 3.336 mm at 227.8 deg, away from the breast. The flush seat is cut at the bench and is not in the pattern.",
+  "row_width_claim": "The README's 'rows 0.56 mm across' overstates the pinch. The quarter-period scallop stagger narrows the 0.44 and 0.26 mm rows to 0.32 mm between front mid-lines where one front's lobe meets the next front's cusp. That is still above 0.30 mm.",
+  "consequence": "Not grounds for cut on its own. Revert to ceiling = peak, which measures clean at 0.72 mm, and blend the plane into the 0.62 row at 76.7/103.4 deg. The same single-level limitation means the cheek layer (ceiling 1.2 mm, threshold 0.6 mm) is never measured below 0.6 mm, where its licks, primaries and 0.04 mm grooves live. Its bays (0.351-0.515 mm) and tips (0.36 mm) rest on the example's own printed parameters, not on DFM."
+ },
+ "optional_polish": [
+  "Revert the Rising breast ceiling to its own peak (it measures 0.72 mm, clean), and blend the fill plane into the 0.62 mm row front at 76.7/103.4 deg so the four knife-edge crests become rounded shoulders.",
+  "Lower the breast keys at 76/104 deg (thickness 1.62) so the wing lobes lead the silhouette, and even the east lobe (+1.16 mm) toward the west (+1.73 mm).",
+  "Break up the ribbed, crenellated edge the 1 mm side-face relief shows along both crown fillets in the face, palm and stones views: fade the relief's outer rim or roll it into the fillet.",
+  "Replace the rectangular frame round the pyre with an organic ember bed.",
+  "Vary the flame-lick clusters in length, lean and pitch instead of repeating one 3-lick unit every 3.3 mm, so they read as fire rather than a running border.",
+  "Deepen the vane grooves to about 0.08-0.10 mm at 0.35 mm or wider, or move them to the bench layer. At 0.04 mm deep they will fill in the pour.",
+  "Give the crown plates feather or flame tongues that read at 300 px, where they now read as reptile scutes and tread.",
+  "Raise the head's relief or sharpen its beak and eye so the head reads from the hero angle.",
+  "The first sapphire either side of the opal sits in a boxy pocket in the breast bump (face.png); seat it on a shaped mound."
+ ],
+ "viewed_images": [
+  ".claude/collection-review/phoenix-round3/contact-300.png",
+  ".claude/collection-review/phoenix-round3/hero.png",
+  ".claude/collection-review/phoenix-round3/face.png",
+  ".claude/collection-review/phoenix-round3/side.png",
+  ".claude/collection-review/phoenix-round3/reverse.png",
+  ".claude/collection-review/phoenix-round3/palm.png",
+  ".claude/collection-review/phoenix-round3/shoulder.png",
+  ".claude/collection-review/phoenix-round3/stones.png",
+  ".claude/collection-review/phoenix-round3/bare-vs-finished.png",
+  "showcase/stock-masterworks/caiman/hero.png (composite with Arachne)",
+  ".claude/collection-review/refs/arachne/hero.png and side.png (composite)",
+  ".claude/collection-review/zbrush_top.png and zbrush_sheet.png (composite)",
+  "showcase/reptilia/renders/Reptilia-collection.png (1100 px)",
+  "Scratch crops at 1:1 and 3x: side head, hero near-cheek head, side east wing, side pyre, stones fillet edge, shoulder crown fronts at 3x, reverse-cheek bird"
+ ]
+}

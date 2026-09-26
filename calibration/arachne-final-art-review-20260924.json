@@ -1,0 +1,218 @@
+{
+  "ring": "Arachne — the weaver",
+  "review": "Final independent art-director review",
+  "candidate_commit": "cca1b8a663a9898239e4b4b9357a86c5eb9afbe3",
+  "review_started": "2026-09-24",
+  "metadata_reconciled": "2026-09-25",
+  "verdict": "ship",
+  "score": 7.5,
+  "reference_score": {
+    "Caiman": 7.0
+  },
+  "scope": "Art selection and the supplied US 7 lost-wax candidate. This is not publication or an assertion that collection packaging is complete.",
+  "summary": "The spider reads immediately through two unequal cabochons and eight raised, continuous limbs. The web carries the same subject around the shoulders and palm. Continuous knee transitions remove the former ball-collar construction, open hubs preserve distinct silk roots, and lower rounded threads restore hierarchy. It clears the threshold narrowly; regular tubular limbs and engraved-looking web edges still fall short of the richer anatomical modelling in the ZBrush references.",
+  "method": "Viewed every listed final render and all four reference images. Read final report, draft gates, verification, revision notes and the README/plan checklist. Inspected asset sizes and source categories. No geometry was rebuilt and no source was edited. Reported engineering measurements are distinguished from visual judgment.",
+  "render_review": {
+    "hero": "Clear spider silhouette, visible black abdomen and garnet carapace; eight raised limbs frame the two stones without the previous spherical collars.",
+    "face": "The body proportions and paired leg directions communicate the subject at a glance. The smaller carapace remains legible beside the dominant abdomen.",
+    "palm": "The central opening and separated radial roots read as an open web. Repeated frames remain graphic and regular, but no longer form a fused starburst.",
+    "side": "Knees now turn continuously. Tapered shins still have small changes in highlight direction; these limit organic finish without breaking the silhouette.",
+    "shoulder": "Silk continues around the body, and the leg clearances avoid the old severed fragments. The patterned cheek rim remains visually regular.",
+    "reverse": "The web remains coherent away from the stones and does not become an unrelated shank treatment.",
+    "stones": "Both cabochons are visibly seated in made collets. Neither is visually swallowed by surrounding parts.",
+    "bare-vs-finished": "Ornament changes the silhouette and identity substantially while keeping a clean internal bore. The remaining fine rim texture comes from ornament rather than bare stock."
+  },
+  "previous_punches": [
+    {
+      "number": 1,
+      "finding": "Segment-to-sphere collars",
+      "status": "resolved",
+      "evidence": "One continuous local limb loft; 0.35 mm joint transition; visible continuous knee highlights. Reported segment/joint bend ratios 1.267420/1.277880."
+    },
+    {
+      "number": 2,
+      "finding": "Closed palm roots",
+      "status": "resolved",
+      "evidence": "The palm render shows clear root separation and an open irregular hub. Reported minimum gap is 0.200590 mm; roots start at 1.6 mm on the palm and 1.3 mm on other free hubs."
+    },
+    {
+      "number": 3,
+      "finding": "Tall, flat silk and clipped ends",
+      "status": "resolved to shipping threshold",
+      "evidence": "Rounded full-width contours at 0.22 mm radial and 0.15 mm capture height; 0.20 mm inset and 0.40 mm fade. Fine edge texture remains visible in close views but no longer competes with the spider."
+    }
+  ],
+  "remaining_art_limits": [
+    {
+      "number": 1,
+      "blocking": false,
+      "location": "side and shoulder limbs",
+      "limit": "Straight tapered stretches and small highlight kinks still give a restrained CAD character. This is a 7.5 result, not a fully sculpted anatomical spider. No further art round is required for this candidate."
+    },
+    {
+      "number": 2,
+      "blocking": false,
+      "location": "palm web and cheek rim",
+      "limit": "The repeated radial frames and catenary border remain more geometric than natural silk. The open hub and lower relief provide enough hierarchy to ship; do not restore the denser fused roots or taller relief."
+    },
+    {
+      "number": 3,
+      "blocking": false,
+      "location": "outer rim close-ups",
+      "limit": "Small pointed texture and contour sampling remain visible at large render scale. The accepted 0.20 mm inset/0.40 mm fade is a practical limit, not a claim of perfectly polished edge relief."
+    }
+  ],
+  "engineering_gates": {
+    "source": "Committed draft-gates.json, report.json and verification.json; read, not recomputed by this reviewer",
+    "draft_resolution": [
+      768,
+      320
+    ],
+    "draft_triangles": 510048,
+    "export_resolution": [
+      1536,
+      448
+    ],
+    "export_triangles": 1323510,
+    "watertight": true,
+    "boundary_edges": 0,
+    "non_manifold_edges": 0,
+    "degenerate_faces": 0,
+    "ring_self_crossings": 0,
+    "made_part_self_crossings": 0,
+    "solids_notes": [],
+    "parts_notes": [],
+    "dfm_findings": [],
+    "process": "Lost wax",
+    "field_verdict": "Castable",
+    "investment_min_section_mm": 0.8,
+    "minimum_wall_mm": 1.8808131411513767,
+    "minimum_limb_diameter_mm": 0.8,
+    "minimum_bore_vertex_clearance_mm": 0.40423119967721455,
+    "minimum_abdomen_vertex_clearance_mm": 0.4133149026277479,
+    "minimum_segment_bend_ratio": 1.2674201050323006,
+    "minimum_joint_bend_ratio": 1.27787996315429,
+    "stones_reported": 2,
+    "stones_previewed": 2,
+    "metal_vertices_inside_stones": 0,
+    "cold_design_reload": true,
+    "cold_graph_reload": true,
+    "source_identical": true,
+    "vertices_faces_normals_identical": true,
+    "export_clean": {
+      "degenerate_faces": 0,
+      "eps_mm": 0.001,
+      "faces_removed": 2598,
+      "min_angle_deg": 0.02449912266379775,
+      "watertight": true,
+      "worst_aspect": 2359.505907501767
+    },
+    "process_limit": "Lost wax only. The recorded two-part-pull undercuts are not a sand-release approval.",
+    "pass": true
+  },
+  "template": {
+    "source_classification": "Mixed authored SVG, mandatory body-bound Atlas::paint PNG16 clearance masks and stored CAD collets/limbs",
+    "budget_judgment": "The measured painted-atlas allowance in plan section 5 is appropriate because the two actual atlas masks are required to preserve the reviewed geometry. This is not a procedural-only template. Retain its explicit procedural overage; do not promise that P7 will compress local stored meshes or painted masks.",
+    "procedural_budget_bytes": 300000,
+    "raw_graph_bytes": 670316,
+    "procedural_overage_bytes": 370316,
+    "editable_design_wrapper_bytes": 1092309,
+    "design_bytes": 644207,
+    "painted_atlas_flag_bytes": 3000000,
+    "painted_atlas_flag": false,
+    "source_payload_bytes": {
+      "measurement": "UTF-8 compact JSON component sizes; excludes enclosing design formatting",
+      "embedded_clearance_atlases": 138189,
+      "svg_sources": 184873,
+      "stored_collets": 105230,
+      "stored_limbs": 126548,
+      "cad_features_and_recipes": 19937
+    },
+    "design_set_patches": 4,
+    "patch_pointers": [
+      "/draft/min_detail_mm",
+      "/draft/min_section_mm",
+      "/draft/process",
+      "/shank/keys"
+    ],
+    "nodes": 129,
+    "open_ms": {
+      "bake": 0.211163,
+      "cold_build": 1624.594221,
+      "evaluate": 5.338731999999999,
+      "first_build": 1649.902641,
+      "read": 1.337956
+    },
+    "artifact_distinction": "template.graph.json is the 670316-byte raw graph. editable-graph.ring.json is a 1092309-byte RingDesign wrapper containing its graph and stored-mesh table. The wrapper design equals design.ring.json; its graph uses stored-mesh references where the raw graph has inline meshes.",
+    "verified_control_scope": "The supplied exact-source and mesh equivalence checks cover the default candidate. No range sweep for US size, width or thickness was supplied. Stored recipe fields do not regenerate meshes by themselves.",
+    "wrapper_graph_after_stored_mesh_expansion_equals_raw_graph": true
+  },
+  "integration_blockers": [],
+  "packaging_requirements": [
+    "Register and package the accepted candidate through the collection workflow; the reviewed graph is currently unregistered. Recheck cold identity after any P7 relift.",
+    "Keep both graph artifact sizes and the mixed painted-atlas category in the final verification and catalog notes. The 300 KB procedural overage is 370316 bytes, not a future P7 compression promise.",
+    "Before claiming safe parameter ranges, verify the exposed size/width/thickness edits against stored limbs, collets and body-bound masks, or constrain those controls to a demonstrated range. This review approves the verified default only.",
+    "Use the final committed revision notes; the older 1478112-triangle/segmented-limb notes inspected earlier have been replaced correctly."
+  ],
+  "references_viewed": [
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png",
+    ".claude/collection-review/zbrush_top.png",
+    ".claude/collection-review/zbrush_sheet.png"
+  ],
+  "candidate_assets": {
+    "hero.png": {
+      "bytes": 865350,
+      "sha256": "47280f714f304768b29759d19543726940104543957126b52bae5a1623cd3d7d"
+    },
+    "face.png": {
+      "bytes": 614263,
+      "sha256": "aae03b475cc948620640aa07e1b6caf59741b0b8746e23ed35e9bbba16043955"
+    },
+    "palm.png": {
+      "bytes": 877852,
+      "sha256": "0fe6cdc11724627d8e7436a91aeb62081497a5fa3f23d1151dea7c60a4a96283"
+    },
+    "side.png": {
+      "bytes": 922723,
+      "sha256": "3a0e9bbb952860c762f5f988606f08b88a4f32db3a7ceca85834e20bbf0bb7ef"
+    },
+    "shoulder.png": {
+      "bytes": 899503,
+      "sha256": "770952bc75848499d27f7d97ef15e46812b51ce77de11f57ed1759085cae349e"
+    },
+    "reverse.png": {
+      "bytes": 925530,
+      "sha256": "7f6ace6fe22e6a479966a76f253853f2ca057950e1abc786ac9e694b1d45a0fb"
+    },
+    "stones.png": {
+      "bytes": 1160490,
+      "sha256": "2c5c5fb379fef7b8531adfd736412346be4459d2e101faaf2c109b9540e821d6"
+    },
+    "bare-vs-finished.png": {
+      "bytes": 1244965,
+      "sha256": "dc94dd36e287e50806cd600a3c36f569b0b5143152776fc0b626c846c69b3aad"
+    },
+    "report.json": {
+      "bytes": 14314,
+      "sha256": "55c69aaa1b3f5f2fecc581fe4ad15461b9892e7626f3a49e0b4c1e056960ee51"
+    },
+    "verification.json": {
+      "bytes": 1861,
+      "sha256": "5fc5847623b9753c767bc485871c5eeb89c7e581df494b127900310ceef4e514"
+    },
+    "design.ring.json": {
+      "bytes": 644207,
+      "sha256": "433026ed28818e1290bb2149d78d50e15d6c720c3682b36854d81a636d39d716"
+    },
+    "template.graph.json": {
+      "bytes": 670316,
+      "sha256": "02afb3ad3a75cdd88bf3f444109494e59e7b1b56bb188d7aaea8e3da3653d2e5"
+    },
+    "editable-graph.ring.json": {
+      "bytes": 1092309,
+      "sha256": "277898515b551de1386cb52aa79fe53e0fcd7d084bfa39cbab235d41dcac7219"
+    }
+  },
+  "render_integrity": "All eight render hashes are unchanged from the 2026-09-24 visual review. The score is unchanged after metadata reconciliation."
+}
