@@ -1,0 +1,749 @@
+{
+  "bore_margin_mm": -4.51773265908173e-7,
+  "bore_mm": 18.51767672519549,
+  "bore_vertices_inside": 0,
+  "boundary_edges": 0,
+  "build": [
+    1536,
+    448
+  ],
+  "build_s": 1.191108602,
+  "clamp_worst_mm": 0.009474299848079681,
+  "clamps": [
+    {
+      "layer": "Onyx nest",
+      "texels_cut": 0,
+      "worst_mm": 0.0008483171463012695
+    },
+    {
+      "layer": "Raven plumage",
+      "texels_cut": 0,
+      "worst_mm": 0.009474299848079681
+    },
+    {
+      "layer": "Raven heads",
+      "texels_cut": 0,
+      "worst_mm": 0.002244293689727783
+    }
+  ],
+  "cold_reload_identical": true,
+  "crest_line_median_z_mm": -0.012028810618908677,
+  "degenerate_faces": 0,
+  "design": "Corvus — Huginn and Muninn",
+  "design_bytes": 935252,
+  "dfm": [],
+  "embedded_alphas": 0,
+  "field": {
+    "marginal_area_mm2": 13.893642098929599,
+    "notes": [
+      "Field-sampled: clean but for 0.019% at 1.2 deg, inside the sampling noise band of a fast-curving feature.",
+      "Undercut 63–63° on the crest: 0.1 mm² leaning to 3° — caused by \"Raven heads\"; muting it clears it.",
+      "Undercut 124–124° on the upper shoulder: 0.1 mm² leaning to 2° — no single layer explains it.",
+      "Undercut 137–137° on the upper shoulder: 0.1 mm² leaning to 1° — no single layer explains it.",
+      "Undercut 144–144° on the upper shoulder: 0.1 mm² leaning to 1° — no single layer explains it.",
+      "Undercut 164–164° on the crest: 0.1 mm² leaning to 2° — caused by \"Raven heads\"; muting it clears it.",
+      "Undercut 178–178° on the crest: 0.1 mm² leaning to 1° — caused by \"Raven plumage\"; muting it clears it.",
+      "Cut at the bench after casting, and so not judged here: Graver's work, Huginn, eye near, Huginn, eye far, Muninn, eye near, Muninn, eye far.",
+      "1 made setting left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
+    ],
+    "parting_z_mm": -0.03921597913607651,
+    "parts": [],
+    "process": "SandTwoPart",
+    "profile_samples": 128,
+    "theta_samples": 256,
+    "thinnest_wall_mm": 2.35452090921048,
+    "thinnest_wall_theta_deg": 60.46875,
+    "total_area_mm2": 1335.9529209223867,
+    "undercut_area_mm2": 0.25731930173817363,
+    "verdict": "Castable",
+    "vertical_area_mm2": 1.4079246686772593,
+    "worst_draft_deg": -1.2451455476411286
+  },
+  "gates": {
+    "bore_clear": true,
+    "clamp_bite": true,
+    "cold_reload": true,
+    "dfm_zero": true,
+    "field_castable": true,
+    "pattern_mesh": true,
+    "release_0_075": true,
+    "release_0_1": true,
+    "self_crossings": true,
+    "solids_notes_empty": true,
+    "stamps_384": true,
+    "stamps_resolved": true,
+    "stones_match": true,
+    "triangle_budget": true,
+    "watertight": true
+  },
+  "gates_passed": true,
+  "layers": [
+    "Onyx, made collet",
+    "Onyx nest",
+    "Raven plumage",
+    "Raven heads",
+    "Graver's work"
+  ],
+  "made_parts": [
+    {
+      "degenerate_faces": 0,
+      "faces": 1060,
+      "name": "Huginn, beak",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 532,
+      "volume_mm3": 7.67720289674263
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 1060,
+      "name": "Muninn, beak",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 532,
+      "volume_mm3": 7.678759483205844
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 460,
+      "name": "Huginn, eye near",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 232,
+      "volume_mm3": 5.420264277087607
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 460,
+      "name": "Huginn, eye far",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 232,
+      "volume_mm3": 5.420264277087835
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 460,
+      "name": "Muninn, eye near",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 232,
+      "volume_mm3": 5.420264277087815
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 460,
+      "name": "Muninn, eye far",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 232,
+      "volume_mm3": 5.420264277087675
+    },
+    {
+      "degenerate_faces": 0,
+      "faces": 1728,
+      "name": "Onyx, made collet head 0",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "vertices": 864,
+      "volume_mm3": 34.048680738141336
+    }
+  ],
+  "mesh_self_crossings": 0,
+  "metals": [
+    {
+      "dwt": 10.358412941340905,
+      "grams": 16.10913283029083,
+      "metal": "Silver 925"
+    },
+    {
+      "dwt": 8.798651919285712,
+      "grams": 13.68343329213893,
+      "metal": "Bronze"
+    },
+    {
+      "dwt": 8.548690217033277,
+      "grams": 13.294699391794074,
+      "metal": "Brass"
+    },
+    {
+      "dwt": 11.548230644062496,
+      "grams": 17.959506195932345,
+      "metal": "Gold 10k"
+    },
+    {
+      "dwt": 13.067997793757302,
+      "grams": 20.32300831002907,
+      "metal": "Gold 14k"
+    },
+    {
+      "dwt": 15.577613284371749,
+      "grams": 24.225896669491423,
+      "metal": "Gold 18k"
+    },
+    {
+      "dwt": 17.797273200373372,
+      "grams": 27.677853704553744,
+      "metal": "Gold 22k"
+    },
+    {
+      "dwt": 19.317040350068176,
+      "grams": 30.04135581865047,
+      "metal": "Gold 24k"
+    },
+    {
+      "dwt": 11.998161708116879,
+      "grams": 18.659227216553084,
+      "metal": "Palladium 950"
+    },
+    {
+      "dwt": 21.44671405325892,
+      "grams": 33.35336864958864,
+      "metal": "Platinum 950"
+    }
+  ],
+  "min_angle_deg": 0.002839317422238086,
+  "non_manifold_edges": 0,
+  "parting_monotone_failures": [],
+  "pattern": {
+    "bench_layers": [
+      "Graver's work",
+      "Huginn, eye near",
+      "Huginn, eye far",
+      "Muninn, eye near",
+      "Muninn, eye far",
+      "Onyx, made collet (setting)"
+    ],
+    "degenerate_faces": 0,
+    "notes": [],
+    "open_edges": 0,
+    "repeated_edges": 0,
+    "scale": 1.019367991845056,
+    "self_crossings": 0,
+    "triangles": 1368158
+  },
+  "process": "Sand (two-part)",
+  "release_0_075": {
+    "bounds": [
+      [
+        -14.515239715576172,
+        -13.18924331665039,
+        -4.565517425537109
+      ],
+      [
+        14.516000747680664,
+        13.26075267791748,
+        4.559034824371338
+      ]
+    ],
+    "cell_mm": [
+      0.07560218870639801,
+      0.07492916712342174
+    ],
+    "fits_flask": true,
+    "frame": {
+      "x": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "y": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "z": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "grid": [
+      384,
+      353
+    ],
+    "low_draft_area_mm2": 395.0686198030963,
+    "notes": [
+      "395.07 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.076 × 0.075 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
+    "obstructions": [],
+    "occupied_rays": 58075,
+    "parting_mm": -0.003241300582885742,
+    "sand_findings": [
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          -4.951562844216824,
+          -12.252628727607618,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.15120437741279602
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          5.027926065027714,
+          -12.252628727607618,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.15120437741279602
+      },
+      {
+        "message": "Sand slot about 0.23 mm wide; inspect its support and depth",
+        "point": [
+          -5.631982542574406,
+          12.773713091615242,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.22680656611919403
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          5.632743574678898,
+          12.773713091615242,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.15120437741279602
+      },
+      {
+        "message": "Sand slot about 0.53 mm wide; inspect its support and depth",
+        "point": [
+          -3.3639168813824654,
+          12.998500592985508,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.5292153209447861
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          -13.343405790627003,
+          1.459408855978559,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.5994333369873739
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          -13.04099703580141,
+          -3.1112703385501668,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.14985833424684347
+      },
+      {
+        "message": "Sand slot about 0.45 mm wide; inspect its support and depth",
+        "point": [
+          -11.453351072967052,
+          9.926404740925214,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.4495750027405304
+      },
+      {
+        "message": "Sand slot about 0.22 mm wide; inspect its support and depth",
+        "point": [
+          11.302907727658749,
+          9.926404740925214,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.2247875013702652
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          13.1173602566123,
+          1.5343380231019808,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.14985833424684347
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          11.98332742601633,
+          2.583346362829884,
+          2.277896761894226
+        ],
+        "width_mm": 0.15120437741279602
+      },
+      {
+        "message": "Sand slot about 0.08 mm wide; inspect its support and depth",
+        "point": [
+          11.378509916365147,
+          4.906150543655958,
+          2.277896761894226
+        ],
+        "width_mm": 0.07560218870639801
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          5.93515232950449,
+          10.675696412159432,
+          2.277896761894226
+        ],
+        "width_mm": 0.15120437741279602
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          3.5158822908997536,
+          12.773713091615242,
+          2.277896761894226
+        ],
+        "width_mm": 0.15120437741279602
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          -11.982566393911839,
+          -2.8864828371799014,
+          2.277896761894226
+        ],
+        "width_mm": 0.5994333369873739
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          11.907725237309933,
+          -3.036341171426745,
+          2.277896761894226
+        ],
+        "width_mm": 0.14985833424684347
+      },
+      {
+        "message": "Sand slot about 0.45 mm wide; inspect its support and depth",
+        "point": [
+          12.285736180841923,
+          -0.11410365361329691,
+          2.277896761894226
+        ],
+        "width_mm": 0.4495750027405304
+      },
+      {
+        "message": "Sand slot about 0.23 mm wide; inspect its support and depth",
+        "point": [
+          -11.982566393911839,
+          2.5084171957064623,
+          -2.2843793630599976
+        ],
+        "width_mm": 0.22680656611919403
+      },
+      {
+        "message": "Sand slot about 0.08 mm wide; inspect its support and depth",
+        "point": [
+          -11.377748884260654,
+          4.98107971077938,
+          -2.2843793630599976
+        ],
+        "width_mm": 0.07560218870639801
+      },
+      {
+        "message": "Sand slot about 0.15 mm wide; inspect its support and depth",
+        "point": [
+          -5.8587891086936,
+          10.675696412159432,
+          -2.2843793630599976
+        ],
+        "width_mm": 0.15120437741279602
+      },
+      {
+        "message": "Sand slot about 0.52 mm wide; inspect its support and depth",
+        "point": [
+          9.110444255173206,
+          4.831221376532536,
+          -2.2843793630599976
+        ],
+        "width_mm": 0.5245041698639521
+      }
+    ],
+    "status": "Review",
+    "suggested_parting_mm": -0.003241300582885742,
+    "tolerance_mm": 0.02,
+    "unresolved_rays": 0,
+    "worst_draft_deg": -0.8763609535015894
+  },
+  "release_0_1": {
+    "bounds": [
+      [
+        -14.515239715576172,
+        -13.18924331665039,
+        -4.565517425537109
+      ],
+      [
+        14.516000747680664,
+        13.26075267791748,
+        4.559034824371338
+      ]
+    ],
+    "cell_mm": [
+      0.09976371293215408,
+      0.09981130563987876
+    ],
+    "fits_flask": true,
+    "frame": {
+      "x": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "y": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "z": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "grid": [
+      291,
+      265
+    ],
+    "low_draft_area_mm2": 395.0686198030963,
+    "notes": [
+      "395.07 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
+    "obstructions": [],
+    "occupied_rays": 33060,
+    "parting_mm": -0.003241300582885742,
+    "sand_findings": [
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          -4.987805130555457,
+          -12.241035913071542,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.09976371293215408
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          4.988566162659951,
+          -12.241035913071542,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.09976371293215408
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          -5.6861511210805356,
+          12.711790496898148,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.09976371293215408
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          5.587148440252876,
+          12.811601802538027,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.29929113879646224
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          -2.194421168455142,
+          13.011224413817784,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.19952742586430816
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          2.2949459134917922,
+          13.011224413817784,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.19952742586430816
+      },
+      {
+        "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+        "point": [
+          -13.268193303924246,
+          1.5329242652317276,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.39924522255951506
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          -11.472446471145473,
+          9.917073938981543,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.49905652819939383
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          11.273680077385658,
+          9.917073938981543,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.09981130563987876
+      },
+      {
+        "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+        "point": [
+          13.169190623096585,
+          1.5329242652317276,
+          -0.003241300582885742
+        ],
+        "width_mm": 0.19962261127975753
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          11.373443790317813,
+          4.926508656987606,
+          2.277896761894226
+        ],
+        "width_mm": 0.09976371293215408
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          5.8864395790493385,
+          10.715564384100572,
+          2.277896761894226
+        ],
+        "width_mm": 0.29929113879646224
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          -12.270556174602705,
+          -0.0640566250063336,
+          2.277896761894226
+        ],
+        "width_mm": 0.5988678338392726
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          -11.971265035806242,
+          -2.958584488562817,
+          2.277896761894226
+        ],
+        "width_mm": 0.49905652819939383
+      },
+      {
+        "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+        "point": [
+          11.972026067910738,
+          -2.958584488562817,
+          2.277896761894226
+        ],
+        "width_mm": 0.49905652819939383
+      },
+      {
+        "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+        "point": [
+          -11.372682758213317,
+          5.026319962627484,
+          -2.2843793630599976
+        ],
+        "width_mm": 0.09976371293215408
+      },
+      {
+        "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+        "point": [
+          -5.8856785469448445,
+          10.715564384100572,
+          -2.2843793630599976
+        ],
+        "width_mm": 0.29929113879646224
+      },
+      {
+        "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+        "point": [
+          -11.971265035806242,
+          2.231603404710878,
+          -2.2843793630599976
+        ],
+        "width_mm": 0.5988678338392726
+      }
+    ],
+    "status": "Review",
+    "suggested_parting_mm": -0.003241300582885742,
+    "tolerance_mm": 0.02,
+    "unresolved_rays": 0,
+    "worst_draft_deg": -0.8763609535015894
+  },
+  "seats_resolved": 1,
+  "size": "US 8.5",
+  "solids_notes": [],
+  "stamped": 6,
+  "stamps": 6,
+  "stamps_384": {
+    "at": [
+      {
+        "depth_mm": 0.045659159935076465,
+        "r": 15.099756374339089,
+        "theta": 28.559837441494714,
+        "z": -0.052595948494036426
+      },
+      {
+        "depth_mm": 0.032661414168717304,
+        "r": 15.02391203069123,
+        "theta": 37.830478803634236,
+        "z": -0.06263961366312368
+      },
+      {
+        "depth_mm": 0.022254583564224294,
+        "r": 15.099756374339089,
+        "theta": 28.559837441494714,
+        "z": 0.015317795005264333
+      }
+    ],
+    "build": [
+      384,
+      192
+    ],
+    "degenerate_faces": 0,
+    "notes": [],
+    "release_0_075": {
+      "obstructions": 0,
+      "unresolved": 0
+    },
+    "release_0_1": {
+      "obstructions": 3,
+      "unresolved": 0
+    },
+    "self_crossings": 0,
+    "stamped": 6,
+    "watertight": true
+  },
+  "stones": {
+    "carats": 1.1943078631886959,
+    "previewed": 1,
+    "reported": 1,
+    "tight_pairs": 0,
+    "warnings": []
+  },
+  "triangles": 1365142,
+  "volume_mm3": 1554.9356013794238,
+  "watertight": true,
+  "worst_aspect": 20179.85860109431
+}

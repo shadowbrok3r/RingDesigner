@@ -39,7 +39,7 @@ fn onyx() -> Gem {
     Gem { l_mm: 8.0, preview_tint: Some([0.015, 0.015, 0.02]), ..Gem::cabochon(GemCut::Oval, 6.0) }
 }
 
-/// The onyx on a gypsy mound at the crossing, in a made collet soldered on after the pour.
+/// The onyx on a gypsy mound at the crossing, in a made collet.
 fn seat(d: &mut RingDesign) -> Result<()> {
     let v = setting::crest_v(d, 90.0).ok_or_else(|| anyhow::anyhow!("No crest at the top"))?;
     let mut s = SeatPadLayer {
@@ -96,7 +96,7 @@ fn resample(pts: &[P2], step: f64) -> Vec<P2> {
     out
 }
 
-/// A closed counter-clockwise outline between `top(x)` and `bottom(x)` over `x0..x1`, its four corners kept, edges under 0.1 mm.
+/// Counter-clockwise outline between `top(x)` and `bottom(x)` over `x0..x1`, corners kept, edges under 0.1 mm.
 fn banded(x0: f64, x1: f64, top: impl Fn(f64) -> f64, bottom: impl Fn(f64) -> f64) -> Vec<P2> {
     const STEP: f64 = 0.09;
     let n = (((x1 - x0) / 0.01).ceil() as usize).max(16);
@@ -141,32 +141,40 @@ struct HeadSpec {
 
 const HEAD: HeadSpec = HeadSpec {
     tip: 5.3,
-    beak: 6.6,
-    beak_w: 1.45,
-    beak_h: 2.45,
-    culmen: 0.36,
-    skull: 6.3,
-    skull_w: 2.75,
-    crown: 2.9,
-    rim_share: 0.88,
+    beak: 7.2,
+    beak_w: 1.55,
+    beak_h: 2.5,
+    culmen: 0.38,
+    skull: 6.6,
+    skull_w: 2.3,
+    crown: 2.65,
+    rim_share: 0.86,
 };
 
 /// Height of relief painted on the atlas, mm, at alpha 1.
 const PAINT_MM: f64 = 3.0;
 
-/// A sample on one bird: distance from the top along the crest toward its shoulder, across from the crest, and the rim on its side.
+/// A sample on one bird: along the crest from the top, across from it, and its side's rim and wall.
 #[derive(Clone, Copy)]
 struct On {
     o: f64,
     w: f64,
     rim: f64,
+    wall: f64,
+}
+
+impl On {
+    /// How far across the plumage runs on this side, mm.
+    fn reach(&self) -> f64 {
+        (self.rim + (0.85 * self.wall).max(0.8)).max(1.0)
+    }
 }
 
 fn on_bird(p: skin::HidePoint, sign: f64) -> On {
-    On { o: -sign * p.along, w: p.across, rim: p.rim }
+    On { o: -sign * p.along, w: p.across, rim: p.rim, wall: p.wall }
 }
 
-/// Per atlas column, the `across` the hide reads where the section truly crosses the parting plane, between its rows.
+/// Per atlas column, the hide's `across` at the section's exact parting-plane crossing.
 fn zero_across(a: &Atlas, hide: &Hide) -> Vec<f64> {
     (0..a.width)
         .map(|x| {
@@ -183,6 +191,44 @@ fn zero_across(a: &Atlas, hide: &Hide) -> Vec<f64> {
         .collect()
 }
 
+/// Per atlas column, the build section's normal lean at the parting line and its rate of change across.
+struct Crest {
+    lean: Vec<f64>,
+    curve: Vec<f64>,
+}
+
+impl Crest {
+    fn of(d: &RingDesign, a: &Atlas) -> Self {
+        let reference = d.reference_loop();
+        let (lean, curve) = (0..a.width)
+            .map(|x| {
+                let l = d.section_at(x as f64 / a.width as f64 * 360.0, 448, None, Some(&reference));
+                let surf: Vec<_> = l.pts.iter().filter(|p| p.surface).collect();
+                let nz_at = |z: f64| -> f64 {
+                    for w in surf.windows(2) {
+                        let (p, q) = (w[0], w[1]);
+                        if (p.z - z) * (q.z - z) <= 0.0 && p.z != q.z {
+                            let t = (z - p.z) / (q.z - p.z);
+                            return p.nz + (q.nz - p.nz) * t;
+                        }
+                    }
+                    0.0
+                };
+                let lean = nz_at(0.0);
+                (lean, (nz_at(0.25) - nz_at(-0.25)) / 0.5)
+            })
+            .unzip();
+        Self { lean, curve }
+    }
+
+    /// `f` at `q` with its ridge shifted so the displaced ridge lands on the parting line.
+    fn centred(&self, x: usize, q: On, f: impl Fn(On) -> f64) -> f64 {
+        let ridge = f(On { w: 0.0, ..q });
+        let shift = -ridge * self.lean[x] / (1.0 + ridge * self.curve[x]).max(0.2);
+        f(On { w: q.w - shift, ..q })
+    }
+}
+
 /// A sample in hide millimetres with `across` measured from the exact parting line.
 fn hide_at(hide: &Hide, zero: &[f64], s: &skin::Sample) -> skin::HidePoint {
     let mut p = hide.at(s);
@@ -190,9 +236,9 @@ fn hide_at(hide: &Hide, zero: &[f64], s: &skin::Sample) -> skin::HidePoint {
     p
 }
 
-/// A light crown on painted relief, so every plate falls a little away from the crest and nothing near it stands level.
+/// A light crown: 7% of the height lost from the crest to the reach.
 fn crowned(q: On) -> f64 {
-    1.0 - 0.07 * (q.w / (q.rim + 0.8).max(1.0)).powi(2).min(1.0)
+    1.0 - 0.07 * (q.w / q.reach()).powi(2).min(1.0)
 }
 
 impl HeadSpec {
@@ -201,7 +247,7 @@ impl HeadSpec {
         let t = (u / self.beak).clamp(0.0, 1.0);
         (self.beak_w * (1.0 - (1.0 - t).powf(1.3)).max(0.0).powf(0.55)).max(0.1)
     }
-    /// Painted beak mass, mm: arched along the culmen, a sharp-backed wedge across.
+    /// Painted beak mass, mm: arched along the culmen, a wedge across.
     fn beak_mm(&self, q: On) -> f64 {
         let u = q.o - self.tip;
         if !(0.0..=self.beak + 0.8).contains(&u) {
@@ -212,7 +258,7 @@ impl HeadSpec {
         let across = (q.w.abs() / self.beak_half(u)).min(1.0);
         self.beak_h * arch * (1.0 - across.powi(3)).max(0.0).powf(0.8) * (1.0 - 0.25 * across * across)
     }
-    /// Skull relief, mm: a long flat crown behind a steep forehead, rounding off into the nape and flowing into the beak's root.
+    /// Skull relief, mm: a flat crown behind a steep forehead, feathered, falling into the nape and the beak's root.
     fn skull_mm(&self, q: On) -> f64 {
         let base = self.tip + self.beak;
         let u = q.o - base;
@@ -231,7 +277,10 @@ impl HeadSpec {
         };
         let root = smooth(-1.2, 0.5, u);
         let dome = (1.0 - t.powi(4)).max(0.0).powf(0.5) * (1.0 - 0.18 * t * t);
-        self.crown * along * root * dome
+        let plume = Lanes { from: 0.0, lanes: 6.0, pitch: 0.45 + 0.25 * s, stagger: 0.22, round: 0.25 };
+        let (lane, phase, within) = plume.at(u, t);
+        let feathered = smooth(0.06, 0.2, s) * (0.055 * lane + 0.035 * (1.0 - phase.powf(0.85)) + 0.015 * within);
+        (self.crown * along * root * dome - feathered).max(0.0)
     }
     /// Skull half-width at `s` along it, kept inside the rim on the sample's side.
     fn width(&self, q: On, s: f64) -> f64 {
@@ -242,10 +291,15 @@ impl HeadSpec {
 }
 
 /// The two skulls painted on the atlas, as a share of [`PAINT_MM`].
-fn paint_heads(a: &Atlas, hide: &Hide, zero: &[f64], h: HeadSpec) -> ringdesign_core::Alpha {
+fn paint_heads(a: &Atlas, hide: &Hide, zero: &[f64], crest: &Crest, h: HeadSpec) -> ringdesign_core::Alpha {
     a.paint("Raven heads", |s| {
         let p = hide_at(hide, zero, s);
-        [1.0, -1.0].iter().map(|&sign| { let q = on_bird(p, sign); h.skull_mm(q).max(h.beak_mm(q)) * crowned(q) }).fold(0.0, f64::max) / PAINT_MM
+        let x = s.i % a.width;
+        [1.0, -1.0]
+            .iter()
+            .map(|&sign| crest.centred(x, on_bird(p, sign), |q| h.skull_mm(q).max(h.beak_mm(q)) * crowned(q)))
+            .fold(0.0, f64::max)
+            / PAINT_MM
     })
 }
 
@@ -264,11 +318,10 @@ fn crest(d: &RingDesign, a: &Atlas, hide: &Hide, sign: f64, o: f64) -> Result<(f
     Ok((theta, v))
 }
 
-/// How far behind each eye its cut is centred, mm, so the cut's reach spans the tall skull it drops onto.
+/// How far behind each eye its cut's origin sits, mm.
 const EYE_REACH: f64 = 1.9;
 
-/// One raven's struck beak, a thin gable riding the painted beak so its outline is crisp, and its eyes cut at the bench
-/// into the skull as sockets holding a domed eye. `sign` +1 is the bird on the low shoulder, its beak toward rising theta.
+/// One raven's gabled beak stamp and its two bench-cut conical eyes; `sign` +1 is the low-shoulder bird.
 fn raven_beak(d: &RingDesign, a: &Atlas, hide: &Hide, name: &str, sign: f64, h: HeadSpec) -> Result<Vec<Stamp>> {
     let rot = if sign > 0.0 { 0.0 } else { 180.0 };
     let hb = 0.5 * (h.beak - 1.2);
@@ -313,14 +366,14 @@ fn raven_beak(d: &RingDesign, a: &Atlas, hide: &Hide, name: &str, sign: f64, h: 
             bench: true,
             along_pull: false,
             tier: 1,
-            top: StampTop::Dome { crown_mm: -0.36 },
+            top: StampTop::Cone { apex_mm: 0.32, at: [EYE_REACH, 0.0], tip_mm: 0.22 },
         });
     }
     Ok(out)
 }
 
 /// Height of the body plumage at alpha 1, mm.
-const PLUME_MM: f64 = 1.0;
+const PLUME_MM: f64 = 1.35;
 
 /// Where each raven's body lies along the crest, mm from the top, and how its feathers are cut.
 #[derive(Clone, Copy)]
@@ -354,11 +407,10 @@ const BODY: BodySpec = BodySpec {
     overlap: 1.7,
 };
 
-/// The primaries' fan narrows no further than this across both sides of the crest, mm, so its last feather ends as a blade.
+/// Narrowest width of the primaries' fan across the crest, mm.
 const FAN_MIN: f64 = 1.7;
 
-/// Feathers in lanes: `lanes` side by side from the crest to the reach, each lane a column of feathers with tips every `pitch`
-/// along the crest from `from`, staggered lane to lane, each tip rounded on its outer corner.
+/// Feather lanes across the reach, tips every `pitch` from `from`, staggered per lane, outer corners rounded.
 struct Lanes {
     from: f64,
     lanes: f64,
@@ -368,41 +420,50 @@ struct Lanes {
 }
 
 impl Lanes {
-    /// The feather under `(o, x)`, `x` the share of the reach across: its lane and its phase along its own length.
-    fn at(&self, o: f64, x: f64) -> (f64, f64) {
+    /// Lane, phase along the feather and position across the lane at `(o, x)`, `x` the share of the reach.
+    fn at(&self, o: f64, x: f64) -> (f64, f64, f64) {
         let x = x.clamp(0.0, 0.999) * self.lanes;
         let lane = x.floor();
         let within = x - lane;
         let corner = self.round * (1.0 - (1.0 - within * within).max(0.0).sqrt());
         let local = o - self.from - lane * self.stagger + corner;
-        (lane, (local / self.pitch).rem_euclid(1.0))
+        (lane, (local / self.pitch).rem_euclid(1.0), within)
     }
 }
 
+/// Each lane stands this share of the one inside it.
+const LANE_FALL: f64 = 0.72;
+/// How far a feather rises along its length, as a share of its lane's height.
+const PLATE_RISE: f64 = 0.12;
+/// How far a feather's vane falls toward its lane's outer edge, as a share of its lane's height.
+const RIDGE_FALL: f64 = 0.14;
+
+/// Height of a feather in lane `lane` of a group standing `top` at the crest.
+fn feather(top: f64, lane: f64, t: f64, within: f64) -> f64 {
+    top * LANE_FALL.powf(lane) * (1.0 - PLATE_RISE * (1.0 - t.powf(0.85)) - RIDGE_FALL * within)
+}
+
 impl BodySpec {
-    /// Body plumage of one raven at `q`, mm: neck, coverts and secondaries as lanes of overlapping feathers, the primaries
-    /// fanning in over the tail, and the wedge tail interlocking with the other bird's at the palm. Each lane stands a step
-    /// under the one inside it and each feather rises less than that step, so every section falls away from the crest.
+    /// Body plumage of one raven at `q`, mm: neck, coverts, secondaries, primaries fan and interlocking tail.
     fn plume_mm(&self, q: On, palm: f64, sign: f64) -> f64 {
         let w = q.w.abs();
-        let reach = (q.rim + 0.8).max(1.0);
+        let reach = q.reach();
         let x = (w / reach).min(1.0);
         let bulge = |at: f64, by: f64| at - by * (1.0 - x * x);
         let mut h: f64 = 0.0;
         let groups = [
-            (Lanes { from: self.neck - 3.6, lanes: 5.0, pitch: 0.95, stagger: 0.45, round: 0.55 }, bulge(self.neck, 3.6), 0.52, 0.09),
-            (Lanes { from: self.shoulder - 1.6, lanes: 4.0, pitch: 1.3, stagger: 0.6, round: 0.8 }, bulge(self.shoulder, 1.6), 0.86, 0.1),
-            (Lanes { from: self.secondaries - 1.2, lanes: 3.0, pitch: 1.8, stagger: 0.85, round: 1.1 }, bulge(self.secondaries, 1.2), 0.98, 0.1),
+            (Lanes { from: self.neck - 3.6, lanes: 5.0, pitch: 0.95, stagger: 0.45, round: 0.55 }, bulge(self.neck, 3.6), 0.52),
+            (Lanes { from: self.shoulder - 1.6, lanes: 4.0, pitch: 1.35, stagger: 0.6, round: 0.8 }, bulge(self.shoulder, 1.6), 0.92),
+            (Lanes { from: self.secondaries - 1.2, lanes: 3.0, pitch: 1.9, stagger: 0.85, round: 1.1 }, bulge(self.secondaries, 1.2), 1.0),
         ];
         let primaries = bulge(self.primaries, 1.0);
-        for (g, (lanes, front, top, rise)) in groups.iter().enumerate() {
+        for (g, (lanes, front, top)) in groups.iter().enumerate() {
             let next = groups.get(g + 1).map_or(primaries, |n| n.1);
             if q.o >= *front && q.o < next {
-                let (lane, t) = lanes.at(q.o, x);
-                h = h.max(top - rise - (rise + 0.03) * lane + rise * t.powf(0.85));
+                let (lane, t, within) = lanes.at(q.o, x);
+                h = h.max(feather(*top, lane, t, within));
             }
         }
-        let primaries = bulge(self.primaries, 1.0);
         if q.o >= primaries {
             let run = (self.apex - self.primaries).max(1.0);
             let s = ((q.o - self.primaries) / run).clamp(0.0, 1.0);
@@ -413,18 +474,19 @@ impl BodySpec {
                 let within = lanes * w / fan - j;
                 let tip = self.apex - j * self.lane_step - 0.7 * self.lane_step * within;
                 if q.o <= tip {
-                    h = h.max(1.0 - 0.1 * j - 0.06 * smooth(tip - 1.5, tip, q.o));
+                    let t = 1.0 - smooth(tip - 1.8, tip, q.o);
+                    h = h.max(1.02 * LANE_FALL.powf(j) * (1.0 - RIDGE_FALL * within - 0.1 * (1.0 - t)));
                 }
             }
             let lanes = self.tail_lanes as f64;
             let lane_w = reach / lanes;
             let k = (w / lane_w).floor().min(lanes - 1.0);
             let within = (w - k * lane_w) / lane_w;
-            let own = ((k as usize) % 2 == 0) == (sign > 0.0);
+            let own = (k as usize).is_multiple_of(2) == (sign > 0.0);
             let past = self.overlap - 0.45 * k - 0.55 * within;
             let end = if own { palm + past } else { palm - past };
             if q.o <= end {
-                h = h.max(0.62 - 0.09 * k - 0.07 * smooth(end - 1.3, end, q.o));
+                h = h.max(0.64 * LANE_FALL.powf(k) * (1.0 - RIDGE_FALL * within - 0.1 * smooth(end - 1.3, end, q.o)));
             }
         }
         h
@@ -432,49 +494,51 @@ impl BodySpec {
     /// Throat hackles beside the beak: pointed lanes lying toward the onyx, inner lanes longest.
     fn hackles_mm(&self, q: On, h: HeadSpec) -> f64 {
         let w = q.w.abs();
-        let root = h.tip + h.beak + 2.2;
-        if q.o > root + 1.5 || q.o < h.tip - 0.5 {
+        let root = h.tip + h.beak + 1.6;
+        if q.o > root + 1.2 || q.o < h.tip - 0.3 {
             return 0.0;
         }
-        let reach = (q.rim + 0.8).max(1.0);
-        let lane_w = reach / 4.0;
-        let j = (w / lane_w).floor().min(3.0);
-        let within = (w - j * lane_w) / lane_w;
-        let start = h.tip + 0.3 + 1.3 * j + 0.9 * within;
-        if q.o < start {
+        let reach = q.reach();
+        let x = (w / reach).min(0.999) * 3.0;
+        let (j, within) = (x.floor(), x - x.floor());
+        let tip = h.tip + 0.15 + 0.85 * j + 0.8 * within;
+        if q.o < tip {
             return 0.0;
         }
-        (0.46 - 0.07 * j) * smooth(start, start + 1.2, q.o) * (1.0 - 0.4 * smooth(root, root + 1.5, q.o))
+        let t = smooth(tip, tip + 2.2, q.o);
+        0.62 * LANE_FALL.powf(j) * (1.0 - RIDGE_FALL * within) * (0.55 + 0.45 * t) * (1.0 - 0.35 * smooth(root, root + 1.2, q.o))
     }
 }
 
-/// Height of the shaft ridge along each raven's spine, mm: the crest line itself, so no level facet sits on the parting line.
+/// Height of the ridge along each raven's spine, mm.
 const SPINE_MM: f64 = 0.05;
 
 /// Both ravens' body plumage on the atlas, as a share of [`PLUME_MM`].
-fn paint_plumage(a: &Atlas, hide: &Hide, zero: &[f64], h: HeadSpec, b: BodySpec) -> ringdesign_core::Alpha {
+fn paint_plumage(a: &Atlas, hide: &Hide, zero: &[f64], crest: &Crest, h: HeadSpec, b: BodySpec) -> ringdesign_core::Alpha {
     let palm = hide.reach();
     a.paint("Raven plumage", |s| {
         let p = hide_at(hide, zero, s);
+        let x = s.i % a.width;
         [1.0, -1.0]
             .iter()
             .map(|&sign| {
                 let mut q = on_bird(p, sign);
                 if q.o < 0.0 {
-                    q.o = 2.0 * palm + q.o;
+                    q.o += 2.0 * palm;
                 }
-                let edge = 1.0 - smooth(q.rim + 0.7, q.rim + 1.25, q.w.abs());
-                let body = b.plume_mm(q, palm, sign);
-                let spine = if body > 0.0 { SPINE_MM * (1.0 - q.w.abs() / 0.4).max(0.0) } else { 0.0 };
-                (body + spine).max(b.hackles_mm(q, h)) * edge * crowned(q)
+                crest.centred(x, q, |q| {
+                    let edge = 1.0 - smooth(q.reach() - 0.1, (q.rim + q.wall + 0.15).max(q.reach() + 0.25), q.w.abs());
+                    let body = b.plume_mm(q, palm, sign);
+                    let spine = if body > 0.0 { SPINE_MM * (1.0 - q.w.abs() / 0.4).max(0.0) } else { 0.0 };
+                    (body + spine).max(b.hackles_mm(q, h)) * edge * crowned(q)
+                })
             })
             .fold(0.0, f64::max)
             / PLUME_MM
     })
 }
 
-/// A separable box blur of `r` columns and `s` rows, wrapping round the ring; symmetric, so a layer falling away from the
-/// crest on both sides still does.
+/// Separable box blur of `r` columns and `s` rows, wrapping round the ring.
 fn blur(alpha: &mut ringdesign_core::Alpha, r: usize, s: usize) {
     let (w, h) = (alpha.width, alpha.height);
     let src = alpha.data.clone();
@@ -500,8 +564,7 @@ fn blur(alpha: &mut ringdesign_core::Alpha, r: usize, s: usize) {
 /// Height of the nest at alpha 1, mm.
 const NEST_MM: f64 = 1.4;
 
-/// A raised nest under the onyx's collet: filled up to the collet's flat base, falling 3.5 deg across so it keeps its draft,
-/// and fading beyond the collet's wall, so the made collet stands on metal all round instead of floating.
+/// Feathered nest under the collet: up to its flat base, falling 3.5 deg across, fading past its wall.
 fn paint_nest(d: &RingDesign, a: &Atlas, hide: &Hide) -> Result<ringdesign_core::Alpha> {
     let (stone, f) = ringdesign_core::stones::stone_frames(d).into_iter().next().ok_or_else(|| anyhow::anyhow!("No onyx"))?;
     let gem = stone.gem;
@@ -525,7 +588,11 @@ fn paint_nest(d: &RingDesign, a: &Atlas, hide: &Hide) -> Result<ringdesign_core:
         let fade = (1.0 - past.max(0.0) / (0.3 + 0.9 * axial)).max(0.0);
         let p = hide.at(s);
         let crown = 1.0 - smooth(p.rim - 0.35, p.rim - 0.05, p.across.abs());
-        (lift.max(0.0) * fade * crown).max(0.0) / NEST_MM
+        let nest = lift.max(0.0) * fade * crown;
+        let breast = Lanes { from: 0.0, lanes: 4.0, pitch: 0.95, stagger: 0.45, round: 0.5 };
+        let (lane, t, within) = breast.at(p.along.abs(), p.across.abs() / (p.rim + 0.3).max(1.0));
+        let texture = (0.07 * lane + 0.045 * (1.0 - t.powf(0.85)) + 0.02 * within) * smooth(0.15, 0.45, nest);
+        (nest - texture).max(0.0) / NEST_MM
     }))
 }
 
@@ -537,35 +604,17 @@ fn off_top(theta: f64) -> f64 {
 /// Atlas columns round the ring.
 const ATLAS_W: usize = 2048;
 
-/// Atlas rows across the section, so a texel is as tall as it is wide and the detail measure reads strokes true.
+/// Atlas rows across the section for square texels.
 fn atlas_rows(d: &RingDesign) -> usize {
     let ctx = d.field_context();
     ((ATLAS_W as f64 * ctx.band_v_len_mm / ctx.circumference_mm).round() as usize).max(64)
 }
 
-/// Paint one layer: clamp it to the sand's pull, store it portably, and add it over the whole chart.
-fn painted(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, hide: &Hide, mut alpha: ringdesign_core::Alpha, height: f64, rows: usize) -> Result<skin::ClampReport> {
-    blur(&mut alpha, 5, rows);
-    let before = alpha.data.clone();
+/// Blur, draft-clamp and store one painted layer, and add it over the whole chart.
+fn painted(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, mut alpha: ringdesign_core::Alpha, height: f64, rows: usize) -> Result<skin::ClampReport> {
+    blur(&mut alpha, 3, rows);
     let clamp = skin::draft_clamp(a, &mut alpha, height)?;
     println!("  {}: clamp {:.4} mm over {} texels", alpha.name, clamp.worst_mm, clamp.texels_cut);
-    if std::env::var("CORVUS_BITES").is_ok() {
-        let mut bites: Vec<(f64, usize)> = before.iter().zip(&alpha.data).enumerate().map(|(i, (b, c))| ((b - c) as f64 * height, i)).filter(|(m, _)| *m > 0.01).collect();
-        bites.sort_by(|x, y| y.0.total_cmp(&x.0));
-        let mut shown: Vec<(f64, f64)> = Vec::new();
-        for (m, i) in bites {
-            let s = &a.samples[i];
-            let p = hide.at(s);
-            if shown.iter().any(|(l, w)| (l - p.along).abs() < 0.6 && (w - p.across).abs() < 0.4) {
-                continue;
-            }
-            shown.push((p.along, p.across));
-            println!("    bite {m:.3} mm at theta {:.1}, along {:.2}, across {:.2}, rim {:.2}, n_z {:.2}", s.theta, p.along, p.across, p.rim, s.n[2]);
-            if shown.len() >= 12 {
-                break;
-            }
-        }
-    }
     lib.insert(Alpha::from_png16(alpha.name.clone(), &alpha.to_png16()?)?);
     d.layers.layers.push(skin::hide_layer(d, &alpha.name, height, Window::around(90.0, 360.0)));
     Ok(clamp)
@@ -574,7 +623,7 @@ fn painted(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, hide: &Hide, m
 /// Depth of the graver's work at alpha 1, mm.
 const BARB_MM: f64 = 0.07;
 
-/// What the graver cuts after the pour: a rachis down every flight and tail feather, and each beak's gape.
+/// Bench cuts: a rachis on every primary and tail feather, and each beak's gape.
 fn paint_barbs(a: &Atlas, hide: &Hide, zero: &[f64], h: HeadSpec, b: BodySpec) -> ringdesign_core::Alpha {
     let palm = hide.reach();
     let line = |d: f64, half: f64| 1.0 - smooth(half * 0.6, half, d.abs());
@@ -584,10 +633,10 @@ fn paint_barbs(a: &Atlas, hide: &Hide, zero: &[f64], h: HeadSpec, b: BodySpec) -
         for sign in [1.0, -1.0] {
             let mut q = on_bird(p, sign);
             if q.o < 0.0 {
-                q.o = 2.0 * palm + q.o;
+                q.o += 2.0 * palm;
             }
             let w = q.w.abs();
-            let reach = (q.rim + 0.8).max(1.0);
+            let reach = q.reach();
             if q.o >= b.primaries && q.o < b.apex {
                 let run = (b.apex - b.primaries).max(1.0);
                 let sv = ((q.o - b.primaries) / run).clamp(0.0, 1.0);
@@ -607,10 +656,10 @@ fn paint_barbs(a: &Atlas, hide: &Hide, zero: &[f64], h: HeadSpec, b: BodySpec) -
             let lane_w = reach / lanes;
             let k = (w / lane_w).floor().min(lanes - 1.0);
             let mid = (w - (k + 0.5) * lane_w).abs();
-            let own = ((k as usize) % 2 == 0) == (sign > 0.0);
+            let own = (k as usize).is_multiple_of(2) == (sign > 0.0);
             let past = b.overlap - 0.45 * k;
             let end = if own { palm + past } else { palm - past };
-            if q.o > b.apex - 1.0 && q.o < end - 1.1 {
+            if q.o > b.apex - 2.0 && q.o < end - 0.6 {
                 cut = cut.max(line(mid, 0.07));
             }
             let u = q.o - h.tip;
@@ -626,8 +675,7 @@ fn paint_barbs(a: &Atlas, hide: &Hide, zero: &[f64], h: HeadSpec, b: BodySpec) -
 /// Every painted layer's draft-clamp report, by name.
 type Clamps = Vec<(String, skin::ClampReport)>;
 
-/// The whole ring: the bypass body and its collet, the painted nest, plumage and heads, the struck beaks, the eyes and the
-/// graver's lines cut at the bench. The painted layers are written to `art` as they are stored.
+/// The whole ring, with each painted layer written to `art`.
 fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
     let mut d = band();
     seat(&mut d)?;
@@ -636,13 +684,14 @@ fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
     let mut lib = AlphaLibrary::default();
     let mut clamps = Vec::new();
     let zero = zero_across(&a, &hide);
+    let crest = Crest::of(&d, &a);
     let nest = paint_nest(&d, &a, &hide)?;
     for (alpha, height, name, rows) in [
-        (nest, NEST_MM, "Onyx nest", 3),
-        (paint_plumage(&a, &hide, &zero, HEAD, BODY), PLUME_MM, "Raven plumage", 3),
-        (paint_heads(&a, &hide, &zero, HEAD), PAINT_MM, "Raven heads", 0),
+        (nest, NEST_MM, "Onyx nest", 2),
+        (paint_plumage(&a, &hide, &zero, &crest, HEAD, BODY), PLUME_MM, "Raven plumage", 2),
+        (paint_heads(&a, &hide, &zero, &crest, HEAD), PAINT_MM, "Raven heads", 0),
     ] {
-        let clamp = painted(&mut d, &mut lib, &a, &hide, alpha, height, rows)?;
+        let clamp = painted(&mut d, &mut lib, &a, alpha, height, rows)?;
         if let Some(art) = art {
             let slug = name.to_lowercase().replace(' ', "-");
             std::fs::write(art.join(format!("{slug}.png")), lib.get(name).map(|x| x.to_png16()).transpose()?.unwrap_or_default())?;
@@ -682,7 +731,7 @@ fn checked_part(name: &str, part: &csg::Solid) -> serde_json::Value {
         "degenerate_faces": c.zero_area_faces, "self_crossings": c.self_crossings, "volume_mm3": c.volume})
 }
 
-/// Every made part as placed: each struck stamp against the ring built to its tier, and the onyx's collet.
+/// Every made part as placed: each stamp on the ring built to its tier, and the collet.
 fn made_parts(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams) -> Result<Vec<serde_json::Value>> {
     let ctx = d.field_context();
     let mut parts = Vec::new();
@@ -714,7 +763,41 @@ fn made_parts(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams) -> Result<Vec<
     Ok(parts)
 }
 
-/// The smallest distance any finished vertex stands from the finger axis, less the bore radius, and how many stand inside it.
+/// Median height of the built crest line, mm, from the weighted peak of each half-degree slice.
+fn crest_height(m: &mesh::Mesh) -> f64 {
+    const BINS: usize = 720;
+    let mut top: Vec<Vec<(f64, f64)>> = vec![Vec::new(); BINS];
+    for p in &m.vertices {
+        let z = p.2 as f64;
+        if z.abs() > 0.2 {
+            continue;
+        }
+        let th = (p.1 as f64).atan2(p.0 as f64).to_degrees().rem_euclid(360.0);
+        top[((th / 360.0 * BINS as f64) as usize).min(BINS - 1)].push(((p.0 as f64).hypot(p.1 as f64), z));
+    }
+    let mut peaks: Vec<f64> = top
+        .iter_mut()
+        .filter(|pts| pts.len() >= 3)
+        .map(|pts| {
+            pts.sort_by(|a, b| b.0.total_cmp(&a.0));
+            let best = pts[0];
+            let (sw, sz) = pts.iter().filter(|q| (q.1 - best.1).abs() < 0.09).take(6).fold((0.0, 0.0), |(w, s), q| {
+                let k = (q.0 - best.0 + 0.002).max(0.0);
+                (w + k, s + k * q.1)
+            });
+            if sw > 0.0 { sz / sw } else { best.1 }
+        })
+        .collect();
+    peaks.sort_by(|a, b| a.total_cmp(b));
+    peaks.get(peaks.len() / 2).copied().unwrap_or(0.0)
+}
+
+/// Delft clay inspection setup at sample pitch `pitch`, mm.
+fn sand_setup(pitch: f64) -> mf::Setup {
+    mf::Setup { recipe: mf::Recipe::sand(SandProcess::DelftClay), sample_pitch_mm: pitch, ..Default::default() }
+}
+
+/// Least vertex margin outside the bore radius, mm, and the count more than 0.01 mm inside it.
 fn bore_intrusion(d: &RingDesign, m: &mesh::Mesh) -> (f64, usize) {
     let bore = d.inner_radius_mm();
     let mut least = f64::MAX;
@@ -789,7 +872,7 @@ fn preview_stones(d: &RingDesign, lib: &AlphaLibrary, b: &mesh::BuildResult) -> 
 const VIEWS: [(&str, f64, f64); 6] =
     [("hero", 0.62, 0.92), ("face", 0.0, PI * 0.5), ("palm", PI, PI * 0.5), ("side", 0.0, 0.0), ("shoulder", -0.95, 0.55), ("reverse", PI + 0.5, 0.35)];
 
-/// Studio-gold renders with the onyx set: the named views, a stone close-up, and the bare body against the finished ring.
+/// Studio-gold renders with the onyx set, a stone close-up and bare against finished.
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, b: &mesh::BuildResult, gems: &[(mesh::Mesh, [f32; 3])], edge: usize) -> Result<()> {
     let mut display = b.mesh.clone();
     display.corner_normals.clear();
@@ -820,7 +903,7 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, b: &mesh::BuildResult
     Ok(())
 }
 
-/// Close-up sheets for authoring: each head from four sides, each body from above and the side, and the ring at 300 px.
+/// Authoring sheets: head and body close-ups, the ring at 300 px and candidate hero angles.
 fn preview_sheets(out: &Path, d: &RingDesign, b: &mesh::BuildResult, gems: &[(mesh::Mesh, [f32; 3])]) -> Result<()> {
     let mut display = b.mesh.clone();
     display.corner_normals.clear();
@@ -852,6 +935,13 @@ fn preview_sheets(out: &Path, d: &RingDesign, b: &mesh::BuildResult, gems: &[(me
     sheet(&out.join("preview-body.png"), &tiles, edge, 2)?;
     let small: Vec<Vec<u8>> = VIEWS.iter().map(|(_, y, p)| render::render_parts_ss(&parts, *y, *p, 300, 300, 3)).collect();
     sheet(&out.join("preview-300.png"), &small, 300, 3)?;
+    let big: Vec<Vec<u8>> = VIEWS[..4].iter().map(|(_, y, p)| render::render_parts_ss(&parts, *y, *p, 800, 800, 2)).collect();
+    sheet(&out.join("preview-views.png"), &big, 800, 2)?;
+    let heroes: Vec<Vec<u8>> = [(0.0, 1.1), (0.25, 1.0), (0.2, 1.25), (0.45, 1.15), (-0.3, 1.05), (0.62, 0.92)]
+        .iter()
+        .map(|(y, p)| render::render_parts_ss(&parts, *y, *p, 500, 500, 2))
+        .collect();
+    sheet(&out.join("preview-heroes.png"), &heroes, 500, 3)?;
     Ok(())
 }
 
@@ -871,7 +961,7 @@ fn sheet(path: &Path, tiles: &[Vec<u8>], edge: usize, cols: usize) -> Result<()>
     Ok(())
 }
 
-/// The faces of `m` within `radius` of `centre`, as a mesh of their own, to frame a close-up on.
+/// The faces of `m` within `radius` of `centre`, as their own mesh.
 fn crop(m: &mesh::Mesh, centre: [f64; 3], radius: f64) -> mesh::Mesh {
     let near = |i: u32| {
         let p = m.vertices[i as usize];
@@ -943,15 +1033,19 @@ fn main() -> Result<()> {
     let made_ok = made.iter().all(|p| p["open_edges"] == 0 && p["repeated_edges"] == 0 && p["degenerate_faces"] == 0 && p["self_crossings"] == 0);
     let field = castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
     let findings = dfm::findings_in(&d, &lib);
-    let setup = mf::Setup { recipe: mf::Recipe::sand(SandProcess::DelftClay), sample_pitch_mm: 0.1, ..Default::default() };
+    let setup = sand_setup(0.1);
     let inspection = mf::inspect(&d, &lib, &setup, params)?;
     let mut fine = setup.clone();
     fine.sample_pitch_mm = 0.075;
     let release_fine = mf::release::analyze(&inspection.prepared.mesh, &fine)?;
+    let crest_z = crest_height(&built.mesh);
     let pattern = &inspection.prepared.mesh;
     let pattern_check = solid(pattern).check(true);
     let stamps_small = {
         let small = mesh::try_build(&d, &lib, stamp_params())?;
+        let setup = sand_setup(0.1);
+        let mut fine = setup.clone();
+        fine.sample_pitch_mm = 0.075;
         let insp = mf::inspect(&d, &lib, &setup, stamp_params())?;
         let rel = mf::release::analyze(&insp.prepared.mesh, &fine)?;
         json!({"build": [384, 192], "notes": small.solids.notes, "stamped": small.solids.stamped, "watertight": small.report.validation.watertight,
@@ -1009,6 +1103,7 @@ fn main() -> Result<()> {
         "clamp_worst_mm": clamp_worst,
         "dfm": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "release_0_1": inspection.release, "release_0_075": release_fine,
+        "crest_line_median_z_mm": crest_z,
         "pattern": {"triangles": pattern.faces.len(), "scale": inspection.prepared.scale, "open_edges": pattern_check.open_edges,
             "repeated_edges": pattern_check.repeated_edges, "degenerate_faces": pattern_check.zero_area_faces, "self_crossings": pattern_check.self_crossings,
             "bench_layers": inspection.prepared.bench_layers, "notes": inspection.prepared.notes},
