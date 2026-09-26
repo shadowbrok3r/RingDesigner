@@ -1593,6 +1593,9 @@ fn joined(blend: f64) -> Component {
 
 /// How far up the moonstone's dome the fangs' points rest, of its height.
 const FANG_RISE: f64 = 0.6;
+/// The moonstone stands this much further off the table than its claws' seat asks, so every railless fang's foot finds
+/// the table under it, mm.
+const MOON_LIFT_MM: f64 = 0.4;
 /// The moonstone leans back this far to stand level over the table's slope toward the apex, degrees.
 const MOON_TILT_DEG: f64 = 4.0;
 /// The fangs' wire, which also sizes their base rail, mm.
@@ -1603,9 +1606,9 @@ fn stone_and_fangs(d: &mut RingDesign) -> Result<()> {
     let gem = moonstone();
     let doc = d.cad.get_or_insert_with(Document::default);
     doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
-    let placement = Placement::Ring { theta_deg: 90.0, across_mm: -MOON_U, height_mm: builders::stand_off_mm(builders::CLAW, gem), spin_deg: 90.0, tilt_deg: MOON_TILT_DEG, cant_deg: 0.0 };
+    let placement = Placement::Ring { theta_deg: 90.0, across_mm: -MOON_U, height_mm: builders::stand_off_mm(builders::CLAW, gem) + MOON_LIFT_MM, spin_deg: 90.0, tilt_deg: MOON_TILT_DEG, cant_deg: 0.0 };
     doc.append(builders::stone_feature(2, gem, placement))?;
-    let mut fangs = builders::feature_on(3, "Fangs", builders::CLAW, 2, json!({"prongs": 4, "wire_mm": FANG_WIRE_MM, "rails": "Base", "style": "Fang", "grouping": "Jaws", "tip": "Point", "rise": FANG_RISE}));
+    let mut fangs = builders::feature_on(3, "Fangs", builders::CLAW, 2, json!({"prongs": 4, "wire_mm": FANG_WIRE_MM, "rails": "None", "style": "Fang", "grouping": "Jaws", "tip": "Point", "rise": FANG_RISE}));
     fangs.component.attach = Attach::Join;
     fangs.component.stage = Stage::Cast;
     fangs.component.blend_mm = 0.0;
