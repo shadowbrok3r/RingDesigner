@@ -1,0 +1,46 @@
+{
+  "bench_layers": [],
+  "degenerate_faces": 0,
+  "notes": [],
+  "scale": 1.019367991845056,
+  "self_crossings": 0,
+  "setup": {
+    "auto_parting": true,
+    "axial_stock_mm": 0.0,
+    "bench_notes": "Investment cast the band, arms and claws in one pour. Clear investment from between the arms and under the claws, true the claw tips, then set the labradorite and close the six points over its dome.",
+    "bore": "Molded",
+    "bore_stock_mm": 0.0,
+    "channels": [],
+    "component": null,
+    "flask": {
+      "cope_mm": 20.0,
+      "drag_mm": 20.0,
+      "length_mm": 60.0,
+      "width_mm": 60.0
+    },
+    "parting_mm": 0.0,
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "radial_stock_mm": 0.0,
+    "recipe": {
+      "alloy": "Silver 925",
+      "calibration_note": "Starting shrink allowance; confirm with the caster's alloy, pattern material and measured trials.",
+      "min_detail_mm": 0.15,
+      "min_draft_deg": 0.0,
+      "min_sand_web_mm": 0.6,
+      "min_section_mm": 0.8,
+      "name": "Kraken / investment / Silver 925",
+      "process": "LostWax",
+      "sand": null,
+      "sand_margin_mm": 5.0,
+      "shrink_pct": 1.9
+    },
+    "sample_pitch_mm": 0.15,
+    "tolerance_mm": 0.02
+  },
+  "triangles": 1770028,
+  "watertight": true
+}
