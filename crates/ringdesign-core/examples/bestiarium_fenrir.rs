@@ -25,7 +25,7 @@ use std::{f64::consts::PI, path::Path, time::Instant};
 type P3 = [f64; 3];
 
 /// Moon centre across the face, mm toward the ears from the head's mid-plane.
-const MOON_U: f64 = -4.3;
+const MOON_U: f64 = -4.8;
 /// Moonstone diameter, mm.
 const MOON_MM: f64 = 10.0;
 
@@ -300,7 +300,7 @@ impl Wolf {
         } else {
             self.up(root.0, root.1)
         };
-        let flat = 3.0;
+        let flat = 2.3;
         let squash = |p: P3, o: P3| {
             let d = sub(p, o);
             let k = dot(d, n);
@@ -312,7 +312,7 @@ impl Wolf {
                 let t = i as f64 / steps as f64;
                 let b = bend * (PI * t).sin() - 0.6 * bend * t * t;
                 let (x, u) = (root.0 + t * l * cs - b * sn, root.1 + t * l * sn + b * cs);
-                let lift = lerp(0.3 + 0.35 * w, 0.06, t.powf(0.8));
+                let lift = lerp(0.2 + 0.3 * w, 0.05, t.powf(0.7));
                 let r = w * (1.0 - t).powf(0.75) + 0.05;
                 let mut p = self.on(x, u, lift);
                 if let Some(h) = root_h {
@@ -347,19 +347,23 @@ impl Wolf {
     }
     fn head(&self, q: P3) -> f64 {
         let s = [q[0].abs(), q[1], q[2]];
-        let skull = ellipsoid(sub(s, [0.0, 6.1, -1.2]), [5.3, 3.2, 3.3]);
-        let cheek = ellipsoid(sub(s, [5.2, 2.6, -1.1]), [2.8, 3.4, 2.6]);
+        let skull = ellipsoid(sub(s, [0.0, 7.0, -1.0]), [5.4, 3.3, 3.5]);
+        let cheek = ellipsoid(sub(s, [5.3, 3.0, -1.1]), [2.8, 3.5, 2.6]);
         let mut d = smin(skull, cheek, 1.3);
         if d < 0.3 {
-            let phi = (s[1] - 5.0).atan2(s[0]);
-            let r = s[0].hypot(s[1] - 5.0);
-            d += 0.055 * smooth(2.0, 2.8, r) * (0.5 - 0.5 * (phi * 30.0).cos());
+            let phi = (s[1] - 5.9).atan2(s[0]);
+            let r = s[0].hypot(s[1] - 5.9);
+            d += 0.08 * smooth(2.0, 2.8, r) * (0.5 - 0.5 * (phi * 18.0).cos());
         }
-        let brow = ellipsoid(turn(sub(s, [2.55, 5.8, 2.15]), 0, 1, -24.0), [1.95, 0.62, 0.72]);
+        let brow = ellipsoid(turn(sub(s, [2.65, 6.45, 2.65]), 0, 1, -24.0), [2.05, 0.66, 0.75]);
         d = smin(d, brow, 0.8);
-        let muzzle = round_cone(s, [0.0, 5.3, 1.6], [0.0, 2.3, 3.9], 1.9, 1.45);
-        d = smin(d, muzzle, 1.1);
-        let nose = ellipsoid(sub(s, [0.0, 1.95, 4.45]), [1.6, 1.05, 1.05]);
+        let muzzle = round_cone(s, [0.0, 6.0, 1.9], [0.0, 1.8, 3.7], 1.85, 1.4);
+        let pads = round_cone(s, [1.15, 1.7, 3.2], [2.3, 5.3, 1.6], 1.15, 1.5);
+        d = smin(d, smin(muzzle, pads, 0.9), 1.1);
+        // The fold between muzzle and cheek, from the eye's inner corner to the corner of the lip.
+        let fold = round_cone(s, [2.15, 5.1, 2.55], [3.7, 1.2, 2.0], 0.22, 0.16);
+        d = smax(d, -fold, 0.3);
+        let nose = ellipsoid(sub(s, [0.0, 1.35, 4.2]), [1.7, 1.0, 1.0]);
         d = smin(d, nose, 0.5);
         // Upper and lower jaws as two masses over the mouth's region, the chin under them.
         let upper = ellipsoid(sub(s, [0.0, MOON_U + 3.2, -0.2]), [7.0, 4.6, 3.2]);
@@ -374,53 +378,53 @@ impl Wolf {
         }
         let chin = ellipsoid(sub(s, [0.0, MOON_U - 6.55, -0.15]), [1.9, 1.05, 1.1]);
         d = smin(d, smin(mandible, chin, 0.6), 0.9);
-        for (u, h) in [(2.95, 5.15), (3.55, 4.7), (4.15, 4.2), (4.75, 3.7)] {
+        for u in [2.5, 3.1, 3.7, 4.3, 4.9] {
+            let h = 3.75 + (6.0 - u) / 4.2 * 1.35 - 0.05;
             let groove = round_cone(s, [0.0, u, h + 0.05], [1.5, u + 0.35, h - 0.65], 0.2, 0.14);
             d = smax(d, -groove, 0.15);
         }
-        let nostril = ellipsoid(sub(s, [0.62, 1.5, 5.0]), [0.4, 0.28, 0.4]);
+        let nostril = ellipsoid(sub(s, [0.62, 0.95, 4.75]), [0.4, 0.28, 0.4]);
         d = smax(d, -nostril, 0.12);
-        let eye = turn(sub(s, [2.95, 5.05, 2.05]), 0, 1, -26.0);
-        d = smax(d, -ellipsoid(sub(eye, [0.0, 0.0, 0.45]), [1.6, 0.74, 0.55]), 0.35);
-        let ball = ellipsoid(sub(eye, [0.0, 0.0, 0.1]), [1.4, 0.6, 0.5]);
-        let ball = smax(ball, -ellipsoid(sub(eye, [0.24, 0.0, 0.44]), [0.27, 0.27, 0.27]), 0.08);
-        d = smin(d, ball, 0.25);
+        let eye = turn(sub(s, [3.0, 5.85, 2.45]), 0, 1, -26.0);
+        d = smax(d, -ellipsoid(sub(eye, [0.0, 0.0, 0.5]), [1.6, 0.72, 0.42]), 0.2);
+        let ball = ellipsoid(sub(eye, [0.0, -0.05, 0.28]), [1.35, 0.55, 0.3]);
+        let ball = smax(ball, -ellipsoid(sub(eye, [0.22, -0.02, 0.6]), [0.26, 0.26, 0.2]), 0.06);
+        d = smin(d, ball, 0.1);
+
         // A gum channel carved round the moon, its floor over the fangs' collar, and snarl creases at the corners.
         let rho = s[0].hypot(s[1] - MOON_U);
         let mouth = (rho - 5.9).max(1.0 - s[2]);
         d = smax(d, -mouth, 0.3);
         let crease = round_cone([s[0], s[1], 0.0], [5.7, MOON_U - 0.5, 0.0], [7.7, MOON_U - 2.7, 0.0], 0.55, 0.15).max(0.9 - s[2]);
         d = smax(d, -crease, 0.25);
-        // Teeth: flattened blades rooted in the jaws' walls, canines longest, crossing at the moon's side.
-        let tooth = |root: (f64, f64, f64), tip: (f64, f64, f64), fat: f64| {
-            let (a, b) = (Self::rim(root.0, root.1, root.2), Self::rim(tip.0, tip.1, tip.2));
-            let face = sub([0.0, MOON_U, 1.0], [a[0], a[1], 0.0]);
-            Self::blade(s, a, b, face, (fat, 0.08), 1.7, 0.0, 0.0)
-        };
+        // Teeth rooted in the jaws' walls: canines longest, crossing at the moon's side, incisors toward the fangs.
+        let tooth = |root: (f64, f64, f64), tip: (f64, f64, f64), fat: f64| round_cone(s, Self::rim(root.0, root.1, root.2), Self::rim(tip.0, tip.1, tip.2), fat, 0.1);
         let mut teeth = f64::MAX;
-        teeth = teeth.min(tooth((6.55, 32.0, 1.9), (5.3, 5.0, 1.1), 0.62));
-        teeth = teeth.min(tooth((6.55, -34.0, 1.0), (5.4, -9.0, 1.9), 0.56));
+        teeth = teeth.min(tooth((6.5, 33.0, 1.9), (5.3, 6.0, 0.9), 0.6));
+        teeth = teeth.min(tooth((6.5, -35.0, 0.9), (5.4, -10.0, 1.9), 0.55));
         for (a, fat) in [(48.0, 0.42), (60.0, 0.38)] {
-            teeth = teeth.min(tooth((6.4, a, 2.0), (5.3, a - 3.0, 1.15), fat));
+            teeth = teeth.min(tooth((6.35, a, 2.0), (5.3, a - 3.0, 1.1), fat));
         }
-        for (a, fat) in [(-48.0, 0.38), (-60.0, 0.34)] {
-            teeth = teeth.min(tooth((6.4, a, 0.8), (5.3, a + 3.0, 1.55), fat));
+        for (a, fat) in [(-49.0, 0.4), (-61.0, 0.36)] {
+            teeth = teeth.min(tooth((6.35, a, 0.7), (5.3, a + 3.0, 1.45), fat));
         }
-        teeth = teeth.min(tooth((6.5, 17.0, 1.5), (5.5, 14.0, 1.05), 0.46));
-        teeth = teeth.min(tooth((6.5, -20.0, 0.9), (5.5, -18.0, 1.4), 0.44));
-        d = d.min(teeth);
-        let ear = Self::blade(s, [4.0, 7.0, 1.0], [5.8, 9.6, 3.1], [0.0, -0.6, 1.0], (1.9, 0.25), 2.4, 0.55, 0.0);
+        teeth = teeth.min(tooth((6.5, 17.0, 1.5), (5.55, 15.0, 1.0), 0.45));
+        d = smin(d, teeth, 0.12);
+        let ear = Self::blade(s, [4.3, 7.9, 1.6], [5.9, 9.8, 4.2], [0.0, -0.75, 1.0], (1.95, 0.25), 2.4, 0.55, 0.0);
         d = smin(d, ear, 0.9);
         // Cheek tufts framing the face, and a beard hanging from the chin.
         let mut fur = f64::MAX;
         for (x, u, deg, l, bend, w) in [
-            (6.0, 5.7, 52.0, 3.3, 0.45, 1.05),
-            (7.0, 3.6, 18.0, 3.9, 0.5, 1.2),
-            (7.3, 1.1, -10.0, 4.1, 0.5, 1.2),
-            (7.0, -1.5, -38.0, 3.8, 0.45, 1.1),
-            (6.3, -3.9, -62.0, 3.3, 0.4, 1.0),
+            (6.0, 6.3, 52.0, 2.6, 0.35, 1.0),
+            (6.6, 5.1, 36.0, 2.8, 0.4, 1.05),
+            (7.0, 3.7, 18.0, 3.0, 0.45, 1.1),
+            (7.2, 2.2, 2.0, 3.1, 0.45, 1.1),
+            (7.2, 0.6, -14.0, 3.1, 0.45, 1.1),
+            (7.1, -1.0, -30.0, 3.0, 0.45, 1.05),
+            (6.8, -2.6, -46.0, 2.8, 0.4, 1.0),
+            (6.3, -4.1, -62.0, 2.6, 0.35, 0.95),
         ] {
-            fur = fur.min(self.lock(s, (x, u), deg, l, bend, w));
+            fur = smin(fur, self.lock(s, (x, u), deg, l, bend, w), 0.45);
         }
         d = smin(d, fur, 0.35);
         d
@@ -776,7 +780,12 @@ fn moonstone() -> Gem {
 
 /// Atlas the hide is painted on.
 const AW: usize = 1536;
-const AH: usize = 576;
+/// Atlas rows that make its texels square in the chart, so DFM's disc reads a stroke at its true width.
+fn atlas_rows(d: &RingDesign) -> usize {
+    let ctx = d.field_context();
+    (AW as f64 * ctx.band_v_len_mm / ctx.circumference_mm).round() as usize
+}
+
 /// Marching grid of the head, mm, and the faces it is decimated to.
 const SCULPT_STEP: f64 = 0.11;
 const SCULPT_FACES: usize = 90_000;
@@ -847,7 +856,7 @@ fn stone_and_fangs(d: &mut RingDesign) -> Result<()> {
 fn sculpt_preview(out: &Path, step: f64) -> Result<()> {
     std::fs::create_dir_all(out)?;
     let mut d = base()?;
-    let a = Atlas::of(&d, AW, AH)?;
+    let a = Atlas::of(&d, AW, atlas_rows(&d))?;
     let wolf = wolf_of(&d, &a)?;
     let (lo, hi) = sculpt_box(wolf.table);
     let field = |p: P3| wolf.sdf(p);
@@ -869,7 +878,7 @@ fn sculpt_preview(out: &Path, step: f64) -> Result<()> {
 
 /// The head's grid box in world millimetres over a table at `table`.
 fn sculpt_box(table: f64) -> (P3, P3) {
-    ([-11.0, table - 5.5, -11.0], [11.0, table + 6.5, 12.5])
+    ([-11.0, table - 5.5, -11.5], [11.0, table + 6.5, 13.5])
 }
 
 /// The wolf's field over the design's own stock.
@@ -905,68 +914,82 @@ fn head_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
     Ok((Feature { id: 4, name: "Fenrir's head".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh }, component: joined(HEAD_BLEND_MM) }, stats))
 }
 
-/// A lock of the ruff at hide point (`along` from the head, `across`): height 0..1 and the crest groove 0..1.
-/// Flames pointed at both ends, bowed in an S and shingled half a lock apart, flowing away from the head.
+/// The pelt at hide point (`along` from the head, `across`): height 0..1 and the crest groove 0..1.
+/// A low pelt everywhere, and on it long flames pointed at both ends, bowed in an S, three strands each,
+/// shingled half a lock apart and flowing away from the head.
 fn fur(along: f64, across: f64) -> (f64, f64) {
-    let pitch = 1.15;
-    let length = 4.4;
-    let step = length * 0.5;
+    let pitch = 1.3;
+    let length = 5.2;
+    let step = length * 0.45;
     let row = (across / pitch).round() as i64;
     let (mut best, mut crest) = (0.0f64, 0.0f64);
     for j in row - 1..=row + 1 {
         let shift = if j.rem_euclid(2) == 0 { 0.0 } else { 0.5 * step };
         let i0 = ((along - shift) / step).floor() as i64;
-        for i in i0 - 2..=i0 {
+        for i in i0 - 3..=i0 {
             let t = (along - shift - i as f64 * step) / length;
             if !(0.0..1.0).contains(&t) {
                 continue;
             }
             let wave = if (i + j).rem_euclid(2) == 0 { 1.0 } else { -1.0 };
-            let centre = j as f64 * pitch + 0.32 * wave * (1.6 * PI * t).sin() + 0.18 * across.signum() * t;
-            let half = 0.56 * pitch * (PI * t.powf(0.75)).sin().max(0.0).powf(0.85);
+            let centre = j as f64 * pitch + 0.38 * wave * (1.4 * PI * t + 0.3).sin() + 0.2 * across.signum() * t;
+            let half = 0.62 * pitch * (PI * t.powf(0.7)).sin().max(0.0).powf(0.8);
             let y = across - centre;
             if y.abs() >= half {
                 continue;
             }
-            let body = (1.0 - (y / half).powi(2)).max(0.0).powf(0.55);
-            let strands = 0.06 * (0.5 - 0.5 * (2.0 * PI * y / 0.32).cos());
-            let h = body * (PI * t.powf(0.7)).sin().max(0.0).powf(0.6) * (0.75 + 0.25 * t) - strands;
+            let q = y / half;
+            let body = (q * PI * 0.5).cos().max(0.0).powf(1.2);
+            let grooves = 0.5 - 0.5 * (3.0 * PI * q).cos();
+            let h = body * (PI * t.powf(0.75)).sin().max(0.0).powf(0.7) * (0.8 + 0.2 * t) * (1.0 - 0.16 * grooves * smooth(0.08, 0.3, t));
             if h > best {
                 best = h;
-                crest = (1.0 - smooth(0.0, 0.18, y.abs() / half)) * smooth(0.1, 0.3, t) * (1.0 - smooth(0.75, 0.95, t));
+                crest = (1.0 - smooth(0.0, 0.2, q.abs())) * smooth(0.1, 0.3, t) * (1.0 - smooth(0.75, 0.95, t));
             }
         }
     }
-    (best, crest)
+    (0.28 + 0.72 * best, crest)
 }
 
-/// The Gleipnir braid tile: strands from alternate edges meeting over the centre line, each tucked under the next,
-/// drawn in metal millimetres and squeezed across the band by the chart's own squash.
+/// The Gleipnir cord tile: parallel strands laid in an S across the band, each rounded across by stacked strokes and
+/// dipping where it turns under at the band's edges, drawn in metal millimetres and squeezed by the chart's own squash.
 fn gleipnir_svg(cell_w: f64, cell_h: f64, squash: f64) -> String {
     let (w, h) = (cell_w, cell_h * squash);
-    let strand = 1.15;
-    let gap = 0.4;
+    let strand = 1.1;
+    let per_tile = 1;
+    let lay = 1.1 * h;
     let mut s = format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cell_w:.4} {cell_h:.4}" width="{cell_w:.4}" height="{cell_h:.4}"><rect width="{cell_w:.4}" height="{cell_h:.4}" fill="#fff"/><defs>"##
     );
-    let pieces: Vec<(f64, f64, f64, f64)> = (-3i64..=4)
-        .map(|k| {
-            let u0 = k as f64 * 0.5 * w;
-            let (v0, v1) = if k.rem_euclid(2) == 0 { (0.13 * h, 0.62 * h) } else { (0.87 * h, 0.38 * h) };
-            (u0, v0, u0 + 0.6 * w, v1)
-        })
-        .collect();
-    for (k, (x0, y0, x1, y1)) in pieces.iter().enumerate() {
+    let tiers = [(1.0, 0x80, 0x58), (0.76, 0x66, 0x3a), (0.52, 0x4c, 0x1e), (0.28, 0x34, 0x00)];
+    for (m, (_, end, mid)) in tiers.iter().enumerate() {
         s += &format!(
-            r##"<linearGradient id="g{k}" gradientUnits="userSpaceOnUse" x1="{x0:.4}" y1="{y0:.4}" x2="{x1:.4}" y2="{y1:.4}"><stop offset="0" stop-color="#404040"/><stop offset="0.4" stop-color="#000"/><stop offset="1" stop-color="#6a6a6a"/></linearGradient>"##
+            r##"<linearGradient id="t{m}" gradientUnits="userSpaceOnUse" x1="0" y1="{:.4}" x2="0" y2="{:.4}"><stop offset="0" stop-color="#{e:02x}{e:02x}{e:02x}"/><stop offset="0.5" stop-color="#{c:02x}{c:02x}{c:02x}"/><stop offset="1" stop-color="#{e:02x}{e:02x}{e:02x}"/></linearGradient>"##,
+            0.06 * h,
+            0.94 * h,
+            e = end,
+            c = mid
         );
     }
-    s += &format!(r##"</defs><g transform="scale(1 {:.6})">"##, 1.0 / squash.max(0.05));
-    for (k, (x0, y0, x1, y1)) in pieces.iter().enumerate() {
-        s += &format!(
-            r##"<path d="M{x0:.4} {y0:.4} L{x1:.4} {y1:.4}" stroke="#fff" stroke-width="{:.4}" stroke-linecap="round" fill="none"/><path d="M{x0:.4} {y0:.4} L{x1:.4} {y1:.4}" stroke="url(#g{k})" stroke-width="{strand:.4}" stroke-linecap="round" fill="none"/>"##,
-            strand + 2.0 * gap
+    s += &format!(r##"</defs><g transform="scale(1 {:.6})" fill="none" stroke-linecap="round">"##, 1.0 / squash.max(0.05));
+    let pitch = w / per_tile as f64;
+    for k in -4i64..=(per_tile as i64 + 2) {
+        let u0 = k as f64 * pitch;
+        let (a, b) = ((u0, 0.07 * h), (u0 + lay, 0.93 * h));
+        let path = format!(
+            "M{:.4} {:.4} C{:.4} {:.4} {:.4} {:.4} {:.4} {:.4}",
+            a.0,
+            a.1,
+            a.0 + 0.55 * lay,
+            a.1 - 0.05 * h,
+            b.0 - 0.55 * lay,
+            b.1 + 0.05 * h,
+            b.0,
+            b.1
         );
+        for (m, (share, _, _)) in tiers.iter().enumerate() {
+            s += &format!(r##"<path d="{path}" stroke="url(#t{m})" stroke-width="{:.4}"/>"##, strand * share);
+        }
     }
     s += "</g></svg>";
     s
@@ -1070,7 +1093,7 @@ fn window(centre: f64, span: f64) -> Window {
 fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value)> {
     let mut d = base()?;
     d.build = params;
-    let a = Atlas::of(&d, AW, AH)?;
+    let a = Atlas::of(&d, AW, atlas_rows(&d))?;
     let hide = Hide::of(&a);
     let wolf = wolf_of(&d, &a)?;
     stone_and_fangs(&mut d)?;
@@ -1116,7 +1139,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value)> {
     }
     // Gleipnir at the palm: its outer face in the chart, and how the chart squeezes it there.
     let x = (270.0 / 360.0 * AW as f64).round() as usize % AW;
-    let face: Vec<&Sample> = (0..AH).map(|y| a.at(x, y)).filter(|s| {
+    let face: Vec<&Sample> = (0..a.height).map(|y| a.at(x, y)).filter(|s| {
         let r = s.p[0].hypot(s.p[1]).max(1e-9);
         (s.n[0] * s.p[0] + s.n[1] * s.p[1]) / r > 0.8
     }).collect();
@@ -1192,11 +1215,42 @@ fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<(
     Ok(())
 }
 
+/// A loose-triangle stone welded and given area-weighted vertex normals, so a cabochon shades as a dome.
+fn welded(m: &Mesh) -> Mesh {
+    let mut out = Mesh::default();
+    let mut index = std::collections::HashMap::new();
+    for f in &m.faces {
+        let g = f.map(|i| {
+            let p = m.vertices[i as usize];
+            let key = [p.0, p.1, p.2].map(|c| (c * 1e4).round() as i64);
+            *index.entry(key).or_insert_with(|| {
+                out.vertices.push(p);
+                (out.vertices.len() - 1) as u32
+            })
+        });
+        out.faces.push(g);
+    }
+    let mut n = vec![[0.0f64; 3]; out.vertices.len()];
+    for f in &out.faces {
+        let [a, b, c] = f.map(|i| { let p = out.vertices[i as usize]; [p.0 as f64, p.1 as f64, p.2 as f64] });
+        let fn_ = cross(sub(b, a), sub(c, a));
+        for &i in f {
+            n[i as usize] = add(n[i as usize], fn_);
+        }
+    }
+    out.normals = n.iter().map(|v| { let l = len(*v).max(1e-12); Vec3((v[0] / l) as f32, (v[1] / l) as f32, (v[2] / l) as f32) }).collect();
+    out
+}
+
 /// Studio-gold renders with the moon set.
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, params: BuildParams, edge: usize) -> Result<()> {
-    let gems = ringdesign_core::gems::built_meshes(d, lib, built);
+    let gems: Vec<(Mesh, [f32; 3])> = ringdesign_core::gems::built_meshes(d, lib, built).into_iter().map(|(m, t)| (welded(&m), t)).collect();
     let mut parts = vec![Part::metal(&built.mesh, render::GOLD)];
-    parts.extend(gems.iter().map(|(m, tint)| Part::tinted_stone(m, *tint)));
+    parts.extend(gems.iter().map(|(m, tint)| {
+        let mut p = Part::tinted_stone(m, *tint);
+        p.smooth = true;
+        p
+    }));
     for (name, yaw, pitch) in [
         ("hero", 0.55, 0.95),
         ("face", 0.0, PI * 0.5),
@@ -1316,6 +1370,11 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
     std::fs::create_dir_all(&art)?;
     for svg in &d.svgs {
         std::fs::write(art.join(format!("{}.svg", svg.name.to_lowercase().replace([' ', '\''], "-"))), &svg.svg)?;
+    }
+    for name in ["Ruff", "Graver's hair lines"] {
+        if let Some(alpha) = lib.get(name) {
+            std::fs::write(art.join(format!("{}.png", name.to_lowercase().replace([' ', '\''], "-"))), alpha.to_png16()?)?;
+        }
     }
     renders(out, &d, &lib, &built, params, if draft { 1000 } else { 1600 })?;
     println!(

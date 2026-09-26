@@ -1,0 +1,193 @@
+{
+  "bore_mm": 19.0,
+  "build": {
+    "profile_steps": 448,
+    "seconds": 77.758106009,
+    "theta_steps": 1536,
+    "triangles": 1072864
+  },
+  "cold_reload": {
+    "identical_vertices_faces_normals": true,
+    "ms": 6506.885649
+  },
+  "composition": {
+    "fold_caps": [
+      {
+        "r_mm": 10.943167317095298,
+        "theta_deg": 102.53289455212209,
+        "z_mm": 8.947658393953928
+      },
+      {
+        "r_mm": 11.218792193874615,
+        "theta_deg": 101.25204452129145,
+        "z_mm": 9.619364775323305
+      },
+      {
+        "r_mm": 10.864463034505011,
+        "theta_deg": 48.53423872290499,
+        "z_mm": -5.693805077304742
+      }
+    ],
+    "gleipnir_cell_mm": [
+      2.6582707068836706,
+      11.800258881361014
+    ],
+    "head": {
+      "marching_step_mm": 0.11,
+      "packed_bytes": 1143560,
+      "raw_triangles": 772240,
+      "seconds": 8.652406217,
+      "self_crossings": 0,
+      "triangles": 108284,
+      "vertices": 54128,
+      "volume_mm3": 690.9019804462285
+    },
+    "moon_across_mm": 4.8,
+    "palm_face_v_mm": [
+      3.376905586470071,
+      15.668841921221128
+    ],
+    "palm_metal_per_chart_mm": 0.41548448317941267,
+    "ruff_window_deg": [
+      -41.0,
+      221.0
+    ],
+    "table_y_mm": 14.016453517526037
+  },
+  "design": {
+    "bytes": 1956305,
+    "cad_features": 4,
+    "format_version": 6,
+    "layers": [
+      "Ruff",
+      "Graver's hair lines",
+      "Gleipnir",
+      "Gleipnir's bindings"
+    ],
+    "stamps": 0
+  },
+  "dfm": [],
+  "field": {
+    "notes": [
+      "Lost wax: 9.77% of the surface would undercut a two-part pull (worst 66.2 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 0–358° on the crest: 138.9 mm² leaning to 62° — no single layer explains it.",
+      "Cut at the bench after casting, and so not judged here: Graver's hair lines.",
+      "Measured with the ring as built: 2 CAD parts (2 joined, 0 cut), 807.2 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Claw head \"Fangs\" (#3) would undercut a two-part pull over 45.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Fenrir's head\" (#4) would undercut a two-part pull over 208.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+    ],
+    "thinnest_wall_mm": 1.3291640732495118,
+    "thinnest_wall_theta_deg": 267.1875,
+    "undercut_percent": 17.419686497182163,
+    "verdict": "Castable"
+  },
+  "gates": [
+    {
+      "gate": "finished mesh watertight with zero degenerates",
+      "pass": true
+    },
+    {
+      "gate": "finished mesh has zero self crossings",
+      "pass": true
+    },
+    {
+      "gate": "every made part has zero self crossings",
+      "pass": true
+    },
+    {
+      "gate": "all solids and parts resolved",
+      "pass": true
+    },
+    {
+      "gate": "nothing enters the finger hole",
+      "pass": true
+    },
+    {
+      "gate": "lost wax verdict and 0.8 mm fill",
+      "pass": true
+    },
+    {
+      "gate": "zero DFM findings",
+      "pass": true
+    },
+    {
+      "gate": "one stone in report and preview, no warnings",
+      "pass": true
+    },
+    {
+      "gate": "investment pattern watertight with zero degenerates and crossings",
+      "pass": true
+    },
+    {
+      "gate": "cold reload identical",
+      "pass": true
+    }
+  ],
+  "geometry": {
+    "bore_radius_mm": 9.5,
+    "innermost_radius_mm": 9.49056506287216,
+    "quality": {
+      "degenerate_faces": 0,
+      "min_angle_deg": 0.0008349705472787003,
+      "worst_aspect": 68620.78781603904
+    },
+    "self_crossings": 0,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 1072864,
+      "vertex_count": 536420,
+      "watertight": true
+    },
+    "volume_mm3": 2372.1626411997327
+  },
+  "grams_18k": 36.95829394989184,
+  "made_parts": [
+    {
+      "name": "Round cabochon 10 mm",
+      "self_crossings": 0
+    },
+    {
+      "name": "Fangs",
+      "self_crossings": 0
+    },
+    {
+      "name": "Fenrir's head",
+      "self_crossings": 0
+    }
+  ],
+  "name": "Fenrir — the wolf and the moon",
+  "pattern": {
+    "quality": {
+      "degenerate_faces": 0,
+      "min_angle_deg": 0.0008349888800812457,
+      "worst_aspect": 68619.26396653974
+    },
+    "release": {
+      "obstructions": 362
+    },
+    "self_crossings": 0,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 1072690,
+      "vertex_count": 536333,
+      "watertight": true
+    }
+  },
+  "process": "Lost wax",
+  "size": "US 9.09",
+  "solids": {
+    "joined": 2,
+    "notes": [],
+    "parts_notes": [],
+    "resolved": 0,
+    "stamped": 0
+  },
+  "stones": {
+    "carats": 4.1469023027385274,
+    "previewed": 1,
+    "reported": 1,
+    "warnings": []
+  }
+}

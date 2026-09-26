@@ -1,0 +1,80 @@
+{
+  "validation": {
+    "watertight": true,
+    "triangle_count": 1072864,
+    "vertex_count": 536420,
+    "boundary_edges": 0,
+    "non_manifold_edges": 0
+  },
+  "volume_mm3": 2372.1626411997327,
+  "surface_area_mm2": 2082.298546894019,
+  "bounds_mm": [
+    23.659255981445312,
+    31.076297760009766,
+    22.671920776367188
+  ],
+  "inner_diameter_mm": 18.98113012574432,
+  "outer_diameter_mm": 26.060665130615234,
+  "band_width_mm": 18.266830444335938,
+  "max_relief_mm": 0.6,
+  "min_relief_mm": 0.0,
+  "metals": [
+    {
+      "metal": "Silver 925",
+      "grams": 24.57560496282923,
+      "dwt": 15.802480938612774
+    },
+    {
+      "metal": "Bronze",
+      "grams": 20.87503124255765,
+      "dwt": 13.422956781833246
+    },
+    {
+      "metal": "Brass",
+      "grams": 20.281990582257716,
+      "dwt": 13.041622782349346
+    },
+    {
+      "metal": "Gold 10k",
+      "grams": 27.398478505856914,
+      "dwt": 17.617630776156133
+    },
+    {
+      "metal": "Gold 14k",
+      "grams": 31.004165720480508,
+      "dwt": 19.93614149301824
+    },
+    {
+      "metal": "Gold 18k",
+      "grams": 36.95829394989184,
+      "dwt": 23.764734847836586
+    },
+    {
+      "metal": "Gold 22k",
+      "grams": 42.224495013355245,
+      "dwt": 27.15098076325361
+    },
+    {
+      "metal": "Gold 24k",
+      "grams": 45.83018222797884,
+      "dwt": 29.469491480115714
+    },
+    {
+      "metal": "Palladium 950",
+      "grams": 28.465951694396793,
+      "dwt": 18.30403197522715
+    },
+    {
+      "metal": "Platinum 950",
+      "grams": 50.88288865373426,
+      "dwt": 32.71845715571853
+    }
+  ],
+  "build_ms": 1744,
+  "refine": null,
+  "quality": {
+    "min_angle_deg": 0.0008349705472787003,
+    "worst_aspect": 68620.78781603904,
+    "degenerate_faces": 0
+  }
+}
