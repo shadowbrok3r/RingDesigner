@@ -1918,7 +1918,9 @@ fn hollow_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
     let field = |p: P3| -> f64 {
         let q = wolf.face(p);
         let r = p[0].hypot(p[1]);
-        smax((q[2] - roof.at(q[0], q[1])).max(bore - 0.3 - r), footprint(q), 0.5)
+        // The roof stays under the table's plane, so the hollow's walls never come near the face's own surfaces.
+        let top = smin(roof.at(q[0], q[1]), -0.2, 0.6);
+        smax((q[2] - top).max(bore - 0.3 - r), footprint(q), 0.5)
     };
     let (lo, hi) = ([-9.0, bore - 0.6, -11.0], [9.0, table + 1.0, 13.0]);
     let raw = tetra_mesh(lo, hi, 0.15, &field);
@@ -3038,6 +3040,10 @@ fn census(wolf: &Wolf, m: &Mesh) -> (Value, Vec<P3>) {
         };
         if zone == "cheeks, brow and muzzle" || zone == "ears and crown" {
             face_marks.push(mid);
+            let owner = |x: u32| m.origin.get(x as usize).copied();
+            if face_marks.len() <= 12 && std::env::var("FENRIR_DEBUG").is_ok() {
+                println!("    zone crease at face ({:.2}, {:.2}, {:.2}), {ang:.0} deg, origins {:?} {:?}", q[0], q[1], q[2], owner(*a), owner(*b));
+            }
         }
         let z = zones.entry(zone).or_insert((0, 0.0, 0, HashSet::new()));
         z.0 += 1;
