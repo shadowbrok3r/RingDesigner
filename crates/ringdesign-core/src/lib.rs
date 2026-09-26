@@ -405,8 +405,12 @@ impl RingDesign {
         use base64::Engine as _;
         self.embedded.clear();
         for name in self.layers.referenced_alphas() {
-            let regenerable = alpha::Procedural::ALL.iter().any(|p| p.label() == name)
-                || self.drawn.iter().any(|d| d.name == name)
+            // A builtin's name is regenerable only while the library holds that builtin or this design's recipe bakes it.
+            let builtin = alpha::Procedural::ALL.iter().copied().find(|p| p.label() == name);
+            let regenerable = builtin.is_some_and(|p| {
+                self.recipes.iter().any(|r| r.name == name)
+                    || lib.get(name).is_none_or(|a| a.content_key() == p.generate(alpha::BUILTIN_SIZE).content_key())
+            }) || self.drawn.iter().any(|d| d.name == name)
                 || self.texts.iter().any(|t| t.name == name);
             if regenerable {
                 continue;
@@ -431,7 +435,8 @@ impl RingDesign {
         // design carrying its own "band" or "sketch" silently rendered
         // the first one's art. `embed_alphas` never embeds anything
         // regenerable — no procedural builtin, no stroke, no inscription —
-        // so replacing here cannot clobber one of those.
+        // so a builtin's name is replaced only by a design that carried
+        // its own art under that name.
         self.bake_pipeline(&self.artwork(true, false), false, lib, &|_, _| {}, &Default::default());
     }
 

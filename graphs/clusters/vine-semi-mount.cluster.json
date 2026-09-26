@@ -1,1 +1,155 @@
-{"name":"x"}
+{
+  "format_version": 1,
+  "name": "Vine semi-mount",
+  "mode": "Free",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "number",
+      "inputs": {
+        "value": 16.5
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Inner diameter"
+    },
+    {
+      "id": 2,
+      "kind": "solid.vine_semimount",
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "band.size.fit",
+      "pos": [
+        240.0,
+        150.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Vine semi-mount"
+      },
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "solid.mesh",
+      "pos": [
+        480.0,
+        150.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "sink.mesh_verdict",
+      "pos": [
+        720.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "out",
+      "to": 2,
+      "input": "inner_diameter_mm"
+    },
+    {
+      "from": 1,
+      "out": "out",
+      "to": 3,
+      "input": "inner_diameter_mm"
+    },
+    {
+      "from": 3,
+      "out": "size",
+      "to": 4,
+      "input": "size"
+    },
+    {
+      "from": 2,
+      "out": "solid",
+      "to": 5,
+      "input": "solid"
+    },
+    {
+      "from": 5,
+      "out": "mesh",
+      "to": 6,
+      "input": "mesh"
+    },
+    {
+      "from": 4,
+      "out": "design",
+      "to": 6,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 1,
+      "input": "value",
+      "name": "Inner diameter"
+    },
+    {
+      "node": 2,
+      "input": "vine_radius_mm",
+      "name": "Vine radius"
+    }
+  ],
+  "outputs": [
+    {
+      "node": 2,
+      "out": "solid",
+      "name": "solid"
+    },
+    {
+      "node": 5,
+      "out": "mesh",
+      "name": "mesh"
+    },
+    {
+      "node": 5,
+      "out": "volume_mm3",
+      "name": "volume_mm3"
+    },
+    {
+      "node": 2,
+      "out": "stone_count",
+      "name": "stone_count"
+    },
+    {
+      "node": 2,
+      "out": "total_carats",
+      "name": "total_carats"
+    },
+    {
+      "node": 2,
+      "out": "stones",
+      "name": "stones"
+    },
+    {
+      "node": 6,
+      "out": "verdict",
+      "name": "verdict"
+    },
+    {
+      "node": 6,
+      "out": "undercut_pct",
+      "name": "undercut_pct"
+    }
+  ],
+  "next_id": 7
+}

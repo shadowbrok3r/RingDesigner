@@ -125,14 +125,18 @@ macro_rules! bundled {
 
 bundled! {
     "Court band" => "court-band",
-    "Heart signet" => "heart-signet",
-    "Waved hexagon signet" => "waved-hexagon-signet",
-    "Shouldered cushion signet" => "shouldered-cushion-signet",
     "Braided band" => "braided-band",
-    "Cathedral solitaire stock" => "cathedral-solitaire-stock",
-    "Wishbone wave" => "wishbone-wave",
     "Split shank" => "split-shank",
+    "Split gallery" => "split-gallery",
+    "Shouldered cushion signet" => "shouldered-cushion-signet",
+    "Cathedral solitaire" => "cathedral-solitaire",
+    "Bezel solitaire" => "bezel-solitaire",
+    "Halo" => "halo",
+    "Trilogy" => "trilogy",
     "Toi et moi" => "toi-et-moi",
+    "Split-shank basket" => "split-shank-basket",
+    "Half eternity" => "half-eternity",
+    "Gypsy trio" => "gypsy-trio",
 }
 
 /// Authored showcase designs, with the artwork embedded and each layer
@@ -377,15 +381,12 @@ pub fn simple() -> Graph {
 pub fn build(name: &str) -> Option<Graph> {
     let g = match name {
         "Court band" => court_band(),
-        "Heart signet" => heart_signet(),
-        "Waved hexagon signet" => waved_hexagon_signet(),
         "Shouldered cushion signet" => shouldered_cushion_signet(),
         "Braided band" => braided_band(),
-        "Cathedral solitaire stock" => cathedral_solitaire_stock(),
-        "Wishbone wave" => wishbone_wave(),
-        "Split shank" => split_shank(),
-        "Toi et moi" => toi_et_moi(),
-        _ => return None,
+        _ => {
+            let t = ringdesign_core::templates::all().iter().find(|t| t.name == name)?;
+            crate::lift::from_design(&t.design(), &crate::registry::Registry::builtin(), &ringdesign_core::AlphaLibrary::builtin())
+        }
     };
     Some(g.expect("a template builder wires a valid graph"))
 }
@@ -494,27 +495,6 @@ fn court_band() -> Result<Graph, GraphError> {
     Ok(g)
 }
 
-fn heart_signet() -> Result<Graph, GraphError> {
-    let mut g = Graph::new("Heart signet", Mode::SandRing);
-    let (p, s) = signet(&mut g, "Heart", 15.5, 1.6)?;
-    let d = design(&mut g, "Heart signet", p, Some(s))?;
-    finish(&mut g, d, &[])?;
-    g.expose(s, "outline", "Outline")?;
-    Ok(g)
-}
-
-fn waved_hexagon_signet() -> Result<Graph, GraphError> {
-    let mut g = Graph::new("Waved hexagon signet", Mode::SandRing);
-    let (p, s) = signet(&mut g, "Hexagon", 14.0, 2.6)?;
-    let d = design(&mut g, "Waved hexagon signet", p, Some(s))?;
-    let tl = side_tiling(&mut g, d, "Waves", 0.30, &[("repeats_around", i(6)), ("rows", i(1)), ("contrast", n(1.15))])?;
-    let e = entry(&mut g, tl, "Waves")?;
-    finish(&mut g, d, &[e])?;
-    g.expose(tl, "repeats_around", "Waves around")?;
-    g.expose(tl, "height_mm", "Relief")?;
-    Ok(g)
-}
-
 fn shouldered_cushion_signet() -> Result<Graph, GraphError> {
     let mut g = Graph::new("Shouldered cushion signet", Mode::SandRing);
     let (p, s) = signet(&mut g, "Cushion", 14.5, 2.2)?;
@@ -546,77 +526,6 @@ fn braided_band() -> Result<Graph, GraphError> {
     let mil = entry(&mut g, m, "Milgrain")?;
     finish(&mut g, d, &[braid, mil])?;
     g.expose(m, "beads_around", "Beads around")?;
-    Ok(g)
-}
-
-fn cathedral_solitaire_stock() -> Result<Graph, GraphError> {
-    let mut g = Graph::new("Cathedral solitaire stock", Mode::SandRing);
-    let p = g.add("band.profile")?;
-    set(&mut g, p, &[("style", t("DShape")), ("width_mm", n(4.0)), ("thickness_mm", n(2.2))])?;
-    let s = g.add("shank")?;
-    set(&mut g, s, &[("kind", t("Cathedral")), ("amount", n(0.8))])?;
-    let d = design(&mut g, "Cathedral solitaire stock", p, Some(s))?;
-    let info = g.add("design.info")?;
-    g.connect(d, "design", info, "design")?;
-    let half = g.add("math.mul")?;
-    g.connect(info, "band_v_len_mm", half, "a")?;
-    set(&mut g, half, &[("b", n(0.5))])?;
-    let seat = g.add("layer.seat")?;
-    g.connect(half, "out", seat, "v_mm")?;
-    set(
-        &mut g,
-        seat,
-        &[("theta_deg", n(TOP_DEG)), ("height_mm", n(0.9)), ("crown", n(0.35)), ("blend_mm", n(2.2)), ("style", t("GypsyMound")), ("prongs", i(4))],
-    )?;
-    let gem = g.add("gem.calibrated")?;
-    set(&mut g, gem, &[("cut", t("Round")), ("w_mm", n(5.0))])?;
-    let fit = g.add("layer.seat.fit")?;
-    g.connect(seat, "layer", fit, "layer")?;
-    g.connect(gem, "gem", fit, "gem")?;
-    let e = entry(&mut g, fit, "Solitaire seat")?;
-    finish(&mut g, d, &[e])?;
-    g.expose(gem, "w_mm", "Stone")?;
-    g.expose(gem, "cut", "Cut")?;
-    Ok(g)
-}
-
-fn wishbone_wave() -> Result<Graph, GraphError> {
-    let mut g = Graph::new("Wishbone wave", Mode::SandRing);
-    let p = g.add("band.profile")?;
-    set(&mut g, p, &[("style", t("DShape")), ("width_mm", n(3.6)), ("thickness_mm", n(1.9))])?;
-    let s = g.add("shank")?;
-    set(&mut g, s, &[("kind", t("Wave")), ("amount", n(0.7)), ("waves", i(1))])?;
-    let d = design(&mut g, "Wishbone wave", p, Some(s))?;
-    finish(&mut g, d, &[])?;
-    g.expose(s, "amount", "Swing")?;
-    Ok(g)
-}
-
-fn split_shank() -> Result<Graph, GraphError> {
-    let mut g = Graph::new("Split shank", Mode::SandRing);
-    let p = squared(&mut g, 5.5, 2.0)?;
-    let s = g.add("shank")?;
-    set(&mut g, s, &[("kind", t("Split")), ("amount", n(0.85))])?;
-    let d = design(&mut g, "Split shank", p, Some(s))?;
-    finish(&mut g, d, &[])?;
-    g.expose(s, "amount", "Flare")?;
-    Ok(g)
-}
-
-fn toi_et_moi() -> Result<Graph, GraphError> {
-    let mut g = Graph::new("Toi et moi", Mode::SandRing);
-    let (p, s0) = signet(&mut g, "Oval", 12.0, 1.8)?;
-    let s = g.add("shank")?;
-    g.connect(s0, "shank", s, "shank")?;
-    set(&mut g, s, &[("amount", n(0.75)), ("head_theta_deg", n(TOP_DEG - 26.0)), ("head_length_mm", n(8.0))])?;
-    let h = g.add("head")?;
-    set(&mut g, h, &[("outline", t("Heart")), ("theta_deg", n(TOP_DEG + 26.0)), ("length_mm", n(6.5))])?;
-    let s2 = g.add("shank.add_head")?;
-    g.connect(s, "shank", s2, "shank")?;
-    g.connect(h, "head", s2, "head")?;
-    let d = design(&mut g, "Toi et moi", p, Some(s2))?;
-    finish(&mut g, d, &[])?;
-    g.expose(h, "outline", "Second head")?;
     Ok(g)
 }
 
@@ -850,6 +759,8 @@ mod tests {
             arrange(&mut built);
             assert_eq!(bundled, built, "{}: the committed file has drifted from its builder — rerun with RD_WRITE_TEMPLATE_GRAPHS=1", t.name);
             assert!(bundled.validate(Some(&reg)).is_empty(), "{}: {:?}", t.name, bundled.validate(Some(&reg)));
+            assert!(bundled.nodes.iter().filter(|n| n.kind == "design.set").count() <= 4, "{} carries too many opaque patches", t.name);
+            assert!(t.json().len() <= 300_000, "{} exceeds the procedural template budget", t.name);
             let out = evaluate_design(&mut Evaluator::new(), &bundled, &reg, &lib, 0).unwrap_or_else(|e| panic!("{}: {e}", t.name));
             assert!(out.notes.is_empty(), "{}: {:?}", t.name, out.notes);
             let want = code.iter().find(|c| c.name == t.name).unwrap_or_else(|| panic!("{} is not a code template", t.name)).design();

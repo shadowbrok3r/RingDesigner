@@ -1276,6 +1276,22 @@ fn a_design_opened_after_a_fit_opens_whole_at_zoom_one_about_its_middle() {
 }
 
 #[test]
+fn a_superseded_build_leaves_the_newest_in_flight() {
+    let mut h = harness();
+    for delay in [0, 1, 2, 3, 5, 8, 13, 21] {
+        h.state_mut().rebuild_now();
+        std::thread::sleep(std::time::Duration::from_millis(delay));
+        h.state_mut().rebuild_now();
+        let start = std::time::Instant::now();
+        while h.state().is_building() {
+            h.run_steps(1);
+            assert!(start.elapsed() < std::time::Duration::from_secs(30), "the ring never built");
+        }
+        assert_eq!(h.state().landed_generation(), h.state().build_generation(), "nothing in flight means the newest build is on screen");
+    }
+}
+
+#[test]
 fn an_applied_operation_after_a_fit_keeps_the_post_on_screen_about_the_rings_middle() {
     use ringdesign_workbench::viewport::Sel;
     let mut h = harness();

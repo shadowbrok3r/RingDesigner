@@ -1,11 +1,6 @@
 //! The golden corpus: what every shipped starting point measures, pinned.
 //!
-//! The templates test asserted only `verdict != NotCastable`, so a change that
-//! took all nine from Castable to Marginal, or that moved `volume_mm3`, failed
-//! nothing. This walks the shop window — the nine templates, every
-//! `ProfileStyle` as a bare band, and every `ShankKind` as a bare band — and
-//! compares the numbers a jeweller reads off the report against a committed
-//! table.
+//! Measures the current starters, factory stocks, retired fixtures, profiles and shanks.
 //!
 //! It is a *regression* net, not a specification: a row moving is not
 //! automatically wrong. It means the diff has to say why, and the table is
@@ -55,7 +50,7 @@ fn row(name: &str, d: &RingDesign, lib: &AlphaLibrary) -> Row {
         lib,
         BuildParams { theta_steps: THETA, profile_steps: PROFILE, ..Default::default() },
     );
-    let f = castability::analyze_field(d, lib, &d.draft, FIELD_THETA, FIELD_PROFILE);
+    let f = castability::judged_field_report(d, lib, &d.draft, FIELD_THETA, FIELD_PROFILE, Some(&out));
     Row {
         name: name.to_string(),
         verdict: format!("{:?}", f.verdict),
@@ -80,6 +75,12 @@ fn corpus() -> Vec<Row> {
 
     for t in ringdesign_core::templates::all() {
         rows.push(row(&format!("template/{}", t.name), &t.design(), &lib));
+    }
+    for name in ringdesign_core::templates::FIXTURE_NAMES {
+        rows.push(row(&format!("fixture/{name}"), &ringdesign_core::templates::fixture(name).unwrap(), &lib));
+    }
+    for preset in ringdesign_core::imported_base::PRESETS {
+        rows.push(row(&format!("stock/{}", preset.id), &ringdesign_core::templates::stock(preset).unwrap(), &lib));
     }
     for &style in ProfileStyle::ALL {
         let mut d = bare_band();

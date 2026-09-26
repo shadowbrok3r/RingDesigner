@@ -1,0 +1,1283 @@
+{
+  "scope": "Starter gallery part 1 (issue #214): 13 code starters, 20 factory stocks, retired-name fixtures, menu, thumbnails, graphs and golden corpus",
+  "branch": "codex/starter-gallery",
+  "validated_commit": "867967ed69be7cad413f56d10dac8b4ad412588b",
+  "master_merged": "be12ed5",
+  "target_dir": "target/starter-gallery (the lane's own)",
+  "commits": [
+    "867967e Merge master: batch 16 validation record and export-resolution collection checks",
+    "521e020 Open a factory stock from the File menu; retire the phone's one-preset entry",
+    "d188768 Render the starter gallery thumbnails and badge each stock by its process",
+    "12d8caa Regenerate the starter graphs and retire the lift test's positional lookup",
+    "24f3623 Build the starter settings and splits on the batch 16 cutters, pinned by measurement"
+  ],
+  "generated_files": {
+    "template_graphs": "RD_WRITE_TEMPLATE_GRAPHS=1 cargo test -p ringdesign-graph write_template_graphs; only trilogy.graph.json changed against Codex's output (two head names)",
+    "golden_corpus": "RD_WRITE_GOLDEN=1 cargo test -p ringdesign-core --test golden; byte-identical to Codex's output",
+    "thumbnails": "template_shots re-rendered all 66 images byte-identical; tools/template_thumbnails.py reproduced every preview and sources.json byte for byte (oriel skipped: its source render is not in this worktree)"
+  },
+  "checks": [
+    {
+      "check": "ringdesign-core-build",
+      "command": "cargo test --offline -p ringdesign-core --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 11,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-core-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-core -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 115,
+      "tests": {
+        "passed": 772,
+        "failed": 0,
+        "ignored": 15,
+        "test_binaries": 3
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-graph-build",
+      "command": "cargo test --offline -p ringdesign-graph --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 5,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-graph-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-graph --no-fail-fast -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 73,
+      "tests": {
+        "passed": 118,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 6
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-graph-ui-build",
+      "command": "cargo test --offline -p ringdesign-graph-ui --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 13,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-graph-ui-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-graph-ui -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 1,
+      "tests": {
+        "passed": 26,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-script-build",
+      "command": "cargo test --offline -p ringdesign-script --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 23,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-script-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-script -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 0,
+      "tests": {
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-solid-build",
+      "command": "cargo test --offline -p ringdesign-solid --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 1,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-solid-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-solid -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 0,
+      "tests": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-occt-build",
+      "command": "cargo test --offline -p ringdesign-occt --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 1,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-occt-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-occt -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 2,
+      "tests": {
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 3
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-workbench-build",
+      "command": "cargo test --offline -p ringdesign-workbench --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 0,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-workbench-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-workbench -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 9,
+      "tests": {
+        "passed": 219,
+        "failed": 0,
+        "ignored": 1,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "workbench-glow-build",
+      "command": "cargo test --offline -p ringdesign-workbench --features glow --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 115,
+      "warnings": 0
+    },
+    {
+      "check": "workbench-glow-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-workbench --features glow -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 7,
+      "tests": {
+        "passed": 233,
+        "failed": 0,
+        "ignored": 1,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-mcp-build",
+      "command": "cargo test --offline -p ringdesign-mcp --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 56,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-mcp-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-mcp -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 1,
+      "tests": {
+        "passed": 45,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-mcpd-build",
+      "command": "cargo test --offline -p ringdesign-mcpd --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 1,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-mcpd-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-mcpd -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 0,
+      "tests": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 1
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-cli-build",
+      "command": "cargo test --offline -p ringdesign-cli --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 28,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-cli-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-cli -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 3,
+      "tests": {
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-configurator-build",
+      "command": "cargo test --offline -p ringdesign-configurator --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 57,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-configurator-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-configurator -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 4,
+      "tests": {
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-assets-build",
+      "command": "cargo test --offline -p ringdesign-assets --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 14,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-assets-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-assets -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 0,
+      "tests": {
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-py-build",
+      "command": "cargo test --offline -p ringdesign-py --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 29,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-py-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-py -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 0,
+      "tests": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-gui-build",
+      "command": "cargo test --offline -p ringdesign-gui --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 19,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesign-gui-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-gui -- --test-threads=1",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 148,
+      "tests": {
+        "passed": 197,
+        "failed": 0,
+        "ignored": 9,
+        "test_binaries": 1
+      },
+      "warnings": 0
+    },
+    {
+      "check": "ringdesigner_android-build",
+      "command": "cargo test --offline -p ringdesigner_android --no-run",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 31,
+      "warnings": 0
+    },
+    {
+      "check": "ringdesigner_android-test",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesigner_android -- --test-threads=4",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 9,
+      "tests": {
+        "passed": 201,
+        "failed": 0,
+        "ignored": 1,
+        "test_binaries": 2
+      },
+      "warnings": 0
+    },
+    {
+      "check": "python-module-build",
+      "command": "cargo build --offline --release -p ringdesign-py",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 27,
+      "warnings": 0
+    },
+    {
+      "check": "python-smoke",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- /home/shadowbroker/Documents/Rust/JewelryProjects/RingDesigner/tools/venv/bin/python -m pytest crates/ringdesign-py/tests -q",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 10,
+      "tests": {
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 1
+      },
+      "warnings": 0,
+      "env": "PYTHONPATH=target/starter-gallery/pymod, holding ringdesign.abi3.so copied from target/starter-gallery/release/libringdesign.so"
+    },
+    {
+      "check": "workspace-all-targets",
+      "command": "cargo check --offline --workspace --all-targets",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 36,
+      "warnings": 0
+    },
+    {
+      "check": "locked",
+      "command": "cargo check --locked --offline --workspace",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 26,
+      "warnings": 0
+    },
+    {
+      "check": "wasm",
+      "command": "cargo check --offline -p ringdesign-core -p ringdesign-configurator --no-default-features --target wasm32-unknown-unknown",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 29,
+      "warnings": 0
+    },
+    {
+      "check": "ndk-arm64",
+      "command": "cargo ndk -t arm64-v8a check -p ringdesigner_android",
+      "cwd": "crates/ringdesigner-android",
+      "exit_code": 0,
+      "seconds": 25,
+      "warnings": 0,
+      "env": "ANDROID_NDK_HOME=~/Android/Sdk/ndk/28.0.12674087"
+    },
+    {
+      "check": "core-starter-tests",
+      "command": "systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --offline -p ringdesign-core --lib templates:: -- --test-threads=4 --nocapture",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 6,
+      "tests": {
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "test_binaries": 1
+      },
+      "warnings": 0,
+      "evidence": "re-run of the seven core template tests with --nocapture for the sand-trial figures; already counted in ringdesign-core-test"
+    },
+    {
+      "check": "template-shots-build",
+      "command": "cargo build --offline --release -p ringdesign-core --example template_shots",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 0,
+      "warnings": 0,
+      "evidence": "release build of the render and gate example"
+    },
+    {
+      "check": "template-shots",
+      "command": "systemd-run --user --scope -p MemoryMax=8G --quiet -- cargo run --offline --release -p ringdesign-core --example template_shots -- target/template-library-review/starter-renders-verify",
+      "cwd": ".",
+      "exit_code": 0,
+      "seconds": 37,
+      "warnings": 0,
+      "evidence": "renders and gates.json at the validated commit; all 66 renders byte-identical to the committed thumbnails' sources"
+    }
+  ],
+  "totals": {
+    "checks": 41,
+    "failed_checks": 0,
+    "tests_passed": 1854,
+    "tests_failed": 0,
+    "warnings": 0
+  },
+  "stock_measurements": "template_shots at the validated commit: 512 x 192 build, field judged at 192 x 128 against the opening process, rigid-withdrawal release sampled at 0.1 mm pitch (Review: no obstruction, flagged only for advisory low-draft area such as the bore walls; NotApplicable: lost wax, where obstructions are reported and never gate)",
+  "starters": [
+    {
+      "name": "Court band",
+      "process": "two-part sand, default draft settings",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 0.0,
+        "thinnest_wall_mm": 1.4787,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "Review",
+          "obstructions": 0,
+          "unresolved": 0
+        },
+        "build_ms": 47
+      },
+      "stones": 0,
+      "preview_stones": 0
+    },
+    {
+      "name": "Braided band",
+      "process": "two-part sand, default draft settings",
+      "measured": {
+        "verdict": "Marginal",
+        "undercut_pct": 0.0,
+        "thinnest_wall_mm": 2.2676,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 1,
+        "release_at_0_1mm": {
+          "status": "Blocked",
+          "obstructions": 20,
+          "unresolved": 0
+        },
+        "build_ms": 25
+      },
+      "stones": 0,
+      "preview_stones": 0,
+      "dfm": [
+        "Braid: the Braid texture's finest gaps measure 0.04 mm on 8.7 x 1.7 mm cells against the sand's 0.35 mm floor — they will cast as mush. Coarsen the pattern, use fewer repeats, or accept the softness."
+      ]
+    },
+    {
+      "name": "Split shank",
+      "process": "lost wax",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 9.6244,
+        "thinnest_wall_mm": 1.3268,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 2,
+          "unresolved": 0
+        },
+        "build_ms": 389
+      },
+      "stones": 0,
+      "preview_stones": 0
+    },
+    {
+      "name": "Split gallery",
+      "process": "Delft clay, two-part sand",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 0.0,
+        "thinnest_wall_mm": 1.5696,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "Review",
+          "obstructions": 0,
+          "unresolved": 0
+        },
+        "build_ms": 402
+      },
+      "stones": 0,
+      "preview_stones": 0
+    },
+    {
+      "name": "Shouldered cushion signet",
+      "process": "two-part sand, default draft settings",
+      "measured": {
+        "verdict": "Marginal",
+        "undercut_pct": 0.0,
+        "thinnest_wall_mm": 2.0574,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 1,
+        "release_at_0_1mm": {
+          "status": "Review",
+          "obstructions": 0,
+          "unresolved": 0
+        },
+        "build_ms": 29
+      },
+      "stones": 0,
+      "preview_stones": 0,
+      "dfm": [
+        "Shoulder ornament: the Chevron texture's finest gaps at its tightest station, 185°, measure 0.03 mm on 7.6 x 0.6 mm cells against the sand's 0.35 mm floor — they will cast as mush. Coarsen the pattern, use fewer repeats, or accept the softness."
+      ]
+    },
+    {
+      "name": "Cathedral solitaire",
+      "process": "lost wax",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 16.3575,
+        "thinnest_wall_mm": 1.1108,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 4,
+          "unresolved": 0
+        },
+        "build_ms": 496
+      },
+      "stones": 1,
+      "preview_stones": 1
+    },
+    {
+      "name": "Bezel solitaire",
+      "process": "Delft clay, two-part sand",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 0.0,
+        "thinnest_wall_mm": 1.2163,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "Review",
+          "obstructions": 0,
+          "unresolved": 0
+        },
+        "build_ms": 121
+      },
+      "stones": 1,
+      "preview_stones": 1
+    },
+    {
+      "name": "Halo",
+      "process": "lost wax",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 18.3624,
+        "thinnest_wall_mm": 1.2363,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 25,
+          "unresolved": 0
+        },
+        "build_ms": 280
+      },
+      "stones": 16,
+      "preview_stones": 16
+    },
+    {
+      "name": "Trilogy",
+      "process": "lost wax",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 19.7232,
+        "thinnest_wall_mm": 1.5464,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 38,
+          "unresolved": 0
+        },
+        "build_ms": 563
+      },
+      "stones": 3,
+      "preview_stones": 3
+    },
+    {
+      "name": "Toi et moi",
+      "process": "lost wax",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 16.0559,
+        "thinnest_wall_mm": 0.549,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 85,
+          "unresolved": 0
+        },
+        "build_ms": 487
+      },
+      "stones": 2,
+      "preview_stones": 2
+    },
+    {
+      "name": "Split-shank basket",
+      "process": "lost wax",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 17.6252,
+        "thinnest_wall_mm": 1.3268,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 2,
+          "unresolved": 0
+        },
+        "build_ms": 224
+      },
+      "stones": 1,
+      "preview_stones": 1
+    },
+    {
+      "name": "Half eternity",
+      "process": "Delft clay, two-part sand",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 0.0,
+        "thinnest_wall_mm": 1.5766,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "Review",
+          "obstructions": 0,
+          "unresolved": 0
+        },
+        "build_ms": 174
+      },
+      "stones": 8,
+      "preview_stones": 8
+    },
+    {
+      "name": "Gypsy trio",
+      "process": "Delft clay, two-part sand",
+      "measured": {
+        "verdict": "Castable",
+        "undercut_pct": 0.0,
+        "thinnest_wall_mm": 1.893,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "Review",
+          "obstructions": 0,
+          "unresolved": 0
+        },
+        "build_ms": 119
+      },
+      "stones": 3,
+      "preview_stones": 3
+    }
+  ],
+  "findings": [
+    "Trilogy's second side head (#9, Three-claw head at 118 deg, spin -90) tessellates with 2 degenerate faces in its own part mesh at the export chord (builds of 512 steps and up, EXPORT_CHORD_MM 0.015); its mirror twin #6 and every other made part are clean, and the resolved ring mesh is watertight with 0 degenerate faces, so ring exports are unaffected. The starter test checks part meshes at the preview chord only (192 x 96), where #9 is clean. The fix belongs in the claw builder (P6).",
+    "Opened from the menu, a sand-ready stock's source is named 'Signet NNN / drafted workshop master'; the desktop Design panel's Imported signet base picker matches presets by the plain stock name, so it shows that raw name instead of selecting the preset.",
+    "CLAUDE.md (not in this worktree's sparse checkout) still describes the template gallery as nine starters and nine committed template graphs; the code now has 13 code starters, 13 bundled starter graphs and 20 factory stocks."
+  ],
+  "open_items": [
+    "Officina (six lessons) is not built; the Workshop collection stays in its menu slot until it is, so the menu count stays at 55 (57 once Officina replaces Workshop).",
+    "Workshop retirement (assets DESIGNS rows, previews, sources.json entries, workshop_collection.rs and its tools) waits for Officina.",
+    "Part 2: Wishbone wave returns only with ShankKey::slide (C-S6); Trilogy and Toi et moi carry ovals until true pear plans (C-B2).",
+    "Phone release steps not done by rule: no version bump or CHANGELOG entry (Logan's standing rule), and no rdsmoke AVD smoke test (no emulators in this lane). The retired phone menu item needs a CHANGELOG line at the next release.",
+    "Nothing pushed, merged into master, tagged or published."
+  ],
+  "stocks": [
+    {
+      "id": "013",
+      "name": "Round signet · 013",
+      "slug": "stock-013-round",
+      "family": "Round and square",
+      "badge": "sand trial failed · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 0.0365,
+        "thinnest_wall_mm": 1.4058,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 3,
+          "unresolved": 0
+        },
+        "build_ms": 26,
+        "open_ms": 7
+      },
+      "process_note": "Native lost wax: the drafted sand master has a Marginal verdict.",
+      "sand_trial": {
+        "verdict": "Marginal",
+        "undercut_pct": 0.0652,
+        "as": "Delft sand master with envelope",
+        "pinned_by": "a_failed_sand_trial_fails_as_its_note_says"
+      }
+    },
+    {
+      "id": "012",
+      "name": "Cushion signet · 012 (10 mm)",
+      "slug": "stock-012-cushion",
+      "family": "Round and square",
+      "badge": "sand trial failed · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 0.2938,
+        "thinnest_wall_mm": 1.5008,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 18,
+          "unresolved": 0
+        },
+        "build_ms": 26,
+        "open_ms": 7
+      },
+      "process_note": "Native lost wax: the drafted sand master has a Marginal verdict.",
+      "sand_trial": {
+        "verdict": "Marginal",
+        "undercut_pct": 0.2288,
+        "as": "Delft sand master with envelope",
+        "pinned_by": "a_failed_sand_trial_fails_as_its_note_says"
+      }
+    },
+    {
+      "id": "001",
+      "name": "Cushion signet · 001 (20 mm)",
+      "slug": "stock-001-cushion",
+      "family": "Round and square",
+      "badge": "sand trial failed · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 0.2105,
+        "thinnest_wall_mm": 1.3563,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 15,
+          "unresolved": 0
+        },
+        "build_ms": 36,
+        "open_ms": 8
+      },
+      "process_note": "Native lost wax: the drafted sand master has a Marginal verdict.",
+      "sand_trial": {
+        "verdict": "Marginal",
+        "undercut_pct": 0.1031,
+        "as": "Delft sand master with envelope",
+        "pinned_by": "a_failed_sand_trial_fails_as_its_note_says"
+      }
+    },
+    {
+      "id": "017",
+      "name": "Tonneau signet · 017",
+      "slug": "stock-017-tonneau",
+      "family": "Round and square",
+      "badge": "sand-safe plan",
+      "opens_as": "Delft clay, two-part sand",
+      "source": "drafted sand master with sand envelope",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 0.0087,
+        "thinnest_wall_mm": 1.4674,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "Review",
+          "obstructions": 0,
+          "unresolved": 0
+        },
+        "build_ms": 54,
+        "open_ms": 47
+      },
+      "sand_proof": "every_stock_starter_opens_clean: Castable, 0 DFM findings, 0 obstructions and 0 unresolved rays at 0.1 and 0.075 mm pitch"
+    },
+    {
+      "id": "006",
+      "name": "Square signet · 006",
+      "slug": "stock-006-square",
+      "family": "Round and square",
+      "badge": "sand-safe plan",
+      "opens_as": "Delft clay, two-part sand",
+      "source": "drafted sand master with sand envelope",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 0.0,
+        "thinnest_wall_mm": 1.3079,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "Review",
+          "obstructions": 0,
+          "unresolved": 0
+        },
+        "build_ms": 66,
+        "open_ms": 66
+      },
+      "sand_proof": "every_stock_starter_opens_clean: Castable, 0 DFM findings, 0 obstructions and 0 unresolved rays at 0.1 and 0.075 mm pitch"
+    },
+    {
+      "id": "015",
+      "name": "Octagon signet · 015",
+      "slug": "stock-015-octagon",
+      "family": "Round and square",
+      "badge": "sand-safe plan",
+      "opens_as": "Delft clay, two-part sand",
+      "source": "drafted sand master with sand envelope",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 0.0,
+        "thinnest_wall_mm": 1.4353,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "Review",
+          "obstructions": 0,
+          "unresolved": 0
+        },
+        "build_ms": 56,
+        "open_ms": 55
+      },
+      "sand_proof": "every_stock_starter_opens_clean: Castable, 0 DFM findings, 0 obstructions and 0 unresolved rays at 0.1 and 0.075 mm pitch"
+    },
+    {
+      "id": "004",
+      "name": "Shield signet · 004",
+      "slug": "stock-004-shield",
+      "family": "Shields",
+      "badge": "upright · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 4.1539,
+        "thinnest_wall_mm": 1.3332,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 173,
+          "unresolved": 0
+        },
+        "build_ms": 31,
+        "open_ms": 10
+      }
+    },
+    {
+      "id": "014",
+      "name": "Heater signet · 014",
+      "slug": "stock-014-heater",
+      "family": "Shields",
+      "badge": "upright · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 7.9214,
+        "thinnest_wall_mm": 1.5102,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 172,
+          "unresolved": 0
+        },
+        "build_ms": 27,
+        "open_ms": 9
+      }
+    },
+    {
+      "id": "020",
+      "name": "Escutcheon signet · 020",
+      "slug": "stock-020-escutcheon",
+      "family": "Shields",
+      "badge": "upright · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 5.6798,
+        "thinnest_wall_mm": 1.6746,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 206,
+          "unresolved": 0
+        },
+        "build_ms": 28,
+        "open_ms": 9
+      }
+    },
+    {
+      "id": "011",
+      "name": "Badge signet · 011",
+      "slug": "stock-011-badge",
+      "family": "Shields",
+      "badge": "upright · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 4.0846,
+        "thinnest_wall_mm": 1.5795,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 159,
+          "unresolved": 0
+        },
+        "build_ms": 28,
+        "open_ms": 11
+      }
+    },
+    {
+      "id": "019",
+      "name": "Jewel signet · 019",
+      "slug": "stock-019-jewel",
+      "family": "Shields",
+      "badge": "upright · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 2.3226,
+        "thinnest_wall_mm": 1.6699,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 182,
+          "unresolved": 0
+        },
+        "build_ms": 26,
+        "open_ms": 8
+      }
+    },
+    {
+      "id": "003",
+      "name": "Clover signet · 003",
+      "slug": "stock-003-clover",
+      "family": "Lobed",
+      "badge": "sand trial failed · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 14.1108,
+        "thinnest_wall_mm": 1.3685,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 7,
+          "unresolved": 0
+        },
+        "build_ms": 66,
+        "open_ms": 44
+      },
+      "process_note": "Native lost wax: sand withdrawal support would add more than 1 mm.",
+      "sand_trial": {
+        "result": "build refused: sand withdrawal support would add more than 1 mm",
+        "as": "Delft sand master with envelope",
+        "pinned_by": "a_failed_sand_trial_fails_as_its_note_says"
+      }
+    },
+    {
+      "id": "007",
+      "name": "Quatrefoil signet · 007",
+      "slug": "stock-007-quatrefoil",
+      "family": "Lobed",
+      "badge": "sand trial failed · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 16.0432,
+        "thinnest_wall_mm": 0.9694,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 205,
+          "unresolved": 0
+        },
+        "build_ms": 44,
+        "open_ms": 21
+      },
+      "process_note": "Native lost wax: sand withdrawal support would add more than 1 mm.",
+      "sand_trial": {
+        "result": "build refused: sand withdrawal support would add more than 1 mm",
+        "as": "Delft sand master with envelope",
+        "pinned_by": "a_failed_sand_trial_fails_as_its_note_says"
+      }
+    },
+    {
+      "id": "005",
+      "name": "Rosette signet · 005",
+      "slug": "stock-005-rosette",
+      "family": "Lobed",
+      "badge": "sand trial failed · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 8.7291,
+        "thinnest_wall_mm": 1.329,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 24,
+          "unresolved": 0
+        },
+        "build_ms": 29,
+        "open_ms": 13
+      },
+      "process_note": "Native lost wax: the drafted sand master has a NotCastable verdict.",
+      "sand_trial": {
+        "verdict": "NotCastable",
+        "undercut_pct": 6.6166,
+        "as": "Delft sand master with envelope",
+        "pinned_by": "a_failed_sand_trial_fails_as_its_note_says"
+      }
+    },
+    {
+      "id": "016",
+      "name": "Star signet · 016",
+      "slug": "stock-016-star",
+      "family": "Lobed",
+      "badge": "sand trial failed · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 5.8188,
+        "thinnest_wall_mm": 1.5952,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 20,
+          "unresolved": 0
+        },
+        "build_ms": 29,
+        "open_ms": 14
+      },
+      "process_note": "Native lost wax: the drafted sand master has a NotCastable verdict.",
+      "sand_trial": {
+        "verdict": "NotCastable",
+        "undercut_pct": 3.0981,
+        "as": "Delft sand master with envelope",
+        "pinned_by": "a_failed_sand_trial_fails_as_its_note_says"
+      }
+    },
+    {
+      "id": "018",
+      "name": "Butterfly signet · 018",
+      "slug": "stock-018-butterfly",
+      "family": "Lobed",
+      "badge": "upright · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 10.6815,
+        "thinnest_wall_mm": 1.5632,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 134,
+          "unresolved": 0
+        },
+        "build_ms": 26,
+        "open_ms": 8
+      }
+    },
+    {
+      "id": "008",
+      "name": "Heart signet · 008",
+      "slug": "stock-008-heart",
+      "family": "Lobed",
+      "badge": "upright · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 2.7151,
+        "thinnest_wall_mm": 1.3375,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 183,
+          "unresolved": 0
+        },
+        "build_ms": 32,
+        "open_ms": 11
+      }
+    },
+    {
+      "id": "002",
+      "name": "Kite signet · 002",
+      "slug": "stock-002-kite",
+      "family": "Pointed",
+      "badge": "sand-safe plan",
+      "opens_as": "Delft clay, two-part sand",
+      "source": "drafted sand master with sand envelope",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 0.0068,
+        "thinnest_wall_mm": 1.3063,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "Review",
+          "obstructions": 0,
+          "unresolved": 0
+        },
+        "build_ms": 173,
+        "open_ms": 159
+      },
+      "sand_proof": "every_stock_starter_opens_clean: Castable, 0 DFM findings, 0 obstructions and 0 unresolved rays at 0.1 and 0.075 mm pitch"
+    },
+    {
+      "id": "009",
+      "name": "Drop signet · 009",
+      "slug": "stock-009-drop",
+      "family": "Pointed",
+      "badge": "upright · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 0.2742,
+        "thinnest_wall_mm": 1.3754,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 32,
+          "unresolved": 0
+        },
+        "build_ms": 27,
+        "open_ms": 8
+      }
+    },
+    {
+      "id": "010",
+      "name": "Trillion signet · 010",
+      "slug": "stock-010-trillion",
+      "family": "Pointed",
+      "badge": "upright · lost wax",
+      "opens_as": "lost wax",
+      "source": "native factory stock",
+      "measured_at_open": {
+        "verdict": "Castable",
+        "undercut_pct": 5.0728,
+        "thinnest_wall_mm": 1.3199,
+        "watertight": true,
+        "degenerate_faces": 0,
+        "dfm_findings": 0,
+        "release_at_0_1mm": {
+          "status": "NotApplicable",
+          "obstructions": 118,
+          "unresolved": 0
+        },
+        "build_ms": 29,
+        "open_ms": 12
+      }
+    }
+  ]
+}

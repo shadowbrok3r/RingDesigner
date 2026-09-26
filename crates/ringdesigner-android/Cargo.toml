@@ -57,7 +57,7 @@ package = "com.kingsofalchemy.ringdesigner"
 # egui-android's Java bridge: a copy of the framework's crates/egui-android/java, re-synced from
 # the resolved egui-android by every `cargo egui-mobile build`/`run` — edit it there, not here.
 java_sources = "java"
-# Launcher icon mipmaps, rendered from icon/ic_launcher.svg by this crate's scripts/render-icons.sh.
+# Launcher icon mipmaps, rendered by scripts/render-icons.sh from icon/ic_launcher.svg, a link to the desktop icon bundled/icon/ringdesigner.svg.
 resources = "res"
 
 [package.metadata.android.sdk]

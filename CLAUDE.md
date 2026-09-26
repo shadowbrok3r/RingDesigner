@@ -1430,8 +1430,10 @@ corner angle, aspect, degenerate count — on the report panel and the sheet.
 
 ### Templates are code, and the field verdict edits them
 
-`templates.rs` holds the File-menu gallery (and MCP `apply_template`): nine
-starters built from the same API the panels drive, so they cannot go stale
+`templates.rs` holds the File-menu gallery (and MCP `apply_template`):
+thirteen starters (four bands, the shouldered cushion signet and eight stone
+settings) plus the twenty factory stocks, each stock opening in the process
+its own sand trial measured, built from the same API the panels drive, so they cannot go stale
 against the format. Only builtin alphas, so they open identically on an
 empty machine. The test holds every one to `analyze_field` — and that test
 did real work the day it was written: showcase 5's rails-and-milgrain crest
@@ -1655,6 +1657,21 @@ and halos carry the field through their seats.
   subtracted), which is what flattens each claw onto its facet and cuts
   the girdle's bite. The envelope is the stone as `gems.rs` draws it, so
   the seat fits the stone the viewport shows.
+- **Claws take a style, a grouping, rails and a rise** (`setting::ClawOptions`,
+  the `head.claw` and `head.basket` params). Styles Wire, Talon, Fang,
+  Tentacle, Thorn and Sepal shape each claw; groupings Even, Feet and Jaws
+  place them; `rails` "Seat" keeps the base and gallery rails, "Base" only
+  the base rail, "None" none (a basket takes 0 to 6). A railless claw must
+  find metal at its own foot or the head is refused by name, so a claw landing
+  past a narrow band's edge asks for the Jaws grouping or a stone seated
+  further onto the band. On a cabochon the shaped styles climb the dome and
+  rest on it, the tip at `rise` of the dome's height (0.3 by default, at most
+  0.6, lower where the claw's bends cannot fit); a Seat rail hides most of a
+  climbing claw, so railless heads are what make fangs and tentacles read.
+  Defaults are bit-identical to the plain wire head, and anything else is
+  fenced at design format 6 and graph format 2. Every head is cleaned of
+  sub-20 nm slivers after the stone's notch: overlapping rails left
+  4.8e-7 mm edges that f32 turned into degenerate faces.
 - **Beads** are centres and radii, not solids, until every seat is placed:
   `apply` merges any two within 1.4 radii in ring space, so neighbours share
   the beads between them (pinned by volume: three stones gain less than
@@ -2246,7 +2263,7 @@ What the runtime settled while being built, each pinned by a test:
 - **`RingDesign::graph`** is the design's provenance (no ladder bump — an
   absent key reads `None`, an older build ignores it). Graph, cluster and
   preset files have their own ladder in `file.rs`, one step per version.
-- **The nine templates are committed graphs** (`graphs/templates/*.graph.json`,
+- **The thirteen starter templates are committed graphs** (`graphs/templates/*.graph.json`,
   bundled by `include_str!`) generated from builders in `templates.rs`;
   the golden test holds each file to its builder and each evaluation to the
   code template **byte for byte**. Regenerate with
@@ -3461,6 +3478,16 @@ space, and the threaded test harness reserves far more virtual than resident —
 a 4 GB `-v` cap fails ~10 unrelated tests that pass individually, which reads as
 a regression that is not there. `MemoryMax` caps actual RSS, which is what
 matters.
+
+**Never build two checkouts into one target directory.** Cargo gives a
+workspace member the same build hash in a git worktree as in the main checkout,
+so a `CARGO_TARGET_DIR` shared between them shares build-script outputs, and
+`ringdesign-assets` keeps the bundle of whichever checkout last swept its files:
+its `rerun-if-changed` paths point there, so a template changed in the other
+checkout never re-runs it. On 2026-09-26 master's graph tests ran against a
+worktree's two-day-old templates and failed four ways with nothing wrong. Give
+every worktree its own `target/`; after a shared build, `cargo clean -p
+ringdesign-assets`.
 
 Anything sized by a `u32`/`usize` struct field rather than a constant needs an
 explicit cap. `MAX_CELLS` is the pattern: clamp the loop bounds *and* break on
