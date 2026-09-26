@@ -40,6 +40,9 @@ const MAX_MULTIPLIER: f64 = 64.0;
 /// A cupped bead's dimple, fraction of its diameter.
 pub const CUP_SPAN: f64 = 0.5;
 
+/// Exponent of the tube section `(1 - x²)^p`: full over the top, a fillet at the edge, no vertical wall.
+const TUBE_POW: f64 = 1.25;
+
 /// Wire cross-sections. A subset of the border rails: rope needs a phase along
 /// the rail, which a free path does not carry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,7 +50,7 @@ pub enum WireProfile {
     Round,
     Flat,
     Knife,
-    /// A semicircle, vertical at its own edge: a limb lying on the band, for lost wax.
+    /// A full round limb landing on the band in a fillet, for lost wax.
     Tube,
 }
 
@@ -77,7 +80,7 @@ impl WireProfile {
             WireProfile::Round => 0.5 + 0.5 * (std::f64::consts::PI * x.clamp(0.0, 1.0)).cos(),
             WireProfile::Flat => 1.0 - smoothstep(0.7, 1.0, x),
             WireProfile::Knife => 1.0 - x,
-            WireProfile::Tube => (1.0 - x * x).max(0.0).sqrt(),
+            WireProfile::Tube => (1.0 - x * x).max(0.0).powf(TUBE_POW),
         }
     }
 }
@@ -1049,13 +1052,16 @@ mod tests {
     }
 
     #[test]
-    fn a_tube_stands_vertical_at_its_edge_and_is_fenced() {
+    fn a_tube_is_full_over_the_top_lands_in_a_fillet_and_is_fenced() {
         let c = ctx();
         let tube = CurveLayer { points: vec![[0.0, 4.0], [1.0, 4.0]], repeats_around: 1, taper: 0.0, width_mm: 2.0, height_mm: 1.0, profile: WireProfile::Tube, ..CurveLayer::default() };
         assert!(tube.is_plain(), "a tube alone keeps the plain construction");
         let at = |dv: f64| tube.height(Uv { u: 30.0, v: 4.0 + dv }, &c);
-        assert!((at(0.0) - 1.0).abs() < 1e-9 && (at(0.6) - 0.8).abs() < 1e-9, "a semicircle: {} {}", at(0.0), at(0.6));
-        assert!(at(0.999) > 0.04 && at(1.001) == 0.0, "vertical at the edge: {}", at(0.999));
+        assert!((at(0.0) - 1.0).abs() < 1e-9 && (at(0.5) - 0.75f64.powf(TUBE_POW)).abs() < 1e-9, "the section: {} {}", at(0.0), at(0.5));
+        assert!(at(0.5) > WireProfile::Round.shape(0.5) + 0.15, "fuller than the cosine dome");
+        let steepest = (0..999).map(|k| (at(k as f64 * 1e-3) - at((k + 1) as f64 * 1e-3)) / 1e-3).fold(0.0, f64::max);
+        assert!(steepest < 1.6, "no wall steeper than {steepest:.2} of the height per half-width");
+        assert!(at(0.999) < 1e-3 && at(1.001) == 0.0, "lands flat at its edge: {}", at(0.999));
         let d = crate::RingDesign { layers: crate::LayerStack { layers: vec![crate::LayerEntry::new("Arm", crate::Layer::Curve(tube.clone()))] }, ..Default::default() };
         assert_eq!(crate::library::format_version_for(&d), crate::library::FORMAT_VERSION);
         assert!(profiled_json(&serde_json::to_value(&tube).unwrap()));
