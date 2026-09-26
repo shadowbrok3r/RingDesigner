@@ -18,6 +18,7 @@ Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume
 - Lane instructions shared by every ring: `.claude/collection-review/bestiarium-lane-brief.md` (ignored dir; the review prompt template sits beside it). Gates add two to the list in README: nothing may enter the finger hole (Arachne's leg did, 0.36 mm, and nothing caught it) and the export build must fit the 2 million triangle budget.
 - **Read another worktree's files with Bash, not the Read tool**: each worktree carries its own copy of the long CLAUDE.md, and the Read tool injects it into the reader's context once per worktree touched.
 - All seven lanes launched on 2026-09-25 died within minutes on the account's usage limit and were relaunched the next morning, fewer at a time.
+- **Logan, 2026-09-26:** "When 100% done with the rings and replacing the apps built in templates with the new rings, push the new windows desktop app via the CI and send the updated final renders via taildrop." When every Bestiarium ring has shipped at 7.5+ (or been cut) and is registered in File > New from template (the Workshop group leaves the menu), bump `crates/ringdesign-gui` from 0.6.0, push master, push the annotated tag `desktop-v<version>` (`desktop-release.yml` publishes only if Linux, Windows and both macOS builds pass), then Taildrop the final renders to `logans-s26-ultra`. This authorizes that bump and tag.
 
 # Continuation checkpoint (2026-09-25)
 
