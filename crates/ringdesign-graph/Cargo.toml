@@ -26,3 +26,8 @@ log.workspace = true
 
 [dev-dependencies]
 ringdesign-script = { path = "../ringdesign-script", default-features = false }
+
+# The packaging tool's own tests run with the crate's suite.
+[[example]]
+name = "collection_templates"
+test = true
