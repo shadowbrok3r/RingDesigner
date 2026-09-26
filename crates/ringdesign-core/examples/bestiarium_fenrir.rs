@@ -1778,8 +1778,8 @@ impl Heights {
         let g = |a: usize, b: usize| self.h[(j + b) * self.nx + i + a];
         lerp(lerp(g(0, 0), g(1, 0), tx), lerp(g(0, 1), g(1, 1), tx), tu)
     }
-    /// The least height within `r` mm of each cell.
-    fn eroded(&self, r: f64) -> Self {
+    /// The highest height at each cell that stays `r` mm clear of the surface this map draws: its erosion by a ball.
+    fn ball_eroded(&self, r: f64) -> Self {
         let k = (r / self.step).ceil() as i64;
         let h: Vec<f64> = (0..self.h.len())
             .into_par_iter()
@@ -1788,12 +1788,13 @@ impl Heights {
                 let mut m = f64::MAX;
                 for dj in -k..=k {
                     for di in -k..=k {
-                        if ((di * di + dj * dj) as f64).sqrt() * self.step > r {
+                        let d = ((di * di + dj * dj) as f64).sqrt() * self.step;
+                        if d > r {
                             continue;
                         }
                         let (a, b) = (i + di, j + dj);
-                        let v = if a < 0 || b < 0 || a >= self.nx as i64 || b >= self.nu as i64 { f64::MIN } else { self.h[b as usize * self.nx + a as usize] };
-                        m = m.min(v);
+                        let v = if a < 0 || b < 0 || a >= self.nx as i64 || b >= self.nu as i64 { -20.0 } else { self.h[b as usize * self.nx + a as usize] };
+                        m = m.min(v - (r * r - d * d).sqrt());
                     }
                 }
                 m
@@ -1828,11 +1829,10 @@ impl Heights {
 }
 
 /// Metal kept over the hollow under the head, mm.
-const HOLLOW_WALL_MM: f64 = 1.05;
+const HOLLOW_WALL_MM: f64 = 1.0;
 
-/// The hollow scooped under the head from the finger hole: over each point of the head's plan, up to [`HOLLOW_WALL_MM`]
-/// under the first air above the bore, that air eroded 1.3 mm round and smoothed, within a rounded footprint; as a cut
-/// part.
+/// The hollow scooped under the head from the finger hole: over each point of the head's plan, up to where a ball of
+/// [`HOLLOW_WALL_MM`] still clears the first air above the bore, within a rounded footprint; as a cut part.
 fn hollow_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
     let t = Instant::now();
     let (table, bore) = (wolf.table, wolf.bore);
@@ -1859,22 +1859,29 @@ fn hollow_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
         })
         .collect();
     let air = Heights { x0, u0, step, nx, nu, h: first_air };
-    let roof = air.eroded(1.3).blurred(0.3);
+    // The roof stays the wall's thickness from the surface in every direction, plus a fifth for what the blur lifts.
+    let roof = air.ball_eroded(HOLLOW_WALL_MM + 0.2).blurred(0.35);
+    if std::env::var("FENRIR_HOLLOW").is_ok() {
+        for k in 0..=40 {
+            let u = -10.0 + k as f64 * 0.5;
+            println!("    x 0, u {u:5.1}: first air {:6.2}, roof {:6.2}, floor {:6.2}", air.at(0.0, u), roof.at(0.0, u), floor(0.0));
+        }
+    }
     let footprint = |q: P3| {
-        let (x, u) = (q[0].abs() - 6.8, (q[1] + 0.5).abs() - 8.6);
+        let (x, u) = (q[0].abs() - 7.2, (q[1] + 0.5).abs() - 8.6);
         let r = 2.2;
         len([x.max(-r) + r, u.max(-r) + r, 0.0]).max(0.0) + x.max(u).min(-r) + r - r
     };
     let field = |p: P3| -> f64 {
         let q = wolf.face(p);
         let r = p[0].hypot(p[1]);
-        smax((q[2] - (roof.at(q[0], q[1]) - HOLLOW_WALL_MM)).max(bore - 0.3 - r), footprint(q), 0.5)
+        smax((q[2] - roof.at(q[0], q[1])).max(bore - 0.3 - r), footprint(q), 0.5)
     };
     let (lo, hi) = ([-9.0, bore - 0.6, -11.0], [9.0, table + 1.0, 13.0]);
-    let raw = tetra_mesh(lo, hi, 0.12, &field);
+    let raw = tetra_mesh(lo, hi, 0.15, &field);
     // Only the pockets that open into the finger hole are kept: a sealed one would cast solid.
     let (raw, dropped) = open_to_bore(&raw, bore);
-    let mut nets = decimate(&raw, 12_000, 1e-2, 3.0, 25.0, 40.0);
+    let mut nets = decimate(&raw, 8_000, 5e-2, 3.0, 30.0, 45.0);
     if csg::self_crossings(&csg::Solid { v: nets.v.clone(), f: nets.f.clone() }) > 0 {
         nets = clean_decimate(&raw, 12_000);
     }
