@@ -3088,7 +3088,7 @@ fn slivers(d: &RingDesign, built: &mesh::BuildResult) -> Vec<(String, usize)> {
         }
     }
     let mut out: Vec<(String, usize)> = count.into_iter().collect();
-    out.sort_by_key(|o| std::cmp::Reverse(o.1));
+    out.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
     if std::env::var("ARACHNE_DEBUG").is_ok() {
         let mut degenerate: HashMap<String, usize> = HashMap::new();
         for f in &m.faces {
@@ -3756,14 +3756,24 @@ fn main() -> Result<()> {
                 "bench_layers": prepared.bench_layers
             }))?,
         )?;
+        let mut materials = Vec::new();
         for (stone, tint) in stones(&d, &lib) {
-            let name = if tint[0] > 0.1 {
-                "reference-garnet.stl"
+            // Render material per stone: name, file, IOR, RGB IOR spread, transmission.
+            let (name, file, ior, dispersion, transmission) = if tint[0] > 0.1 {
+                ("Garnet", "reference-garnet.stl", 1.79, 0.024, 0.62)
             } else {
-                "reference-onyx.stl"
+                ("Onyx", "reference-onyx.stl", 1.54, 0.013, 0.0)
             };
-            stl::write_stl(out.join(name), &stone, "Arachne reference stone")?;
+            stl::write_stl(out.join(file), &stone, "Arachne reference stone")?;
+            materials.push(serde_json::json!({
+                "mesh": file, "name": name, "tint": tint, "ior": ior,
+                "dispersion": dispersion, "roughness": 0.065, "transmission": transmission
+            }));
         }
+        std::fs::write(
+            out.join("stones.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({ "stones": materials }))?,
+        )?;
     }
     renders(&out, &d, &lib, &built, if draft { 1000 } else { 1600 })?;
     println!(

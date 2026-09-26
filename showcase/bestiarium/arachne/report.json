@@ -8,7 +8,7 @@
     448
   ],
   "triangles": 1323510,
-  "build_s": 1.588241086,
+  "build_s": 1.638526452,
   "watertight": true,
   "boundary_edges": 0,
   "non_manifold_edges": 0,
@@ -37,7 +37,7 @@
       14
     ],
     [
-      "Leg II continuous limb, low side",
+      "Abdomen, round the onyx",
       12
     ],
     [
@@ -45,7 +45,7 @@
       12
     ],
     [
-      "Abdomen, round the onyx",
+      "Leg II continuous limb, low side",
       12
     ],
     [
@@ -57,23 +57,23 @@
       9
     ],
     [
-      "Leg III continuous limb, low side / Leg III coxa, low side",
-      4
-    ],
-    [
       "Leg III continuous limb, high side / Leg III coxa, high side",
       4
     ],
     [
-      "Carapace, round the garnet / Leg IV continuous limb, high side",
-      3
+      "Leg III continuous limb, low side / Leg III coxa, low side",
+      4
     ],
     [
       "Carapace, round the garnet / Leg II continuous limb, high side",
       3
     ],
     [
-      "Pedicel / band",
+      "Carapace, round the garnet / Leg IV continuous limb, high side",
+      3
+    ],
+    [
+      "Carapace, round the garnet / Leg II coxa, low side",
       2
     ],
     [
@@ -85,11 +85,11 @@
       2
     ],
     [
-      "Carapace, round the garnet / Leg II coxa, low side",
+      "Pedicel / band",
       2
     ],
     [
-      "Carapace, round the garnet / Leg III coxa, high side",
+      "Carapace, round the garnet / Leg I continuous limb, low side",
       1
     ],
     [
@@ -97,11 +97,7 @@
       1
     ],
     [
-      "Leg III continuous limb, low side / band",
-      1
-    ],
-    [
-      "Leg III continuous limb, low side / Leg IV continuous limb, low side",
+      "Carapace, round the garnet / Leg III coxa, high side",
       1
     ],
     [
@@ -110,6 +106,22 @@
     ],
     [
       "Leg III continuous limb, high side / Leg IV continuous limb, high side",
+      1
+    ],
+    [
+      "Leg III continuous limb, low side / Leg IV continuous limb, low side",
+      1
+    ],
+    [
+      "Leg III continuous limb, low side / band",
+      1
+    ],
+    [
+      "Leg III coxa, high side",
+      1
+    ],
+    [
+      "Leg III coxa, low side",
       1
     ],
     [
@@ -122,18 +134,6 @@
     ],
     [
       "Spinnerets / band",
-      1
-    ],
-    [
-      "Leg III coxa, high side",
-      1
-    ],
-    [
-      "Leg III coxa, low side",
-      1
-    ],
-    [
-      "Carapace, round the garnet / Leg I continuous limb, low side",
       1
     ]
   ],

@@ -1,7 +1,7 @@
 {
   "authoring_ms": {
-    "graph_creation": 5.767942,
-    "source_read": 4.056296
+    "graph_creation": 5.037996000000001,
+    "source_read": 0.7453069999999999
   },
   "cold_design_reload": true,
   "cold_graph_reload": true,
@@ -22,16 +22,16 @@
   "geometry_gates_passed": true,
   "nodes": 137,
   "open_ms": {
-    "bake": 0.140071,
-    "bake_again": 0.089201,
-    "detail": 4476.064121,
-    "detail_again": 68.37929500000001,
-    "evaluate": 2.605954,
-    "first_build": 556.4061879999999,
-    "read": 1.423802,
-    "rebuild": 1.0488190000000002,
+    "bake": 0.175262,
+    "bake_again": 0.111241,
+    "detail": 4631.783641,
+    "detail_again": 69.876812,
+    "evaluate": 2.3145599999999997,
+    "first_build": 539.102311,
+    "read": 1.364343,
+    "rebuild": 1.183381,
     "unpack": null,
-    "verdict": 51.858546
+    "verdict": 53.162479999999995
   },
   "size_budget_bytes": 3000000,
   "size_review_required": false,
