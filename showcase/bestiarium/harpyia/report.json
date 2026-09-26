@@ -12,8 +12,8 @@
       1536,
       448
     ],
-    "triangles": 1921480,
-    "build_s": 7.491074478,
+    "triangles": 1921526,
+    "build_s": 7.078501532,
     "watertight": true,
     "boundary_edges": 0,
     "non_manifold_edges": 0,
@@ -31,8 +31,8 @@
       768,
       320
     ],
-    "triangles": 1086264,
-    "build_s": 6.155821942,
+    "triangles": 1086310,
+    "build_s": 6.052727674,
     "watertight": true,
     "boundary_edges": 0,
     "non_manifold_edges": 0,
@@ -45,8 +45,8 @@
     "parts_joined": 63,
     "parts_cut": 1
   },
-  "preview_build_s": 2.295277767,
-  "triangles_at_1536x448": 1921480,
+  "preview_build_s": 2.476431658,
+  "triangles_at_1536x448": 1921526,
   "made_parts": [
     [
       "Round 8 mm",
@@ -782,8 +782,8 @@
   "vertices_in_bore": 0,
   "field_verdict": "Castable",
   "field_notes": [
-    "Lost wax: 11.16% of the surface would undercut a two-part pull (worst 38.8 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-    "Undercut 115–86° on the crest: 158.8 mm² leaning to 35° — caused by \"Plumage\"; muting it clears it.",
+    "Lost wax: 11.62% of the surface would undercut a two-part pull (worst 46.7 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+    "Undercut 115–86° on the crest: 167.2 mm² leaning to 42° — caused by \"Plumage\"; muting it clears it.",
     "Undercut 92–97° on the high flank: 0.3 mm² leaning to 8° — caused by \"Plumage\"; muting it clears it.",
     "Undercut 103–108° on the high flank: 0.3 mm² leaning to 8° — caused by \"Plumage\"; muting it clears it.",
     "Measured with the ring as built: 64 CAD parts (63 joined, 1 cut), 714.1 mm² of part surface; under lost wax they are reported, never gating.",
@@ -844,9 +844,9 @@
     "Lost wax: Mirror \"Low wing, 2\" (#65) would undercut a two-part pull over 14.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
     "Lost wax: Mirror \"Low wing, 3\" (#66) would undercut a two-part pull over 6.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
   ],
-  "undercut_percent": 19.69445410434472,
+  "undercut_percent": 19.9954680075839,
   "thinnest_wall_mm": 3.0880378455586364,
-  "thinnest_wall_theta_deg": 80.15625,
+  "thinnest_wall_theta_deg": 28.125,
   "investment_min_section_mm": 0.8,
   "dfm_findings": [],
   "stones_reported": 1,
@@ -858,12 +858,12 @@
   "stone_warnings_explained": "The report knows claws, baskets and bezels built by the setting builders; this stone is held by the eight lofted claws of her two feet, which the report cannot see as a head.",
   "z_extent_mm": 12.070141792297363,
   "radial_reach_mm": 18.567884745432917,
-  "grams_18k": 32.50010807045377,
+  "grams_18k": 32.391174746015416,
   "layers": [
     "Plumage"
   ],
   "cad_features": 66,
-  "design_bytes": 2864193,
+  "design_bytes": 2872101,
   "design_format": 6,
   "embedded_alphas": 1,
   "cold_reload_identical": true,
@@ -872,7 +872,7 @@
     "notes": [],
     "scale": 1.0131712259371835,
     "self_crossings": 0,
-    "triangles": 1921480,
+    "triangles": 1921526,
     "watertight": true
   },
   "geometry_gates_passed": true

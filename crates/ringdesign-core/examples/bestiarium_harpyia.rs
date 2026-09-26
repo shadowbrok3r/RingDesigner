@@ -1118,16 +1118,22 @@ fn contour(t: f64, w: f64, ahead: f64, pc: f64) -> f64 {
     floor + (vane + rachis - floor).max(0.0) * roll
 }
 
-/// Scutes in staggered columns `width` across and `len` along: each a domed tile bevelled on all four sides inside its
-/// own groove, its free edge toward +`along` standing a little prouder than its root.
-fn scutes(along: f64, across: f64, len: f64, width: f64) -> f64 {
-    let col = (across / width).floor();
-    let dc = across - (col + 0.5) * width;
-    let shift = if (col as i64).rem_euclid(2) == 0 { 0.0 } else { 0.5 * len };
-    let du = (along + shift).rem_euclid(len);
-    let bevel = smooth(0.0, 0.2, du).min(smooth(0.0, 0.14, len - du)).min(smooth(0.0, 0.2, 0.5 * width - dc.abs()));
-    let dome = (1.0 - 0.25 * (2.0 * dc / width).powi(2)) * (0.78 + 0.22 * du / len);
-    0.18 + 0.82 * bevel * dome
+/// A raptor's tarsus toward +`along`: one column of transverse scutes `width` across, each rising from under the one
+/// behind it to a rolled free edge bowed toward the foot, flanked by small reticulate scales.
+fn tarsus(along: f64, across: f64, width: f64) -> f64 {
+    const LEN: f64 = 1.4;
+    const BOW: f64 = 0.3;
+    const ROOT: f64 = 0.3;
+    let half = 0.5 * width;
+    let c = (across / half).clamp(-1.0, 1.0);
+    let s = (along + BOW * LEN * c * c) / LEN;
+    let t = s - s.floor();
+    let top = ROOT + (1.0 - ROOT) * t.powf(0.8);
+    let rolled = ROOT + (top - ROOT) * smooth(0.0, 0.12, (1.0 - t) * LEN);
+    let side = half - across.abs();
+    let scute = rolled * (1.0 - 0.18 * c * c) * smooth(0.0, 0.2, side);
+    let flank = hex_scales(along, across, 0.75) * smooth(0.12, 0.3, -side);
+    scute.max(flank)
 }
 
 /// Round scales on a hexagonal lattice `size` apart, each domed inside its own groove.
@@ -1200,8 +1206,9 @@ fn plumage_at(a: &Atlas, s: &Sample, crest: f64) -> f64 {
     // Thighs: contour feathers flowing on toward the leg.
     let (tt, wt, at) = shingle(u, across, 2.6, 2.0, 0.7);
     let thigh = contour(tt, wt, at, 2.0) * arc(theta, 284.0, 352.0, 5.0) * clear;
-    // The scaled leg: transverse scutes on the crown in two columns, free edges toward the foot.
-    let leg = scutes(u, across + 1.1, 1.55, 2.2) * crown * arc(theta, 348.0, 80.0, 4.0);
+    // The scaled leg on the crown, narrowing toward the foot.
+    let toward_foot = smooth(0.0, 1.0, (theta - 348.0).rem_euclid(360.0) / 92.0);
+    let leg = tarsus(u, across, lerp(5.6, 4.2, toward_foot)) * crown * arc(theta, 348.0, 80.0, 4.0);
     // Its sides: round scales on both cheeks.
     let side = hex_scales(theta.to_radians() * r, r, 0.95) * cheek * clear * arc(theta, 348.0, 84.0, 4.0);
     // Cheek feathers under the wings' trailing edge and beside the stone.
