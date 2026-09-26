@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "name": "Split shank",
+  "name": "Split gallery",
   "mode": "SandRing",
   "nodes": [
     {
@@ -53,17 +53,18 @@
         },
         "enabled": true,
         "id": 2,
-        "name": "Open split",
+        "name": "Gallery window",
         "operation": {
           "Builder": {
-            "key": "cutter.split",
+            "key": "cutter.window",
             "on": null,
             "params": {
-              "gap_mm": 2.6,
-              "rail_round_mm": 0.3,
-              "spread_deg": 48.0,
-              "theta_deg": 90.0,
-              "tip": "Point"
+              "draft_deg": 4.0,
+              "from_deg": 38.0,
+              "rail_in_mm": 1.2,
+              "rail_out_mm": 1.5,
+              "tip_round_mm": 0.35,
+              "to_deg": 142.0
             }
           }
         }
@@ -79,14 +80,14 @@
       "inputs": {
         "comfort_fit_mm": 0.1,
         "crest_bias": 0.0,
-        "crown_mm": 0.8,
-        "edge_round_mm": 0.5,
+        "crown_mm": 0.2,
+        "edge_round_mm": 0.05,
         "shape_a": 2.0,
         "shape_b": 1.0,
-        "side_draft_deg": 2.0,
+        "side_draft_deg": 0.0,
         "style": "LowDome",
         "thickness_mm": 1.8,
-        "width_mm": 2.4
+        "width_mm": 4.2
       },
       "pos": [
         0.0,
@@ -156,8 +157,8 @@
       "inputs": {
         "crown_scale": 1.0,
         "theta_deg": 150.0,
-        "thickness_scale": 1.0,
-        "width_scale": 1.35
+        "thickness_scale": 1.6,
+        "width_scale": 1.0
       },
       "pos": [
         0.0,
@@ -170,8 +171,8 @@
       "inputs": {
         "crown_scale": 1.0,
         "theta_deg": 30.0,
-        "thickness_scale": 1.0,
-        "width_scale": 1.35
+        "thickness_scale": 1.6,
+        "width_scale": 1.0
       },
       "pos": [
         0.0,
@@ -183,9 +184,9 @@
       "kind": "shank.key",
       "inputs": {
         "crown_scale": 1.0,
-        "theta_deg": 125.0,
-        "thickness_scale": 1.05,
-        "width_scale": 2.0
+        "theta_deg": 120.0,
+        "thickness_scale": 1.85,
+        "width_scale": 1.0
       },
       "pos": [
         0.0,
@@ -197,9 +198,9 @@
       "kind": "shank.key",
       "inputs": {
         "crown_scale": 1.0,
-        "theta_deg": 55.0,
-        "thickness_scale": 1.05,
-        "width_scale": 2.0
+        "theta_deg": 60.0,
+        "thickness_scale": 1.85,
+        "width_scale": 1.0
       },
       "pos": [
         0.0,
@@ -212,8 +213,8 @@
       "inputs": {
         "crown_scale": 1.0,
         "theta_deg": 90.0,
-        "thickness_scale": 1.1,
-        "width_scale": 2.75
+        "thickness_scale": 2.3,
+        "width_scale": 1.0
       },
       "pos": [
         0.0,
@@ -248,7 +249,7 @@
       "id": 16,
       "kind": "design.new",
       "inputs": {
-        "name": "Split shank",
+        "name": "Split gallery",
         "size": 7.0
       },
       "pos": [
@@ -258,13 +259,14 @@
     },
     {
       "id": 19,
-      "kind": "cad.op.cutter.split",
+      "kind": "cad.op.cutter.window",
       "inputs": {
-        "gap_mm": 2.6,
-        "rail_round_mm": 0.3,
-        "spread_deg": 48.0,
-        "theta_deg": 90.0,
-        "tip": "Point"
+        "draft_deg": 4.0,
+        "from_deg": 38.0,
+        "rail_in_mm": 1.2,
+        "rail_out_mm": 1.5,
+        "tip_round_mm": 0.35,
+        "to_deg": 142.0
       },
       "pos": [
         0.0,
@@ -284,11 +286,12 @@
       "kind": "draft.settings",
       "inputs": {
         "auto_parting": true,
-        "min_detail_mm": 0.15,
+        "min_detail_mm": 0.3,
         "min_draft_deg": 3.0,
-        "min_section_mm": 0.5,
+        "min_section_mm": 0.8,
         "parting_z_mm": 0.0,
-        "process": "LostWax"
+        "process": "SandTwoPart",
+        "sand": "DelftClay"
       },
       "pos": [
         0.0,

@@ -759,6 +759,8 @@ mod tests {
             arrange(&mut built);
             assert_eq!(bundled, built, "{}: the committed file has drifted from its builder — rerun with RD_WRITE_TEMPLATE_GRAPHS=1", t.name);
             assert!(bundled.validate(Some(&reg)).is_empty(), "{}: {:?}", t.name, bundled.validate(Some(&reg)));
+            assert!(bundled.nodes.iter().filter(|n| n.kind == "design.set").count() <= 4, "{} carries too many opaque patches", t.name);
+            assert!(t.json().len() <= 300_000, "{} exceeds the procedural template budget", t.name);
             let out = evaluate_design(&mut Evaluator::new(), &bundled, &reg, &lib, 0).unwrap_or_else(|e| panic!("{}: {e}", t.name));
             assert!(out.notes.is_empty(), "{}: {:?}", t.name, out.notes);
             let want = code.iter().find(|c| c.name == t.name).unwrap_or_else(|| panic!("{} is not a code template", t.name)).design();

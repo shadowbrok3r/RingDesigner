@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "name": "Toi et moi",
+  "name": "Cathedral solitaire",
   "mode": "SandRing",
   "nodes": [
     {
@@ -28,7 +28,7 @@
         "operation": "Band"
       },
       "pos": [
-        480.0,
+        1680.0,
         0.0
       ]
     },
@@ -43,38 +43,38 @@
           "manufacturing": null,
           "material": "Silver 925",
           "placement": {
-            "across_mm": 0.7,
+            "across_mm": 0.0,
             "cant_deg": 0.0,
-            "height_mm": 2.1500000000000004,
+            "height_mm": 2.8195000000000006,
             "kind": "ring",
-            "spin_deg": 90.0,
-            "theta_deg": 107.0,
+            "spin_deg": 45.0,
+            "theta_deg": 90.0,
             "tilt_deg": 0.0
           },
           "reference": true,
           "role": "Stone",
           "stage": "cast",
-          "stone_id": "Oval 7 × 5",
+          "stone_id": "Round 6.5 mm",
           "visible": true
         },
         "enabled": true,
         "id": 2,
-        "name": "Oval 7 × 5",
+        "name": "Round 6.5 mm",
         "operation": {
           "Builder": {
             "key": "stone",
             "on": null,
             "params": {
-              "cut": "Oval",
+              "cut": "Round",
               "form": "Faceted",
-              "l_mm": 7.0,
-              "w_mm": 5.0
+              "l_mm": 6.5,
+              "w_mm": 6.5
             }
           }
         }
       },
       "pos": [
-        720.0,
+        1920.0,
         0.0
       ]
     },
@@ -99,107 +99,25 @@
         },
         "enabled": true,
         "id": 3,
-        "name": "Four-claw head",
+        "name": "Six-claw head",
         "operation": {
           "Builder": {
             "key": "head.claw",
             "on": 2,
             "params": {
-              "prongs": 4
+              "prongs": 6,
+              "wire_mm": 1.0
             }
           }
         }
       },
       "pos": [
-        960.0,
+        2160.0,
         0.0
       ]
     },
     {
       "id": 4,
-      "kind": "cad.feature",
-      "params": {
-        "component": {
-          "attach": "cut",
-          "bench_notes": "",
-          "blend_mm": 0.0,
-          "manufacturing": null,
-          "material": "Silver 925",
-          "placement": {
-            "kind": "free"
-          },
-          "reference": false,
-          "role": "Setting",
-          "stage": "cast",
-          "stone_id": null,
-          "visible": true
-        },
-        "enabled": true,
-        "id": 4,
-        "name": "Seat bur",
-        "operation": {
-          "Builder": {
-            "key": "seat.bur",
-            "on": 2,
-            "params": {
-              "through": true
-            }
-          }
-        }
-      },
-      "pos": [
-        1200.0,
-        0.0
-      ]
-    },
-    {
-      "id": 5,
-      "kind": "cad.feature",
-      "params": {
-        "component": {
-          "attach": "separate",
-          "bench_notes": "",
-          "blend_mm": 0.0,
-          "manufacturing": null,
-          "material": "Silver 925",
-          "placement": {
-            "across_mm": -0.7,
-            "cant_deg": 0.0,
-            "height_mm": 1.76,
-            "kind": "ring",
-            "spin_deg": 90.0,
-            "theta_deg": 73.0,
-            "tilt_deg": 0.0
-          },
-          "reference": true,
-          "role": "Stone",
-          "stage": "cast",
-          "stone_id": "Oval 6 × 4",
-          "visible": true
-        },
-        "enabled": true,
-        "id": 5,
-        "name": "Oval 6 × 4",
-        "operation": {
-          "Builder": {
-            "key": "stone",
-            "on": null,
-            "params": {
-              "cut": "Oval",
-              "form": "Faceted",
-              "l_mm": 6.0,
-              "w_mm": 4.0
-            }
-          }
-        }
-      },
-      "pos": [
-        1440.0,
-        0.0
-      ]
-    },
-    {
-      "id": 6,
       "kind": "cad.feature",
       "params": {
         "component": {
@@ -212,31 +130,33 @@
             "kind": "free"
           },
           "reference": false,
-          "role": "Head",
+          "role": "Shank",
           "stage": "cast",
           "stone_id": null,
           "visible": true
         },
         "enabled": true,
-        "id": 6,
-        "name": "Four-claw head",
+        "id": 4,
+        "name": "Cathedral shoulders",
         "operation": {
           "Builder": {
-            "key": "head.claw",
-            "on": 5,
+            "key": "shank.cathedral",
+            "on": 2,
             "params": {
-              "prongs": 4
+              "head": 3,
+              "rise": 0.7,
+              "spread_deg": 30.0
             }
           }
         }
       },
       "pos": [
-        1680.0,
+        2400.0,
         0.0
       ]
     },
     {
-      "id": 7,
+      "id": 5,
       "kind": "cad.feature",
       "params": {
         "component": {
@@ -255,12 +175,50 @@
           "visible": true
         },
         "enabled": true,
-        "id": 7,
+        "id": 5,
+        "name": "4 azures",
+        "operation": {
+          "Builder": {
+            "key": "cutter.azure",
+            "on": 2,
+            "params": {
+              "count": 4,
+              "head": 3
+            }
+          }
+        }
+      },
+      "pos": [
+        2640.0,
+        0.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Setting",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 6,
         "name": "Seat bur",
         "operation": {
           "Builder": {
             "key": "seat.bur",
-            "on": 5,
+            "on": 2,
             "params": {
               "through": true
             }
@@ -268,24 +226,24 @@
         }
       },
       "pos": [
-        1920.0,
+        2880.0,
         0.0
       ]
     },
     {
-      "id": 8,
+      "id": 7,
       "kind": "band.profile",
       "inputs": {
         "comfort_fit_mm": 0.25,
         "crest_bias": 0.0,
-        "crown_mm": 0.8,
-        "edge_round_mm": 0.5,
-        "shape_a": 2.0,
-        "shape_b": 1.0,
+        "crown_mm": 1.3,
+        "edge_round_mm": 0.16,
+        "shape_a": 2.5,
+        "shape_b": 1.6,
         "side_draft_deg": 2.0,
-        "style": "LowDome",
-        "thickness_mm": 2.2,
-        "width_mm": 3.0
+        "style": "DShape",
+        "thickness_mm": 1.8,
+        "width_mm": 2.1
       },
       "pos": [
         0.0,
@@ -294,39 +252,41 @@
       "label": "Band section"
     },
     {
-      "id": 9,
+      "id": 8,
       "kind": "shank",
       "inputs": {
         "amount": 1.0,
-        "kind": "Bypass",
+        "kind": "Keyframes",
         "waves": 1
       },
       "pos": [
-        0.0,
-        150.0
+        1200.0,
+        0.0
       ],
       "label": "Shoulders and taper"
     },
     {
-      "id": 10,
-      "kind": "design.new",
+      "id": 9,
+      "kind": "shank.key",
       "inputs": {
-        "name": "Toi et moi",
-        "size": 7.0
+        "crown_scale": 1.0,
+        "theta_deg": 270.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.0
       },
       "pos": [
-        240.0,
-        0.0
+        0.0,
+        150.0
       ]
     },
     {
-      "id": 18,
-      "kind": "cad.op.stone",
+      "id": 10,
+      "kind": "shank.key",
       "inputs": {
-        "cut": "Oval",
-        "form": "Faceted",
-        "l_mm": 7.0,
-        "w_mm": 5.0
+        "crown_scale": 1.0,
+        "theta_deg": 180.0,
+        "thickness_scale": 0.9325,
+        "width_scale": 0.89875
       },
       "pos": [
         0.0,
@@ -334,11 +294,13 @@
       ]
     },
     {
-      "id": 19,
-      "kind": "cad.op.head.claw",
+      "id": 11,
+      "kind": "shank.key",
       "inputs": {
-        "on": 2,
-        "prongs": 4
+        "crown_scale": 1.0,
+        "theta_deg": 125.0,
+        "thickness_scale": 0.8772072370104931,
+        "width_scale": 0.83
       },
       "pos": [
         0.0,
@@ -346,11 +308,13 @@
       ]
     },
     {
-      "id": 20,
-      "kind": "cad.op.seat.bur",
+      "id": 12,
+      "kind": "shank.key",
       "inputs": {
-        "on": 2,
-        "through": true
+        "crown_scale": 1.0,
+        "theta_deg": 110.0,
+        "thickness_scale": 0.8690707480969512,
+        "width_scale": 1.0
       },
       "pos": [
         0.0,
@@ -358,13 +322,13 @@
       ]
     },
     {
-      "id": 21,
-      "kind": "cad.op.stone",
+      "id": 13,
+      "kind": "shank.key",
       "inputs": {
-        "cut": "Oval",
-        "form": "Faceted",
-        "l_mm": 6.0,
-        "w_mm": 4.0
+        "crown_scale": 1.0,
+        "theta_deg": 105.0,
+        "thickness_scale": 0.8673000067254879,
+        "width_scale": 1.9
       },
       "pos": [
         0.0,
@@ -372,11 +336,13 @@
       ]
     },
     {
-      "id": 22,
-      "kind": "cad.op.head.claw",
+      "id": 14,
+      "kind": "shank.key",
       "inputs": {
-        "on": 5,
-        "prongs": 4
+        "crown_scale": 1.0,
+        "theta_deg": 90.0,
+        "thickness_scale": 0.865,
+        "width_scale": 1.9
       },
       "pos": [
         0.0,
@@ -384,11 +350,13 @@
       ]
     },
     {
-      "id": 23,
-      "kind": "cad.op.seat.bur",
+      "id": 15,
+      "kind": "shank.key",
       "inputs": {
-        "on": 5,
-        "through": true
+        "crown_scale": 1.0,
+        "theta_deg": 75.0,
+        "thickness_scale": 0.8673000067254879,
+        "width_scale": 1.9
       },
       "pos": [
         0.0,
@@ -396,15 +364,171 @@
       ]
     },
     {
-      "id": 24,
-      "kind": "design.settings",
+      "id": 16,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 70.0,
+        "thickness_scale": 0.8690707480969512,
+        "width_scale": 1.0
+      },
       "pos": [
-        2160.0,
+        0.0,
+        1200.0
+      ]
+    },
+    {
+      "id": 17,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 55.0,
+        "thickness_scale": 0.8772072370104931,
+        "width_scale": 0.83
+      },
+      "pos": [
+        0.0,
+        1350.0
+      ]
+    },
+    {
+      "id": 18,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 0.0,
+        "thickness_scale": 0.9325,
+        "width_scale": 0.89875
+      },
+      "pos": [
+        0.0,
+        1500.0
+      ]
+    },
+    {
+      "id": 19,
+      "kind": "list.merge",
+      "pos": [
+        240.0,
         0.0
       ]
     },
     {
-      "id": 25,
+      "id": 20,
+      "kind": "list.merge",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 21,
+      "kind": "list.merge",
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 22,
+      "kind": "list.merge",
+      "pos": [
+        960.0,
+        0.0
+      ]
+    },
+    {
+      "id": 23,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Cathedral solitaire",
+        "size": 7.0
+      },
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 30,
+      "kind": "cad.op.stone",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 6.5,
+        "w_mm": 6.5
+      },
+      "pos": [
+        0.0,
+        1650.0
+      ]
+    },
+    {
+      "id": 31,
+      "kind": "cad.op.head.claw",
+      "inputs": {
+        "on": 2,
+        "prongs": 6,
+        "wire_mm": 1.0
+      },
+      "pos": [
+        0.0,
+        1800.0
+      ]
+    },
+    {
+      "id": 32,
+      "kind": "cad.op.shank.cathedral",
+      "inputs": {
+        "on": 2,
+        "params": {
+          "head": 3
+        },
+        "rise": 0.7,
+        "spread_deg": 30.0
+      },
+      "pos": [
+        0.0,
+        1950.0
+      ]
+    },
+    {
+      "id": 33,
+      "kind": "cad.op.cutter.azure",
+      "inputs": {
+        "count": 4,
+        "on": 2,
+        "params": {
+          "head": 3
+        }
+      },
+      "pos": [
+        0.0,
+        2100.0
+      ]
+    },
+    {
+      "id": 34,
+      "kind": "cad.op.seat.bur",
+      "inputs": {
+        "on": 2,
+        "through": true
+      },
+      "pos": [
+        0.0,
+        2250.0
+      ]
+    },
+    {
+      "id": 35,
+      "kind": "design.settings",
+      "pos": [
+        3120.0,
+        0.0
+      ]
+    },
+    {
+      "id": 36,
       "kind": "draft.settings",
       "inputs": {
         "auto_parting": true,
@@ -416,33 +540,117 @@
       },
       "pos": [
         0.0,
-        1200.0
+        2400.0
       ]
     },
     {
-      "id": 26,
+      "id": 37,
       "kind": "sink.output",
       "pos": [
-        2400.0,
+        3360.0,
         0.0
       ]
     }
   ],
   "wires": [
     {
-      "from": 8,
-      "out": "profile",
-      "to": 10,
-      "input": "profile"
-    },
-    {
       "from": 9,
-      "out": "shank",
-      "to": 10,
-      "input": "shank"
+      "out": "key",
+      "to": 19,
+      "input": "a"
     },
     {
       "from": 10,
+      "out": "key",
+      "to": 19,
+      "input": "b"
+    },
+    {
+      "from": 11,
+      "out": "key",
+      "to": 19,
+      "input": "c"
+    },
+    {
+      "from": 19,
+      "out": "out",
+      "to": 20,
+      "input": "a"
+    },
+    {
+      "from": 12,
+      "out": "key",
+      "to": 20,
+      "input": "b"
+    },
+    {
+      "from": 13,
+      "out": "key",
+      "to": 20,
+      "input": "c"
+    },
+    {
+      "from": 14,
+      "out": "key",
+      "to": 20,
+      "input": "d"
+    },
+    {
+      "from": 20,
+      "out": "out",
+      "to": 21,
+      "input": "a"
+    },
+    {
+      "from": 15,
+      "out": "key",
+      "to": 21,
+      "input": "b"
+    },
+    {
+      "from": 16,
+      "out": "key",
+      "to": 21,
+      "input": "c"
+    },
+    {
+      "from": 17,
+      "out": "key",
+      "to": 21,
+      "input": "d"
+    },
+    {
+      "from": 21,
+      "out": "out",
+      "to": 22,
+      "input": "a"
+    },
+    {
+      "from": 18,
+      "out": "key",
+      "to": 22,
+      "input": "b"
+    },
+    {
+      "from": 22,
+      "out": "out",
+      "to": 8,
+      "input": "keys"
+    },
+    {
+      "from": 7,
+      "out": "profile",
+      "to": 23,
+      "input": "profile"
+    },
+    {
+      "from": 8,
+      "out": "shank",
+      "to": 23,
+      "input": "shank"
+    },
+    {
+      "from": 23,
       "out": "design",
       "to": 1,
       "input": "design"
@@ -478,82 +686,70 @@
       "input": "design"
     },
     {
-      "from": 6,
-      "out": "design",
-      "to": 7,
-      "input": "design"
-    },
-    {
-      "from": 18,
+      "from": 30,
       "out": "operation",
       "to": 2,
       "input": "operation"
     },
     {
-      "from": 19,
+      "from": 31,
       "out": "operation",
       "to": 3,
       "input": "operation"
     },
     {
-      "from": 20,
+      "from": 32,
       "out": "operation",
       "to": 4,
       "input": "operation"
     },
     {
-      "from": 21,
+      "from": 33,
       "out": "operation",
       "to": 5,
       "input": "operation"
     },
     {
-      "from": 22,
+      "from": 34,
       "out": "operation",
       "to": 6,
       "input": "operation"
     },
     {
-      "from": 23,
-      "out": "operation",
-      "to": 7,
-      "input": "operation"
-    },
-    {
-      "from": 7,
+      "from": 6,
       "out": "design",
-      "to": 24,
+      "to": 35,
       "input": "design"
     },
     {
-      "from": 25,
+      "from": 36,
       "out": "draft",
-      "to": 24,
+      "to": 35,
       "input": "draft"
     },
     {
-      "from": 24,
+      "from": 35,
       "out": "design",
-      "to": 26,
+      "to": 37,
       "input": "design"
     }
   ],
   "exposed": [
     {
-      "node": 10,
+      "node": 23,
       "input": "size",
       "name": "US size"
     },
     {
-      "node": 8,
+      "node": 7,
       "input": "width_mm",
       "name": "Band width"
     },
     {
-      "node": 8,
+      "node": 7,
       "input": "thickness_mm",
       "name": "Band thickness"
     }
   ],
-  "next_id": 27
+  "next_id": 38
 }

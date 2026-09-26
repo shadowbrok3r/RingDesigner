@@ -1,6 +1,6 @@
 {
   "format_version": 2,
-  "name": "Toi et moi",
+  "name": "Bezel solitaire",
   "mode": "SandRing",
   "nodes": [
     {
@@ -43,12 +43,12 @@
           "manufacturing": null,
           "material": "Silver 925",
           "placement": {
-            "across_mm": 0.7,
+            "across_mm": 0.0,
             "cant_deg": 0.0,
-            "height_mm": 2.1500000000000004,
+            "height_mm": 1.27,
             "kind": "ring",
-            "spin_deg": 90.0,
-            "theta_deg": 107.0,
+            "spin_deg": 0.0,
+            "theta_deg": 90.0,
             "tilt_deg": 0.0
           },
           "reference": true,
@@ -92,21 +92,19 @@
             "kind": "free"
           },
           "reference": false,
-          "role": "Head",
-          "stage": "cast",
+          "role": "Setting",
+          "stage": "bench",
           "stone_id": null,
           "visible": true
         },
         "enabled": true,
         "id": 3,
-        "name": "Four-claw head",
+        "name": "Bezel",
         "operation": {
           "Builder": {
-            "key": "head.claw",
+            "key": "head.bezel",
             "on": 2,
-            "params": {
-              "prongs": 4
-            }
+            "params": {}
           }
         }
       },
@@ -130,7 +128,7 @@
           },
           "reference": false,
           "role": "Setting",
-          "stage": "cast",
+          "stage": "bench",
           "stone_id": null,
           "visible": true
         },
@@ -142,7 +140,7 @@
             "key": "seat.bur",
             "on": 2,
             "params": {
-              "through": true
+              "through": false
             }
           }
         }
@@ -154,126 +152,6 @@
     },
     {
       "id": 5,
-      "kind": "cad.feature",
-      "params": {
-        "component": {
-          "attach": "separate",
-          "bench_notes": "",
-          "blend_mm": 0.0,
-          "manufacturing": null,
-          "material": "Silver 925",
-          "placement": {
-            "across_mm": -0.7,
-            "cant_deg": 0.0,
-            "height_mm": 1.76,
-            "kind": "ring",
-            "spin_deg": 90.0,
-            "theta_deg": 73.0,
-            "tilt_deg": 0.0
-          },
-          "reference": true,
-          "role": "Stone",
-          "stage": "cast",
-          "stone_id": "Oval 6 × 4",
-          "visible": true
-        },
-        "enabled": true,
-        "id": 5,
-        "name": "Oval 6 × 4",
-        "operation": {
-          "Builder": {
-            "key": "stone",
-            "on": null,
-            "params": {
-              "cut": "Oval",
-              "form": "Faceted",
-              "l_mm": 6.0,
-              "w_mm": 4.0
-            }
-          }
-        }
-      },
-      "pos": [
-        1440.0,
-        0.0
-      ]
-    },
-    {
-      "id": 6,
-      "kind": "cad.feature",
-      "params": {
-        "component": {
-          "attach": "join",
-          "bench_notes": "",
-          "blend_mm": 0.0,
-          "manufacturing": null,
-          "material": "Silver 925",
-          "placement": {
-            "kind": "free"
-          },
-          "reference": false,
-          "role": "Head",
-          "stage": "cast",
-          "stone_id": null,
-          "visible": true
-        },
-        "enabled": true,
-        "id": 6,
-        "name": "Four-claw head",
-        "operation": {
-          "Builder": {
-            "key": "head.claw",
-            "on": 5,
-            "params": {
-              "prongs": 4
-            }
-          }
-        }
-      },
-      "pos": [
-        1680.0,
-        0.0
-      ]
-    },
-    {
-      "id": 7,
-      "kind": "cad.feature",
-      "params": {
-        "component": {
-          "attach": "cut",
-          "bench_notes": "",
-          "blend_mm": 0.0,
-          "manufacturing": null,
-          "material": "Silver 925",
-          "placement": {
-            "kind": "free"
-          },
-          "reference": false,
-          "role": "Setting",
-          "stage": "cast",
-          "stone_id": null,
-          "visible": true
-        },
-        "enabled": true,
-        "id": 7,
-        "name": "Seat bur",
-        "operation": {
-          "Builder": {
-            "key": "seat.bur",
-            "on": 5,
-            "params": {
-              "through": true
-            }
-          }
-        }
-      },
-      "pos": [
-        1920.0,
-        0.0
-      ]
-    },
-    {
-      "id": 8,
       "kind": "band.profile",
       "inputs": {
         "comfort_fit_mm": 0.25,
@@ -284,8 +162,8 @@
         "shape_b": 1.0,
         "side_draft_deg": 2.0,
         "style": "LowDome",
-        "thickness_mm": 2.2,
-        "width_mm": 3.0
+        "thickness_mm": 1.7,
+        "width_mm": 2.4
       },
       "pos": [
         0.0,
@@ -294,24 +172,10 @@
       "label": "Band section"
     },
     {
-      "id": 9,
-      "kind": "shank",
-      "inputs": {
-        "amount": 1.0,
-        "kind": "Bypass",
-        "waves": 1
-      },
-      "pos": [
-        0.0,
-        150.0
-      ],
-      "label": "Shoulders and taper"
-    },
-    {
-      "id": 10,
+      "id": 6,
       "kind": "design.new",
       "inputs": {
-        "name": "Toi et moi",
+        "name": "Bezel solitaire",
         "size": 7.0
       },
       "pos": [
@@ -320,7 +184,7 @@
       ]
     },
     {
-      "id": 18,
+      "id": 11,
       "kind": "cad.op.stone",
       "inputs": {
         "cut": "Oval",
@@ -330,15 +194,26 @@
       },
       "pos": [
         0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 12,
+      "kind": "cad.op.head.bezel",
+      "inputs": {
+        "on": 2
+      },
+      "pos": [
+        0.0,
         300.0
       ]
     },
     {
-      "id": 19,
-      "kind": "cad.op.head.claw",
+      "id": 13,
+      "kind": "cad.op.seat.bur",
       "inputs": {
         "on": 2,
-        "prongs": 4
+        "through": false
       },
       "pos": [
         0.0,
@@ -346,11 +221,24 @@
       ]
     },
     {
-      "id": 20,
-      "kind": "cad.op.seat.bur",
+      "id": 14,
+      "kind": "design.settings",
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 15,
+      "kind": "draft.settings",
       "inputs": {
-        "on": 2,
-        "through": true
+        "auto_parting": true,
+        "min_detail_mm": 0.3,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.8,
+        "parting_z_mm": 0.0,
+        "process": "SandTwoPart",
+        "sand": "DelftClay"
       },
       "pos": [
         0.0,
@@ -358,91 +246,23 @@
       ]
     },
     {
-      "id": 21,
-      "kind": "cad.op.stone",
-      "inputs": {
-        "cut": "Oval",
-        "form": "Faceted",
-        "l_mm": 6.0,
-        "w_mm": 4.0
-      },
-      "pos": [
-        0.0,
-        750.0
-      ]
-    },
-    {
-      "id": 22,
-      "kind": "cad.op.head.claw",
-      "inputs": {
-        "on": 5,
-        "prongs": 4
-      },
-      "pos": [
-        0.0,
-        900.0
-      ]
-    },
-    {
-      "id": 23,
-      "kind": "cad.op.seat.bur",
-      "inputs": {
-        "on": 5,
-        "through": true
-      },
-      "pos": [
-        0.0,
-        1050.0
-      ]
-    },
-    {
-      "id": 24,
-      "kind": "design.settings",
-      "pos": [
-        2160.0,
-        0.0
-      ]
-    },
-    {
-      "id": 25,
-      "kind": "draft.settings",
-      "inputs": {
-        "auto_parting": true,
-        "min_detail_mm": 0.15,
-        "min_draft_deg": 3.0,
-        "min_section_mm": 0.5,
-        "parting_z_mm": 0.0,
-        "process": "LostWax"
-      },
-      "pos": [
-        0.0,
-        1200.0
-      ]
-    },
-    {
-      "id": 26,
+      "id": 16,
       "kind": "sink.output",
       "pos": [
-        2400.0,
+        1680.0,
         0.0
       ]
     }
   ],
   "wires": [
     {
-      "from": 8,
+      "from": 5,
       "out": "profile",
-      "to": 10,
+      "to": 6,
       "input": "profile"
     },
     {
-      "from": 9,
-      "out": "shank",
-      "to": 10,
-      "input": "shank"
-    },
-    {
-      "from": 10,
+      "from": 6,
       "out": "design",
       "to": 1,
       "input": "design"
@@ -466,94 +286,58 @@
       "input": "design"
     },
     {
-      "from": 4,
-      "out": "design",
-      "to": 5,
-      "input": "design"
-    },
-    {
-      "from": 5,
-      "out": "design",
-      "to": 6,
-      "input": "design"
-    },
-    {
-      "from": 6,
-      "out": "design",
-      "to": 7,
-      "input": "design"
-    },
-    {
-      "from": 18,
+      "from": 11,
       "out": "operation",
       "to": 2,
       "input": "operation"
     },
     {
-      "from": 19,
+      "from": 12,
       "out": "operation",
       "to": 3,
       "input": "operation"
     },
     {
-      "from": 20,
+      "from": 13,
       "out": "operation",
       "to": 4,
       "input": "operation"
     },
     {
-      "from": 21,
-      "out": "operation",
-      "to": 5,
-      "input": "operation"
-    },
-    {
-      "from": 22,
-      "out": "operation",
-      "to": 6,
-      "input": "operation"
-    },
-    {
-      "from": 23,
-      "out": "operation",
-      "to": 7,
-      "input": "operation"
-    },
-    {
-      "from": 7,
+      "from": 4,
       "out": "design",
-      "to": 24,
+      "to": 14,
       "input": "design"
     },
     {
-      "from": 25,
+      "from": 15,
       "out": "draft",
-      "to": 24,
+      "to": 14,
       "input": "draft"
     },
     {
-      "from": 24,
+      "from": 14,
       "out": "design",
-      "to": 26,
+      "to": 16,
       "input": "design"
     }
   ],
   "exposed": [
     {
-      "node": 10,
+      "node": 6,
       "input": "size",
       "name": "US size"
     },
     {
-      "node": 8,
+      "node": 5,
       "input": "width_mm",
       "name": "Band width"
     },
     {
-      "node": 8,
+      "node": 5,
       "input": "thickness_mm",
       "name": "Band thickness"
     }
   ],
-  "next_id": 27
+  "next_id": 17
 }
