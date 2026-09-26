@@ -1,0 +1,218 @@
+{
+  "ring": "Harpyia — the snatcher",
+  "round": 2,
+  "candidate_head": "6ce7589",
+  "verdict": "revise",
+  "score": 6.5,
+  "summary": "Revise at 6.5 (round 1: 5.8; author 6.8; Caiman 7; ship needs 7.5). One gate is red on the record: land_widths gives Torso a min_section_mm of 1.797e308, the f64::MAX sentinel, so the largest joined part was never measured. The other 62 entries are real (minimum 0.833 mm, 0 mm² under the floor, blunt talons named with their bench treatment), and every other gate checks out against report.json and template-verification.json. The round is a genuine step up. She now has a body, west-only wings that sweep toward the palm, and a nine-feather tail fan that is the best palm in the Bestiarium. At 300 px the side view finally reads as a winged creature crouched on a stone. Three problems keep her under Caiman. (1) The east crown is a flat column of transverse ventral scutes between two bead rows, which is Reptilia's Ecdysis band transplanted. With the hex scales on the east cheek, half the ring reads as a snake, so hero.png reads as a bird-headed serpent, not a harpy. (2) The feet read as a claw-prong head, not talons. All eight toes are equal thin U-hooks with ball ends, their curls identical at 90.2–90.6°. Their proximal segments close into a ring round the girdle in face.png, and the tarsi, ringed every 0.42 mm, read as threaded bolts. (3) The head is a half-measure: a 1.9 mm face whose eyes do not read, which is neither a good face nor a clean hood, and from above (face.png) the torso is a knobbly beetle between two wings whose domed primaries read as gloved hands. All three are fixable in one round inside the reach and template budgets. Round 3 is the last: if hero.png and face.png at 300 px still need the caption, she is cut.",
+  "strengths": [
+    "Tail fan (palm.png): nine rectrices with their own outlines, rachis and rounded tips, fanning from a rump and overlapped by crisp serrated contour feathers. It closes round 1's blank palm and gives the ring its best zone.",
+    "Direction: the through-stone mirrors are gone, and the wings now sweep back from her shoulders toward the palm (side.png, reverse.png). The bow tie is gone and the ring has a swoop.",
+    "side.png at 300 px reads as one creature, head bowed over the stone, wing fanned behind it, with plumage running round the band. That is the first real subject read this ring has had.",
+    "Primaries and coverts: seven graded, emarginated primaries over 93°, and the marginal coverts in two staggered, graded rows. The round-1 caterpillar ridge is gone.",
+    "Weight and envelope: 32.39 g of 18k (from 41.1), 12.07 mm along the finger, 18.57 mm reach, with every build gate green at both draft and export."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "fail",
+      "reason": "West half and palm are raptor plumage. The east crown from the stone round toward the tail is a column of flat transverse scutes, 5.6 → 4.2 mm, with a bead row either side. It is Reptilia's Ecdysis band (refs/reptilia-collection.png), and with the hex scales on the east cheek (side.png right) that half reads as a serpent's belly, not a harpy's leg. hero.png, where it fills most of the frame, reads as a bird-headed snake."
+    },
+    {
+      "item": "Figurative motifs have true outlines, no combing, smearing or stair-steps",
+      "result": "pass",
+      "reason": "The painted contour feathers, tail rectrices, scutes and hex scales all render with crisp closed outlines and serrated barb edges (palm.png, reverse.png, side.png). No combing or stair-steps. Round 1's zigzag is gone."
+    },
+    {
+      "item": "Faces and eyes allowed when they read well; a poor face is a defect",
+      "result": "fail",
+      "reason": "The author confirms the face is 1.9 mm brow to chin with shallow eye hollows that do not read. side.png shows a profile at full size only. At 300 px it is a helmet or hood, and shoulder.png sees the back of the head. It is a half-made face, which the rule counts as a defect: commit to a legible face or a deliberate hood."
+    },
+    {
+      "item": "Stones sit in made settings and are visible",
+      "result": "pass",
+      "reason": "The 8 mm sapphire is held by eight lofted toes, clearly visible in stones.png and face.png, with a seat bur through (palm.png). The stones report's 'no setting holds this stone' warning is a tool blind spot for hand-made claws, and report.json explains it. The setting reads as a prong basket, which is judged under items 6 and 9."
+    },
+    {
+      "item": "Shoulder ornament not cut off toward the face",
+      "result": "pass",
+      "reason": "The figure and feet run into the stone on the west, and the scute column runs up to the girdle on the east. Neither side stops short of the head. Round 1's rod legs are gone."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "fail",
+      "reason": "Three mechanical reads. (a) The east scutes are flat, equal plates between two regular bead rows (hero.png, reverse.png). (b) The tarsi's rings, one every 0.42 mm, read as a screw thread or coil spring (stones.png, face.png). (c) The eight toes are identical U-hooks with ball ends at even spacing, their curls within 0.46° of each other (talon_curls_deg 90.17–90.63). The breast plumes read as knobs from above (face.png), which the author concedes."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles",
+      "result": "pass",
+      "reason": "Procedural Flat 7.2 x 3.2 band, not factory stock. Its bore and side-face edges stay crisp in bare-vs-finished.png and side.png, and the ornament does not round them over."
+    },
+    {
+      "item": "A silhouette distinct from the other Bestiarium rings",
+      "result": "pass",
+      "reason": "A figure perched beside the stone with a wing fanned off the west shoulder is unique. Corvus is a head wrapping the band, Kraken's arms curl over a cabochon, Basiliscus is a plaque with side wings, and Fenrir, Manticora and Arachne are unrelated. The one risk is the east scute column, which pulls her toward Basiliscus's reptile-and-feather mix."
+    },
+    {
+      "item": "Reads as its subject at a glance at 300 px, without the caption",
+      "result": "fail",
+      "reason": "contact-300.png: the side view reads as a winged creature on a stone, a real gain. The hero reads as a lump beside a prong solitaire on a snake band. The face view reads as a beetle between two gloved hands, and the shoulder view as a dragon's head and claw. 'Harpy' needs a head that reads, and 'snatching' needs feet that read as talons. Neither does yet."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "pass",
+      "reason": "Large (figure, wing, stone), medium (lofted feathers, toes, rectrices, scutes) and small (barbs, beads, reticulate scales) are all present, and density matches or exceeds Caiman's hero everywhere but the tab at θ ≈ 238–250 (punch 7). Legibility of the subject fails under item 9, not here."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Finished mesh watertight, 0 degenerate faces (draft 768x320, export 1536x448)",
+      "claimed": "Clean at both",
+      "verified": "report.json build [1536, 448]: 1,921,526 triangles, watertight, 0 boundary, 0 non-manifold, 0 degenerate. The draft block [768, 320] shows 1,086,310 triangles, same result. Not gated: min angle 0.00096°.",
+      "pass": true
+    },
+    {
+      "gate": "Export within the 2 M triangle budget",
+      "claimed": "1,921,526 at 1536x448",
+      "verified": "triangles_at_1536x448 1,921,526 and build.params [1536, 448]. Headroom is 4%. Round 1's over-budget standard export is resolved.",
+      "pass": true
+    },
+    {
+      "gate": "0 self-crossings on the ring and every made part",
+      "claimed": "0 / 0 at draft and export",
+      "verified": "mesh_self_crossings 0 and parts_crossed 0 in both blocks. made_parts lists 65 entries (the stone plus 63 joined and 1 cut), and every count is 0.",
+      "pass": true
+    },
+    {
+      "gate": "Solids and parts notes empty; every stamp resolved",
+      "claimed": "[] []",
+      "verified": "solids_notes [] and parts_notes [] at draft and export. There are no stamps.",
+      "pass": true
+    },
+    {
+      "gate": "Nothing inside the finger hole",
+      "claimed": "0 vertices in; nearest 9.4618 of 9.4618 mm",
+      "verified": "vertices_in_bore 0. nearest_to_axis_mm 9.4617628 against bore_radius_mm 9.4617614, a margin of +1.4e-6 mm.",
+      "pass": true
+    },
+    {
+      "gate": "Field verdict, lost wax, 0.8 mm fill",
+      "claimed": "Castable, wall 3.09 mm at θ 80.2°",
+      "verified": "field_verdict Castable, investment_min_section_mm 0.8, thinnest_wall_mm 3.088. The JSON puts the thinnest wall at θ 28.125, not the author's θ 80.2; the author's figure appears only in the author's report. The 19.99% two-part undercut is reported under lost wax and does not gate.",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax land_widths: every section under 0.8 mm removed or named with its bench treatment",
+      "claimed": "All 63 joined parts, minimum 0.833 mm (Face), 0 mm² under; talons cast blunt with a bench note",
+      "verified": "land_widths has 63 entries: 54 'plate, belly to top' and 9 'round, every direction'. Every under_floor_mm2 is 0.0, and the minimum is 0.8330 (Face). The four high talons and 'Low foot' carry 'claw cast blunt with a 0.85 mm round tip; points filed after setting if wanted'. But Torso records min_section_mm 1.7976931348623157e308, the f64::MAX sentinel, so its section was never measured. The largest joined part therefore has no land width on record, and by the brief's rule an unrecorded gate is a fail. It is almost certainly thick enough, so the fix is a measurement, not a redesign.",
+      "pass": false
+    },
+    {
+      "gate": "0 DFM findings",
+      "claimed": "0",
+      "verified": "dfm_findings [].",
+      "pass": true
+    },
+    {
+      "gate": "Stone count equals the preview",
+      "claimed": "1 / 1, 1.936 ct",
+      "verified": "stones_reported 1, stones_previewed 1, stone_carats 1.936. One warning, 'no setting holds this stone', is explained in stone_warnings_explained as the report's blindness to hand-made claws. The render shows the stone held.",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical",
+      "claimed": "Identical",
+      "verified": "cold_reload_identical true. template-verification.json also has cold_design_reload, cold_graph_reload and editable_graph_reload all true.",
+      "pass": true
+    },
+    {
+      "gate": "Template gate: at most 4 design.set patches, within the class budget",
+      "claimed": "Passed; lift with 0 patches, 80 nodes, 2,886,804 of 3,000,000 bytes",
+      "verified": "template-verification.json: template_gate_passed true, source_method lift, design_set_patches [], nodes 80, template_class painted, 2,886,804 of 3,000,000 bytes (96.2%), size_review_required false, source_identical true, vertices_faces_normals_identical true at 1536x448, detail_findings 0. Note only: exposed_controls is [], while the plan asks for stone size and talon wire to be exposed.",
+      "pass": true
+    },
+    {
+      "gate": "Sand-only gates (ray release, clamp bite)",
+      "claimed": "Not applicable (lost wax)",
+      "verified": "process 'Lost wax'. For the record, the investment pattern at scale 1.01317 is watertight with 0 degenerate faces and 0 crossings.",
+      "pass": true
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "high (gate)",
+      "zone": "report.json land_widths, part 'Torso'; the gate block in the example",
+      "change": "Measure Torso's sections properly. It is a meshed round loft, so take its minimum across the spine sections rather than the ray pass that returned no hit, and record a finite min_section_mm. Make the writer refuse any non-finite or sentinel value, so an unmeasured part fails the build instead of passing silently. While there, correct the author's report: the thinnest wall is at θ 28.1 per report.json, not θ 80.2.",
+      "acceptance": "Every land_widths entry has a finite min_section_mm that is 0.8 or more or is named with its bench treatment, and no value exceeds 100 mm. The author's report quotes the thinnest-wall θ exactly as report.json does."
+    },
+    {
+      "number": 2,
+      "priority": "high",
+      "zone": "East crown, from the stone's east girdle (θ ≈ 75) round through θ 0 to the tail fan's east edge (θ ≈ 310); both east cheeks; layer 'Plumage'",
+      "change": "Remove the transverse-scute column, its two bead rows and the hex-scale cheeks: that is the Reptilia Ecdysis band and it makes her a serpent. Replace them with her breast and belly plumage, flowing from under her torso east of the stone toward the tail. Use painted contour feathers with closed outlines, rachis and serrated edges, like the crown's, graded from about 1.2–1.8 mm long near the stone to about 3.0 mm toward θ 330, overlapping and pointing away from the stone, at 0.3–0.36 mm proud. Scutellate scales are allowed only on the lofted tarsi themselves and at most 10° of crown beyond each foot.",
+      "acceptance": "At 300 px, hero.png and reverse.png show no ventral-scute column, no bead-row border and no hex scales anywhere east of θ 60, and the east crown reads as feathers continuous with the tail fan. side.png's east cheek shows contour feathers, not a reptile hide."
+    },
+    {
+      "number": 3,
+      "priority": "high",
+      "zone": "Head and feet: 'High tarsus', 'High talon, hallux / inner / middle / outer toe' and the 'Low foot' mirror; the stone at θ 90",
+      "change": "Make the feet raptor feet, not a prong basket. (a) Oppose the hallux: root it on the rear (west) side of each foot and hook it forward over the girdle, facing the three front toes. (b) Grade the front toes, with the middle toe about 1.3× the outer, and thicken each toe to 1.1–1.2 mm at the base, tapering to the 0.85 mm tip. (c) Give each claw its own sheath: a 0.1–0.15 mm step at the claw base, and a claw section flattened sideways to about 0.85 x 1.1 mm so it reads hooked while staying blunt. (d) Vary the curls from about 75° to 110° across the toes instead of all 90°. (e) Lift the toes' proximal segments off the girdle line so each pair of neighbouring toes has a gap of at least 0.6 mm and no continuous ring forms round the stone. (f) Replace the tarsus's uniform 0.42 mm rings with shingled scutes on its front face only, at a pitch of 0.5–0.7 mm, each scute's lower edge overlapping the next, with reticulate texture behind.",
+      "acceptance": "face.png shows two separate feet, each with a hallux opposed to three graded front toes, and no continuous metal ring round the stone. stones.png shows a sheath step on every claw, and no tarsus reads as a screw thread or spring at 300 px. report.json talon_curls_deg spans at least 25°, land_widths stay at 0.8 mm or more (or named), and talon_stone_gap_mm stays at 0.15 or less."
+    },
+    {
+      "number": 4,
+      "priority": "high",
+      "zone": "Figure west of the stone, θ ≈ 95–115: parts 'Head', 'Face', 'Neck', 'Hair plume 1–3'",
+      "change": "Commit to a legible face; the reach cap forbids making it bigger by raising her. Lower and bow her instead: drop the torso root about 1 mm radially and tilt the neck a further 25–35° over the stone, so the head grows to 2.8–3.2 mm brow to chin while the crown of the head stays at r 18.5 or less. Turn the head about 25° toward the shoulder camera, so the face shows three-quarters in shoulder.png. Cut the eyes as sockets at least 0.35 mm deep under a brow ridge that overhangs 0.25–0.3 mm, with a nose ridge and a mouth cleft. Frame the face with the hair plumes swept back, not over it. If this cannot make the eyes read, go back to round 1's fallback: a deliberate feathered hood with a dark cowl opening at least 1.2 mm deep and no half-features.",
+      "acceptance": "side.png and shoulder.png at full size show brow, both eye sockets in shadow, nose and mouth. At 300 px, side.png reads as a woman's head bowed over the stone, not a helmet. radial_reach_mm stays at 18.6 or less."
+    },
+    {
+      "number": 5,
+      "priority": "medium",
+      "zone": "Primaries 'Primary 1–7' on both wings (the 'Low wing' mirrors), wing tips at θ ≈ 185–278",
+      "change": "The seven primaries have equal widths and domed tips, so from above (face.png) and in shoulder.png they read as a gloved hand. Make each vane asymmetric, with the leading vane about 1/3 of the width. Taper the tip half-width at t = 1.0 from 0.45w to 0.25w, so the tips close to a rounded point. Stagger the tip radii by 0.3–0.6 mm, so the fan's outline steps rather than ending in a row of fingertips.",
+      "acceptance": "At 300 px, face.png and shoulder.png read the wing tips as feathers, not fingers or a glove. land_widths for every primary stays at 0.8 mm or more."
+    },
+    {
+      "number": 6,
+      "priority": "medium",
+      "zone": "Torso and 'Breast feather 1–8', 'Mantle feather 1–3', seen from above (face.png)",
+      "change": "The breast feathers stand out radially and read as knobs round an upright torso, a beetle from above. Lay them flat as lanceolate contour feathers, at most 0.6 mm proud of the torso, overlapping downward toward the tail, and let the torso's back taper into the rump at θ ≈ 228 so the body reads as one form running into the tail.",
+      "acceptance": "face.png at 300 px shows a feathered back tapering into the wings and tail, with no ring of knobs and no beetle read."
+    },
+    {
+      "number": 7,
+      "priority": "low",
+      "zone": "High side face and its mirror, θ ≈ 238–250, where the wing's trailing feathers end near the palm (side.png, lower left of the bore)",
+      "change": "Fill the smooth polished tab where the painted wing plumage stops short: run the secondaries' painted trailing coverts or the tail fan's outer rectrix across it.",
+      "acceptance": "side.png shows no polished field wider than 2 mm on either side face between θ 230 and 310."
+    },
+    {
+      "number": 8,
+      "priority": "low",
+      "zone": "Template exposure (target/tpl/harpyia)",
+      "change": "The plan asks to expose stone size and talon wire, and exposed_controls is []. Expose stone size at least, if the free-placed toes can follow it; otherwise record in the author's report why nothing is exposed. Punch items 2 and 6 should free template room (the scute column and the upright knob feathers go), and the template must stay at 3,000,000 bytes or less.",
+      "acceptance": "template-verification.json lists the exposed controls, or the author's report states why none are exposed. template_gate_passed stays true with 4 or fewer design.set patches."
+    }
+  ],
+  "viewed_images": [
+    "candidate/hero.png",
+    "candidate/face.png",
+    "candidate/side.png",
+    "candidate/shoulder.png",
+    "candidate/palm.png",
+    "candidate/reverse.png",
+    "candidate/stones.png",
+    "candidate/bare-vs-finished.png",
+    "candidate/contact-300.png",
+    "refs/caiman-hero.png",
+    "refs/reptilia-collection.png",
+    "refs/bestiarium/basiliscus-hero.png",
+    "refs/bestiarium/corvus-hero.png",
+    "refs/bestiarium/arachne-hero.png",
+    "refs/bestiarium/fenrir-hero.png",
+    "refs/bestiarium/kraken-hero.png",
+    "refs/bestiarium/manticora-hero.png"
+  ]
+}
