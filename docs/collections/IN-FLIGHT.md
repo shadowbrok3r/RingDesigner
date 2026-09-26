@@ -5,7 +5,7 @@ Every lane below was stopped mid-round by the usage limit. Resume each by starti
 | Ring | Worktree / branch | Last commit | Latest review | Next |
 |---|---|---|---|---|
 | Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | package |
-| Manticora | `bestiarium-manticora` | `9a4252f` round 3 | r2 6.8; round 3 in its final review (`manticora-round3-review.json`) | ship or cut |
+| Manticora | `bestiarium-manticora` | `9a4252f` round 3 | **shipped 7.5** (`manticora-round3-review.json`, optional polish listed) | package |
 | Kraken | `bestiarium-kraken` (owns C-B1) | `670a6b8` round 2 | r2 6.5 (`kraken-round2-review.json`) | round 3, the last |
 | Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `3250b82` round 2 | r2 6.5 (`phoenix-round2-review.json`) | round 3, the last |
 | Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `40ca22d` round 2 | r2 6.8 (`basiliscus-round2-review.json`) | round 3, the last |
