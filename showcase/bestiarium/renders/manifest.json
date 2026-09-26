@@ -1,0 +1,50 @@
+[
+  {
+    "file": "Bestiarium-arachne-portrait.png",
+    "sha256": "b7843709dd229a7dc265661fbb14626cada707c4e89674f91eaf76191911bc39",
+    "source_image": "arachne/studio.png",
+    "source_mesh": "arachne/finished-metal.stl"
+  },
+  {
+    "file": "Bestiarium-arachne-face.png",
+    "sha256": "b2231988cf24cb835469660ccef8bc04516646ffb0610ebb2ac54618e9a60d6b",
+    "source_image": "arachne/studio-face.png",
+    "source_mesh": "arachne/finished-metal.stl"
+  },
+  {
+    "file": "Bestiarium-arachne-side.png",
+    "sha256": "77d07817690b6e6d63c9fbd054303cc80189f05ee54704daceedce633fd3516b",
+    "source_image": "arachne/studio-side.png",
+    "source_mesh": "arachne/finished-metal.stl"
+  },
+  {
+    "file": "Bestiarium-arachne-palm.png",
+    "sha256": "08eee5622d574c173b73c6388c8a930b78db9bed610c55477ee31d7c2c6af536",
+    "source_image": "arachne/studio-palm.png",
+    "source_mesh": "arachne/finished-metal.stl"
+  },
+  {
+    "file": "Bestiarium-manticora-portrait.png",
+    "sha256": "8db56d52ac4e889ccf81bffb19559986d056c3a07bf2efcccb53b54745f7eb64",
+    "source_image": "manticora/studio.png",
+    "source_mesh": "manticora/finished-metal.stl"
+  },
+  {
+    "file": "Bestiarium-manticora-face.png",
+    "sha256": "6f1afad96e04cb4f8896987089c46d96dfa1521dbb075a78bba82a4ff55a3c28",
+    "source_image": "manticora/studio-face.png",
+    "source_mesh": "manticora/finished-metal.stl"
+  },
+  {
+    "file": "Bestiarium-manticora-side.png",
+    "sha256": "57f48e47741c46e713ae5d1170d7ff7c2dc99a3d527b39804e3672abbbac49e8",
+    "source_image": "manticora/studio-side.png",
+    "source_mesh": "manticora/finished-metal.stl"
+  },
+  {
+    "file": "Bestiarium-manticora-palm.png",
+    "sha256": "b63ec99fb8f87c159a9e3f6d98d40237f634a4f8389eb5d03fb32117084f42e5",
+    "source_image": "manticora/studio-palm.png",
+    "source_mesh": "manticora/finished-metal.stl"
+  }
+]

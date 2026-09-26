@@ -1,17 +1,25 @@
+# PAUSED by Logan (2026-09-26 afternoon)
+
+"once all current agents are finished, lets put a pause on the rest of the collections and such. we've already blown almost 40% of my weekly usage and it has only been 7 hours since my weekly reset"
+
+The agents running at that moment finish their current task (Kraken round 3, Basiliscus round 3, Fenrir round 2, Corvus round 2, Harpyia round 2, the packaging lane, Phoenix's final review). **No new agents, rounds, reviews or lanes start until Logan says so.** Each finished result is recorded in the table below with its next step. The desktop release waits with the rest.
+
+Packaging lane finished and merged (`bestiarium-package` `1c31c9c`, merge `89dc970`): Arachne and Manticora rebuilt on current master and registered as a Bestiarium group in File > New from template (menu 55 to 53, Workshop group retired; `showcase/workshop-collection` kept), bound template controls (request 15), studio renders, sheet and README. Every suite green on the branch, four-core CI emulation 1653. Its report, with the eleven steps to add one more shipped ring, is `docs/collections/bestiarium-package-report.json` (`add_a_ring`). Left for the release: the phone and desktop version bumps, a CHANGELOG line (Bestiarium added, Workshop retired), the tag and the Taildrop; build reels need an emulator. A tracked `crates/ringdesign-py/tests/__pycache__/*.pyc` is rewritten by every Python smoke run and should be untracked. Before the final Taildrop, smooth-shade the reference stones in the Blender renders: the onyx and ruby cabochons on `Bestiarium-collection.png` show stair-stepped highlights.
+
 # Checkpoint 2026-09-26 10:10 (Claude, at the account's 5-hour limit)
 
 Every lane below was stopped mid-round by the usage limit. Resume each by starting a fresh agent in its worktree with the shared brief (`.claude/collection-review/bestiarium-lane-brief.md`), its latest review JSON (in `.claude/collection-review/`, ignored dir) and "continue round N". Uncommitted files stay on disk: commit or finish them first.
 
 | Ring | Worktree / branch | Last commit | Latest review | Next |
 |---|---|---|---|---|
-| Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | package |
-| Manticora | `bestiarium-manticora` | `9a4252f` round 3 | r2 6.8; round 3 in its final review (`manticora-round3-review.json`) | ship or cut |
-| Kraken | `bestiarium-kraken` (owns C-B1) | `670a6b8` round 2 | r2 6.5 (`kraken-round2-review.json`) | round 3, the last |
-| Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `3250b82` round 2 | r2 6.5 (`phoenix-round2-review.json`) | round 3, the last |
-| Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `40ca22d` round 2 | r2 6.8 (`basiliscus-round2-review.json`) | round 3, the last |
+| Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | **packaged, on master** (`89dc970`) |
+| Manticora | `bestiarium-manticora` | `9a4252f` round 3 | **shipped 7.5** (`manticora-round3-review.json`, optional polish listed) | **packaged, on master** (`89dc970`) |
+| Kraken | `bestiarium-kraken` (owns C-B1) | `567365a` round 3 (master merged as `62b2dfe`) | r3 author self-score 7.0 (r2 6.5): gates green at draft and export (1.77 M triangles), stone warning cleared by the C-B6 holder rule, template 0 patches at 242 KB of 300 KB with US size and Tentacle height exposed; short of the review: no root fillet (0.3 mm blends fold at the arm creases), outer claw roots at -28/+30 deg not +-34, coil A reads as a hook from the hero camera | final review (paused); ships at 7.5 or is cut |
+| Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `74dceaf` round 3 | **cut at 7.0** after round 3 (`phoenix-round3-review.json`: gates green, fails the 300 px read; optional polish listed) | none (kept on its branch) |
+| Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `4df7a53` round 3 | r3 author self-score 7.4 (r2 6.8): all nine punch items addressed, gates green at 384, draft and export (1.80 M triangles), template 0 patches at 1.55 MB of 3 MB; short: a dark crease where the coil laps the boss under the stone, feather walls streak at grazing angles, the circlet is small at 300 px, palm scutes still read as bars | **cut at 7.2** by the final review (cloud session, 2026-09-26: gates green; the head is still blocky at 3/4 and the 300 px hero does not name the animal; bare polished walls, palm scutes read as bars) |
 | Fenrir | `bestiarium-fenrir` | `5d67238` (+1 uncommitted; master merged for claw rails) | r1 5.5 (`fenrir-round1-review.json`) | round 2 |
-| Corvus | `bestiarium-corvus` | `5df9089` round 1 | r1 5.0 (`corvus-round1-review.json`) | round 2 |
-| Harpyia | `bestiarium-harpyia` (owns C-B4) | `a5c8443` round 1 (C-B4 meshed loft at `ca5c924`) | r1 5.8 (`harpyia-round1-review.json`) | round 2 |
+| Corvus | `bestiarium-corvus` | `518df5a` round 2 (master merged as `9e6cb50`) | r2 author self-score 6.5 (r1 5.0): gates green at 384, draft and export (release 0/0 at both pitches, field 0.0216% Castable), template 0 patches at 1.8 MB of 3 MB; heads read as ravens with hooked painted bills; short: the face view foreshortens the bills, a fold on each skull's tip-side flank where the bypass arm ends (core request 28), 27 sand slots named with bench treatment rather than closed | round 2 review (paused) |
+| Harpyia | `bestiarium-harpyia` (owns C-B4) | `6ce7589` round 2 (C-B4 meshed loft at `ca5c924`) | r2 author self-score 6.8 (r1 5.8): all nine punch items applied, gates green at draft and export (1.92 M triangles), template 0 patches at 96% of the painted budget; face legible only at full size, torso knobbly from above, claws cast blunt | round 2 review (paused) |
 
 - Platform on master (pushed `2af7974`): batch 16, the starter gallery with re-framed splits, the GUI and workbench CI fixes (CI green), the embedded-art fix, the phone icon, C-B5 claw rails and cabochon rise.
 - C-B6 is on master (`22912a5`): stamp drop-ray reach, hand-made heads as holders, finer parting search, flat-part clean, stoneless pads out of the stones report. Requests and proposed code: `.claude/collection-review/core-change-requests.md`.

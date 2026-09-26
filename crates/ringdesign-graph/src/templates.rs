@@ -171,8 +171,14 @@ pub static REPTILIA: &[TemplateGraph] = &[
     TemplateGraph { name: "Ophidian — amethyst serpent", slug: "ophidian-reptilia" },
     TemplateGraph { name: "Varanus — sovereign scales", slug: "varanus-reptilia" },
 ];
+/// The Bestiarium: creatures told by hide, silk and weapons, face to palm.
+/// Artwork and stored parts are embedded in each graph.
+pub static BESTIARIUM: &[TemplateGraph] = &[
+    TemplateGraph { name: "Arachne — the weaver", slug: "arachne-bestiarium" },
+    TemplateGraph { name: "Manticora — the tail that throws", slug: "manticora-bestiarium" },
+];
 pub fn catalog() -> impl Iterator<Item = &'static TemplateGraph> {
-    BUNDLED.iter().chain(SHOWCASE).chain(IMPORTED).chain(REPTILIA)
+    BUNDLED.iter().chain(SHOWCASE).chain(IMPORTED).chain(REPTILIA).chain(BESTIARIUM)
 }
 
 /// Curated templates carry only artwork that reaches a layer or mask. Within
