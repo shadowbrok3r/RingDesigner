@@ -488,7 +488,7 @@ pub fn window_controls(ui: &mut egui::Ui, id: usize, w: &mut Window, ctx: &Field
                         }
                     });
             });
-            if ctx.side_faces_std().is_none() {
+            if ctx.station_gates.is_none() && ctx.side_faces_std().is_none() {
                 ui.label(
                     egui::RichText::new(
                         "This profile has no side faces — the layer passes nothing. \
@@ -507,6 +507,22 @@ pub fn window_controls(ui: &mut egui::Ui, id: usize, w: &mut Window, ctx: &Field
                 c = true;
             }
         }
+        VGate::Draft { min_deg, fade_deg } => {
+            c |= ui.add(egui::Slider::new(min_deg, 0.0..=90.0).text("minimum base draft deg")).changed();
+            c |= ui.add(egui::Slider::new(fade_deg, 0.0..=30.0).text("fade above minimum deg")).changed();
+            if ui.small_button("Snap to side faces").clicked() {
+                w.v_gate = VGate::SideFaces(SideFacePick::Wider);
+                c = true;
+            }
+            if ui.small_button("Use a fixed strip").clicked() {
+                w.v_gate = VGate::Band { center_mm: ctx.crest_v_mm, span_mm: (v_max * 0.4).max(0.5), fade_mm: 0.4 };
+                c = true;
+            }
+        }
+    }
+    if !matches!(w.v_gate, VGate::Off | VGate::Draft { .. }) && ui.small_button("Limit by base draft").clicked() {
+        w.v_gate = VGate::Draft { min_deg: 80.0, fade_deg: 5.0 };
+        c = true;
     }
 
     ui.horizontal_wrapped(|ui| {
