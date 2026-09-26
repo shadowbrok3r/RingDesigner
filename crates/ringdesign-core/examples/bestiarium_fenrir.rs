@@ -1,6 +1,6 @@
 //! Fenrir: the wolf and the moon, on native factory 010 trillion stock in lost wax.
 //! cargo build --offline --release -p ringdesign-core --example bestiarium_fenrir
-//! target/release/examples/bestiarium_fenrir [OUT_DIR] [--draft] [--verify] [--sculpt]
+//! target/release/examples/bestiarium_fenrir [OUT_DIR] [--draft] [--verify] [--sculpt] [--map]
 use anyhow::{Result, ensure};
 use rayon::prelude::*;
 use ringdesign_core::{
@@ -2523,6 +2523,8 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         "stones": {"reported": stone_count, "previewed": previewed, "warnings": warnings, "carats": stone_report.as_ref().map_or(0.0, |r| r.total_carats)},
         "grams_18k": grams,
         "hollow": {"wall_mm": HOLLOW_WALL_MM, "section_90_min_metal_over_mm": over_hollow, "section_png": "section-90.png"},
+        "jaws": jaw_measures(&wolf),
+        "fangs": {"rise_of_dome": FANG_RISE, "rails": "None", "wire_mm": FANG_WIRE_MM, "reach_inside_moon_disc_mm": fang_overlap(&wolf, &built)},
         "pattern": {"validation": pattern_validation, "quality": pattern_quality, "self_crossings": pattern_cross, "release": {"obstructions": inspection.release.obstructions.len()}},
         "design": {"bytes": design_bytes, "format_version": format, "layers": d.layers.layers.iter().map(|e| e.name.clone()).collect::<Vec<_>>(), "stamps": d.stamps.len(), "cad_features": d.cad.as_ref().map_or(0, |c| c.features.len())},
         "cold_reload": cold,
@@ -2918,6 +2920,50 @@ fn head_lands(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::
     }
     out.sort_by(|a, b| a.feature.cmp(&b.feature));
     (out, thin_at)
+}
+
+/// The mouth measured off the head's field: each corner's gap between the jaws, as arc at the lips' radius, and how far
+/// each lip's inner edge strays from a constant radius over its steadiest 90 degrees.
+fn jaw_measures(wolf: &Wolf) -> Value {
+    // The head's top over face point (x, u), searching down from above.
+    let top = |x: f64, u: f64| {
+        let mut h = 4.0;
+        while h > -0.5 && wolf.head([x, u, h]) > 0.0 {
+            h -= 0.02;
+        }
+        h
+    };
+    let rho = 6.3;
+    let lip_at = |deg: f64| {
+        let p = rim(rho, deg, 0.0);
+        top(p[0], p[1]) > 0.8
+    };
+    let gap = |from: f64, to: f64| -> f64 {
+        let n = 400;
+        let open = (0..=n).filter(|k| !lip_at(from + (to - from) * *k as f64 / n as f64)).count();
+        open as f64 / n as f64 * (to - from).abs().to_radians() * rho
+    };
+    let spread = |f: &dyn Fn(f64) -> f64, from: f64, to: f64| -> f64 {
+        let mut best = f64::MAX;
+        let mut a = from;
+        while a + 90.0 <= to + 1e-9 {
+            let rs: Vec<f64> = (0..=90).map(|k| f(a + k as f64)).collect();
+            best = best.min(rs.iter().cloned().fold(f64::MIN, f64::max) - rs.iter().cloned().fold(f64::MAX, f64::min));
+            a += 1.0;
+        }
+        best
+    };
+    // Both lips run from one corner to the other; the field is mirrored across the midline at 90 degrees.
+    let fold_over = |deg: f64| if deg > 90.0 { 180.0 - deg } else { deg };
+    let upper = |deg: f64| upper_lip(fold_over(deg)).0;
+    let lower = |deg: f64| lower_lip(-fold_over(deg)).0;
+    json!({
+        "corner_gap_right_mm": gap(-40.0, 40.0),
+        "corner_gap_left_mm": gap(140.0, 220.0),
+        "lip_radius_mm": rho,
+        "upper_lip_least_spread_over_90_deg_mm": spread(&upper, CORNER_DEG, 180.0 - CORNER_DEG),
+        "lower_lip_least_spread_over_90_deg_mm": spread(&lower, CORNER_DEG, 180.0 - CORNER_DEG),
+    })
 }
 
 /// How far each claw reaches inside the moon's girdle circle seen from over the face, mm.
