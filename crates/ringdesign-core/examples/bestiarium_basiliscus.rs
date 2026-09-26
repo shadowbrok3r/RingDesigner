@@ -27,6 +27,8 @@ const BELLY_HEIGHT: f64 = 0.30;
 const SERPENT_HEIGHT: f64 = 2.0;
 /// The pounced field's grain, mm.
 const POUNCE_HEIGHT: f64 = 0.07;
+/// The bordure's beads, mm.
+const BEAD_HEIGHT: f64 = 0.26;
 /// The boss the tsavorite is set flush in, mm over the field.
 const STONE_BOSS: f64 = 0.9;
 /// Relief sampling of the export build.
@@ -463,7 +465,7 @@ impl Body {
         let scales = reptile::snake(s / 0.85, lat / 0.62);
         let scutes = reptile::ventral(s / 0.6, ((across + 0.71) / 0.29).clamp(-1.0, 1.0));
         let skin = scales * (1.0 - belly) + scutes * belly;
-        TUBE * tube * rise * (0.9 + 0.1 * skin) + 0.3 * smooth(0.0, 0.12, w - d)
+        TUBE * tube * rise * (0.78 + 0.22 * skin) + 0.3 * smooth(0.0, 0.12, w - d)
     }
 }
 
@@ -505,8 +507,13 @@ struct Arms {
     table: Shape,
     body: Body,
     shapes: Vec<Shape>,
+    head: Shape,
     mouth: Shape,
+    beads: Vec<P2>,
 }
+
+/// The bordure's beads: inset from the table's edge, pitch and radius, mm.
+const BEADS: (f64, f64, f64) = (0.62, 0.66, 0.22);
 
 /// Pitch of the pounced field's grain, mm.
 const GRAIN: f64 = 0.62;
@@ -517,7 +524,7 @@ impl Arms {
         let dome = |h: f64| StampTop::Dome { crown_mm: h };
         let mut s = Vec::new();
         let head = ccw(resample(&spline(&HEAD, 40), 0.09));
-        s.push(Shape::new("Basilisk's head", centroid(&head), head, 0.35, 0.3, 2.0, 0, flat, false));
+        let head = Shape::new("Basilisk's head", centroid(&head), head, 0.0, 0.0, 0.0, 0, flat, false);
         let [x0, x1, chief, low] = CROWN_BAND;
         let band = plate(vec![[x0, low], [x1, low], [x1 - 0.15, chief], [x0 + 0.15, chief]], 0.12);
         s.push(Shape::new("Crown", [(x0 + x1) * 0.5, (chief + low) * 0.5], band, 0.7, 0.3, 2.0, 0, flat, false));
@@ -537,33 +544,32 @@ impl Arms {
         let fork = outline::fork(2.4, 44.0, 0.36, 0.26);
         let tongue: Vec<P2> = fork.iter().map(|p| [-5.0 - p[0], -2.95 - p[1]]).collect();
         s.push(Shape::new("Forked tongue", [-5.0, -2.95], ccw(resample(&tongue, 0.09)), 0.45, 0.3, 0.0, 0, flat, false));
-        s.push(Shape::new("Eye", EYE_AT, ellipse(EYE_AT, 0.62, 0.46, -8.0), 0.12, 0.3, 2.0, 1, dome(0.32), false));
-        s.push(Shape::new("Pupil", [EYE_AT[0] + 1.2, EYE_AT[1]], lens([EYE_AT[0], EYE_AT[1] - 0.38], [EYE_AT[0], EYE_AT[1] + 0.38], 0.12, 0.03), 0.4, 0.22, 0.0, 2, flat, true));
-        s.push(Shape::new("Brow", [-1.4, -4.69], lens([-2.35, -4.62], [-0.45, -4.75], 0.2, 0.05), 0.15, 0.3, 2.0, 1, dome(0.2), false));
+        s.push(Shape::new("Eye", EYE_AT, ellipse(EYE_AT, 0.72, 0.52, -8.0), 0.15, 0.3, 2.0, 0, dome(0.38), false));
+        s.push(Shape::new("Pupil", [EYE_AT[0] + 1.2, EYE_AT[1]], lens([EYE_AT[0], EYE_AT[1] - 0.44], [EYE_AT[0], EYE_AT[1] + 0.44], 0.13, 0.03), 0.4, 0.25, 0.0, 1, flat, true));
+        s.push(Shape::new("Brow", [-1.4, -4.8], lens([-2.45, -4.72], [-0.35, -4.87], 0.2, 0.05), 0.18, 0.3, 2.0, 0, dome(0.22), false));
         let c = [-3.75, -4.05];
-        s.push(Shape::new("Nostril", c, ellipse(c, 0.2, 0.12, -20.0), 0.3, 0.2, 0.0, 1, flat, true));
-        let scales: [(&str, P2, f64, f64, f64); 11] = [
+        s.push(Shape::new("Nostril", c, ellipse(c, 0.2, 0.12, -20.0), 0.3, 0.22, 0.0, 0, flat, true));
+        for (k, x) in [-0.65, 0.65].into_iter().enumerate() {
+            let c = [x, -5.62];
+            s.push(Shape::new(format!("Crown jewel, {}", k + 1), c, ellipse(c, 0.24, 0.15, 0.0), 0.08, 0.3, 0.0, 1, dome(0.14), false));
+        }
+        let scales: [(&str, P2, f64, f64, f64); 5] = [
             ("Upper lip scale, 1", [-3.3, -3.83], 0.44, 0.21, -8.0),
             ("Upper lip scale, 2", [-2.4, -3.62], 0.44, 0.21, -10.0),
             ("Upper lip scale, 3", [-0.35, -3.27], 0.44, 0.21, -16.0),
             ("Lower lip scale, 1", [-2.2, -1.8], 0.46, 0.19, 14.0),
             ("Lower lip scale, 2", [-1.1, -1.95], 0.46, 0.19, 10.0),
-            ("Parietal, 1", [0.25, -4.78], 0.62, 0.34, 4.0),
-            ("Parietal, 2", [1.6, -4.55], 0.56, 0.33, -20.0),
-            ("Temporal, 1", [0.95, -3.62], 0.44, 0.32, -24.0),
-            ("Temporal, 2", [2.05, -3.3], 0.42, 0.31, -38.0),
-            ("Temporal, 3", [2.55, -2.35], 0.38, 0.29, -60.0),
-            ("Rostral", [-4.0, -3.92], 0.2, 0.18, -30.0),
         ];
         for (name, c, rx, rz, rot) in scales {
-            s.push(Shape::new(name, c, ellipse(c, rx, rz, rot), 0.12, 0.3, 4.0, 1, dome(0.05), false));
+            s.push(Shape::new(name, c, ellipse(c, rx, rz, rot), 0.12, 0.3, 4.0, 0, dome(0.06), false));
         }
         for sh in &s {
             let local: Vec<P2> = sh.poly.iter().map(|p| [p[0] - sh.centre[0], p[1] - sh.centre[1]]).collect();
             outline::check(&ccw(local)).map_err(|e| anyhow!("{}: {e}", sh.name))?;
         }
         let mouth = Shape::new("Mouth", [0.0, 0.0], ccw(resample(&[[0.35, -2.6], [-4.3, -3.75], [-3.95, -1.55]], 0.09)), 0.0, 0.0, 0.0, 0, flat, false);
-        let arms = Self { table: Shape::new("Table", [0.0, 0.0], table, 0.0, 0.0, 0.0, 0, flat, false), body: Body::new(), shapes: s, mouth };
+        let mut arms = Self { table: Shape::new("Table", [0.0, 0.0], table, 0.0, 0.0, 0.0, 0, flat, false), body: Body::new(), shapes: s, head, mouth, beads: Vec::new() };
+        arms.beads = arms.bordure();
         Ok(arms)
     }
 
@@ -592,7 +598,7 @@ impl Arms {
 
     /// Distance outside every piece of struck ground, mm; negative inside one.
     fn clear_of_ground(&self, p: P2) -> f64 {
-        self.ground().map(|s| -s.sdf(p, 2.0)).fold(f64::MAX, f64::min)
+        self.ground().map(|s| -s.sdf(p, 2.0)).fold(-self.head.sdf(p, 2.0), f64::min)
     }
 
     /// The serpent painted over the table, mm: its body, the rounded skull under the head and the crown band's swell.
@@ -600,8 +606,8 @@ impl Arms {
         if self.table.sdf(p, 1.0) <= 0.0 {
             return 0.0;
         }
-        let dh = self.named("Basilisk's head").sdf(p, 2.0);
-        let skull = if dh > 0.0 { (0.35 + 0.55 * smooth(0.0, 1.3, dh).powf(0.6)) * smooth(0.12, 0.4, dh) } else { 0.0 };
+        let dh = self.head.sdf(p, 2.0);
+        let skull = if dh > -0.1 { (0.65 + 0.55 * smooth(0.0, 1.3, dh).powf(0.6)) * smooth(-0.1, 0.15, dh) } else { 0.0 };
         let band = self.named("Crown").sdf(p, 1.0);
         let swell = if band > 0.0 {
             let [_, _, chief, low] = CROWN_BAND;
@@ -614,6 +620,59 @@ impl Arms {
         skull.max(swell).max(body)
     }
 
+    /// Bead centres a fixed inset inside the table's edge at an even pitch, less any that would touch the arms.
+    fn bordure(&self) -> Vec<P2> {
+        let (inset, pitch, radius) = BEADS;
+        let poly = &self.table.poly;
+        let n = poly.len();
+        let mut line = Vec::with_capacity(n);
+        for i in 0..n {
+            let (a, b) = (poly[(i + n - 1) % n], poly[(i + 1) % n]);
+            let t = [b[0] - a[0], b[1] - a[1]];
+            let l = t[0].hypot(t[1]).max(1e-12);
+            let q = [poly[i][0] - t[1] / l * inset, poly[i][1] + t[0] / l * inset];
+            if (self.table.sdf(q, 1.0) - inset).abs() < 0.03 {
+                line.push(q);
+            }
+        }
+        let mut beads: Vec<P2> = Vec::new();
+        let mut run = 0.0;
+        for w in line.windows(2) {
+            let step = (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]);
+            if step > 0.3 {
+                continue;
+            }
+            run += step;
+            let clear = beads.last().is_none_or(|b| (b[0] - w[1][0]).hypot(b[1] - w[1][1]) > 0.95 * pitch);
+            if run >= pitch && clear {
+                run = 0.0;
+                let q = w[1];
+                let body = self.body.nearest(q).map_or(f64::MAX, |(d, s, _)| d - self.body.girth(s));
+                if self.clear_of_ground(q) > radius + 0.3 && body > radius + 0.3 && -self.mouth.sdf(q, 1.0) > radius + 0.3 {
+                    beads.push(q);
+                }
+            }
+        }
+        if let (Some(a), Some(b)) = (beads.first().copied(), beads.last().copied()) {
+            if beads.len() > 1 && (a[0] - b[0]).hypot(a[1] - b[1]) < 0.95 * pitch {
+                beads.pop();
+            }
+        }
+        beads
+    }
+
+    /// The beaded bordure, 0..1: a rounded bead at every bordure station.
+    fn bordure_height(&self, p: P2) -> f64 {
+        let r = BEADS.2;
+        self.beads
+            .iter()
+            .map(|b| {
+                let d = (p[0] - b[0]).hypot(p[1] - b[1]);
+                if d < r { (1.0 - (d / r).powi(2)).max(0.0).sqrt() } else { 0.0 }
+            })
+            .fold(0.0, f64::max)
+    }
+
     /// The field matted with a jittered grain of punched pits, 0..1: a low plateau kept off the arms.
     fn pounce(&self, p: P2) -> f64 {
         let dt = self.table.sdf(p, 1.0);
@@ -621,7 +680,7 @@ impl Arms {
             return 0.0;
         }
         let clear = self.clear_of_ground(p).min(self.body.nearest(p).map_or(f64::MAX, |(d, s, _)| d - self.body.girth(s))).min(-self.mouth.sdf(p, 1.0));
-        let plateau = smooth(0.35, 0.6, clear) * smooth(1.3, 1.5, stone_q(p)) * smooth(0.35, 0.6, dt);
+        let plateau = smooth(0.35, 0.6, clear) * smooth(1.3, 1.5, stone_q(p)) * smooth(1.05, 1.3, dt);
         if plateau <= 0.0 {
             return 0.0;
         }
@@ -848,6 +907,8 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value)> {
     let mut face = Window::around(90.0, 64.0);
     face.fade_deg = 1.0;
     portable(&mut d, &mut lib, alpha, POUNCE_HEIGHT, face, false, None)?;
+    let alpha = a.paint("Beaded bordure", |s| if on_table(s) { arms.bordure_height([s.p[0], s.p[2]]) } else { 0.0 });
+    portable(&mut d, &mut lib, alpha, BEAD_HEIGHT, face, false, None)?;
     let alpha = a.paint("Hackles into scales", |s| {
         let (bore, crown, _) = skin_masks(&a, &hide, s);
         feather(s).0 * crown * bore * off_table.data[s.i] as f64
@@ -900,7 +961,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value)> {
     let placed = strike(&mut d, &a, &arms)?;
     let composition = json!({
         "stone_mm": STONE, "stone_boss_mm": STONE_BOSS, "spine_mm": arms.body.length(), "girth_mm": [GIRTH.0, GIRTH.1], "tube_mm": TUBE,
-        "serpent_height_mm": SERPENT_HEIGHT, "pounce_height_mm": POUNCE_HEIGHT,
+        "serpent_height_mm": SERPENT_HEIGHT, "pounce_height_mm": POUNCE_HEIGHT, "bead_height_mm": BEAD_HEIGHT, "beads": arms.beads.len(),
         "table_points": arms.table.poly.len(), "table_z_mm": [arms.table.lo[1], arms.table.hi[1]], "table_x_mm": [arms.table.lo[0], arms.table.hi[0]],
         "morph_start_along_mm": l70, "morph_end_along_mm": l110, "stock": "020 native unmirrored", "atlas": [AW, ah],
         "stamps": placed,

@@ -1,0 +1,528 @@
+{
+  "build": {
+    "build_ms": 2294,
+    "export_note": "The hide's layers carry the Relief reach mask, which keeps imported_base::subdivide from detailing the lower walls by the bore edges; without it 1536 x 448 overruns its 2 million triangle budget",
+    "faces": 1781600,
+    "profile_steps": 448,
+    "theta_steps": 1536
+  },
+  "coarse_384x192": {
+    "bore_clearance_at": [
+      -7.257697105407715,
+      5.814767837524414,
+      -0.22400498390197754
+    ],
+    "bore_clearance_min_mm": -0.0002316008326381791,
+    "bore_vertices_inside": 0,
+    "degenerate_faces": 0,
+    "parts_notes": [],
+    "pass": true,
+    "self_crossings": 0,
+    "solids_notes": [],
+    "solids_resolved": 1,
+    "stamps": 21,
+    "stamps_struck": 21,
+    "triangles": 172614,
+    "watertight": true
+  },
+  "cold_reload": {
+    "bake_ms": 6.179092,
+    "build_ms": 3853.764243,
+    "identical_vertices_faces_normals": true,
+    "read_ms": 0.885565
+  },
+  "composition": {
+    "atlas": [
+      2048,
+      560
+    ],
+    "bead_height_mm": 0.26,
+    "beads": 42,
+    "girth_mm": [
+      1.3,
+      0.3
+    ],
+    "morph_end_along_mm": 25.814397118817936,
+    "morph_start_along_mm": 17.79535254752604,
+    "pounce_height_mm": 0.07,
+    "serpent_height_mm": 2.0,
+    "spine_mm": 22.505491993867025,
+    "stamps": [
+      {
+        "cut": false,
+        "name": "Crown",
+        "origin_error_mm": 4.1207013801169985e-8,
+        "points": 89,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Crown point, 1",
+        "origin_error_mm": 0.00016359790761630367,
+        "points": 30,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Crown pearl, 1",
+        "origin_error_mm": 0.00017258184257331236,
+        "points": 24,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Crown point, 2",
+        "origin_error_mm": 8.163231854164444e-16,
+        "points": 38,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Crown pearl, 2",
+        "origin_error_mm": 1.2063351309936483e-15,
+        "points": 24,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Crown point, 3",
+        "origin_error_mm": 0.0001560499570094341,
+        "points": 30,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Crown pearl, 3",
+        "origin_error_mm": 0.00017480470487346225,
+        "points": 24,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Fang, 1",
+        "origin_error_mm": 0.00004175487056358049,
+        "points": 25,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Fang, 2",
+        "origin_error_mm": 0.000057041882490649064,
+        "points": 22,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Forked tongue",
+        "origin_error_mm": 0.00017296034237433531,
+        "points": 87,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Eye",
+        "origin_error_mm": 0.00016908529755366362,
+        "points": 44,
+        "tier": 0
+      },
+      {
+        "cut": true,
+        "name": "Pupil",
+        "origin_error_mm": 2.8343725786613224e-6,
+        "points": 22,
+        "tier": 1
+      },
+      {
+        "cut": false,
+        "name": "Brow",
+        "origin_error_mm": 0.00019026942348701758,
+        "points": 50,
+        "tier": 0
+      },
+      {
+        "cut": true,
+        "name": "Nostril",
+        "origin_error_mm": 0.00007522746902451481,
+        "points": 12,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Crown jewel, 1",
+        "origin_error_mm": 0.00001194563149880561,
+        "points": 14,
+        "tier": 1
+      },
+      {
+        "cut": false,
+        "name": "Crown jewel, 2",
+        "origin_error_mm": 0.000011912154994404447,
+        "points": 14,
+        "tier": 1
+      },
+      {
+        "cut": false,
+        "name": "Upper lip scale, 1",
+        "origin_error_mm": 0.00008248396426418998,
+        "points": 24,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Upper lip scale, 2",
+        "origin_error_mm": 0.00004565896771941516,
+        "points": 24,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Upper lip scale, 3",
+        "origin_error_mm": 0.0017146476034825846,
+        "points": 24,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Lower lip scale, 1",
+        "origin_error_mm": 0.00003251736592705757,
+        "points": 24,
+        "tier": 0
+      },
+      {
+        "cut": false,
+        "name": "Lower lip scale, 2",
+        "origin_error_mm": 0.000020812330001070398,
+        "points": 24,
+        "tier": 0
+      }
+    ],
+    "stock": "020 native unmirrored",
+    "stone_boss_mm": 0.9,
+    "stone_mm": [
+      -0.3,
+      1.6
+    ],
+    "table_points": 608,
+    "table_x_mm": [
+      -7.823003137224834,
+      7.820702908197404
+    ],
+    "table_z_mm": [
+      -7.425,
+      8.675
+    ],
+    "tube_mm": 1.1
+  },
+  "design_bytes": 2879140,
+  "dfm": [],
+  "field": {
+    "marginal_area_mm2": 0.0,
+    "notes": [
+      "Lost wax: 10.96% of the surface would undercut a two-part pull (worst 81.2 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 326–0° on the crest: 9.1 mm² leaning to 59° — caused by \"Hackles into scales\"; muting it clears it.",
+      "Undercut 20–22° on the crest: 0.1 mm² leaning to 5° — no single layer explains it.",
+      "Undercut 29–151° on the crest: 131.1 mm² leaning to 67° — no single layer explains it.",
+      "Undercut 158–162° on the crest: 0.2 mm² leaning to 6° — no single layer explains it.",
+      "Undercut 180–214° on the crest: 8.7 mm² leaning to 60° — caused by \"Hackles into scales\"; muting it clears it.",
+      "Undercut 241–241° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
+      "Undercut 254–254° on the crest: 0.1 mm² leaning to 1° — no single layer explains it.",
+      "Undercut 270–270° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
+      "Undercut 286–286° on the crest: 0.1 mm² leaning to 2° — no single layer explains it.",
+      "Undercut 299–299° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
+      "Undercut 313–313° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
+      "Cut at the bench after casting, and so not judged here: Graver's barbs and keels.",
+      "1 made setting cast in place with the ring; the field judges the band under it."
+    ],
+    "parting_z_mm": 0.0,
+    "parts": [],
+    "process": "LostWax",
+    "profile_samples": 128,
+    "theta_samples": 256,
+    "thinnest_wall_mm": 1.6771637338001373,
+    "thinnest_wall_theta_deg": 309.375,
+    "total_area_mm2": 1446.8139855120235,
+    "undercut_area_mm2": 158.5165153349489,
+    "verdict": "Castable",
+    "vertical_area_mm2": 51.152012788952625,
+    "worst_draft_deg": -81.1888848026404
+  },
+  "gates": [
+    {
+      "gate": "finished mesh watertight, clean, uncrossed, every solid and stamp resolved, bore clear",
+      "pass": true
+    },
+    {
+      "gate": "the same at 384 x 192",
+      "pass": true
+    },
+    {
+      "gate": "every made stamp and seat part closed without crossings or degenerates",
+      "pass": true
+    },
+    {
+      "gate": "investment pattern watertight with zero degenerates and crossings",
+      "pass": true
+    },
+    {
+      "gate": "lost wax verdict Castable with 0.8 mm fill",
+      "pass": true
+    },
+    {
+      "gate": "zero DFM findings",
+      "pass": true
+    },
+    {
+      "gate": "one stone in report and preview, no warnings or crowding",
+      "pass": true
+    },
+    {
+      "gate": "cold reload identical",
+      "pass": true
+    }
+  ],
+  "geometry": {
+    "bore_clearance_at": [
+      -7.257697105407715,
+      5.814767837524414,
+      -0.22400498390197754
+    ],
+    "bore_clearance_min_mm": -0.0002316008326381791,
+    "bore_vertices_inside": 0,
+    "degenerate_faces": 0,
+    "parts_notes": [],
+    "pass": true,
+    "self_crossings": 0,
+    "solids_notes": [],
+    "solids_resolved": 1,
+    "stamps": 21,
+    "stamps_struck": 21,
+    "triangles": 1781600,
+    "watertight": true
+  },
+  "made_parts": [
+    {
+      "name": "Crown",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Crown point, 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Crown pearl, 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Crown point, 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Crown pearl, 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Crown point, 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Crown pearl, 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Fang, 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Fang, 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Forked tongue",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Eye",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Brow",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Nostril",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Upper lip scale, 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Upper lip scale, 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Upper lip scale, 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Lower lip scale, 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Lower lip scale, 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Pupil",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 1,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Crown jewel, 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 1,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Crown jewel, 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "tier": 1,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Tsavorite, flush",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    }
+  ],
+  "mesh": {
+    "quality": {
+      "degenerate_faces": 0,
+      "min_angle_deg": 0.0006643549535220723,
+      "worst_aspect": 86242.75619081571
+    },
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 1781600,
+      "vertex_count": 890798,
+      "watertight": true
+    },
+    "volume_mm3": 1706.9177866304897
+  },
+  "name": "Basiliscus — king of serpents",
+  "pattern": {
+    "bench_layers": [
+      "Graver's barbs and keels"
+    ],
+    "notes": [],
+    "quality": {
+      "degenerate_faces": 0,
+      "min_angle_deg": 0.0006648644070170942,
+      "worst_aspect": 86176.61865282162
+    },
+    "scale": 1.019367991845056,
+    "self_crossings": 0,
+    "triangles": 1781600,
+    "validation": {
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "triangle_count": 1781600,
+      "vertex_count": 890798,
+      "watertight": true
+    }
+  },
+  "process": {
+    "draft_clamp": "Not applied to lost wax",
+    "minimum_section_mm": 0.8,
+    "name": "LostWax",
+    "release_gates": "Not applicable: native upright stock in investment"
+  },
+  "stones": {
+    "previewed": 1,
+    "reported": 1,
+    "tight_pairs": 0,
+    "warnings": []
+  }
+}
