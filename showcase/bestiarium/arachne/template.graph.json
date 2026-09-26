@@ -1,5 +1,5 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "name": "Arachne — the weaver",
   "mode": "SandRing",
   "nodes": [
@@ -2564,25 +2564,147 @@
         "waves": 1
       },
       "pos": [
-        0.0,
-        150.0
+        960.0,
+        0.0
       ],
       "label": "Shoulders and taper"
     },
     {
       "id": 30,
-      "kind": "design.new",
+      "kind": "shank.key",
       "inputs": {
-        "name": "Arachne — the weaver",
-        "size": 7.0
+        "crown_scale": 1.0,
+        "theta_deg": 30.0,
+        "thickness_scale": 1.1,
+        "width_scale": 1.16
       },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 31,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 64.0,
+        "thickness_scale": 1.24,
+        "width_scale": 1.33
+      },
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 32,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 108.0,
+        "thickness_scale": 1.25,
+        "width_scale": 1.33
+      },
+      "pos": [
+        0.0,
+        450.0
+      ]
+    },
+    {
+      "id": 33,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 150.0,
+        "thickness_scale": 1.1,
+        "width_scale": 1.16
+      },
+      "pos": [
+        0.0,
+        600.0
+      ]
+    },
+    {
+      "id": 34,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 210.0,
+        "thickness_scale": 0.98,
+        "width_scale": 0.97
+      },
+      "pos": [
+        0.0,
+        750.0
+      ]
+    },
+    {
+      "id": 35,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 270.0,
+        "thickness_scale": 0.95,
+        "width_scale": 0.92
+      },
+      "pos": [
+        0.0,
+        900.0
+      ]
+    },
+    {
+      "id": 36,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 330.0,
+        "thickness_scale": 0.98,
+        "width_scale": 0.97
+      },
+      "pos": [
+        0.0,
+        1050.0
+      ]
+    },
+    {
+      "id": 37,
+      "kind": "list.merge",
       "pos": [
         240.0,
         0.0
       ]
     },
     {
-      "id": 31,
+      "id": 38,
+      "kind": "list.merge",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 39,
+      "kind": "list.merge",
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 40,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Arachne — the weaver",
+        "size": 7.0
+      },
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 41,
       "kind": "layer.tiling",
       "inputs": {
         "alpha": "Cheek web",
@@ -2610,12 +2732,12 @@
       },
       "pos": [
         0.0,
-        300.0
+        1200.0
       ],
       "label": "Cheek web, draped silk"
     },
     {
-      "id": 32,
+      "id": 42,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -2633,7 +2755,7 @@
       "label": "Cheek web, draped silk / blend"
     },
     {
-      "id": 33,
+      "id": 43,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -2646,20 +2768,20 @@
       },
       "pos": [
         0.0,
-        450.0
+        1350.0
       ],
       "label": "Cheek web, draped silk / placement"
     },
     {
-      "id": 34,
+      "id": 44,
       "kind": "stack",
       "pos": [
         480.0,
-        0.0
+        150.0
       ]
     },
     {
-      "id": 35,
+      "id": 45,
       "kind": "layer.seat",
       "inputs": {
         "bezel_bearing_mm": 0.3,
@@ -2692,7 +2814,7 @@
       "label": "Carapace bed, garnet"
     },
     {
-      "id": 36,
+      "id": 46,
       "kind": "gem",
       "inputs": {
         "cut": "Oval",
@@ -2707,11 +2829,11 @@
       },
       "pos": [
         0.0,
-        600.0
+        1500.0
       ]
     },
     {
-      "id": 37,
+      "id": 47,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -2723,12 +2845,12 @@
       },
       "pos": [
         480.0,
-        150.0
+        300.0
       ],
       "label": "Carapace bed, garnet / blend"
     },
     {
-      "id": 38,
+      "id": 48,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -2739,20 +2861,20 @@
       },
       "pos": [
         0.0,
-        750.0
+        1650.0
       ],
       "label": "Carapace bed, garnet / placement"
     },
     {
-      "id": 39,
+      "id": 49,
       "kind": "stack",
       "pos": [
         720.0,
-        0.0
+        150.0
       ]
     },
     {
-      "id": 40,
+      "id": 50,
       "kind": "layer.seat",
       "inputs": {
         "bezel_bearing_mm": 0.3,
@@ -2785,7 +2907,7 @@
       "label": "Abdomen bed, onyx"
     },
     {
-      "id": 41,
+      "id": 51,
       "kind": "gem",
       "inputs": {
         "cut": "Oval",
@@ -2800,11 +2922,11 @@
       },
       "pos": [
         0.0,
-        900.0
+        1800.0
       ]
     },
     {
-      "id": 42,
+      "id": 52,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -2816,12 +2938,12 @@
       },
       "pos": [
         480.0,
-        300.0
+        450.0
       ],
       "label": "Abdomen bed, onyx / blend"
     },
     {
-      "id": 43,
+      "id": 53,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -2832,20 +2954,20 @@
       },
       "pos": [
         0.0,
-        1050.0
+        1950.0
       ],
       "label": "Abdomen bed, onyx / placement"
     },
     {
-      "id": 44,
+      "id": 54,
       "kind": "stack",
       "pos": [
         960.0,
-        0.0
+        150.0
       ]
     },
     {
-      "id": 45,
+      "id": 55,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Web round the spider",
@@ -2864,12 +2986,12 @@
       },
       "pos": [
         0.0,
-        1200.0
+        2100.0
       ],
       "label": "Web round the spider"
     },
     {
-      "id": 46,
+      "id": 56,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -2887,7 +3009,7 @@
       "label": "Web round the spider / blend"
     },
     {
-      "id": 47,
+      "id": 57,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -2898,20 +3020,20 @@
       },
       "pos": [
         0.0,
-        1350.0
+        2250.0
       ],
       "label": "Web round the spider / placement"
     },
     {
-      "id": 48,
+      "id": 58,
       "kind": "stack",
       "pos": [
         1200.0,
-        0.0
+        150.0
       ]
     },
     {
-      "id": 49,
+      "id": 59,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Web round the spider, capture silk",
@@ -2930,12 +3052,12 @@
       },
       "pos": [
         0.0,
-        1500.0
+        2400.0
       ],
       "label": "Web round the spider, capture silk"
     },
     {
-      "id": 50,
+      "id": 60,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -2953,7 +3075,7 @@
       "label": "Web round the spider, capture silk / blend"
     },
     {
-      "id": 51,
+      "id": 61,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -2964,12 +3086,12 @@
       },
       "pos": [
         0.0,
-        1650.0
+        2550.0
       ],
       "label": "Web round the spider, capture silk / placement"
     },
     {
-      "id": 52,
+      "id": 62,
       "kind": "stack",
       "pos": [
         1440.0,
@@ -2977,7 +3099,7 @@
       ]
     },
     {
-      "id": 53,
+      "id": 63,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Web behind the spinnerets",
@@ -2996,12 +3118,12 @@
       },
       "pos": [
         0.0,
-        1800.0
+        2700.0
       ],
       "label": "Web behind the spinnerets"
     },
     {
-      "id": 54,
+      "id": 64,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3019,7 +3141,7 @@
       "label": "Web behind the spinnerets / blend"
     },
     {
-      "id": 55,
+      "id": 65,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3030,12 +3152,12 @@
       },
       "pos": [
         0.0,
-        1950.0
+        2850.0
       ],
       "label": "Web behind the spinnerets / placement"
     },
     {
-      "id": 56,
+      "id": 66,
       "kind": "stack",
       "pos": [
         1680.0,
@@ -3043,7 +3165,7 @@
       ]
     },
     {
-      "id": 57,
+      "id": 67,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Web behind the spinnerets, capture silk",
@@ -3062,12 +3184,12 @@
       },
       "pos": [
         0.0,
-        2100.0
+        3000.0
       ],
       "label": "Web behind the spinnerets, capture silk"
     },
     {
-      "id": 58,
+      "id": 68,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3085,7 +3207,7 @@
       "label": "Web behind the spinnerets, capture silk / blend"
     },
     {
-      "id": 59,
+      "id": 69,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3096,12 +3218,12 @@
       },
       "pos": [
         0.0,
-        2250.0
+        3150.0
       ],
       "label": "Web behind the spinnerets, capture silk / placement"
     },
     {
-      "id": 60,
+      "id": 70,
       "kind": "stack",
       "pos": [
         1920.0,
@@ -3109,7 +3231,7 @@
       ]
     },
     {
-      "id": 61,
+      "id": 71,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Orb behind her",
@@ -3128,12 +3250,12 @@
       },
       "pos": [
         0.0,
-        2400.0
+        3300.0
       ],
       "label": "Orb behind her"
     },
     {
-      "id": 62,
+      "id": 72,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3151,7 +3273,7 @@
       "label": "Orb behind her / blend"
     },
     {
-      "id": 63,
+      "id": 73,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3162,12 +3284,12 @@
       },
       "pos": [
         0.0,
-        2550.0
+        3450.0
       ],
       "label": "Orb behind her / placement"
     },
     {
-      "id": 64,
+      "id": 74,
       "kind": "stack",
       "pos": [
         2160.0,
@@ -3175,7 +3297,7 @@
       ]
     },
     {
-      "id": 65,
+      "id": 75,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Orb behind her, capture silk",
@@ -3194,12 +3316,12 @@
       },
       "pos": [
         0.0,
-        2700.0
+        3600.0
       ],
       "label": "Orb behind her, capture silk"
     },
     {
-      "id": 66,
+      "id": 76,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3217,7 +3339,7 @@
       "label": "Orb behind her, capture silk / blend"
     },
     {
-      "id": 67,
+      "id": 77,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3228,12 +3350,12 @@
       },
       "pos": [
         0.0,
-        2850.0
+        3750.0
       ],
       "label": "Orb behind her, capture silk / placement"
     },
     {
-      "id": 68,
+      "id": 78,
       "kind": "stack",
       "pos": [
         2400.0,
@@ -3241,7 +3363,7 @@
       ]
     },
     {
-      "id": 69,
+      "id": 79,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Web toward the palm",
@@ -3260,12 +3382,12 @@
       },
       "pos": [
         0.0,
-        3000.0
+        3900.0
       ],
       "label": "Web toward the palm"
     },
     {
-      "id": 70,
+      "id": 80,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3283,7 +3405,7 @@
       "label": "Web toward the palm / blend"
     },
     {
-      "id": 71,
+      "id": 81,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3294,12 +3416,12 @@
       },
       "pos": [
         0.0,
-        3150.0
+        4050.0
       ],
       "label": "Web toward the palm / placement"
     },
     {
-      "id": 72,
+      "id": 82,
       "kind": "stack",
       "pos": [
         2640.0,
@@ -3307,7 +3429,7 @@
       ]
     },
     {
-      "id": 73,
+      "id": 83,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Web toward the palm, capture silk",
@@ -3326,12 +3448,12 @@
       },
       "pos": [
         0.0,
-        3300.0
+        4200.0
       ],
       "label": "Web toward the palm, capture silk"
     },
     {
-      "id": 74,
+      "id": 84,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3349,7 +3471,7 @@
       "label": "Web toward the palm, capture silk / blend"
     },
     {
-      "id": 75,
+      "id": 85,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3360,12 +3482,12 @@
       },
       "pos": [
         0.0,
-        3450.0
+        4350.0
       ],
       "label": "Web toward the palm, capture silk / placement"
     },
     {
-      "id": 76,
+      "id": 86,
       "kind": "stack",
       "pos": [
         2880.0,
@@ -3373,7 +3495,7 @@
       ]
     },
     {
-      "id": 77,
+      "id": 87,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Orb at the palm",
@@ -3392,12 +3514,12 @@
       },
       "pos": [
         0.0,
-        3600.0
+        4500.0
       ],
       "label": "Orb at the palm"
     },
     {
-      "id": 78,
+      "id": 88,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3415,7 +3537,7 @@
       "label": "Orb at the palm / blend"
     },
     {
-      "id": 79,
+      "id": 89,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3426,12 +3548,12 @@
       },
       "pos": [
         0.0,
-        3750.0
+        4650.0
       ],
       "label": "Orb at the palm / placement"
     },
     {
-      "id": 80,
+      "id": 90,
       "kind": "stack",
       "pos": [
         3120.0,
@@ -3439,7 +3561,7 @@
       ]
     },
     {
-      "id": 81,
+      "id": 91,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Orb at the palm, capture silk",
@@ -3458,12 +3580,12 @@
       },
       "pos": [
         0.0,
-        3900.0
+        4800.0
       ],
       "label": "Orb at the palm, capture silk"
     },
     {
-      "id": 82,
+      "id": 92,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3481,7 +3603,7 @@
       "label": "Orb at the palm, capture silk / blend"
     },
     {
-      "id": 83,
+      "id": 93,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3492,12 +3614,12 @@
       },
       "pos": [
         0.0,
-        4050.0
+        4950.0
       ],
       "label": "Orb at the palm, capture silk / placement"
     },
     {
-      "id": 84,
+      "id": 94,
       "kind": "stack",
       "pos": [
         3360.0,
@@ -3505,7 +3627,7 @@
       ]
     },
     {
-      "id": 85,
+      "id": 95,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Web past the palm",
@@ -3524,12 +3646,12 @@
       },
       "pos": [
         0.0,
-        4200.0
+        5100.0
       ],
       "label": "Web past the palm"
     },
     {
-      "id": 86,
+      "id": 96,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3547,7 +3669,7 @@
       "label": "Web past the palm / blend"
     },
     {
-      "id": 87,
+      "id": 97,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3558,12 +3680,12 @@
       },
       "pos": [
         0.0,
-        4350.0
+        5250.0
       ],
       "label": "Web past the palm / placement"
     },
     {
-      "id": 88,
+      "id": 98,
       "kind": "stack",
       "pos": [
         3600.0,
@@ -3571,7 +3693,7 @@
       ]
     },
     {
-      "id": 89,
+      "id": 99,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Web past the palm, capture silk",
@@ -3590,12 +3712,12 @@
       },
       "pos": [
         0.0,
-        4500.0
+        5400.0
       ],
       "label": "Web past the palm, capture silk"
     },
     {
-      "id": 90,
+      "id": 100,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3613,7 +3735,7 @@
       "label": "Web past the palm, capture silk / blend"
     },
     {
-      "id": 91,
+      "id": 101,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3624,12 +3746,12 @@
       },
       "pos": [
         0.0,
-        4650.0
+        5550.0
       ],
       "label": "Web past the palm, capture silk / placement"
     },
     {
-      "id": 92,
+      "id": 102,
       "kind": "stack",
       "pos": [
         3840.0,
@@ -3637,7 +3759,7 @@
       ]
     },
     {
-      "id": 93,
+      "id": 103,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Orb before her",
@@ -3656,12 +3778,12 @@
       },
       "pos": [
         0.0,
-        4800.0
+        5700.0
       ],
       "label": "Orb before her"
     },
     {
-      "id": 94,
+      "id": 104,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3679,7 +3801,7 @@
       "label": "Orb before her / blend"
     },
     {
-      "id": 95,
+      "id": 105,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3690,12 +3812,12 @@
       },
       "pos": [
         0.0,
-        4950.0
+        5850.0
       ],
       "label": "Orb before her / placement"
     },
     {
-      "id": 96,
+      "id": 106,
       "kind": "stack",
       "pos": [
         4080.0,
@@ -3703,7 +3825,7 @@
       ]
     },
     {
-      "id": 97,
+      "id": 107,
       "kind": "layer.decals",
       "inputs": {
         "alpha": "Orb before her, capture silk",
@@ -3722,12 +3844,12 @@
       },
       "pos": [
         0.0,
-        5100.0
+        6000.0
       ],
       "label": "Orb before her, capture silk"
     },
     {
-      "id": 98,
+      "id": 108,
       "kind": "entry",
       "inputs": {
         "bench_only": false,
@@ -3745,7 +3867,7 @@
       "label": "Orb before her, capture silk / blend"
     },
     {
-      "id": 99,
+      "id": 109,
       "kind": "window",
       "inputs": {
         "enabled": false,
@@ -3756,12 +3878,12 @@
       },
       "pos": [
         0.0,
-        5250.0
+        6150.0
       ],
       "label": "Orb before her, capture silk / placement"
     },
     {
-      "id": 100,
+      "id": 110,
       "kind": "stack",
       "pos": [
         4320.0,
@@ -3769,7 +3891,7 @@
       ]
     },
     {
-      "id": 101,
+      "id": 111,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3778,12 +3900,12 @@
       },
       "pos": [
         0.0,
-        5400.0
+        6300.0
       ],
       "label": "Cheek web"
     },
     {
-      "id": 102,
+      "id": 112,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3792,12 +3914,12 @@
       },
       "pos": [
         0.0,
-        5550.0
+        6450.0
       ],
       "label": "Web round the spider"
     },
     {
-      "id": 103,
+      "id": 113,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3806,12 +3928,12 @@
       },
       "pos": [
         0.0,
-        5700.0
+        6600.0
       ],
       "label": "Web round the spider, capture silk"
     },
     {
-      "id": 104,
+      "id": 114,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3820,12 +3942,12 @@
       },
       "pos": [
         0.0,
-        5850.0
+        6750.0
       ],
       "label": "Web behind the spinnerets"
     },
     {
-      "id": 105,
+      "id": 115,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3834,12 +3956,12 @@
       },
       "pos": [
         0.0,
-        6000.0
+        6900.0
       ],
       "label": "Web behind the spinnerets, capture silk"
     },
     {
-      "id": 106,
+      "id": 116,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3848,12 +3970,12 @@
       },
       "pos": [
         0.0,
-        6150.0
+        7050.0
       ],
       "label": "Orb behind her"
     },
     {
-      "id": 107,
+      "id": 117,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3862,12 +3984,12 @@
       },
       "pos": [
         0.0,
-        6300.0
+        7200.0
       ],
       "label": "Orb behind her, capture silk"
     },
     {
-      "id": 108,
+      "id": 118,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3876,12 +3998,12 @@
       },
       "pos": [
         0.0,
-        6450.0
+        7350.0
       ],
       "label": "Web toward the palm"
     },
     {
-      "id": 109,
+      "id": 119,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3890,12 +4012,12 @@
       },
       "pos": [
         0.0,
-        6600.0
+        7500.0
       ],
       "label": "Web toward the palm, capture silk"
     },
     {
-      "id": 110,
+      "id": 120,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3904,12 +4026,12 @@
       },
       "pos": [
         0.0,
-        6750.0
+        7650.0
       ],
       "label": "Orb at the palm"
     },
     {
-      "id": 111,
+      "id": 121,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3918,12 +4040,12 @@
       },
       "pos": [
         0.0,
-        6900.0
+        7800.0
       ],
       "label": "Orb at the palm, capture silk"
     },
     {
-      "id": 112,
+      "id": 122,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3932,12 +4054,12 @@
       },
       "pos": [
         0.0,
-        7050.0
+        7950.0
       ],
       "label": "Web past the palm"
     },
     {
-      "id": 113,
+      "id": 123,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3946,12 +4068,12 @@
       },
       "pos": [
         0.0,
-        7200.0
+        8100.0
       ],
       "label": "Web past the palm, capture silk"
     },
     {
-      "id": 114,
+      "id": 124,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3960,12 +4082,12 @@
       },
       "pos": [
         0.0,
-        7350.0
+        8250.0
       ],
       "label": "Orb before her"
     },
     {
-      "id": 115,
+      "id": 125,
       "kind": "alpha.svg",
       "inputs": {
         "invert": false,
@@ -3974,12 +4096,12 @@
       },
       "pos": [
         0.0,
-        7500.0
+        8400.0
       ],
       "label": "Orb before her, capture silk"
     },
     {
-      "id": 116,
+      "id": 126,
       "kind": "alpha.png",
       "inputs": {
         "name": "Cheek web clearance",
@@ -3987,12 +4109,12 @@
       },
       "pos": [
         0.0,
-        7650.0
+        8550.0
       ],
       "label": "Cheek web clearance"
     },
     {
-      "id": 117,
+      "id": 127,
       "kind": "alpha.png",
       "inputs": {
         "name": "Crown web clearance",
@@ -4000,12 +4122,12 @@
       },
       "pos": [
         0.0,
-        7800.0
+        8700.0
       ],
       "label": "Crown web clearance"
     },
     {
-      "id": 118,
+      "id": 128,
       "kind": "list.merge",
       "pos": [
         240.0,
@@ -4013,39 +4135,39 @@
       ]
     },
     {
-      "id": 119,
+      "id": 129,
       "kind": "list.merge",
       "pos": [
         480.0,
-        450.0
+        600.0
       ]
     },
     {
-      "id": 120,
+      "id": 130,
       "kind": "list.merge",
       "pos": [
         720.0,
-        150.0
+        300.0
       ]
     },
     {
-      "id": 121,
+      "id": 131,
       "kind": "list.merge",
       "pos": [
         960.0,
-        150.0
+        300.0
       ]
     },
     {
-      "id": 122,
+      "id": 132,
       "kind": "list.merge",
       "pos": [
         1200.0,
-        150.0
+        300.0
       ]
     },
     {
-      "id": 123,
+      "id": 133,
       "kind": "list.merge",
       "pos": [
         1440.0,
@@ -4053,7 +4175,7 @@
       ]
     },
     {
-      "id": 124,
+      "id": 134,
       "kind": "design.assemble",
       "pos": [
         4560.0,
@@ -4061,180 +4183,113 @@
       ]
     },
     {
-      "id": 152,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/draft/min_detail_mm",
-        "value": 0.15
-      },
+      "id": 162,
+      "kind": "design.settings",
       "pos": [
         11280.0,
         0.0
-      ],
-      "label": "Preserve /draft/min_detail_mm"
+      ]
     },
     {
-      "id": 153,
-      "kind": "design.set",
+      "id": 163,
+      "kind": "draft.settings",
       "inputs": {
-        "pointer": "/draft/min_section_mm",
-        "value": 0.8
+        "auto_parting": true,
+        "min_detail_mm": 0.15,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.8,
+        "parting_z_mm": 0.0,
+        "process": "LostWax"
       },
       "pos": [
-        11520.0,
-        0.0
-      ],
-      "label": "Preserve /draft/min_section_mm"
+        0.0,
+        8850.0
+      ]
     },
     {
-      "id": 154,
-      "kind": "design.set",
-      "inputs": {
-        "pointer": "/draft/process",
-        "value": "LostWax"
-      },
-      "pos": [
-        11760.0,
-        0.0
-      ],
-      "label": "Preserve /draft/process"
-    },
-    {
-      "id": 155,
-      "kind": "design.set",
-      "params": {
-        "json_value": [
-          {
-            "crown_scale": 1.0,
-            "theta_deg": 30.0,
-            "thickness_scale": 1.1,
-            "width_scale": 1.16
-          },
-          {
-            "crown_scale": 1.0,
-            "theta_deg": 64.0,
-            "thickness_scale": 1.24,
-            "width_scale": 1.33
-          },
-          {
-            "crown_scale": 1.0,
-            "theta_deg": 108.0,
-            "thickness_scale": 1.25,
-            "width_scale": 1.33
-          },
-          {
-            "crown_scale": 1.0,
-            "theta_deg": 150.0,
-            "thickness_scale": 1.1,
-            "width_scale": 1.16
-          },
-          {
-            "crown_scale": 1.0,
-            "theta_deg": 210.0,
-            "thickness_scale": 0.98,
-            "width_scale": 0.97
-          },
-          {
-            "crown_scale": 1.0,
-            "theta_deg": 270.0,
-            "thickness_scale": 0.95,
-            "width_scale": 0.92
-          },
-          {
-            "crown_scale": 1.0,
-            "theta_deg": 330.0,
-            "thickness_scale": 0.98,
-            "width_scale": 0.97
-          }
-        ]
-      },
-      "inputs": {
-        "pointer": "/shank/keys"
-      },
-      "pos": [
-        12000.0,
-        0.0
-      ],
-      "label": "Preserve /shank/keys"
-    },
-    {
-      "id": 156,
+      "id": 164,
       "kind": "sink.output",
       "pos": [
-        12240.0,
+        11520.0,
         0.0
       ]
     }
   ],
   "wires": [
     {
+      "from": 30,
+      "out": "key",
+      "to": 37,
+      "input": "a"
+    },
+    {
+      "from": 31,
+      "out": "key",
+      "to": 37,
+      "input": "b"
+    },
+    {
+      "from": 32,
+      "out": "key",
+      "to": 37,
+      "input": "c"
+    },
+    {
+      "from": 37,
+      "out": "out",
+      "to": 38,
+      "input": "a"
+    },
+    {
+      "from": 33,
+      "out": "key",
+      "to": 38,
+      "input": "b"
+    },
+    {
+      "from": 34,
+      "out": "key",
+      "to": 38,
+      "input": "c"
+    },
+    {
+      "from": 35,
+      "out": "key",
+      "to": 38,
+      "input": "d"
+    },
+    {
+      "from": 38,
+      "out": "out",
+      "to": 39,
+      "input": "a"
+    },
+    {
+      "from": 36,
+      "out": "key",
+      "to": 39,
+      "input": "b"
+    },
+    {
+      "from": 39,
+      "out": "out",
+      "to": 29,
+      "input": "keys"
+    },
+    {
       "from": 28,
       "out": "profile",
-      "to": 30,
+      "to": 40,
       "input": "profile"
     },
     {
       "from": 29,
       "out": "shank",
-      "to": 30,
+      "to": 40,
       "input": "shank"
     },
     {
-      "from": 31,
-      "out": "layer",
-      "to": 32,
-      "input": "layer"
-    },
-    {
-      "from": 33,
-      "out": "window",
-      "to": 32,
-      "input": "window"
-    },
-    {
-      "from": 32,
-      "out": "entry",
-      "to": 34,
-      "input": "entries"
-    },
-    {
-      "from": 36,
-      "out": "gem",
-      "to": 35,
-      "input": "gem"
-    },
-    {
-      "from": 35,
-      "out": "layer",
-      "to": 37,
-      "input": "layer"
-    },
-    {
-      "from": 38,
-      "out": "window",
-      "to": 37,
-      "input": "window"
-    },
-    {
-      "from": 34,
-      "out": "stack",
-      "to": 39,
-      "input": "stack"
-    },
-    {
-      "from": 37,
-      "out": "entry",
-      "to": 39,
-      "input": "entries"
-    },
-    {
       "from": 41,
-      "out": "gem",
-      "to": 40,
-      "input": "gem"
-    },
-    {
-      "from": 40,
       "out": "layer",
       "to": 42,
       "input": "layer"
@@ -4246,505 +4301,559 @@
       "input": "window"
     },
     {
-      "from": 39,
-      "out": "stack",
-      "to": 44,
-      "input": "stack"
-    },
-    {
       "from": 42,
       "out": "entry",
       "to": 44,
       "input": "entries"
     },
     {
+      "from": 46,
+      "out": "gem",
+      "to": 45,
+      "input": "gem"
+    },
+    {
       "from": 45,
       "out": "layer",
-      "to": 46,
+      "to": 47,
       "input": "layer"
     },
     {
-      "from": 47,
+      "from": 48,
       "out": "window",
-      "to": 46,
+      "to": 47,
       "input": "window"
     },
     {
       "from": 44,
       "out": "stack",
-      "to": 48,
+      "to": 49,
       "input": "stack"
     },
     {
-      "from": 46,
+      "from": 47,
       "out": "entry",
-      "to": 48,
+      "to": 49,
       "input": "entries"
-    },
-    {
-      "from": 49,
-      "out": "layer",
-      "to": 50,
-      "input": "layer"
     },
     {
       "from": 51,
-      "out": "window",
+      "out": "gem",
       "to": 50,
-      "input": "window"
-    },
-    {
-      "from": 48,
-      "out": "stack",
-      "to": 52,
-      "input": "stack"
+      "input": "gem"
     },
     {
       "from": 50,
-      "out": "entry",
+      "out": "layer",
       "to": 52,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 53,
-      "out": "layer",
-      "to": 54,
-      "input": "layer"
+      "out": "window",
+      "to": 52,
+      "input": "window"
     },
     {
-      "from": 55,
-      "out": "window",
+      "from": 49,
+      "out": "stack",
       "to": 54,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 52,
-      "out": "stack",
-      "to": 56,
-      "input": "stack"
+      "out": "entry",
+      "to": 54,
+      "input": "entries"
     },
     {
-      "from": 54,
-      "out": "entry",
+      "from": 55,
+      "out": "layer",
       "to": 56,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 57,
-      "out": "layer",
-      "to": 58,
-      "input": "layer"
+      "out": "window",
+      "to": 56,
+      "input": "window"
     },
     {
-      "from": 59,
-      "out": "window",
+      "from": 54,
+      "out": "stack",
       "to": 58,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 56,
-      "out": "stack",
-      "to": 60,
-      "input": "stack"
+      "out": "entry",
+      "to": 58,
+      "input": "entries"
     },
     {
-      "from": 58,
-      "out": "entry",
+      "from": 59,
+      "out": "layer",
       "to": 60,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 61,
-      "out": "layer",
-      "to": 62,
-      "input": "layer"
+      "out": "window",
+      "to": 60,
+      "input": "window"
     },
     {
-      "from": 63,
-      "out": "window",
+      "from": 58,
+      "out": "stack",
       "to": 62,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 60,
-      "out": "stack",
-      "to": 64,
-      "input": "stack"
+      "out": "entry",
+      "to": 62,
+      "input": "entries"
     },
     {
-      "from": 62,
-      "out": "entry",
+      "from": 63,
+      "out": "layer",
       "to": 64,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 65,
-      "out": "layer",
-      "to": 66,
-      "input": "layer"
+      "out": "window",
+      "to": 64,
+      "input": "window"
     },
     {
-      "from": 67,
-      "out": "window",
+      "from": 62,
+      "out": "stack",
       "to": 66,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 64,
-      "out": "stack",
-      "to": 68,
-      "input": "stack"
+      "out": "entry",
+      "to": 66,
+      "input": "entries"
     },
     {
-      "from": 66,
-      "out": "entry",
+      "from": 67,
+      "out": "layer",
       "to": 68,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 69,
-      "out": "layer",
-      "to": 70,
-      "input": "layer"
+      "out": "window",
+      "to": 68,
+      "input": "window"
     },
     {
-      "from": 71,
-      "out": "window",
+      "from": 66,
+      "out": "stack",
       "to": 70,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 68,
-      "out": "stack",
-      "to": 72,
-      "input": "stack"
+      "out": "entry",
+      "to": 70,
+      "input": "entries"
     },
     {
-      "from": 70,
-      "out": "entry",
+      "from": 71,
+      "out": "layer",
       "to": 72,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 73,
-      "out": "layer",
-      "to": 74,
-      "input": "layer"
+      "out": "window",
+      "to": 72,
+      "input": "window"
     },
     {
-      "from": 75,
-      "out": "window",
+      "from": 70,
+      "out": "stack",
       "to": 74,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 72,
-      "out": "stack",
-      "to": 76,
-      "input": "stack"
+      "out": "entry",
+      "to": 74,
+      "input": "entries"
     },
     {
-      "from": 74,
-      "out": "entry",
+      "from": 75,
+      "out": "layer",
       "to": 76,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 77,
-      "out": "layer",
-      "to": 78,
-      "input": "layer"
+      "out": "window",
+      "to": 76,
+      "input": "window"
     },
     {
-      "from": 79,
-      "out": "window",
+      "from": 74,
+      "out": "stack",
       "to": 78,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 76,
-      "out": "stack",
-      "to": 80,
-      "input": "stack"
+      "out": "entry",
+      "to": 78,
+      "input": "entries"
     },
     {
-      "from": 78,
-      "out": "entry",
+      "from": 79,
+      "out": "layer",
       "to": 80,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 81,
-      "out": "layer",
-      "to": 82,
-      "input": "layer"
+      "out": "window",
+      "to": 80,
+      "input": "window"
     },
     {
-      "from": 83,
-      "out": "window",
+      "from": 78,
+      "out": "stack",
       "to": 82,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 80,
-      "out": "stack",
-      "to": 84,
-      "input": "stack"
+      "out": "entry",
+      "to": 82,
+      "input": "entries"
     },
     {
-      "from": 82,
-      "out": "entry",
+      "from": 83,
+      "out": "layer",
       "to": 84,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 85,
-      "out": "layer",
-      "to": 86,
-      "input": "layer"
+      "out": "window",
+      "to": 84,
+      "input": "window"
     },
     {
-      "from": 87,
-      "out": "window",
+      "from": 82,
+      "out": "stack",
       "to": 86,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 84,
-      "out": "stack",
-      "to": 88,
-      "input": "stack"
+      "out": "entry",
+      "to": 86,
+      "input": "entries"
     },
     {
-      "from": 86,
-      "out": "entry",
+      "from": 87,
+      "out": "layer",
       "to": 88,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 89,
-      "out": "layer",
-      "to": 90,
-      "input": "layer"
+      "out": "window",
+      "to": 88,
+      "input": "window"
     },
     {
-      "from": 91,
-      "out": "window",
+      "from": 86,
+      "out": "stack",
       "to": 90,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 88,
-      "out": "stack",
-      "to": 92,
-      "input": "stack"
+      "out": "entry",
+      "to": 90,
+      "input": "entries"
     },
     {
-      "from": 90,
-      "out": "entry",
+      "from": 91,
+      "out": "layer",
       "to": 92,
-      "input": "entries"
+      "input": "layer"
     },
     {
       "from": 93,
-      "out": "layer",
-      "to": 94,
-      "input": "layer"
+      "out": "window",
+      "to": 92,
+      "input": "window"
     },
     {
-      "from": 95,
-      "out": "window",
+      "from": 90,
+      "out": "stack",
       "to": 94,
-      "input": "window"
+      "input": "stack"
     },
     {
       "from": 92,
-      "out": "stack",
-      "to": 96,
-      "input": "stack"
-    },
-    {
-      "from": 94,
       "out": "entry",
-      "to": 96,
+      "to": 94,
       "input": "entries"
     },
     {
-      "from": 97,
+      "from": 95,
       "out": "layer",
-      "to": 98,
+      "to": 96,
       "input": "layer"
     },
     {
-      "from": 99,
+      "from": 97,
       "out": "window",
-      "to": 98,
+      "to": 96,
       "input": "window"
     },
     {
-      "from": 96,
+      "from": 94,
       "out": "stack",
-      "to": 100,
+      "to": 98,
       "input": "stack"
     },
     {
-      "from": 98,
+      "from": 96,
       "out": "entry",
-      "to": 100,
+      "to": 98,
       "input": "entries"
     },
     {
-      "from": 101,
-      "out": "source",
-      "to": 118,
-      "input": "a"
+      "from": 99,
+      "out": "layer",
+      "to": 100,
+      "input": "layer"
     },
     {
-      "from": 102,
-      "out": "source",
-      "to": 118,
-      "input": "b"
+      "from": 101,
+      "out": "window",
+      "to": 100,
+      "input": "window"
+    },
+    {
+      "from": 98,
+      "out": "stack",
+      "to": 102,
+      "input": "stack"
+    },
+    {
+      "from": 100,
+      "out": "entry",
+      "to": 102,
+      "input": "entries"
     },
     {
       "from": 103,
-      "out": "source",
-      "to": 118,
-      "input": "c"
-    },
-    {
-      "from": 118,
-      "out": "out",
-      "to": 119,
-      "input": "a"
-    },
-    {
-      "from": 104,
-      "out": "source",
-      "to": 119,
-      "input": "b"
+      "out": "layer",
+      "to": 104,
+      "input": "layer"
     },
     {
       "from": 105,
-      "out": "source",
-      "to": 119,
-      "input": "c"
+      "out": "window",
+      "to": 104,
+      "input": "window"
     },
     {
-      "from": 106,
-      "out": "source",
-      "to": 119,
-      "input": "d"
+      "from": 102,
+      "out": "stack",
+      "to": 106,
+      "input": "stack"
     },
     {
-      "from": 119,
-      "out": "out",
-      "to": 120,
-      "input": "a"
+      "from": 104,
+      "out": "entry",
+      "to": 106,
+      "input": "entries"
     },
     {
       "from": 107,
-      "out": "source",
-      "to": 120,
-      "input": "b"
-    },
-    {
-      "from": 108,
-      "out": "source",
-      "to": 120,
-      "input": "c"
+      "out": "layer",
+      "to": 108,
+      "input": "layer"
     },
     {
       "from": 109,
-      "out": "source",
-      "to": 120,
-      "input": "d"
+      "out": "window",
+      "to": 108,
+      "input": "window"
     },
     {
-      "from": 120,
-      "out": "out",
-      "to": 121,
-      "input": "a"
+      "from": 106,
+      "out": "stack",
+      "to": 110,
+      "input": "stack"
     },
     {
-      "from": 110,
-      "out": "source",
-      "to": 121,
-      "input": "b"
+      "from": 108,
+      "out": "entry",
+      "to": 110,
+      "input": "entries"
     },
     {
       "from": 111,
       "out": "source",
-      "to": 121,
-      "input": "c"
+      "to": 128,
+      "input": "a"
     },
     {
       "from": 112,
       "out": "source",
-      "to": 121,
-      "input": "d"
-    },
-    {
-      "from": 121,
-      "out": "out",
-      "to": 122,
-      "input": "a"
+      "to": 128,
+      "input": "b"
     },
     {
       "from": 113,
       "out": "source",
-      "to": 122,
-      "input": "b"
+      "to": 128,
+      "input": "c"
+    },
+    {
+      "from": 128,
+      "out": "out",
+      "to": 129,
+      "input": "a"
     },
     {
       "from": 114,
       "out": "source",
-      "to": 122,
-      "input": "c"
+      "to": 129,
+      "input": "b"
     },
     {
       "from": 115,
       "out": "source",
-      "to": 122,
-      "input": "d"
-    },
-    {
-      "from": 122,
-      "out": "out",
-      "to": 123,
-      "input": "a"
+      "to": 129,
+      "input": "c"
     },
     {
       "from": 116,
       "out": "source",
-      "to": 123,
-      "input": "b"
+      "to": 129,
+      "input": "d"
+    },
+    {
+      "from": 129,
+      "out": "out",
+      "to": 130,
+      "input": "a"
     },
     {
       "from": 117,
       "out": "source",
-      "to": 123,
+      "to": 130,
+      "input": "b"
+    },
+    {
+      "from": 118,
+      "out": "source",
+      "to": 130,
       "input": "c"
     },
     {
-      "from": 30,
-      "out": "design",
-      "to": 124,
-      "input": "design"
+      "from": 119,
+      "out": "source",
+      "to": 130,
+      "input": "d"
     },
     {
-      "from": 100,
-      "out": "stack",
-      "to": 124,
-      "input": "stack"
+      "from": 130,
+      "out": "out",
+      "to": 131,
+      "input": "a"
+    },
+    {
+      "from": 120,
+      "out": "source",
+      "to": 131,
+      "input": "b"
+    },
+    {
+      "from": 121,
+      "out": "source",
+      "to": 131,
+      "input": "c"
+    },
+    {
+      "from": 122,
+      "out": "source",
+      "to": 131,
+      "input": "d"
+    },
+    {
+      "from": 131,
+      "out": "out",
+      "to": 132,
+      "input": "a"
     },
     {
       "from": 123,
-      "out": "out",
-      "to": 124,
-      "input": "alphas"
+      "out": "source",
+      "to": 132,
+      "input": "b"
     },
     {
       "from": 124,
+      "out": "source",
+      "to": 132,
+      "input": "c"
+    },
+    {
+      "from": 125,
+      "out": "source",
+      "to": 132,
+      "input": "d"
+    },
+    {
+      "from": 132,
+      "out": "out",
+      "to": 133,
+      "input": "a"
+    },
+    {
+      "from": 126,
+      "out": "source",
+      "to": 133,
+      "input": "b"
+    },
+    {
+      "from": 127,
+      "out": "source",
+      "to": 133,
+      "input": "c"
+    },
+    {
+      "from": 40,
+      "out": "design",
+      "to": 134,
+      "input": "design"
+    },
+    {
+      "from": 110,
+      "out": "stack",
+      "to": 134,
+      "input": "stack"
+    },
+    {
+      "from": 133,
+      "out": "out",
+      "to": 134,
+      "input": "alphas"
+    },
+    {
+      "from": 134,
       "out": "design",
       "to": 1,
       "input": "design"
@@ -4908,50 +5017,21 @@
     {
       "from": 27,
       "out": "design",
-      "to": 152,
+      "to": 162,
       "input": "design"
     },
     {
-      "from": 152,
-      "out": "design",
-      "to": 153,
-      "input": "design"
+      "from": 163,
+      "out": "draft",
+      "to": 162,
+      "input": "draft"
     },
     {
-      "from": 153,
+      "from": 162,
       "out": "design",
-      "to": 154,
-      "input": "design"
-    },
-    {
-      "from": 154,
-      "out": "design",
-      "to": 155,
-      "input": "design"
-    },
-    {
-      "from": 155,
-      "out": "design",
-      "to": 156,
+      "to": 164,
       "input": "design"
     }
   ],
-  "exposed": [
-    {
-      "node": 30,
-      "input": "size",
-      "name": "US size"
-    },
-    {
-      "node": 28,
-      "input": "width_mm",
-      "name": "Band width"
-    },
-    {
-      "node": 28,
-      "input": "thickness_mm",
-      "name": "Band thickness"
-    }
-  ],
-  "next_id": 157
+  "next_id": 165
 }

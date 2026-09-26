@@ -1,7 +1,7 @@
 {
   "authoring_ms": {
-    "graph_creation": 31.615873000000004,
-    "source_read": 13.82547
+    "graph_creation": 9.661487,
+    "source_read": 0.865548
   },
   "cold_design_reload": true,
   "cold_graph_reload": true,
@@ -25,16 +25,16 @@
   },
   "nodes": 114,
   "open_ms": {
-    "bake": 0.345963,
-    "bake_again": 0.750377,
-    "detail": 4119.611313,
-    "detail_again": 24.867486,
-    "evaluate": 17.918166,
-    "first_build": 2413.440464,
-    "read": 16.432392,
-    "rebuild": 4.198986,
+    "bake": 0.25122300000000003,
+    "bake_again": 0.211222,
+    "detail": 612.1224400000001,
+    "detail_again": 18.609766999999998,
+    "evaluate": 4.658722,
+    "first_build": 1179.761949,
+    "read": 4.8716740000000005,
+    "rebuild": 1.15435,
     "unpack": null,
-    "verdict": 173.71999599999998
+    "verdict": 22.694524
   },
   "size_budget_bytes": 3000000,
   "size_review_required": false,

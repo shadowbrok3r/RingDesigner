@@ -1,56 +1,46 @@
 {
+  "authoring_ms": {
+    "graph_creation": 5.767942,
+    "source_read": 4.056296
+  },
   "cold_design_reload": true,
   "cold_graph_reload": true,
   "design_bytes": 644207,
-  "design_set_patches": 4,
-  "exposed_controls": [
-    "US size",
-    "Band width",
-    "Band thickness"
-  ],
+  "design_set_patches": [],
+  "detail_findings": 0,
+  "editable_design_bytes": 1093295,
+  "editable_graph_reload": true,
+  "export_geometry_verified": true,
+  "exposed_control_policy": "explicit_allowlist",
+  "exposed_controls": [],
   "gates_passed": true,
+  "geometry_check_resolution": {
+    "profile_steps": 448,
+    "refine": null,
+    "theta_steps": 1536
+  },
   "geometry_gates_passed": true,
-  "graph_bytes": 670316,
-  "nodes": 129,
-  "notes_empty": true,
+  "nodes": 137,
   "open_ms": {
-    "bake": 0.211163,
-    "cold_build": 1624.594221,
-    "evaluate": 5.338731999999999,
-    "first_build": 1649.902641,
-    "read": 1.337956
+    "bake": 0.140071,
+    "bake_again": 0.089201,
+    "detail": 4476.064121,
+    "detail_again": 68.37929500000001,
+    "evaluate": 2.605954,
+    "first_build": 556.4061879999999,
+    "read": 1.423802,
+    "rebuild": 1.0488190000000002,
+    "unpack": null,
+    "verdict": 51.858546
   },
-  "open_probe_method": "template_open_probe phases applied to the local, unregistered graph",
-  "patch_budget": 4,
-  "patch_gate": "PASS",
-  "patch_pointers": [
-    "/draft/min_detail_mm",
-    "/draft/min_section_mm",
-    "/draft/process",
-    "/shank/keys"
-  ],
-  "size_budget_enforced": false,
-  "size_budget_procedural_bytes": 300000,
-  "size_flag": "Mixed-source graph exceeds the 300 KB procedural-only allowance and is below the 3 MB painted-atlas flag; both measurements retained for packaging classification.",
+  "size_budget_bytes": 3000000,
+  "size_review_required": false,
   "source_identical": true,
+  "source_method": "lift",
+  "template_bytes": 671142,
+  "template_class": "painted",
   "template_gate_passed": true,
+  "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
   "triangles": 1323510,
-  "vertices_faces_normals_identical": true,
-  "source_classification": {
-    "base": "procedural keyframed band",
-    "silk": "authored SVG paths with rounded height contours",
-    "clearance": "two PNG16 atlases generated with Atlas::paint",
-    "made_parts": "stored collets and continuous local limb lofts, mirrored in CAD",
-    "class": "mixed SVG, painted-atlas clearance and stored CAD"
-  },
-  "source_payload_bytes": {
-    "measurement": "UTF-8 compact JSON component sizes; excludes enclosing design formatting",
-    "embedded_clearance_atlases": 138189,
-    "svg_sources": 184873,
-    "stored_collets": 105230,
-    "stored_limbs": 126548,
-    "cad_features_and_recipes": 19937
-  },
-  "size_budget_painted_atlas_flag_bytes": 3000000,
-  "painted_atlas_size_flag": false
+  "vertices_faces_normals_identical": true
 }

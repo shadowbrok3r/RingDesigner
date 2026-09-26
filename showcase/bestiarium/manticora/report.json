@@ -84,8 +84,8 @@
   },
   "bore_mm": 18.599999036082675,
   "build": {
-    "author_s": 5.31457844,
-    "build_s": 5.477572282,
+    "author_s": 4.738799256,
+    "build_s": 6.392618996,
     "profile_steps": 448,
     "theta_steps": 1536,
     "triangles": 1372332
