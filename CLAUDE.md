@@ -1088,8 +1088,8 @@ pins both directions. On top of that:
   the shipped templates (`dfm::measured_tests::the_templates_measured`,
   `--nocapture`) it names three: Waves at 0.04 mm strokes on the waved
   hexagon signet's 11.8 × 0.8 mm cells, Chevron at 0.03 mm gaps on the
-  shouldered cushion's 7.6 × 0.6 mm shoulders, Braid at 0.04 mm gaps on
-  the braided band — all castable by the field, all casting softer than
+  shouldered cushion's 7.6 × 0.6 mm shoulders, Braid at 0.10 mm gaps on
+  the braided band (0.04 before its tall texels were read square) — all castable by the field, all casting softer than
   drawn, which is what the chip now says instead of nothing.
 
   **A tiling is measured at the tightest station its window covers**, not
@@ -1101,7 +1101,24 @@ pins both directions. On top of that:
   two figures above moved from 0.10 and 0.07 when `worst_arc_ratio` was
   added, and the finding now names the angle (185° on both). A *decal* had
   always done this per station; a tiling covers an arc, so what matters is
-  the worst one in it.
+  the worst one in it. A **hide** — one tile round the whole ring — lays
+  each column at its own angle, so it is judged at the worst station where
+  it stands half its height, not where its window reaches: a table-only
+  texture had been read at a 50° station's 0.43 scale. And granulometry's
+  disc is round in texels, so on texels more than 5% from square the
+  coarser axis is repeated out to the finer pitch before it is read (the
+  proposed box-average down to the coarse pitch quantized a thin bar to two
+  texels and read it 25% fat); the finer pitch alone had read bars across a
+  tall cell at a quarter of their width. `fit_to_floor` keeps its closed
+  form at the finer pitch, because examples build from it: on tall texels
+  its solve is safe but not tight (Chevron solves 16 and flags from 24).
+
+  A **made part** is not a layer, and a lost-wax ring's lands are judged
+  on it: `dfm::part_sections(solid, up, floor)` reads each face by one ray
+  along its inward normal and returns the thinnest section and the area
+  under the floor — a claw's diameter, a collet's wall, a point as a little
+  area to except by name. With `up`, the part's axis, faces turned toward
+  its ends are not read.
 
   A **flute** is measured *around* the ring, not across the band. It was
   filed as a `FeatureFootprint::across` — whose own doc named a flute —
@@ -1664,9 +1681,12 @@ and halos carry the field through their seats.
   the base rail, "None" none (a basket takes 0 to 6). A railless claw must
   find metal at its own foot or the head is refused by name, so a claw landing
   past a narrow band's edge asks for the Jaws grouping or a stone seated
-  further onto the band. On a cabochon the shaped styles climb the dome and
-  rest on it, the tip at `rise` of the dome's height (0.3 by default, at most
-  0.6, lower where the claw's bends cannot fit); a Seat rail hides most of a
+  further onto the band. A railless foot that already starts buried deeper
+  than the search accepts (a sloped table) is raised up its own line until it
+  sinks `FOOT_SINK_MM`, not called free; tied claws keep their own foot. On a
+  cabochon the shaped styles climb the dome and rest on it, the tip at `rise`
+  of the dome's height (0.3 by default, at most 0.6, lower where the claw's
+  bends cannot fit); a Seat rail hides most of a
   climbing claw, so railless heads are what make fangs and tentacles read.
   Defaults are bit-identical to the plain wire head, and anything else is
   fenced at design format 6 and graph format 2. Every head is cleaned of
@@ -2407,6 +2427,8 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   band (Separate, Join, Cut), whether it is poured or added at the bench,
   and the radius of the rolling-ball seam bead (`blend.rs`) laid along every
   seam the traced boolean reports — 0.0046 mm off the analytic torus fillet.
+  A bead that pinches or folds says where — ring angle, the section's r and
+  z, and the point (`blend::station_at`) — so no probe build hunts for it.
   A bench part is shown finished and left out of a sand pattern. Every part
   vertex names its feature through `Mesh.origin` (`Resolved::feature_of`).
 - **Edges are named by signature, not by position.** `EdgeRef` carries the
@@ -3200,6 +3222,21 @@ deterministic.
   a 40° leaf filled to the rule with its bays cut at the bench pulls. Its
   −40° row is not a result: the leaf failed to join ("two cuts cross inside
   a face") and the row judged the bare table.
+
+**Sculpt is core too.** `sculpt.rs` is the toolkit Fenrir grew in its
+example, moved as it was, so any ring can carry a sculpted part as a stored
+mesh: a distance field built from `smin`/`smax`, `ellipsoid`, `round_cone`
+and `trapezoid`, met to the ring through a `Stock` field, meshed by
+`tetra_mesh`, `relax`ed, `clean_decimate`d to a budget (backing off until
+`csg::self_crossings` reads zero) and `settle`d — sliver collapse, edge-flip
+polish, fold-corner smoothing, each kept only while the mesh stays closed and
+uncrossed. A hollow is `Heights::first_air` eroded by a ball of the wall,
+kept by `open_shells` where it opens into the bore; `packed` refuses an open
+or crossing mesh. On Fenrir's own wolf the hollow and every stage up to
+fold-corner smoothing are bit for bit the example's. That one changed: it
+summed each corner's ring in `HashSet` order, so the example's head differed
+in its last bits run to run; the ring is sorted now and every tool is
+deterministic. A lattice is held to `MAX_GRID_POINTS` by coarsening its step.
 
 ## Reels are played by the app, not by a finger
 

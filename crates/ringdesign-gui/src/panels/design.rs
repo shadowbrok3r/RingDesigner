@@ -815,6 +815,12 @@ fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             .changed();
     }
 
+    if app.design.shank.kind == ShankKind::Bypass {
+        changed |= ringdesign_workbench::controls::slider(ui, "Tip fair", egui::Slider::new(&mut app.design.shank.bypass_fair_deg, 0.0..=12.0).suffix("°").fixed_decimals(1))
+            .on_hover_text("Degrees along the ring each arm's tip is faired into the other arm; 0 keeps the hard step.")
+            .changed();
+    }
+
     if app.design.shank.kind == ShankKind::Signet {
         changed |= signet_head(app, ui);
     }

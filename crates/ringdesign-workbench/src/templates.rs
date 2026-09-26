@@ -722,6 +722,11 @@ mod tests {
                 assert!(started.elapsed().as_secs() < 60, "{slug} never landed at {:?}", opening.stage());
                 std::thread::sleep(std::time::Duration::from_millis(2));
             };
+            // Waits up to 5 s for the template-wake thread to deliver the wakes.
+            let landed = std::time::Instant::now();
+            while wakes.load(Ordering::Relaxed) < 2 && landed.elapsed().as_secs() < 5 {
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
             assert!(wakes.load(Ordering::Relaxed) >= 2, "{slug} wakes the UI as it goes and when it lands");
             assert!(opening.is_finished() || { std::thread::sleep(std::time::Duration::from_millis(50)); opening.is_finished() });
             assert_eq!(serde_json::to_value(&opened.design).unwrap(), serde_json::to_value(template.instantiate(&reg, &lib).unwrap()).unwrap(), "{slug}");

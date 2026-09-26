@@ -49,6 +49,8 @@ pub struct Bead {
     pub stations: usize,
     /// The smallest radius laid.
     pub min_radius_mm: f64,
+    /// The seam point of the station laid at that radius.
+    pub min_at: P3,
     /// Stations whose ball could not be settled against the faces and kept the planar estimate.
     pub unrefined: usize,
     /// Stations shrunk because the sweep crossed itself there.
@@ -440,7 +442,7 @@ fn bead_polled(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: f64, 
             break;
         }
         if round == FOLD_ROUNDS || crossing.iter().all(|&i| radii[i] <= RADIUS_MIN_MM + 1e-12) {
-            return Err(format!("the bead folds at {} of {n} stations at its smallest radius", crossing.len()));
+            return Err(format!("the bead folds at {} of {n} stations at its smallest radius, first at {}", crossing.len(), station_at(pts[crossing[0]])));
         }
         for &i in &crossing {
             for d in 0..5 {
@@ -454,9 +456,17 @@ fn bead_polled(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: f64, 
         solid = sweep(&st, m_arc);
     }
     let clamped = radii.iter().filter(|r| **r < r0 - 1e-9).count();
-    let min_radius_mm = radii.iter().copied().fold(f64::INFINITY, f64::min);
+    let (min_i, min_radius_mm) = radii.iter().copied().enumerate().fold((0, f64::INFINITY), |a, b| if b.1 < a.1 { b } else { a });
     let unrefined = if surfaces.is_some() { st.iter().filter(|s| !s.refined).count() } else { 0 };
-    Ok(Bead { solid, clamped, stations: n, min_radius_mm, unrefined, folded: folded.iter().filter(|f| **f).count() })
+    Ok(Bead { solid, clamped, stations: n, min_radius_mm, min_at: pts[min_i], unrefined, folded: folded.iter().filter(|f| **f).count() })
+}
+
+/// Where a seam point of the ring's frame sits, for a message the author can find it from: its ring
+/// angle, its place in the band's section there (radius from the axis, height along the finger) and
+/// the point itself.
+pub fn station_at(p: P3) -> String {
+    let theta = p[1].atan2(p[0]).to_degrees().rem_euclid(360.0);
+    format!("{theta:.1}° round the ring, r {:.2} z {:.2} mm in its section, point ({:.2}, {:.2}, {:.2}) mm", p[0].hypot(p[1]), p[2], p[0], p[1], p[2])
 }
 
 /// Settle every station's ball at its radius, then shrink any whose reach or inward extent breaks a
@@ -885,6 +895,30 @@ mod tests {
         assert!(j.min_radius_mm <= RADIUS_MIN_MM + 1e-9);
         let bead = bead_against(&seams[0].points, &seams[0].normals_a, &seams[0].normals_b, 0.3, Some(&Surfaces::near(&t, &seams[0].points, 1.5))).unwrap();
         assert_eq!(csg::self_crossings(&bead.solid), 0);
+        // The pinch is at a tip of the lens, on the crown within a couple of millimetres of the top.
+        let at = bead.min_at;
+        let theta = at[1].atan2(at[0]).to_degrees();
+        assert!(bead.min_radius_mm <= RADIUS_MIN_MM + 1e-9 && (theta - 90.0).abs() < 15.0 && at[2].abs() < 1.0, "{}", station_at(at));
+    }
+
+    #[test]
+    fn a_fold_names_the_station_it_is_found_at() {
+        assert_eq!(station_at([-10.0, 0.0, 0.25]), "180.0° round the ring, r 10.00 z 0.25 mm in its section, point (-10.00, 0.00, 0.25) mm");
+        // A seam that crosses itself at the top of a 10 mm ring: the sweep folds there at any radius.
+        let n = 400;
+        let seam: Vec<P3> = (0..n)
+            .map(|i| {
+                let a = std::f64::consts::TAU * i as f64 / n as f64;
+                [2.0 * a.sin(), 10.0 + 1.5 * a.sin() * a.cos(), 0.0]
+            })
+            .collect();
+        let up = vec![[0.0, 0.0, 1.0]; n];
+        let out: Vec<P3> = (0..n).map(|i| unit(perp(sub(seam[i], [0.0, 10.0, 0.0]), [0.0, 0.0, 1.0]))).collect();
+        let e = bead(&seam, &up, &out, 0.3).unwrap_err();
+        let (head, place) = e.split_once(", first at ").unwrap_or_else(|| panic!("{e}"));
+        assert!(head.starts_with("the bead folds at "), "{e}");
+        let theta: f64 = place.split('°').next().unwrap().parse().unwrap();
+        assert!((theta - 90.0).abs() < 3.0 && place.contains("r 10.0") && place.contains("z 0.00 mm in its section"), "{e}");
     }
 
     #[test]
