@@ -340,14 +340,22 @@ fn fold(q: P3, a: (f64, f64), b: (f64, f64), bow: f64, amp: f64) -> f64 {
     let (dx, du) = (b.0 - a.0, b.1 - a.1);
     let l = dx.hypot(du).max(1e-9);
     let mid = (0.5 * (a.0 + b.0) - bow * du / l, 0.5 * (a.1 + b.1) + bow * dx.abs() / l);
-    let mut best = (f64::MAX, 0.0);
-    for i in 0..=20 {
-        let t = i as f64 / 20.0;
+    let at = |t: f64| {
         let x = (1.0 - t) * (1.0 - t) * a.0 + 2.0 * t * (1.0 - t) * mid.0 + t * t * b.0;
         let u = (1.0 - t) * (1.0 - t) * a.1 + 2.0 * t * (1.0 - t) * mid.1 + t * t * b.1;
-        let d = (q[0] - x).hypot(q[1] - u);
+        (x, u)
+    };
+    // The nearest point on the curve, projected onto each of its chords so the share along it moves continuously.
+    let n = 24;
+    let mut best = (f64::MAX, 0.0);
+    for i in 0..n {
+        let (t0, t1) = (i as f64 / n as f64, (i + 1) as f64 / n as f64);
+        let (p0, p1) = (at(t0), at(t1));
+        let (sx, su) = (p1.0 - p0.0, p1.1 - p0.1);
+        let k = (((q[0] - p0.0) * sx + (q[1] - p0.1) * su) / (sx * sx + su * su).max(1e-12)).clamp(0.0, 1.0);
+        let d = (q[0] - p0.0 - k * sx).hypot(q[1] - p0.1 - k * su);
         if d < best.0 {
-            best = (d, t);
+            best = (d, t0 + k * (t1 - t0));
         }
     }
     let taper = smooth(0.0, 0.25, best.1) * (1.0 - smooth(0.55, 1.0, best.1));
@@ -368,6 +376,11 @@ struct Wolf {
 impl Wolf {
     fn face(&self, p: P3) -> P3 {
         [p[0], -p[2], p[1] - self.table]
+    }
+    /// Whether world point `p` lies over the cheeks, brow and muzzle, clear of the mouth and ears.
+    fn in_face_zone(&self, p: P3) -> bool {
+        let q = self.face(p);
+        q[2] > 0.1 && q[0].hypot(q[1] - MOON_U) > 6.7 && q[1] < 7.4 && q[0].abs() < 9.4
     }
     fn new(table: f64, bore: f64, relief: Relief, stock: Stock) -> Self {
         let mut w = Self { table, bore, relief, stock, teeth: Vec::new(), eye_h: 0.0 };
@@ -1180,7 +1193,7 @@ fn zone_folds(wolf: &Wolf, m: &Nets) -> usize {
 
 /// Two more rounds of relaxing on a decimated mesh and the meshing's folds flipped away, each kept only if the mesh
 /// still does not cross itself.
-fn settle(nets: Nets, field: &(dyn Fn(P3) -> f64 + Sync)) -> Nets {
+fn settle(nets: Nets, field: &(dyn Fn(P3) -> f64 + Sync), fair_where: &dyn Fn(P3) -> bool) -> Nets {
     let clean = |n: &Nets| csg::self_crossings(&csg::Solid { v: n.v.clone(), f: n.f.clone() }) == 0;
     let mut relaxed = Nets { v: nets.v.clone(), f: nets.f.clone() };
     relax(&mut relaxed, field, 2);
@@ -1207,11 +1220,14 @@ fn settle(nets: Nets, field: &(dyn Fn(P3) -> f64 + Sync)) -> Nets {
     let nets = if bad == 0 && clean(&flipped) { flipped } else { nets };
     let mut smoothed = Nets { v: nets.v.clone(), f: nets.f.clone() };
     let m = smooth_folds(&mut smoothed, field, 16);
-    if clean(&smoothed) {
-        println!("  flipped {n} edges, moved {m} fold corners");
-        smoothed
+    let nets = if clean(&smoothed) { smoothed } else { nets };
+    let mut faired = Nets { v: nets.v.clone(), f: nets.f.clone() };
+    let k = smooth_folds_by(&mut faired, field, 24, 55.0, Some((0.05, fair_where))) + polish_where(&mut faired, field, 4, fair_where);
+    if clean(&faired) {
+        println!("  flipped {n} edges, moved {m} fold corners, faired {k}");
+        faired
     } else {
-        println!("  flipped {n} edges; fold smoothing crossed itself and was dropped");
+        println!("  flipped {n} edges, moved {m} fold corners; fairing crossed itself and was dropped");
         nets
     }
 }
@@ -1219,6 +1235,12 @@ fn settle(nets: Nets, field: &(dyn Fn(P3) -> f64 + Sync)) -> Nets {
 /// Moves the corners of the meshing's remaining folds toward their neighbours on the surface: a move is kept when no
 /// face round the corner turns against the field and the worst fold round it shrinks.
 fn smooth_folds(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), passes: usize) -> usize {
+    smooth_folds_by(nets, field, passes, 35.0, None)
+}
+
+/// [`smooth_folds`] over edges turning `min_deg` or more; with `off_field` a corner may leave the field by that much
+/// instead of being stepped back onto it, which fairs the field's own sub-tenth creases.
+fn smooth_folds_by(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), passes: usize, min_deg: f64, off_field: Option<(f64, &dyn Fn(P3) -> bool)>) -> usize {
     use std::collections::{HashMap, HashSet};
     let unit = |g: P3| mul(g, 1.0 / len(g).max(1e-12));
     let mut vfaces: Vec<Vec<u32>> = vec![Vec::new(); nets.v.len()];
@@ -1256,7 +1278,7 @@ fn smooth_folds(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), passes: usi
         }
         let mut corners: Vec<u32> = edges
             .iter()
-            .filter(|(_, fs)| fs.len() == 2 && dot(face_n(&nets.f[fs[0]], &nets.v), face_n(&nets.f[fs[1]], &nets.v)) < 35f64.to_radians().cos())
+            .filter(|(_, fs)| fs.len() == 2 && dot(face_n(&nets.f[fs[0]], &nets.v), face_n(&nets.f[fs[1]], &nets.v)) < min_deg.to_radians().cos())
             .flat_map(|(_, fs)| nets.f[fs[0]].into_iter().chain(nets.f[fs[1]]))
             .collect();
         corners.sort_unstable();
@@ -1264,6 +1286,9 @@ fn smooth_folds(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), passes: usi
         let mut changed = 0;
         for x in corners {
             let p = nets.v[x as usize];
+            if off_field.is_some_and(|(_, inside)| !inside(p)) {
+                continue;
+            }
             let n = unit(gradient(field, p));
             let ring: HashSet<u32> = vfaces[x as usize].iter().flat_map(|f| nets.f[*f as usize]).filter(|y| *y != x).collect();
             if ring.is_empty() {
@@ -1272,9 +1297,17 @@ fn smooth_folds(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), passes: usi
             let c = mul(ring.iter().fold([0.0; 3], |s, y| add(s, nets.v[*y as usize])), 1.0 / ring.len() as f64);
             let dv = sub(c, p);
             let mut q = add(p, sub(dv, mul(n, dot(dv, n))));
-            for _ in 0..2 {
-                let g = gradient(field, q);
-                q = sub(q, mul(g, field(q) / dot(g, g).max(1e-9)));
+            match off_field {
+                Some((limit, _)) => {
+                    let full = c;
+                    q = if len(sub(full, p)) > limit { add(p, mul(sub(full, p), limit / len(sub(full, p)))) } else { full };
+                }
+                None => {
+                    for _ in 0..2 {
+                        let g = gradient(field, q);
+                        q = sub(q, mul(g, field(q) / dot(g, g).max(1e-9)));
+                    }
+                }
             }
             let before = worst_round(x, &nets.v, &nets.f, &vfaces);
             let old = nets.v[x as usize];
@@ -1405,6 +1438,11 @@ fn collapse_short(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), min_len: 
 /// whose two faces the field itself sees within 20 degrees of each other. Each change is kept only if no face round it
 /// turns over and the worst fold round it shrinks.
 fn polish(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), passes: usize) -> usize {
+    polish_where(nets, field, passes, &|_| false)
+}
+
+/// [`polish`], also flipping folds of 55 degrees or more the field itself makes wherever `anywhere` holds.
+fn polish_where(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), passes: usize, anywhere: &dyn Fn(P3) -> bool) -> usize {
     use std::collections::HashMap;
     let unit = |g: P3| mul(g, 1.0 / len(g).max(1e-12));
     let normal = |t: &[u32; 3], v: &[P3]| unit(cross(sub(v[t[1] as usize], v[t[0] as usize]), sub(v[t[2] as usize], v[t[0] as usize])));
@@ -1428,7 +1466,9 @@ fn polish(nets: &mut Nets, field: &(dyn Fn(P3) -> f64 + Sync), passes: usize) ->
                     return None;
                 }
                 let (g0, g1) = (unit(gradient(field, centre(&nets.f[fs[0]], &nets.v))), unit(gradient(field, centre(&nets.f[fs[1]], &nets.v))));
-                (dot(g0, g1) > 20f64.to_radians().cos()).then_some((*k, fs[0], fs[1]))
+                let mid = mul(add(nets.v[k.0 as usize], nets.v[k.1 as usize]), 0.5);
+                let own = anywhere(mid) && dot(n0, n1) < 55f64.to_radians().cos();
+                (own || dot(g0, g1) > 20f64.to_radians().cos()).then_some((*k, fs[0], fs[1]))
             })
             .collect();
         bad.sort_unstable();
@@ -1627,7 +1667,7 @@ fn sculpt_preview(out: &Path, step: f64) -> Result<()> {
     let mut raw = tetra_mesh(lo, hi, step, &field);
     println!("  marched {} triangles in {:.1} s", raw.f.len(), t.elapsed().as_secs_f64());
     relax(&mut raw, &field, 3);
-    let nets = settle(clean_decimate(&raw, SCULPT_FACES), &field);
+    let nets = settle(clean_decimate(&raw, SCULPT_FACES), &field, &|p| wolf.in_face_zone(p));
     println!("  relaxed and decimated to {} in {:.1} s", nets.f.len(), t.elapsed().as_secs_f64());
     println!("  face-zone folds of 60 degrees: raw {}, decimated {}", zone_folds(&wolf, &raw), zone_folds(&wolf, &nets));
     fold_causes(&wolf, &nets, &field);
@@ -1912,7 +1952,7 @@ fn head_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
     let field = |p: P3| wolf.sdf(p);
     let mut raw = tetra_mesh(lo, hi, SCULPT_STEP, &field);
     relax(&mut raw, &field, 3);
-    let nets = settle(clean_decimate(&raw, SCULPT_FACES), &field);
+    let nets = settle(clean_decimate(&raw, SCULPT_FACES), &field, &|p| wolf.in_face_zone(p));
     let (bad, volume) = closure(&nets.v, &nets.f);
     ensure!(bad == 0 && volume > 0.0, "The head does not close: {bad} open edges");
     let crossings = csg::self_crossings(&csg::Solid { v: nets.v.clone(), f: nets.f.clone() });
@@ -1943,7 +1983,7 @@ struct Flame {
 /// Flame locks on a chart where `along` runs with the fur and `across` over it: rows `pitch` apart, locks about `length`
 /// long and shingled half a lock apart with their roots jittered, each bowed in an S of `bow` of its length, widest a third of the way along and
 /// drawn out to a point at both ends; `shape` gives a lock's height from its share along, its place across and its
-/// half-width. Lengths vary by a quarter and headings by ten degrees; neighbours join by a soft maximum of `soft`.
+/// half-width. Lengths vary by a quarter and headings by up to ten degrees; neighbours join by a soft maximum of `soft`.
 #[allow(clippy::too_many_arguments)]
 fn flames(along: f64, across: f64, pitch: f64, length: f64, bow: f64, soft: f64, seed: i64, shape: &dyn Fn(f64, f64, f64) -> f64) -> Flame {
     let step = length * 0.45;
@@ -1955,7 +1995,10 @@ fn flames(along: f64, across: f64, pitch: f64, length: f64, bow: f64, soft: f64,
         let i0 = ((along - shift) / step).floor() as i64;
         for i in i0 - 3..=i0 + 1 {
             let len_i = length * (0.75 + 0.5 * skin::hash(i * 7 + seed, j * 13 - seed));
-            let tilt = ((skin::hash(j * 5 + seed, i * 11 + 3 * seed) - 0.5) * 20.0).to_radians();
+            // Headings in three classes a lattice apart, so no two neighbours run within five degrees of each other.
+            let axial = i - (j - j.rem_euclid(2)) / 2;
+            let class = (axial - j).rem_euclid(3) as f64 - 1.0;
+            let tilt = (class * 9.0 + (skin::hash(j * 5 + seed, i * 11 + 3 * seed) - 0.5) * 2.0).to_radians();
             // Each lock's root is jittered along and across its row, so neither the points nor the slots line up.
             let slide = (skin::hash(i * 3 + 2 * seed, j * 17 + seed) - 0.5) * 0.5 * step;
             let sway = (skin::hash(j * 19 - seed, i * 5 + seed) - 0.5) * 0.3 * pitch;
