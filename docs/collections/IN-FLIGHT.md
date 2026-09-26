@@ -5,16 +5,16 @@ Every lane below was stopped mid-round by the usage limit. Resume each by starti
 | Ring | Worktree / branch | Last commit | Latest review | Next |
 |---|---|---|---|---|
 | Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | package |
-| Manticora | `bestiarium-manticora` | `1bfdb33` round 2 | r2 6.8 (`manticora-round2-review.json`) | round 3, the last |
+| Manticora | `bestiarium-manticora` | `9a4252f` round 3 | r2 6.8; round 3 in its final review (`manticora-round3-review.json`) | ship or cut |
 | Kraken | `bestiarium-kraken` (owns C-B1) | `670a6b8` round 2 | r2 6.5 (`kraken-round2-review.json`) | round 3, the last |
 | Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `3250b82` round 2 | r2 6.5 (`phoenix-round2-review.json`) | round 3, the last |
-| Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `40ca22d` round 2 | r1 6.5; round 2 in review (`basiliscus-round2-review.json`) | review, then round 3 if needed |
+| Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `40ca22d` round 2 | r2 6.8 (`basiliscus-round2-review.json`) | round 3, the last |
 | Fenrir | `bestiarium-fenrir` | `5d67238` (+1 uncommitted; master merged for claw rails) | r1 5.5 (`fenrir-round1-review.json`) | round 2 |
 | Corvus | `bestiarium-corvus` | `5df9089` round 1 | r1 5.0 (`corvus-round1-review.json`) | round 2 |
 | Harpyia | `bestiarium-harpyia` (owns C-B4) | `a5c8443` round 1 (C-B4 meshed loft at `ca5c924`) | r1 5.8 (`harpyia-round1-review.json`) | round 2 |
 
 - Platform on master (pushed `2af7974`): batch 16, the starter gallery with re-framed splits, the GUI and workbench CI fixes (CI green), the embedded-art fix, the phone icon, C-B5 claw rails and cabochon rise.
-- `b17-platform-fixes` (from `b611d2c`, nothing committed yet): stamp drop-ray reach, hand-made heads as holders, finer parting search, part sliver clean, stoneless-pad warning. Requests and proposed code: `.claude/collection-review/core-change-requests.md`.
+- C-B6 is on master (`22912a5`): stamp drop-ray reach, hand-made heads as holders, finer parting search, flat-part clean, stoneless pads out of the stones report. Requests and proposed code: `.claude/collection-review/core-change-requests.md`.
 - Review prompt template: `.claude/collection-review/review-prompt-template.md` (a ring under 7.5 after round 3 is cut).
 - Then: package the shipped rings, register them in File > New from template (Workshop leaves the menu), bump the desktop version, tag `desktop-v<version>`, Taildrop the final renders (Logan's instruction below).
 
