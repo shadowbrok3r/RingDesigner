@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::field::smoothstep;
 
 /// Resolution the built-in patterns are rendered at.
-const BUILTIN_SIZE: usize = 256;
+pub(crate) const BUILTIN_SIZE: usize = 256;
 
 /// Longest edge an alpha is kept at. Sources above this are downscaled on load.
 /// One f32 per pixel, so this is 1 MB per square alpha.

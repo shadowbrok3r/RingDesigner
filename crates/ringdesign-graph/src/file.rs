@@ -340,8 +340,14 @@ mod tests {
             graph.set_input(window, "v_gate", Literal::Text(gate.into())).unwrap();
             assert_eq!(graph_version_for(&graph), PLAIN_GRAPH_FORMAT_VERSION);
         }
-        for (params, expected) in [(serde_json::json!({}), PLAIN_GRAPH_FORMAT_VERSION), (serde_json::json!({"style":"Wire","grouping":"Even","tip":"Dome"}), PLAIN_GRAPH_FORMAT_VERSION), (serde_json::json!({"style":"Tentacle"}), GRAPH_FORMAT_VERSION), (serde_json::json!({"grouping":"Jaws"}), GRAPH_FORMAT_VERSION), (serde_json::json!({"tip":"Point"}), GRAPH_FORMAT_VERSION)] {
-            let operation = serde_json::json!({"Builder":{"key":"head.claw","on":1,"params":params}});
+        for (key, params, expected) in [
+            ("head.claw", serde_json::json!({}), PLAIN_GRAPH_FORMAT_VERSION), ("head.claw", serde_json::json!({"style":"Wire","grouping":"Even","tip":"Dome"}), PLAIN_GRAPH_FORMAT_VERSION),
+            ("head.claw", serde_json::json!({"style":"Tentacle"}), GRAPH_FORMAT_VERSION), ("head.claw", serde_json::json!({"grouping":"Jaws"}), GRAPH_FORMAT_VERSION), ("head.claw", serde_json::json!({"tip":"Point"}), GRAPH_FORMAT_VERSION),
+            ("head.claw", serde_json::json!({"rails":"Seat","rise":0.0}), PLAIN_GRAPH_FORMAT_VERSION), ("head.claw", serde_json::json!({"rails":"Base"}), GRAPH_FORMAT_VERSION),
+            ("head.claw", serde_json::json!({"rails":"None"}), GRAPH_FORMAT_VERSION), ("head.claw", serde_json::json!({"rise":0.3}), GRAPH_FORMAT_VERSION),
+            ("head.basket", serde_json::json!({"rails":3}), PLAIN_GRAPH_FORMAT_VERSION), ("head.basket", serde_json::json!({"rails":0}), GRAPH_FORMAT_VERSION), ("head.basket", serde_json::json!({"rise":0.45}), GRAPH_FORMAT_VERSION),
+        ] {
+            let operation = serde_json::json!({"Builder":{"key":key,"on":1,"params":params}});
             let mut graph = Graph::new("Claw", Mode::Free);
             let node = graph.add("cad.feature").unwrap();
             graph.set_input(node, "operation", Literal::Json(operation.clone())).unwrap();

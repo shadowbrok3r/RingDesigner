@@ -1,3 +1,26 @@
+# Takeover checkpoint (2026-09-26, Claude)
+
+Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume before Oct 1, so Claude took over every lane. Codex's own record follows below this section.
+
+- **Batch 16 is on master** as merge `67887c0` (tree identical to the validated `a89f4e4`): P5, P6, P8, the C-S2/C-S3 cutters, projected stamp solids and the fences. 36 checks, 1,836 tests, 0 failures, 0 warnings, plus 8 Python smoke tests: `batch16-integration-report.json`. Draft PRs #210, #216, #217 and #221 are contained in it.
+- **Ring lanes**, one worktree each under `.claude/worktrees/`, all built from `a89f4e4` or merged up to it:
+  - `bestiarium-corvus`, `bestiarium-manticora`, `bestiarium-fenrir` (new rings, not started by Codex);
+  - `bestiarium-kraken` (new ring, and owns enabler C-B1 in `core/curve.rs` and `graph/nodes/layer.rs`);
+  - `bestiarium-phoenix` (`codex/bestiarium-phoenix`: round-2 revision, Codex's uncommitted round-2 edits still in the tree);
+  - `bestiarium-basiliscus` (`codex/bestiarium-basiliscus`: the example is committed as `ab4c81e` and merged up to the platform; its export build fails the 2 million triangle budget);
+  - Harpyia next, from the spike on `codex/harpyia-feather-spike` (probe committed as `826f825`), owning an enabler C-B4 for a closed feather construction, because the kernel loft tessellates open.
+- Arachne's validated pattern export is committed as `a44f55c` on `bestiarium-arachne`.
+- **Starter gallery part 1 is on master** as merge `bc697ba` (validated at `867967e`: 41 checks, 1,854 tests, `starters-part1-report.json`). Stocks open as measured: 002, 006, 015, 017 in Delft; 001, 003, 005, 007, 012, 013, 016 in wax after failed sand trials; the nine upright plans in wax. Open follow-ups:
+  - (done, merge `600ac22`) the split shank and split gallery re-framed and opened up so the Y and the window read at 160 px;
+  - Trilogy's side head has 2 degenerate faces in its own part mesh at export chords of 512 steps and up (the joined ring is clean; the fix belongs in the claw builder);
+  - the desktop "Imported signet base" picker shows a sand-master stock's raw source name instead of selecting its preset;
+  - the phone's retired "Imported signet base..." menu entry needs a CHANGELOG line at the next release.
+- **Icons (2026-09-26, Logan):** the phone's launcher icon is now the desktop icon (`crates/ringdesigner-android/icon/ic_launcher.svg` links to `bundled/icon/ringdesigner.svg`; mipmaps re-rendered). The app store listing `ringdesigner-android` already serves it (uploaded directly to the store's icon endpoint). Installed phones show it from the next APK; add a CHANGELOG line then.
+- Lane instructions shared by every ring: `.claude/collection-review/bestiarium-lane-brief.md` (ignored dir; the review prompt template sits beside it). Gates add two to the list in README: nothing may enter the finger hole (Arachne's leg did, 0.36 mm, and nothing caught it) and the export build must fit the 2 million triangle budget.
+- **Read another worktree's files with Bash, not the Read tool**: each worktree carries its own copy of the long CLAUDE.md, and the Read tool injects it into the reader's context once per worktree touched.
+- All seven lanes launched on 2026-09-25 died within minutes on the account's usage limit and were relaunched the next morning, fewer at a time.
+- **Logan, 2026-09-26:** "When 100% done with the rings and replacing the apps built in templates with the new rings, push the new windows desktop app via the CI and send the updated final renders via taildrop." When every Bestiarium ring has shipped at 7.5+ (or been cut) and is registered in File > New from template (the Workshop group leaves the menu), bump `crates/ringdesign-gui` from 0.6.0, push master, push the annotated tag `desktop-v<version>` (`desktop-release.yml` publishes only if Linux, Windows and both macOS builds pass), then Taildrop the final renders to `logans-s26-ultra`. This authorizes that bump and tag.
+
 # Continuation checkpoint (2026-09-25)
 
 - Batch 15: all reviewer findings were already fixed with regression pins; every crate suite, NDK, wasm, locked and all-target checks passed. Master `9992ffa` was pushed. The b15 worktrees and branches had already been removed by the preceding integrator. Docs handoff merged and pushed as `1bd70a4`.

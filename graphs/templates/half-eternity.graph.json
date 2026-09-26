@@ -1,0 +1,290 @@
+{
+  "format_version": 1,
+  "name": "Half eternity",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.profile",
+      "inputs": {
+        "comfort_fit_mm": 0.25,
+        "crest_bias": 0.0,
+        "crown_mm": 0.8,
+        "edge_round_mm": 0.5,
+        "shape_a": 2.0,
+        "shape_b": 1.0,
+        "side_draft_deg": 2.0,
+        "style": "LowDome",
+        "thickness_mm": 2.1,
+        "width_mm": 3.0
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Band section"
+    },
+    {
+      "id": 2,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Half eternity",
+        "size": 7.0
+      },
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "layer.seatrun",
+      "inputs": {
+        "bridge_mm": 0.5,
+        "count": 19,
+        "shared_prong_mm": 0.0,
+        "taper": 0.0,
+        "taper_theta_deg": 90.0,
+        "tilt_deg": 0.0
+      },
+      "pos": [
+        480.0,
+        0.0
+      ],
+      "label": "Bead-set half row"
+    },
+    {
+      "id": 4,
+      "kind": "gem",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 1.8,
+        "w_mm": 1.8
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "layer.seat",
+      "inputs": {
+        "bezel_bearing_mm": 0.3,
+        "bezel_lip": 0.3,
+        "bezel_wall_mm": 0.5,
+        "blend_mm": 0.4,
+        "crown": 1.0,
+        "diameter_mm": 2.7,
+        "dimple_mm": 0.0,
+        "elong": 1.0,
+        "height_mm": 0.2,
+        "mark_mm": 0.7,
+        "metal_true": false,
+        "plan_pow": 2.0,
+        "prong_mm": 0.9,
+        "prongs": 0,
+        "recess_mm": 0.5,
+        "rot_deg": 0.0,
+        "solid": "Bead",
+        "style": "Boss",
+        "theta_deg": 90.0,
+        "through": false,
+        "v_mm": 2.71284190710316
+      },
+      "pos": [
+        240.0,
+        150.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "gem",
+      "inputs": {
+        "cut": "Round",
+        "form": "Faceted",
+        "l_mm": 1.8,
+        "w_mm": 1.8
+      },
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 7,
+      "kind": "entry",
+      "inputs": {
+        "bench_only": false,
+        "blend": "Max",
+        "enabled": true,
+        "name": "Bead-set half row",
+        "opacity": 1.0,
+        "soft_mm": 0.3
+      },
+      "pos": [
+        720.0,
+        0.0
+      ],
+      "label": "Bead-set half row / blend"
+    },
+    {
+      "id": 8,
+      "kind": "window",
+      "inputs": {
+        "enabled": true,
+        "fade_deg": 1.0,
+        "invert": false,
+        "span_deg": 160.0,
+        "theta_deg": 90.0
+      },
+      "pos": [
+        0.0,
+        450.0
+      ],
+      "label": "Bead-set half row / placement"
+    },
+    {
+      "id": 9,
+      "kind": "stack",
+      "pos": [
+        960.0,
+        0.0
+      ]
+    },
+    {
+      "id": 10,
+      "kind": "design.assemble",
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 11,
+      "kind": "design.settings",
+      "pos": [
+        1440.0,
+        0.0
+      ]
+    },
+    {
+      "id": 12,
+      "kind": "draft.settings",
+      "inputs": {
+        "auto_parting": true,
+        "min_detail_mm": 0.3,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.8,
+        "parting_z_mm": 0.0,
+        "process": "SandTwoPart",
+        "sand": "DelftClay"
+      },
+      "pos": [
+        0.0,
+        600.0
+      ]
+    },
+    {
+      "id": 13,
+      "kind": "sink.output",
+      "pos": [
+        1680.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "profile",
+      "to": 2,
+      "input": "profile"
+    },
+    {
+      "from": 4,
+      "out": "gem",
+      "to": 3,
+      "input": "gem"
+    },
+    {
+      "from": 6,
+      "out": "gem",
+      "to": 5,
+      "input": "gem"
+    },
+    {
+      "from": 5,
+      "out": "layer",
+      "to": 3,
+      "input": "seat"
+    },
+    {
+      "from": 3,
+      "out": "layer",
+      "to": 7,
+      "input": "layer"
+    },
+    {
+      "from": 8,
+      "out": "window",
+      "to": 7,
+      "input": "window"
+    },
+    {
+      "from": 7,
+      "out": "entry",
+      "to": 9,
+      "input": "entries"
+    },
+    {
+      "from": 2,
+      "out": "design",
+      "to": 10,
+      "input": "design"
+    },
+    {
+      "from": 9,
+      "out": "stack",
+      "to": 10,
+      "input": "stack"
+    },
+    {
+      "from": 10,
+      "out": "design",
+      "to": 11,
+      "input": "design"
+    },
+    {
+      "from": 12,
+      "out": "draft",
+      "to": 11,
+      "input": "draft"
+    },
+    {
+      "from": 11,
+      "out": "design",
+      "to": 13,
+      "input": "design"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 2,
+      "input": "size",
+      "name": "US size"
+    },
+    {
+      "node": 1,
+      "input": "width_mm",
+      "name": "Band width"
+    },
+    {
+      "node": 1,
+      "input": "thickness_mm",
+      "name": "Band thickness"
+    }
+  ],
+  "next_id": 14
+}
