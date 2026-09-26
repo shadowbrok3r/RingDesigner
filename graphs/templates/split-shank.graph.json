@@ -59,9 +59,9 @@
             "key": "cutter.split",
             "on": null,
             "params": {
-              "gap_mm": 2.6,
+              "gap_mm": 3.2,
               "rail_round_mm": 0.3,
-              "spread_deg": 48.0,
+              "spread_deg": 56.0,
               "theta_deg": 90.0,
               "tip": "Point"
             }
@@ -260,9 +260,9 @@
       "id": 19,
       "kind": "cad.op.cutter.split",
       "inputs": {
-        "gap_mm": 2.6,
+        "gap_mm": 3.2,
         "rail_round_mm": 0.3,
-        "spread_deg": 48.0,
+        "spread_deg": 56.0,
         "theta_deg": 90.0,
         "tip": "Point"
       },

@@ -185,7 +185,7 @@
       "inputs": {
         "crown_scale": 1.0,
         "theta_deg": 120.0,
-        "thickness_scale": 1.85,
+        "thickness_scale": 2.24,
         "width_scale": 1.0
       },
       "pos": [
@@ -199,7 +199,7 @@
       "inputs": {
         "crown_scale": 1.0,
         "theta_deg": 60.0,
-        "thickness_scale": 1.85,
+        "thickness_scale": 2.24,
         "width_scale": 1.0
       },
       "pos": [
@@ -213,7 +213,7 @@
       "inputs": {
         "crown_scale": 1.0,
         "theta_deg": 90.0,
-        "thickness_scale": 2.3,
+        "thickness_scale": 2.67,
         "width_scale": 1.0
       },
       "pos": [
