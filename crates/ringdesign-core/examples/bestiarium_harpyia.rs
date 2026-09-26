@@ -49,7 +49,7 @@ const STAND_MM: f64 = 1.3;
 /// Clearance every part keeps from the stone, mm.
 const STONE_GAP: f64 = 0.03;
 /// Radius of a claw's blunt tip, mm.
-const TIP_R: f64 = 0.425;
+const TIP_R: f64 = 0.46;
 /// Most triangles an export build may carry.
 const TRIANGLE_BUDGET: usize = 2_000_000;
 /// Most the ring may reach from the finger's axis, mm.
@@ -216,52 +216,20 @@ fn oval(a: f64, b: f64, bias: f64) -> Sketch {
     ])
 }
 
-/// A face's section across its centre line, `w` either side and `depth` thick: a flat back, round sides, cheeks standing
-/// `cheek` forward, and the centre line `ridge` proud of them over `q` either side, in six cubic pieces.
-fn face_section(w: f64, depth: f64, cheek: f64, ridge: f64, q: f64) -> Sketch {
-    let e = 0.5 * depth;
-    let xn = (w - e).max(0.05);
-    let q = q.min(0.8 * xn);
-    let l = 4.0 / 3.0 * e;
-    let top = e + cheek;
-    let h = 4.0 / 3.0 * ridge;
-    chain(&[
-        [[-xn, -e], [-xn / 3.0, -e], [xn / 3.0, -e], [xn, -e]],
-        [[xn, -e], [xn + l, -e], [xn + l, e], [xn, e]],
-        [[xn, e], [0.55 * xn, e + 1.1 * cheek], [1.8 * q, top], [q, top]],
-        [[q, top], [0.45 * q, top + h], [-0.45 * q, top + h], [-q, top]],
-        [[-q, top], [-1.8 * q, top], [-0.55 * xn, e + 1.1 * cheek], [-xn, e]],
-        [[-xn, e], [-xn - l, e], [-xn - l, -e], [-xn, -e]],
-    ])
-}
-
-/// Her face from the brow down to the chin: share down it, half-width, depth, cheeks, the centre line's rise and its half-width.
-const FACE: [[f64; 6]; 12] = [
-    [0.0, 0.55, 0.85, 0.05, 0.0, 0.2],
-    [0.1, 0.72, 0.9, 0.12, 0.02, 0.2],
-    [0.22, 0.8, 0.95, 0.2, 0.06, 0.2],
-    [0.34, 0.8, 0.85, 0.02, 0.2, 0.18],
-    [0.48, 0.74, 0.85, 0.12, 0.34, 0.2],
-    [0.58, 0.7, 0.85, 0.12, 0.42, 0.24],
-    [0.66, 0.66, 0.85, 0.1, 0.1, 0.22],
-    [0.74, 0.6, 0.85, 0.08, 0.2, 0.26],
-    [0.8, 0.58, 0.85, 0.06, 0.05, 0.24],
-    [0.86, 0.55, 0.85, 0.08, 0.16, 0.24],
-    [0.93, 0.5, 0.9, 0.12, 0.12, 0.22],
-    [1.0, 0.4, 0.85, 0.05, 0.0, 0.2],
-];
-/// How tall her face is, brow to chin, mm.
-const FACE_MM: f64 = 1.9;
-
 /// Half a feather's vane at share `s` of its length: a narrow quill, the vane opening and holding, narrowing past an
-/// emargination `notch` (share, kept width) when it has one, then rounding off at the tip.
-fn feather_half(s: f64, width: f64, thick: f64, quill: f64, round: f64, notch: Option<(f64, f64)>) -> f64 {
+/// emargination `notch` (share, kept width) when it has one, closing toward the tip to `taper` of its width, then
+/// rounding off.
+fn feather_half(s: f64, width: f64, thick: f64, quill: f64, round: f64, notch: Option<(f64, f64)>, taper: f64) -> f64 {
     let full = 0.5 * width;
     let q = (0.5 * thick + 0.06).max(0.46);
     let open = smooth(quill, quill + 0.18, s);
     let mut hold = full * (1.0 - 0.1 * smooth(0.3, 1.0 - round, s));
     if let Some((at, keep)) = notch {
         hold *= 1.0 - (1.0 - keep) * smooth(at, at + 0.1, s);
+    }
+    if taper < 1.0 {
+        let f = ((s - 0.5) / 0.5).clamp(0.0, 1.0);
+        hold *= 1.0 - (1.0 - taper) * f.powf(1.3);
     }
     let from = 1.0 - round;
     let rnd = if s > from { (1.0 - ((s - from) / round).powi(2)).max(0.0).sqrt() } else { 1.0 };
@@ -368,7 +336,7 @@ fn oval_loft(sp: &Spine, at: &[[f64; 4]], across: P3) -> Operation {
 }
 
 /// A feather lofted through `path`, its vane facing `ups`, from its quill at the first point to its rounded tip at the last.
-fn path_plume(path: &[P3], ups: &[P3], width: f64, thick: f64, channels: bool) -> Result<Operation> {
+fn path_plume(path: &[P3], ups: &[P3], width: f64, thick: f64, channels: bool, taper: f64) -> Result<Operation> {
     ensure!(thick >= MIN_SECTION_MM && path.len() == ups.len() && path.len() >= 3, "a plume needs three stations and the wax section");
     let mut run = vec![0.0];
     for w in path.windows(2) {
@@ -380,7 +348,7 @@ fn path_plume(path: &[P3], ups: &[P3], width: f64, thick: f64, channels: bool) -
             let s = run[i] / len;
             let t = unit(sub(path[(i + 1).min(path.len() - 1)], path[i.saturating_sub(1)]));
             let y = unit(sub(ups[i], mul(t, dot(ups[i], t))));
-            let half = feather_half(s, width, thick, 0.1, 0.42, None);
+            let half = feather_half(s, width, thick, 0.1, 0.42, None, taper);
             let mut v = vane(half, thick, 0.16 * half, 0.12, 0.06, channels);
             v.plane = plane(path[i], cross(y, t), y);
             v.into()
@@ -467,16 +435,20 @@ struct Feather {
     channels: bool,
     /// Whether its tip closes in a round dome rather than a flat end.
     dome: bool,
+    /// Share of the width its leading vane (the one to the rachis' right) takes: a half for a symmetric feather.
+    lead: f64,
+    /// Width its tip closes to, as a share of its width: 1 for none.
+    taper: f64,
 }
 
 /// Stations along a primary, dense round its emargination.
-const PRIMARY: &[f64] = &[0.0, 0.1, 0.3, 0.52, 0.64, 0.8, 0.92, 1.0];
+const PRIMARY: &[f64] = &[0.0, 0.12, 0.36, 0.56, 0.68, 0.86, 1.0];
 /// Stations along a secondary.
 const LONG: &[f64] = &[0.0, 0.08, 0.26, 0.55, 0.82, 0.95, 1.0];
 /// Stations along a covert.
-const SHORT: &[f64] = &[0.0, 0.18, 0.5, 0.82, 1.0];
+const SHORT: &[f64] = &[0.0, 0.25, 0.68, 1.0];
 /// Stations along a marginal covert.
-const TINY: &[f64] = &[0.0, 0.3, 0.72, 1.0];
+const TINY: &[f64] = &[0.0, 0.5, 1.0];
 
 impl Feather {
     /// The rachis at `s`: its point in the cheek plane and its unit heading.
@@ -500,7 +472,11 @@ impl Feather {
         (at(s), [d[0] / l, d[1] / l])
     }
     fn half(&self, s: f64) -> f64 {
-        feather_half(s, self.width, self.thick, self.quill, self.round, self.notch)
+        feather_half(s, self.width, self.thick, self.quill, self.round, self.notch, self.taper)
+    }
+    /// How far each vane reaches from the rachis against a symmetric one: (leading, trailing).
+    fn sides(&self) -> (f64, f64) {
+        (2.0 * self.lead, 2.0 * (1.0 - self.lead))
     }
     fn loft(&self) -> Result<Operation> {
         ensure!(self.thick >= MIN_SECTION_MM, "{}: section {} under the wax floor", self.name, self.thick);
@@ -509,8 +485,9 @@ impl Feather {
             .iter()
             .flat_map(|&s| {
                 let (p, t) = self.rachis(s);
-                let h = self.half(s) + 0.4;
-                [[p[0] - t[1] * h, p[1] + t[0] * h], [p[0] + t[1] * h, p[1] - t[0] * h]]
+                let (lead, trail) = self.sides();
+                let (hl, ht) = (self.half(s) * trail + 0.4, self.half(s) * lead + 0.4);
+                [[p[0] - t[1] * hl, p[1] + t[0] * hl], [p[0] + t[1] * ht, p[1] - t[0] * ht]]
             })
             .map(|q| q[0].hypot(q[1]))
             .fold(f64::MAX, f64::min);
@@ -520,6 +497,14 @@ impl Feather {
             let z = CHEEK + self.under + e + self.lift * smooth(0.25, 1.0, s);
             let half = self.half(s) * k;
             let mut v = vane(half, self.thick * k, 0.16 * half, 0.15 * k, 0.08 * k, self.channels);
+            let (lead, trail) = self.sides();
+            if lead != 1.0 {
+                // The leading vane narrows and the trailing one widens about the same rachis.
+                for pt in &mut v.points {
+                    let x = pt.xy[0] * if pt.xy[0] < 0.0 { lead } else { trail };
+                    pt.xy[0] = (x * 1e4).round() / 1e4;
+                }
+            }
             v.plane = splayed([p[0], p[1], z], [-t[1], t[0], 0.0], [0.0, 0.0, 1.0]);
             v.into()
         };
@@ -530,7 +515,7 @@ impl Feather {
         if self.dome {
             // A round dome past the tip, the section shrinking as a ball of half its thickness.
             let (p, t) = self.rachis(1.0);
-            for x in [0.55 * e, 0.88 * e] {
+            for x in [0.8 * e] {
                 let k = (1.0 - (x / e).powi(2)).sqrt();
                 sections.push(section([p[0] + t[0] * x, p[1] + t[1] * x], t, 1.0, k));
             }
@@ -571,9 +556,12 @@ fn splayed(origin: P3, x: P3, y: P3) -> Workplane {
     plane(o, x2, unit(sub(y1, mul(x2, dot(x2, y1)))))
 }
 
+/// How far behind her head the wing roots, degrees: clear of her face seen from the high cheek.
+const WING_BACK: f64 = 12.0;
+
 /// The wing's leading edge from her shoulder to the wrist, (theta degrees, radius mm) at `u` in 0..1.
 fn arm(u: f64) -> [f64; 2] {
-    const KEYS: [[f64; 2]; 5] = [[109.0, 15.3], [115.0, 16.1], [121.0, 16.35], [127.0, 16.1], [132.5, 15.6]];
+    const KEYS: [[f64; 2]; 5] = [[109.0 + WING_BACK, 15.3], [115.0 + WING_BACK, 16.1], [121.0 + WING_BACK, 16.35], [127.0 + WING_BACK, 16.1], [132.5 + WING_BACK, 15.6]];
     let n = KEYS.len() - 1;
     let x = u.clamp(0.0, 1.0) * n as f64;
     let i = (x.floor() as usize).min(n - 1);
@@ -618,6 +606,8 @@ fn wing() -> Vec<Feather> {
         stations: SHORT,
         channels: false,
         dome: false,
+        lead: 0.5,
+        taper: 1.0,
     };
     // Secondaries hang from the forearm and sweep back along the crown's edge toward the palm.
     let secondaries = 6;
@@ -634,13 +624,16 @@ fn wing() -> Vec<Feather> {
             follow: 0.75,
             stations: LONG,
             dome: true,
-            ..base(format!("Secondary {}", k + 1), polar(th, r - 0.6), polar(lerp(210.0, 162.0, f), lerp(12.3, 13.6, f)))
+            ..base(format!("Secondary {}", k + 1), polar(th, r - 0.6), polar(lerp(210.0, 162.0, f) + WING_BACK, lerp(12.3, 13.6, f)))
         });
     }
     // Primaries: graded fingers fanned from the wrist, emarginate past their middles, the middle ones longest.
     const HEADINGS: [f64; 7] = [185.0, 200.0, 215.0, 230.0, 246.0, 262.0, 278.0];
     const LENGTHS: [f64; 7] = [4.6, 6.0, 7.2, 7.6, 7.2, 6.4, 5.4];
-    for (k, (&heading, &length)) in HEADINGS.iter().zip(&LENGTHS).enumerate() {
+    // Each tip stands 0.3 to 0.6 mm off its neighbours' radius, so the fan's edge steps instead of ending in a row.
+    const STAGGER: [f64; 7] = [0.0, 0.45, -0.2, 0.35, -0.25, 0.4, -0.1];
+    for (k, ((&heading, &length), &stagger)) in HEADINGS.iter().zip(&LENGTHS).zip(&STAGGER).enumerate() {
+        let heading = heading + WING_BACK;
         let f = k as f64 / (HEADINGS.len() - 1) as f64;
         let [th, r] = arm(lerp(1.0, 0.72, f));
         let root = polar(th, r - lerp(0.4, 1.0, f));
@@ -650,12 +643,14 @@ fn wing() -> Vec<Feather> {
             thick: 0.9,
             under: under + 0.12 - 0.015 * k as f64,
             lift: 0.12,
-            round: 0.3,
-            notch: (k < 5).then_some((0.6, 0.6)),
+            round: 0.16,
+            notch: (k < 5).then_some((0.6, 0.72)),
             stations: PRIMARY,
-            channels: true,
+            channels: k < 4,
             dome: true,
-            ..base(format!("Primary {}", k + 1), root, aimed(root, heading, length))
+            lead: 1.0 / 3.0,
+            taper: 0.3,
+            ..base(format!("Primary {}", k + 1), root, aimed(root, heading, length + stagger))
         });
     }
     // Greater coverts over the flight feathers' roots, from the shoulder to the wrist.
@@ -718,58 +713,253 @@ fn wing() -> Vec<Feather> {
 
 // --- The figure ------------------------------------------------------------------------------------------------------
 
-/// Torso keys: share along its spine, half-width across the band, half-depth, and how much fuller its breast is.
-const TORSO: [[f64; 4]; 7] = [
-    [0.0, 2.0, 1.1, 0.0],
-    [0.18, 2.8, 1.55, 0.12],
-    [0.4, 3.2, 1.85, 0.22],
-    [0.62, 3.45, 1.85, 0.25],
-    [0.82, 3.55, 1.6, 0.18],
-    [0.93, 3.1, 1.3, 0.1],
-    [1.0, 2.4, 1.0, 0.05],
+/// Torso keys: share along its spine from the tail end, half-width across the band, half-depth, and how much fuller its
+/// belly is than its back.
+const TORSO: [[f64; 4]; 6] = [
+    [0.0, 0.9, 0.4, 0.0],
+    [0.22, 1.8, 0.85, 0.1],
+    [0.46, 2.65, 1.25, 0.16],
+    [0.7, 3.0, 1.5, 0.2],
+    [0.88, 2.75, 1.42, 0.18],
+    [1.0, 1.9, 1.0, 0.1],
 ];
-/// Head radii from the occiput to the face.
-const HEAD: [[f64; 3]; 10] = [
-    [-0.1, 0.3, 0.0],
-    [-0.05, 0.6, 0.0],
-    [0.0, 0.78, 0.0],
-    [0.1, 1.02, 0.0],
-    [0.25, 1.16, 0.02],
-    [0.42, 1.2, 0.06],
-    [0.6, 1.12, 0.14],
-    [0.75, 0.98, 0.2],
-    [0.9, 0.78, 0.15],
-    [1.0, 0.55, 0.08],
-];
-/// The head's across-to-up ratio.
-const HEAD_WIDTH: f64 = 0.9;
+/// Her spine as (theta degrees, height over the crest mm): from its tail end sunk in the crown behind her, along her back,
+/// to her chest under the head.
+const TORSO_SPINE: [[f64; 2]; 5] = [[160.0, -0.25], [146.0, 0.6], [133.0, 1.45], [124.0, 2.0], [117.5, 2.25]];
 
-/// The harpy's body: torso, neck and head, each a lofted spine in the band's mid-plane west of the stone.
+/// Her head's centre, (theta degrees, radius mm).
+const HEAD_AT: [f64; 2] = [110.0, 16.15];
+/// How far her head bows east toward the stone, degrees.
+const HEAD_BOW: f64 = 30.0;
+/// How far her face turns toward the high cheek, degrees.
+const HEAD_TURN: f64 = 55.0;
+/// Her head's size against the unit head below, whose face runs 2.9 from brow to chin.
+const HEAD_SCALE: f64 = 0.95;
+/// The unit head's outline up its axis: height, half-width, depth in front of the axis and behind it.
+const HEAD_PROFILE: [[f64; 4]; 14] = [
+    [-2.3, 0.78, 0.55, 0.8],
+    [-2.0, 0.72, 0.95, 0.88],
+    [-1.72, 0.8, 1.28, 1.0],
+    [-1.4, 1.0, 1.42, 1.12],
+    [-1.0, 1.2, 1.52, 1.3],
+    [-0.6, 1.33, 1.58, 1.45],
+    [-0.1, 1.42, 1.58, 1.62],
+    [0.3, 1.45, 1.56, 1.72],
+    [0.75, 1.44, 1.5, 1.76],
+    [1.15, 1.38, 1.38, 1.72],
+    [1.55, 1.24, 1.18, 1.56],
+    [1.8, 1.08, 1.0, 1.36],
+    [2.0, 0.95, 0.87, 1.18],
+    [2.2, 0.82, 0.74, 1.0],
+];
+/// Heights of the head's slices: close through the mouth, nose, eyes and brow.
+const HEAD_LEVELS: [f64; 21] = [-2.3, -1.98, -1.72, -1.52, -1.38, -1.22, -1.06, -0.86, -0.7, -0.55, -0.32, -0.1, 0.1, 0.3, 0.5, 0.72, 1.05, 1.4, 1.72, 1.98, 2.2];
+/// Where across the face each slice's front passes, as shares of its half-width, from one side round to the other.
+const HEAD_FRONT: [f64; 14] = [1.0, 0.86, 0.7, 0.55, 0.42, 0.3, 0.16, 0.0, -0.16, -0.3, -0.42, -0.55, -0.7, -0.86];
+/// Her nose down its length: height, rise off the face, half-width.
+const NOSE: [[f64; 3]; 7] = [[-0.85, 0.0, 0.22], [-0.72, 0.26, 0.3], [-0.55, 0.5, 0.32], [-0.3, 0.4, 0.27], [0.0, 0.24, 0.23], [0.25, 0.1, 0.2], [0.45, 0.0, 0.2]];
+
+fn bump(x: f64, u: f64, cx: f64, cu: f64, sx: f64, su: f64) -> f64 {
+    (-((x - cx) / sx).powi(2) - ((u - cu) / su).powi(2)).exp()
+}
+
+/// Her features over the unit head's front, at `x` across and `u` up: a brow ridge overhanging two deep sockets with the
+/// eyes' balls in them, the nose from its bridge to its tip, the lips parted by the mouth's cleft, the chin and cheekbones.
+fn face_relief(x: f64, u: f64) -> f64 {
+    let ax = x.abs();
+    let brow = 0.26 * (-((u - 0.5) / 0.11).powi(2)).exp() * (1.0 - smooth(0.8, 1.1, ax)) * (1.0 - 0.35 * (-(x / 0.2).powi(2)).exp());
+    let socket = -0.44 * bump(ax, u, 0.55, 0.12, 0.28, 0.19);
+    let eye = 0.2 * bump(ax, u, 0.56, 0.1, 0.13, 0.09);
+    let nose = if (-0.85..=0.45).contains(&u) {
+        let [_, h, w] = keyed(&NOSE, u);
+        h * (-(x / w).powi(2)).exp()
+    } else {
+        0.0
+    };
+    let lips = 0.1 * bump(ax, u, 0.0, -1.06, 0.4, 0.08) + 0.12 * bump(ax, u, 0.0, -1.38, 0.34, 0.09);
+    let cleft = -0.16 * bump(ax, u, 0.0, -1.22, 0.42, 0.06);
+    let chin = 0.16 * bump(ax, u, 0.0, -1.72, 0.36, 0.2);
+    let cheekbone = 0.1 * bump(ax, u, 0.95, -0.15, 0.25, 0.25);
+    brow + socket + eye + nose + lips + cleft + chin + cheekbone
+}
+
+/// A closed Catmull-Rom loop through `pts` as cubic pieces.
+fn loop_through(pts: &[[f64; 2]]) -> Sketch {
+    let n = pts.len();
+    let p = |i: usize| pts[i % n];
+    let pieces: Vec<[[f64; 2]; 4]> = (0..n)
+        .map(|i| {
+            let (a, b, c, d) = (p(i + n - 1), p(i), p(i + 1), p(i + 2));
+            [b, [b[0] + (c[0] - a[0]) / 6.0, b[1] + (c[1] - a[1]) / 6.0], [c[0] - (d[0] - b[0]) / 6.0, c[1] - (d[1] - b[1]) / 6.0], c]
+        })
+        .collect();
+    chain(&pieces)
+}
+
+/// Her head: slices across its up axis, each a loop through her face in front and her skull behind.
+struct Head {
+    c: P3,
+    up: P3,
+    fwd: P3,
+    side: P3,
+}
+
+impl Head {
+    fn new() -> Self {
+        let c = polar(HEAD_AT[0], HEAD_AT[1]);
+        let b = HEAD_BOW.to_radians();
+        let up = [b.sin(), b.cos(), 0.0];
+        let t = HEAD_TURN.to_radians();
+        let fwd = add(mul([b.cos(), -b.sin(), 0.0], t.cos()), mul(Z, t.sin()));
+        Self { c: [c[0], c[1], 0.0], up, fwd, side: unit(cross(up, fwd)) }
+    }
+    /// The unit head's half-width, depth in front and depth behind at height `u`.
+    fn profile(u: f64) -> [f64; 3] {
+        let [_, w, front, back] = keyed(&HEAD_PROFILE, u);
+        [w, front, back]
+    }
+    /// How far forward the unit head's front stands at `x` across and `u` up.
+    fn front(x: f64, u: f64) -> f64 {
+        let [w, dd, _] = Self::profile(u);
+        let ax = (x / w).abs().min(1.0);
+        dd * (1.0 - ax.powf(2.3)).max(0.0).powf(1.0 / 2.3) + face_relief(x, u) * (1.0 - smooth(0.72, 0.95, ax))
+    }
+    /// The unit head's slice at `u`: across and forward, round from one side through the face and back behind.
+    fn ring(u: f64) -> Vec<[f64; 2]> {
+        let [w, _, bb] = Self::profile(u);
+        let mut pts: Vec<[f64; 2]> = HEAD_FRONT.iter().map(|&f| [f * w, Self::front(f * w, u)]).collect();
+        for g in [0.0f64, 36.0, 72.0, 108.0, 144.0] {
+            let g = g.to_radians();
+            pts.push([-w * g.cos(), -bb * g.sin()]);
+        }
+        pts
+    }
+    /// A unit-head point in the world.
+    fn world(&self, u: f64, x: f64, y: f64) -> P3 {
+        let k = HEAD_SCALE;
+        add(self.c, add(mul(self.up, u * k), add(mul(self.side, x * k), mul(self.fwd, y * k))))
+    }
+    fn loft(&self) -> Operation {
+        let sections = HEAD_LEVELS
+            .iter()
+            .map(|&u| {
+                let pts: Vec<[f64; 2]> = Self::ring(u).iter().map(|p| [p[0] * HEAD_SCALE, p[1] * HEAD_SCALE]).collect();
+                let mut sk = loop_through(&pts);
+                sk.plane = plane(self.world(u, 0.0, 0.0), self.side, self.fwd);
+                sk.into()
+            })
+            .collect();
+        Operation::Loft { sections, meshed: true }
+    }
+    /// The skull's surface `a` degrees round from the middle of her face toward `side`, at height `u`, with its outward normal.
+    fn surface(&self, u: f64, a: f64) -> (P3, P3) {
+        let at = |u: f64, a: f64| {
+            let [w, _, bb] = Self::profile(u);
+            let (s, c) = a.to_radians().sin_cos();
+            let x = w * s;
+            self.world(u, x, if c >= 0.0 { Self::front(x, u) * c.powf(0.3) } else { bb * c })
+        };
+        let p = at(u, a);
+        let n = unit(cross(sub(at(u, a + 1.0), at(u, a - 1.0)), sub(at(u + 0.02, a), at(u - 0.02, a))));
+        let axis = self.world(u, 0.0, 0.0);
+        (p, if dot(n, sub(p, axis)) < 0.0 { mul(n, -1.0) } else { n })
+    }
+    /// Every point the slices pass through, for measuring her against the stone.
+    fn samples(&self) -> Vec<P3> {
+        let mut out = Vec::new();
+        for i in 0..=46 {
+            let u = lerp(-2.3, 2.3, i as f64 / 46.0);
+            for p in Self::ring(u) {
+                out.push(self.world(u, p[0], p[1]));
+            }
+        }
+        out
+    }
+    /// Whether a unit-head point (up, across, forward) lies inside her head.
+    fn inside(u: f64, x: f64, y: f64) -> bool {
+        if !(HEAD_LEVELS[0]..=HEAD_LEVELS[HEAD_LEVELS.len() - 1]).contains(&u) {
+            return false;
+        }
+        let [w, _, bb] = Self::profile(u);
+        if x.abs() >= w {
+            return false;
+        }
+        if y >= 0.0 { y <= Self::front(x, u) } else { (x / w).powi(2) + (y / bb).powi(2) <= 1.0 }
+    }
+    /// Where a ray from the head's centre, `eta` degrees from her face up over the crown and `lambda` toward `side`,
+    /// leaves the head, with the ray's direction there.
+    fn skull(&self, eta: f64, lambda: f64) -> (P3, P3) {
+        let (se, ce) = eta.to_radians().sin_cos();
+        let (sl, cl) = lambda.to_radians().sin_cos();
+        let d = [cl * se, sl, cl * ce];
+        let (mut lo, mut hi) = (0.0, 3.0);
+        for _ in 0..40 {
+            let m = 0.5 * (lo + hi);
+            if Self::inside(d[0] * m, d[1] * m, d[2] * m) { lo = m } else { hi = m }
+        }
+        (self.world(d[0] * lo, d[1] * lo, d[2] * lo), unit(add(mul(self.up, d[0]), add(mul(self.side, d[1]), mul(self.fwd, d[2])))))
+    }
+    /// Her hair, parted over the brow: six round locks laid side by side, swept back over the skull and falling from
+    /// her nape down her back with a wave.
+    fn hair(&self) -> Result<Vec<(String, Operation, P3)>> {
+        let mut out = Vec::new();
+        let r = 0.5;
+        for (k, lambda) in [12.0f64, -12.0, 39.0, -39.0, 66.0, -66.0].into_iter().enumerate() {
+            let mut path = Vec::new();
+            let start = if lambda.abs() < 60.0 { 60.0 + 0.25 * lambda.abs() } else { 66.0 };
+            for (i, eta) in [start, 100.0, 140.0, 180.0].into_iter().enumerate() {
+                let (p, n) = self.skull(eta, lambda * lerp(1.0, 0.72, i as f64 / 3.0));
+                // The lock rises out of the scalp at the hairline.
+                path.push(add(p, mul(n, r - if i == 0 && lambda.abs() < 60.0 { 0.85 } else { 0.5 })));
+            }
+            let fall = unit(add(mul(self.up, -1.0), mul(self.fwd, -0.3)));
+            let last = path[3];
+            let wave = mul(self.side, 0.25 * lambda.signum());
+            path.push(add(add(last, mul(fall, 1.2)), wave));
+            path.push(add(last, mul(fall, 2.3)));
+            let sp = Spine::through(&path, self.side);
+            let len = sp.length();
+            let mut at: Vec<f64> = (0..=6).map(|i| (len - r) * i as f64 / 6.0).collect();
+            at.extend([len - 0.5 * r, len - 0.12 * r]);
+            let radius = |d: f64| if d > len - r { let x = (d - (len - r)) / r; r * (1.0 - x * x).max(0.0).sqrt() } else { r };
+            out.push((format!("Hair lock {}", k + 1), round_loft(&sp, &at, radius), self.up));
+        }
+        Ok(out)
+    }
+}
+
+/// The harpy's body: torso, neck and head, west of the stone in the band's mid-plane.
 struct Figure {
     torso: Spine,
     neck: Spine,
-    head: Spine,
-    /// The head's length from occiput to face.
-    head_len: f64,
+    head: Head,
 }
 
 const Z: P3 = [0.0, 0.0, 1.0];
 
 impl Figure {
-    fn new(crest: f64, g: f64) -> Self {
-        let rump = polar(127.0, crest + 0.45);
-        let torso = Spine::through(&[[rump[0], rump[1], 0.0], [-7.7, g - 1.9, 0.0], [-7.05, g - 0.2, 0.0], [-6.45, g + 1.3, 0.0]], Z);
-        let neck = Spine::through(&[[-6.6, g + 0.85, 0.0], [-5.95, g + 1.5, 0.0], [-5.3, g + 2.0, 0.0]], Z);
-        let (o, f) = ([-5.6, g + 2.26, 0.0], [-3.4, g + 1.95, 0.0]);
-        let back = sub(o, mul(sub(f, o), 0.1));
-        let head = Spine::through(&[back, f], Z);
-        Self { torso, neck, head, head_len: norm(sub(f, o)) }
+    fn new(crest: f64) -> Self {
+        let spine: Vec<P3> = TORSO_SPINE
+            .iter()
+            .map(|&[th, h]| {
+                let p = polar(th, crest + h);
+                [p[0], p[1], 0.0]
+            })
+            .collect();
+        let torso = Spine::through(&spine, Z);
+        let head = Head::new();
+        let (chest, _, _) = torso.at(0.9 * torso.length());
+        let root = add(chest, [0.0, 0.25, 0.0]);
+        let top = head.world(-1.45, 0.0, -0.3);
+        let mid = add(mul(add(root, top), 0.5), mul(head.fwd, -0.2));
+        let neck = Spine::through(&[root, mid, top], Z);
+        Self { torso, neck, head }
     }
     fn torso_keys(s: f64) -> [f64; 3] {
         let k = keyed(&TORSO, s);
         [k[1], k[2], k[3]]
     }
-    /// The torso's skin at share `s` and `phi` degrees round from the breast, with its outward normal.
+    /// The torso's skin at share `s` and `phi` degrees round from the belly toward the high cheek, with its outward normal.
     fn torso_skin(&self, s: f64, phi: f64) -> (P3, P3) {
         let (p, t, _) = self.torso.at(s * self.torso.length());
         let (x, y) = (Z, cross(t, Z));
@@ -778,53 +968,21 @@ impl Figure {
         let bb = if cp >= 0.0 { b * (1.0 + bias) } else { b * (1.0 - bias) };
         (add(p, add(mul(x, a * sp), mul(y, bb * cp))), unit(add(mul(x, sp / a), mul(y, cp / bb))))
     }
-    fn head_r(u: f64) -> f64 {
-        keyed(&HEAD, u)[1]
+    fn neck_r(s: f64) -> f64 {
+        lerp(1.05, 0.88, s)
     }
-    fn head_bias(u: f64) -> f64 {
-        keyed(&HEAD, u)[2]
-    }
-    /// The head's axis at `u` (0 occiput, 1 face), with its top's direction.
-    fn head_axis(&self, u: f64) -> (P3, P3) {
-        let d = (u + 0.1) * self.head_len;
-        let (p, t, _) = self.head.at(d);
-        (p, mul(cross(t, Z), -1.0))
-    }
-    /// The head's skin at `u` and `phi` degrees round from its top, with its outward normal.
-    fn head_skin(&self, u: f64, phi: f64) -> (P3, P3) {
-        let (p, up) = self.head_axis(u);
-        let u = u.clamp(-0.1, 1.0);
-        let r = Self::head_r(u);
-        let (sp, cp) = phi.to_radians().sin_cos();
-        let a = HEAD_WIDTH * r;
-        let b = if cp >= 0.0 { r * (1.0 - Self::head_bias(u)) } else { r * (1.0 + Self::head_bias(u)) };
-        (add(p, add(mul(Z, a * sp), mul(up, b * cp))), unit(add(mul(Z, sp / a), mul(up, cp / b))))
-    }
-    /// The nearest the torso, neck, head and face come to the stone, sampled round their sections.
+    /// The nearest her torso, neck and head come to the stone, sampled round their sections.
     fn stone_gap(&self, st: &Stone) -> f64 {
-        let mut nearest = f64::MAX;
-        let (o, up) = self.head_axis(0.0);
-        let fwd = unit(sub(self.head_axis(1.0).0, o));
-        let (c, _) = self.head_axis(0.8);
-        let c = add(add(c, mul(fwd, 0.42)), mul(up, 0.18));
-        for &[s, w, depth, cheek, ridge, _] in &FACE {
-            let set_back = 0.15 * (2.0 * s - 1.0).powi(2);
-            let p = add(add(c, mul(up, FACE_MM * (0.5 - s))), mul(fwd, -set_back));
-            let e = 0.5 * depth;
-            for (x, y) in [(0.0, e + cheek + ridge), (0.5 * w, e + cheek), (w, 0.0), (-0.5 * w, e + cheek), (-w, 0.0)] {
-                nearest = nearest.min(st.gap(add(add(p, mul(Z, x)), mul(fwd, y))));
-            }
-        }
+        let mut nearest = self.head.samples().iter().map(|p| st.gap(*p)).fold(f64::MAX, f64::min);
         for i in 0..=40 {
             let s = i as f64 / 40.0;
             for k in 0..24 {
                 let phi = k as f64 * 15.0;
                 nearest = nearest.min(st.gap(self.torso_skin(s, phi).0));
-                nearest = nearest.min(st.gap(self.head_skin(lerp(-0.1, 1.0, s), phi).0));
                 let (p, t, nn) = self.neck.at(s * self.neck.length());
-                let r = lerp(1.4, 1.12, s);
                 let b = cross(t, nn);
                 let (sp, cp) = phi.to_radians().sin_cos();
+                let r = Self::neck_r(s);
                 nearest = nearest.min(st.gap(add(p, add(mul(nn, r * cp), mul(b, r * sp)))));
             }
         }
@@ -843,90 +1001,35 @@ impl Figure {
     }
     fn neck_loft(&self) -> Operation {
         let len = self.neck.length();
-        let at: Vec<f64> = (0..=6).map(|i| len * i as f64 / 6.0).collect();
-        round_loft(&self.neck, &at, |d| lerp(1.4, 1.12, d / len))
+        let at: Vec<f64> = (0..=4).map(|i| len * i as f64 / 4.0).collect();
+        round_loft(&self.neck, &at, |d| Self::neck_r(d / len))
     }
-    /// Her face on the front of the head, looking east over the stone: a loft down it from brow to chin whose centre
-    /// line carries the brow, the nose, the lips and the chin, with the eyes' hollows either side of the bridge.
-    fn face_loft(&self) -> (Operation, P3) {
-        let (o, up) = self.head_axis(0.0);
-        let (f, _) = self.head_axis(1.0);
-        let fwd = unit(sub(f, o));
-        let (c, _) = self.head_axis(0.8);
-        let c = add(add(c, mul(fwd, 0.42)), mul(up, 0.18));
-        let sections = FACE
-            .iter()
-            .map(|&[s, w, depth, cheek, ridge, q]| {
-                let set_back = 0.15 * (2.0 * s - 1.0).powi(2);
-                let p = add(add(c, mul(up, FACE_MM * (0.5 - s))), mul(fwd, -set_back));
-                let mut sk = face_section(w, depth, cheek, ridge, q);
-                sk.plane = plane(p, Z, fwd);
-                sk.into()
-            })
-            .collect();
-        (Operation::Loft { sections, meshed: true }, fwd)
-    }
-    fn head_loft(&self) -> Operation {
-        let at: Vec<[f64; 4]> = HEAD.iter().map(|&[u, r, bias]| [(u + 0.1) * self.head_len, HEAD_WIDTH * r, r, bias]).collect();
-        oval_loft(&self.head, &at, Z)
-    }
-    /// Her head's feathering: hair plumes swept back from the brow over the crown and down the nape.
-    fn hood(&self) -> Result<Vec<(String, Operation, P3)>> {
-        let mut out = Vec::new();
-        let (o, top) = self.head_axis(0.0);
-        let (f, _) = self.head_axis(1.0);
-        let fwd = unit(sub(f, o));
-        let down_back = unit(add(mul(fwd, -0.6), mul(top, -0.8)));
-        let thick = 0.84;
-        for (k, phi) in [0.0, 42.0, -42.0].iter().enumerate() {
-            let width = if k == 0 { 2.0 } else { 1.6 };
-            let e = 0.5 * thick - 0.46;
-            let skin = |u: f64| {
-                let (p, n) = self.head_skin(u, *phi);
-                (add(p, mul(n, e)), n)
-            };
-            let mut path = Vec::new();
-            let mut ups = Vec::new();
-            for u in [0.78, 0.56, 0.32, 0.1] {
-                let (p, n) = skin(u);
-                path.push(if u > 0.7 { sub(p, mul(n, 0.45)) } else { p });
-                ups.push(n);
-            }
-            let (last, ln) = skin(0.1);
-            path.push(add(last, mul(down_back, 0.75)));
-            ups.push(unit(add(ln, mul(down_back, -0.25))));
-            path.push(add(last, mul(down_back, 1.45)));
-            ups.push(unit(add(ln, mul(down_back, -0.4))));
-            out.push((format!("Hair plume {}", k + 1), path_plume(&path, &ups, width, thick, false)?, self.head_skin(0.4, *phi).1));
-        }
-        Ok(out)
-    }
-    /// Contour feathers dressing her breast and back, each lying along the torso's skin as it flows down it.
+    /// Lanceolate contour feathers laid flat on her breast and mantle, each flowing down the torso toward the tail.
     fn plumes(&self) -> Result<Vec<(String, Operation, P3)>> {
         let mut out = Vec::new();
-        let rows: [(&str, f64, &[f64], f64); 4] = [
-            ("Breast", 0.95, &[0.0, 42.0, -42.0], 1.9),
-            ("Breast", 0.76, &[24.0, -24.0, 66.0, -66.0], 2.1),
-            ("Breast", 0.57, &[0.0], 2.2),
-            ("Mantle", 0.9, &[180.0, 148.0, -148.0], 2.1),
+        let rows: [(&str, f64, &[f64]); 5] = [
+            ("Breast", 0.99, &[0.0, 50.0, -50.0]),
+            ("Breast", 0.8, &[85.0, -85.0]),
+            ("Mantle", 0.92, &[180.0, 145.0, -145.0]),
+            ("Mantle", 0.7, &[162.0, -162.0]),
+            ("Mantle", 0.48, &[180.0]),
         ];
         let mut n = HashMap::new();
-        for (what, s, phis, width) in rows {
+        for (what, s, phis) in rows {
             for &phi in phis {
                 let thick = 0.85;
                 let e = 0.5 * thick - 0.3;
-                let stations = [s, s - 0.12, s - 0.25, s - 0.36];
                 let mut path = Vec::new();
                 let mut ups = Vec::new();
-                for (i, &si) in stations.iter().enumerate() {
+                for (i, si) in [s, s - 0.13, s - 0.26].into_iter().enumerate() {
                     let (p, nrm) = self.torso_skin(si, phi);
-                    path.push(add(p, mul(nrm, e + 0.06 * i as f64)));
+                    path.push(add(p, mul(nrm, e - 0.08 * i as f64)));
                     ups.push(nrm);
                 }
                 let up = ups[1];
                 let count = n.entry(what).or_insert(0);
                 *count += 1;
-                out.push((format!("{what} feather {count}"), path_plume(&path, &ups, width, thick, false)?, up));
+                out.push((format!("{what} feather {count}"), path_plume(&path, &ups, 1.5, thick, false, 0.35)?, up));
             }
         }
         Ok(out)
@@ -935,79 +1038,51 @@ impl Figure {
 
 // --- The feet --------------------------------------------------------------------------------------------------------
 
-/// The ankle in the stone's cylinder: radius, degrees round from east toward the high cheek, height over the girdle.
-const ANKLE: [f64; 3] = [4.9, 126.0, -0.6];
-/// Radius from the stone's axis at which the toes run round the girdle, mm.
-const RUN_RHO: f64 = 4.78;
-/// Where on the crown each claw's round tip rests, mm from the stone's axis.
-const CONTACT_RHO: f64 = 3.7;
+/// The high foot's ankle in the stone's cylinder: radius, degrees round from east toward the high cheek, height over the
+/// girdle. It sits low beside the band's edge, so the toes fan up from it to the girdle apart from one another.
+const ANKLE: [f64; 3] = [5.35, 118.0, -2.9];
+/// How near the stone a toe runs where its gap to its neighbours counts: along the girdle, where round 2's toes closed
+/// into a ring. Nearer the ankle they spring from one pad.
+const GIRDLE_BAND: f64 = 1.3;
+/// The knee from the ankle, mm: the tarsus drops forward and out from it to the foot.
+const KNEE: P3 = [-1.7, 1.75, -0.6];
+/// Radius and height where each claw leaves its toe, below the girdle.
+const CLAW_BASE: [f64; 2] = [4.78, -1.35];
+/// A toe's radius where it leaves the ankle, mm: 1.2 mm across.
+const TOE_R: f64 = 0.62;
+/// A claw's half-thickness across its curl and in it where it leaves its sheath, mm: 0.96 x 1.2, a step of about 0.1
+/// under the toe's end.
+const CLAW_AB: [f64; 2] = [0.48, 0.6];
 
-/// A toe of the high foot: which way round it runs from the ankle, where it hooks over the girdle, and the height it runs at.
+/// A toe of the high foot, in order round the girdle from the hallux behind the ankle to the middle toe reaching
+/// farthest forward: where its claw hooks over the girdle, how far its knuckles bow out, where its tip rests on the
+/// crown, and how far its claw curls, degrees.
 struct Toe {
     name: &'static str,
-    sign: f64,
     hook_psi: f64,
-    run_h: f64,
+    bow: f64,
+    contact_rho: f64,
+    curl: f64,
 }
 
 const TOES: [Toe; 4] = [
-    Toe { name: "hallux", sign: 1.0, hook_psi: 152.0, run_h: -0.9 },
-    Toe { name: "inner toe", sign: -1.0, hook_psi: 104.0, run_h: -0.85 },
-    Toe { name: "middle toe", sign: -1.0, hook_psi: 83.0, run_h: -1.05 },
-    Toe { name: "outer toe", sign: -1.0, hook_psi: 58.0, run_h: -1.55 },
+    Toe { name: "hallux", hook_psi: 150.0, bow: 0.45, contact_rho: 3.5, curl: 104.0 },
+    Toe { name: "inner toe", hook_psi: 116.0, bow: 0.2, contact_rho: 3.62, curl: 86.0 },
+    Toe { name: "outer toe", hook_psi: 94.0, bow: 0.25, contact_rho: 3.7, curl: 70.0 },
+    Toe { name: "middle toe", hook_psi: 72.0, bow: 0.35, contact_rho: 3.25, curl: 104.0 },
 ];
 
-/// A toe's path: round the girdle from the ankle at its run height, up the girdle's side in a quarter turn, then curled
-/// over the rim to its claw's round tip resting on the crown, ending at the tip's apex.
-fn toe_path(st: &Stone, toe: &Toe) -> Vec<P3> {
-    let slope = (0.55 * st.crown - st.half) / (0.22 * st.r);
-    let n = [slope / slope.hypot(1.0), 1.0 / slope.hypot(1.0)];
-    let contact = [CONTACT_RHO, st.half + (st.r - CONTACT_RHO) * slope];
-    let tip = [contact[0] + (TIP_R + STONE_GAP + 0.01) * n[0], contact[1] + (TIP_R + STONE_GAP + 0.01) * n[1]];
-    let curl = RUN_RHO - tip[0];
-    let base_h = tip[1] - curl;
-    let up = base_h - toe.run_h;
-    let s_hook = RUN_RHO * toe.hook_psi.to_radians();
-    let s_start = s_hook - toe.sign * up;
-    let s_ankle = RUN_RHO * ANKLE[1].to_radians();
-    let fall = (6.0 * (ANKLE[2] - toe.run_h).abs() * 0.9).sqrt().clamp(1.0, 2.6);
-    let mut path = Vec::new();
-    let run = (s_start - s_ankle).abs();
-    let steps = (run / 0.2).ceil().max(1.0) as usize;
-    for i in 0..steps {
-        let x = run * i as f64 / steps as f64;
-        let h = lerp(ANKLE[2], toe.run_h, smooth(0.0, fall, x));
-        let rho = lerp(ANKLE[0], RUN_RHO, smooth(0.0, 1.0, x));
-        path.push(st.world(rho, (s_ankle + toe.sign * x) / RUN_RHO * 180.0 / PI, h));
-    }
-    for i in 0..9 {
-        let b = (i as f64 * 10.0).to_radians();
-        let s = s_start + toe.sign * up * b.sin();
-        path.push(st.world(RUN_RHO, s / RUN_RHO * 180.0 / PI, toe.run_h + up * (1.0 - b.cos())));
-    }
-    for i in 0..=9 {
-        let a = (i as f64 * 10.0).to_radians();
-        path.push(st.world(tip[0] + curl * a.cos(), toe.hook_psi, base_h + curl * a.sin()));
-    }
-    path.push(st.world(tip[0] - TIP_R, toe.hook_psi, tip[1]));
-    path
-}
-
-/// A toe's radius `d` mm along its `len`: knuckles swelling at a third and three fifths, the claw tapering to a round tip.
-fn toe_radius(d: f64, len: f64) -> f64 {
-    let dome = len - TIP_R;
-    if d >= dome {
-        let x = d - dome;
-        return (TIP_R * TIP_R - x * x).max(0.0).sqrt().max(0.1);
-    }
-    let claw = len - 2.1;
-    let body = |d: f64| 0.45 + 0.07 * (-((d - 0.3 * claw) / 0.28).powi(2)).exp() + 0.07 * (-((d - 0.62 * claw) / 0.28).powi(2)).exp();
-    if d <= claw {
-        body(d)
-    } else {
-        let f = (d - claw) / (dome - claw);
-        lerp(body(claw), TIP_R, f * f * (3.0 - 2.0 * f))
-    }
+/// The high foot: its scaled tarsus, four knuckled toes fanned up from the ankle, and a sheathed claw hooking each over the girdle.
+struct Foot {
+    parts: Vec<(String, Operation)>,
+    /// Each claw's curl over its last 2 mm, degrees.
+    curls: Vec<(String, f64)>,
+    /// Each toe's length from the ankle to its claw's tip, mm.
+    lengths: Vec<(String, f64)>,
+    /// The nearest any toe, claw or the tarsus comes to the stone, mm.
+    stone_gap: f64,
+    /// The nearest two neighbouring toes come to each other along the girdle, mm.
+    toe_gap: f64,
 }
 
 /// How far a spine's tangent turns over its last `span` mm, degrees.
@@ -1017,83 +1092,219 @@ fn end_turn(sp: &Spine, span: f64) -> f64 {
     dot(a, b).clamp(-1.0, 1.0).acos().to_degrees()
 }
 
-/// The high foot: its ringed tarsus from her thigh to the ankle, and four knuckled toes hooking their claws over the girdle.
-struct Foot {
-    parts: Vec<(String, Operation)>,
-    /// Each toe's last-2-mm curl, degrees.
-    curls: Vec<(String, f64)>,
-    /// The nearest any toe comes to the stone, mm.
-    stone_gap: f64,
+/// A claw's half-thickness in its curl at `d` of its `len`: from the sheath to the start of its round tip.
+fn claw_b(d: f64, len: f64) -> f64 {
+    let dome = len - TIP_R;
+    lerp(CLAW_AB[1], TIP_R, smooth(0.0, dome, d))
 }
 
 fn foot(st: &Stone, fig: &Figure) -> Result<Foot> {
     let mut parts = Vec::new();
     let mut curls = Vec::new();
+    let mut lengths = Vec::new();
     let mut nearest = f64::MAX;
+    // Each toe's centre line with its radius, sampled, for the gaps between them.
+    let mut lines: Vec<Vec<(P3, f64)>> = Vec::new();
     let ankle = st.world(ANKLE[0], ANKLE[1], ANKLE[2]);
-    let (thigh, tn) = fig.torso_skin(0.46, 64.0);
-    let thigh = sub(thigh, mul(tn, 0.55));
-    let mid = add(mul(add(thigh, ankle), 0.5), mul(unit([0.2, -0.3, 1.0]), 0.25));
-    let tarsus = Spine::through(&[thigh, mid, ankle], [0.0, 1.0, 0.0]);
-    let len = tarsus.length();
-    let at: Vec<f64> = (0..=((len / 0.21).ceil() as usize)).map(|i| (i as f64 * 0.21).min(len)).collect();
-    let ring = |d: f64| lerp(0.66 + 0.045 * (2.0 * PI * d / 0.42).cos(), 0.76, smooth(len - 0.5, len, d));
-    for &d in &at {
-        let (p, _, _) = tarsus.at(d);
-        nearest = nearest.min(st.gap(p) - ring(d));
+    // The tarsus from her thigh down to the ankle, shingled scutes down its front and a round ankle joint.
+    // The feathered thigh from her flank out to the knee, then the bare tarsus down from the knee to the ankle.
+    let (hip, hn) = fig.torso_skin(0.74, 70.0);
+    let hip = sub(hip, mul(hn, 0.6));
+    let knee = add(ankle, KNEE);
+    let thigh = Spine::through(&[hip, add(mul(add(hip, knee), 0.5), [0.0, 0.35, 0.3]), knee], [0.0, 1.0, 0.0]);
+    // A drumstick of a thigh, dressed in three lanceolate feathers laid down it toward the knee.
+    let tl = thigh.length();
+    let thigh_r = |d: f64| lerp(1.1, 0.78, smooth(0.0, tl, d));
+    for i in 0..=20 {
+        let d = tl * i as f64 / 20.0;
+        nearest = nearest.min(st.gap(thigh.at(d).0) - thigh_r(d));
     }
-    parts.push(("Tarsus".to_string(), round_loft(&tarsus, &at, ring)));
-    for toe in &TOES {
-        let control = toe_path(st, toe);
-        let sp = Spine::through(&control, [0.0, 1.0, 0.0]);
-        let len = sp.length();
-        let dome = len - TIP_R;
-        let claw = len - 2.1;
-        let step = (claw / 16.0).max(0.3);
-        let mut at: Vec<f64> = (0..).map(|i| i as f64 * step).take_while(|d| *d < claw).collect();
-        at.extend([0.3 * claw, 0.62 * claw]);
-        at.extend((0..).map(|i| claw + i as f64 * 0.2).take_while(|d| *d < dome - 0.05));
-        at.extend([0.0, 0.12, 0.22, 0.3, 0.36, 0.4].iter().map(|x| dome + x));
-        at.sort_by(f64::total_cmp);
-        at.dedup_by(|a, b| (*a - *b).abs() < 0.08);
-        // Along the toe its sections' clearance, over the dome the ball its round tip lies on.
-        for &d in at.iter().filter(|d| **d < dome) {
-            let (p, _, _) = sp.at(d);
-            let gap = st.gap(p) - toe_radius(d, len);
-            if std::env::var("HARPYIA_DEBUG").is_ok() && gap < 0.06 {
-                eprintln!("{}: gap {gap:.4} at {d:.2} of {len:.2} (rho {:.3}, h {:.3})", toe.name, p[0].hypot(p[2]), p[1] - st.g[1]);
-            }
-            nearest = nearest.min(gap);
+    let at: Vec<f64> = (0..=4).map(|i| tl * i as f64 / 4.0).collect();
+    parts.push(("Thigh".to_string(), round_loft(&thigh, &at, thigh_r)));
+    for (k, around) in [0.0f64, 55.0, -55.0].into_iter().enumerate() {
+        let thick = 0.84;
+        let (mut path, mut ups) = (Vec::new(), Vec::new());
+        for (i, share) in [0.08, 0.5, 0.97].into_iter().enumerate() {
+            let d = share * tl;
+            let (p, t, _) = thigh.at(d);
+            let out = unit(sub([0.2, 0.55, 1.0], mul(t, dot([0.2, 0.55, 1.0], t))));
+            let side = cross(t, out);
+            let (sa, ca) = around.to_radians().sin_cos();
+            let n = unit(add(mul(out, ca), mul(side, sa)));
+            path.push(add(p, mul(n, thigh_r(d) + 0.5 * thick - 0.3 - 0.1 * i as f64)));
+            ups.push(n);
         }
-        let (tip, _, _) = sp.at(dome);
-        nearest = nearest.min(st.gap(tip) - TIP_R);
-        let name = toe.name;
-        curls.push((format!("Talon, {name}"), end_turn(&sp, 2.0)));
-        parts.push((format!("Talon, {name}"), round_loft(&sp, &at, |d| toe_radius(d, len))));
+        let width = if k == 0 { 1.5 } else { 1.25 };
+        parts.push((format!("Thigh feather {}", k + 1), path_plume(&path, &ups, width, thick, false, 0.35)?));
     }
-    Ok(Foot { parts, curls, stone_gap: nearest })
+    let heading = unit(sub(ankle, knee));
+    let tarsus = Spine::through(&[sub(knee, mul(heading, 0.3)), add(mul(add(knee, ankle), 0.5), [0.0, 0.1, 0.12]), ankle, add(ankle, mul(heading, 0.4))], [0.0, 1.0, 0.0]);
+    let len = tarsus.length();
+    let joint = len - 0.4;
+    const PITCH: f64 = 0.62;
+    const STEP: f64 = 0.12;
+    let scuted = (joint - 3.0 * PITCH).max(0.35);
+    let mut at: Vec<(f64, f64)> = vec![(0.0, 0.0), (scuted - 0.02, 0.0)];
+    for k in 0..3 {
+        let root = scuted + k as f64 * PITCH;
+        at.extend([(root + 0.03, 0.0), (root + 0.55 * PITCH, 0.55), (root + PITCH - 0.03, 1.0)]);
+    }
+    at.extend([(joint + 0.02, 0.0), (joint + 0.22, 0.0), (joint + 0.33, 0.0), (len - 0.01, 0.0)]);
+    let radius = |d: f64| -> f64 {
+        let r = lerp(0.62, 0.7, smooth(0.0, joint, d));
+        if d > joint {
+            let x = (d - joint) / (len - joint);
+            r * (1.0 - (0.92 * x).powi(2)).max(0.05).sqrt()
+        } else {
+            r
+        }
+    };
+    let front = unit([0.0, 0.45, 1.0]);
+    let sections = at
+        .iter()
+        .map(|&(d, s)| {
+            let (p, t, n) = tarsus.at(d);
+            let f = unit(sub(front, mul(t, dot(front, t))));
+            let r = radius(d) + 0.5 * STEP * s;
+            let centre = add(p, mul(f, 0.5 * STEP * s));
+            nearest = nearest.min(st.gap(centre) - r);
+            let mut c = Sketch::circle((r * 1e4).round() / 1e4);
+            c.plane = plane(centre, n, cross(t, n));
+            c.into()
+        })
+        .collect();
+    parts.push(("Tarsus".to_string(), Operation::Loft { sections, meshed: true }));
+    let slope = (0.55 * st.crown - st.half) / (0.22 * st.r);
+    let facet_n = [slope / slope.hypot(1.0), 1.0 / slope.hypot(1.0)];
+    for toe in &TOES {
+        let psi = toe.hook_psi;
+        let meridian = |rho: f64, h: f64| st.world(rho, psi, h);
+        // The toe: from the ankle, bowed out at its knuckles, up to the claw's base.
+        let knuckle = st.world(lerp(ANKLE[0], CLAW_BASE[0], 0.5) + toe.bow, lerp(ANKLE[1], psi, 0.55), lerp(ANKLE[2], CLAW_BASE[1], 0.4));
+        let control = [ankle, knuckle, meridian(CLAW_BASE[0], CLAW_BASE[1])];
+        let sp = Spine::through(&control, [0.0, 1.0, 0.0]);
+        let tl = sp.length();
+        // Three phalanges, each swelling to a knuckle pad at its joint, the last to the claw's sheath; a shingled
+        // scute over the top of each.
+        let joints = [0.36 * tl, 0.7 * tl];
+        let r = |d: f64| {
+            let knob: f64 = joints.iter().map(|j| (-((d - j) / 0.22).powi(2)).exp()).sum();
+            TOE_R - 0.04 * smooth(0.0, 0.5 * tl, d) + 0.08 * knob + 0.12 * smooth(tl - 0.35, tl, d)
+        };
+        let mut shingles: Vec<(f64, f64)> = vec![(0.0, 0.0)];
+        let edges = [0.0, joints[0], joints[1], tl];
+        for w in edges.windows(2) {
+            let (a, b) = (w[0] + 0.1, w[1] - 0.06);
+            shingles.extend([(a, 0.0), (lerp(a, b, 0.55), 0.6), (b, 1.0)]);
+        }
+        shingles.push((tl, 0.0));
+        shingles.dedup_by(|a, b| (a.0 - b.0).abs() < 0.05);
+        let mut line = Vec::new();
+        for i in 0..=40 {
+            let d = tl * i as f64 / 40.0;
+            let (p, _, _) = sp.at(d);
+            nearest = nearest.min(st.gap(p) - r(d));
+            if st.gap(p) < GIRDLE_BAND {
+                line.push((p, r(d)));
+            }
+        }
+        let top = unit([st.world(1.0, psi, 0.0)[0], 1.2, st.world(1.0, psi, 0.0)[2]]);
+        let sections = shingles
+            .iter()
+            .map(|&(d, s)| {
+                let (p, t, n) = sp.at(d);
+                let f = unit(sub(top, mul(t, dot(top, t))));
+                let rr = r(d) + 0.5 * 0.1 * s;
+                let mut c = Sketch::circle((rr * 1e4).round() / 1e4);
+                c.plane = plane(add(p, mul(f, 0.05 * s)), n, cross(t, n));
+                c.into()
+            })
+            .collect();
+        parts.push((format!("Toe, {}", toe.name), Operation::Loft { sections, meshed: true }));
+        // The claw: out of the toe's end in a sheath step, up the girdle's side and hooked over its rim onto the crown.
+        let contact = [toe.contact_rho, st.half + (st.r - toe.contact_rho) * slope];
+        let lift = TIP_R + STONE_GAP + 0.03;
+        let tip = [contact[0] + facet_n[0] * lift, contact[1] + facet_n[1] * lift];
+        let a = (90.0 + toe.curl).to_radians();
+        let dir = [a.cos(), a.sin()];
+        let (q0, q3) = (CLAW_BASE, tip);
+        let q1 = [q0[0] + 0.05, q0[1] + 1.45];
+        let q2 = [q3[0] - 0.9 * dir[0], q3[1] - 0.9 * dir[1]];
+        let bez = |t: f64| {
+            let u = 1.0 - t;
+            let w = [u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t];
+            [w[0] * q0[0] + w[1] * q1[0] + w[2] * q2[0] + w[3] * q3[0], w[0] * q0[1] + w[1] * q1[1] + w[2] * q2[1] + w[3] * q3[1]]
+        };
+        let mut pts = vec![meridian(CLAW_BASE[0], CLAW_BASE[1] - 0.3)];
+        pts.extend((0..=10).map(|i| {
+            let q = bez(i as f64 / 10.0);
+            meridian(q[0], q[1])
+        }));
+        let hooked = Spine::through(&pts, [0.0, 1.0, 0.0]);
+        curls.push((format!("Claw, {}", toe.name), end_turn(&hooked, 2.0)));
+        let dome_at = hooked.length();
+        pts.push(meridian(tip[0] + 0.45 * dir[0], tip[1] + 0.45 * dir[1]));
+        let claw = Spine::through(&pts, [0.0, 1.0, 0.0]);
+        let len = dome_at + TIP_R;
+        let mut at: Vec<[f64; 4]> = [0.0, 0.3, 0.3 + 0.35 * (dome_at - 0.3), 0.3 + 0.7 * (dome_at - 0.3)].iter().map(|&d| [d, CLAW_AB[0], claw_b(d, len), 0.0]).collect();
+        for x in [0.0, 0.2, 0.33, 0.4] {
+            let k = (1.0 - (x / TIP_R).powi(2)).max(0.0).sqrt();
+            at.push([dome_at + x, TIP_R * k, TIP_R * k, 0.0]);
+        }
+        let across = [-psi.to_radians().sin(), 0.0, psi.to_radians().cos()];
+        for &[d, _, b, _] in at.iter().filter(|s| s[0] < dome_at) {
+            let (p, _, _) = claw.at(d);
+            nearest = nearest.min(st.gap(p) - b.max(CLAW_AB[0]));
+            if st.gap(p) < GIRDLE_BAND {
+                line.push((p, b.max(CLAW_AB[0])));
+            }
+        }
+        let (tip_p, _, _) = claw.at(dome_at);
+        nearest = nearest.min(st.gap(tip_p) - TIP_R);
+        line.push((tip_p, TIP_R));
+        lengths.push((toe.name.to_string(), tl + dome_at - 0.3 + TIP_R));
+        lines.push(line);
+        parts.push((format!("Claw, {}", toe.name), oval_loft(&claw, &at, across)));
+    }
+    let mut toe_gap = f64::MAX;
+    for w in lines.windows(2) {
+        for (p, r) in &w[0] {
+            for (q, s) in &w[1] {
+                toe_gap = toe_gap.min(norm(sub(*p, *q)) - r - s);
+            }
+        }
+    }
+    Ok(Foot { parts, curls, lengths, stone_gap: nearest, toe_gap })
 }
 
 // --- Painting --------------------------------------------------------------------------------------------------------
 
-/// Whether `theta` lies in `from..to` (degrees, wrapping), eased over `fade` at both ends: 0..1.
+/// Whether `theta` lies in `from..to` (degrees, wrapping): 1 inside, easing to 0 over `fade` degrees outside either end.
 fn arc(theta: f64, from: f64, to: f64, fade: f64) -> f64 {
     let span = (to - from).rem_euclid(360.0);
     let d = (theta - from).rem_euclid(360.0);
-    if d > span + fade && d < 360.0 - fade {
-        return 0.0;
+    if d <= span {
+        return 1.0;
     }
-    let inside = if d <= span { d } else { d - 360.0 };
-    smooth(-fade, 0.0, inside.min(span - inside).min(inside)) * smooth(-fade, 0.0, span - inside)
+    let outside = (d - span).min(360.0 - d);
+    1.0 - smooth(0.0, fade, outside)
 }
 
 /// Rounded shingles pointing toward +`along`: 0 at each one's root rising to 1 at its free edge, where across it the point
 /// sits (-0.5..0.5), and how far ahead its free edge lies, mm.
 fn shingle(along: f64, across: f64, pa: f64, pc: f64, dip: f64) -> (f64, f64, f64) {
+    shingle_shaped(along, across, pa, pc, dip, 2.0, 0.0)
+}
+
+/// Shingles whose free edge falls back `dip` of a row at their sides as the power `pow` of the distance from the middle
+/// (2 round, nearer 1 pointed), and is cut into four barb teeth a side `serr` of a row deep.
+fn shingle_shaped(along: f64, across: f64, pa: f64, pc: f64, dip: f64, pow: f64, serr: f64) -> (f64, f64, f64) {
     let edge = |k: i64| {
         let shift = if k.rem_euclid(2) == 0 { 0.0 } else { 0.5 };
         let w = (across / pc + shift).rem_euclid(1.0) - 0.5;
-        ((k + 1) as f64 * pa - dip * pa * (2.0 * w).powi(2), w)
+        let tooth = (2.0 * w).abs() * 4.0;
+        let saw = 1.0 - 2.0 * (tooth - tooth.floor() - 0.5).abs();
+        ((k + 1) as f64 * pa - dip * pa * (2.0 * w).abs().powf(pow) - serr * pa * saw, w)
     };
     let k = (along / pa).floor() as i64;
     let mut prev = edge(k - 2).0;
@@ -1118,54 +1329,23 @@ fn contour(t: f64, w: f64, ahead: f64, pc: f64) -> f64 {
     floor + (vane + rachis - floor).max(0.0) * roll
 }
 
-/// A raptor's tarsus toward +`along`: one column of transverse scutes `width` across, each rising from under the one
-/// behind it to a rolled free edge bowed toward the foot, flanked by small reticulate scales.
-fn tarsus(along: f64, across: f64, width: f64) -> f64 {
-    const LEN: f64 = 1.4;
-    const BOW: f64 = 0.3;
-    const ROOT: f64 = 0.3;
-    let half = 0.5 * width;
-    let c = (across / half).clamp(-1.0, 1.0);
-    let s = (along + BOW * LEN * c * c) / LEN;
-    let t = s - s.floor();
-    let top = ROOT + (1.0 - ROOT) * t.powf(0.8);
-    let rolled = ROOT + (top - ROOT) * smooth(0.0, 0.12, (1.0 - t) * LEN);
-    let side = half - across.abs();
-    let scute = rolled * (1.0 - 0.18 * c * c) * smooth(0.0, 0.2, side);
-    let flank = hex_scales(along, across, 0.75) * smooth(0.12, 0.3, -side);
-    scute.max(flank)
-}
-
-/// Round scales on a hexagonal lattice `size` apart, each domed inside its own groove.
-fn hex_scales(x: f64, y: f64, size: f64) -> f64 {
-    let row = size * 3f64.sqrt() * 0.5;
-    let j0 = (y / row).floor() as i64;
-    let mut d = [f64::MAX, f64::MAX];
-    for j in j0 - 1..=j0 + 2 {
-        let shift = if j.rem_euclid(2) == 0 { 0.0 } else { 0.5 * size };
-        let i0 = ((x - shift) / size).floor() as i64;
-        for i in i0 - 1..=i0 + 2 {
-            let c = [i as f64 * size + shift, j as f64 * row];
-            let dist = (x - c[0]).hypot(y - c[1]);
-            if dist < d[0] {
-                d = [dist, d[0]];
-            } else if dist < d[1] {
-                d[1] = dist;
-            }
-        }
-    }
-    let border = 0.5 * (d[1] - d[0]);
-    let dome = (1.0 - (d[0] / (0.55 * size)).powi(2)).max(0.0).sqrt();
-    0.2 + 0.8 * dome * smooth(0.0, 0.1, border)
+/// Contour feathers pointing toward +`along`, graded from `p0` mm long where `along` is 0 by `k` mm more per mm on, each
+/// `ratio` of its length wide: rows counted by the local length so every feather keeps its own outline as they grow.
+fn graded(along: f64, across: f64, p0: f64, k: f64, ratio: f64) -> f64 {
+    let along = along.max(0.0);
+    let p = p0 + k * along;
+    let rows = (1.0 + k * along / p0).ln() / k;
+    let (t, w, ahead) = shingle_shaped(rows, across / p, 1.0, ratio, 0.75, 1.6, 0.0);
+    contour(t, w, ahead * p, ratio * p)
 }
 
 /// The tail at the palm, `along` mm from its rump and `across` the section: nine rectrices fanned over crown and cheeks,
-/// the centre one on top, each with its own outline, a raised rachis and a rounded tip.
-fn tail_fan(along: f64, across: f64) -> f64 {
+/// the centre one on top, each with its own outline, a raised rachis and a rounded tip. None where no rectrix lies.
+fn tail_fan(along: f64, across: f64) -> Option<f64> {
     if !(0.0..16.5).contains(&along) {
-        return 0.0;
+        return None;
     }
-    let mut h = 0.0f64;
+    let mut h: Option<f64> = None;
     for k in -4i32..=4 {
         let (sa, ca) = (k as f64 * 8.4).to_radians().sin_cos();
         let (l, c) = (along * ca + across * sa, -along * sa + across * ca);
@@ -1183,12 +1363,19 @@ fn tail_fan(along: f64, across: f64) -> f64 {
         let vane = 0.6 + 0.4 * (1.0 - (c / hw).powi(2)).max(0.0).sqrt();
         let edge = smooth(0.0, 0.14, hw - c.abs()) * smooth(0.0, 0.14, len - l);
         let rachis = 0.2 * (1.0 - smooth(0.07, 0.14, c.abs())) * smooth(0.6, 2.0, l);
-        h = h.max(base * (0.2 + (vane + rachis - 0.2) * edge));
+        let v = base * (0.2 + (vane + rachis - 0.2) * edge) * smooth(0.0, 1.0, along);
+        h = Some(h.map_or(v, |o| o.max(v)));
     }
-    h * smooth(0.0, 1.0, along)
+    h
 }
 
-/// The harpy's plumage and scaled leg over the bare band.
+/// Where the breast plumage starts under the stone's east girdle, degrees.
+const BREAST_FROM: f64 = 78.0;
+/// Where it ends under the tail, degrees.
+const BREAST_TO: f64 = 256.0;
+
+/// The harpy's plumage over the bare band: her mantle and the cheek feathers under her wings west of the stone, her
+/// breast and belly feathers flowing east from under the stone round to the tail, and the tail fanned at the palm.
 fn plumage_at(a: &Atlas, s: &Sample, crest: f64) -> f64 {
     let r = s.p[0].hypot(s.p[1]);
     let theta = s.theta;
@@ -1200,21 +1387,22 @@ fn plumage_at(a: &Atlas, s: &Sample, crest: f64) -> f64 {
     // Mantle behind her: contour feathers flowing from her body toward the tail.
     let (t, w, ahead) = shingle(u, across, 2.9, 2.2, 0.7);
     let mantle = contour(t, w, ahead, 2.2) * crown * arc(theta, 118.0, 244.0, 5.0);
-    // Tail fanned from the rump across crown and cheeks toward the palm.
-    let rump = 228.0;
-    let tail = tail_fan((theta - rump).rem_euclid(360.0).to_radians() * crest, across) * clear;
-    // Thighs: contour feathers flowing on toward the leg.
-    let (tt, wt, at) = shingle(u, across, 2.6, 2.0, 0.7);
-    let thigh = contour(tt, wt, at, 2.0) * arc(theta, 284.0, 352.0, 5.0) * clear;
-    // The scaled leg on the crown, narrowing toward the foot.
-    let toward_foot = smooth(0.0, 1.0, (theta - 348.0).rem_euclid(360.0) / 92.0);
-    let leg = tarsus(u, across, lerp(5.6, 4.2, toward_foot)) * crown * arc(theta, 348.0, 80.0, 4.0);
-    // Its sides: round scales on both cheeks.
-    let side = hex_scales(theta.to_radians() * r, r, 0.95) * cheek * clear * arc(theta, 348.0, 84.0, 4.0);
-    // Cheek feathers under the wings' trailing edge and beside the stone.
+    // Cheek feathers under the wings' trailing edge, on past it under the tail to the palm.
     let (tc, wc, ac) = shingle(theta.to_radians() * r, r, 2.4, 1.6, 0.7);
-    let cheeks = contour(tc, wc, ac, 1.6) * cheek * clear * arc(theta, 84.0, 232.0, 4.0);
-    mantle.max(tail).max(thigh).max(leg).max(side).max(cheeks)
+    let cheeks = contour(tc, wc, ac, 1.6) * cheek * clear * arc(theta, 84.0, BREAST_TO, 4.0);
+    // Breast and belly: contour feathers flowing east from under the stone, 1.6 mm long there and 3.0 by θ 340, pointing
+    // away from the stone on the crown and down both cheeks, on under the tail.
+    let east = (BREAST_FROM - theta).rem_euclid(360.0).to_radians();
+    let span = arc(theta, BREAST_TO, BREAST_FROM + 2.0, 4.0);
+    let breast = graded(east * crest, across, 1.6, 0.064, 0.72) * crown * span;
+    let belly = graded(east * r, r - a.bore, 1.6, 0.064, 0.66) * cheek * clear * span;
+    let rest = mantle.max(cheeks).max(breast).max(belly);
+    // The tail lies over everything it covers; round its rectrices the plumage it overlaps sits lower.
+    let rump = 228.0;
+    match tail_fan((theta - rump).rem_euclid(360.0).to_radians() * crest, across) {
+        Some(tail) => tail * clear,
+        None => rest * lerp(1.0, 0.55, arc(theta, rump, 305.0, 6.0)),
+    }
 }
 
 /// Paints the plumage on the bare band's atlas with square texels and adds it as one layer.
@@ -1244,11 +1432,15 @@ enum Family {
 
 /// What the authoring made beside the design: the stone's frame, the feathers, the foot's measurements and each part's family.
 struct Authored {
+    /// Where her face is, to frame a close-up on.
+    head: P3,
     stone: Stone,
     feathers: Vec<Feather>,
     figure_stone_gap: f64,
     foot_curls: Vec<(String, f64)>,
+    toe_lengths: Vec<(String, f64)>,
     foot_stone_gap: f64,
+    toe_gap: f64,
     families: HashMap<String, Family>,
     copies: HashMap<String, Vec<String>>,
 }
@@ -1283,7 +1475,10 @@ fn parts(d: &mut RingDesign) -> Result<Authored> {
     let at = Placement::ring(90.0, STAND_MM);
     let g = at.frame(d)?.origin[1];
     let stone = Stone::new(gem, g);
-    let fig = Figure::new(crest, g);
+    let fig = Figure::new(crest);
+    if std::env::var("HARPYIA_DEBUG").is_ok() {
+        eprintln!("crest {crest:.3} girdle y {g:.3} stone r {:.3} crown {:.3} pavilion {:.3} girdle half {:.3}", stone.r, stone.crown, stone.pav, stone.half);
+    }
     let mut doc = Document::default();
     doc.append(Feature { id: 1, name: "Band".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
     doc.append(builders::stone_feature(2, gem, at))?;
@@ -1291,11 +1486,9 @@ fn parts(d: &mut RingDesign) -> Result<Authored> {
     let mut p = Parts { doc, id: 4, families: HashMap::new(), copies: HashMap::new() };
     p.add("Torso".into(), fig.torso_loft(), Family::Round)?;
     p.add("Neck".into(), fig.neck_loft(), Family::Round)?;
-    p.add("Head".into(), fig.head_loft(), Family::Round)?;
-    let (face, fwd) = fig.face_loft();
-    p.add("Face".into(), face, Family::Plate(fwd))?;
-    for (name, op, up) in fig.hood()? {
-        p.add(name, op, Family::Plate(up))?;
+    p.add("Head".into(), fig.head.loft(), Family::Round)?;
+    for (name, op, _) in fig.head.hair()? {
+        p.add(name, op, Family::Round)?;
     }
     for (name, op, up) in fig.plumes()? {
         p.add(name, op, Family::Plate(up))?;
@@ -1316,7 +1509,19 @@ fn parts(d: &mut RingDesign) -> Result<Authored> {
     }
     d.cad = Some(p.doc);
     let figure_stone_gap = fig.stone_gap(&stone);
-    Ok(Authored { stone, feathers, figure_stone_gap, foot_curls: f.curls, foot_stone_gap: f.stone_gap, families: p.families, copies: p.copies })
+    let head = fig.head.world(-0.6, 0.0, 0.0);
+    Ok(Authored {
+        head,
+        stone,
+        feathers,
+        figure_stone_gap,
+        foot_curls: f.curls,
+        toe_lengths: f.lengths,
+        foot_stone_gap: f.stone_gap,
+        toe_gap: f.toe_gap,
+        families: p.families,
+        copies: p.copies,
+    })
 }
 
 fn author() -> Result<(RingDesign, AlphaLibrary, Authored)> {
@@ -1375,11 +1580,14 @@ fn contact_sheet(out: &Path, names: &[&str]) -> Result<()> {
     Ok(())
 }
 
+/// The named views: name, yaw and pitch.
+const VIEWS: [(&str, f64, f64); 6] = [("hero", 0.55, 0.95), ("face", 0.0, PI * 0.5), ("palm", PI, 1.05), ("side", 0.0, 0.0), ("shoulder", -0.9, 0.62), ("reverse", 1.6, 0.8)];
+
 /// Studio-gold renders with the sapphire set: the named views, a close-up on the grip, the bare band against the finished
 /// ring, and a 300 px contact strip.
 fn renders(out: &Path, finished: &render::Finished, st: &Stone, edge: usize) -> Result<()> {
     let parts = finished.parts(render::GOLD);
-    for (name, yaw, pitch) in [("hero", 0.55, 0.95), ("face", 0.0, PI * 0.5), ("palm", PI, 1.05), ("side", 0.0, 0.0), ("shoulder", -0.9, 0.62), ("reverse", 1.6, 0.8)] {
+    for (name, yaw, pitch) in VIEWS {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
     }
     let head = crop(&finished.metal, st.g, 8.5);
@@ -1414,8 +1622,12 @@ fn crossings(built: &mesh::BuildResult) -> Vec<(String, usize)> {
         .collect()
 }
 
+/// Farthest a land-width ray runs into a part, mm: past the widest section any part has (the torso's 7.1 mm).
+const LAND_REACH_MM: f64 = 12.0;
+
 /// A part's land width: from each face the family measures, into the metal along its normal to the first face turned
-/// back against it within 12 degrees. Returns the thinnest and the area of faces reading under the floor.
+/// back against it within 12 degrees. Returns the thinnest and the area of faces reading under the floor; the thinnest
+/// is infinite when no ray found the far side.
 fn land_width(solid: &csg::Solid, family: Family) -> (f64, f64) {
     let tri = |i: usize| solid.f[i].map(|k| solid.v[k as usize]);
     let normals: Vec<(P3, f64)> = (0..solid.f.len())
@@ -1454,7 +1666,7 @@ fn land_width(solid: &csg::Solid, family: Family) -> (f64, f64) {
         let mut seen = std::collections::HashSet::new();
         let mut first = (f64::MAX, 0.0);
         let mut t = 0.0;
-        while t < 3.0 && first.0 == f64::MAX {
+        while t < LAND_REACH_MM && first.0 == f64::MAX {
             if let Some(cell) = grid.get(&key(add(o, mul(dir, t)))) {
                 for &j in cell {
                     if j == i || !seen.insert(j) {
@@ -1489,7 +1701,7 @@ fn land_width(solid: &csg::Solid, family: Family) -> (f64, f64) {
             }
         }
     }
-    (thinnest, thin_area)
+    (if thinnest == f64::MAX { f64::INFINITY } else { thinnest }, thin_area)
 }
 
 /// One joined part's land width, as the report lists it.
@@ -1503,15 +1715,17 @@ struct Land {
 }
 
 /// Land widths for every joined part: each loft on its own mesh, each mirror copy on its own mesh as a plate or round body.
-fn land_widths(built: &mesh::BuildResult, a: &Authored) -> Vec<Land> {
+/// A part no ray measured, or one reading wider than any part is, fails: an unmeasured part never passes silently.
+fn land_widths(built: &mesh::BuildResult, a: &Authored) -> Result<Vec<Land>> {
     let mut out = Vec::new();
     for c in built.parts.evaluated.iter().flat_map(|e| e.components.iter()) {
         let Some(family) = a.families.get(&c.name).copied() else { continue };
         let Some(m) = &c.made else { continue };
         let (thin, area) = land_width(m.solid(), family);
+        ensure!(thin.is_finite() && thin > 0.0 && thin <= 10.0, "{}: its land width was not measured ({thin})", c.name);
         let copy = a.copies.get(&c.name);
-        let note = match (copy, c.name.starts_with("High talon") || c.name == "Low foot") {
-            (Some(of), _) if of.iter().any(|n| n.starts_with("High talon")) => {
+        let note = match (copy, c.name.starts_with("High claw")) {
+            (Some(of), _) if of.iter().any(|n| n.starts_with("High claw")) => {
                 "mirror of the high foot; every claw cast blunt with a 0.85 mm round tip, points filed after setting if wanted".into()
             }
             (Some(of), _) => format!("mirror of {} parts", of.len()),
@@ -1524,7 +1738,10 @@ fn land_widths(built: &mesh::BuildResult, a: &Authored) -> Vec<Land> {
         };
         out.push(Land { part: c.name.clone(), measured, min_section_mm: thin, under_floor_mm2: area, note });
     }
-    out
+    let named: std::collections::HashSet<&str> = out.iter().map(|l| l.part.as_str()).collect();
+    let missing: Vec<&String> = a.families.keys().filter(|n| !named.contains(n.as_str())).collect();
+    ensure!(missing.is_empty(), "no land width for {missing:?}");
+    Ok(out)
 }
 
 /// The finished mesh's nearest approach to the finger's axis, and how many vertices stand inside the bore by more than 0.01 mm.
@@ -1659,6 +1876,10 @@ struct Report {
     land_min_mm: f64,
     land_under_floor_mm2: f64,
     talon_curls_deg: Vec<(String, f64)>,
+    talon_curl_span_deg: f64,
+    toe_lengths_mm: Vec<(String, f64)>,
+    middle_to_outer_toe: f64,
+    toe_gap_mm: f64,
     talon_stone_gap_mm: f64,
     figure_stone_gap_mm: f64,
     metal_inside_stone: usize,
@@ -1732,6 +1953,28 @@ fn main() -> Result<()> {
         build.solids_notes,
         build.parts_notes
     );
+    if std::env::var("HARPYIA_LOOK").is_ok() {
+        // A quick look while authoring: the views only, no gates and no outputs.
+        library::save_design(out.join("look.ring.json"), &d)?;
+        let mut tris: Vec<(usize, String)> = built.parts.evaluated.iter().flat_map(|e| e.components.iter()).map(|c| (c.mesh.faces.len(), c.name.clone())).collect();
+        tris.sort_by(|a, b| b.0.cmp(&a.0));
+        println!("  part triangles {}: {:?}", tris.iter().map(|t| t.0).sum::<usize>(), &tris.iter().filter(|t| t.1.starts_with("High") || t.1.starts_with("Hair") || t.1 == "Torso" || t.1 == "Neck").collect::<Vec<_>>());
+        println!("  design {} bytes; reach {:.3}; z {:.3}", std::fs::metadata(out.join("look.ring.json"))?.len(), built.mesh.vertices.iter().map(|p| (p.0 as f64).hypot(p.1 as f64)).fold(0.0, f64::max), built.mesh.vertices.iter().map(|p| p.2 as f64).fold(0.0, f64::max) * 2.0);
+        let finished = render::finished_from(&d, &lib, built);
+        let parts = finished.parts(render::GOLD);
+        for (name, yaw, pitch) in VIEWS {
+            render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, 900)?;
+        }
+        let head = crop(&finished.metal, authored.stone.g, 8.5);
+        let mut close = vec![render::Part::metal(&head, render::GOLD)];
+        close.extend(finished.parts(render::GOLD));
+        render::write_png_parts(out.join("stones.png"), &close, 0.35, 1.05, 900)?;
+        let near = crop(&finished.metal, authored.head, 3.4);
+        for (name, yaw, pitch) in [("close-side", 0.0, 0.0), ("close-hero", 0.55, 0.95), ("close-shoulder", -0.9, 0.62), ("close-top", 0.0, PI * 0.5)] {
+            render::write_png_parts(out.join(format!("{name}.png")), &[render::Part::metal(&near, render::GOLD)], yaw, pitch, 700)?;
+        }
+        return Ok(());
+    }
     let made_parts = crossings(&built);
     if std::env::var("HARPYIA_DEBUG").is_ok() {
         for c in built.parts.evaluated.iter().flat_map(|e| e.components.iter()) {
@@ -1745,7 +1988,7 @@ fn main() -> Result<()> {
             }
         }
     }
-    let lands = land_widths(&built, &authored);
+    let lands = land_widths(&built, &authored)?;
     let land_min = lands.iter().map(|l| l.min_section_mm).fold(f64::MAX, f64::min);
     let land_area: f64 = lands.iter().map(|l| l.under_floor_mm2).sum();
     let (nearest, in_bore) = bore_clearance(&d, &built.mesh);
@@ -1840,6 +2083,16 @@ fn main() -> Result<()> {
         land_min_mm: land_min,
         land_under_floor_mm2: land_area,
         talon_curls_deg: authored.foot_curls.clone(),
+        talon_curl_span_deg: {
+            let c = authored.foot_curls.iter().map(|(_, c)| *c);
+            c.clone().fold(f64::MIN, f64::max) - c.fold(f64::MAX, f64::min)
+        },
+        toe_lengths_mm: authored.toe_lengths.clone(),
+        middle_to_outer_toe: {
+            let of = |n: &str| authored.toe_lengths.iter().find(|(t, _)| t == n).map_or(f64::NAN, |(_, l)| *l);
+            of("middle toe") / of("outer toe")
+        },
+        toe_gap_mm: authored.toe_gap,
         talon_stone_gap_mm: authored.foot_stone_gap,
         figure_stone_gap_mm: authored.figure_stone_gap,
         metal_inside_stone: metal_inside,
@@ -1878,6 +2131,9 @@ fn main() -> Result<()> {
         && report.land_min_mm >= MIN_SECTION_MM - 1e-6
         && report.land_under_floor_mm2 == 0.0
         && report.talon_curls_deg.iter().all(|(_, c)| *c >= 60.0)
+        && report.talon_curl_span_deg >= 25.0
+        && report.toe_gap_mm >= 0.6
+        && report.talon_stone_gap_mm <= 0.15
         && report.metal_inside_stone == 0
         && report.field_verdict == castability::Verdict::Castable.label()
         && report.thinnest_wall_mm >= MIN_SECTION_MM
@@ -1889,6 +2145,12 @@ fn main() -> Result<()> {
         && report.cold_reload_identical != Some(false);
     std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
     renders(&out, &finished, &authored.stone, if draft { 1000 } else { 1600 })?;
+    println!(
+        "  toes {:.3} mm apart; middle toe {:.2} x the outer; lengths {:?}",
+        report.toe_gap_mm,
+        report.middle_to_outer_toe,
+        report.toe_lengths_mm.iter().map(|(_, l)| (l * 100.0).round() / 100.0).collect::<Vec<_>>()
+    );
     println!(
         "  field {} ({:.3}% two-part undercut, reported only); thinnest wall {:.2} mm; dfm {}; stones {} reported, {} previewed; land widths >= {:.3} mm ({:.3} mm² under the floor) over {} parts; talon curls {:?}; toes {:.3} mm from the stone; metal in the stone {}, nearest {:.3} mm",
         report.field_verdict,
