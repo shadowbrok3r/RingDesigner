@@ -6,7 +6,7 @@ use crate::csg::{P3, Solid};
 use crate::gem::{Gem, GemCut};
 use crate::mesh::MIN_WALL_MM;
 use crate::profile::MIN_EDGE_MM;
-use crate::setting::{self, Floor, Named, Plan, Rails, Wall};
+use crate::setting::{self, Floor, Named, Plan, Wall};
 use crate::sketch::Id;
 use anyhow::{Result, anyhow, bail, ensure};
 use serde_json::{Value as Json, json};
@@ -505,9 +505,9 @@ fn head_in(bore: &Bore, params: &Json, gem: Gem, seat: Seat, floor: Option<Floor
     let v = Values::of(key, gem, own)?;
     let (parts, claws) = match key.as_str() {
         CLAW | BASKET => {
-            let rails = if key == CLAW { Rails::Seat } else { Rails::Basket(v.n("rails")) };
-            let count = setting::claw_count(gem, v.n("prongs"));
-            (setting::claw_parts_reach(gem, v.n("prongs"), v.f("wire_mm"), rails, floor, wall).0, Plan::of(gem).claw_angles(count))
+            let (rails, options) = super::claw_choice(key, &v)?;
+            let (parts, _) = setting::claw_parts_reach_styled(gem, v.n("prongs"), v.f("wire_mm"), rails, floor, wall, options).map_err(|e| anyhow!("{who}: {named} {e}"))?;
+            (parts, setting::claw_bearings(gem, v.n("prongs"), v.f("wire_mm"), options.grouping))
         }
         _ => {
             let metal = floor.and_then(|f| under_wall(gem, v.f("wall_mm"), f)).unwrap_or(seat.surface_z).min(seat.surface_z);

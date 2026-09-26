@@ -474,6 +474,11 @@ pub fn union_all(parts: &[Solid]) -> Result<Solid, Snag> {
 /// is a line or a point. Returns how many faces went; the solid is left as it was if the result would
 /// not close.
 pub fn clean(s: &mut Solid, eps: f64) -> usize {
+    clean_traced(s, eps).0
+}
+
+/// [`clean`], with a flag per face of the solid as it was, set on each face it keeps in order; `None` when nothing changed.
+pub fn clean_traced(s: &mut Solid, eps: f64) -> (usize, Option<Vec<bool>>) {
     let before = s.open_edges();
     let mut faces = s.f.clone();
     let mut alive = vec![true; faces.len()];
@@ -522,16 +527,16 @@ pub fn clean(s: &mut Solid, eps: f64) -> usize {
         }
     }
     if removed == 0 && faces == s.f {
-        return 0;
+        return (0, None);
     }
-    let kept: Vec<[u32; 3]> = faces.into_iter().zip(alive).filter_map(|(f, a)| a.then_some(f)).collect();
+    let kept: Vec<[u32; 3]> = faces.into_iter().zip(&alive).filter_map(|(f, a)| a.then_some(f)).collect();
     let old = std::mem::replace(&mut s.f, kept);
     let after = s.open_edges();
     if after.0 > before.0 || after.1 > before.1 {
         s.f = old;
-        return 0;
+        return (0, None);
     }
-    removed
+    (removed, Some(alive))
 }
 
 fn twice_area_of(v: &[P3], f: [u32; 3]) -> P3 {
