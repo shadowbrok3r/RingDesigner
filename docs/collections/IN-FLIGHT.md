@@ -8,10 +8,10 @@ Every lane below was stopped mid-round by the usage limit. Resume each by starti
 | Manticora | `bestiarium-manticora` | `1bfdb33` round 2 | r2 6.8 (`manticora-round2-review.json`) | round 3, the last |
 | Kraken | `bestiarium-kraken` (owns C-B1) | `670a6b8` round 2 | r2 6.5 (`kraken-round2-review.json`) | round 3, the last |
 | Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `3250b82` round 2 | r2 6.5 (`phoenix-round2-review.json`) | round 3, the last |
-| Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `c2160ed` round 1 (+1 uncommitted) | r1 6.5 (`basiliscus-round1-review.json`) | round 2 |
+| Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `40ca22d` round 2 | r1 6.5; round 2 in review (`basiliscus-round2-review.json`) | review, then round 3 if needed |
 | Fenrir | `bestiarium-fenrir` | `5d67238` (+1 uncommitted; master merged for claw rails) | r1 5.5 (`fenrir-round1-review.json`) | round 2 |
 | Corvus | `bestiarium-corvus` | `5df9089` round 1 | r1 5.0 (`corvus-round1-review.json`) | round 2 |
-| Harpyia | `bestiarium-harpyia` (owns C-B4) | `ca5c924` C-B4 enabler (+2 uncommitted) | none yet | finish round 1 |
+| Harpyia | `bestiarium-harpyia` (owns C-B4) | `a5c8443` round 1 (C-B4 meshed loft at `ca5c924`) | r1 5.8 (`harpyia-round1-review.json`) | round 2 |
 
 - Platform on master (pushed `2af7974`): batch 16, the starter gallery with re-framed splits, the GUI and workbench CI fixes (CI green), the embedded-art fix, the phone icon, C-B5 claw rails and cabochon rise.
 - `b17-platform-fixes` (from `b611d2c`, nothing committed yet): stamp drop-ray reach, hand-made heads as holders, finer parting search, part sliver clean, stoneless-pad warning. Requests and proposed code: `.claude/collection-review/core-change-requests.md`.
