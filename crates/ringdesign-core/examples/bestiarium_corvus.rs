@@ -30,7 +30,7 @@ fn stamp_params() -> BuildParams {
     BuildParams { theta_steps: 384, profile_steps: 192, ..BuildParams::default() }
 }
 
-/// The bypass LowDome: two arms passing over the top, each the band's own width.
+/// The bypass LowDome: two arms passing over the top, each the band's own width, parted on the plane its crest is held to.
 fn band() -> RingDesign {
     let mut d = RingDesign { name: "Corvus \u{2014} Huginn and Muninn".into(), ..RingDesign::default() };
     d.size = RingSize::from_diameter_mm(18.6);
@@ -41,6 +41,8 @@ fn band() -> RingDesign {
     d.shank.kind = ShankKind::Bypass;
     d.shank.amount = 1.0;
     SandProcess::DelftClay.apply(&mut d.draft);
+    d.draft.auto_parting = true;
+    d.draft.parting_z_mm = 0.0;
     d
 }
 
@@ -164,40 +166,41 @@ fn zero_across(a: &Atlas, hide: &Hide) -> Vec<f64> {
         .collect()
 }
 
-/// Per atlas column, the build section's normal lean at the parting line and its rate of change across.
-struct Crest {
-    lean: Vec<f64>,
-    curve: Vec<f64>,
+/// Per atlas column, how much further out the high-z side of the bare crest stands than the low side 0.4 mm off it: in radius, and in its normal's radial share.
+struct Lean {
+    r: Vec<f64>,
+    n: Vec<f64>,
 }
 
-impl Crest {
-    fn of(d: &RingDesign, a: &Atlas) -> Self {
-        let reference = d.reference_loop();
-        let (lean, curve) = (0..a.width)
+impl Lean {
+    fn of(a: &Atlas, hide: &Hide, zero: &[f64]) -> Self {
+        let (r, n) = (0..a.width)
             .map(|x| {
-                let l = d.section_at(x as f64 / a.width as f64 * 360.0, 448, None, Some(&reference));
-                let surf: Vec<_> = l.pts.iter().filter(|p| p.surface).collect();
-                let nz_at = |z: f64| -> f64 {
-                    for w in surf.windows(2) {
-                        let (p, q) = (w[0], w[1]);
-                        if (p.z - z) * (q.z - z) <= 0.0 && p.z != q.z {
-                            let t = (z - p.z) / (q.z - p.z);
-                            return p.nz + (q.nz - p.nz) * t;
-                        }
-                    }
-                    0.0
+                let at = |w: f64| {
+                    let y = (0..a.height).min_by(|p, q| (hide.across[*p * a.width + x] - zero[x] - w).abs().total_cmp(&(hide.across[*q * a.width + x] - zero[x] - w).abs())).unwrap_or(0);
+                    let s = a.at(x, y);
+                    let rad = s.p[0].hypot(s.p[1]).max(1e-9);
+                    (rad, (s.n[0] * s.p[0] + s.n[1] * s.p[1]) / rad)
                 };
-                (nz_at(0.0), (nz_at(0.25) - nz_at(-0.25)) / 0.5)
+                let ((rp, np), (rm, nm)) = (at(0.4), at(-0.4));
+                (rp - rm, np - nm)
             })
             .unzip();
-        Self { lean, curve }
+        Self { r, n }
     }
 
-    /// Offset across column `x` that lands a displaced ridge `ridge` mm tall on the parting plane.
-    fn shift(&self, x: usize, ridge: f64) -> f64 {
-        -ridge * self.lean[x] / (1.0 + ridge * self.curve[x]).max(0.2)
+    /// Height to take off at `w` so relief `h` tall at the crest of column `x` stands a share `k` nearer level either side of it.
+    fn level(&self, x: usize, h: f64, w: f64, k: f64) -> f64 {
+        let d = self.r[x] + h * self.n[x];
+        if d * w <= 0.0 {
+            return 0.0;
+        }
+        k * d.abs() * (w.abs() / 0.4).min(1.5).powi(2)
     }
 }
+
+/// Share of the bare crest's lean the heads take out.
+const LEVEL: f64 = 0.35;
 
 /// A sample in hide millimetres with `across` measured from the exact parting line.
 fn hide_at(hide: &Hide, zero: &[f64], s: &skin::Sample) -> skin::HidePoint {
@@ -227,6 +230,8 @@ fn steady(hide: &mut Hide) {
 
 /// Half-width of the flat every crest relief keeps across the parting line, mm.
 const CREST_FLAT: f64 = 0.3;
+/// Half-width of a head's own crest flat, mm.
+const HEAD_FLAT: f64 = 0.45;
 
 /// A raven's head in crest millimetres: nape clear of the collet, rounded skull with a level crown, forehead step, beak sent away from the stone.
 #[derive(Clone, Copy)]
@@ -244,7 +249,7 @@ struct HeadSpec {
     beak_w: f64,
 }
 
-const HEAD: HeadSpec = HeadSpec { nape: 5.2, skull: 5.6, root: 5.95, beak: 6.0, crown: 3.2, lore_h: 1.85, tip_h: 1.05, beak_w: 1.25 };
+const HEAD: HeadSpec = HeadSpec { nape: 5.2, skull: 5.6, root: 5.95, beak: 6.0, crown: 2.9, lore_h: 1.5, tip_h: 0.95, beak_w: 1.25 };
 /// How far the painted beak runs past the struck one, mm.
 const BEAK_RUN: f64 = 0.55;
 
@@ -285,11 +290,11 @@ impl HeadSpec {
         if !(0.0..=self.root + self.beak + BEAK_RUN).contains(&u) {
             return (0.0, 0.0);
         }
-        let xe = (x - CREST_FLAT).max(0.0);
+        let xe = (x - HEAD_FLAT).max(0.0);
         let (mut h, mut half): (f64, f64) = (0.0, 0.0);
         if u <= self.skull {
             let wide = self.skull_half(u).min(room);
-            let we = (wide - CREST_FLAT).max(0.15);
+            let we = (wide - HEAD_FLAT).max(0.15);
             let a = self.skull_along(u);
             let dome = |e: f64| self.crown * (a - (e / we).powi(2)).max(0.0).sqrt();
             let e = ((u - EYE_U) / 0.85).clamp(-1.0, 1.0);
@@ -301,7 +306,7 @@ impl HeadSpec {
         if u >= self.skull - 0.6 {
             let v = (u - self.root).max(0.0);
             let wide = self.beak_half(v).min(room);
-            let flat = (0.92 * wide + 0.05).min(wide - 0.04).max(CREST_FLAT);
+            let flat = HEAD_FLAT.min(wide - 0.03).max(CREST_FLAT);
             let fall = ((x - flat).max(0.0) / (wide - flat).max(0.03)).min(1.0);
             h = h.max(self.beak_line(v) * (1.0 - fall * fall).sqrt());
             half = half.max(wide);
@@ -313,8 +318,8 @@ impl HeadSpec {
     }
     /// The eye's distance off the crest on a side with `room`: on its socket's terrace.
     fn eye_x(&self, room: f64) -> f64 {
-        let we = (self.skull_half(EYE_U).min(room) - CREST_FLAT).max(0.15);
-        CREST_FLAT + 0.35 * we + 0.4
+        let we = (self.skull_half(EYE_U).min(room) - HEAD_FLAT).max(0.15);
+        HEAD_FLAT + 0.35 * we + 0.4
     }
 }
 
@@ -327,18 +332,17 @@ fn room(rim: f64) -> f64 {
 const PAINT_MM: f64 = 3.5;
 
 /// Both heads painted on the atlas, as a share of [`PAINT_MM`].
-fn paint_heads(a: &Atlas, hide: &Hide, zero: &[f64], crest: &Crest) -> Alpha {
+fn paint_heads(a: &Atlas, hide: &Hide, zero: &[f64], lean: &Lean) -> Alpha {
     let palm = hide.reach();
     a.paint("Raven heads", |s| {
         let p = hide_at(hide, zero, s);
-        let x = s.i % a.width;
         BIRDS
             .iter()
             .map(|&(_, sign)| {
                 let q = on_bird(p, sign, palm);
-                let head = |w: f64| HEAD.head_mm(-q.o - HEAD.nape, w.abs(), room(q.rim));
-                let shift = crest.shift(x, head(0.0));
-                head(q.w - shift)
+                let u = -q.o - HEAD.nape;
+                let h = HEAD.head_mm(u, q.w.abs(), room(q.rim));
+                if h > 0.0 { (h - lean.level(s.i % a.width, HEAD.head_mm(u, 0.0, room(q.rim)), q.w, LEVEL)).max(0.0) } else { 0.0 }
             })
             .fold(0.0, f64::max)
             / PAINT_MM
@@ -434,7 +438,7 @@ impl Plumage {
     /// The rectrix at `(o, x)`: its index, rachis offset, half-width, share across it and phase from root to tip.
     fn rectrix(&self, o: f64, x: f64) -> Option<(usize, f64, f64, f64, f64)> {
         let k = RECTRIX.windows(2).position(|e| x >= e[0] && x < e[1])?;
-        let (inner, outer) = (RECTRIX[k], RECTRIX[k + 1]);
+        let (inner, outer) = (if k == 0 { CREST_FLAT } else { RECTRIX[k] }, RECTRIX[k + 1]);
         let within = ((x - inner) / (outer - inner)).clamp(0.0, 1.0);
         let root = self.palm - TAIL_LEN;
         let tip = self.palm - 0.3 - 1.9 * k as f64;
@@ -486,7 +490,7 @@ fn past_collet(p: &skin::HidePoint, semi: (f64, f64)) -> f64 {
 const PLUME_MM: f64 = 2.0;
 
 /// Both ravens' body plumage on the atlas, as a share of [`PLUME_MM`].
-fn paint_plumage(a: &Atlas, hide: &Hide, zero: &[f64], crest: &Crest, semi: (f64, f64)) -> Alpha {
+fn paint_plumage(a: &Atlas, hide: &Hide, zero: &[f64], semi: (f64, f64)) -> Alpha {
     let palm = hide.reach();
     let plume = Plumage::new(palm);
     let value = |p: skin::HidePoint| {
@@ -502,11 +506,7 @@ fn paint_plumage(a: &Atlas, hide: &Hide, zero: &[f64], crest: &Crest, semi: (f64
             .fold(0.0, f64::max)
             * edge
     };
-    a.paint("Raven plumage", |s| {
-        let p = hide_at(hide, zero, s);
-        let shift = crest.shift(s.i % a.width, value(skin::HidePoint { across: 0.0, ..p }));
-        value(skin::HidePoint { across: p.across - shift, ..p }) / PLUME_MM
-    })
+    a.paint("Raven plumage", |s| value(hide_at(hide, zero, s)) / PLUME_MM)
 }
 
 /// Height of the collet's bed at alpha 1, mm.
@@ -532,6 +532,14 @@ fn paint_bed(d: &RingDesign, a: &Atlas, hide: &Hide, semi: (f64, f64)) -> Result
 fn theta_at(a: &Atlas, hide: &Hide, along: f64) -> f64 {
     let x = (0..a.width).min_by(|p, q| (hide.along[*p] - along).abs().total_cmp(&(hide.along[*q] - along).abs())).unwrap_or(0);
     a.at(x, 0).theta
+}
+
+/// The chart point `along` mm from the top on the crest and `across` mm off it, measured from the exact parting line.
+fn chart_at(a: &Atlas, hide: &Hide, zero: &[f64], along: f64, across: f64) -> (f64, f64) {
+    let x = column(a, theta_at(a, hide, along));
+    let y = (0..a.height).min_by(|p, q| (hide.across[*p * a.width + x] - zero[x] - across).abs().total_cmp(&(hide.across[*q * a.width + x] - zero[x] - across).abs())).unwrap_or(0);
+    let s = a.at(x, y);
+    (s.theta, s.v)
 }
 
 /// The atlas column nearest ring angle `theta`.
@@ -604,59 +612,35 @@ fn side_feather(a: &Atlas, name: String, theta: f64, side: f64, r0: f64, tip: f6
     })
 }
 
-/// Distance an eye cut's origin stands behind the eye along the crest, so its drop reaches the painted skull, mm.
-const EYE_BACK: f64 = 2.6;
-
-/// One raven's struck beak on the parting line, pointing away from the stone, its flat-topped culmen falling to the tip, and its two bench-cut almond eyes.
-fn raven_head(d: &RingDesign, a: &Atlas, hide: &Hide, name: &str, sign: f64) -> Result<Vec<Stamp>> {
+/// One raven's struck beak on the parting line, pointing away from the stone, gabled along its culmen, and its two bench-cut almond eyes.
+fn raven_head(d: &RingDesign, a: &Atlas, hide: &Hide, zero: &[f64], name: &str, sign: f64) -> Result<Vec<Stamp>> {
     let h = HEAD;
-    let ctx = d.field_context();
     let half_len = 0.5 * h.beak;
     let theta = theta_at(a, hide, sign * (h.nape + h.root + half_len));
     let v = setting::crest_v(d, theta).ok_or_else(|| anyhow::anyhow!("No crest at {theta}"))?;
     let half = |x: f64| 0.92 * h.beak_half(x + half_len);
-    let rot = if sign > 0.0 { 0.0 } else { 180.0 };
-    let culmen = |x: f64| 0.16 - 0.04 * ((x + half_len) / h.beak).clamp(0.0, 1.0);
-    let mut out = vec![
-        Stamp {
-            name: format!("{name}, beak"),
-            theta_deg: theta,
-            v_mm: v,
-            rot_deg: rot,
-            outline: banded(-half_len, half_len, half, |x| -half(x)),
-            height_mm: 0.33,
-            sink_mm: 0.5,
-            draft_deg: 4.0,
-            cut: false,
-            bench: false,
-            along_pull: false,
-            tier: 0,
-            top: StampTop::Flat,
-        },
-        Stamp {
-            name: format!("{name}, culmen"),
-            theta_deg: theta,
-            v_mm: v,
-            rot_deg: rot,
-            outline: banded(-half_len + 0.25, half_len - 0.35, culmen, |x| -culmen(x)),
-            height_mm: 0.45,
-            sink_mm: 0.3,
-            draft_deg: 3.0,
-            cut: false,
-            bench: false,
-            along_pull: false,
-            tier: 1,
-            top: StampTop::Taper { axis_deg: 0.0, tip_mm: 0.15 },
-        },
-    ];
+    let mut out = vec![Stamp {
+        name: format!("{name}, beak"),
+        theta_deg: theta,
+        v_mm: v,
+        rot_deg: if sign > 0.0 { 0.0 } else { 180.0 },
+        outline: banded(-half_len, half_len, half, |x| -half(x)),
+        height_mm: 0.33,
+        sink_mm: 0.5,
+        draft_deg: 4.0,
+        cut: false,
+        bench: false,
+        along_pull: false,
+        tier: 0,
+        top: StampTop::Gable { rise_mm: 0.4, axis_deg: 0.0 },
+    }];
     let eye = banded(-0.55, 0.55, |x| 0.35 * (1.0 - (x / 0.55).powi(2)).max(0.0).powf(0.75), |x| -0.35 * (1.0 - (x / 0.55).powi(2)).max(0.0).powf(0.75));
-    let origin = sign * (h.nape + EYE_U - EYE_BACK);
-    let theta = theta_at(a, hide, origin);
-    let v = setting::crest_v(d, theta).ok_or_else(|| anyhow::anyhow!("No crest at {theta}"))?;
-    let col = column(a, theta_at(a, hide, sign * (h.nape + EYE_U)));
+    let along = sign * (h.nape + EYE_U);
+    let col = column(a, theta_at(a, hide, along));
     for (label, side) in [("high", 1.0), ("low", -1.0)] {
         let ex = h.eye_x(room(hide.rim[col][usize::from(side > 0.0)]));
-        let mut st = Stamp {
+        let (theta, v) = chart_at(a, hide, zero, along, side * ex);
+        out.push(Stamp {
             name: format!("{name}, eye {label}"),
             theta_deg: theta,
             v_mm: v,
@@ -670,13 +654,7 @@ fn raven_head(d: &RingDesign, a: &Atlas, hide: &Hide, name: &str, sign: f64) -> 
             along_pull: false,
             tier: 0,
             top: StampTop::Flat,
-        };
-        let f = st.frame(d, &ctx);
-        let t = theta.to_radians();
-        let ahead = if f.x[0] * -t.sin() + f.x[1] * t.cos() > 0.0 { sign } else { -sign };
-        let across = side * f.y[2].signum();
-        st.outline = eye.iter().map(|p| [p[0] + ahead * EYE_BACK, p[1] + across * ex]).collect();
-        out.push(st);
+        });
     }
     Ok(out)
 }
@@ -852,12 +830,12 @@ fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
     let mut lib = AlphaLibrary::default();
     let mut clamps = Vec::new();
     let zero = zero_across(&a, &hide);
-    let crest = Crest::of(&d, &a);
+    let lean = Lean::of(&a, &hide, &zero);
     let semi = collet_semi(&d)?;
     for (alpha, height, rows) in [
         (paint_bed(&d, &a, &hide, semi)?, BED_MM, 2),
-        (paint_plumage(&a, &hide, &zero, &crest, semi), PLUME_MM, 2),
-        (paint_heads(&a, &hide, &zero, &crest), PAINT_MM, 0),
+        (paint_plumage(&a, &hide, &zero, semi), PLUME_MM, 2),
+        (paint_heads(&a, &hide, &zero, &lean), PAINT_MM, 0),
     ] {
         let name = alpha.name.clone();
         let clamp = painted(&mut d, &mut lib, &a, alpha, height, rows)?;
@@ -877,7 +855,7 @@ fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
     e.bench_only = true;
     d.layers.layers.push(e);
     for (name, sign) in BIRDS {
-        let head = raven_head(&d, &a, &hide, name, sign)?;
+        let head = raven_head(&d, &a, &hide, &zero, name, sign)?;
         d.stamps.extend(head);
         d.stamps.extend(raven_hackles(&a, &hide, name, sign));
         d.stamps.extend(raven_wings(&a, name, sign));
@@ -1242,6 +1220,80 @@ fn main() -> Result<()> {
         built.solids.notes,
         built.solids.stamped
     );
+    if std::env::var("CORVUS_BARE").is_ok() {
+        let mut bare = band();
+        seat(&mut bare)?;
+        let f = castability::attributed_field_report(&bare, &AlphaLibrary::default(), &bare.draft, 256, 128);
+        println!("    bare: {:?} {:.4}% worst {:.2} parting {:.4} undercut {:.4} mm2 {:?}", f.verdict, f.undercut_fraction() * 100.0, f.worst_draft_deg, f.parting_z_mm, f.undercut_area_mm2, f.notes);
+        let mut layers = d.clone();
+        layers.stamps.clear();
+        for i in 0..layers.layers.layers.len() {
+            let mut one = layers.clone();
+            for (k, e) in one.layers.layers.iter_mut().enumerate() {
+                e.enabled = k == i || k == 0;
+            }
+            let f = castability::attributed_field_report(&one, &lib, &one.draft, 256, 128);
+            println!("    only {}: {:.4}% worst {:.2} parting {:.4} undercut {:.4}", one.layers.layers[i].name, f.undercut_fraction() * 100.0, f.worst_draft_deg, f.parting_z_mm, f.undercut_area_mm2);
+        }
+        return Ok(());
+    }
+    if let Ok(t) = std::env::var("CORVUS_ROWS") {
+        let t: f64 = t.parse().unwrap_or(50.625);
+        let cast = castability::casting_pattern(&d, &lib).0.into_owned();
+        for x in [t - 360.0 / 256.0, t, t + 360.0 / 256.0] {
+            let sec = castability::section_at(&cast, &lib, x, 128);
+            let rows: Vec<String> = (72..90).map(|j| format!("{j}:{:.3}/{:.3}", sec.points[j].r, sec.points[j].z)).collect();
+            println!("    rows th {x:.2}: {}", rows.join(" "));
+        }
+        return Ok(());
+    }
+    if std::env::var("CORVUS_CREST").is_ok() {
+        for t in [15.0, 30.0, 45.0, 55.0, 75.0, 90.0, 97.0, 125.0, 135.0, 150.0, 165.0, 200.0, 230.0, 262.0, 268.0, 300.0, 340.0] {
+            for steps in [128usize, 512] {
+                let sec = castability::section_at(&d, &lib, t, steps);
+                let best = sec.points.iter().filter(|p| p.surface).max_by(|a, b| a.r.total_cmp(&b.r));
+                if let Some(b) = best {
+                    let near: Vec<String> = sec.points.iter().filter(|p| p.surface && p.r > b.r - 0.004).map(|p| format!("{:.3}", p.z)).collect();
+                    println!("    crest th {t} steps {steps}: r {:.4} z {:.4} within 4um at z [{}]", b.r, b.z, near.join(" "));
+                }
+            }
+        }
+        return Ok(());
+    }
+    if let Ok(range) = std::env::var("CORVUS_UNDER") {
+        let (t0, t1): (f64, f64) = range.split_once(',').map(|(a, b)| (a.parse().unwrap_or(20.0), b.parse().unwrap_or(60.0))).unwrap_or((20.0, 60.0));
+        let parting: f64 = std::env::var("CORVUS_PARTING").ok().and_then(|v| v.parse().ok()).unwrap_or(-0.0255);
+        let (steps, dt): (usize, f64) = (128, 360.0 / 256.0);
+        let cast = castability::casting_pattern(&d, &lib).0.into_owned();
+        let pt = |sec: &castability::Section, j: usize| {
+            let p = &sec.points[j];
+            let (s, c) = sec.theta_deg.to_radians().sin_cos();
+            [p.r * c, p.r * s, p.z]
+        };
+        let mut t = t0;
+        while t <= t1 {
+            let secs: Vec<castability::Section> = [t - dt, t, t + dt].iter().map(|&x| castability::section_at(&cast, &lib, x, steps)).collect();
+            let rows = secs[1].points.len();
+            for j in 1..rows - 1 {
+                if !secs[1].points[j].surface {
+                    continue;
+                }
+                let (a, b) = (pt(&secs[2], j), pt(&secs[0], j));
+                let (c, e) = (pt(&secs[1], j + 1), pt(&secs[1], j - 1));
+                let tu = [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+                let ts = [c[0] - e[0], c[1] - e[1], c[2] - e[2]];
+                let n = [tu[1] * ts[2] - tu[2] * ts[1], tu[2] * ts[0] - tu[0] * ts[2], tu[0] * ts[1] - tu[1] * ts[0]];
+                let draft = castability::draft_angle(n, secs[1].points[j].z, parting);
+                if draft < -0.5 {
+                    let p = &secs[1].points[j];
+                    let area = (tu[0] * ts[0] + tu[1] * ts[1] + tu[2] * ts[2]).abs().max(0.0) * 0.0 + (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt() * 0.25;
+                    println!("    under th {t:.2} j {j} z {:.3} r {:.3} draft {draft:.2} area {area:.4}", p.z, p.r);
+                }
+            }
+            t += dt;
+        }
+        return Ok(());
+    }
     if std::env::var("CORVUS_BISECT").is_ok() {
         for family in ["beak", "eye", "hackle", "primary", "neck"] {
             let mut part = d.clone();
