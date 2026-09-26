@@ -728,13 +728,15 @@ const TORSO: [[f64; 4]; 6] = [
 const TORSO_SPINE: [[f64; 2]; 5] = [[160.0, -0.25], [146.0, 0.6], [133.0, 1.45], [124.0, 2.0], [117.5, 2.25]];
 
 /// Her head's centre, (theta degrees, radius mm).
-const HEAD_AT: [f64; 2] = [110.0, 16.15];
+const HEAD_AT: [f64; 2] = [110.0, 16.05];
 /// How far her head bows east toward the stone, degrees.
 const HEAD_BOW: f64 = 30.0;
 /// How far her face turns toward the high cheek, degrees.
 const HEAD_TURN: f64 = 55.0;
 /// Her head's size against the unit head below, whose face runs 2.9 from brow to chin.
-const HEAD_SCALE: f64 = 0.95;
+const HEAD_SCALE: f64 = 1.0;
+/// How much longer her face runs below the eyes than the unit head's, so brow to chin comes to 2.8 mm.
+const FACE_STRETCH: f64 = 1.1;
 /// The unit head's outline up its axis: height, half-width, depth in front of the axis and behind it.
 const HEAD_PROFILE: [[f64; 4]; 14] = [
     [-2.3, 0.78, 0.55, 0.8],
@@ -767,8 +769,8 @@ fn bump(x: f64, u: f64, cx: f64, cu: f64, sx: f64, su: f64) -> f64 {
 /// eyes' balls in them, the nose from its bridge to its tip, the lips parted by the mouth's cleft, the chin and cheekbones.
 fn face_relief(x: f64, u: f64) -> f64 {
     let ax = x.abs();
-    let brow = 0.26 * (-((u - 0.5) / 0.11).powi(2)).exp() * (1.0 - smooth(0.8, 1.1, ax)) * (1.0 - 0.35 * (-(x / 0.2).powi(2)).exp());
-    let socket = -0.44 * bump(ax, u, 0.55, 0.12, 0.28, 0.19);
+    let brow = 0.3 * (-((u - 0.5) / 0.11).powi(2)).exp() * (1.0 - smooth(0.8, 1.1, ax)) * (1.0 - 0.35 * (-(x / 0.2).powi(2)).exp());
+    let socket = -0.5 * bump(ax, u, 0.55, 0.12, 0.28, 0.19);
     let eye = 0.2 * bump(ax, u, 0.56, 0.1, 0.13, 0.09);
     let nose = if (-0.85..=0.45).contains(&u) {
         let [_, h, w] = keyed(&NOSE, u);
@@ -834,9 +836,10 @@ impl Head {
         }
         pts
     }
-    /// A unit-head point in the world.
+    /// A unit-head point in the world, the face below the eyes drawn out by FACE_STRETCH.
     fn world(&self, u: f64, x: f64, y: f64) -> P3 {
         let k = HEAD_SCALE;
+        let u = if u < 0.3 { 0.3 + (u - 0.3) * FACE_STRETCH } else { u };
         add(self.c, add(mul(self.up, u * k), add(mul(self.side, x * k), mul(self.fwd, y * k))))
     }
     fn loft(&self) -> Operation {
@@ -850,19 +853,6 @@ impl Head {
             })
             .collect();
         Operation::Loft { sections, meshed: true }
-    }
-    /// The skull's surface `a` degrees round from the middle of her face toward `side`, at height `u`, with its outward normal.
-    fn surface(&self, u: f64, a: f64) -> (P3, P3) {
-        let at = |u: f64, a: f64| {
-            let [w, _, bb] = Self::profile(u);
-            let (s, c) = a.to_radians().sin_cos();
-            let x = w * s;
-            self.world(u, x, if c >= 0.0 { Self::front(x, u) * c.powf(0.3) } else { bb * c })
-        };
-        let p = at(u, a);
-        let n = unit(cross(sub(at(u, a + 1.0), at(u, a - 1.0)), sub(at(u + 0.02, a), at(u - 0.02, a))));
-        let axis = self.world(u, 0.0, 0.0);
-        (p, if dot(n, sub(p, axis)) < 0.0 { mul(n, -1.0) } else { n })
     }
     /// Every point the slices pass through, for measuring her against the stone.
     fn samples(&self) -> Vec<P3> {
@@ -910,7 +900,7 @@ impl Head {
             for (i, eta) in [start, 100.0, 140.0, 180.0].into_iter().enumerate() {
                 let (p, n) = self.skull(eta, lambda * lerp(1.0, 0.72, i as f64 / 3.0));
                 // The lock rises out of the scalp at the hairline.
-                path.push(add(p, mul(n, r - if i == 0 && lambda.abs() < 60.0 { 0.85 } else { 0.5 })));
+                path.push(add(p, mul(n, r - if i == 0 && lambda.abs() < 60.0 { 0.85 } else { 0.56 })));
             }
             let fall = unit(add(mul(self.up, -1.0), mul(self.fwd, -0.3)));
             let last = path[3];
@@ -1048,11 +1038,11 @@ const GIRDLE_BAND: f64 = 1.3;
 /// a raptor's strike.
 const KNEE: P3 = [-3.2, 1.3, -0.85];
 /// Radius and height where each claw leaves its toe, below the girdle.
-const CLAW_BASE: [f64; 2] = [4.78, -1.35];
+const CLAW_BASE: [f64; 2] = [4.8, -1.6];
 /// A toe's radius where it leaves the ankle, mm: 1.2 mm across.
 const TOE_R: f64 = 0.62;
-/// A claw's half-thickness across its curl and in it where it leaves its sheath, mm: 0.96 x 1.2, a step of about 0.1
-/// under the toe's end.
+/// A claw's half-thickness across its curl and in it where it leaves its sheath, mm: 0.96 x 1.2, stepping 0.14 in its
+/// curl and 0.26 across under the collar at the toe's end.
 const CLAW_AB: [f64; 2] = [0.48, 0.6];
 
 /// A toe of the high foot, in order round the girdle from the hallux behind the ankle to the middle toe reaching
@@ -1067,10 +1057,10 @@ struct Toe {
 }
 
 const TOES: [Toe; 4] = [
-    Toe { name: "hallux", hook_psi: 142.0, bow: 0.45, contact_rho: 3.5, curl: 104.0 },
-    Toe { name: "inner toe", hook_psi: 116.0, bow: 0.2, contact_rho: 3.62, curl: 86.0 },
-    Toe { name: "outer toe", hook_psi: 94.0, bow: 0.25, contact_rho: 3.7, curl: 70.0 },
-    Toe { name: "middle toe", hook_psi: 72.0, bow: 0.35, contact_rho: 3.25, curl: 104.0 },
+    Toe { name: "hallux", hook_psi: 143.0, bow: 0.45, contact_rho: 3.45, curl: 108.0 },
+    Toe { name: "inner toe", hook_psi: 117.0, bow: 0.2, contact_rho: 3.55, curl: 94.0 },
+    Toe { name: "outer toe", hook_psi: 94.0, bow: 0.25, contact_rho: 3.62, curl: 70.0 },
+    Toe { name: "middle toe", hook_psi: 71.0, bow: 0.35, contact_rho: 3.25, curl: 106.0 },
 ];
 
 /// The high foot: its scaled tarsus, four knuckled toes fanned up from the ankle, and a sheathed claw hooking each over the girdle.
@@ -1150,7 +1140,7 @@ fn foot(st: &Stone, fig: &Figure) -> Result<Foot> {
     let joint = len - 0.4;
     const PITCH: f64 = 0.62;
     const STEP: f64 = 0.12;
-    let scutes = (((joint - 0.5) / PITCH).floor() as usize).min(4);
+    let scutes = (((joint - 0.5) / PITCH).floor() as usize).min(3);
     let scuted = joint - scutes as f64 * PITCH;
     let mut at: Vec<(f64, f64)> = vec![(0.0, 0.0), (scuted - 0.02, 0.0)];
     for k in 0..scutes {
@@ -1197,7 +1187,7 @@ fn foot(st: &Stone, fig: &Figure) -> Result<Foot> {
         let joints = [0.36 * tl, 0.7 * tl];
         let r = |d: f64| {
             let knob: f64 = joints.iter().map(|j| (-((d - j) / 0.22).powi(2)).exp()).sum();
-            TOE_R - 0.04 * smooth(0.0, 0.5 * tl, d) + 0.08 * knob + 0.12 * smooth(tl - 0.35, tl, d)
+            TOE_R - 0.04 * smooth(0.0, 0.5 * tl, d) + 0.08 * knob + 0.16 * smooth(tl - 0.3, tl - 0.05, d)
         };
         let mut shingles: Vec<(f64, f64)> = vec![(0.0, 0.0)];
         let edges = [0.0, joints[0], joints[1], tl];
@@ -1236,7 +1226,7 @@ fn foot(st: &Stone, fig: &Figure) -> Result<Foot> {
         let a = (90.0 + toe.curl).to_radians();
         let dir = [a.cos(), a.sin()];
         let (q0, q3) = (CLAW_BASE, tip);
-        let q1 = [q0[0] + 0.05, q0[1] + 1.45];
+        let q1 = [q0[0] + 0.05, q0[1] + 1.6];
         let q2 = [q3[0] - 0.9 * dir[0], q3[1] - 0.9 * dir[1]];
         let bez = |t: f64| {
             let u = 1.0 - t;
@@ -1254,7 +1244,10 @@ fn foot(st: &Stone, fig: &Figure) -> Result<Foot> {
         pts.push(meridian(tip[0] + 0.45 * dir[0], tip[1] + 0.45 * dir[1]));
         let claw = Spine::through(&pts, [0.0, 1.0, 0.0]);
         let len = dome_at + TIP_R;
-        let mut at: Vec<[f64; 4]> = [0.0, 0.3, 0.3 + 0.35 * (dome_at - 0.3), 0.3 + 0.7 * (dome_at - 0.3)].iter().map(|&d| [d, CLAW_AB[0], claw_b(d, len), 0.0]).collect();
+        let mut at: Vec<[f64; 4]> = [0.0, 0.3, 0.3 + 0.25 * (dome_at - 0.3), 0.3 + 0.5 * (dome_at - 0.3), 0.3 + 0.75 * (dome_at - 0.3)]
+            .iter()
+            .map(|&d| [d, CLAW_AB[0], claw_b(d, len), 0.0])
+            .collect();
         for x in [0.0, 0.2, 0.33, 0.4] {
             let k = (1.0 - (x / TIP_R).powi(2)).max(0.0).sqrt();
             at.push([dome_at + x, TIP_R * k, TIP_R * k, 0.0]);
@@ -1734,10 +1727,10 @@ fn land_widths(built: &mesh::BuildResult, a: &Authored) -> Result<Vec<Land>> {
         let copy = a.copies.get(&c.name);
         let note = match (copy, c.name.starts_with("High claw")) {
             (Some(of), _) if of.iter().any(|n| n.starts_with("High claw")) => {
-                "mirror of the high foot; every claw cast blunt with a 0.85 mm round tip, points filed after setting if wanted".into()
+                "mirror of the high foot; every claw cast blunt with a 0.92 mm round tip, points filed after setting if wanted".into()
             }
             (Some(of), _) => format!("mirror of {} parts", of.len()),
-            (None, true) => "claw cast blunt with a 0.85 mm round tip; points filed after setting if wanted".into(),
+            (None, true) => "claw cast blunt with a 0.92 mm round tip; points filed after setting if wanted".into(),
             (None, false) => String::new(),
         };
         let measured = match family {
@@ -2052,7 +2045,7 @@ fn main() -> Result<()> {
         setup.recipe.sand = None;
         setup.recipe.shrink_pct = ringdesign_core::metal::find("Gold 18k").map_or(1.3, |m| m.shrink_pct);
         setup.recipe.calibration_note = "Starting shrink allowance; confirm with the caster's alloy, pattern material and measured trials.".into();
-        setup.bench_notes = "Invest the band, figure, feet and both wings as one tree; clear investment from between the primaries' fingers and under the hood's brim. Seat the 8 mm sapphire in the cut bearing, then close the eight claws over its girdle; file the claws' blunt tips to points if wanted.".into();
+        setup.bench_notes = "Invest the band, figure, feet and both wings as one tree; clear investment from between the primaries, between the toes and from under her hair locks and chin. Seat the 8 mm sapphire in the cut bearing, then close the eight claws over its girdle; file the claws' blunt tips to points if wanted.".into();
         let prepared = mf::prepare(&d, &lib, &setup, params)?;
         let pattern = &prepared.mesh;
         let check = solid_of(pattern).check(true);
