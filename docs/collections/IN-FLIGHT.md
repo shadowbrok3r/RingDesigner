@@ -14,7 +14,7 @@ Every lane below was stopped mid-round by the usage limit. Resume each by starti
 |---|---|---|---|---|
 | Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | **packaged, on master** (`89dc970`) |
 | Manticora | `bestiarium-manticora` | `9a4252f` round 3 | **shipped 7.5** (`manticora-round3-review.json`, optional polish listed) | **packaged, on master** (`89dc970`) |
-| Kraken | `bestiarium-kraken` (owns C-B1) | `670a6b8` round 2 | r2 6.5 (`kraken-round2-review.json`) | round 3, the last |
+| Kraken | `bestiarium-kraken` (owns C-B1) | `567365a` round 3 (master merged as `62b2dfe`) | r3 author self-score 7.0 (r2 6.5): gates green at draft and export (1.77 M triangles), stone warning cleared by the C-B6 holder rule, template 0 patches at 242 KB of 300 KB with US size and Tentacle height exposed; short of the review: no root fillet (0.3 mm blends fold at the arm creases), outer claw roots at -28/+30 deg not +-34, coil A reads as a hook from the hero camera | final review (paused); ships at 7.5 or is cut |
 | Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `74dceaf` round 3 | **cut at 7.0** after round 3 (`phoenix-round3-review.json`: gates green, fails the 300 px read; optional polish listed) | none (kept on its branch) |
 | Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `40ca22d` round 2 | r2 6.8 (`basiliscus-round2-review.json`) | round 3, the last |
 | Fenrir | `bestiarium-fenrir` | `5d67238` (+1 uncommitted; master merged for claw rails) | r1 5.5 (`fenrir-round1-review.json`) | round 2 |
