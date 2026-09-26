@@ -1,6 +1,7 @@
 //! Bestiarium — Corvus, Huginn and Muninn: Odin's two ravens riding the arms of a bypass, necks crossed under an onyx, each head sent outward along the other's back, cast in Delft sand.
 //! cargo build --offline --release -p ringdesign-core --example bestiarium_corvus
-//! target/release/examples/bestiarium_corvus [OUT_DIR] [--draft] [--verify] [--preview]
+//! target/release/examples/bestiarium_corvus [OUT_DIR] [--draft] [--verify] [--preview] [--probe384]
+//! `--preview` writes authoring sheets only; `--probe384` prints the field verdict and the 384 x 192 and 768 x 320 releases, nothing else.
 #![recursion_limit = "256"]
 use anyhow::{Result, ensure};
 use ringdesign_core::{
@@ -210,7 +211,7 @@ impl Lean {
 }
 
 /// Share of the bare crest's lean the beaks take out.
-const LEVEL: f64 = 0.35;
+const LEVEL: f64 = 0.2;
 /// Share of the bare crest's lean the skulls take out.
 const SKULL_LEVEL: f64 = 0.15;
 
@@ -260,11 +261,11 @@ struct HeadSpec {
     beak_w: f64,
 }
 
-const HEAD: HeadSpec = HeadSpec { nape: 4.0, skull: 5.2, root: 5.0, beak: 6.0, crown: 2.28, tip_h: 1.2, beak_w: 1.45 };
+const HEAD: HeadSpec = HeadSpec { nape: 4.0, skull: 5.2, root: 5.0, beak: 6.0, crown: 2.3, tip_h: 1.55, beak_w: 1.45 };
 /// Half-width of the culmen's flat, the highlight line down the bill, mm.
 const BILL_FLAT: f64 = 0.4;
 /// Length of the hooked drop at the beak's tip, mm.
-const HOOK: f64 = 0.6;
+const HOOK: f64 = 0.8;
 /// The nape's rise from the neck to the crown, mm.
 const NAPE_LEN: f64 = 1.3;
 /// Where the level crown ends and the forehead starts its fall into the culmen, mm forward of the skull's rear.
@@ -284,8 +285,10 @@ const ORBIT: (f64, f64) = (0.7, 0.45);
 const ORBIT_LIP: f64 = 0.02;
 /// End of the feathered rear skull, mm forward of its rear: the forehead and bill stay glossy.
 const SCALLOP_END: f64 = 3.0;
-/// Skull feather rows' pitch along the ring, lanes' width across, the step at each tip and the drop from lane to lane, mm.
-const SCALLOP: (f64, f64, f64, f64) = (1.2, 1.2, 0.18, 0.1);
+/// Skull feather rows' pitch, mm; each lane's angle round the forehead, radians; the step at each tip and the drop from lane to lane, mm.
+const SCALLOP: (f64, f64, f64, f64) = (1.0, 0.45, 0.18, 0.1);
+/// The point on the forehead the skull's feather rows are laid round, mm forward of the skull's rear.
+const SCALLOP_FOCUS: f64 = 3.9;
 /// How far each scallop's tip runs forward from its lane's inner edge to its outer, mm.
 const SCALLOP_ROUND: f64 = 0.4;
 
@@ -320,7 +323,7 @@ impl HeadSpec {
     /// Beak half-width `v` mm forward of its root.
     fn beak_half(&self, v: f64) -> f64 {
         let t = (v / self.beak).clamp(0.0, 1.0);
-        (self.beak_w * (1.0 - t.powf(1.8)).max(0.0).sqrt()).max(0.32)
+        (self.beak_w * (1.0 - t.powf(2.6)).max(0.0).sqrt()).max(0.45)
     }
     /// The skull's dome at `u` and `x` off the crest, with its half-width beyond the flat, on a side with `room`.
     fn dome(&self, u: f64, x: f64, room: f64) -> (f64, f64) {
@@ -329,17 +332,19 @@ impl HeadSpec {
         let xe = (x - HEAD_FLAT).max(0.0);
         (self.top(u) * (1.0 - (xe / we).powi(2)).max(0.0).sqrt(), wide)
     }
-    /// Depth taken off the rear skull at `(u, x)`: rows of contour feathers whose rounded tips point back at the nape. Each lane's tip is a quarter round from its inner edge to its outer, and the next lane's starts where it ends, so a row reads as a chain of scallops; across a lane a row's height is level, so nothing rises away from the crest.
+    /// Depth taken off the rear skull at `(u, x)`: contour feathers laid in arcs round a point on the forehead, their rounded tips pointing back at the nape and out down the cheeks. Lanes fan out from that point, each a step under the one nearer the crest, and neighbouring lanes lie half a row apart; within a lane a row's height depends only on its distance from the forehead, which the dome falls away from far faster than the row rises.
     fn scallops(&self, u: f64, x: f64) -> f64 {
-        let (pitch, lane_w, step, drop) = SCALLOP;
+        let (pitch, lane_rad, step, drop) = SCALLOP;
         let fade = 1.0 - smoother(SCALLOP_END - 0.5, SCALLOP_END, u);
         if fade <= 0.0 || u < 0.15 {
             return 0.0;
         }
-        let lane = if x < 0.5 * lane_w { 0.0 } else { (x / lane_w + 0.5).floor() };
-        let w = if lane == 0.0 { ((x - CREST_FLAT) / (0.5 * lane_w - CREST_FLAT)).clamp(0.0, 1.0) } else { (x / lane_w + 0.5 - lane).clamp(0.0, 1.0) };
+        let (du, xe) = (SCALLOP_FOCUS - u, (x - CREST_FLAT).max(0.0));
+        let (rho, phi) = (du.hypot(xe), xe.atan2(du));
+        let lane = (phi / lane_rad + 0.5).floor();
+        let w = if lane == 0.0 { (2.0 * phi / lane_rad).clamp(0.0, 1.0) } else { (phi / lane_rad + 0.5 - lane).clamp(0.0, 1.0) };
         let round = SCALLOP_ROUND * (1.0 - (1.0 - w * w).max(0.0).sqrt()) / pitch;
-        let s = (u - 0.5 * pitch * lane) / pitch;
+        let s = -rho / pitch - 0.5 * lane;
         let phase = s - (s - round).floor();
         fade * (drop * lane + step * phase)
     }
@@ -645,23 +650,6 @@ fn paint_plumage(a: &Atlas, hide: &Hide, zero: &[f64], lift: &BaseLift, semi: (f
         let v = if past < 0.0 { feathers.min(base).max(inside * base) } else { feathers };
         v * edge
     };
-    if std::env::var("CORVUS_TAILMAP").is_ok() {
-        for i in 0..12 {
-            let o = palm - 0.1 - 0.2 * i as f64;
-            let row: String = (0..16).map(|j| format!("{:5.2}", plume.tail_mm(o, 0.2 * j as f64))).collect();
-            println!("    tail o-palm {:5.2}: {row}", o - palm);
-        }
-    }
-    if let Some(t) = std::env::var("CORVUS_PL").ok().and_then(|t| t.parse::<f64>().ok()) {
-        let x = column(a, t);
-        for y in 0..a.height {
-            let sm = a.at(x, y);
-            if sm.p[2].abs() < 0.5 {
-                let p = hide_at(hide, zero, &sm);
-                println!("    pl z {:.3} across {:.3} v {:.4} q {:?}", sm.p[2], p.across, value(&sm), BIRDS.map(|(_, sg)| { let q = on_bird(p, sg, palm); (q.o, plume.contour(q.o, q.w.abs()).map(|c| (c.lane, c.t))) }));
-            }
-        }
-    }
     a.paint("Raven plumage", |s| value(s) / PLUME_MM)
 }
 
@@ -982,14 +970,6 @@ fn painted(d: &mut RingDesign, lib: &mut AlphaLibrary, a: &Atlas, mut alpha: Alp
     let before = alpha.data.clone();
     let clamp = skin::draft_clamp(a, &mut alpha, height)?;
     println!("  {}: clamp {:.4} mm over {} texels", alpha.name, clamp.worst_mm, clamp.texels_cut);
-    if let Some(t) = std::env::var("CORVUS_PROBE").ok().and_then(|t| t.parse::<f64>().ok()) {
-        let x = column(a, t);
-        for y in (0..a.height).step_by(4) {
-            let sm = a.at(x, y);
-            let r = sm.p[0].hypot(sm.p[1]);
-            println!("    probe {} y {y} v {:.2} z {:.2} r {:.2} nz {:.2} nr {:.2} before {:.3} after {:.3}", alpha.name, sm.v, sm.p[2], r, sm.n[2], (sm.n[0] * sm.p[0] + sm.n[1] * sm.p[1]) / r, before[y * a.width + x] as f64 * height, alpha.data[y * a.width + x] as f64 * height);
-        }
-    }
     if clamp.worst_mm > 0.02 {
         let mut bites: Vec<(f32, usize)> = before.iter().zip(&alpha.data).enumerate().map(|(i, (b, c))| (b - c, i)).filter(|(d, _)| *d * height as f32 > 0.02).collect();
         bites.sort_by(|p, q| q.0.total_cmp(&p.0));
@@ -1054,9 +1034,6 @@ fn author(art: Option<&Path>) -> Result<(RingDesign, AlphaLibrary, Clamps)> {
         d.stamps.extend(raven_hackles(&a, &hide, name, sign));
         d.stamps.extend(raven_wings(&a, name, sign));
         d.stamps.extend(raven_neck(&a, name, sign));
-    }
-    if let Ok(skip) = std::env::var("CORVUS_SKIP") {
-        d.stamps.retain(|s| !skip.split(',').any(|k| s.name.contains(k)));
     }
     for (name, _) in BIRDS {
         for side in ["high", "low"] {
@@ -1466,6 +1443,8 @@ fn main() -> Result<()> {
     }
     println!("  stamps {}, parting-monotone failures {:?}", d.stamps.len(), monotone);
     if args.iter().any(|a| a == "--probe384") {
+        let field = castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
+        println!("  field {:?} {:.4}% worst {:.2}; {:?}", field.verdict, field.undercut_fraction() * 100.0, field.worst_draft_deg, field.notes.iter().filter(|n| n.starts_with("Undercut")).collect::<Vec<_>>());
         for p in [stamp_params(), draft_params()] {
             let (block, clear) = release_block(&d, &lib, p)?;
             println!("  release at {:?}: clear {clear}: {} parting {} {}", block["build"], json!([block["release_0_1"]["at"], block["release_0_075"]["at"]]), block["release_0_1"]["parting_mm"], block["release_0_075"]["parting_mm"]);
