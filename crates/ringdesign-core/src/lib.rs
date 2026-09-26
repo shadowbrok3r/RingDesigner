@@ -52,6 +52,7 @@ pub mod refine;
 pub mod render;
 pub mod reptile;
 pub mod setstone;
+pub mod sculpt;
 pub mod setting;
 pub mod skin;
 pub mod parts;
