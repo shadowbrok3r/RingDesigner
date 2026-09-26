@@ -109,8 +109,11 @@ pub fn findings_in(design: &RingDesign, lib: &crate::AlphaLibrary) -> Vec<DfmFin
         let mut ts = Vec::new();
         let one = crate::field::LayerStack { layers: vec![entry.clone()] };
         tilings(&one, &mut ts);
-        let (ratio, at_deg) = worst_arc_ratio(design, entry, &ctx, lib);
+        let window = worst_arc_ratio(design, entry, &ctx, lib, None);
         for t in ts {
+            // One tile round the whole ring, a hide, lays each column at its own
+            // angle: it is judged where it carries ink, not where its window reaches.
+            let (ratio, at_deg) = if t.repeats_around == 1 { worst_arc_ratio(design, entry, &ctx, lib, Some(t)) } else { window };
             let Some((finest, what)) = tiling_finest_mm_at(t, lib, &ctx, ratio) else { continue };
             let (cw, ch) = t.cell_size(&ctx);
             let ch = ch * ratio;
@@ -437,7 +440,7 @@ mod tests {
     }
 
     /// The solver is the checker read backwards: fitting to the sand's own
-    /// floor must silence the finding it was derived from, and one repeat more
+    /// floor must silence the finding it was derived from, and repeats past it
     /// must bring it back. A mask too fine for the face reports the face it
     /// would need instead of a count.
     #[test]
@@ -485,11 +488,22 @@ mod tests {
         ok.layers.layers.push(LayerEntry::new("Pattern", Layer::Tiling(t.clone())));
         assert!(findings_in(&ok, &lib).is_empty(), "solved layer still flagged: {:?}", findings_in(&ok, &lib));
 
-        let mut over = t.clone();
-        over.repeats_around = n + 1;
-        let mut bad = wide.clone();
-        bad.layers.layers.push(LayerEntry::new("Pattern", Layer::Tiling(over)));
-        assert!(!findings_in(&bad, &lib).is_empty(), "one repeat past the solve should flag");
+        // The solve reads the texels at their finer pitch, as the check did
+        // before it read each axis at its own: on these tall texels it is safe
+        // and the check lets a few repeats more through before it flags.
+        let flags = |m: u32| {
+            let mut over = t.clone();
+            over.repeats_around = m;
+            let mut bad = wide.clone();
+            bad.layers.layers.push(LayerEntry::new("Pattern", Layer::Tiling(over)));
+            !findings_in(&bad, &lib).is_empty()
+        };
+        let (cw, ch) = t.cell_size(&ctx);
+        let alpha = lib.get(&t.alpha).unwrap();
+        let tall = (ch / alpha.height as f64) / (cw / alpha.width as f64);
+        let first = (n + 1..=2 * n).find(|&m| flags(m)).expect("enough repeats past the solve flag");
+        eprintln!("Chevron: texels {tall:.2} times taller than wide, solved {n}, flags from {first}");
+        assert!(tall > 1.05 && first > n + 1, "tall {tall}, first {first}");
     }
 
     /// Leaning a flute turns part of each wall to face across the band, and
@@ -622,6 +636,158 @@ mod measured_tests {
         assert!(f[0].message.contains("measure") && f[0].message.contains("Hook"), "{}", f[0].message);
     }
 
+    /// A mask on texels four times taller than wide reads its stripes at their
+    /// own pitch: bars across the band at the tall pitch, bars along it at the
+    /// narrow one. The disc in texels read both at the narrow pitch.
+    #[test]
+    fn a_mask_on_tall_texels_reads_each_axis_at_its_own_pitch() {
+        let (n, bar) = (64usize, 8usize);
+        let mut lib = crate::AlphaLibrary::builtin();
+        let stripes = |name: &str, across: bool| {
+            let data = (0..n * n).map(|i| {
+                let k = if across { i / n } else { i % n };
+                if k % (2 * bar) < bar { 1.0 } else { 0.0 }
+            }).collect();
+            crate::alpha::Alpha::new(name, n, n, data)
+        };
+        lib.insert(stripes("Rungs", true));
+        lib.insert(stripes("Rails", false));
+        let d = RingDesign::default();
+        let ctx = d.field_context();
+        let tile = |alpha: &str, tall: f64| {
+            let mut t = TilingLayer::default_for(alpha, &ctx);
+            t.repeats_around = 40;
+            t.rows = 1;
+            t.v_span_mm = t.cell_size(&ctx).0 * tall;
+            t
+        };
+        let sx = ctx.circumference_mm / 40.0 / n as f64;
+        let (rungs, _) = tiling_finest_mm(&tile("Rungs", 4.0), &lib, &ctx).unwrap();
+        assert!((rungs / (bar as f64 * 4.0 * sx) - 1.0).abs() < 0.1, "rungs {rungs} against {}", bar as f64 * 4.0 * sx);
+        let (rails, _) = tiling_finest_mm(&tile("Rails", 4.0), &lib, &ctx).unwrap();
+        assert!((rails / (bar as f64 * sx) - 1.0).abs() < 0.1, "rails {rails} against {}", bar as f64 * sx);
+        // Within 5% of square the texels are read as they are.
+        let near = tile("Rungs", 1.04);
+        let (px, _) = tiling_feature_px(&near, &lib).unwrap();
+        assert_eq!(tiling_finest_mm(&near, &lib, &ctx).unwrap().0, px * sx);
+    }
+
+    /// A hide is judged at the tightest station its ink reaches, not the
+    /// tightest its window does: ink at the head of a band that pinches at the
+    /// palm is not read at the palm's pitch.
+    #[test]
+    fn a_hide_is_judged_where_it_carries_ink() {
+        use crate::profile::{ShankKey, ShankKind};
+        let mut d = RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        d.profile.width_mm = 6.0;
+        d.profile.thickness_mm = 2.4;
+        d.shank.kind = ShankKind::Keyframes;
+        d.shank.amount = 1.0;
+        d.shank.keys = vec![
+            ShankKey { theta_deg: 90.0, width_scale: 1.3, thickness_scale: 1.2, crown_scale: 1.0 },
+            ShankKey { theta_deg: 270.0, width_scale: 0.5, thickness_scale: 0.6, crown_scale: 1.0 },
+        ];
+        let (w, h) = (360usize, 64usize);
+        let ctx = d.field_context();
+        let mut lib = crate::AlphaLibrary::builtin();
+        let entry = crate::skin::hide_layer(&d, "Table", 0.3, crate::field::Window::default());
+        let Layer::Tiling(t) = &entry.layer else { unreachable!() };
+        // Ink in the columns the hide lays between 70° and 110°.
+        let data = (0..w * h).map(|i| {
+            let theta = (i % w) as f64 + 0.5;
+            if (70.0..110.0).contains(&theta) && (i / w) % 8 < 4 { 1.0 } else { 0.0 }
+        }).collect();
+        lib.insert(crate::alpha::Alpha::new("Table", w, h, data));
+        let (window, _) = worst_arc_ratio(&d, &entry, &ctx, &lib, None);
+        let (inked, at) = worst_arc_ratio(&d, &entry, &ctx, &lib, Some(t));
+        assert!((60.0..=120.0).contains(&at), "judged at {at}°");
+        assert!(inked > 1.2 * window, "the table's {inked:.2} against the window's {window:.2}");
+        let mut on = d.clone();
+        on.layers.layers.push(entry.clone());
+        let at_ink = tiling_finest_mm_at(t, &lib, &ctx, inked).unwrap().0;
+        let at_palm = tiling_finest_mm_at(t, &lib, &ctx, window).unwrap().0;
+        on.draft.min_detail_mm = 0.5 * (at_ink + at_palm);
+        assert!(findings_in(&on, &lib).is_empty(), "{:?}", findings_in(&on, &lib));
+        on.draft.min_detail_mm = 1.05 * at_ink;
+        assert_eq!(findings_in(&on, &lib).len(), 1);
+    }
+
+    /// A made part's sections by rays: a claw's diameter and a collet's wall
+    /// read as the Bestiarium writes them, and a point shows as area under the
+    /// floor rather than as the part's section.
+    #[test]
+    fn a_part_reads_its_sections_by_rays() {
+        use crate::csg::{P3, Solid};
+        use std::f64::consts::TAU;
+        // A lathe solid about z from `(r, z)` rings, outward wound, closed by fans where r > 0 at the ends.
+        let lathe = |rings: &[(f64, f64)], n: usize| {
+            let mut s = Solid::default();
+            for &(r, z) in rings {
+                for j in 0..n {
+                    let a = TAU * (j as f64 + 0.37) / n as f64;
+                    s.v.push([r * a.cos(), r * a.sin(), z]);
+                }
+            }
+            let (m, n32) = (rings.len() as u32, n as u32);
+            let at = |i: u32, j: u32| i * n32 + j % n32;
+            for i in 0..m - 1 {
+                for j in 0..n32 {
+                    s.f.push([at(i, j), at(i, j + 1), at(i + 1, j + 1)]);
+                    s.f.push([at(i, j), at(i + 1, j + 1), at(i + 1, j)]);
+                }
+            }
+            s
+        };
+        let capped = |rings: &[(f64, f64)], n: usize| {
+            let mut s = lathe(rings, n);
+            let m = rings.len() as u32;
+            let (lo, hi) = (s.v.len() as u32, s.v.len() as u32 + 1);
+            s.v.push([0.0, 0.0, rings[0].1]);
+            s.v.push([0.0, 0.0, rings[rings.len() - 1].1]);
+            for j in 0..n as u32 {
+                let k = (j + 1) % n as u32;
+                s.f.push([lo, k, j]);
+                s.f.push([hi, (m - 1) * n as u32 + j, (m - 1) * n as u32 + k]);
+            }
+            s
+        };
+        // Arachne's claw: a tapered wire 0.9 to 0.4 mm in radius, domed at its tip.
+        let mut claw: Vec<(f64, f64)> = (0..=10).map(|i| (0.9 - 0.05 * i as f64, 0.4 * i as f64)).collect();
+        claw.extend((1..12).map(|i| {
+            let a = std::f64::consts::FRAC_PI_2 * i as f64 / 12.0;
+            (0.4 * a.cos(), 4.0 + 0.4 * a.sin())
+        }));
+        let claw = capped(&claw, 64);
+        assert_eq!(claw.open_edges(), (0, 0));
+        for up in [None, Some([0.0, 0.0, 1.0])] {
+            let (min, under) = part_sections(&claw, up, 0.75);
+            assert!((min - 0.8).abs() < 0.03, "claw {min} mm, up {up:?}");
+            assert_eq!(under, 0.0);
+        }
+        // Manticora's collet: a 0.8 mm wall round a 3 mm seat, 2 mm tall.
+        let mut collet = lathe(&[(2.3, 0.0), (2.3, 2.0), (1.5, 2.0), (1.5, 0.0)], 96);
+        let n = 96u32;
+        for j in 0..n {
+            let k = (j + 1) % n;
+            collet.f.push([3 * n + j, 3 * n + k, k]);
+            collet.f.push([3 * n + j, k, j]);
+        }
+        assert_eq!(collet.open_edges(), (0, 0));
+        let (wall, under) = part_sections(&collet, Some([0.0, 0.0, 1.0]), 0.75);
+        assert!((wall - 0.8).abs() < 0.01, "collet wall {wall} mm");
+        assert_eq!(under, 0.0);
+        // A 2 mm cone to a point: thin only near the point.
+        let cone = capped(&(0..=20).map(|i| (1.0 - 0.05 * i as f64 + 1e-3, 0.3 * i as f64)).collect::<Vec<_>>(), 64);
+        let (least, under) = part_sections(&cone, None, 0.8);
+        let area = |s: &Solid| s.f.iter().map(|f| {
+            let [a, b, c]: [P3; 3] = f.map(|i| s.v[i as usize]);
+            let (u, v): (P3, P3) = (std::array::from_fn(|k| b[k] - a[k]), std::array::from_fn(|k| c[k] - a[k]));
+            0.5 * ((u[1] * v[2] - u[2] * v[1]).powi(2) + (u[2] * v[0] - u[0] * v[2]).powi(2) + (u[0] * v[1] - u[1] * v[0]).powi(2)).sqrt()
+        }).sum::<f64>();
+        assert!(least < 0.1 && under > 0.0 && under < 0.5 * area(&cone), "point {least} mm, {under} of {} mm² under", area(&cone));
+    }
+
     /// What the measure says about the shipped templates, printed under
     /// `--nocapture`; the analytic check stays clean on all of them.
     #[test]
@@ -635,6 +801,55 @@ mod measured_tests {
             }
         }
     }
+}
+
+/// The thinnest section of one made part (a claw, a collet, a loft) and the
+/// area of its surface whose section is under `floor_mm`, in mm and mm².
+///
+/// Each face is read by one ray from its centroid along its inward normal to
+/// where it leaves the metal, so a wall reads its thickness, a round wire its
+/// diameter and a dome through its centre; a point or a burnished lip shows as
+/// a little area under the floor, which is what a lost-wax gate excepts by
+/// name. With `up`, the part's own axis, faces turned more toward either end
+/// of it than across it are not read: a short claw's foot or a collet's table
+/// measure its height, not a section. `(f64::MAX, 0.0)` for a solid with no
+/// face a ray leaves by.
+pub fn part_sections(solid: &crate::csg::Solid, up: Option<crate::csg::P3>, floor_mm: f64) -> (f64, f64) {
+    use crate::interaction::bvh::Bvh;
+    let mesh = crate::mesh::Mesh {
+        vertices: solid.v.iter().map(|p| crate::mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(),
+        faces: solid.f.clone(),
+        ..Default::default()
+    };
+    let bvh = Bvh::build(&mesh);
+    let up = up.and_then(|u| {
+        let l = (u[0] * u[0] + u[1] * u[1] + u[2] * u[2]).sqrt();
+        (l > 1e-12).then(|| u.map(|x| x / l))
+    });
+    // Far enough in that the face's own f32 plane is behind the ray.
+    const IN: f64 = 1e-4;
+    let (mut min, mut under) = (f64::MAX, 0.0);
+    for f in &solid.f {
+        let [a, b, c] = f.map(|i| solid.v[i as usize]);
+        let (e1, e2) = (std::array::from_fn::<f64, 3, _>(|k| b[k] - a[k]), std::array::from_fn::<f64, 3, _>(|k| c[k] - a[k]));
+        let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+        let twice = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+        if !(twice > 1e-14) {
+            continue;
+        }
+        let inward = n.map(|x| -x / twice);
+        if up.is_some_and(|u| (inward[0] * u[0] + inward[1] * u[1] + inward[2] * u[2]).abs() > std::f64::consts::FRAC_1_SQRT_2) {
+            continue;
+        }
+        let o: [f64; 3] = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0 + IN * inward[k]);
+        let Some((_, t)) = bvh.ray(&mesh, o, inward) else { continue };
+        let section = t + IN;
+        min = min.min(section);
+        if section < floor_mm {
+            under += 0.5 * twice;
+        }
+    }
+    (min, under)
 }
 
 /// A tiling's finest measured feature in millimetres of metal, and whether it
@@ -668,13 +883,41 @@ pub fn tiling_finest_mm_at(
     ctx: &crate::field::FieldContext,
     v_scale: f64,
 ) -> Option<(f64, &'static str)> {
-    let (ink_px, gap_px) = tiling_feature_px(t, lib)?;
     let alpha = lib.get(&t.alpha)?;
     let (cw, ch) = t.cell_size(ctx);
     let ch = ch * v_scale.clamp(0.05, 8.0);
-    let scale = (cw / alpha.width.max(1) as f64).min(ch / alpha.height.max(1) as f64);
+    let (sx, sy) = (cw / alpha.width.max(1) as f64, ch / alpha.height.max(1) as f64);
+    // Granulometry reads a round disc in texels, so on texels far from square
+    // one axis was read at the other's pitch: the coarser axis is repeated out
+    // to the finer pitch first and the disc is round in millimetres.
+    let (ink_px, gap_px, scale) = if sx.is_finite() && sy > 0.0 && (sx / sy - 1.0).abs() > 0.05 {
+        let square = stretched(&shaped_mask(t, lib)?, sx / sy);
+        let (ink_px, gap_px) = square.min_feature_px()?;
+        (ink_px, gap_px, (cw / square.width as f64).min(ch / square.height as f64))
+    } else {
+        let (ink_px, gap_px) = tiling_feature_px(t, lib)?;
+        (ink_px, gap_px, sx.min(sy))
+    };
     let (ink, gap) = (ink_px * scale, gap_px * scale);
     Some(if ink <= gap { (ink, "strokes") } else { (gap, "gaps") })
+}
+
+/// `alpha` with its coarser axis repeated nearest-texel to the finer pitch,
+/// `sx_over_sy` being a texel's width over its height in millimetres, and no
+/// side past 4096. Whole periods are kept, so a seamless mask stays seamless.
+fn stretched(alpha: &crate::alpha::Alpha, sx_over_sy: f64) -> crate::alpha::Alpha {
+    let (w, h) = (alpha.width.max(1), alpha.height.max(1));
+    let (nw, nh) = if sx_over_sy > 1.0 {
+        (((w as f64 * sx_over_sy).round() as usize).clamp(w, w.max(4096)), h)
+    } else {
+        (w, ((h as f64 / sx_over_sy).round() as usize).clamp(h, h.max(4096)))
+    };
+    let mut data = Vec::with_capacity(nw * nh);
+    for row in 0..nh {
+        let y = (((row as f64 + 0.5) / nh as f64 * h as f64) as usize).min(h - 1);
+        data.extend((0..nw).map(|col| alpha.data[y * w + (((col as f64 + 0.5) / nw as f64 * w as f64) as usize).min(w - 1)]));
+    }
+    crate::alpha::Alpha::new(format!("{} {nw}x{nh}", alpha.name), nw, nh, data)
 }
 
 /// The tightest section a layer's window covers, as a ratio of the reference
@@ -682,18 +925,22 @@ pub fn tiling_finest_mm_at(
 ///
 /// A modulated band is not one section: `sample_mod`'s `surface_len_mm` moves
 /// with the shank, and every layer measured against the reference alone was
-/// judged on a band it does not sit on everywhere.
+/// judged on a band it does not sit on everywhere. With `ink`, a station is
+/// counted only where that tiling stands at least half its height within
+/// half a station either side.
 fn worst_arc_ratio(
     design: &RingDesign,
     entry: &crate::field::LayerEntry,
     ctx: &crate::field::FieldContext,
     lib: &crate::AlphaLibrary,
+    ink: Option<&crate::tiling::TilingLayer>,
 ) -> (f64, f64) {
     const STATIONS: usize = 72;
     let inner_r = design.inner_radius_mm();
     let crest_r = inner_r + design.profile.thickness_mm;
     let reference = ctx.band_v_len_mm.max(1e-9);
-    let mut worst = (1.0f64, 0.0f64);
+    // A hide wholly on stations thicker than the reference is judged there, not at the reference.
+    let mut worst = if ink.is_some() { (f64::INFINITY, 0.0) } else { (1.0f64, 0.0f64) };
     for k in 0..STATIONS {
         let theta = k as f64 / STATIONS as f64 * 360.0;
         // The layer's own gate, read through the mask it actually uses: a
@@ -708,6 +955,17 @@ fn worst_arc_ratio(
         {
             continue;
         }
+        if let Some(t) = ink {
+            let step = ctx.circumference_mm / STATIONS as f64;
+            let half = 0.5 * t.height_mm.abs();
+            let inked = (0..8).any(|i| {
+                let u = u + step * ((i as f64 + 0.5) / 8.0 - 0.5);
+                (0..=64).any(|j| t.height(crate::field::Uv { u, v: ctx.band_v_len_mm * j as f64 / 64.0 }, ctx, lib).abs() >= half)
+            });
+            if !inked {
+                continue;
+            }
+        }
         let m = design.modulation_at(theta, inner_r, crest_r);
         let len = design.profile.sample_mod(inner_r, 96, &m).surface_len_mm;
         let ratio = if design.imported_base.is_some() { ctx.station_stretch(theta) } else { len / reference };
@@ -715,19 +973,23 @@ fn worst_arc_ratio(
             worst = (ratio, theta);
         }
     }
-    worst
+    if worst.0.is_infinite() { (1.0, 0.0) } else { worst }
 }
 
 /// The mask's finest ink and gap in texels, after the layer's own shaping.
 fn tiling_feature_px(t: &crate::tiling::TilingLayer, lib: &crate::alpha::AlphaLibrary) -> Option<(f64, f64)> {
+    shaped_mask(t, lib)?.min_feature_px()
+}
+
+/// The layer's mask after its own contrast/bias/invert.
+fn shaped_mask(t: &crate::tiling::TilingLayer, lib: &crate::alpha::AlphaLibrary) -> Option<crate::alpha::Alpha> {
     let alpha = lib.get(&t.alpha)?;
-    let shaped = if t.invert || (t.contrast - 1.0).abs() > 1e-9 || t.bias.abs() > 1e-9 {
+    Some(if t.invert || (t.contrast - 1.0).abs() > 1e-9 || t.bias.abs() > 1e-9 {
         let data = alpha.data.iter().map(|&v| alpha.shaped(v, t.contrast, t.bias, t.invert) as f32).collect();
         crate::alpha::Alpha::new(format!("{} shaped", alpha.name), alpha.width, alpha.height, data)
     } else {
         alpha.clone()
-    };
-    shaped.min_feature_px()
+    })
 }
 
 /// What the sand's detail floor allows a tiling to be.
