@@ -491,12 +491,12 @@ impl Wolf {
         let lip = if ang >= 0.0 { upper_lip(ang).0 } else { lower_lip(ang).0 };
         let end = (CORNER_DEG + 3.0 - ang.abs()).to_radians() * rho.max(1.0);
         // Below the lip the gum widens into the jaw, so no slot opens between them.
-        let widen = if ang < 0.0 { 1.4 * smooth(0.8, -1.0, s[2]) } else { 0.0 };
-        smax((rho - lip - 0.35 - widen).max(s[2] - GUM_H).max(-(s[2] + 1.2)), end, 0.4)
+        let widen = if ang < 0.0 { (jaw_out(ang) - lip - 0.2).max(0.0) * smooth(0.8, -1.0, s[2]) } else { 0.0 };
+        smax((rho - lip - 0.35 - widen).max(s[2] - GUM_H).max(-(s[2] + 2.0)), end, 0.4)
     }
     /// The throat under the chin, hanging over the apex wall, its lowest point a millimetre and more over the finger.
     fn throat(s: P3) -> f64 {
-        ellipsoid(sub(s, [0.0, MOON_U - 6.1, -1.25]), [2.3, 1.5, 1.55])
+        ellipsoid(sub(s, [0.0, MOON_U - 5.6, -1.95]), [3.9, 1.8, 1.75])
     }
     /// A pricked ear: a thick triangle standing up from the crown's corner, curling back at its point, cupped 0.35 mm
     /// deep on the face it turns to the viewer, with a rolled rim.
@@ -525,9 +525,10 @@ impl Wolf {
         let cup = (thick - depth * (1.0 - (x / w).powi(2)).max(0.0) - z).max(x.abs() - w).max(0.1 - y).max(y - 0.55 * l);
         smax(plate, -cup, 0.2)
     }
+    /// A short tuft lying down the chin's front, pointing away from the moon.
     fn chin_tuft(s: P3) -> f64 {
-        let a = round_cone(s, [0.0, MOON_U - 7.7, -0.35], [0.0, MOON_U - 8.5, -1.1], 0.6, 0.42);
-        smin(a, round_cone(s, [0.0, MOON_U - 8.5, -1.1], [0.0, MOON_U - 9.0, -1.9], 0.42, 0.25), 0.2)
+        let a = round_cone(s, [0.0, MOON_U - 7.9, 0.1], [0.0, MOON_U - 8.7, -0.6], 0.55, 0.42);
+        smin(a, round_cone(s, [0.0, MOON_U - 8.7, -0.6], [0.0, MOON_U - 9.1, -1.3], 0.42, 0.3), 0.25)
     }
     /// The head's masses and smooth features, without fur or carved detail.
     fn masses(&self, q: P3) -> f64 {
@@ -538,7 +539,7 @@ impl Wolf {
         d = smin(d, Self::muzzle(s), 0.6);
         d = smin(d, Self::nose(s), 0.4);
         let jaws = smin(Self::mandible(s), Self::gums(s), 0.3);
-        d = smin(d, smin(jaws, Self::throat(s), 0.9), 0.5);
+        d = smin(d, smin(jaws, Self::throat(s), 1.3), 0.5);
         smin(d, Self::ear(s), 0.5)
     }
     /// How much fur the skin at face point `f` (signed `x`) takes: none within a millimetre of the stock it stands on,
@@ -582,10 +583,10 @@ impl Wolf {
         let lip = lerp(lower_lip(ang).0, upper_lip(ang).0, smooth(-8.0, 8.0, ang));
         let off_lips = smooth(lip + 0.6, lip + 1.6, rho);
         let off_face = off_lips * smooth(1.8, 3.4, fs[0]) * smooth(1.3, 2.7, (fs[0] - Self::EYE.0).hypot(fs[1] - Self::EYE.1));
-        let cheeks = 0.38 * cheek_fur(fs) * off_face * (1.0 - smooth(5.8, 7.6, fs[1])) * smooth(MOON_U - 1.5, MOON_U + 1.0, fs[1]);
+        let cheeks = 0.38 * cheek_fur(fs) * off_face * (1.0 - smooth(4.4, 6.6, fs[1])) * smooth(MOON_U - 1.5, MOON_U + 1.0, fs[1]);
         let jaw = 0.3 * jaw_fur(fs) * off_lips * (1.0 - smooth(MOON_U - 0.5, MOON_U + 1.5, fs[1])) * smooth(-0.6, 0.2, fs[2]);
         let crown = 0.26 * crown_fur(f) * smooth(6.2, 7.6, fs[1]) * (1.0 - smooth(3.0, 4.6, fs[0])) * smooth(-0.4, 1.0, fs[2]) * smooth(0.1, 1.0, Self::ear(fs));
-        let throat = 0.34 * throat_fur(f) * smooth(-0.2, -1.2, fs[2]) * (1.0 - smooth(MOON_U - 5.5, MOON_U - 3.5, fs[1]));
+        let throat = 0.34 * throat_fur(f) * smooth(-0.6, -1.4, fs[2]) * (1.0 - smooth(MOON_U - 5.0, MOON_U - 3.5, fs[1]));
         let fur = cheeks.max(jaw).max(crown).max(throat) * self.fur_room(f);
         if fur < 1e-5 {
             return 0.0;
@@ -638,7 +639,8 @@ impl Wolf {
             let d = t.sdf(q);
             take(t.name.clone(), if d < 0.3 { 0.0 } else { d }, t.tip);
         }
-        take("chin tuft".into(), Self::chin_tuft(s), [0.0, MOON_U - 9.0, -1.9]);
+        let tuft = Self::chin_tuft(s);
+        take("chin tuft".into(), if tuft < 0.3 { 0.0 } else { tuft }, [0.0, MOON_U - 9.1, -1.3]);
         take(format!("brow, {side}"), Self::brow(s), q);
         take("mandible".into(), Self::mandible(s), q);
         take("nose".into(), Self::nose(s), q);
@@ -1596,6 +1598,7 @@ fn sculpt_preview(out: &Path, step: f64) -> Result<()> {
         let rho = q[0].hypot(q[1] - MOON_U);
         println!("  fang tip at face ({:.2}, {:.2}, {:.2}): {:.2} mm inside the girdle", q[0], q[1], q[2], MOON_MM * 0.5 - rho);
     }
+    println!("  fangs reach inside the moon's disc in plan: {:?} mm", fang_overlap(&wolf, &built));
     let _ = sculpt;
     let mut close = vec![Part::metal(&built.mesh, render::GOLD)];
     close.extend(gems.iter().map(|(m, tint)| Part::tinted_stone(m, *tint)));
@@ -2687,6 +2690,26 @@ fn head_lands(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::
     }
     out.sort_by(|a, b| a.feature.cmp(&b.feature));
     (out, thin_at)
+}
+
+/// How far each claw reaches inside the moon's girdle circle seen from over the face, mm.
+fn fang_overlap(wolf: &Wolf, built: &mesh::BuildResult) -> Vec<f64> {
+    let mut out = Vec::new();
+    for c in built.parts.evaluated.iter().flat_map(|e| e.components.iter()) {
+        let Some(made) = &c.made else { continue };
+        if !made.key.contains("claw") {
+            continue;
+        }
+        let s = made.solid();
+        for (pi, name) in made.named.names.iter().enumerate() {
+            if !name.starts_with("Claw") {
+                continue;
+            }
+            let inner = s.f.iter().zip(&made.named.patch).filter(|(_, p)| **p as usize == pi).flat_map(|(t, _)| t.map(|x| wolf.face(s.v[x as usize]))).map(|q| q[0].hypot(q[1] - MOON_U)).fold(f64::MAX, f64::min);
+            out.push(((MOON_MM * 0.5 - inner) * 100.0).round() / 100.0);
+        }
+    }
+    out
 }
 
 /// Each claw's point in world millimetres: its vertex furthest up the ring's radius.
