@@ -78,8 +78,17 @@ impl TryFrom<ControlSpec> for Control {
             ControlSpec::Fields(f) => f,
         };
         match (f.bind, f.min, f.max) {
-            (Some(bind), min, max) if min.is_some() == max.is_some() => Ok(Self::Bound { name: f.name, bind, min, max }),
-            (None, Some(min), Some(max)) => Ok(Self::Bounded { name: f.name, min, max }),
+            (Some(bind), min, max) if min.is_some() == max.is_some() => Ok(Self::Bound {
+                name: f.name,
+                bind,
+                min,
+                max,
+            }),
+            (None, Some(min), Some(max)) => Ok(Self::Bounded {
+                name: f.name,
+                min,
+                max,
+            }),
             (None, None, None) => Ok(Self::Name(f.name)),
             _ => Err(format!("{}: an interval needs both min and max", f.name)),
         }
@@ -95,14 +104,23 @@ impl Control {
 
     fn interval(&self) -> Option<(f64, f64)> {
         match self {
-            Self::Bounded { min, max, .. } | Self::Bound { min: Some(min), max: Some(max), .. } => Some((*min, *max)),
+            Self::Bounded { min, max, .. }
+            | Self::Bound {
+                min: Some(min),
+                max: Some(max),
+                ..
+            } => Some((*min, *max)),
             _ => None,
         }
     }
 }
 
 /// The literal a pin holds, or its registry default.
-fn pin_literal(node: &ringdesign_graph::graph::Node, pin: &str, reg: &Registry) -> Option<(ValueKind, Literal)> {
+fn pin_literal(
+    node: &ringdesign_graph::graph::Node,
+    pin: &str,
+    reg: &Registry,
+) -> Option<(ValueKind, Literal)> {
     let (inputs, _) = reg.node_pins(node)?;
     let spec = inputs.into_iter().find(|p| p.name == pin)?;
     let literal = node.inputs.get(pin).or(spec.default.as_ref())?.clone();
@@ -117,11 +135,16 @@ fn bind_control(graph: &mut Graph, name: &str, bind: &[Bind], reg: &Registry) ->
     };
     let mut targets = Vec::new();
     for b in bind {
-        ensure!(b.kind.is_some() || b.label.is_some(), "{name}: a binding names a node kind or a label");
+        ensure!(
+            b.kind.is_some() || b.label.is_some(),
+            "{name}: a binding names a node kind or a label"
+        );
         let found = targets.len();
         for n in &graph.nodes {
             let hit = b.kind.as_deref().is_none_or(|k| n.kind == k)
-                && b.label.as_deref().is_none_or(|l| n.label.as_deref() == Some(l))
+                && b.label
+                    .as_deref()
+                    .is_none_or(|l| n.label.as_deref() == Some(l))
                 && b.with.iter().all(|(k, v)| {
                     pin_literal(n, k, reg)
                         .and_then(|(_, l)| serde_json::to_value(l).ok())
@@ -137,16 +160,25 @@ fn bind_control(graph: &mut Graph, name: &str, bind: &[Bind], reg: &Registry) ->
     targets.dedup();
     let mut value = None;
     for (id, pin) in &targets {
-        ensure!(graph.wire_into(*id, pin).is_none(), "{name}: pin {pin} of node {id} is already driven");
+        ensure!(
+            graph.wire_into(*id, pin).is_none(),
+            "{name}: pin {pin} of node {id} is already driven"
+        );
         let node = graph.node(*id).expect("bound node");
         let x = match pin_literal(node, pin, reg) {
             Some((ValueKind::Number | ValueKind::Int, Literal::Number(x))) => x,
             Some((ValueKind::Number | ValueKind::Int, Literal::Int(x))) => x as f64,
             other => bail!("{name}: pin {pin} of node {id} carries {other:?}, not a number"),
         };
-        ensure!(x.is_finite(), "{name}: pin {pin} of node {id} is not finite");
+        ensure!(
+            x.is_finite(),
+            "{name}: pin {pin} of node {id} is not finite"
+        );
         let first = *value.get_or_insert(x);
-        ensure!((first - x).abs() < 1e-12, "{name}: its pins carry different values {first} and {x}");
+        ensure!(
+            (first - x).abs() < 1e-12,
+            "{name}: its pins carry different values {first} and {x}"
+        );
     }
     let value = value.context("no bound pin")?;
     let [x, y] = graph.node(targets[0].0).expect("bound node").pos;
@@ -643,7 +675,10 @@ fn verify(opts: &Options, ring: &Ring, repo: &Path, reg: &Registry) -> Result<se
         .context("verification.json must contain an object")?;
     evidence.extend(packaging.as_object().expect("packaging object").clone());
     // A ring's own geometry gates and this template gate make its whole verdict.
-    if let Some(geometry) = evidence.get("geometry_gates_passed").and_then(|v| v.as_bool()) {
+    if let Some(geometry) = evidence
+        .get("geometry_gates_passed")
+        .and_then(|v| v.as_bool())
+    {
         evidence.insert("gates_passed".into(), json!(geometry && !over_budget));
         evidence.remove("status");
     }
@@ -761,8 +796,14 @@ mod tests {
         use ringdesign_core::{Layer, LayerEntry, field::MilgrainLayer};
         let mut d = RingDesign::default();
         for (name, v_mm) in [("Row, low", 0.6), ("Row, high", 1.4)] {
-            let row = MilgrainLayer { v_mm, height_mm: 0.25, ..MilgrainLayer::default() };
-            d.layers.layers.push(LayerEntry::new(name, Layer::Milgrain(row)));
+            let row = MilgrainLayer {
+                v_mm,
+                height_mm: 0.25,
+                ..MilgrainLayer::default()
+            };
+            d.layers
+                .layers
+                .push(LayerEntry::new(name, Layer::Milgrain(row)));
         }
         let reg = ringdesign_script::registry();
         let graph = lift::from_design(&d, &reg, &AlphaLibrary::default()).unwrap();
@@ -813,12 +854,26 @@ mod tests {
             max: Some(0.35),
         }];
         controls(&mut graph, Some(&allow), &reg).unwrap();
-        assert!(source_equal(&d, &evaluated(&graph, &reg)).unwrap(), "binding changed the design");
-        assert_eq!(graph.exposed.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(), ["Bead height"]);
+        assert!(
+            source_equal(&d, &evaluated(&graph, &reg)).unwrap(),
+            "binding changed the design"
+        );
+        assert_eq!(
+            graph
+                .exposed
+                .iter()
+                .map(|e| e.name.as_str())
+                .collect::<Vec<_>>(),
+            ["Bead height"]
+        );
         let input = graph.exposed[0].clone();
-        graph.set_input(input.node, &input.input, Literal::Number(0.3)).unwrap();
+        graph
+            .set_input(input.node, &input.input, Literal::Number(0.3))
+            .unwrap();
         assert_eq!(heights(&graph, &reg), [0.3, 0.3]);
-        graph.set_input(input.node, &input.input, Literal::Number(5.0)).unwrap();
+        graph
+            .set_input(input.node, &input.input, Literal::Number(5.0))
+            .unwrap();
         assert_eq!(heights(&graph, &reg), [0.35, 0.35]);
         // A filter on another pin selects one row; the other keeps its height.
         let (_, _, mut graph) = two_rows();
@@ -830,7 +885,9 @@ mod tests {
         }];
         controls(&mut graph, Some(&allow), &reg).unwrap();
         let input = graph.exposed[0].clone();
-        graph.set_input(input.node, &input.input, Literal::Number(0.4)).unwrap();
+        graph
+            .set_input(input.node, &input.input, Literal::Number(0.4))
+            .unwrap();
         assert_eq!(heights(&graph, &reg), [0.25, 0.4]);
     }
 
@@ -838,28 +895,66 @@ mod tests {
     fn a_bound_control_refuses_unbound_mixed_or_out_of_range_pins_and_malformed_entries() {
         let (_, reg, graph) = two_rows();
         let bound = |bind: Bind, name: &str, min: Option<f64>, max: Option<f64>| {
-            let allow = [Control::Bound { name: name.into(), bind: vec![bind], min, max }];
+            let allow = [Control::Bound {
+                name: name.into(),
+                bind: vec![bind],
+                min,
+                max,
+            }];
             controls(&mut graph.clone(), Some(&allow), &reg)
         };
-        let nowhere = Bind { label: Some("No such row".into()), ..milgrain("height_mm", json!({})) };
-        assert!(bound(nowhere, "Bead height", None, None).is_err(), "binds nothing");
-        assert!(bound(milgrain("v_mm", json!({})), "Rows", None, None).is_err(), "pins disagree");
-        assert!(bound(milgrain("height_mm", json!({})), "Bead height", Some(0.3), Some(0.4)).is_err(), "value outside");
+        let nowhere = Bind {
+            label: Some("No such row".into()),
+            ..milgrain("height_mm", json!({}))
+        };
+        assert!(
+            bound(nowhere, "Bead height", None, None).is_err(),
+            "binds nothing"
+        );
+        assert!(
+            bound(milgrain("v_mm", json!({})), "Rows", None, None).is_err(),
+            "pins disagree"
+        );
+        assert!(
+            bound(
+                milgrain("height_mm", json!({})),
+                "Bead height",
+                Some(0.3),
+                Some(0.4)
+            )
+            .is_err(),
+            "value outside"
+        );
         let taken = graph.exposed[0].name.clone();
-        assert!(bound(milgrain("height_mm", json!({})), &taken, None, None).is_err(), "name taken");
+        assert!(
+            bound(milgrain("height_mm", json!({})), &taken, None, None).is_err(),
+            "name taken"
+        );
         for entry in [
             json!({"name": "X", "bind": [{"kind": "layer.milgrain", "inputs": "height_mm"}]}),
             json!({"name": "X", "bind": [{"kind": "layer.milgrain", "input": "height_mm"}], "max": 1.0}),
             json!({"name": "X", "min": 1.0}),
         ] {
-            assert!(serde_json::from_value::<Control>(entry.clone()).is_err(), "{entry}");
+            assert!(
+                serde_json::from_value::<Control>(entry.clone()).is_err(),
+                "{entry}"
+            );
         }
         let read = |entry| serde_json::from_value::<Control>(entry).unwrap();
         assert!(matches!(read(json!("X")), Control::Name(_)));
-        assert!(matches!(read(json!({"name": "X", "min": 0.0, "max": 1.0})), Control::Bounded { .. }));
         assert!(matches!(
-            read(json!({"name": "X", "bind": [{"label": "Row, low", "input": "height_mm"}], "min": 0.0, "max": 1.0})),
-            Control::Bound { min: Some(_), max: Some(_), .. }
+            read(json!({"name": "X", "min": 0.0, "max": 1.0})),
+            Control::Bounded { .. }
+        ));
+        assert!(matches!(
+            read(
+                json!({"name": "X", "bind": [{"label": "Row, low", "input": "height_mm"}], "min": 0.0, "max": 1.0})
+            ),
+            Control::Bound {
+                min: Some(_),
+                max: Some(_),
+                ..
+            }
         ));
     }
 
