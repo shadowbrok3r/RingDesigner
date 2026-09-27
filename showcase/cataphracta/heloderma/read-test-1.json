@@ -1,9 +1,21 @@
 {
   "reads": false,
-  "what_the_eye_sees": "A plain polished half-round band with a small orange stone in a round bezel. Patches of granulation are scattered on the shoulders and flanks. The beads all look the same size and height, and they sit in blocky vertical clusters with bald, mirror-smooth metal between them. At 300 px it reads as granulation work, a sea-urchin or blackberry texture, or a 'bubbles' band. It does not read as reptile hide. Most of the surface is bare metal and the beads look applied on top, so a jeweller would say 'granulated band with a citrine' and would not name a Gila monster or any lizard. No dorsal bead row can be seen along the crest, and nothing belly-like shows. The two-height reticulated banding that should carry the animal is not visible.",
+  "what_the_eye_sees": "A lizard crawling over a plain polished half-round band, with a small orange stone set in bare metal in front of its head. The skin is uniformly pebbled, like a toad or a generic lizard, and it shows no pattern. The left third is a lumpy, ridged mass where body, legs and tail wrap over the shoulder and down the side, so no clear tail shape shows. The head is small and hard to separate from the forelegs. The right 40% of the face and the whole shank are bare. A jeweller would say 'lizard', perhaps 'baby croc' or 'gecko', but not Gila monster: nothing here is specific to Heloderma. The fat tail, the broad blunt head and the banded beadwork are all missing.",
   "changes": [
-    "Bead the whole shoulder and flank surface (theta 35 to 145 and 215 to 325, crest to edge fillet) with no bald metal. Close the smooth gaps completely so that bare land between beads is only the 0.42 x pitch lattice land. Acceptance: in face-300 and hero-300 no smooth patch wider than about 2 bead pitches remains outside the stone mound.",
-    "Carry the Gila banding with height and not with bead presence. Put high beads (0.36 mm) in forking, irregular reticulated transverse bands about 3 to 5 beads wide, and low, flatter beads (0.24 mm, cushion remap) in the bands between. Replace the current rectangular vertical blocks with the organic forked mask. Acceptance: at 300 px you can see alternating dark-shadowed high-bead bands and lower, brighter bead fields that branch and merge, and the edges are not rectilinear.",
-    "Put in a clear dorsal bead row along the crest (about 1.1 mm domes, 0.42 mm high, tapering in size away from 90 degrees) that runs into the spessartite as its central bead, and grade the beads from flattened shingles at the crest to full domes at the edges. Acceptance: in face-300 a single continuous bead line runs along the crest through the stone, and the bead size visibly changes from crest to edge."
+    {
+      "what": "Put the Gila's banding into the beadwork: alternate high-bead and low-bead transverse bands across the back and tail, so that dark and light stripes read at 300 px.",
+      "where": "Across the whole dorsal surface of the lizard, from the nape to the tail tip: about 4 bands on the trunk and 4 to 5 rings on the tail, with forked, reticulated edges.",
+      "by_how_much": "Bands 1.5 to 2.0 mm wide. High beads 0.40 mm, low beads 0.18 to 0.20 mm (at least 0.20 mm apart; the planned 0.36/0.24 is too subtle). Recess the low bands' lands a further 0.1 mm so the oxide or shadow holds, and check that the stripes are countable in face-300.png."
+    },
+    {
+      "what": "Rebuild the tail as the Gila's short, swollen fat-store: a thick sausage with a blunt tip, lying on the face instead of disappearing over the left shoulder into the side.",
+      "where": "From the hips back along the crest toward theta 60 to 90, on the face and upper shoulder, visible in both hero and face views.",
+      "by_how_much": "Tail width at the base at least 75% of the trunk width, tapering by no more than 30% before a rounded tip. Length about 40% of the snout-to-vent length. It must read as one clean silhouette against the bare band in face-300.png."
+    },
+    {
+      "what": "Make the head broad, flat and blunt, clearly separate from the forelimbs, and give the legs a short, stubby Gila stance. Then let the beaded hide carry onto the empty right side of the face and the shoulders, so the body does not sit on bare stock.",
+      "where": "Head and forelimbs near the stone. The bare face and shoulder from roughly theta 90 to 150 around the stone.",
+      "by_how_much": "Head width about 85% of the neck width, with a rounded, nearly square snout (no taper to a point) and a 0.3 mm neck crease behind it. Leg length at most 50% of the body depth. Low beads (0.15 to 0.20 mm) cover at least 70% of the currently bare face area, with the stone seated in the bead field."
+    }
   ]
 }
