@@ -1,0 +1,19 @@
+{
+  "ring": "Moloch",
+  "slug": "moloch",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Hero-300 shows a round band covered all over in fine pinprick stippling. Both shoulders carry an even fringe of small teeth, and a short cluster of bigger cones stands up at the upper left. The comb of attempt 2 is gone, and the surface no longer looks machined. It now looks like a burr, a sea urchin, a hedgehog, or a sand-cast 'thorn crown' band. The 248 knobs are mostly 0.33 mm cones, so at 300 px they register as grain or pitting, not as the knobbed hide of a lizard. The spike gradient exists, but the ring has no front or back. Nothing in the silhouette says head, legs or tail, and the leg stamps are still invisible. Face-300 is again a horizontal spiked spindle: two long horns point left and right, one tall cone rises in the middle, and ragged spikes line the top and bottom. At its centre is a rounded lump with dark hollows either side, a 'C' or a pair of nostrils. It reads as a mask, a beetle or a buckle, not as the knobbed nape of a lizard. With no caption, a jeweller would say 'spiked band' or 'thorn ring'. Some might say 'porcupine' or 'urchin'. Nobody would say lizard, let alone thorny devil.",
+  "changes": [
+    "Make the false head the one unmistakable form, and fix the face view. At 90 degrees, fill the dark hollows either side of the central lump (the gaps around 'Thorn, knob fore' x2 and the hump shoulders) so the nape is one convex dome with no recess and no C outline. Sweep 'Horn, fingertip' and 'Horn, knuckle' (apex 2.4) up and back by about 25-35 degrees, toward the crest and toward theta 110, and not out horizontally along Z. In face-300 they should form a V or a pair of devil horns with 'Thorn, crown' (2.2 mm), not a flat spindle. Ring the dome with 5-7 cones of 1.0-1.4 mm apex within ±8 degrees. Acceptance: face-300 shows a single rounded knob bristling with cones and topped by two up-swept horns, with no dark hollow or face-like shape in its centre.",
+    "Grow the hide knobs from stipple to thorns. Most of the 248 'Knob,' stamps have a 0.33 mm apex, which is about 1 px at 300 px and reads as pitting. Raise the knobs to 0.6-0.9 mm apex between 40 and 140 degrees, and to at least 0.5 mm elsewhere. Use mixed sizes in rosette clusters (one 0.8-1.0 mm centre and 4-6 smaller neighbours), and thin the count by about 40% so each knob has a visible land around it. Keep G1 on the side faces and G2/G4 on the crown. Acceptance: in hero-300 individual conical knobs can be counted on the crown flank and the side face nearest the camera, and the surface reads as knobbed hide rather than grain.",
+    "Give the ring a head end, a body and a tail. The 'Leg, * limb/shin/toe' stamps (toes at 0.6 mm apex, 0.4 mm domes) still do not register. Raise each limb to a 1.0-1.2 mm crown and widen it by 50%. Splay the three toes to 0.9 mm apex so the four legs at about 118 and 355 degrees break the shoulder outline. From 200 to 330 degrees, grade 'Thorn, crest major/minor' down to 0.4-0.5 mm studs, and lower the crest there by about 0.3 mm, so the palm half reads as a tapering tail. Acceptance: in hero-300 the eye finds at least two limb bumps breaking the shoulder silhouette, and a clear big-to-small run of spikes away from the head."
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/moloch/hero-300.png",
+    "showcase/cataphracta/moloch/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
