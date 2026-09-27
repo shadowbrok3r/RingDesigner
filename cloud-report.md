@@ -1,90 +1,155 @@
-# Heloderma — the beaded one: cloud lane report (lost wax)
+# Heloderma — the beaded one: cloud lane report (lost wax, a figure)
 
-**Outcome: stopped at step 0 again. After Logan's switch to lost wax (2026-09-27), the block-out failed all three read tests. TASK.md says that when the third block-out still does not read, the lane stops and reports. The subject needs rethinking, not detailing.**
+**Outcome: stopped at step 0 for the third time. The figure block-out failed all three read tests. TASK.md says that when the third block-out still does not read, the lane stops and reports: the subject needs rethinking, not detailing.**
 
-- Rounds used: **0 of 3.** There were no full reviews, so there is no score and no ship, revise or cut verdict.
-- Block-out attempts: **3 of 3 in lost wax.** The count restarted at 1, as TASK.md says. The earlier sand lane's three read tests also failed; they are archived in `showcase/cataphracta/heloderma/sand/`.
-- Branch: `claude/cataphracta-heloderma`.
-- Files:
+- **Rounds used:** 0 of 3. There were no full reviews, so there is no score and no ship, revise or cut verdict.
+- **Block-out attempts:** 3 of 3, counted from 1 again for the figure, as TASK.md says. The two earlier lanes (sand, then pattern-only lost wax) are archived in `showcase/cataphracta/heloderma/sand/` and `showcase/cataphracta/heloderma/lost-wax-pattern/`.
+- **Branch:** `claude/cataphracta-heloderma`.
+- **Files:**
   - Author file: `crates/ringdesign-core/examples/cataphracta_heloderma.rs`.
-  - Artwork: `crates/ringdesign-core/examples/cataphracta/art/heloderma/gila-beadwork-{i..viii}.svg`.
-  - Renders, `report.json` and the read tests: `showcase/cataphracta/heloderma/`. The renders and `report.json` are from block-out 3, at draft resolution.
+  - Renders, `report.json`, `template-verification.json` and the read tests: `showcase/cataphracta/heloderma/`. The renders and `report.json` are from block-out 3, at draft resolution.
+  - The figure has no SVG artwork. It is a distance field sculpted in the example itself. The ground's eight sector SVGs are in `crates/ringdesign-core/examples/cataphracta/art/heloderma/`.
 
-## Read tests
+## What was built
 
-Each test used an independent reviewer in read-test mode, given only `review.md`, the ring's name and slug, the attempt number, the paths, and the process (lost wax, with the lost-wax gates).
+Logan's third start: the Gila herself, not texture alone. **One sculpted part** (`ringdesign_core::sculpt`), stored in the design as `Operation::Stored` (`Attach::Join`, `Stage::Cast`, `Placement::Free`). It holds:
+- the blunt head with its eyes, brows, mouth line and nostrils;
+- a thick neck with a crease behind the head;
+- a fat trunk;
+- four short splayed legs, each with five toes and claws;
+- a fat, round-tipped tail, the whole animal lying along the crown.
 
-| # | Reads | What the eye sees (the reviewer's words, shortened) | Changes the reviewer asked for |
-|---|---|---|---|
-| 1 | **false** | "A plain polished half-round band … patches of granulation … blocky vertical clusters with bald, mirror-smooth metal between them … granulation work, a sea-urchin or blackberry texture … 'granulated band with a citrine'." | 1. Bead the whole hide, with no bald metal. 2. Carry the banding by height: high beads 0.36 mm, low cushions 0.24 mm, in organic forking bands 3–5 beads wide. 3. A dorsal row along the crest. Grade the beads from shingles at the crest to domes at the edges. |
-| 2 | **false** | "The whole band is now beaded … still a sea-urchin shell or a caviar/granulation band … separate round pearls on visible land … fields of big pearls against fields of fine pearls, in rectilinear blocks … rows of larger beads fan out diagonally from the stone in an X … the ambulacral star of an urchin test." | 1. One uniform lattice, with the banding carried by height and shadow. Irregular forking bands, and nothing radiating from the stone. 2. Close the lands. Near the crest, touching polygonal shingles; full domes only in the outer third. 3. A dorsal spine at least 1.5 × its neighbours through the stone, and a fatter swell. |
-| 3 | **false** | "Covered all over in round gold pearls … still reads as a caviar or granulation band, or a sea-urchin shell. The beads form rings around the bezel, so the stone reads as the urchin's boss … the 0.12 mm step between high and low beads makes no shadow at this size, and in plain gold nothing else can carry the Gila's black and salmon bands … 'granulated dome band with a citrine'." | 1. Show the banding by a relief step of at least 0.35 mm, with the high bands on a plateau or the low fields sunk. 2. Replace the bead rings round the bezel with a dorsal spine, and bead right up to it. 3. Push the swell to 1.35 / 1.42. Tight polygonal shingles near the crest. |
+The spessartite sits in front of the snout.
 
-The full JSON is in `showcase/cataphracta/heloderma/read-test-{1,2,3}.json`.
-
-## What was tried, and what I learned
-
-**Lost wax solved the sand problem and exposed the real one.** Beads now stand full and round anywhere on the dome, and every lost-wax gate is green at draft. Six reviews, three in sand and three in wax, have now given the same answer: in plain studio gold, a pattern-only Gila reads as a sea urchin, caviar, or granulation. The hide's identity is its colour, black against salmon. Every way of carrying that colour in one metal was tried, and each lost either the bands or the animal:
-
-| Carrier of the banding | Block-out | What it did at 300 px |
-|---|---|---|
-| Tall beads against smooth ground | 1 (and an unsubmitted variant) | **The bands read clearly**, as bold transverse, forking bands. The ring read as "granulation clusters on a plain band", not as hide. |
-| Height alone, one lattice (0.40 against 0.20 mm, then 0.44 against 0.16) | tried before 2 | Collapsed to one even "golf ball" texture. The reviewer confirmed this in test 3: a 0.12 mm step casts no shadow at 300 px. |
-| Round domes against flat, fused shingles | tried before 2 and in 3 | A pebbled hide that reads as skin, but the bands vanish. |
-| Scale: big domes against fine granulation (half pitch) | 2 | The bands show, but as "blocks" of big and fine pearls: urchin, caviar. |
-| Separate shadowed domes against a fused, seamed salmon skin, a dorsal spine 1.55 × its neighbours, swell 1.30 / 1.38 | 3 | The spine shows in the face view, but the bands are still too faint. The circular clearing round the mound reads as the urchin's boss. |
-
-The reviewers' asks pull against each other:
-- Test 1 wanted bald metal gone, but bald metal is the one thing that made the bands legible.
-- Test 3 now asks for a 0.35–0.45 mm plateau step. That is roughly block-out 1's contrast, carried by a step instead of by bead presence. It is the most promising next move. It was not tried, because it arrived with the last test.
-
-### Findings worth keeping
-
-- **Whole beads, placed one by one, with crisp band outlines.** The hide is drawn as one bead list (row by row, graded, jittered, metal-true through `arc_scale`, `station_stretch` and `crest_scale`). It is rasterized as 8 sector SVGs shown by 8 one-decal `DecalLayer`s, so every bead is whole: a mask never cuts one. Each 1024 px sector raster holds a bead to 0.01 mm. The DFM decal check measures them (0 findings). This technique carries over to any bead-pixel hide.
-- **Fusing a field into a skin.** Drawing the low beads at full ink inside one SVG `<g opacity=h>` gives a flat plateau at `h` with a seam at each bead's edge. SVG compositing never stacks their overlaps above `h`.
-- **A circular clearing round the stone reads as an urchin boss.** Any next attempt should run the pattern, or a spine, up into the setting.
-- **A 3 mm stone's standard collet** (`setting::collet_wall_mm` = 0.52 mm) is under the 0.8 mm fill floor. `dfm::part_sections` reads 0.18 mm at its lip, with 26.2 mm² of its surface under the floor. `report.json` names it (lip burnished, wall sunk 0.35 mm into the mound). A round-1 build would need a custom 0.8 mm collet, as Manticora's is.
-
-## Layers, parts and stone (block-out 3)
+- **The field:**
+  - The head is rigid, in a frame at its own crest point.
+  - The body, legs and tail lie in a frame bent round the band: `u` is arc mm at the crown's radius, `h` is height over the bare band. The band is read from its own outward faces, rasterized per (θ, z).
+  - The black bands are high domed beads; the salmon bands are low tiles sunk into the same envelope. Both are 3D Voronoi bead fields.
+- **The mesh:** `tetra_mesh` at a 0.057 mm step, then `relax`, `decimate`, `settle`.
+  - About 303,000 triangles and about 550 mm³.
+  - Closed, with 0 self-crossings, also after the 10 nm quantization of the stored mesh.
+- **The ground:** eight `DecalLayer` sectors of fine domes, 0.07 mm high at a 0.6 mm pitch, kept 0.6 mm clear of the animal's outline (a polished moat) and of the stone's mound.
 
 | Layer or part | What it is | Why |
 |---|---|---|
-| Base | HalfRound 8.0 × 3.2, edge round 0.3, comfort fit 0.2, bore 18.6. Keyframes 1.30 / 1.38 / 1.05 at 90°, 1.08 / 1.12 at 35° and 145°, 0.96 at 210° and 330°, 0.90 / 0.90 at 270°. The sand-era ogive crown was dropped | The fat tail; lost wax needs no ogive |
-| **Gila beadwork I–VIII** | One `DecalLayer` per 45° sector, each a single decal of its own SVG, 0.50 mm full ink. Contents: the black bands' domes (0.38 mm, land 0.24 × pitch, half-domes near the crest, full domes in the outer third); the salmon bands' cushions, fused into one 0.22 mm seamed skin; and the dorsal row (1.55 × its neighbours, 0.46 mm) on the crest. Pitch 1.25 mm at the face, graded Cosine 0.26 to the palm. Nine bands of uneven width that lean, bow, fork (every third) and are strapped (every fourth gap) | The Gila's black and salmon beadwork |
-| **Spessartite** | 3.0 mm round, preview tint (0.95, 0.38, 0.06), on a `GypsyMound` 0.45 mm tall, sunk 0.35 mm, in a `SolidKind::Bezel` collet, `through`, with a 0.5 mm drill dot | The salmon bead on the spine, in a made setting |
+| Base | HalfRound 8.0 × 3.2, edge round 0.3, comfort fit 0.2, bore 18.6. Keys (width / thickness / crown): 1.42 / 1.00 / 1.05 at 90°, 1.20 / 1.00 at 35°, 1.32 / 1.00 at 145°, 1.26 / 0.98 at 200°, 0.92 / 0.90 at 270°, 1.05 / 0.95 at 330° | A crown 11.4 mm wide, room for the animal and its splayed feet |
+| Gila beadwork I–VIII | The ground: one `DecalLayer` per 45° sector, one decal each, fine low domes (land 0.08 × pitch) | A quiet beaded ground, so the animal is not on bare stock (read test 1) and stands clear of it (read tests 2 and 3) |
+| Spessartite | 3.0 mm round, preview tint (0.95, 0.38, 0.06), at θ 49°. `GypsyMound` 0.45 mm, sunk 0.35 mm, `SolidKind::Bezel` collet, through, 0.5 mm drill dot | The egg the Gila noses: a stone in a made setting in front of the snout |
+| Gila (stored part) | The sculpted animal described above | The figure that names the animal |
 
-There are no stamps and no CAD parts besides the collet.
+## Read tests
 
-## Gates at draft (768 × 320), block-out 3, from `report.json`
+Each test used a fresh, independent reviewer in read-test mode. It was given only `target/review.md`, the ring's name and slug, the attempt number, the paths, and the process (lost wax). The full JSON is in `showcase/cataphracta/heloderma/read-test-{1,2,3}.json`.
 
-The process is lost wax, with `min_section_mm` 0.8 and `min_draft_deg` 0.
+| # | Block-out | Reads | What the eye sees (the reviewer's words, shortened) | Changes asked for |
+|---|---|---|---|---|
+| 1 | A long lizard along the crown and over the shoulder. Voronoi beads with 0.2 mm relief bands. Plain band | **false** | "A lizard crawling over a plain polished half-round band … uniformly pebbled, like a toad or a generic lizard … the left third is a lumpy, ridged mass … the head is small and hard to separate from the forelegs … 'lizard', perhaps 'baby croc' or 'gecko', but not Gila monster." | 1. Banding: high against low bead bands, 4 on the trunk and 4–5 on the tail. 2. A short, fat, blunt tail lying on the face. 3. A broad, blunt head clear of the legs, stubby legs, and low beads on the bare face with the stone in the bead field |
+| 2 | A shorter animal centred on the face. Banding carried by bead type (round domes against flat tiles). A fine ground, 0.07 mm | **false** | "A lumpy lizard or small crocodile … the tail's bands show up as raised transverse ridges … a segmented crocodile or armadillo tail … the trunk shows no banding … the head cannot be picked out … the ground beads are about the same scale and brightness as the lizard's beads … 'lizard' or 'crocodile on a textured band'." | 1. Stripes of bead height inside one smooth envelope, with no step over 0.10 mm. 2. One unmistakable head: square snout, 0.3 mm crease. 3. A finer ground or a polished moat |
+| 3 | A square-snouted head wedge with a crease and big eyes. One envelope, with 0.40 mm domes at a 0.95 mm pitch against sunk low tiles. A 0.6 mm polished moat | **false** | "In hero-300 a knobbly lizard-like lump with splayed legs … 'some small reptile crawling on a ring' … in face-300 it stops reading as an animal: a raised strip of clustered rosettes, like cauliflower, coral or a pine-cone chain … no head can be pointed to … lizard and ground are the same gold, similar bead scale and similar brightness." | 1. One smooth silhouette with the detail inside it: no knob over 0.10 mm proud, a 0.3 mm undercut shadow line on the flank. 2. Banding by depth: the dark bands sunk 0.25–0.30 mm and filled with fine beads, against 1 mm polished domes. 3. A quieter ground and a 0.6–0.8 mm moat |
 
-| Gate | Result |
-|---|---|
-| Watertight, 0 degenerate faces | pass (493,248 triangles, 0 boundary and 0 non-manifold edges) |
-| 0 self-crossings | pass (0) |
-| Solids and parts notes empty; every stamp resolved | pass (no stamps) |
-| Nothing in the finger hole | pass (closest vertex 9.29997 mm against a 9.30 mm bore, 0 inside) |
-| Lost-wax field verdict Castable with the 0.8 mm fill | pass (Castable, thinnest wall 2.10 mm) |
-| `land_widths` | recorded. Finest full bead 0.62 mm against the 0.15 mm detail floor. The collet is under the 0.8 mm floor (0.18 mm at the lip, 26.2 mm²) and is named with its bench treatment; see above |
-| 0 DFM findings | pass (0) |
-| Stones reported = previewed | pass (1 = 1) |
-| Casting pattern closed | pass (watertight, 0 degenerate, 0 crossings) |
-| Two-part undercut (a number, not a gate) | 6.93 %, worst −44.9° ("Will not release" if it were poured in sand) |
-| Export build (1536 × 448), `--verify` | not run: step 0 renders at draft, and detailing never started |
-| Template gate | not run: TASK.md runs it after the last round, and the lane stopped before round 1. `design.ring.json` is 142.9 KB with 8 embedded sector SVGs (painted class, 3 MB budget) |
+## What I learned
+
+**The figure fixed the category but not the species.** Every reviewer now names a reptile, where the pattern-only lanes named an urchin or caviar six times out of six. What never arrived was "Gila":
+- Smooth, the animal reads at once as a lizard (an unbeaded draft before block-out 1), but as a generic one: gecko, salamander or croc.
+- Beaded, the beads are what should make it a Gila, but at 300 px they destroy the outline.
+- The tension is the same one the earlier lanes met, now on the figure: in one gold, the Gila's identity is colour (black against salmon), and relief strong enough to carry the colour breaks the silhouette.
+
+| Carrier of the banding | Attempt | Effect at 300 px |
+|---|---|---|
+| Relief bands as envelope steps (0.2 mm, then 0.3 mm) | 1 and a variant | The bands read as segments: a caterpillar, an armadillo, a croc's tail |
+| Bead type (round domes against flat tiles) at a 0.56–0.72 mm pitch | 2 | No stripes; the body reads as one knobbly lump |
+| Big domes (0.40 mm, 0.95 mm pitch) against sunk tiles in one envelope | 3 | "Rosettes", "cauliflower", "pine cone" |
+
+Findings worth keeping:
+- **The ground competes with the figure.** A dense bead ground at a similar scale camouflages the animal, the way a real Gila hides on gravel. The polished moat made the outline traceable at full resolution, but not at 300 px while the animal itself was knobbly.
+- **The head at 300 px needs a smooth mass and two bright eyes.** Beads on the head hide it. The smoothest head (block-out 3) came closest to being picked out, and the reviewer still could not.
+- **Sculpting in lost wax works.** The chain is deterministic and every lost-wax gate is green. The notes below are the pitfalls met on the way.
+
+### Technique notes for the next attempt
+
+- **Decimation can cross itself at one or two sites.** The sites move with the meshing step, so the example tries four steps a hair apart, each at three budgets, before `clean_decimate`.
+- **The stored mesh's 10 nm grid can make two settled faces cross.** A local Laplacian smooth of the vertices within 0.06 mm of the site fixes it, re-checked on the quantized mesh (`unfold_stored`).
+- **A figure that grazes the band will not join** ("labels disagree across an edge"). A fused fillet meeting a plain, moated band at a shallow angle failed at every micro-nudge. Sinking every contact (toes, pads, throat, belly) at least 0.1 mm into the band, with no fillet, joins cleanly at both builds. The example still retries a join with micro-nudges and checks it at draft and at export.
+- **The sculpt takes about 3 to 5 minutes.** The example caches it under `target/`, keyed by the hash of the band's keys and the figure's own source section.
+
+## Gates, block-out 3
+
+The process is lost wax, with `min_section_mm` 0.8 and `min_draft_deg` 0. The draft column is from `showcase/cataphracta/heloderma/report.json`. The export column is from a `--verify` run at 1536 × 448, whose report is kept as `report-export.json`; the showcase keeps the draft renders the reviewers judged.
+
+| Gate | Draft (768 × 320) | Export (1536 × 448) |
+|---|---|---|
+| Watertight, 0 degenerate faces | pass (718,644 triangles, 0 boundary and 0 non-manifold edges) | pass (1,555,580 triangles, 0 boundary and 0 non-manifold edges) |
+| 0 self-crossings on the ring and on the figure | pass (0 and 0) | pass (0 and 0) |
+| The figure joined; solids and parts notes empty; every stamp resolved | pass (1 joined, no notes, no stamps) | pass (1 joined, no notes) |
+| Nothing in the finger hole | pass (closest vertex 9.2999 mm against a 9.30 mm bore, 0 inside) | pass (9.2999 mm, 0 inside) |
+| Lost-wax field verdict Castable with the 0.8 mm fill | pass (Castable, thinnest wall 2.08 mm) | pass (Castable, 2.08 mm) |
+| `land_widths` | See the list below the table | same |
+| 0 DFM findings | pass (0) | pass (0) |
+| Stones reported = previewed | pass (1 = 1) | pass (1 = 1) |
+| Casting pattern closed | pass (watertight, 0 degenerate, 0 crossings) | pass (1,555,580 triangles, watertight, 0 degenerate, 0 crossings) |
+| Within 2 million triangles | pass | pass (1,555,580) |
+| `--verify` cold reload with an empty library | — | pass: identical vertices, faces and normals |
+| Two-part undercut (a number, not a gate) | 1.59 %, worst −9.9°. The stored figure alone would undercut a two-part pull over about 60–76 mm² | 1.59 %, worst −9.9° |
+
+**`land_widths`,** recorded and named. Nothing under the floor is removed.
+- **Ground beads:** the finest full bead is 0.38 mm, against the 0.15 mm detail floor.
+- **Collet:** 0.18 mm at the lip, 26.2 mm² under the floor. It is the standard 3 mm collet, with its bench treatment named.
+- **Figure:** `dfm::part_sections` reads 132 mm² of its 686 mm² under the 0.8 mm floor.
+  - This is the relief: rays that cut short chords through the 0.4 mm bead domes and across their seams, plus the claw points and eye moats.
+  - The load-bearing sections are over the floor, by construction: toes 0.82 mm or more, limbs 1.2 mm or more, trunk and tail 2.6 mm or more.
+  - This is named in `report.json` but not proven per feature, because `part_sections` cannot tell a chord from a section (see "Core changes wanted").
+
+## Template gate
+
+Run after the last step, although no round ran, so its numbers are on record for the rethink. It uses the showcase design, `template_class` painted.
+
+- `design.set` patches: **1** (`/manufacturing`). The limit is 4.
+- Graph: **3,468,573 bytes**, over the painted class's **3,000,000-byte** budget. **The gate fails on size** (`template_gate_passed: false`, "review required").
+  - The cause is the stored sculpt: its 303,000 triangles are most of the 3.46 MB design.
+- Cold source parity: **passed** (`source_identical`, cold design and graph reloads).
+- Mesh parity: **passed**. Export geometry verified, with vertices, faces and normals identical at 1536 × 448 (1,555,580 triangles).
+- The numbers are in `showcase/cataphracta/heloderma/template-verification.json`.
 
 ## What I could not do
 
-- Make a pattern-only Gila read at 300 px in plain gold, in three lost-wax attempts; three sand attempts failed before them.
-- Satisfy "the whole hide beaded" and "legible black and salmon bands" at once without a relief step. Test 3's plateau step was not tried, because the loop allows no fourth block-out.
+- Make a figurative Gila read as a *Gila*, not a generic lizard, at 300 px in plain gold, in three attempts.
+- Carry the black-and-salmon banding in relief without it reading as body segments (steps) or as clutter (beads).
+- Keep the stored sculpt inside the painted template budget at its current density.
+- Prove the figure's sections per feature.
 
 ## Recommendation for the rethink
 
-1. **Carry the bands on a relief step.** Take read test 3's point 1: the black bands' beads on a plateau 0.35–0.45 mm proud of the salmon fields, whose beads lie low and fused. Block-out 1 showed that bands read at 300 px when the two states differ that much. The step keeps the hide fully beaded.
-2. **Give it a figurative anchor.** Six reviews have named an urchin. A Gila head at the face (faces are allowed), lying along the crest with the swell behind it, would name the animal. The beadwork would then say which lizard. The Bestiarium shipped only on iconic silhouettes (Arachne, Manticora).
-3. **Or give up plain gold for the colour.** Oxidized (blackened) silver in the black bands with polished salmon beads is the Gila, literally. It is a bench finish, not a mould feature, and the studio-gold renders cannot show it today.
+1. **Keep the figure, and make it smooth.** Take read test 3's first point literally: one smooth, undercut silhouette (lost wax allows a 0.3 mm shadow line under the flank), with the detail inside the outline and nothing more than 0.10 mm proud. The one unbeaded draft that read as "a lizard" at once was smooth.
+2. **Carry the banding by depth, not by bumps.** Sink the dark bands 0.25–0.30 mm into the envelope as troughs filled with fine low beads, and keep the light bands as smooth polished plateaus. In plain gold, a sunk band holds shadow (or oxide at the bench) the way the Gila's black does. It is the one carrier not yet tried on the figure.
+3. **Quiet the ground to satin, or leave it plain polished,** with the animal the only relief on the face.
+4. **Or give up plain gold for the colour.** Blackened silver in the sunk bands against polished salmon plateaus is the Gila, literally. It needs a second finish in `render::finished` to be reviewed.
+5. **Budget:** decimate the stored figure to about 200,000 triangles, or store a lighter smooth silhouette and carry the beads as a procedural layer, to fit the 3 MB painted class.
 
 ## Core changes wanted
 
-None. The block-out ran on master as it stands: `DecalLayer`, `SvgAlpha`, `TileGrade`'s `phi` and `x_of_phi`, and the `FieldContext` scale tables. The one change I would want for recommendation 3, a second metal finish in `render::finished`, is too open a design question to write as exact code here.
+None were needed: the block-out ran on master as it stands (`sculpt`, `cad::stored`, `DecalLayer`). Two changes would help the next attempt.
+
+**1. A second metal finish in `render::finished`,** for recommendation 4. It is too open a design question to write as exact code here.
+
+**2. `dfm::part_sections` should not count relief chords as sections.** Today a ray from a bead's flank that crosses the bead's cap and leaves through the next seam reads as a thin section. The proposed change is in `crates/ringdesign-core/src/dfm.rs`, in `part_sections`. It is untested. It skips a hit whose exit face turns back toward the entry face within the floor, which is a chord through relief and not a section through the part:
+
+```rust
+// replaces: let Some((_, t)) = bvh.ray(&mesh, o, inward) else { continue };
+let Some((hit, t)) = bvh.ray(&mesh, o, inward) else { continue };
+let section = t + IN;
+if section < floor_mm {
+    let [p, q, r] = solid.f[hit].map(|i| solid.v[i as usize]);
+    let m = [
+        (q[1] - p[1]) * (r[2] - p[2]) - (q[2] - p[2]) * (r[1] - p[1]),
+        (q[2] - p[2]) * (r[0] - p[0]) - (q[0] - p[0]) * (r[2] - p[2]),
+        (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]),
+    ];
+    let ml = (m[0] * m[0] + m[1] * m[1] + m[2] * m[2]).sqrt().max(1e-14);
+    // A true section leaves through a face turned away from the entry (exit normal along the ray);
+    // a chord through a dome or across a seam leaves through one turned half back toward it.
+    if (m[0] * inward[0] + m[1] * inward[1] + m[2] * inward[2]) / ml < 0.5 {
+        continue;
+    }
+}
+// (the existing `let section = t + IN;` line is then removed)
+```
