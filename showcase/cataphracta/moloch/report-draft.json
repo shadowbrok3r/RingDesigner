@@ -6,11 +6,11 @@
   },
   "bore_mm": 18.60001617494215,
   "build": {
-    "author_s": 34.878467556,
-    "build_s": 3.696599515,
+    "author_s": 39.187322274,
+    "build_s": 4.057343582,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 632236
+    "triangles": 661924
   },
   "coarse_384x192": {
     "degenerate_faces": 0,
@@ -23,7 +23,7 @@
     "notes": [],
     "parts_joined": 1,
     "self_crossings": 0,
-    "triangles": 318056,
+    "triangles": 344752,
     "watertight": true
   },
   "cold_reload_identical": null,
@@ -31,37 +31,47 @@
     "band_hide": [
       "sand ripples",
       [
-        8.874999246391166,
-        8.707265181057554
+        70.99999397112933,
+        6.502550922701216
       ],
-      8,
+      1,
       1
     ],
-    "crest_r_at_face_mm": 11.62399210159971,
+    "crest_r_at_face_mm": 11.612457037449454,
+    "decimation": [
+      230000,
+      0.002
+    ],
+    "dropped": [],
+    "past_cheek_mm": 0.7484588935956928,
     "sculpt_box_mm": [
       [
-        -9.409045393380046,
-        -7.658186287358737,
+        -9.91347410148584,
+        -7.935880539376153,
         -10.0
       ],
       [
-        14.212607509553449,
-        21.195221192207562,
+        14.597062960010296,
+        21.03253758852946,
         10.0
       ]
     ],
-    "sculpt_faces": 197348,
-    "sculpt_raw_faces": 725076,
-    "sculpt_s": 32.248856416,
-    "sculpt_volume_mm3": 410.8159719709346,
+    "sculpt_faces": 227042,
+    "sculpt_raw_faces": 682324,
+    "sculpt_s": 35.707845519,
+    "sculpt_volume_mm3": 383.23312753761724,
     "thorn_lengths_mm": [
-      0.2689119788234434,
-      1.752634143113093
+      0.36591491527864345,
+      1.6778703347046746
     ],
     "thorns_by_kind": [
       [
         "brow horns",
         4
+      ],
+      [
+        "granules",
+        124
       ],
       [
         "hump spines",
@@ -73,16 +83,16 @@
       ],
       [
         "minor thorns",
-        33
+        46
       ],
       [
         "tail thorns",
-        31
+        32
       ]
     ]
   },
   "design": {
-    "bytes": 2713809
+    "bytes": 2505473
   },
   "dfm_findings": [],
   "draft": {
@@ -94,21 +104,24 @@
   "field": {
     "band_verdict": "Castable",
     "notes": [
-      "Lost wax: 2.18% of the surface would undercut a two-part pull (worst 7.4 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 356–31° on the crest: 2.7 mm² leaning to 6° — caused by \"Sand ripples\"; muting it clears it.",
-      "Undercut 40–52° on the crest: 1.2 mm² leaning to 5° — caused by \"Sand ripples\"; muting it clears it.",
-      "Undercut 58–76° on the crest: 1.4 mm² leaning to 6° — caused by \"Sand ripples\"; muting it clears it.",
-      "Undercut 86–97° on the crest: 1.1 mm² leaning to 5° — caused by \"Sand ripples\"; muting it clears it.",
-      "Undercut 103–122° on the crest: 1.4 mm² leaning to 6° — caused by \"Sand ripples\"; muting it clears it.",
-      "Undercut 130–166° on the crest: 2.7 mm² leaning to 6° — caused by \"Sand ripples\"; muting it clears it.",
-      "Undercut 176–212° on the crest: 2.8 mm² leaning to 6° — caused by \"Sand ripples\"; muting it clears it.",
-      "Undercut 221–256° on the crest: 2.9 mm² leaning to 6° — caused by \"Sand ripples\"; muting it clears it.",
-      "Undercut 266–302° on the crest: 2.9 mm² leaning to 6° — caused by \"Sand ripples\"; muting it clears it.",
-      "Undercut 310–346° on the crest: 2.8 mm² leaning to 6° — caused by \"Sand ripples\"; muting it clears it.",
-      "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 468.7 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Thorny devil\" (#2) would undercut a two-part pull over 116.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: 2.28% of the surface would undercut a two-part pull (worst 13.9 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 338–9° on the crest: 2.5 mm² leaning to 11° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 16–36° on the crest: 2.2 mm² leaning to 7° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 50–65° on the crest: 2.2 mm² leaning to 9° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 74–101° on the crest: 3.3 mm² leaning to 10° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 108–108° on the upper shoulder: 0.4 mm² leaning to 7° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 115–135° on the crest: 2.2 mm² leaning to 8° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 142–142° on the crest: 0.3 mm² leaning to 6° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 148–153° on the crest: 0.8 mm² leaning to 6° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 160–180° on the crest: 1.7 mm² leaning to 10° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 187–205° on the crest: 1.6 mm² leaning to 10° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 212–284° on the crest: 6.0 mm² leaning to 12° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 292–317° on the crest: 2.1 mm² leaning to 12° — caused by \"Sand ripples\"; muting it clears it.",
+      "Undercut 324–331° on the crest: 0.4 mm² leaning to 9° — caused by \"Sand ripples\"; muting it clears it.",
+      "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 416.7 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Thorny devil\" (#2) would undercut a two-part pull over 101.4 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
-    "thinnest_wall_mm": 1.6582337295099787,
+    "thinnest_wall_mm": 1.6587032466455582,
     "verdict": "Castable"
   },
   "gates": [
@@ -164,138 +177,149 @@
   "gates_passed": true,
   "gates_that_apply": "lost wax: geometry, bore, field fill verdict at 0.8 mm, land widths, DFM, stones, 384 x 192, pattern, triangles, cold reload. The sand gates (ray release, draft-clamp bites, two-part Castable, parting_monotone) do not apply; the two-part undercut is reported as a number.",
   "land_widths": {
-    "band_thinnest_wall_mm": 1.6582337295099787,
+    "band_thinnest_wall_mm": 1.6587032466455582,
     "by_kind": [
       {
         "kind": "body",
         "thinnest_at_deg_r_z": [
-          81.58293474752632,
-          12.477537972614035,
-          3.5758436669263896
+          89.0995568694057,
+          11.387219718518905,
+          2.9368924572613446
         ],
-        "thinnest_mm": 1.7983835069957714,
+        "thinnest_mm": 1.8649604853228645,
         "treatment": null,
         "under_floor_mm2": 0.0
       },
       {
         "kind": "nuchal hump",
         "thinnest_at_deg_r_z": [
-          104.87236148325937,
-          12.999541892544269,
-          -1.232146694400789
+          104.98604330794443,
+          13.79097943700058,
+          -0.33410597825970895
         ],
-        "thinnest_mm": 2.5587190634745056,
+        "thinnest_mm": 2.4887376026177304,
         "treatment": null,
         "under_floor_mm2": 0.0
       },
       {
         "kind": "head and neck",
         "thinnest_at_deg_r_z": [
-          125.03460959853084,
-          11.79951363574184,
-          -0.025124927204091933
+          105.34431294260372,
+          12.898175345555854,
+          -1.4854775505905682
         ],
-        "thinnest_mm": 1.8736375423286453,
+        "thinnest_mm": 1.6027227487610018,
         "treatment": null,
         "under_floor_mm2": 0.0
       },
       {
         "kind": "limbs",
         "thinnest_at_deg_r_z": [
-          95.4975161938899,
-          11.413192190037309,
-          -4.088306100601688
+          100.47421678655134,
+          11.505130635423265,
+          -4.607342484301684
         ],
-        "thinnest_mm": 1.0071042090697326,
+        "thinnest_mm": 0.8531688805746553,
         "treatment": null,
         "under_floor_mm2": 0.0
       },
       {
         "kind": "toes",
         "thinnest_at_deg_r_z": [
-          104.17395043251018,
-          9.767428473097404,
-          -3.189826765136664
+          32.40239051816935,
+          10.787930684792668,
+          3.676143809629036
         ],
-        "thinnest_mm": 0.11099471000791288,
-        "treatment": "toe tip: fed from the wrist; the claws are cleaned up with a graver and left sharp",
-        "under_floor_mm2": 10.59594935215142
+        "thinnest_mm": 0.7736056713087675,
+        "treatment": "toe tip: a 0.6 mm rounded end on a toe fused along its length into the band's cheek, fed through the toe's root; left as cast",
+        "under_floor_mm2": 0.037246293364057964
       },
       {
         "kind": "tail",
         "thinnest_at_deg_r_z": [
-          -32.30377693910146,
-          11.470295246122731,
-          0.8066647611193863
+          -30.499836541905598,
+          11.766613643485751,
+          0.8896840752090825
         ],
-        "thinnest_mm": 0.9884947154934978,
+        "thinnest_mm": 0.9594889570290315,
         "treatment": null,
         "under_floor_mm2": 0.0
       },
       {
         "kind": "hump spines",
         "thinnest_at_deg_r_z": [
-          95.58547599487437,
-          16.51083754172875,
-          -1.351376169317068
+          93.50809537173349,
+          16.172640003681476,
+          -1.4490208327414733
         ],
-        "thinnest_mm": 0.26847931093866606,
+        "thinnest_mm": 0.24973697752395477,
         "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to a 0.28 mm rounded tip; fed through its root (at or over the floor) from the body, invested point up; a short-filled point is dressed with a needle file",
-        "under_floor_mm2": 1.4426901048855656
+        "under_floor_mm2": 3.3353900742914067
       },
       {
         "kind": "brow horns",
         "thinnest_at_deg_r_z": [
-          112.30551209639232,
-          14.749477977035204,
-          -2.2290325010070546
+          111.5392707712672,
+          14.467665438389437,
+          -2.9435178941103275
         ],
-        "thinnest_mm": 0.26546937866813747,
+        "thinnest_mm": 0.2732778989503811,
         "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to a 0.28 mm rounded tip; fed through its root (at or over the floor) from the body, invested point up; a short-filled point is dressed with a needle file",
-        "under_floor_mm2": 2.3210114384034277
+        "under_floor_mm2": 2.489250871176911
       },
       {
         "kind": "major thorns",
         "thinnest_at_deg_r_z": [
-          66.50165399401101,
-          14.489619780609658,
-          -3.246099367438456
+          45.00490414184999,
+          13.323847002852105,
+          3.833745455026471
         ],
-        "thinnest_mm": 0.2088265212237715,
+        "thinnest_mm": 0.07906891667083385,
         "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to a 0.28 mm rounded tip; fed through its root (at or over the floor) from the body, invested point up; a short-filled point is dressed with a needle file",
-        "under_floor_mm2": 14.593990258512953
+        "under_floor_mm2": 19.8913589708824
       },
       {
         "kind": "minor thorns",
         "thinnest_at_deg_r_z": [
-          46.30911451371006,
-          13.25367048687902,
-          -1.9580023638537214
+          88.09959346225085,
+          13.534375301509723,
+          2.5959662011022333
         ],
-        "thinnest_mm": 0.22529246300603575,
+        "thinnest_mm": 0.22979196329345428,
         "treatment": "minor thorn: relief cast on the body, judged at the 0.15 mm detail floor; its point is left as cast and lightly burnished",
-        "under_floor_mm2": 11.160772338279468
+        "under_floor_mm2": 17.07009332848975
       },
       {
         "kind": "tail thorns",
         "thinnest_at_deg_r_z": [
-          -17.952612302214234,
-          12.398417815617375,
-          1.4944337063289217
+          -14.265142893632122,
+          12.794741590121019,
+          0.9737108798556348
         ],
-        "thinnest_mm": 0.22653893599437216,
+        "thinnest_mm": 0.223159446063437,
         "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to a 0.28 mm rounded tip; fed through its root (at or over the floor) from the body, invested point up; a short-filled point is dressed with a needle file",
-        "under_floor_mm2": 14.5193672460997
+        "under_floor_mm2": 14.681125145986831
+      },
+      {
+        "kind": "granules",
+        "thinnest_at_deg_r_z": [
+          -14.46740445725361,
+          12.324303869596365,
+          -0.14129550322962203
+        ],
+        "thinnest_mm": 0.6015821974120196,
+        "treatment": "granule: a 0.5-0.7 mm bead of hide relief on the body, over the 0.15 mm detail floor; left as cast",
+        "under_floor_mm2": 0.020480782603188814
       }
     ],
     "detail_floor_mm": 0.15,
     "floor_mm": 0.8,
     "method": "dfm::part_sections on the sculpted part (one ray per face along its inward normal), and the same per face gathered by the shape nearest each face",
     "part_sections": {
-      "area_mm2": 585.7595346053134,
+      "area_mm2": 551.1223009960681,
       "part": "Thorny devil",
-      "thinnest_mm": 0.11099471000791265,
-      "under_floor_mm2": 54.633780738332156
+      "thinnest_mm": 0.07906891667082985,
+      "under_floor_mm2": 57.524945466794726
     },
     "unnamed_under_floor": []
   },
@@ -310,23 +334,23 @@
     "notes": [],
     "parts_joined": 1,
     "self_crossings": 0,
-    "triangles": 632236,
+    "triangles": 661924,
     "watertight": true
   },
   "name": "Moloch — the thorn idol",
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 632236,
+    "triangles": 661924,
     "watertight": true
   },
   "process": "Lost wax",
   "sculpt": {
-    "faces": 197348,
+    "faces": 227042,
     "open_edges": 0,
-    "raw_faces": 725076,
+    "raw_faces": 682324,
     "self_crossings": 0,
-    "volume_mm3": 410.8159719709346
+    "volume_mm3": 383.23312753761724
   },
   "size": "US 8.6",
   "slug": "moloch",
@@ -335,10 +359,10 @@
     "reported": 0
   },
   "two_part_undercut": {
-    "band_percent": 2.1834711658520103,
+    "band_percent": 2.279103837047104,
     "note": "reported only: lost wax judges fill and detail, never the pull",
-    "parts_area_mm2": 468.66504137254014,
-    "parts_undercut_mm2": 116.05811299899193,
-    "with_parts_percent": 9.150750807647869
+    "parts_area_mm2": 416.7098317671107,
+    "parts_undercut_mm2": 101.41939268279687,
+    "with_parts_percent": 8.096466804521057
   }
 }

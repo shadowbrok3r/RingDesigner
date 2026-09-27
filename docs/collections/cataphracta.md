@@ -495,6 +495,8 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 
 ## Moloch — *the thorn idol*
 
+> **As built (2026-09-27, Logan's decision): lost wax, a sculpted lizard.** Three sand block-outs read as a spiked band, so Moloch moved to lost wax (`CastProcess::LostWax`, `min_section_mm` 0.8, `min_draft_deg` 0). The ring is now a keyed low dome (6.6 mm at the palm, broadened 1.45× under the lizard) carrying one sculpted, joined part, "Thorny devil": a distance field meshed by `sculpt` with a broad flat body, the false head (the nuchal hump) with two stout spines at the face, a small wedge head with curved brow horns, four legs that splay over the crown and grip the cheeks (no limb stands more than 0.8 mm past a cheek), a round whorled tail down the crest, graded broad-based cones in paired rows, small knobs and a granule hide. The band's crown carries one seamless tile of wind ripples in sand; the cheeks stay polished. Gates are the lost-wax set: geometry and crossings on the ring and the part, the bore, the field verdict Castable at the 0.8 mm fill, a `land_widths` block (every section under 0.8 mm named with its bench treatment), DFM, 384 × 192, the pattern, triangles and the cold reload; the two-part undercut is reported as a number. The stamp rows, rosettes, flutes and Petrobond set-up below are the superseded sand plan.
+
 - **Status:** not started.
   - **Can be built now ungraded.** P4's cone tops and `stamp_row` have landed, and the thickness-only hump keeps the reference side gate safe.
   - The graded rosettes need **C-R2**; the SVGs need **C-R7**.

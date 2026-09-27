@@ -38,7 +38,7 @@ const MIN_SECTION_MM: f64 = 0.8;
 const MIN_DETAIL_MM: f64 = 0.15;
 
 /// Ring angle of the body's frame origin, degrees; the head lies toward increasing angle.
-const THETA_C: f64 = 74.0;
+const THETA_C: f64 = 72.0;
 /// Radius at which the body's frame measures arc along the ring, mm.
 const R_REF: f64 = 12.4;
 /// Nothing of the sculpt comes nearer the finger axis than the bore plus this, mm.
@@ -47,25 +47,29 @@ const BORE_CLEAR_MM: f64 = 0.45;
 /// Band half-width at the cheeks, mm.
 const HALF_W: f64 = 3.3;
 // The sand ripples on the band: crest pitch, crest width and height, mm.
-const RIPPLE_PITCH_MM: f64 = 1.9;
-const RIPPLE_W_MM: f64 = 0.7;
-const RIPPLE_MM: f64 = 0.13;
+const RIPPLE_PITCH_MM: f64 = 1.3;
+const RIPPLE_W_MM: f64 = 0.3;
+const RIPPLE_MM: f64 = 0.1;
 
 // The thorns: tip radius, the root sunk into the body, the base's share of the length, the lean back toward the tail.
 const TIP_MM: f64 = 0.14;
-const ROOT_SINK_MM: f64 = 0.22;
+/// A cone's root sphere is buried to this share of its radius, so the flank runs straight into the skin with no ball
+/// under it.
+const ROOT_SINK: f64 = 0.72;
 const LEAN_DEG: f64 = 38.0;
 const THORN_BLEND_MM: f64 = 0.22;
 const THORN_GAP_MM: f64 = 0.18;
 
 // The skin's granules: lattice pitch, bump radius and height.
 const GRANULE_PITCH_MM: f64 = 0.52;
-const GRANULE_R_MM: f64 = 0.3;
-const GRANULE_MM: f64 = 0.0;
+const GRANULE_R_MM: f64 = 0.4;
+const GRANULE_MM: f64 = 0.15;
+/// The old noise skin, off: granules are placed as beads.
+const NOISE_SKIN: bool = false;
 
 /// The meshing step and the face budget of the sculpt.
 const STEP_MM: f64 = 0.055;
-const FACES: usize = 200_000;
+const FACES: usize = 230_000;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -89,8 +93,9 @@ fn band() -> RingDesign {
     d.size = ringdesign_core::resize::size_from_bore(BORE_MM).unwrap();
     d.shank.kind = ShankKind::Keyframes;
     d.shank.amount = 1.0;
-    let key = |theta_deg: f64, thickness_scale: f64| ShankKey { theta_deg, width_scale: 1.0, thickness_scale, crown_scale: 1.0 };
-    d.shank.keys = vec![key(20.0, 1.08), key(60.0, 1.15), key(120.0, 1.15), key(160.0, 1.06), key(210.0, 1.0), key(270.0, 1.0), key(330.0, 1.02)];
+    // Broad under the lizard, so its legs splay over the crown and grip the cheeks without standing past them.
+    let key = |theta_deg: f64, width_scale: f64, thickness_scale: f64| ShankKey { theta_deg, width_scale, thickness_scale, crown_scale: 1.0 };
+    d.shank.keys = vec![key(10.0, 1.06, 1.06), key(40.0, 1.3, 1.12), key(65.0, 1.45, 1.15), key(110.0, 1.45, 1.15), key(140.0, 1.28, 1.1), key(170.0, 1.06, 1.04), key(210.0, 1.0, 1.0), key(270.0, 1.0, 1.0), key(330.0, 1.0, 1.02)];
     CastProcess::LostWax.apply(&mut d.draft);
     d.draft.min_section_mm = MIN_SECTION_MM;
     d.draft.min_draft_deg = 0.0;
@@ -121,20 +126,30 @@ fn wrap180(a: f64) -> f64 {
 /// The band's crest radius round the ring, read off the bare atlas, one entry per column.
 struct Crest {
     r: Vec<f64>,
+    /// Half the band's width along the finger, per column.
+    half_w: Vec<f64>,
 }
 
 impl Crest {
     fn of(d: &RingDesign) -> Result<Self> {
         let a = Atlas::of(d, 1440, 256)?;
         let r = (0..a.width).map(|x| (0..a.height).map(|y| { let p = a.at(x, y).p; p[0].hypot(p[1]) }).fold(0.0, f64::max)).collect();
-        Ok(Self { r })
+        let half_w = (0..a.width).map(|x| (0..a.height).map(|y| a.at(x, y).p[2].abs()).fold(0.0, f64::max)).collect();
+        Ok(Self { r, half_w })
     }
     fn at(&self, theta_deg: f64) -> f64 {
-        let n = self.r.len();
+        Self::read(&self.r, theta_deg)
+    }
+    /// Half the band's width at a frame `x`.
+    fn half_w_at_x(&self, x: f64) -> f64 {
+        Self::read(&self.half_w, THETA_C + (x / R_REF).to_degrees())
+    }
+    fn read(v: &[f64], theta_deg: f64) -> f64 {
+        let n = v.len();
         let f = theta_deg.rem_euclid(360.0) / 360.0 * n as f64;
         let i = f.floor() as usize % n;
         let t = f - f.floor();
-        self.r[i] * (1.0 - t) + self.r[(i + 1) % n] * t
+        v[i] * (1.0 - t) + v[(i + 1) % n] * t
     }
 }
 
@@ -175,6 +190,7 @@ enum Kind {
     Major,
     Minor,
     TailThorn,
+    Granule,
 }
 
 impl Kind {
@@ -192,6 +208,7 @@ impl Kind {
             Kind::Major => "major thorns",
             Kind::Minor => "minor thorns",
             Kind::TailThorn => "tail thorns",
+            Kind::Granule => "granules",
         }
     }
     /// How a section under the fill floor on this kind is met at the bench, or `None` where none is allowed.
@@ -201,7 +218,8 @@ impl Kind {
                 "thorn point: the cone's last 0.6 mm tapers under the fill floor to a 0.28 mm rounded tip; fed through its root (at or over the floor) from the body, invested point up; a short-filled point is dressed with a needle file",
             ),
             Kind::Minor => Some("minor thorn: relief cast on the body, judged at the 0.15 mm detail floor; its point is left as cast and lightly burnished"),
-            Kind::Toe => Some("toe tip: fed from the wrist; the claws are cleaned up with a graver and left sharp"),
+            Kind::Toe => Some("toe tip: a 0.6 mm rounded end on a toe fused along its length into the band's cheek, fed through the toe's root; left as cast"),
+            Kind::Granule => Some("granule: a 0.5-0.7 mm bead of hide relief on the body, over the 0.15 mm detail floor; left as cast"),
             Kind::Limb => Some("wrist where the toes part: the crotches are opened with a graver after the pour"),
             Kind::Tail => Some("tail tip: fed along the tail from the body; the rounded end is dressed with a file"),
             _ => None,
@@ -217,7 +235,9 @@ enum Shape {
     /// A rounded cone between two frame points.
     Limb { a: P3, b: P3, ra: f64, rb: f64 },
     /// A rounded cone between two world points.
-    Thorn { a: P3, b: P3, ra: f64, rb: f64 },
+    Thorn { a: P3, b: P3, ra: f64, rb: f64, n: P3 },
+    /// A ball at a world point.
+    Ball { c: P3, r: f64 },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -237,7 +257,9 @@ impl Prim {
                 ellipsoid(d, [r[0], r[1], r[2] * narrow])
             }
             Shape::Limb { a, b, ra, rb } => round_cone(q, a, b, ra, rb),
-            Shape::Thorn { a, b, ra, rb } => round_cone(p, a, b, ra, rb),
+            // Cut at the root's centre across the axis, so a buried root never shows through a thin flank's far side.
+            Shape::Thorn { a, b, ra, rb, n } => round_cone(p, a, b, ra, rb).max(-dot(sub(p, a), n)),
+            Shape::Ball { c, r } => dot(sub(p, c), sub(p, c)).sqrt() - r,
         }
     }
     /// World bounding box, grown by `pad`.
@@ -248,7 +270,8 @@ impl Prim {
                 vec![(frame.world(c), m * 1.3)]
             }
             Shape::Limb { a, b, ra, rb } => vec![(frame.world(a), ra * 1.3), (frame.world(b), rb * 1.3)],
-            Shape::Thorn { a, b, ra, rb } => vec![(a, ra), (b, rb)],
+            Shape::Thorn { a, b, ra, rb, .. } => vec![(a, ra), (b, rb)],
+            Shape::Ball { c, r } => vec![(c, r)],
         };
         let mut lo = [f64::MAX; 3];
         let mut hi = [f64::MIN; 3];
@@ -312,8 +335,8 @@ impl<'a> Lizard<'a> {
         let q = self.frame.local(p);
         let mut f = self.body_at(q, p);
         // The skin between the thorns: raised granules.
-        if GRANULE_MM > 0.0 && f.abs() < 0.4 {
-            f -= GRANULE_MM * granules(p);
+        if NOISE_SKIN && f.abs() < 0.4 {
+            f -= 0.065 * granules(p);
         }
         if let Some(list) = self.grid.get(&self.key(p)) {
             for &i in list {
@@ -322,6 +345,35 @@ impl<'a> Lizard<'a> {
             }
         }
         f.max(self.bore_r + BORE_CLEAR_MM - p[0].hypot(p[1]))
+    }
+    /// Whether a new cone stands free: its point clear of everything already there, and every point already there
+    /// clear of it, by `gap`.
+    fn fits(&self, t: &Prim, gap: f64) -> bool {
+        let Shape::Thorn { a, b, ra, rb, n } = t.shape else { return true };
+        // Nothing on the steep ends of the body, where the skin faces along the ring.
+        let radial = unit([foot_of(a, n, ra)[0], foot_of(a, n, ra)[1], 0.0]);
+        if dot(n, radial) < 0.4 {
+            return false;
+        }
+        // No crevice under a leaning cone: its flank stands clear of the skin four fifths of the way up.
+        let foot = add(a, mul(n, ROOT_SINK * ra));
+        let m = add(foot, mul(sub(b, foot), 0.8));
+        let along = (dot(sub(m, a), sub(m, a)) / dot(sub(b, a), sub(b, a)).max(1e-12)).sqrt().min(1.0);
+        if self.body_at(self.frame.local(m), m) - (ra + (rb - ra) * along) < 0.05 {
+            return false;
+        }
+        if self.field(b) < gap {
+            return false;
+        }
+        // The root must sit in thick body, not on a thin rim.
+        let under = sub(a, mul(unit(sub(b, a)), 0.35));
+        if self.body_at(self.frame.local(under), under) > -0.05 {
+            return false;
+        }
+        self.thorns.iter().all(|o| match o.shape {
+            Shape::Thorn { b: tip, .. } => t.eval(self.frame.local(tip), tip) > gap,
+            _ => true,
+        })
     }
     /// Which shape is nearest the surface at `p`.
     fn kind_at(&self, p: P3) -> Kind {
@@ -374,15 +426,19 @@ const TAIL_LEN: f64 = 15.5;
 fn tail_at(t: f64) -> (P3, f64) {
     let x = TAIL_FROM - TAIL_LEN * t;
     let r = 1.4 * (1.0 - t).powf(0.9) + 0.5 * t;
-    ([x, 0.6 * r - 0.05, 0.5 * (2.4 * t).sin()], r)
+    ([x, 0.38 * r - 0.05, 0.45 * (2.4 * t).sin()], r)
 }
+
+/// A limb's radius at the shoulder, the elbow and the wrist, mm.
+const LIMB_R: (f64, f64, f64) = (0.7, 0.55, 0.45);
 
 /// Front and hind legs: where each shoulder stands along the body, and which way the limb reaches.
 const LEGS: [(f64, f64); 2] = [(3.4, 1.0), (-4.6, -1.0)];
 
 /// A leg's shoulder, elbow and wrist in the frame: out past the body's edge, over the band's edge and down its cheek.
-fn leg_joints(x0: f64, dir: f64, s: f64) -> (P3, P3, P3) {
-    ([x0, 0.65, 2.6 * s], [x0 + dir * 1.35, 0.6, 5.75 * s], [x0 + dir * 2.3, -0.85, (HALF_W + 0.28) * s])
+fn leg_joints(crest: &Crest, x0: f64, dir: f64, s: f64) -> (P3, P3, P3) {
+    let (xe, xw) = (x0 + dir * 2.0, x0 + dir * 2.8);
+    ([x0, 0.6, 3.1 * s], [xe, 0.25, (crest.half_w_at_x(xe) + 0.62 - LIMB_R.1) * s], [xw, -0.85, (crest.half_w_at_x(xw) + 0.1) * s])
 }
 
 /// The hide's granules: a jittered lattice of points, each a smooth bump where the skin passes near it; 0..1.
@@ -407,33 +463,31 @@ fn granules(p: P3) -> f64 {
 }
 
 /// The lizard's soft body: trunk, false head, neck, head and brows, four legs with their toes, and the tail.
-fn body_prims() -> Vec<Prim> {
+fn body_prims(crest: &Crest) -> Vec<Prim> {
     let egg = |kind, c: P3, r: P3, snout: f64, blend: f64| Prim { kind, shape: Shape::Egg { c, r, snout }, blend };
     let limb = |kind, a: P3, b: P3, ra: f64, rb: f64, blend: f64| Prim { kind, shape: Shape::Limb { a, b, ra, rb }, blend };
     let mut v = vec![
         // The trunk: broad, flat and round, sunk into the crown.
         egg(Kind::Body, [-1.0, 0.35, 0.0], [7.0, 2.0, 3.95], 0.0, 0.0),
         // The false head: a smooth dome on the nape, standing clear of the real head behind a dip.
-        egg(Kind::Hump, [5.35, 2.0, 0.0], [1.7, 1.75, 1.8], 0.0, 0.9),
-        egg(Kind::Head, [7.35, 0.75, 0.0], [1.25, 0.95, 1.6], 0.0, 0.7),
+        egg(Kind::Hump, [5.35, 1.75, 0.0], [1.85, 1.55, 1.8], 0.0, 1.0),
+        egg(Kind::Head, [7.55, 0.8, 0.0], [1.3, 1.0, 1.75], 0.0, 0.7),
         // The head: small and wedge-shaped, narrowing to a blunt snout.
-        egg(Kind::Head, [9.3, 0.85, 0.0], [2.2, 1.05, 1.6], 0.55, 0.6),
-        // The brows the horns rise from: smooth swellings, no sockets.
-        egg(Kind::Head, [9.1, 1.35, 1.05], [0.95, 0.5, 0.55], 0.0, 0.55),
-        egg(Kind::Head, [9.1, 1.35, -1.05], [0.95, 0.5, 0.55], 0.0, 0.55),
+        egg(Kind::Head, [9.7, 0.9, 0.0], [2.6, 1.15, 1.9], 0.55, 0.6),
     ];
-    // Four legs: an upper limb out past the body's edge, a fore limb down the cheek, five short toes spread on it.
+    // Four legs: a tapering limb from the flank over the band's edge and down its cheek, five stubby toes fused to it.
     for s in [1.0, -1.0] {
         for (x0, dir) in LEGS {
-            let (shoulder, elbow, wrist) = leg_joints(x0, dir, s);
-            v.push(limb(Kind::Limb, shoulder, elbow, 1.0, 0.8, 0.6));
-            v.push(limb(Kind::Limb, elbow, wrist, 0.8, 0.62, 0.35));
-            for (ang, len) in [(-50.0, 0.75), (-24.0, 0.95), (0.0, 1.05), (24.0, 0.95), (48.0, 0.75)] {
+            let (shoulder, elbow, wrist) = leg_joints(crest, x0, dir, s);
+            v.push(limb(Kind::Limb, shoulder, elbow, LIMB_R.0, LIMB_R.1, 0.7));
+            v.push(limb(Kind::Limb, elbow, wrist, LIMB_R.1, LIMB_R.2, 0.5));
+            for (ang, len) in [(-46.0, 0.65), (-23.0, 0.8), (0.0, 0.85), (23.0, 0.8), (46.0, 0.65)] {
                 let a: f64 = f64::to_radians(ang);
-                let reach = 0.45 + len;
-                let tip = [wrist[0] + dir * reach * a.cos(), wrist[1] + reach * a.sin() - 0.1, (HALF_W + 0.02) * s];
-                let root = [wrist[0] + dir * 0.25 * a.cos(), wrist[1] + 0.25 * a.sin(), (HALF_W + 0.16) * s];
-                v.push(limb(Kind::Toe, root, tip, 0.44, 0.2, 0.18));
+                let reach = 0.35 + len;
+                let (xt, xr) = (wrist[0] + dir * reach * a.cos(), wrist[0] + dir * 0.2 * a.cos());
+                let tip = [xt, wrist[1] + reach * a.sin() - 0.05, (crest.half_w_at_x(xt) - 0.02) * s];
+                let root = [xr, wrist[1] + 0.2 * a.sin(), (crest.half_w_at_x(xr) + 0.05) * s];
+                v.push(limb(Kind::Toe, root, tip, 0.46, 0.4, 0.2));
             }
         }
     }
@@ -463,23 +517,18 @@ fn major_plans() -> Vec<Plan> {
         out.push(Plan { x, w, len, kind, splay });
         out.push(Plan { x, w: -w, len, kind, splay: -splay });
     };
-    pair(&mut out, 5.4, 0.72, 1.65, Kind::HumpSpine, 0.35);
+    pair(&mut out, 5.4, 0.72, 1.75, Kind::HumpSpine, 0.4);
     // The great shoulder and hip spines.
-    pair(&mut out, 2.3, 2.1, 1.8, Kind::Major, 0.45);
+    pair(&mut out, 1.9, 2.1, 1.8, Kind::Major, 0.45);
     pair(&mut out, -4.3, 2.1, 1.65, Kind::Major, 0.45);
-    for (x, len) in [(3.0, 1.35), (0.2, 1.45), (-2.2, 1.4), (-5.4, 1.1)] {
+    for (x, len) in [(3.4, 1.3), (0.2, 1.45), (-2.2, 1.4), (-5.4, 1.1)] {
         pair(&mut out, x, 0.8, len, Kind::Major, 0.12);
     }
-    for (x, len) in [(-0.9, 1.35), (-2.9, 1.25)] {
+    for (x, len) in [(-0.9, 1.35), (-2.6, 1.25)] {
         pair(&mut out, x, 2.55, len, Kind::Major, 0.4);
     }
-    for (x, len) in [(0.9, 0.95), (-1.9, 1.0), (-4.9, 0.85)] {
+    for (x, len) in [(0.6, 0.95), (-1.9, 1.0), (-5.2, 0.85)] {
         pair(&mut out, x, 3.45, len, Kind::Major, 0.7);
-    }
-    // A thorn on each elbow.
-    for (x0, dir) in LEGS {
-        let (_, e, _) = leg_joints(x0, dir, 1.0);
-        pair(&mut out, e[0], e[2] - 0.2, 0.8, Kind::Minor, 0.8);
     }
     out
 }
@@ -490,7 +539,7 @@ fn cone(p: P3, n: P3, len: f64, root_r: f64, kind: Kind, splay: f64, lean_deg: f
     // Toward the tail: decreasing ring angle.
     let back = [theta.sin(), -theta.cos(), 0.0];
     let dir = unit(add(add(n, mul(back, lean_deg.to_radians().tan())), [0.0, 0.0, splay * 0.5]));
-    Prim { kind, shape: Shape::Thorn { a: sub(p, mul(n, ROOT_SINK_MM)), b: add(p, mul(dir, len)), ra: root_r, rb: TIP_MM }, blend: THORN_BLEND_MM }
+    Prim { kind, shape: Shape::Thorn { a: sub(p, mul(n, ROOT_SINK * root_r)), b: add(p, mul(dir, len)), ra: root_r, rb: TIP_MM, n }, blend: THORN_BLEND_MM }
 }
 
 /// Broad-based cones: the root's radius as a share of the length, so a cone is never taller than it is wide.
@@ -498,7 +547,8 @@ fn root_of(kind: Kind, len: f64) -> f64 {
     match kind {
         Kind::Minor => 0.62 * len,
         Kind::TailThorn => 0.6 * len,
-        Kind::HumpSpine | Kind::Horn => 0.5 * len,
+        Kind::HumpSpine => 0.36 * len,
+        Kind::Horn => 0.5 * len,
         _ => 0.55 * len,
     }
 }
@@ -525,9 +575,14 @@ fn horn(liz: &Lizard, x: f64, w: f64, len: f64) -> Option<[Prim; 2]> {
     let tip = add(knee, mul(d2, 0.55 * len));
     let root = 0.42 * len;
     Some([
-        Prim { kind: Kind::Horn, shape: Shape::Thorn { a: sub(p, mul(n, ROOT_SINK_MM)), b: knee, ra: root, rb: 0.5 * root }, blend: THORN_BLEND_MM },
-        Prim { kind: Kind::Horn, shape: Shape::Thorn { a: knee, b: tip, ra: 0.5 * root, rb: TIP_MM }, blend: 0.1 },
+        Prim { kind: Kind::Horn, shape: Shape::Thorn { a: sub(p, mul(n, ROOT_SINK * root)), b: knee, ra: root, rb: 0.5 * root, n }, blend: 0.4 },
+        Prim { kind: Kind::Horn, shape: Shape::Thorn { a: knee, b: tip, ra: 0.5 * root, rb: TIP_MM, n: d1 }, blend: 0.1 },
     ])
+}
+
+/// Where a cone's root meets the skin.
+fn foot_of(a: P3, n: P3, ra: f64) -> P3 {
+    add(a, mul(n, ROOT_SINK * ra))
 }
 
 /// Deterministic jitter in 0..1.
@@ -551,14 +606,20 @@ struct Composition {
     sculpt_box_mm: [P3; 2],
     sculpt_s: f64,
     band_hide: Option<(String, [f64; 2], u32, u32)>,
+    decimation: (usize, f64),
+    /// The furthest the sculpt stands past a cheek of the band, mm.
+    past_cheek_mm: f64,
+    /// Cones dropped where the decimated sculpt crossed itself.
+    dropped: Vec<String>,
 }
 
 fn build_lizard<'a>(frame: Frame<'a>, bore_r: f64) -> Lizard<'a> {
-    let mut liz = Lizard::new(frame, body_prims(), bore_r);
+    let prims = body_prims(frame.crest);
+    let mut liz = Lizard::new(frame, prims, bore_r);
     let mut placed: Vec<(P3, f64)> = Vec::new();
     let clear = |placed: &[(P3, f64)], p: P3, r: f64, gap: f64| placed.iter().all(|(q, rq)| dot(sub(p, *q), sub(p, *q)).sqrt() >= r + rq + gap);
     for s in [1.0, -1.0] {
-        if let Some(h) = horn(&liz, 9.15, 1.15 * s, 1.75) {
+        if let Some(h) = horn(&liz, 9.5, 1.35 * s, 2.05) {
             if let Shape::Thorn { a, .. } = h[0].shape {
                 placed.push((a, 0.75));
             }
@@ -569,7 +630,7 @@ fn build_lizard<'a>(frame: Frame<'a>, bore_r: f64) -> Lizard<'a> {
     }
     for pl in major_plans() {
         if let Some((t, p, r)) = thorn_at(&liz, pl.x, pl.w, pl.len, pl.kind, pl.splay, None) {
-            placed.push((p, r));
+            placed.push((p, 0.8 * r));
             liz.push_thorn(t);
         }
     }
@@ -586,9 +647,26 @@ fn build_lizard<'a>(frame: Frame<'a>, bore_r: f64) -> Lizard<'a> {
             }
             let q = [c[0], c[1] + r * phi.cos(), c[2] + r * phi.sin()];
             if let Some((th, p, rr)) = thorn_at(&liz, 0.0, 0.0, len, Kind::TailThorn, 0.0, Some(q)) {
-                if clear(&placed, p, rr, 0.12) {
-                    placed.push((p, rr));
+                if clear(&placed, p, rr, 0.12) && liz.fits(&th, 0.3) {
+                    placed.push((p, 0.8 * rr));
                     liz.push_thorn(th);
+                }
+            }
+        }
+    }
+    // The limbs' own thorns: small cones along the top and outer side of each limb.
+    for s in [1.0, -1.0] {
+        for (x0, dir) in LEGS {
+            let (sh, el, wr) = leg_joints(liz.frame.crest, x0, dir, s);
+            for (from, to, ra, rb, t, len) in [(sh, el, LIMB_R.0, LIMB_R.1, 0.4, 0.6), (sh, el, LIMB_R.0, LIMB_R.1, 0.85, 0.55), (el, wr, LIMB_R.1, LIMB_R.2, 0.3, 0.5), (el, wr, LIMB_R.1, LIMB_R.2, 0.7, 0.45)] {
+                let c: P3 = std::array::from_fn(|k| from[k] + (to[k] - from[k]) * t);
+                let r = ra + (rb - ra) * t;
+                let q = add(c, mul(unit([0.0, 0.9, 0.35 * s]), r));
+                if let Some((th, p, rr)) = thorn_at(&liz, 0.0, 0.0, len, Kind::Minor, -0.3 * s, Some(q)) {
+                    if clear(&placed, p, rr, 0.1) && liz.fits(&th, 0.3) {
+                        placed.push((p, 0.8 * rr));
+                        liz.push_thorn(th);
+                    }
                 }
             }
         }
@@ -626,80 +704,171 @@ fn build_lizard<'a>(frame: Frame<'a>, bore_r: f64) -> Lizard<'a> {
             let edge = (w.abs() / 4.0).min(1.0);
             let len = (base - 0.3 * base * edge) * (0.8 + 0.3 * hash(k, 4 + 10 * tier));
             let r = root_of(Kind::Minor, len);
-            if !clear(&placed, p, r, gap) {
+            if !clear(&placed, p, 0.8 * r, gap) {
                 continue;
             }
-            if let Some((th, p, rr)) = thorn_at(&liz, x, w, len, Kind::Minor, 0.3 * w.signum() * edge, Some(q)) {
-                placed.push((p, rr));
+            if let Some((th, p, rr)) = thorn_at(&liz, x, w, len, Kind::Minor, 0.3 * w.signum() * edge, Some(q)).filter(|t| liz.fits(&t.0, 0.3)) {
+                placed.push((p, 0.8 * rr));
                 liz.push_thorn(th);
             }
         }
+    }
+    // The hide between them: a close field of granules over the body, head, limbs and tail.
+    let mut cands: Vec<(f64, f64, usize)> = Vec::new();
+    let mut k = 0usize;
+    let mut x = 11.6;
+    while x > TAIL_FROM - TAIL_LEN - 0.6 {
+        let mut w = -4.6;
+        while w < 4.6 {
+            cands.push((x + 0.3 * (hash(k, 31) - 0.5), w + 0.3 * (hash(k, 32) - 0.5), k));
+            k += 1;
+            w += 0.3;
+        }
+        x -= 0.3;
+    }
+    cands.sort_by_key(|c| (hash(c.2, 33) * 1e12) as u64);
+    let mut why = [0usize; 3];
+    if std::env::var("MOLOCH_NO_GRANULES").is_ok() {
+        cands.clear();
+    }
+    for (x, w, k) in cands {
+        // The head stays smooth: granules there read as eyes.
+        if x > 7.4 {
+            continue;
+        }
+        let Some(q) = liz.top(x, w) else { why[0] += 1; continue };
+        if q[1] < -0.3 {
+            why[1] += 1;
+            continue;
+        }
+        let p = liz.frame.world(q);
+        let r = GRANULE_R_MM * (0.85 + 0.3 * hash(k, 34));
+        let base = (r * r - (r - GRANULE_MM) * (r - GRANULE_MM)).sqrt();
+        if !clear(&placed, p, base, 0.03) {
+            why[2] += 1;
+            continue;
+        }
+        let n = liz.normal(p);
+        placed.push((p, base));
+        liz.push_thorn(Prim { kind: Kind::Granule, shape: Shape::Ball { c: sub(p, mul(n, r - GRANULE_MM)), r }, blend: 0.08 });
+    }
+    if std::env::var("MOLOCH_DEBUG").is_ok() {
+        println!("  granule rejects: no top {}, low {}, crowded {}", why[0], why[1], why[2]);
     }
     liz
 }
 
 /// The sculpt: meshed, relaxed, decimated to budget and settled.
-fn sculpt_solid(liz: &Lizard, comp: &mut Composition) -> csg::Solid {
-    let field = |p: P3| liz.field(p);
-    let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
-    for s in liz.body.iter().chain(liz.thorns.iter()) {
-        let (a, b) = s.bounds(&liz.frame, 0.3);
-        for k in 0..3 {
-            lo[k] = lo[k].min(a[k]);
-            hi[k] = hi[k].max(b[k]);
-        }
-    }
-    comp.sculpt_box_mm = [lo, hi];
+fn sculpt_solid(liz: &mut Lizard, comp: &mut Composition) -> csg::Solid {
     let t = std::time::Instant::now();
-    let mut raw = sculpt::tetra_mesh(lo, hi, STEP_MM, &field);
-    comp.sculpt_raw_faces = raw.f.len();
-    sculpt::relax(&mut raw, &field, 3);
-    let nets = sculpt::clean_decimate(&raw, FACES);
-    let s = sculpt::settle(nets, &field, &|_| false);
-    comp.sculpt_faces = s.f.len();
-    comp.sculpt_volume_mm3 = sculpt::closure(&s).1;
-    comp.sculpt_s = t.elapsed().as_secs_f64();
-    s
+    for attempt in 0.. {
+        let field = |p: P3| liz.field(p);
+        let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
+        for s in liz.body.iter().chain(liz.thorns.iter()) {
+            let (a, b) = s.bounds(&liz.frame, 0.3);
+            for k in 0..3 {
+                lo[k] = lo[k].min(a[k]);
+                hi[k] = hi[k].max(b[k]);
+            }
+        }
+        comp.sculpt_box_mm = [lo, hi];
+        let mut raw = sculpt::tetra_mesh(lo, hi, STEP_MM, &field);
+        comp.sculpt_raw_faces = raw.f.len();
+        sculpt::relax(&mut raw, &field, 3);
+        // Decimate to the budget; where that crosses itself, drop the cone at the crossing and mesh again.
+        let mut tried = None;
+        let mut sites = Vec::new();
+        for (k, cap) in [2e-3, 1e-3, 5e-4].into_iter().enumerate() {
+            let d = sculpt::decimate(&raw, FACES, cap, 2.0 + k as f64, 18.0, 35.0);
+            let here = sculpt::crossing_sites(&d);
+            if here.is_empty() {
+                comp.decimation = (FACES, cap);
+                tried = Some(d);
+                break;
+            }
+            if k == 0 {
+                sites = here;
+            }
+        }
+        let nets = if let Some(d) = tried {
+            d
+        } else if attempt < 6 {
+            let p = sites[0];
+            let q = liz.frame.local(p);
+            // The nearest small cone or granule there goes first; a hand-placed thorn only when nothing else is near.
+            let mut near: Vec<(f64, usize)> = (0..liz.thorns.len()).map(|i| (liz.thorns[i].eval(q, p).abs(), i)).collect();
+            near.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let small = |k: Kind| matches!(k, Kind::Minor | Kind::Granule | Kind::TailThorn);
+            let worst = near.iter().find(|(d, i)| *d < 0.6 && small(liz.thorns[*i].kind)).or(near.first()).map(|x| x.1);
+            if let Some(i) = worst {
+                let gone = liz.thorns[i];
+                let fl = |w: P3| liz.frame.local(w);
+                let (ga, gb) = if let Shape::Thorn { a, b, .. } = gone.shape { (fl(a), fl(b)) } else { ([0.0; 3], [0.0; 3]) };
+                comp.dropped.push(format!("{} at {:.1} deg (crossing at x {:.2} h {:.2} w {:.2}; cone from x {:.2} h {:.2} w {:.2} to x {:.2} h {:.2} w {:.2})", gone.kind.label(), p[1].atan2(p[0]).to_degrees(), q[0], q[1], q[2], ga[0], ga[1], ga[2], gb[0], gb[1], gb[2]));
+                let mut rest = std::mem::take(&mut liz.thorns);
+                rest.remove(i);
+                liz.grid.clear();
+                for t in rest {
+                    liz.push_thorn(t);
+                }
+            }
+            continue;
+        } else {
+            sculpt::clean_decimate(&raw, FACES)
+        };
+        let s = sculpt::settle(nets, &field, &|_| false);
+        comp.sculpt_faces = s.f.len();
+        comp.sculpt_volume_mm3 = sculpt::closure(&s).1;
+        comp.sculpt_s = t.elapsed().as_secs_f64();
+        return s;
+    }
+    unreachable!()
 }
 
-/// Wind ripples in sand: wavy crests across the band, irregular in pitch and length, as an SVG tile `w` by `h` mm.
+/// Wind ripples in sand: wavy crests across the crown, even in pitch so the one tile closes on itself round the ring,
+/// each crest steep on its lee side and long on its windward side, as an SVG `w` by `h` mm.
 fn ripples_svg(w: f64, h: f64) -> String {
     use std::fmt::Write;
     let mut body = String::new();
     let n = (w / RIPPLE_PITCH_MM).round().max(1.0) as usize;
     let pitch = w / n as f64;
     for i in 0..n {
-        let x0 = (i as f64 + 0.5) * pitch + 0.22 * pitch * (hash(i, 40) - 0.5);
+        let x0 = (i as f64 + 0.5) * pitch + 0.12 * pitch * (hash(i, 40) - 0.5);
         let (p1, p2) = (hash(i, 41) * 6.283, hash(i, 42) * 6.283);
-        // Some crests stop short or start late, as wind ripples do.
-        let (y0, y1) = if hash(i, 43) < 0.35 { (h * 0.35 * hash(i, 44) - 0.5, h + 0.5) } else if hash(i, 43) < 0.55 { (-0.5, h * (1.0 - 0.3 * hash(i, 45)) + 0.5) } else { (-0.5, h + 0.5) };
-        let mut d = String::new();
-        let mut y = y0;
-        let mut first = true;
-        while y <= y1 {
-            let x = x0 + 0.34 * (6.283 * y / 5.3 + p1).sin() + 0.16 * (6.283 * y / 2.1 + p2).sin();
-            let _ = write!(d, "{}{x:.3} {y:.3}", if first { "M" } else { " L" });
-            first = false;
-            y += 0.2;
-        }
-        let _ = write!(body, r##"<path d="{d}" fill="none" stroke="#000" stroke-width="{:.3}" stroke-linecap="round"/>"##, RIPPLE_W_MM * (0.85 + 0.3 * hash(i, 46)));
+        let crest = |dx: f64| {
+            let mut d = String::new();
+            let mut y = -0.6;
+            let mut first = true;
+            while y <= h + 0.6 {
+                let x = x0 + dx + 0.3 * (6.283 * y / 4.7 + p1).sin() + 0.12 * (6.283 * y / 1.9 + p2).sin();
+                let _ = write!(d, "{}{x:.3} {y:.3}", if first { "M" } else { " L" });
+                first = false;
+                y += 0.15;
+            }
+            d
+        };
+        // The windward slope: a broad half-weight band behind the crest; then the crest itself, narrow and full.
+        let _ = write!(body, r##"<path d="{}" fill="none" stroke="#000" stroke-opacity="0.5" stroke-width="{:.3}"/>"##, crest(-0.3 * pitch), 0.5 * pitch);
+        let _ = write!(body, r##"<path d="{}" fill="none" stroke="#000" stroke-width="{:.3}"/>"##, crest(0.0), RIPPLE_W_MM);
     }
     format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}" height="{h:.4}" viewBox="0 0 {w:.4} {h:.4}"><defs><filter id="soft" x="-0.2" y="-0.2" width="1.4" height="1.4"><feGaussianBlur stdDeviation="{:.3}"/></filter></defs><g filter="url(#soft)">{body}</g></svg>"##,
-        0.3 * RIPPLE_W_MM
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}" height="{h:.4}" viewBox="0 0 {w:.4} {h:.4}"><defs><filter id="soft" x="-0.05" y="-0.2" width="1.1" height="1.4"><feGaussianBlur stdDeviation="0.07"/></filter></defs><g filter="url(#soft)">{body}</g></svg>"##
     )
 }
 
-/// The band's own ground: the desert the devil lies on, wind ripples in sand over the crown and cheeks.
+/// The band's own ground: the desert the devil lies on, wind ripples in sand over the crown in one tile round the
+/// ring; the cheeks stay polished.
 fn band_hide(d: &mut RingDesign, lib: &mut AlphaLibrary, comp: &mut Composition, art: &Path) -> Result<()> {
     let ctx = d.field_context();
     let mut t = TilingLayer::default_for("Sand ripples", &ctx);
-    t.v_center_mm = ctx.crest_v_mm;
-    t.v_span_mm = ctx.band_v_len_mm * 0.94;
-    t.repeats_around = 8;
+    let faces = ctx.side_faces_std();
+    let (lo, hi) = faces.and_then(|f| Some((f.low?.1, f.high?.0))).unwrap_or((0.0, ctx.band_v_len_mm));
+    t.v_center_mm = 0.5 * (lo + hi);
+    t.v_span_mm = hi - lo - 0.3;
+    t.repeats_around = 1;
     t.rows = 1;
     t.height_mm = RIPPLE_MM;
-    t.feather_mm = 0.3;
+    t.feather_mm = 0.35;
     let (cw, ch) = t.cell_size(&ctx);
     let svg = ripples_svg(cw, ch);
     std::fs::write(art.join("sand-ripples.svg"), &svg)?;
@@ -708,7 +877,7 @@ fn band_hide(d: &mut RingDesign, lib: &mut AlphaLibrary, comp: &mut Composition,
     e.blend = Blend::Max;
     d.layers.layers.push(e);
     d.bake_all(lib);
-    comp.band_hide = Some(("sand ripples".into(), [cw, ch], 8, 1));
+    comp.band_hide = Some(("sand ripples".into(), [cw, ch], 1, 1));
     Ok(())
 }
 
@@ -721,21 +890,25 @@ fn author(art: &Path) -> Result<(RingDesign, AlphaLibrary, Composition, csg::Sol
     let mut lib = AlphaLibrary::builtin();
     let crest = Crest::of(&d)?;
     let mut comp = Composition { crest_r_at_face_mm: crest.at(90.0), ..Composition::default() };
-    let liz = build_lizard(Frame { crest: &crest }, d.inner_radius_mm());
+    let mut liz = build_lizard(Frame { crest: &crest }, d.inner_radius_mm());
     band_hide(&mut d, &mut lib, &mut comp, &art)?;
+    if std::env::var("MOLOCH_PLAN_ONLY").is_ok() {
+        println!("  plan: {} cones", liz.thorns.len());
+        std::process::exit(0);
+    }
+    let solid = sculpt_solid(&mut liz, &mut comp);
     let mut by_kind: std::collections::BTreeMap<String, usize> = Default::default();
     let (mut lmin, mut lmax) = (f64::MAX, 0.0f64);
     for t in &liz.thorns {
         *by_kind.entry(t.kind.label().into()).or_default() += 1;
-        if let Shape::Thorn { a, b, .. } = t.shape {
-            let l = dot(sub(b, a), sub(b, a)).sqrt() - ROOT_SINK_MM;
+        if let Shape::Thorn { a, b, ra, .. } = t.shape {
+            let l = dot(sub(b, a), sub(b, a)).sqrt() - ROOT_SINK * ra;
             lmin = lmin.min(l);
             lmax = lmax.max(l);
         }
     }
     comp.thorns_by_kind = by_kind.into_iter().collect();
     comp.thorn_lengths_mm = [lmin, lmax];
-    let solid = sculpt_solid(&liz, &mut comp);
     // Each face's kind, for the land census: the shape nearest the surface at its centroid.
     let kinds: Vec<(Kind, P3)> = solid
         .f
@@ -746,6 +919,8 @@ fn author(art: &Path) -> Result<(RingDesign, AlphaLibrary, Composition, csg::Sol
             (liz.kind_at(c), c)
         })
         .collect();
+    // How far the sculpt stands past the band's cheeks along the finger.
+    comp.past_cheek_mm = solid.v.iter().map(|p| p[2].abs() - Crest::read(&crest.half_w, p[1].atan2(p[0]).to_degrees())).fold(f64::MIN, f64::max);
     let packed = sculpt::packed(&solid)?;
     let doc = d.cad.get_or_insert_with(Document::default);
     if doc.band().is_none() {
