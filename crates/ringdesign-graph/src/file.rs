@@ -313,6 +313,22 @@ pub fn list_presets() -> Vec<Preset> {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn a_fine_cap_stamp_fences_the_graph_and_the_preset_carrying_it() {
+        let stamp = |fine_cap: bool| ringdesign_core::setting::Stamp { name: "Dome".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline: ringdesign_core::outline::circle(2.0), height_mm: 0.3, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap, tier: 0, top: Default::default() };
+        for (fine_cap, expected) in [(false, PLAIN_GRAPH_FORMAT_VERSION), (true, GRAPH_FORMAT_VERSION)] {
+            let mut d = ringdesign_core::RingDesign::default();
+            d.stamps.push(stamp(fine_cap));
+            let mut graph = Graph::new("Stamped source", Mode::SandRing);
+            let source = graph.add("cad.source").unwrap();
+            graph.node_mut(source).unwrap().params = serde_json::to_value(&d).unwrap();
+            assert_eq!(graph_version_for(&graph), expected, "fine_cap {fine_cap}");
+            let mut preset = Preset::default();
+            preset.values.insert("Stamps".into(), Literal::Json(serde_json::to_value(vec![stamp(fine_cap)]).unwrap()));
+            assert_eq!(preset_version_in(&preset, None), expected, "fine_cap {fine_cap}");
+        }
+    }
+
+    #[test]
     fn station_gate_and_claw_controls_fence_graphs_presets_and_clusters() {
         for (pin, value) in [("v_gate", Literal::Text("side_faces".into())), ("v_gate", Literal::Text("draft".into())), ("draft_min_deg", Literal::Number(80.0)), ("draft_fade_deg", Literal::Number(5.0))] {
             for form in ["literal", "wire", "exposure"] {

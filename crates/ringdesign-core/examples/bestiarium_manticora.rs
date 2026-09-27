@@ -849,6 +849,7 @@ fn quill_rows(d: &mut RingDesign, lat: &Lattice) -> Result<Quills> {
         cut: false,
         bench: false,
         along_pull: false,
+        fine_cap: false,
         tier: 0,
         top: StampTop::Ridge {
             rise_mm: 0.7,

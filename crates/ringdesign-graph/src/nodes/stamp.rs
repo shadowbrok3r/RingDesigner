@@ -6,7 +6,7 @@ use crate::{graph::Node, registry::{Category, EvalCtx, Inputs, NodeError, NodeSp
 use super::structs::StructNode;
 
 fn blank() -> Stamp {
-    Stamp { name: "Stamp".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline: outline::circle(1.0), height_mm: 0.3, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat }
+    Stamp { name: "Stamp".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline: outline::circle(1.0), height_mm: 0.3, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat }
 }
 fn read<T: serde::de::DeserializeOwned>(value: &Value, pin: &str) -> Result<T, NodeError> {
     serde_json::from_value(value.to_json_any().ok_or_else(|| NodeError::input(pin, "expected source data"))?)
@@ -72,6 +72,7 @@ pub fn register(reg: &mut Registry) {
     for (pin, doc) in [("cut", "Subtract this stamp from the metal."), ("bench", "Add after casting."), ("along_pull", "Strike along the mould pull on a side face.")] {
         stamp = stamp.field(PinSpec::item(pin, ValueKind::Bool).doc(doc));
     }
+    stamp = stamp.field(PinSpec::item("fine_cap", ValueKind::Bool).doc("Grid the cap at half the pitch, so a large domed top stops faceting.")).sparse(&["fine_cap"]);
     reg.register(stamp.finish(validate).build()).expect("unique");
     reg.register(NodeSpec::new("design.stamps", "Apply stamps", Category::Assembly)
         .doc("Add an ordered list of struck outlines to a design.")

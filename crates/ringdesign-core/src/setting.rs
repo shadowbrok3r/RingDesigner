@@ -1330,6 +1330,10 @@ pub struct Stamp {
     /// The shape of its top over `height_mm`; on a cut, of its floor under `sink_mm`.
     #[serde(default, skip_serializing_if = "StampTop::is_flat")]
     pub top: StampTop,
+    /// Grid its cap at half the pitch, `reach / 28` held to 0.1–0.2 mm: about three times the cap points,
+    /// so a large domed top stops faceting. Off, the pitch a format-5 build used.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub fine_cap: bool,
 }
 
 fn is_zero(v: &u8) -> bool {
@@ -1709,9 +1713,14 @@ impl Stamp {
         }
     }
 
-    /// Tier 0, a flat top and at most [`PLAIN_MAX_STAMP_POINTS`] outline points: what a format-5 build strikes.
+    /// Tier 0, a flat top, the coarse cap and at most [`PLAIN_MAX_STAMP_POINTS`] outline points: what a format-5 build strikes.
     pub fn is_plain(&self) -> bool {
-        self.tier == 0 && self.top.is_flat() && self.outline.len() <= PLAIN_MAX_STAMP_POINTS
+        self.tier == 0 && self.top.is_flat() && !self.fine_cap && self.outline.len() <= PLAIN_MAX_STAMP_POINTS
+    }
+
+    /// Spacing of the cap's inner grid for an outline reaching `reach` from the axis.
+    fn cap_pitch(&self, reach: f64) -> f64 {
+        if self.fine_cap { (reach / 28.0).clamp(0.1, 0.2) } else { (reach / 14.0).clamp(0.12, 0.35) }
     }
 
     /// Closed solid from cap points, their triangles and the surface height under each.
@@ -1843,7 +1852,7 @@ impl Stamp {
                 up.abs() < along && d[0] * d[0] + d[1] * d[1] + d[2] * d[2] - up * up < reach * reach
             }).then_some(t)
         }).collect();
-        let pitch = (reach / 14.0).clamp(0.12, 0.35);
+        let pitch = self.cap_pitch(reach);
         let cap = if creases.is_empty() { cap_faces(&self.outline, pitch, chords) } else { cap_faces_with(&self.outline, pitch, chords, creases) };
         let (points, tris) = cap.ok_or("its outline will not triangulate")?;
         let down = [-frame.z[0], -frame.z[1], -frame.z[2]];
@@ -3827,7 +3836,7 @@ mod tests {
         let boundary: std::collections::HashSet<(u32, u32)> = uses.keys().copied().filter(|(a, b)| !uses.contains_key(&(*b, *a))).collect();
         let want: std::collections::HashSet<(u32, u32)> = (0..n).map(|i| (i, (i + 1) % n)).collect();
         assert_eq!(boundary, want);
-        let stamp = Stamp { name: "Dent".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline, height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat };
+        let stamp = Stamp { name: "Dent".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline, height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat };
         assert_eq!(stamp.prism().unwrap().open_edges(), (0, 0));
     }
 
@@ -3848,7 +3857,7 @@ mod tests {
         assert!((area(&moon_outline(1.6, 0.5, 0.85)) - 0.5 * PI * 2.56).abs() < 0.03);
         assert!(area(&moon_outline(1.6, 0.25, 0.85)) > 0.0 && area(&crescent_cutter(1.6, 0.25, 0.85, 0.2)) > 0.0);
         // A half moon cast as a blank, and the bench's cut that leaves the crescent.
-        let blank = Stamp { name: "Half moon".into(), theta_deg: 60.0, v_mm: v, rot_deg: 0.0, outline: moon_outline(1.6, 0.5, 0.85), height_mm: 0.45, sink_mm: 0.35, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat };
+        let blank = Stamp { name: "Half moon".into(), theta_deg: 60.0, v_mm: v, rot_deg: 0.0, outline: moon_outline(1.6, 0.5, 0.85), height_mm: 0.45, sink_mm: 0.35, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat };
         let cut = Stamp { name: "Crescent cut".into(), outline: crescent_cutter(1.6, 0.25, 0.85, 0.2), height_mm: 0.8, sink_mm: -0.02, cut: true, bench: true, ..blank.clone() };
         d.stamps = vec![blank, cut];
         let finished = crate::mesh::try_build(&d, &lib, params).unwrap();
@@ -3905,7 +3914,7 @@ mod tests {
     }
 
     fn plain(name: &str, theta_deg: f64, v_mm: f64, outline: Vec<[f64; 2]>, height_mm: f64) -> Stamp {
-        Stamp { name: name.into(), theta_deg, v_mm, rot_deg: 0.0, outline, height_mm, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat }
+        Stamp { name: name.into(), theta_deg, v_mm, rot_deg: 0.0, outline, height_mm, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat }
     }
 
     fn crest_band() -> crate::RingDesign {
@@ -4158,6 +4167,39 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// A fine cap grids a large dome at `reach / 28` held to 0.2 mm against the plain 0.35: about three times the
+    /// cap points, and fenced from a format-5 reader.
+    #[test]
+    fn a_fine_cap_carries_about_three_times_the_cap_points_on_a_large_dome() {
+        use crate::library::{format_version_for, FORMAT_VERSION};
+        let mut d = crest_band();
+        let ctx = d.field_context();
+        let lib = crate::AlphaLibrary::builtin();
+        let mesh = crate::mesh::try_build(&d, &lib, strike()).unwrap().mesh;
+        let band = Solid { v: mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: mesh.faces.clone() };
+        // Ten millimetres round the ring by four across, on the crest: reach 6, past both clamps.
+        let outline: Vec<[f64; 2]> = crate::outline::circle(2.0).iter().map(|p| [5.0 * p[0], 2.0 * p[1]]).collect();
+        let coarse = Stamp { top: StampTop::Dome { crown_mm: 0.4 }, ..plain("Dome", 90.0, ctx.crest_v_mm, outline, 0.3) };
+        let fine = Stamp { fine_cap: true, ..coarse.clone() };
+        let frame = coarse.frame(&d, &ctx);
+        let points = |s: &Stamp| {
+            let made = s.solid(&frame, &band).unwrap();
+            sound(&made, &s.name);
+            made.v.len() / 2 - s.outline.len()
+        };
+        let (was, now) = (points(&coarse), points(&fine));
+        let ratio = now as f64 / was as f64;
+        assert!((2.7..3.4).contains(&ratio), "{was} cap points coarse, {now} fine: {ratio:.2}x");
+        assert!(serde_json::to_value(&coarse).unwrap().get("fine_cap").is_none());
+        assert_eq!(serde_json::to_value(&fine).unwrap()["fine_cap"], true);
+        d.stamps = vec![Stamp { top: StampTop::Flat, ..fine }];
+        assert!(!d.stamps[0].is_plain());
+        assert_eq!(format_version_for(&d), FORMAT_VERSION, "a format-5 build would strike it coarse");
+        let back = crate::library::load_design_str(&crate::library::design_json(&d).unwrap()).unwrap();
+        assert_eq!(back.stamps, d.stamps);
+        assert!(crate::library::template_features_in_json(&serde_json::json!({"stamps": [d.stamps[0]]})), "a graph carrying it is fenced");
     }
 
     /// A gable off the parting line holds its ridge as an edge of the cap, every vertex on it at full rise.
