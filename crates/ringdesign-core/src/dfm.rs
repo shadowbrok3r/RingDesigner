@@ -341,7 +341,7 @@ mod tests {
         d.draft.min_detail_mm = 0.3;
         let hairline = crate::setting::Stamp {
             name: "Hairline".into(), theta_deg: 90.0, v_mm: 1.0, rot_deg: 0.0, outline: bar(0.2), height_mm: 0.3,
-            sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default(),
+            sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: Default::default(),
         };
         d.stamps = vec![hairline.clone(), crate::setting::Stamp { name: "Graver line".into(), bench: true, ..hairline }];
         let f = findings(&d);
@@ -361,7 +361,7 @@ mod tests {
         let v = d.field_context().crest_v_mm;
         let disc = |name: &str, dia: f64, tier: u8, cut: bool| Stamp {
             name: name.into(), theta_deg: 90.0, v_mm: v, rot_deg: 0.0, outline: crate::outline::circle(dia), height_mm: 0.3,
-            sink_mm: 0.3, draft_deg: 0.0, cut, bench: false, along_pull: false, tier, top: StampTop::Flat,
+            sink_mm: 0.3, draft_deg: 0.0, cut, bench: false, along_pull: false, fine_cap: false, tier, top: StampTop::Flat,
         };
         let mut ledge = |upper: Stamp| {
             d.stamps = vec![disc("Plate", 3.0, 0, false), upper];
@@ -409,7 +409,7 @@ mod tests {
                 for k in 0..24 {
                     let plate = Stamp {
                         name: format!("Plate {k}"), theta_deg: 90.0 + 15.0 * k as f64, v_mm: v, rot_deg: 0.0, outline: crate::outline::circle(2.4),
-                        height_mm: 0.3, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat,
+                        height_mm: 0.3, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat,
                     };
                     let keel = Stamp {
                         name: format!("Keel {k}"), outline: crate::outline::keel(1.6, 0.8, 0.18), tier: u8::from(tiered),

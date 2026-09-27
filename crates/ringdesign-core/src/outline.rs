@@ -548,7 +548,7 @@ mod tests {
         let v = crest_v(&d0, 90.0).unwrap();
         let strike = |name: &str, outline: Vec<[f64; 2]>, height: f64, top: StampTop| Stamp {
             name: name.into(), theta_deg: 90.0, v_mm: v, rot_deg: 0.0, outline, height_mm: height, sink_mm: 0.3, draft_deg: 0.0,
-            cut: false, bench: false, along_pull: false, tier: 0, top,
+            cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top,
         };
         let mut cells: Vec<(String, crate::RingDesign, f64)> = Vec::new();
         let sheet_families: Vec<(&str, Vec<[f64; 2]>)> = families().into_iter().map(|(n, o)| match n {

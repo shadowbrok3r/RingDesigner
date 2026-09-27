@@ -102,6 +102,7 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
         .is_some_and(|key| crate::cad::builders::geometry_extended(key, &builder["params"]))) { return true; }
     if value.get("v_gate").is_some_and(|gate| gate.get("Draft").is_some() || gate.get("SideFaces").is_some()) { return true; }
     if value.get("centre_phase").is_some_and(|phase| !phase.is_null()) { return true; }
+    if value.get("fine_cap").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
         if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
             || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }

@@ -1874,6 +1874,10 @@ rows.** What the second version added, each measured:
   a bench cut per bay (`hull_and_bays`, `Stamp::cast_as_hull` — the
   crescent cutter generalised; a holly leaf is six bays, hull less bays its
   own area to 0.03 mm²).
+- **A fine cap is opt-in.** `Stamp::fine_cap` grids the cap at `reach / 28`
+  held to 0.1–0.2 mm instead of `reach / 14` held to 0.12–0.35: about three
+  times the cap points (267 to 846 on a 10 × 4 mm dome), so a large domed top
+  stops faceting. Off, a stamp builds bit for bit as before.
 - **`Stamp::parting_monotone`** is the plan rule a stamp on a signet's face
   must pass: every plan line along the pull meets the stamp in one stretch
   across the parting line, its top never rising away from it, resting
@@ -1889,9 +1893,9 @@ rows.** What the second version added, each measured:
   whose do. Over 60–120° the first draft struck ten keels, five of them
   coincident; an uneven 60–104° ×4 later struck two 0.26 mm apart.
 
-**Plain stamps build as a format-5 build struck them.** `tier` and `top`
-are skipped when default, so a plain design serializes byte for byte; a
-tier, a shaped top or an outline past `PLAIN_MAX_STAMP_POINTS` (512 —
+**Plain stamps build as a format-5 build struck them.** `tier`, `top` and
+`fine_cap` are skipped when default, so a plain design serializes byte for
+byte; a tier, a shaped top, a fine cap or an outline past `PLAIN_MAX_STAMP_POINTS` (512 —
 every released build refuses more, and the spiral is 540 at its sheet
 size) writes the design at 6. A design whose *poured* stamps are all plain
 reads every frame as `stones::surface_frame` does — the nearest sample of a
@@ -1907,8 +1911,9 @@ points are kept across calls (4096, keyed by a hash of everything the band
 is made from and the chart point): on the Heart signet 24 gabled keels on
 24 plates make a point each on first sight (7.95 ms) and none judged again
 (1.25 ms, against 0.63 on one tier). A graph's `/stamps` patch and a
-standalone graph file are not fenced; an older build drops `tier` and `top`
-from them silently.
+standalone graph file are not fenced for `tier` and `top`, and an older build
+drops them silently; `fine_cap: true` anywhere in a graph's JSON fences it at
+graph format 2 (`template_features_in_json`).
 
 **A saved design must reopen bit for bit, and `serde_json` does not promise
 that by default.** Without `float_roundtrip` a parsed float can be one unit

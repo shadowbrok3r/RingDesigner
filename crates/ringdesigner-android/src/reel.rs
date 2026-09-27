@@ -142,6 +142,7 @@ mod tests {
             cut: false,
             bench: false,
             along_pull: false,
+            fine_cap: false,
             tier: 0,
             top: Default::default(),
         };
