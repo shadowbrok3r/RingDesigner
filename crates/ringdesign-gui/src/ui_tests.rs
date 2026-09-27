@@ -427,6 +427,20 @@ fn caiman_held(h: &mut Harness<'static, RingDesignerApp>) -> (std::sync::Arc<rin
     (progress, finished, release)
 }
 
+/// Whether an open cancelled at `at` stopped within one step: the evaluator checks between nodes, the bake between sources.
+fn stopped_within_a_step(at: ringdesign_workbench::templates::Stage, now: ringdesign_workbench::templates::Stage) -> bool {
+    use ringdesign_workbench::templates::Stage::*;
+    let rank = |s| match s {
+        Reading => (0, 0),
+        Evaluating { done, .. } => (1, done),
+        Baking { done, .. } => (2, done),
+        Measuring => (3, 0),
+        Building => (4, 0),
+    };
+    let ((p, d), (q, e)) = (rank(at), rank(now));
+    q < 4 && ((q == p && e <= d + 1) || (q == p + 1 && e <= 1))
+}
+
 fn wait_until_returned(h: &mut Harness<'static, RingDesignerApp>, finished: &std::sync::atomic::AtomicBool) {
     let start = std::time::Instant::now();
     while !finished.load(std::sync::atomic::Ordering::Relaxed) {
@@ -441,9 +455,10 @@ fn choosing_another_template_stops_the_first_and_only_the_second_lands() {
     let (progress, finished, release) = caiman_held(&mut h);
     h.run_steps(1);
     crate::export::load_catalog_template(h.state_mut(), template("court-band"));
+    let at = progress.stage();
     release();
     wait_until_returned(&mut h, &finished);
-    assert_eq!(progress.stage(), ringdesign_workbench::templates::Stage::Reading, "the replaced open stopped before its first node");
+    assert!(stopped_within_a_step(at, progress.stage()), "the replaced open ran on from {at:?} to {:?}", progress.stage());
     crate::interaction_tests::wait_for_template(&mut h);
     crate::interaction_tests::wait_for_build(&mut h);
     h.run_steps(3);
@@ -462,11 +477,12 @@ fn a_file_opened_from_recent_stops_a_template_still_opening() {
     let mut h = harness([1600., 980.]);
     let (progress, finished, release) = caiman_held(&mut h);
     crate::export::open_design_path(h.state_mut(), &path);
+    let at = progress.stage();
     assert!(h.state().opening.is_none(), "the file stopped the template");
     release();
     wait_until_returned(&mut h, &finished);
     h.run_steps(3);
-    assert_eq!(progress.stage(), ringdesign_workbench::templates::Stage::Reading, "no node ran after the file opened");
+    assert!(stopped_within_a_step(at, progress.stage()), "the template ran on from {at:?} to {:?} after the file opened", progress.stage());
     assert_eq!(h.state().design.name, "Opened from Recent");
     assert_eq!(h.state().document_path.as_deref(), Some(path.as_path()));
     assert!(h.state().opened_building.is_none());
