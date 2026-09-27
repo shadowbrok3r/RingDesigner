@@ -6,6 +6,13 @@ The agents running at that moment finish their current task (Kraken round 3, Bas
 
 Packaging lane finished and merged (`bestiarium-package` `1c31c9c`, merge `89dc970`): Arachne and Manticora rebuilt on current master and registered as a Bestiarium group in File > New from template (menu 55 to 53, Workshop group retired; `showcase/workshop-collection` kept), bound template controls (request 15), studio renders, sheet and README. Every suite green on the branch, four-core CI emulation 1653. Its report, with the eleven steps to add one more shipped ring, is `docs/collections/bestiarium-package-report.json` (`add_a_ring`). Left for the release: the phone and desktop version bumps, a CHANGELOG line (Bestiarium added, Workshop retired), the tag and the Taildrop; build reels need an emulator. A tracked `crates/ringdesign-py/tests/__pycache__/*.pyc` is rewritten by every Python smoke run and should be untracked. Before the final Taildrop, smooth-shade the reference stones in the Blender renders: the onyx and ruby cabochons on `Bestiarium-collection.png` show stair-stepped highlights.
 
+# 2026-09-27
+
+- **Desktop 0.7.0 tagged** (`desktop-v0.7.0` on `821cd1a`) at Logan's request, without waiting for the collections: the Bestiarium group with Arachne and Manticora, Workshop retired, the rebuilt starters, and every core fix merged through the cloud sessions.
+- Cataphracta enablers C-R1 to C-R8 merged (#237, #238); the collet fix (#235) too. Master CI green on `140bcd4`.
+- Fenrir round 3 back (`claude/bestiarium-fenrir-r3` `4ae77ee`, self-score 7.0, sealed void gone); its final review runs from `review/fenrir-r3`.
+- Pilot rings running as self-running cloud sessions (block-out read test, then up to three reviewed rounds): Sphenodon, Heloderma and Moloch, seeds `cloud/lane-<slug>`, results on `claude/cataphracta-<slug>`. The kit lives in `.claude/collection-review/cloud-kit/` (launcher `launch.sh`, session log `sessions.txt`).
+
 # Cataphracta pilot (Logan, 2026-09-26 night)
 
 Logan chose Cataphracta next, as a three-ring pilot to measure the credit per ring and the ship rate before launching the rest. The Bestiarium shipped 2 of 9, and almost every cut failed the 300 px read without its caption, so the pilot changes the process: each ring blocks out its subject and passes a 300 px read test before detail and gates, and each ring runs as one self-running cloud session (author, then an independent reviewer agent inside the same session, up to three rounds, ending at ship or cut).
