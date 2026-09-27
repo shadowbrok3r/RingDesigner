@@ -2106,6 +2106,14 @@ pub struct SeatRunLayer {
     /// it re-packs to the reach it has.
     #[serde(default)]
     pub tilt_deg: f64,
+    /// Where the station lattice stands against the taper centre, in
+    /// stations: 0 stands one on [`taper_theta_deg`](Self::taper_theta_deg),
+    /// 0.5 straddles it with a pair, and either way the row is mirror-true
+    /// about its centre. `None` keeps the lattice anchored at 0 degrees, so
+    /// a row whose centre is not a station angle grades lopsided. Fenced at
+    /// design format 6 when set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub centre_phase: Option<f64>,
 }
 
 fn default_taper_theta() -> f64 {
@@ -2136,6 +2144,7 @@ impl Default for SeatRunLayer {
             taper_theta_deg: default_taper_theta(),
             shared_prong_mm: 0.0,
             tilt_deg: 0.0,
+            centre_phase: None,
         }
     }
 }
@@ -2202,11 +2211,11 @@ impl SeatRunLayer {
     /// bit-identical.
     pub fn theta_of_station(&self, k: f64, ctx: &FieldContext) -> f64 {
         let n = self.count.clamp(1, 200) as f64;
-        if self.taper <= 0.0 {
+        if self.taper <= 0.0 && self.centred().is_none() {
             return k * 360.0 / n;
         }
         let c = self.spacing_c(ctx.arc_scale(self.seat.v_mm));
-        let phi = self.station_phase(c) + k * std::f64::consts::TAU / n;
+        let phi = self.station_phase(c, n) + k * std::f64::consts::TAU / n;
         self.taper_theta_deg + eccentric_warp(phi, 1.0 / c.max(1e-9)).to_degrees()
     }
 
@@ -2214,19 +2223,30 @@ impl SeatRunLayer {
     /// [`theta_of_station`](Self::theta_of_station).
     pub fn station_of_theta(&self, theta_deg: f64, ctx: &FieldContext) -> f64 {
         let n = self.count.clamp(1, 200) as f64;
-        if self.taper <= 0.0 {
+        if self.taper <= 0.0 && self.centred().is_none() {
             return theta_deg / 360.0 * n;
         }
         let c = self.spacing_c(ctx.arc_scale(self.seat.v_mm));
         let d = wrap_delta(theta_deg - self.taper_theta_deg, 360.0).to_radians();
-        (eccentric_warp(d, c) - self.station_phase(c)) / std::f64::consts::TAU * n
+        (eccentric_warp(d, c) - self.station_phase(c, n)) / std::f64::consts::TAU * n
     }
 
-    /// Where station 0 sits in the warped angle. Anchored so that ungrading
-    /// a row puts its stations back at `k · 360/n` exactly, rather than
-    /// sliding the whole lattice onto the taper's centre.
-    fn station_phase(&self, c: f64) -> f64 {
-        eccentric_warp(wrap_delta(-self.taper_theta_deg, 360.0).to_radians(), c)
+    /// Where station 0 sits in the warped angle. Anchored by default so that
+    /// ungrading a row puts its stations back at `k · 360/n` exactly, rather
+    /// than sliding the whole lattice onto the taper's centre. A
+    /// [`centre_phase`](Self::centre_phase) slides it there on purpose: the
+    /// warp is odd about the centre, so a lattice standing at 0 or half a
+    /// pitch from it is mirror-true in theta too.
+    fn station_phase(&self, c: f64, n: f64) -> f64 {
+        match self.centred() {
+            Some(p) => p * std::f64::consts::TAU / n,
+            None => eccentric_warp(wrap_delta(-self.taper_theta_deg, 360.0).to_radians(), c),
+        }
+    }
+
+    /// The centre phase, when it is one the lattice can stand on.
+    fn centred(&self) -> Option<f64> {
+        self.centre_phase.filter(|p| p.is_finite())
     }
 
     /// The seat's own reach along the ring, mm — its full width for a round
@@ -4119,6 +4139,56 @@ mod tests {
         let crest = run(c.crest_v_mm);
         let chart_crest = c.circumference_mm / crest.count as f64 - crest.seat_span_mm();
         assert!((crest.bridge_at(&c) - chart_crest).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_centred_graded_run_is_mirror_true_about_its_taper_centre() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        let fc = d.field_context();
+        let run = |phase: Option<f64>, taper: f64| SeatRunLayer {
+            count: 13,
+            taper,
+            taper_theta_deg: 90.0,
+            centre_phase: phase,
+            ..SeatRunLayer::default()
+        };
+        // Station offsets from the centre, degrees, in (-180, 180].
+        let offsets = |r: &SeatRunLayer| -> Vec<f64> {
+            (0..r.count).map(|k| wrap_delta(r.theta_of_station(k as f64, &fc) - r.taper_theta_deg, 360.0)).collect()
+        };
+        let mirror_true = |r: &SeatRunLayer| {
+            let o = offsets(r);
+            o.iter().all(|a| o.iter().any(|b| wrap_delta(a + b, 360.0).abs() < 1e-9))
+        };
+
+        // Today's anchor at 0 degrees grades lopsided about a 90-degree centre.
+        assert!(!mirror_true(&run(None, 0.6)));
+        for taper in [0.0, 0.3, 0.85] {
+            let on = run(Some(0.0), taper);
+            let astride = run(Some(0.5), taper);
+            assert!(mirror_true(&on) && mirror_true(&astride), "taper {taper}");
+            // 0 stands the largest stone on the centre; 0.5 flanks it with an equal pair.
+            let o = offsets(&on);
+            assert!(o.iter().any(|a| a.abs() < 1e-9), "taper {taper}: {o:?}");
+            let mut o = offsets(&astride).into_iter().map(f64::abs).collect::<Vec<_>>();
+            o.sort_by(f64::total_cmp);
+            assert!(o[0] > 1.0 && (o[0] - o[1]).abs() < 1e-9, "taper {taper}: {o:?}");
+            // One lattice: the inverse still reads each station back.
+            for r in [&on, &astride] {
+                for k in 0..r.count {
+                    let theta = r.theta_of_station(k as f64, &fc);
+                    let back = r.station_of_theta(theta, &fc);
+                    assert!((wrap_delta(back - k as f64, r.count as f64)).abs() < 1e-9, "taper {taper} k {k}: {back}");
+                }
+            }
+        }
+
+        // Unset, the field is not written, so every existing file stays byte for byte.
+        let json = serde_json::to_value(run(None, 0.6)).unwrap();
+        assert!(json.get("centre_phase").is_none());
+        let back: SeatRunLayer = serde_json::from_value(serde_json::to_value(run(Some(0.5), 0.6)).unwrap()).unwrap();
+        assert_eq!(back.centre_phase, Some(0.5));
     }
 
     #[test]

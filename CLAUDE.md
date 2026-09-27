@@ -1269,6 +1269,15 @@ emits one line per distinct seat.
   the stones report and the gem preview all go through them, because three
   copies of a station formula is exactly the divergence this file warns
   about elsewhere.
+
+  **Mirror-true on request.** The lattice is anchored so station 0 stays at
+  0 degrees, which leaves a row whose centre is not a station angle graded
+  lopsided. `SeatRunLayer::centre_phase` (in stations: 0 stands one on the
+  centre, 0.5 straddles it) stands the lattice on the centre instead, and
+  because the warp is odd about the centre the row is then symmetric in
+  theta at any taper. `None` is today's anchor and is not written, so every
+  existing row is byte for byte; set, it is fenced at design format 6 and
+  graph format 2 (`library::template_features_in_json` sees the key).
 - **Shared prongs**: `SeatRunLayer::shared_prong_mm` stands one post pair
   at each boundary between neighbouring stones — the Prongs_Row
   rule (pair each gem with its shift-by-one neighbour, prong the boundary,
