@@ -1,0 +1,19 @@
+{
+  "ring": "Moloch",
+  "slug": "moloch",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain, polished band with rows of small, even spikes running round both shoulder edges. It looks like a studded punk bracelet, a spiked dog collar or a mace ring, not an animal. The top half of the band is bare, smooth metal. The 'head' is a flat, lens-shaped cap on the crown with one small cone. In face-300 that lens shows as an almond-shaped blister in the middle of the band, and it reads as an eye or a seed pod, not as a lizard's nape. The legs and toes (domes 0.3 mm high at about 143-151 and 338-355 degrees) do not show at all at 300 px. Nothing here says lizard, let alone thorny devil. A jeweller would say 'spiked band', and that is how it would be named.",
+  "changes": [
+    "Cover the body with thorns rather than edging it with them. The thorny devil reads because its whole back is knobbed with cones of mixed sizes, and here the crown flanks and side faces are bare between the edge rows. On both side faces over 0-360 degrees, add the planned graded thorn rosettes: centre cone 1.2-1.6 mm across and 0.8 mm high at the head, tapering to 0.5 mm granules at the palm, pitch about 2.5 mm. On the crown flanks between about 20 and 160 degrees and 300 and 360 degrees, add G4-legal across-band knobbed ridges or joints 0.3-0.4 mm proud. That way no square millimetre of the top half shows smooth polished metal at 300 px. Acceptance: in hero-300 the band surface reads as a thorny hide and not as a smooth band with a studded rim.",
+    "Break the uniform spike rows into the devil's graded back armour. At present the 34 'Thorn, crest' cones and the 30+30 'Thorn, flank' cones are near-uniform (0.6-1.2 mm), which is the punk-stud read. Raise every 4th crest thorn to a paired major spike (apex 2.0-2.4 mm, base 2.4 mm) with 3 minor cones between, so the rhythm is big-small-small-small. Keep the biggest three within 20 degrees of the head, and grade them down to 0.6 mm by 250 degrees. Cut the flank rows to every other position so the spikes stop running as a continuous fringe. Acceptance: in hero-300 the eye can count at least 6 distinctly larger spikes, and the edge no longer reads as an even serration.",
+    "Rebuild the false head as a hump that is the tallest silhouette on the ring, and drop the lens outline. At 90 degrees, raise the thickness key from 1.42 to at least 1.7 (the peak now sits at 119 degrees, 1.66, so the high point is behind the head). Blend the 'Head' ridge stamp into the hump with no visible rim, so the scalloped cap edge disappears. Raise the crest crown thorn to apex 2.2 mm. Enlarge 'Horn, fingertip' and 'Horn, knuckle' from apex 1.6 to 2.4 mm and lean them upward, so that face-300 shows two big horns flanking a knob. Remove the 'Eye' stamps: the brief says no eyes, and they create the almond-eye read. Acceptance: face-300 shows a spiked knob with two horns, not an almond shape, and hero-300 shows the knob clearly higher than the band either side of it."
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/moloch/hero-300.png",
+    "showcase/cataphracta/moloch/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
