@@ -829,7 +829,17 @@ impl BandProfile {
         // The hollow lifts the whole bore chord; capped so the side wall
         // still has an edge to rise to.
         let lift = ok(m.bore_lift_mm).clamp(0.0, (edge_t - comfort - MIN_EDGE_MM).max(0.0));
-        let bore_r = |z: f64| -> f64 { inner_r + lift + comfort * ((z - b_c) / hw.max(1e-9)).powi(2) };
+        // The comfort dome's apex sits on the parting plane, not on the
+        // section's mid-plane: centred on a section slid along the finger,
+        // the flank between the two widens toward the plane and locks the
+        // bore's sand — 36 ray-release obstructions 0.9 mm deep on a bypass
+        // at comfort 0.2. Each side reaches the full depth at its own edge.
+        let apex = 0.0_f64.clamp(b_lo, b_hi);
+        let (reach_lo, reach_hi) = (apex - b_lo, b_hi - apex);
+        let bore_r = |z: f64| -> f64 {
+            let reach = if z < apex { reach_lo } else { reach_hi };
+            inner_r + lift + comfort * ((z - apex) / reach.max(1e-9)).powi(2)
+        };
 
         // --- Flange band, clamped to sit inside the outer profile. ---
         let flange = self.flange.enabled.then(|| {
@@ -4583,6 +4593,57 @@ mod tests {
         assert!(f.undercut_fraction() < 5e-4, "a faired bypass locks: {:.4}%", f.undercut_fraction() * 100.0);
         let out = crate::mesh::build(&d, &lib, p);
         assert!(out.report.validation.watertight && out.report.quality.degenerate_faces == 0);
+    }
+
+    /// A comfort dome on a sliding section keeps its apex on the parting
+    /// plane. Centred on the section's own mid-plane it turned the bore's
+    /// drafted flanks toward the wrong mould half: 46 ray-release
+    /// obstructions up to 1.2 mm deep on Corvus at comfort 0.2, and on this
+    /// band 36 on the bore, 0.90 mm deep. Now none.
+    #[test]
+    fn a_comfort_fit_on_a_sliding_bypass_arm_keeps_its_apex_on_the_parting_plane() {
+        use crate::alpha::AlphaLibrary;
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(ProfileStyle::LowDome);
+        d.profile.width_mm = 6.0;
+        d.profile.thickness_mm = 2.8;
+        d.profile.comfort_fit_mm = 0.2;
+        d.shank.kind = ShankKind::Bypass;
+        d.shank.amount = 1.0;
+        let ir = d.inner_radius_mm();
+        let base = ir + d.profile.thickness_mm;
+
+        // On an arm that rides off the plane, the bore is narrowest at z = 0
+        // and widens monotonically away from it on both sides.
+        let m = d.modulation_at(TOP_DEG - 40.0, ir, base);
+        assert!(m.z_center_frac > 0.3, "{}", m.z_center_frac);
+        let l = d.profile.sample_mod(ir, 96, &m);
+        let bore: Vec<_> = l.pts.iter().filter(|p| !p.surface && (p.r - ir) < d.profile.comfort_fit_mm + 1e-9).collect();
+        let apex = bore.iter().min_by(|a, b| a.r.total_cmp(&b.r)).unwrap();
+        assert!((apex.r - ir).abs() < 1e-3, "the dome's apex left the bore radius: {:.4}", apex.r - ir);
+        for w in bore.windows(2) {
+            let (a, b) = (w[0], w[1]);
+            let away = if a.z.abs() > b.z.abs() { a.r >= b.r - 1e-12 } else { b.r >= a.r - 1e-12 };
+            assert!(away || a.z.signum() != b.z.signum(), "the bore narrows away from the plane at z {:.3}", a.z);
+        }
+
+        let lib = AlphaLibrary::builtin();
+        let out = crate::mesh::build(&d, &lib, crate::BuildParams { theta_steps: 256, profile_steps: 96, ..Default::default() });
+        assert!(out.report.validation.watertight);
+        let setup = crate::manufacturing::Setup { auto_parting: false, parting_mm: 0.0, sample_pitch_mm: 0.1, ..Default::default() };
+        let rel = crate::manufacturing::release::analyze(&out.mesh, &setup).unwrap();
+        // The bore's obstructions: those within the comfort band of the finger.
+        let on_bore = |o: &&crate::manufacturing::release::Obstruction| o.world[0].hypot(o.world[1]) < ir + d.profile.comfort_fit_mm + 0.15;
+        let bore_hits: Vec<_> = rel.obstructions.iter().filter(on_bore).collect();
+        let deepest = bore_hits.iter().map(|o| o.depth_mm).fold(0.0, f64::max);
+        assert!(bore_hits.is_empty(), "{} bore obstructions, deepest {deepest:.3} mm", bore_hits.len());
+        // What remains is the crest row standing a hair off z = 0 — one
+        // 0.024 mm sample at the crest, there before the change and not the
+        // bore's.
+        assert!(rel.obstructions.iter().all(|o| o.samples == 1 && o.depth_mm < 0.05), "{:?}", rel.obstructions);
+        assert_eq!(rel.unresolved_rays, 0);
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert!(f.undercut_fraction() < 5e-4, "{:.4}%", f.undercut_fraction() * 100.0);
     }
 
     fn read_design_refused(text: &str) -> bool {
