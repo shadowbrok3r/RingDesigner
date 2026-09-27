@@ -1162,6 +1162,60 @@ impl Preset {
         format!("{} · {:.0} × {:.0} mm · {}", self.name, self.face_mm.0, self.face_mm.1, self.id)
     }
 }
+/// A factory stock's table plan as a `w × h` mask: the preset's 48 polar radii
+/// joined into a polygon and filled, 1 inside and 0 outside with a
+/// four-by-four supersampled edge. Columns run along the head's length
+/// (bearing 0, round the ring) and rows across its width, and the plan's
+/// bounding box fills the raster, so the mask laid over a face of the
+/// preset's `face_mm` sits on its table. `None` for an unknown id.
+pub fn plan_mask(id: &str, w: usize, h: usize) -> Option<crate::Alpha> {
+    let preset = PRESETS.iter().find(|p| p.id == id)?;
+    let (w, h) = (w.max(1), h.max(1));
+    let n = preset.plan.len();
+    let poly: Vec<[f64; 2]> = preset
+        .plan
+        .iter()
+        .enumerate()
+        .map(|(i, r)| {
+            let (sin, cos) = (i as f64 * std::f64::consts::TAU / n as f64).sin_cos();
+            [*r as f64 * cos, *r as f64 * sin]
+        })
+        .collect();
+    let (mut lo, mut hi) = ([f64::MAX; 2], [f64::MIN; 2]);
+    for p in &poly {
+        for k in 0..2 {
+            lo[k] = lo[k].min(p[k]);
+            hi[k] = hi[k].max(p[k]);
+        }
+    }
+    let inside = |x: f64, y: f64| {
+        let mut odd = false;
+        for i in 0..n {
+            let (a, b) = (poly[i], poly[(i + 1) % n]);
+            if (a[1] > y) != (b[1] > y) && x < a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0]) {
+                odd = !odd;
+            }
+        }
+        odd
+    };
+    const SUB: usize = 4;
+    let mut data = Vec::with_capacity(w * h);
+    for row in 0..h {
+        for col in 0..w {
+            let mut hits = 0;
+            for j in 0..SUB {
+                for i in 0..SUB {
+                    let fx = (col as f64 + (i as f64 + 0.5) / SUB as f64) / w as f64;
+                    let fy = (row as f64 + (j as f64 + 0.5) / SUB as f64) / h as f64;
+                    hits += inside(lo[0] + fx * (hi[0] - lo[0]), lo[1] + fy * (hi[1] - lo[1])) as usize;
+                }
+            }
+            data.push(hits as f32 / (SUB * SUB) as f32);
+        }
+    }
+    Some(crate::Alpha::new(format!("Plan {}", preset.id), w, h, data))
+}
+
 macro_rules! presets {($($id:literal => $name:literal, $l:literal, $w:literal, [$($r:literal),*]);* $(;)?)=>{pub static PRESETS:&[Preset]=&[$(Preset{id:$id,name:$name,face_mm:($l,$w),plan:&[$($r),*]}),*];};}
 presets! {
     "001" => "Cushion", 20.0, 20.0, [0.822,0.840,0.859,0.902,0.955,1.000,0.998,0.964,0.914,0.868,0.837,0.820,0.819,0.837,0.865,0.910,0.963,0.996,1.000,0.958,0.906,0.862,0.841,0.823,0.821,0.830,0.859,0.903,0.958,0.991,0.993,0.950,0.897,0.856,0.836,0.822,0.823,0.835,0.865,0.909,0.963,0.992,0.991,0.944,0.897,0.861,0.832,0.819];
@@ -1189,6 +1243,39 @@ presets! {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every preset's plan fills its own polygon's share of the box; the round is a disc, the quatrefoil's corners and
+    /// its lobes' notches are empty, and the mask is mirror-true where the plan is.
+    #[test]
+    fn a_plan_mask_fills_the_factory_table() {
+        assert!(plan_mask("099", 8, 8).is_none());
+        for preset in PRESETS {
+            let (w, h) = (192, 160);
+            let m = plan_mask(preset.id, w, h).unwrap();
+            assert_eq!((m.width, m.height, m.name.as_str()), (w, h, format!("Plan {}", preset.id).as_str()));
+            // The polygon's area over its bounding box, by the shoelace formula.
+            let n = preset.plan.len();
+            let pts: Vec<[f64; 2]> = (0..n).map(|i| {
+                let (sin, cos) = (i as f64 * std::f64::consts::TAU / n as f64).sin_cos();
+                [preset.plan[i] as f64 * cos, preset.plan[i] as f64 * sin]
+            }).collect();
+            let area = 0.5 * (0..n).map(|i| pts[i][0] * pts[(i + 1) % n][1] - pts[(i + 1) % n][0] * pts[i][1]).sum::<f64>();
+            let span = |k: usize| pts.iter().map(|p| p[k]).fold(f64::MIN, f64::max) - pts.iter().map(|p| p[k]).fold(f64::MAX, f64::min);
+            let want = area / (span(0) * span(1));
+            let got = m.data.iter().map(|v| *v as f64).sum::<f64>() / (w * h) as f64;
+            assert!((got - want).abs() < 0.004, "{}: {got:.4} against {want:.4}", preset.id);
+            assert!(m.data.iter().all(|v| (0.0..=1.0).contains(v)));
+        }
+        let round = plan_mask("013", 128, 128).unwrap();
+        let fill = round.data.iter().map(|v| *v as f64).sum::<f64>() / (128.0 * 128.0);
+        assert!((fill - std::f64::consts::FRAC_PI_4).abs() < 0.02, "{fill}");
+        let q = plan_mask("007", 128, 128).unwrap();
+        let at = |x: usize, y: usize| q.data[y * 128 + x];
+        assert_eq!((at(64, 64), at(0, 0), at(127, 127)), (1.0, 0.0, 0.0));
+        // Its notches stand at the four bearings, its lobes between them: every edge's middle is bare.
+        assert!([at(1, 64), at(126, 64), at(64, 1), at(64, 126)].iter().all(|v| *v < 0.5));
+    }
+
     #[test]
     fn a_large_setting_keeps_its_physical_footprint_when_the_imported_face_changes() {
         use crate::field::{SeatPadLayer, SeatStyle};
