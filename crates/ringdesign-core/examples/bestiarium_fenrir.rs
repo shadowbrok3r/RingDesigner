@@ -361,6 +361,16 @@ fn upper_lip(deg: f64) -> [f64; 4] {
 /// under the lower fang and rounding under the chin.
 fn lower_lip(deg: f64) -> [f64; 4] {
     let a = (90.0 - (90.0 + deg).abs()).clamp(CORNER_DEG, 90.0);
+    let mut l = lower_lip_line(a);
+    // The lip's edge dips between the teeth behind the fang and swells over each, so it reads as flesh on a jaw.
+    let wave = (2.0 * PI * (a - 27.0) / 11.5).cos() * smooth(66.0, 58.0, a) * smooth(CORNER_DEG, 26.0, a);
+    l[0] += 0.12 * wave;
+    l[1] += 0.06 * wave;
+    l
+}
+
+/// The lower lip's smooth line by folded bearing, before its scallops.
+fn lower_lip_line(a: f64) -> [f64; 4] {
     spline(
         &[
             (CORNER_DEG, [6.4, 1.45, 1.1, 0.9]),
@@ -575,8 +585,10 @@ impl Wolf {
     fn nose(s: P3) -> f64 {
         let p = Self::nose_frame(s);
         let plan = trapezoid([p[0], p[1]], 0.55, 0.98, 0.62);
-        let w = [plan + 0.3, p[2].abs() - 0.42 + 0.3];
-        let pad = len([w[0].max(0.0), w[1].max(0.0), 0.0]) + w[0].max(w[1]).min(0.0) - 0.3;
+        let w = [plan + 0.42, p[2].abs() - 0.45 + 0.42];
+        // Rounded 0.42 mm all round and domed, so the pad reads as leather rather than a block.
+        let wedge = len([w[0].max(0.0), w[1].max(0.0), 0.0]) + w[0].max(w[1]).min(0.0) - 0.42;
+        let pad = smin(wedge, ellipsoid(sub(p, [0.0, 0.05, 0.05]), [0.86, 0.66, 0.5]), 0.3);
         // The philtrum, and a web under the pad's back that closes the crease between nose and lip.
         let philtrum = smin(ellipsoid(sub(s, [0.0, 1.12, 2.62]), [0.66, 0.46, 0.55]), ellipsoid(sub(s, [0.0, 1.5, 2.65]), [1.0, 0.6, 0.4]), 0.3);
         smin(pad, philtrum, 0.5)
