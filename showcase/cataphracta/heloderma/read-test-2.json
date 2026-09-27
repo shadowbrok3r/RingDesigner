@@ -1,0 +1,21 @@
+{
+  "reads": false,
+  "what_the_eye_sees": "A lumpy lizard or small crocodile lies along the top of a half-round band. The whole band is now covered in a fine, even grid of beads, like a knurled or pebbled texture, with a small orange stone at the right end. Round 1's bare-band problem is fixed, and the tail now lies on the face with a blunt tip. But the tail's bands show up as raised transverse ridges with notched crests, so it looks like a segmented crocodile or armadillo tail, not a smooth, fat Gila tail with stripes. The trunk shows no banding at all: it is a crowded pile of knobs and splayed legs. The head cannot be picked out. Nothing reads as a broad, blunt snout, and at 300 px you cannot tell which end is the front. Because the ground beads are about the same scale and brightness as the lizard's beads, the animal blurs into the band instead of standing out as a clear shape. A jeweller would say 'lizard' or 'crocodile on a textured band', not Gila monster.",
+  "changes": [
+    {
+      "what": "Make the Gila banding show as stripes of bead height inside a smooth body outline, running the whole length of the animal. Right now it shows as outline steps on the tail only. Flatten the tail's ridge steps so its silhouette is one continuous swollen sausage. Carry the same high-bead and low-bead bands across the trunk, which currently has none.",
+      "where": "Dorsal surface from the nape to the tail tip: about 4 bands on the trunk and 4 on the tail, across the whole face view.",
+      "by_how_much": "The envelope step between bands should be at most 0.10 mm, so the tail outline in face-300.png has no notches. Within that envelope, make high beads 0.40 mm and low beads at most 0.18 mm, with low-band lands recessed a further 0.10 mm. Acceptance: in face-300.png, 3 to 4 dark/light stripes can be counted on the trunk and 4 on the tail, and the tail edge is a smooth convex curve."
+    },
+    {
+      "what": "Give the animal one unmistakable head. It should be a broad, flat, blunt, beaded wedge that clearly ends the body, pointing toward the stone and separate from the forelegs. Cut the random high knobs on the trunk, so the trunk reads as one rounded loaf with four short, stubby legs.",
+      "where": "Head between the forelimbs and the stone, at about theta 105 to 120 on the face. Trunk from the shoulders to the hips.",
+      "by_how_much": "Head width 90 to 100% of the neck width. Head length about 20% of snout-to-vent length, with a nearly square snout and a 0.3 mm neck crease. Legs no longer than 50% of the body depth, splayed and short. No trunk bead more than 0.1 mm above the high-bead height. Acceptance: at 300 px, a viewer can point to the head end in both hero and face without a caption."
+    },
+    {
+      "what": "Separate the figure from the ground. The ground bead field competes with the lizard at the same scale, so make it clearly finer and lower, or ring the animal with a polished moat, so the Gila's silhouette pops.",
+      "where": "All of the band outside the animal's outline, and a strip hugging the outline.",
+      "by_how_much": "Ground beads at most 0.12 mm high, at a pitch of 0.7 mm or less, against 1.0 mm or more on the lizard. Alternatively, leave a 0.5 to 0.7 mm smooth or low moat around the whole outline. Acceptance: in face-300.png, the lizard's outline (head, four legs and tail) can be traced as one closed shape against the band."
+    }
+  ]
+}
