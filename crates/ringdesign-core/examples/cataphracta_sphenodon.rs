@@ -1,67 +1,48 @@
-//! Cataphracta — Sphenodon, the parietal: a tuatara's serrated sail on the parting line, parting round a flush peridot on the spine, poured in Delft sand.
+//! Cataphracta — Sphenodon, the parietal: a tuatara lying round the band, its head on the face with the peridot set on the crown of its skull, its crest a
+//! serrated fin from nape to tail tip, cast in lost wax.
 //! cargo build --release -p ringdesign-core --example cataphracta_sphenodon
 //! target/release/examples/cataphracta_sphenodon [OUT_DIR] [--draft] [--verify] [--block-out]
 use anyhow::{Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign, ShankKind,
-    castability::{self, CastProcess, SandProcess, Verdict},
+    castability::{self, CastProcess, Verdict},
     csg, dfm,
-    field::{Blend, Layer, LayerEntry, SIDE_FACE_MIN_DRAFT_DEG, SeatPadLayer, SeatStyle, SideFacePick, Uv, VGate},
+    field::{Blend, Layer, LayerEntry, SeatPadLayer, SeatStyle, Window},
     gem::{Gem, GemCut},
+    interaction::bvh::Bvh,
     manufacturing as mf, mesh,
     profile::ShankKey,
     render::{self, Part},
-    reptile::svg::{self as rsvg, Params},
     setting::SolidKind,
-    skin::{self, Atlas},
+    skin::{self, Atlas, Hide, HidePoint},
     stl,
-    svg::SvgAlpha,
-    tiling::{GradeLaw, TileGrade, TilingLayer, WarpField},
 };
 use serde_json::{Value, json};
 use std::{
     f64::consts::PI,
-    fmt::Write as _,
     path::{Path, PathBuf},
     time::Instant,
 };
 
 const BORE_MM: f64 = 18.6;
 const STONE_DEG: f64 = 90.0;
-const TEETH: u32 = 30;
-const SAIL_MM: f64 = 2.35;
-const SAIL_SPAN_MM: f64 = 1.2;
-const SAIL_TAPER: f64 = 0.35;
-/// The sail's mask: clear of the mound to this far either side of the stone, full height from `SAIL_FULL_DEG` to `SAIL_HOLD_DEG`.
-const SAIL_CLEAR_DEG: f64 = 9.0;
-const SAIL_FULL_DEG: f64 = 20.0;
-const SAIL_HOLD_DEG: f64 = 45.0;
-const SAIL_PALM: f64 = 0.3;
-/// The share of the sail's height the teeth nearest the mound keep.
-const SAIL_SKIRT: f64 = 0.45;
+/// The investment's fill floor, mm (Logan: 0.8 for this ring), and the lost-wax detail floor.
+const MIN_SECTION_MM: f64 = 0.8;
 const HERO: (f64, f64) = (0.55, 0.95);
-/// Across the sail's top, the flat the gable is opened to, mm.
-const SAIL_PLATEAU_MM: f64 = 0.36;
-/// The Flat style's crown exponent, opened from its 8 so the crown carries draft off the crest.
-const CROWN_EXPONENT: f64 = 3.0;
-/// The side faces' tubercles: two staggered rows, this far either side of the face's middle, at this pitch round the ring.
-const HIDE_PITCH_MM: f64 = 1.2;
-const TUBERCLE_ROW_MM: f64 = 0.5;
-const TUBERCLE_D_MM: f64 = 0.74;
-const TUBERCLE_MM: f64 = 0.55;
-const VENTRAL_HALF_DEG: f64 = 35.0;
-const VENTRAL_CELL_MM: f64 = 1.1;
-const VENTRAL_MM: f64 = 0.45;
-/// The dorsal scales on the crown: rows stepping down from the crest, each row a course of plates round the ring.
-const SCALE_ROWS: usize = 4;
-const SCALE_TOP_MM: f64 = 0.6;
-const SCALE_PITCH_MM: f64 = 0.95;
-const SCALE_GROOVE_MM: f64 = 0.36;
-/// The crown's reach for the scales, mm of z from the crest: the sail's foot to short of the edge fillet.
-const SCALE_FROM_MM: f64 = 0.6;
-const SCALE_TO_MM: f64 = 3.45;
+/// The painted atlas the animal is modelled on.
 const AW: usize = 2048;
-const AH: usize = 768;
+const AH: usize = 640;
+/// The alpha's full scale, mm: the tallest the relief may stand.
+const TOP_MM: f64 = 3.4;
+
+/// Along the animal from the snout tip, mm: where the stone sits on the skull (the parietal), and how far short of the
+/// snout the tail tip stops.
+const STONE_T: f64 = 9.8;
+/// Along the animal: the eyes' centres, ahead of the stone.
+const EYE_T: f64 = 5.5;
+const GAP_MM: f64 = 5.0;
+/// The seat: the mound's top over the band.
+const SEAT_MM: f64 = 2.6;
 
 fn params(draft: bool) -> BuildParams {
     let (t, p) = if draft { (768, 320) } else { (1536, 448) };
@@ -77,51 +58,409 @@ fn smoothstep(a: f64, b: f64, x: f64) -> f64 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// Degrees from `theta` to `centre` the short way round.
-fn off(theta: f64, centre: f64) -> f64 {
-    (theta - centre + 540.0).rem_euclid(360.0) - 180.0
+/// Polynomial smooth maximum, `k` mm of blend.
+fn smax(a: f64, b: f64, k: f64) -> f64 {
+    let h = (0.5 + 0.5 * (a - b) / k).clamp(0.0, 1.0);
+    b + (a - b) * h + k * h * (1.0 - h)
 }
 
-/// The thickness-keyed Flat band in Delft sand: deep under the stone, the palm the reference and the tightest station.
+/// Monotone cubic through `knots` at `x`, clamped to their range.
+fn pchip(knots: &[(f64, f64)], x: f64) -> f64 {
+    let n = knots.len();
+    let x = x.clamp(knots[0].0, knots[n - 1].0);
+    let h: Vec<f64> = (0..n - 1).map(|i| knots[i + 1].0 - knots[i].0).collect();
+    let delta: Vec<f64> = (0..n - 1).map(|i| (knots[i + 1].1 - knots[i].1) / h[i]).collect();
+    let mut m = vec![0.0; n];
+    m[0] = delta[0];
+    m[n - 1] = delta[n - 2];
+    for i in 1..n - 1 {
+        if delta[i - 1] * delta[i] > 0.0 {
+            let (w1, w2) = (2.0 * h[i] + h[i - 1], h[i] + 2.0 * h[i - 1]);
+            m[i] = (w1 + w2) / (w1 / delta[i - 1] + w2 / delta[i]);
+        }
+    }
+    let i = (0..n - 1).find(|&i| x <= knots[i + 1].0).unwrap_or(n - 2);
+    let t = (x - knots[i].0) / h[i];
+    let (t2, t3) = (t * t, t * t * t);
+    knots[i].1 * (2.0 * t3 - 3.0 * t2 + 1.0) + h[i] * m[i] * (t3 - 2.0 * t2 + t) + knots[i + 1].1 * (3.0 * t2 - 2.0 * t3) + h[i] * m[i + 1] * (t3 - t2)
+}
+
+/// The body's half-width in plan, mm, along the animal from the snout tip: the beak, the broad skull behind the eyes, the
+/// neck, the barrel, the pelvis and the long tapering tail.
+const WIDTH: [(f64, f64); 19] = [
+    (0.0, 0.5),
+    (0.5, 1.3),
+    (1.5, 1.9),
+    (3.0, 2.5),
+    (5.0, 2.95),
+    (7.5, 3.3),
+    (10.0, 3.45),
+    (12.0, 3.35),
+    (13.5, 2.95),
+    (15.0, 2.5),
+    (16.5, 2.6),
+    (19.0, 3.7),
+    (23.0, 4.2),
+    (27.0, 4.0),
+    (30.0, 3.4),
+    (33.0, 3.0),
+    (45.0, 2.5),
+    (60.0, 1.8),
+    (80.0, 0.7),
+];
+/// The body's height over the band on its midline, mm.
+const HEIGHT: [(f64, f64); 16] = [
+    (0.0, 0.5),
+    (0.6, 0.85),
+    (2.0, 1.15),
+    (4.0, 1.45),
+    (6.5, 1.7),
+    (9.5, 1.85),
+    (12.0, 1.75),
+    (13.5, 1.4),
+    (15.0, 1.25),
+    (19.0, 1.35),
+    (24.0, 1.4),
+    (29.0, 1.25),
+    (33.0, 1.15),
+    (45.0, 1.1),
+    (60.0, 0.9),
+    (80.0, 0.55),
+];
+/// The crest's height over the body, mm: the comb tallest at the nape and over the shoulders, lower down the back, a
+/// break at the hips, then a low saw down the tail to the tip.
+const CREST: [(f64, f64); 16] = [
+    (12.9, 0.0),
+    (13.8, 0.8),
+    (15.0, 1.2),
+    (17.0, 1.2),
+    (19.5, 1.15),
+    (21.5, 0.85),
+    (24.0, 0.65),
+    (27.0, 0.6),
+    (28.5, 0.35),
+    (29.5, 0.0),
+    (32.0, 0.0),
+    (33.2, 0.45),
+    (36.0, 0.5),
+    (50.0, 0.42),
+    (65.0, 0.3),
+    (80.0, 0.2),
+];
+/// The crest's half-thickness at its foot and at its top, mm.
+const CREST_FOOT_MM: f64 = 0.6;
+const CREST_TOP_MM: f64 = 0.17;
+
+/// One leg on one side: a chain of joints in (along the animal, out from the midline) mm, each with its tube radius and how
+/// high the tube's floor stands over the band, then the foot's heading and five toe lengths.
+struct Leg {
+    joints: [(f64, f64, f64, f64); 3],
+    heading: (f64, f64),
+    toes: [f64; 5],
+}
+
+/// The painted animal.
+struct Tuatara {
+    /// The band's rim (where the crown turns down into the side face) and wall below it, typical, mm.
+    rim: f64,
+    /// Along the animal from the snout tip to the tail's tip, mm.
+    end: f64,
+    /// Along the parting line: the stone's place is 0; the snout is this far round toward 0 deg.
+    reach: f64,
+    /// The seat's radius on the skull, mm, and its mound's top.
+    seat_r: f64,
+    legs: Vec<Leg>,
+    /// The crest's tooth phase along the animal, tabulated every 0.01 mm.
+    phase: Vec<f64>,
+}
+
+const PHASE_STEP: f64 = 0.01;
+
+impl Tuatara {
+    fn new(rim: f64, reach: f64, seat_r: f64) -> Self {
+        let end = 2.0 * reach - GAP_MM;
+        let front = Leg { joints: [(18.3, 2.6, 0.66, 0.9), (20.5, rim + 0.7, 0.54, 0.45), (17.9, rim + 1.0, 0.44, 0.1)], heading: (-0.95, 0.3), toes: [0.75, 1.05, 1.25, 1.1, 0.8] };
+        let hind = Leg { joints: [(27.4, 2.4, 0.82, 0.85), (25.6, rim + 0.8, 0.64, 0.45), (28.8, rim + 1.05, 0.48, 0.1)], heading: (0.95, 0.3), toes: [0.8, 1.1, 1.35, 1.2, 0.9] };
+        // Teeth a little over a millimetre apart on the back, closing to 0.8 mm at the tail's tip.
+        let n = (end / PHASE_STEP) as usize + 2;
+        let mut phase = vec![0.0; n];
+        for k in 1..n {
+            let t = k as f64 * PHASE_STEP;
+            let pitch = pchip(&[(12.0, 1.4), (30.0, 1.5), (40.0, 1.15), (80.0, 0.8)], t);
+            phase[k] = phase[k - 1] + PHASE_STEP / pitch;
+        }
+        Self { rim, end, reach, seat_r, legs: vec![front, hind], phase }
+    }
+
+    /// Along the animal from the snout tip, for a point `along` mm from the stone round the parting line.
+    fn t_of(&self, along: f64) -> f64 {
+        (along + STONE_T).rem_euclid(2.0 * self.reach)
+    }
+
+    /// The tail's sway off the midline, mm: none on the body, a slow S down the tail that opens toward the tip.
+    fn centre(&self, t: f64) -> f64 {
+        if t < 32.0 {
+            return 0.0;
+        }
+        let amp = 0.25 + 1.1 * smoothstep(40.0, self.end, t);
+        let c = amp * smoothstep(32.0, 38.0, t) * (2.0 * PI * (t - 32.0) / 30.0).sin();
+        let w = self.width(t);
+        let room = (self.rim - 0.3 - w).max(0.0);
+        c.clamp(-room, room)
+    }
+
+    fn width(&self, t: f64) -> f64 {
+        // The table runs to 80 mm; a longer tail stretches its last stretch.
+        let tt = if t > 34.0 { 34.0 + (t - 34.0) * (80.0 - 34.0) / (self.end - 34.0) } else { t };
+        let mut w = pchip(&WIDTH, tt);
+        // Rounded ends: the beak's tip and the tail's tip.
+        let cap = 0.5;
+        if t > self.end - cap {
+            w *= (1.0 - ((t - (self.end - cap)) / cap).powi(2)).max(0.0).sqrt();
+        }
+        if t < 0.0 {
+            w = 0.0;
+        }
+        w
+    }
+
+    fn height(&self, t: f64) -> f64 {
+        let tt = if t > 34.0 { 34.0 + (t - 34.0) * (80.0 - 34.0) / (self.end - 34.0) } else { t };
+        pchip(&HEIGHT, tt)
+    }
+
+    fn crest(&self, t: f64) -> f64 {
+        let tt = if t > 34.0 { 34.0 + (t - 34.0) * (80.0 - 34.0) / (self.end - 34.0) } else { t };
+        if tt < CREST[0].0 {
+            return 0.0;
+        }
+        pchip(&CREST, tt) * (1.0 - smoothstep(self.end - 1.5, self.end - 0.2, t))
+    }
+
+    /// The trunk (head, neck, body and tail) as a raised figure: domed across, a crisp fall at its outline. Returns the
+    /// height and the share across (0 on the midline, 1 at the outline).
+    fn trunk(&self, t: f64, x: f64) -> (f64, f64) {
+        if t > self.end {
+            return (0.0, 2.0);
+        }
+        let w = self.width(t);
+        if w <= 1e-3 {
+            return (0.0, 2.0);
+        }
+        let u = (x - self.centre(t)) / w;
+        if u.abs() >= 1.0 {
+            return (0.0, u.abs());
+        }
+        let head = 1.0 - smoothstep(11.5, 14.5, t);
+        let e = 0.42 + 0.1 * head;
+        (self.height(t) * (1.0 - u * u).powf(e), u.abs())
+    }
+
+    /// The fin on the midline: a blade whose top is a row of backswept triangular spines standing on a continuous web.
+    fn fin(&self, t: f64, x: f64) -> f64 {
+        let f = self.crest(t);
+        if f <= 0.0 {
+            return 0.0;
+        }
+        let d = (x - self.centre(t)).abs();
+        if d >= CREST_FOOT_MM {
+            return 0.0;
+        }
+        let k = ((t / PHASE_STEP) as usize).min(self.phase.len() - 1);
+        let s = self.phase[k].fract();
+        // Backswept: the spine's front edge is long, its back edge short.
+        let peak = 0.68;
+        let tooth = if s < peak { s / peak } else { (1.0 - s) / (1.0 - peak) };
+        let tooth = tooth.powf(0.9);
+        let top = f * (0.3 + 0.7 * tooth);
+        let blade = f * ((CREST_FOOT_MM - d) / (CREST_FOOT_MM - CREST_TOP_MM)).clamp(0.0, 1.0);
+        // Round the blade's foot into the back.
+        top.min(blade) * smoothstep(0.0, 0.12, CREST_FOOT_MM - d)
+    }
+
+    /// The head's features on the skull: eyes in raised lids with a deep pupil, brow ridges, nostrils, the mouth line.
+    fn head(&self, t: f64, x: f64, base: f64) -> f64 {
+        if t > 14.0 || base <= 0.0 {
+            return base;
+        }
+        let mut h = base;
+        let ax = x.abs();
+        let w = self.width(t);
+        // The beak: the snout's tip swells a little over the jaw, and the mouth line hooks down under it.
+        h += 0.16 * (1.0 - smoothstep(0.2, 1.4, t)) * smoothstep(0.0, 0.25, t) * (1.0 - smoothstep(0.3, 0.9, ax / w.max(0.3)));
+        // The mouth line: a groove down each side of the head from the beak back to below the eye's rear.
+        if t < 9.0 && w > 0.5 {
+            let line = (ax - 0.84 * w).abs();
+            let depth = 0.3 * smoothstep(0.25, 1.0, t) * (1.0 - smoothstep(7.8, 9.0, t));
+            h -= depth * (1.0 - smoothstep(0.0, 0.15, line));
+        }
+        // Nostrils.
+        let n = ((t - 1.0).powi(2) + (ax - 0.62).powi(2)).sqrt();
+        h -= 0.24 * (1.0 - smoothstep(0.12, 0.25, n));
+        // The eyes: a big domed ball in a narrow socket, a deep round pupil, under a heavy brow.
+        let (et, ex, er) = (EYE_T, 1.95, 1.02);
+        let (b0, b1) = ((et - 1.35, 1.3), (et + 1.4, 1.5));
+        let (br, along) = seg_dist((t, ax), b0, b1);
+        h += 0.38 * (4.0 * along * (1.0 - along)).sqrt() * (1.0 - smoothstep(0.12, 0.42, br));
+        let r = ((t - et).powi(2) + (ax - ex).powi(2)).sqrt();
+        if r < er + 0.19 {
+            let ball = if r < er { 0.72 * (1.0 - (r / er).powi(2)).sqrt() } else { 0.0 };
+            let socket = -0.2 * (1.0 - ((r - er - 0.05) / 0.14).powi(2)).max(0.0);
+            // The upper lid: a crescent on the midline side of the ball, heavy over its top.
+            let side = smoothstep(0.1, 0.6, (ex - ax) / er);
+            let lid = side * 0.5 * (1.0 - ((r - er + 0.06) / 0.2).powi(2)).max(0.0);
+            let socket = socket.max(lid - 0.2);
+            let pupil = -0.5 * (1.0 - smoothstep(0.2, 0.3, r));
+            h = base + ball + socket + pupil;
+        }
+        h
+    }
+
+    /// The legs on both sides: tapering tubes from shoulder and hip down over the rim onto the side faces, and splayed toes
+    /// gripping the side face. Returns the height, or 0.
+    fn legs(&self, t: f64, x: f64, limit: f64) -> f64 {
+        let ax = x.abs();
+        let mut best: f64 = 0.0;
+        for leg in &self.legs {
+            let j = leg.joints;
+            for s in 0..2 {
+                let (p, q) = ((j[s].0, j[s].1), (j[s + 1].0, j[s + 1].1));
+                let (d, f) = seg_dist((t, ax), p, q);
+                let r = j[s].2 + (j[s + 1].2 - j[s].2) * f;
+                // A muscle's swell a third of the way down each bone.
+                let r = r * (1.0 + 0.16 * (PI * f).sin());
+                if d < r {
+                    let floor = j[s].3 + (j[s + 1].3 - j[s].3) * f;
+                    best = best.max(floor + 1.1 * r * (1.0 - (d / r).powi(2)).sqrt());
+                }
+            }
+            // The foot: five toes fanned round the heading, each a tapering tube with a claw.
+            let (w0, w1) = (j[2].0, j[2].1);
+            let base_ang = leg.heading.1.atan2(leg.heading.0);
+            for (k, len) in leg.toes.iter().enumerate() {
+                let ang = base_ang + (k as f64 - 2.0) * 0.5;
+                let tip = (w0 + len * ang.cos(), w1 + len * ang.sin());
+                let (d, f) = seg_dist((t, ax), (w0, w1), tip);
+                let r = 0.26 * (1.0 - 0.4 * f) + 0.05 * (PI * f * 2.0).sin().max(0.0);
+                if d < r {
+                    best = best.max(0.36 * (1.0 - 0.35 * f) * (1.0 - (d / r).powi(2)).sqrt());
+                }
+            }
+            // The palm the toes spring from.
+            let d = ((t - w0).powi(2) + (ax - w1).powi(2)).sqrt();
+            if d < 0.45 {
+                best = best.max(0.4 * (1.0 - (d / 0.45).powi(2)).sqrt());
+            }
+        }
+        // Nothing past the side face's bore edge.
+        best * (1.0 - smoothstep(limit - 0.45, limit - 0.15, ax))
+    }
+
+    /// The skin: fine granules everywhere on the animal, larger scattered tubercles in loose rows down the flanks, and on the
+    /// tail rings of squarish scales.
+    fn skin(&self, t: f64, x: f64, along: f64, share: f64) -> f64 {
+        let (f1, f2, _, _) = voronoi(along, x, 0.46, 11);
+        let granule = 0.09 * smoothstep(0.0, 0.14, f2 - f1) * (0.55 + 0.45 * (1.0 - f1 / 0.36).max(0.0));
+        let head = 1.0 - smoothstep(12.0, 14.0, t);
+        let granule = granule * (1.0 - 0.7 * head);
+        // Enlarged tubercles on the flanks, sparse and of mixed size.
+        let (g1, _, id, _) = voronoi(along, x, 1.25, 23);
+        let pick = skin::hash(id.0, id.1 + 7);
+        let size = 0.3 + 0.18 * skin::hash(id.0 + 3, id.1);
+        let flank = smoothstep(0.3, 0.45, share) * (1.0 - smoothstep(0.82, 0.95, share)) * (1.0 - head) * (1.0 - smoothstep(55.0, 70.0, t));
+        let tubercle = if pick > 0.35 && g1 < size { (0.22 + 0.16 * skin::hash(id.1, id.0)) * (1.0 - g1 / size).powf(1.2) * flank } else { 0.0 };
+        // The tail's whorls: rings of squarish scales, each row staggered.
+        let tail = smoothstep(33.0, 37.0, t);
+        let pitch = 0.95 - 0.25 * smoothstep(40.0, self.end, t);
+        let row = (t / pitch).floor();
+        let fr = (t / pitch).fract();
+        let cw = 0.75;
+        let col = (x / cw + 0.5 * (row as i64 % 2) as f64).fract().abs();
+        let edge = fr.min(1.0 - fr) * pitch;
+        let edge2 = col.min(1.0 - col) * cw;
+        let whorl = 0.1 * smoothstep(0.0, 0.1, edge) * smoothstep(0.0, 0.1, edge2);
+        let skin = granule * (1.0 - tail) + whorl * tail;
+        skin.max(tubercle)
+    }
+
+    /// The whole relief at one hide point, mm over the band.
+    fn relief(&self, hp: HidePoint) -> f64 {
+        let t = self.t_of(hp.along);
+        let x = hp.across;
+        let limit = hp.rim + hp.wall;
+        let (body, share) = self.trunk(t, x);
+        let body = self.head(t, x, body);
+        let legs = self.legs(t, x, limit);
+        let inside = smoothstep(0.0, 0.08, body.max(legs));
+        let skin = if inside > 0.0 { self.skin(t, x, hp.along, share.min(1.0)) * inside } else { 0.0 };
+        let form = if legs > 0.0 { smax(body, legs, 0.25) } else { body };
+        let form = if form > 0.0 { form + skin } else { 0.0 };
+        (form + self.fin(t, x)).clamp(0.0, TOP_MM)
+    }
+}
+
+/// Distance from `p` to the segment `a`–`b`, and how far along it the nearest point is.
+fn seg_dist(p: (f64, f64), a: (f64, f64), b: (f64, f64)) -> (f64, f64) {
+    let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+    let l2 = (dx * dx + dy * dy).max(1e-12);
+    let f = (((p.0 - a.0) * dx + (p.1 - a.1) * dy) / l2).clamp(0.0, 1.0);
+    (((p.0 - a.0 - f * dx).powi(2) + (p.1 - a.1 - f * dy).powi(2)).sqrt(), f)
+}
+
+/// Jittered cells of about `g` mm: the nearest and second-nearest seed distances, the nearest seed's cell, and its seed.
+fn voronoi(u: f64, v: f64, g: f64, salt: i64) -> (f64, f64, (i64, i64), (f64, f64)) {
+    let (i0, j0) = ((u / g).floor() as i64, (v / g).floor() as i64);
+    let (mut f1, mut f2, mut id, mut seed) = (f64::MAX, f64::MAX, (0, 0), (0.0, 0.0));
+    for di in -1..=1 {
+        for dj in -1..=1 {
+            let (i, j) = (i0 + di, j0 + dj);
+            let px = (i as f64 + 0.15 + 0.7 * skin::hash(i, j * 31 + salt)) * g;
+            let py = (j as f64 + 0.15 + 0.7 * skin::hash(i * 17 + salt, j)) * g;
+            let d = ((u - px).powi(2) + (v - py).powi(2)).sqrt();
+            if d < f1 {
+                f2 = f1;
+                f1 = d;
+                id = (i, j);
+                seed = (px, py);
+            } else if d < f2 {
+                f2 = d;
+            }
+        }
+    }
+    (f1, f2, id, seed)
+}
+
+/// The Flat band in lost wax: thickness keyed a touch deeper under the head, lighter at the palm.
 fn band() -> RingDesign {
     let mut d = RingDesign { name: "Sphenodon \u{2014} the parietal".into(), ..RingDesign::default() };
     d.profile.width_mm = 7.5;
-    d.profile.thickness_mm = 3.4;
+    d.profile.thickness_mm = 2.5;
     d.profile.apply_style(ProfileStyle::Flat);
-    d.profile.crown_mm = 1.2;
-    d.profile.shape_a = CROWN_EXPONENT;
+    d.profile.crown_mm = 0.8;
     d.profile.flatten_sides();
     d.profile.comfort_fit_mm = 0.15;
     d.size = ringdesign_core::resize::size_from_bore(BORE_MM).expect("bore");
     d.shank.kind = ShankKind::Keyframes;
     d.shank.amount = 1.0;
     let key = |theta_deg: f64, thickness_scale: f64| ShankKey { theta_deg, width_scale: 1.0, thickness_scale, crown_scale: 1.0 };
-    d.shank.keys = vec![key(0.0, 1.05), key(90.0, 1.18), key(180.0, 1.05), key(270.0, 1.0)];
-    let mut setup = mf::Setup::default();
-    setup.recipe = mf::Recipe::sand(SandProcess::DelftClay);
-    setup.recipe.name = format!("{} / Delft clay", d.name);
+    d.shank.keys = vec![key(0.0, 1.0), key(90.0, 1.05), key(180.0, 1.0), key(270.0, 0.9)];
+    CastProcess::LostWax.apply(&mut d.draft);
+    d.draft.min_section_mm = MIN_SECTION_MM;
+    d.draft.min_draft_deg = 0.0;
+    let mut setup = mf::Setup::from_design(&d);
+    setup.recipe.name = format!("{} / investment / Silver 925", d.name);
     setup.recipe.alloy = "Silver 925".into();
+    setup.recipe.sand = None;
     setup.recipe.shrink_pct = ringdesign_core::metal::find("Silver 925").unwrap().shrink_pct;
+    setup.recipe.calibration_note = "Starting shrink allowance; confirm with the caster's alloy, wax and measured trials.".into();
     setup.sample_pitch_mm = 0.1;
     setup.auto_parting = false;
     setup.parting_mm = 0.0;
-    setup.flask.width_mm = 80.0;
-    setup.flask.length_mm = 80.0;
-    let palm = d.inner_radius_mm() + d.profile.thickness_mm - 0.2;
-    setup.channels = vec![
-        mf::Channel { kind: mf::ChannelKind::Gate, start: [0.0, -palm, 0.0], end: [0.0, -21.0, 0.0], diameter_mm: 4.0 },
-        mf::Channel { kind: mf::ChannelKind::Sprue, start: [0.0, -21.0, 0.0], end: [0.0, -33.0, 0.0], diameter_mm: 6.0 },
-    ];
-    setup.bench_notes = "Procedural Flat band, thickness keyed deep under the stone. A tuatara's serrated sail stands on the parting line, \
-        its teeth tallest over the shoulders and grading down to a low saw at the palm; it parts round a gypsy mound on the spine that \
-        carries a 3.0 mm round peridot flush. Z=0 parting, opposed Z withdrawal. At the bench: drill from the raised dot and cut the flush \
-        seat, set the peridot; polish the sail's teeth and the ribbon either side of it; leave the granular side faces satin."
+    setup.bench_notes = "Lost wax. A tuatara lies round the band: its head on the face with a 3.0 mm round peridot set flush in a mound on the crown \
+        of the skull, ringed with beads; its crest a serrated fin from the nape to the tail tip. Sprue from the palm. At the bench: drill from \
+        the raised dot and cut the flush seat, set the peridot; clean the fin's spines and the toes with a fine graver; polish the ground, \
+        leave the skin satin."
         .into();
-    d.draft.process = setup.recipe.process;
-    d.draft.sand = setup.recipe.sand;
-    d.draft.min_detail_mm = setup.recipe.min_detail_mm;
-    d.draft.min_section_mm = setup.recipe.min_section_mm;
-    d.draft.min_draft_deg = setup.recipe.min_draft_deg;
     d.manufacturing = Some(setup);
     d
 }
@@ -130,229 +469,52 @@ fn peridot() -> Gem {
     Gem { preview_tint: Some([0.50, 0.78, 0.12]), ..Gem::calibrated(GemCut::Round, 3.0) }
 }
 
-/// A u-only mask: `f(theta)` as black ink over a thin strip, one stop per degree, the same down every row.
-fn u_mask(f: impl Fn(f64) -> f64) -> String {
-    let mut s = String::from(r##"<svg xmlns="http://www.w3.org/2000/svg" width="360" height="8" viewBox="0 0 360 8"><defs><linearGradient id="m" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="360" y2="0">"##);
-    for k in 0..=360 {
-        let t = k as f64;
-        let _ = write!(s, r##"<stop offset="{:.5}" stop-color="#000" stop-opacity="{:.4}"/>"##, t / 360.0, f(t).clamp(0.0, 1.0));
-    }
-    s.push_str(r##"</linearGradient></defs><rect width="360" height="8" fill="url(#m)"/></svg>"##);
+fn seat() -> SeatPadLayer {
+    let mut s = SeatPadLayer { theta_deg: STONE_DEG, v_mm: 0.0, style: SeatStyle::GypsyMound, crown: 1.0, blend_mm: 0.35, solid: SolidKind::Flush, through: true, ..SeatPadLayer::default() };
+    s.fit_stone(peridot());
+    s.crown = 0.55;
+    s.height_mm = SEAT_MM;
+    s.mark_mm = 0.6;
     s
-}
-
-/// The sail's height round the ring: low teeth at the mound's skirt, full over both shoulders, a low saw at the palm.
-fn sail_height(theta: f64) -> f64 {
-    let a = off(theta, STONE_DEG).abs();
-    if a < SAIL_CLEAR_DEG {
-        return 0.0;
-    }
-    let rise = (SAIL_SKIRT + (1.0 - SAIL_SKIRT) * smoothstep(SAIL_CLEAR_DEG, SAIL_FULL_DEG, a)) * smoothstep(SAIL_CLEAR_DEG, SAIL_CLEAR_DEG + 1.0, a);
-    let fall = 0.5 + 0.5 * (PI * ((a - SAIL_HOLD_DEG).max(0.0) / (180.0 - SAIL_HOLD_DEG))).cos();
-    rise * (SAIL_PALM + (1.0 - SAIL_PALM) * fall)
-}
-
-/// The crown's dorsal scales, mm over the crown at `along` mm round the ring and `z` mm across: courses of plates stepping down from the crest, the plates of each course staggered a half pitch from the last and parted by grooves no deeper than the step, so nothing rises walking away from the parting line.
-fn dorsal_scales(along: f64, z: f64) -> f64 {
-    let a = z.abs();
-    if a >= SCALE_TO_MM {
-        return 0.0;
-    }
-    let width = (SCALE_TO_MM - SCALE_FROM_MM) / SCALE_ROWS as f64;
-    let k = if a < SCALE_FROM_MM { 0 } else { (((a - SCALE_FROM_MM) / width) as usize).min(SCALE_ROWS - 1) };
-    let step = SCALE_TOP_MM / SCALE_ROWS as f64;
-    let top = SCALE_TOP_MM - step * k as f64;
-    // Round the ring: a plate with rounded shoulders, then a groove as deep as one step.
-    let shift = if k % 2 == 1 { 0.5 * SCALE_PITCH_MM } else { 0.0 };
-    let x = (along - shift).rem_euclid(SCALE_PITCH_MM);
-    let from_joint = x.min(SCALE_PITCH_MM - x);
-    let half = 0.5 * (SCALE_PITCH_MM - SCALE_GROOVE_MM);
-    let plate = (1.0 - ((0.5 * SCALE_PITCH_MM - from_joint) / (half + 0.5 * SCALE_GROOVE_MM)).powi(2)).max(0.0).sqrt() * smoothstep(0.0, 0.5 * SCALE_GROOVE_MM + 0.05, from_joint);
-    // Across, each plate eases down a little toward its outer edge, never below the next course.
-    let row_from = if k == 0 { 0.0 } else { SCALE_FROM_MM + width * k as f64 };
-    let row_to = SCALE_FROM_MM + width * (k + 1) as f64;
-    let ease = 0.45 * step * smoothstep(row_from, row_to, a);
-    top - step + (step - ease) * plate
 }
 
 struct Layers {
     names: Vec<String>,
-    /// What the draft rule took from each painted layer as it was painted.
-    bites: Vec<(String, skin::ClampReport)>,
+    rim: f64,
+    wall: f64,
+    seat_r: f64,
 }
 
-/// The sail's tooth: the C-R7 generator round the ring, its gable opened to a plateau across the parting line so a mesh row either side of it cannot tip the apex off the plane.
-fn sail_svg(pitch: f64) -> String {
-    let svg = rsvg::sail(&Params::new(pitch, SAIL_SPAN_MM, 0.4, 1.0));
-    let half = 0.5 * SAIL_PLATEAU_MM / SAIL_SPAN_MM;
-    let peak = r##"<stop offset="0.5000" stop-color="#000" stop-opacity="1.0000"/>"##;
-    assert!(svg.contains(peak), "the sail generator's gable changed");
-    svg.replacen(peak, &format!(r##"<stop offset="{:.4}" stop-color="#000" stop-opacity="1.0000"/><stop offset="{:.4}" stop-color="#000" stop-opacity="1.0000"/>"##, 0.5 - half, 0.5 + half), 1)
-}
-
-/// The side faces' tile: two staggered rows of enlarged tubercles, `cols` to a row, spread across the face's height, each a dome.
-fn hide_tile(w: f64, h: f64, cols: usize) -> String {
-    let pitch = w / cols as f64;
-    let mut body = String::new();
-    let mut defs = String::from(r##"<radialGradient id="g" cx="0.5" cy="0.5" r="0.5">"##);
-    for k in 0..=10 {
-        let t = k as f64 / 10.0;
-        let _ = write!(defs, r##"<stop offset="{:.3}" stop-color="#000" stop-opacity="{:.4}"/>"##, 0.35 + 0.65 * t, (1.0 - t * t).sqrt());
-    }
-    defs.push_str("</radialGradient>");
-    // The 0.5 iso-line sits at 0.35 + 0.65 * sqrt(0.75) of the radius.
-    let r = 0.5 * TUBERCLE_D_MM / (0.35 + 0.65 * 0.75f64.sqrt());
-    for (j, y) in [0.5 * h - TUBERCLE_ROW_MM, 0.5 * h + TUBERCLE_ROW_MM].into_iter().enumerate() {
-        for i in 0..cols {
-            let x = (i as f64 + 0.25 + 0.5 * j as f64) * pitch;
-            for dx in [-w, 0.0, w] {
-                let cx = x + dx;
-                if cx + r > 0.0 && cx - r < w {
-                    let _ = write!(body, r##"<circle cx="{cx:.4}" cy="{y:.4}" r="{r:.4}" fill="url(#g)"/>"##);
-                }
-            }
-        }
-    }
-    format!(r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}" height="{h:.4}" viewBox="0 0 {w:.4} {h:.4}"><defs>{defs}</defs>{body}</svg>"##)
-}
-
-/// The ventral field round the palm: full over 270 +- 35 deg, fading over 12 deg either side.
-fn ventral(theta: f64) -> f64 {
-    1.0 - smoothstep(VENTRAL_HALF_DEG, VENTRAL_HALF_DEG + 12.0, off(theta, 270.0).abs())
-}
-
-/// A tiling fitted to both side faces, graded about the stone.
-fn side_tiling(alpha: &str, ctx: &ringdesign_core::FieldContext, height: f64, repeats: u32, taper: f64) -> Result<TilingLayer> {
-    let mut t = TilingLayer::default_for(alpha, ctx);
-    ensure!(t.fit_to_side_faces(ctx, SIDE_FACE_MIN_DRAFT_DEG), "the band has no side faces");
-    t.height_mm = height;
-    t.repeats_around = repeats;
-    if taper > 0.0 {
-        t.grade = Some(TileGrade { taper, theta_deg: STONE_DEG, law: GradeLaw::Cosine, isotropic: false });
-    }
-    Ok(t)
-}
-
-/// The design at `stage`: the block-out carries the band, the sail, the hide's rows and the stone.
-fn design(block_out: bool) -> Result<(RingDesign, AlphaLibrary, Layers)> {
+/// The design: the band, the painted tuatara, and the parietal seat.
+fn design(_block_out: bool) -> Result<(RingDesign, AlphaLibrary, Layers)> {
     let mut d = band();
     let ctx = d.field_context();
-    let pitch = ctx.circumference_mm / TEETH as f64;
-    d.svgs.push(SvgAlpha { name: "Sail".into(), svg: sail_svg(pitch), invert: false });
-    d.svgs.push(SvgAlpha { name: "Sail height".into(), svg: u_mask(sail_height), invert: false });
-    let mut t = TilingLayer::default_for("Sail", &ctx);
-    t.repeats_around = TEETH;
-    t.rows = 1;
-    t.v_center_mm = ctx.crest_v_mm;
-    t.v_span_mm = SAIL_SPAN_MM;
-    t.feather_mm = 0.0;
-    t.height_mm = SAIL_MM;
-    t.offset_u = 0.5;
-    t.grade = Some(TileGrade { taper: SAIL_TAPER, theta_deg: STONE_DEG, law: GradeLaw::Cosine, isotropic: false });
-    let mut sail = LayerEntry::new("The sail", Layer::Tiling(t));
-    sail.blend = Blend::Max;
-    sail.mask = Some("Sail height".into());
-    d.layers.layers.push(sail);
-
-    // The crown's dorsal scales, painted on the bare band's atlas and held to the sand's draft rule.
     let a = Atlas::of(&d, AW, AH)?;
-    let circ = ctx.circumference_mm;
-    let mut alpha = a.paint("Dorsal scales", |s| dorsal_scales(s.theta / 360.0 * circ, s.p[2]) / SCALE_TOP_MM);
-    let bite = skin::draft_clamp(&a, &mut alpha, SCALE_TOP_MM)?;
-    println!("  Dorsal scales: the draft rule cut {} texels, at most {:.3} mm", bite.texels_cut, bite.worst_mm);
-    let mut bites = vec![("Dorsal scales".to_string(), bite)];
-    let scales = ringdesign_core::Alpha::from_png16("Dorsal scales", &alpha.to_png16()?)?;
-    let mut e = skin::hide_layer(&d, "Dorsal scales", SCALE_TOP_MM, ringdesign_core::field::Window::default());
+    let hide = Hide::of(&a);
+    let col = AW / 4;
+    let (rim, wall) = (0.5 * (hide.rim[col][0] + hide.rim[col][1]), 0.5 * (hide.wall[col][0] + hide.wall[col][1]));
+    let s = seat();
+    let seat_r = 0.5 * s.diameter_mm;
+    println!("  hide: reach {:.2} mm, rim {rim:.2} mm, wall {wall:.2} mm at the face; seat {:.2} mm", hide.reach(), s.diameter_mm);
+    let animal = Tuatara::new(rim, hide.reach(), seat_r);
+    let alpha = a.paint("Tuatara", |smp| animal.relief(hide.at(smp)) / TOP_MM);
+    let tuatara = ringdesign_core::Alpha::from_png16("Tuatara", &alpha.to_png16()?)?;
+    let e = skin::hide_layer(&d, "Tuatara", TOP_MM, Window::default());
+    d.layers.layers.push(e);
+
+    let mut s = s;
+    s.v_mm = ctx.crest_v_mm;
+    let mut e = LayerEntry::new("Parietal peridot", Layer::SeatPad(s));
     e.blend = Blend::Max;
     d.layers.layers.push(e);
-    let mut painted = vec![scales];
-
-    if block_out {
-        return finish(d, painted, bites);
-    }
-    // The side faces: granular skin with a row of enlarged tubercles, wandering along the ring.
-    let faces = ctx.side_faces(SIDE_FACE_MIN_DRAFT_DEG).and_then(|f| f.low).ok_or_else(|| anyhow::anyhow!("no low side face"))?;
-    let face_h = faces.1 - faces.0;
-    let cols = 2usize;
-    let repeats = (ctx.circumference_mm / (cols as f64 * HIDE_PITCH_MM)).round() as u32;
-    println!("  side face {:.2} mm tall, {repeats} tubercle tiles", face_h);
-    d.svgs.push(SvgAlpha { name: "Tubercle rows".into(), svg: hide_tile(ctx.circumference_mm / repeats as f64, face_h, cols), invert: false });
-    d.svgs.push(SvgAlpha { name: "Dorsal field".into(), svg: u_mask(|t| 1.0 - ventral(t)), invert: false });
-    let mut t = side_tiling("Tubercle rows", &ctx, TUBERCLE_MM, repeats, 0.0)?;
-    let mid = 0.5 * (faces.0 + faces.1);
-    t.warp = Some(WarpField { points: (0..8).map(|k| [k as f64 / 8.0, mid + if k % 2 == 0 { 0.25 } else { -0.25 }]).collect(), strength: 0.8, falloff_mm: 2.5 });
-    let mut e = LayerEntry::new("Tubercle rows", Layer::Tiling(t));
-    e.blend = Blend::SmoothMax;
-    e.soft_mm = 0.2;
-    e.window.v_gate = VGate::SideFaces(SideFacePick::Both);
-    e.mask = Some("Dorsal field".into());
-    d.layers.layers.push(e);
-
-    // The belly round the palm: squarish ventral scales.
-    let rows = (face_h / VENTRAL_CELL_MM).round().max(1.0);
-    let cell_v = face_h / rows;
-    let repeats = (ctx.circumference_mm / VENTRAL_CELL_MM).round() as u32;
-    d.svgs.push(SvgAlpha { name: "Ventral squares".into(), svg: rsvg::paver(&Params::new(ctx.circumference_mm / repeats as f64, cell_v, 0.42, 0.45)), invert: false });
-    d.svgs.push(SvgAlpha { name: "Ventral field".into(), svg: u_mask(ventral), invert: false });
-    let mut t = side_tiling("Ventral squares", &ctx, VENTRAL_MM, repeats, 0.0)?;
-    t.rows = rows as u32;
-    let mut e = LayerEntry::new("Ventral squares", Layer::Tiling(t));
-    e.blend = Blend::SmoothMax;
-    e.soft_mm = 0.2;
-    e.window.v_gate = VGate::SideFaces(SideFacePick::Both);
-    e.mask = Some("Ventral field".into());
-    d.layers.layers.push(e);
-
-    let _ = (&mut painted, &mut bites);
-    finish(d, painted, bites)
-}
-
-/// The parietal seat on the spine, then the bake.
-fn finish(mut d: RingDesign, painted: Vec<ringdesign_core::Alpha>, bites: Vec<(String, skin::ClampReport)>) -> Result<(RingDesign, AlphaLibrary, Layers)> {
-    let ctx = d.field_context();
-    let mut seat = SeatPadLayer { theta_deg: STONE_DEG, v_mm: ctx.crest_v_mm, style: SeatStyle::GypsyMound, crown: 1.0, blend_mm: 0.45, solid: SolidKind::Flush, through: true, ..SeatPadLayer::default() };
-    seat.fit_stone(peridot());
-    seat.height_mm = 1.05;
-    seat.mark_mm = 0.6;
-    let mut e = LayerEntry::new("Parietal peridot", Layer::SeatPad(seat));
-    e.blend = Blend::Max;
-    d.layers.layers.push(e);
-    if std::env::var_os("SPHENODON_BARE").is_some() {
-        d.layers.layers.clear();
-    }
     if let Ok(mute) = std::env::var("SPHENODON_MUTE") {
         d.layers.layers.retain(|e| !mute.split(',').any(|m| m == e.name));
     }
     let mut lib = AlphaLibrary::default();
-    for a in painted {
-        lib.insert(a);
-    }
+    lib.insert(tuatara);
     d.bake_all(&mut lib);
     let names = d.layers.layers.iter().map(|e| e.name.clone()).collect();
-    Ok((d, lib, Layers { names, bites }))
-}
-
-/// The draft rule held over the whole relief: what `skin::draft_clamp` would take from the composite, painted on the bare atlas.
-fn clamp_audit(d: &RingDesign, lib: &AlphaLibrary) -> Result<Vec<(String, skin::ClampReport)>> {
-    let mut bare = d.clone();
-    bare.layers.layers.clear();
-    let a = Atlas::of(&bare, 2048, 256)?;
-    let ctx = d.field_context();
-    let mut out = Vec::new();
-    for e in &d.layers.layers {
-        let mut solo = d.clone();
-        solo.layers.layers = vec![e.clone()];
-        let top = 2.0;
-        let mut alpha = a.paint(e.name.clone(), |s| {
-            let uv = Uv { u: ctx.u_of_theta(s.theta), v: s.v };
-            solo.layers.height(uv, &ctx, lib) / top
-        });
-        let r = skin::draft_clamp(&a, &mut alpha, top)?;
-        out.push((e.name.clone(), r));
-    }
-    let mut alpha = a.paint("composite", |s| d.layers.height(Uv { u: ctx.u_of_theta(s.theta), v: s.v }, &ctx, lib) / 2.0);
-    out.push(("composite".into(), skin::draft_clamp(&a, &mut alpha, 2.0)?));
-    Ok(out)
+    Ok((d, lib, Layers { names, rim, wall, seat_r }))
 }
 
 fn release_json(r: &mf::release::ReleaseReport) -> Value {
@@ -360,12 +522,98 @@ fn release_json(r: &mf::release::ReleaseReport) -> Value {
         "status": format!("{:?}", r.status),
         "obstructions": r.obstructions.len(),
         "unresolved_rays": r.unresolved_rays,
-        "at": r.obstructions.iter().map(|o| json!({ "depth_mm": o.depth_mm, "area_mm2": o.projected_area_mm2, "theta_deg": o.world[1].atan2(o.world[0]).to_degrees().rem_euclid(360.0), "z_mm": o.world[2] })).collect::<Vec<_>>(),
     })
 }
 
 fn solid_of(m: &mesh::Mesh) -> csg::Solid {
     csg::Solid { v: m.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: m.faces.clone() }
+}
+
+/// Which part of the animal a point of the finished ring belongs to, for naming its thin sections.
+fn feature_at(p: [f64; 3], d: &RingDesign, rim: f64) -> &'static str {
+    let theta = p[1].atan2(p[0]).to_degrees().rem_euclid(360.0);
+    let ctx = d.field_context();
+    let along = ((theta - STONE_DEG + 540.0).rem_euclid(360.0) - 180.0).to_radians() * ctx.crest_radius_mm;
+    let t = (along + STONE_T).rem_euclid(2.0 * PI * ctx.crest_radius_mm);
+    let r = p[0].hypot(p[1]);
+    let side = p[2].abs() > 0.5 * d.profile.width_mm - 0.15 && r < ctx.crest_radius_mm - 0.6;
+    if side {
+        return "legs and toes on the side faces";
+    }
+    if p[2].abs() < CREST_FOOT_MM + 0.1 && t > 12.5 {
+        return "the crest's spines";
+    }
+    if t < 14.5 {
+        if (t - STONE_T).hypot(p[2]) < 3.2 {
+            return "the parietal seat";
+        }
+        return "the head: eye lids, brows, nostrils";
+    }
+    if p[2].abs() > rim - 0.8 {
+        return "the legs where they cross the rim";
+    }
+    "skin granules and tubercles"
+}
+
+/// What the bench does with each kind of thin section.
+fn treatment(feature: &str) -> &'static str {
+    match feature {
+        "the crest's spines" => "Fin spines: a blade 1.2 mm at its foot thinning to 0.34 mm at the spine tips; the tips fill from the blade in investment. Clean with a fine graver, do not polish them round.",
+        "legs and toes on the side faces" => "Toes and claws: 0.44 mm tubes standing 0.36 mm off the side face, sections read across a toe; they fill from the band. Keep the claws; no bench work beyond a satin brush.",
+        "the legs where they cross the rim" => "Leg tubes at the rim: relief on the band, read across its flank; fills from the band. Satin brush.",
+        "the parietal seat" => "The mound's lip round the flush seat: fills from the head; burnished over the girdle when the peridot is set.",
+        "the head: eye lids, brows, nostrils" => "Eyes, brows and the mouth line: raised relief on a 1.8 mm skull; fill from the head. Re-cut the pupils with a ball bur if the investment rounds them.",
+        _ => "Skin granules and tubercles: 0.1 to 0.4 mm relief on the body, read across its flank; fill from the body. Leave satin.",
+    }
+}
+
+/// The land-width census: every face of the finished ring read by one ray along its inward normal (as `dfm::part_sections`
+/// reads a part), the area under the fill floor grouped by the feature it belongs to, each with its bench treatment.
+fn land_widths(built: &mesh::BuildResult, d: &RingDesign, rim: f64) -> Value {
+    let m = &built.mesh;
+    let solid = solid_of(m);
+    let (min_all, under_all) = dfm::part_sections(&solid, None, MIN_SECTION_MM);
+    let bvh = Bvh::build(m);
+    const IN: f64 = 1e-4;
+    let mut groups: Vec<(&'static str, f64, f64, usize)> = Vec::new();
+    for f in &solid.f {
+        let [a, b, c] = f.map(|i| solid.v[i as usize]);
+        let e1: [f64; 3] = std::array::from_fn(|k| b[k] - a[k]);
+        let e2: [f64; 3] = std::array::from_fn(|k| c[k] - a[k]);
+        let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+        let twice = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+        if !(twice > 1e-14) {
+            continue;
+        }
+        let inward = n.map(|x| -x / twice);
+        let cen: [f64; 3] = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0);
+        let o: [f64; 3] = std::array::from_fn(|k| cen[k] + IN * inward[k]);
+        let Some((_, t)) = bvh.ray(m, o, inward) else { continue };
+        let section = t + IN;
+        if section < MIN_SECTION_MM {
+            let name = feature_at(cen, d, rim);
+            match groups.iter_mut().find(|g| g.0 == name) {
+                Some(g) => {
+                    g.1 += 0.5 * twice;
+                    g.2 = g.2.min(section);
+                    g.3 += 1;
+                }
+                None => groups.push((name, 0.5 * twice, section, 1)),
+            }
+        }
+    }
+    groups.sort_by(|a, b| b.1.total_cmp(&a.1));
+    let named = groups.iter().map(|g| g.1).sum::<f64>();
+    json!({
+        "floor_mm": MIN_SECTION_MM,
+        "method": "dfm::part_sections over the whole finished ring (no made parts: the animal is painted relief), then the same one-ray read per face grouped by the feature it lies in",
+        "thinnest_mm": min_all,
+        "area_under_floor_mm2": under_all,
+        "area_named_mm2": named,
+        "all_named": (named - under_all).abs() < 1e-3 * under_all.max(1.0) + 1e-6,
+        "removed": [],
+        "by_feature": groups.iter().map(|g| json!({ "feature": g.0, "area_mm2": g.1, "thinnest_mm": g.2, "faces": g.3, "bench": treatment(g.0) })).collect::<Vec<_>>(),
+    })
 }
 
 /// Every gate at one build size, as JSON, with whether they all passed.
@@ -377,7 +625,7 @@ struct Gated {
     inspection: mf::Inspection,
 }
 
-fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, painted: &[(String, skin::ClampReport)]) -> Result<Gated> {
+fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, rim: f64) -> Result<Gated> {
     let t = Instant::now();
     let built = mesh::try_build(d, lib, p)?;
     let build_ms = ms(t);
@@ -388,8 +636,6 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, painte
     let inside = built.mesh.vertices.iter().filter(|q| (q.0 as f64).hypot(q.1 as f64) < bore - 0.01).count();
     let nearest = built.mesh.vertices.iter().map(|q| (q.0 as f64).hypot(q.1 as f64) - bore).fold(f64::MAX, f64::min);
     let field = castability::attributed_field_report(d, lib, &d.draft, 256, 128);
-    let drag = 100.0 * (field.marginal_area_mm2 + field.vertical_area_mm2) / field.total_area_mm2.max(1e-9);
-    let shares = castability::attribute_drag(d, lib, &field);
     let dfm = dfm::findings_in(d, lib);
     let stones = ringdesign_core::stones::report(d, 0.0).map_or(0, |r| r.stone_count as usize);
     let gems = ringdesign_core::gems::built_meshes(d, lib, &built);
@@ -401,21 +647,19 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, painte
     fine.sample_pitch_mm = 0.075;
     let release_fine = mf::release::analyze(&inspection.prepared.mesh, &fine)?;
     let r = &inspection.release;
-    let bites = clamp_audit(d, lib)?;
-    let worst_bite = bites.iter().chain(painted).map(|b| b.1.worst_mm).fold(0.0, f64::max);
     let pattern = mesh::try_build_pattern(d, lib, p)?;
     let pv = &pattern.report.validation;
     let pattern_crossings = csg::self_crossings(&solid_of(&pattern.mesh));
     let triangles = built.mesh.faces.len();
+    let lands = land_widths(&built, d, rim);
+    let lands_ok = lands["all_named"].as_bool().unwrap_or(false);
     let list = [
         ("watertight, 0 degenerate faces", v.watertight && degenerate == 0),
-        ("0 self-crossings on the ring", crossings == 0),
-        ("solids notes empty, every stamp resolved", built.solids.notes.is_empty() && built.solids.stamped == d.stamps.len()),
+        ("0 self-crossings on the ring (no made parts)", crossings == 0),
+        ("solids notes empty, every stamp resolved", built.solids.notes.is_empty() && built.parts.notes.is_empty() && built.solids.stamped == d.stamps.len()),
         ("nothing inside the finger hole", inside == 0),
-        ("field Castable under SandTwoPart", field.process == CastProcess::SandTwoPart && field.verdict == Verdict::Castable),
-        ("ray release clean at 0.100 mm", r.obstructions.is_empty() && r.unresolved_rays == 0),
-        ("ray release clean at 0.075 mm", release_fine.obstructions.is_empty() && release_fine.unresolved_rays == 0),
-        ("draft-clamp bite at most 0.05 mm", worst_bite <= 0.05),
+        ("field Castable under lost wax at the 0.8 mm fill", field.process == CastProcess::LostWax && field.verdict == Verdict::Castable && d.draft.min_section_mm >= MIN_SECTION_MM),
+        ("land widths: every section under 0.8 mm named with its bench treatment", lands_ok),
         ("0 DFM findings", dfm.is_empty()),
         ("stones report equals the preview", stones == preview_stones && (stones == 0) == (preview == 0)),
         ("within 2 million triangles", triangles <= 2_000_000),
@@ -426,27 +670,30 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, painte
     for (g, ok) in &list {
         println!("  {} {g}", if *ok { "pass" } else { "FAIL" });
     }
-    println!("  field {} (worst draft {:.2} deg, undercut {:.4} mm2, drag {drag:.1}%) {:?}", field.verdict.label(), field.worst_draft_deg, field.undercut_area_mm2, field.notes);
+    println!("  field {} (thinnest wall {:.2} mm; two-part undercut {:.2} mm2) {:?}", field.verdict.label(), field.thinnest_wall_mm, field.undercut_area_mm2, field.notes);
+    println!("  lands: thinnest {:.3} mm, {:.2} mm2 under the floor", lands["thinnest_mm"].as_f64().unwrap_or(0.0), lands["area_under_floor_mm2"].as_f64().unwrap_or(0.0));
     for f in &dfm {
         println!("  dfm: {}: {}", f.label, f.message);
-    }
-    for o in r.obstructions.iter().chain(&release_fine.obstructions) {
-        println!("  obstruction {:.3} mm deep at theta {:.1}, z {:.2}", o.depth_mm, o.world[1].atan2(o.world[0]).to_degrees().rem_euclid(360.0), o.world[2]);
     }
     let json = json!({
         "build": { "theta_steps": p.theta_steps, "profile_steps": p.profile_steps, "triangles": triangles, "ms": build_ms },
         "process": format!("{:?}", d.draft.process),
-        "sand": format!("{:?}", d.draft.sand),
         "draft_rules": { "min_draft_deg": d.draft.min_draft_deg, "min_section_mm": d.draft.min_section_mm, "min_detail_mm": d.draft.min_detail_mm },
         "geometry": { "watertight": v.watertight, "boundary_edges": v.boundary_edges, "non_manifold_edges": v.non_manifold_edges, "degenerate_faces": degenerate, "self_crossings": crossings, "volume_mm3": built.report.volume_mm3 },
-        "made": { "stamps": d.stamps.len(), "stamped": built.solids.stamped, "resolved": built.solids.resolved, "notes": built.solids.notes },
+        "made": { "stamps": d.stamps.len(), "stamped": built.solids.stamped, "resolved": built.solids.resolved, "notes": built.solids.notes, "parts_notes": built.parts.notes, "made_parts": 0 },
         "finger_hole": { "bore_radius_mm": bore, "vertices_inside": inside, "nearest_margin_mm": nearest },
-        "field": { "verdict": field.verdict.label(), "process": format!("{:?}", field.process), "worst_draft_deg": field.worst_draft_deg, "undercut_area_mm2": field.undercut_area_mm2, "marginal_area_mm2": field.marginal_area_mm2, "vertical_area_mm2": field.vertical_area_mm2, "total_area_mm2": field.total_area_mm2, "thinnest_wall_mm": field.thinnest_wall_mm, "notes": field.notes },
-        "drag_pct": drag,
-        "drag_by_layer": shares.iter().map(|s| json!({ "layer": s.layer, "marginal_mm2": s.marginal_mm2, "vertical_mm2": s.vertical_mm2 })).collect::<Vec<_>>(),
-        "release_0100": release_json(r),
-        "release_0075": release_json(&release_fine),
-        "clamp_audit": { "note": "Painted layers are clamped as they are painted (painted_bites); the draft rule is then run again over every layer and the composite on the bare atlas to show what it would still take.", "worst_mm": worst_bite, "painted_bites": painted.iter().map(|(n, c)| json!({ "layer": n, "texels_cut": c.texels_cut, "worst_mm": c.worst_mm })).collect::<Vec<_>>(), "layers": bites.iter().map(|(n, c)| json!({ "layer": n, "texels_cut": c.texels_cut, "worst_mm": c.worst_mm })).collect::<Vec<_>>() },
+        "field": { "verdict": field.verdict.label(), "process": format!("{:?}", field.process), "thinnest_wall_mm": field.thinnest_wall_mm, "notes": field.notes },
+        "land_widths": lands,
+        "two_part_numbers": {
+            "note": "Lost wax: these measure a two-part sand pull and are reported, not gated.",
+            "undercut_area_mm2": field.undercut_area_mm2,
+            "marginal_area_mm2": field.marginal_area_mm2,
+            "vertical_area_mm2": field.vertical_area_mm2,
+            "total_area_mm2": field.total_area_mm2,
+            "worst_draft_deg": field.worst_draft_deg,
+            "release_0100": release_json(r),
+            "release_0075": release_json(&release_fine),
+        },
         "dfm_findings": dfm.iter().map(|f| json!({ "label": f.label, "message": f.message })).collect::<Vec<_>>(),
         "stones": { "report_count": stones, "preview_count": preview_stones, "preview_faces": preview },
         "casting_pattern": { "watertight": pv.watertight, "degenerate_faces": pattern.report.quality.degenerate_faces, "self_crossings": pattern_crossings, "triangles": pattern.mesh.faces.len() },
@@ -494,8 +741,8 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
         }
     }
     image::save_buffer(out.join("contact-300.png"), &sheet, 600, 600, image::ColorType::Rgb8)?;
-    // The stone close-up: from above the mound, tilted toward the sail.
-    render::write_png_parts(out.join("stones.png"), &parts, 0.25, 1.25, edge)?;
+    // The stone close-up: over the head, from the snout's side.
+    render::write_png_parts(out.join("stones.png"), &parts, -0.35, 1.2, edge)?;
     let bare = band();
     let b = mesh::try_build(&bare, lib, p)?;
     let e = if draft { 700 } else { 1000 };
@@ -511,10 +758,10 @@ fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
     let p = params(draft);
     d.build = p;
     let mut blocks = serde_json::Map::new();
-    let main = gates(&d, &lib, p, if draft { "draft 768 x 320" } else { "export 1536 x 448" }, &layers.bites)?;
+    let main = gates(&d, &lib, p, if draft { "draft 768 x 320" } else { "export 1536 x 448" }, layers.rim)?;
     let mut passed = main.passed;
     if !draft {
-        let dr = gates(&d, &lib, params(true), "draft 768 x 320", &layers.bites)?;
+        let dr = gates(&d, &lib, params(true), "draft 768 x 320", layers.rim)?;
         passed &= dr.passed;
         blocks.insert("draft".into(), dr.json);
         blocks.insert("export".into(), main.json.clone());
@@ -535,20 +782,20 @@ fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
     }
     let setup = d.manufacturing.clone().unwrap();
     let stone = d.layers.layers.iter().find_map(|e| match &e.layer {
-        Layer::SeatPad(s) => Some(json!({ "theta_deg": s.theta_deg, "v_mm": s.v_mm, "diameter_mm": s.diameter_mm, "height_mm": s.height_mm, "blend_mm": s.blend_mm, "style": format!("{:?}", s.style) })),
+        Layer::SeatPad(s) => Some(json!({ "theta_deg": s.theta_deg, "v_mm": s.v_mm, "diameter_mm": s.diameter_mm, "height_mm": s.height_mm, "crown": s.crown, "blend_mm": s.blend_mm, "style": format!("{:?}", s.style) })),
         _ => None,
     });
     let bytes = std::fs::metadata(out.join("design.ring.json")).map_or(0, |m| m.len());
     let report = json!({
         "ring": d.name,
         "slug": "sphenodon",
+        "process": "lost wax",
         "stage": if block_out { "block-out" } else { "full" },
         "size": d.size.display(),
         "bore_mm": BORE_MM,
         "layers": layers.names,
         "seat": stone,
-        "sail": { "teeth": TEETH, "height_mm": SAIL_MM, "span_mm": SAIL_SPAN_MM, "plateau_mm": SAIL_PLATEAU_MM, "grade": "Cosine", "taper": SAIL_TAPER, "clear_deg": SAIL_CLEAR_DEG, "full_deg": SAIL_FULL_DEG, "hold_deg": SAIL_HOLD_DEG, "skirt_share": SAIL_SKIRT, "palm_share": SAIL_PALM },
-        "dorsal_scales": { "rows": SCALE_ROWS, "top_mm": SCALE_TOP_MM, "pitch_mm": SCALE_PITCH_MM, "groove_mm": SCALE_GROOVE_MM, "from_mm": SCALE_FROM_MM, "to_mm": SCALE_TO_MM, "painted_bites": layers.bites.iter().map(|(n, c)| json!({ "layer": n, "texels_cut": c.texels_cut, "worst_mm": c.worst_mm })).collect::<Vec<_>>() },
+        "animal": { "atlas": [AW, AH], "top_mm": TOP_MM, "stone_t_mm": STONE_T, "gap_mm": GAP_MM, "rim_mm": layers.rim, "wall_mm": layers.wall, "seat_radius_mm": layers.seat_r, "width_knots": WIDTH, "height_knots": HEIGHT, "crest_knots": CREST },
         "design_bytes": bytes,
         "draft": blocks.get("draft"),
         "export": blocks.get("export"),
@@ -568,11 +815,6 @@ fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
     }
     std::fs::write(out.join("stones.json"), serde_json::to_vec_pretty(&json!({ "stones": stones_json, "report": ringdesign_core::stones::report(&d, 0.0).map(|r| json!({ "stone_count": r.stone_count, "total_carats": r.total_carats, "tight_pairs": r.tight_pairs, "crowding": r.crowding.len(), "fill_floor_mm": r.fill_floor_mm, "warnings": r.any_warnings() })) }))?)?;
     renders(out, &d, &lib, &main.built, p, draft)?;
-    let art = out.join("artwork");
-    std::fs::create_dir_all(&art)?;
-    for s in &d.svgs {
-        std::fs::write(art.join(format!("{}.svg", s.name.replace(' ', "-"))), &s.svg)?;
-    }
     println!("gates {}", if passed { "all pass" } else { "FAILED" });
     ensure!(passed, "gates failed");
     Ok(())
