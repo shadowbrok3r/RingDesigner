@@ -4,6 +4,7 @@
 > - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
 > - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
 > - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
+- **Sphenodon goes lost wax (2026-09-27).** Its three sand block-outs did not read as the animal. It is now a tuatara modelled round the band (head on the face with the peridot on the crown of the skull, the crest a comb of spines, four legs, a scaled tail), with `CastProcess::LostWax`, `min_section_mm` 0.8 and `min_draft_deg` 0. The sand gates no longer apply to it; its lost-wax gates are the field verdict at the 0.8 mm fill and a `land_widths` block naming every section under 0.8 mm.
 
 
 **Sheet subtitle:** EIGHT HIDES · FIVE BANDS · THREE SIGNETS · THREE STONES · ALL POURED IN SAND
@@ -353,7 +354,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
   - Profile: `ProfileStyle::Flat`, 7.5 × 3.4, `crown_mm` 1.2, `flatten_sides()`, `comfort_fit_mm` 0.15, bore 18.6.
   - Shank: `Keyframes`, `amount` 1.0, **thickness-only** keys. Thickness is 1.18 at 90°, 1.05 at 0° and 180°, and 1.00 at 270°; width and crown stay at 1.0.
   - The reference, at the palm, is the tightest station. The side face is 2.2 mm at the palm and about 2.8 mm at the top.
-- **Process:** Delft two-part. The sail's teeth need the finer floor.
+- **Process:** lost wax (Logan, 2026-09-27; it was Delft two-part). Fill floor 0.8 mm, no draft rule. The build below is the sand plan it replaced; the ring as built is in `examples/cataphracta_sphenodon.rs` and its lane report.
 - **Stones:**
   - Peridot, `Gem { preview_tint: Some([0.50, 0.78, 0.12]), ..Gem::calibrated(GemCut::Round, 3.0) }`.
   - Seated on a `SeatPadLayer` at (90°, `ctx.crest_v_mm`) with `style: GypsyMound`, `crown` 1.0, `blend_mm` 0.45, `solid: Flush` and `through: true`. Call `fit_stone`, then set `height_mm` to 0.6.
