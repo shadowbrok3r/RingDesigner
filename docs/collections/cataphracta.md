@@ -9,7 +9,7 @@
 
 **Sheet subtitle:** EIGHT HIDES · FIVE BANDS · THREE SIGNETS · THREE STONES · FIVE IN SAND, THREE IN WAX
 
-**Primary side of the app:** the height field used as a sculptor's layer stack under the sand's rules. Every hide is built from live, editable layers: masks, tie-exact `SmoothMax`, gradient-SVG alphas, warp, helix shear, graded tilings, keyframed bodies and terrace remaps. The draft rule is applied as a live clamp, and every figurative part is a struck stamp with a true outline. Every ring pours in two-part sand (six in Delft clay, two in Petrobond), carries at most one stone, and must come out **Castable** (not "Castable with care") with **zero DFM findings**.
+**Primary side of the app:** the height field used as a sculptor's layer stack under the sand's rules. Every hide is built from live, editable layers: masks, tie-exact `SmoothMax`, gradient-SVG alphas, warp, helix shear, graded tilings, keyframed bodies and terrace remaps. The draft rule is applied as a live clamp, and every figurative part is a struck stamp with a true outline. The rings pour in two-part sand (Delft clay or Petrobond) or, where Logan's decisions above say so, lost wax; every ring carries at most one stone, and must come out **Castable** (not "Castable with care") with **zero DFM findings**.
 
 *Cataphracta* means "the mail-clad", after *Ouroborus cataphractus*, the lizard that bites its own tail to become a ring.
 
@@ -338,7 +338,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 
 ## Sphenodon — *the parietal*
 
-- **Status:** not started.
+- **Status:** built in lost wax on branch `claude/cataphracta-sphenodon` and **cut at 7.1** after three review rounds (6.5, 6.9, 7.1). As built it is a painted tuatara round a Flat 7.5 × 2.5 band: its head on the face with the peridot on the crown of the skull behind two lidded eyes, a comb of spines from nape to tail tip, four toed legs, and a scaled tail ending on the side face 9 mm short of the snout. Every lost-wax gate is green; it reads as "a lizard ring", not yet as a tuatara. See its `cloud-report.md`. The sand plan below is what it replaced.
   - An **ungraded draft can be built now**. The thickness-only keys keep the reference side gate clean, and every non-graded API exists.
   - The final form needs **C-R2**, since the sail's grade is what C-R2 is calibrated on, and **C-R7**; its generators can live in the ring module first.
   - **P5** is needed only for the fillet granules' Draft gate.
@@ -1000,7 +1000,7 @@ systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo run --offline --rele
 systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo run --offline --release -p ringdesign-core --example cataphracta -- NEW_DIR --verify
 systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo run --offline --release -p ringdesign-graph --example collection_templates -- cataphracta NEW_DIR
 CUDA_VISIBLE_DEVICES=0 blender -b --factory-startup -P tools/render_collection.py -- NEW_DIR --gold
-python3 tools/catalog_collection.py NEW_DIR --title "Cataphracta" --subtitle "EIGHT HIDES · FIVE BANDS · THREE SIGNETS · THREE STONES · ALL POURED IN SAND"
+python3 tools/catalog_collection.py NEW_DIR --title "Cataphracta" --subtitle "EIGHT HIDES · FIVE BANDS · THREE SIGNETS · THREE STONES · FIVE IN SAND, THREE IN WAX"
 ```
 
 **Phone:** bump `version` in `crates/ringdesigner-android/Cargo.toml` and add a `CHANGELOG.md` entry. Then verify with `cargo test -p ringdesigner_android`, run `cargo ndk -t arm64-v8a check -p ringdesigner_android`, and smoke-test on the rdsmoke AVD.
