@@ -1,0 +1,19 @@
+{
+  "ring": "Moloch",
+  "slug": "moloch",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Better than attempt 1, but still an object, not an animal. Hero-300 reads as a crown of thorns or a punk spike band. A row of tall cones stands up along the top, and there are a few big spikes near the front. Below them, each shoulder carries a dense palisade of vertical ribs, like a comb, gear teeth or a tyre tread, over a strip of beads. The crown between the two spike rows is still mostly smooth, with a scatter of small dots. The ribbed fringe is now the strongest texture on the ring, and it says machined, not hide. Face-300 is a horizontal spindle: the two horns stick out left and right as long points, and a tall cone rises in the middle. The centre of the face is an ambiguous rounded blob with dark hollows, shaped like a 'C' or a hook. It reads as an eye or a buckle, not as a knobbed nape. The legs and toes do not register at all. With no caption, a jeweller would say 'thorn crown ring' or 'spiked band'. Nobody would say lizard, let alone thorny devil. The ring is now distinct from the Reptilia tiles, but it is not yet a reptile.",
+  "changes": [
+    "Replace the ribbed comb on the shoulders with a knobbed thorn hide, and carry the knobs over the crown. The vertical ribs round both shoulders (the 'Capillary grooves' flutes at 48 per flank, plus the 'Side hide' field between them and the flank/side thorn rows) read as gear teeth. Cut the grooves to at most 16 per flank and 0.06 mm deep, or drop them, so they are invisible at 300 px. Then fill the crown flanks and side faces over 0-360 degrees with round-based conical knobs in rosette clusters: a centre cone 1.2-1.6 mm across and 0.6-0.9 mm high near 90 degrees, grading to 0.5 mm granules by 270 degrees, pitch about 2.2-2.5 mm, with mixed sizes and no two neighbours equal. Stay G1 on the side faces and G2/G4 on the crown. Acceptance: in hero-300 no vertical rib or comb pattern is visible, and the band surface between the crest spikes shows round knobs over at least 70% of the visible area, not smooth metal.",
+    "Make the false head read as a spiked knob, not a blob with holes. At 90 degrees, cluster 5-7 cones of 1.0-1.6 mm apex around 'Thorn, crown' (2.2 mm) on the hump within about ±10 degrees and ±2 mm of the crest. Remove whatever makes the dark hollows and the 'C' outline in face-300: fill or flatten any recess on the hump, and remove any leftover 'Head' ridge or eye stamps. Tilt 'Horn, fingertip' and 'Horn, knuckle' (apex 2.4) upward by about 20-30 degrees toward the crest, so that from the face they form a V with the crown thorn instead of a flat horizontal line. Acceptance: face-300 shows a rounded knob bristling with cones and flanked by two up-swept horns, with no dark hollow or eye-like shape at its centre.",
+    "Give the ring a body gesture so it reads as a creature lying round the finger, not a crown. The legs ('Leg, * limb/shin/toe', domes 0.4-0.7 mm) do not show. Raise them to a crown of 1.0-1.2 mm, widen the limb outline by 50%, and splay each leg with 3 toe cones (apex 0.6 mm) so the pairs at about 125-142 degrees and 330-348 degrees break the shoulder silhouette in hero-300. Also taper the body: grade the crest thorns so the largest 'Thorn, crest major' (now 1.9 mm) sit within 30 degrees of the head, and fall to 0.6 mm studs by 220-270 degrees, with a visibly narrower spike height there, so the ring has a head end and a tail end. Acceptance: in hero-300 the eye finds four limb bumps on the shoulders and a clear big-to-small gradient of spikes away from the face."
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/moloch/hero-300.png",
+    "showcase/cataphracta/moloch/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

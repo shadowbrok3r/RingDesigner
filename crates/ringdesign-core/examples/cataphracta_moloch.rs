@@ -11,7 +11,7 @@ use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign, ShankKind,
     castability::{self, CastProcess, SandProcess, Verdict},
     csg, dfm,
-    field::{Blend, FluteProfile, FlutesLayer, GroupLayer, Layer, LayerEntry, LayerStack, SIDE_FACE_MIN_DRAFT_DEG, SandClamp, SideFacePick, VGate},
+    field::{Blend, GroupLayer, Layer, LayerEntry, LayerStack, SIDE_FACE_MIN_DRAFT_DEG, SandClamp, SideFacePick, VGate},
     library, manufacturing as mf, mesh, outline,
     profile::ShankKey,
     render,
@@ -37,7 +37,8 @@ const SNOUT_DIR: f64 = -1.0;
 
 /// The body: thickness-only keys. The knob on the nape is the tallest station; the hips swell again for the hind legs.
 /// The knob rises steeply out of the tail tip ahead of it and falls gently down the body behind it.
-const HUMP: [(f64, f64); 12] = [(40.0, 1.0), (68.0, 1.1), (90.0, 1.76), (110.0, 1.44), (135.0, 1.22), (165.0, 1.06), (200.0, 1.0), (270.0, 1.0), (305.0, 1.05), (332.0, 1.2), (358.0, 1.1), (20.0, 1.02)];
+/// The shoulders swell again where the legs clasp the band.
+const HUMP: [(f64, f64); 12] = [(40.0, 1.0), (68.0, 1.1), (90.0, 1.76), (110.0, 1.46), (136.0, 1.32), (165.0, 1.08), (200.0, 1.0), (270.0, 1.0), (305.0, 1.06), (336.0, 1.3), (2.0, 1.1), (22.0, 1.02)];
 
 // The knob's crown thorn, the largest on the ring.
 const CROWN_MM: f64 = 2.7;
@@ -45,32 +46,29 @@ const CROWN_APEX_MM: f64 = 2.2;
 const THORN_TIP_MM: f64 = 0.3;
 
 // The crest row behind the knob: a major thorn then three minors, graded down to the palm and held small to the tail.
-const MAJOR_MM: (f64, f64) = (2.4, 1.0);
-const MINOR_MM: (f64, f64) = (1.2, 0.62);
-const MAJOR_APEX: f64 = 0.8;
-const MINOR_APEX: f64 = 0.55;
-/// Share of the path from the knob to the tail by which the grade is spent (about 250-270°).
-const GRADE_SPENT: f64 = 0.55;
+const MAJOR_MM: (f64, f64) = (2.4, 0.8);
+const MINOR_MM: (f64, f64) = (1.2, 0.6);
+const MAJOR_APEX: f64 = 0.85;
+const MINOR_APEX: f64 = 0.5;
+/// Share of the path from the knob to the tail by which the grade is spent (about 230°).
+const GRADE_SPENT: f64 = 0.42;
 const CREST_GAP_MM: f64 = 0.35;
-
-// Flank thorns, struck along the pull down each crown flank at every other crest position.
-const FLANK_MM: f64 = 1.25;
-const FLANK_APEX: f64 = 0.6;
-const FLANK_OFF_MM: f64 = 2.85;
-const FLANK_COUNT: u32 = 16;
-const FLANK_TAPER: f64 = 0.45;
-const FLANK_LAG_DEG: f64 = 6.0;
 
 // The horns: rounded triangles on the side faces at the knob, their cones leaning toward the crest.
 const HORN_W_MM: f64 = 3.4;
 const HORN_H_MM: f64 = 3.2;
 const HORN_ROUND_MM: f64 = 0.45;
 const HORN_APEX_MM: f64 = 2.4;
-const HORN_LEAN_MM: f64 = 0.55;
+/// The apex leans out toward the crest, sweeping the horn up about 25°.
+const HORN_LEAN_MM: f64 = 1.05;
 const HORN_TIP_MM: f64 = 0.4;
 
 /// Clear crest between the knob's crown thorn and the tail's last thorn, degrees.
 const TAIL_GAP_DEG: f64 = 20.0;
+/// Thorns on the knob's steep front, ahead of the crown thorn: offsets in degrees and diameters.
+const FORE_THORNS: [(f64, f64); 2] = [(7.0, 1.6), (12.6, 1.2)];
+/// Bare ground kept round each leg so it reads as a limb against the knob carpet, mm.
+const LEG_HALO_MM: f64 = 0.55;
 
 // Side thorns: cones struck along the pull down each side face, jittered in size and height on the face.
 const SIDE_THORN_MM: f64 = 2.4;
@@ -81,29 +79,29 @@ const SIDE_EDGE_MM: f64 = 0.3;
 const SIDE_GAP_MM: f64 = 0.45;
 const SIDE_JITTER_MIN: f64 = 0.6;
 
+// The knob carpet: cones packed over the crown flanks and side faces wherever nothing else stands.
+const KNOB_MM: (f64, f64) = (1.45, 0.6);
+const KNOB_CLUSTER_MM: f64 = 1.6;
+/// Degrees either side of the crown thorn where the knob's own cluster stands.
+const KNOB_CLUSTER_DEG: f64 = 14.0;
+const KNOB_RISE: f64 = 0.55;
+const KNOB_GAP_MM: f64 = 0.42;
+const KNOB_JITTER_MIN: f64 = 0.62;
+const KNOBS_MAX: usize = 520;
+
 // The granule ground on the side faces.
 const GRANULE_H_MM: f64 = 0.32;
 const GRANULE_LAND_MM: f64 = 0.45;
 
-// Capillary grooves across the crown flanks, run out onto the side faces.
-const GROOVES: u32 = 64;
-const GROOVE_W_MM: f64 = 0.6;
-const GROOVE_D_MM: f64 = 0.2;
-/// Clear of the crest thorns' roots, mm of chart v either side of the crest.
-const GROOVE_CLEAR_MM: f64 = 1.35;
-/// Where they have faded out, short of the crown's edge, mm: carried over the edge onto the face they fold the surface.
-const GROOVE_STOP_MM: f64 = 0.15;
-/// The outer end's run-out: 0.2 mm over 0.5 mm rises 22° walking away from the crest, inside the edge's own 38°.
-const GROOVE_FADE_MM: f64 = 0.5;
-
 // The legs: domed capsules (limb, shin, three toes) on both side faces.
-const FRONT_LEG_DEG: f64 = 140.0;
-const HIND_LEG_DEG: f64 = 332.0;
-const LIMB_W_MM: f64 = 1.2;
-const TOE_W_MM: f64 = 0.6;
-const TOE_MM: f64 = 1.25;
-const LEG_H_MM: f64 = 0.45;
-const LEG_DOME_MM: f64 = 0.7;
+const FRONT_LEG_DEG: f64 = 134.0;
+const HIND_LEG_DEG: f64 = 338.0;
+const LIMB_W_MM: f64 = 1.7;
+const TOE_W_MM: f64 = 0.7;
+const TOE_MM: f64 = 1.3;
+const LEG_H_MM: f64 = 0.4;
+const LEG_DOME_MM: f64 = 1.1;
+const TOE_APEX_MM: f64 = 0.6;
 const LEG_CLEAR_MM: f64 = 0.45;
 
 fn draft_params() -> BuildParams {
@@ -171,7 +169,8 @@ struct Composition {
     granule_cell_mm: [f64; 2],
     granule_repeats: u32,
     crest_thorns: Vec<(f64, f64)>,
-    flank_thorns: usize,
+    knobs: usize,
+    knob_sizes_mm: [f64; 2],
     horn_v_mm: [f64; 2],
     side_thorns: Vec<SideThorn>,
     leg_zones: Vec<(bool, f64, f64)>,
@@ -395,7 +394,7 @@ fn leg_parts(h: f64, hind: bool) -> Vec<([f64; 2], [f64; 2], f64, f64, &'static 
         let tip = [wrist[0] + ang.cos() * (hw * 0.6 + TOE_MM), wrist[1] + ang.sin() * (hw * 0.6 + TOE_MM)];
         // Each toe starts a little way out along its own line: three capsules from one point meet degenerately.
         let root = [wrist[0] + ang.cos() * hw * 0.3, wrist[1] + ang.sin() * hw * 0.3];
-        parts.push((root, tip, 0.5 * TOE_W_MM * (1.1 + 0.03 * k as f64), 0.5 * TOE_W_MM * 0.85, name, LEG_DOME_MM * (0.58 + 0.03 * k as f64)));
+        parts.push((root, tip, 0.5 * TOE_W_MM * (1.1 + 0.03 * k as f64), 0.5 * TOE_W_MM * 0.85, name, TOE_APEX_MM + 0.02 * k as f64));
     }
     parts
 }
@@ -489,21 +488,142 @@ fn granules(d: &mut RingDesign, ctx: &ringdesign_core::FieldContext, art: &Path,
     Ok(())
 }
 
-/// Capillary grooves across each crown flank, from clear of the crest thorns' roots to just short of the crown's edge.
-fn grooves(d: &mut RingDesign, ctx: &ringdesign_core::FieldContext) {
-    let Some(faces) = ctx.side_faces_std() else { return };
-    let (Some(low), Some(high)) = (faces.low, faces.high) else { return };
-    for (side, inner, outer) in [("fingertip", ctx.crest_v_mm - GROOVE_CLEAR_MM, low.1 + GROOVE_STOP_MM), ("knuckle", ctx.crest_v_mm + GROOVE_CLEAR_MM, high.0 - GROOVE_STOP_MM)] {
-        let fade = GROOVE_FADE_MM;
-        let span = (inner - outer).abs() - 2.0 * fade;
-        let mut e = LayerEntry::new(
-            format!("Capillary grooves, {side} flank"),
-            Layer::Flutes(FlutesLayer { count: GROOVES, profile: FluteProfile::Vee, width_mm: GROOVE_W_MM, height_mm: GROOVE_D_MM, lean: 0.0, along: false }),
-        );
-        e.blend = Blend::Subtract;
-        e.window.v_gate = VGate::Band { center_mm: 0.5 * (inner + outer), span_mm: span, fade_mm: fade };
-        d.layers.layers.push(e);
+type P3 = [f64; 3];
+
+/// Discs covering a struck stamp on the surface, in world mm: its interior sampled every 0.25 mm, each point with its
+/// distance to the outline.
+fn stamp_discs(a: &Atlas, s: &Stamp) -> Vec<(P3, f64)> {
+    let o = &s.outline;
+    let n = o.len();
+    let (lo, hi) = o.iter().fold(([f64::MAX; 2], [f64::MIN; 2]), |(l, h), p| ([l[0].min(p[0]), l[1].min(p[1])], [h[0].max(p[0]), h[1].max(p[1])]));
+    let inside = |q: [f64; 2]| {
+        let mut c = false;
+        for i in 0..n {
+            let (p, r) = (o[i], o[(i + 1) % n]);
+            if (p[1] > q[1]) != (r[1] > q[1]) && q[0] < p[0] + (r[0] - p[0]) * (q[1] - p[1]) / (r[1] - p[1]) {
+                c = !c;
+            }
+        }
+        c
+    };
+    let edge = |q: [f64; 2]| (0..n).map(|i| {
+        let (p, r) = (o[i], o[(i + 1) % n]);
+        let (dx, dy) = (r[0] - p[0], r[1] - p[1]);
+        let t = (((q[0] - p[0]) * dx + (q[1] - p[1]) * dy) / (dx * dx + dy * dy).max(1e-12)).clamp(0.0, 1.0);
+        (q[0] - p[0] - dx * t).hypot(q[1] - p[1] - dy * t)
+    }).fold(f64::MAX, f64::min);
+    let r0 = radius_at(a, s.theta_deg, s.v_mm);
+    let (sin, cos) = s.rot_deg.to_radians().sin_cos();
+    let mut out = Vec::new();
+    let step = 0.25;
+    let mut y = lo[1] + 0.5 * step;
+    while y < hi[1] {
+        let mut x = lo[0] + 0.5 * step;
+        while x < hi[0] {
+            if inside([x, y]) {
+                let (along, across) = (x * cos - y * sin, x * sin + y * cos);
+                let p = a.point((s.theta_deg + (along / r0).to_degrees()).rem_euclid(360.0), s.v_mm + across);
+                out.push((p, edge([x, y]).max(0.12)));
+            }
+            x += step;
+        }
+        y += step;
     }
+    if out.is_empty() {
+        out.push((a.point(s.theta_deg.rem_euclid(360.0), s.v_mm), 0.3));
+    }
+    out
+}
+
+/// A knob to strike: ring angle, chart v, diameter.
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+struct Knob {
+    theta_deg: f64,
+    v_mm: f64,
+    diameter_mm: f64,
+}
+
+/// Cones packed over the crown flanks and the side faces wherever nothing already stands, graded from the knob down the
+/// body to the tail and jittered so no two neighbours match. On a flank a knob is struck along the pull, so its column
+/// must meet the crown: its reach toward the crest stays under the crest's own radius.
+fn knob_carpet(a: &Atlas, faces: &[[(f64, f64); 2]], taken: &[(P3, f64)], tail_deg: f64) -> Vec<Knob> {
+    let key = |p: P3| [(p[0]).floor() as i64, (p[1]).floor() as i64, (p[2]).floor() as i64];
+    let mut grid: std::collections::HashMap<[i64; 3], Vec<(P3, f64)>> = Default::default();
+    let put = |grid: &mut std::collections::HashMap<[i64; 3], Vec<(P3, f64)>>, p: P3, r: f64| grid.entry(key(p)).or_default().push((p, r));
+    for &(p, r) in taken {
+        put(&mut grid, p, r);
+    }
+    let clear = |grid: &std::collections::HashMap<[i64; 3], Vec<(P3, f64)>>, p: P3, r: f64| {
+        let k = key(p);
+        for dx in -2..=2 {
+            for dy in -2..=2 {
+                for dz in -2..=2 {
+                    if let Some(list) = grid.get(&[k[0] + dx, k[1] + dy, k[2] + dz]) {
+                        for &(q, rq) in list {
+                            let d = ((p[0] - q[0]).powi(2) + (p[1] - q[1]).powi(2) + (p[2] - q[2]).powi(2)).sqrt();
+                            if d < r + rq + KNOB_GAP_MM {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        true
+    };
+    let crest_r: Vec<f64> = (0..a.width).map(|x| (0..a.height).map(|y| { let p = a.at(x, y).p; p[0].hypot(p[1]) }).fold(0.0, f64::max)).collect();
+    let dir = -SNOUT_DIR;
+    let span = (tail_deg - HEAD_DEG).abs();
+    let grade = |theta: f64| {
+        let along = (dir * (theta - HEAD_DEG)).rem_euclid(360.0);
+        let s = ((along / span) / GRADE_SPENT).clamp(0.0, 1.0);
+        0.5 - 0.5 * (PI * s).cos()
+    };
+    let mut order: Vec<usize> = (0..a.samples.len()).collect();
+    order.sort_by_key(|&i| (hash(i, 11) * 1e12) as u64);
+    let mut out = Vec::new();
+    for i in order {
+        if out.len() >= KNOBS_MAX {
+            break;
+        }
+        let smp = &a.samples[i];
+        let (x, y) = (i % a.width, i / a.width);
+        if y < 2 || y + 2 >= a.height {
+            continue;
+        }
+        let nz = smp.n[2].abs();
+        let r = smp.p[0].hypot(smp.p[1]);
+        let theta = smp.theta;
+        let near_knob = crate_wrap(theta - HEAD_DEG).abs() < KNOB_CLUSTER_DEG;
+        let jitter = KNOB_JITTER_MIN + (1.0 - KNOB_JITTER_MIN) * hash(i, 12);
+        let target = (if near_knob { KNOB_CLUSTER_MM } else { KNOB_MM.0 + (KNOB_MM.1 - KNOB_MM.0) * grade(theta) } * jitter).max(KNOB_MM.1);
+        let limit = if (0.4..=0.97).contains(&nz) {
+            // The crest's radius over the knob's own span round the ring, which on the knob's steep front falls fast.
+            let reach = ((0.5 * target / r).to_degrees() / 360.0 * a.width as f64).ceil() as isize + 1;
+            let least = (-reach..=reach).map(|k| crest_r[(x as isize + k).rem_euclid(a.width as isize) as usize]).fold(f64::MAX, f64::min);
+            2.0 * (least - r) - 0.2
+        } else if nz > 0.985 {
+            let (lo, hi) = faces[x][usize::from(smp.n[2] > 0.0)];
+            2.0 * ((smp.v - lo).min(hi - smp.v) - SIDE_EDGE_MM)
+        } else {
+            continue;
+        };
+        let d = target.min(limit);
+        if d < KNOB_MM.1 {
+            continue;
+        }
+        if !clear(&grid, smp.p, 0.5 * d) {
+            continue;
+        }
+        put(&mut grid, smp.p, 0.5 * d);
+        out.push(Knob { theta_deg: theta, v_mm: smp.v, diameter_mm: d });
+    }
+    out
+}
+
+/// A signed angle difference in -180..180.
+fn crate_wrap(d: f64) -> f64 {
+    (d + 180.0).rem_euclid(360.0) - 180.0
 }
 
 fn author(art: &Path, blockout: bool) -> Result<(RingDesign, AlphaLibrary, Composition)> {
@@ -518,13 +638,17 @@ fn author(art: &Path, blockout: bool) -> Result<(RingDesign, AlphaLibrary, Compo
     let tail_deg = HEAD_DEG - SNOUT_DIR * (360.0 - TAIL_GAP_DEG);
     comp.tail_deg = tail_deg;
 
-    // 1. Ground: granules on the side faces and capillary grooves across the crown flanks.
+    // 1. Ground: granules on the side faces.
     granules(&mut d, &ctx, art, &mut comp)?;
-    grooves(&mut d, &ctx);
     let _ = blockout;
 
     // 2. The knob's crown thorn, the tallest point on the ring.
     d.stamps.push(on_crest(&d, "Thorn, crown", HEAD_DEG, outline::circle(CROWN_MM), StampTop::Cone { apex_mm: CROWN_APEX_MM, at: [0.0, 0.0], tip_mm: THORN_TIP_MM })?);
+
+    // 3. The knob's cluster: two thorns on its steep front, ahead of the crown thorn.
+    for (k, (off, dd)) in FORE_THORNS.iter().enumerate() {
+        d.stamps.push(on_crest(&d, &format!("Thorn, knob fore {}", k + 1), HEAD_DEG + SNOUT_DIR * off, outline::circle(*dd), StampTop::Cone { apex_mm: MAJOR_APEX * dd, at: [0.0, 0.0], tip_mm: THORN_TIP_MM })?);
+    }
 
     // 4. The crest row: majors and minors from behind the crown thorn round the body to the tail.
     let start = HEAD_DEG - SNOUT_DIR * ((0.5 * CROWN_MM + CREST_GAP_MM) / crest_r(HEAD_DEG)).to_degrees();
@@ -533,21 +657,6 @@ fn author(art: &Path, blockout: bool) -> Result<(RingDesign, AlphaLibrary, Compo
         let name = if major { format!("Thorn, crest major {}", k / 4 + 1) } else { format!("Thorn, crest minor {}", k - k / 4) };
         d.stamps.push(on_crest(&d, &name, theta.rem_euclid(360.0), outline::circle(dd), StampTop::Cone { apex_mm: apex, at: [0.0, 0.0], tip_mm: THORN_TIP_MM })?);
         comp.crest_thorns.push((theta.rem_euclid(360.0), dd));
-    }
-
-    // 5. Flank thorns down each crown flank, struck along the pull where the crown already leans toward it.
-    for (sign, side) in [(-1.0, "fingertip"), (1.0, "knuckle")] {
-        let proto = Stamp {
-            top: StampTop::Cone { apex_mm: FLANK_APEX * FLANK_MM, at: [0.0, 0.0], tip_mm: THORN_TIP_MM },
-            along_pull: true,
-            ..stamp(&format!("Thorn, flank {side}"), outline::circle(FLANK_MM), StampTop::Flat)
-        };
-        let row = setting::stamp_row(
-            &d,
-            &StampRow { stamp: proto, path: RowPath::ChartV { v_mm: ctx.crest_v_mm + sign * FLANK_OFF_MM }, from_deg: HEAD_DEG - SNOUT_DIR * FLANK_LAG_DEG, to_deg: tail_deg, count: FLANK_COUNT, taper: FLANK_TAPER, fold_clear_mm: 0.0, mirror_shoulders: false },
-        );
-        comp.flank_thorns += row.len();
-        d.stamps.extend(row);
     }
 
     // 6. The horns: one per side face at the knob, standing along the pull, leaning toward the crest.
@@ -594,7 +703,13 @@ fn author(art: &Path, blockout: bool) -> Result<(RingDesign, AlphaLibrary, Compo
                     lo_x = lo_x.min(q[0] + m[0]);
                     hi_x = hi_x.max(q[0] + m[0]);
                 }
-                let mut s = stamp(&format!("Leg, {pair} {side} {}", part.4), o, StampTop::Dome { crown_mm: part.5 });
+                // Limb and shin domed; each toe a cone to its tip, a claw.
+                let top = if part.4.starts_with("toe") {
+                    StampTop::Cone { apex_mm: part.5, at: [b[0] - m[0], b[1] - m[1]].map(|c| c * 0.6), tip_mm: THORN_TIP_MM }
+                } else {
+                    StampTop::Dome { crown_mm: part.5 }
+                };
+                let mut s = stamp(&format!("Leg, {pair} {side} {}", part.4), o, top);
                 s.theta_deg = theta + (m[0] / r).to_degrees();
                 s.v_mm = mid_v + m[1];
                 s.height_mm = LEG_H_MM;
@@ -625,6 +740,22 @@ fn author(art: &Path, blockout: bool) -> Result<(RingDesign, AlphaLibrary, Compo
             d.stamps.push(s);
         }
         comp.side_thorns.extend(row);
+    }
+
+    // 9. The knob carpet over whatever the flanks and faces have left bare.
+    let taken: Vec<(P3, f64)> = d.stamps.iter().flat_map(|s| {
+        let halo = if s.name.starts_with("Leg") { LEG_HALO_MM } else { 0.0 };
+        stamp_discs(&atlas, s).into_iter().map(move |(p, r)| (p, r + halo))
+    }).collect();
+    let knobs = knob_carpet(&atlas, &faces, &taken, tail_deg);
+    comp.knobs = knobs.len();
+    comp.knob_sizes_mm = [knobs.iter().map(|k| k.diameter_mm).fold(f64::MAX, f64::min), knobs.iter().map(|k| k.diameter_mm).fold(0.0, f64::max)];
+    for (k, kn) in knobs.iter().enumerate() {
+        let mut s = stamp(&format!("Knob, {}", k + 1), outline::circle(kn.diameter_mm), StampTop::Cone { apex_mm: KNOB_RISE * kn.diameter_mm, at: [0.0, 0.0], tip_mm: THORN_TIP_MM.min(0.45 * kn.diameter_mm) });
+        s.theta_deg = kn.theta_deg;
+        s.v_mm = kn.v_mm;
+        s.along_pull = true;
+        d.stamps.push(s);
     }
 
     for s in &d.stamps {
@@ -676,7 +807,7 @@ fn bore_intrusion(d: &RingDesign, m: &mesh::Mesh) -> (f64, usize) {
 
 /// The camera for each named view: yaw about the head's axis, pitch toward the finger's.
 const VIEWS: [(&str, f64, f64); 6] = [
-    ("hero", 0.0, 0.9),
+    ("hero", 0.45, 0.55),
     ("face", 0.0, PI * 0.5),
     ("palm", PI, 1.05),
     ("side", 0.0, 0.0),
@@ -831,8 +962,8 @@ fn main() -> Result<()> {
     let (d, lib, comp) = author(&art, blockout)?;
     let author_s = started.elapsed().as_secs_f64();
     println!(
-        "  faces {:?} of {:.2} mm, crest v {:.2}; granule cell {:.2} x {:.2} x{}; {} crest thorns, {} flank, {} side; horns at v {:.2} / {:.2}; tail {:.1}; clamps {:?}; monotone failures {:?}",
-        comp.side_faces_mm, comp.band_v_len_mm, comp.crest_v_mm, comp.granule_cell_mm[0], comp.granule_cell_mm[1], comp.granule_repeats, comp.crest_thorns.len(), comp.flank_thorns, comp.side_thorns.len(), comp.horn_v_mm[0], comp.horn_v_mm[1], comp.tail_deg, comp.clamps, comp.monotone_failures
+        "  faces {:?} of {:.2} mm, crest v {:.2}; granule cell {:.2} x {:.2} x{}; {} crest thorns, {} knobs, {} side; horns at v {:.2} / {:.2}; tail {:.1}; clamps {:?}; monotone failures {:?}",
+        comp.side_faces_mm, comp.band_v_len_mm, comp.crest_v_mm, comp.granule_cell_mm[0], comp.granule_cell_mm[1], comp.granule_repeats, comp.crest_thorns.len(), comp.knobs, comp.side_thorns.len(), comp.horn_v_mm[0], comp.horn_v_mm[1], comp.tail_deg, comp.clamps, comp.monotone_failures
     );
     let params = if draft { draft_params() } else { export_params() };
     let t = std::time::Instant::now();
@@ -921,7 +1052,7 @@ fn main() -> Result<()> {
     if std::env::var("MOLOCH_VIEWS").is_ok() {
         let parts = vec![render::Part::metal(&built.mesh, render::GOLD)];
         let mut sheet = vec![0u8; 1200 * 900 * 3];
-        for (k, (yaw, pitch)) in [(-0.65, 0.6), (-0.3, 0.8), (0.0, 0.9), (0.3, 0.8), (-0.9, 0.9), (-0.4, 1.1), (0.4, 1.1), (0.65, 0.6), (-1.2, 0.7), (1.2, 0.7), (-0.2, 0.5), (0.2, 0.5)].iter().enumerate() {
+        for (k, (yaw, pitch)) in [(-0.65, 0.6), (-0.45, 0.55), (-0.3, 0.65), (0.0, 0.6), (0.3, 0.65), (0.45, 0.55), (0.65, 0.6), (-0.2, 0.75), (0.2, 0.75), (-0.5, 0.4), (0.5, 0.4), (0.0, 0.45)].iter().enumerate() {
             let img = render::render_parts_ss(&parts, *yaw, *pitch, 300, 300, 2);
             paste(&mut sheet, 1200, &img, 300, (k % 4) * 300, (k / 4) * 300);
         }
