@@ -1943,6 +1943,13 @@ fn recensus(out: &Path) -> Result<()> {
     let a = Atlas::of(&d, AW, atlas_rows(&d))?;
     stone_and_fangs(&mut d)?;
     let wolf = wolf_of(&d, &a)?;
+    let cuts: Vec<(f64, f64, f64)> = [70.0, 90.0, 110.0]
+        .into_iter()
+        .map(|theta| section_cut(&built.mesh, theta, &out.join(format!("section-{theta:.0}.png")), 40.0).map(|(o, f)| (theta, o, f)))
+        .collect::<Result<_>>()?;
+    for (theta, o, f) in &cuts {
+        println!("  section at theta {theta}: {o:.2} mm over the hollow, floor under it {f:.2} mm");
+    }
     let (census, marks) = census(&wolf, &built, 4);
     for p in marks.iter().take(12) {
         let q = wolf.face(*p);
@@ -2250,12 +2257,13 @@ fn hollow_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
         len([x.max(-r) + r, u.max(-r) + r, 0.0]).max(0.0) + x.max(u).min(-r) + r - r
     };
     // The mouth it opens into the finger hole: an oval as a superellipse, curved all round with no corner tighter than
-    // 2 mm, the pocket free to widen past it once 1.2 mm up from the bore.
+    // 2 mm; the pocket widens past it only from 1.05 mm over the bore up, so the floor it runs on over the finger is
+    // 1 mm and more.
     let (ox, ou0, ou1) = HOLLOW_OPENING;
     let opening = |q: P3, r: f64| {
         let (x, u) = (q[0].abs() / ox, (q[1] - 0.5 * (ou0 + ou1)).abs() / (0.5 * (ou1 - ou0)));
         let f = (x.powf(2.6) + u.powf(2.6)).powf(1.0 / 2.6);
-        (f - 1.0) * ox - 4.0 * smooth(bore + 0.4, bore + 1.1, r)
+        (f - 1.0) * ox - 4.0 * smooth(bore + 1.05, bore + 1.6, r)
     };
     // A round of 0.5 mm where the pocket's walls meet the bore, entered at 50 degrees rather than tangent so the bore
     // and the round never run together: the opening's edge is broken, not sharp.
@@ -2287,6 +2295,8 @@ fn hollow_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
     if csg::self_crossings(&csg::Solid { v: nets.v.clone(), f: nets.f.clone() }) > 0 {
         nets = clean_decimate(&raw, 14_000);
     }
+    // The same sliver collapse, edge flips and fold smoothing as the head, so no burr stands off the pocket's walls.
+    let nets = settle(nets, &field, &|_| true);
     let (bad, volume) = closure(&nets.v, &nets.f);
     ensure!(bad == 0 && volume > 0.0, "The hollow does not close: {bad} open edges");
     let crossings = csg::self_crossings(&csg::Solid { v: nets.v.clone(), f: nets.f.clone() });
@@ -2865,11 +2875,16 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         println!("  cold reload with an empty library: {}", if same { "identical" } else { "DIFFERENT" });
         cold = json!({"identical_vertices_faces_normals": same, "ms": t.elapsed().as_secs_f64() * 1000.0});
     }
-    let over_hollow = section_at(&built.mesh, 90.0, &out.join("section-90.png"), 40.0)?;
-    for theta in [70.0, 110.0] {
-        section_at(&built.mesh, theta, &out.join(format!("section-{theta:.0}.png")), 40.0)?;
+    let cuts: Vec<(f64, f64, f64)> = [70.0, 90.0, 110.0]
+        .into_iter()
+        .map(|theta| section_cut(&built.mesh, theta, &out.join(format!("section-{theta:.0}.png")), 40.0).map(|(o, f)| (theta, o, f)))
+        .collect::<Result<_>>()?;
+    let over_hollow = cuts[1].1;
+    let least_floor = cuts.iter().map(|c| c.2).fold(f64::MAX, f64::min);
+    let least_over = cuts.iter().map(|c| c.1).fold(f64::MAX, f64::min);
+    for (theta, o, f) in &cuts {
+        println!("  section at theta {theta}: {o:.2} mm over the hollow, floor under it {}", if *f < 50.0 { format!("{f:.2} mm") } else { "none".into() });
     }
-    println!("  section at theta 90: {over_hollow:.2} mm of metal over the hollow at its thinnest");
     let voids = internal_voids(&built.mesh);
     for (vol, c) in voids.iter().take(8) {
         let q = wolf.face(*c);
@@ -2891,6 +2906,7 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         ("cold reload identical", !verify || cold["identical_vertices_faces_normals"] == true),
         ("lost-wax land widths >= 0.8 mm or named", lands.unnamed.is_empty()),
         ("hollow under the head: at most 32 g in 18k, 1.0 mm or more over it at theta 90", grams <= 32.0 && over_hollow >= 1.0 && over_hollow < 50.0),
+        ("hollow sections at theta 70, 90 and 110: 1.0 mm or more over it and under it", least_over >= 1.0 && least_floor >= 1.0),
         ("no closed internal voids in the finished metal", voids.is_empty()),
     ];
     let report = json!({
@@ -2907,7 +2923,7 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         "dfm": findings.iter().map(|f| json!({"label": f.label, "message": f.message})).collect::<Vec<_>>(),
         "stones": {"reported": stone_count, "previewed": previewed, "warnings": warnings, "carats": stone_report.as_ref().map_or(0.0, |r| r.total_carats)},
         "grams_18k": grams,
-        "hollow": {"wall_mm": HOLLOW_WALL_MM, "section_90_min_metal_over_mm": over_hollow, "section_png": "section-90.png", "more_sections": ["section-70.png", "section-110.png"]},
+        "hollow": {"wall_mm": HOLLOW_WALL_MM, "section_90_min_metal_over_mm": over_hollow, "section_png": "section-90.png", "more_sections": ["section-70.png", "section-110.png"], "sections": cuts.iter().map(|(t, o, f)| json!({"theta_deg": t, "min_metal_over_mm": o, "min_floor_under_mm": if *f < 50.0 { json!(f) } else { Value::Null }})).collect::<Vec<_>>()},
         "internal_voids": voids.len(),
         "internal_void_sites": voids.iter().map(|(v, c)| json!({"volume_mm3": -v, "face_mm": wolf.face(*c)})).collect::<Vec<_>>(),
         "jaws": jaw_measures(&wolf),
@@ -3694,6 +3710,12 @@ fn internal_voids(m: &Mesh) -> Vec<(f64, P3)> {
 /// metal gold, the hollow and the finger dark, written as a PNG at `px_per_mm`; and the thinnest metal left over the
 /// hollow along the cut, mm.
 fn section_at(m: &Mesh, theta_deg: f64, path: &Path, px_per_mm: f64) -> Result<f64> {
+    Ok(section_cut(m, theta_deg, path, px_per_mm)?.0)
+}
+
+/// [`section_at`] with the thinnest floor left between the pocket and the finger where the pocket runs on past its
+/// mouth, mm (`f64::MAX` where it has none), both a millimetre in from the ends of each run of pocket columns.
+fn section_cut(m: &Mesh, theta_deg: f64, path: &Path, px_per_mm: f64) -> Result<(f64, f64)> {
     let (z0, z1, y0, y1) = (-13.0, 13.0, 8.0, 20.0);
     let (w, h) = (((z1 - z0) * px_per_mm) as usize, ((y1 - y0) * px_per_mm) as usize);
     let (s, c) = theta_deg.to_radians().sin_cos();
@@ -3720,8 +3742,9 @@ fn section_at(m: &Mesh, theta_deg: f64, path: &Path, px_per_mm: f64) -> Result<f
         }
     }
     let mut img = vec![18u8; w * h * 3];
-    // Per column over the pocket: its z and the metal over it.
+    // Per column over the pocket: its z and the metal over it; and where a floor runs under it, the floor.
     let mut over: Vec<(f64, f64)> = Vec::new();
+    let mut floor: Vec<(f64, f64)> = Vec::new();
     for col in 0..w {
         let z = z0 + (col as f64 + 0.5) / px_per_mm;
         let mut ys: Vec<f64> = segs
@@ -3745,27 +3768,55 @@ fn section_at(m: &Mesh, theta_deg: f64, path: &Path, px_per_mm: f64) -> Result<f
                 }
             }
         }
-        // Where the first metal starts clear of the finger's cylinder, the hollow opens under it.
-        if let Some(first) = ys.chunks(2).find(|p| p.len() == 2) {
-            if z.abs() < 8.0 && first[0] > 9.5 + 0.4 {
-                over.push((z, first[1] - first[0]));
+        // Where the first metal starts clear of the finger's cylinder, the hollow opens under it; where the first
+        // metal starts on the finger's cylinder and air follows it under the table's plane, the pocket runs over a
+        // floor.
+        // Films of metal or air thinner than 0.05 mm are merged away, and the roof is the metal over the pocket's
+        // highest air closed under the table's plane (at this cut's own distance from the axis), so neither a burr
+        // on the pocket's wall nor open air over the band is read as the roof.
+        let table_r = 14.0 / (theta_deg - 90.0).to_radians().cos();
+        let mut merged: Vec<[f64; 2]> = Vec::new();
+        for p in ys.chunks(2).filter(|p| p.len() == 2) {
+            match merged.last_mut() {
+                Some(last) if p[0] - last[1] < 0.05 => last[1] = p[1],
+                _ => merged.push([p[0], p[1]]),
+            }
+        }
+        merged.retain(|p| p[1] - p[0] >= 0.05);
+        let pairs: Vec<&[f64]> = merged.iter().map(|p| &p[..]).collect();
+        if z.abs() < 8.0 && !pairs.is_empty() {
+            let first = pairs[0];
+            let roof = (0..pairs.len()).rev().find(|&k| k > 0 && pairs[k][0] < table_r + 0.35 && pairs[k][1] > table_r - 0.5);
+            if first[0] > 9.5 + 0.4 {
+                let top = roof.map_or(first, |k| pairs[k]);
+                over.push((z, top[1] - top[0]));
+            } else if let Some(k) = roof {
+                floor.push((z, first[1] - first[0]));
+                over.push((z, pairs[k][1] - pairs[k][0]));
+            }
+            if std::env::var("FENRIR_HOLLOW").is_ok() && over.last().is_some_and(|o| o.0 == z && o.1 < 0.5) {
+                println!("    thin column at z {z:.3}: {:?}", ys.iter().map(|y| (y * 1000.0).round() / 1000.0).collect::<Vec<_>>());
             }
         }
     }
     image::save_buffer(path, &img, w as u32, h as u32, image::ColorType::Rgb8)?;
     // The thinnest over each run of pocket columns, a millimetre in from either end, clear of the rounded walls.
-    let mut over_hollow = f64::MAX;
-    let mut start = 0;
-    for k in 0..=over.len() {
-        if k == over.len() || (k > start && over[k].0 - over[k - 1].0 > 1.5 / px_per_mm) {
-            if k > start {
-                let (z0, z1) = (over[start].0 + 1.0, over[k - 1].0 - 1.0);
-                over_hollow = over[start..k].iter().filter(|(z, _)| *z >= z0 && *z <= z1).fold(over_hollow, |m, (_, t)| m.min(*t));
+    let trimmed = |cols: &[(f64, f64)]| {
+        let mut least = f64::MAX;
+        let mut start = 0;
+        for k in 0..=cols.len() {
+            if k == cols.len() || (k > start && cols[k].0 - cols[k - 1].0 > 1.5 / px_per_mm) {
+                if k > start {
+                    let (z0, z1) = (cols[start].0 + 1.0, cols[k - 1].0 - 1.0);
+                    least = cols[start..k].iter().filter(|(z, _)| *z >= z0 && *z <= z1).fold(least, |m, (_, t)| m.min(*t));
+                }
+                start = k;
             }
-            start = k;
         }
-    }
-    Ok(over_hollow)
+        least
+    };
+    over.sort_by(|a, b| a.0.total_cmp(&b.0));
+    Ok((trimmed(&over), trimmed(&floor)))
 }
 
 /// Points where one face of `mesh` pierces another.

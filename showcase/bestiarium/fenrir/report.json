@@ -2,9 +2,9 @@
   "bore_mm": 19.0,
   "build": {
     "profile_steps": 448,
-    "seconds": 530.142785319,
+    "seconds": 528.385780565,
     "theta_steps": 1536,
-    "triangles": 1258040
+    "triangles": 1257542
   },
   "census": {
     "edges_60_deg_by_zone": {
@@ -12,7 +12,7 @@
         "cells_1mm": 551,
         "edges_60": 16021,
         "edges_90": 3000,
-        "length_mm": 915.2440831258689
+        "length_mm": 915.2440831258649
       },
       "brow": {
         "cells_1mm": 0,
@@ -60,13 +60,13 @@
         "cells_1mm": 34,
         "edges_60": 1243,
         "edges_90": 342,
-        "length_mm": 15.221432313778697
+        "length_mm": 15.221432313778683
       },
       "hollow under the head": {
-        "cells_1mm": 103,
-        "edges_60": 1483,
-        "edges_90": 410,
-        "length_mm": 134.922231663502
+        "cells_1mm": 50,
+        "edges_60": 806,
+        "edges_90": 322,
+        "length_mm": 37.39529861384638
       },
       "lower jaw and chin": {
         "cells_1mm": 0,
@@ -78,7 +78,7 @@
         "cells_1mm": 12,
         "edges_60": 23,
         "edges_90": 0,
-        "length_mm": 2.06164637678446
+        "length_mm": 2.0616463767844597
       },
       "muzzle": {
         "cells_1mm": 0,
@@ -109,7 +109,7 @@
   },
   "cold_reload": {
     "identical_vertices_faces_normals": true,
-    "ms": 10892.530937
+    "ms": 10877.800067999999
   },
   "composition": {
     "fold_caps": [],
@@ -121,16 +121,16 @@
       "marching_step_mm": 0.09,
       "packed_bytes": 1302932,
       "raw_triangles": 1196204,
-      "seconds": 443.01977542,
+      "seconds": 440.17469474,
       "self_crossings": 0,
       "triangles": 117492,
       "vertices": 58752,
-      "volume_mm3": 818.7419394221279
+      "volume_mm3": 818.7419394221284
     },
     "hollow": {
-      "packed_bytes": 235052,
-      "triangles": 22000,
-      "volume_mm3": 442.69005895216856,
+      "packed_bytes": 229156,
+      "triangles": 21336,
+      "volume_mm3": 416.5370278995217,
       "wall_mm": 1.0
     },
     "moon_across_mm": 4.8,
@@ -146,7 +146,7 @@
     "table_y_mm": 14.016453517526037
   },
   "design": {
-    "bytes": 2660929,
+    "bytes": 2655033,
     "cad_features": 5,
     "format_version": 6,
     "layers": [
@@ -174,14 +174,14 @@
       "Lost wax: 10.05% of the surface would undercut a two-part pull (worst 54.2 deg) — fine for investment, but this pattern cannot move to sand as-is.",
       "Undercut 101–79° on the crest: 146.7 mm² leaning to 53° — no single layer explains it.",
       "Cut at the bench after casting, and so not judged here: Graver's hair lines.",
-      "Measured with the ring as built: 3 CAD parts (2 joined, 1 cut), 1063.9 mm² of part surface; under lost wax they are reported, never gating.",
+      "Measured with the ring as built: 3 CAD parts (2 joined, 1 cut), 1063.7 mm² of part surface; under lost wax they are reported, never gating.",
       "Lost wax: Claw head \"Fangs\" (#3) would undercut a two-part pull over 0.8 mm² (worst -70°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Stored mesh \"Fenrir's head\" (#4) would undercut a two-part pull over 242.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hollow under the head\" (#5) would undercut a two-part pull over 239.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: Stored mesh \"Hollow under the head\" (#5) would undercut a two-part pull over 238.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "thinnest_wall_mm": 1.3227560269617804,
     "thinnest_wall_theta_deg": 255.9375,
-    "undercut_percent": 24.837645768867432,
+    "undercut_percent": 24.806561868431913,
     "verdict": "Castable"
   },
   "gates": [
@@ -234,6 +234,10 @@
       "pass": true
     },
     {
+      "gate": "hollow sections at theta 70, 90 and 110: 1.0 mm or more over it and under it",
+      "pass": true
+    },
+    {
       "gate": "no closed internal voids in the finished metal",
       "pass": true
     }
@@ -250,20 +254,37 @@
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 1258040,
-      "vertex_count": 629020,
+      "triangle_count": 1257542,
+      "vertex_count": 628771,
       "watertight": true
     },
-    "volume_mm3": 1998.503812923859
+    "volume_mm3": 2025.281472210081
   },
-  "grams_18k": 31.136689405353724,
+  "grams_18k": 31.553885337033062,
   "hollow": {
     "more_sections": [
       "section-70.png",
       "section-110.png"
     ],
-    "section_90_min_metal_over_mm": 1.1180623322461631,
+    "section_90_min_metal_over_mm": 1.1163721010134076,
     "section_png": "section-90.png",
+    "sections": [
+      {
+        "min_floor_under_mm": 1.159659805796398,
+        "min_metal_over_mm": 1.7505763166523014,
+        "theta_deg": 70.0
+      },
+      {
+        "min_floor_under_mm": null,
+        "min_metal_over_mm": 1.1163721010134076,
+        "theta_deg": 90.0
+      },
+      {
+        "min_floor_under_mm": 1.1679282978121535,
+        "min_metal_over_mm": 1.6592851373598076,
+        "theta_deg": 110.0
+      }
+    ],
     "wall_mm": 1.0
   },
   "internal_void_sites": [],
@@ -663,8 +684,8 @@
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 1258040,
-      "vertex_count": 629020,
+      "triangle_count": 1257542,
+      "vertex_count": 628771,
       "watertight": true
     }
   },
