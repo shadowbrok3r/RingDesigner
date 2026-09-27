@@ -1010,6 +1010,22 @@ automatically, because `u` wraps at the circumference. That is why
 `TilingLayer::repeats_around`, `MilgrainLayer::beads_around`, and
 `BorderLayer::rope_twists` are all `u32`. Do not make them floats.
 
+**A graded tiling keeps its integer count.** `TilingLayer::grade` does not
+vary the count; it runs the lattice on φ(u), a monotone map of the circle onto
+itself, so the count closes exactly as an ungraded one does (C-R2).
+`GradeLaw::Cosine` is the graded seat run's own `eccentric_warp` with
+`c = sqrt(1 − taper)`: pitch a raised cosine, largest at `theta_deg`, `1 −
+taper` of it opposite. `GradeLaw::Spiral` shrinks the pitch geometrically all
+the way round from `seam_deg`, one kink there; stand the seam on a cell edge
+and no cell straddles it. `isotropic` narrows the band about `v_center_mm` by
+the same ratio, so rows converge like a tail's. At taper 0 the layer is
+bit-identical, `grade` is skipped when `None`, and a grade writes the design
+at 6 and a graph carrying one at 2. DFM measures a graded tiling at its
+small pole, `TilingLayer::finest_cell_size`: √(1 − taper) of the nominal
+width on the Cosine law, `taper / −ln(1 − taper)` on the Spiral, and the
+height by `1 − taper` when isotropic. A width-only grade barely moves a
+texture whose finest feature runs across the band, which is right.
+
 Alphas must also tile seamlessly in themselves — `Procedural::generate` builds
 every pattern from functions periodic in both axes. An **imported** image is
 used as drawn, seam and all: `Alpha::make_seamless` exists and is tested and
@@ -1086,7 +1102,17 @@ pins both directions. On top of that:
   first — the chart's `v` is that arc normalized, so on a lobe three
   times the reference thickness a stamp stands that much taller than it
   is wide — and the measurement replaces the footprint's 15%-of-size
-  guess, which called a 2.25 mm hook with a 0.45 mm stroke mush. Run on
+  guess, which called a 2.25 mm hook with a 0.45 mm stroke mush. **A
+  generated skin carries one period per tile** (`reptile::svg`, C-R7): a
+  builtin tile carries several and falls under the floor at a ring's
+  tightest station, so the Cataphracta generators draw one in mm and
+  each is measured there, ink and gaps, against 0.40
+  (`every_reptile_skin_holds_the_detail_floor_at_its_tightest_station`).
+  A drawn land reads about 0.01 mm narrow through the 1024-px raster, so a
+  tile meant to hold 0.40 draws 0.42; a true point holds no disc, so a
+  spine is blunt; and a hard-cornered trapezoid reads narrower than the
+  same shape under a blur, because the corners go first. `script` nodes
+  reach every generator through `reptile_svg(name, …)`. Run on
   the shipped templates (`dfm::measured_tests::the_templates_measured`,
   `--nocapture`) it names three: Waves at 0.04 mm strokes on the waved
   hexagon signet's 11.8 × 0.8 mm cells, Chevron at 0.03 mm gaps on the
@@ -3120,7 +3146,11 @@ stays the provenance — `Preset::id` is what a design or an example names one
 by, and `stock_name()` is what the master file calls itself — while `name`,
 `face_mm` and `plan` (48 polar radii off the table band of its own mesh) are
 what the picker draws. "002 · Signet" told a reader nothing about the head
-they were about to get.
+they were about to get. `imported_base::plan_mask(id, w, h)` fills the same
+48 radii as a mask (C-R8): the plan's bounding box fills the raster,
+columns along the head's length, so laid over a face of `face_mm` it sits
+on the table; each preset fills its own polygon's share of the box to
+0.004.
 
 `examples/stock_masterworks.rs` holds the two rings that came of it,
 **Saurian** (013, one stone) and **Zenith** (017, three), and the method:
@@ -3235,6 +3265,24 @@ painted alpha as one tile over the whole chart, joined by `Max`.
 `imported_base::sand_master(Arc<Source>)` is the stock's upper half mirrored
 about its mid-plane, refined to 0.55 mm edges and drafted toward the pull,
 deterministic.
+
+**A tiling can live in the hide, and a mask can name a region** (C-R4), so
+the painted route is no longer the only way to lay work in true
+millimetres. `TilingLayer::space = Hide` runs the lattice on
+`FieldContext::hide_uv`: `u` is the crest's own arc from the head's centre
+at 90°, `v` is `across`, 0 on the parting line, and `mirror_v` mirrors
+across the line. On a procedural band the chart is the chart stretched by
+its own tables (along integrates `crest_scale`, across is `(v − crest_v) ·
+station_stretch`) — on a plain band it is the chart with `v` moved to the
+line, to 1e-9, and on a keyframed band it agrees with the atlas's `Hide` to
+2%; on stock it is `Hide::of` over `Atlas::of_surface` of the field
+surface, cached per surface. The back of the ring, past 270°, runs from the
+other shoulder, so a hide tiling closes there only where the crest's arc
+totals the chart's; keep it off the back or window it. `"##region:NAME"`
+masks (`table`, `rim`, `cheek`, `wall`, `shoulder`, `palm`; `skin::region`
+says what each is) are painted on a 1024 × 256 atlas and inserted by the
+distance-field bake like `##sdf`, shared per band and never embedded. Both
+are skipped when unused, and either writes the design at 6 and a graph at 2.
 
 - **The atlas is where the metal is.** Against the swept mesh at 1024 rows
   a keyframed band misses by 0.0006 mm (0.005 of a texel) and a bypass by

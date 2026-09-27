@@ -176,6 +176,7 @@ mod api {
     use super::*;
 
     pub fn register(engine: &mut Engine) {
+        register_reptile(engine);
         engine.register_fn("lerp", |a: f64, b: f64, t: f64| a + (b - a) * t);
         engine.register_fn("remap", |x: f64, a: f64, b: f64, c: f64, d: f64| if (b - a).abs() < 1e-300 { c } else { c + (d - c) * (x - a) / (b - a) });
         engine.register_fn("clamp", |x: f64, lo: f64, hi: f64| x.clamp(lo.min(hi), hi.max(lo)));
@@ -223,6 +224,36 @@ mod api {
         });
     }
 
+    /// The collection's reptile skins (`reptile::svg`) as SVG text for an
+    /// `alpha.svg` node, so a template can expose pitch, land and dome:
+    /// `reptile_svg("granules", 1.8, 1.56, 0.4, 1.0)`, or with a map that may
+    /// also carry `seed` and `focus_u`/`focus_v`. An unknown skin is an error
+    /// naming the ones there are.
+    pub fn register_reptile(engine: &mut Engine) {
+        use ringdesign_core::reptile::svg::{GENERATORS, Params, draw};
+        fn skin(name: &str, p: Params) -> Result<String, Box<rhai::EvalAltResult>> {
+            draw(name, &p).ok_or_else(|| {
+                let known: Vec<&str> = GENERATORS.iter().map(|g| g.name).collect();
+                format!("no reptile skin named {name:?}; there are {}", known.join(", ")).into()
+            })
+        }
+        engine.register_fn("reptile_svg", |name: &str, pitch: f64, height: f64, land: f64, dome: f64| skin(name, Params::new(pitch, height, land, dome)));
+        engine.register_fn("reptile_svg", |name: &str, m: rhai::Map| {
+            let base = GENERATORS.iter().find(|g| g.name == name).map_or(Params::new(1.0, 1.0, 0.4, 1.0), |g| g.tightest);
+            let get = |k: &str, or: f64| m.get(k).and_then(num).unwrap_or(or);
+            let p = Params {
+                pitch_mm: get("pitch", base.pitch_mm),
+                height_mm: get("height", base.height_mm),
+                land_mm: get("land", base.land_mm),
+                dome: get("dome", base.dome),
+                seed: get("seed", base.seed as f64).max(0.0) as u64,
+                focus: [get("focus_u", base.focus[0]), get("focus_v", base.focus[1])],
+            };
+            skin(name, p)
+        });
+        engine.register_fn("reptile_skins", || -> Array { GENERATORS.iter().map(|g| Dynamic::from(g.name.to_string())).collect() });
+    }
+
     fn num(d: &Dynamic) -> Option<f64> {
         if d.is_float() { d.as_float().ok() } else if d.is_int() { d.as_int().ok().map(|i| i as f64) } else { None }
     }
@@ -232,6 +263,26 @@ mod api {
 mod tests {
     use super::*;
     use ringdesign_core::ProfileStyle;
+
+    /// Every reptile skin is a script call away, its pitch, land and dome exposed, and the SVG is the generator's own.
+    #[test]
+    fn a_script_twins_every_reptile_skin() {
+        use ringdesign_core::reptile::svg::{GENERATORS, Params, draw};
+        let e = ScriptEngine::new();
+        let mut s = Scope::new();
+        for g in GENERATORS {
+            let p = g.tightest;
+            let got = e.eval(&format!("reptile_svg(\"{}\", {:?}, {:?}, {:?}, {:?})", g.name, p.pitch_mm, p.height_mm, p.land_mm, p.dome), &mut s).unwrap();
+            assert_eq!(got.into_string().unwrap(), draw(g.name, &Params { seed: 0, focus: [0.0, 0.0], ..p }).unwrap(), "{}", g.name);
+            let mapped = e.eval(&format!("reptile_svg(\"{}\", #{{}})", g.name), &mut s).unwrap();
+            assert_eq!(mapped.into_string().unwrap(), draw(g.name, &p).unwrap(), "{} from its tightest tile", g.name);
+        }
+        let wider = e.eval("reptile_svg(\"granules\", #{ land: 0.55, pitch: 2.0 })", &mut s).unwrap().into_string().unwrap();
+        assert_eq!(wider, draw("granules", &Params { land_mm: 0.55, pitch_mm: 2.0, ..GENERATORS[3].tightest }).unwrap());
+        let err = e.eval("reptile_svg(\"basilisk\", 1.0, 1.0, 0.4, 1.0)", &mut s).unwrap_err();
+        assert!(err.contains("basilisk") && err.contains("granules"), "{err}");
+        assert_eq!(e.eval("reptile_skins().len()", &mut s).unwrap().as_int().unwrap() as usize, GENERATORS.len());
+    }
 
     #[test]
     fn the_sandbox_stops_a_runaway_script_and_refuses_eval() {

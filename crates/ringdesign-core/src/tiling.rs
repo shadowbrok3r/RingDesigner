@@ -165,6 +165,158 @@ pub struct TilingLayer {
     /// 1 is off.
     #[serde(default)]
     pub kfold: u32,
+    /// Cells graded round the ring: the lattice runs on a monotone map of
+    /// the circle onto itself, so the integer count still closes. `None`
+    /// keeps every cell the same width.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grade: Option<TileGrade>,
+    /// The coordinates the lattice runs on: the chart, or the hide measured
+    /// along the parting line and across from it.
+    #[serde(default, skip_serializing_if = "ChartSpace::is_chart")]
+    pub space: ChartSpace,
+}
+
+/// How a graded tiling's pitch runs round the ring.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum GradeLaw {
+    /// A raised cosine, largest at `theta_deg` and smallest opposite it: the
+    /// eccentric warp a graded seat run spaces its stations by.
+    Cosine,
+    /// Largest just after `seam_deg`, shrinking geometrically all the way
+    /// round to its smallest just before it, where the one kink stands.
+    /// A seam on a cell edge (`seam_deg * repeats_around / 360` whole) keeps
+    /// the kink out of every cell.
+    Spiral { seam_deg: f64 },
+}
+
+/// A tiling's grade: cells shrink from the large pole by up to `taper`.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TileGrade {
+    /// The smallest pitch is `1 - taper` of the largest, 0..0.9. 0 is off.
+    pub taper: f64,
+    /// Where the Cosine law's largest cells stand, degrees; the Spiral law
+    /// reads its seam instead.
+    pub theta_deg: f64,
+    pub law: GradeLaw,
+    /// Scale `v` about the band's centre by the local pitch, so rows
+    /// converge the way a tail does; otherwise only the width grades.
+    #[serde(default)]
+    pub isotropic: bool,
+}
+
+/// Most a grade may take off the largest pitch.
+pub const MAX_GRADE_TAPER: f64 = 0.9;
+
+impl TileGrade {
+    fn t(&self) -> f64 {
+        fin(self.taper).clamp(0.0, MAX_GRADE_TAPER)
+    }
+
+    /// Whether it moves anything: a taper of 0 lays every cell as before.
+    pub fn is_active(&self) -> bool {
+        self.t() > 0.0
+    }
+
+    /// The Spiral law's rate, `ln` of the largest pitch over the smallest.
+    fn rate(&self) -> f64 {
+        -(1.0 - self.t()).ln()
+    }
+
+    /// Where the law's frame starts, as a fraction of the ring.
+    fn anchor(&self) -> f64 {
+        match self.law {
+            GradeLaw::Cosine => fin(self.theta_deg) / 360.0,
+            GradeLaw::Spiral { seam_deg } => fin(seam_deg) / 360.0,
+        }
+    }
+
+    /// The lattice coordinate of ring fraction `x`, both as fractions of the
+    /// ring: monotone, with `phi(x + 1) = phi(x) + 1`.
+    pub fn phi(&self, x: f64) -> f64 {
+        self.map(x, false)
+    }
+
+    /// The ring fraction lattice coordinate `p` stands at: `phi`'s inverse.
+    pub fn x_of_phi(&self, p: f64) -> f64 {
+        self.map(p, true)
+    }
+
+    fn map(&self, x: f64, inverse: bool) -> f64 {
+        let t = self.t();
+        let a = self.anchor();
+        let y = x - a;
+        match self.law {
+            GradeLaw::Cosine => {
+                // The seat run's warp: pitch A + B cos, smallest opposite `a`.
+                let c = (1.0 - t).sqrt();
+                let c = if inverse { 1.0 / c } else { c };
+                let n = y.round();
+                let turn = std::f64::consts::TAU;
+                a + n + crate::field::eccentric_warp((y - n) * turn, c) / turn
+            }
+            GradeLaw::Spiral { .. } => {
+                let (n, k) = (y.floor(), self.rate());
+                let f = y - n;
+                let g = if inverse { (f * k.exp_m1()).ln_1p() / k } else { (k * f).exp_m1() / k.exp_m1() };
+                a + n + g
+            }
+        }
+    }
+
+    /// Local pitch over the largest at ring fraction `x`: 1 at the large
+    /// pole, `1 - taper` at the small one.
+    pub fn ratio(&self, x: f64) -> f64 {
+        let t = self.t();
+        let y = x - self.anchor();
+        match self.law {
+            GradeLaw::Cosine => 1.0 - t * 0.5 * (1.0 - (y * std::f64::consts::TAU).cos()),
+            GradeLaw::Spiral { .. } => (-self.rate() * (y - y.floor())).exp(),
+        }
+    }
+
+    /// Smallest cell pitch over the ungraded one: where DFM must measure.
+    pub fn finest_over_nominal(&self) -> f64 {
+        let t = self.t();
+        if t <= 0.0 {
+            return 1.0;
+        }
+        match self.law {
+            GradeLaw::Cosine => (1.0 - t).sqrt(),
+            GradeLaw::Spiral { .. } => t / self.rate(),
+        }
+    }
+}
+
+/// Which coordinates a tiling's lattice runs on.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChartSpace {
+    /// `(u, v)` of the chart: arc at the reference crest, and section arc.
+    #[default]
+    Chart,
+    /// Millimetres of the surface itself, along the parting line from the
+    /// head's centre and across the section from it.
+    Hide,
+}
+
+impl ChartSpace {
+    pub const ALL: &'static [ChartSpace] = &[ChartSpace::Chart, ChartSpace::Hide];
+
+    pub fn is_chart(&self) -> bool {
+        *self == ChartSpace::Chart
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            ChartSpace::Chart => "Chart",
+            ChartSpace::Hide => "Hide",
+        }
+    }
+}
+
+impl std::fmt::Display for ChartSpace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.label())
+    }
 }
 
 impl TilingLayer {
@@ -194,6 +346,8 @@ impl TilingLayer {
             warp: None,
             shear: 0.0,
             kfold: 0,
+            grade: None,
+            space: ChartSpace::Chart,
         }
     }
 
@@ -266,6 +420,16 @@ impl TilingLayer {
         (ctx.circumference_mm / cols, self.v_span_mm / rows)
     }
 
+    /// The smallest cell the layer lays anywhere round the ring, mm: the
+    /// ungraded cell, or a graded one at its small pole.
+    pub fn finest_cell_size(&self, ctx: &FieldContext) -> (f64, f64) {
+        let (cw, ch) = self.cell_size(ctx);
+        match self.grade.filter(|g| g.is_active()) {
+            Some(g) => (cw * g.finest_over_nominal(), if g.isotropic { ch * (1.0 - g.t()) } else { ch }),
+            None => (cw, ch),
+        }
+    }
+
     /// `v` bounds of the tiled band: `(low, high)`.
     pub fn v_bounds(&self) -> (f64, f64) {
         let half = self.v_span_mm * 0.5;
@@ -274,6 +438,12 @@ impl TilingLayer {
 
     /// Displacement at a surface point, in mm.
     pub fn height(&self, uv: Uv, ctx: &FieldContext, lib: &AlphaLibrary) -> f64 {
+        if self.space == ChartSpace::Hide {
+            // Mirroring in the hide is across the parting line itself.
+            let Some(at) = ctx.hide_uv(uv) else { return 0.0 };
+            let h = self.height_at(at, ctx, lib);
+            return if self.mirror_v { h.max(self.height_at(Uv { u: at.u, v: -at.v }, ctx, lib)) } else { h };
+        }
         let h = self.height_at(uv, ctx, lib);
         if !self.mirror_v {
             return h;
@@ -291,6 +461,22 @@ impl TilingLayer {
                 u: uv.u,
                 v: w.apply(uv.u / ctx.circumference_mm, uv.v),
             },
+            _ => uv,
+        };
+        // The grade: the lattice runs on phi(u), and an isotropic one
+        // narrows the band with the pitch.
+        let uv = match self.grade.as_ref().filter(|g| g.is_active()) {
+            Some(g) if ctx.circumference_mm > 1e-9 && uv.u.is_finite() => {
+                let circ = ctx.circumference_mm;
+                let x = uv.u.rem_euclid(circ) / circ;
+                let v = if g.isotropic {
+                    let c = fin(self.v_center_mm);
+                    c + (uv.v - c) / g.ratio(x)
+                } else {
+                    uv.v
+                };
+                Uv { u: g.phi(x).rem_euclid(1.0) * circ, v }
+            }
             _ => uv,
         };
         // Kaleidoscope fold, then the helix shear, both in u alone.
@@ -404,6 +590,7 @@ impl TilingLayer {
         let circ = ctx.circumference_mm;
         let (cw, ch) = self.cell_size(ctx);
         let (lo, hi) = self.v_bounds();
+        let grade = self.grade.filter(|g| g.is_active() && circ > 1e-9);
         let mut out = Vec::with_capacity((cols as usize).saturating_mul(rows as usize).min(1024));
         for row in 0..rows {
             // Clipped so a drawn footprint never covers metal `height` skips.
@@ -418,10 +605,27 @@ impl TilingLayer {
                     return out;
                 }
                 let u = (col as f64 + shift) * cw;
-                let u0 = if circ > 1e-9 { u.rem_euclid(circ) } else { u };
+                let (u0, u1, v0, v1) = match grade {
+                    // A graded cell spans the ring between its edges' preimages.
+                    Some(g) => {
+                        let (p0, p1) = (u / circ, (u + cw) / circ);
+                        let (x0, x1) = (g.x_of_phi(p0), g.x_of_phi(p1));
+                        let u0 = x0.rem_euclid(1.0) * circ;
+                        let (mut v0, mut v1) = (v0, v1);
+                        if g.isotropic {
+                            let (c, r) = (fin(self.v_center_mm), g.ratio(0.5 * (x0 + x1)));
+                            (v0, v1) = (c + (v0 - c) * r, c + (v1 - c) * r);
+                        }
+                        (u0, u0 + (x1 - x0) * circ, v0, v1)
+                    }
+                    None => {
+                        let u0 = if circ > 1e-9 { u.rem_euclid(circ) } else { u };
+                        (u0, u0 + cw, v0, v1)
+                    }
+                };
                 out.push(TileCell {
                     u0,
-                    u1: u0 + cw,
+                    u1,
                     v0,
                     v1,
                     rot_deg: self.rotation_deg,
@@ -629,6 +833,8 @@ mod tests {
             warp: None,
             shear: 0.0,
             kfold: 0,
+            grade: None,
+            space: ChartSpace::Chart,
         }
     }
 
@@ -652,6 +858,118 @@ mod tests {
         let mut lib = AlphaLibrary::default();
         lib.insert(Procedural::Rope.generate(64));
         lib
+    }
+
+    /// A band of vertical stripes: one ramp per cell, read along the crest.
+    fn graded(law: GradeLaw, taper: f64, isotropic: bool) -> TilingLayer {
+        TilingLayer {
+            repeats_around: 24,
+            rows: 1,
+            grade: Some(TileGrade { taper, theta_deg: 90.0, law, isotropic }),
+            ..ramp_layer()
+        }
+    }
+
+    const LAWS: [GradeLaw; 2] = [GradeLaw::Cosine, GradeLaw::Spiral { seam_deg: 195.0 }];
+
+    #[test]
+    fn a_grade_of_taper_zero_lays_every_cell_bit_for_bit() {
+        let c = ctx();
+        let l = lib();
+        for law in LAWS {
+            for isotropic in [false, true] {
+                let plain = patterned_layer();
+                let flat = TilingLayer { grade: Some(TileGrade { taper: 0.0, theta_deg: 37.0, law, isotropic }), ..plain.clone() };
+                for i in 0..600 {
+                    let uv = Uv { u: i as f64 * 0.137, v: 2.0 + (i % 40) as f64 * 0.1 };
+                    assert_eq!(plain.height(uv, &c, &l).to_bits(), flat.height(uv, &c, &l).to_bits(), "{law:?} at {uv:?}");
+                }
+                let (a, b) = (plain.cells(&c), flat.cells(&c));
+                assert!(a.iter().zip(&b).all(|(p, q)| (p.u0, p.u1, p.v0, p.v1) == (q.u0, q.u1, q.v0, q.v1)));
+            }
+        }
+        // No grade is not written, so every saved tiling reads byte for byte.
+        let json = serde_json::to_value(patterned_layer()).unwrap();
+        assert!(json.get("grade").is_none() && json.get("space").is_none(), "{json}");
+    }
+
+    #[test]
+    fn a_graded_tiling_closes_and_its_seam_steps_like_its_interior() {
+        let c = ctx();
+        let l = ramp_lib();
+        for law in LAWS {
+            let t = graded(law, 0.6, false);
+            let v = 4.0;
+            let n = 24_000;
+            let du = c.circumference_mm / n as f64;
+            let h = |u: f64| t.height(Uv { u, v }, &c, &l);
+            // The integer count closes: phi maps the circle onto itself.
+            for k in 0..9 {
+                let v = 2.5 + k as f64 * 0.3;
+                let (a, b) = (t.height(Uv { u: 0.0, v }, &c, &l), t.height(Uv { u: c.circumference_mm, v }, &c, &l));
+                assert!((a - b).abs() < 1e-9, "{law:?} seam at v={v}: {a} vs {b}");
+            }
+            // A wrapped ramp steps once per cell, up its whole height; every
+            // other step is the ramp's own slope. The seam is one of them.
+            let steps: Vec<f64> = (0..n).map(|i| (h((i + 1) as f64 * du) - h(i as f64 * du)).abs()).collect();
+            let resets = steps.iter().filter(|s| **s > 0.5).count();
+            assert_eq!(resets, 24, "{law:?}: {resets} cell edges round the ring");
+            let interior = steps.iter().copied().filter(|s| *s <= 0.5).fold(0.0, f64::max);
+            let seam = (h(0.0) - h(-du)).abs();
+            assert!(seam <= interior * 1.5 + 1e-9 || seam > 0.5, "{law:?}: seam {seam} vs interior {interior}");
+            // The seam is no cell edge unless the lattice puts one there.
+            let (first, last) = (h(0.5 * du), h(c.circumference_mm - 0.5 * du));
+            assert!((first - last).abs() <= 2.0 * interior + 1e-9 || (first - last).abs() > 0.5, "{law:?}: {first} vs {last}");
+        }
+    }
+
+    #[test]
+    fn a_grade_runs_the_pitch_from_its_large_pole_to_its_small_one() {
+        let c = ctx();
+        let taper = 0.6;
+        // Cosine: the cells at 90 degrees are 1 / (1 - taper) the width of those at 270.
+        let t = graded(GradeLaw::Cosine, taper, false);
+        let cells = t.cells(&c);
+        let width_at = |deg: f64| {
+            let u = deg / 360.0 * c.circumference_mm;
+            cells.iter().find(|k| (u - k.u0).rem_euclid(c.circumference_mm) < k.width()).unwrap().width()
+        };
+        let ratio = width_at(90.0) / width_at(270.0);
+        assert!((ratio * (1.0 - taper) - 1.0).abs() < 0.08, "cosine pole ratio {ratio}");
+        let total: f64 = cells.iter().map(TileCell::width).sum();
+        assert!((total - c.circumference_mm).abs() < 1e-9, "cells cover {total} of {}", c.circumference_mm);
+        // Mirror-true about the large pole, as a seat run's stations are.
+        assert!((width_at(80.0) - width_at(100.0)).abs() < 1e-9, "{} vs {}", width_at(80.0), width_at(100.0));
+        // Spiral: largest just after the seam, falling every cell, smallest just before it.
+        let t = graded(GradeLaw::Spiral { seam_deg: 195.0 }, taper, false);
+        let mut cells = t.cells(&c);
+        let seam = 195.0 / 360.0 * c.circumference_mm;
+        cells.sort_by(|a, b| (a.u0 - seam).rem_euclid(c.circumference_mm).total_cmp(&(b.u0 - seam).rem_euclid(c.circumference_mm)));
+        assert!((cells[0].u0 - seam).abs() < 1e-9, "a cell edge stands on the seam: {}", cells[0].u0);
+        let w: Vec<f64> = cells.iter().map(TileCell::width).collect();
+        assert!(w.windows(2).all(|p| p[1] < p[0]), "{w:?}");
+        let ratio = w[0] / w[w.len() - 1];
+        assert!((ratio * (1.0 - taper) - 1.0).abs() < 0.08, "spiral first over last {ratio}");
+        let finest = t.finest_cell_size(&c).0;
+        assert!(finest <= w[w.len() - 1] + 1e-9 && finest > 0.95 * w[w.len() - 1], "{finest} vs {}", w[w.len() - 1]);
+    }
+
+    #[test]
+    fn an_isotropic_grade_narrows_the_band_with_the_pitch() {
+        let c = ctx();
+        let l = solid_lib();
+        let t = TilingLayer { alpha: "solid".into(), v_span_mm: 4.0, ..graded(GradeLaw::Cosine, 0.5, true) };
+        let span_at = |deg: f64| {
+            let u = deg / 360.0 * c.circumference_mm;
+            let hits = (0..800).filter(|k| t.height(Uv { u, v: *k as f64 / 100.0 }, &c, &l) > 0.5).count();
+            hits as f64 / 100.0
+        };
+        let (large, small) = (span_at(90.0), span_at(270.0));
+        assert!((large - 4.0).abs() < 0.03, "large pole {large}");
+        assert!((small - 2.0).abs() < 0.03, "small pole {small}");
+        let flat = TilingLayer { grade: Some(TileGrade { isotropic: false, ..t.grade.unwrap() }), ..t.clone() };
+        let hits = (0..800).filter(|k| flat.height(Uv { u: 0.75 * c.circumference_mm, v: *k as f64 / 100.0 }, &c, &l) > 0.5).count();
+        assert!((hits as f64 / 100.0 - 4.0).abs() < 0.03, "an anisotropic grade keeps the band");
     }
 
     #[test]

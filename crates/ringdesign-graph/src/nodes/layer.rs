@@ -97,6 +97,9 @@ fn tiling_node() -> NodeSpec {
     .field(PinSpec::item("shear", ValueKind::Number).doc("Helix shear round the ring."))
     .field(PinSpec::item("kfold", ValueKind::Int).doc("k-fold kaleidoscope in u; 0 is off."))
     .field(PinSpec::item("warp", ValueKind::Json).doc("Optional guide warp: points, strength and falloff_mm. Travels with this layer when the stack is rewired."))
+    .field(PinSpec::item("grade", ValueKind::Json).doc("Optional grade round the ring: taper (0..0.9), theta_deg, law (\"Cosine\" or {\"Spiral\": {\"seam_deg\": …}}) and isotropic. The count still closes."))
+    .field(PinSpec::select("space", enum_names(ringdesign_core::tiling::ChartSpace::ALL)).doc("Lay the lattice in the chart, or in the hide: u along the parting line from the head's centre, v across from the line, both true mm."))
+    .sparse(&["grade", "space"])
     .build()
 }
 
@@ -421,7 +424,7 @@ fn entry_node() -> NodeSpec {
     .field(PinSpec::item("opacity", ValueKind::Number).widget(Widget::Slider { min: 0.0, max: 1.0 }).doc("Strength, 0..1."))
     .field(PinSpec::item("soft_mm", ValueKind::Number).doc("Blur radius, mm."))
     .field(PinSpec::item("window", ValueKind::Window).doc("The angular window, from window."))
-    .field(PinSpec::item("mask", ValueKind::AlphaRef).doc("A painted mask's alpha name."))
+    .field(PinSpec::item("mask", ValueKind::AlphaRef).doc("A painted mask's alpha name, or a region of the band baked on load: ##region:table, rim, cheek, wall, shoulder or palm."))
     .field(PinSpec::item("remap", ValueKind::Remap).doc("A relief remap, from remap.curve or remap.terrace."))
     .finish(entry_name)
     .build()

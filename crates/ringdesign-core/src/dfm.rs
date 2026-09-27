@@ -118,7 +118,7 @@ pub fn findings_in(design: &RingDesign, lib: &crate::AlphaLibrary) -> Vec<DfmFin
             // angle: it is judged where it carries ink, not where its window reaches.
             let (ratio, at_deg) = if t.repeats_around == 1 { worst_arc_ratio(design, entry, &ctx, lib, Some(t)) } else { window };
             let Some((finest, what)) = tiling_finest_mm_remapped(t, lib, &ctx, ratio, &remaps) else { continue };
-            let (cw, ch) = t.cell_size(&ctx);
+            let (cw, ch) = t.finest_cell_size(&ctx);
             let ch = ch * ratio;
             if finest >= min {
                 continue;
@@ -577,6 +577,33 @@ mod measured_tests {
     use crate::field::LayerEntry;
     use crate::tiling::TilingLayer;
 
+    /// A graded tiling is measured at its small pole: its finest feature falls
+    /// with the grade, and a floor between the two catches only the graded
+    /// layer. At taper 0 the measure is the ungraded one, bit for bit.
+    #[test]
+    fn a_graded_tiling_is_measured_at_its_finest_cells() {
+        use crate::tiling::{GradeLaw, TileGrade};
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        let ctx = d.field_context();
+        let mut t = TilingLayer::default_for("Scales", &ctx);
+        t.repeats_around = 8;
+        // Isotropic, so both axes shrink; Scales' finest feature runs across the band.
+        let grade = |taper: f64| Some(TileGrade { taper, theta_deg: 90.0, law: GradeLaw::Cosine, isotropic: true });
+        let plain = tiling_finest_mm(&t, &lib, &ctx).unwrap().0;
+        let flat = tiling_finest_mm(&TilingLayer { grade: grade(0.0), ..t.clone() }, &lib, &ctx).unwrap().0;
+        assert_eq!(plain.to_bits(), flat.to_bits());
+        let graded = TilingLayer { grade: grade(0.6), ..t.clone() };
+        let fine = tiling_finest_mm(&graded, &lib, &ctx).unwrap().0;
+        assert!(fine < plain * 0.9, "graded {fine} against ungraded {plain}");
+        d.draft.min_detail_mm = 0.5 * (fine + plain);
+        let mut ungraded = d.clone();
+        ungraded.layers.layers.push(LayerEntry::new("Scales", Layer::Tiling(t)));
+        assert!(findings_in(&ungraded, &lib).is_empty(), "{:?}", findings_in(&ungraded, &lib));
+        d.layers.layers.push(LayerEntry::new("Scales", Layer::Tiling(graded)));
+        assert_eq!(findings_in(&d, &lib).len(), 1, "the graded layer is caught at its small pole");
+    }
+
     #[test]
     fn a_fine_lined_texture_on_honest_cells_is_caught_by_the_measure() {
         let lib = crate::AlphaLibrary::builtin();
@@ -944,7 +971,8 @@ pub fn tiling_finest_mm_remapped(
     use crate::alpha::Alpha;
     use crate::field::Remap;
     let alpha = lib.get(&t.alpha)?;
-    let (cw, ch) = t.cell_size(ctx);
+    // A graded tiling is judged at its small pole, the finest cell it lays.
+    let (cw, ch) = t.finest_cell_size(ctx);
     let ch = ch * v_scale.clamp(0.05, 8.0);
     let (sx, sy) = (cw / alpha.width.max(1) as f64, ch / alpha.height.max(1) as f64);
     // Granulometry reads a round disc in texels, so on texels far from square
