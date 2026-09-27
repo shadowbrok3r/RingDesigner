@@ -1596,6 +1596,27 @@ fn group(
 ) -> bool {
     use ringdesign_core::pave::{GenRecipe, PinnedSeat};
     let mut c = false;
+    let mut clamped = g.clamp.is_some();
+    if ui
+        .checkbox(&mut clamped, "Sand clamp")
+        .on_hover_text(
+            "Hold the group's composite to a two-part pull: wherever it rises faster than \
+             the surface's own draft allows, it is cut back. Never filled.",
+        )
+        .changed()
+    {
+        g.clamp = clamped.then(ringdesign_core::field::SandClamp::default);
+        c = true;
+    }
+    if let Some(clamp) = &mut g.clamp {
+        ui.horizontal(|ui| {
+            ui.label("Slack");
+            c |= ui
+                .add(egui::DragValue::new(&mut clamp.slack).speed(0.01).range(0.1..=4.0))
+                .on_hover_text("1 is the rule; more lets relief rise steeper than the surface's draft.")
+                .changed();
+        });
+    }
     if let Some(r) = &mut g.recipe {
         let mut bake = false;
         ui.horizontal(|ui| {
@@ -2338,6 +2359,20 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
 
         ui.label("Stone");
         if gem_picker(ui, "run_gem", &mut r.gem) {
+            r.solve_spacing(fctx);
+            c = true;
+        }
+        ui.end_row();
+
+        ui.label("Bare");
+        if ui
+            .checkbox(&mut r.bare, "stock only")
+            .on_hover_text(
+                "Beads cast in the stock: the seats keep their own plan, the row \
+                 spaces by it, and no stone is set. The stone above is ignored.",
+            )
+            .changed()
+        {
             r.solve_spacing(fctx);
             c = true;
         }

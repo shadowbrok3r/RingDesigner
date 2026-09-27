@@ -742,6 +742,7 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
                 Layer::Group(GroupLayer {
                     stack: halo,
                     recipe: None,
+                    clamp: None,
                 }),
             );
             e.mask = Some("Face reserve".into());

@@ -58,6 +58,9 @@ pub struct SeatCheck {
     pub warnings: Vec<String>,
 }
 
+/// What a bare seat run's line says in place of the setting that holds its stones.
+pub const STOCK_ONLY: &str = "stock only";
+
 impl SeatCheck {
     pub fn carats(&self) -> f64 {
         if let Some(c) = self.carats_override {
@@ -251,7 +254,12 @@ fn walk(
                     .filter(|&(t, v)| station_kept(entry, ctx, t, v))
                     .collect();
                 let mut seat = run.seat;
-                seat.fit_stone(run.gem);
+                if run.bare {
+                    // Stock only: the authored plan, and no stone to judge.
+                    seat.gem = None;
+                } else {
+                    seat.fit_stone(run.gem);
+                }
                 let seat = run.turned(seat);
                 let mut check = check_seat(
                     design,
@@ -264,10 +272,13 @@ fn walk(
                     format!("{prefix}{}", entry.name),
                 );
                 check.count = stations.len() as u32;
+                if run.bare {
+                    check.made = Some(STOCK_ONLY.into());
+                }
                 // A graduated run's carats sum the graded stones, not count
                 // times the largest; the check's headline gem stays the
                 // largest, which is the one the pavilion depth must clear.
-                if run.taper > 0.0 {
+                if run.taper > 0.0 && !run.bare {
                     check.carats_override = Some(
                         stations.iter().map(|&(t, _)| run.gem_at(t).carats()).sum(),
                     );
@@ -1423,6 +1434,37 @@ mod tests {
         );
         let lw = castability::analyze_field(&d, &lib, &d.draft, 256, 144);
         assert_eq!(lw.verdict, Verdict::Castable, "{:?}", lw.notes);
+    }
+
+    /// C-R3: a bare run is beads in the stock. It keeps the seat as drawn
+    /// (a 2.0 mm stone would refit it to 2.0 mm and space the row by that),
+    /// packs by its own plan, sets no stone, and says so.
+    #[test]
+    fn a_bare_run_keeps_its_plan_sets_nothing_and_reports_stock_only() {
+        let row = |bare: bool| {
+            let mut d = with_run();
+            let ctx = d.field_context();
+            let Layer::SeatRun(run) = &mut d.layers.layers[0].layer else { unreachable!() };
+            run.bare = bare;
+            run.seat.diameter_mm = 0.9;
+            run.solve_spacing(&ctx);
+            d
+        };
+        let run = |d: &RingDesign| match &d.layers.layers[0].layer { Layer::SeatRun(r) => *r, _ => unreachable!() };
+        let (set, bare) = (row(false), row(true));
+        assert_eq!(run(&bare).seat.diameter_mm, 0.9, "the authored plan stands");
+        assert!(run(&set).seat.diameter_mm > 1.9, "a set run refits to its stone");
+        assert!(run(&bare).count > run(&set).count * 2, "spaced by its own plan: {} vs {}", run(&bare).count, run(&set).count);
+        assert!(crate::setstone::set_stones(&bare).is_empty());
+        assert!(!crate::setstone::set_stones(&set).is_empty());
+        let r = report(&bare, 0.0).unwrap();
+        assert_eq!((r.stone_count, r.total_carats), (0, 0.0));
+        assert_eq!(r.seats[0].made.as_deref(), Some(STOCK_ONLY));
+        assert_eq!(r.seats[0].count, run(&bare).count);
+        assert_eq!(crate::library::format_version_for(&set), crate::library::PLAIN_FORMAT_VERSION);
+        assert_eq!(crate::library::format_version_for(&bare), crate::library::FORMAT_VERSION);
+        let saved = serde_json::to_value(run(&set)).unwrap();
+        assert!(saved.get("bare").is_none(), "skipped when default");
     }
 
     #[test]

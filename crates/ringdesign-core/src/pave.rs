@@ -269,7 +269,7 @@ pub fn fill(design: &RingDesign, spec: &PaveSpec) -> Option<(LayerEntry, PaveOut
     }
     let entry = LayerEntry::new(
         format!("Pavé {} ({})", spec.gem.display(), outcome.seats),
-        Layer::Group(GroupLayer { stack, recipe: Some(GenRecipe::Pave(spec.clone())) }),
+        Layer::Group(GroupLayer { stack, recipe: Some(GenRecipe::Pave(spec.clone())), clamp: None }),
     );
     Some((entry, outcome))
 }
@@ -323,6 +323,7 @@ pub fn channel_set(design: &RingDesign, gem: Gem, recess_mm: f64) -> Option<Laye
         Layer::Group(GroupLayer {
             stack,
             recipe: Some(GenRecipe::Channel(ChannelSpec { gem, recess_mm: recess })),
+            clamp: None,
         }),
     );
     entry.window.v_gate = VGate::SideFaces(SideFacePick::Wider);
@@ -535,7 +536,7 @@ pub fn halo(design: &RingDesign, spec: &HaloSpec) -> Option<(LayerEntry, u32)> {
 
     let entry = LayerEntry::new(
         format!("Halo {} + {}x {}", spec.center.display(), n, spec.accent.display()),
-        Layer::Group(GroupLayer { stack, recipe: Some(GenRecipe::Halo(spec.clone())) }),
+        Layer::Group(GroupLayer { stack, recipe: Some(GenRecipe::Halo(spec.clone())), clamp: None }),
     );
     Some((entry, n))
 }
