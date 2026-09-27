@@ -28,7 +28,7 @@ const VERTICAL_TOL_DEG: f64 = 0.5;
 /// Undercut share of the total area above which nothing will release.
 const NOT_CASTABLE_FRACTION: f64 = 0.01;
 /// Under-drafted share of the total area tolerated before the verdict drops.
-const DRAG_FRACTION: f64 = 0.12;
+pub const DRAG_FRACTION: f64 = 0.12;
 /// Radial slack when deciding a face belongs to the bore, mm.
 const BORE_TOL_MM: f64 = 0.3;
 /// Height bands the bore radius is traced over.
@@ -1093,6 +1093,59 @@ impl FieldReport {
     pub fn undercut_fraction(&self) -> f64 {
         if self.total_area_mm2 > 0.0 { self.undercut_area_mm2 / self.total_area_mm2 } else { 0.0 }
     }
+
+    /// Marginal plus vertical area over the whole surface: what turns a sand verdict Marginal past [`DRAG_FRACTION`].
+    pub fn drag_fraction(&self) -> f64 {
+        if self.total_area_mm2 > 0.0 { (self.marginal_area_mm2 + self.vertical_area_mm2) / self.total_area_mm2 } else { 0.0 }
+    }
+}
+
+/// One layer's part of the drag: how much marginal and vertical area goes when it is muted, mm².
+///
+/// Signed: a layer that steepens what it covers (a pad over a zero-draft
+/// table) gives drag back, and reads negative.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct DragShare {
+    pub layer: String,
+    pub marginal_mm2: f64,
+    pub vertical_mm2: f64,
+}
+
+impl DragShare {
+    pub fn total_mm2(&self) -> f64 {
+        self.marginal_mm2 + self.vertical_mm2
+    }
+}
+
+/// Which layers carry the drag `report` measured: each enabled top-level
+/// layer of the pattern muted in turn and the field re-sampled at the
+/// report's own parting plane and resolution, so every pass is the same
+/// mould — the drag twin of [`attribute_undercuts`]. Largest share first.
+/// Costs one field pass per enabled layer; a diagnostic, never run by the
+/// verdict itself.
+pub fn attribute_drag(design: &RingDesign, lib: &AlphaLibrary, report: &FieldReport) -> Vec<DragShare> {
+    if !(report.total_area_mm2 > 0.0) {
+        return Vec::new();
+    }
+    let pattern = pattern_parts(design, lib);
+    let mut probe = pattern.design.into_owned();
+    let settings = DraftSettings { auto_parting: false, parting_z_mm: report.parting_z_mm, process: report.process, ..design.draft };
+    let mut out = Vec::new();
+    for i in 0..probe.layers.layers.len() {
+        if !probe.layers.layers[i].enabled {
+            continue;
+        }
+        probe.layers.layers[i].enabled = false;
+        let muted = analyze_field(&probe, lib, &settings, report.theta_samples, report.profile_samples);
+        probe.layers.layers[i].enabled = true;
+        out.push(DragShare {
+            layer: probe.layers.layers[i].name.clone(),
+            marginal_mm2: report.marginal_area_mm2 - muted.marginal_area_mm2,
+            vertical_mm2: report.vertical_area_mm2 - muted.vertical_area_mm2,
+        });
+    }
+    out.sort_by(|a, b| b.total_mm2().total_cmp(&a.total_mm2()));
+    out
 }
 
 /// Analyze the design by sampling the true surface on a `(theta, s)` grid with
@@ -1378,6 +1431,13 @@ pub fn attributed_field_report(
         f.notes.push(format!("Cut at the bench after casting, and so not judged here: {}.", pattern.layers.join(", ")));
     }
     f.notes.extend(pattern.marks.iter().map(LocatingMark::note));
+    // A clamped group says what the rule took, or that it was never baked and stands as composed.
+    for (name, _) in crate::clamped_groups(&design.layers) {
+        f.notes.push(match lib.clamp_of(name) {
+            Some(ceiling) => format!("\"{name}\" is held to the sand's draft rule: {} texels cut back.", ceiling.data.iter().filter(|c| c.is_finite()).count()),
+            None => format!("\"{name}\" carries a sand clamp that was not baked, so it stands as composed."),
+        });
+    }
     // Seats resolved as solids are in the finished ring, never in the field. Under sand the field has
     // just judged the pattern — stock and drill marks — and the cutting is the bench's; under lost
     // wax they are cast in place. Said either way, so nobody reads a clean pour as a judged setting.
@@ -1444,7 +1504,7 @@ pub fn pattern_parts<'a>(design: &'a RingDesign, lib: &AlphaLibrary) -> CastingP
                 Layer::SeatPad(s) => if sand && crate::setting::pattern_seat(s) { seats.push(name) },
                 Layer::SeatRun(r) => {
                     let gem = r.gem;
-                    r.seat.gem.get_or_insert(gem);
+                    if !r.bare { r.seat.gem.get_or_insert(gem); }
                     if sand && crate::setting::pattern_seat(&mut r.seat) { seats.push(name) }
                 }
                 Layer::Group(g) => omit(&mut g.stack, &name, sand, layers, seats),
@@ -1837,6 +1897,40 @@ mod tests {
     /// Drag alone can drop the verdict to Marginal. It used to do so in
     /// silence, directly under a note saying the surface carries no undercut,
     /// which reads as a bug in the app rather than a property of the ring.
+    /// C-R5: the drag is blamed on the layer that carries it. A signet table
+    /// stands parallel to the pull on the crown; milgrain beads barely move
+    /// the figure; a switched-off layer is not a suspect.
+    #[test]
+    fn attribute_drag_names_the_layer_that_drags() {
+        use crate::alpha::AlphaLibrary;
+        use crate::field::{Layer, LayerEntry, MilgrainLayer, SignetLayer};
+        let lib = AlphaLibrary::builtin();
+        let mut d = crate::RingDesign::default();
+        let ctx = d.field_context();
+        let table = SignetLayer { v_mm: ctx.crest_v_mm, length_mm: 12.0, width_mm: 5.0, ..SignetLayer::default() };
+        d.layers.layers.push(LayerEntry::new("Table", Layer::Signet(table)));
+        d.layers.layers.push(LayerEntry::new("Beads", Layer::Milgrain(MilgrainLayer::default())));
+        let mut off = LayerEntry::new("Off", Layer::Signet(table));
+        off.enabled = false;
+        d.layers.layers.push(off);
+        let f = analyze_field(&d, &lib, &d.draft, 192, 96);
+        let shares = attribute_drag(&d, &lib, &f);
+        assert_eq!(shares.iter().map(|s| s.layer.as_str()).collect::<Vec<_>>(), ["Table", "Beads"]);
+        assert!(shares[0].vertical_mm2 + shares[0].marginal_mm2 > 1.0, "{shares:?}");
+        assert!(shares[0].total_mm2() > 4.0 * shares[1].total_mm2().abs(), "{shares:?}");
+        // Each share is exactly the drag that goes when its layer is muted, on the same mould.
+        let mut muted = d.clone();
+        muted.layers.layers[0].enabled = false;
+        let fixed = DraftSettings { auto_parting: false, parting_z_mm: f.parting_z_mm, ..d.draft };
+        let m = analyze_field(&muted, &lib, &fixed, 192, 96);
+        assert_eq!(shares[0].marginal_mm2, f.marginal_area_mm2 - m.marginal_area_mm2);
+        assert_eq!(shares[0].vertical_mm2, f.vertical_area_mm2 - m.vertical_area_mm2);
+        // The share the verdict gates on.
+        assert_eq!(f.drag_fraction() > DRAG_FRACTION, f.notes.iter().any(|n| n.contains("drags on the sand")));
+        // Nothing measured, nothing blamed.
+        assert!(attribute_drag(&d, &lib, &FieldReport { total_area_mm2: 0.0, ..f.clone() }).is_empty());
+    }
+
     #[test]
     fn drag_explains_itself() {
         use crate::alpha::AlphaLibrary;

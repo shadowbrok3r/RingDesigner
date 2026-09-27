@@ -230,6 +230,8 @@ fn seatrun_node() -> NodeSpec {
     .field(PinSpec::item("taper_theta_deg", ValueKind::Number).widget(Widget::Angle).doc("Where the largest stone sits."))
     .field(PinSpec::item("shared_prong_mm", ValueKind::Number).doc("Shared prong post diameter, mm; 0 for none."))
     .field(PinSpec::item("tilt_deg", ValueKind::Number).widget(Widget::Angle).doc("Every stone turned in plan, degrees; 45 sets a square on the diagonal."))
+    .field(PinSpec::item("bare", ValueKind::Bool).doc("Stock only: the seats keep their own plan, space by it, and set no stone; the gem is ignored."))
+    .sparse(&["bare"])
     .hidden(&["seat"])
     .prepare(seatrun_seat)
     .build()
@@ -377,7 +379,14 @@ fn group(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError
         Value::Null => LayerStack::default(),
         other => return Err(NodeError::input("stack", format!("expected a stack, got {}", other.summary()))),
     };
-    Ok(Outputs::one("layer", Value::Layer(Arc::new(Layer::Group(GroupLayer { stack, recipe: None })))))
+    let clamp = match i.get("clamp") {
+        Value::Bool(true) => Some(ringdesign_core::field::SandClamp {
+            resolution: [i.int("clamp_columns")?.clamp(4, 4096) as u32, i.int("clamp_rows")?.clamp(3, 2048) as u32],
+            slack: i.number("clamp_slack")?,
+        }),
+        _ => None,
+    };
+    Ok(Outputs::one("layer", Value::Layer(Arc::new(Layer::Group(GroupLayer { stack, recipe: None, clamp })))))
 }
 
 fn entry_name(e: &mut LayerEntry, i: &Inputs, _: &mut EvalCtx<'_>) -> Result<(), NodeError> {
@@ -515,6 +524,10 @@ pub fn register(reg: &mut Registry) {
         NodeSpec::new("layer.group", "Group", Category::Layer)
             .doc("A stack composited first and then placed as one layer, so a Replace inside cannot leak past it.")
             .input(PinSpec::item("stack", ValueKind::Stack).doc("The nested stack."))
+            .input(PinSpec::item("clamp", ValueKind::Bool).default(false).doc("Hold the composite to the sand's draft rule: cut back, never filled, wherever it rises faster than the surface's own draft allows."))
+            .input(PinSpec::item("clamp_columns", ValueKind::Int).default(2048).doc("Clamp atlas columns round the ring."))
+            .input(PinSpec::item("clamp_rows", ValueKind::Int).default(768).doc("Clamp atlas rows across the section."))
+            .input(PinSpec::item("clamp_slack", ValueKind::Number).default(1.0).doc("How much steeper than the surface's draft relief may rise; 1 is the rule."))
             .output(PinSpec::item("layer", ValueKind::Layer).doc("The group."))
             .eval(group),
         entry_node(),

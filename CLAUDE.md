@@ -1115,6 +1115,18 @@ pins both directions. On top of that:
   form at the finer pitch, because examples build from it: on tall texels
   its solve is safe but not tight (Chevron solves 16 and flags from 24).
 
+  **A remap is measured as it is laid down** (`tiling_finest_mm_remapped`,
+  C-R6). `findings_in` hands each tiling the remaps its relief passes
+  through, its own entry's first and then each enclosing group's, and the
+  mask is read at the layer's height through them, renormalized to the
+  remapped top. A terrace last in the chain is also read tread by tread,
+  each interior tread as its own ink, because a tread is a flat between
+  two risers that the half-height threshold never sees: Pyramids on 24
+  repeats measures 0.25 mm strokes plain and 0.05 mm treads under an
+  eight-step terrace, which is the finding the terrace used to hide. No
+  remap on is the plain measurement exactly. `fit_to_floor` still solves
+  on the plain mask.
+
   A **made part** is not a layer, and a lost-wax ring's lands are judged
   on it: `dfm::part_sections(solid, up, floor)` reads each face by one ray
   along its inward normal and returns the thinnest section and the area
@@ -1137,6 +1149,15 @@ pins both directions. On top of that:
   shoulder: 2.1 mm² leaning to 18° — caused by "Flat boss"; muting it clears
   it." Runs only when there is undercut to explain;
   `attributed_field_report` is what the GUI worker and MCP call.
+- **Drag attribution** (`castability::attribute_drag`, C-R5): the same
+  mute-one-layer pass for the other sand gate. Each enabled layer of the
+  pattern is muted at the report's own parting plane and resolution, and
+  its `DragShare` is the marginal and vertical area that went with it,
+  signed (a layer that steepens what it covers gives drag back), largest
+  first. A diagnostic, never run by the verdict: the verdict turns Marginal
+  when `FieldReport::drag_fraction` passes `DRAG_FRACTION` (12%), and the
+  CLI's check prints the shares only then. A signet table on the crown is
+  the canonical carrier; milgrain barely moves it.
 - **As-cast preview** (`BuildParams::soften_mm`, toolbar "As-cast"): the
   height field evaluated through a 9-tap Gaussian at the sand's detail
   radius, so beads merge on screen the way they will in the pour. Preview
@@ -1280,6 +1301,14 @@ emits one line per distinct seat.
   theta at any taper. `None` is today's anchor and is not written, so every
   existing row is byte for byte; set, it is fenced at design format 6 and
   graph format 2 (`library::template_features_in_json` sees the key).
+- **Stone-less runs**: `SeatRunLayer::bare` (C-R3) is beadwork cast in the
+  stock. The seat keeps its authored plan (no `fit_stone`), the row packs
+  by that plan, `setstone::set_stones` sets nothing in it, and the report's
+  line says "stock only" with no carats; `gem` stays and is ignored. It is
+  the procedural band's bead row; a bare run keeps a fixed `v`, so on a
+  factory stock whose parting line wanders a domed `stamp_row` is the
+  bead. `false` is not written; `true` is fenced like `centre_phase`, the
+  `layer.seatrun` node's `bare` pin included.
 - **Shared prongs**: `SeatRunLayer::shared_prong_mm` stands one post pair
   at each boundary between neighbouring stones — the Prongs_Row
   rule (pair each gem with its shift-by-one neighbour, prong the boundary,
@@ -3108,6 +3137,21 @@ hand over inside one skin. What the sand taught, all measured:
   the other way — walking out from the parting line, relief may rise only
   as fast as the stock's own draft allows, and what breaks it is cut back —
   so the envelope stays on as the guarantee and has nothing left to fill.
+- **The clamp is live on a group** (`GroupLayer::clamp`, C-R1). A
+  `SandClamp` asks `RingDesign::bake_clamps` — run by every bake that
+  derives distance fields, after them — to paint the group's composite
+  over the atlas at its resolution, `draft_clamp` it, and keep a ceiling
+  `"{group}##clamp"` beside the `##sdf` fields: derived, never saved,
+  holding values only where the rule bit. The group then stands at
+  `min(composite, ceiling)`, so at every atlas sample it is the painted
+  clamp to the f32 the painted alpha holds, and the rule no longer bites
+  on what it leaves. It cuts back and never fills. It is what makes a
+  `SmoothMax` or `Add` composite legal under the rule; `Max` of layers that
+  each keep the rule keeps it alone, and a clamped Max of clamped groups
+  cuts nothing and builds bit-identical to the same Max unclamped. Unbaked
+  or switched off, the group stands as composed; `sdfs_missing` says when
+  the ceiling is missing or was baked for other content, and the field
+  report names what each clamp cut. Clamped groups need distinct names.
 - The castable reptile form is therefore the **pointed scute**: a plate the
   width of the band whose free edge is a chevron with its point on the
   parting line, leading. Its wall faces round the ring and *away* from the

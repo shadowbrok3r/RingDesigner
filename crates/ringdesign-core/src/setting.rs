@@ -2853,7 +2853,7 @@ pub fn without_solids(design: &crate::RingDesign) -> crate::RingDesign {
         for e in &mut stack.layers {
             match &mut e.layer {
                 crate::field::Layer::SeatPad(s) => hold(s, s.gem),
-                crate::field::Layer::SeatRun(r) => { let g = r.gem; hold(&mut r.seat, Some(g)) }
+                crate::field::Layer::SeatRun(r) => { let g = if r.bare { r.seat.gem } else { Some(r.gem) }; hold(&mut r.seat, g) }
                 crate::field::Layer::Group(g) => strip(&mut g.stack),
                 _ => {}
             }

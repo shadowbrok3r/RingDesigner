@@ -160,6 +160,12 @@ fn check_one(design: &RingDesign, lib: &AlphaLibrary) -> anyhow::Result<()> {
     for n in &f.notes {
         println!("  • {n}");
     }
+    // Drag that gates a sand verdict, blamed layer by layer.
+    if f.process == ringdesign_core::castability::CastProcess::SandTwoPart && f.drag_fraction() > ringdesign_core::castability::DRAG_FRACTION {
+        for s in ringdesign_core::castability::attribute_drag(design, lib, &f).iter().filter(|s| s.total_mm2() > 0.0) {
+            println!("  drag: {} carries {:.1} mm² ({:.1} marginal, {:.1} vertical)", s.layer, s.total_mm2(), s.marginal_mm2, s.vertical_mm2);
+        }
+    }
     for p in &f.parts {
         let read = if p.judged {
             format!("{:.2} mm² locking, worst {:+.1} deg, {:.1} mm² judged", p.undercut_area_mm2 - p.silhouette_mm2, p.worst_draft_deg, p.total_area_mm2)

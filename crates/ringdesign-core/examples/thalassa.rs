@@ -290,6 +290,7 @@ fn design(lib: &mut AlphaLibrary) -> RingDesign {
         Layer::Group(GroupLayer {
             stack: face,
             recipe: None,
+            clamp: None,
         }),
     ));
     for (theta, flip) in [(43.0, false), (137.0, true)] {
