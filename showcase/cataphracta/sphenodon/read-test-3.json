@@ -1,0 +1,33 @@
+{
+  "ring": "sphenodon",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "The head and eye from attempt 2 are gone and the peridot is back on the crest. That fixes the brief breach, but the ring has lost its animal read. At 300 px the hero is a band covered edge to edge in a fine, even knurl of little pyramids, like a file, a grater or a knurled grip. It has a ring of separate spikes round its crest and a millegrain-like bead line on each rim. A jeweller would say 'spiked band', 'punk stud ring', 'hedgehog' or 'durian' first, and at a push 'dragon spine'. Nobody would say tuatara, or even lizard. The new 'Dorsal scales' layer (0.6 mm, over the whole crown) is what breaks it. It is the same height and rhythm everywhere, so it reads as machined texture, not hide. It also takes away the polished ground the sail needed to stand against. The sail teeth (30 at 2.35 mm) stand apart as isolated pyramids with texture between them, so the eye sees a row of studs, not one serrated fin. In the face view the band is a ribbed barrel with blades sticking out left and right from the stone, like a spiked collar or a cog seen edge-on. The stone is centred and visible but small, and it reads as a set stone on a studded band, not as the start of a crest. The side faces show two regular bead lines hugging each rim, which reads as millegrain trim, not skin. It is below the Caiman and Reptilia bar. Those read as specific hide (crocodile tiles, snake scales) at thumbnail size. This reads as generic texture plus spikes.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Take the knurl off the crown and give the sail back its polished ground, as the brief specifies ('a polished ribbon either side of the sail').",
+      "where": "Layer 'Dorsal scales' (tiling over v 0-12.17 mm, height 0.6 mm, masked by 'Dorsal field'), on the crown flanks either side of the crest",
+      "by_how_much": "Delete the layer, or cut it to at most 0.2 mm and restrict it by a u-only mask plus the crest-distance mask to the crown's edge fillet only. Leave a polished ribbon at least 1.5 mm wide on each side of the sail's base, over the full circumference. Acceptance: in hero-300 the crown either side of the crest is smooth reflective metal, with no continuous textured area on the crown wider than about 6 px, and the sail is the only relief on the top face."
+    },
+    {
+      "priority": 2,
+      "what": "Make the sail one continuous serrated blade, not a row of separate pyramids.",
+      "where": "Layer 'The sail' (alpha 'Sail', 30 repeats, rows 1, v_span 1.2 mm, height 2.35 mm, taper 0.35), crest line at theta 90 +/- 70 deg on both shoulders",
+      "by_how_much": "Redraw the tooth so its base spans the full tile width, with no flat land between teeth, only the 0.4 mm rounded valley. Narrow v_span from 1.2 to 0.95-1.0 mm so each tooth is a thin gable fin with flanks facing +/-Z (G2), not a four-sided pyramid. Keep 30 teeth and the 2.35 mm height. Re-check fill (0.95 mm against the 0.8 mm floor) and G12 drag. Acceptance: in hero-300 the crest reads as one unbroken saw-edged line running from the stone down both shoulders, with the teeth touching at their bases; in face-300 the teeth either side of the stone read as a crest ridge, not as studs."
+    },
+    {
+      "priority": 3,
+      "what": "Turn the rim bead lines into side-face skin: wandering rows of tubercles over the full face height, not a millegrain border.",
+      "where": "Layers 'Tubercle rows' (33 repeats, v_center 1.02 mm, v_span 1.95 mm, height 0.55 mm) and 'Ventral squares' (73 repeats, 2 rows), both side faces",
+      "by_how_much": "Spread the tubercles across the whole side face (from about 0.3 mm off the bore edge to 0.3 mm off the crown edge). Use 2-3 staggered rows, with the WarpField at strength 0.8 and falloff 2.5 mm actually applied so the rows wander by at least +/-0.4 mm, and vary tubercle size between 0.5 and 0.8 mm over 0.3 mm granules. Keep the regular 'Ventral squares' to the 270 +/- 35 deg palm bump only. Acceptance: in hero-300 the near side face shows irregular, staggered bumps across its full height, and no single evenly spaced bead line runs parallel to either rim."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/sphenodon/hero-300.png",
+    "showcase/cataphracta/sphenodon/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

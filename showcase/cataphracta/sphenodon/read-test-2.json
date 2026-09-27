@@ -1,0 +1,33 @@
+{
+  "ring": "sphenodon",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "A big step up from attempt 1: the hero now reads as a reptile at once, but only because a lizard head has been added and the peridot is its eye. What the eye sees is a generic lizard or baby dragon lying round a plain gold band: a blunt snout on the upper left, a green eye, and a spiky crest running down the left shoulder. A jeweller would say 'lizard ring' or 'dragon wrap ring', a common catalogue form. Nobody would say tuatara. Behind the head the crest on the far shoulder shrinks to a row of dots, so the sail, which is the one feature that says tuatara, does not carry. The side faces are bare polish with a millegrain-like bead border on each rim, which reads as a bezel trim and not as skin. The crown is bare polish too, so apart from the head the band is still plain stock. In the face view the head seen from above is a smooth domed blob with a green dot in it, like a beetle or a bullet, and a flat saw sticks out sideways on both sides. It does not read as an animal. The read also breaks the brief: the concept says the stone is the parietal on the spine and must never be called an eye, and the collection checklist says no faces and no eyes. Attempt 2 turned the stone into an eye and added a face. It sits below the Caiman and Reptilia bar, whose hide reads edge to edge at thumbnail size.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Take the face off and put the stone back on the spine. The read has to come from the crest and the hide, not from a lizard head with a gem eye.",
+      "where": "Layer 'Head' (snout_mm -7.6, eye at x -2.0 / y 2.5, height 1.6) and seat 'Parietal peridot' (now at v 6.1 mm, theta 90 deg)",
+      "by_how_much": "Delete the Head layer, or cut it to a head with no eye, no socket and no mouth line, if Logan explicitly allows a head at all (the collection gate says no faces and no eyes, so the default is to delete it). Re-seat the peridot at theta 90 deg on the crest, at v = ctx.crest_v_mm, with the mound at height 1.05 mm, so that the sail parts round it. Acceptance: in hero-300 and face-300 no snout, eye or head silhouette is visible; in face-300 the stone is centred on the crest line, at least 14 px across, with teeth running up to its mound skirt on both sides."
+    },
+    {
+      "priority": 2,
+      "what": "Make the sail the silhouette over the whole top half, so the crest carries the read once the head is gone.",
+      "where": "Layer 'The sail', theta 90 +/- 70 deg on both shoulders (the far shoulder, theta about 110-160 deg, currently reads as a row of dots)",
+      "by_how_much": "Keep 30 teeth, raise the height from 2.0 to 2.3-2.4 mm over 90 +/- 45 deg, and flatten the spiral grade (taper 0.55 -> 0.35) so the far shoulder keeps its height and does not decay into beads. Teeth must be triangles with a 0.35 mm tip and rounded valleys, not cones seen end-on. Re-check the G12 drag (at most 12%) and fill; if drag fails, go to 26 teeth before lowering them. Acceptance: in hero-300 both shoulders show a continuous saw whose teeth are at least 10 px tall and cut the outline against the background; in face-300 the saw reads as a crest along the band's centre, not as spikes pointing out sideways."
+    },
+    {
+      "priority": 3,
+      "what": "Give the side faces and crown flanks real skin. At present only the rims carry a bead border, which reads as millegrain trim.",
+      "where": "Layers 'Tubercle rows' (both side faces, theta 0-235 and 305-360 deg) and 'Ventral squares' (270 +/- 35 deg); the crown flanks either side of the sail",
+      "by_how_much": "Enlarge the tubercles to 0.7-0.8 mm at about 1.2 mm pitch, in two or three wandering rows spread across the full face height, not one row at the rim, over 0.3-0.4 mm granules. Narrow the polished ribbons beside the sail to about 1 mm each side and give the rest of the crown flank low 0.3 mm granules or an ungraded stand-in. Acceptance: in hero-300 the near side face shows irregular rows of distinct bumps across its full height, and no continuous polished strip wider than about 8 px remains on the crown."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/sphenodon/hero-300.png",
+    "showcase/cataphracta/sphenodon/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

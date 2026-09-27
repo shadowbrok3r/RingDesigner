@@ -1,0 +1,21 @@
+{
+  "report": {
+    "crowding": 0,
+    "fill_floor_mm": 0.8,
+    "stone_count": 1,
+    "tight_pairs": 0,
+    "total_carats": 0.102114,
+    "warnings": false
+  },
+  "stones": [
+    {
+      "file": "reference-peridot.stl",
+      "gem": "Peridot 3.0 round",
+      "tint": [
+        0.5,
+        0.78,
+        0.12
+      ]
+    }
+  ]
+}

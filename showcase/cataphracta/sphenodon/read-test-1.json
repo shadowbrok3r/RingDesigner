@@ -1,0 +1,33 @@
+{
+  "ring": "sphenodon",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain, polished gold comfort band with a small green cabochon near the top and a thin row of tiny spikes running round the crest, like a gear rim, a studded collar or a zip. In the face view the sail is seen end-on as a flat serrated strip crossing the band, broken by a bald gap round the stone, so it reads as a seam or a line of stitching, not a fin. The side faces and crown flanks are bare polished metal, so nothing says reptile skin. At a push a jeweller might say 'dinosaur spine' or 'dragon ridge'. Nobody would say tuatara or any particular lizard. The stone reads as a small bead dropped on the band, not as the parietal on a spine. It sits well below the Caiman and Reptilia bar: those read as hide at thumbnail size, and this reads as a plain band.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the sail the silhouette: fewer, taller, sharper teeth that clearly stand as a crest.",
+      "where": "Layer 'The sail', crest line, strongest over theta 90 +/- 45 deg (shoulders)",
+      "by_how_much": "repeats_around 44 -> 24 (a cell boundary still lands on 90 deg), height_mm 1.30 -> about 2.0 at the full-height shoulders, palm_share 0.35 -> 0.25 so the grade reads. Keep the 0.35 mm tip and 0.4 mm valley so teeth read as triangles and not beads. Re-check drag (G12) and fill after the change; if drag exceeds 12%, use 28 teeth at 1.8 mm. Acceptance: in hero-300 each shoulder tooth is at least 10 px tall and cuts the band's outline against the background."
+    },
+    {
+      "priority": 2,
+      "what": "Build the side-face hide. The block-out has none, so the band reads as blank stock.",
+      "where": "Both side faces, full circumference: 'Tubercle rows' over roughly theta 0-235 and 305-360, and 'Ventral squares' over 270 +/- 35 deg",
+      "by_how_much": "Add the tubercle layer with enlarged tubercles at 0.7-0.8 mm (not the planned 0.45), about 1.2 mm pitch, and two or three wandering rows per side over fine granules. Add ventral pavers at 0.40-0.5 mm. Acceptance: in hero-300 the near side face shows distinct rows of bumps, not a polished wall."
+    },
+    {
+      "priority": 3,
+      "what": "Tie the stone to the crest so it reads as the start of the sail, not a stray bead, and cut back the bare polish on the crown.",
+      "where": "Seat 'Parietal peridot' and the sail mask 'Sail height' at 90 +/- 13 deg, plus the crown flanks",
+      "by_how_much": "Close the sail's clear zone from +/-13 deg to the mound skirt (about +/-10 deg), with low 0.5 mm teeth right up to the skirt so the sail visibly parts round the stone. Raise the mound so the peridot sits higher and faces the viewer (height_mm 0.6 -> about 0.9). Narrow the polished ribbons to about 1 mm each side of the sail, and give the fillet granules (or an ungraded stand-in) the rest of the crown. Acceptance: in face-300 the teeth run unbroken into the stone's mound and the stone is at least 14 px across."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/sphenodon/hero-300.png",
+    "showcase/cataphracta/sphenodon/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
