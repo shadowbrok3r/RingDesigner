@@ -4036,7 +4036,8 @@ mod tests {
             Stamp { along_pull: true, ..plain("Cheek", 70.0, len * 0.1, crate::outline::circle(0.6), 0.25) },
             Stamp { cut: true, ..plain("Palm", 270.0, v, crate::outline::circle(1.0), 0.2) },
         ];
-        designs.push(("six on the Heart signet", d, lib.clone(), 0x8dc3fe2821e3ceb9, 0x8dc3fe2821e3ceb9));
+        // Moved by the comfort dome's apex on the parting plane: the heart's upright head slides its sections.
+        designs.push(("six on the Heart signet", d, lib.clone(), 0xfcb6c868bfe23115, 0xfcb6c868bfe23115));
         let mut d = crest_band();
         let v = d.field_context().crest_v_mm;
         d.stamps = vec![

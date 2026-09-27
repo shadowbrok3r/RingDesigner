@@ -17,7 +17,9 @@ in −Z.
   outer wall, or anything that leans back under itself, locks in the sand.
 - The **bore** is a straight through-hole. Zero draft, but it cores or gets
   reamed at the bench, so it is reported as a vertical wall, never an undercut.
-  A comfort-fit bore widens toward both edges and actually gains draft.
+  A comfort-fit bore widens toward both edges and actually gains draft —
+  away from the **parting plane**, which is where its apex sits, not the
+  section's own middle (see Bypass below).
 
 This is why the profile library is a family of domes and why the section view
 exists.
@@ -1326,7 +1328,13 @@ emits one line per distinct seat.
   channel (1.0 mm at the crossing) — a seam along the crest would be the
   valley no parting plane clears. Measured 0.0085% at −0.8° on a low
   dome, 0.0000% on a flat band; `examples/bypass_probe.rs` prints the
-  table and renders hero, top and side views.
+  table and renders hero, top and side views. The comfort dome's apex
+  stays on the parting plane too, each side reaching full depth at its own
+  edge: centred on the sliding section, the flank between it and the plane
+  widened *toward* the plane and locked the bore's sand — 36 ray-release
+  obstructions 0.9 mm deep on a 6 mm low dome at comfort 0.2, none after.
+  The field verdict skips bore samples and never saw it; the release
+  analysis did.
 - **The casting sheet** (`spec.rs`): one self-contained printable HTML page —
   dimensions, weight in every alloy with its pattern scale, the field
   verdict with notes and DFM findings, the stones table with bench warnings,
