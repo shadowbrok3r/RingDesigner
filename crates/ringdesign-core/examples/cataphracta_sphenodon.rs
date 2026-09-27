@@ -40,10 +40,13 @@ const TOP_MM: f64 = 3.4;
 const STONE_T: f64 = 9.8;
 /// Along the animal: the eyes' centres, ahead of the stone.
 const EYE_T: f64 = 7.0;
-const EYE_X: f64 = 2.2;
+const EYE_X: f64 = 1.85;
 const GAP_MM: f64 = 9.0;
 /// The seat: the mound's top over the band.
-const SEAT_MM: f64 = 2.6;
+const SEAT_MM: f64 = 2.3;
+const SEAT_D_MM: f64 = 4.2;
+/// The mound's skirt, radius mm: the granules stop 0.3 mm outside it.
+const SEAT_SKIRT_MM: f64 = 2.45;
 
 fn params(draft: bool) -> BuildParams {
     let (t, p) = if draft { (768, 320) } else { (1536, 448) };
@@ -92,14 +95,14 @@ fn pchip(knots: &[(f64, f64)], x: f64) -> f64 {
 /// The body's half-width in plan, mm, along the animal from the snout tip: the blunt beak, the wedge of the skull widest
 /// behind the eyes, the neck, the barrel, the pelvis and the long tail tapering to a point.
 const WIDTH: [(f64, f64); 19] = [
-    (0.0, 1.5),
-    (0.6, 1.95),
-    (1.5, 2.3),
-    (3.5, 2.85),
-    (6.0, 3.2),
-    (9.0, 3.25),
-    (11.5, 3.1),
-    (13.0, 2.7),
+    (0.0, 1.4),
+    (1.5, 1.95),
+    (3.0, 2.4),
+    (6.0, 2.9),
+    (8.5, 3.2),
+    (10.5, 3.3),
+    (12.0, 3.1),
+    (13.2, 2.65),
     (14.5, 2.3),
     (16.5, 2.45),
     (19.0, 2.75),
@@ -115,13 +118,13 @@ const WIDTH: [(f64, f64); 19] = [
 /// The body's height over the band on its midline, mm.
 const HEIGHT: [(f64, f64); 17] = [
     (0.0, 0.55),
-    (0.6, 0.95),
-    (2.0, 1.15),
-    (4.0, 1.45),
-    (6.5, 1.7),
-    (9.5, 1.85),
-    (12.0, 1.75),
-    (13.5, 1.4),
+    (0.6, 0.8),
+    (2.0, 1.2),
+    (4.0, 1.4),
+    (6.5, 1.5),
+    (9.5, 1.6),
+    (12.0, 1.5),
+    (13.5, 1.3),
     (15.0, 1.25),
     (19.0, 1.4),
     (24.0, 1.45),
@@ -136,10 +139,10 @@ const HEIGHT: [(f64, f64); 17] = [
 /// low saddle at the hips, then a low saw down the tail to the tip, one spine line from nape to tip.
 const CREST: [(f64, f64); 16] = [
     (12.9, 0.0),
-    (13.8, 0.8),
-    (15.0, 1.2),
-    (17.0, 1.2),
-    (19.5, 1.15),
+    (13.8, 0.85),
+    (15.0, 1.3),
+    (17.0, 1.3),
+    (19.5, 1.2),
     (21.5, 0.85),
     (24.0, 0.65),
     (27.0, 0.6),
@@ -153,9 +156,9 @@ const CREST: [(f64, f64); 16] = [
     (80.0, 0.15),
 ];
 /// The crest's half-thickness at its foot, mm; its section is a half ellipse, so every spine tip is rounded.
-const CREST_FOOT_MM: f64 = 0.6;
+const CREST_FOOT_MM: f64 = 0.5;
 /// The share of a spine's height the web between spines keeps.
-const CREST_WEB: f64 = 0.25;
+const CREST_WEB: f64 = 0.4;
 
 /// `(1 - u^2)^p` inside the unit, 0 outside: the section of a raised form.
 fn dome(u: f64, p: f64) -> f64 {
@@ -194,7 +197,7 @@ impl Tuatara {
     fn new(rim: f64, reach: f64) -> Self {
         let end = 2.0 * reach - GAP_MM;
         let front = Leg { joints: [(18.3, 1.9, 0.68, 0.95), (20.3, rim - 0.1, 0.56, 0.45), (18.2, rim + 0.35, 0.44, 0.1)], heading: (-0.9, 0.44), toes: [0.55, 0.95, 1.2, 1.1, 0.85] };
-        let hind = Leg { joints: [(27.6, 1.9, 0.8, 0.9), (25.8, rim, 0.64, 0.45), (28.6, rim + 0.35, 0.48, 0.1)], heading: (0.9, 0.44), toes: [0.9, 1.2, 1.35, 1.0, 0.6] };
+        let hind = Leg { joints: [(28.2, 1.8, 0.8, 0.9), (27.2, rim - 0.3, 0.62, 0.35), (30.6, rim - 0.2, 0.46, 0.12)], heading: (0.92, 0.3), toes: [1.0, 1.25, 1.35, 1.1, 0.8] };
         let n = (end / PHASE_STEP) as usize + 2;
         let mut me = Self { rim, end, reach, legs: vec![front, hind], phase: vec![0.0; n], rings: vec![0.0; n] };
         // Spines about 1.45 mm apart on the back, closing to 0.8 mm at the tail's tip; the tail's scale rings about as long
@@ -230,7 +233,7 @@ impl Tuatara {
         }
         let amp = 0.25 + 0.9 * smoothstep(40.0, self.end - 8.0, t);
         let c = amp * smoothstep(32.0, 38.0, t) * (2.0 * PI * (t - 32.0) / 28.0).sin();
-        let room = (self.rim - 0.35 - self.width(t)).max(0.0);
+        let room = (self.rim - 0.75 - self.width(t)).max(0.0);
         let c = c.clamp(-room, room);
         let curl = smoothstep(self.end - 7.5, self.end - 0.8, t);
         c + (CURL_SIDE * (self.rim + 0.45) - c) * curl
@@ -254,7 +257,10 @@ impl Tuatara {
     }
 
     fn height(&self, t: f64) -> f64 {
-        pchip(&HEIGHT, self.table_t(t)) * (0.35 + 0.65 * smoothstep(0.0, 0.6, t))
+        // The beak's leading edge is rounded over 0.35 mm.
+        let lead = 0.35;
+        let round = if t < lead { (1.0 - ((lead - t) / lead).powi(2)).max(0.0).sqrt() } else { 1.0 };
+        pchip(&HEIGHT, self.table_t(t)) * round
     }
 
     fn crest(&self, t: f64) -> f64 {
@@ -276,7 +282,16 @@ impl Tuatara {
         if u.abs() >= 1.0 {
             return (0.0, u.abs());
         }
-        (self.height(t) * dome(u, 0.45), u.abs())
+        // The skull is crowned: its top falls about a fifth of its height to the eye line and its cheeks slope into the band
+        // with no wall; the body is domed with a crisp outline; the tail is rounder still, so its edge fairs into the band.
+        let u2 = u * u;
+        let skull = (1.0 - 0.55 * u2 - 0.45 * u2 * u2).max(0.0);
+        let body = dome(u, 0.45);
+        let tail = dome(u, 0.75);
+        let head = 1.0 - smoothstep(12.0, 14.0, t);
+        let aft = smoothstep(31.0, 35.0, t);
+        let section = skull * head + (body * (1.0 - aft) + tail * aft) * (1.0 - head);
+        (self.height(t) * section, u.abs())
     }
 
     /// The comb on the midline: backswept spines with rounded tips standing on a continuous web, a half-ellipse in
@@ -295,12 +310,16 @@ impl Tuatara {
         let s = self.phase[k].fract();
         let pitch = 1.0 / ((self.phase[(k + 1).min(self.phase.len() - 1)] - self.phase[k]) / PHASE_STEP).max(1e-6);
         // Backswept: the spine's front edge is long, its back edge short; the tip is a parabola, so it is round.
-        let peak = 0.62;
-        let (off, half) = if s < peak { ((peak - s) * pitch, peak * pitch) } else { ((s - peak) * pitch, (1.0 - peak) * pitch) };
-        // A triangle whose tip is rounded over 0.2 mm.
-        let rho = 0.12;
+        // Each spine is a triangle on a foot 80% of the pitch, leaning back a little, its tip rounded; the web
+        // between spines is low.
+        let peak = 0.56;
+        let span = 0.4 * pitch;
+        let off = (s - peak) * pitch;
+        let half = if off < 0.0 { span * 1.1 } else { span * 0.9 };
+        let rho = 0.45;
         let tooth = 1.0 - ((off * off + rho * rho).sqrt() - rho) / (half - rho).max(0.1);
         let top = f * (CREST_WEB + (1.0 - CREST_WEB) * tooth.max(0.0));
+        // A blade 1 mm at its foot whose flanks pinch in to a rounded ridge.
         top * dome(d / foot, 0.62)
     }
 
@@ -313,28 +332,26 @@ impl Tuatara {
         let w = self.width(t).max(0.3);
         let g = |d: f64, s: f64| (-(d / s).powi(2)).exp();
         let mut h = base;
-        // The beak: the upper jaw's tip swells over the lower and hooks down at the front.
-        h += 0.4 * g(t - 0.75, 0.45) * g(x, 0.85);
-        // The mouth line: a groove down each side of the head from the beak back to below the eye, hooking down at the
-        // front under the beak.
+        // The beak: the upper jaw's tip rounds a little over the lower and turns down at the front.
+        h += 0.12 * g(t - 0.9, 0.5) * g(x, 0.8);
+        // The mouth line: a groove down each side of the head from the beak back to below the eye.
         let line = (ax - 0.72 * w).abs();
-        h -= 0.3 * smoothstep(0.6, 2.2, t) * (1.0 - smoothstep(8.2, 9.2, t)) * g(line, 0.11);
+        h -= 0.28 * smoothstep(0.6, 2.2, t) * (1.0 - smoothstep(8.2, 9.2, t)) * g(line, 0.11);
         // Nostrils, on the beak's shoulders.
-        h -= 0.22 * g(((t - 1.2).powi(2) + (ax - 0.65).powi(2)).sqrt(), 0.13);
-        // The eyes: a domed ball in a narrow socket with a vertical slit pupil, and over it a heavy lid fold on the
-        // midline side.
-        let (et, ex, er) = (EYE_T, EYE_X, 0.85);
-        let r = ((t - et).powi(2) + (ax - ex).powi(2)).sqrt();
-        let medial = smoothstep(-0.2, 0.5, (ex - ax) / er);
-        let lid = 0.42 * g(r - er - 0.1, 0.27) * medial;
-        let ball = 0.6 * dome(r / er, 0.5);
-        let socket = -0.16 * g(r - er - 0.02, 0.12);
-        let slit = -0.25 * (1.0 - smoothstep(0.06, 0.12, (t - et).abs())) * (1.0 - smoothstep(0.35, 0.5, (ax - ex).abs()));
-        let eye = (ball + socket).max(lid) + slit * dome(r / er, 0.5).min(1.0).powf(0.2);
-        h += eye;
-        // The brow ridge runs on from the lid toward the stone.
-        let (br, along) = seg_dist((t, ax), (et - 0.4, ex - er - 0.1), (et + 1.4, 1.35));
-        h += 0.22 * (4.0 * along * (1.0 - along)).sqrt() * g(br, 0.22) * smoothstep(er - 0.1, er + 0.2, r);
+        h -= 0.2 * g(((t - 1.1).powi(2) + (ax - 0.6).powi(2)).sqrt(), 0.13);
+        // The eyes: a smooth dome on the upper side of the skull with one lens-shaped vertical pupil, and a heavy lid
+        // arched over its upper half whose rear corner runs back toward the stone.
+        let (et, ex, er) = (EYE_T, EYE_X, 0.8);
+        let (dt, dx) = (t - et, ax - ex);
+        let r = dt.hypot(dx);
+        let ball = 0.55 * dome(r / er, 0.5);
+        let lens = 0.1 * dome(dx / 0.45, 1.0);
+        let pupil = -0.15 * (1.0 - smoothstep(0.6 * lens, lens.max(1e-3), dt.abs())) * (lens > 0.0) as u8 as f64;
+        let upper = smoothstep(-0.15, 0.35, -dx / er);
+        let lid = 0.35 * g(r - 0.9 * er, 0.2) * upper;
+        let (cr, along) = seg_dist((t, ax), (et + 0.45, ex - 0.55), (et + 2.1, 1.3));
+        let corner = 0.25 * (1.0 - along) * g(cr, 0.2) * smoothstep(0.5 * er, er, r);
+        h += (ball + pupil * dome(r / er, 0.5).min(1.0).powf(0.3)).max(lid).max(corner);
         h
     }
 
@@ -378,17 +395,28 @@ impl Tuatara {
     fn skin(&self, t: f64, x: f64, along: f64, share: f64) -> f64 {
         let head = 1.0 - smoothstep(12.0, 14.0, t);
         let tail = smoothstep(31.0, 35.0, t);
+        // The granules stop short of the seat's skirt.
+        let seat = smoothstep(SEAT_SKIRT_MM + 0.3, SEAT_SKIRT_MM + 0.6, (t - STONE_T).hypot(x));
         let mut body = 0.0;
         if tail < 1.0 {
-            let cell = 0.46 * (1.0 - 0.4 * head);
-            let (f1, f2, _, _) = voronoi(along, x, cell, 11);
-            let granule = (0.09 - 0.04 * head) * smoothstep(0.0, 0.3 * cell, f2 - f1) * (0.55 + 0.45 * (1.0 - f1 / (0.8 * cell)).max(0.0));
+            // Two fixed grains, the head's at 60% of the body's, blended: a grain whose size varied along the ring would
+            // shear its cells into streaks.
+            let grain = |cell: f64, salt: i64, h: f64| {
+                let (f1, f2, _, _) = voronoi(along, x, cell, salt);
+                h * smoothstep(0.0, 0.3 * cell, f2 - f1) * (0.55 + 0.45 * (1.0 - f1 / (0.8 * cell)).max(0.0))
+            };
+            let granule = if head > 0.0 { grain(0.28, 13, 0.07) * head } else { 0.0 } + if head < 1.0 { grain(0.46, 11, 0.09) * (1.0 - head) } else { 0.0 };
             let (g1, _, id, _) = voronoi(along, x, 1.25, 23);
             let pick = skin::hash(id.0, id.1 + 7);
             let size = 0.32 + 0.16 * skin::hash(id.0 + 3, id.1);
             let flank = smoothstep(0.3, 0.45, share) * (1.0 - smoothstep(0.82, 0.95, share)) * (1.0 - head);
             let tubercle = if pick > 0.35 { (0.22 + 0.14 * skin::hash(id.1, id.0)) * dome(g1 / size, 0.75) * flank } else { 0.0 };
-            body = granule.max(tubercle);
+            // A row of domed, keeled scales either side of the crest's foot.
+            let mid = (x - self.centre(t)).abs();
+            let keel_row = (1.0 - smoothstep(0.0, 0.3, (mid - 0.95).abs())) * smoothstep(13.5, 15.0, t) * (1.0 - head);
+            let kt = (t / 0.65).fract();
+            let keeled = keel_row * (0.13 * dome(2.0 * kt - 1.0, 0.6) * dome((mid - 0.95) / 0.3, 0.6) + 0.04 * g_keel(mid - 0.95) * dome(2.0 * kt - 1.0, 0.6));
+            body = granule.max(tubercle).max(keeled) * seat;
         }
         let mut scales = 0.0;
         if tail > 0.0 {
@@ -418,12 +446,20 @@ impl Tuatara {
         let body = self.head(t, x, body);
         let legs = self.legs(t, x, limit);
         let inside = smoothstep(0.0, 0.1, body.max(legs));
-        let skin = if inside > 0.0 { self.skin(t, x, hp.along, share.min(1.0)) * inside } else { 0.0 };
+        // The eyes and their lids stay smooth, so they read as eyes.
+        let eye = ((t - EYE_T).hypot(x.abs() - EYE_X) - 0.85).max(0.0);
+        let clear = smoothstep(0.1, 0.4, eye);
+        let skin = if inside > 0.0 { self.skin(t, x, hp.along, share.min(1.0)) * inside * clear } else { 0.0 };
         // The legs fair into the body; off it they stand alone, with no step at their outline.
         let form = if legs > 0.0 { smax(body, legs, 0.25 * smoothstep(0.0, 0.2, body)) } else { body };
         let form = if form > 0.0 { form + skin } else { 0.0 };
         (form + self.fin(t, x)).clamp(0.0, TOP_MM)
     }
+}
+
+/// A keel's ridge across its scale.
+fn g_keel(d: f64) -> f64 {
+    (-(d / 0.08).powi(2)).exp()
 }
 
 /// Distance from `p` to the segment `a`–`b`, and how far along it the nearest point is.
@@ -498,6 +534,8 @@ fn peridot() -> Gem {
 fn seat() -> SeatPadLayer {
     let mut s = SeatPadLayer { theta_deg: STONE_DEG, v_mm: 0.0, style: SeatStyle::GypsyMound, crown: 1.0, blend_mm: 0.35, solid: SolidKind::Flush, through: true, ..SeatPadLayer::default() };
     s.fit_stone(peridot());
+    // A mound 0.6 mm wider than the stone all round: it stands as a collar on the skull, not a bald dome.
+    s.diameter_mm = SEAT_D_MM;
     s.crown = 0.55;
     s.height_mm = SEAT_MM;
     s.mark_mm = 0.6;
@@ -582,18 +620,18 @@ fn feature_at(p: [f64; 3], d: &RingDesign, end: f64) -> &'static str {
     "the body's skin: granules and tubercles"
 }
 
-/// What the bench does with each kind of thin section, with its measured thinnest.
+/// What the bench does with each kind of thin section. No note states a size: the only figure is the measured thinnest.
 fn treatment(feature: &str, thinnest: f64) -> String {
     let what = match feature {
-        "the crest's spines" => "The comb: a half-ellipse blade 1.2 mm at its foot with parabolic, rounded spine tips; the tips fill from the blade in investment. Clean with a fine graver; do not polish them round.",
-        "the legs and toes" => "Legs and toes: tubes 0.5 mm and up standing on the band and its rim; they fill from the band. Keep the claws; satin brush only.",
-        "the parietal seat" => "The mound's lip round the flush seat: fills from the head; burnished over the girdle when the peridot is set.",
-        "the head: beak, eyes, lids, brows, nostrils" => "Beak, eyes, lids, brows and the mouth line: relief on a 1.8 mm skull; they fill from the head. Re-cut the slit pupils with a knife graver if the investment softens them.",
-        "the tail's tip" => "The tail's tip where it curls over the rim onto the side face: a 0.5 mm point on the band; fills from the band. Leave as cast.",
+        "the crest's spines" => "The comb: a blade pinched to a ridge along its top, each spine's tip rounded; the tips fill from the blade in investment. Clean with a fine graver; do not polish them round.",
+        "the legs and toes" => "Legs and toes: tapering tubes on the band and its rim; they fill from the band. Keep the claws; satin brush only.",
+        "the parietal seat" => "The mound's lip round the flush seat and the vent through the bore: the lip fills from the skull and is burnished over the girdle when the peridot is set.",
+        "the head: beak, eyes, lids, brows, nostrils" => "Beak, eyes, lids and the mouth line: relief on the skull; they fill from the head. Re-cut the slit pupils with a knife graver if the investment softens them.",
+        "the tail's tip" => "The tail's point where it curls over the rim onto the side face: relief on the band; fills from the band. Leave as cast.",
         "the tail: scale rings and its saw" => "The tail's domed scale rings and its low saw: relief on the band; fill from the tail. Satin brush.",
-        _ => "Skin granules and tubercles: 0.05 to 0.36 mm relief on the body; fill from the body. Leave satin.",
+        _ => "Skin granules and tubercles: low relief on the body; fill from the body. Leave satin.",
     };
-    format!("{what} Thinnest single-ray section read here: {thinnest:.3} mm, a relief read across its own flank where it rises off the metal beneath, not a free-standing wire.")
+    format!("{what} Thinnest single-ray section read here: {thinnest:.3} mm (a ray along the inward normal of one face; on relief it crosses a flank near where it rises off the metal beneath).")
 }
 
 /// The land-width census: every face of the finished ring read by one ray along its inward normal (as `dfm::part_sections`
@@ -755,6 +793,27 @@ const VIEWS: [(&str, f64, f64); 6] = [
     ("reverse", PI, 0.8),
 ];
 
+/// The part of a mesh between two ring angles, degrees, reindexed.
+fn arc_of(m: &mesh::Mesh, from: f64, to: f64) -> mesh::Mesh {
+    let keep: Vec<bool> = m.vertices.iter().map(|v| (v.1 as f64).atan2(v.0 as f64).to_degrees().rem_euclid(360.0)).map(|a| a >= from && a <= to).collect();
+    let mut map = vec![u32::MAX; m.vertices.len()];
+    let mut out = mesh::Mesh::default();
+    for f in &m.faces {
+        if f.iter().all(|&i| keep[i as usize]) {
+            let g = f.map(|i| {
+                if map[i as usize] == u32::MAX {
+                    map[i as usize] = out.vertices.len() as u32;
+                    out.vertices.push(m.vertices[i as usize]);
+                    out.normals.push(m.normals.get(i as usize).copied().unwrap_or(m.vertices[i as usize]));
+                }
+                map[i as usize]
+            });
+            out.faces.push(g);
+        }
+    }
+    out
+}
+
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, p: BuildParams, draft: bool) -> Result<()> {
     let finished = render::Finished { metal: built.mesh.clone(), stones: ringdesign_core::gems::built_meshes(d, lib, built) };
     let parts = finished.parts(render::GOLD);
@@ -774,6 +833,12 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
         }
     }
     image::save_buffer(out.join("contact-300.png"), &sheet, 600, 600, image::ColorType::Rgb8)?;
+    // The head close up, from above and from the three-quarter view.
+    let head = arc_of(&built.mesh, 35.0, 135.0);
+    let mut close = vec![Part::metal(&head, render::GOLD)];
+    close.extend(finished.stones.iter().map(|(m, tint)| Part::tinted_stone(m, *tint)));
+    render::write_png_parts(out.join("head.png"), &close, 0.0, PI * 0.5, edge)?;
+    render::write_png_parts(out.join("head-hero.png"), &close, HERO.0, HERO.1, edge)?;
     // The stone close-up: over the head, from the snout's side.
     render::write_png_parts(out.join("stones.png"), &parts, -0.35, 1.2, edge)?;
     let bare = band();

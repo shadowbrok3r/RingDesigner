@@ -3,11 +3,11 @@
 > **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
 > - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
 > - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
-> - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
+> - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. With Sphenodon (below), Cataphracta pours five rings in sand and three in wax.
 - **Sphenodon goes lost wax (2026-09-27).** Its three sand block-outs did not read as the animal. It is now a tuatara modelled round the band (head on the face with the peridot on the crown of the skull, the crest a comb of spines, four legs, a scaled tail), with `CastProcess::LostWax`, `min_section_mm` 0.8 and `min_draft_deg` 0. The sand gates no longer apply to it; its lost-wax gates are the field verdict at the 0.8 mm fill and a `land_widths` block naming every section under 0.8 mm.
 
 
-**Sheet subtitle:** EIGHT HIDES · FIVE BANDS · THREE SIGNETS · THREE STONES · ALL POURED IN SAND
+**Sheet subtitle:** EIGHT HIDES · FIVE BANDS · THREE SIGNETS · THREE STONES · FIVE IN SAND, THREE IN WAX
 
 **Primary side of the app:** the height field used as a sculptor's layer stack under the sand's rules. Every hide is built from live, editable layers: masks, tie-exact `SmoothMax`, gradient-SVG alphas, warp, helix shear, graded tilings, keyframed bodies and terrace remaps. The draft rule is applied as a live clamp, and every figurative part is a struck stamp with a true outline. Every ring pours in two-part sand (six in Delft clay, two in Petrobond), carries at most one stone, and must come out **Castable** (not "Castable with care") with **zero DFM findings**.
 

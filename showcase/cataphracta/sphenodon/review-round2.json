@@ -1,0 +1,107 @@
+{
+  "ring": "Sphenodon — the parietal",
+  "round": 2,
+  "verdict": "revise",
+  "score": 6.9,
+  "summary": "Revise at 6.9 (round 1: 6.5; Caiman 7; ship bar 7.5; one round remains). Every lost-wax gate is green at draft (768 x 320) and export (1536 x 448), and each one checks out against report.json. The lost-wax decision is now recorded in docs/collections/cataphracta.md, both in the header list of Logan's decisions and in the Sphenodon section's Process line. This round fixed the tail. palm.png now shows a tapering S-curved lizard tail with domed, staggered scale rings that shrink toward the tip, and the blob artefacts are gone. The tail ends in a real point with 9 mm of polished band before the snout. The stone sits on the midline 2.8 mm behind the eye line (eye_t 7.0, stone_t 9.8), which is parietal and cannot be read as an eye. In stones.png (the side view) the ring reads as a lizard with a stone on its skull, and that is the ring's best view. The head is still what holds it below the bar. From the hero three-quarter view the skull is a flat-topped slab 1.85 mm tall. Its side walls are vertical and the snout ends in a squared cliff (hero.png upper right of the head), so at 300 px it reads as a paddle or coffin-shaped plaque, not a tuatara's skull. The eyes are rings with a cross slit perched on the edge of the slab wall, and they read as slotted screw heads (face.png, hero.png). There are three smaller faults. (1) The hind feet are still smooth knobs at the rim corners (hero.png lower left; face.png far left). (2) In stones.png the nape and back crest are square pyramids rather than blades, over a midline row of flat rectangular plates (face.png). (3) Radial combing fans out from the neck into the seat (face.png, between the neck and the stone), and a hairline comb runs along the tail's inner edge at the rim (reverse.png, top). A jeweller at 300 px says 'lizard ring', not yet 'tuatara'. One round on the head's cross-section, the eyes, the hind feet and the comb can reach 7.5.",
+  "strengths": [
+    "The tail is solved. In palm.png it is a tapering S-curve with domed, staggered scale rings that grade down toward the tip, with no blob artefacts and no brick grid. It reads as a lizard's tail, not Lorica tiling.",
+    "The tail ends in a true point (shoulder.png), with about 9 mm of polished band between the tip and the snout (animal.gap_mm 9.0), so there is no ouroboros read to confuse it with Ouroborus.",
+    "The peridot is parietal. It sits on the midline 2.8 mm behind the eye line (eye_t 7.0, stone_t 9.8) and cannot be taken for an eye in any view.",
+    "stones.png is the strongest view in the set: head in profile with a mouth line and lid, the stone on the skull, a front foot with splayed toes on the side face, and the body crest behind.",
+    "Seen along the axis (side.png), the nape comb is a serrated row of triangular spines that grades down to a low saw round the palm. This gives the ring a silhouette no other Cataphracta ring or Reptilia tile has.",
+    "The front feet have five splayed toes that grip the side faces (side.png, face.png, reverse.png right)."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "One animal runs face to palm. The head and stone are on the face, the body and legs cover one shoulder, the tail crosses the palm and rises back to the crown edge. Nothing else is on the ring."},
+    {"item": "The hide reads as this specific animal at 300 px without the caption", "result": "fail", "reason": "hero-300 and face-300 read as 'lizard with a green stone on its head' (gecko, monitor or salamander), not tuatara. The skull is a flat slab with screw-head eyes, not a tuatara's crowned wedge with heavy lids. The tail and body skin are now convincing reptile skin."},
+    {"item": "Figurative motifs have true outlines, with no combing, smearing or stair-steps", "result": "fail", "reason": "Toes, spines, lids and the tail tip are crisp. But a radial comb of fine streaks fans out from the neck into the seat's skirt (face.png, between the neck and the stone), and a hairline comb runs along the tail's inner edge where it meets the rim fillet (reverse.png, top centre). The flank under the comb (side.png) is now clean."},
+    {"item": "Stones sit in made settings and are visible", "result": "pass", "reason": "The 3.0 mm peridot sits flush in a GypsyMound seat (1 made setting; report_count 1 = preview_count 1) with a through vent in the bore (reverse.png). It is visible in the hero, face, stones and bare-vs-finished views."},
+    {"item": "No flat, blocky or mechanical CAD; forms are sculpted", "result": "fail", "reason": "The body, legs and tail are sculpted. The head is a flat-topped plateau with vertical walls and a squared snout cliff (hero.png, bare-vs-finished.png right). The back crest in stones.png is a row of square pyramids like studs. The face.png midline has a row of flat rectangular plates."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "Not factory stock: this is a procedural Flat 7.5 x 3.4 band. Its crisp wall-to-crown edges are kept wherever the animal does not cross them (bare-vs-finished.png)."},
+    {"item": "A silhouette distinct from the other Cataphracta rings and from the Reptilia tiles", "result": "pass", "reason": "It is the only wrap-round figurative creature on a plain band, and the serrated comb in side.png is unique among the rings. The 9 mm gap between snout and tail tip keeps it clear of Ouroborus's composition."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "pass", "reason": "Narrow pass. There are three scales of form: body mass, then legs, comb and head, then skin granules and tail scales. Legibility beats Caiman's because it names an animal. About 40% of the hero shows plain polished band, but that is deliberate ground, not emptiness."}
+  ],
+  "gates": [
+    {"gate": "Process", "claimed": "lost wax (Logan, 2026-09-27)", "verified": "report.json process 'lost wax'; draft.process and export.process 'LostWax'; draft_rules min_section 0.8, min_draft 0. docs/collections/cataphracta.md now records it in the header list of Logan's decisions and in the Sphenodon Process line. The file's sheet subtitle ('ALL POURED IN SAND') and 'six rings in sand and two in wax' are still stale.", "pass": true},
+    {"gate": "Watertight, 0 degenerate faces", "claimed": "pass", "verified": "draft and export: watertight true, 0 boundary edges, 0 non-manifold edges, 0 degenerate faces", "pass": true},
+    {"gate": "0 self-crossings on the ring and every made part", "claimed": "pass", "verified": "self_crossings 0 at draft and export; made_parts 0 (the animal is painted relief)", "pass": true},
+    {"gate": "Solids notes empty", "claimed": "pass", "verified": "made.notes [] and parts_notes [], resolved 1, stamps 0 and stamped 0, at draft and export", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "vertices_inside 0 at both; nearest_margin -0.000065 mm (draft) and -0.000012 mm (export), which is on the bore surface within tolerance", "pass": true},
+    {"gate": "Field Castable under lost wax at the 0.8 mm fill", "claimed": "Castable", "verified": "verdict 'Castable' (not 'with care'), process LostWax, thinnest wall 2.134 mm, at draft and export", "pass": true},
+    {"gate": "land_widths: every section under 0.8 mm removed or named with its bench treatment", "claimed": "all named", "verified": "Present at draft and export: floor 0.8, all_named true, area named 7.409 mm² = area under the floor 7.409 mm² (export), removed []. Seven features are named. This passes as the gate is written. Caveat carried from round 1: some bench notes still claim more than was measured. Toes are called '0.5 mm tubes' but measure 0.024 mm; the tail tip is called 'a 0.5 mm point' but measures 0.094 mm; the seat lip measures 0.021 mm. The notes now say these are grazing single-ray reads across relief flanks, which is plausible but not proven. The crest's spines now measure 0.442 mm, up from 0.050.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings [] at draft and export", "pass": true},
+    {"gate": "Stone count equal to the preview", "claimed": "pass", "verified": "report_count 1 = preview_count 1 at both; stones.json stone_count 1, crowding 0, tight_pairs 0", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "identical", "verified": "cold_reload.identical true, 1,371,506 faces (= export triangles), 685,751 vertices", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "1,371,506 triangles at export", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "casting_pattern watertight true, 0 degenerate, 0 self-crossings (490,624 draft; 1,371,506 export)", "pass": true},
+    {"gate": "Two-part undercut (number only, not gated)", "claimed": "reported", "verified": "undercut 52.37 mm² of 1369.41 (3.82%), worst draft -58.2 deg; release obstructions 531 at 0.100 and 774 at 0.075 (draft), 574 and 844 (export), 0 unresolved, status NotApplicable. All caused by 'Tuatara'. As in round 1, the area figures are identical at draft and export, so they come from a fixed-resolution sampling.", "pass": true},
+    {"gate": "Template gate", "claimed": "not run", "verified": "Not run; it runs after the last round. Note: design_bytes 1,044,170 (a painted atlas of 2048 x 640), which is above the procedural budget of 300 KB and under the 3 MB painted-atlas flag.", "pass": null}
+  ],
+  "round1_punch_status": [
+    {"number": 1, "status": "partly met", "note": "The eyes moved back and the stone is 2.8 mm behind the eye line (met). A mouth line and lid show in stones.png. But in hero.png the head is a flat slab with vertical walls and a squared snout cliff, not a wedge crowned wider at the back. The eyes (a ring with a cross slit) read as slotted screw heads, and the head skin is not visibly finer than the body skin."},
+    {"number": 2, "status": "met", "note": "palm.png shows staggered, domed scale rings graded toward the tip, with no blob artefacts. The dorsal saw continues the comb (side.png)."},
+    {"number": 3, "status": "mostly met", "note": "The tail tapers to a point with no cap, and the gap is 9 mm. In shoulder.png the tip ends at the crown's edge rather than lying down on the side face."},
+    {"number": 4, "status": "partly met", "note": "The flank streaks in side.png are gone. The hind feet are still smooth knobs in hero.png (lower left) and face.png (far left), and a hairline comb remains along the tail's rim edge (reverse.png)."},
+    {"number": 5, "status": "partly met", "note": "Spines now 0.442 mm (met, >= 0.30). The collection file records lost wax (met). The toes are still 0.024 mm, and the toe and tail-tip notes state 0.5 mm against 0.024 and 0.094 mm measured (not met)."}
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": 1,
+      "zone": "Head cross-section, animal t = 0 to 13 mm (theta 90 deg ± 27 deg), height_knots and the head's v-profile",
+      "change": "Turn the flat plateau into a crowned skull. Make the head's cross-section a dome, not a mesa. Slope the cheeks from the band at no steeper than 50 deg into a crown 0.3 to 0.4 mm higher on the midline than at the eye line, so there are no vertical side walls. Lower the snout from a squared cliff to a rounded, slightly downturned beak: height 0.55 mm at t 0, rising to 1.2 mm by t 2, with a 0.3 mm radius on the snout's leading edge. Move the widest point back to the jaw joint: set width_knots to 3.3 at t 10 to 11 and taper to 2.4 at t 3 and 1.4 at t 0, so the plan is a wedge wider behind than in front. Keep the peak height at t 9.5 no greater than 1.6 mm, from 1.85 now. Give the head skin granules at about 60% of the body's cell size.",
+      "acceptance": "In hero.png and bare-vs-finished.png the head has no vertical wall and no flat top. Its top highlight is a curved band, and the snout ends in a rounded beak, not a squared edge. In face.png the head outline is widest behind the eyes and narrows to the snout. In hero-300 a viewer sees a skull, not a paddle or a plaque."
+    },
+    {
+      "number": 2,
+      "priority": 2,
+      "zone": "Eyes, animal t = 6.5 to 7.5 mm, both sides of the head",
+      "change": "Replace the ring-and-cross-slit eyes, which read as slotted screw heads. Each eye should be a smooth dome about 1.4 mm across and 0.45 mm proud, set on the upper side of the new domed head rather than on the edge of the wall. Arch a heavy upper lid 0.35 mm proud over its top half, with the lid's rear corner running back toward the stone. Cut a single lens-shaped vertical pupil 0.15 mm deep, with no full circular groove around the eye and no horizontal bar.",
+      "acceptance": "In face.png and hero.png each eye shows as a lidded dome with one vertical pupil. There is no ring groove and no cross, and nothing a viewer could take for a screw head. In face-300 two eyes are visible in front of the stone, which stays within 3 mm behind their line."
+    },
+    {
+      "number": 3,
+      "priority": 3,
+      "zone": "Hind limbs and feet, animal t about 28 to 33 mm (hero.png lower left; face.png far left; reverse.png right)",
+      "change": "Model the hind feet like the front feet. Give each a visible thigh at least 1.5 mm thick rising from the flank, and a foot with five splayed toes about 0.5 mm wide, at least 0.30 mm in real section, gripping the side face. Remove the smooth rounded knob at each rim corner.",
+      "acceptance": "In hero.png (lower left) and face.png (far left) every foot shows separate toes, and none reads as a smooth lump. In export land_widths, 'the legs and toes' thinnest_mm is at least 0.30, or the note states the measured figure."
+    },
+    {
+      "number": 4,
+      "priority": 4,
+      "zone": "Dorsal crest and midline, animal t = 13 to 33 mm (crest_knots), and the midline plates on the back (face.png x 280 to 700)",
+      "change": "Make the comb spines blades, not cubes. Each spine should have a triangular side profile, a foot 0.9 to 1.2 mm long, and flanks that pinch to a 0.45 mm ridge along the top, so each tooth reads as a thin plate from the three-quarter view. Replace the row of flat rectangular midline plates with small domed keeled scales, 0.5 to 0.7 mm, graded into the body skin.",
+      "acceptance": "In stones.png the crest reads as a row of pointed blades, with no square-pyramid studs. In face.png the back's midline shows no flat rectangular plates. In side.png the serrated silhouette is kept."
+    },
+    {
+      "number": 5,
+      "priority": 5,
+      "zone": "Combing: the neck into the seat skirt (animal t 11 to 14, theta 90 deg ± 12 deg; face.png between the neck and the stone) and the tail's inner edge at the rim fillet (reverse.png top, theta about 200 to 340 deg)",
+      "change": "Remove the radial fan of fine streaks where the neck skin meets the seat mound. Either end the granule field 0.3 mm outside the mound's skirt, or carry granules at full size onto it; do not stretch the atlas across the skirt. On the tail, fair the relief to zero before the rim fillet's steepest band, or raise the atlas's v-resolution there, so the edge has no hairline comb.",
+      "acceptance": "In face.png there are no radial streaks around the stone or at the neck. In reverse.png the tail's edge along the rim is a clean line, with no parallel hairlines."
+    },
+    {
+      "number": 6,
+      "priority": 6,
+      "zone": "report.json land_widths (tail tip, legs and toes, seat lip) and docs/collections/cataphracta.md header",
+      "change": "Make every bench note state a dimension no greater than the measured thinnest_mm. Otherwise, back the 'grazing ray, not a free-standing wire' claim with a second measure, for example a normal-direction section at the same faces. Update the collection file's sheet subtitle and the 'six in sand and two in wax' line to reflect Sphenodon's move to lost wax.",
+      "acceptance": "In export land_widths no note's stated size exceeds its thinnest_mm, or each such feature carries a second, higher section figure with its method. The collection header no longer says that all eight pour in sand."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/sphenodon/hero-300.png",
+    "showcase/cataphracta/sphenodon/face-300.png",
+    "showcase/cataphracta/sphenodon/contact-300.png",
+    "showcase/cataphracta/sphenodon/hero.png",
+    "showcase/cataphracta/sphenodon/face.png",
+    "showcase/cataphracta/sphenodon/palm.png",
+    "showcase/cataphracta/sphenodon/side.png",
+    "showcase/cataphracta/sphenodon/stones.png",
+    "showcase/cataphracta/sphenodon/shoulder.png",
+    "showcase/cataphracta/sphenodon/reverse.png",
+    "showcase/cataphracta/sphenodon/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
