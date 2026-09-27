@@ -2811,14 +2811,14 @@
       "Undercut 76–97° on the crest: 25.8 mm² leaning to 31° — caused by \"Seat\"; muting it clears it.",
       "Cut at the bench after casting, and so not judged here: Graver lines.",
       "10 made settings cast in place with the ring; the field judges the band under them.",
-      "Measured with the ring as built: 4 CAD parts (3 joined, 1 cut), 122.6 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Bezel \"Venom collet\" (#3) would undercut a two-part pull over 24.4 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Measured with the ring as built: 4 CAD parts (3 joined, 1 cut), 122.3 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Bezel \"Venom collet\" (#3) would undercut a two-part pull over 24.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Seat bur \"Seat bur\" (#4) would undercut a two-part pull over 14.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Stored mesh \"Venom calyx\" (#5) would undercut a two-part pull over 5.4 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Stored mesh \"Aculeus knob\" (#6) would undercut a two-part pull over 0.1 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Stored mesh \"Aculeus\" (#7) stands apart from the band: it is cast on its own and not judged against the ring's parting plane."
     ],
-    "parts_undercut_mm2": 44.576822950682796,
+    "parts_undercut_mm2": 44.34850817560438,
     "thinnest_wall_mm": 1.43107344269683,
     "thinnest_wall_theta_deg": 270.0,
     "verdict": "Castable"
@@ -2889,11 +2889,11 @@
     "non_manifold_edges": 0,
     "self_crossings": 0,
     "shells": 2,
-    "volume_mm3": 1098.6746727999937,
+    "volume_mm3": 1098.5125280391542,
     "watertight": true,
     "worst_aspect": 14246.266191573315
   },
-  "grams_18k": 17.1173514022239,
+  "grams_18k": 17.11482518685002,
   "knob": {
     "collet_clear_mm": 0.9526974600476672,
     "footprint_mm": 2.437045625634936,
@@ -3234,13 +3234,13 @@
   "process": "Lost wax",
   "ruby_seat": {
     "deepest_at": [
-      0.8609490990638733,
-      12.535341262817383,
-      -2.8706319332122803
+      0.0,
+      0.0,
+      0.0
     ],
-    "metal_depth_mm": 0.02137556903219053,
-    "metal_vertices_inside": 96,
-    "shared_mm3": 0.060339175395904554
+    "metal_depth_mm": 0.0,
+    "metal_vertices_inside": 0,
+    "shared_mm3": null
   },
   "size": "US 8.6",
   "solids": {
@@ -3266,7 +3266,7 @@
     "band_percent": 7.727417033485969,
     "band_worst_draft_deg": -36.51786941592396,
     "note": "reported only: lost wax judges fill and detail, never the pull",
-    "with_parts_percent": 10.571166558208045,
-    "with_parts_worst_draft_deg": -88.02341772507866
+    "with_parts_percent": 10.554631106494039,
+    "with_parts_worst_draft_deg": -88.02442908928528
   }
 }

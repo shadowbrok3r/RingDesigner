@@ -430,6 +430,50 @@ mod tests {
     }
 
     #[test]
+    fn a_bare_seat_run_fences_graphs_and_presets_by_literal_pin_wire_and_exposure() {
+        use super::*;
+        use crate::graph::Mode;
+        use ringdesign_core::field::SeatRunLayer;
+        for bare in [false, true] {
+            let expected = if bare { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION };
+            let run = serde_json::json!({"SeatRun": SeatRunLayer { bare, ..SeatRunLayer::default() }});
+            let mut g = Graph::new("Beads", Mode::Free);
+            let node = g.add("layer.seatrun").unwrap();
+            g.set_input(node, "layer", Literal::Json(run.clone())).unwrap();
+            assert_eq!(graph_version_for(&g), expected);
+            let preset = Preset { values: [("Row".into(), Literal::Json(run))].into_iter().collect(), ..Default::default() };
+            assert_eq!(preset_version_in(&preset, None), expected);
+            let mut g = Graph::new("Beads", Mode::Free);
+            let node = g.add("layer.seatrun").unwrap();
+            g.set_input(node, "bare", Literal::Bool(bare)).unwrap();
+            assert_eq!(graph_version_for(&g), expected, "pin literal {bare}");
+        }
+        let mut g = Graph::new("Beads", Mode::Free);
+        let node = g.add("layer.seatrun").unwrap();
+        g.expose(node, "bare", "Stock only").unwrap();
+        assert_eq!(graph_version_for(&g), GRAPH_FORMAT_VERSION);
+    }
+
+    #[test]
+    fn a_clamped_group_fences_graphs_and_presets_while_an_unclamped_one_stays_plain() {
+        use super::*;
+        use crate::graph::Mode;
+        use ringdesign_core::field::{GroupLayer, SandClamp};
+        for clamp in [None, Some(SandClamp::default())] {
+            let expected = if clamp.is_some() { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION };
+            let group = serde_json::json!({"Group": GroupLayer { clamp, ..Default::default() }});
+            let preset = Preset { values: [("Group".into(), Literal::Json(group))].into_iter().collect(), ..Default::default() };
+            assert_eq!(preset_version_in(&preset, None), expected);
+            let mut g = Graph::new("Beadwork", Mode::Free);
+            let node = g.add("layer.group").unwrap();
+            g.set_input(node, "clamp", Literal::Bool(clamp.is_some())).unwrap();
+            assert_eq!(graph_version_for(&g), expected);
+            let text = graph_to_string(&g).unwrap();
+            assert_eq!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).is_err(), clamp.is_some());
+        }
+    }
+
+    #[test]
     fn template_controls_fence_graphs_clusters_and_presets_from_released_readers() {
         use super::*;
         use crate::graph::Mode;

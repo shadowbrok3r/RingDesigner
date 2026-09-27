@@ -61,7 +61,7 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || design.stamps.iter().any(|s| !s.is_plain())
         || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(&f.operation, crate::cad::Operation::Builder { key, params, .. } if crate::cad::builders::geometry_extended(key, params))))
         || station_gates_in_stack(&design.layers, design.gate_sections_are_reference())
-        || centred_runs_in_stack(&design.layers)
+        || fenced_runs_in_stack(&design.layers)
         || tiling_features_in_stack(&design.layers)
         || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
         || design.graph.as_ref().is_some_and(template_features_in_json)
@@ -83,12 +83,14 @@ fn station_gates_in_stack(stack: &crate::LayerStack, reference: bool) -> bool {
     })
 }
 
-/// Seat runs whose lattice stands on the taper centre, which an older reader would re-anchor at 0 degrees.
-fn centred_runs_in_stack(stack: &crate::LayerStack) -> bool {
+/// Seat runs whose lattice stands on the taper centre, which an older reader would re-anchor at 0 degrees,
+/// or that are bare, which an older reader would fit and set stones in; and groups held by a sand clamp.
+fn fenced_runs_in_stack(stack: &crate::LayerStack) -> bool {
     use crate::field::Layer;
     stack.layers.iter().any(|entry| match &entry.layer {
-        Layer::SeatRun(run) => run.centre_phase.is_some(),
-        Layer::Group(group) => centred_runs_in_stack(&group.stack),
+        Layer::SeatRun(run) => run.centre_phase.is_some() || run.bare,
+        // A clamped group, which an older reader would build unclamped.
+        Layer::Group(group) => group.clamp.is_some() || fenced_runs_in_stack(&group.stack),
         _ => false,
     })
 }
@@ -110,12 +112,15 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"];
     let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && matches!(pin, "keys" | "bypass_fair_deg"))
         || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"))
+        || (kind == "layer.seatrun" && pin == "bare") || (kind == "layer.group" && pin == "clamp")
         || (kind == "layer.tiling" && matches!(pin, "grade" | "space"));
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
     if value.get("Builder").is_some_and(|builder| builder.get("key").and_then(serde_json::Value::as_str)
         .is_some_and(|key| crate::cad::builders::geometry_extended(key, &builder["params"]))) { return true; }
     if value.get("v_gate").is_some_and(|gate| gate.get("Draft").is_some() || gate.get("SideFaces").is_some()) { return true; }
     if value.get("centre_phase").is_some_and(|phase| !phase.is_null()) { return true; }
+    if value.get("SeatRun").and_then(|run| run.get("bare")).and_then(serde_json::Value::as_bool) == Some(true) { return true; }
+    if value.get("Group").and_then(|group| group.get("clamp")).is_some_and(|clamp| !clamp.is_null()) { return true; }
     if value.get("fine_cap").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
     if value.get("space").and_then(serde_json::Value::as_str) == Some("Hide") { return true; }
     if value.get("mask").and_then(serde_json::Value::as_str).is_some_and(|m| m.starts_with(crate::skin::REGION_PREFIX)) { return true; }
@@ -124,7 +129,7 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
         if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
             || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }
         if value.get("inputs").and_then(serde_json::Value::as_object).is_some_and(|inputs| inputs.iter().any(|(pin, v)| {
-            new_pin(kind, pin) && !v.is_null() && (kind != "window" || pin != "v_gate" || matches!(v.as_str(), Some("side_faces" | "draft")))
+            new_pin(kind, pin) && !v.is_null() && v.as_bool() != Some(false) && (kind != "window" || pin != "v_gate" || matches!(v.as_str(), Some("side_faces" | "draft")))
                 && (kind != "layer.tiling" || pin != "space" || v.as_str() == Some("Hide"))
         })) { return true; }
     }
@@ -159,7 +164,7 @@ mod template_source_tests {
         let plain = TilingLayer::default_for("Scales", &ctx);
         let graded = TilingLayer { grade: Some(TileGrade { taper: 0.4, theta_deg: 90.0, law: GradeLaw::Spiral { seam_deg: 0.0 }, isotropic: true }), ..plain.clone() };
         let wrap = |t: &TilingLayer| {
-            let group = GroupLayer { stack: crate::LayerStack { layers: vec![LayerEntry::new("t", Layer::Tiling(t.clone()))] }, recipe: None };
+            let group = GroupLayer { stack: crate::LayerStack { layers: vec![LayerEntry::new("t", Layer::Tiling(t.clone()))] }, recipe: None, clamp: None };
             [Layer::Tiling(t.clone()), Layer::Openwork(OpenworkLayer { tiling: t.clone(), depth_mm: 1.0, keep_mm: 0.8 }), Layer::Group(group)]
         };
         for layer in wrap(&plain) {

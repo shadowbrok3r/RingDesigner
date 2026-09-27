@@ -558,6 +558,7 @@ fn decorate(sand: bool, lib: &mut AlphaLibrary) -> RingDesign {
             Layer::Group(GroupLayer {
                 stack: seal,
                 recipe: None,
+                clamp: None,
             }),
         ));
         let mut tex = TilingLayer::default_for("Engine turned waves", &ctx);

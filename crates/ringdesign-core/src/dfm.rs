@@ -31,12 +31,15 @@ pub fn findings_in(design: &RingDesign, lib: &crate::AlphaLibrary) -> Vec<DfmFin
     if min <= 0.0 {
         return out;
     }
-    fn tilings<'a>(stack: &'a crate::field::LayerStack, out: &mut Vec<&'a crate::tiling::TilingLayer>) {
+    /// Every tiling in `stack`, with the remaps its relief passes through on the way out, its own first.
+    fn tilings<'a>(stack: &'a crate::field::LayerStack, outer: &[crate::field::Remap], out: &mut Vec<(&'a crate::tiling::TilingLayer, Vec<crate::field::Remap>)>) {
         for e in stack.layers.iter().filter(|e| e.enabled) {
+            let chain = || std::iter::once(e.remap).chain(outer.iter().copied()).filter(|r| !r.is_off()).collect::<Vec<_>>();
             match &e.layer {
-                Layer::Tiling(t) => out.push(t),
-                Layer::Openwork(o) => out.push(&o.tiling),
-                Layer::Group(g) => tilings(&g.stack, out),
+                Layer::Tiling(t) => out.push((t, chain())),
+                // An openwork's cut is its mask, not its relief.
+                Layer::Openwork(o) => out.push((&o.tiling, Vec::new())),
+                Layer::Group(g) => tilings(&g.stack, &chain(), out),
                 _ => {}
             }
         }
@@ -108,14 +111,14 @@ pub fn findings_in(design: &RingDesign, lib: &crate::AlphaLibrary) -> Vec<DfmFin
         }
         let mut ts = Vec::new();
         let one = crate::field::LayerStack { layers: vec![entry.clone()] };
-        tilings(&one, &mut ts);
+        tilings(&one, &[], &mut ts);
         let window = worst_arc_ratio(design, entry, &ctx, lib, None);
-        for t in ts {
+        for (t, remaps) in ts {
             // One tile round the whole ring, a hide, lays each column at its own
             // angle: it is judged where it carries ink, not where its window reaches.
             let (ratio, at_deg) = if t.repeats_around == 1 { worst_arc_ratio(design, entry, &ctx, lib, Some(t)) } else { window };
-            let Some((finest, what)) = tiling_finest_mm_at(t, lib, &ctx, ratio) else { continue };
-            let (cw, ch) = t.cell_size(&ctx);
+            let Some((finest, what)) = tiling_finest_mm_remapped(t, lib, &ctx, ratio, &remaps) else { continue };
+            let (cw, ch) = t.finest_cell_size(&ctx);
             let ch = ch * ratio;
             if finest >= min {
                 continue;
@@ -574,6 +577,33 @@ mod measured_tests {
     use crate::field::LayerEntry;
     use crate::tiling::TilingLayer;
 
+    /// A graded tiling is measured at its small pole: its finest feature falls
+    /// with the grade, and a floor between the two catches only the graded
+    /// layer. At taper 0 the measure is the ungraded one, bit for bit.
+    #[test]
+    fn a_graded_tiling_is_measured_at_its_finest_cells() {
+        use crate::tiling::{GradeLaw, TileGrade};
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        let ctx = d.field_context();
+        let mut t = TilingLayer::default_for("Scales", &ctx);
+        t.repeats_around = 8;
+        // Isotropic, so both axes shrink; Scales' finest feature runs across the band.
+        let grade = |taper: f64| Some(TileGrade { taper, theta_deg: 90.0, law: GradeLaw::Cosine, isotropic: true });
+        let plain = tiling_finest_mm(&t, &lib, &ctx).unwrap().0;
+        let flat = tiling_finest_mm(&TilingLayer { grade: grade(0.0), ..t.clone() }, &lib, &ctx).unwrap().0;
+        assert_eq!(plain.to_bits(), flat.to_bits());
+        let graded = TilingLayer { grade: grade(0.6), ..t.clone() };
+        let fine = tiling_finest_mm(&graded, &lib, &ctx).unwrap().0;
+        assert!(fine < plain * 0.9, "graded {fine} against ungraded {plain}");
+        d.draft.min_detail_mm = 0.5 * (fine + plain);
+        let mut ungraded = d.clone();
+        ungraded.layers.layers.push(LayerEntry::new("Scales", Layer::Tiling(t)));
+        assert!(findings_in(&ungraded, &lib).is_empty(), "{:?}", findings_in(&ungraded, &lib));
+        d.layers.layers.push(LayerEntry::new("Scales", Layer::Tiling(graded)));
+        assert_eq!(findings_in(&d, &lib).len(), 1, "the graded layer is caught at its small pole");
+    }
+
     #[test]
     fn a_fine_lined_texture_on_honest_cells_is_caught_by_the_measure() {
         let lib = crate::AlphaLibrary::builtin();
@@ -593,6 +623,42 @@ mod measured_tests {
         assert!(measured[0].message.contains("Greek Key"), "{}", measured[0].message);
         d.draft.min_detail_mm = 0.0;
         assert!(findings_in(&d, &lib).is_empty(), "no floor, no finding");
+    }
+
+    /// C-R6: a terrace remap cuts a smooth relief into treads, and a tread is
+    /// a flat between two risers that the half-height threshold never sees.
+    /// DFM measures the relief as remapped: the treads show, a remap that is
+    /// off measures exactly as before, and the finding follows the layer's
+    /// own remap and its group's.
+    #[test]
+    fn terrace_treads_are_measured_through_the_remap() {
+        use crate::field::{GroupLayer, Remap};
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        let ctx = d.field_context();
+        let mut t = TilingLayer::default_for("Pyramids", &ctx);
+        t.repeats_around = 24;
+        t.rows = 1;
+        t.v_center_mm = ctx.crest_v_mm;
+        t.v_span_mm = 3.0;
+        let plain = tiling_finest_mm_at(&t, &lib, &ctx, 1.0).unwrap();
+        assert_eq!(tiling_finest_mm_remapped(&t, &lib, &ctx, 1.0, &[]), Some(plain));
+        let terrace = Remap::Terrace { steps: 8, span_mm: t.height_mm, riser: 0.2 };
+        let (tread, what) = tiling_finest_mm_remapped(&t, &lib, &ctx, 1.0, &[terrace]).unwrap();
+        assert_eq!(what, "treads");
+        assert!(tread < plain.0 * 0.8, "treads {tread:.3} mm against the plain {:.3} mm", plain.0);
+        // A floor between the two: the plain layer passes, the terraced one is caught, in a group or on its own.
+        d.draft.min_detail_mm = 0.5 * (tread + plain.0);
+        d.layers.layers.push(LayerEntry::new("Pyramids", Layer::Tiling(t.clone())));
+        assert!(findings_in(&d, &lib).is_empty(), "{:?}", findings_in(&d, &lib));
+        d.layers.layers[0].remap = terrace;
+        let own = findings_in(&d, &lib);
+        assert!(own.len() == 1 && own[0].message.contains("treads"), "{own:?}");
+        d.layers.layers[0].remap = Remap::Off;
+        let mut group = LayerEntry::new("Hide", Layer::Group(GroupLayer { stack: crate::field::LayerStack { layers: vec![d.layers.layers.remove(0)] }, ..Default::default() }));
+        group.remap = terrace;
+        d.layers.layers.push(group);
+        assert_eq!(findings_in(&d, &lib).len(), 1);
     }
 
     /// A stamp is measured at its own mm per texel, on the section as
@@ -883,22 +949,76 @@ pub fn tiling_finest_mm_at(
     ctx: &crate::field::FieldContext,
     v_scale: f64,
 ) -> Option<(f64, &'static str)> {
+    tiling_finest_mm_remapped(t, lib, ctx, v_scale, &[])
+}
+
+/// [`tiling_finest_mm_at`] measured on the relief the layer actually lays
+/// down: the shaped mask at the layer's height, through `remaps` in order
+/// (the layer's own, then each enclosing group's), renormalized to its
+/// remapped top. A terrace last in the chain has its treads measured too,
+/// each as its own ink, since a tread is a flat between two risers that the
+/// half-height threshold never sees — "treads" when one runs finest. The
+/// top tread is only a peak's cap and the ground is no tread, so the
+/// interior treads are the ones read. With no remap on, the measurement is
+/// the plain one exactly.
+pub fn tiling_finest_mm_remapped(
+    t: &crate::tiling::TilingLayer,
+    lib: &crate::alpha::AlphaLibrary,
+    ctx: &crate::field::FieldContext,
+    v_scale: f64,
+    remaps: &[crate::field::Remap],
+) -> Option<(f64, &'static str)> {
+    use crate::alpha::Alpha;
+    use crate::field::Remap;
     let alpha = lib.get(&t.alpha)?;
-    let (cw, ch) = t.cell_size(ctx);
+    // A graded tiling is judged at its small pole, the finest cell it lays.
+    let (cw, ch) = t.finest_cell_size(ctx);
     let ch = ch * v_scale.clamp(0.05, 8.0);
     let (sx, sy) = (cw / alpha.width.max(1) as f64, ch / alpha.height.max(1) as f64);
     // Granulometry reads a round disc in texels, so on texels far from square
     // one axis was read at the other's pitch: the coarser axis is repeated out
     // to the finer pitch first and the disc is round in millimetres.
-    let (ink_px, gap_px, scale) = if sx.is_finite() && sy > 0.0 && (sx / sy - 1.0).abs() > 0.05 {
-        let square = stretched(&shaped_mask(t, lib)?, sx / sy);
-        let (ink_px, gap_px) = square.min_feature_px()?;
-        (ink_px, gap_px, (cw / square.width as f64).min(ch / square.height as f64))
-    } else {
-        let (ink_px, gap_px) = tiling_feature_px(t, lib)?;
-        (ink_px, gap_px, sx.min(sy))
+    let measure = |mask: &Alpha| -> Option<(f64, f64)> {
+        let (ink_px, gap_px, scale) = if sx.is_finite() && sy > 0.0 && (sx / sy - 1.0).abs() > 0.05 {
+            let square = stretched(mask, sx / sy);
+            let (ink_px, gap_px) = square.min_feature_px()?;
+            (ink_px, gap_px, (cw / square.width as f64).min(ch / square.height as f64))
+        } else {
+            let (ink_px, gap_px) = mask.min_feature_px()?;
+            (ink_px, gap_px, sx.min(sy))
+        };
+        Some((ink_px * scale, gap_px * scale))
     };
-    let (ink, gap) = (ink_px * scale, gap_px * scale);
+    let shaped = shaped_mask(t, lib)?;
+    let chain = |h: f64| remaps.iter().fold(h, |h, r| r.apply(h));
+    let top_in = t.height_mm;
+    let top = chain(top_in);
+    // A remap only reshapes relief standing proud; an engraving, or a chain that flattens everything, reads as drawn.
+    if remaps.iter().all(Remap::is_off) || !(top_in > 1e-9) || !(top > 1e-9) {
+        let (ink, gap) = measure(&shaped)?;
+        return Some(if ink <= gap { (ink, "strokes") } else { (gap, "gaps") });
+    }
+    let heights: Vec<f64> = shaped.data.iter().map(|&v| chain(v as f64 * top_in)).collect();
+    let (w, h) = (shaped.width, shaped.height);
+    let remapped = Alpha::new(format!("{} remapped", shaped.name), w, h, heights.iter().map(|&x| (x / top) as f32).collect());
+    let (ink, gap) = measure(&remapped).unwrap_or((f64::INFINITY, f64::INFINITY));
+    let mut tread = f64::INFINITY;
+    if let Some(&Remap::Terrace { steps, span_mm, .. }) = remaps.last() {
+        let steps = steps.clamp(1, 64);
+        let q = span_mm.max(1e-6) / steps as f64;
+        for i in 1..steps {
+            let band = Alpha::new(format!("{} tread {i}", shaped.name), w, h, heights.iter().map(|&x| if (x / q).round() as u32 == i { 1.0 } else { 0.0 }).collect());
+            if let Some((width, _)) = measure(&band) {
+                tread = tread.min(width);
+            }
+        }
+    }
+    if tread < ink.min(gap) {
+        return Some((tread, "treads"));
+    }
+    if !ink.is_finite() && !gap.is_finite() {
+        return None;
+    }
     Some(if ink <= gap { (ink, "strokes") } else { (gap, "gaps") })
 }
 

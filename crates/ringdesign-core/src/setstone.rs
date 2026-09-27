@@ -145,6 +145,8 @@ fn walk(ctx: &FieldContext, stack: &LayerStack, prefix: &str, path: &mut Vec<usi
                     }
                 }
             }
+            // A bare run casts its seats in the stock and sets nothing.
+            Layer::SeatRun(run) if run.bare => {}
             Layer::SeatRun(run) => {
                 let n = run.count.clamp(1, 200);
                 let mut fitted = run.seat;

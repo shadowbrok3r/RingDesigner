@@ -851,6 +851,74 @@ pub struct GroupLayer {
     /// and analysis never read this: the stored stack is what a file means.
     #[serde(default)]
     pub recipe: Option<crate::pave::GenRecipe>,
+    /// The sand's draft rule, held live over the group's composite: see
+    /// [`SandClamp`]. `None` leaves the group exactly as it was. Fenced at
+    /// design format 6 when set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clamp: Option<SandClamp>,
+}
+
+/// A group held to a two-part pull. [`RingDesign::bake_clamps`](crate::RingDesign::bake_clamps)
+/// paints the group's composite over the bare-surface atlas
+/// ([`skin::Atlas`](crate::skin::Atlas)) at `resolution`, runs
+/// [`skin::draft_clamp`](crate::skin::draft_clamp) on it, and stores a
+/// derived ceiling under [`clamp_name`](crate::alpha::clamp_name) holding
+/// values only where the rule bit. The group's height is then
+/// `min(composite, ceiling)`.
+///
+/// The clamp cuts back and never fills, the opposite of the pull envelope.
+/// It is what makes a `SmoothMax` or `Add` composite legal under the rule:
+/// only `Max` of layers that each keep the rule keeps it by itself.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SandClamp {
+    /// Atlas columns round the ring and rows across the section.
+    pub resolution: [u32; 2],
+    /// How much steeper than the surface's own draft relief may rise, 1 for the rule as it stands.
+    pub slack: f64,
+}
+
+impl Default for SandClamp {
+    fn default() -> Self {
+        Self { resolution: [2048, 768], slack: 1.0 }
+    }
+}
+
+impl SandClamp {
+    /// The atlas size actually painted: at least 4 x 3, at most 4096 x 2048 and [`skin::MAX_ATLAS_SAMPLES`](crate::skin::MAX_ATLAS_SAMPLES) in all.
+    pub fn size(&self) -> (usize, usize) {
+        let w = (self.resolution[0] as usize).clamp(4, 4096);
+        let h = (self.resolution[1] as usize).clamp(3, 2048);
+        (w, h.min((crate::skin::MAX_ATLAS_SAMPLES / w).max(3)))
+    }
+}
+
+/// The ceiling a clamp bake stored, read at a chart point: bilinear over the
+/// texels where the rule bit, weighted by those alone, and unbounded where
+/// it bit nowhere near. Atlas columns stand at `x / width` of the ring and
+/// rows at `y / height` of the chart's span, so on a sample the texel is
+/// read back as painted.
+pub fn clamp_ceiling_at(ceiling: &crate::Alpha, uv: Uv, ctx: &FieldContext) -> f64 {
+    let (w, h) = (ceiling.width, ceiling.height);
+    if w == 0 || h == 0 || ceiling.data.len() != w * h || !(ctx.circumference_mm > 1e-9) || !(ctx.band_v_len_mm > 1e-9) {
+        return f64::INFINITY;
+    }
+    let fx = (uv.u / ctx.circumference_mm).rem_euclid(1.0) * w as f64;
+    let fy = (uv.v / ctx.band_v_len_mm * h as f64).clamp(0.0, (h - 1) as f64);
+    if !fx.is_finite() || !fy.is_finite() {
+        return f64::INFINITY;
+    }
+    let (x0, y0) = (fx.floor() as usize % w, (fy.floor() as usize).min(h - 1));
+    let (x1, y1) = ((x0 + 1) % w, (y0 + 1).min(h - 1));
+    let (tx, ty) = (fx - fx.floor(), fy - y0 as f64);
+    let (mut sum, mut weight) = (0.0, 0.0);
+    for (x, y, k) in [(x0, y0, (1.0 - tx) * (1.0 - ty)), (x1, y0, tx * (1.0 - ty)), (x0, y1, (1.0 - tx) * ty), (x1, y1, tx * ty)] {
+        let c = ceiling.data[y * w + x];
+        if c.is_finite() && k > 0.0 {
+            sum += k * c as f64;
+            weight += k;
+        }
+    }
+    if weight > 1e-12 { sum / weight } else { f64::INFINITY }
 }
 
 impl Layer {
@@ -1195,7 +1263,15 @@ impl LayerStack {
             if w <= 0.0 {
                 continue;
             }
-            let h = e.remap.apply(e.layer.height_d(uv, ctx, lib, depth)) * e.opacity * w;
+            let mut raw = e.layer.height_d(uv, ctx, lib, depth);
+            // A clamped group stands no higher than its baked ceiling; unbaked, it stands as composed.
+            if let Layer::Group(g) = &e.layer
+                && g.clamp.is_some()
+                && let Some(ceiling) = lib.clamp_of(&e.name)
+            {
+                raw = raw.min(clamp_ceiling_at(ceiling, uv, ctx));
+            }
+            let h = e.remap.apply(raw) * e.opacity * w;
             acc = e.blend.apply(acc, h, e.soft_mm);
         }
         acc
@@ -2236,6 +2312,15 @@ pub struct SeatRunLayer {
     /// design format 6 when set.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub centre_phase: Option<f64>,
+    /// A stone-less run: beads and mounds cast in the stock. The seat keeps
+    /// its authored plan (no [`fit_stone`](SeatPadLayer::fit_stone)), the
+    /// row is spaced by that plan, and no stone is set in it — the report
+    /// says "stock only". [`gem`](Self::gem) stays and is ignored. A bare
+    /// run keeps a fixed `v`, so on a factory stock whose parting line
+    /// wanders use a domed stamp row instead. Fenced at design format 6
+    /// when set.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bare: bool,
 }
 
 fn default_taper_theta() -> f64 {
@@ -2267,6 +2352,7 @@ impl Default for SeatRunLayer {
             shared_prong_mm: 0.0,
             tilt_deg: 0.0,
             centre_phase: None,
+            bare: false,
         }
     }
 }
@@ -2285,7 +2371,9 @@ impl SeatRunLayer {
     /// Solve the count from the stone: fit the seat first, then take the most
     /// stations of that seat plus the bridge that fit the ring.
     pub fn solve_spacing(&mut self, ctx: &FieldContext) {
-        self.seat.fit_stone(self.gem);
+        if !self.bare {
+            self.seat.fit_stone(self.gem);
+        }
         // Solved in metal, not in chart arc: the seat's own span shrinks with
         // the row's radius exactly as the pitch does, so only the bridge is
         // an absolute. Keeps `bridge_at` at the asked-for figure, which is
@@ -4629,6 +4717,7 @@ mod tests {
             Layer::Group(GroupLayer {
                 stack: LayerStack { layers: vec![wipe] },
                 recipe: None,
+                clamp: None,
             }),
         );
         grp.blend = Blend::Max;

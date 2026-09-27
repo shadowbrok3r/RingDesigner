@@ -77,8 +77,8 @@
     "undercut_pct": 0.0,
     "worst_draft_deg": -1.0365354734435607e-12,
     "thinnest_wall_mm": 1.2121501619194426,
-    "volume_mm3": 239.799549405909,
-    "surface_area_mm2": 540.7078778792054,
+    "volume_mm3": 239.63740425354285,
+    "surface_area_mm2": 540.4787504635199,
     "max_relief_mm": 0.0,
     "triangles": 39628,
     "watertight": true
@@ -86,11 +86,11 @@
   {
     "name": "template/Halo",
     "verdict": "Castable",
-    "undercut_pct": 18.370727197196178,
+    "undercut_pct": 18.364487522334947,
     "worst_draft_deg": -89.86533972780602,
     "thinnest_wall_mm": 1.2639245700731063,
-    "volume_mm3": 226.30928881354134,
-    "surface_area_mm2": 684.0170245242301,
+    "volume_mm3": 226.25810145663968,
+    "surface_area_mm2": 683.886088619969,
     "max_relief_mm": 0.19962069850055836,
     "triangles": 62332,
     "watertight": true
