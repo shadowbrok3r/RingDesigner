@@ -6,35 +6,30 @@
     "crest_v_mm": 5.570686429033272
   },
   "cold_reload_identical": null,
-  "design_bytes": 355981,
+  "design_bytes": 142855,
   "draft": {
     "bore": {
       "bore_radius_mm": 9.3,
-      "closest_vertex_mm": 9.299975635321342,
+      "closest_vertex_mm": 9.29996825285337,
       "vertices_inside": 0
     },
     "build": {
-      "ms": 505.90590599999996,
+      "ms": 487.179299,
       "profile_steps": 320,
       "theta_steps": 768,
-      "triangles": 493204
+      "triangles": 493248
     },
     "dfm_findings": [],
     "field": {
       "min_detail_mm": 0.15,
       "min_section_mm": 0.8,
       "notes": [
-        "Lost wax: 6.57% of the surface would undercut a two-part pull (worst 47.5 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Undercut 272–22° on the crest: 30.0 mm² leaning to 44° — no single layer explains it.",
-        "Undercut 29–81° on the crest: 11.2 mm² leaning to 37° — no single layer explains it.",
-        "Undercut 99–106° on the crest: 1.9 mm² leaning to 17° — caused by \"Gila beadwork III\"; muting it clears it.",
-        "Undercut 112–115° on the crest: 0.6 mm² leaning to 6° — caused by \"Gila beadwork III\"; muting it clears it.",
-        "Undercut 122–155° on the crest: 12.3 mm² leaning to 38° — no single layer explains it.",
-        "Undercut 166–266° on the crest: 28.0 mm² leaning to 44° — no single layer explains it.",
+        "Lost wax: 6.93% of the surface would undercut a two-part pull (worst 44.9 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Undercut 101–79° on the crest: 92.2 mm² leaning to 42° — no single layer explains it.",
         "1 made setting cast in place with the ring; the field judges the band under it."
       ],
       "process": "LostWax",
-      "thinnest_wall_mm": 2.097827366133446,
+      "thinnest_wall_mm": 2.097827365952602,
       "thinnest_wall_theta_deg": 270.0,
       "verdict": "Castable"
     },
@@ -83,17 +78,17 @@
     "geometry": {
       "boundary_edges": 0,
       "degenerate_faces": 0,
-      "min_angle_deg": 0.008133029925503065,
+      "min_angle_deg": 0.0008970232043693199,
       "non_manifold_edges": 0,
       "self_crossings": 0,
       "watertight": true
     },
     "land_widths": {
       "band_thinnest_wall": "field.thinnest_wall_mm, gated at the floor",
-      "bead_land_share_of_pitch": 0.08,
+      "bead_land_share_of_pitch": 0.24,
       "bead_note": "relief beads on the band, judged at the detail floor: each is a dome over at least the band's own 2.7 mm section",
       "detail_floor_mm": 0.15,
-      "finest_full_bead_mm": 0.8575599408541733,
+      "finest_full_bead_mm": 0.6246211199089858,
       "floor_mm": 0.8,
       "made_parts": [
         {
@@ -115,7 +110,7 @@
     "pattern": {
       "degenerate_faces": 0,
       "self_crossings": 0,
-      "triangles": 493204,
+      "triangles": 493248,
       "watertight": true
     },
     "stones": {
@@ -124,9 +119,9 @@
     },
     "two_part_undercut": {
       "gated": false,
-      "undercut_percent": 6.570617633499995,
+      "undercut_percent": 6.927218672553667,
       "verdict_if_sand": "Will not release",
-      "worst_draft_deg": -47.45911659513297
+      "worst_draft_deg": -44.91166985473043
     }
   },
   "export": null,

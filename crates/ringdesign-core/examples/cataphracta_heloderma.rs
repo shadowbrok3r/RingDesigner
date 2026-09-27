@@ -28,29 +28,32 @@ const NAME: &str = "Heloderma \u{2014} the beaded one";
 const MIN_SECTION_MM: f64 = 0.8;
 
 /// Bead pitch round the ring at the swell's crest, metal mm; the grade takes it to `1 - GRADE_TAPER` of that at the palm.
-const PITCH_TOP_MM: f64 = 1.45;
-const GRADE_TAPER: f64 = 0.28;
-/// Bead rows across the band, chart mm: a hexagon's 0.866 of the pitch once the swell's 1.25 stretch is on it.
-const ROW_MM: f64 = 1.0;
-/// The dorsal row's own bead, as a share of the field's, and the extra room either side of it, chart mm.
-const DORSAL_SIZE: f64 = 1.28;
-const DORSAL_ROOM_MM: f64 = 0.24;
-/// Metal between neighbouring beads at their feet, as a share of the pitch.
-const LAND: f64 = 0.08;
+const PITCH_TOP_MM: f64 = 1.25;
+const GRADE_TAPER: f64 = 0.26;
+/// Bead rows across the band, chart mm: a hexagon's 0.866 of the pitch once the swell's stretch is on it.
+const ROW_MM: f64 = 0.84;
+/// The dorsal row's bead against its neighbours', and the channel either side of it, chart mm.
+const DORSAL_SIZE: f64 = 1.55;
+const DORSAL_ROOM_MM: f64 = 0.62;
+/// Metal between the black bands' domes at their feet, as a share of the pitch: dark lands.
+const LAND: f64 = 0.24;
 /// The tallest bead, mm: a decal's full ink.
 const BEAD_MM: f64 = 0.50;
-/// Peak heights in mm: the black bands' high beads, the salmon bands' low beads, and the dorsal row.
-const HIGH_MM: f64 = 0.44;
-const LOW_MM: f64 = 0.10;
-/// The salmon granulation's pitch as a share of the beads', and its land.
-const GRANULE: f64 = 0.44;
-const GRANULE_LAND: f64 = 0.14;
+/// Peak heights in mm: the black bands' high beads, the salmon bands' low cushions, and the dorsal row.
+const HIGH_MM: f64 = 0.38;
+const LOW_MM: f64 = 0.22;
 const DORSAL_MM: f64 = 0.46;
-/// Across the band, chart mm off the crest: beads are flattened shingles inside the first, full domes past the second.
-const SHINGLE_MM: [f64; 2] = [0.9, 3.4];
-/// Black bands round the ring, and the share of each period they hold at the crest.
+/// Shingles fuse: each reaches this far past its foot into its neighbours, flat over this share of its radius.
+const SHINGLE_REACH: f64 = 1.16;
+const SHINGLE_FLAT: f64 = 0.6;
+/// Across the band, chart mm off the crest: the black bands' beads are flattened shingles inside the first and full domes past
+/// the second, the band's outer third.
+const DOME_MM: [f64; 2] = [2.2, 3.1];
+/// Black bands round the ring, and the mean share of each period they hold.
 const BANDS: f64 = 9.0;
-const BLACK_SHARE: f64 = 0.56;
+const BLACK_SHARE: f64 = 0.54;
+/// The stone's salmon ground either side of the face, degrees.
+const STONE_SALMON_DEG: f64 = 14.0;
 /// Sectors round the ring, one decal each: a 1024 px raster over a sector holds a bead to 0.01 mm.
 const SECTORS: usize = 8;
 /// Beads stop this far short of the band's edges, chart mm, so the comfort roll stays plain.
@@ -88,7 +91,7 @@ fn band() -> RingDesign {
     };
     d.shank.keys = vec![
         k(35.0, 1.08, 1.12, 1.0),
-        k(90.0, 1.22, 1.34, 1.05),
+        k(90.0, 1.30, 1.38, 1.05),
         k(145.0, 1.08, 1.12, 1.0),
         k(210.0, 0.96, 0.96, 1.0),
         k(270.0, 0.90, 0.90, 1.0),
@@ -156,59 +159,69 @@ fn noise(x: f64, y: f64, cells: f64, seed: u64) -> f64 {
 
 /// The Gila's banding: whether the bead at ring angle `theta`, `across` chart mm off the crest, is a black band's high bead.
 ///
-/// Nine bands in the grade's own lattice coordinate, so they narrow toward the palm with the beads. Each band leans and bows with a
-/// slow noise across the band, so no edge runs true; every third band forks into a Y toward one edge, and every fourth salmon gap
-/// is bridged by a black strap on one flank, the Gila's reticulation. The stone's station falls mid-salmon.
+/// Nine bands in the grade's own lattice coordinate, so they narrow toward the palm with the beads, each its own width. Each band
+/// leans and bows with a slow noise across the band, so no edge runs true; every third band forks into a Y toward one edge, and
+/// every fourth salmon gap is bridged by a black strap on one flank, the Gila's reticulation. The stone sits in salmon.
 fn black(theta: f64, across: f64) -> bool {
     let g = grade();
     let x = theta / 360.0;
     let a = across;
     // The lattice coordinate, set so the stone at 90 sits mid-gap.
     let phi = g.phi(x) - 0.25;
-    let wander = 0.22 * noise(x, a / 3.5, 7.0, 1) + 0.035 * a * (0.5 + noise(x, 0.0, 5.0, 3));
+    let wander = 0.20 * noise(x, a / 3.0, 7.0, 1) + 0.08 * noise(x, a / 1.4, 19.0, 2) + 0.03 * a * (0.5 + noise(x, 0.0, 5.0, 3));
     let q = BANDS * phi + wander + 0.5;
     let band = q.floor().rem_euclid(BANDS) as u64;
     let p = q - q.floor();
     let forked = band % 3 == 0;
-    let share = if forked { BLACK_SHARE + 0.12 } else { BLACK_SHARE } + 0.10 * noise(x, a / 4.0, 9.0, 4);
+    let share = BLACK_SHARE + 0.16 * hash(band, 21) + if forked { 0.1 } else { 0.0 } + 0.08 * noise(x, a / 2.0, 13.0, 4);
     let d = (p - 0.5).abs();
     let mut on = d < 0.5 * share;
     if forked {
         // A salmon wedge opens from one edge and splits the band into a Y.
         let s = if band % 2 == 0 { 1.0 } else { -1.0 };
-        let reach = s * a - 1.6;
-        if reach > 0.0 && d < (0.05 + 0.045 * reach).min(0.15) {
+        let reach = s * a - 1.4;
+        if reach > 0.0 && d < (0.05 + 0.05 * reach).min(0.16) {
             on = false;
         }
     }
     if !on && band % 4 == 1 && p > 0.5 {
         // A strap across the salmon gap that follows this band.
         let s = if band % 8 == 1 { 1.0 } else { -1.0 };
-        if (s * a - 2.6).abs() < 0.55 {
+        if (s * a - 2.5).abs() < 0.5 {
             on = true;
         }
     }
-    on && ring_delta(theta, 90.0).abs() > 9.0
+    on && ring_delta(theta, 90.0).abs() > STONE_SALMON_DEG
 }
 
 fn ring_delta(a: f64, b: f64) -> f64 {
     (a - b + 540.0).rem_euclid(360.0) - 180.0
 }
 
-/// One bead in chart millimetres: centre, semi-axes, peak height in mm, and how round its dome stands (0 a flattened shingle,
-/// 1 a full dome).
+/// How a bead stands.
+#[derive(Clone, Copy, PartialEq)]
+enum Kind {
+    /// A salmon band's low cushion, fused with its neighbours.
+    Low,
+    /// A black band's bead near the crest, a flattened dome.
+    Shingle,
+    /// A black band's full dome in the band's outer third.
+    Dome,
+    /// The dorsal row.
+    Dorsal,
+}
+
+/// One bead in chart millimetres: centre, semi-axes and kind.
 struct Bead {
     u: f64,
     v: f64,
     rx: f64,
     ry: f64,
-    peak_mm: f64,
-    round: f64,
-    high: bool,
+    kind: Kind,
 }
 
-/// Every bead on the ring, laid in rows round the band: the dorsal row on the crest, then rows a fixed chart pitch apart, each row
-/// counted so its beads keep the crest's metal pitch at its own radius, graded round the ring, jittered so no column runs true.
+/// Every bead on the ring, one lattice: the dorsal row on the crest, then rows a fixed chart pitch apart, each row counted so its
+/// beads keep the crest's metal pitch at its own radius, graded round the ring, jittered so no column or diagonal runs true.
 fn beads(d: &RingDesign) -> Vec<Bead> {
     let ctx = d.field_context();
     let g = grade();
@@ -220,8 +233,8 @@ fn beads(d: &RingDesign) -> Vec<Bead> {
     let face_pitch_chart = PITCH_TOP_MM / ctx.crest_scale(90.0);
     let cols = (circ * stretch_of_grade(0.25) / face_pitch_chart).round();
     let mut rows: Vec<(i64, f64)> = vec![(0, crest)];
-    for k in 1..12i64 {
-        let off = DORSAL_ROOM_MM + k as f64 * ROW_MM;
+    for k in 1..16i64 {
+        let off = DORSAL_ROOM_MM + (k - 1) as f64 * ROW_MM + 0.5 * ROW_MM;
         for (s, v) in [(k, crest + off), (-k, crest - off)] {
             if v >= EDGE_MM && v <= len - EDGE_MM {
                 rows.push((s, v));
@@ -233,97 +246,43 @@ fn beads(d: &RingDesign) -> Vec<Bead> {
         let a = ctx.arc_scale(v0);
         let dorsal = i == 0;
         let n = if dorsal { (cols / DORSAL_SIZE).round() } else { (cols * a).round().max(8.0) };
-        let stagger = if i.rem_euclid(2) == 1 { 0.5 } else { 0.0 };
+        // Each row starts at its own phase, so no diagonal lines up through the stone.
+        let stagger = if dorsal { 0.0 } else { 0.5 + hash(i as u64 + 99, 7) };
         for j in 0..n as i64 {
             let seed = ((i + 64) * 4096 + j) as u64;
             let jit = if dorsal { 0.0 } else { 1.0 };
-            let phi = (j as f64 + stagger + 0.12 * jit * hash(seed, 1)) / n;
+            let phi = (j as f64 + stagger + 0.16 * jit * hash(seed, 1)) / n;
             let x = g.x_of_phi(phi).rem_euclid(1.0);
             let theta = x * 360.0;
-            let v = v0 + 0.07 * jit * ROW_MM * hash(seed, 2);
+            let v = v0 + 0.08 * jit * ROW_MM * hash(seed, 2);
             let across = v - crest;
-            // Metal pitch round and across at this bead, and the bead's metal diameter.
+            // Metal pitch round and across at this bead.
             let cs = ctx.crest_scale(theta);
             let st = ctx.station_stretch(theta);
             let around = circ / n * stretch_of_grade(x) * cs * a;
             let over = if dorsal { f64::MAX } else { ROW_MM * st * 2.0 / 3f64.sqrt() };
-            let dia = (1.0 - LAND) * around.min(over) * (1.0 + 0.08 * jit * hash(seed, 3));
-            // Clear of the stone's mound.
+            let pitch = around.min(over) * (1.0 + 0.06 * jit * hash(seed, 3));
             let du = ring_delta(theta, 90.0) / 360.0 * circ * cs;
-            let dv = across * st;
-            if du.hypot(dv) < stone_r + 0.5 * dia {
+            if du.hypot(across * st) < stone_r + 0.5 * pitch {
                 continue;
             }
-            let high = !dorsal && black(theta, across);
-            let peak_mm = if dorsal {
-                DORSAL_MM
-            } else if high {
-                HIGH_MM
+            let kind = if dorsal {
+                Kind::Dorsal
+            } else if black(theta, across) {
+                // Domes stand from the band's outer third; nearer the crest a jittered line between them.
+                if across.abs() > DOME_MM[0] + (DOME_MM[1] - DOME_MM[0]) * (0.5 + hash(seed, 4)) { Kind::Dome } else { Kind::Shingle }
             } else {
-                LOW_MM
+                Kind::Low
             };
-            // Salmon beads lie as flattened shingles everywhere, a bright pavement; the black bands' beads round up from half-domes on
-            // the crest to full domes at the edges.
-            let edge = ((across.abs() - SHINGLE_MM[0]) / (SHINGLE_MM[1] - SHINGLE_MM[0])).clamp(0.0, 1.0);
-            let round = if dorsal {
-                0.85
-            } else if high {
-                0.5 + 0.5 * edge
-            } else {
-                0.0
+            let dia = match kind {
+                Kind::Dome | Kind::Shingle => (1.0 - LAND) * pitch,
+                Kind::Dorsal => 0.92 * pitch,
+                Kind::Low => pitch,
             };
-            out.push(Bead {
-                u: x * circ,
-                v,
-                rx: 0.5 * dia / (cs * a),
-                ry: 0.5 * dia / st,
-                peak_mm,
-                round,
-                high,
-            });
+            out.push(Bead { u: x * circ, v, rx: 0.5 * dia / (cs * a), ry: 0.5 * dia / st, kind });
         }
     }
-    // The salmon bands: fine granulation on a lattice a `GRANULE` of the beads', low and round, filling every salmon bead's place
-    // and kept off the black bands' beads and the dorsal row.
-    let big: Vec<Bead> = out.into_iter().filter(|b| b.high || b.peak_mm >= DORSAL_MM).collect();
-    let mut fine = Vec::new();
-    let row = ROW_MM * GRANULE;
-    let span = ((crest - EDGE_MM) / row).floor() as i64;
-    for i in -span..=span {
-        let v0 = crest + i as f64 * row;
-        let a = ctx.arc_scale(v0);
-        let n = (cols / GRANULE * a).round();
-        let stagger = if i.rem_euclid(2) == 1 { 0.5 } else { 0.0 };
-        for j in 0..n as i64 {
-            let seed = ((i + 256) * 8192 + j) as u64 + 7_000_000;
-            let phi = (j as f64 + stagger + 0.15 * hash(seed, 1)) / n;
-            let x = g.x_of_phi(phi).rem_euclid(1.0);
-            let theta = x * 360.0;
-            let v = v0 + 0.08 * row * hash(seed, 2);
-            let cs = ctx.crest_scale(theta);
-            let st = ctx.station_stretch(theta);
-            let around = circ / n * stretch_of_grade(x) * cs * a;
-            let over = row * st * 2.0 / 3f64.sqrt();
-            let dia = (1.0 - GRANULE_LAND) * around.min(over);
-            let (rx, ry) = (0.5 * dia / (cs * a), 0.5 * dia / st);
-            let du = ring_delta(theta, 90.0) / 360.0 * circ * cs;
-            if du.hypot((v - crest) * st) < stone_r + 0.5 * dia {
-                continue;
-            }
-            // Clear of every big bead's foot by a land.
-            let u = x * circ;
-            let clear = big.iter().all(|b| {
-                let du = ((u - b.u + 1.5 * circ).rem_euclid(circ)) - 0.5 * circ;
-                let (ex, ey) = (du / (b.rx + rx + 0.04), (v - b.v) / (b.ry + ry + 0.04));
-                ex * ex + ey * ey >= 1.0
-            });
-            if !clear {
-                continue;
-            }
-            fine.push(Bead { u, v, rx, ry, peak_mm: LOW_MM, round: 0.6, high: false });
-        }
-    }
-    big.into_iter().chain(fine).collect()
+    out
 }
 
 /// Radius of the stone's mound that the beadwork keeps clear of, metal mm.
@@ -332,69 +291,65 @@ fn stone_clear_mm() -> f64 {
     0.5 * pad.diameter_mm + pad.blend_mm + 0.05
 }
 
-/// Dome buckets from shingle to full round.
-const ROUNDS: usize = 5;
-
-/// A bead's profile at `t` of its radius: a flattened shingle (a cushion with a broad flat top) blended toward a full dome.
-fn profile(t: f64, round: f64) -> f64 {
-    let dome = (1.0 - t * t).max(0.0).powf(0.7);
-    let q = ((1.0 - t) / 0.45).clamp(0.0, 1.0);
-    let shingle = q * q * (3.0 - 2.0 * q);
-    shingle + (dome - shingle) * round
-}
-
 /// Sector `k`'s beads as one SVG over its stretch of the unrolled band: black ink is height.
+///
+/// The salmon cushions are drawn full inside one group and the group lowered to their height, so where neighbours overlap they
+/// fuse into one flat skin with a seam at each bead's edge. The black bands' beads and the dorsal row stand one by one over it,
+/// each on its own dark land: the bands read by shadow.
 fn sector_svg(d: &RingDesign, all: &[Bead], k: usize) -> String {
     let ctx = d.field_context();
     let circ = ctx.circumference_mm;
     let (w, h) = (circ / SECTORS as f64, ctx.band_v_len_mm);
     let u0 = k as f64 * w;
     let mut defs = String::new();
-    let peaks = [HIGH_MM, LOW_MM, DORSAL_MM];
-    for (c, peak) in peaks.iter().enumerate() {
-        for r in 0..ROUNDS {
-            let round = r as f64 / (ROUNDS - 1) as f64;
-            let _ = write!(defs, r##"<radialGradient id="g{c}{r}" cx="0.5" cy="0.5" r="0.5">"##);
-            for i in 0..=24 {
-                let t = i as f64 / 24.0;
-                let _ = write!(
-                    defs,
-                    r##"<stop offset="{t:.3}" stop-color="#000" stop-opacity="{:.4}"/>"##,
-                    peak / BEAD_MM * profile(t, round)
-                );
-            }
-            defs.push_str("</radialGradient>");
+    let mut gradient = |id: &str, peak: f64, f: &dyn Fn(f64) -> f64| {
+        let _ = write!(defs, r##"<radialGradient id="{id}" cx="0.5" cy="0.5" r="0.5">"##);
+        for i in 0..=24 {
+            let t = i as f64 / 24.0;
+            let _ = write!(defs, r##"<stop offset="{t:.3}" stop-color="#000" stop-opacity="{:.4}"/>"##, peak * f(t));
         }
-    }
-    let mut body = String::new();
-    for b in all {
+        defs.push_str("</radialGradient>");
+    };
+    let shingle = |t: f64| {
+        let q = ((1.0 - t) / (1.0 - SHINGLE_FLAT)).clamp(0.0, 1.0);
+        q * q * (3.0 - 2.0 * q)
+    };
+    let dome = |t: f64| (1.0 - t * t).max(0.0).powf(0.62);
+    gradient("sh", 1.0, &shingle);
+    gradient("dm", HIGH_MM / BEAD_MM, &dome);
+    // Near the crest the black bands' beads are flattened: half shingle, half dome.
+    gradient("hd", HIGH_MM / BEAD_MM, &|t| 0.5 * (shingle(t) + dome(t)));
+    gradient("ds", DORSAL_MM / BEAD_MM, &dome);
+    let place = |b: &Bead, reach: f64, fill: &str, body: &mut String| {
         for wrap in [-circ, 0.0, circ] {
             let x = b.u + wrap - u0;
-            if x + b.rx < 0.0 || x - b.rx > w {
+            let (rx, ry) = (b.rx * reach, b.ry * reach);
+            if x + rx < 0.0 || x - rx > w {
                 continue;
             }
             // SVG y runs down from the decal's top, which is the band's far edge.
-            let y = h - b.v;
-            let c = if b.peak_mm >= DORSAL_MM {
-                2
-            } else if b.high {
-                0
-            } else {
-                1
-            };
-            let r = (b.round * (ROUNDS - 1) as f64).round() as usize;
-            let _ = write!(
-                body,
-                r##"<ellipse cx="{x:.4}" cy="{y:.4}" rx="{:.4}" ry="{:.4}" fill="url(#g{c}{r})"/>"##,
-                b.rx, b.ry
-            );
+            let _ = write!(body, r##"<ellipse cx="{x:.4}" cy="{:.4}" rx="{rx:.4}" ry="{ry:.4}" fill="{fill}"/>"##, h - b.v);
         }
+    };
+    let mut body = String::new();
+    let _ = write!(body, r##"<g opacity="{:.4}">"##, LOW_MM / BEAD_MM);
+    for b in all.iter().filter(|b| b.kind == Kind::Low) {
+        place(b, SHINGLE_REACH, "url(#sh)", &mut body);
+    }
+    body.push_str("</g>");
+    for b in all.iter().filter(|b| b.kind == Kind::Shingle) {
+        place(b, 1.0, "url(#hd)", &mut body);
+    }
+    for b in all.iter().filter(|b| b.kind == Kind::Dome) {
+        place(b, 1.0, "url(#dm)", &mut body);
+    }
+    for b in all.iter().filter(|b| b.kind == Kind::Dorsal) {
+        place(b, 1.0, "url(#ds)", &mut body);
     }
     format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}" height="{h:.4}" viewBox="0 0 {w:.4} {h:.4}"><defs>{defs}</defs>{body}</svg>"##
     )
 }
-
 const ROMAN: [&str; 8] = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
 
 fn stone_pad(crest_v: f64) -> SeatPadLayer {
@@ -562,7 +517,7 @@ fn land_widths(d: &RingDesign) -> Result<(serde_json::Value, bool)> {
     // The narrowest metal a bead offers the investment, and the narrowest gap between bead feet.
     let finest_bead = all
         .iter()
-        .filter(|b| b.high)
+        .filter(|b| b.kind == Kind::Dome || b.kind == Kind::Dorsal)
         .map(|b| 2.0 * (b.rx * ctx.arc_scale(b.v)).min(b.ry))
         .fold(f64::MAX, f64::min);
     ok &= finest_bead >= d.draft.min_detail_mm;
@@ -712,7 +667,7 @@ fn main() -> Result<()> {
             println!("  v {v:5.2}: arc {:.3} draft {:?}", ctx.arc_scale(v), ctx.draft_at(90.0, v));
         }
         let all = beads(&d);
-        println!("  beads {}, high {}", all.len(), all.iter().filter(|b| b.high).count());
+        println!("  beads {}", all.len());
         // A flat map of the hide: high beads dark, low beads light, 10 px per chart mm.
         let (w, h) = ((ctx.circumference_mm * 10.0) as usize, (ctx.band_v_len_mm * 10.0) as usize);
         let mut img = vec![255u8; w * h];
@@ -722,7 +677,7 @@ fn main() -> Result<()> {
                 for x in 0..w {
                     let (dx, dy) = ((x as f64 - cx) / (b.rx * 10.0), (y as f64 - cy) / (b.ry * 10.0));
                     if dx * dx + dy * dy < 1.0 {
-                        img[y * w + x] = if b.high { 30 } else { 180 };
+                        img[y * w + x] = match b.kind { Kind::Low => 200, Kind::Shingle => 90, Kind::Dome => 20, Kind::Dorsal => 140 };
                     }
                 }
             }
