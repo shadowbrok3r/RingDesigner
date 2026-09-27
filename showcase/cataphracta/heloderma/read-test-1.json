@@ -1,0 +1,27 @@
+{
+  "ring": "Heloderma",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain domed gold band covered all over in one even size of round bobbles, like a sea-urchin shell, a golf ball or a hammered 'bubble' texture. At 300 px many bobbles read as pits or cups rather than raised beads: the dark lands dominate and the highlights sit inside the hollows. Near the edges the beads stretch into vertical teardrops, which looks like a smear. Nothing is banded, so there is no light-and-dark pattern and no crest row, and neither the swell nor the belly shows. The small orange stone looks like a loose bead dropped into the texture, slightly off-centre, with no mound or setting around it. A jeweller would call it a beaded or dotted band. They would not name a Gila monster, or any lizard.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Carry the Gila's banding in relief. The high/low reticulation is the animal's signature, and right now every bead is the same height. Make the 'High beads - black bands' layer clearly higher than the 'Low beads - salmon bands' layer: high beads at 0.36-0.40 mm and low beads cut to 0.10-0.14 mm, a step of at least 0.22 mm. Draw the reticulation mask as irregular transverse bands that fork, 2.5-3.5 mm wide, with the high bands covering about 45-55% of the area. Keep the fade at 1.2 mm.",
+      "where": "Beadwork group, shoulders and crown flanks, theta 90 +/- 150",
+      "acceptance": "In face-300 and hero-300, at least 4 distinct transverse light/dark bands cross the face, forking and irregular rather than evenly striped, and can be seen without zooming."
+    },
+    {
+      "priority": 2,
+      "what": "Give the face an anatomy: the fat-tail swell with a dorsal crest row, and the spessartite as its central bead in a made mound. Make the swell visible (width key 1.22 and thickness key 1.28 at theta 90, against 0.90 and 0.92 at the palm). Run a graded crest row of beads, 1.1 mm at the stone tapering by 35%, standing about 0.42 mm over the field. Seat the stone centred on the crest in the GypsyMound, about 4.8 mm across, with a visible collar.",
+      "where": "Crest line, theta 90 +/- 60; stone at (90 deg, crest_v)",
+      "acceptance": "In face-300 the stone sits dead centre inside a raised mound whose rim can be seen, and a single row of larger beads runs away from it both ways along the crest. In hero-300 the face is visibly wider and taller than the band at the palm side."
+    },
+    {
+      "priority": 3,
+      "what": "Make the beads read as beads, not pits. Use round domes (aspect at most 1.2 everywhere) and remove the vertical teardrop stretch on the flanks. Put the dome highlight on the bead top: apply Remap::cushion to both skins, keep the offset focus mild, and keep the lands at 0.42 x pitch or less so the dark gaps stop dominating. Keep the grade: pitch 1.40 at the top down to 0.98 at the palm.",
+      "where": "Beadwork lattice (bead_lattice alpha), whole band, worst at the edge fillets, theta 30-150",
+      "acceptance": "In face-300, the beads at the left and right edges are round dots with a highlight on top, with no vertical streaks, and no bead reads as a crater."
+    }
+  ]
+}

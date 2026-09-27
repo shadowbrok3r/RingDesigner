@@ -1,0 +1,27 @@
+{
+  "ring": "Heloderma",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Very little has changed since attempt 1. It is still a domed gold band covered in an even field of round bobbles, and it still reads as sea-urchin shell, a golf ball or a 'bubble' texture. The new work shows only as two or three smooth, slightly flatter patches on the face, one around the stone and faint ones at left and right. They look like worn spots or unfinished areas, not like bands. Nothing reads as a light/dark banding that crosses the band, so the Gila's reticulation is still missing. In hero-300 many beads still read as pits: the highlight sits in the cup and the dark lands dominate, and at the edges they still stretch into vertical teardrops. The orange stone is now nearer the centre, but it sits in a flat bald patch with no mound rim or collar, so it still looks like a loose bead. No crest row of larger beads runs away from it. The swell is not visible: the band looks equally thick all round. A jeweller would say 'beaded band with an orange stone'. They would not name a Gila monster or any lizard. Note: report.json records the Beadwork clamp biting up to 0.24 mm, with 159k texels cut. That is about the whole planned high/low step of 0.12 to 0.22 mm, so the clamp is very likely erasing the banding the masks are meant to create.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the banding survive the clamp, and make it read as bands rather than patches. Right now the clamp (worst bite 0.24 mm) shaves the high beads back to the low ones. Carry the contrast by texture state instead of by height alone. In the 'Black saddles' / 'Reticulation' bands, keep full round domes at 0.36-0.40 mm. In the 'salmon' bands between them, drop the beads to 0.08-0.10 mm flat shingles, or leave them as near-smooth ground, so the two states differ in both height and bead presence. Draw 5-7 irregular transverse saddles, each 3-4 mm wide along the ring, running edge to edge across the band and forking. Place them over theta 30-150 and at the shoulders. Then check the clamp bite map: the high band crests must keep at least 0.25 mm over the low bands after the clamp.",
+      "where": "Beadwork group: 'High beads — black bands' via the 'Reticulation' / 'Black saddles' mask, and 'Low beads — salmon bands'; theta 90 +/- 150",
+      "acceptance": "In face-300, at least 4 distinct dark-textured transverse bands with smoother light bands between them can be seen crossing the whole width of the face. At least one of them visibly forks or kinks. In hero-300 the banding carries on round the shoulder. Clamp worst bite at most 0.05 mm."
+    },
+    {
+      "priority": 2,
+      "what": "Build the crest anatomy that the attempt-1 test asked for, which is still absent. Make the fat-tail swell visible by setting the shank keys to width 1.22 and thickness 1.28 at theta 90, against 0.90 and 0.92 at 270, and confirm the keys actually apply. Seat the spessartite in a raised GypsyMound about 4.8 mm across, with a rim that stands clear of the field, not in a bald flat patch. Run the 'Dorsal bead row' as visibly larger beads on crest_v: 1.1 mm at the mound, tapering 35%, standing 0.42 mm over the field. Coarsen it until its finest feature is at least 0.40 mm; the DFM currently flags it at 0.22 mm.",
+      "where": "Shank keyframes; 'Spessartite' seat at (90 deg, crest_v); 'Dorsal bead row', window except(90, 26)",
+      "acceptance": "In face-300 the stone sits in a mound whose collar is visibly raised, and a single line of larger beads runs away from it left and right along the centre. In hero-300 the face is visibly taller and wider than the palm side. DFM findings 0."
+    },
+    {
+      "priority": 3,
+      "what": "Turn the pits back into beads. Move the dome highlight onto the bead top: apply Remap::cushion, or a convex dome profile, to the high skin as well as the low one. Narrow the lands to 0.35-0.42 x pitch. On the flanks, correct the lattice so that beads keep an aspect ratio of at most 1.2 into the edge fillet, with no vertical teardrops.",
+      "where": "Bead lattice alpha, whole Beadwork group, worst at the edge fillets, theta 30-150",
+      "acceptance": "In hero-300 and face-300, no bead reads as a crater. Edge beads are round dots with a top highlight, and no vertical streaking shows at the band edges."
+    }
+  ]
+}

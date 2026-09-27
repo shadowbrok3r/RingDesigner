@@ -1,0 +1,27 @@
+{
+  "ring": "Heloderma",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "A low domed gold band covered in round bobbles, with a small orange stone at the top. The stone is the one clear gain: it now sits centred in a visible bezel collar, and no longer looks like a dropped bead. The rest still reads as a sea-urchin shell, a golf ball or a 'bubble' texture band. The new variation in the field makes the urchin reading stronger. In hero-300 the beads fall into evenly spaced vertical columns and diamond clusters running edge to edge, like the tubercle rows on an urchin test, rather than irregular, forking Gila bands. In face-300 the alternation is a faint, regular checker of darker lozenges, not transverse light and dark saddles. There is still no dorsal row of larger beads running away from the stone. The band looks equally deep all round in the hero, so there is no fat-tail swell. Many beads at the flanks still catch light in the cup and read as pits, with slight vertical teardrops at the edges. A jeweller would say 'beaded band with an orange cabochon', or 'urchin ring'. They would not name a Gila monster or any lizard. Note: report.json still records the Beadwork clamp biting 0.19 mm, with 78k texels cut. That is most of the planned high/low step, so the clamp is still flattening the banding. The field verdict is 'Castable with care' and release is Blocked at both 0.100 mm (50 obstructions) and 0.075 mm (66 obstructions).",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Replace the regular column/checker reticulation with the Gila's irregular transverse saddles, and make them differ by texture state, not by a height step the clamp erases. Redraw the 'Reticulation' mask so that 5-7 dark saddles cross the band edge to edge over theta 30-150, with uneven widths of 2.5-4.5 mm and uneven gaps of 2-4 mm. At least two saddles should fork or join a neighbour, and none should repeat at a fixed period. Inside the saddles, keep full domes at 0.34-0.38 mm. In the salmon gaps, drop the bead layer to near-smooth ground (at most 0.08 mm, or no beads), so each band reads as beaded against plain. Because the smooth gaps remove the steep bead flanks there, the clamp bite should also fall. Check the bite map until the worst bite is at most 0.05 mm.",
+      "where": "Beadwork group: 'Reticulation' mask SVG, 'High beads — black bands' and 'Low beads — salmon bands'; theta 30-150 and round both shoulders",
+      "acceptance": "In face-300, at least 4 beaded bands with visibly smoother gold between them cross the full width of the face, with irregular spacing, and at least one visibly forks. In hero-300, no evenly spaced vertical columns remain, and the banding continues round the shoulder. report.json clamp worst_mm is at most 0.05."
+    },
+    {
+      "priority": 2,
+      "what": "Build the spine. Run the 'Dorsal bead row' along crest_v as a single line of beads visibly larger than the field. Make them 1.1 mm at the stone collar, tapering 35% by theta 35/145, and standing about 0.42 mm over the field. Leave a ribbon of about 0.6 mm of lower or smooth field on either side, so the row separates. If C-R3 is still missing, use MilgrainLayer at 0.9 mm and 0.40 mm high. Start the row just outside the collar at except(90, 26).",
+      "where": "'Dorsal bead row' on crest_v, theta 35-145, window except(90, 26)",
+      "acceptance": "In face-300 and hero-300, a line of larger beads visibly runs away from the stone collar both ways along the top of the band, and can be told from the field without zooming."
+    },
+    {
+      "priority": 3,
+      "what": "Give the body a lizard's mass, and make beads read as beads. Confirm that the shank keys actually apply: width 1.22 and thickness 1.28 at theta 90, against 0.90 and 0.92 at 270. The hero should show a fat swell under the stone that thins toward the palm. On the flanks, apply the cushion/convex dome to the high skin too. Narrow the lands to at most 0.40 x pitch, and hold the bead aspect at 1.2 or less into the edge fillet.",
+      "where": "Shank keyframes at theta 90/35/145/210/330/270; bead lattice alpha, flanks and edge fillets, theta 30-150",
+      "acceptance": "In hero-300 the face is visibly taller and wider than the palm side of the band. No bead at the flanks reads as a crater, and no vertical teardrop streaks show at the band edges."
+    }
+  ]
+}
