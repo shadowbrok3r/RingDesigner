@@ -1,0 +1,1961 @@
+{
+  "bore": {
+    "nearest_vertex_mm": 9.300010232960243,
+    "radius_mm": 9.3,
+    "vertices_inside": 0
+  },
+  "bore_mm": 18.600020465920487,
+  "build": {
+    "author_s": 2.51731103,
+    "build_s": 10.188977387,
+    "profile_steps": 320,
+    "theta_steps": 768,
+    "triangles": 523250
+  },
+  "coarse_384x192": {
+    "degenerate_faces": 0,
+    "notes": [],
+    "obstructions": [],
+    "release_0075": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "unresolved": 0
+    },
+    "release_0100": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "unresolved": 0
+    },
+    "sand_findings": 107,
+    "self_crossings": 0,
+    "stamped": 173,
+    "triangles": 208832,
+    "watertight": true
+  },
+  "cold_reload_identical": null,
+  "composition": {
+    "band_v_len_mm": 11.736075595730682,
+    "clamps": [
+      [
+        "Side hide",
+        0,
+        0.0
+      ]
+    ],
+    "crest_thorns": [
+      [
+        102.11990997481323,
+        2.3964463090998227
+      ],
+      [
+        110.42465472394817,
+        1.1914848195123782
+      ],
+      [
+        116.57544477491894,
+        1.1825974552332394
+      ],
+      [
+        122.7786211478609,
+        1.1705784978045357
+      ],
+      [
+        131.35795459531374,
+        2.2772711425285843
+      ],
+      [
+        139.93780191797583,
+        1.1225839638450437
+      ],
+      [
+        146.14649878941174,
+        1.1004660492605551
+      ],
+      [
+        152.31582218342342,
+        1.0763599635236756
+      ],
+      [
+        160.54003859785496,
+        2.0171551851092695
+      ],
+      [
+        168.66036150037746,
+        1.0043149985331654
+      ],
+      [
+        174.54954071262216,
+        0.9762445468472649
+      ],
+      [
+        180.33598018761703,
+        0.948007333367937
+      ],
+      [
+        187.7502849001566,
+        1.7031871605249682
+      ],
+      [
+        195.0169168377191,
+        0.8753397504189171
+      ],
+      [
+        200.39925026190255,
+        0.8490035570370731
+      ],
+      [
+        205.6714069580267,
+        0.8237063895719796
+      ],
+      [
+        212.21388422722558,
+        1.4183404822863488
+      ],
+      [
+        218.62869527452312,
+        0.7649281350435394
+      ],
+      [
+        223.54608288310314,
+        0.7443349484812462
+      ],
+      [
+        228.37610109775125,
+        0.7252483045971617
+      ],
+      [
+        234.22630819115776,
+        1.2023513886361437
+      ],
+      [
+        239.9861830298075,
+        0.6847612047005797
+      ],
+      [
+        244.5627362850646,
+        0.6711596017499881
+      ],
+      [
+        249.0813321457135,
+        0.6591665695152912
+      ],
+      [
+        254.47390349113806,
+        1.0647415527156525
+      ],
+      [
+        259.81470015678656,
+        0.6368023325082116
+      ],
+      [
+        264.18699479943956,
+        0.6302946925359411
+      ],
+      [
+        268.53167688782713,
+        0.6253785828252773
+      ],
+      [
+        273.702606820855,
+        1.0038115554482947
+      ],
+      [
+        278.858173833984,
+        0.6200379284557992
+      ],
+      [
+        283.1578368592746,
+        0.62
+      ],
+      [
+        287.45240386981953,
+        0.62
+      ],
+      [
+        292.57842742652485,
+        1.0
+      ],
+      [
+        297.69364089342184,
+        0.62
+      ],
+      [
+        301.95738597860566,
+        0.62
+      ],
+      [
+        306.2063443122216,
+        0.62
+      ],
+      [
+        311.25422377190387,
+        1.0
+      ],
+      [
+        316.2650098106961,
+        0.62
+      ],
+      [
+        320.4149354585232,
+        0.62
+      ],
+      [
+        324.53412354263696,
+        0.62
+      ],
+      [
+        329.4281394344135,
+        1.0
+      ],
+      [
+        334.3106138823956,
+        0.62
+      ],
+      [
+        338.3964347041033,
+        0.62
+      ],
+      [
+        342.49629558925443,
+        0.62
+      ],
+      [
+        347.4294696493447,
+        1.0
+      ],
+      [
+        352.39160025193894,
+        0.62
+      ],
+      [
+        356.56919142262825,
+        0.62
+      ],
+      [
+        0.7667378626636037,
+        0.62
+      ],
+      [
+        5.8141591034937505,
+        1.0
+      ],
+      [
+        10.884903139853918,
+        0.62
+      ],
+      [
+        15.147213122839219,
+        0.62
+      ],
+      [
+        19.425225928083364,
+        0.62
+      ],
+      [
+        24.55921490400482,
+        1.0
+      ],
+      [
+        29.70527683850827,
+        0.62
+      ],
+      [
+        34.0164044813061,
+        0.62
+      ],
+      [
+        38.327924764849115,
+        0.62
+      ],
+      [
+        43.47788790350654,
+        1.0
+      ],
+      [
+        48.62699044957287,
+        0.62
+      ],
+      [
+        52.93332341485245,
+        0.62
+      ],
+      [
+        57.233416704659135,
+        0.62
+      ],
+      [
+        62.344316916678,
+        1.0
+      ],
+      [
+        67.40157267034976,
+        0.62
+      ]
+    ],
+    "crest_v_mm": 5.886378276273346,
+    "flank_thorns": 32,
+    "granule_cell_mm": [
+      1.8849555921538759,
+      1.8796058571287428
+    ],
+    "granule_repeats": 43,
+    "horn_v_mm": [
+      1.340938324902822,
+      10.39513727082786
+    ],
+    "leg_zones": [
+      [
+        false,
+        116.40681474137763,
+        151.89694243721965
+      ],
+      [
+        true,
+        116.45105109108215,
+        151.87353543575745
+      ],
+      [
+        false,
+        320.11391954344697,
+        356.61743096564385
+      ],
+      [
+        true,
+        320.1358003881146,
+        356.58445831355186
+      ]
+    ],
+    "monotone_failures": [],
+    "side_faces_mm": [
+      [
+        0.04584404529582298,
+        1.9712939477203881
+      ],
+      [
+        9.810625693306116,
+        11.736075595730682
+      ]
+    ],
+    "side_thorns": [
+      {
+        "diameter_mm": 1.1746371760709589,
+        "theta_deg": 102.16165805135843,
+        "v_mm": 1.46730268099728
+      },
+      {
+        "diameter_mm": 1.3694239018447971,
+        "theta_deg": 160.90722388917482,
+        "v_mm": 1.0669944106471554
+      },
+      {
+        "diameter_mm": 0.9496151238428343,
+        "theta_deg": 169.66557317383476,
+        "v_mm": 1.112129389858051
+      },
+      {
+        "diameter_mm": 1.2554951797167084,
+        "theta_deg": 178.13537321690168,
+        "v_mm": 1.0735348643749236
+      },
+      {
+        "diameter_mm": 1.0500866497723438,
+        "theta_deg": 186.89420391647997,
+        "v_mm": 0.8706654089148095
+      },
+      {
+        "diameter_mm": 1.0994828917892148,
+        "theta_deg": 195.23463858953252,
+        "v_mm": 1.077984428969088
+      },
+      {
+        "diameter_mm": 1.2001095894237557,
+        "theta_deg": 203.99429025718433,
+        "v_mm": 1.0792244404964224
+      },
+      {
+        "diameter_mm": 1.3118466244101101,
+        "theta_deg": 213.3407542783345,
+        "v_mm": 1.030616469247723
+      },
+      {
+        "diameter_mm": 1.3383127330817517,
+        "theta_deg": 223.06709951041506,
+        "v_mm": 0.9957900749740166
+      },
+      {
+        "diameter_mm": 1.1555331081213,
+        "theta_deg": 232.36579297591513,
+        "v_mm": 0.9318074057027683
+      },
+      {
+        "diameter_mm": 1.027894160447234,
+        "theta_deg": 240.81400897539118,
+        "v_mm": 1.1163572581718821
+      },
+      {
+        "diameter_mm": 1.256410788485311,
+        "theta_deg": 249.53814387088468,
+        "v_mm": 1.0128281399492023
+      },
+      {
+        "diameter_mm": 1.079047152129619,
+        "theta_deg": 258.4015889765734,
+        "v_mm": 1.0687280165470987
+      },
+      {
+        "diameter_mm": 0.9,
+        "theta_deg": 266.287586878929,
+        "v_mm": 1.154786178910825
+      },
+      {
+        "diameter_mm": 1.0293183993495738,
+        "theta_deg": 274.03024335733227,
+        "v_mm": 0.8848898640402252
+      },
+      {
+        "diameter_mm": 0.9,
+        "theta_deg": 281.76857069466087,
+        "v_mm": 1.1563307102337128
+      },
+      {
+        "diameter_mm": 1.0589348184962115,
+        "theta_deg": 289.58505900765454,
+        "v_mm": 0.9157478360046463
+      },
+      {
+        "diameter_mm": 0.9189483591263763,
+        "theta_deg": 297.4435645283421,
+        "v_mm": 0.847018441007494
+      },
+      {
+        "diameter_mm": 1.0949363832062908,
+        "theta_deg": 305.3834789166413,
+        "v_mm": 0.9115571969554708
+      },
+      {
+        "diameter_mm": 1.166257848219147,
+        "theta_deg": 313.9590832601074,
+        "v_mm": 0.9229446759034591
+      },
+      {
+        "diameter_mm": 1.303817832786072,
+        "theta_deg": 5.056067636001842,
+        "v_mm": 1.1096836858588146
+      },
+      {
+        "diameter_mm": 0.9,
+        "theta_deg": 13.503002212442368,
+        "v_mm": 1.0511307001670498
+      },
+      {
+        "diameter_mm": 0.996959485271447,
+        "theta_deg": 21.14045246569532,
+        "v_mm": 1.2161174841709308
+      },
+      {
+        "diameter_mm": 0.9,
+        "theta_deg": 28.78958646756098,
+        "v_mm": 1.0565870379126299
+      },
+      {
+        "diameter_mm": 0.9632802414626729,
+        "theta_deg": 36.35545367510127,
+        "v_mm": 1.1908140216116343
+      },
+      {
+        "diameter_mm": 1.188393560493154,
+        "theta_deg": 44.706563693863984,
+        "v_mm": 0.9303284435346785
+      },
+      {
+        "diameter_mm": 1.1796268004196917,
+        "theta_deg": 53.64594261475065,
+        "v_mm": 1.040108946314515
+      },
+      {
+        "diameter_mm": 0.9,
+        "theta_deg": 61.78416428832645,
+        "v_mm": 0.9558936158472732
+      },
+      {
+        "diameter_mm": 1.5729702837114408,
+        "theta_deg": 103.18853853885624,
+        "v_mm": 10.580524773008337
+      },
+      {
+        "diameter_mm": 1.377269402282967,
+        "theta_deg": 162.25993689596442,
+        "v_mm": 10.66277379797791
+      },
+      {
+        "diameter_mm": 1.1897119880714757,
+        "theta_deg": 171.6792039195761,
+        "v_mm": 10.740647254061194
+      },
+      {
+        "diameter_mm": 1.1294157036272339,
+        "theta_deg": 180.4453109235011,
+        "v_mm": 10.821883814012503
+      },
+      {
+        "diameter_mm": 0.9499894502993473,
+        "theta_deg": 188.57310648669895,
+        "v_mm": 10.520839430059214
+      },
+      {
+        "diameter_mm": 1.0472323404514774,
+        "theta_deg": 196.48352340551813,
+        "v_mm": 10.7279001325892
+      },
+      {
+        "diameter_mm": 0.9487861813586371,
+        "theta_deg": 204.39266463158577,
+        "v_mm": 10.59367407367489
+      },
+      {
+        "diameter_mm": 1.2041102393571173,
+        "theta_deg": 212.73813940580965,
+        "v_mm": 10.699471429399363
+      },
+      {
+        "diameter_mm": 1.001948662295065,
+        "theta_deg": 221.2327988042292,
+        "v_mm": 10.662915575791125
+      },
+      {
+        "diameter_mm": 1.199876275104038,
+        "theta_deg": 229.71652035464805,
+        "v_mm": 10.681316279030328
+      },
+      {
+        "diameter_mm": 1.1866755189828369,
+        "theta_deg": 238.70560363460598,
+        "v_mm": 10.675690697891355
+      },
+      {
+        "diameter_mm": 1.1357538136122853,
+        "theta_deg": 247.51895804569725,
+        "v_mm": 10.731339750254863
+      },
+      {
+        "diameter_mm": 1.0494982702854203,
+        "theta_deg": 255.95640146373833,
+        "v_mm": 10.713521227497383
+      },
+      {
+        "diameter_mm": 1.171091113418265,
+        "theta_deg": 264.48313503500935,
+        "v_mm": 10.650793397287854
+      },
+      {
+        "diameter_mm": 1.1739990256265485,
+        "theta_deg": 273.3452460598327,
+        "v_mm": 10.739282895456297
+      },
+      {
+        "diameter_mm": 1.0284116438562236,
+        "theta_deg": 281.8157112187223,
+        "v_mm": 10.633922075654139
+      },
+      {
+        "diameter_mm": 1.1362191169775007,
+        "theta_deg": 290.173580006774,
+        "v_mm": 10.688786253733012
+      },
+      {
+        "diameter_mm": 1.3407781270008516,
+        "theta_deg": 299.36657614521613,
+        "v_mm": 10.710517021332752
+      },
+      {
+        "diameter_mm": 1.0996639409759585,
+        "theta_deg": 308.4397671036256,
+        "v_mm": 10.617205956367304
+      },
+      {
+        "diameter_mm": 0.9666683258372089,
+        "theta_deg": 316.457641805987,
+        "v_mm": 10.850655437813359
+      },
+      {
+        "diameter_mm": 1.0496818404443369,
+        "theta_deg": 5.8845596001608556,
+        "v_mm": 10.673518359093517
+      },
+      {
+        "diameter_mm": 1.0501389369996663,
+        "theta_deg": 14.03643662912748,
+        "v_mm": 10.795848399853202
+      },
+      {
+        "diameter_mm": 1.0533474662766291,
+        "theta_deg": 22.217638477147204,
+        "v_mm": 10.56918623831994
+      },
+      {
+        "diameter_mm": 0.9,
+        "theta_deg": 30.00481025782824,
+        "v_mm": 10.831085470608878
+      },
+      {
+        "diameter_mm": 1.0767037465241645,
+        "theta_deg": 37.86165898146152,
+        "v_mm": 10.692057319142465
+      },
+      {
+        "diameter_mm": 0.9,
+        "theta_deg": 45.71753444691103,
+        "v_mm": 10.866294418705387
+      },
+      {
+        "diameter_mm": 0.9,
+        "theta_deg": 53.090362528319815,
+        "v_mm": 10.702844404573295
+      },
+      {
+        "diameter_mm": 1.1243366003519877,
+        "theta_deg": 61.06307655412621,
+        "v_mm": 10.738282434900919
+      }
+    ],
+    "tail_deg": 430.0
+  },
+  "design": {
+    "bytes": 898878,
+    "stamps": 173
+  },
+  "dfm_findings": [],
+  "draft": {
+    "min_detail_mm": 0.4,
+    "min_draft_deg": 2.5,
+    "min_section_mm": 0.6,
+    "process": "Sand (two-part)",
+    "sand": "Some(Petrobond)"
+  },
+  "draft_clamp": [
+    {
+      "group": "Side hide",
+      "texels_cut": 0,
+      "worst_mm": 0.0
+    }
+  ],
+  "field": {
+    "notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "\"Side hide\" is held to the sand's draft rule: 0 texels cut back."
+    ],
+    "thinnest_wall_mm": 2.682551468160984,
+    "undercut_percent": 0.0,
+    "verdict": "Castable",
+    "worst_draft_deg": -4.3683168197261187e-13
+  },
+  "gates": [
+    {
+      "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+      "pass": true
+    },
+    {
+      "gate": "every stamp solid closed without crossings",
+      "pass": true
+    },
+    {
+      "gate": "solids notes empty, every stamp resolved, every stamp parting-monotone",
+      "pass": true
+    },
+    {
+      "gate": "nothing enters the finger hole",
+      "pass": true
+    },
+    {
+      "gate": "field verdict Castable (sand, Petrobond)",
+      "pass": true
+    },
+    {
+      "gate": "ray release 0 obstructions, 0 unresolved at 0.100 and 0.075 mm",
+      "pass": true
+    },
+    {
+      "gate": "every draft-clamp bite at most 0.05 mm",
+      "pass": true
+    },
+    {
+      "gate": "zero DFM findings",
+      "pass": true
+    },
+    {
+      "gate": "stones reported equal the preview",
+      "pass": true
+    },
+    {
+      "gate": "gates hold at 384 x 192",
+      "pass": true
+    },
+    {
+      "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+      "pass": true
+    },
+    {
+      "gate": "export build within 2 million triangles",
+      "pass": true
+    },
+    {
+      "gate": "cold reload identical",
+      "pass": true
+    }
+  ],
+  "gates_passed": true,
+  "layers": [
+    "Side hide",
+    "Capillary grooves, fingertip flank",
+    "Capillary grooves, knuckle flank"
+  ],
+  "made_solids": [
+    {
+      "name": "Thorn, crown",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 8",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 9",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 10",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 11",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 12",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 13",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 14",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 15",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 16",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 17",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 18",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 19",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 20",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 21",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 8",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 22",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 23",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 24",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 9",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 25",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 26",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 27",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 10",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 28",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 29",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 30",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 11",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 31",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 32",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 33",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 12",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 34",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 35",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 36",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 13",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 37",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 38",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 39",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 14",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 40",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 41",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 42",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 15",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 43",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 44",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 45",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest major 16",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, crest minor 46",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 8",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 9",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 10",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 11",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 12",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 13",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 14",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 15",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank fingertip, 16",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 8",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 9",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 10",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 11",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 12",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 13",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 14",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 15",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Thorn, flank knuckle, 16",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Horn, fingertip",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Horn, knuckle",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, front fingertip limb",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, front fingertip shin",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, front fingertip toe 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, front fingertip toe 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, front fingertip toe 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, front knuckle limb",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, front knuckle shin",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, front knuckle toe 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, front knuckle toe 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, front knuckle toe 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, hind fingertip limb",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, hind fingertip shin",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, hind fingertip toe 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, hind fingertip toe 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, hind fingertip toe 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, hind knuckle limb",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, hind knuckle shin",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, hind knuckle toe 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, hind knuckle toe 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Leg, hind knuckle toe 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 8",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 9",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 10",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 11",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 12",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 13",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 14",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 15",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 16",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 17",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 18",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 19",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 20",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 21",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 22",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 23",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 24",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 25",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 26",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 27",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, fingertip 28",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 1",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 2",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 3",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 4",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 5",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 6",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 7",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 8",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 9",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 10",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 11",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 12",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 13",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 14",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 15",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 16",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 17",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 18",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 19",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 20",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 21",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 22",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 23",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 24",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 25",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 26",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 27",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Side thorn, knuckle 28",
+      "open_edges": 0,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    }
+  ],
+  "main": {
+    "degenerate_faces": 0,
+    "notes": [],
+    "obstructions": [],
+    "release_0075": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "unresolved": 0
+    },
+    "release_0100": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "unresolved": 0
+    },
+    "sand_findings": 108,
+    "self_crossings": 0,
+    "stamped": 173,
+    "triangles": 523250,
+    "watertight": true
+  },
+  "name": "Moloch — the thorn idol",
+  "pattern": {
+    "degenerate_faces": 0,
+    "self_crossings": 0,
+    "triangles": 523250,
+    "watertight": true
+  },
+  "process": "Sand (two-part)",
+  "sand": "Petrobond",
+  "size": "US 8.6",
+  "slug": "moloch",
+  "stage": "block-out",
+  "stones": {
+    "previewed": 0,
+    "reported": 0
+  }
+}
