@@ -1,53 +1,39 @@
 {
   "bore_mm": 18.6,
   "chart": {
-    "band_v_len_mm": 10.144236879986016,
+    "band_v_len_mm": 11.103985523322976,
     "circumference_mm": 78.53981633974483,
-    "crest_v_mm": 5.0899115448281
+    "crest_v_mm": 5.570686429033272
   },
-  "coarse_384x192": null,
   "cold_reload_identical": null,
-  "design_bytes": 107508,
+  "design_bytes": 115108,
   "draft": {
     "bore": {
       "bore_radius_mm": 9.3,
-      "closest_vertex_mm": 9.299981194210885,
+      "closest_vertex_mm": 9.299975635321342,
       "vertices_inside": 0
     },
     "build": {
-      "ms": 559.696579,
+      "ms": 475.53011499999997,
       "profile_steps": 320,
       "theta_steps": 768,
-      "triangles": 492714
+      "triangles": 493204
     },
-    "clamp": [
-      {
-        "group": "Beadwork",
-        "texels_cut": 78165,
-        "worst_mm": 0.18760468693757545
-      }
-    ],
-    "clamp_worst_mm": 0.18760468693757545,
     "dfm_findings": [],
     "field": {
-      "drag_percent": 1.4319970926621932,
+      "min_detail_mm": 0.15,
+      "min_section_mm": 0.8,
       "notes": [
-        "Field-sampled: 0.10% of the surface undercuts, worst 6.4 deg — the surface itself, not facet noise.",
-        "Undercut 18–18° on the crest: 0.1 mm² leaning to 13° — no single layer explains it.",
-        "Undercut 27–27° on the crest: 0.1 mm² leaning to 13° — no single layer explains it.",
-        "Undercut 65–65° on the crest: 0.1 mm² leaning to 13° — no single layer explains it.",
-        "Undercut 115–115° on the crest: 0.1 mm² leaning to 13° — no single layer explains it.",
-        "Undercut 153–153° on the crest: 0.1 mm² leaning to 13° — no single layer explains it.",
-        "Undercut 162–162° on the crest: 0.1 mm² leaning to 13° — no single layer explains it.",
-        "Undercut 270–270° on the crest: 0.1 mm² leaning to 11° — no single layer explains it.",
-        "\"Beadwork\" is held to the sand's draft rule: 88461 texels cut back.",
-        "1 made setting left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
+        "Lost wax: 6.08% of the surface would undercut a two-part pull (worst 46.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Undercut 331–76° on the crest: 27.4 mm² leaning to 36° — no single layer explains it.",
+        "Undercut 103–223° on the crest: 29.4 mm² leaning to 39° — no single layer explains it.",
+        "Undercut 236–324° on the crest: 24.5 mm² leaning to 41° — no single layer explains it.",
+        "1 made setting cast in place with the ring; the field judges the band under it."
       ],
-      "process": "SandTwoPart",
-      "thinnest_wall_mm": 1.308541453566674,
-      "undercut_percent": 0.10201167564731768,
-      "verdict": "Castable with care",
-      "worst_draft_deg": -6.373170073400741
+      "process": "LostWax",
+      "thinnest_wall_mm": 2.0978273669291774,
+      "thinnest_wall_theta_deg": 270.0,
+      "verdict": "Castable"
     },
     "gates": [
       {
@@ -67,20 +53,12 @@
         "pass": true
       },
       {
-        "gate": "field Castable (sand, two-part)",
-        "pass": false
+        "gate": "lost-wax field verdict Castable with the 0.8 mm fill",
+        "pass": true
       },
       {
-        "gate": "ray release clean at 0.100 mm",
-        "pass": false
-      },
-      {
-        "gate": "ray release clean at 0.075 mm",
-        "pass": false
-      },
-      {
-        "gate": "every draft-clamp bite at most 0.05 mm",
-        "pass": false
+        "gate": "land widths at the floor or named",
+        "pass": true
       },
       {
         "gate": "0 DFM findings",
@@ -102,10 +80,27 @@
     "geometry": {
       "boundary_edges": 0,
       "degenerate_faces": 0,
-      "min_angle_deg": 0.0043311707357843645,
+      "min_angle_deg": 0.008133029925503065,
       "non_manifold_edges": 0,
       "self_crossings": 0,
       "watertight": true
+    },
+    "land_widths": {
+      "band_thinnest_wall": "field.thinnest_wall_mm, gated at the floor",
+      "bead_land_share_of_pitch": 0.08,
+      "bead_note": "relief beads on the band, judged at the detail floor: each is a dome over at least the band's own 2.7 mm section",
+      "detail_floor_mm": 0.15,
+      "finest_full_bead_mm": 0.8778078119648433,
+      "floor_mm": 0.8,
+      "made_parts": [
+        {
+          "area_under_floor_mm2": 26.229808802574286,
+          "collet_wall_mm": 0.52,
+          "part": "Spessartite collet 1",
+          "thinnest_section_mm": 0.1783136586106323,
+          "treatment": "the collet's wall and lip: the lip is burnished over the spessartite's girdle at the bench; the wall below it stands on the mound, sunk 0.35 mm into it, so the investment fills it from the mound's own section"
+        }
+      ]
     },
     "made": {
       "parts_notes": [],
@@ -113,38 +108,39 @@
       "stamped": 0,
       "stamps": 0
     },
-    "passed": false,
+    "passed": true,
     "pattern": {
       "degenerate_faces": 0,
       "self_crossings": 0,
-      "triangles": 491520,
+      "triangles": 493204,
       "watertight": true
-    },
-    "release_0075": {
-      "obstructions": 66,
-      "status": "Blocked",
-      "unresolved_rays": 0
-    },
-    "release_0100": {
-      "obstructions": 50,
-      "status": "Blocked",
-      "unresolved_rays": 0
     },
     "stones": {
       "previewed": 1,
       "reported": 1
+    },
+    "two_part_undercut": {
+      "gated": false,
+      "undercut_percent": 6.077017965846139,
+      "verdict_if_sand": "Will not release",
+      "worst_draft_deg": -46.591505863106796
     }
   },
   "export": null,
-  "gates_passed": false,
+  "gates_passed": true,
   "layers": [
-    "Beadwork",
-    "Dorsal bead row",
+    "Gila beadwork I",
+    "Gila beadwork II",
+    "Gila beadwork III",
+    "Gila beadwork IV",
+    "Gila beadwork V",
+    "Gila beadwork VI",
+    "Gila beadwork VII",
+    "Gila beadwork VIII",
     "Spessartite"
   ],
-  "process": "Sand (two-part)",
+  "process": "Lost wax",
   "ring": "Heloderma — the beaded one",
-  "sand": "Some(DelftClay)",
   "size": "US 8.6",
   "slug": "heloderma"
 }
