@@ -1076,6 +1076,13 @@ pub fn claw_parts_reach_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails
     let d = wire_mm;
     let count = claw_count(gem, prongs);
     let depth = p + 0.2;
+    // Whether a rail will tie the claws, as `claw_head_styled` judges it.
+    let tied = match rails {
+        Rails::Seat => true,
+        Rails::Base => gem.w_mm >= 1.6,
+        Rails::None => false,
+        Rails::Basket(n) => n > 0,
+    };
     let mut parts = Vec::new();
     for (claw, phi) in grouped_claw_angles(&plan, count, wire_mm, options.grouping).into_iter().enumerate() {
         let (o, n) = (plan.point(phi), plan.normal(phi));
@@ -1123,6 +1130,22 @@ pub fn claw_parts_reach_styled(gem: Gem, prongs: u32, wire_mm: f64, rails: Rails
             };
             let mut z = own;
             let reached = met.reached;
+            // An untied foot whose own base already lies deeper in the metal than the scan accepts is raised up its
+            // own line until its inner edge sinks FOOT_SINK_MM, instead of being called free; a tied one keeps today's foot.
+            if !tied && let Some(metal) = floor(inner(own)).filter(|metal| own < metal - FOOT_SINK_MM - 0.5) {
+                let mut lifted = metal - FOOT_SINK_MM;
+                for _ in 0..16 {
+                    let Some(metal) = floor(inner(lifted)) else { break };
+                    if (metal - FOOT_SINK_MM - lifted).abs() < 1e-12 { break; }
+                    lifted = metal - FOOT_SINK_MM;
+                }
+                let lifted = lifted.min(start[1] - 0.4);
+                if floor(inner(lifted)).is_some_and(|metal| lifted <= metal - FOOT_SINK_MM + 1e-9) && keeps(lifted) {
+                    base_z = lifted;
+                    met.reached += 1;
+                    z = own - CLAW_REACH_MM;
+                }
+            }
             while z > own - CLAW_REACH_MM {
                 if !keeps(z) {
                     met.walled += 1;
@@ -1307,6 +1330,10 @@ pub struct Stamp {
     /// The shape of its top over `height_mm`; on a cut, of its floor under `sink_mm`.
     #[serde(default, skip_serializing_if = "StampTop::is_flat")]
     pub top: StampTop,
+    /// Grid its cap at half the pitch, `reach / 28` held to 0.1–0.2 mm: about three times the cap points,
+    /// so a large domed top stops faceting. Off, the pitch a format-5 build used.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub fine_cap: bool,
 }
 
 fn is_zero(v: &u8) -> bool {
@@ -1686,9 +1713,14 @@ impl Stamp {
         }
     }
 
-    /// Tier 0, a flat top and at most [`PLAIN_MAX_STAMP_POINTS`] outline points: what a format-5 build strikes.
+    /// Tier 0, a flat top, the coarse cap and at most [`PLAIN_MAX_STAMP_POINTS`] outline points: what a format-5 build strikes.
     pub fn is_plain(&self) -> bool {
-        self.tier == 0 && self.top.is_flat() && self.outline.len() <= PLAIN_MAX_STAMP_POINTS
+        self.tier == 0 && self.top.is_flat() && !self.fine_cap && self.outline.len() <= PLAIN_MAX_STAMP_POINTS
+    }
+
+    /// Spacing of the cap's inner grid for an outline reaching `reach` from the axis.
+    fn cap_pitch(&self, reach: f64) -> f64 {
+        if self.fine_cap { (reach / 28.0).clamp(0.1, 0.2) } else { (reach / 14.0).clamp(0.12, 0.35) }
     }
 
     /// Closed solid from cap points, their triangles and the surface height under each.
@@ -1809,14 +1841,20 @@ impl Stamp {
         let area: f64 = (0..n).map(|i| { let (a, b) = (self.outline[i], self.outline[(i + 1) % n]); a[0] * b[1] - b[0] * a[1] }).sum();
         if area <= 1e-6 { return Err("its outline must run counter-clockwise and enclose something".into()); }
         let reach = self.outline.iter().map(|p| p[0].hypot(p[1])).fold(0.0, f64::max) + 1.0;
+        const ABOVE: f64 = 8.0;
+        // Faces with a corner within `reach` of the stamp's axis, no further along it than the drop starts or `reach`.
+        let along = ABOVE.max(reach);
         let near: Vec<[P3; 3]> = band.f.iter().filter_map(|f| {
             let t = f.map(|k| band.v[k as usize]);
-            t.iter().any(|q| (0..3).map(|k| (q[k] - frame.origin[k]).powi(2)).sum::<f64>() < reach * reach).then_some(t)
+            t.iter().any(|q| {
+                let d: P3 = std::array::from_fn(|k| q[k] - frame.origin[k]);
+                let up = d[0] * frame.z[0] + d[1] * frame.z[1] + d[2] * frame.z[2];
+                up.abs() < along && d[0] * d[0] + d[1] * d[1] + d[2] * d[2] - up * up < reach * reach
+            }).then_some(t)
         }).collect();
-        let pitch = (reach / 14.0).clamp(0.12, 0.35);
+        let pitch = self.cap_pitch(reach);
         let cap = if creases.is_empty() { cap_faces(&self.outline, pitch, chords) } else { cap_faces_with(&self.outline, pitch, chords, creases) };
         let (points, tris) = cap.ok_or("its outline will not triangulate")?;
-        const ABOVE: f64 = 8.0;
         let down = [-frame.z[0], -frame.z[1], -frame.z[2]];
         let mut surface = Vec::with_capacity(points.len());
         for p in &points {
@@ -3389,6 +3427,37 @@ mod tests {
     }
 
     #[test]
+    fn railless_claws_buried_by_a_sloped_table_rise_to_their_sink() {
+        // Fenrir's moon: a 10 mm cabochon, four Jaws fangs on a 1.5 mm wire; and a faceted stone whose feet have room to rise.
+        let fang = ClawOptions { style: ClawStyle::Fang, grouping: ClawGrouping::Jaws, tip: ClawTip::Point, rise: CAB_RISE };
+        for (gem, wire) in [(Gem::cabochon(GemCut::Round, 10.0), 1.5), (Gem::calibrated(GemCut::Round, 6.5), prong_wire_mm(Gem::calibrated(GemCut::Round, 6.5)))] {
+            let who = format!("{:?} {} mm", gem.form, gem.w_mm);
+            // Each claw's own foot, the start of its path, and the metal under that foot's inner edge.
+            let feet = |parts: &[Named]| parts.iter().filter(|p| p.names[0].starts_with("Claw ")).map(|p| p.solid.v[p.solid.v.len() - 2]).collect::<Vec<P3>>();
+            let under = |f: P3, floor: Floor| { let l = f[0].hypot(f[1]); floor([f[0] * (1.0 - 0.60 * wire / l), f[1] * (1.0 - 0.60 * wire / l)]).unwrap() - f[2] };
+            let (free, _) = claw_parts_reach_styled(gem, 4, wire, Rails::None, None, None, fang).unwrap();
+            let own = feet(&free)[0][2];
+            // A table sloping 4 degrees across the stone, under every foot deeper than the scan accepts.
+            let slope = 4f64.to_radians().tan();
+            let floor = move |p: [f64; 2]| Some(own + 1.35 + p[0] * slope);
+            let (parts, met) = claw_parts_reach_styled(gem, 4, wire, Rails::None, Some(&floor), None, fang).unwrap();
+            assert_eq!(met, Reach { reached: 4, walled: 0, free: None }, "{who}");
+            let head = claw_head_named_styled(gem, 4, wire, Rails::None, Some(&floor), fang).unwrap_or_else(|e| panic!("{who}: {e}"));
+            sound(&head.solid, &who);
+            for (k, (f, bare)) in feet(&parts).into_iter().zip(feet(&free)).enumerate() {
+                let sink = under(f, &floor);
+                assert!(sink >= FOOT_SINK_MM - 1e-9, "{who}: claw {} sinks {sink:.4} mm", k + 1);
+                // A foot with room to rise stops exactly FOOT_SINK_MM in; one already at its head's own base stays there.
+                if f[2] > bare[2] + 1e-9 { assert!((sink - FOOT_SINK_MM).abs() < 1e-6, "{who}: claw {} sinks {sink:.6} mm", k + 1); }
+                else { assert_eq!(f, bare, "{who}: claw {}", k + 1); }
+            }
+            // A rail ties the claws, so its head keeps today's feet over the same table.
+            let (_, tied) = claw_parts_reach_styled(gem, 4, wire, Rails::Base, Some(&floor), None, fang).unwrap();
+            assert!(tied.free.is_some(), "{who}: {tied:?}");
+        }
+    }
+
+    #[test]
     fn a_heads_slivers_are_cleared_and_each_face_keeps_its_patch() {
         // A 3.5 x 5 oval's base and gallery rails overlap, and their join leaves edges under a nanometre that f32 closes to a point.
         let gem = Gem { l_mm: 5.0, ..Gem::calibrated(GemCut::Oval, 3.5) };
@@ -3767,7 +3836,7 @@ mod tests {
         let boundary: std::collections::HashSet<(u32, u32)> = uses.keys().copied().filter(|(a, b)| !uses.contains_key(&(*b, *a))).collect();
         let want: std::collections::HashSet<(u32, u32)> = (0..n).map(|i| (i, (i + 1) % n)).collect();
         assert_eq!(boundary, want);
-        let stamp = Stamp { name: "Dent".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline, height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat };
+        let stamp = Stamp { name: "Dent".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline, height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat };
         assert_eq!(stamp.prism().unwrap().open_edges(), (0, 0));
     }
 
@@ -3788,7 +3857,7 @@ mod tests {
         assert!((area(&moon_outline(1.6, 0.5, 0.85)) - 0.5 * PI * 2.56).abs() < 0.03);
         assert!(area(&moon_outline(1.6, 0.25, 0.85)) > 0.0 && area(&crescent_cutter(1.6, 0.25, 0.85, 0.2)) > 0.0);
         // A half moon cast as a blank, and the bench's cut that leaves the crescent.
-        let blank = Stamp { name: "Half moon".into(), theta_deg: 60.0, v_mm: v, rot_deg: 0.0, outline: moon_outline(1.6, 0.5, 0.85), height_mm: 0.45, sink_mm: 0.35, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat };
+        let blank = Stamp { name: "Half moon".into(), theta_deg: 60.0, v_mm: v, rot_deg: 0.0, outline: moon_outline(1.6, 0.5, 0.85), height_mm: 0.45, sink_mm: 0.35, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat };
         let cut = Stamp { name: "Crescent cut".into(), outline: crescent_cutter(1.6, 0.25, 0.85, 0.2), height_mm: 0.8, sink_mm: -0.02, cut: true, bench: true, ..blank.clone() };
         d.stamps = vec![blank, cut];
         let finished = crate::mesh::try_build(&d, &lib, params).unwrap();
@@ -3845,7 +3914,7 @@ mod tests {
     }
 
     fn plain(name: &str, theta_deg: f64, v_mm: f64, outline: Vec<[f64; 2]>, height_mm: f64) -> Stamp {
-        Stamp { name: name.into(), theta_deg, v_mm, rot_deg: 0.0, outline, height_mm, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: StampTop::Flat }
+        Stamp { name: name.into(), theta_deg, v_mm, rot_deg: 0.0, outline, height_mm, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat }
     }
 
     fn crest_band() -> crate::RingDesign {
@@ -3919,6 +3988,97 @@ mod tests {
         assert_eq!(pattern.stamps.len(), 1);
         assert_eq!(plate.origin, pattern.stamps[0].frame(&pattern, &ctx).origin);
         assert!((plate.origin[2] + 0.043380).abs() < 1e-6 && plate.origin == boss.origin, "{:?} {:?}", plate.origin, boss.origin);
+    }
+
+    /// FNV-1a over a mesh's vertex bits and face indices.
+    fn mesh_hash(m: &crate::Mesh) -> u64 {
+        m.vertices
+            .iter()
+            .flat_map(|v| [v.0, v.1, v.2].map(|x| u64::from(x.to_bits())))
+            .chain(m.faces.iter().flatten().map(|i| u64::from(*i)))
+            .fold(0xcbf29ce484222325u64, |h, v| (h ^ v).wrapping_mul(0x100000001b3))
+    }
+
+    /// A stock masterwork as the showcase saved it, its art in the library.
+    fn masterwork(slug: &str) -> (crate::RingDesign, crate::AlphaLibrary) {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../showcase/stock-masterworks/{slug}/design.ring.json"));
+        let mut lib = crate::AlphaLibrary::builtin();
+        let d = crate::library::load_design(&path).unwrap();
+        d.unpack_embedded(&mut lib);
+        d.bake_all(&mut lib);
+        (d, lib)
+    }
+
+    /// Every stamp strikes as master b611d2c struck it, finished and pattern, now that the drop reaches along the stamp's axis.
+    #[test]
+    fn stamps_strike_as_master_struck_them() {
+        let mut designs = Vec::new();
+        let (zenith, lib) = masterwork("zenith");
+        designs.push(("Zenith", zenith, lib, 0xf3e4f9af8fa0f5ed_u64, 0xbdc5d4386648efef_u64));
+        let (caiman, lib) = masterwork("caiman");
+        designs.push(("Caiman", caiman, lib, 0x83f281a4aab24658, 0x733b84427d4ab92e));
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crest_band();
+        let v = d.field_context().crest_v_mm;
+        d.stamps = vec![plain("Disc", 90.0, v, crate::outline::circle(1.6), 0.4)];
+        designs.push(("a crest disc", d, lib.clone(), 0x74e264e6f8bc9910, 0x74e264e6f8bc9910));
+        let mut d = crest_band();
+        d.stamps = vec![plain("Disc", 90.0, v + 1.6, crate::outline::circle(1.2), 0.3)];
+        designs.push(("an off-crest disc", d, lib.clone(), 0x5d21faa0158b8b94, 0x5d21faa0158b8b94));
+        let mut d = crate::templates::fixture("Heart signet").unwrap();
+        let ctx = d.field_context();
+        let (v, len) = (ctx.crest_v_mm, ctx.band_v_len_mm);
+        d.stamps = vec![
+            plain("Head", 90.0, v, crate::outline::circle(1.4), 0.3),
+            plain("Left", 55.0, v, crate::outline::circle(0.9), 0.3),
+            plain("Right", 125.0, v, moon_outline(1.0, 0.5, 0.85), 0.3),
+            plain("High", 90.0, v + 2.5, crate::outline::circle(1.0), 0.25),
+            Stamp { along_pull: true, ..plain("Cheek", 70.0, len * 0.1, crate::outline::circle(0.6), 0.25) },
+            Stamp { cut: true, ..plain("Palm", 270.0, v, crate::outline::circle(1.0), 0.2) },
+        ];
+        designs.push(("six on the Heart signet", d, lib.clone(), 0x8dc3fe2821e3ceb9, 0x8dc3fe2821e3ceb9));
+        let mut d = crest_band();
+        let v = d.field_context().crest_v_mm;
+        d.stamps = vec![
+            Stamp { top: StampTop::Cone { apex_mm: 0.7, at: [0.0, 0.0], tip_mm: 0.3 }, ..plain("Thorn", 60.0, v, crate::outline::circle(1.6), 0.25) },
+            plain("Plate", 120.0, v, crate::outline::circle(3.2), 0.35),
+            Stamp { tier: 1, top: StampTop::Gable { rise_mm: 0.25, axis_deg: 0.0 }, ..plain("Plate: keel", 120.0, v, crate::outline::keel(2.2, 1.2, 0.18), 0.3) },
+        ];
+        designs.push(("a cone, a plate and a keel on it", d, lib, 0x4968711c39104f5c, 0x4968711c39104f5c));
+        for (name, d, lib, finished, pattern) in &designs {
+            let f = crate::mesh::try_build(d, lib, strike()).unwrap();
+            let p = crate::mesh::try_build_pattern(d, lib, strike()).unwrap();
+            assert!(f.solids.notes.is_empty(), "{name}: {:?}", f.solids.notes);
+            assert_eq!((mesh_hash(&f.mesh), mesh_hash(&p.mesh)), (*finished, *pattern), "{name}");
+        }
+    }
+
+    /// An eye on relief standing further over the bare surface than the eye reaches: the drop finds the relief along its axis.
+    #[test]
+    fn a_small_stamp_on_tall_relief_stands_on_the_relief() {
+        let lib = crate::AlphaLibrary::builtin();
+        let mut d = crest_band();
+        let v = d.field_context().crest_v_mm;
+        let boss = crate::field::SeatPadLayer { theta_deg: 90.0, v_mm: v, diameter_mm: 4.0, height_mm: 1.5, crown: 0.0, blend_mm: 0.4, ..Default::default() };
+        d.layers.layers.push(crate::LayerEntry::new("Boss", crate::Layer::SeatPad(boss)));
+        let bare = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        let band = Solid { v: bare.mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: bare.mesh.faces.clone() };
+        let eye = plain("Eye", 90.0, v, crate::outline::circle(0.6), 0.2);
+        let frame = eye.frame(&d, &d.field_context());
+        let (reach, down, above) = (0.3 + 1.0, frame.z.map(|c| -c), frame.point([0.0, 0.0, 8.0]));
+        let faces: Vec<[P3; 3]> = band.f.iter().map(|f| f.map(|k| band.v[k as usize])).collect();
+        let top = 8.0 - first_hit(&faces, above, down).unwrap();
+        assert!(top > reach, "the boss stands {top:.3} mm over the eye's origin");
+        let near: Vec<[P3; 3]> = faces.iter().copied().filter(|t| t.iter().any(|q| (0..3).map(|k| (q[k] - frame.origin[k]).powi(2)).sum::<f64>() < reach * reach)).collect();
+        assert_eq!(first_hit(&near, above, down), None, "no face within the eye's reach of its origin lies under it");
+        sound(&eye.solid(&frame, &band).unwrap(), "the eye");
+        d.stamps = vec![eye];
+        let built = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        assert!(built.solids.notes.is_empty() && built.solids.stamped == 1, "{:?}", built.solids.notes);
+        assert!(built.report.validation.watertight && built.report.quality.degenerate_faces == 0, "{:?}", built.report.validation);
+        let crown = |m: &crate::Mesh| m.vertices.iter().filter(|p| ((p.1 as f64).atan2(p.0 as f64).to_degrees() - 90.0).abs() < 3.0).map(|p| (p.0 as f64).hypot(p.1 as f64)).fold(0.0, f64::max);
+        let rise = crown(&built.mesh) - crown(&bare.mesh);
+        assert!((rise - 0.2).abs() < 0.02, "the eye stands {rise:.3} mm over the boss, where 0.2 was asked");
     }
 
     #[test]
@@ -4007,6 +4167,39 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// A fine cap grids a large dome at `reach / 28` held to 0.2 mm against the plain 0.35: about three times the
+    /// cap points, and fenced from a format-5 reader.
+    #[test]
+    fn a_fine_cap_carries_about_three_times_the_cap_points_on_a_large_dome() {
+        use crate::library::{format_version_for, FORMAT_VERSION};
+        let mut d = crest_band();
+        let ctx = d.field_context();
+        let lib = crate::AlphaLibrary::builtin();
+        let mesh = crate::mesh::try_build(&d, &lib, strike()).unwrap().mesh;
+        let band = Solid { v: mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: mesh.faces.clone() };
+        // Ten millimetres round the ring by four across, on the crest: reach 6, past both clamps.
+        let outline: Vec<[f64; 2]> = crate::outline::circle(2.0).iter().map(|p| [5.0 * p[0], 2.0 * p[1]]).collect();
+        let coarse = Stamp { top: StampTop::Dome { crown_mm: 0.4 }, ..plain("Dome", 90.0, ctx.crest_v_mm, outline, 0.3) };
+        let fine = Stamp { fine_cap: true, ..coarse.clone() };
+        let frame = coarse.frame(&d, &ctx);
+        let points = |s: &Stamp| {
+            let made = s.solid(&frame, &band).unwrap();
+            sound(&made, &s.name);
+            made.v.len() / 2 - s.outline.len()
+        };
+        let (was, now) = (points(&coarse), points(&fine));
+        let ratio = now as f64 / was as f64;
+        assert!((2.7..3.4).contains(&ratio), "{was} cap points coarse, {now} fine: {ratio:.2}x");
+        assert!(serde_json::to_value(&coarse).unwrap().get("fine_cap").is_none());
+        assert_eq!(serde_json::to_value(&fine).unwrap()["fine_cap"], true);
+        d.stamps = vec![Stamp { top: StampTop::Flat, ..fine }];
+        assert!(!d.stamps[0].is_plain());
+        assert_eq!(format_version_for(&d), FORMAT_VERSION, "a format-5 build would strike it coarse");
+        let back = crate::library::load_design_str(&crate::library::design_json(&d).unwrap()).unwrap();
+        assert_eq!(back.stamps, d.stamps);
+        assert!(crate::library::template_features_in_json(&serde_json::json!({"stamps": [d.stamps[0]]})), "a graph carrying it is fenced");
     }
 
     /// A gable off the parting line holds its ridge as an edge of the cap, every vertex on it at full rise.

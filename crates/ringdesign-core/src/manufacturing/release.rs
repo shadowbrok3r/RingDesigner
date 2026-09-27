@@ -208,6 +208,55 @@ fn blocked(intervals: &[[f64; 2]], p: f64, tol: f64) -> [f64; 2] {
     [upper, lower]
 }
 
+/// Evenly spaced levels the parting scan divides the pattern's height into.
+const LEVELS: usize = 64;
+/// Finer levels per coarse step, probed a whole coarse step either side of the coarse best.
+const FINE: usize = 64;
+
+/// Every column's trapped sand at parting level `p`, summed.
+fn level_score(columns: &[Column], p: f64, tol: f64) -> f64 {
+    columns
+        .iter()
+        .map(|c| blocked(&c.intervals, p, tol).iter().sum::<f64>())
+        .sum::<f64>()
+}
+
+/// The score and height of the lowest-scoring of the `LEVELS + 1` levels from `lo` to `hi`, the nearest the middle among equals.
+fn coarse_level(columns: &[Column], lo: f64, hi: f64, tol: f64) -> (f64, f64) {
+    let mid = (lo + hi) * 0.5;
+    let mut best = (f64::INFINITY, mid);
+    for k in 0..=LEVELS {
+        let p = lo + (hi - lo) * k as f64 / LEVELS as f64;
+        let score = level_score(columns, p, tol);
+        if score < best.0 - 1e-9
+            || ((score - best.0).abs() < 1e-9 && (p - mid).abs() < (best.1 - mid).abs())
+        {
+            best = (score, p);
+        }
+    }
+    best
+}
+
+/// [`coarse_level`], or the lowest-scoring finer level within a coarse step of it where that is strictly lower, the nearest among equals.
+fn parting_level(columns: &[Column], lo: f64, hi: f64, tol: f64) -> (f64, f64) {
+    let mut best = coarse_level(columns, lo, hi, tol);
+    if best.0 <= 1e-9 {
+        return best;
+    }
+    let (coarse, step) = (best.1, (hi - lo) / (LEVELS * FINE) as f64);
+    for k in 1..=FINE {
+        for p in [coarse + step * k as f64, coarse - step * k as f64] {
+            if (lo..=hi).contains(&p) {
+                let score = level_score(columns, p, tol);
+                if score < best.0 - 1e-9 {
+                    best = (score, p);
+                }
+            }
+        }
+    }
+    best
+}
+
 pub fn analyze(mesh: &Mesh, setup: &Setup) -> anyhow::Result<ReleaseReport> {
     setup.validate()?;
     let frame = Frame::new(setup.pull)?;
@@ -339,25 +388,7 @@ pub fn analyze(mesh: &Mesh, setup: &Setup) -> anyhow::Result<ReleaseReport> {
             .push("The sampling grid missed the geometry; decrease sample pitch".into());
         return Ok(out);
     }
-    let mid = (lo[2] + hi[2]) * 0.5;
-    let mut best = (f64::INFINITY, mid);
-    for k in 0..=64 {
-        let p = lo[2] + (hi[2] - lo[2]) * k as f64 / 64.0;
-        let score = out
-            .columns
-            .iter()
-            .map(|c| {
-                blocked(&c.intervals, p, setup.tolerance_mm)
-                    .iter()
-                    .sum::<f64>()
-            })
-            .sum::<f64>();
-        if score < best.0 - 1e-9
-            || ((score - best.0).abs() < 1e-9 && (p - mid).abs() < (best.1 - mid).abs())
-        {
-            best = (score, p);
-        }
-    }
+    let best = parting_level(&out.columns, lo[2], hi[2], setup.tolerance_mm);
     out.suggested_parting_mm = best.1;
     let p = if setup.auto_parting {
         best.1
@@ -692,6 +723,111 @@ mod tests {
         let after = analyze(&m, &s).unwrap();
         assert!(after.obstructions.is_empty());
         assert!(!after.sand_findings.is_empty());
+    }
+    /// Two blocks side by side, `left_mm` wide from 0 to `top` and 3.9 mm wide from `bottom` to 10: a parting clears only from `bottom` to `top`, each widened by the tolerance.
+    fn stepped(left_mm: f64, top: f64, bottom: f64) -> Mesh {
+        let mut m = box_mesh([-0.1 - left_mm, -2.0, 0.0], [-0.1, 2.0, top]);
+        let right = box_mesh([0.1, -2.0, bottom], [4.0, 2.0, 10.0]);
+        let offset = m.vertices.len() as u32;
+        m.vertices.extend(right.vertices);
+        m.faces
+            .extend(right.faces.iter().map(|f| f.map(|v| v + offset)));
+        m
+    }
+    #[test]
+    fn a_finer_level_clears_a_parting_the_coarse_levels_step_over() {
+        let s = Setup::default();
+        // A clear window 0.01 mm deep between the coarse levels at 5.0 and 5.156, the nearer one the coarse best.
+        let r = analyze(&stepped(3.9, 5.0, 5.03), &s).unwrap();
+        let (lo, hi) = (r.bounds[0][2], r.bounds[1][2]);
+        let coarse = coarse_level(&r.columns, lo, hi, s.tolerance_mm);
+        assert!(
+            coarse.0 > 0.0 && coarse.1 == 5.0,
+            "every coarse level traps sand: {coarse:?}"
+        );
+        assert!(
+            r.obstructions.is_empty() && r.parting_mm > 5.01 && r.parting_mm < 5.02,
+            "{} with {:?}",
+            r.parting_mm,
+            r.obstructions
+        );
+        assert_eq!(r.status, Status::Review);
+        // A narrow left block makes the far level the coarse best, more than half a coarse step above the window.
+        let r = analyze(&stepped(0.6, 5.01, 5.04), &s).unwrap();
+        let (lo, hi) = (r.bounds[0][2], r.bounds[1][2]);
+        let coarse = coarse_level(&r.columns, lo, hi, s.tolerance_mm);
+        assert!(coarse.0 > 0.0 && coarse.1 == 5.15625, "{coarse:?}");
+        assert!(
+            r.obstructions.is_empty() && r.parting_mm > 5.02 && r.parting_mm < 5.03,
+            "{} with {:?}",
+            r.parting_mm,
+            r.obstructions
+        );
+        assert!(coarse.1 - r.parting_mm > 0.5 * (hi - lo) / LEVELS as f64);
+        // Where nothing finer clears, the finer level kept is still strictly better and the coarse one is not given up for a tie.
+        let blocked = analyze(&stepped(3.9, 5.0, 5.5), &s).unwrap();
+        let coarse = coarse_level(
+            &blocked.columns,
+            blocked.bounds[0][2],
+            blocked.bounds[1][2],
+            s.tolerance_mm,
+        );
+        let kept = level_score(&blocked.columns, blocked.parting_mm, s.tolerance_mm);
+        assert!(
+            !blocked.obstructions.is_empty() && kept <= coarse.0,
+            "{kept} against {coarse:?}"
+        );
+        assert!(kept < coarse.0 - 1e-9 || blocked.parting_mm == coarse.1);
+    }
+    #[test]
+    fn a_parting_the_coarse_levels_clear_is_kept_to_the_bit() {
+        let s = Setup::default();
+        // Overlapping blocks clear at many levels, coarse and fine; the coarse one nearest the middle stays.
+        let r = analyze(&stepped(3.9, 5.0, 4.9), &s).unwrap();
+        assert!(r.obstructions.is_empty());
+        assert_eq!(r.parting_mm, 5.0);
+        // A ring as a build makes it keeps its coarse level to the bit.
+        let lib = crate::AlphaLibrary::builtin();
+        let mesh = crate::mesh::try_build(
+            &crate::RingDesign::default(),
+            &lib,
+            crate::BuildParams {
+                theta_steps: 192,
+                profile_steps: 96,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .mesh;
+        let r = analyze(&mesh, &s).unwrap();
+        let coarse = coarse_level(&r.columns, r.bounds[0][2], r.bounds[1][2], s.tolerance_mm);
+        assert!(
+            r.obstructions.is_empty() && coarse.0 == 0.0,
+            "{:?}",
+            r.obstructions
+        );
+        assert_eq!(r.parting_mm.to_bits(), coarse.1.to_bits());
+        // The Waved hexagon signet inspected as master b611d2c inspected it.
+        let d = crate::templates::fixture("Waved hexagon signet").unwrap();
+        let i = crate::manufacturing::inspect(
+            &d,
+            &lib,
+            &Setup::from_design(&d),
+            crate::BuildParams {
+                theta_steps: 384,
+                profile_steps: 192,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(i.release.obstructions.is_empty());
+        assert_eq!(
+            (
+                i.release.parting_mm.to_bits(),
+                i.release.suggested_parting_mm.to_bits()
+            ),
+            (0x3f70c5c000000000, 0x3f70c5c000000000)
+        );
     }
     #[test]
     fn grid_cap_and_nonfinite_geometry_are_explicit() {

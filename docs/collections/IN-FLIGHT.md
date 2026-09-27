@@ -1,3 +1,51 @@
+# PAUSED by Logan (2026-09-26 afternoon)
+
+"once all current agents are finished, lets put a pause on the rest of the collections and such. we've already blown almost 40% of my weekly usage and it has only been 7 hours since my weekly reset"
+
+The agents running at that moment finish their current task (Kraken round 3, Basiliscus round 3, Fenrir round 2, Corvus round 2, Harpyia round 2, the packaging lane, Phoenix's final review). **No new agents, rounds, reviews or lanes start until Logan says so.** Each finished result is recorded in the table below with its next step. The desktop release waits with the rest.
+
+Packaging lane finished and merged (`bestiarium-package` `1c31c9c`, merge `89dc970`): Arachne and Manticora rebuilt on current master and registered as a Bestiarium group in File > New from template (menu 55 to 53, Workshop group retired; `showcase/workshop-collection` kept), bound template controls (request 15), studio renders, sheet and README. Every suite green on the branch, four-core CI emulation 1653. Its report, with the eleven steps to add one more shipped ring, is `docs/collections/bestiarium-package-report.json` (`add_a_ring`). Left for the release: the phone and desktop version bumps, a CHANGELOG line (Bestiarium added, Workshop retired), the tag and the Taildrop; build reels need an emulator. A tracked `crates/ringdesign-py/tests/__pycache__/*.pyc` is rewritten by every Python smoke run and should be untracked. Before the final Taildrop, smooth-shade the reference stones in the Blender renders: the onyx and ruby cabochons on `Bestiarium-collection.png` show stair-stepped highlights.
+
+# Cloud sessions (2026-09-26 evening, on Logan's one-time $250 cloud-session credit)
+
+Logan resumed the work on a credit that pays for plain cloud sessions only (not routines or projects; it expires 5 November). Sessions start with `claude --cloud` from a checkout of a small seed branch (`cloud/*` or `review/*`, standalone commits built with git plumbing) because the CLI uploads a bundle rather than cloning this repository, and bundles stop at 100 MB. A seed carries a `TASK.md` or `REVIEW.md`; the session clones the full repository inside its VM when it needs one, and pushes results to `claude/*` branches. Each session also pushes a `cloud-report.md` when it is done. The four Bestiarium reviews ran this way. Kraken was cut at 7.0 and Basiliscus at 7.2 (both final rounds); Corvus and Harpyia were sent to round 3 (the table above). Running now:
+
+| Session | Seed | Results branch |
+|---|---|---|
+| Corvus round 3 (with enabler C-B7, request 28) | `cloud/lane-corvus-r3` | `claude/bestiarium-corvus-r3` |
+| Harpyia round 3 | `cloud/lane-harpyia-r3` | `claude/bestiarium-harpyia-r3` |
+| Core requests 2, 13 and 26 (DFM texels, hide stations, land widths) | `cloud/core-dfm-texels-hide-lands` | `claude/core-dfm-texels-hide-lands` |
+| Core request 18 (`Hide::steadied`) | `cloud/core-hide-steadied` | `claude/core-hide-steadied` |
+| Core request 1 (graded run centre phase) | `cloud/core-graded-centre-phase` | `claude/core-graded-centre-phase` |
+| Core request 24 (fold errors name the point) | `cloud/core-fold-errors-name-the-point` | `claude/core-fold-errors-name-the-point` |
+| Fenrir round 2 review | `review/fenrir-r2` | `claude/review-fenrir-r2` |
+| Core request 29 (railless claw feet on a sloped table) | `cloud/core-claw-foot-lift` | `claude/core-claw-foot-lift` |
+| Core request 9 (sculpt tools into core) | `cloud/core-sculpt-tools` | `claude/core-sculpt-tools` |
+
+Results so far: every session pushed once told to push from its own checkout (`/home/user/repo`), and opened its own pull request. Core PRs: #230 (requests 2, 13, 26), #227 (1), #226 (29), #225 (24), #224 (9: the sculpt tools, on branch `claude/core-hide-steadied` by a mix-up in the lead's seed text; its own branch `claude/core-sculpt-tools` holds the same commit).  All seven core PRs are merged, each with its session report dropped: #224 sculpt tools (9), #225 fold and pinch messages (24), #226 railless claw feet (29), #227 graded-run centre phase (1), #230 DFM texels, inked hide stations and `dfm::part_sections` (2, 13, 26), #231 faired bypass (28), #232 `Hide::steadied` (18). A flaky wake count in the template-open test failed two PRs' CI; fixed on master (`4f16808`). Master CI green over all seven (`aa30aff`).
+
+Logan approved the four requests that move existing geometry (2026-09-26 evening); they run as cloud sessions working inside their own checkout, each PR to list every template and shipped ring it moves: request 16 comfort-fit apex on the parting plane (`claude/core-comfort-apex`), 23 seam bead radius from every part on the seam (`claude/core-seam-bead-radius`), 20 collet bearing on the pavilion's slope (`claude/core-collet-bearing-slope`), 11 finer stamp caps, opt-in per stamp (`claude/core-stamp-fine-cap`). Fenrir's round 2 review exists only inside its session (its push was refused: RingDesigner is not among that session's authorized repositories); Logan is pasting it. The ring rounds' PRs #228 and #229 are drafts until their final reviews decide.
+
+# Checkpoint 2026-09-26 10:10 (Claude, at the account's 5-hour limit)
+
+Every lane below was stopped mid-round by the usage limit. Resume each by starting a fresh agent in its worktree with the shared brief (`.claude/collection-review/bestiarium-lane-brief.md`), its latest review JSON (in `.claude/collection-review/`, ignored dir) and "continue round N". Uncommitted files stay on disk: commit or finish them first.
+
+| Ring | Worktree / branch | Last commit | Latest review | Next |
+|---|---|---|---|---|
+| Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | **packaged, on master** (`89dc970`) |
+| Manticora | `bestiarium-manticora` | `9a4252f` round 3 | **shipped 7.5** (`manticora-round3-review.json`, optional polish listed) | **packaged, on master** (`89dc970`) |
+| Kraken | `bestiarium-kraken` (owns C-B1) | `567365a` round 3 (master merged as `62b2dfe`) | r3 author self-score 7.0; **cut at 7.0** by the final review (cloud session, 2026-09-26: gates green, claws splayed and curled as asked; short of 7.5) | none (kept on its branch) |
+| Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `74dceaf` round 3 | **cut at 7.0** after round 3 (`phoenix-round3-review.json`: gates green, fails the 300 px read; optional polish listed) | none (kept on its branch) |
+| Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `4df7a53` round 3 | r3 author self-score 7.4; **cut at 7.2** by the final review (cloud: gates green; the head is still blocky at 3/4, and the 300 px hero does not name the animal) | none (kept on its branch) |
+| Fenrir | `bestiarium-fenrir` | `55022f3` round 2 (master `b611d2c` merged) | r2 author self-score 7.0 (r1 5.5): all 11 punch items applied, gates green at draft and export (1.27 M triangles, 31.0 g in 18k after a hollow under the head), template 0 patches at 2.68 MB of 3 MB; short: the small teeth read as beads from above, the upper-lip frame is heavy, the ruff locks read slightly scaly | round 2 review running in the cloud (session `session_01SgmpuuY9GAvqpEUss1cqcq`, pushes to `claude/review-fenrir-r2`) |
+| Corvus | `bestiarium-corvus` | `claude/bestiarium-corvus-r3` `729e5d3` round 3 (cloud; draft PR #228, with enabler C-B7) | r3 author self-score 6.9; **cut at 6.6** by the final review (cloud: gates green, one hooked-bill head reads in the hero, but at 300 px the face view reads as a visor or a beetle, not two ravens; the skull scallops render smeared) | none (kept on `claude/bestiarium-corvus-r3`; draft PR #228 closed; its core request 28 is PR #231 on its own) |
+| Harpyia | `bestiarium-harpyia` (owns C-B4) | `claude/bestiarium-harpyia-r3` `f808587` round 3 (cloud; draft PR #229) | r3 author self-score 7.3; **cut at 6.8** by the final review (cloud: every gate green, the torso's land width measured at 2.56 mm; at 300 px she reads as a figure cradling an orb in two human hands, not talons striking; the ball-ended claws read as tubes) | none (kept on `claude/bestiarium-harpyia-r3`; draft PR #229 closed) |
+
+- Platform on master (pushed `2af7974`): batch 16, the starter gallery with re-framed splits, the GUI and workbench CI fixes (CI green), the embedded-art fix, the phone icon, C-B5 claw rails and cabochon rise.
+- C-B6 is on master (`22912a5`): stamp drop-ray reach, hand-made heads as holders, finer parting search, flat-part clean, stoneless pads out of the stones report. Requests and proposed code: `.claude/collection-review/core-change-requests.md`.
+- Review prompt template: `.claude/collection-review/review-prompt-template.md` (a ring under 7.5 after round 3 is cut).
+- Then: package the shipped rings, register them in File > New from template (Workshop leaves the menu), bump the desktop version, tag `desktop-v<version>`, Taildrop the final renders (Logan's instruction below).
+
 # Takeover checkpoint (2026-09-26, Claude)
 
 Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume before Oct 1, so Claude took over every lane. Codex's own record follows below this section.

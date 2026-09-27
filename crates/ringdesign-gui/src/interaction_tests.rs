@@ -573,7 +573,7 @@ pub(crate) fn claw_seat_and_stamp() -> ringdesign_core::RingDesign {
         let t = std::f64::consts::TAU * f64::from(i) / 40.0;
         [1.2 * t.cos(), 1.2 * t.sin()]
     });
-    d.stamps.push(ringdesign_core::setting::Stamp { name: "Disc".into(), theta_deg: 270.0, v_mm: v, rot_deg: 0.0, outline: disc.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default() });
+    d.stamps.push(ringdesign_core::setting::Stamp { name: "Disc".into(), theta_deg: 270.0, v_mm: v, rot_deg: 0.0, outline: disc.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: Default::default() });
     d
 }
 
@@ -1249,14 +1249,14 @@ fn a_design_opened_after_a_fit_opens_whole_at_zoom_one_about_its_middle() {
     assert!(h.state().panes[pane].camera.zoom > 8.0, "framed close on the post: {}", h.state().panes[pane].camera.zoom);
     // A pan taken about the post, then a new ring from a template.
     h.state_mut().panes[pane].camera.pan = [0.8, -0.5];
-    let tide = ringdesign_workbench::templates::collections().iter().flat_map(|c| c.templates.iter()).find(|t| t.slug == "tide-workshop").expect("the Tide template");
-    crate::export::load_catalog_template(h.state_mut(), tide);
+    let braided = ringdesign_workbench::templates::collections().iter().flat_map(|c| c.templates.iter()).find(|t| t.slug == "braided-band").expect("the Braided band template");
+    crate::export::load_catalog_template(h.state_mut(), braided);
     wait_for_template(&mut h);
     assert!(h.state().fit_pending);
     h.state_mut().rebuild_now();
     wait_for_build(&mut h);
     h.run_steps(2);
-    assert!(h.state().design.name.starts_with("Tide"), "{}", h.state().design.name);
+    assert!(h.state().design.name.starts_with("Braided"), "{}", h.state().design.name);
     let ring = h.state().build.as_ref().unwrap().mesh.bounds().unwrap();
     let (mid, r) = ball(ring);
     let rect = ring_rect(&h);

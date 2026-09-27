@@ -202,6 +202,8 @@ pub struct Hide {
     pub wall: Vec<[f64; 2]>,
     /// The atlas row nearest the parting plane in each column.
     pub crest: Vec<usize>,
+    /// Rim and wall per column as measured, before any filter.
+    measured: [Vec<[f64; 2]>; 2],
 }
 
 fn distance(p: [f64; 3], q: [f64; 3]) -> f64 {
@@ -213,6 +215,12 @@ fn turn(p: [[f64; 3]; 3]) -> f64 {
     let (u, w): ([f64; 3], [f64; 3]) = (std::array::from_fn(|k| p[1][k] - p[0][k]), std::array::from_fn(|k| p[2][k] - p[1][k]));
     let dot = u[0] * w[0] + u[1] * w[1] + u[2] * w[2];
     (dot / (u.iter().map(|x| x * x).sum::<f64>() * w.iter().map(|x| x * x).sum::<f64>()).sqrt().max(1e-12)).clamp(-1.0, 1.0).acos().to_degrees()
+}
+
+/// Per-column values averaged over 13 columns around the ring.
+fn smooth(v: &[[f64; 2]]) -> Vec<[f64; 2]> {
+    let w = v.len() as i64;
+    (0..w).map(|x| std::array::from_fn(|k| (-6i64..=6).map(|o| v[(x + o).rem_euclid(w) as usize][k]).sum::<f64>() / 13.0)).collect()
 }
 
 impl Hide {
@@ -263,11 +271,27 @@ impl Hide {
                 wall[x][side] = (low - rim[x][side]).max(0.0);
             }
         }
-        let smooth = |v: &Vec<[f64; 2]>| -> Vec<[f64; 2]> {
-            (0..w).map(|x| std::array::from_fn(|k| (-6i64..=6).map(|o| v[(x as i64 + o).rem_euclid(w as i64) as usize][k]).sum::<f64>() / 13.0)).collect()
+        Self { width: w, height: h, along, across, rim: smooth(&rim), wall: smooth(&wall), crest, measured: [rim, wall] }
+    }
+
+    /// The hide with its rim and wall taken as the median over `2 * half + 1` columns before the average, so a few columns
+    /// whose sections run through an arm tip's end wall no longer spike them. `steadied(0)` is the hide as it was.
+    pub fn steadied(mut self, half: usize) -> Self {
+        let [rim, wall] = &self.measured;
+        let median = |v: &Vec<[f64; 2]>| -> Vec<[f64; 2]> {
+            let w = v.len() as i64;
+            (0..w)
+                .map(|x| {
+                    std::array::from_fn(|k| {
+                        let mut run: Vec<f64> = (-(half as i64)..=half as i64).map(|o| v[(x + o).rem_euclid(w) as usize][k]).collect();
+                        run.sort_by(f64::total_cmp);
+                        run[half]
+                    })
+                })
+                .collect()
         };
-        let (rim, wall) = (smooth(&rim), smooth(&wall));
-        Self { width: w, height: h, along, across, rim, wall, crest }
+        (self.rim, self.wall) = (smooth(&median(rim)), smooth(&median(wall)));
+        self
     }
 
     /// A sample's hide coordinates, the rim and wall read on its own side.
@@ -699,5 +723,27 @@ mod tests {
         let head = hide.crest_point(&atlas, 0.0);
         assert!(head[0].abs() < 0.2 && head[2].abs() < 0.1 && head[1] > atlas.top - 0.2, "{head:?} against top {}", atlas.top);
         assert!((hide.reach() + hide.along.iter().copied().fold(f64::MAX, f64::min)).abs() < 0.3);
+    }
+
+    /// A bypass's rim spikes where its sections cross an arm tip's end wall; steadied, it climbs once and falls once to within 0.05 mm a side, less than half the plain hide's 0.12, and `steadied(0)` is the plain hide.
+    #[test]
+    fn a_steadied_hide_drops_the_end_wall_spikes() {
+        let a = Atlas::of(&bypass(), 512, 192).unwrap();
+        // Climb beyond one rise and one fall around the ring, mm.
+        let excess = |v: &[[f64; 2]], k: usize| {
+            let r: Vec<f64> = v.iter().map(|r| r[k]).collect();
+            let travel: f64 = (0..r.len()).map(|x| (r[(x + 1) % r.len()] - r[x]).abs()).sum();
+            travel - 2.0 * (r.iter().copied().fold(f64::MIN, f64::max) - r.iter().copied().fold(f64::MAX, f64::min))
+        };
+        let (plain, steady) = (Hide::of(&a), Hide::of(&a).steadied(3));
+        let same = Hide::of(&a).steadied(0);
+        assert!(plain.rim == same.rim && plain.wall == same.wall);
+        for k in 0..2 {
+            let (before, after) = (excess(&plain.rim, k), excess(&steady.rim, k));
+            let (wall_before, wall_after) = (excess(&plain.wall, k), excess(&steady.wall, k));
+            eprintln!("side {k}: rim excess {before:.4} -> {after:.4} mm, wall {wall_before:.4} -> {wall_after:.4} mm");
+            assert!(before > 0.1 && after < 0.05 && after < before / 2.0, "{before} -> {after}");
+            assert!(wall_after < wall_before, "{wall_before} -> {wall_after}");
+        }
     }
 }

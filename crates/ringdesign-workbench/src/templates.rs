@@ -528,14 +528,9 @@ pub fn collections() -> &'static [Collection] {
                 signets
             },
             group("Stone settings", &["cathedral-solitaire", "bezel-solitaire", "halo", "trilogy", "toi-et-moi", "split-shank-basket", "half-eternity", "gypsy-trio"], "Eight made settings · three pour in sand, five in lost wax"),
-            Collection { name: "Workshop collection", templates: vec![
-                Template { name: "Aster — cushion seal", slug: "aster-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", badge: None, family: None, source: Source::Design("aster-workshop") },
-                Template { name: "Tide — twelve reeds", slug: "tide-workshop", description: "Editable workshop design with a nominal 18.2 mm bore.", badge: None, family: None, source: Source::Design("tide-workshop") },
-                Template { name: "Lantern — pierced octagonal signet", slug: "lantern-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", badge: None, family: None, source: Source::Design("lantern-workshop") },
-                Template { name: "Aureole — half-turn ribbon", slug: "aureole-workshop", description: "Editable CAD assembly; use the CAD workspace for its feature history.", badge: None, family: None, source: Source::Design("aureole-workshop") },
-            ] },
             group("Reptilia collection", &["ecdysis-reptilia", "tessera-reptilia", "lorica-reptilia", "ophidian-reptilia", "varanus-reptilia"], "Sculpted reptile skins with editable artwork and geometry."),
             group("Stock masterworks", &["nocturne-imported", "solstice-imported", "aurelia-imported", "vesper-imported", "saurian-imported", "zenith-imported", "caiman-imported"], "Authored ornament on calibrated imported signet stock."),
+            group("Bestiarium", &["arachne-bestiarium", "manticora-bestiarium"], "Creatures told by hide, silk and weapons, face to palm."),
             {
                 let mut atelier = group("Atelier designs", &["aster-atelier", "thalassa", "oriel"], "Complete authored designs with their artwork and settings.");
                 atelier.templates.push(Template { name: "Aster — original botanical signet", slug: "aster-botanical", description: "The original botanical sand signet.", badge: None, family: None, source: Source::Design("aster-botanical") });
@@ -585,10 +580,8 @@ thumbnails! {
     "ophidian-reptilia",
     "varanus-reptilia",
     "aster-botanical",
-    "aster-workshop",
-    "tide-workshop",
-    "lantern-workshop",
-    "aureole-workshop",
+    "arachne-bestiarium",
+    "manticora-bestiarium",
     "stock-001-cushion",
     "stock-002-kite",
     "stock-003-clover",
@@ -671,7 +664,7 @@ mod tests {
             assert_eq!((png.width(), png.height()), (160, 160));
             assert!(png.pixels().any(|p| p.0.iter().copied().max().unwrap() > 100), "{} preview is blank", entry.slug);
         }
-        assert_eq!(slugs.len(), 55);
+        assert_eq!(slugs.len(), 53);
         assert_eq!(slugs, SLUGS.iter().copied().collect(), "thumbnail table and menu agree");
     }
 
@@ -698,6 +691,17 @@ mod tests {
     }
 
     #[test]
+    fn the_bestiarium_follows_the_masterworks_and_the_workshop_has_left_the_menu() {
+        let names: Vec<_> = collections().iter().map(|c| c.name).collect();
+        assert_eq!(names, ["Starter bands", "Starter signets", "Stone settings", "Reptilia collection", "Stock masterworks", "Bestiarium", "Atelier designs", "Original masterwork signets"]);
+        let bestiarium = &collections()[5].templates;
+        assert_eq!(bestiarium.iter().map(|t| t.slug).collect::<Vec<_>>(), ringdesign_graph::templates::BESTIARIUM.iter().map(|t| t.slug).collect::<Vec<_>>());
+        assert!(bestiarium.iter().all(|t| matches!(t.source, Source::Graph(g) if g.slug == t.slug)));
+        assert!(collections().iter().flat_map(|c| &c.templates).all(|t| !t.slug.ends_with("-workshop")));
+        assert!(ringdesign_assets::DESIGNS.iter().all(|a| !a.name.ends_with("-workshop")));
+    }
+
+    #[test]
     fn a_template_opens_off_the_ui_thread_as_it_instantiates_with_its_artwork_baked_as_the_ui_thread_baked_it() {
         let reg = Arc::new(ringdesign_script::registry());
         let lib = Arc::new(AlphaLibrary::builtin());
@@ -718,6 +722,11 @@ mod tests {
                 assert!(started.elapsed().as_secs() < 60, "{slug} never landed at {:?}", opening.stage());
                 std::thread::sleep(std::time::Duration::from_millis(2));
             };
+            // Waits up to 5 s for the template-wake thread to deliver the wakes.
+            let landed = std::time::Instant::now();
+            while wakes.load(Ordering::Relaxed) < 2 && landed.elapsed().as_secs() < 5 {
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
             assert!(wakes.load(Ordering::Relaxed) >= 2, "{slug} wakes the UI as it goes and when it lands");
             assert!(opening.is_finished() || { std::thread::sleep(std::time::Duration::from_millis(50)); opening.is_finished() });
             assert_eq!(serde_json::to_value(&opened.design).unwrap(), serde_json::to_value(template.instantiate(&reg, &lib).unwrap()).unwrap(), "{slug}");

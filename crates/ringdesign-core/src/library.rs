@@ -61,8 +61,10 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || design.stamps.iter().any(|s| !s.is_plain())
         || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(&f.operation, crate::cad::Operation::Builder { key, params, .. } if crate::cad::builders::geometry_extended(key, params))))
         || station_gates_in_stack(&design.layers, design.gate_sections_are_reference())
+        || centred_runs_in_stack(&design.layers)
         || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
         || design.graph.as_ref().is_some_and(template_features_in_json)
+        || design.shank.bypass_fair_deg != 0.0
     {
         FORMAT_VERSION
     } else {
@@ -80,15 +82,27 @@ fn station_gates_in_stack(stack: &crate::LayerStack, reference: bool) -> bool {
     })
 }
 
+/// Seat runs whose lattice stands on the taper centre, which an older reader would re-anchor at 0 degrees.
+fn centred_runs_in_stack(stack: &crate::LayerStack) -> bool {
+    use crate::field::Layer;
+    stack.layers.iter().any(|entry| match &entry.layer {
+        Layer::SeatRun(run) => run.centre_phase.is_some(),
+        Layer::Group(group) => centred_runs_in_stack(&group.stack),
+        _ => false,
+    })
+}
+
 /// Source references and template controls whose geometry earlier readers cannot reproduce.
 pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"];
-    let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && pin == "keys")
+    let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && matches!(pin, "keys" | "bypass_fair_deg"))
         || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"));
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
     if value.get("Builder").is_some_and(|builder| builder.get("key").and_then(serde_json::Value::as_str)
         .is_some_and(|key| crate::cad::builders::geometry_extended(key, &builder["params"]))) { return true; }
     if value.get("v_gate").is_some_and(|gate| gate.get("Draft").is_some() || gate.get("SideFaces").is_some()) { return true; }
+    if value.get("centre_phase").is_some_and(|phase| !phase.is_null()) { return true; }
+    if value.get("fine_cap").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
         if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
             || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }
@@ -195,6 +209,30 @@ mod template_source_tests {
         assert_eq!(format_version_for(&nested), PLAIN_FORMAT_VERSION);
         design.layers.layers.clear();
         assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
+    }
+
+    #[test]
+    fn a_centred_seat_run_fences_its_design_and_graph_while_an_anchored_one_stays_plain() {
+        use crate::field::{GroupLayer, SeatRunLayer};
+        let mut run = SeatRunLayer { taper: 0.4, ..SeatRunLayer::default() };
+        let layer = |run: SeatRunLayer| crate::LayerEntry::new("Row", crate::Layer::SeatRun(run));
+        let designs = |run: SeatRunLayer| {
+            let flat = RingDesign { layers: crate::LayerStack { layers: vec![layer(run)] }, ..Default::default() };
+            let group = crate::Layer::Group(GroupLayer { stack: flat.layers.clone(), ..Default::default() });
+            let nested = RingDesign { layers: crate::LayerStack { layers: vec![crate::LayerEntry::new("Group", group)] }, ..Default::default() };
+            let graph = serde_json::json!({"nodes":[{"kind":"literal","params":{"value":{"SeatRun":run}}}]});
+            [flat, nested, RingDesign { graph: Some(graph), ..Default::default() }]
+        };
+        for d in designs(run) {
+            assert_eq!(format_version_for(&d), PLAIN_FORMAT_VERSION);
+        }
+        run.centre_phase = Some(0.0);
+        for d in designs(run) {
+            let text = design_json(&d).unwrap();
+            assert_eq!(format_version_for(&d), FORMAT_VERSION);
+            assert!(read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string().contains("format version 6"));
+            assert_eq!(serde_json::to_value(load_design_str(&text).unwrap()).unwrap(), serde_json::to_value(&d).unwrap());
+        }
     }
 
     #[test]
@@ -562,7 +600,7 @@ pub fn load_design_str(text: &str) -> anyhow::Result<RingDesign> {
 }
 
 /// [`load_design_str`] as a build that reads up to version `newest` runs it.
-fn read_design(text: &str, newest: u32) -> anyhow::Result<RingDesign> {
+pub(crate) fn read_design(text: &str, newest: u32) -> anyhow::Result<RingDesign> {
     let mut doc: serde_json::Value = serde_json::from_str(text)?;
     let version = match doc.get(VERSION_KEY) {
         Some(v) => v.as_u64().ok_or_else(|| anyhow::anyhow!("Invalid design format version"))?,

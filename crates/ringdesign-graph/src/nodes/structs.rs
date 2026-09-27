@@ -37,6 +37,8 @@ pub struct StructNode<T> {
     spec: NodeSpec,
     fields: Vec<FieldPin>,
     hidden: Vec<String>,
+    /// Fields the struct writes only when they differ from their default, so its default's JSON lacks them.
+    sparse: Vec<String>,
     base: Option<(String, ValueKind)>,
     out: String,
     wrap: fn(T) -> Value,
@@ -63,7 +65,8 @@ where
     /// out of a [`Value`]; `base` is what the node starts from when no base
     /// pin is wired (`T::default`, or a new signet's lofted head).
     pub fn new(spec: NodeSpec, out: impl Into<String>, base: fn() -> T, wrap: fn(T) -> Value, unwrap: fn(&Value) -> Option<T>) -> Self {
-        Self { spec, fields: Vec::new(), hidden: Vec::new(), base: None, out: out.into(), wrap, unwrap, default_base: base, prepare: None, finish: None }
+        Self { spec, fields: Vec::new(), hidden: Vec::new(),
+            sparse: Vec::new(), base: None, out: out.into(), wrap, unwrap, default_base: base, prepare: None, finish: None }
     }
 
     /// An optional input of the struct's own kind to start from.
@@ -93,6 +96,13 @@ where
         self
     }
 
+    /// Fields serde skips at their default value: pins for them are real
+    /// fields even though the default base does not write them.
+    pub fn sparse(mut self, names: &[&str]) -> Self {
+        self.sparse.extend(names.iter().map(|s| s.to_string()));
+        self
+    }
+
     /// Runs on the base before the field pins are written, so a pin the
     /// hook reads (a style preset) cannot clobber pins set explicitly.
     pub fn prepare(mut self, f: FinishFn<T>) -> Self {
@@ -117,7 +127,8 @@ where
     pub fn coverage(&self) -> Result<(), String> {
         let json = serde_json::to_value((self.default_base)()).map_err(|e| format!("{}: {e}", self.spec.key))?;
         let Some(obj) = json.as_object() else { return Err(format!("{}: the struct does not serialize as an object", self.spec.key)) };
-        let keys: BTreeSet<&str> = obj.keys().map(String::as_str).collect();
+        let mut keys: BTreeSet<&str> = obj.keys().map(String::as_str).collect();
+        keys.extend(self.sparse.iter().map(String::as_str));
         let mut named: BTreeSet<&str> = self.hidden.iter().map(String::as_str).collect();
         for f in &self.fields {
             let first = f.path.trim_start_matches('/').split('/').next().unwrap_or("");

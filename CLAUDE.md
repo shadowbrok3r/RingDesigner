@@ -1088,8 +1088,8 @@ pins both directions. On top of that:
   the shipped templates (`dfm::measured_tests::the_templates_measured`,
   `--nocapture`) it names three: Waves at 0.04 mm strokes on the waved
   hexagon signet's 11.8 × 0.8 mm cells, Chevron at 0.03 mm gaps on the
-  shouldered cushion's 7.6 × 0.6 mm shoulders, Braid at 0.04 mm gaps on
-  the braided band — all castable by the field, all casting softer than
+  shouldered cushion's 7.6 × 0.6 mm shoulders, Braid at 0.10 mm gaps on
+  the braided band (0.04 before its tall texels were read square) — all castable by the field, all casting softer than
   drawn, which is what the chip now says instead of nothing.
 
   **A tiling is measured at the tightest station its window covers**, not
@@ -1101,7 +1101,24 @@ pins both directions. On top of that:
   two figures above moved from 0.10 and 0.07 when `worst_arc_ratio` was
   added, and the finding now names the angle (185° on both). A *decal* had
   always done this per station; a tiling covers an arc, so what matters is
-  the worst one in it.
+  the worst one in it. A **hide** — one tile round the whole ring — lays
+  each column at its own angle, so it is judged at the worst station where
+  it stands half its height, not where its window reaches: a table-only
+  texture had been read at a 50° station's 0.43 scale. And granulometry's
+  disc is round in texels, so on texels more than 5% from square the
+  coarser axis is repeated out to the finer pitch before it is read (the
+  proposed box-average down to the coarse pitch quantized a thin bar to two
+  texels and read it 25% fat); the finer pitch alone had read bars across a
+  tall cell at a quarter of their width. `fit_to_floor` keeps its closed
+  form at the finer pitch, because examples build from it: on tall texels
+  its solve is safe but not tight (Chevron solves 16 and flags from 24).
+
+  A **made part** is not a layer, and a lost-wax ring's lands are judged
+  on it: `dfm::part_sections(solid, up, floor)` reads each face by one ray
+  along its inward normal and returns the thinnest section and the area
+  under the floor — a claw's diameter, a collet's wall, a point as a little
+  area to except by name. With `up`, the part's axis, faces turned toward
+  its ends are not read.
 
   A **flute** is measured *around* the ring, not across the band. It was
   filed as a `FeatureFootprint::across` — whose own doc named a flute —
@@ -1252,6 +1269,15 @@ emits one line per distinct seat.
   the stones report and the gem preview all go through them, because three
   copies of a station formula is exactly the divergence this file warns
   about elsewhere.
+
+  **Mirror-true on request.** The lattice is anchored so station 0 stays at
+  0 degrees, which leaves a row whose centre is not a station angle graded
+  lopsided. `SeatRunLayer::centre_phase` (in stations: 0 stands one on the
+  centre, 0.5 straddles it) stands the lattice on the centre instead, and
+  because the warp is odd about the centre the row is then symmetric in
+  theta at any taper. `None` is today's anchor and is not written, so every
+  existing row is byte for byte; set, it is fenced at design format 6 and
+  graph format 2 (`library::template_features_in_json` sees the key).
 - **Shared prongs**: `SeatRunLayer::shared_prong_mm` stands one post pair
   at each boundary between neighbouring stones — the Prongs_Row
   rule (pair each gem with its shift-by-one neighbour, prong the boundary,
@@ -1657,6 +1683,24 @@ and halos carry the field through their seats.
   subtracted), which is what flattens each claw onto its facet and cuts
   the girdle's bite. The envelope is the stone as `gems.rs` draws it, so
   the seat fits the stone the viewport shows.
+- **Claws take a style, a grouping, rails and a rise** (`setting::ClawOptions`,
+  the `head.claw` and `head.basket` params). Styles Wire, Talon, Fang,
+  Tentacle, Thorn and Sepal shape each claw; groupings Even, Feet and Jaws
+  place them; `rails` "Seat" keeps the base and gallery rails, "Base" only
+  the base rail, "None" none (a basket takes 0 to 6). A railless claw must
+  find metal at its own foot or the head is refused by name, so a claw landing
+  past a narrow band's edge asks for the Jaws grouping or a stone seated
+  further onto the band. A railless foot that already starts buried deeper
+  than the search accepts (a sloped table) is raised up its own line until it
+  sinks `FOOT_SINK_MM`, not called free; tied claws keep their own foot. On a
+  cabochon the shaped styles climb the dome and rest on it, the tip at `rise`
+  of the dome's height (0.3 by default, at most 0.6, lower where the claw's
+  bends cannot fit); a Seat rail hides most of a
+  climbing claw, so railless heads are what make fangs and tentacles read.
+  Defaults are bit-identical to the plain wire head, and anything else is
+  fenced at design format 6 and graph format 2. Every head is cleaned of
+  sub-20 nm slivers after the stone's notch: overlapping rails left
+  4.8e-7 mm edges that f32 turned into degenerate faces.
 - **Beads** are centres and radii, not solids, until every seat is placed:
   `apply` merges any two within 1.4 radii in ring space, so neighbours share
   the beads between them (pinned by volume: three stones gain less than
@@ -1830,6 +1874,10 @@ rows.** What the second version added, each measured:
   a bench cut per bay (`hull_and_bays`, `Stamp::cast_as_hull` — the
   crescent cutter generalised; a holly leaf is six bays, hull less bays its
   own area to 0.03 mm²).
+- **A fine cap is opt-in.** `Stamp::fine_cap` grids the cap at `reach / 28`
+  held to 0.1–0.2 mm instead of `reach / 14` held to 0.12–0.35: about three
+  times the cap points (267 to 846 on a 10 × 4 mm dome), so a large domed top
+  stops faceting. Off, a stamp builds bit for bit as before.
 - **`Stamp::parting_monotone`** is the plan rule a stamp on a signet's face
   must pass: every plan line along the pull meets the stamp in one stretch
   across the parting line, its top never rising away from it, resting
@@ -1845,9 +1893,9 @@ rows.** What the second version added, each measured:
   whose do. Over 60–120° the first draft struck ten keels, five of them
   coincident; an uneven 60–104° ×4 later struck two 0.26 mm apart.
 
-**Plain stamps build as a format-5 build struck them.** `tier` and `top`
-are skipped when default, so a plain design serializes byte for byte; a
-tier, a shaped top or an outline past `PLAIN_MAX_STAMP_POINTS` (512 —
+**Plain stamps build as a format-5 build struck them.** `tier`, `top` and
+`fine_cap` are skipped when default, so a plain design serializes byte for
+byte; a tier, a shaped top, a fine cap or an outline past `PLAIN_MAX_STAMP_POINTS` (512 —
 every released build refuses more, and the spiral is 540 at its sheet
 size) writes the design at 6. A design whose *poured* stamps are all plain
 reads every frame as `stones::surface_frame` does — the nearest sample of a
@@ -1863,8 +1911,9 @@ points are kept across calls (4096, keyed by a hash of everything the band
 is made from and the chart point): on the Heart signet 24 gabled keels on
 24 plates make a point each on first sight (7.95 ms) and none judged again
 (1.25 ms, against 0.63 on one tier). A graph's `/stamps` patch and a
-standalone graph file are not fenced; an older build drops `tier` and `top`
-from them silently.
+standalone graph file are not fenced for `tier` and `top`, and an older build
+drops them silently; `fine_cap: true` anywhere in a graph's JSON fences it at
+graph format 2 (`template_features_in_json`).
 
 **A saved design must reopen bit for bit, and `serde_json` does not promise
 that by default.** Without `float_roundtrip` a parsed float can be one unit
@@ -2392,6 +2441,10 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   band (Separate, Join, Cut), whether it is poured or added at the bench,
   and the radius of the rolling-ball seam bead (`blend.rs`) laid along every
   seam the traced boolean reports — 0.0046 mm off the analytic torus fillet.
+  A seam that runs across several parts of a joined cluster takes the
+  largest `blend_mm` among them, whatever part owns its first face.
+  A bead that pinches or folds says where — ring angle, the section's r and
+  z, and the point (`blend::station_at`) — so no probe build hunts for it.
   A bench part is shown finished and left out of a sand pattern. Every part
   vertex names its feature through `Mesh.origin` (`Resolved::feature_of`).
 - **Edges are named by signature, not by position.** `EdgeRef` carries the
@@ -3088,7 +3141,11 @@ left to the bench. What it taught:
   face the pull, the wall below it). The chart's `theta` crosses a head's
   end wall in a few degrees; rows laid by distance along the parting line
   keep their size down it. Per-column rims are averaged along the ring, or
-  the steps laid from them comb the plates.
+  the steps laid from them comb the plates. Where sections run through an
+  arm tip's end wall a few columns spike (0.91 to 4.08 mm on a bypass) and
+  the average smears them into a bump: `Hide::steadied(half)` takes the
+  median over `2 * half + 1` columns first (opt-in; `steadied(0)` is the
+  plain hide).
 - **Layers joined by `Max` keep the draft clamp's guarantee**: each layer
   clamped alone is clamped together. Only the flanks' granules and knobs
   are trimmed at all, where the shank's walls lean back (0.2 mm at most).
@@ -3181,6 +3238,21 @@ deterministic.
   a 40° leaf filled to the rule with its bays cut at the bench pulls. Its
   −40° row is not a result: the leaf failed to join ("two cuts cross inside
   a face") and the row judged the bare table.
+
+**Sculpt is core too.** `sculpt.rs` is the toolkit Fenrir grew in its
+example, moved as it was, so any ring can carry a sculpted part as a stored
+mesh: a distance field built from `smin`/`smax`, `ellipsoid`, `round_cone`
+and `trapezoid`, met to the ring through a `Stock` field, meshed by
+`tetra_mesh`, `relax`ed, `clean_decimate`d to a budget (backing off until
+`csg::self_crossings` reads zero) and `settle`d — sliver collapse, edge-flip
+polish, fold-corner smoothing, each kept only while the mesh stays closed and
+uncrossed. A hollow is `Heights::first_air` eroded by a ball of the wall,
+kept by `open_shells` where it opens into the bore; `packed` refuses an open
+or crossing mesh. On Fenrir's own wolf the hollow and every stage up to
+fold-corner smoothing are bit for bit the example's. That one changed: it
+summed each corner's ring in `HashSet` order, so the example's head differed
+in its last bits run to run; the ring is sorted now and every tool is
+deterministic. A lattice is held to `MAX_GRID_POINTS` by coarsening its step.
 
 ## Reels are played by the app, not by a finger
 

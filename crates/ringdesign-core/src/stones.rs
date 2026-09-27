@@ -160,7 +160,7 @@ impl StonesReport {
 /// voice*. Both thresholds now come off the design's floor.
 pub const TIGHT_MULTIPLE: f64 = 1.5;
 
-/// Every seat in the design, checked, and every stone its CAD parts carry. `None` when it sets neither.
+/// Every seat in the design carrying a stone, checked, and every stone its CAD parts carry. `None` when it sets neither.
 ///
 /// `parting_z_mm` is the plane the draft numbers are signed against — pass
 /// the cast report's when there is one; 0 is the crest plane every profile
@@ -226,7 +226,7 @@ fn walk(
             continue;
         }
         match &entry.layer {
-            Layer::SeatPad(seat) => {
+            Layer::SeatPad(seat) if seat.gem.is_some() => {
                 let kept = station_kept(entry, ctx, seat.theta_deg, seat.v_mm);
                 let mut check = check_seat(
                     design,
@@ -471,12 +471,18 @@ fn cad_checks(
     checks.into_iter().map(|(_, check)| check).collect()
 }
 
-/// The made setting holding the stones feature `id` carries, and its builder.
+/// The key [`made_by`] gives a head made by hand.
+const HAND_MADE: &str = "made";
+
+/// The made setting holding the stones feature `id` carries, and its builder's key or [`HAND_MADE`].
 fn made_by(doc: &crate::cad::Document, id: crate::sketch::Id) -> Option<(String, &'static str)> {
     use crate::cad::{builders, Operation};
     let head = crate::setstone::holder(doc, id)?;
-    let Operation::Builder { key, .. } = &head.operation else { return None };
-    Some((head.name.clone(), builders::spec(key)?.key))
+    let key = match &head.operation {
+        Operation::Builder { key, .. } => builders::spec(key)?.key,
+        _ => HAND_MADE,
+    };
+    Some((head.name.clone(), key))
 }
 
 /// Every stone against every other, in millimetres of real metal.
@@ -711,6 +717,9 @@ fn seats_by_shape<'a>(
             continue;
         }
         let Layer::SeatPad(s) = &e.layer else { return None };
+        if s.gem.is_none() {
+            continue;
+        }
         let same = |p: &SeatPadLayer| {
             p.gem == s.gem
                 && p.style == s.style
@@ -943,6 +952,7 @@ mod tests {
             pad.height_mm = 0.8;
             pad.blend_mm = 0.5;
             pad.metal_true = metal_true;
+            pad.gem = Some(Gem::calibrated(GemCut::Round, 1.5));
             d.layers.layers.push(LayerEntry::new("Boss", Layer::SeatPad(pad)));
             d
         };
@@ -1537,5 +1547,31 @@ mod tests {
         d2.layers.layers.last_mut().unwrap().enabled = false;
         assert!(report(&d2, 0.0).is_none());
         let _ = VGate::Off;
+    }
+
+    /// A pad carrying no stone is stock rather than a seat: the report neither lists nor warns it, alone or in a group.
+    #[test]
+    fn a_pad_with_no_stone_is_not_a_seat() {
+        let mut d = RingDesign::default();
+        let crest = d.field_context().crest_v_mm;
+        let edge = SeatPadLayer { theta_deg: 90.0, v_mm: 0.6, diameter_mm: 2.0, height_mm: 0.5, blend_mm: 0.4, ..Default::default() };
+        d.layers.layers.push(LayerEntry::new("Stock at the edge", Layer::SeatPad(edge)));
+        assert!(report(&d, 0.0).is_none(), "a stoneless pad sets no stone");
+        let seat = SeatPadLayer { theta_deg: 270.0, gem: Some(Gem::calibrated(GemCut::Round, 1.5)), ..edge };
+        d.layers.layers.push(LayerEntry::new("Seat at the edge", Layer::SeatPad(seat)));
+        let r = report(&d, 0.0).unwrap();
+        assert_eq!(r.seats.iter().map(|s| s.label.as_str()).collect::<Vec<_>>(), ["Seat at the edge"]);
+        assert!(r.seats[0].warnings.iter().any(|w| w.contains("feather edges will not fill")), "{:?}", r.seats[0].warnings);
+        let mut g = crate::field::GroupLayer::default();
+        g.stack.layers.push(LayerEntry::new("Plate", Layer::SeatPad(SeatPadLayer { theta_deg: 180.0, v_mm: crest, ..edge })));
+        for k in 0..3 {
+            let melee = SeatPadLayer { theta_deg: 175.0 + 5.0 * k as f64, v_mm: crest, diameter_mm: 1.4, height_mm: 0.3, gem: Some(Gem::calibrated(GemCut::Round, 1.0)), ..Default::default() };
+            g.stack.layers.push(LayerEntry::new(format!("Melee {k}"), Layer::SeatPad(melee)));
+        }
+        d.layers.layers.push(LayerEntry::new("Cluster", Layer::Group(g)));
+        let r = report(&d, 0.0).unwrap();
+        let cluster: Vec<(&str, u32)> = r.seats.iter().filter(|s| s.label.starts_with("Cluster")).map(|s| (s.label.as_str(), s.count)).collect();
+        assert_eq!(cluster, [("Cluster", 3)], "the plate is no shape of its own in the rollup");
+        assert_eq!(r.stone_count, 4);
     }
 }

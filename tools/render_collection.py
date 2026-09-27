@@ -118,6 +118,9 @@ def load_manifest(root, collection=None):
             if not isinstance(ring[field], str):
                 raise ValueError(f"{slug}: {field} must be text")
         finite_vector(ring.get("centre", [0, 1.4 if ident == "reptilia" and slug in ("ophidian", "varanus") else 0, 0]), 3, "centre")
+        row = ring.get("row", 0)
+        if isinstance(row, bool) or not isinstance(row, int) or not 0 <= row <= 99:
+            raise ValueError(f"{slug}: sheet row must be an integer 0–99")
         scale = ring.get("ortho_scale", 30.5)
         if isinstance(scale, bool) or not isinstance(scale, (int, float)) or not math.isfinite(scale) or scale <= 0:
             raise ValueError("Orthographic scale must be positive and finite")

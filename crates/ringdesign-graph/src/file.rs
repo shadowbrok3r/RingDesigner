@@ -313,6 +313,22 @@ pub fn list_presets() -> Vec<Preset> {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn a_fine_cap_stamp_fences_the_graph_and_the_preset_carrying_it() {
+        let stamp = |fine_cap: bool| ringdesign_core::setting::Stamp { name: "Dome".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline: ringdesign_core::outline::circle(2.0), height_mm: 0.3, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap, tier: 0, top: Default::default() };
+        for (fine_cap, expected) in [(false, PLAIN_GRAPH_FORMAT_VERSION), (true, GRAPH_FORMAT_VERSION)] {
+            let mut d = ringdesign_core::RingDesign::default();
+            d.stamps.push(stamp(fine_cap));
+            let mut graph = Graph::new("Stamped source", Mode::SandRing);
+            let source = graph.add("cad.source").unwrap();
+            graph.node_mut(source).unwrap().params = serde_json::to_value(&d).unwrap();
+            assert_eq!(graph_version_for(&graph), expected, "fine_cap {fine_cap}");
+            let mut preset = Preset::default();
+            preset.values.insert("Stamps".into(), Literal::Json(serde_json::to_value(vec![stamp(fine_cap)]).unwrap()));
+            assert_eq!(preset_version_in(&preset, None), expected, "fine_cap {fine_cap}");
+        }
+    }
+
+    #[test]
     fn station_gate_and_claw_controls_fence_graphs_presets_and_clusters() {
         for (pin, value) in [("v_gate", Literal::Text("side_faces".into())), ("v_gate", Literal::Text("draft".into())), ("draft_min_deg", Literal::Number(80.0)), ("draft_fade_deg", Literal::Number(5.0))] {
             for form in ["literal", "wire", "exposure"] {
@@ -358,6 +374,24 @@ mod tests {
         for gate in [serde_json::json!({"Draft":{"min_deg":80.0,"fade_deg":5.0}}), serde_json::json!({"SideFaces":"Both"})] {
             let preset = Preset { values: [("Window".into(), Literal::Json(serde_json::json!({"v_gate":gate})))].into_iter().collect(), ..Default::default() };
             assert_eq!(preset_version_in(&preset, None), GRAPH_FORMAT_VERSION);
+        }
+    }
+
+    #[test]
+    fn a_centred_seat_run_fences_graphs_and_presets_while_an_anchored_one_stays_plain() {
+        use super::*;
+        use crate::graph::Mode;
+        use ringdesign_core::field::SeatRunLayer;
+        for (phase, expected) in [(None, PLAIN_GRAPH_FORMAT_VERSION), (Some(0.5), GRAPH_FORMAT_VERSION)] {
+            let run = serde_json::json!({"SeatRun": SeatRunLayer { taper: 0.4, centre_phase: phase, ..SeatRunLayer::default() }});
+            let mut g = Graph::new("Graded row", Mode::Free);
+            let node = g.add("layer.seatrun").unwrap();
+            g.set_input(node, "layer", Literal::Json(run.clone())).unwrap();
+            assert_eq!(graph_version_for(&g), expected);
+            let text = graph_to_string(&g).unwrap();
+            assert_eq!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).is_err(), phase.is_some());
+            let preset = Preset { values: [("Row".into(), Literal::Json(run))].into_iter().collect(), ..Default::default() };
+            assert_eq!(preset_version_in(&preset, None), expected);
         }
     }
 

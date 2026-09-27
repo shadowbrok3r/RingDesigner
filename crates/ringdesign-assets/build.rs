@@ -36,10 +36,6 @@ const FAMILIES: &[Family] = &[
 const LOOSE: &[(&str, &str, &str)] = &[
     ("SIMPLE_GRAPH", "simple", "graphs/simple.graph.json"),
     ("DESIGNS", "aster-botanical", "showcase/aster/design.ring.json"),
-    ("DESIGNS", "aster-workshop", "showcase/workshop-collection/aster/design.ring.json"),
-    ("DESIGNS", "tide-workshop", "showcase/workshop-collection/tide/design.ring.json"),
-    ("DESIGNS", "lantern-workshop", "showcase/workshop-collection/lantern/design.ring.json"),
-    ("DESIGNS", "aureole-workshop", "showcase/workshop-collection/aureole/design.ring.json"),
 ];
 
 /// Compression is kept only when it pays for the decode; a PNG is already

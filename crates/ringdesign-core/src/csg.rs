@@ -149,6 +149,11 @@ impl Solid {
         edge_census(self.v.len(), &self.f)
     }
 
+    /// Whether a face is one the predicates call flat: a repeated corner, or three exactly collinear ones.
+    pub fn any_flat(&self) -> bool {
+        self.f.iter().any(|f| flat(&self.v, *f, 0.0))
+    }
+
     /// Closure, flat faces and volume; the crossing count only when asked, grid-culled.
     pub fn check(&self, crossings: bool) -> Check {
         let (open_edges, repeated_edges) = self.open_edges();

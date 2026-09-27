@@ -50,6 +50,8 @@ fn shank_node() -> NodeSpec {
     .field_at(PinSpec::item("head_theta_deg", ValueKind::Number).widget(Widget::Angle).doc("Where the head sits; 90° is the top."), "/head/theta_deg")
     .field_at(PinSpec::item("head_length_mm", ValueKind::Number).widget(Widget::Mm { min: 2.0, max: 40.0 }).doc("The face's length along the ring, mm."), "/head/length_mm")
     .field(PinSpec::list("keys", ValueKind::Json).doc("Authored shank stations, ordered around the ring."))
+    .field(PinSpec::item("bypass_fair_deg", ValueKind::Number).widget(Widget::Slider { min: 0.0, max: 12.0 }).doc("Bypass only: degrees along the ring the arms' union is faired over, so each arm's tip ramps instead of stepping; 0 keeps the hard union."))
+    .sparse(&["bypass_fair_deg"])
     .hidden(&["extra_heads", "custom_outlines"])
     .build()
 }

@@ -90,6 +90,23 @@ class CollectionTools(unittest.TestCase):
             self.assertFalse(any("stale" in name for name in archive.namelist()))
             self.assertEqual(len(archive.namelist()), 3)
 
+    def test_sheet_rows_group_rings_and_refuse_invalid_rows(self):
+        rows = [("sand", 0), ("wax-a", 1), ("wax-b", 1)]
+        rings = [{"slug": slug, "title": slug.title(), "exposed_controls": [], "row": row} for slug, row in rows]
+        self.write_manifest(rings=rings, views=[{"name": "hero", "render": False}])
+        for slug, _ in rows:
+            (self.root / slug).mkdir()
+            Image.new("RGB", (16, 16), (70, 80, 90)).save(self.root / slug / "hero.png")
+        catalog(self.root, load_manifest(self.root), REPO)
+        sheet = (self.root / "contact-sheet.svg").read_text()
+        self.assertIn('height="2440"', sheet)
+        for x, y, slug in [(120, 540, "sand"), (120, 1330, "wax-a"), (1200, 1330, "wax-b")]:
+            self.assertIn(f'<image x="{x}" y="{y}" width="640" height="640" xlink:href="{slug}/hero.png"/>', sheet)
+        for row in (-1, 1.5, True, 100):
+            self.write_manifest(rings=[dict(rings[0], row=row)])
+            with self.assertRaisesRegex(ValueError, "sheet row"):
+                load_manifest(self.root)
+
     def test_starter_gallery_uses_explicit_flat_images_without_moving_them(self):
         views = [
             {"name": "hero", "label": "Portrait", "render": False, "image": "Court Band Hero.png"},
