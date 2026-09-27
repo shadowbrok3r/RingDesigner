@@ -1101,7 +1101,17 @@ pins both directions. On top of that:
   first — the chart's `v` is that arc normalized, so on a lobe three
   times the reference thickness a stamp stands that much taller than it
   is wide — and the measurement replaces the footprint's 15%-of-size
-  guess, which called a 2.25 mm hook with a 0.45 mm stroke mush. Run on
+  guess, which called a 2.25 mm hook with a 0.45 mm stroke mush. **A
+  generated skin carries one period per tile** (`reptile::svg`, C-R7): a
+  builtin tile carries several and falls under the floor at a ring's
+  tightest station, so the Cataphracta generators draw one in mm and
+  each is measured there, ink and gaps, against 0.40
+  (`every_reptile_skin_holds_the_detail_floor_at_its_tightest_station`).
+  A drawn land reads about 0.01 mm narrow through the 1024-px raster, so a
+  tile meant to hold 0.40 draws 0.42; a true point holds no disc, so a
+  spine is blunt; and a hard-cornered trapezoid reads narrower than the
+  same shape under a blur, because the corners go first. `script` nodes
+  reach every generator through `reptile_svg(name, …)`. Run on
   the shipped templates (`dfm::measured_tests::the_templates_measured`,
   `--nocapture`) it names three: Waves at 0.04 mm strokes on the waved
   hexagon signet's 11.8 × 0.8 mm cells, Chevron at 0.03 mm gaps on the
@@ -3105,7 +3115,11 @@ stays the provenance — `Preset::id` is what a design or an example names one
 by, and `stock_name()` is what the master file calls itself — while `name`,
 `face_mm` and `plan` (48 polar radii off the table band of its own mesh) are
 what the picker draws. "002 · Signet" told a reader nothing about the head
-they were about to get.
+they were about to get. `imported_base::plan_mask(id, w, h)` fills the same
+48 radii as a mask (C-R8): the plan's bounding box fills the raster,
+columns along the head's length, so laid over a face of `face_mm` it sits
+on the table; each preset fills its own polygon's share of the box to
+0.004.
 
 `examples/stock_masterworks.rs` holds the two rings that came of it,
 **Saurian** (013, one stone) and **Zenith** (017, three), and the method:
