@@ -1098,7 +1098,7 @@ fn land_widths(d: &RingDesign, fig: &csg::Solid) -> Result<(serde_json::Value, b
         "thinnest_section_mm": fig_min,
         "area_under_floor_mm2": fig_under,
         "surface_area_mm2": fig_area,
-        "treatment": if fig_min < MIN_SECTION_MM { "the claw points and bead seams: each toe is 0.82 mm or more through, and only its claw tapers under the floor to a point, which the investment fills from the toe behind it; clean the claws with a graver after the pour" } else { "at or above the floor" },
+        "treatment": if fig_min < MIN_SECTION_MM { "named, not removed: the area under the floor is the relief on the figure, read by rays that cut short chords through bead domes (0.4 mm high on a body 2.6 mm or more through) and across the seams between them, plus the claw points and the eye moats; the load-bearing sections (toes 0.82 mm or more, limbs 1.2 mm or more, trunk and tail 2.6 mm or more) are over the floor. A per-feature section check was not built at the block-out" } else { "at or above the floor" },
     }));
     let json = serde_json::json!({
         "floor_mm": MIN_SECTION_MM,

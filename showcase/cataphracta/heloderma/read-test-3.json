@@ -1,0 +1,21 @@
+{
+  "reads": false,
+  "what_the_eye_sees": "In hero-300 there is a knobbly lizard-like lump with splayed legs on top of a half-round band covered in an even grid of beads, and a small orange stone near the right end. You can make out 'some small reptile crawling on a ring', but nothing more. In face-300 it stops reading as an animal. It looks like a raised strip of clustered rosettes, like cauliflower, coral or a pine-cone chain, running along a knurled band. The left end is still a stack of transverse rolls, like a caterpillar or a pine cone, not a smooth fat tail. The trunk is a pile of rosette knobs and has no banding. No head can be pointed to, and the stone floats in the bead field past the end of the figure without belonging to it. Lizard and ground are the same gold, similar bead scale and similar brightness, so the outline dissolves. A jeweller would say 'lizard, maybe croc' from the hero and 'beaded or floral texture' from the face. Nobody would say Gila monster. This is the third read test with the same three problems (banding, head and tail silhouette, figure against ground), and none of them has moved enough to show at 300 px.",
+  "changes": [
+    {
+      "what": "Rebuild the animal as one smooth, continuous Gila silhouette: a broad blunt head, a single rounded trunk loaf and a swollen sausage tail. Remove the rosette clusters and the transverse rolls on the tail. Detail must sit inside the outline, not make it.",
+      "where": "The whole figure on the face, roughly theta 45 to 135. Put the head at the stone end, with the snout within 1 mm of the stone's bezel so the stone reads as the thing it faces or noses. Put the tail at the opposite end, lying on the face.",
+      "by_how_much": "Envelope: head width 90 to 100% of the neck width, with a square snout and a 0.3 mm neck crease. Tail base at least 75% of the trunk width, a smooth convex outline with no step over 0.10 mm, and a rounded tip. Legs short and splayed, at most 50% of body depth, each ending in a clear foot. Delete every knob that stands more than 0.10 mm proud of the envelope. Lost wax allows full undercut domes and a genuinely rounded, undercut body edge, so use them: give the body flank an undercut of at least 0.3 mm so it casts a shadow line. Acceptance: in face-300.png, someone can trace head, four legs and tail as one closed shape and point to the head without a caption."
+    },
+    {
+      "what": "Make the Gila banding visible as light and dark stripes by depth and bead size, not by bead height alone. The 0.36/0.24 and 0.40/0.18 tweaks have not shown at 300 px.",
+      "where": "The dorsal surface from nape to tail tip: 4 bands on the trunk and 4 to 5 rings on the tail, with forked, reticulated edges.",
+      "by_how_much": "High (light) bands: large domed beads 0.9 to 1.1 mm across and 0.40 to 0.45 mm high, polished. Low (dark) bands: set the land 0.25 to 0.30 mm below the high-band envelope and fill it with fine beads 0.4 to 0.5 mm across and at most 0.12 mm high, so the band holds shadow and oxide. Bands 1.5 to 2.0 mm wide. Acceptance: in face-300.png, 3 to 4 dark/light stripes can be counted on the trunk and 4 on the tail."
+    },
+    {
+      "what": "Separate figure from ground. The ground bead grid currently matches the lizard in scale and brightness, so the ground has to go quieter and the animal needs a moat around it.",
+      "where": "All band surface outside the animal's outline, plus a strip hugging the outline, including the area around the stone.",
+      "by_how_much": "A smooth, polished moat 0.6 to 0.8 mm wide around the whole outline. Ground beads at most 0.10 mm high at a pitch of 0.6 mm or less, or a plain polished or matte ground, against 1.0 mm or more on the animal. Acceptance: in both hero-300.png and face-300.png, the animal's outline stands out as one bright closed shape against a visibly quieter band."
+    }
+  ]
+}
