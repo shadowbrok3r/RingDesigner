@@ -1932,6 +1932,30 @@ fn sculpt_preview(out: &Path, step: f64) -> Result<()> {
     Ok(())
 }
 
+/// The saved export rebuilt from its design file, which `--verify` shows builds bit for bit the same mesh, and its
+/// crease census rewritten into its report.
+fn recensus(out: &Path) -> Result<()> {
+    let saved = library::load_design(out.join("design.ring.json"))?;
+    let lib = mf::source_library(&saved, &AlphaLibrary::default()).into_owned();
+    let params = BuildParams { theta_steps: EXPORT_THETA, profile_steps: 448, refine: None, ..Default::default() };
+    let built = mesh::try_build(&saved, &lib, params)?;
+    let mut d = base()?;
+    let a = Atlas::of(&d, AW, atlas_rows(&d))?;
+    stone_and_fangs(&mut d)?;
+    let wolf = wolf_of(&d, &a)?;
+    let (census, marks) = census(&wolf, &built, 4);
+    for p in marks.iter().take(12) {
+        let q = wolf.face(*p);
+        println!("  face-zone crease at ({:.2}, {:.2}, {:.2})", q[0], q[1], q[2]);
+    }
+    println!("  census {census}");
+    let path = out.join("report.json");
+    let mut report: Value = serde_json::from_str(&std::fs::read_to_string(&path)?)?;
+    report["census"]["edges_60_deg_by_zone"] = census;
+    std::fs::write(&path, serde_json::to_vec_pretty(&report)?)?;
+    Ok(())
+}
+
 /// The hollow alone cut from the stock at the draft build, seen from the palm and cut at theta 70, 90 and 110.
 fn hollow_preview(out: &Path) -> Result<()> {
     std::fs::create_dir_all(out)?;
@@ -3449,7 +3473,7 @@ fn census(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::sket
     let mut face_marks: Vec<P3> = Vec::new();
     let mut zones: HashMap<&str, (usize, f64, usize, HashSet<[i64; 3]>)> = HashMap::new();
     // Every zone is listed, a clean one with zeros.
-    for zone in ["band and painted layers", "fang claws", "hollow under the head", "other made parts", "ear tips", "ears", "teeth", "mouth, gums and lips", "muzzle and nose", "brow", "eyes", "crown", "lower jaw and chin", "cheeks", "head flanks and throat"] {
+    for zone in ["band and painted layers", "fang claws", "hollow under the head", "other made parts", "ear tips", "ears", "teeth", "mouth, gums and lips", "nose pad and nostrils", "muzzle", "brow", "eyes", "crown", "lower jaw and chin", "cheeks", "head flanks and throat"] {
         zones.insert(zone, (0, 0.0, 0, HashSet::new()));
     }
     for ((a, b), fs) in &edges {
@@ -3482,8 +3506,10 @@ fn census(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::sket
             "teeth"
         } else if q[2] > 0.0 && rho <= 6.9 {
             "mouth, gums and lips"
-        } else if q[2] > 0.3 && s[0] < 1.9 && q[1] > 0.5 && q[1] < 5.9 {
-            "muzzle and nose"
+        } else if Wolf::nose(s) < 0.25 {
+            "nose pad and nostrils"
+        } else if q[2] > 0.3 && s[0] < 1.9 && q[1] > 0.5 && q[1] < 6.3 {
+            "muzzle"
         } else if q[2] > 0.3 && Wolf::brow(s) < 0.4 {
             "brow"
         } else if q[2] > 0.3 && (s[0] - Wolf::EYE.0).hypot(q[1] - Wolf::EYE.1) < 1.3 {
@@ -3497,7 +3523,7 @@ fn census(wolf: &Wolf, built: &mesh::BuildResult, head_id: ringdesign_core::sket
         } else {
             "head flanks and throat"
         };
-        if matches!(zone, "cheeks" | "brow" | "muzzle and nose" | "crown") {
+        if matches!(zone, "cheeks" | "brow" | "muzzle" | "nose pad and nostrils" | "crown") {
             face_marks.push(mid);
             if face_marks.len() <= 12 && std::env::var("FENRIR_DEBUG").is_ok() {
                 println!("    {zone} crease at face ({:.2}, {:.2}, {:.2}), {ang:.0} deg", q[0], q[1], q[2]);
@@ -3891,6 +3917,9 @@ fn main() -> Result<()> {
             println!("h {h:5.2} {line}");
         }
         return Ok(());
+    }
+    if args.iter().any(|a| a == "--recensus") {
+        return recensus(Path::new(out));
     }
     if args.iter().any(|a| a == "--hollow") {
         return hollow_preview(Path::new(out));

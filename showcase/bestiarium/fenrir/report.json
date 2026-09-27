@@ -2,63 +2,135 @@
   "bore_mm": 19.0,
   "build": {
     "profile_steps": 448,
-    "seconds": 110.250801599,
+    "seconds": 530.142785319,
     "theta_steps": 1536,
-    "triangles": 1272600
+    "triangles": 1258040
   },
   "census": {
     "edges_60_deg_by_zone": {
+      "band and painted layers": {
+        "cells_1mm": 551,
+        "edges_60": 16021,
+        "edges_90": 3000,
+        "length_mm": 915.2440831258689
+      },
+      "brow": {
+        "cells_1mm": 0,
+        "edges_60": 0,
+        "edges_90": 0,
+        "length_mm": 0.0
+      },
+      "cheeks": {
+        "cells_1mm": 0,
+        "edges_60": 0,
+        "edges_90": 0,
+        "length_mm": 0.0
+      },
+      "crown": {
+        "cells_1mm": 0,
+        "edges_60": 0,
+        "edges_90": 0,
+        "length_mm": 0.0
+      },
       "ear tips": {
-        "cells_1mm": 5,
-        "edges_60": 26,
-        "edges_90": 4,
-        "length_mm": 1.7855743759445
+        "cells_1mm": 0,
+        "edges_60": 0,
+        "edges_90": 0,
+        "length_mm": 0.0
       },
-      "elsewhere": {
-        "cells_1mm": 842,
-        "edges_60": 36018,
-        "edges_90": 6826,
-        "length_mm": 2042.2135699017672
+      "ears": {
+        "cells_1mm": 0,
+        "edges_60": 0,
+        "edges_90": 0,
+        "length_mm": 0.0
       },
-      "mouth, teeth, fangs and rail": {
-        "cells_1mm": 52,
-        "edges_60": 943,
-        "edges_90": 344,
-        "length_mm": 39.802069501124315
+      "eyes": {
+        "cells_1mm": 0,
+        "edges_60": 0,
+        "edges_90": 0,
+        "length_mm": 0.0
+      },
+      "fang claws": {
+        "cells_1mm": 10,
+        "edges_60": 263,
+        "edges_90": 179,
+        "length_mm": 6.7380642983334385
+      },
+      "head flanks and throat": {
+        "cells_1mm": 34,
+        "edges_60": 1243,
+        "edges_90": 342,
+        "length_mm": 15.221432313778697
+      },
+      "hollow under the head": {
+        "cells_1mm": 103,
+        "edges_60": 1483,
+        "edges_90": 410,
+        "length_mm": 134.922231663502
+      },
+      "lower jaw and chin": {
+        "cells_1mm": 0,
+        "edges_60": 0,
+        "edges_90": 0,
+        "length_mm": 0.0
+      },
+      "mouth, gums and lips": {
+        "cells_1mm": 12,
+        "edges_60": 23,
+        "edges_90": 0,
+        "length_mm": 2.06164637678446
+      },
+      "muzzle": {
+        "cells_1mm": 0,
+        "edges_60": 0,
+        "edges_90": 0,
+        "length_mm": 0.0
+      },
+      "nose pad and nostrils": {
+        "cells_1mm": 1,
+        "edges_60": 2,
+        "edges_90": 0,
+        "length_mm": 0.13421946334204454
+      },
+      "other made parts": {
+        "cells_1mm": 0,
+        "edges_60": 0,
+        "edges_90": 0,
+        "length_mm": 0.0
+      },
+      "teeth": {
+        "cells_1mm": 11,
+        "edges_60": 16,
+        "edges_90": 0,
+        "length_mm": 1.5865233101898562
       }
     },
-    "seam_crease_run_mm": 0.38249004075154913
+    "seam_crease_run_mm": 0.6693822452044783
   },
   "cold_reload": {
     "identical_vertices_faces_normals": true,
-    "ms": 3333.557488
+    "ms": 10892.530937
   },
   "composition": {
-    "fold_caps": [
-      {
-        "r_mm": 10.932099920462448,
-        "theta_deg": 48.30116164885615,
-        "z_mm": -6.07171652792737
-      }
-    ],
+    "fold_caps": [],
     "gleipnir_cell_mm": [
       2.6582707068836706,
       11.800258881361014
     ],
     "head": {
       "marching_step_mm": 0.09,
-      "packed_bytes": 1303080,
-      "raw_triangles": 1155896,
-      "seconds": 43.305334934,
+      "packed_bytes": 1302932,
+      "raw_triangles": 1196204,
+      "seconds": 443.01977542,
       "self_crossings": 0,
-      "triangles": 117412,
-      "vertices": 58716,
-      "volume_mm3": 800.9808923676721
+      "triangles": 117492,
+      "vertices": 58752,
+      "volume_mm3": 818.7419394221279
     },
     "hollow": {
-      "packed_bytes": 298484,
-      "triangles": 30246,
-      "volume_mm3": 461.571805437614,
+      "packed_bytes": 235052,
+      "triangles": 22000,
+      "volume_mm3": 442.69005895216856,
       "wall_mm": 1.0
     },
     "moon_across_mm": 4.8,
@@ -74,7 +146,7 @@
     "table_y_mm": 14.016453517526037
   },
   "design": {
-    "bytes": 2924141,
+    "bytes": 2660929,
     "cad_features": 5,
     "format_version": 6,
     "layers": [
@@ -99,17 +171,17 @@
   },
   "field": {
     "notes": [
-      "Lost wax: 10.36% of the surface would undercut a two-part pull (worst 63.3 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 101–79° on the crest: 148.1 mm² leaning to 59° — no single layer explains it.",
+      "Lost wax: 10.05% of the surface would undercut a two-part pull (worst 54.2 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 101–79° on the crest: 146.7 mm² leaning to 53° — no single layer explains it.",
       "Cut at the bench after casting, and so not judged here: Graver's hair lines.",
-      "Measured with the ring as built: 3 CAD parts (2 joined, 1 cut), 1060.2 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Claw head \"Fangs\" (#3) would undercut a two-part pull over 20.1 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Fenrir's head\" (#4) would undercut a two-part pull over 229.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hollow under the head\" (#5) would undercut a two-part pull over 210.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Measured with the ring as built: 3 CAD parts (2 joined, 1 cut), 1063.9 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Claw head \"Fangs\" (#3) would undercut a two-part pull over 0.8 mm² (worst -70°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Fenrir's head\" (#4) would undercut a two-part pull over 242.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hollow under the head\" (#5) would undercut a two-part pull over 239.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "thinnest_wall_mm": 1.3227560269617804,
     "thinnest_wall_theta_deg": 255.9375,
-    "undercut_percent": 24.047272641578594,
+    "undercut_percent": 24.837645768867432,
     "verdict": "Castable"
   },
   "gates": [
@@ -160,6 +232,10 @@
     {
       "gate": "hollow under the head: at most 32 g in 18k, 1.0 mm or more over it at theta 90",
       "pass": true
+    },
+    {
+      "gate": "no closed internal voids in the finished metal",
+      "pass": true
     }
   ],
   "geometry": {
@@ -167,45 +243,80 @@
     "innermost_radius_mm": 9.49056506287216,
     "quality": {
       "degenerate_faces": 0,
-      "min_angle_deg": 0.0011381856262592978,
-      "worst_aspect": 50752.455559295
+      "min_angle_deg": 0.006270585404546491,
+      "worst_aspect": 9147.128077883488
     },
     "self_crossings": 0,
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 1272600,
-      "vertex_count": 636306,
+      "triangle_count": 1258040,
+      "vertex_count": 629020,
       "watertight": true
     },
-    "volume_mm3": 1990.778987674119
+    "volume_mm3": 1998.503812923859
   },
-  "grams_18k": 31.016336627962772,
+  "grams_18k": 31.136689405353724,
   "hollow": {
-    "section_90_min_metal_over_mm": 1.1959242557482757,
+    "more_sections": [
+      "section-70.png",
+      "section-110.png"
+    ],
+    "section_90_min_metal_over_mm": 1.1180623322461631,
     "section_png": "section-90.png",
     "wall_mm": 1.0
   },
+  "internal_void_sites": [],
+  "internal_voids": 0,
   "jaws": {
-    "corner_gap_left_mm": 3.2546899891190253,
-    "corner_gap_right_mm": 3.2546899891190253,
+    "chin_reach_from_moon_axis_mm": 8.0,
+    "corner_gap_left_mm": 4.222300526424681,
+    "corner_gap_right_mm": 4.222300526424681,
     "lip_radius_mm": 6.3,
-    "lower_lip_least_spread_over_90_deg_mm": 0.7256027661001214,
-    "upper_lip_least_spread_over_90_deg_mm": 1.0017551954151331
+    "lower_lip_least_spread_over_90_deg_mm": 0.5924366143689159,
+    "lower_lip_width_max_mm": 1.1499790191586836,
+    "lower_lip_width_min_mm": 0.8,
+    "upper_lip_least_spread_over_90_deg_mm": 1.115552228606684,
+    "upper_lip_width_max_mm": 2.02253760844678,
+    "upper_lip_width_min_mm": 0.85
   },
   "land_widths": {
     "exceptions": [
       {
         "feature": "ear, left",
-        "min_section_mm": 0.12122839612570292,
-        "sub_floor_from_tip_mm": 0.8567600555987367,
+        "min_section_mm": 0.4392035535079371,
+        "sub_floor_from_tip_mm": 0.7720820516682049,
         "treatment": "ear point: the last 1.0 mm to the tip tapers from a thick root; cast in place and polished"
       },
       {
         "feature": "ear, right",
-        "min_section_mm": 0.05205720745810703,
-        "sub_floor_from_tip_mm": 0.795591057083463,
+        "min_section_mm": 0.46078735394151993,
+        "sub_floor_from_tip_mm": 0.8062446367184933,
         "treatment": "ear point: the last 1.0 mm to the tip tapers from a thick root; cast in place and polished"
+      },
+      {
+        "feature": "fang sheath 1",
+        "min_section_mm": 0.5164212326264779,
+        "sub_floor_from_tip_mm": 1.5960390354981489,
+        "treatment": "fang point: the last 2.4 mm of each canine sheath runs out over the moonstone's dome round its claw; cast in place, closed onto the dome with the claw and polished at the bench"
+      },
+      {
+        "feature": "fang sheath 2",
+        "min_section_mm": 0.5275477195935928,
+        "sub_floor_from_tip_mm": 1.480032776394731,
+        "treatment": "fang point: the last 2.4 mm of each canine sheath runs out over the moonstone's dome round its claw; cast in place, closed onto the dome with the claw and polished at the bench"
+      },
+      {
+        "feature": "fang sheath 3",
+        "min_section_mm": 0.5148732103251656,
+        "sub_floor_from_tip_mm": 1.1932440346364999,
+        "treatment": "fang point: the last 2.4 mm of each canine sheath runs out over the moonstone's dome round its claw; cast in place, closed onto the dome with the claw and polished at the bench"
+      },
+      {
+        "feature": "fang sheath 4",
+        "min_section_mm": 0.4955013324325336,
+        "sub_floor_from_tip_mm": 1.1381912538486498,
+        "treatment": "fang point: the last 2.4 mm of each canine sheath runs out over the moonstone's dome round its claw; cast in place, closed onto the dome with the claw and polished at the bench"
       },
       {
         "feature": "Fangs: Claw 1",
@@ -266,167 +377,258 @@
     "head": [
       {
         "feature": "brow, left",
-        "min_section_mm": 1.2476235867468695,
-        "samples": 279,
+        "min_section_mm": 1.5760246979308017,
+        "samples": 256,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "brow, right",
-        "min_section_mm": 1.3132633021266833,
-        "samples": 340,
+        "min_section_mm": 1.542789042864666,
+        "samples": 297,
+        "sub_floor_from_tip_mm": 0.0,
+        "sub_floor_samples": 0
+      },
+      {
+        "feature": "chin tuft",
+        "min_section_mm": 3.882783336723175,
+        "samples": 127,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "ear, left",
-        "min_section_mm": 0.12122839612570292,
-        "samples": 828,
-        "sub_floor_from_tip_mm": 0.8567600555987367,
-        "sub_floor_samples": 57
+        "min_section_mm": 0.4392035535079371,
+        "samples": 787,
+        "sub_floor_from_tip_mm": 0.7720820516682049,
+        "sub_floor_samples": 95
       },
       {
         "feature": "ear, right",
-        "min_section_mm": 0.05205720745810703,
-        "samples": 928,
-        "sub_floor_from_tip_mm": 0.795591057083463,
-        "sub_floor_samples": 59
+        "min_section_mm": 0.46078735394151993,
+        "samples": 881,
+        "sub_floor_from_tip_mm": 0.8062446367184933,
+        "sub_floor_samples": 114
+      },
+      {
+        "feature": "fang sheath 1",
+        "min_section_mm": 0.5164212326264779,
+        "samples": 1156,
+        "sub_floor_from_tip_mm": 1.5960390354981489,
+        "sub_floor_samples": 119
+      },
+      {
+        "feature": "fang sheath 2",
+        "min_section_mm": 0.5275477195935928,
+        "samples": 1139,
+        "sub_floor_from_tip_mm": 1.480032776394731,
+        "sub_floor_samples": 113
+      },
+      {
+        "feature": "fang sheath 3",
+        "min_section_mm": 0.5148732103251656,
+        "samples": 1027,
+        "sub_floor_from_tip_mm": 1.1932440346364999,
+        "sub_floor_samples": 102
+      },
+      {
+        "feature": "fang sheath 4",
+        "min_section_mm": 0.4955013324325336,
+        "samples": 962,
+        "sub_floor_from_tip_mm": 1.1381912538486498,
+        "sub_floor_samples": 83
       },
       {
         "feature": "head mass",
-        "min_section_mm": 0.9990910520131907,
-        "samples": 33620,
+        "min_section_mm": 0.9229415166537843,
+        "samples": 28370,
+        "sub_floor_from_tip_mm": 0.0,
+        "sub_floor_samples": 0
+      },
+      {
+        "feature": "lower carnassial, left",
+        "min_section_mm": 0.8759809844475976,
+        "samples": 356,
+        "sub_floor_from_tip_mm": 0.0,
+        "sub_floor_samples": 0
+      },
+      {
+        "feature": "lower carnassial, right",
+        "min_section_mm": 0.8920934798375066,
+        "samples": 465,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "lower incisor, left",
-        "min_section_mm": 2.3713060598270497,
-        "samples": 217,
+        "min_section_mm": 1.140360609144812,
+        "samples": 163,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "lower incisor, right",
-        "min_section_mm": 2.36100605530051,
-        "samples": 287,
+        "min_section_mm": 1.2101427662921893,
+        "samples": 238,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "lower molar, left",
-        "min_section_mm": 1.1627174717280013,
-        "samples": 272,
+        "min_section_mm": 1.1398887044135555,
+        "samples": 321,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "lower molar, right",
-        "min_section_mm": 1.2695991343971984,
-        "samples": 295,
+        "min_section_mm": 1.147760463018112,
+        "samples": 323,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "lower premolar, left",
-        "min_section_mm": 0.9261293368605534,
-        "samples": 360,
+        "min_section_mm": 0.8719983856034784,
+        "samples": 454,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "lower premolar, right",
-        "min_section_mm": 1.3363391158909574,
-        "samples": 358,
+        "min_section_mm": 0.8523618098043617,
+        "samples": 529,
+        "sub_floor_from_tip_mm": 0.0,
+        "sub_floor_samples": 0
+      },
+      {
+        "feature": "lower second incisor, left",
+        "min_section_mm": 1.1381616582289082,
+        "samples": 73,
+        "sub_floor_from_tip_mm": 0.0,
+        "sub_floor_samples": 0
+      },
+      {
+        "feature": "lower second incisor, right",
+        "min_section_mm": 1.1490655002792414,
+        "samples": 77,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "lower second premolar, left",
-        "min_section_mm": 0.9471978806406535,
-        "samples": 317,
+        "min_section_mm": 0.8825214200594927,
+        "samples": 272,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "lower second premolar, right",
-        "min_section_mm": 0.8935189577368329,
-        "samples": 331,
+        "min_section_mm": 0.8504600568047636,
+        "samples": 320,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "mandible",
-        "min_section_mm": 0.9713116730610819,
-        "samples": 7504,
+        "min_section_mm": 1.0747050035685426,
+        "samples": 6940,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "nose",
-        "min_section_mm": 0.9690749870340623,
-        "samples": 637,
+        "min_section_mm": 0.830656099536512,
+        "samples": 669,
+        "sub_floor_from_tip_mm": 0.0,
+        "sub_floor_samples": 0
+      },
+      {
+        "feature": "upper carnassial, left",
+        "min_section_mm": 0.9161067585278031,
+        "samples": 458,
+        "sub_floor_from_tip_mm": 0.0,
+        "sub_floor_samples": 0
+      },
+      {
+        "feature": "upper carnassial, right",
+        "min_section_mm": 0.9115115777934849,
+        "samples": 340,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "upper incisor, left",
-        "min_section_mm": 1.117751367178535,
+        "min_section_mm": 1.529355672830689,
         "samples": 150,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "upper incisor, right",
-        "min_section_mm": 1.068234584351744,
-        "samples": 214,
+        "min_section_mm": 1.517732028160812,
+        "samples": 206,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "upper molar, left",
-        "min_section_mm": 1.137184935729254,
-        "samples": 288,
+        "min_section_mm": 1.531524821323907,
+        "samples": 277,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "upper molar, right",
-        "min_section_mm": 1.0519030917072618,
-        "samples": 299,
+        "min_section_mm": 1.5206668766275597,
+        "samples": 264,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "upper premolar, left",
-        "min_section_mm": 1.1161428062627112,
-        "samples": 303,
+        "min_section_mm": 0.8455634055741358,
+        "samples": 508,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "upper premolar, right",
-        "min_section_mm": 1.0844940092070092,
-        "samples": 310,
+        "min_section_mm": 0.8438636888938047,
+        "samples": 442,
+        "sub_floor_from_tip_mm": 0.0,
+        "sub_floor_samples": 0
+      },
+      {
+        "feature": "upper second incisor, left",
+        "min_section_mm": 1.294531706930238,
+        "samples": 54,
+        "sub_floor_from_tip_mm": 0.0,
+        "sub_floor_samples": 0
+      },
+      {
+        "feature": "upper second incisor, right",
+        "min_section_mm": 1.2984663513476287,
+        "samples": 50,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "upper second premolar, left",
-        "min_section_mm": 0.8587931426752644,
-        "samples": 374,
+        "min_section_mm": 0.8555700025478652,
+        "samples": 338,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
       {
         "feature": "upper second premolar, right",
-        "min_section_mm": 0.9296755037233752,
-        "samples": 407,
+        "min_section_mm": 0.8741959614215568,
+        "samples": 279,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       }
     ],
-    "head_min_section_mm": 0.9690749870340623,
+    "head_min_section_mm": 0.9229415166537843,
     "unnamed": []
   },
   "made_parts": [
@@ -451,18 +653,18 @@
   "pattern": {
     "quality": {
       "degenerate_faces": 0,
-      "min_angle_deg": 0.0011471433102234656,
-      "worst_aspect": 50356.14446570381
+      "min_angle_deg": 0.006475975990016855,
+      "worst_aspect": 8857.023361791813
     },
     "release": {
-      "obstructions": 248
+      "obstructions": 309
     },
     "self_crossings": 0,
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 1272600,
-      "vertex_count": 636306,
+      "triangle_count": 1258040,
+      "vertex_count": 629020,
       "watertight": true
     }
   },
