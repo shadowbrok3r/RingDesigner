@@ -743,11 +743,28 @@ mod tests {
     use super::svg::{GENERATORS, Params};
     use crate::svg::SvgAlpha;
 
+    /// `f` on a pool of one thread. The floor test measures nineteen rasters at the bake's 1024 px, about 110 s of
+    /// CPU; on every core it held three of CI's four for 40 s and starved the suite's wall-clock tests beside it.
+    fn on_one_thread<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+        #[cfg(feature = "parallel")]
+        {
+            rayon::ThreadPoolBuilder::new().num_threads(1).build().expect("a one-thread pool").install(f)
+        }
+        #[cfg(not(feature = "parallel"))]
+        {
+            f()
+        }
+    }
+
     /// Every generator at its ring's tightest station keeps ink and gaps at
     /// or over 0.40 mm where the detail floor reads them, rasterized the way
     /// a design bakes it, and closes on itself at the tile's edges.
     #[test]
     fn every_reptile_skin_holds_the_detail_floor_at_its_tightest_station() {
+        on_one_thread(every_skin_holds_the_floor);
+    }
+
+    fn every_skin_holds_the_floor() {
         let mut failed = Vec::new();
         for g in GENERATORS {
             let svg = (g.draw)(&g.tightest);
@@ -777,6 +794,10 @@ mod tests {
     /// A generator's pitch, land and dome are what a template exposes: a wider land widens the gaps.
     #[test]
     fn a_skin_answers_its_land() {
+        on_one_thread(a_skin_answers_its_land_on_this_thread);
+    }
+
+    fn a_skin_answers_its_land_on_this_thread() {
         let g = super::svg::generator("granules").unwrap();
         let gaps = |land: f64| {
             let p = Params { land_mm: land, ..g.tightest };
