@@ -2436,6 +2436,8 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   band (Separate, Join, Cut), whether it is poured or added at the bench,
   and the radius of the rolling-ball seam bead (`blend.rs`) laid along every
   seam the traced boolean reports — 0.0046 mm off the analytic torus fillet.
+  A seam that runs across several parts of a joined cluster takes the
+  largest `blend_mm` among them, whatever part owns its first face.
   A bead that pinches or folds says where — ring angle, the section's r and
   z, and the point (`blend::station_at`) — so no probe build hunts for it.
   A bench part is shown finished and left out of a sand pattern. Every part

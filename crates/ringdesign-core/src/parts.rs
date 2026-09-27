@@ -115,29 +115,38 @@ impl Chain<'_> {
         self.vouched = true;
     }
 
-    /// Every seam loop of `t`, the boolean of the running solid with `tool`, whose part asks for a
-    /// fillet and `buried` passes over, beaded against `t`'s faces; `parts` are the tool's parts and
-    /// `face_part` the part index behind each tool face. Each part a seam reached is added to
+    /// Every seam loop of `t`, the boolean of the running solid with `tool`, that some part on it asks
+    /// to fillet and `buried` passes over, beaded against `t`'s faces at the largest `blend_mm` among
+    /// the parts behind its tool faces, whatever their order; `parts` are the tool's parts and
+    /// `face_part` the part index behind each tool face. Each filleted part a seam reached is added to
     /// `touched`; a bead that fails is a note, and a raised flag is the error.
     #[allow(clippy::too_many_arguments)]
     fn beads<'p>(&self, t: &Traced, tool: &Solid, concave: bool, parts: &[&'p Part], face_part: &[u32], buried: &dyn Fn(&[P3]) -> bool, notes: &mut Vec<String>, touched: &mut Vec<u32>) -> Result<Vec<(&'p Part, blend::Bead)>> {
         let mut out = Vec::new();
         for seam in blend::seams(t, &self.solid, tool, concave) {
-            let Some(&bf) = seam.b_faces.first() else { continue };
-            let index = face_part.get(bf as usize).copied().unwrap_or(parts[0].index);
-            let part = parts.iter().copied().find(|p| p.index == index).unwrap_or(parts[0]);
+            // Every part behind the seam's tool faces, in face order; the largest fillet among them is the bead's.
+            let mut on: Vec<&Part> = Vec::new();
+            for &bf in &seam.b_faces {
+                let index = face_part.get(bf as usize).copied().unwrap_or(parts[0].index);
+                let part = parts.iter().copied().find(|p| p.index == index).unwrap_or(parts[0]);
+                if !on.iter().any(|p| p.index == part.index) {
+                    on.push(part);
+                }
+            }
+            let Some(part) = on.iter().copied().reduce(|a, b| if b.blend_mm > a.blend_mm { b } else { a }) else { continue };
             if part.blend_mm <= 0.0 || buried(&seam.points) {
                 continue;
             }
+            let reached = on.iter().filter(|p| p.blend_mm > 0.0).map(|p| p.index);
             match blend::bead_seam(t, &seam, part.blend_mm, Some(self.cancel)) {
                 None => {}
                 Some(Ok(bead)) => {
-                    touched.push(part.index);
+                    touched.extend(reached);
                     out.push((part, bead));
                 }
                 Some(Err(e)) => {
                     check(self.cancel)?;
-                    touched.push(part.index);
+                    touched.extend(reached);
                     notes.push(format!("{}: its fillet could not be laid ({e})", part.name));
                 }
             }
@@ -1370,6 +1379,41 @@ mod tests {
         assert!(tangent.report.validation.watertight);
         assert_eq!((tangent.parts.joined, tangent.parts.beads), (1, 0));
         assert!(tangent.parts.notes.iter().any(|n| n.contains("no seam")), "{:?}", tangent.parts.notes);
+    }
+
+    #[test]
+    fn a_seam_between_a_filleted_and_an_unfilleted_part_takes_the_fillet_whatever_the_face_order() {
+        let lib = AlphaLibrary::builtin();
+        let court = template("Court band");
+        // Two 1 mm posts side by side across the crown, overlapping, their feet 0.5 mm in: one cluster, one seam loop round both.
+        let post = |id, name: &str, across_mm, blend_mm| {
+            let mut f = part(id, name, cylinder(1.0, 2.5), Attach::Join, Stage::Cast, Placement::Ring { theta_deg: 90.0, across_mm, height_mm: 0.75, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 });
+            f.component.blend_mm = blend_mm;
+            f
+        };
+        let plain = crate::mesh::try_build(&with_parts(court.clone(), vec![post(1, "left", -0.7, 0.0), post(2, "right", 0.7, 0.0)]), &lib, params()).unwrap();
+        let mut added = Vec::new();
+        // The fillet on either post, and either post first: the seam loop starts on the same post whatever the document's order.
+        let left = |blend| post(0, "left", -0.7, blend);
+        let right = |blend| post(0, "right", 0.7, blend);
+        let orders = [[left(0.3), right(0.0)], [right(0.0), left(0.3)], [left(0.0), right(0.3)], [right(0.3), left(0.0)]];
+        for mut order in orders {
+            order[0].id = 1;
+            order[1].id = 2;
+            let filleted = order.iter().position(|f| f.component.blend_mm > 0.0).unwrap() as u32;
+            let built = crate::mesh::try_build(&with_parts(court.clone(), order.to_vec()), &lib, params()).unwrap();
+            assert!(built.report.validation.watertight, "{:?}", built.report.validation);
+            assert!(built.parts.notes.is_empty(), "{:?}", built.parts.notes);
+            assert_eq!((built.parts.joined, built.parts.beads), (2, 1), "the one seam is beaded whichever part comes first");
+            // The bead is the filleted post's.
+            let bead_owners: std::collections::BTreeSet<u32> = built.mesh.origin.iter().filter(|o| **o >= SOLID_VERTEX).copied().collect();
+            assert!(bead_owners.contains(&built.parts.origin_of(filleted)));
+            added.push(built.report.volume_mm3 - plain.report.volume_mm3);
+        }
+        let fillet = blend::torus_fillet_volume(1.0, 0.3);
+        eprintln!("mixed seam: added {added:.4?} mm³ against one post's plane torus {fillet:.4}");
+        assert!(added.iter().all(|a| *a > 0.25 * fillet), "{added:?}");
+        assert!(added.iter().all(|a| (a - added[0]).abs() < 0.05 * added[0]), "the same bead every way: {added:?}");
     }
 
     #[test]
