@@ -1,102 +1,151 @@
-# Sphenodon — the parietal (`sphenodon`): lane report
+# Sphenodon — the parietal (`sphenodon`): lane report, lost wax
 
-**Outcome: stopped at the block-out.** All three read tests failed, so under TASK.md the subject needs rethinking before any detailing. **Review rounds used: 0 of 3.** No full review ran, so there is no ship/revise/cut score. Every casting gate is green at draft and at export, and the template gate passed. The ring's problem is that it does not read as the animal; manufacturability is not the issue.
+**Outcome: cut at 7.1 after round 3.** The block-out read on the first test. Three full review rounds took the score from 6.5 to 6.9 to 7.1, against a ship bar of 7.5. **Review rounds used: 3 of 3.** Block-out attempts used: 1 of 3.
 
-Branch `claude/cataphracta-sphenodon`. Author file: `crates/ringdesign-core/examples/cataphracta_sphenodon.rs`. Outputs: `showcase/cataphracta/sphenodon/`.
+Every lost-wax gate is green at draft and at export, the cold reload is identical, and the template gate passed. The ring is cut on its read, not on manufacture. It reads at once as "a lizard ring with a green stone", but no reviewer would name it a tuatara.
 
-## Read tests (block-out, reviewer verdicts verbatim in `read-test-<n>.json`)
+- Branch: `claude/cataphracta-sphenodon`.
+- Author file: `crates/ringdesign-core/examples/cataphracta_sphenodon.rs`.
+- Outputs: `showcase/cataphracta/sphenodon/`.
+- The earlier sand session's three failed read tests are kept as `sand-read-test-{1,2,3}.json`. Its report is superseded by this one.
 
-| # | What was built | `reads` | What the eye saw (reviewer, condensed) |
-|---|---|---|---|
-| 1 | The spec as written: Flat 7.5 × 3.4 band, a 44-tooth 1.3 mm sail graded Cosine 0.4, a peridot on a gypsy mound, clear ±13° | **false** | "A plain polished band with a small green cabochon and a thin row of tiny spikes, like a gear rim, a studded collar or a zip … at a push 'dinosaur spine'." |
-| 2 | Changes from test 1 (24 → 30 teeth, 2.0 mm, taller nape; side-face tubercles and ventral squares), plus a sculpted tuatara head painted on the crown with the peridot as its parietal, and the crest graded Spiral from nape to tail tip | **false** | "Reads as a reptile at once … a generic lizard or baby dragon lying round a band … 'lizard ring' or 'dragon wrap ring'. Nobody would say tuatara." The reviewer's first change was to remove the head, because the collection's gate list says "no faces and no eyes". |
-| 3 | Changes from test 2: head removed, stone back on the spine; symmetric 30-tooth 2.35 mm sail, Cosine 0.35; beaded dorsal courses over the crown; two staggered tubercle rows on the side faces | **false** | "A band covered edge to edge in a fine, even knurl … 'spiked band', 'punk stud ring', 'hedgehog' or 'durian' … Nobody would say tuatara, or even lizard." |
+## Process
 
-Test 3's unapplied changes were: polished ribbons back on the crown, the sail as one continuous blade with a 0.95–1.0 mm span, and wandering tubercles of mixed size over the full side face.
+Logan's decision of 2026-09-27 moved the ring to lost wax: `CastProcess::LostWax.apply(&mut d.draft)`, then `min_section_mm = 0.8` and `min_draft_deg = 0`. The recipe is an investment recipe (no sand), Silver 925. The sand gates are gone. In their place:
 
-**For the lead: what the three tests show.**
+- the field verdict at the 0.8 mm fill;
+- a `land_widths` block that names every section under 0.8 mm with its bench treatment.
 
-- **Only the head gave a reptile read.** Test 2 was the only attempt a reviewer called a reptile, and it was the one with a head. Without a head, the reviewers read the crest plus hide as a spiked or knurled band.
-- **The concept alone does not carry at 300 px.** A serrated sail on the parting line with a flush stone is a generic "dragon spine". The Bestiarium lesson ("the subject was small where the camera looks") applies here.
-- **The "no faces or eyes" rule is stale in the collection file.**
-  - Logan's decision of 2026-09-24 allows faces and eyes that read well (`brief.md`, and the note at the top of `cataphracta.md`).
-  - The per-ring gate checklist in `cataphracta.md` ("Gates per ring", item 3) still lists "no faces and no eyes", and the test-2 reviewer applied it.
-  - Recommendation: update that checklist, then rethink Sphenodon around the one version that read: a tuatara head, with the parietal stone on the skull behind the eyes and the crest running from the nape to the tail. Keep the test-3 fixes: a polished ribbon beside a continuous blade, and wandering side tubercles. Build the head as a clamped painted layer. Test 2's head cut 243 texels, at most 0.037 mm, and every gate stayed green.
-- **The spec has two factual problems** (see "Core and doc changes").
+The two-part undercut and ray release are reported as numbers only. I recorded the decision in `docs/collections/cataphracta.md`:
 
-## Gates (attempt-3 design: `report.json` is the draft run, `report-export.json` is the export run with `--verify`)
+- the header list of Logan's decisions;
+- both sheet subtitles ("FIVE IN SAND, THREE IN WAX");
+- the sand/wax count line and the "primary side" paragraph;
+- the Sphenodon Status and Process lines.
 
-| Gate | Draft 768 × 320 | Export 1536 × 448 |
+## Read test and reviews (verdicts verbatim in the JSON files)
+
+| Step | File | Verdict | Score | What the reviewer saw (condensed) |
+|---|---|---|---|---|
+| Block-out 1 | `read-test-1.json` | **reads: true** | — | "A lizard wrapped round a plain polished band before you see anything else… a jeweller would say 'lizard ring' at once." Not yet a tuatara: the head was decorated rather than anatomical, the ridge was beaded, and the hind limbs and tail were broken up. |
+| Round 1 | `review-round1.json` | revise | **6.5** | The strongest creature read in Cataphracta so far, with the peridot now parietal. Faults: goggle eyes on a lozenge head, a one-size square-paver tail, a blunt tail end, combing where relief crossed the rim, knob hind feet, and bench notes that contradicted their measurements. |
+| Round 2 | `review-round2.json` | revise | **6.9** | "This round fixed the tail." The domed, staggered, graded scale rings work and the tail now ends in a point. Faults: the head was a flat slab with vertical walls and screw-head eyes, the hind feet were still knobs, the crest spines were square pyramids, and a radial comb ran from the neck into the seat. |
+| Round 3 | `review-round3.json` | **cut** | **7.1** | "The best Sphenodon so far": a crowned skull, toed hind feet, pointed crest teeth, no comb at the seat, and every bench note stating its measured section. It still reads as "lizard ring" or "little crocodile". The eyes still read as screw heads, the snout is too long for a tuatara, a bald oval surrounds the stone, and the rows beside the crest read as tread. |
+
+## Gates (`report.json`: `draft` block 768 × 320, `export` block 1536 × 448 with `--verify`)
+
+| Gate | Draft | Export |
 |---|---|---|
-| Triangles | 490,466 | 1,370,836 (limit 2 M) |
+| Triangles | 490,554 | 1,371,272 (limit 2 M) |
 | Watertight, degenerate faces | yes, 0 | yes, 0 |
-| Self-crossings (ring; no CAD parts) | 0 | 0 |
-| `built.solids.notes` / stamps | empty / 0 of 0 | empty / 0 of 0 |
-| Finger hole: nearest vertex vs bore | −0.00007 mm (limit −0.01) | −0.00001 mm |
-| Field, `attributed_field_report` 256 × 128, SandTwoPart Delft | **Castable**, worst draft 0.03°, 0 undercut, drag 2.7% | **Castable**, same |
-| Ray release at 0.100 mm | 0 obstructions, 0 unresolved | 0, 0 |
-| Ray release at 0.075 mm | 0, 0 | 0, 0 |
-| Draft-clamp bite | 0.000 mm (Dorsal scales painted and clamped: 0 texels cut; re-audit over every layer and the composite: 0) | 0.000 mm |
+| Self-crossings (ring; no made parts) | 0 | 0 |
+| Solids and parts notes, stamps | empty, empty, 0 of 0 | empty, empty, 0 of 0 |
+| Finger hole: vertices inside, nearest margin | 0, −0.00007 mm | 0, −0.00001 mm |
+| Field under lost wax at the 0.8 mm fill | **Castable**, thinnest wall 2.13 mm | **Castable**, 2.13 mm |
+| `land_widths`: all named | yes (7.59 mm² under 0.8 mm, thinnest 0.060) | yes (9.41 mm², thinnest 0.021) |
 | DFM findings | 0 | 0 |
-| Stones: report vs preview | 1 = 1 (peridot, 174 preview faces) | 1 = 1 |
-| Casting pattern (`try_build_pattern`) | watertight, 0 degenerate, 0 crossings | watertight, 0 degenerate, 0 crossings |
-| `--verify` cold reload, empty library | — | identical vertices, faces and normals |
+| Stones: report vs preview | 1 = 1 (174 preview faces) | 1 = 1 |
+| Casting pattern | watertight, 0 degenerate, 0 crossings | same |
+| Cold reload, empty library | — | identical vertices, faces and normals (685,634 / 1,371,272) |
+| *Two-part numbers (not gated)* | undercut 47.4 of 1346 mm², worst −61.0°; release 519 / 745 obstructions at 0.100 / 0.075 | same areas; release 573 / 793 |
 
-The ring carries no stamps, so no 384 × 192 run was needed. C-R5 drag by layer: the sail cuts marginal area by 27 mm², because it covers the crest line, and the dorsal scales add 2.7 mm².
+Export `land_widths` by feature. Each is read by one ray along a face's inward normal, the way `dfm::part_sections` reads a part. Each feature carries its bench treatment in the JSON.
+
+| Feature | Area under 0.8 mm | Thinnest |
+|---|---|---|
+| The tail's tip | 3.38 mm² | 0.097 mm |
+| The crest's spines | 2.63 mm² | **0.324 mm** (round 1 asked for ≥ 0.30) |
+| Legs and toes | 1.44 mm² | 0.187 mm |
+| Tail scale rings and saw | 1.08 mm² | 0.122 mm |
+| Head: beak, eyes, lids, nostrils | 0.84 mm² | 0.173 mm |
+| Body granules and tubercles | 0.02 mm² | 0.510 mm |
+| The parietal seat (lip and bore vent) | 0.02 mm² | 0.021 mm |
+
+The ring carries no stamps, so no 384 × 192 run was needed.
 
 ## Template gate (`collection_templates … --only sphenodon --verify-export`, class `painted`)
 
 | Measure | Value |
 |---|---|
-| Source method | lift, 46 nodes, 0 exposed controls |
+| Source method | lift, 26 nodes, 0 exposed controls |
 | `design.set` patches | **1** (`/manufacturing`), limit 4 |
-| Graph size | **1,945,757 bytes**, against the painted budget of 3 MB (no size review) |
+| Graph size | **1,016,465 bytes** against the painted budget of 3 MB (no size review) |
 | Cold source parity | identical |
-| Mesh parity | 1,370,836 triangles; vertices, faces and normals identical |
-| Result | `template_gate_passed: true` |
+| Mesh parity | 1,371,272 triangles; vertices, faces and normals identical |
+| Result | `template_gate_passed: true` (`template-verification.json`) |
 
-The editable design is 3.9 MB. Open-time phases are in `template-verification.json`: first build 580 ms, detail 11.5 s cold and 66 ms warm.
+The editable design is 2.0 MB. On open, the first build takes 587 ms and the detail pass takes 5.9 s cold and 38 ms warm.
 
-## What each layer is, and why (attempt 3)
+## What each part is, and why
 
-- **Base.** `ProfileStyle::Flat` 7.5 × 3.4, `crown_mm` 1.2, `flatten_sides`, comfort 0.15, bore 18.6. Thickness-only keys: 1.05 at 0°, 1.18 at 90°, 1.05 at 180°, 1.00 at 270°. Delft two-part, parting at z = 0, gate and sprue from the palm along −Y.
-  - The Flat crown exponent is opened from 8 to 3 (`shape_a`). The bare Flat band fields **"Castable with care" at 24.2% drag** (5.6% marginal, 18.5% vertical), because its plateau crown carries under 3° over 57% of its width.
-- **The sail.** `reptile::svg::sail` (C-R7), 30 teeth, 2.35 mm tall, 1.2 mm span, `offset_u` 0.5, grade Cosine 0.35 about 90°.
-  - Mask "Sail height" is u-only: 0 within ±9°, 0.45 at the mound's skirt, full from 20° to 45°, then down to 0.3 at the palm.
-  - The gable's apex is opened to a 0.36 mm plateau (see "Core and doc changes"). A sharp apex put 287 obstructions of 0.02 mm, all round the ring at z = −0.02, because a mesh row tipped the apex off the parting plane.
-- **Dorsal scales.** A painted crown layer (2048 × 768 atlas, `skin::draft_clamp`, `hide_layer`, Max). Four courses of beaded plates (pitch 0.95, groove 0.36) step down 0.15 mm per course from the crest. Grooves are never deeper than a step, so nothing rises walking away from the parting line (G5 and G4), and the clamp cuts nothing.
-- **Tubercle rows.** Two staggered rows of 0.74 mm domes at 1.2 mm pitch across the 1.95 mm side face. Warped, gated `SideFaces(Both)`, SmoothMax 0.2, masked off the ventral field.
-- **Ventral squares.** `reptile::svg::paver`, 1.1 mm cells, 0.45 mm tall, u-only mask over 270 ± 35°, gated `SideFaces(Both)`.
-- **Parietal peridot.** Round, 3.0 mm, tint (0.50, 0.78, 0.12). `SeatPadLayer` GypsyMound at (90°, crest), crown 1.0, blend 0.45, `fit_stone`, height 1.05, `Flush`, `through`, and a raised 0.6 mm drill dot on the pattern.
+- **Base.** `ProfileStyle::Flat`, 7.5 × 2.5 mm, crown 0.8 mm, comfort 0.15 mm, bore 18.6 mm.
+  - Thickness-only keys: 1.0 at 0°, 1.05 at 90°, 1.0 at 180° and 0.9 at 270°.
+  - The sides are **not** flattened. The Flat style's own 0.875 mm edge round gives the legs a rounded shoulder to wrap. A tight fillet combed every relief wall that crossed it.
+  - The band is thinner than the brief's 3.4 mm because the animal adds up to 2.9 mm of relief.
+- **"Tuatara".** One painted layer: a 2048 × 640 atlas over the bare band, 3.4 mm full scale, `skin::hide_layer`, blend Max. It is modelled in hide millimetres (`skin::Hide`: along the parting line from the stone, and across the section). Every part is a smooth analytic form, with no cliffs or near-vertical walls running across mesh columns.
+  - **Head** (t = 0–14 mm from the snout).
+    - Plan: a wedge 1.4 mm wide at the beak, 2.4 at 3 mm, 3.3 at the jaw joint (10.5 mm).
+    - Section: a crowned skull (1 − 0.55u² − 0.45u⁴) with sloping cheeks, peaking at 1.6 mm. The beak's leading edge is rounded.
+    - Features: a mouth line, nostrils, and domed eyes (1.6 mm, 0.55 mm proud) with a lens pupil. A heavy lid over each eye's upper half runs back toward the stone.
+  - **Crest.** One spine line from the nape (t = 12.9) to the tail tip, tallest (1.3 mm) over the neck and shoulders, with a low saddle at the hips.
+    - Spines are about 1.45 mm apart on the back, closing to 0.8 mm at the tip, on a web at 40%.
+    - The section is a 1 mm blade (`dome^0.62`) and every tip is rounded. This is what holds the spines at 0.32 mm thinnest.
+  - **Body.** Neck, barrel and pelvis, domed, on the crown. A row of keeled scales runs either side of the crest's foot.
+  - **Legs.** Tapering tubes with a muscle swell. The fore feet grip the upper side faces. The hind feet lie on the crown beside the tail's root, toes pointing back. Five toes each.
+  - **Tail.** Rounder in section, so its edge fairs into the band. It sways in a slow S and ends in a point that curls over the rim onto the +Z side face, 9 mm short of the snout. That gap keeps it clear of Ouroborus's composition.
+  - **Skin.**
+    - Body: granules on a 0.46 mm Voronoi grain, plus sparse mixed-size tubercles on the flanks.
+    - Head: granules on a 0.28 mm grain. The two grains are blended, because a grain whose size varied along the ring sheared into streaks at the neck.
+    - Tail: rings of domed squarish scales, staggered and bowed, graded from 0.9 to 0.35 mm with its width.
+    - The eyes stay smooth. The granules stop 0.3 mm outside the seat's skirt.
+- **"Parietal peridot".** A 3.0 mm round peridot, tint (0.50, 0.78, 0.12), on a `SeatPadLayer` at (90°, crest).
+  - `GypsyMound`, `fit_stone`, then diameter 4.2 mm, crown 0.55, height 2.3 mm, blend 0.35 mm.
+  - `Flush`, `through`, with a 0.6 mm raised drill dot on the casting pattern.
+  - It sits on the crown of the skull 2.8 mm behind the eye line: parietal, never an eye.
+- **Renders.** The brief's full set, plus `head.png` and `head-hero.png`: close-ups of the head's arc from the face and hero cameras.
 
 ## What I could not do
 
-- **Make the subject read at 300 px within three block-outs.**
-- **Put granules on the crown flanks.** Domed granules on this shallow crown were tried painted and clamped, focused outboard, from 0.11 to 0.3 mm tall, at 0.9 to 1.2 mm pitch. Every version either:
-  - locked in the ray release at the draft mesh only (0.05–0.2 mm phantoms at z ≈ 2.2; clean at export), or
-  - fell under the DFM floor, because the alpha thresholds at 0.5 and low granules shrink to 0.10–0.28 mm.
-- **Use the spec's P5 flank granules** (`VGate::Draft { 30°, 6° }`). They locked at the fillet (z ≈ 3.46) and bit 0.068 mm. Stepped courses were the only crown texture that stayed legal.
-- **Add side-face granules around the tubercles.** A 1.95 mm face holds two rows of 0.74 mm tubercles with 0.4 mm lands and no room for granules between them.
+- **Name the animal.** Three rounds moved the read from "lizard ring" toward the tuatara but never reached it. The round-3 reviewer names four things still holding it back:
+  - The eyes: the smooth zone I keep clear of granules round each eye, plus the ball's edge, still render as a ring with a slot.
+  - The snout: 6.5 mm ahead of the eyes, where a tuatara's is short and blunt.
+  - The bald oval round the stone. Ending the granules outside the mound's skirt, as round 2 asked, is what made it.
+  - The keeled rows beside the crest, which read as tread.
 
-## Core and doc changes wanted (not made; lanes may not edit `src/`)
+  These are concrete, and a fourth round would likely clear 7.5. Under the loop the verdict is final.
+- **Keep toes and every relief flank at 0.3 mm or more in the single-ray census.** The spines reach 0.32 mm. The toes, tail tip and head reach 0.10–0.19 mm, and the seat's lip and bore vent 0.021 mm. Rays near the foot of low relief cross the flank close to the metal beneath, so the census reads small numbers where nothing free-standing is thin. The notes state the measured figure rather than a nominal size.
+- **Close a few sub-mm² slivers at the hind feet** (−Z side face, about 184°). They survive smoother toe sections. They are named under "legs and toes".
 
-1. **`reptile::svg::sail` needs a plateau across the parting line.** A knife-edge gable on z = 0 locks by one mesh row at 768 × 320. In `crates/ringdesign-core/src/reptile.rs`, `sail()`, replace
+## Core changes wanted (not made; lanes may not edit `src/`)
+
+1. **`dfm::face_sections`.** `land_widths` had to re-implement `part_sections` in the example to attribute thin faces to features. Expose the per-face reads, and fold `part_sections` over them. In `crates/ringdesign-core/src/dfm.rs`:
    ```rust
-   let across = page.linear(true, &[(0.0, 0.0), (0.5, 1.0), (1.0, 0.0)]);
+   /// Each face's single-ray section, in face order: `None` for a degenerate face, one turned toward `up`, or one no ray leaves.
+   pub fn face_sections(solid: &crate::csg::Solid, up: Option<crate::csg::P3>) -> Vec<Option<f64>> {
+       use crate::interaction::bvh::Bvh;
+       let mesh = crate::mesh::Mesh {
+           vertices: solid.v.iter().map(|p| crate::mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(),
+           faces: solid.f.clone(),
+           ..Default::default()
+       };
+       let bvh = Bvh::build(&mesh);
+       let up = up.and_then(|u| {
+           let l = (u[0] * u[0] + u[1] * u[1] + u[2] * u[2]).sqrt();
+           (l > 1e-12).then(|| u.map(|x| x / l))
+       });
+       const IN: f64 = 1e-4;
+       solid.f.iter().map(|f| {
+           let [a, b, c] = f.map(|i| solid.v[i as usize]);
+           let (e1, e2) = (std::array::from_fn::<f64, 3, _>(|k| b[k] - a[k]), std::array::from_fn::<f64, 3, _>(|k| c[k] - a[k]));
+           let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+           let twice = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+           if !(twice > 1e-14) { return None; }
+           let inward = n.map(|x| -x / twice);
+           if up.is_some_and(|u| (inward[0] * u[0] + inward[1] * u[1] + inward[2] * u[2]).abs() > std::f64::consts::FRAC_1_SQRT_2) { return None; }
+           let o: [f64; 3] = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0 + IN * inward[k]);
+           bvh.ray(&mesh, o, inward).map(|(_, t)| t + IN)
+       }).collect()
+   }
    ```
-   with
-   ```rust
-   // A flat 0.3 mm across the parting line, so no mesh row can tip the apex off the plane.
-   let flat = (0.5 * 0.3 / h).min(0.2);
-   let across = page.linear(true, &[(0.0, 0.0), (0.5 - flat, 1.0), (0.5 + flat, 1.0), (1.0, 0.0)]);
-   ```
-2. **`reptile::svg::tubercle_rows` draws granules of 0.04 mm at its own test station** (2.2 mm face, 0.4 land, `row = h / 5`). Size the granule rows from the land instead:
-   ```rust
-   let small = (row - land).max(0.4);
-   let rows = (((h - 2.0 * row) / (small + land)).floor() as usize).clamp(0, 3);
-   for j in 0..rows { let y = 2.0 * row + (j as f64 + 0.5) * (small + land); /* ... */ }
-   ```
-   `every_reptile_skin_holds_the_detail_floor_at_its_tightest_station` does not catch this, because vanished granules measure as no feature at all. Add an ink-count assertion.
-3. **`docs/collections/cataphracta.md`, "Gates per ring" item 3:** replace "no faces and no eyes" with "faces and eyes only where they read well (Logan, 2026-09-24)".
-4. **`docs/collections/cataphracta.md`, Sphenodon "Base":** the bare `ProfileStyle::Flat` 7.5 × 3.4, crown 1.2, fields "Castable with care" (24.2% drag). Say `shape_a` 2–3, or LowDome with squared sides.
-5. **Sphenodon's "Traps":** the brief's 0.95 mm sail with a sharp gable cannot pass the 0.100/0.075 mm ray release at draft size (item 1). Also, mesh-resolution phantoms from painted crown granules converge away at export but fail the draft gate. The brief's "phantoms move with resolution" note should say which run the gate is judged on.
+   `part_sections` then becomes a fold over `face_sections(solid, up)` zipped with the face areas: the minimum, and the area of faces under `floor_mm`.
+2. **A relief-aware section measure.** For painted relief, the census should skip rays that leave within a small angle of the local base surface's tangent plane, or read the section in the plane normal to the relief's own ridge line. Without that, low relief reports near-zero sections that the bench does not treat. I have not written this as code: it needs a design decision on the base surface reference.
