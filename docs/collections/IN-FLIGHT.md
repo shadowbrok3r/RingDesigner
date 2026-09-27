@@ -8,7 +8,7 @@ Packaging lane finished and merged (`bestiarium-package` `1c31c9c`, merge `89dc9
 
 # 2026-09-27
 
-- **Desktop 0.7.0 tagged** (`desktop-v0.7.0` on `821cd1a`) at Logan's request, without waiting for the collections: the Bestiarium group with Arachne and Manticora, Workshop retired, the rebuilt starters, and every core fix merged through the cloud sessions.
+- **Desktop 0.7.0 published** (https://github.com/shadowbrok3r/RingDesigner/releases/tag/desktop-v0.7.0, tag on `fb5e863` after an Intel-Mac test race was fixed) at Logan's request, without waiting for the collections: the Bestiarium group with Arachne and Manticora, Workshop retired, the rebuilt starters, and every core fix merged through the cloud sessions.
 - Cataphracta enablers C-R1 to C-R8 merged (#237, #238); the collet fix (#235) too. Master CI green on `140bcd4`.
 - Fenrir round 3 back (`claude/bestiarium-fenrir-r3` `4ae77ee`, self-score 7.0, sealed void gone); its final review runs from `review/fenrir-r3`.
 - **All three pilots failed their sand read tests and restarted as lost wax** (Logan: lost wax when sand fails). Heloderma then failed three more as lost-wax beadwork, and restarted a third time as a figure (the Gila's head, forelegs and beaded body). Pilot finding: texture alone never names the animal; a head and body do (Sphenodon read "as a reptile at once" only with a head). Added to `cloud-kit/cataphracta/lessons.md`.
