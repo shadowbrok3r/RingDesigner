@@ -693,7 +693,7 @@ pub fn collet_named(gem: Gem, wall: f64, lip: f64, base_z: f64) -> Named {
     let depth = -base_z.min(-collet_depth(gem));
     let top = g + lip * c;
     let lean = 0.8 * (1.0 - crown_scale(gem, top - g)) * plan.b;
-    let slope = match gem.form { GemForm::Faceted => 0.9 * p / plan.b.max(1e-6), GemForm::Cabochon => 0.0 };
+    let slope = match gem.form { GemForm::Faceted => p / plan.b.max(1e-6), GemForm::Cabochon => 0.0 };
     let section = [
         st(1.0, CLEAR + wall - lean * 0.5, top),
         st(1.0, CLEAR + wall, top - 0.16),
@@ -4571,5 +4571,30 @@ mod tests {
         assert!(wall_mm < keep && wall_mm > 0.0, "{wall_mm}");
         eprintln!("claws over metal 4.2 mm down end at {bottom:.3}; over 4.6 mm, unfloored, at {through:.3}; the base rail leaves {wall_mm:.3} mm");
         assert!(HeadSnag::Breaks { part, wall_mm: -0.25 }.to_string().starts_with("Base rail would reach 0.25 mm into the finger hole"));
+    }
+
+    #[test]
+    fn a_collet_bears_on_the_pavilion_without_entering_the_stone() {
+        fn fingerprint(s: &Solid) -> u64 {
+            s.v.iter().flatten().map(|v| v.to_bits()).chain(s.f.iter().flatten().map(|v| *v as u64))
+                .fold(0xcbf29ce484222325u64, |h, v| (h ^ v).wrapping_mul(0x100000001b3))
+        }
+        // At 0.9 of the slope the ledge's inner edge stood in the pavilion: Manticora's 5 mm oval ruby took 0.021 mm
+        // and 0.06 mm^3 of metal, a 6.5 mm round 0.066 mm^3 and 96 collet vertices inside the stone.
+        for &cut in GemCut::ALL {
+            for w in [1.3, 3.0, 5.0, 6.5, 10.0] {
+                let gem = Gem::calibrated(cut, w);
+                let (collet, stone) = (collet(gem), envelope(gem, 0.0));
+                let overlap = csg::combine(&collet, &stone, csg::Op::Intersect).map_or(0.0, |s| s.volume());
+                let inside = collet.v.iter().filter(|v| csg::inside(&stone, **v) == Some(true)).count();
+                // A 1.3 mm trillion's scaled ledge still grazes it at its corners, 3e-4 mm^3 where it had 6e-4.
+                let (most, deepest) = if cut == GemCut::Trillion && w < 2.0 { (4e-4, 40) } else { (1e-6, 0) };
+                assert!(overlap < most && inside <= deepest, "{cut:?} {w}: {overlap:.2e} mm^3 of collet in the stone, {inside} vertices");
+            }
+        }
+        // A cabochon's collet bears flat, so its section is the one master cut, bit for bit.
+        for (cut, expected) in [(GemCut::Round, 0x7739dd05ff5fcf20), (GemCut::Oval, 0x868cb526a0918b92)] {
+            assert_eq!(fingerprint(&collet(Gem::cabochon(cut, 8.0))), expected, "{cut:?}");
+        }
     }
 }

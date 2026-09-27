@@ -1682,7 +1682,8 @@ and halos carry the field through their seats.
 - **The collet** (`setting::collet`): one closed section swept round the
   girdle outline — tapered wall, bearing ledge at the pavilion's slope, a
   lip leaning 0.8 of the crown's own inset — plus a relief cut that clears
-  the pavilion through the band under it.
+  the pavilion through the band under it. The ledge takes the slope whole:
+  at 0.9 of it its inner edge stood 0.021 mm in Manticora's ruby (0.06 mm³).
 - **The claw head** (`setting::claw_head`): per claw a straight leaning
   wire, *one* bend of radius 0.8 of the wire, then a straight run lying an
   eighth of the wire outside the crown's facet to a domed tip; base and

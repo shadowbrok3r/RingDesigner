@@ -5,7 +5,7 @@ Two creatures in **File → New from template → Bestiarium** on desktop and An
 | Ring | Form | Surface | Stones | Approximate cast 18k gold |
 |---|---|---|---|---:|
 | Arachne, *the weaver* | Keyframed low dome 5.6 × 2.4 mm, US 7 | A spider at the hub of her orb web; eight jointed legs clasp the band and the silk runs round the shoulders to the palm | Onyx 9 × 7 mm and garnet 5 × 3.5 mm oval cabochons in collets | 15.79 g |
-| Manticora, *the tail that throws* | Keyframed high dome 5.4 × 2.2 mm, US 8.6 | A scorpion's tail; graded tergites, pleural folds and quills rise to a venom bulb, and the hooked sting curls over the stone | Ruby 7 × 5 mm oval in a beaded collet; ten graded black spinel princesses | 17.12 g |
+| Manticora, *the tail that throws* | Keyframed high dome 5.4 × 2.2 mm, US 8.6 | A scorpion's tail; graded tergites, pleural folds and quills rise to a venom bulb, and the hooked sting curls over the stone | Ruby 7 × 5 mm oval in a beaded collet; ten graded black spinel princesses | 17.11 g |
 
 Both rings are cast in lost wax and judged against the investment recipe: 0.8 mm fill floor, 0.15 mm detail. The `studio*.png` images render the exported meshes in Blender; `hero.png`, `face.png`, `palm.png`, `side.png`, `shoulder.png`, `reverse.png`, `stones.png` and `bare-vs-finished.png` use RingDesigner's renderer.
 
