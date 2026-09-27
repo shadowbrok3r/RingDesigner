@@ -1010,6 +1010,21 @@ automatically, because `u` wraps at the circumference. That is why
 `TilingLayer::repeats_around`, `MilgrainLayer::beads_around`, and
 `BorderLayer::rope_twists` are all `u32`. Do not make them floats.
 
+**A graded tiling keeps its integer count.** `TilingLayer::grade` does not
+vary the count; it runs the lattice on φ(u), a monotone map of the circle onto
+itself, so the count closes exactly as an ungraded one does (C-R2).
+`GradeLaw::Cosine` is the graded seat run's own `eccentric_warp` with
+`c = sqrt(1 − taper)`: pitch a raised cosine, largest at `theta_deg`, `1 −
+taper` of it opposite. `GradeLaw::Spiral` shrinks the pitch geometrically all
+the way round from `seam_deg`, one kink there; stand the seam on a cell edge
+and no cell straddles it. `isotropic` narrows the band about `v_center_mm` by
+the same ratio, so rows converge like a tail's. At taper 0 the layer is
+bit-identical, `grade` is skipped when `None`, and a grade writes the design
+at 6 and a graph carrying one at 2. DFM does not see the grade yet:
+`TilingLayer::finest_cell_size` is the cell it must measure (√(1 − taper)
+of the nominal width on the Cosine law, `taper / −ln(1 − taper)` on the
+Spiral), and `tiling_finest_mm_at` still reads `cell_size`.
+
 Alphas must also tile seamlessly in themselves — `Procedural::generate` builds
 every pattern from functions periodic in both axes. An **imported** image is
 used as drawn, seam and all: `Alpha::make_seamless` exists and is tested and
@@ -3190,6 +3205,24 @@ painted alpha as one tile over the whole chart, joined by `Max`.
 `imported_base::sand_master(Arc<Source>)` is the stock's upper half mirrored
 about its mid-plane, refined to 0.55 mm edges and drafted toward the pull,
 deterministic.
+
+**A tiling can live in the hide, and a mask can name a region** (C-R4), so
+the painted route is no longer the only way to lay work in true
+millimetres. `TilingLayer::space = Hide` runs the lattice on
+`FieldContext::hide_uv`: `u` is the crest's own arc from the head's centre
+at 90°, `v` is `across`, 0 on the parting line, and `mirror_v` mirrors
+across the line. On a procedural band the chart is the chart stretched by
+its own tables (along integrates `crest_scale`, across is `(v − crest_v) ·
+station_stretch`) — on a plain band it is the chart with `v` moved to the
+line, to 1e-9, and on a keyframed band it agrees with the atlas's `Hide` to
+2%; on stock it is `Hide::of` over `Atlas::of_surface` of the field
+surface, cached per surface. The back of the ring, past 270°, runs from the
+other shoulder, so a hide tiling closes there only where the crest's arc
+totals the chart's; keep it off the back or window it. `"##region:NAME"`
+masks (`table`, `rim`, `cheek`, `wall`, `shoulder`, `palm`; `skin::region`
+says what each is) are painted on a 1024 × 256 atlas and inserted by the
+distance-field bake like `##sdf`, shared per band and never embedded. Both
+are skipped when unused, and either writes the design at 6 and a graph at 2.
 
 - **The atlas is where the metal is.** Against the swept mesh at 1024 rows
   a keyframed band misses by 0.0006 mm (0.005 of a texel) and a bypass by

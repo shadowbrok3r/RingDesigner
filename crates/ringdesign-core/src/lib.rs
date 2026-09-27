@@ -314,6 +314,9 @@ impl RingDesign {
                 lib.insert_shared(alpha::shared_sdf(&source));
             }
         }
+        if fields {
+            self.bake_regions(lib);
+        }
         Some(rasters)
     }
 
@@ -362,6 +365,55 @@ impl RingDesign {
         self.bake_pipeline(&[], true, lib, &|_, _| {}, &Default::default());
     }
 
+    /// Every built-in region mask (`"##region:…"`) an entry reads, groups included, once each.
+    pub fn region_masks(&self) -> Vec<&str> {
+        fn walk<'a>(stack: &'a LayerStack, out: &mut Vec<&'a str>) {
+            for e in &stack.layers {
+                if let Some(name) = e.mask.as_deref().filter(|n| n.starts_with(skin::REGION_PREFIX) && !out.contains(n)) {
+                    out.push(name);
+                }
+                if let field::Layer::Group(g) = &e.layer {
+                    walk(&g.stack, out);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(&self.layers, &mut out);
+        out
+    }
+
+    /// Paint every built-in region mask the stack reads onto the design's
+    /// atlas and insert it under its `"##region:…"` name. Derived like a
+    /// distance field: never saved, and shared across bakes of the same band,
+    /// so an editor may call it on every edit and pay only when the band moved.
+    pub fn bake_regions(&self, lib: &mut AlphaLibrary) {
+        let names = self.region_masks();
+        if names.is_empty() {
+            return;
+        }
+        let band = (&self.profile, &self.shank, self.imported_base.as_ref().map(|b| (b.source.fingerprint(), &b.chart)), self.inner_radius_mm().to_bits());
+        let chart = std::cell::OnceCell::new();
+        for name in names {
+            let region = &name[skin::REGION_PREFIX.len()..];
+            let made = alpha::shared_bake(alpha::source_key(name, &band), || {
+                let (atlas, hide) = chart
+                    .get_or_init(|| {
+                        let (w, h) = skin::REGION_GRID;
+                        skin::Atlas::of(self, w, h).map_err(|e| log::warn!("no region masks on this band: {e}")).ok().map(|a| {
+                            let hide = skin::Hide::of(&a);
+                            (a, hide)
+                        })
+                    })
+                    .as_ref()?;
+                skin::region(atlas, hide, region)
+            });
+            match made {
+                Some(r) => lib.insert_shared(r),
+                None => log::warn!("{name:?} is not a region this band has; the mask passes everything"),
+            }
+        }
+    }
+
     /// Whether any layer reading a distance field is missing one.
     ///
     /// `TilingLayer::height` falls back to brightness-as-height when the
@@ -406,6 +458,10 @@ impl RingDesign {
         use base64::Engine as _;
         self.embedded.clear();
         for name in self.layers.referenced_alphas() {
+            // A region mask is derived from the band, like a distance field.
+            if name.starts_with(skin::REGION_PREFIX) {
+                continue;
+            }
             // A builtin's name is regenerable only while the library holds that builtin or this design's recipe bakes it.
             let builtin = alpha::Procedural::ALL.iter().copied().find(|p| p.label() == name);
             let regenerable = builtin.is_some_and(|p| {
@@ -518,6 +574,7 @@ impl RingDesign {
             station_gates: tables.and_then(|t| t.gates),
             imported_surface,
             imported_seats,
+            hide_cache: Default::default(),
         }
     }
 

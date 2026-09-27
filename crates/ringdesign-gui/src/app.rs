@@ -803,6 +803,11 @@ impl RingDesignerApp {
         if self.design.sdfs_missing(&self.lib) {
             let design = self.design.clone();
             design.bake_sdfs(self.library_mut());
+        } else if !self.design.region_masks().is_empty() {
+            // Region masks follow the band; the bake is shared, so an
+            // unchanged band costs a hash.
+            let design = self.design.clone();
+            design.bake_regions(self.library_mut());
         }
         // Live generator groups own their stacks: any edit that moves the
         // ground under one — the profile, the shank, the process, or the

@@ -329,6 +329,40 @@ mod tests {
     }
 
     #[test]
+    fn a_tiling_grade_fences_the_graph_by_literal_wire_or_exposure() {
+        let grade = serde_json::json!({"taper": 0.5, "theta_deg": 90.0, "law": "Cosine", "isotropic": false});
+        let mut plain = Graph::new("Tiling", Mode::Free);
+        plain.add("layer.tiling").unwrap();
+        assert_eq!(graph_version_for(&plain), PLAIN_GRAPH_FORMAT_VERSION);
+        for form in ["literal", "wire", "exposure"] {
+            let mut graph = Graph::new("Graded tiling", Mode::Free);
+            let tiling = graph.add("layer.tiling").unwrap();
+            match form {
+                "literal" => graph.set_input(tiling, "grade", Literal::Json(grade.clone())).unwrap(),
+                "wire" => { let source = graph.add("util.json").unwrap(); graph.connect(source, "value", tiling, "grade").unwrap(); }
+                _ => { graph.expose(tiling, "grade", "Grade").unwrap(); }
+            }
+            assert_eq!(graph_version_for(&graph), GRAPH_FORMAT_VERSION, "{form}");
+            let text = graph_to_string(&graph).unwrap();
+            assert!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).is_err());
+        }
+        let mut preset = Preset::default();
+        preset.values.insert("Grade".into(), Literal::Json(grade));
+        assert_eq!(preset_version_in(&preset, None), GRAPH_FORMAT_VERSION);
+        // Hide space fences; the chart, the default, does not.
+        for (space, expected) in [("Chart", PLAIN_GRAPH_FORMAT_VERSION), ("Hide", GRAPH_FORMAT_VERSION)] {
+            let mut graph = Graph::new("Hide tiling", Mode::Free);
+            let tiling = graph.add("layer.tiling").unwrap();
+            graph.set_input(tiling, "space", Literal::Text(space.into())).unwrap();
+            assert_eq!(graph_version_for(&graph), expected, "{space}");
+        }
+        let mut graph = Graph::new("Region mask", Mode::Free);
+        let entry = graph.add("entry").unwrap();
+        graph.set_input(entry, "mask", Literal::Text("##region:cheek".into())).unwrap();
+        assert_eq!(graph_version_for(&graph), GRAPH_FORMAT_VERSION);
+    }
+
+    #[test]
     fn station_gate_and_claw_controls_fence_graphs_presets_and_clusters() {
         for (pin, value) in [("v_gate", Literal::Text("side_faces".into())), ("v_gate", Literal::Text("draft".into())), ("draft_min_deg", Literal::Number(80.0)), ("draft_fade_deg", Literal::Number(5.0))] {
             for form in ["literal", "wire", "exposure"] {

@@ -116,6 +116,8 @@ pub struct FieldContext {
     /// footprints instead of a whole-section average stretch.
     pub imported_surface: Option<std::sync::Arc<crate::imported_base::FieldSurface>>,
     pub imported_seats: std::collections::HashMap<(u64,u64),crate::imported_base::TangentFrame>,
+    /// The hide chart, found on first use by [`hide`](Self::hide).
+    pub hide_cache: std::sync::OnceLock<Option<std::sync::Arc<HideChart>>>,
 }
 
 impl FieldContext {
@@ -469,6 +471,126 @@ impl FieldContext {
     /// `u` coordinate for a ring angle in degrees.
     pub fn u_of_theta(&self, theta_deg: f64) -> f64 {
         theta_deg / 360.0 * self.circumference_mm
+    }
+
+    /// The surface measured the way a hide is: along the parting line from
+    /// the head's centre and across the section from it. On a procedural
+    /// band it is the chart stretched by the section's own tables; on
+    /// imported stock, [`skin::Hide`](crate::skin::Hide) over the stock's
+    /// field surface, built once per surface. `None` on a degenerate band.
+    pub fn hide(&self) -> Option<&HideChart> {
+        self.hide_cache
+            .get_or_init(|| match &self.imported_surface {
+                Some(surface) => HideChart::of_stock(surface, self.band_v_len_mm, self.bore_radius_mm),
+                None => HideChart::of_band(self).map(std::sync::Arc::new),
+            })
+            .as_deref()
+    }
+
+    /// A chart point in hide millimetres: `(along, across)`. Hide space's
+    /// `u` is `along` from the head's centre at 90 degrees, so on a plain band
+    /// it is the chart's own `u`; its `v` is `across`, 0 on the parting line.
+    pub fn hide_uv(&self, uv: Uv) -> Option<Uv> {
+        let (along, across) = self.hide()?.at(self.theta_of_u(uv.u), uv.v, self);
+        Some(Uv { u: self.circumference_mm * 0.25 + along, v: across })
+    }
+}
+
+/// Columns round the ring and rows across of a stock's hide chart.
+const HIDE_STOCK_GRID: (usize, usize) = (720, 384);
+
+/// The surface in hide millimetres; see [`FieldContext::hide`].
+#[derive(Debug)]
+pub enum HideChart {
+    /// A procedural band: `along` is the crest arc from 90 degrees, per degree
+    /// of ring angle (361 entries from 0); `across` is `(v - crest_v)` times
+    /// the station's stretch.
+    Band { along: Option<Vec<f64>> },
+    /// Imported stock: the hide sampled on a grid over the chart.
+    Stock { width: usize, height: usize, span: f64, along: Vec<f64>, across: Vec<f64> },
+}
+
+impl HideChart {
+    fn of_band(ctx: &FieldContext) -> Option<Self> {
+        if !(ctx.circumference_mm > 1e-9 && ctx.band_v_len_mm > 1e-9) {
+            return None;
+        }
+        let along = ctx.crest_scale.as_ref().map(|_| {
+            let step = ctx.circumference_mm / 360.0;
+            let mut cum = vec![0.0; 361];
+            for i in 0..360 {
+                let (a, b) = (ctx.crest_scale(i as f64), ctx.crest_scale(i as f64 + 1.0));
+                cum[i + 1] = cum[i] + 0.5 * (a + b) * step;
+            }
+            let head = cum[90];
+            cum.iter_mut().for_each(|c| *c -= head);
+            cum
+        });
+        Some(HideChart::Band { along })
+    }
+
+    fn of_stock(surface: &std::sync::Arc<crate::imported_base::FieldSurface>, span: f64, bore: f64) -> Option<std::sync::Arc<Self>> {
+        type Held = (std::sync::Arc<crate::imported_base::FieldSurface>, u64, std::sync::Arc<HideChart>);
+        static CACHE: std::sync::Mutex<Vec<Held>> = std::sync::Mutex::new(Vec::new());
+        if !(span > 1e-9) {
+            return None;
+        }
+        let hit = |c: &Vec<Held>| c.iter().find(|h| std::sync::Arc::ptr_eq(&h.0, surface) && h.1 == span.to_bits()).map(|h| h.2.clone());
+        if let Some(chart) = hit(&CACHE.lock().unwrap_or_else(|e| e.into_inner())) {
+            return Some(chart);
+        }
+        let (w, h) = HIDE_STOCK_GRID;
+        let atlas = crate::skin::Atlas::of_surface(surface, w, h, span, bore, 0.0, 0.0).ok()?;
+        let hide = crate::skin::Hide::of(&atlas);
+        let chart = std::sync::Arc::new(HideChart::Stock { width: w, height: h, span, along: hide.along, across: hide.across });
+        let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(raced) = hit(&cache) {
+            return Some(raced);
+        }
+        if cache.len() >= 4 {
+            cache.remove(0);
+        }
+        cache.push((surface.clone(), span.to_bits(), chart.clone()));
+        Some(chart)
+    }
+
+    /// `(along, across)` at a chart point, mm.
+    pub fn at(&self, theta_deg: f64, v_mm: f64, ctx: &FieldContext) -> (f64, f64) {
+        match self {
+            HideChart::Band { along } => {
+                let d = wrap_delta(theta_deg - 90.0, 360.0);
+                let a = match along {
+                    None => d / 360.0 * ctx.circumference_mm,
+                    Some(cum) => {
+                        let t = (90.0 + d).rem_euclid(360.0);
+                        let i = (t.floor() as usize).min(359);
+                        let l = cum[i] + (cum[i + 1] - cum[i]) * (t - i as f64);
+                        // The back of the ring, past 270, runs round from the other shoulder.
+                        if t > 270.0 { l - (cum[360] - cum[0]) } else { l }
+                    }
+                };
+                (a, (v_mm - ctx.crest_v_mm) * ctx.station_stretch(theta_deg))
+            }
+            HideChart::Stock { width, height, span, along, across } => {
+                let (w, h) = (*width, *height);
+                let fx = theta_deg.rem_euclid(360.0) / 360.0 * w as f64;
+                let fy = (v_mm / span * h as f64).clamp(0.0, (h - 1) as f64);
+                let (x0, y0) = ((fx.floor() as usize) % w, (fy.floor() as usize).min(h - 2));
+                let (tx, ty) = (fx - fx.floor(), fy - y0 as f64);
+                let x1 = (x0 + 1) % w;
+                // `along` jumps by the whole run at the back: read the nearer column there.
+                let (a0, a1) = (along[x0], along[x1]);
+                let a = if (a1 - a0).abs() > 1.0 {
+                    if tx < 0.5 { a0 } else { a1 }
+                } else {
+                    a0 + (a1 - a0) * tx
+                };
+                let c = |x: usize, y: usize| across[y * w + x];
+                let top = c(x0, y0) + (c(x1, y0) - c(x0, y0)) * tx;
+                let bottom = c(x0, y0 + 1) + (c(x1, y0 + 1) - c(x0, y0 + 1)) * tx;
+                (a, top + (bottom - top) * ty)
+            }
+        }
     }
 }
 
@@ -1421,7 +1543,7 @@ impl Default for SeatPadLayer {
 /// The eccentric-anomaly substitution: a monotone, odd reparameterization of
 /// the circle onto itself, the identity at `c = 1`, and the closed-form
 /// integral of `dΔ / (A + B cos Δ)`.
-fn eccentric_warp(x: f64, c: f64) -> f64 {
+pub(crate) fn eccentric_warp(x: f64, c: f64) -> f64 {
     let (sin, cos) = x.sin_cos();
     let (a, b) = (2.0 * c * sin, (1.0 + cos) - c * c * (1.0 - cos));
     a.atan2(b)

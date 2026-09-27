@@ -62,6 +62,7 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(&f.operation, crate::cad::Operation::Builder { key, params, .. } if crate::cad::builders::geometry_extended(key, params))))
         || station_gates_in_stack(&design.layers, design.gate_sections_are_reference())
         || centred_runs_in_stack(&design.layers)
+        || tiling_features_in_stack(&design.layers)
         || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
         || design.graph.as_ref().is_some_and(template_features_in_json)
         || design.shank.bypass_fair_deg != 0.0
@@ -92,22 +93,39 @@ fn centred_runs_in_stack(stack: &crate::LayerStack) -> bool {
     })
 }
 
+/// Tilings an older reader would lay out otherwise: graded round the ring or laid in the hide, or masked by a built-in region.
+fn tiling_features_in_stack(stack: &crate::LayerStack) -> bool {
+    use crate::field::Layer;
+    let extended = |t: &crate::tiling::TilingLayer| t.grade.is_some() || !t.space.is_chart();
+    stack.layers.iter().any(|entry| entry.mask.as_deref().is_some_and(|m| m.starts_with(crate::skin::REGION_PREFIX)) || match &entry.layer {
+        Layer::Tiling(t) => extended(t),
+        Layer::Openwork(o) => extended(&o.tiling),
+        Layer::Group(group) => tiling_features_in_stack(&group.stack),
+        _ => false,
+    })
+}
+
 /// Source references and template controls whose geometry earlier readers cannot reproduce.
 pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"];
     let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && matches!(pin, "keys" | "bypass_fair_deg"))
-        || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"));
+        || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"))
+        || (kind == "layer.tiling" && matches!(pin, "grade" | "space"));
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
     if value.get("Builder").is_some_and(|builder| builder.get("key").and_then(serde_json::Value::as_str)
         .is_some_and(|key| crate::cad::builders::geometry_extended(key, &builder["params"]))) { return true; }
     if value.get("v_gate").is_some_and(|gate| gate.get("Draft").is_some() || gate.get("SideFaces").is_some()) { return true; }
     if value.get("centre_phase").is_some_and(|phase| !phase.is_null()) { return true; }
     if value.get("fine_cap").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
+    if value.get("space").and_then(serde_json::Value::as_str) == Some("Hide") { return true; }
+    if value.get("mask").and_then(serde_json::Value::as_str).is_some_and(|m| m.starts_with(crate::skin::REGION_PREFIX)) { return true; }
+    if value.get("taper").is_some() && value.get("law").is_some_and(|law| law == "Cosine" || law.get("Spiral").is_some()) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
         if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
             || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }
         if value.get("inputs").and_then(serde_json::Value::as_object).is_some_and(|inputs| inputs.iter().any(|(pin, v)| {
             new_pin(kind, pin) && !v.is_null() && (kind != "window" || pin != "v_gate" || matches!(v.as_str(), Some("side_faces" | "draft")))
+                && (kind != "layer.tiling" || pin != "space" || v.as_str() == Some("Hide"))
         })) { return true; }
     }
     if let Some(nodes) = value.get("nodes").and_then(serde_json::Value::as_array) {
@@ -131,6 +149,36 @@ mod template_source_tests {
     use super::*;
     use crate::imported_base::{ImportedBase, PRESETS, PresetSource, Source};
     use std::sync::Arc;
+
+    /// A graded tiling, on its own, in an openwork or down a group, writes the design at 6; none stays plain.
+    #[test]
+    fn a_graded_tiling_fences_the_design_and_a_graph_carrying_it() {
+        use crate::field::{GroupLayer, Layer, LayerEntry, OpenworkLayer};
+        use crate::tiling::{GradeLaw, TileGrade, TilingLayer};
+        let ctx = RingDesign::default().field_context();
+        let plain = TilingLayer::default_for("Scales", &ctx);
+        let graded = TilingLayer { grade: Some(TileGrade { taper: 0.4, theta_deg: 90.0, law: GradeLaw::Spiral { seam_deg: 0.0 }, isotropic: true }), ..plain.clone() };
+        let wrap = |t: &TilingLayer| {
+            let group = GroupLayer { stack: crate::LayerStack { layers: vec![LayerEntry::new("t", Layer::Tiling(t.clone()))] }, recipe: None };
+            [Layer::Tiling(t.clone()), Layer::Openwork(OpenworkLayer { tiling: t.clone(), depth_mm: 1.0, keep_mm: 0.8 }), Layer::Group(group)]
+        };
+        for layer in wrap(&plain) {
+            let mut d = RingDesign::default();
+            d.layers.layers.push(LayerEntry::new("t", layer));
+            assert_eq!(format_version_for(&d), PLAIN_FORMAT_VERSION);
+        }
+        for layer in wrap(&graded) {
+            let mut d = RingDesign::default();
+            d.layers.layers.push(LayerEntry::new("t", layer));
+            assert_eq!(format_version_for(&d), FORMAT_VERSION);
+            let text = design_json(&d).unwrap();
+            assert!(read_design(&text, PLAIN_FORMAT_VERSION).is_err());
+            let back = load_design_str(&text).unwrap();
+            assert_eq!(serde_json::to_value(&back.layers).unwrap(), serde_json::to_value(&d.layers).unwrap());
+        }
+        assert!(template_features_in_json(&serde_json::json!({"nodes": [{"kind": "layer.tiling", "inputs": {"grade": graded.grade}}]})));
+        assert!(!template_features_in_json(&serde_json::json!({"nodes": [{"kind": "layer.tiling", "inputs": {}}]})));
+    }
 
     #[test]
     fn shank_cutter_documents_and_nested_graphs_refuse_a_released_reader() {

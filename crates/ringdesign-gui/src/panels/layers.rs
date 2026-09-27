@@ -1127,6 +1127,55 @@ fn tiling(
         });
         ui.end_row();
 
+        ui.label("Space");
+        ui.horizontal(|ui| {
+            use ringdesign_core::tiling::ChartSpace;
+            for space in ChartSpace::ALL {
+                if ui.selectable_label(t.space == *space, space.label()).on_hover_text(match space {
+                    ChartSpace::Chart => "Lay the lattice in the chart.",
+                    ChartSpace::Hide => "Lay the lattice in true mm along the parting line and across from it; v is measured from the line.",
+                }).clicked() && t.space != *space {
+                    // Keep the band where it was: hide v is measured from the parting line.
+                    let shift = if *space == ChartSpace::Hide { -fctx.crest_v_mm } else { fctx.crest_v_mm };
+                    t.v_center_mm += shift;
+                    t.space = *space;
+                    c = true;
+                }
+            }
+        });
+        ui.end_row();
+
+        ui.label("Grade");
+        ui.horizontal(|ui| {
+            use ringdesign_core::tiling::{GradeLaw, MAX_GRADE_TAPER, TileGrade};
+            let mut on = t.grade.is_some();
+            if ui.checkbox(&mut on, "").on_hover_text("Grade the cells round the ring; the count still closes.").changed() {
+                t.grade = on.then_some(TileGrade { taper: 0.4, theta_deg: 90.0, law: GradeLaw::Cosine, isotropic: false });
+                c = true;
+            }
+            if let Some(g) = &mut t.grade {
+                c |= ui
+                    .add(egui::DragValue::new(&mut g.taper).speed(0.01).range(0.0..=MAX_GRADE_TAPER).prefix("taper "))
+                    .on_hover_text("The smallest pitch is 1 - taper of the largest.")
+                    .changed();
+                let mut spiral = matches!(g.law, GradeLaw::Spiral { .. });
+                if ui.checkbox(&mut spiral, "spiral").on_hover_text("Shrink all the way round from a seam, instead of a cosine about a pole.").changed() {
+                    g.law = if spiral { GradeLaw::Spiral { seam_deg: g.theta_deg + 180.0 } } else { GradeLaw::Cosine };
+                    c = true;
+                }
+                match &mut g.law {
+                    GradeLaw::Cosine => {
+                        c |= ui.add(egui::DragValue::new(&mut g.theta_deg).speed(1.0).suffix("°")).on_hover_text("Where the largest cells stand.").changed();
+                    }
+                    GradeLaw::Spiral { seam_deg } => {
+                        c |= ui.add(egui::DragValue::new(seam_deg).speed(1.0).prefix("seam ").suffix("°")).on_hover_text("Where the smallest cell meets the largest.").changed();
+                    }
+                }
+                c |= ui.checkbox(&mut g.isotropic, "rows too").on_hover_text("Narrow the band with the pitch, so rows converge.").changed();
+            }
+        });
+        ui.end_row();
+
         ui.label("Crisp edge");
         c |= ui
             .add(
