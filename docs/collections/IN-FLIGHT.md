@@ -11,6 +11,7 @@ Packaging lane finished and merged (`bestiarium-package` `1c31c9c`, merge `89dc9
 - **Desktop 0.7.0 tagged** (`desktop-v0.7.0` on `821cd1a`) at Logan's request, without waiting for the collections: the Bestiarium group with Arachne and Manticora, Workshop retired, the rebuilt starters, and every core fix merged through the cloud sessions.
 - Cataphracta enablers C-R1 to C-R8 merged (#237, #238); the collet fix (#235) too. Master CI green on `140bcd4`.
 - Fenrir round 3 back (`claude/bestiarium-fenrir-r3` `4ae77ee`, self-score 7.0, sealed void gone); its final review runs from `review/fenrir-r3`.
+- **Heloderma stopped at the block-out** (`claude/cataphracta-heloderma`): three read tests failed, each reading as a sea-urchin shell. On the plan's half-round the draft clamp shaves off-crest beads into half-beads that read as pits, and the high/low bands do not show at 300 px. Its lead for a rethink: an ogive crown (superellipse 1.1 / 1.2) holds 28-40 deg of draft from 0.4 mm off the ridge, so beads are legal almost everywhere; raised-cosine beads leaned 0.3 toward the edge; clamp slack 0.8. Decision for Logan: rethink or swap for Gekko.
 - Pilot rings running as self-running cloud sessions (block-out read test, then up to three reviewed rounds): Sphenodon, Heloderma and Moloch, seeds `cloud/lane-<slug>`, results on `claude/cataphracta-<slug>`. The kit lives in `.claude/collection-review/cloud-kit/` (launcher `launch.sh`, session log `sessions.txt`).
 
 # Cataphracta pilot (Logan, 2026-09-26 night)
