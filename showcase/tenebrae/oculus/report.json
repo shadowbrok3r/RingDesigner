@@ -5,9 +5,9 @@
     "thickness_mm": 4.6,
     "width_mm": 7.0
   },
-  "bore_mm": 18.600018864336207,
+  "bore_mm": 18.600009220965,
   "cad_features": 9,
-  "design_bytes": 38239,
+  "design_bytes": 38240,
   "draft": {
     "build": [
       768,
@@ -159,8 +159,150 @@
     "process": "LostWax",
     "sand": null
   },
-  "grams_gold_18k": 24.961898531250185,
-  "grams_silver_925": 16.598541000240814,
+  "export": {
+    "build": [
+      1536,
+      448
+    ],
+    "build_s": 15.488527177,
+    "gates": {
+      "bore_radius_mm": 9.3,
+      "cold_reload_identical": true,
+      "degenerate_faces": 0,
+      "dfm_findings": [],
+      "features": [
+        {
+          "id": 1,
+          "name": "Procedural shank",
+          "status": "Ok"
+        },
+        {
+          "id": 2,
+          "name": "High side face",
+          "status": "Ok"
+        },
+        {
+          "id": 3,
+          "name": "Tracery field between the hub and the rim",
+          "status": "Ok"
+        },
+        {
+          "id": 4,
+          "name": "Sink the tracery field, leaving the hub and the rim standing",
+          "status": "Ok"
+        },
+        {
+          "id": 5,
+          "name": "Sink the same field in the low side face",
+          "status": "Ok"
+        },
+        {
+          "id": 6,
+          "name": "High side face, lifted clear of the metal",
+          "status": "Ok"
+        },
+        {
+          "id": 7,
+          "name": "One bay of the wheel: a pointed lancet and the quatrefoil beside its head",
+          "status": "Ok"
+        },
+        {
+          "id": 8,
+          "name": "Pierce the bay through the band from side face to side face",
+          "status": "Ok"
+        },
+        {
+          "id": 9,
+          "name": "Wheel the bay round the finger: sixteen lancets and sixteen quatrefoils",
+          "status": "Ok"
+        }
+      ],
+      "field_notes": [
+        "Lost wax: 0.10% of the surface would undercut a two-part pull (worst 27.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Undercut 11–11° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 34–34° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 56–56° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 79–79° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 101–101° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 124–124° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 146–146° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 169–169° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 191–191° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 214–214° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 236–236° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 259–259° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 281–281° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 304–304° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 326–326° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 349–349° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Measured with the ring as built: 4 CAD parts (0 joined, 4 cut), 1448.4 mm² of part surface; under lost wax they are reported, never gating."
+      ],
+      "field_verdict": "Castable",
+      "investment_min_section_mm": 0.8,
+      "made_part_self_crossings": [
+        [
+          "Sink the tracery field, leaving the hub and the rim standing",
+          0
+        ],
+        [
+          "Sink the same field in the low side face",
+          0
+        ],
+        [
+          "Pierce the bay through the band from side face to side face",
+          0
+        ],
+        [
+          "Wheel the bay round the finger: sixteen lancets and sixteen quatrefoils",
+          0
+        ]
+      ],
+      "min_vertex_radius_mm": 9.3000046104825,
+      "parts_notes": [],
+      "pattern": {
+        "degenerate_faces": 0,
+        "self_crossings": 0,
+        "watertight": true
+      },
+      "ring_self_crossings": 0,
+      "solids_notes": [],
+      "stamps_unresolved": 0,
+      "stones_previewed": 0,
+      "stones_reported": 0,
+      "thickness": {
+        "below_limit": 0,
+        "build": [
+          384,
+          160
+        ],
+        "faces": 114428,
+        "limit_mm": 0.8,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "rays": 384,
+        "sampled_min_mm": 0.8167830654876894,
+        "unresolved": 0
+      },
+      "thinnest_wall_mm": 4.092276172491758,
+      "triangles": 1090868,
+      "undercut_percent": 0.05074998479615314,
+      "vertices_inside_bore": 0,
+      "watertight": true,
+      "worst_draft_deg": -27.552274630259586
+    },
+    "gates_passed": true,
+    "lands": {
+      "bore_rail_mm": 1.0291154025889355,
+      "field_floor_web_mm": 5.8,
+      "hub_step_to_light_mm": 0.12911540258893694,
+      "lancet_to_quatrefoil_mm": 0.8340387191362336,
+      "outer_rail_mm": 0.8499999999999996,
+      "quatrefoil_cusp_tip_width_mm": 0.84,
+      "rim_step_to_light_mm": 0.1999999999999993,
+      "voussoir_joint_mm": 0.6
+    }
+  },
+  "grams_gold_18k": 24.967237503186354,
+  "grams_silver_925": 16.602091176701578,
   "layers": [
     "Voussoir joints"
   ],

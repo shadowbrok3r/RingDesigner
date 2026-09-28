@@ -1,0 +1,34 @@
+{
+  "ring": "Oculus",
+  "slug": "oculus",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "face-300: this is a step up from attempt 2. The openings are darker and a little larger, the pointed shapes now read as having a pointed end, and the quatrefoils are crisper. It is still one alternating row of piercings (pointed slots and small quatrefoils) in a narrow flat annulus about 2 mm deep, between two plain rails. Nothing radiates, and there is no hub order, no spoke hierarchy and no framed rim. The crown reeds now show at the outer edge as evenly spaced notches, which gives the disc a cogged, gear-tooth rim and pushes the read toward 'machined part'. The finger hole takes up most of the circle, so the eye sees a thin decorated frame round a big empty hole, not a window filled with tracery. A jeweller would say 'pierced band with Gothic-style quatrefoils' or 'tracery gallery'. They would not name a wheel or rose window. hero-300: a thick, straight-walled tube. The crown is split by straight cross grooves into equal blocks, which reads as tyre tread or a bearing race, not as wedge voussoirs. The side wall shows a ring of dark holes that, with the far side face seen through the bore, looks like a roller-bearing cage. The side face is foreshortened and small, and the plain crown and bore dominate the frame. The flat bright gold has no antique, so there is no contrast hierarchy. 'Gothic' comes through faintly from the quatrefoils. 'Cathedral wheel window' still needs the caption. The concept is being defeated by scale: a roughly 2.3 mm annulus round an 18.6 mm hole cannot hold a legible wheel window with one order of openings.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Base profile and both side faces (the 'Wheel' sketch, 'Cut the lights', 'Cusps' and their mirrors)",
+      "change": "Give the window room to have orders. Take the band thickness from 4.6 to about 6.0 mm (or build a raised side-face flange), so the tracery run grows from about 2.1 to about 3.5 mm radially. Use it for three concentric orders: (a) a 0.4 mm raised hub moulding at the bore rail, (b) 12 lancets with square springing at the hub, parallel sides and a cusped two-centred head, divided by straight radial mullions at least 0.9 mm wide that run unbroken from hub to rim as spokes, and (c) a second outer order of 12 quatrefoils or roundels of about 1.5 mm, one above each lancet head in the spandrels, inside (d) a raised 0.4 mm rim moulding. Keep the 0.8 mm lands.",
+      "acceptance": "face-300.png shows 12 straight spokes from the inner moulding to the outer moulding and two distinct rings of openings (lancets inside, foils outside), and the tracery fills visibly more than a third of the disc's radius. A viewer shown it without a caption says 'rose window' or 'wheel window'."
+    },
+    {
+      "priority": 2,
+      "where": "Crown field layer 'Voussoirs' and the side-face edge where the reeds meet the rim",
+      "change": "Remove the cog read. Stop the reeds 0.5 mm short of the side-face corner (fade over the edge round), so the rim's silhouette in face view is a smooth, unbroken circle or a deliberate cusped scallop, never evenly spaced notches. Turn the reeds into tapered wedge voussoirs, about 2.4 mm at the crest narrowing to about 1.6 mm at the edge and 0.45 mm high, with 12 of them on the mullions and a V-joint between each, so the crown reads as an arch ring and not as tyre tread.",
+      "acceptance": "In face-300.png the outer edge of the disc has no gear teeth. In hero-300.png the crown shows wedge-shaped stones with V-joints, not equal rectangular tread blocks."
+    },
+    {
+      "priority": 3,
+      "where": "Render setup for hero-300 and face-300",
+      "change": "Turn the hero so one side face sits 30-40 degrees off frontal and fills at least 60% of the frame, with the crown as a secondary band at the top. Antique-darken every piercing, cusp and recess to near black, and keep the mouldings and mullions bright, as on the Reptilia sheet. Light the face view with a soft back or through light, so the openings read as glass-lit lights and not as holes into void.",
+      "acceptance": "In hero-300.png the wheel tracery is the first thing the eye lands on, the plain tube wall and bore take up less of the frame than the side face, and the roller-bearing-cage read is gone."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/oculus/hero-300.png",
+    "showcase/tenebrae/oculus/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

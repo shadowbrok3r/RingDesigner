@@ -1,0 +1,49 @@
+{
+  "authoring_ms": {
+    "graph_creation": 1.2395369999999999,
+    "source_read": 0.6173500000000001
+  },
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "design_set_patches": [
+    {
+      "graph": "Oculus",
+      "node": 29,
+      "pointer": "/manufacturing"
+    }
+  ],
+  "detail_findings": 0,
+  "editable_design_bytes": 82840,
+  "editable_graph_reload": true,
+  "export_geometry_verified": true,
+  "exposed_control_policy": "explicit_allowlist",
+  "exposed_controls": [],
+  "geometry_check_resolution": {
+    "profile_steps": 448,
+    "refine": null,
+    "theta_steps": 1536
+  },
+  "nodes": 21,
+  "open_ms": {
+    "bake": 0.006384,
+    "bake_again": 0.00026199999999999997,
+    "detail": 10.833803,
+    "detail_again": 8.223428,
+    "evaluate": 0.777775,
+    "first_build": 1192.501791,
+    "read": 0.274826,
+    "rebuild": 0.42126,
+    "unpack": null,
+    "verdict": 28.960927
+  },
+  "size_budget_bytes": 300000,
+  "size_review_required": false,
+  "source_identical": true,
+  "source_method": "lift",
+  "template_bytes": 41284,
+  "template_class": "procedural",
+  "template_gate_passed": true,
+  "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
+  "triangles": 1090868,
+  "vertices_faces_normals_identical": true
+}
