@@ -196,7 +196,10 @@ graph's JSON, clusters included), is written at format 6
 (`library::format_version_for`), everything else still at 5, so an older
 build keeps opening a plain design and refuses the others by name — an
 older build would read an in-plane line as a world one and turn the region
-about the wrong axis without a word. Graph, cluster and preset files carrying
+about the wrong axis without a word. A profile naming several regions of one
+sketch (`Profile::Regions`, `cad::picks_regions`) is fenced the same way:
+untagged serde would read `{feature, regions}` as the whole sketch and sweep
+every region. Graph, cluster and preset files carrying
 an in-plane revolution are fenced the same way at their own version 2
 (`graph_to_string`, `preset_to_string`, which every writer goes through);
 every other graph file is still 1, byte for byte. A 6
@@ -2584,6 +2587,16 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   apart takes 2.4 mm³. A cut keeps its sign through Scale, grips and
   press-pull: a sketch-made cut grips its depth and its floor pulls it
   deeper.
+- **Tracery is drawn from a net, never offset by hand** (C-T1).
+  `Sketch::tracery(net, bar_mm)` only composes what is already proven: split
+  the net where it crosses, take its cells (`profile_regions`), offset each
+  rim in by half the bar (holes out), mark the net construction. A cell whose
+  offset would fold is left out whole and named in `Tracery::skipped`, never
+  half-made; the rest of the sketch is neither split nor moved. Two lights
+  either side of a mullion stand exactly one bar apart (a 24-cell wheel at
+  0.9: every gap 0.9 ± 1e-6). A branched sketch that carries several depths
+  sweeps its cells by `Profile::Regions`; one Sketch feature per depth is
+  still the plainer way. The graph reaches it as `sketch.tracery`.
 
 ## Python: `crates/ringdesign-py`
 

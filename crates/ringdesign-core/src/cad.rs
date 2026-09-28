@@ -156,6 +156,10 @@ pub enum Operation {
 pub enum Profile {
     /// One region of a `Sketch` feature, swept alone; a twisted sweep or a loft takes its rim and refuses its holes.
     Region { feature: Id, region: crate::sketch::RegionRef },
+    /// Several regions of one `Sketch` feature swept together, where one branched sketch carries
+    /// several depths. Before `Feature`, which an older reader takes it for, sweeping every region;
+    /// so a design carrying it is written at format 6 ([`picks_regions`]).
+    Regions { feature: Id, regions: Vec<crate::sketch::RegionRef> },
     Feature { feature: Id },
     Inline(Sketch),
 }
@@ -167,7 +171,7 @@ impl From<Sketch> for Profile {
 impl Profile {
     pub fn feature(&self) -> Option<Id> {
         match self {
-            Self::Feature { feature } | Self::Region { feature, .. } => Some(*feature),
+            Self::Feature { feature } | Self::Region { feature, .. } | Self::Regions { feature, .. } => Some(*feature),
             Self::Inline(_) => None,
         }
     }
@@ -181,13 +185,13 @@ impl Profile {
     pub fn sketch_mut(&mut self) -> Option<&mut Sketch> {
         match self {
             Self::Inline(sketch) => Some(sketch),
-            Self::Feature { .. } | Self::Region { .. } => None,
+            Self::Feature { .. } | Self::Region { .. } | Self::Regions { .. } => None,
         }
     }
     /// The features this profile reads: the sketch it names, or the face its own plane sits on.
     pub fn dependencies(&self) -> Vec<Id> {
         match self {
-            Self::Feature { feature } | Self::Region { feature, .. } => vec![*feature],
+            Self::Feature { feature } | Self::Region { feature, .. } | Self::Regions { feature, .. } => vec![*feature],
             Self::Inline(sketch) => sketch.plane.on_face.iter().map(|a| a.feature).collect(),
         }
     }
@@ -1572,7 +1576,7 @@ pub(crate) fn rotate_place(translation: [f64; 3], degrees: [f64; 3]) -> Result<b
 fn profile<'a>(p: &'a Profile, sketches: &'a BTreeMap<Id, Sketch>) -> Result<&'a Sketch> {
     match p {
         Profile::Inline(sketch) => Ok(sketch),
-        Profile::Feature { feature } | Profile::Region { feature, .. } => sketches
+        Profile::Feature { feature } | Profile::Region { feature, .. } | Profile::Regions { feature, .. } => sketches
             .get(feature)
             .ok_or_else(|| anyhow::anyhow!("Sketch feature #{feature} is unavailable or suppressed")),
     }
@@ -1659,6 +1663,24 @@ fn regions_of(p: &Profile, sketch: &Sketch, notes: &mut Vec<String>) -> Result<V
             let (found, note) = sketch.region_of(region).with_context(|| format!("Sketch #{feature}"))?;
             notes.extend(note.map(|n| format!("Sketch #{feature}: {n}")));
             Ok(vec![found])
+        }
+        Profile::Regions { feature, regions } => {
+            ensure!(!regions.is_empty(), "Sketch #{feature}: the profile names no region; pick one or more");
+            let all = sketch.profile_regions().with_context(|| format!("Sketch #{feature}"))?;
+            let mut picked: Vec<usize> = Vec::with_capacity(regions.len());
+            for (k, pick) in regions.iter().enumerate() {
+                let [x, y] = pick.at;
+                let Some((i, by_point)) = pick.position(&all) else {
+                    anyhow::bail!("Sketch #{feature}: no region runs round #{} or holds ({x:.3}, {y:.3}); pick region {} again", pick.entity, k + 1);
+                };
+                if by_point {
+                    notes.push(format!("Sketch #{feature}: region {} found again by its point ({x:.3}, {y:.3}): #{} no longer runs round one", k + 1, pick.entity));
+                }
+                if !picked.contains(&i) {
+                    picked.push(i);
+                }
+            }
+            Ok(picked.into_iter().map(|i| all[i].clone()).collect())
         }
         Profile::Inline(_) => Ok(vec![sketch.profile_region()?]),
     }
@@ -1866,6 +1888,11 @@ fn body_for(
             // One region of several sweeps its own loops, holes and all; any other profile is its one closed loop.
             let wires = match from {
                 Profile::Region { .. } => regions_of(from, sketch, notes)?.into_iter().flat_map(|r| r.loops()).collect(),
+                Profile::Regions { feature, .. } => {
+                    let regions = regions_of(from, sketch, notes)?;
+                    ensure!(regions.len() == 1, "Sweep: the profile names {} regions of sketch #{feature}; a sweep takes one", regions.len());
+                    regions.into_iter().flat_map(|r| r.loops()).collect()
+                }
                 _ => vec![sketch.profile_curves()?],
             };
             maybe(
@@ -2048,6 +2075,22 @@ fn in_plane_line(plane: &cadkernel::space::Plane, pivot: [f64; 3], axis: [f64; 3
 pub fn turns_in_plane(design: &RingDesign) -> bool {
     let in_document = design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(f.operation, Operation::Revolve { in_plane: true, .. })));
     in_document || design.graph.as_ref().is_some_and(turns_in_plane_json)
+}
+/// Whether `design` sweeps several picked regions of one sketch together, which a format-5 reader takes for the whole sketch.
+pub fn picks_regions(design: &RingDesign) -> bool {
+    let in_document = design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| operation_picks_regions(&f.operation)));
+    in_document || design.graph.as_ref().is_some_and(picks_regions_json)
+}
+fn operation_picks_regions(op: &Operation) -> bool {
+    serde_json::to_value(op).is_ok_and(|v| picks_regions_json(&v))
+}
+/// Whether `v` holds a profile of several regions anywhere: an object with a `feature` and a `regions` list.
+pub fn picks_regions_json(v: &serde_json::Value) -> bool {
+    match v {
+        serde_json::Value::Object(map) => (map.contains_key("feature") && map.get("regions").is_some_and(serde_json::Value::is_array)) || map.values().any(picks_regions_json),
+        serde_json::Value::Array(items) => items.iter().any(picks_regions_json),
+        _ => false,
+    }
 }
 /// Whether `v` holds a revolution read in its plane anywhere: an object keyed `Revolve` whose `in_plane` is true.
 pub fn turns_in_plane_json(v: &serde_json::Value) -> bool {
@@ -3271,6 +3314,42 @@ mod tests {
         near(run(Operation::Loft { sections: vec![pick(three), top.clone().into()] }), 9.0 * 5.0);
         let holed = run(Operation::Loft { sections: vec![pick(framed), top.into()] }).unwrap_err();
         assert!(holed.contains("Loft: the region of sketch #1 has 1 hole; it takes one closed loop"), "{holed}");
+    }
+
+    #[test]
+    fn several_regions_of_one_branched_sketch_extrude_together_and_read_back_as_regions() {
+        use crate::sketch::{Geometry, RegionRef};
+        let lib = AlphaLibrary::builtin();
+        // A 10 × 4 box split at x = 3 and x = 6: cells 3, 3 and 4 mm wide, which only a pick sweeps.
+        let mut s = Sketch::default();
+        s.add_rectangle([0.0, 0.0], [10.0, 4.0], false).unwrap();
+        for x in [3.0, 6.0] {
+            let (a, b) = (s.point([x, 0.0]), s.point([x, 4.0]));
+            s.entity(Geometry::Line { a, b });
+        }
+        let regions = s.profile_regions().unwrap();
+        assert_eq!(regions.len(), 3);
+        let at = |x: f64| RegionRef::among(&regions, regions.iter().position(|r| r.contains([x, 2.0])).unwrap(), [x, 2.0]).unwrap();
+        let run = |from: Profile| -> std::result::Result<f64, String> {
+            let e = evaluate(&design(vec![Operation::Sketch { sketch: s.clone() }, Operation::Extrude { sketch: from, height_mm: 2.0, draft_deg: 0.0 }]), &lib, BuildParams::default()).unwrap();
+            match e.status_of(2) {
+                Some(FeatureStatus::Ok) => Ok(e.components.iter().find(|c| c.id == 2).unwrap().mesh.volume_mm3()),
+                other => Err(format!("{other:?}")),
+            }
+        };
+        let near = |v: f64, want: f64| assert!((v - want).abs() < 1e-6 * want, "{v} against {want}");
+        // The outer two cells together, the middle left standing; one cell alone as before; a pick named twice counts once.
+        let two = Profile::Regions { feature: 1, regions: vec![at(1.5), at(8.0)] };
+        near(run(two.clone()).unwrap(), (12.0 + 16.0) * 2.0);
+        near(run(Profile::Region { feature: 1, region: at(4.5) }).unwrap(), 24.0);
+        near(run(Profile::Regions { feature: 1, regions: vec![at(8.0), at(8.0)] }).unwrap(), 32.0);
+        assert!(run(Profile::Feature { feature: 1 }).unwrap_err().contains("joins 3 curves"));
+        assert!(run(Profile::Regions { feature: 1, regions: vec![] }).unwrap_err().contains("names no region"));
+        // Untagged serde reads each shape back as itself, and a whole sketch is still a whole sketch.
+        for p in [two, Profile::Region { feature: 1, region: at(4.5) }, Profile::Feature { feature: 1 }] {
+            let text = serde_json::to_string(&p).unwrap();
+            assert_eq!(serde_json::from_str::<Profile>(&text).unwrap(), p, "{text}");
+        }
     }
 
     #[test]

@@ -75,8 +75,39 @@ fn resize(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeErro
         .map_err(|e| NodeError::new(e.to_string()))?;
     Ok(Outputs::one("design", candidate.design))
 }
+/// A Sketch feature's operation, or a bare sketch, with tracery drawn from its net: the operation, how many lights, and each cell left out and why.
+fn tracery(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
+    let json = i.get("operation").to_json_any().ok_or_else(|| NodeError::input("operation", "Expected a Sketch operation or a sketch"))?;
+    let wrapped = json.get("Sketch").is_some();
+    let inner = if wrapped { json["Sketch"]["sketch"].clone() } else { json };
+    let mut sketch: ringdesign_core::sketch::Sketch = serde_json::from_value(inner).map_err(|e| NodeError::input("operation", e.to_string()))?;
+    let mut net = Vec::new();
+    for (k, v) in i.list("net").iter().enumerate() {
+        net.push(v.as_int().and_then(|n| Id::try_from(n).ok()).ok_or_else(|| NodeError::input("net", format!("item {k} is not an entity id")))?);
+    }
+    if net.is_empty() {
+        net = sketch.entities.iter().filter(|e| !e.construction).map(|e| e.id).collect();
+    }
+    let traced = sketch.tracery(&net, i.number("bar_mm")?).map_err(|e| NodeError::new(format!("{e:#}")))?;
+    let sketch = serde_json::to_value(&sketch).map_err(|e| NodeError::new(e.to_string()))?;
+    let operation = if wrapped { serde_json::json!({ "Sketch": { "sketch": sketch } }) } else { sketch };
+    let skipped: Vec<Value> = traced.skipped.iter().map(|(at, why)| Value::Text(format!("cell at ({:.3}, {:.3}): {why}", at.at[0], at.at[1]))).collect();
+    Ok(Outputs::one("operation", operation).with("lights", Value::Int(traced.lights.len() as i64)).with("skipped", Value::List(skipped)))
+}
 pub fn register(reg: &mut Registry) {
     register_builders(reg);
+    reg.register(
+        NodeSpec::new("sketch.tracery", "Tracery", Category::Assembly)
+            .doc("Tracery from a net: the net split where it crosses, every closed cell drawn again half a bar inside itself as a light, and the net marked construction. Wire the operation on into a CAD feature.")
+            .input(PinSpec::item("operation", ValueKind::Json).doc("A Sketch feature's operation, or a bare sketch, carrying the net."))
+            .input(PinSpec::list("net", ValueKind::Int).doc("The net's entity ids; empty takes every drawn curve."))
+            .input(PinSpec::item("bar_mm", ValueKind::Number).default(0.9).doc("The metal left between neighbouring lights, mm."))
+            .output(PinSpec::item("operation", ValueKind::Json).doc("The operation with the lights drawn and the net construction."))
+            .output(PinSpec::item("lights", ValueKind::Int).doc("How many lights were drawn."))
+            .output(PinSpec::list("skipped", ValueKind::Text).doc("Each cell left out whole, where and why."))
+            .eval(tracery),
+    )
+    .expect("unique");
     reg.register(NodeSpec::new("cad.source","CAD source",Category::Assembly).doc("The nominal ring parameters behind a Free-mode feature history; source design in node settings.").output(PinSpec::item("design",ValueKind::Design).doc("Source parameters and an empty feature program.")).eval(source)).expect("unique");
     let mut feature_spec = NodeSpec::new("cad.feature", "CAD feature", Category::Assembly)
         .doc("Append an analytic CAD feature with editable operation and placement pins.")
@@ -909,6 +940,26 @@ pub fn edit_design(d: &mut RingDesign, edit: &CadEdit) -> anyhow::Result<Applied
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_tracery_node_draws_one_light_per_cell_of_a_sketch_operation() {
+        use ringdesign_core::sketch::{Geometry, Sketch};
+        let mut s = Sketch::rectangle(10.0, 4.0);
+        for x in [-1.0, 2.0] {
+            let (a, b) = (s.point([x, -2.0]), s.point([x, 2.0]));
+            s.entity(Geometry::Line { a, b });
+        }
+        let op = serde_json::to_value(Operation::Sketch { sketch: s }).unwrap();
+        let mut g = Graph::default();
+        let n = g.add("sketch.tracery").unwrap();
+        g.set_input(n, "operation", Literal::Json(op)).unwrap();
+        g.set_input(n, "bar_mm", Literal::Number(0.8)).unwrap();
+        let r = crate::eval::Evaluator::new().evaluate(&g, &Registry::builtin(), &ringdesign_core::AlphaLibrary::default(), 0, crate::eval::Targets::AllPure);
+        assert!(matches!(r.value(n, "lights"), Some(Value::Int(3))), "{:?}", r.value(n, "lights"));
+        let Some(Value::Json(out)) = r.value(n, "operation") else { panic!("{:?}", r.value(n, "operation")) };
+        let Operation::Sketch { sketch } = serde_json::from_value::<Operation>((**out).clone()).unwrap() else { panic!() };
+        assert_eq!(sketch.sweep_regions().unwrap().len(), 3, "the lights sweep as three regions once the net is construction");
+        assert!(matches!(r.value(n, "skipped"), Some(Value::List(l)) if l.is_empty()));
+    }
     fn evaluated_document(g: &Graph, reg: &Registry, lib: &ringdesign_core::AlphaLibrary) -> Document {
         crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), g, reg, lib, 0).unwrap().design.cad.clone().unwrap()
     }

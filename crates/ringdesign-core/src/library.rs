@@ -52,10 +52,11 @@ pub const FORMAT_VERSION: u32 = 6;
 /// The version a design carrying none of the format-6 features is written at, so builds that read up to it still open the file.
 pub const PLAIN_FORMAT_VERSION: u32 = 5;
 
-/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a pattern of several parts, a cut on a ring of parts alone or a stamp a format-5 build cannot strike.
+/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a cut on a ring of parts alone or a stamp a format-5 build cannot strike.
 pub fn format_version_for(design: &RingDesign) -> u32 {
     if crate::cad::stored::carried_by(design)
         || crate::cad::turns_in_plane(design)
+        || crate::cad::picks_regions(design)
         || crate::cad::pattern::several_sources(design)
         || crate::parts::cuts_apart(design)
         || design.stamps.iter().any(|s| !s.is_plain())
@@ -1332,6 +1333,35 @@ mod tests {
         ));
         design.embed_alphas(&crate::AlphaLibrary::builtin());
         assert!(design.embedded.is_empty());
+    }
+
+    /// A build that reads up to 5 takes `{feature, regions}` for the whole sketch and sweeps every region; written at 6, it is refused by name.
+    #[test]
+    fn several_picked_regions_write_the_design_at_six_and_one_stays_at_five() {
+        use crate::cad::{Component, Feature, Operation, Profile};
+        use crate::sketch::{RegionRef, Sketch};
+        let pick = RegionRef { entity: 1, at: [0.0, 0.0] };
+        let extrude = |sketch: Profile| Feature { id: 2, name: "Lights".into(), enabled: true, operation: Operation::Extrude { sketch, height_mm: 1.0, draft_deg: 0.0 }, component: Component::default() };
+        let with = |sketch: Profile| {
+            let mut doc = crate::cad::Document::default();
+            doc.append(Feature { id: 1, name: "Net".into(), enabled: true, operation: Operation::Sketch { sketch: Sketch::rectangle(2.0, 2.0) }, component: Component::default() }).unwrap();
+            doc.append(extrude(sketch)).unwrap();
+            RingDesign { name: "Picked".into(), cad: Some(doc), ..RingDesign::default() }
+        };
+        let several = with(Profile::Regions { feature: 1, regions: vec![pick, pick] });
+        let node = serde_json::json!({ "id": 2, "kind": "cad.feature", "params": serde_json::to_value(extrude(Profile::Regions { feature: 1, regions: vec![pick] })).unwrap() });
+        let in_graph = RingDesign { graph: Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [node] })), ..RingDesign::default() };
+        for (name, design) in [("document", &several), ("graph", &in_graph)] {
+            assert!(crate::cad::picks_regions(design), "{name}");
+            assert_eq!(format_version_for(design), FORMAT_VERSION, "{name}");
+            let older = read_design(&design_json(design).unwrap(), PLAIN_FORMAT_VERSION).unwrap_err().to_string();
+            assert!(older.contains("format version 6"), "{name}: {older}");
+        }
+        for one in [Profile::Region { feature: 1, region: pick }, Profile::Feature { feature: 1 }] {
+            let design = with(one);
+            assert!(!crate::cad::picks_regions(&design));
+            assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
+        }
     }
 
     #[test]
