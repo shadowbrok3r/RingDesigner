@@ -1,95 +1,110 @@
-//! Tenebrae — Oculus, the wheel: twenty-four lancet lights pierce a flat band from side face to side face, so the side face is a wheel window and the finger its oculus. Delft two-part sand.
+//! Tenebrae — Oculus, the wheel: seen along the finger the band's side face is a wheel window and the finger its oculus.
+//! Twelve pointed lancets and twelve quatrefoils pierce the band from side face to side face inside a sunk tracery
+//! field, a blind arcade of pointed arches rides the crown over the lancets, and beads run the crest. Lost wax.
 //! cargo build --release -p ringdesign-core --example tenebrae_oculus
 //! target/release/examples/tenebrae_oculus [OUT_DIR] [--draft] [--verify]
 use anyhow::{Result, ensure};
 use ringdesign_core::{
-    AlphaLibrary, BuildParams, ProfileStyle, RingDesign, ShankKind,
-    cad::{
-        self, Attach, Component, ComponentRole, Document, Feature, FeatureStatus,
-        Operation, PatternKind, PlaneBase, Profile, Stage,
-    },
-    castability::{self, CastProcess, SandProcess},
-    csg, dfm, library,
+    AlphaLibrary, BuildParams, Layer, LayerEntry, ProfileStyle, RingDesign, ShankKind,
+    cad::{self, Attach, Component, ComponentRole, Document, Feature, FeatureStatus, Operation, PatternKind, PlaneBase, Profile, Stage},
+    castability::{self, CastProcess},
+    csg, dfm,
+    field::MilgrainLayer,
+    library,
     manufacturing::{self as mf, Setup},
     mesh, render,
     sketch::{FaceAnchor, Geometry, Id, Sketch},
     stl,
 };
 use serde_json::json;
+use std::f64::consts::{FRAC_PI_2, TAU};
 use std::path::{Path, PathBuf};
 
 const BORE_MM: f64 = 18.6;
 const WIDTH_MM: f64 = 7.0;
 const THICKNESS_MM: f64 = 4.6;
-const LIGHTS: usize = 24;
-/// Mullion bar between two lights, mm.
-const BAR_MM: f64 = 0.9;
+const ALLOY: &str = "Silver 925";
+/// Lancets round the wheel, and as many quatrefoils between them.
+const LIGHTS: usize = 12;
 /// Bore-side rail: the lights start this far outside the bore, mm.
 const RAIL_MM: f64 = 1.0;
-/// Radius of the lights' pointed heads' apex, mm.
+/// Radius the lights start at: the bore plus its rail, mm.
+const RAIL_R_MM: f64 = BORE_MM * 0.5 + RAIL_MM;
+/// Radius of the lancets' apex, mm.
 const APEX_R_MM: f64 = 12.4;
-/// Radius of the lights' spring line, mm.
-const SPRING_R_MM: f64 = 10.8;
-/// Draft on each half of a light, degrees from the pull.
-const LIGHT_DRAFT_DEG: f64 = 3.5;
+/// Width of a lancet between its jambs, mm.
+const LANCET_W_MM: f64 = 1.5;
+/// Steps along each half of a lancet's head.
+const HEAD_STEPS: usize = 10;
+/// Quatrefoil: the lobes' radius, their centres' distance from its middle, and the radius of the cusps' round tips, mm;
+/// the radius it is centred on.
+const QUAT_LOBE_MM: f64 = 0.45;
+const QUAT_CENTRE_MM: f64 = 0.55;
+const QUAT_CUSP_MM: f64 = 0.4;
+const QUAT_R_MM: f64 = 11.3;
+const QUAT_STEPS: usize = 12;
+const CUSP_STEPS: usize = 6;
+/// Where the first lancet is centred, degrees round the ring; 90 is the crown. The quatrefoils sit halfway between.
+const FIRST_LIGHT_DEG: f64 = 90.0;
+/// Tracery field sunk into each side face: inner and outer radius and depth, mm.
+const FIELD_IN_MM: f64 = 10.2;
+const FIELD_OUT_MM: f64 = 12.7;
+const FIELD_DEPTH_MM: f64 = 0.6;
+const FIELD_DRAFT_DEG: f64 = 20.0;
+/// Crown arcade: one pointed arch over each lancet, sunk into the crown. Width round the ring, its foot and apex along the
+/// finger from the crest as drawn, and its depth under the crest, mm. It is laid turned half round, so the foot stands at the
+/// high side face and the apex points past the crest toward the low one.
+const ARCH_W_MM: f64 = 2.8;
+const ARCH_FOOT_MM: f64 = -2.55;
+const ARCH_APEX_MM: f64 = 1.7;
+const ARCH_DEPTH_MM: f64 = 0.7;
+const ARCH_STEPS: usize = 10;
+/// The crest's milgrain, off: its beads measure under the investment's section.
+const WITH_BEADS: bool = false;
+const BEAD_MM: f64 = 0.9;
+const BEAD_H_MM: f64 = 0.3;
+const BEADS: u32 = 72;
 /// Crown exponent: 2 is an ellipse over the band's width.
 const CROWN_SHAPE: f64 = 1.7;
 const HALF_WIDTH_MM: f64 = WIDTH_MM * 0.5;
-/// How far past each side face the pierce runs, mm.
+/// How far past each side face the piercing runs, mm.
 const OVERSHOOT_MM: f64 = 0.3;
-/// Where the first light is centred, degrees round the ring; 90 is the crown.
-const FIRST_LIGHT_DEG: f64 = 90.0;
-/// Radius the lights start at: the bore plus its rail, mm.
-const RAIL_R_MM: f64 = BORE_MM * 0.5 + RAIL_MM;
-/// How much fuller the drag's lights are drawn than the cope's, per side, mm.
-
+/// Least metal the investment fills, and the least a tracery bar or rail may be, mm.
+const MIN_SECTION_MM: f64 = 0.8;
 
 fn draft_params() -> BuildParams {
-    BuildParams {
-        theta_steps: 768,
-        profile_steps: 320,
-        ..BuildParams::default()
-    }
+    BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
 }
 fn export_params() -> BuildParams {
-    BuildParams {
-        theta_steps: 1536,
-        profile_steps: 448,
-        ..BuildParams::default()
-    }
+    BuildParams { theta_steps: 1536, profile_steps: 448, ..BuildParams::default() }
 }
 
 fn setup() -> Setup {
     let mut s = Setup::default();
-    s.recipe = mf::Recipe::sand(SandProcess::DelftClay);
-    s.recipe.name = "Oculus / Delft clay / Silver 925".into();
-    s.recipe.alloy = "Silver 925".into();
-    s.recipe.shrink_pct = ringdesign_core::metal::find("Silver 925").unwrap().shrink_pct;
-    s.recipe.calibration_note = "Starting shrink allowance; confirm with the caster's alloy, sand and measured trials.".into();
+    s.recipe = mf::Recipe::sand(castability::SandProcess::DelftClay);
+    s.recipe.process = CastProcess::LostWax;
+    s.recipe.sand = None;
+    s.recipe.min_draft_deg = 0.0;
+    s.recipe.min_detail_mm = 0.15;
+    s.recipe.min_section_mm = MIN_SECTION_MM;
+    s.recipe.name = format!("Oculus / investment / {ALLOY}");
+    s.recipe.alloy = ALLOY.into();
+    s.recipe.shrink_pct = ringdesign_core::metal::find(ALLOY).unwrap().shrink_pct;
+    s.recipe.calibration_note = "Starting shrink allowance; confirm with the caster's alloy, pattern material and measured trials.".into();
     s.sample_pitch_mm = 0.1;
     s.auto_parting = false;
     s.parting_mm = 0.0;
     s.flask.width_mm = 80.0;
     s.flask.length_mm = 80.0;
     s.channels = vec![
-        mf::Channel {
-            kind: mf::ChannelKind::Gate,
-            start: [0.0, -13.5, 0.0],
-            end: [0.0, -22.0, 0.0],
-            diameter_mm: 4.0,
-        },
-        mf::Channel {
-            kind: mf::ChannelKind::Sprue,
-            start: [0.0, -22.0, 0.0],
-            end: [0.0, -32.0, 0.0],
-            diameter_mm: 6.0,
-        },
+        mf::Channel { kind: mf::ChannelKind::Gate, start: [0.0, -13.5, 0.0], end: [0.0, -22.0, 0.0], diameter_mm: 3.5 },
+        mf::Channel { kind: mf::ChannelKind::Sprue, start: [0.0, -22.0, 0.0], end: [0.0, -32.0, 0.0], diameter_mm: 5.5 },
     ];
-    s.bench_notes = "Two-part Delft clay, parting on the band's mid-plane, pull along the finger. Each half of every light is a drafted sand pin hanging from its own mould half; ram the pins firmly and trial one flask before a run. Dress the parting seam through the lights with a needle file; polish the side faces and crown, leave the lights satin.".into();
+    s.bench_notes = "Investment cast in one piece, sprued at the palm. Flush investment from every lancet and quatrefoil with water under pressure. Polish the hub, rim and crown; leave the sunk tracery field and the crown arcade satin, and darken them if the client wants the window read at a distance.".into();
     s
 }
 
-/// The flat band: 7.0 wide, 4.6 thick, squared side faces, uniform all the way round.
+/// The flat band: 7.0 wide, 4.6 thick, squared side faces, a shallow elliptic crown, uniform all the way round.
 fn band() -> RingDesign {
     let mut d = RingDesign::default();
     d.name = "Oculus".into();
@@ -98,18 +113,16 @@ fn band() -> RingDesign {
     d.profile.width_mm = WIDTH_MM;
     d.profile.thickness_mm = THICKNESS_MM;
     d.profile.flatten_sides();
-    // An elliptic crown, not the flat one: the crown's walls then carry draft to the parting plane.
     d.profile.shape_a = CROWN_SHAPE;
     d.profile.edge_round_mm = 0.25;
     d.profile.comfort_fit_mm = 0.1;
     d.shank.kind = ShankKind::Uniform;
-    let s = setup();
-    d.draft.process = CastProcess::SandTwoPart;
-    SandProcess::DelftClay.apply(&mut d.draft);
+    CastProcess::LostWax.apply(&mut d.draft);
+    d.draft.min_section_mm = MIN_SECTION_MM;
     d.draft.auto_parting = false;
     d.draft.parting_z_mm = 0.0;
     d.build = draft_params();
-    d.manufacturing = Some(s);
+    d.manufacturing = Some(setup());
     d
 }
 
@@ -117,114 +130,142 @@ fn rot(p: [f64; 2], a: f64) -> [f64; 2] {
     let (s, c) = a.sin_cos();
     [p[0] * c - p[1] * s, p[0] * s + p[1] * c]
 }
-
-/// A lancet light's outline on the +y axis, `inset` inside its nominal: the inner arc on the bore rail, two jambs parallel to
-/// their mullions, and a pointed head of two arcs springing tangent from the jambs and meeting on the axis at the apex.
-struct Lancet {
-    alpha: f64,
-    /// Jamb: x = y tan(alpha) - off, nominal.
-    off: f64,
-    inner_r: f64,
-    spring: [f64; 2],
-    /// Centre and radius of the right head arc, nominal; the left is its mirror.
-    centre: [f64; 2],
-    radius: f64,
+fn sub2(a: [f64; 2], b: [f64; 2]) -> [f64; 2] {
+    [a[0] - b[0], a[1] - b[1]]
 }
-impl Lancet {
-    fn new(lights: usize, bar: f64, inner_r: f64, spring_r: f64, apex_r: f64) -> Self {
-        let alpha = std::f64::consts::PI / lights as f64;
-        let off = bar * 0.5 / alpha.cos();
-        let spring = [spring_r * alpha.tan() - off, spring_r];
-        let n = [-alpha.cos(), alpha.sin()];
-        let apex_of = |rho: f64| {
-            let c = [spring[0] + rho * n[0], spring[1] + rho * n[1]];
-            c[1] + (rho * rho - c[0] * c[0]).max(0.0).sqrt()
-        };
-        // The head's radius that puts the apex at `apex_r`, by bisection between a round head and a very sharp one.
-        let (mut lo, mut hi) = (spring[0] / alpha.cos(), 40.0);
-        for _ in 0..80 {
-            let mid = 0.5 * (lo + hi);
-            if apex_of(mid) < apex_r { lo = mid } else { hi = mid }
-        }
-        let radius = 0.5 * (lo + hi);
-        Self { alpha, off, inner_r, spring, centre: [spring[0] + radius * n[0], spring[1] + radius * n[1]], radius }
-    }
-    /// The closed outline `inset` inside the nominal, right jamb up, head, left jamb down, inner arc back.
-    fn outline(&self, inset: f64, head_steps: usize, inner_steps: usize) -> Vec<[f64; 2]> {
-        let (t, ca) = (self.alpha.tan(), self.alpha.cos());
-        let off = self.off + inset / ca;
-        let r_in = self.inner_r + inset;
-        // Inner corner: the jamb x = y t - off meets the circle of radius r_in.
-        let y_in = {
-            let (a, b, c) = (1.0 + t * t, -2.0 * t * off, off * off - r_in * r_in);
-            (-b + (b * b - 4.0 * a * c).sqrt()) / (2.0 * a)
-        };
-        let n = [-ca, self.alpha.sin()];
-        let spring = [self.spring[0] + inset * n[0], self.spring[1] + inset * n[1]];
-        let rho = self.radius - inset;
-        let c = self.centre;
-        let a0 = (spring[1] - c[1]).atan2(spring[0] - c[0]);
-        let apex_y = c[1] + (rho * rho - c[0] * c[0]).sqrt();
-        let a1 = (apex_y - c[1]).atan2(-c[0]);
-        let mut pts = vec![[y_in * t - off, y_in]];
-        for k in 0..=head_steps {
-            let a = a0 + (a1 - a0) * k as f64 / head_steps as f64;
-            pts.push([c[0] + rho * a.cos(), c[1] + rho * a.sin()]);
-        }
-        let right: Vec<[f64; 2]> = pts[1..pts.len() - 1].to_vec();
-        pts.extend(right.iter().rev().map(|p| [-p[0], p[1]]));
-        pts.push([-(y_in * t - off), y_in]);
-        let b0 = y_in.atan2(-(y_in * t - off));
-        let b1 = y_in.atan2(y_in * t - off);
-        for k in 1..inner_steps {
-            let b = b0 + (b1 - b0) * k as f64 / inner_steps as f64;
-            pts.push([r_in * b.cos(), r_in * b.sin()]);
-        }
-        pts
-    }
+fn len2(a: [f64; 2]) -> f64 {
+    a[0].hypot(a[1])
+}
+/// `steps` points along the circle from `a` to `b`, the way that passes nearest `via`, both ends included.
+fn arc_pts(c: [f64; 2], r: f64, a: [f64; 2], b: [f64; 2], via: [f64; 2], steps: usize) -> Vec<[f64; 2]> {
+    let ang = |p: [f64; 2]| (p[1] - c[1]).atan2(p[0] - c[0]);
+    let (a0, a1, av) = (ang(a), ang(b), ang(via));
+    let wrap = |x: f64| x.rem_euclid(TAU);
+    let ccw = wrap(a1 - a0);
+    let sweep = if wrap(av - a0) <= ccw { ccw } else { ccw - TAU };
+    (0..=steps).map(|k| { let t = a0 + sweep * k as f64 / steps as f64; [c[0] + r * t.cos(), c[1] + r * t.sin()] }).collect()
 }
 
-/// One light drawn `inset_mm` inside its nominal outline, turned onto `at_deg`: the section a drafted wall passes through at some height.
-fn light(name: &str, inset_mm: f64, at_deg: f64, plane: Id) -> Sketch {
+/// A lancet on the +y axis: parallel jambs from a flat sill on the bore rail up to an equilateral pointed head. Counter-clockwise.
+fn lancet() -> Vec<[f64; 2]> {
+    let h = LANCET_W_MM * 0.5;
+    let spring_y = APEX_R_MM - 2.0 * h * 60f64.to_radians().sin();
+    // The right head arc is centred on the left springer, radius the lancet's width; the left mirrors it.
+    let head = |k: usize| { let a = (60.0 * k as f64 / HEAD_STEPS as f64).to_radians(); [-h + 2.0 * h * a.cos(), spring_y + 2.0 * h * a.sin()] };
+    let mut pts = vec![[-h, RAIL_R_MM], [h, RAIL_R_MM]];
+    pts.extend((0..HEAD_STEPS).map(head));
+    pts.push([0.0, APEX_R_MM]);
+    pts.extend((0..HEAD_STEPS).rev().map(|k| { let p = head(k); [-p[0], p[1]] }));
+    pts
+}
+
+/// A quatrefoil about the origin: four round lobes on the axes and, where they meet, four cusps with round tips as broad as
+/// the investment's least section. Counter-clockwise.
+fn quatrefoil() -> Vec<[f64; 2]> {
+    let (e, r, rc) = (QUAT_CENTRE_MM, QUAT_LOBE_MM, QUAT_CUSP_MM);
+    let c = |k: usize| { let a = k as f64 * FRAC_PI_2; [e * a.cos(), e * a.sin()] };
+    // Each cusp's tip circle sits on a diagonal, touching the lobes either side of it.
+    let s45 = std::f64::consts::FRAC_1_SQRT_2;
+    let t = e * s45 + ((r + rc).powi(2) - (e * s45).powi(2)).sqrt();
+    let f = |k: usize| { let a = (k as f64 + 0.5) * FRAC_PI_2; [t * a.cos(), t * a.sin()] };
+    let touch = |lobe: [f64; 2], tip: [f64; 2]| { let d = sub2(tip, lobe); let l = len2(d); [lobe[0] + r * d[0] / l, lobe[1] + r * d[1] / l] };
+    let mut pts = Vec::new();
+    for k in 0..4 {
+        let (ck, fin, fout, next) = (c(k), f((k + 3) % 4), f(k), c((k + 1) % 4));
+        let tip = [ck[0] * 2.0, ck[1] * 2.0];
+        pts.extend(arc_pts(ck, r, touch(ck, fin), touch(ck, fout), tip, QUAT_STEPS).into_iter().take(QUAT_STEPS));
+        let inner = { let l = len2(fout); [fout[0] * (l - rc) / l, fout[1] * (l - rc) / l] };
+        pts.extend(arc_pts(fout, rc, touch(ck, fout), touch(next, fout), inner, CUSP_STEPS).into_iter().take(CUSP_STEPS));
+    }
+    // Start mid-lobe, a convex corner.
+    pts.rotate_left(QUAT_STEPS / 2);
+    pts
+}
+
+/// A pointed arch for the crown, in a plane square to the crest: `x` round the ring, `y` along the finger. Counter-clockwise.
+fn crown_arch() -> Vec<[f64; 2]> {
+    let h = ARCH_W_MM * 0.5;
+    // An equilateral head, its springing where the apex leaves room for it.
+    let spring = ARCH_APEX_MM - 2.0 * h * 60f64.to_radians().sin();
+    let mut pts = vec![[-h, ARCH_FOOT_MM], [h, ARCH_FOOT_MM]];
+    pts.extend((0..ARCH_STEPS).map(|k| { let a = (60.0 * k as f64 / ARCH_STEPS as f64).to_radians(); [-h + 2.0 * h * a.cos(), spring + 2.0 * h * a.sin()] }));
+    pts.push([0.0, ARCH_APEX_MM]);
+    pts.extend((1..ARCH_STEPS).rev().map(|k| { let a = (60.0 * k as f64 / ARCH_STEPS as f64).to_radians(); [h - 2.0 * h * a.cos(), spring + 2.0 * h * a.sin()] }));
+    pts
+}
+
+/// Closed outlines as one sketch on `plane`, each turned onto its angle round the ring and moved out to its radius.
+fn outlines_sketch(name: &str, loops: &[(Vec<[f64; 2]>, f64, f64)], plane: Id) -> Sketch {
     let mut s = Sketch::default();
     s.name = name.into();
-    let turn = (at_deg - 90.0).to_radians();
-    let points: Vec<Id> = Lancet::new(LIGHTS, BAR_MM, RAIL_R_MM, SPRING_R_MM, APEX_R_MM)
-        .outline(inset_mm, 16, 8)
-        .into_iter()
-        .map(|p| s.point(rot(p, turn)))
-        .collect();
-    // Straight edges, one per facet, so the loft rules each wall between matching corners.
-    for k in 0..points.len() {
-        s.entity(Geometry::Line { a: points[k], b: points[(k + 1) % points.len()] });
+    for (pts, at_deg, radius) in loops {
+        let turn = (at_deg - 90.0).to_radians();
+        let ids: Vec<Id> = pts.iter().map(|p| s.point(rot([p[0], p[1] + radius], turn))).collect();
+        s.entity(Geometry::Polyline { points: ids, closed: true });
     }
     s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
     s
 }
 
-/// The lands the wheel leaves, measured from the sketch numbers: mullion, bore rail and outer rail.
+/// The tracery field: an annulus between the hub and the rim.
+fn field_sketch(plane: Id) -> Sketch {
+    let mut s = Sketch::default();
+    s.name = "Tracery field".into();
+    for r in [FIELD_OUT_MM, FIELD_IN_MM] {
+        let c = s.point([0.0, 0.0]);
+        let rim = s.point([r, 0.0]);
+        s.entity(Geometry::Circle { center: c, rim });
+    }
+    s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
+    s
+}
+
+/// Shortest distance between two closed polygons, mm.
+fn gap(a: &[[f64; 2]], b: &[[f64; 2]]) -> f64 {
+    let seg = |p: [f64; 2], a: [f64; 2], b: [f64; 2]| {
+        let (d, e) = (sub2(b, a), sub2(p, a));
+        let t = ((e[0] * d[0] + e[1] * d[1]) / (d[0] * d[0] + d[1] * d[1]).max(1e-18)).clamp(0.0, 1.0);
+        len2(sub2(p, [a[0] + d[0] * t, a[1] + d[1] * t]))
+    };
+    let one = |a: &[[f64; 2]], b: &[[f64; 2]]| a.iter().map(|p| (0..b.len()).map(|k| seg(*p, b[k], b[(k + 1) % b.len()])).fold(f64::MAX, f64::min)).fold(f64::MAX, f64::min);
+    one(a, b).min(one(b, a))
+}
+fn placed(pts: &[[f64; 2]], at_deg: f64, radius: f64) -> Vec<[f64; 2]> {
+    let turn = (at_deg - 90.0).to_radians();
+    pts.iter().map(|p| rot([p[0], p[1] + radius], turn)).collect()
+}
+fn foil_deg() -> f64 {
+    FIRST_LIGHT_DEG + 180.0 / LIGHTS as f64
+}
+
+/// The lands the tracery leaves, measured on the drawn outlines; the cuts run straight through, so these hold through the band.
 struct Lands {
-    mullion_mm: f64,
+    lancet_to_quatrefoil_mm: f64,
     bore_rail_mm: f64,
     outer_rail_mm: f64,
-    light_width_inner_mm: f64,
-    light_width_spring_mm: f64,
-    light_height_mm: f64,
+    hub_step_to_light_mm: f64,
+    rim_step_to_light_mm: f64,
+    quatrefoil_cusp_tip_mm: f64,
+    arch_to_arch_mm: f64,
+    arch_floor_mm: f64,
 }
 fn lands(d: &RingDesign) -> Lands {
-    let alpha = std::f64::consts::PI / LIGHTS as f64;
-    let off = BAR_MM * 0.5 / alpha.cos();
     let bore = d.inner_radius_mm();
-    let crown = d.profile.effective_crown_mm();
-    let run_end = bore + d.profile.thickness_mm - crown;
-    let jamb = |y: f64| y * alpha.tan() - off;
+    let run_end = bore + d.profile.thickness_mm - d.profile.effective_crown_mm();
+    let l = placed(&lancet(), FIRST_LIGHT_DEG, 0.0);
+    let f = placed(&quatrefoil(), foil_deg(), QUAT_R_MM);
+    let radii = |p: &[[f64; 2]]| p.iter().map(|q| len2(*q)).fold((f64::MAX, f64::MIN), |(lo, hi), r| (lo.min(r), hi.max(r)));
+    let ((l_lo, l_hi), (f_lo, f_hi)) = (radii(&l), radii(&f));
+    let crest = bore + d.profile.thickness_mm;
     Lands {
-        mullion_mm: BAR_MM,
-        bore_rail_mm: bore + RAIL_MM - bore,
-        outer_rail_mm: run_end - APEX_R_MM,
-        light_width_inner_mm: 2.0 * jamb(bore + RAIL_MM),
-        light_width_spring_mm: 2.0 * jamb(SPRING_R_MM),
-        light_height_mm: APEX_R_MM - (bore + RAIL_MM),
+        lancet_to_quatrefoil_mm: gap(&l, &f),
+        bore_rail_mm: l_lo.min(f_lo) - bore,
+        outer_rail_mm: run_end - l_hi.max(f_hi),
+        hub_step_to_light_mm: l_lo.min(f_lo) - FIELD_IN_MM,
+        rim_step_to_light_mm: FIELD_OUT_MM - l_hi.max(f_hi),
+        quatrefoil_cusp_tip_mm: 2.0 * QUAT_CUSP_MM,
+        arch_to_arch_mm: TAU * (crest - ARCH_DEPTH_MM) / LIGHTS as f64 - ARCH_W_MM,
+        arch_floor_mm: THICKNESS_MM - ARCH_DEPTH_MM,
     }
 }
 
@@ -235,36 +276,68 @@ fn cut() -> Component {
     Component { role: ComponentRole::Other, attach: Attach::Cut, stage: Stage::Cast, ..Default::default() }
 }
 
-/// The design: the band, the high side-face plane, the wheel sketch, its drafted cut to the parting plane and the mirrored drag half.
+/// The design: the band; the tracery field sunk into both side faces; the wheel of lancets and quatrefoils pierced
+/// through; the crown arcade; the crest beads.
 fn author() -> Result<RingDesign> {
     let mut d = band();
     let mut doc = Document::default();
-    let t = LIGHT_DRAFT_DEG.to_radians().tan();
-    let face = HALF_WIDTH_MM + OVERSHOOT_MM;
     let plane = |offset_mm: f64| Operation::Plane { base: PlaneBase::Parting, offset_mm };
     let sketch = |sketch: Sketch| Operation::Sketch { sketch };
     let none = Component::default;
     doc.append(feature(1, "Procedural shank", Operation::Band, none()))?;
-    doc.append(feature(2, "High side face, lifted clear of the metal", plane(face), none()))?;
-    doc.append(feature(3, "Parting plane", plane(0.0), none()))?;
-    doc.append(feature(4, "Low side face, lifted clear of the metal", plane(-face), none()))?;
-    // Each section is the light the drafted wall passes through at its plane: nominal at the side face, narrowest at the parting plane.
-    doc.append(feature(5, "One lancet light, as it opens on the high side face", sketch(light("Light, high face", -OVERSHOOT_MM * t, FIRST_LIGHT_DEG, 2)), none()))?;
-    doc.append(feature(6, "Its waist on the parting plane", sketch(light("Light, waist", HALF_WIDTH_MM * t, FIRST_LIGHT_DEG, 3)), none()))?;
-    doc.append(feature(7, "The same light on the low side face", sketch(light("Light, low face", -OVERSHOOT_MM * t, FIRST_LIGHT_DEG, 4)), none()))?;
+    doc.append(feature(2, "High side face", plane(HALF_WIDTH_MM), none()))?;
+    doc.append(feature(3, "Tracery field between the hub and the rim", sketch(field_sketch(2)), none()))?;
+    doc.append(feature(
+        4,
+        "Sink the tracery field, leaving the hub and the rim standing",
+        Operation::Extrude { sketch: Profile::Feature { feature: 3 }, height_mm: -FIELD_DEPTH_MM, draft_deg: FIELD_DRAFT_DEG },
+        cut(),
+    ))?;
+    doc.append(feature(
+        5,
+        "Sink the same field in the low side face",
+        Operation::Pattern { sources: cad::pattern::Sources(vec![4]), kind: PatternKind::Mirror { plane: cad::MirrorPlane::Band } },
+        cut(),
+    ))?;
+    doc.append(feature(6, "High side face, lifted clear of the metal", plane(HALF_WIDTH_MM + OVERSHOOT_MM), none()))?;
+    let loops = [(lancet(), FIRST_LIGHT_DEG, 0.0), (quatrefoil(), foil_deg(), QUAT_R_MM)];
+    doc.append(feature(7, "One bay of the wheel: a pointed lancet and the quatrefoil beside its head", sketch(outlines_sketch("Bay", &loops, 6)), none()))?;
     doc.append(feature(
         8,
-        "Pierce one light through the band, drafted from both side faces to its waist",
-        Operation::Loft { sections: vec![Profile::Feature { feature: 7 }, Profile::Feature { feature: 6 }, Profile::Feature { feature: 5 }] },
+        "Pierce the bay through the band from side face to side face",
+        Operation::Extrude { sketch: Profile::Feature { feature: 7 }, height_mm: -(WIDTH_MM + 2.0 * OVERSHOOT_MM), draft_deg: 0.0 },
         cut(),
     ))?;
     doc.append(feature(
         9,
-        "Wheel the light round the finger: twenty-four lights",
+        "Wheel the bay round the finger: twelve lancets and twelve quatrefoils",
         Operation::Pattern { sources: cad::pattern::Sources(vec![8]), kind: PatternKind::Ring { count: LIGHTS as u32, span_deg: 360.0 } },
         cut(),
     ))?;
+    doc.append(feature(10, "Square to the crest over the first lancet", Operation::Plane { base: PlaneBase::Tangent { theta_deg: FIRST_LIGHT_DEG, across_mm: 0.0 }, offset_mm: 0.0 }, none()))?;
+    let mut arch = outlines_sketch("Crown arch", &[(crown_arch(), 270.0, 0.0)], 10);
+    arch.name = "Crown arch".into();
+    doc.append(feature(11, "A pointed arch on the crown, standing on the high side face's edge", sketch(arch), none()))?;
+    doc.append(feature(
+        12,
+        "Sink the arch into the crown",
+        Operation::Extrude { sketch: Profile::Feature { feature: 11 }, height_mm: -ARCH_DEPTH_MM, draft_deg: 10.0 },
+        cut(),
+    ))?;
+    doc.append(feature(
+        13,
+        "Wheel the arch round the crown: a blind arcade over the lancets",
+        Operation::Pattern { sources: cad::pattern::Sources(vec![12]), kind: PatternKind::Ring { count: LIGHTS as u32, span_deg: 360.0 } },
+        cut(),
+    ))?;
     d.cad = Some(doc);
+    if WITH_BEADS {
+        let ctx = d.field_context();
+        d.layers.layers.push(LayerEntry::new(
+            "Crest beads",
+            Layer::Milgrain(MilgrainLayer { v_mm: ctx.crest_v_mm, bead_diameter_mm: BEAD_MM, beads_around: BEADS, height_mm: BEAD_H_MM, mirror: false }),
+        ));
+    }
     Ok(d)
 }
 
@@ -301,7 +374,7 @@ fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<(
 
 /// Views: yaw about the finger axis, pitch from looking along the finger (0) to down onto the crown (pi/2).
 const VIEWS: &[(&str, f64, f64)] = &[
-    ("hero", 0.42, 0.40),
+    ("hero", 0.5, 0.45),
     ("face", 0.0, 0.0),
     ("palm", std::f64::consts::PI, 1.05),
     ("side", 0.0, std::f64::consts::FRAC_PI_2),
@@ -427,13 +500,14 @@ fn main() -> Result<()> {
     let findings = dfm::findings_in(&d, &lib);
     let stones_report = ringdesign_core::stones::report(&d, field.parting_z_mm);
     let previewed = ringdesign_core::gems::built_meshes(&d, &lib, &built).len();
-    let setup = d.manufacturing.clone().unwrap();
-    let inspection = mf::inspect(&d, &lib, &setup, params)?;
-    let mut fine = setup.clone();
-    fine.sample_pitch_mm = 0.075;
-    let release_fine = mf::release::analyze(&inspection.prepared.mesh, &fine)?;
+    // Lost wax: the investment fill replaces the sand pull. Wall thickness is screened on a build light enough for the measure.
+    let coarse = BuildParams { theta_steps: 384, profile_steps: 160, ..params };
+    let thin_mesh = mesh::try_build(&d, &lib, coarse)?.mesh;
+    let thickness = cad::measure::thickness(&thin_mesh, MIN_SECTION_MM);
+    println!("  thickness at {} x {} ({} faces): {} rays, min {:?}, {} below {:.1}, {} unresolved at {:?}", coarse.theta_steps, coarse.profile_steps, thin_mesh.faces.len(), thickness.rays, thickness.sampled_min_mm, thickness.below_limit, MIN_SECTION_MM, thickness.unresolved, thickness.point.map(|p| (p[0].hypot(p[1]), p[1].atan2(p[0]).to_degrees(), p[2])));
     let l = lands(&d);
-    let grams = built.report.metals.iter().find(|m| m.metal == "Silver 925").map_or(0.0, |m| m.grams);
+    let grams = built.report.metals.iter().find(|m| m.metal == ALLOY).map_or(0.0, |m| m.grams);
+    let grams_18k = built.report.metals.iter().find(|m| m.metal == "Gold 18k").map_or(0.0, |m| m.grams);
     library::save_design(out.join("design.ring.json"), &d)?;
     let design_bytes = std::fs::metadata(out.join("design.ring.json"))?.len();
     let cold = if verify {
@@ -469,8 +543,8 @@ fn main() -> Result<()> {
         "undercut_percent": field.undercut_fraction() * 100.0,
         "worst_draft_deg": field.worst_draft_deg,
         "thinnest_wall_mm": field.thinnest_wall_mm,
-        "release_0_100": {"status": format!("{:?}", inspection.release.status), "obstructions": inspection.release.obstructions.len(), "unresolved": inspection.release.unresolved_rays},
-        "release_0_075": {"status": format!("{:?}", release_fine.status), "obstructions": release_fine.obstructions.len(), "unresolved": release_fine.unresolved_rays},
+        "investment_min_section_mm": d.draft.min_section_mm,
+        "thickness": {"build": [coarse.theta_steps, coarse.profile_steps], "faces": thin_mesh.faces.len(), "limit_mm": thickness.limit_mm, "rays": thickness.rays, "sampled_min_mm": thickness.sampled_min_mm, "below_limit": thickness.below_limit, "unresolved": thickness.unresolved, "note": thickness.note},
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "stones_reported": stone_count,
         "stones_previewed": previewed,
@@ -487,26 +561,30 @@ fn main() -> Result<()> {
         && features.iter().all(|(_, _, s)| s == "Ok")
         && inside == 0
         && field.verdict == castability::Verdict::Castable
-        && inspection.release.obstructions.is_empty()
-        && inspection.release.unresolved_rays == 0
-        && release_fine.obstructions.is_empty()
-        && release_fine.unresolved_rays == 0
+        && thickness.rays > 0
+        && thickness.below_limit == 0
+        && thickness.unresolved == 0
         && findings.is_empty()
         && stone_count == previewed
         && cold != Some(false)
         && built.mesh.faces.len() <= 2_000_000
         && pattern_ok
-        && l.mullion_mm >= 0.8
-        && l.bore_rail_mm >= 0.8
-        && l.outer_rail_mm >= 0.8;
+        && l.lancet_to_quatrefoil_mm >= MIN_SECTION_MM
+        && l.bore_rail_mm >= MIN_SECTION_MM
+        && l.outer_rail_mm >= MIN_SECTION_MM
+        && l.arch_to_arch_mm >= MIN_SECTION_MM
+        && l.arch_floor_mm >= MIN_SECTION_MM
+        && l.hub_step_to_light_mm >= 0.1
+        && l.rim_step_to_light_mm >= 0.1;
     let block = json!({
         "build": [params.theta_steps, params.profile_steps],
         "build_s": build_s,
         "gates": gates,
         "lands": {
-            "mullion_mm": l.mullion_mm, "bore_rail_mm": l.bore_rail_mm, "outer_rail_mm": l.outer_rail_mm,
-            "light_width_inner_mm": l.light_width_inner_mm, "light_width_spring_mm": l.light_width_spring_mm, "light_height_mm": l.light_height_mm,
-            "axial_web_mm": WIDTH_MM,
+            "lancet_to_quatrefoil_mm": l.lancet_to_quatrefoil_mm, "bore_rail_mm": l.bore_rail_mm, "outer_rail_mm": l.outer_rail_mm,
+            "hub_step_to_light_mm": l.hub_step_to_light_mm, "rim_step_to_light_mm": l.rim_step_to_light_mm,
+            "quatrefoil_cusp_tip_width_mm": l.quatrefoil_cusp_tip_mm, "crown_arch_to_arch_mm": l.arch_to_arch_mm, "crown_floor_mm": l.arch_floor_mm,
+            "field_floor_web_mm": WIDTH_MM - 2.0 * FIELD_DEPTH_MM,
         },
         "gates_passed": passed,
     });
@@ -516,12 +594,13 @@ fn main() -> Result<()> {
         .and_then(|b| serde_json::from_slice(&b).ok())
         .unwrap_or_else(|| json!({}));
     report["name"] = json!(d.name);
-    report["process"] = json!(format!("{} / {}", d.draft.process.label(), "Delft clay"));
-    report["alloy"] = json!("Silver 925");
+    report["process"] = json!(d.draft.process.label());
+    report["alloy"] = json!(ALLOY);
     report["size"] = json!(d.size.display());
     report["bore_mm"] = json!(built.report.inner_diameter_mm);
     report["band"] = json!({"width_mm": WIDTH_MM, "thickness_mm": THICKNESS_MM, "lights": LIGHTS});
     report["grams_silver_925"] = json!(grams);
+    report["grams_gold_18k"] = json!(grams_18k);
     report["design_bytes"] = json!(design_bytes);
     report["cad_features"] = json!(d.cad.as_ref().map_or(0, |c| c.features.len()));
     report["layers"] = json!(d.layers.layers.iter().map(|e| e.name.clone()).collect::<Vec<_>>());
@@ -534,19 +613,14 @@ fn main() -> Result<()> {
     }
     renders(&out, &d, &lib, &built, if draft { 1000 } else { 1600 })?;
     println!(
-        "  field {} ({:.4}% undercut, worst draft {:.2}), thinnest wall {:.2}; release 0.100: {} obstructions {} unresolved; 0.075: {} / {}; dfm {}; min r {:.3} vs bore {:.3}; {:.1} g silver",
+        "  field {} (lost wax: informational), thinnest wall {:.2}; dfm {}; min r {:.3} vs bore {:.3}; {:.1} g silver, {:.1} g 18k",
         field.verdict.label(),
-        field.undercut_fraction() * 100.0,
-        field.worst_draft_deg,
         field.thinnest_wall_mm,
-        inspection.release.obstructions.len(),
-        inspection.release.unresolved_rays,
-        release_fine.obstructions.len(),
-        release_fine.unresolved_rays,
         findings.len(),
         min_r,
         bore,
-        grams
+        grams,
+        grams_18k
     );
     for f in &findings {
         println!("    dfm: {}: {}", f.label, f.message);

@@ -1,0 +1,34 @@
+{
+  "ring": "Oculus",
+  "slug": "oculus",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "face-300: a flat gold washer with a single row of 24 small, identical bullet-shaped notches evenly spaced round it, like a bearing cage, a gear blank, a lamp-shade collar or a sun-ray border. The openings are too small and too many to show pointed Gothic heads, and there are no cusps, no mullion hierarchy, no hub and no outer order, so nothing says 'window'. hero-300: a thick, plain, tube-like band (a pierced spacer or roller cage) with a ring of holes on the side wall. The crown is smooth, and the voussoir reeds and milgrain do not register. A jeweller shown these without a caption would say 'pierced band' or 'perforated washer', not 'wheel window' or 'rose window', and would never say 'Gothic cathedral'. The wheel-window idea only works once you are told it.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Both side faces, the 'Wheel' sketch (step 3) and 'Cut the lights' (steps 4-5)",
+      "change": "Cut the lights from 24 to 12, so the pitch at r 12.4 grows from about 3.2 to about 6.5 mm. Redraw each light as a true lancet: straight sides up to a steep two-centred pointed head (height at least 1.4x the width at the springing line), with two cusps (0.35-0.45 mm points) inside each head so it reads as trefoil-headed. Leave 0.9-1.0 mm radial mullions between the lights. Keep the 1.0 mm bore rail and the 0.81 mm outer rail.",
+      "acceptance": "In face-300.png each opening shows a visible pointed arch with cusps, 12 spokes read as the mullions of a wheel, and the notch/gear read is gone."
+    },
+    {
+      "priority": 2,
+      "where": "Side faces, spandrels between the light heads (steps 6-8) and the outer rim r 12.6-13.2",
+      "change": "Replace the 24 blind trefoil spandrels (0.30 mm deep, invisible at 300 px) with 12 larger roundels, one pierced or blind circle or quatrefoil about 1.2 mm across per spandrel, cut 0.8 mm deep or through. Frame the window with a raised or stepped outer moulding: a 0.3-0.4 mm step at about r 13.0, plus a matching inner hub step at r 10.3. That gives the window three concentric orders: hub, lancets and roundels.",
+      "acceptance": "face-300.png shows two rings of openings (lancets and roundels) inside a clear rim moulding, and a viewer names it a rose or wheel window without a caption."
+    },
+    {
+      "priority": 3,
+      "where": "Crown field layers 'Voussoirs' and 'Crest beads', and the hero camera",
+      "change": "Raise the voussoir reeds from 0.2 to 0.45 mm, set them to the new count of 12 on the mullions, and widen them to about 2.4 mm so they read as wedge voussoirs. Raise the crest milgrain from 0.2 to 0.35 mm. Turn the hero camera so a side face sits about 30-40 degrees off frontal and the window is the dominant read, not the plain crown tube. Darken the recesses (antique) as on the Reptilia sheet.",
+      "acceptance": "In hero-300.png the side window is the main subject and the crown shows distinct radial voussoirs. The ring no longer reads as a plain tube or spacer."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/oculus/hero-300.png",
+    "showcase/tenebrae/oculus/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

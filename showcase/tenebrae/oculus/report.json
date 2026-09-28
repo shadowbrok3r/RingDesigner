@@ -1,19 +1,19 @@
 {
   "alloy": "Silver 925",
   "band": {
-    "lights": 24,
+    "lights": 12,
     "thickness_mm": 4.6,
     "width_mm": 7.0
   },
   "bore_mm": 18.600018864336207,
-  "cad_features": 9,
-  "design_bytes": 74712,
+  "cad_features": 13,
+  "design_bytes": 46882,
   "draft": {
     "build": [
       768,
       320
     ],
-    "build_s": 3.362971333,
+    "build_s": 5.446972433,
     "gates": {
       "bore_radius_mm": 9.3,
       "cold_reload_identical": null,
@@ -27,57 +27,96 @@
         },
         {
           "id": 2,
-          "name": "High side face, lifted clear of the metal",
+          "name": "High side face",
           "status": "Ok"
         },
         {
           "id": 3,
-          "name": "Parting plane",
+          "name": "Tracery field between the hub and the rim",
           "status": "Ok"
         },
         {
           "id": 4,
-          "name": "Low side face, lifted clear of the metal",
+          "name": "Sink the tracery field, leaving the hub and the rim standing",
           "status": "Ok"
         },
         {
           "id": 5,
-          "name": "One lancet light, as it opens on the high side face",
+          "name": "Sink the same field in the low side face",
           "status": "Ok"
         },
         {
           "id": 6,
-          "name": "Its waist on the parting plane",
+          "name": "High side face, lifted clear of the metal",
           "status": "Ok"
         },
         {
           "id": 7,
-          "name": "The same light on the low side face",
+          "name": "One bay of the wheel: a pointed lancet and the quatrefoil beside its head",
           "status": "Ok"
         },
         {
           "id": 8,
-          "name": "Pierce one light through the band, drafted from both side faces to its waist",
+          "name": "Pierce the bay through the band from side face to side face",
           "status": "Ok"
         },
         {
           "id": 9,
-          "name": "Wheel the light round the finger: twenty-four lights",
+          "name": "Wheel the bay round the finger: twelve lancets and twelve quatrefoils",
+          "status": "Ok"
+        },
+        {
+          "id": 10,
+          "name": "Square to the crest over the first lancet",
+          "status": "Ok"
+        },
+        {
+          "id": 11,
+          "name": "A pointed arch on the crown, standing on the high side face's edge",
+          "status": "Ok"
+        },
+        {
+          "id": 12,
+          "name": "Sink the arch into the crown",
+          "status": "Ok"
+        },
+        {
+          "id": 13,
+          "name": "Wheel the arch round the crown: a blind arcade over the lancets",
           "status": "Ok"
         }
       ],
       "field_notes": [
-        "Field-sampled: the surface itself carries no undercut at this parting.",
-        "Judged with the ring as built: 2 CAD parts (0 joined, 2 cut) at the parting plane z = +0.00 mm — 1037.6 mm² of part surface, none of it locking."
+        "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
+        "Measured with the ring as built: 6 CAD parts (0 joined, 6 cut), 1397.6 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Extrude \"Sink the arch into the crown\" (#12) would undercut a two-part pull over 4.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Ring array \"Wheel the arch round the crown: a blind arcade over the lancets\" (#13) would undercut a two-part pull over 44.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "field_verdict": "Castable",
+      "investment_min_section_mm": 0.8,
       "made_part_self_crossings": [
         [
-          "Pierce one light through the band, drafted from both side faces to its waist",
+          "Sink the tracery field, leaving the hub and the rim standing",
           0
         ],
         [
-          "Wheel the light round the finger: twenty-four lights",
+          "Sink the same field in the low side face",
+          0
+        ],
+        [
+          "Pierce the bay through the band from side face to side face",
+          0
+        ],
+        [
+          "Wheel the bay round the finger: twelve lancets and twelve quatrefoils",
+          0
+        ],
+        [
+          "Sink the arch into the crown",
+          0
+        ],
+        [
+          "Wheel the arch round the crown: a blind arcade over the lancets",
           0
         ]
       ],
@@ -88,51 +127,57 @@
         "self_crossings": 0,
         "watertight": true
       },
-      "release_0_075": {
-        "obstructions": 0,
-        "status": "Review",
-        "unresolved": 0
-      },
-      "release_0_100": {
-        "obstructions": 0,
-        "status": "Review",
-        "unresolved": 0
-      },
       "ring_self_crossings": 0,
       "solids_notes": [],
       "stamps_unresolved": 0,
       "stones_previewed": 0,
       "stones_reported": 0,
+      "thickness": {
+        "below_limit": 0,
+        "build": [
+          384,
+          160
+        ],
+        "faces": 111540,
+        "limit_mm": 0.8,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "rays": 384,
+        "sampled_min_mm": 0.8443778594990365,
+        "unresolved": 0
+      },
       "thinnest_wall_mm": 4.390391256788703,
-      "triangles": 469152,
-      "undercut_percent": 0.0,
+      "triangles": 387718,
+      "undercut_percent": 1.6004772758559025,
       "vertices_inside_bore": 0,
       "watertight": true,
-      "worst_draft_deg": 0.0
+      "worst_draft_deg": -80.04290844869433
     },
     "gates_passed": true,
     "lands": {
-      "axial_web_mm": 7.0,
-      "bore_rail_mm": 1.0,
-      "light_height_mm": 2.0999999999999996,
-      "light_width_inner_mm": 1.804275385778217,
-      "light_width_spring_mm": 1.9359278833656126,
-      "mullion_mm": 0.9,
-      "outer_rail_mm": 1.1999999999999993
+      "bore_rail_mm": 1.0000000000000018,
+      "crown_arch_to_arch_mm": 4.111503837897545,
+      "crown_floor_mm": 3.8999999999999995,
+      "field_floor_web_mm": 5.8,
+      "hub_step_to_light_mm": 0.1000000000000032,
+      "lancet_to_quatrefoil_mm": 1.1939971624609274,
+      "outer_rail_mm": 1.1999999999999993,
+      "quatrefoil_cusp_tip_width_mm": 0.8,
+      "rim_step_to_light_mm": 0.29999999999999893
     }
   },
   "draft_settings": {
     "auto_parting": false,
-    "min_detail_mm": 0.3,
+    "min_detail_mm": 0.15,
     "min_draft_deg": 3.0,
     "min_section_mm": 0.8,
     "parting_z_mm": 0.0,
-    "process": "SandTwoPart",
-    "sand": "DelftClay"
+    "process": "LostWax",
+    "sand": null
   },
-  "grams_silver_925": 18.83147076650317,
+  "grams_gold_18k": 25.683279093003573,
+  "grams_silver_925": 17.078226662613417,
   "layers": [],
   "name": "Oculus",
-  "process": "Sand (two-part) / Delft clay",
+  "process": "Lost wax",
   "size": "US 8.6"
 }
