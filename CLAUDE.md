@@ -1163,6 +1163,20 @@ pins both directions. On top of that:
   area to except by name. With `up`, the part's axis, faces turned toward
   its ends are not read.
 
+  A **CAD cut's lands** are asked for, never volunteered:
+  `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
+  `manufacturing_check { cut_land_mm }`) reports, per Cut extrusion, the
+  narrowest metal between two of its regions, between it and each copy a
+  Pattern makes, and to the band's or host part's edge, labelled
+  `CUT_LAND` under `dfm::PART`. Regions are measured between their
+  outlines in the sketch's plane, carried to each copy by its motion. The
+  edge is found through the metal as built: out from each outline in that
+  plane until a line along the normal, within the cut's reach, meets no
+  metal; where that line runs through a copy's opening instead (a ring of
+  copies converges toward the bore, so its lands are narrower at the metal
+  than in the plane), the land is the copy's. Until a floor is asked for, an
+  author script asserts its lands from its own sketch numbers.
+
   A **flute** is measured *around* the ring, not across the band. It was
   filed as a `FeatureFootprint::across` — whose own doc named a flute —
   which sets `feature_u_mm` to infinity, and `metal_feature_mm` scales only

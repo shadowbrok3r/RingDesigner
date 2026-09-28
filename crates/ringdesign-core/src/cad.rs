@@ -1685,10 +1685,37 @@ fn regions_of(p: &Profile, sketch: &Sketch, notes: &mut Vec<String>) -> Result<V
         Profile::Inline(_) => Ok(vec![sketch.profile_region()?]),
     }
 }
+/// The regions an extrusion's profile sweeps, as the document names them, on the plane they lie in
+/// as `e` built it, before the part's own frame: what [`crate::dfm::cut_lands`] measures a cut's lands
+/// on. `None` for any other operation, or a profile that no longer reads.
+pub fn extruded_regions(doc: &Document, op: &Operation, e: &Evaluated) -> Option<(cadkernel::space::Plane, Vec<crate::sketch::Region>)> {
+    let Operation::Extrude { sketch: from, .. } = op else { return None };
+    let sketches: BTreeMap<Id, Sketch> = doc
+        .features
+        .iter()
+        .filter(|f| f.enabled)
+        .filter_map(|f| match &f.operation {
+            Operation::Sketch { sketch } => Some((f.id, sketch.clone())),
+            _ => None,
+        })
+        .collect();
+    let sketch = profile(from, &sketches).ok()?;
+    let mut notes = Vec::new();
+    let plane = match &sketch.plane.on_face {
+        None => sketch.plane.plane().ok()?,
+        Some(anchor) => match e.components.iter().find(|c| c.id == anchor.feature) {
+            Some(c) => sketch_plane(sketch, c.brep()?, &c.frame, &mut notes).ok()?,
+            None => pattern::on_plane(sketch, &e.plane(anchor.feature)?.placement()).ok()?,
+        },
+    };
+    Some((plane, regions_of(from, sketch, &mut notes).ok()?))
+}
 /// The one closed loop a twisted sweep or a loft section takes: the named region's rim, refused with holes in it, else the profile's own loop.
 fn region_loop(p: &Profile, sketch: &Sketch, what: &str, notes: &mut Vec<String>) -> Result<Vec<cadkernel::geom2d::Curve>> {
-    let Profile::Region { feature, .. } = p else { return sketch.profile_curves() };
-    let region = regions_of(p, sketch, notes)?.into_iter().next().context("A region profile names no region")?;
+    let (Profile::Region { feature, .. } | Profile::Regions { feature, .. }) = p else { return sketch.profile_curves() };
+    let mut regions = regions_of(p, sketch, notes)?;
+    ensure!(regions.len() == 1, "{what}: the profile names {} regions of sketch #{feature}; it takes one closed loop", regions.len());
+    let region = regions.pop().context("A region profile names no region")?;
     let holes = region.holes.len();
     ensure!(holes == 0, "{what}: the region of sketch #{feature} has {holes} hole{}; it takes one closed loop", if holes == 1 { "" } else { "s" });
     Ok(region.outer)

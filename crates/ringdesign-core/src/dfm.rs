@@ -11,6 +11,10 @@ use crate::RingDesign;
 
 /// [`DfmFinding::layer`] of a finding about one of the design's stamps, which are not layers.
 pub const STAMP: usize = usize::MAX;
+/// [`DfmFinding::layer`] of a finding about a CAD part, which is not a layer either.
+pub const PART: usize = usize::MAX - 1;
+/// [`DfmFinding::label`] of a [`cut_lands`] finding.
+pub const CUT_LAND: &str = "cut land";
 
 #[derive(Clone, Debug)]
 pub struct DfmFinding {
@@ -318,6 +322,205 @@ pub fn plan_finest_mm(outline: &[[f64; 2]], holes: &[Vec<[f64; 2]>], floor: f64)
     Some(ink * px)
 }
 
+type P3 = [f64; 3];
+fn sub3(a: P3, b: P3) -> P3 {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+fn dot3(a: P3, b: P3) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+/// The distance from `p` to the segment `a b`.
+fn to_segment(p: P3, a: P3, b: P3) -> f64 {
+    let (d, w) = (sub3(b, a), sub3(p, a));
+    let t = (dot3(w, d) / dot3(d, d).max(1e-30)).clamp(0.0, 1.0);
+    let q = sub3(w, d.map(|v| v * t));
+    dot3(q, q).sqrt()
+}
+/// The least distance between two sets of closed loops.
+fn loops_apart(a: &[Vec<P3>], b: &[Vec<P3>]) -> f64 {
+    let one_way = |a: &[Vec<P3>], b: &[Vec<P3>]| {
+        a.iter().flatten().map(|p| b.iter().map(|l| (0..l.len()).map(|k| to_segment(*p, l[k], l[(k + 1) % l.len()])).fold(f64::INFINITY, f64::min)).fold(f64::INFINITY, f64::min)).fold(f64::INFINITY, f64::min)
+    };
+    one_way(a, b).min(one_way(b, a))
+}
+/// A box round loops: least and greatest corner.
+fn box_of(loops: &[Vec<P3>]) -> (P3, P3) {
+    loops.iter().flatten().fold(([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]), |(lo, hi), p| (std::array::from_fn(|k| lo[k].min(p[k])), std::array::from_fn(|k| hi[k].max(p[k]))))
+}
+/// How far apart two boxes are at the least.
+fn boxes_apart(a: (P3, P3), b: (P3, P3)) -> f64 {
+    let gap: P3 = std::array::from_fn(|k| (a.0[k] - b.1[k]).max(b.0[k] - a.1[k]).max(0.0));
+    dot3(gap, gap).sqrt()
+}
+/// Points round a loop of curves about `step` apart.
+fn sampled(curves: &[cadkernel::geom2d::Curve], step: f64) -> Vec<[f64; 2]> {
+    let mut out = Vec::new();
+    for c in curves {
+        let n = ((c.length() / step).ceil() as usize).clamp(4, 400);
+        out.extend((0..n).map(|k| c.point_at(k as f64 / n as f64)));
+    }
+    out
+}
+
+/// For every Cut extrusion, and every copy a Pattern makes of one, the narrowest metal it leaves:
+/// between two of its regions, between it and its copies, and from a region to the band's or its host
+/// part's edge, each kind reported once where it falls under `floor_mm`, labelled [`CUT_LAND`]. Lands
+/// between regions are measured between their outlines in the sketch's plane, carried to each copy by
+/// the copy's motion; the land to an edge is walked out from each outline in that plane until a line
+/// along the plane's normal, within the cut's reach, no longer meets metal in the ring as `built`.
+/// Nothing calls it unasked: a design reports what it always did until a floor is asked for.
+pub fn cut_lands(design: &RingDesign, built: &crate::mesh::BuildResult, floor_mm: f64) -> Vec<DfmFinding> {
+    use crate::cad::{Attach, Operation};
+    let mut out = Vec::new();
+    let (Some(doc), Some(e)) = (design.cad.as_ref(), built.parts.evaluated.as_ref()) else { return out };
+    if !(floor_mm.is_finite() && floor_mm > 0.0) {
+        return out;
+    }
+    let bvh = crate::interaction::bvh::Bvh::build(&built.mesh);
+    let found = |who: &str, land: f64, what: String| DfmFinding { layer: PART, label: CUT_LAND.into(), message: format!("{who}: {land:.2} mm {what} (floor {floor_mm})") };
+    for c in e.components.iter().filter(|c| c.attach == Attach::Cut) {
+        let Some(f) = doc.feature(c.id).filter(|f| f.enabled) else { continue };
+        let Operation::Extrude { height_mm, .. } = f.operation else { continue };
+        let Some((plane, regions)) = crate::cad::extruded_regions(doc, &f.operation, e) else { continue };
+        let Some(normal) = plane.normal() else { continue };
+        let normal = c.frame.vector(normal);
+        let reach = height_mm.abs() + crate::cad::CUT_CLEAR_MM + 0.5;
+        let world = |uv: [f64; 2]| c.frame.point(plane.point_at(uv));
+        let who = format!("Cut #{} '{}'", c.id, f.name);
+        let step = (0.25 * floor_mm).min(0.05);
+        let uv: Vec<Vec<Vec<[f64; 2]>>> = regions.iter().map(|r| r.loops().iter().map(|l| sampled(l, step)).collect()).collect();
+        let source: Vec<Vec<Vec<P3>>> = uv.iter().map(|r| r.iter().map(|l| l.iter().map(|p| world(*p)).collect()).collect()).collect();
+        // The copies every pattern of this cut makes, the source itself left out.
+        let still = |m: &cadkernel::brep::Placement| dot3(m.origin, m.origin) < 1e-18 && (m.x_axis[0] - 1.0).abs() < 1e-12 && (m.y_axis[1] - 1.0).abs() < 1e-12;
+        let copies: Vec<cadkernel::brep::Placement> = doc
+            .features
+            .iter()
+            .filter(|p| p.enabled)
+            .filter_map(|p| match &p.operation {
+                Operation::Pattern { sources, kind } if sources.contains(&c.id) => crate::cad::pattern::copy_motions(design, built.band.as_deref(), e, c.id, kind).ok(),
+                _ => None,
+            })
+            .flatten()
+            .filter(|m| !still(m))
+            .collect();
+        // Between two regions of the cut.
+        let boxes: Vec<(P3, P3)> = source.iter().map(|r| box_of(r)).collect();
+        let mut least: Option<(f64, usize, usize)> = None;
+        for i in 0..source.len() {
+            for j in i + 1..source.len() {
+                if boxes_apart(boxes[i], boxes[j]) >= floor_mm {
+                    continue;
+                }
+                let d = loops_apart(&source[i], &source[j]);
+                if least.is_none_or(|(best, ..)| d < best) {
+                    least = Some((d, i, j));
+                }
+            }
+        }
+        if let Some((d, i, j)) = least.filter(|(d, ..)| *d < floor_mm) {
+            out.push(found(&who, d, format!("between lights {} and {}", i + 1, j + 1)));
+        }
+        // Between the cut and its copies.
+        let mut least: Option<(f64, usize, usize, usize)> = None;
+        for (k, m) in copies.iter().enumerate() {
+            let moved: Vec<Vec<Vec<P3>>> = source.iter().map(|r| r.iter().map(|l| l.iter().map(|p| m.point(*p)).collect()).collect()).collect();
+            for (i, a) in source.iter().enumerate() {
+                for (j, b) in moved.iter().enumerate() {
+                    if boxes_apart(boxes[i], box_of(b)) >= floor_mm {
+                        continue;
+                    }
+                    let d = loops_apart(a, b);
+                    if least.is_none_or(|(best, ..)| d < best) {
+                        least = Some((d, i, k, j));
+                    }
+                }
+            }
+        }
+        let between_copies = least;
+        // To the edge: out from each outline in the plane until the line along the normal leaves the metal.
+        let inverse: Vec<cadkernel::brep::Placement> = copies.iter().map(crate::cad::pattern::inverse).collect();
+        let (x, y, o) = (c.frame.vector(plane.x_axis), c.frame.vector(plane.y_axis), world([0.0, 0.0]));
+        let back = |w: P3| {
+            let d = sub3(w, o);
+            [dot3(d, x) / dot3(x, x), dot3(d, y) / dot3(y, y)]
+        };
+        let in_a_light = |q: [f64; 2]| {
+            let w = world(q);
+            regions.iter().any(|r| r.contains(q)) || inverse.iter().any(|m| {
+                let at = back(m.point(w));
+                regions.iter().any(|r| r.contains(at))
+            })
+        };
+        let metal = |q: [f64; 2]| {
+            let w = world(q);
+            [normal, normal.map(|v| -v)].iter().any(|d| bvh.ray(&built.mesh, w, *d).is_some_and(|(_, t)| t <= reach))
+        };
+        // The copy, and its light, whose opening the line along the normal through `q` runs through within reach:
+        // a copy turned round the ring is met at the metal's depth, not in this plane.
+        let through_copy = |q: [f64; 2]| {
+            let w = world(q);
+            let steps = (2.0 * reach / 0.05).ceil() as usize;
+            inverse.iter().enumerate().find_map(|(k, m)| {
+                (0..=steps).find_map(|i| {
+                    let t = -reach + 2.0 * reach * i as f64 / steps as f64;
+                    let at = back(m.point(std::array::from_fn(|a| w[a] + t * normal[a])));
+                    regions.iter().position(|r| r.contains(at)).map(|j| (k, j))
+                })
+            })
+        };
+        let march = floor_mm / 20.0;
+        let mut least: Option<(f64, usize)> = None;
+        let mut copy_least: Option<(f64, usize, usize, usize)> = between_copies.filter(|(d, ..)| *d < floor_mm);
+        for (i, (r, loops)) in regions.iter().zip(&uv).enumerate() {
+            for l in loops {
+                let n = l.len();
+                for k in 0..n {
+                    let (p, a, b) = (l[k], l[(k + n - 1) % n], l[(k + 1) % n]);
+                    let t = [b[0] - a[0], b[1] - a[1]];
+                    let len = t[0].hypot(t[1]);
+                    if len < 1e-12 {
+                        continue;
+                    }
+                    let mut away = [t[1] / len, -t[0] / len];
+                    if r.contains([p[0] + 1e-4 * away[0], p[1] + 1e-4 * away[1]]) {
+                        away = away.map(|v| -v);
+                    }
+                    let at = |s: f64| [p[0] + s * away[0], p[1] + s * away[1]];
+                    let best = least.map_or(floor_mm, |(d, _)| d).min(copy_least.map_or(floor_mm, |(d, ..)| d));
+                    let mut s = march;
+                    while s < best {
+                        let q = at(s);
+                        if in_a_light(q) {
+                            break;
+                        }
+                        if !metal(q) {
+                            // Halve back to where the metal ends.
+                            let (mut lo, mut hi) = (s - march, s);
+                            for _ in 0..12 {
+                                let mid = 0.5 * (lo + hi);
+                                if metal(at(mid)) { lo = mid } else { hi = mid }
+                            }
+                            match through_copy(q) {
+                                Some((c, j)) => copy_least = Some((hi, i, c, j)),
+                                None => least = Some((hi, i)),
+                            }
+                            break;
+                        }
+                        s += march;
+                    }
+                }
+            }
+        }
+        if let Some((d, i, k, j)) = copy_least {
+            out.push(found(&who, d, format!("between light {} and copy {}'s light {}", i + 1, k + 2, j + 1)));
+        }
+        if let Some((d, i)) = least {
+            out.push(found(&who, d, format!("from light {} to the edge", i + 1)));
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -326,6 +529,65 @@ mod tests {
 
     /// A stamp's plan is its metal: a thin arm is found, a pointed tip is not held against it, and one cut
     /// at the bench is not the sand's to judge.
+    /// The Court band with lights cut down through its crown from a sketch on a plane over it, `extra` after.
+    fn lit(lights: &[[f64; 4]], extra: Vec<crate::cad::Feature>) -> RingDesign {
+        use crate::cad::{Attach, Component, Document, Feature, Operation, Profile};
+        use crate::sketch::{Sketch, Workplane};
+        let mut d = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let over = d.inner_radius_mm() + d.profile.thickness_mm + 1.0;
+        // x round the ring, y along the finger: the plane's normal points down at the crown.
+        let mut s = Sketch { plane: Workplane { origin: [0.0, over, 0.0], x: [1.0, 0.0, 0.0], y: [0.0, 0.0, 1.0], on_face: None }, ..Sketch::default() };
+        for l in lights {
+            s.add_rectangle([l[0], l[1]], [l[2], l[3]], false).unwrap();
+        }
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        doc.append(Feature { id: 2, name: "Lights".into(), enabled: true, operation: Operation::Sketch { sketch: s }, component: Component::default() }).unwrap();
+        let cut = Component { attach: Attach::Cut, ..Component::default() };
+        doc.append(Feature { id: 3, name: "Pierce the lights".into(), enabled: true, operation: Operation::Extrude { sketch: Profile::Feature { feature: 2 }, height_mm: d.profile.thickness_mm + 2.5, draft_deg: 0.0 }, component: cut }).unwrap();
+        for f in extra {
+            doc.append(f).unwrap();
+        }
+        d.cad = Some(doc);
+        d
+    }
+
+    #[test]
+    fn a_cut_names_the_narrowest_land_between_its_lights_its_copies_and_the_edge() {
+        let lib = crate::AlphaLibrary::builtin();
+        let build = |d: &RingDesign| crate::mesh::try_build(d, &lib, crate::BuildParams::default()).unwrap();
+        let bare = build(&lit(&[], vec![]));
+        let half = 0.5 * crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design().profile.width_mm;
+        // Two 1 mm lights 0.6 mm apart round the ring, well inside the band's width.
+        let near = lit(&[[-1.3, -0.5, -0.3, 0.5], [0.3, -0.5, 1.3, 0.5]], vec![]);
+        let built = build(&near);
+        assert!(built.report.volume_mm3 < bare.report.volume_mm3 - 1.0, "the lights cut the crown");
+        let found = cut_lands(&near, &built, 0.8);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].layer == PART && found[0].label == CUT_LAND);
+        assert_eq!(found[0].message, "Cut #3 'Pierce the lights': 0.60 mm between lights 1 and 2 (floor 0.8)");
+        // A floor under the land says nothing, and so does the design's own report: the check is asked for.
+        assert!(cut_lands(&near, &built, 0.5).is_empty());
+        assert!(findings(&near).is_empty());
+        // Lights a full floor apart pass.
+        let apart = lit(&[[-1.5, -0.5, -0.5, 0.5], [0.5, -0.5, 1.5, 0.5]], vec![]);
+        assert!(cut_lands(&apart, &build(&apart), 0.8).is_empty());
+        // A light 0.5 mm in from the band's side leaves 0.5 mm to the edge, found through the metal as built.
+        let edge = lit(&[[-0.5, half - 1.5, 0.5, half - 0.5]], vec![]);
+        let found = cut_lands(&edge, &build(&edge), 0.8);
+        assert_eq!(found.len(), 1, "{found:?}");
+        let land: f64 = found[0].message.split(": ").nth(1).unwrap().split(' ').next().unwrap().parse().unwrap();
+        assert!(found[0].message.ends_with("mm from light 1 to the edge (floor 0.8)") && (land - 0.5).abs() <= 0.06, "{}", found[0].message);
+        // A ring of 48 copies of one light: each copy stands too close to the next.
+        use crate::cad::{Attach, Component, Feature, Operation, pattern::PatternKind};
+        let ring = Feature { id: 4, name: "Round the ring".into(), enabled: true, operation: Operation::Pattern { sources: crate::cad::pattern::Sources(vec![3]), kind: PatternKind::Ring { count: 48, span_deg: 360.0 } }, component: Component { attach: Attach::Cut, ..Component::default() } };
+        let round = lit(&[[-0.5, -0.5, 0.5, 0.5]], vec![ring]);
+        let built = build(&round);
+        let found = cut_lands(&round, &built, 0.8);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].message.starts_with("Cut #3 'Pierce the lights': 0.") && found[0].message.contains("between light 1 and copy"), "{}", found[0].message);
+    }
+
     #[test]
     fn a_stamp_is_judged_by_its_strokes() {
         let bar = |w: f64| vec![[-1.5, -w / 2.0], [1.5, -w / 2.0], [1.5, w / 2.0], [-1.5, w / 2.0]];
