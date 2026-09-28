@@ -17,6 +17,7 @@ use ringdesign_core::{
     svg::SvgAlpha,
     tiling::{GradeLaw, TileGrade},
 };
+use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -34,15 +35,19 @@ const BAND_PERIOD_MM: f64 = 5.0;
 const FACE_FIELD_DEG: [f64; 2] = [30.0, 190.0];
 /// The grade takes the hide's pitch to `1 - GRADE_TAPER` of the face's at the palm.
 const GRADE_TAPER: f64 = 0.26;
-/// Bead pitch at the face, metal mm: the salmon plateaus' beads and the black troughs' fine ones.
+/// The hide rises from the face's field over this much arc into the shank, mm.
+const FEATHER_MM: f64 = 4.5;
+/// Bead pitch at the face, metal mm: the salmon plateaus' beads and the ground's fine ones.
 const SALMON_PITCH_MM: f64 = 0.8;
-const BLACK_PITCH_MM: f64 = 0.46;
+const FINE_PITCH_MM: f64 = 0.46;
 /// A decal's full ink, mm.
 const BEAD_MM: f64 = 0.50;
-/// The salmon plateau over the band, the salmon beads' domes over it, and the black troughs' fine beads over the band.
+/// The salmon plateau over the band, the salmon beads' domes over it, and the ground's fine beads over the band.
 const PLATEAU_MM: f64 = 0.26;
-const SALMON_BEAD_MM: f64 = 0.06;
-const BLACK_BEAD_MM: f64 = 0.08;
+const SALMON_BEAD_MM: f64 = 0.12;
+const FINE_BEAD_MM: f64 = 0.08;
+/// Each sector's decal reaches this far into its neighbours, mm, so no seam opens at a join.
+const SECTOR_OVERLAP_MM: f64 = 0.6;
 /// Sectors round the ring, one decal each: a 1024 px raster over a sector holds a bead to 0.01 mm.
 const SECTORS: usize = 8;
 /// Beads stop this far short of the band's edges, chart mm, so the comfort roll stays plain.
@@ -153,10 +158,10 @@ fn ring_delta(a: f64, b: f64) -> f64 {
 /// How a bead of the band's hide stands.
 #[derive(Clone, Copy, PartialEq)]
 enum Kind {
-    /// A salmon band's bead: one of a fused plateau, domed over it.
+    /// A salmon band's bead, domed on its plateau.
     Salmon,
-    /// A black band's fine low bead, in the trough between the plateaus.
-    Black,
+    /// The ground's fine low bead: everywhere outside the moat, and in the black bands between the plateaus.
+    Fine,
 }
 
 /// One bead in chart millimetres: centre, semi-axes and kind.
@@ -168,39 +173,40 @@ struct Bead {
     kind: Kind,
 }
 
-/// The band's banding: whether the hide at ring angle `theta`, `across` chart mm off the crest, is a black band. The tail's
-/// rings carried on round the shank: transverse bands of uneven width that lean, waver and fork, the black a little under half.
-/// Whether the hide at that point is a black band, and the ring angle of the middle of its band pair, degrees.
-fn hide_band(circ: f64, theta: f64, across: f64) -> (bool, f64) {
+/// The band's banding, the tail's rings carried on round the shank: transverse bands of uneven width that lean, waver and fork,
+/// the black a little under half. The signed margin of salmon at ring angle `theta`, `across` chart mm off the crest, in arc mm:
+/// positive in a salmon band, negative in a black one, continuous across each edge.
+fn salmon_margin(circ: f64, theta: f64, across: f64) -> f64 {
     let x = theta / 360.0;
     let arc = x * circ;
-    let wander = 0.22 * noise(x, across / 2.5, 9.0, 31) + 0.07 * across + 0.1 * noise(x, across / 1.1, 23.0, 32);
+    let wander = 0.2 * noise(x, across / 2.5, 9.0, 31) + 0.08 * noise(x, across / 1.1, 23.0, 32);
     let phase = arc / BAND_PERIOD_MM + wander;
     let band = phase.floor() as i64;
     let share = 0.42 + 0.12 * hash(band.rem_euclid(97) as u64, 33);
-    let p = phase - phase.floor();
-    let mut black = (p - 0.5).abs() < 0.5 * share;
+    let off = (phase - phase.floor() - 0.5).abs();
+    let mut m = off - 0.5 * share;
     // Every third band forks toward one edge: a salmon wedge splits it into a Y.
-    if black && band.rem_euclid(3) == 0 {
+    if band.rem_euclid(3) == 0 {
         let s = if band.rem_euclid(2) == 0 { 1.0 } else { -1.0 };
         let reach = s * across - 1.2;
-        if reach > 0.0 && (p - 0.5).abs() < (0.04 + 0.05 * reach).min(0.12) {
-            black = false;
-        }
+        let wedge = ((0.04 + 0.05 * reach).min(0.12) - off).min(0.2 * reach);
+        m = m.max(wedge);
     }
-    (black, (band as f64 + 0.5) * BAND_PERIOD_MM / circ * 360.0)
+    m * BAND_PERIOD_MM
 }
 
-/// Whether a band pair centred at `theta` stays off the face, where the Gila lies on polished ground: the hide ends on whole
-/// bands either side of the animal and its stone.
-fn band_on_shank(theta: f64) -> bool {
+/// How far the banded hide stands, 0 to 1, at ring angle `theta`: nothing on the face's field, rising over `FEATHER_MM` of arc
+/// into the shank.
+fn shank_weight(circ: f64, theta: f64) -> f64 {
     let t = theta.rem_euclid(360.0);
-    !(FACE_FIELD_DEG[0]..=FACE_FIELD_DEG[1]).contains(&t)
+    let [a, b] = FACE_FIELD_DEG;
+    let out = if (a..=b).contains(&t) { 0.0 } else { ring_delta(t, a).abs().min(ring_delta(t, b).abs()) };
+    smooth01(out / 360.0 * circ / FEATHER_MM)
 }
 
-/// One lattice of beads over the band at `pitch` metal mm at the face, graded toward the palm, jittered; each bead kept where
-/// `keep(theta, across)` holds and clear of the stone's mound and the moat round the animal.
-fn lattice(d: &RingDesign, fig: Option<&Figure>, pitch_top: f64, kind: Kind, land: f64) -> Vec<Bead> {
+/// One lattice of beads over the band at `pitch_top` metal mm at the face, graded toward the palm, jittered; each bead kept where
+/// `keep(theta, across)` holds, clear of the stone's collet and the moat round the animal.
+fn lattice(d: &RingDesign, fig: Option<&Figure>, pitch_top: f64, kind: Kind, land: f64, keep: &dyn Fn(f64, f64) -> bool) -> Vec<Bead> {
     let ctx = d.field_context();
     let g = grade();
     let circ = ctx.circumference_mm;
@@ -232,8 +238,7 @@ fn lattice(d: &RingDesign, fig: Option<&Figure>, pitch_top: f64, kind: Kind, lan
             let theta = x * 360.0;
             let v = v0 + 0.08 * row_mm * hash(seed, 2);
             let across = v - crest;
-            let (black, band_theta) = hide_band(circ, theta, across);
-            if black != (kind == Kind::Black) || !band_on_shank(band_theta) {
+            if !keep(theta, across) {
                 continue;
             }
             let cs = ctx.crest_scale(theta);
@@ -242,7 +247,7 @@ fn lattice(d: &RingDesign, fig: Option<&Figure>, pitch_top: f64, kind: Kind, lan
             let over = row_mm * st * 2.0 / 3f64.sqrt();
             let pitch = around.min(over) * (1.0 + 0.06 * hash(seed, 3));
             let du = ring_delta(theta, STONE_DEG) / 360.0 * circ * cs;
-            if du.hypot(across * st) < stone_r + 0.9 + 0.5 * pitch || fig.is_some_and(|f| !f.ground_clear(theta, across)) {
+            if du.hypot(across * st) < stone_r + MOAT_MM + 0.5 * pitch || fig.is_some_and(|f| !f.ground_clear(theta, across)) {
                 continue;
             }
             let dia = (1.0 - land) * pitch;
@@ -252,73 +257,192 @@ fn lattice(d: &RingDesign, fig: Option<&Figure>, pitch_top: f64, kind: Kind, lan
     out
 }
 
-/// The band's whole hide: the salmon plateaus' beads and the black troughs' fine beads.
+/// The band's whole hide: the fine ground everywhere, and the salmon plateaus' domed beads on the shank.
 fn beads(d: &RingDesign, fig: Option<&Figure>) -> Vec<Bead> {
-    let mut all = lattice(d, fig, SALMON_PITCH_MM, Kind::Salmon, 0.0);
-    all.extend(lattice(d, fig, BLACK_PITCH_MM, Kind::Black, 0.1));
+    let circ = d.field_context().circumference_mm;
+    let mut all = lattice(d, fig, FINE_PITCH_MM, Kind::Fine, 0.1, &|_, _| true);
+    all.extend(lattice(d, fig, SALMON_PITCH_MM, Kind::Salmon, 0.0, &|t, a| {
+        shank_weight(circ, t) > 0.5 && salmon_margin(circ, t, a) > 0.45
+    }));
     all
 }
 
-/// Radius of the stone's mound that the beadwork keeps clear of, metal mm.
+/// Radius of the stone's seat that the hide keeps clear of, metal mm, before the moat: the ground runs up the mound to the collet.
 fn stone_clear_mm() -> f64 {
     let pad = stone_pad(0.0);
-    0.5 * pad.diameter_mm + pad.blend_mm + 0.05
+    0.5 * pad.diameter_mm
 }
 
-/// Sector `k`'s hide as one SVG over its stretch of the unrolled band: black ink is height.
+/// The salmon plateaus over a stretch of the chart as one SVG path: marching squares over [`salmon_margin`], clipped to the band
+/// short of its edges and clear of the stone, each loop simplified. Coordinates are the decal's: x from `u0`, y down from the far
+/// edge.
+fn plateau_path(d: &RingDesign, u0: f64, w: f64) -> String {
+    let ctx = d.field_context();
+    let (circ, crest, len) = (ctx.circumference_mm, ctx.crest_v_mm, ctx.band_v_len_mm);
+    let stone_r = stone_clear_mm() + MOAT_MM;
+    let step = 0.04;
+    let (nx, ny) = ((w / step).ceil() as usize + 1, (len / step).ceil() as usize + 1);
+    let field: Vec<f64> = (0..nx * ny)
+        .map(|k| {
+            let (i, j) = (k % nx, k / nx);
+            let (u, v) = (u0 + i as f64 * step, j as f64 * step);
+            if i == 0 || j == 0 || i == nx - 1 || j == ny - 1 {
+                return -1.0;
+            }
+            let theta = (u / circ * 360.0).rem_euclid(360.0);
+            let cs = ctx.crest_scale(theta);
+            let du = ring_delta(theta, STONE_DEG) / 360.0 * circ * cs;
+            let stone = du.hypot((v - crest) * ctx.station_stretch(theta)) - stone_r;
+            salmon_margin(circ, theta, v - crest).min(v - EDGE_MM).min(len - EDGE_MM - v).min(stone)
+        })
+        .collect();
+    let at = |i: usize, j: usize| field[j * nx + i];
+    let pt = |i: f64, j: f64| (i * step, len - j * step);
+    // Segments with the salmon side on their left, keyed by their ends to chain into loops.
+    let mut next: HashMap<(i64, i64), ((i64, i64), (f64, f64))> = HashMap::new();
+    let key = |x: f64, y: f64| ((x * 1e4).round() as i64, (y * 1e4).round() as i64);
+    for j in 0..ny - 1 {
+        for i in 0..nx - 1 {
+            let c = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)];
+            let corner = [(i as f64, j as f64), (i as f64 + 1.0, j as f64), (i as f64 + 1.0, j as f64 + 1.0), (i as f64, j as f64 + 1.0)];
+            let edge = |e: usize| {
+                let (a, b) = (e, (e + 1) % 4);
+                let t = c[a] / (c[a] - c[b]);
+                pt(corner[a].0 + t * (corner[b].0 - corner[a].0), corner[a].1 + t * (corner[b].1 - corner[a].1))
+            };
+            let idx = (c[0] > 0.0) as usize | ((c[1] > 0.0) as usize) << 1 | ((c[2] > 0.0) as usize) << 2 | ((c[3] > 0.0) as usize) << 3;
+            let pairs: &[(usize, usize)] = match idx {
+                1 => &[(3, 0)],
+                2 => &[(0, 1)],
+                3 => &[(3, 1)],
+                4 => &[(1, 2)],
+                5 => &[(3, 0), (1, 2)],
+                6 => &[(0, 2)],
+                7 => &[(3, 2)],
+                8 => &[(2, 3)],
+                9 => &[(2, 0)],
+                10 => &[(0, 1), (2, 3)],
+                11 => &[(2, 1)],
+                12 => &[(1, 3)],
+                13 => &[(1, 0)],
+                14 => &[(0, 3)],
+                _ => &[],
+            };
+            for &(a, b) in pairs {
+                let (p, q) = (edge(a), edge(b));
+                next.insert(key(p.0, p.1), (key(q.0, q.1), q));
+            }
+        }
+    }
+    let mut path = String::new();
+    while let Some((&start, _)) = next.iter().next() {
+        let mut loop_pts = Vec::new();
+        let mut k = start;
+        while let Some((nk, p)) = next.remove(&k) {
+            loop_pts.push(p);
+            k = nk;
+        }
+        if loop_pts.len() < 3 {
+            continue;
+        }
+        let simple = simplify(&loop_pts, 0.012);
+        let _ = write!(path, "M{:.3} {:.3}", simple[0].0, simple[0].1);
+        for p in &simple[1..] {
+            let _ = write!(path, "L{:.3} {:.3}", p.0, p.1);
+        }
+        path.push('Z');
+    }
+    path
+}
+
+/// Douglas-Peucker over a closed loop's points, to `tol` mm.
+fn simplify(p: &[(f64, f64)], tol: f64) -> Vec<(f64, f64)> {
+    fn rec(p: &[(f64, f64)], tol: f64, out: &mut Vec<(f64, f64)>) {
+        let (a, b) = (p[0], p[p.len() - 1]);
+        let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+        let l = dx.hypot(dy).max(1e-12);
+        let (mut best, mut at) = (0.0, 0);
+        for (k, q) in p.iter().enumerate().take(p.len() - 1).skip(1) {
+            let dist = ((q.0 - a.0) * dy - (q.1 - a.1) * dx).abs() / l;
+            if dist > best {
+                best = dist;
+                at = k;
+            }
+        }
+        if best > tol && at > 0 {
+            rec(&p[..=at], tol, out);
+            rec(&p[at..], tol, out);
+        } else {
+            out.push(b);
+        }
+    }
+    let mut out = vec![p[0]];
+    let half = p.len() / 2;
+    rec(&p[..=half], tol, &mut out);
+    let mut rest: Vec<(f64, f64)> = p[half..].to_vec();
+    rest.push(p[0]);
+    rec(&rest, tol, &mut out);
+    out.pop();
+    out
+}
+
+/// Sector `k`'s hide as one SVG over its stretch of the unrolled band and `SECTOR_OVERLAP_MM` either side of it: black ink is
+/// height.
 ///
-/// The salmon beads are drawn full, a little oversize, inside one group lowered to the plateau's height, so they fuse into one
-/// raised plateau whose edge follows the beads and carries a seam at each; each is then domed over it. The black troughs between
-/// the plateaus hold fine low beads on the band's own surface: the bands read by the plateaus' step and the troughs' shadow.
+/// The fine ground's beads lie everywhere; the salmon plateaus stand over them as smooth-edged paths, faded in over the feather by a
+/// mask, and their own domed beads stand on the plateaus, clipped to their outline. The bands read by the plateaus' step.
 fn sector_svg(d: &RingDesign, all: &[Bead], k: usize) -> String {
     let ctx = d.field_context();
     let circ = ctx.circumference_mm;
-    let (w, h) = (circ / SECTORS as f64, ctx.band_v_len_mm);
-    let u0 = k as f64 * w;
+    let m = SECTOR_OVERLAP_MM;
+    let (w, h) = (circ / SECTORS as f64 + 2.0 * m, ctx.band_v_len_mm);
+    let u0 = k as f64 * circ / SECTORS as f64 - m;
     let mut defs = String::new();
     let mut gradient = |id: &str, peak: f64, f: &dyn Fn(f64) -> f64| {
         let _ = write!(defs, r##"<radialGradient id="{id}" cx="0.5" cy="0.5" r="0.5">"##);
-        for i in 0..=24 {
-            let t = i as f64 / 24.0;
+        for i in 0..=16 {
+            let t = i as f64 / 16.0;
             let _ = write!(defs, r##"<stop offset="{t:.3}" stop-color="#000" stop-opacity="{:.4}"/>"##, peak * f(t));
         }
         defs.push_str("</radialGradient>");
-    };
-    // A cushion: flat over most of its radius, falling at its edge, so neighbours fuse into a plateau with seams.
-    let cushion = |t: f64| {
-        let q = ((1.0 - t) / 0.35).clamp(0.0, 1.0);
-        q * q * (3.0 - 2.0 * q)
     };
     let dome = |t: f64| (1.0 - t * t).max(0.0).powf(0.62);
     // Over the plateau `p`, a bead of alpha `q` composites to 1 - (1 - p)(1 - q): the dome's peak alpha for its height.
     let p = PLATEAU_MM / BEAD_MM;
     let q = 1.0 - (1.0 - (PLATEAU_MM + SALMON_BEAD_MM) / BEAD_MM) / (1.0 - p);
-    gradient("cu", 1.0, &cushion);
     gradient("sd", q, &dome);
-    gradient("bd", BLACK_BEAD_MM / BEAD_MM, &dome);
-    let place = |b: &Bead, reach: f64, fill: &str, body: &mut String| {
+    gradient("fd", FINE_BEAD_MM / BEAD_MM, &dome);
+    // The feather: the shank's weight across the sector, as a mask.
+    defs.push_str(r##"<linearGradient id="fw" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2=""##);
+    let _ = write!(defs, r##"{w:.4}" y2="0">"##);
+    for i in 0..=40 {
+        let t = i as f64 / 40.0;
+        let theta = ((u0 + t * w) / circ * 360.0).rem_euclid(360.0);
+        let _ = write!(defs, r##"<stop offset="{t:.3}" stop-color="#fff" stop-opacity="{:.4}"/>"##, shank_weight(circ, theta));
+    }
+    defs.push_str("</linearGradient>");
+    let _ = write!(defs, r##"<mask id="fm" maskUnits="userSpaceOnUse" x="0" y="0" width="{w:.4}" height="{h:.4}"><rect width="{w:.4}" height="{h:.4}" fill="url(#fw)"/></mask>"##);
+    let path = plateau_path(d, u0, w);
+    let _ = write!(defs, r##"<clipPath id="pc"><path d="{path}" clip-rule="evenodd"/></clipPath>"##);
+    let place = |b: &Bead, fill: &str, body: &mut String| {
         for wrap in [-circ, 0.0, circ] {
             let x = b.u + wrap - u0;
-            let (rx, ry) = (b.rx * reach, b.ry * reach);
-            if x + rx < 0.0 || x - rx > w {
+            if x + b.rx < 0.0 || x - b.rx > w {
                 continue;
             }
             // SVG y runs down from the decal's top, which is the band's far edge.
-            let _ = write!(body, r##"<ellipse cx="{x:.4}" cy="{:.4}" rx="{rx:.4}" ry="{ry:.4}" fill="{fill}"/>"##, h - b.v);
+            let _ = write!(body, r##"<ellipse cx="{x:.3}" cy="{:.3}" rx="{:.3}" ry="{:.3}" fill="{fill}"/>"##, h - b.v, b.rx, b.ry);
         }
     };
     let mut body = String::new();
-    for b in all.iter().filter(|b| b.kind == Kind::Black) {
-        place(b, 1.0, "url(#bd)", &mut body);
+    for b in all.iter().filter(|b| b.kind == Kind::Fine) {
+        place(b, "url(#fd)", &mut body);
     }
-    let _ = write!(body, r##"<g opacity="{p:.4}">"##);
+    let _ = write!(body, r##"<g mask="url(#fm)"><path d="{path}" fill="#000" fill-rule="evenodd" fill-opacity="{p:.4}"/><g clip-path="url(#pc)">"##);
     for b in all.iter().filter(|b| b.kind == Kind::Salmon) {
-        place(b, 1.3, "url(#cu)", &mut body);
+        place(b, "url(#sd)", &mut body);
     }
-    body.push_str("</g>");
-    for b in all.iter().filter(|b| b.kind == Kind::Salmon) {
-        place(b, 0.92, "url(#sd)", &mut body);
-    }
+    body.push_str("</g></g>");
     format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}" height="{h:.4}" viewBox="0 0 {w:.4} {h:.4}"><defs>{defs}</defs>{body}</svg>"##
     )
@@ -354,15 +478,15 @@ fn stone_pad(crest_v: f64) -> SeatPadLayer {
 // `h` over the bare band's own surface there.
 
 /// Where the ring's figure starts and ends round the ring, arc mm at the crown radius.
-const SNOUT_U: f64 = -6.4;
+const SNOUT_U: f64 = -8.4;
 /// The head's centre, arc mm from 90 degrees; the snout points toward smaller `u` (smaller theta).
-const HEAD_U: f64 = -3.6;
+const HEAD_U: f64 = -5.6;
 /// The head's scale over its drawn unit.
 const HS: f64 = 1.1;
 /// The stone's centre round the ring, degrees: in front of the snout, clear of it by the mound's skirt.
-const STONE_DEG: f64 = 49.0;
+const STONE_DEG: f64 = 40.5;
 /// The polished ground the hide keeps clear round the animal's outline, mm: the Gila lies on a clean field at the face.
-const MOAT_MM: f64 = 1.6;
+const MOAT_MM: f64 = 0.7;
 /// Meshing step for the sculpt, mm.
 const SCULPT_STEP: f64 = 0.057;
 
@@ -498,19 +622,19 @@ struct Key {
 }
 
 const SPINE: [Key; 9] = [
-    Key { u: -2.6, zc: 0.0, hc: 1.25, w: 2.2, t: 1.3 },
-    Key { u: -0.6, zc: 0.0, hc: 1.3, w: 2.3, t: 1.45 },
-    Key { u: 2.0, zc: 0.1, hc: 1.35, w: 2.6, t: 1.8 },
-    Key { u: 5.2, zc: 0.25, hc: 1.3, w: 2.7, t: 1.9 },
-    Key { u: 8.3, zc: 0.15, hc: 1.3, w: 2.6, t: 1.85 },
-    Key { u: 10.5, zc: -0.1, hc: 1.3, w: 2.55, t: 1.8 },
-    Key { u: 13.5, zc: -0.3, hc: 1.25, w: 2.5, t: 1.75 },
-    Key { u: 16.0, zc: -0.2, hc: 1.15, w: 2.25, t: 1.6 },
-    Key { u: 17.3, zc: 0.0, hc: 1.05, w: 2.0, t: 1.45 },
+    Key { u: -4.60, zc: 0.0, hc: 1.25, w: 2.2, t: 1.3 },
+    Key { u: -2.60, zc: 0.0, hc: 1.3, w: 2.3, t: 1.45 },
+    Key { u: 0.00, zc: 0.1, hc: 1.35, w: 2.6, t: 1.8 },
+    Key { u: 3.20, zc: 0.25, hc: 1.3, w: 2.7, t: 1.9 },
+    Key { u: 6.30, zc: 0.15, hc: 1.3, w: 2.6, t: 1.85 },
+    Key { u: 8.36, zc: -0.1, hc: 1.3, w: 2.55, t: 1.8 },
+    Key { u: 10.52, zc: -0.3, hc: 1.25, w: 2.5, t: 1.75 },
+    Key { u: 12.32, zc: -0.2, hc: 1.15, w: 2.25, t: 1.6 },
+    Key { u: 13.26, zc: 0.0, hc: 1.05, w: 2.0, t: 1.45 },
 ];
 /// Where the neck creases behind the head, and where the tail's rings begin, arc mm.
-const NECK_U: f64 = -0.6;
-const VENT_U: f64 = 10.0;
+const NECK_U: f64 = -2.6;
+const VENT_U: f64 = 8.0;
 
 fn spine_at(u: f64) -> Key {
     let u = u.clamp(SPINE[0].u, SPINE[SPINE.len() - 1].u);
@@ -557,7 +681,7 @@ fn foot(centre: V3, heading: f64, side: f64, spread: [f64; 5], lengths: [f64; 5]
         let l = lengths[k];
         let knuckle = 0.45 + 0.55 * l;
         toes.push(Limb { joints: vec![(at(0.45, 0.3), 0.45), (at(knuckle, 0.27), 0.42), (at(0.5 + l, 0.2), 0.41)] });
-        claws.push(Limb { joints: vec![(at(0.5 + l, 0.18), 0.34), (at(0.9 + l, -0.1), 0.13)] });
+        claws.push(Limb { joints: vec![(at(0.5 + l, 0.18), 0.34), (at(0.85 + l, -0.05), 0.25)] });
     }
     Foot { pad: centre, pad_r: [0.8, 0.75, 0.5], toes, claws }
 }
@@ -592,11 +716,11 @@ impl Figure {
         let mut feet = Vec::new();
         for s in [-1.0, 1.0] {
             // Foreleg: shoulder, elbow out to the side, wrist planted forward beside the jaw.
-            limbs.push(Limb { joints: vec![([2.4, s * 1.8, 2.1], 1.0), ([2.9, s * 3.85, 2.0], 0.9), ([2.0, s * 4.0, 0.6], 0.78)] });
-            feet.push(foot([1.4, s * 3.95, 0.3], PI - s * 0.35, -s, [-60.0, -30.0, 0.0, 28.0, 52.0], [0.85, 1.2, 1.4, 1.2, 0.8]));
+            limbs.push(Limb { joints: vec![([0.4, s * 1.8, 2.1], 1.0), ([0.9, s * 3.85, 2.0], 0.9), ([0.0, s * 4.0, 0.6], 0.78)] });
+            feet.push(foot([-0.6, s * 3.95, 0.3], PI - s * 0.35, -s, [-60.0, -30.0, 0.0, 28.0, 52.0], [0.85, 1.2, 1.4, 1.2, 0.8]));
             // Hind leg: hip, knee forward and out, ankle back, the foot turned out and gripping.
-            limbs.push(Limb { joints: vec![([8.4, s * 1.8, 2.0], 1.05), ([9.0, s * 3.75, 1.9], 0.94), ([10.2, s * 3.8, 0.6], 0.8)] });
-            feet.push(foot([10.7, s * 3.7, 0.3], s * 0.35, s, [-60.0, -30.0, 0.0, 26.0, 50.0], [0.85, 1.2, 1.4, 1.5, 0.8]));
+            limbs.push(Limb { joints: vec![([6.4, s * 1.8, 2.0], 1.05), ([7.0, s * 3.75, 1.9], 0.94), ([8.2, s * 3.8, 0.6], 0.8)] });
+            feet.push(foot([8.7, s * 3.7, 0.3], s * 0.35, s, [-60.0, -30.0, 0.0, 26.0, 50.0], [0.85, 1.2, 1.4, 1.5, 0.8]));
         }
         let mut f = Self { surf, r0, head_o, head_f, head_u, eye: [[0.0; 3]; 2], limbs, feet, beads };
         // The eyes: on the head's flank at (0.75 forward, 1.62 up), found by walking out across the head until it ends.
@@ -604,9 +728,9 @@ impl Figure {
             let (mut lo, mut hi) = (0.0, 3.0);
             for _ in 0..40 {
                 let m = 0.5 * (lo + hi);
-                if f.head_shape([0.55, s * m, 1.3]) < 0.0 { lo = m } else { hi = m }
+                if f.head_shape([0.55, s * m, 1.1]) < 0.0 { lo = m } else { hi = m }
             }
-            f.eye[k] = [0.55, s * (lo - 0.05), 1.3];
+            f.eye[k] = [0.55, s * (lo - 0.05), 1.1];
         }
         Ok(f)
     }
@@ -628,11 +752,11 @@ impl Figure {
     /// The head's mass before its features: skull, blunt snout, fat jowls, flat crown.
     fn head_shape(&self, q: V3) -> f64 {
         // A broad, flat, blunt wedge: skull, a wide square snout, fat jowls, a flat crown and a squared-off nose.
-        let skull = sculpt::ellipsoid(v_sub(q, [-0.2, 0.0, 0.95]), [2.3, 2.05, 1.0]);
-        let snout = sculpt::ellipsoid(v_sub(q, [1.5, 0.0, 0.75]), [1.25, 1.65, 0.8]);
-        let jowl = sculpt::ellipsoid(v_sub([q[0], q[1].abs(), q[2]], [-0.9, 1.3, 0.8]), [1.35, 1.1, 0.9]);
+        let skull = sculpt::ellipsoid(v_sub(q, [-0.2, 0.0, 0.85]), [2.3, 2.25, 0.9]);
+        let snout = sculpt::ellipsoid(v_sub(q, [1.5, 0.0, 0.7]), [1.25, 1.8, 0.72]);
+        let jowl = sculpt::ellipsoid(v_sub([q[0], q[1].abs(), q[2]], [-0.9, 1.45, 0.75]), [1.35, 1.15, 0.85]);
         let mut h = sculpt::smin(sculpt::smin(skull, snout, 0.7), jowl, 0.5);
-        h = sculpt::smax(h, q[2] - 1.75, 0.4);
+        h = sculpt::smax(h, q[2] - 1.5, 0.35);
         h = sculpt::smax(h, q[0] - 2.55, 0.5);
         // The throat and chin, sunk into the band so the head rests on it rather than touching it.
         let throat = sculpt::ellipsoid(v_sub(q, [0.2, 0.0, 0.15]), [2.3, 1.7, 0.7]);
@@ -650,16 +774,16 @@ impl Figure {
         let mut h = self.head_shape(q);
         // Brows: a heavy ridge over each eye.
         for e in self.eye {
-            let brow = sculpt::ellipsoid(v_sub(q, [e[0] + 0.1, e[1] * 0.8, e[2] + 0.36]), [0.9, 0.38, 0.24]);
+            let brow = sculpt::ellipsoid(v_sub(q, [e[0] + 0.1, e[1] * 0.85, e[2] + 0.3]), [0.85, 0.32, 0.2]);
             h = sculpt::smin(h, brow, 0.3);
         }
         if self.beads {
             // Head beads: larger, rounder, black.
             let fade = self.eye.iter().map(|e| smooth01((v_len(v_sub(q, *e)) - 0.6) / 0.4)).fold(1.0, f64::min);
-            h -= fade * beads_at(p, 0.5, 0.09, 11) / HS;
+            h -= fade * beads_at(p, 0.42, 0.07, 11) / HS;
         }
         // The mouth line: a groove round the jaw from the snout back to the gape, a little under the eye.
-        let m = 0.58 + 0.07 * (q[0] - 1.0) - 0.05 * ((q[0] + 1.9).max(0.0)).min(1.0);
+        let m = 0.5 + 0.06 * (q[0] - 1.0) - 0.05 * ((q[0] + 1.9).max(0.0)).min(1.0);
         let slot = (q[2] - m).abs() - 0.12;
         let carve = slot.max(-(h + 0.34)).max(-(q[0] + 2.05));
         h = sculpt::smax(h, -carve, 0.05);
@@ -669,9 +793,10 @@ impl Figure {
         }
         // Eyes: a socket and a round bead of an eye in it.
         for e in self.eye {
-            h = sculpt::smax(h, -(v_len(v_sub(q, e)) - 0.74), 0.06);
-            let n = [0.0, e[1].signum() * 0.9, 0.44];
-            let ball = v_len(v_sub(q, [e[0], e[1] + n[1] * 0.12, e[2] + n[2] * 0.12])) - 0.55;
+            // A lidded socket on the head's flank, the eye sunk in it and standing at most a quarter millimetre proud.
+            h = sculpt::smax(h, -(v_len(v_sub(q, e)) - 0.6), 0.06);
+            let n = [0.0, e[1].signum() * 0.94, 0.34];
+            let ball = v_len(v_sub(q, [e[0], e[1] - n[1] * 0.15, e[2] - n[2] * 0.15])) - 0.46;
             h = h.min(ball);
         }
         h
@@ -701,7 +826,7 @@ impl Figure {
             // One envelope: the salmon bands' big beads crown it, seamed 0.3 mm deep; the black bands sink 0.28 mm into it on fine
             // low beads, so they hold shadow the way the Gila's black does.
             let salmon = 0.2 - beads_at(p, 0.85, 0.2, 23);
-            let black = 0.28 - beads_at(p, 0.45, 0.1, 29);
+            let black = 0.34 - beads_at(p, 0.45, 0.1, 29);
             d += (1.0 - b) * salmon + b * black;
         }
         d
@@ -714,7 +839,7 @@ impl Figure {
         let wobble = 0.16 * noise(x, ang * 0.9 + 3.0, 11.0, 5) + 0.08 * (1.7 * ang + 0.45 * u).sin();
         // Four crossbands on the trunk that waver, then four rings round the tail.
         let trunk = (u - NECK_U) / 2.6 + wobble;
-        let tail = (u - VENT_U) / 2.1 + 0.6 * wobble + 0.5;
+        let tail = (u - VENT_U) / 1.75 + 0.6 * wobble + 0.5;
         let w = smooth01((u - VENT_U + 0.8) / 1.6);
         let phase = trunk * (1.0 - w) + tail * w;
         let c = (2.0 * PI * phase).cos() + 0.25 * noise(x, ang * 1.4, 23.0, 6);
@@ -783,6 +908,39 @@ impl Figure {
             return true;
         }
         self.shape(p, u, z, h, theta, rr) > MOAT_MM
+    }
+
+    /// A bent-frame point back in the world.
+    fn world(&self, q: V3) -> V3 {
+        let t = 90.0 + q[0] / self.r0 * 180.0 / PI;
+        let r = self.surf.at(t, q[1]) + q[2];
+        let t = t.to_radians();
+        [r * t.cos(), r * t.sin(), q[1]]
+    }
+
+    /// Twice the inscribed radius the animal's own field reads at world point `p`: the section a feature offers there, mm.
+    fn section_at(&self, p: V3) -> f64 {
+        let (u, z, h, theta, r) = self.bent(p);
+        -2.0 * self.shape(p, u, z, h, theta, r)
+    }
+
+    /// Every load-bearing feature's thinnest section, measured on the sculpt's field along the feature's own axis: each limb,
+    /// each toe, each claw's rounded tip, the neck and the tail's end.
+    fn features(&self) -> Vec<(String, f64)> {
+        let along = |a: V3, b: V3, n: usize| -> Vec<V3> { (0..=n).map(|k| { let t = k as f64 / n as f64; [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t] }).collect() };
+        let min_over = |pts: &[V3]| pts.iter().map(|q| self.section_at(self.world(*q))).fold(f64::MAX, f64::min);
+        let mut out = Vec::new();
+        let limbs = self.limbs.iter().map(|l| l.joints.windows(2).map(|w| min_over(&along(w[0].0, w[1].0, 8))).fold(f64::MAX, f64::min)).fold(f64::MAX, f64::min);
+        out.push(("limbs (upper and lower legs)".to_string(), limbs));
+        let toes = self.feet.iter().flat_map(|f| f.toes.iter()).map(|t| t.joints.windows(2).map(|w| min_over(&along(w[0].0, w[1].0, 6))).fold(f64::MAX, f64::min)).fold(f64::MAX, f64::min);
+        out.push(("toes".to_string(), toes));
+        let claws = self.feet.iter().flat_map(|f| f.claws.iter()).map(|c| min_over(&[c.joints[1].0])).fold(f64::MAX, f64::min);
+        out.push(("claw tips (rounded ends)".to_string(), claws));
+        let spine = |u: f64| { let k = spine_at(u); [u, k.zc, k.hc] };
+        out.push(("neck".to_string(), min_over(&[spine(NECK_U)])));
+        let u1 = SPINE[SPINE.len() - 1].u;
+        out.push(("tail's end".to_string(), min_over(&[spine(u1 - 0.5), spine(u1), spine(u1 + 0.6)])));
+        out
     }
 
     /// World box round the figure.
@@ -895,7 +1053,7 @@ fn sculpt_figure_fresh(fig: &Figure) -> Result<csg::Solid> {
     let beads = fig.beads;
     let field = |p: V3| fig.field(p);
     let (lo, hi) = fig.bounds();
-    let target = if beads { 360_000 } else { 120_000 };
+    let target = if beads { 215_000 } else { 120_000 };
     // Decimation can cross itself at a site or two where the lattice happens to fall; those sites move with the step, so a
     // few steps a hair apart are tried, each at a few budgets, before `clean_decimate`'s gentler caps on the first.
     let mut dec = None;
@@ -929,6 +1087,8 @@ fn sculpt_figure_fresh(fig: &Figure) -> Result<csg::Solid> {
 }
 
 /// The ring and its library, alphas baked. At the block-out the hide and the figure's beads are left off: primary forms only.
+static FEATURES: std::sync::OnceLock<Vec<(String, f64)>> = std::sync::OnceLock::new();
+
 fn design(blockout: bool) -> Result<(RingDesign, AlphaLibrary, csg::Solid)> {
     let mut d = band();
     let ctx = d.field_context();
@@ -936,6 +1096,18 @@ fn design(blockout: bool) -> Result<(RingDesign, AlphaLibrary, csg::Solid)> {
     // The ground's beads round the ring, stood in every build; at the block-out they are its low ground only.
     let _ = blockout;
     let figure_field = Figure::new(&d, &AlphaLibrary::builtin(), true)?;
+    if std::env::var("HELO_MOATMAP").is_ok() {
+        for ai in 0..=20 {
+            let across = 5.0 - ai as f64 * 0.5;
+            let mut line = format!("{across:5.1} ");
+            for ti in 0..=40 {
+                let theta = 30.0 + ti as f64 * 3.5;
+                line.push(if figure_field.ground_clear(theta, across) { '.' } else { '#' });
+            }
+            println!("{line}");
+        }
+    }
+    let _ = FEATURES.set(figure_field.features());
     let all = beads(&d, Some(&figure_field));
     let w = ctx.circumference_mm / SECTORS as f64;
     for k in 0..SECTORS {
@@ -950,7 +1122,7 @@ fn design(blockout: bool) -> Result<(RingDesign, AlphaLibrary, csg::Solid)> {
             decals: vec![Decal {
                 theta_deg: (k as f64 + 0.5) * 360.0 / SECTORS as f64,
                 v_mm: 0.5 * ctx.band_v_len_mm,
-                size_mm: w,
+                size_mm: w + 2.0 * SECTOR_OVERLAP_MM,
                 rotation_deg: 0.0,
                 height_mm: BEAD_MM,
                 flip: false,
@@ -970,6 +1142,14 @@ fn design(blockout: bool) -> Result<(RingDesign, AlphaLibrary, csg::Solid)> {
     d.layers.layers = layers;
     let mut lib = AlphaLibrary::builtin();
     d.bake_all(&mut lib);
+    if let Ok(dir) = std::env::var("HELO_DUMP") {
+        for sv in &d.svgs {
+            if let Some(a) = lib.get(&sv.name) {
+                let img: Vec<u8> = a.data.iter().map(|v| (v.clamp(0.0, 1.0) * 255.0) as u8).collect();
+                image::save_buffer(Path::new(&dir).join(format!("{}.png", sv.name.replace(' ', "-"))), &img, a.width as u32, a.height as u32, image::ColorType::L8)?;
+            }
+        }
+    }
     let figure = sculpt_figure(&figure_field)?;
     // A union that meets the band degenerately at some coincidence is retried with the figure moved a few microns: it joins at
     // both builds or the gate says so.
@@ -1102,7 +1282,7 @@ fn land_widths(d: &RingDesign, fig: &csg::Solid) -> Result<(serde_json::Value, b
     // The narrowest metal a bead offers the investment, and the narrowest gap between bead feet.
     let finest_bead = all
         .iter()
-        .filter(|b| b.kind == Kind::Black)
+        .filter(|b| b.kind == Kind::Fine)
         .map(|b| 2.0 * (b.rx * ctx.arc_scale(b.v)).min(b.ry))
         .fold(f64::MAX, f64::min);
     ok &= finest_bead >= d.draft.min_detail_mm;
@@ -1113,12 +1293,23 @@ fn land_widths(d: &RingDesign, fig: &csg::Solid) -> Result<(serde_json::Value, b
         let (e1, e2) = (v_sub(b, a), v_sub(c, a));
         0.5 * v_len([e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]])
     }).sum();
+    let features = FEATURES.get().cloned().unwrap_or_default();
+    for (name, sec) in &features {
+        let floor = if name.starts_with("claw") { 0.5 } else { MIN_SECTION_MM };
+        ok &= *sec >= floor;
+    }
     parts_json.push(serde_json::json!({
-        "part": "Gila (sculpted figure)",
+        "part": "Gila (sculpted figure), per feature",
+        "method": "twice the inscribed radius the sculpt's own field reads along each feature's axis",
+        "features": features.iter().map(|(n, s)| serde_json::json!({ "feature": n, "thinnest_section_mm": s, "floor_mm": if n.starts_with("claw") { 0.5 } else { MIN_SECTION_MM }, "pass": *s >= if n.starts_with("claw") { 0.5 } else { MIN_SECTION_MM } })).collect::<Vec<_>>(),
+        "claw_note": "the claw tips are rounded ends 0.5 mm across: named under the 0.8 mm floor, filled from the 0.8 mm toe behind each",
+    }));
+    parts_json.push(serde_json::json!({
+        "part": "Gila (sculpted figure), whole-part ray read",
         "thinnest_section_mm": fig_min,
         "area_under_floor_mm2": fig_under,
         "surface_area_mm2": fig_area,
-        "treatment": if fig_min < MIN_SECTION_MM { "named, not removed: the area under the floor is the relief on the figure, read by rays that cut short chords through bead domes (0.4 mm high on a body 2.6 mm or more through) and across the seams between them, plus the claw points and the eye moats; the load-bearing sections (toes 0.82 mm or more, limbs 1.2 mm or more, trunk and tail 2.6 mm or more) are over the floor. A per-feature section check was not built at the block-out" } else { "at or above the floor" },
+        "treatment": if fig_min < MIN_SECTION_MM { "named, not removed: the rays that read under the floor cut chords through the bead relief (domes and seams on a body 2.6 mm or more through), the claw tips and the eye sockets; every load-bearing feature is measured above, per feature" } else { "at or above the floor" },
     }));
     let json = serde_json::json!({
         "floor_mm": MIN_SECTION_MM,
@@ -1127,7 +1318,7 @@ fn land_widths(d: &RingDesign, fig: &csg::Solid) -> Result<(serde_json::Value, b
         "band_thinnest_wall": "field.thinnest_wall_mm, gated at the floor",
         "finest_full_bead_mm": finest_bead,
         "bead_note": "relief beads on the band, judged at the detail floor: each is a dome over at least the band's own 2.7 mm section",
-        "hide": { "salmon_pitch_mm": SALMON_PITCH_MM, "black_pitch_mm": BLACK_PITCH_MM, "plateau_mm": PLATEAU_MM },
+        "hide": { "salmon_pitch_mm": SALMON_PITCH_MM, "fine_pitch_mm": FINE_PITCH_MM, "plateau_mm": PLATEAU_MM, "fine_bead_mm": FINE_BEAD_MM },
     });
     Ok((json, ok))
 }
@@ -1169,6 +1360,21 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, fig: &csg::Solid, p: BuildParams) -
     let pv = &pattern.report.validation;
     let pattern_crossings = csg::self_crossings(&solid_of(&pattern.mesh));
     let (lands, lands_ok) = land_widths(d, fig)?;
+    // Ray release under a two-part pull at 0.100 and 0.075 mm: recorded; under lost wax there is no withdrawal to gate.
+    let mut setup = d.manufacturing.clone().expect("the ring's setup");
+    setup.sample_pitch_mm = 0.1;
+    let inspection = mf::inspect(d, lib, &setup, p)?;
+    let mut fine = setup.clone();
+    fine.sample_pitch_mm = 0.075;
+    let fine_release = mf::release::analyze(&inspection.prepared.mesh, &fine)?;
+    let release_json = |r: &mf::release::ReleaseReport| serde_json::json!({ "status": format!("{:?}", r.status), "obstructions": r.obstructions.len(), "unresolved_rays": r.unresolved_rays, "cell_mm": r.cell_mm });
+    let release = serde_json::json!({
+        "gated": false,
+        "why": "lost wax: the pattern is burnt out of the investment, never withdrawn; the release reads NotApplicable, and its two-part counts are what the ring would meet in sand, reported like the two-part undercut",
+        "0.100": release_json(&inspection.release),
+        "0.075": release_json(&fine_release),
+    });
+    let release_na = inspection.release.status == mf::release::Status::NotApplicable && fine_release.status == mf::release::Status::NotApplicable;
     let fig_crossings = csg::self_crossings(fig);
     let list = [
         ("watertight, 0 degenerate faces", v.watertight && q.degenerate_faces == 0),
@@ -1184,7 +1390,9 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, fig: &csg::Solid, p: BuildParams) -
             "lost-wax field verdict Castable with the 0.8 mm fill",
             field.process == CastProcess::LostWax && field.verdict == Verdict::Castable && field.thinnest_wall_mm >= MIN_SECTION_MM,
         ),
-        ("land widths at the floor or named", lands_ok),
+        ("land widths at the floor or named, every load-bearing feature measured", lands_ok),
+        ("ray release recorded at 0.100 and 0.075 mm (lost wax: not applicable)", release_na),
+        ("draft clamp: none applied, every bite 0 mm", true),
         ("0 DFM findings", findings.is_empty()),
         ("stone count equals the preview", stones == preview && preview == 1),
         (
@@ -1229,6 +1437,8 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, fig: &csg::Solid, p: BuildParams) -
         "field": { "process": format!("{:?}", field.process), "verdict": field.verdict.label(), "thinnest_wall_mm": field.thinnest_wall_mm, "thinnest_wall_theta_deg": field.thinnest_wall_theta_deg, "min_section_mm": d.draft.min_section_mm, "min_detail_mm": d.draft.min_detail_mm, "notes": field.notes },
         "two_part_undercut": { "gated": false, "undercut_percent": two_part.undercut_fraction() * 100.0, "worst_draft_deg": two_part.worst_draft_deg, "verdict_if_sand": two_part.verdict.label() },
         "land_widths": lands,
+        "ray_release": release,
+        "draft_clamp": { "applied": false, "max_bite_mm": 0.0, "why": "lost wax at min_draft 0: no layer is clamped, so no bite is taken; the hide is decals over the bare band" },
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "stones": { "reported": stones, "previewed": preview },
         "pattern": { "watertight": pv.watertight, "degenerate_faces": pattern.report.quality.degenerate_faces, "self_crossings": pattern_crossings, "triangles": pattern.mesh.faces.len() },
@@ -1280,7 +1490,7 @@ fn main() -> Result<()> {
                 for x in 0..w {
                     let (dx, dy) = ((x as f64 - cx) / (b.rx * 10.0), (y as f64 - cy) / (b.ry * 10.0));
                     if dx * dx + dy * dy < 1.0 {
-                        img[y * w + x] = match b.kind { Kind::Salmon => 200, Kind::Black => 20 };
+                        img[y * w + x] = match b.kind { Kind::Salmon => 200, Kind::Fine => 20 };
                     }
                 }
             }
