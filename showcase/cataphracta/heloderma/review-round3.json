@@ -1,0 +1,100 @@
+{
+  "ring": "Heloderma — the beaded one",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.3,
+  "summary": "Cut at 6.3. Earlier scores were 5.8 in round 1 and 6.4 in round 2. Caiman is 7 and the ship bar is 7.5. For scale, Corvus was cut at 6.6, Kraken at 7.0 and Basiliscus at 7.2. This is round 3 and the ring is below 7.5, so review.md requires a cut. Every gate recorded in report.json and template-verification.json is green, and I checked each value. The ring is poured in lost wax, so the ray-release counts and the two-part undercut are reported, not gated. That is the same treatment as in round 2 and for Kraken and Manticora. The gates are not the problem. The art is. Of round 2's seven punch items, one is closed (the collet's beaded lip), one is partly closed (the eyes sit lower in their sockets), and five are still open. (1) The ring still does not read as a Gila monster at 300 px. In hero-300 and face-300 the figure is a knobbly chain of clumps with legs. The head is a round, cracked bulb next to the stone, not a flat square-snouted wedge. The trunk is covered in cracked-mud polygons with no countable light and dark bands. In side.png the head is again a long, tapered, crocodile snout. (2) The face ground is worse than in round 2. The bead field is cut into stepped rectangular blocks, and large bald polished areas surround the figure and the collet (hero.png, face.png, stones.png, shoulder.png). They read as a masked decal, not as skin. (3) The palm still shows eight visible sectors with stepped walls between them (palm.png). There are radial cuts round the lower half of the ring in side.png, a torn diagonal slit at the top of reverse.png, and frilled ledges along both rims. (4) The tail still drops off the crest at about 10 o'clock in side.png. The rectangular teeth of the collet lip stick out of the profile at about 2 o'clock. The ring has been at 5.8 to 6.4 for three rounds and now has none left.",
+  "strengths": [
+    "Every gate in the JSON is green at both draft and export. The ring is watertight, has 0 degenerate faces and 0 self-crossings on the ring and on the figure, and has empty solids and parts notes. The field verdict is Castable under lost wax, with 0 DFM findings. The template gate passes with 1 patch, and the export has 1,512,536 triangles.",
+    "The spessartite now sits in a made collet with a bead ring round its lip (stones.png). It is visible and warm against the gold.",
+    "The sculpted figure has real mass and animal posture. The four splayed legs with toes and rounded claws are the best passage on the ring (face.png, shoulder.png).",
+    "The eyes are now sunk in lidded sockets (reverse.png) and no longer stand up like pins.",
+    "The silhouette is its own: a whole lizard crawling along a half-round dome, unlike any Reptilia tile."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "pass": false, "reason": "The face carries a figure on a patchwork of rectangular bead blocks and bald polished areas. The shank carries eight separately tiled sectors with visible walls between them (palm.png). The two halves read as different treatments, not one hide."},
+    {"item": "The hide reads as this specific animal at 300 px without the caption", "pass": false, "reason": "In hero-300 and face-300 I see a knobbly lizard or crocodile, not a Gila monster. The Gila's signatures are missing: no countable pale and dark bands, no flat blunt head, no fat short tail. The trunk texture is cracked-mud polygons, not beadwork."},
+    {"item": "Figurative motifs have true outlines, crisp, with no combing, smearing or stair-steps", "pass": false, "reason": "The bead-field edges on the face are pixel-stepped rectangles (hero.png, face.png, stones.png). The palm band borders are stepped cliffs with frayed edges (palm.png). The figure's own outline is soft but clean."},
+    {"item": "Stones sit in made settings and are visible", "pass": true, "reason": "The spessartite sits in a made collet with a beaded lip, 1 reported and 1 previewed. In side.png and shoulder.png the lip beads show as rectangular teeth standing proud, and that is noted in the punch list."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "pass": false, "reason": "The figure is sculpted, but the ground is mechanical. It has blocky stepped bead masks, bald polished flats, parallel ledge terraces at the rims, and radial cuts round the shank."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "pass": true, "reason": "Not applicable in the strict sense, because the stock is a half-round dome with no side faces. The bare stock is unharmed in bare-vs-finished.png and the bore is clean."},
+    {"item": "A silhouette distinct from the other Cataphracta rings and the Reptilia tiles", "pass": true, "reason": "A full-body lizard crawling on a dome is unlike any Reptilia band or signet. The tail hanging off the crest and the comb of lip teeth spoil the profile in side.png."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "pass": false, "reason": "The large form (the figure) and the small forms (the beads) are present. The medium tier, which is the banding, is missing, and the bald polished areas break up the density. Legibility at 300 px is below Caiman's."}
+  ],
+  "gates": [
+    {"gate": "watertight, 0 degenerate faces", "claimed": "pass", "verified": "draft and export geometry: watertight true, boundary 0, non-manifold 0, degenerate 0", "pass": true},
+    {"gate": "0 self-crossings on the ring and every made part", "claimed": "pass", "verified": "self_crossings 0 on the ring; figure_self_crossings 0; parts_joined 1", "pass": true},
+    {"gate": "empty solids notes", "claimed": "pass", "verified": "solids_notes [] and parts_notes []; stamps 0 and stamped 0", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "pass", "verified": "vertices_inside 0; closest vertex 9.2987 mm against a bore radius of 9.3 mm", "pass": true},
+    {"gate": "field verdict Castable (process LostWax, min_section 0.8, min_draft 0)", "claimed": "Castable", "verified": "Castable at draft and export; thinnest wall 2.108 mm at theta 278.4", "pass": true},
+    {"gate": "land widths (made parts under the floor named)", "claimed": "pass", "verified": "Every load-bearing figure feature is at or above its floor: toes 0.823 mm, claw tips 0.500 mm against a named 0.5 mm floor. The collet has 26.2 mm2 under the floor, thinnest 0.178 mm, named as the burnished lip. These are recorded and named, as the gate asks.", "pass": true},
+    {"gate": "ray release at 0.100 and 0.075 mm", "claimed": "recorded, NotApplicable under lost wax", "verified": "At export: 0.100 mm gives 1,143 two-part obstructions and 0 unresolved; 0.075 mm gives 1,852 obstructions and 1 unresolved. Status NotApplicable, gated false. Reported, not gated, under lost wax, as in round 2 and for Kraken and Manticora.", "pass": true},
+    {"gate": "draft-clamp bite at most 0.05 mm", "claimed": "none applied, 0 mm", "verified": "applied false, max_bite_mm 0.0", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings [] at draft and export; template detail_findings 0", "pass": true},
+    {"gate": "stone count equals the preview", "claimed": "pass", "verified": "previewed 1, reported 1; stones.json lists 1 spessartite", "pass": true},
+    {"gate": "cold reload identical", "claimed": "pass", "verified": "report cold_reload_identical true; template cold_design_reload, cold_graph_reload and vertices_faces_normals_identical all true", "pass": true},
+    {"gate": "export within 2 million triangles", "claimed": "pass", "verified": "1,512,536 triangles, the same count in the export build and the template verification", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "pass", "verified": "export pattern: watertight, 0 degenerate, 0 self-crossings", "pass": true},
+    {"gate": "template gate: at most 4 design.set patches within the class budget", "claimed": "pass", "verified": "1 patch (/manufacturing). Class painted, template 2,848,705 of 3,000,000 bytes, size_review_required false, source_identical true, template_gate_passed true", "pass": true},
+    {"gate": "two-part undercut (reported, not a gate)", "claimed": "reported", "verified": "2.64%, worst -37.4 deg, gated false; would not release in sand", "pass": true}
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P1",
+      "zone": "Figure head, from the neck crease to the snout, next to the collet (round 2 item 1: still open)",
+      "change": "For any restart: the head is still a round cracked bulb from above and a tapered crocodile snout from the side. Rebuild it as a flat wedge. The skull length should be at most 1.3x the head width. The snout should be square-ended, with a tip radius at least 40% of the head width. The head should be as wide as the neck or wider. Cover it with 0.9-1.1 mm domed beads, not cracked polygons.",
+      "acceptance": "In side.png the snout reads as blunt and square. In face-300 the head is a flat wedge wider than the neck, not a round bulb."
+    },
+    {
+      "number": 2,
+      "priority": "P1",
+      "zone": "Figure dorsal surface, nape to tail tip (round 2 item 2: still open)",
+      "change": "Replace the cracked-mud polygon surface with bead rows. Alternate pale bands at full height with dark bands sunk 0.30-0.40 mm, filled with 0.35-0.45 mm beads, each band 1.5-2.0 mm wide: 4 on the trunk and 4 on the tail. Make the tail short and fat, at least 70% of the trunk width at mid-length.",
+      "acceptance": "In face-300 a viewer can count at least 3 stripes on the trunk and 4 on the tail without zooming."
+    },
+    {
+      "number": 3,
+      "priority": "P1",
+      "zone": "Face ground, theta about 40-140, the Gila beadwork layers that paint the face",
+      "change": "Delete the stepped rectangular bead masks and the bald polished areas. Run one continuous bead ground up to the figure and the collet. Leave a polished moat no wider than 0.6-0.8 mm along each outline.",
+      "acceptance": "In hero.png, face.png and stones.png no bead field ends in a square corner or a step, and no polished patch wider than 1.0 mm remains outside the moats."
+    },
+    {
+      "number": 4,
+      "priority": "P1",
+      "zone": "Shank, the eight Gila beadwork sectors, theta about 150-30 through 270, with the palm at 270",
+      "change": "Remove the sector walls. Use one tiling whose period divides 78.54 mm, or crossfade adjacent sectors over at least 0.8 mm with SmoothMax soft 0.2 mm or more. Remove the diagonal slit at the top of reverse.png.",
+      "acceptance": "In palm.png, side.png and reverse.png no line or step crosses the band at any theta."
+    },
+    {
+      "number": 5,
+      "priority": "P2",
+      "zone": "Both rim edges of the shank and the hero's right edge",
+      "change": "Remove the frilled ledge and the parallel terraces. Grade bead height to 0 over the last 0.4 mm into the edge fillet.",
+      "acceptance": "In palm.png and hero.png the hide meets the rim with no ledge and no stacked lines."
+    },
+    {
+      "number": 6,
+      "priority": "P2",
+      "zone": "Tail tip (off the crest at about 10 o'clock in side.png) and the collet lip (at about 2 o'clock in side.png)",
+      "change": "Curl the last 4-6 mm of the tail back onto the face. Make the collet-lip beads round domes 0.35-0.45 mm across, sitting on the lip, not rectangular teeth standing radially out of the profile.",
+      "acceptance": "In side.png the tail tip stays above the shoulder line and no rectangular teeth break the outline near the stone."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/heloderma/hero-300.png",
+    "showcase/cataphracta/heloderma/face-300.png",
+    "showcase/cataphracta/heloderma/contact-300.png",
+    "showcase/cataphracta/heloderma/hero.png",
+    "showcase/cataphracta/heloderma/face.png",
+    "showcase/cataphracta/heloderma/side.png",
+    "showcase/cataphracta/heloderma/palm.png",
+    "showcase/cataphracta/heloderma/reverse.png",
+    "showcase/cataphracta/heloderma/shoulder.png",
+    "showcase/cataphracta/heloderma/stones.png",
+    "showcase/cataphracta/heloderma/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
