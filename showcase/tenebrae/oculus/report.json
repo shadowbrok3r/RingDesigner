@@ -1,19 +1,19 @@
 {
   "alloy": "Silver 925",
   "band": {
-    "lights": 12,
+    "lights": 16,
     "thickness_mm": 4.6,
     "width_mm": 7.0
   },
   "bore_mm": 18.600018864336207,
-  "cad_features": 13,
-  "design_bytes": 46882,
+  "cad_features": 9,
+  "design_bytes": 38239,
   "draft": {
     "build": [
       768,
       320
     ],
-    "build_s": 5.446972433,
+    "build_s": 4.955619355,
     "gates": {
       "bore_radius_mm": 9.3,
       "cold_reload_identical": null,
@@ -62,35 +62,29 @@
         },
         {
           "id": 9,
-          "name": "Wheel the bay round the finger: twelve lancets and twelve quatrefoils",
-          "status": "Ok"
-        },
-        {
-          "id": 10,
-          "name": "Square to the crest over the first lancet",
-          "status": "Ok"
-        },
-        {
-          "id": 11,
-          "name": "A pointed arch on the crown, standing on the high side face's edge",
-          "status": "Ok"
-        },
-        {
-          "id": 12,
-          "name": "Sink the arch into the crown",
-          "status": "Ok"
-        },
-        {
-          "id": 13,
-          "name": "Wheel the arch round the crown: a blind arcade over the lancets",
+          "name": "Wheel the bay round the finger: sixteen lancets and sixteen quatrefoils",
           "status": "Ok"
         }
       ],
       "field_notes": [
-        "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
-        "Measured with the ring as built: 6 CAD parts (0 joined, 6 cut), 1397.6 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Extrude \"Sink the arch into the crown\" (#12) would undercut a two-part pull over 4.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Ring array \"Wheel the arch round the crown: a blind arcade over the lancets\" (#13) would undercut a two-part pull over 44.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Lost wax: 0.10% of the surface would undercut a two-part pull (worst 27.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Undercut 11–11° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 34–34° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 56–56° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 79–79° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 101–101° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 124–124° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 146–146° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 169–169° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 191–191° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 214–214° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 236–236° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 259–259° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 281–281° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 304–304° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 326–326° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Undercut 349–349° on the upper shoulder: 0.4 mm² leaning to 24° — caused by \"Voussoir joints\"; muting it clears it.",
+        "Measured with the ring as built: 4 CAD parts (0 joined, 4 cut), 1448.4 mm² of part surface; under lost wax they are reported, never gating."
       ],
       "field_verdict": "Castable",
       "investment_min_section_mm": 0.8,
@@ -108,15 +102,7 @@
           0
         ],
         [
-          "Wheel the bay round the finger: twelve lancets and twelve quatrefoils",
-          0
-        ],
-        [
-          "Sink the arch into the crown",
-          0
-        ],
-        [
-          "Wheel the arch round the crown: a blind arcade over the lancets",
+          "Wheel the bay round the finger: sixteen lancets and sixteen quatrefoils",
           0
         ]
       ],
@@ -138,31 +124,30 @@
           384,
           160
         ],
-        "faces": 111540,
+        "faces": 114428,
         "limit_mm": 0.8,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
         "rays": 384,
-        "sampled_min_mm": 0.8443778594990365,
+        "sampled_min_mm": 0.8167830654876894,
         "unresolved": 0
       },
-      "thinnest_wall_mm": 4.390391256788703,
-      "triangles": 387718,
-      "undercut_percent": 1.6004772758559025,
+      "thinnest_wall_mm": 4.092276172491758,
+      "triangles": 402736,
+      "undercut_percent": 0.05074885161017254,
       "vertices_inside_bore": 0,
       "watertight": true,
-      "worst_draft_deg": -80.04290844869433
+      "worst_draft_deg": -27.552274630259586
     },
     "gates_passed": true,
     "lands": {
-      "bore_rail_mm": 1.0000000000000018,
-      "crown_arch_to_arch_mm": 4.111503837897545,
-      "crown_floor_mm": 3.8999999999999995,
+      "bore_rail_mm": 1.0291154025889355,
       "field_floor_web_mm": 5.8,
-      "hub_step_to_light_mm": 0.1000000000000032,
-      "lancet_to_quatrefoil_mm": 1.1939971624609274,
-      "outer_rail_mm": 1.1999999999999993,
-      "quatrefoil_cusp_tip_width_mm": 0.8,
-      "rim_step_to_light_mm": 0.29999999999999893
+      "hub_step_to_light_mm": 0.12911540258893694,
+      "lancet_to_quatrefoil_mm": 0.8340387191362336,
+      "outer_rail_mm": 0.8499999999999996,
+      "quatrefoil_cusp_tip_width_mm": 0.84,
+      "rim_step_to_light_mm": 0.1999999999999993,
+      "voussoir_joint_mm": 0.6
     }
   },
   "draft_settings": {
@@ -174,9 +159,11 @@
     "process": "LostWax",
     "sand": null
   },
-  "grams_gold_18k": 25.683279093003573,
-  "grams_silver_925": 17.078226662613417,
-  "layers": [],
+  "grams_gold_18k": 24.961898531250185,
+  "grams_silver_925": 16.598541000240814,
+  "layers": [
+    "Voussoir joints"
+  ],
   "name": "Oculus",
   "process": "Lost wax",
   "size": "US 8.6"

@@ -1,15 +1,15 @@
 //! Tenebrae — Oculus, the wheel: seen along the finger the band's side face is a wheel window and the finger its oculus.
-//! Twelve pointed lancets and twelve quatrefoils pierce the band from side face to side face inside a sunk tracery
-//! field, a blind arcade of pointed arches rides the crown over the lancets, and beads run the crest. Lost wax.
+//! Sixteen pointed lancets, and sixteen quatrefoils between their heads, pierce the band from side face to side face inside
+//! a sunk tracery field framed by a standing hub and rim; square-edged voussoirs ring the crown. Lost wax.
 //! cargo build --release -p ringdesign-core --example tenebrae_oculus
 //! target/release/examples/tenebrae_oculus [OUT_DIR] [--draft] [--verify]
 use anyhow::{Result, ensure};
 use ringdesign_core::{
-    AlphaLibrary, BuildParams, Layer, LayerEntry, ProfileStyle, RingDesign, ShankKind,
+    AlphaLibrary, BuildParams, Layer, LayerEntry, ProfileStyle, RingDesign, ShankKind, Window,
     cad::{self, Attach, Component, ComponentRole, Document, Feature, FeatureStatus, Operation, PatternKind, PlaneBase, Profile, Stage},
     castability::{self, CastProcess},
     csg, dfm,
-    field::MilgrainLayer,
+    field::{FluteProfile, FlutesLayer, MilgrainLayer, VGate},
     library,
     manufacturing::{self as mf, Setup},
     mesh, render,
@@ -24,41 +24,38 @@ const BORE_MM: f64 = 18.6;
 const WIDTH_MM: f64 = 7.0;
 const THICKNESS_MM: f64 = 4.6;
 const ALLOY: &str = "Silver 925";
-/// Lancets round the wheel, and as many quatrefoils between them.
-const LIGHTS: usize = 12;
+/// Lancets round the wheel, and as many quatrefoils between their heads.
+const LIGHTS: usize = 16;
 /// Bore-side rail: the lights start this far outside the bore, mm.
 const RAIL_MM: f64 = 1.0;
 /// Radius the lights start at: the bore plus its rail, mm.
 const RAIL_R_MM: f64 = BORE_MM * 0.5 + RAIL_MM;
 /// Radius of the lancets' apex, mm.
-const APEX_R_MM: f64 = 12.4;
+const APEX_R_MM: f64 = 12.75;
 /// Width of a lancet between its jambs, mm.
-const LANCET_W_MM: f64 = 1.5;
+const LANCET_W_MM: f64 = 1.55;
 /// Steps along each half of a lancet's head.
 const HEAD_STEPS: usize = 10;
 /// Quatrefoil: the lobes' radius, their centres' distance from its middle, and the radius of the cusps' round tips, mm;
 /// the radius it is centred on.
-const QUAT_LOBE_MM: f64 = 0.45;
-const QUAT_CENTRE_MM: f64 = 0.55;
-const QUAT_CUSP_MM: f64 = 0.4;
-const QUAT_R_MM: f64 = 11.3;
+const QUAT_LOBE_MM: f64 = 0.36;
+const QUAT_CENTRE_MM: f64 = 0.40;
+const QUAT_CUSP_MM: f64 = 0.42;
+const QUAT_R_MM: f64 = 11.95;
 const QUAT_STEPS: usize = 12;
 const CUSP_STEPS: usize = 6;
 /// Where the first lancet is centred, degrees round the ring; 90 is the crown. The quatrefoils sit halfway between.
 const FIRST_LIGHT_DEG: f64 = 90.0;
 /// Tracery field sunk into each side face: inner and outer radius and depth, mm.
 const FIELD_IN_MM: f64 = 10.2;
-const FIELD_OUT_MM: f64 = 12.7;
+const FIELD_OUT_MM: f64 = 12.95;
 const FIELD_DEPTH_MM: f64 = 0.6;
 const FIELD_DRAFT_DEG: f64 = 20.0;
-/// Crown arcade: one pointed arch over each lancet, sunk into the crown. Width round the ring, its foot and apex along the
-/// finger from the crest as drawn, and its depth under the crest, mm. It is laid turned half round, so the foot stands at the
-/// high side face and the apex points past the crest toward the low one.
-const ARCH_W_MM: f64 = 2.8;
-const ARCH_FOOT_MM: f64 = -2.55;
-const ARCH_APEX_MM: f64 = 1.7;
-const ARCH_DEPTH_MM: f64 = 0.7;
-const ARCH_STEPS: usize = 10;
+/// Crown voussoirs: the crown parted into sixteen stones by V joints cut over the spokes, so each joint carries a spoke on
+/// over the crown; the joint's width and depth, and the fade that carries it off over the edge round, mm.
+const JOINT_MM: f64 = 0.6;
+const JOINT_DEPTH_MM: f64 = 0.3;
+const VOUSSOIR_FADE_MM: f64 = 0.3;
 /// The crest's milgrain, off: its beads measure under the investment's section.
 const WITH_BEADS: bool = false;
 const BEAD_MM: f64 = 0.9;
@@ -182,18 +179,6 @@ fn quatrefoil() -> Vec<[f64; 2]> {
     pts
 }
 
-/// A pointed arch for the crown, in a plane square to the crest: `x` round the ring, `y` along the finger. Counter-clockwise.
-fn crown_arch() -> Vec<[f64; 2]> {
-    let h = ARCH_W_MM * 0.5;
-    // An equilateral head, its springing where the apex leaves room for it.
-    let spring = ARCH_APEX_MM - 2.0 * h * 60f64.to_radians().sin();
-    let mut pts = vec![[-h, ARCH_FOOT_MM], [h, ARCH_FOOT_MM]];
-    pts.extend((0..ARCH_STEPS).map(|k| { let a = (60.0 * k as f64 / ARCH_STEPS as f64).to_radians(); [-h + 2.0 * h * a.cos(), spring + 2.0 * h * a.sin()] }));
-    pts.push([0.0, ARCH_APEX_MM]);
-    pts.extend((1..ARCH_STEPS).rev().map(|k| { let a = (60.0 * k as f64 / ARCH_STEPS as f64).to_radians(); [h - 2.0 * h * a.cos(), spring + 2.0 * h * a.sin()] }));
-    pts
-}
-
 /// Closed outlines as one sketch on `plane`, each turned onto its angle round the ring and moved out to its radius.
 fn outlines_sketch(name: &str, loops: &[(Vec<[f64; 2]>, f64, f64)], plane: Id) -> Sketch {
     let mut s = Sketch::default();
@@ -246,8 +231,7 @@ struct Lands {
     hub_step_to_light_mm: f64,
     rim_step_to_light_mm: f64,
     quatrefoil_cusp_tip_mm: f64,
-    arch_to_arch_mm: f64,
-    arch_floor_mm: f64,
+    joint_mm: f64,
 }
 fn lands(d: &RingDesign) -> Lands {
     let bore = d.inner_radius_mm();
@@ -256,7 +240,6 @@ fn lands(d: &RingDesign) -> Lands {
     let f = placed(&quatrefoil(), foil_deg(), QUAT_R_MM);
     let radii = |p: &[[f64; 2]]| p.iter().map(|q| len2(*q)).fold((f64::MAX, f64::MIN), |(lo, hi), r| (lo.min(r), hi.max(r)));
     let ((l_lo, l_hi), (f_lo, f_hi)) = (radii(&l), radii(&f));
-    let crest = bore + d.profile.thickness_mm;
     Lands {
         lancet_to_quatrefoil_mm: gap(&l, &f),
         bore_rail_mm: l_lo.min(f_lo) - bore,
@@ -264,9 +247,24 @@ fn lands(d: &RingDesign) -> Lands {
         hub_step_to_light_mm: l_lo.min(f_lo) - FIELD_IN_MM,
         rim_step_to_light_mm: FIELD_OUT_MM - l_hi.max(f_hi),
         quatrefoil_cusp_tip_mm: 2.0 * QUAT_CUSP_MM,
-        arch_to_arch_mm: TAU * (crest - ARCH_DEPTH_MM) / LIGHTS as f64 - ARCH_W_MM,
-        arch_floor_mm: THICKNESS_MM - ARCH_DEPTH_MM,
+        joint_mm: JOINT_MM,
     }
+}
+
+/// The crown's voussoirs: a V joint per spoke, cut into the crown between the side faces.
+fn voussoirs(d: &mut RingDesign) {
+    let ctx = d.field_context();
+    let (lo, hi) = match ctx.side_faces_std().and_then(|f| f.low.zip(f.high)) {
+        Some((low, high)) => (low.1, high.0),
+        None => (0.0, ctx.band_v_len_mm),
+    };
+    let mut v = LayerEntry::new(
+        "Voussoir joints",
+        Layer::Flutes(FlutesLayer { count: LIGHTS as u32, profile: FluteProfile::Vee, width_mm: JOINT_MM, height_mm: JOINT_DEPTH_MM, lean: 0.0, along: false }),
+    );
+    v.blend = ringdesign_core::Blend::Subtract;
+    v.window = Window { enabled: false, v_gate: VGate::Band { center_mm: 0.5 * (lo + hi), span_mm: (hi - lo - 2.0 * VOUSSOIR_FADE_MM).max(0.5), fade_mm: VOUSSOIR_FADE_MM }, ..Window::default() };
+    d.layers.layers.push(v);
 }
 
 fn feature(id: Id, name: &str, operation: Operation, component: Component) -> Feature {
@@ -277,7 +275,7 @@ fn cut() -> Component {
 }
 
 /// The design: the band; the tracery field sunk into both side faces; the wheel of lancets and quatrefoils pierced
-/// through; the crown arcade; the crest beads.
+/// through; the crown's voussoirs.
 fn author() -> Result<RingDesign> {
     let mut d = band();
     let mut doc = Document::default();
@@ -310,27 +308,12 @@ fn author() -> Result<RingDesign> {
     ))?;
     doc.append(feature(
         9,
-        "Wheel the bay round the finger: twelve lancets and twelve quatrefoils",
+        "Wheel the bay round the finger: sixteen lancets and sixteen quatrefoils",
         Operation::Pattern { sources: cad::pattern::Sources(vec![8]), kind: PatternKind::Ring { count: LIGHTS as u32, span_deg: 360.0 } },
         cut(),
     ))?;
-    doc.append(feature(10, "Square to the crest over the first lancet", Operation::Plane { base: PlaneBase::Tangent { theta_deg: FIRST_LIGHT_DEG, across_mm: 0.0 }, offset_mm: 0.0 }, none()))?;
-    let mut arch = outlines_sketch("Crown arch", &[(crown_arch(), 270.0, 0.0)], 10);
-    arch.name = "Crown arch".into();
-    doc.append(feature(11, "A pointed arch on the crown, standing on the high side face's edge", sketch(arch), none()))?;
-    doc.append(feature(
-        12,
-        "Sink the arch into the crown",
-        Operation::Extrude { sketch: Profile::Feature { feature: 11 }, height_mm: -ARCH_DEPTH_MM, draft_deg: 10.0 },
-        cut(),
-    ))?;
-    doc.append(feature(
-        13,
-        "Wheel the arch round the crown: a blind arcade over the lancets",
-        Operation::Pattern { sources: cad::pattern::Sources(vec![12]), kind: PatternKind::Ring { count: LIGHTS as u32, span_deg: 360.0 } },
-        cut(),
-    ))?;
     d.cad = Some(doc);
+    voussoirs(&mut d);
     if WITH_BEADS {
         let ctx = d.field_context();
         d.layers.layers.push(LayerEntry::new(
@@ -374,7 +357,7 @@ fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<(
 
 /// Views: yaw about the finger axis, pitch from looking along the finger (0) to down onto the crown (pi/2).
 const VIEWS: &[(&str, f64, f64)] = &[
-    ("hero", 0.5, 0.45),
+    ("hero", 0.5, 0.55),
     ("face", 0.0, 0.0),
     ("palm", std::f64::consts::PI, 1.05),
     ("side", 0.0, std::f64::consts::FRAC_PI_2),
@@ -383,8 +366,34 @@ const VIEWS: &[(&str, f64, f64)] = &[
     ("reverse", 2.6, 0.5),
 ];
 
+/// The metal split for the antique finish: the walls the piercings leave, which a bench darkens, apart from the polished rest.
+fn antiqued(m: &mesh::Mesh) -> (mesh::Mesh, mesh::Mesh) {
+    let wall = |f: &[u32; 3]| {
+        let from_part = f.iter().all(|&i| m.origin.get(i as usize).is_some_and(|&o| o >= mesh::SOLID_VERTEX));
+        let Some((a, b, c)) = m.triangle(f) else { return false };
+        let (u, v) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
+        let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+        let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+        from_part && l > 1e-12 && (n[2] / l).abs() < 0.5
+    };
+    let mut bright = mesh::Mesh { vertices: m.vertices.clone(), normals: m.normals.clone(), ..mesh::Mesh::default() };
+    let mut dark = bright.clone();
+    let corners: std::collections::HashMap<u32, [mesh::Vec3; 3]> = m.corner_normals.iter().copied().collect();
+    for (i, f) in m.faces.iter().enumerate() {
+        let target = if wall(f) { &mut dark } else { &mut bright };
+        if let Some(c) = corners.get(&(i as u32)) {
+            target.corner_normals.push((target.faces.len() as u32, *c));
+        }
+        target.faces.push(*f);
+    }
+    (bright, dark)
+}
+/// Antique gold: the polished alloy darkened in the recesses.
+const ANTIQUE: [f32; 3] = [0.16, 0.12, 0.06];
+
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, edge: usize) -> Result<()> {
-    let parts = vec![render::Part::metal(&built.mesh, render::GOLD)];
+    let (bright, dark) = antiqued(&built.mesh);
+    let parts = vec![render::Part::metal(&bright, render::GOLD), render::Part::metal(&dark, ANTIQUE)];
     for (name, yaw, pitch) in VIEWS {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, *yaw, *pitch, edge)?;
     }
@@ -572,8 +581,6 @@ fn main() -> Result<()> {
         && l.lancet_to_quatrefoil_mm >= MIN_SECTION_MM
         && l.bore_rail_mm >= MIN_SECTION_MM
         && l.outer_rail_mm >= MIN_SECTION_MM
-        && l.arch_to_arch_mm >= MIN_SECTION_MM
-        && l.arch_floor_mm >= MIN_SECTION_MM
         && l.hub_step_to_light_mm >= 0.1
         && l.rim_step_to_light_mm >= 0.1;
     let block = json!({
@@ -583,7 +590,7 @@ fn main() -> Result<()> {
         "lands": {
             "lancet_to_quatrefoil_mm": l.lancet_to_quatrefoil_mm, "bore_rail_mm": l.bore_rail_mm, "outer_rail_mm": l.outer_rail_mm,
             "hub_step_to_light_mm": l.hub_step_to_light_mm, "rim_step_to_light_mm": l.rim_step_to_light_mm,
-            "quatrefoil_cusp_tip_width_mm": l.quatrefoil_cusp_tip_mm, "crown_arch_to_arch_mm": l.arch_to_arch_mm, "crown_floor_mm": l.arch_floor_mm,
+            "quatrefoil_cusp_tip_width_mm": l.quatrefoil_cusp_tip_mm, "voussoir_joint_mm": l.joint_mm,
             "field_floor_web_mm": WIDTH_MM - 2.0 * FIELD_DEPTH_MM,
         },
         "gates_passed": passed,

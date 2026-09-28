@@ -1,0 +1,34 @@
+{
+  "ring": "Oculus",
+  "slug": "oculus",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "face-300: this is better than attempt 1. It shows a flat gold washer with one ring of piercings that alternate between 12 almond or petal slots and 12 small quatrefoils. The quatrefoils are the first real Gothic signal. The slots do not read as lancets, though. At 300 px they come out as leaves pointed at both ends, with no square springing and no cusped head. Everything sits in a single narrow band between two plain rails, and nothing radiates from the centre: no spokes, no hub order, no outer moulding. The eye reads it as a decorative border, a pierced gallery wire, or a flower-and-leaf washer, not as a wheel or rose window. hero-300: a thick plain tube, like a spacer or bearing cage, with small dark notches round the side wall. At the top edge the light heads seem to break out onto the crown as half-moon bites. The crown is otherwise bare, and the voussoirs and milgrain do not register. The finish is flat bright gold with no darkened recesses, so the tracery has no contrast. A jeweller would say 'pierced band with quatrefoils', and possibly 'Gothic-ish', but would not name a wheel or rose window. The subject still needs the caption.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Both side faces, the 'Wheel' sketch and 'Cut the lights' (steps 3-5)",
+      "change": "Turn the 12 almond slots into real radial lancets with a spoke structure. Give each light a square or round-headed inner end at r 10.3 (width at least 1.6 mm), parallel sides for about 60% of its height, and a steep two-centred pointed head toward r 12.4, with two 0.4 mm cusps inside the head. Leave the solid between lights as straight radial mullions at least 0.9 mm wide, which read as spokes from hub to rim. Antique-darken every piercing and recess to near black, as on the Reptilia sheet.",
+      "acceptance": "In face-300.png each opening has a flat or round inner end and a pointed outer end, 12 straight spokes run from the inner rail to the outer rail, and no opening reads as a leaf or petal."
+    },
+    {
+      "priority": 2,
+      "where": "Side faces: the quatrefoil spandrels (steps 6-8) and the inner and outer rails at r 10.3 and r 12.8-13.2",
+      "change": "Keep the quatrefoils, but move them outboard of the lancet heads and grow them to about 1.5 mm, so the window has two concentric orders instead of one alternating row: lancets inside, a crown of foils in the spandrels above the heads. Add a raised or stepped rim moulding of 0.3-0.4 mm at the outer edge and a matching hub step at the bore rail, so the tracery is framed as a window with a hub, lights, foils and a rim.",
+      "acceptance": "face-300.png shows at least three concentric rings (hub moulding, lancets, foils and rim), and a viewer shown it without a caption says 'rose' or 'wheel window'."
+    },
+    {
+      "priority": 3,
+      "where": "The crown (outer rail, and the 'Voussoirs' and 'Crest beads' layers) and the hero camera",
+      "change": "Stop the light heads breaking through onto the crown: hold at least 0.8 mm of outer rail and check the half-moon bites at the crown edge in hero-300. Raise the voussoir reeds to about 0.45 mm, 12 of them on the mullions, about 2.4 mm wide and wedge-shaped. Raise the milgrain to about 0.35 mm. Turn the hero so a side face sits about 30-40 degrees off frontal and fills most of the frame, and darken the recesses.",
+      "acceptance": "In hero-300.png the side window is the dominant subject, the crown edge is unbroken with visible radial voussoirs, and the plain-tube or spacer read is gone."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/oculus/hero-300.png",
+    "showcase/tenebrae/oculus/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
