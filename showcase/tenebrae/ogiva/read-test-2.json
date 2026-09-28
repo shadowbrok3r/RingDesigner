@@ -1,0 +1,32 @@
+{
+  "ring": "ogiva",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "A crown, not a pointed arch. The round, flat washer-like band has a fence of thin wire hooks standing up round its upper half, like shepherd's crooks or question marks, with a small cross at the top. Round the face runs a ring of small bullet or teardrop cells. It looks like an ecclesiastical coronet or a crozier crown. A jeweller might say 'church' or 'bishop's crown' because of the cross, but nobody would say 'pointed arch' or 'Gothic cathedral'. There is no ogive anywhere in either silhouette: the outer outline in the face view is a perfect circle, and the pointed-arch section is invisible at this size and angle. The crockets have improved on attempt 1 (they are hooks now, not studs), but they all curl the same way round the ring like a gear's pawls. They do not climb two slopes to an apex, so they read as a crown's rim, not as crockets on a gable. They also look like thin separate wires, not leaves growing out of a stone edge. The niches are better than attempt 1's slots, but at 300 px they read as shields, drops or seed beads, not lancet windows: they are too small and too short, their floors are not dark enough, and they have no tracery.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Outer outline of the band in the face (end-on) view, theta 18 to 162, with the apex at theta 90",
+      "change": "Make the pointed arch the silhouette. Keep the bore round, but make the outer contour over the top of the hand an ogive: two arcs of equal radius meeting at a sharp apex at theta 90, 4 to 5 mm above the present outer circle, and blending back into the round band by theta 30 and theta 150. Put the cross finial on that apex, about 1.5x its present size. A revolved section cannot be read from the hero or face, so the arch has to live in the outline the camera sees.",
+      "acceptance": "Shown the 300 px face with no caption, the upper half of the ring reads as a pointed Gothic arch or gable with a finial, not as a circle with a crown of spikes."
+    },
+    {
+      "priority": 2,
+      "where": "The 'Crocket' sketch and the 'Thirteen crockets' pattern (theta 18 to 162)",
+      "change": "Replace the one-direction ring array with two mirrored runs that climb the two slopes toward the apex. Theta 18 to 84 leans toward theta 90, and theta 96 to 162 is its mirror. Grade the size, smallest at the feet and about 1.6x at the apex. Thicken each crocket into a leaf: a stem at least 1.0 mm wide joined solidly to a raised edge moulding about 0.8 mm proud along the arch, with a rolled leaf head and one or two lobes, not a thin wire hook. Drop the count to 9 to 11 if they crowd.",
+      "acceptance": "At 300 px the crockets visibly converge on the apex from both sides like a Gothic gable, sit on a continuous ridge, and no longer read as crooks, question marks or gear pawls."
+    },
+    {
+      "priority": 3,
+      "where": "The 'Niche' sketch and 'Cut the niches' plus its mirror (the side faces, all 360)",
+      "change": "Cut 16 to 20 larger lancets instead of the present many small cells. Make each about 1.4 wide by 3.0 tall, a height-to-width ratio of at least 2:1, with a sharp two-centred pointed head facing outward and a flat foot. Cut them at least 1.0 mm deep so the floors render black. Add a central mullion or trefoil cusp in each head where the land allows. Concentrate the tallest ones under the arch at theta 30 to 150.",
+      "acceptance": "In the 300 px hero and face, at least 6 niches read unmistakably as tall pointed-arch windows with dark interiors, not as drops, shields or beads."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/ogiva/hero-300.png",
+    "showcase/tenebrae/ogiva/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

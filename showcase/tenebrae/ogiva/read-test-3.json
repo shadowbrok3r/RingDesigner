@@ -1,0 +1,32 @@
+{
+  "ring": "ogiva",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Closer, but still not a pointed arch. It reads as a little church or chapel on top of a round crown. In the middle of the top is a small house-shaped gable: straight roof slopes, three vertical slots and a cross on the peak, like a toy chapel front or a birdhouse. On both sides, curled hooks on short stepped posts climb toward it like shepherd's crooks, candy canes or candles on a candelabrum. The steps make a staircase, not a slope. Below all this the band is a plain round washer ringed with small bullet-shaped cells. A jeweller would say 'church ring' or 'ecclesiastical crown' because of the cross and the gable, and might guess 'Gothic' from the crockets, but would not say 'pointed arch' or 'lancet'. Nothing in either view is an ogive. The gable has straight sides, the three openings have flat or rounded heads, not pointed ones, and the outer outline is still a perfect circle. The gable is also small, only about a fifth of the ring's width, so the eye goes to the crown of hooks first. The niches still read as beads or drops, not windows.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "The central gable and the outer outline of the top, theta about 50 to 130, apex at theta 90 (face view)",
+      "change": "Turn the gable into a true two-centred pointed arch and make it the silhouette. Replace the straight roof slopes with two equal-radius convex arcs, each with a radius of about 1.2 to 1.5 times the arch's span, meeting at a sharp apex. Widen the arch from about 1/5 to about 2/5 of the ring's outer width (roughly 9 to 10 mm span) and raise the apex about 1.5x above today's peak. Run its two arcs down so they blend into the outer band contour at theta about 45 and 135, so the ring's top outline in the face view is an ogive rather than a circle with a house on it. Keep the cross finial on the apex, scaled with it.",
+      "acceptance": "Shown only face-300.png with no caption, the upper half of the ring's outline reads as one pointed Gothic arch with curved sides meeting at a point. Nobody says 'house', 'gable roof' or 'chapel front'."
+    },
+    {
+      "priority": 2,
+      "where": "The three slots inside the central arch, and the tracery of the arch face",
+      "change": "Give the openings pointed heads. Cut two tall lancets (height to width at least 3:1, each about 1.2 wide by 4 tall), each with a sharp two-centred point, and put a small quatrefoil or trefoil oculus above them under the apex, so that together they make a classic Gothic window. Cut them at least 1.0 mm deep, or through where the wall allows, so they render black. Add a 0.5 to 0.8 mm raised moulding that follows the arch's curved edge.",
+      "acceptance": "At 300 px the openings read as pointed lancet windows with a rose or trefoil above, dark inside, and the whole element reads as a Gothic window or arch."
+    },
+    {
+      "priority": 3,
+      "where": "The crockets (both runs, theta 18 to 84 and 96 to 162), and their stepped posts",
+      "change": "Remove the stepped posts and the staircase profile. Seat each crocket directly on the curved raised edge moulding of the enlarged arch from priority 1, so the crockets run up two smooth curved slopes to the finial. Change each one from a thin curled wire hook to a stubby leaf that grows from the edge: at least 1.0 mm stem, a rolled head about 1.5 mm across with a lobe, curling up toward the apex. Grade them from about 0.7x at the feet to 1.3x near the apex. Use 5 or 6 per side.",
+      "acceptance": "At 300 px the crockets read as leafy knobs climbing the two curved edges of one arch to its finial. They no longer read as separate hooks, crooks, candles or a crown rim."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/ogiva/hero-300.png",
+    "showcase/tenebrae/ogiva/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

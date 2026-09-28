@@ -1,0 +1,1000 @@
+{
+  "alloy": "Silver 925",
+  "arch": {
+    "apex_r": 14.379540335056966,
+    "centre_off": 4.200000000000001,
+    "half_w": 2.1,
+    "keel_angle_deg": 90.12270458506896,
+    "keel_draft_deg": 44.93864770746552,
+    "radius": 6.300000000000001,
+    "rise": 4.695742752749559,
+    "spring_line_r": 9.92,
+    "springer_r": 9.42,
+    "step_r": 13.479540335056965,
+    "thickness": 4.959540335056967
+  },
+  "bore": {
+    "nearest_vertex_mm": 9.300251960754395,
+    "radius_mm": 9.3,
+    "vertices_inside": 0
+  },
+  "bore_mm": 18.60050392150879,
+  "build": {
+    "build_s": 2.252317607,
+    "profile_steps": 448,
+    "theta_steps": 1536,
+    "triangles": 81046
+  },
+  "cold_reload_identical": true,
+  "design": {
+    "bytes": 1131050,
+    "cad_features": 31
+  },
+  "dfm_findings": [],
+  "draft": {
+    "alloy": "Silver 925",
+    "arch": {
+      "apex_r": 14.379540335056966,
+      "centre_off": 4.200000000000001,
+      "half_w": 2.1,
+      "keel_angle_deg": 90.12270458506896,
+      "keel_draft_deg": 44.93864770746552,
+      "radius": 6.300000000000001,
+      "rise": 4.695742752749559,
+      "spring_line_r": 9.92,
+      "springer_r": 9.42,
+      "step_r": 13.479540335056965,
+      "thickness": 4.959540335056967
+    },
+    "bore": {
+      "nearest_vertex_mm": 9.300251960754395,
+      "radius_mm": 9.3,
+      "vertices_inside": 0
+    },
+    "bore_mm": 18.60050392150879,
+    "build": {
+      "build_s": 2.682507421,
+      "profile_steps": 320,
+      "theta_steps": 768,
+      "triangles": 81046
+    },
+    "cold_reload_identical": true,
+    "design": {
+      "bytes": 1131050,
+      "cad_features": 31
+    },
+    "dfm_findings": [],
+    "draft": {
+      "auto_parting": false,
+      "min_detail_mm": 0.3,
+      "min_draft_deg": 3.0,
+      "min_section_mm": 0.8,
+      "parting_z_mm": 0.0,
+      "process": "Sand (two-part)"
+    },
+    "feature_status": [
+      [
+        "1",
+        "Ok"
+      ],
+      [
+        "2",
+        "Ok"
+      ],
+      [
+        "3",
+        "Ok"
+      ],
+      [
+        "4",
+        "Ok"
+      ],
+      [
+        "5",
+        "Ok"
+      ],
+      [
+        "6",
+        "Ok"
+      ],
+      [
+        "7",
+        "Ok"
+      ],
+      [
+        "8",
+        "Ok"
+      ],
+      [
+        "9",
+        "Ok"
+      ],
+      [
+        "10",
+        "Ok"
+      ],
+      [
+        "11",
+        "Ok"
+      ],
+      [
+        "12",
+        "Ok"
+      ],
+      [
+        "13",
+        "Ok"
+      ],
+      [
+        "14",
+        "Ok"
+      ],
+      [
+        "15",
+        "Ok"
+      ],
+      [
+        "16",
+        "Ok"
+      ],
+      [
+        "17",
+        "Ok"
+      ],
+      [
+        "18",
+        "Ok"
+      ],
+      [
+        "19",
+        "Ok"
+      ],
+      [
+        "20",
+        "Ok"
+      ],
+      [
+        "21",
+        "Ok"
+      ],
+      [
+        "22",
+        "Ok"
+      ],
+      [
+        "23",
+        "Ok"
+      ],
+      [
+        "24",
+        "Ok"
+      ],
+      [
+        "25",
+        "Ok"
+      ],
+      [
+        "26",
+        "Ok"
+      ],
+      [
+        "27",
+        "Ok"
+      ],
+      [
+        "28",
+        "Ok"
+      ],
+      [
+        "29",
+        "Ok"
+      ],
+      [
+        "30",
+        "Ok"
+      ],
+      [
+        "31",
+        "Ok"
+      ]
+    ],
+    "features": [
+      {
+        "id": 1,
+        "name": "Draw the pointed-arch section on the plane through the finger",
+        "operation": "Sketch"
+      },
+      {
+        "id": 2,
+        "name": "Revolve the arch round the finger",
+        "operation": "Revolve"
+      },
+      {
+        "id": 3,
+        "name": "Loft the gable over the hand through its pointed sections, rising to the ogive",
+        "operation": "Loft"
+      },
+      {
+        "id": 4,
+        "name": "Lay the parting plane just under the keel",
+        "operation": "Work plane"
+      },
+      {
+        "id": 5,
+        "name": "Draw the crest moulding up the gable's right slope on the parting plane",
+        "operation": "Sketch"
+      },
+      {
+        "id": 6,
+        "name": "Raise the cope half of the crest along the pull",
+        "operation": "Extrude"
+      },
+      {
+        "id": 7,
+        "name": "Mirror the crest into the drag half",
+        "operation": "Mirror"
+      },
+      {
+        "id": 8,
+        "name": "Join the halves of the crest",
+        "operation": "Union"
+      },
+      {
+        "id": 9,
+        "name": "Draw the crockets climbing the right slope, and half the finial, on the parting plane",
+        "operation": "Sketch"
+      },
+      {
+        "id": 10,
+        "name": "Raise the cope half of the crockets along the pull",
+        "operation": "Extrude"
+      },
+      {
+        "id": 11,
+        "name": "Mirror the crockets into the drag half",
+        "operation": "Mirror"
+      },
+      {
+        "id": 12,
+        "name": "Join the halves of the crockets",
+        "operation": "Union"
+      },
+      {
+        "id": 13,
+        "name": "Set the crockets on the crest",
+        "operation": "Union"
+      },
+      {
+        "id": 14,
+        "name": "Mirror the climb across the crown onto the left slope",
+        "operation": "Mirror"
+      },
+      {
+        "id": 15,
+        "name": "Join both climbs and close the finial",
+        "operation": "Union"
+      },
+      {
+        "id": 16,
+        "name": "Lay a plane over the cope foot",
+        "operation": "Work plane"
+      },
+      {
+        "id": 17,
+        "name": "Draw one lancet niche on the foot plane",
+        "operation": "Sketch"
+      },
+      {
+        "id": 18,
+        "name": "Sink the niche along the pull",
+        "operation": "Extrude"
+      },
+      {
+        "id": 19,
+        "name": "Array the niches round the cope foot, clear of the gable",
+        "operation": "Ring array"
+      },
+      {
+        "id": 20,
+        "name": "Mirror the niches into the drag foot",
+        "operation": "Mirror"
+      },
+      {
+        "id": 21,
+        "name": "Lay a plane over the whole cope half",
+        "operation": "Work plane"
+      },
+      {
+        "id": 22,
+        "name": "Draw the three lancet lights in the gable",
+        "operation": "Sketch"
+      },
+      {
+        "id": 23,
+        "name": "Pierce the lights down to the parting plane",
+        "operation": "Extrude"
+      },
+      {
+        "id": 24,
+        "name": "Mirror the lights up from the drag side",
+        "operation": "Mirror"
+      },
+      {
+        "id": 25,
+        "name": "Cut the cope foot's niches",
+        "operation": "Subtract"
+      },
+      {
+        "id": 26,
+        "name": "Cut the first niche",
+        "operation": "Subtract"
+      },
+      {
+        "id": 27,
+        "name": "Cut the drag foot's niches",
+        "operation": "Subtract"
+      },
+      {
+        "id": 28,
+        "name": "Raise the gable on the band",
+        "operation": "Union"
+      },
+      {
+        "id": 29,
+        "name": "Join the crest, the crockets and the finial to the gable",
+        "operation": "Union"
+      },
+      {
+        "id": 30,
+        "name": "Pierce the cope half of the lights",
+        "operation": "Subtract"
+      },
+      {
+        "id": 31,
+        "name": "Pierce the drag half of the lights",
+        "operation": "Subtract"
+      }
+    ],
+    "field": {
+      "min_draft_deg": 3.0,
+      "min_section_mm": 0.8,
+      "notes": [
+        "CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply"
+      ],
+      "thinnest_wall_mm": 0.0,
+      "undercut_percent": 0.0,
+      "verdict": "Castable with care"
+    },
+    "gates": [
+      {
+        "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+        "pass": false
+      },
+      {
+        "gate": "every CAD part closed without crossings, every feature Ok",
+        "pass": true
+      },
+      {
+        "gate": "solids and parts notes empty",
+        "pass": true
+      },
+      {
+        "gate": "nothing enters the finger hole",
+        "pass": true
+      },
+      {
+        "gate": "sand field verdict Castable",
+        "pass": false
+      },
+      {
+        "gate": "ray release clean at 0.100 mm",
+        "pass": false
+      },
+      {
+        "gate": "ray release clean at 0.075 mm",
+        "pass": false
+      },
+      {
+        "gate": "local wall at or above the 0.8 mm section",
+        "pass": false
+      },
+      {
+        "gate": "sketch lands at or above the floors",
+        "pass": false
+      },
+      {
+        "gate": "zero DFM findings",
+        "pass": true
+      },
+      {
+        "gate": "stones reported equal the preview",
+        "pass": true
+      },
+      {
+        "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+        "pass": false
+      },
+      {
+        "gate": "export build within the 2 million triangle budget",
+        "pass": true
+      },
+      {
+        "gate": "cold reload identical",
+        "pass": true
+      }
+    ],
+    "gates_passed": false,
+    "geometry": {
+      "boundary_edges": 0,
+      "bounds_mm": [
+        28.75908088684082,
+        37.75907897949219,
+        4.199999809265137
+      ],
+      "degenerate_faces": 3,
+      "non_manifold_edges": 0,
+      "self_crossings": 0,
+      "shells": 1,
+      "volume_mm3": 1173.212540448442,
+      "watertight": true
+    },
+    "grams_silver": 12.15448191904586,
+    "land_widths": {
+      "axial_web_between_floors_mm": 0.9,
+      "crocket_lobe_notch_mm": 0.3,
+      "crocket_pitch_along_gable_mm": 3.5,
+      "crocket_plate_thickness_at_face_mm": 1.5161475531471342,
+      "crocket_stem_mm": 1.6,
+      "floors": {
+        "sand_web_mm": 0.6,
+        "section_mm": 0.8
+      },
+      "niche_bar_mm": 2.8725660088821185,
+      "niche_depth_head_mm": 0.8457801993893457,
+      "niche_depth_inner_mm": 1.6437747020369262,
+      "niche_to_bore_rail_mm": 0.7799999999999994,
+      "niche_width_at_floor_mm": 1.185128104939531
+    },
+    "made_parts": [
+      [
+        "Pierce the drag half of the lights",
+        0
+      ]
+    ],
+    "name": "Ogiva — the keel",
+    "pattern": {
+      "degenerate_faces": 3,
+      "self_crossings": 0,
+      "triangles": 81046,
+      "watertight": true
+    },
+    "process": "Sand (two-part)",
+    "release_0_075": {
+      "details": [
+        "CAD component: inspect local wall and detail dimensions; the band-only radial wall and ornament checks do not apply"
+      ],
+      "fits_flask": true,
+      "local_wall": {
+        "below_limit": 42,
+        "limit_mm": 0.8,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "point": [
+          7.1567362149556475,
+          16.995648701985676,
+          -0.029999913026889164
+        ],
+        "rays": 383,
+        "sampled_min_mm": 0.01997675342143771,
+        "unresolved": 0
+      },
+      "low_draft_area_mm2": 427.09187684382914,
+      "obstructions": 16,
+      "pitch_mm": [
+        0.07634396851062775,
+        0.1002354050676028
+      ],
+      "status": "Blocked",
+      "unresolved_rays": 0
+    },
+    "release_0_100": {
+      "details": [
+        "CAD component: inspect local wall and detail dimensions; the band-only radial wall and ornament checks do not apply"
+      ],
+      "fits_flask": true,
+      "local_wall": {
+        "below_limit": 42,
+        "limit_mm": 0.8,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "point": [
+          7.1567362149556475,
+          16.995648701985676,
+          -0.029999913026889164
+        ],
+        "rays": 383,
+        "sampled_min_mm": 0.01997675342143771,
+        "unresolved": 0
+      },
+      "low_draft_area_mm2": 427.09187684382914,
+      "obstructions": 24,
+      "pitch_mm": [
+        0.09971457111592195,
+        0.1002354050676028
+      ],
+      "status": "Blocked",
+      "unresolved_rays": 0
+    },
+    "sand": "Delft clay",
+    "size": "US 8.6",
+    "solids": {
+      "notes": [],
+      "parts_notes": [],
+      "stamps": 0
+    },
+    "stones": {
+      "previewed": 0,
+      "reported": 0
+    }
+  },
+  "feature_status": [
+    [
+      "1",
+      "Ok"
+    ],
+    [
+      "2",
+      "Ok"
+    ],
+    [
+      "3",
+      "Ok"
+    ],
+    [
+      "4",
+      "Ok"
+    ],
+    [
+      "5",
+      "Ok"
+    ],
+    [
+      "6",
+      "Ok"
+    ],
+    [
+      "7",
+      "Ok"
+    ],
+    [
+      "8",
+      "Ok"
+    ],
+    [
+      "9",
+      "Ok"
+    ],
+    [
+      "10",
+      "Ok"
+    ],
+    [
+      "11",
+      "Ok"
+    ],
+    [
+      "12",
+      "Ok"
+    ],
+    [
+      "13",
+      "Ok"
+    ],
+    [
+      "14",
+      "Ok"
+    ],
+    [
+      "15",
+      "Ok"
+    ],
+    [
+      "16",
+      "Ok"
+    ],
+    [
+      "17",
+      "Ok"
+    ],
+    [
+      "18",
+      "Ok"
+    ],
+    [
+      "19",
+      "Ok"
+    ],
+    [
+      "20",
+      "Ok"
+    ],
+    [
+      "21",
+      "Ok"
+    ],
+    [
+      "22",
+      "Ok"
+    ],
+    [
+      "23",
+      "Ok"
+    ],
+    [
+      "24",
+      "Ok"
+    ],
+    [
+      "25",
+      "Ok"
+    ],
+    [
+      "26",
+      "Ok"
+    ],
+    [
+      "27",
+      "Ok"
+    ],
+    [
+      "28",
+      "Ok"
+    ],
+    [
+      "29",
+      "Ok"
+    ],
+    [
+      "30",
+      "Ok"
+    ],
+    [
+      "31",
+      "Ok"
+    ]
+  ],
+  "features": [
+    {
+      "id": 1,
+      "name": "Draw the pointed-arch section on the plane through the finger",
+      "operation": "Sketch"
+    },
+    {
+      "id": 2,
+      "name": "Revolve the arch round the finger",
+      "operation": "Revolve"
+    },
+    {
+      "id": 3,
+      "name": "Loft the gable over the hand through its pointed sections, rising to the ogive",
+      "operation": "Loft"
+    },
+    {
+      "id": 4,
+      "name": "Lay the parting plane just under the keel",
+      "operation": "Work plane"
+    },
+    {
+      "id": 5,
+      "name": "Draw the crest moulding up the gable's right slope on the parting plane",
+      "operation": "Sketch"
+    },
+    {
+      "id": 6,
+      "name": "Raise the cope half of the crest along the pull",
+      "operation": "Extrude"
+    },
+    {
+      "id": 7,
+      "name": "Mirror the crest into the drag half",
+      "operation": "Mirror"
+    },
+    {
+      "id": 8,
+      "name": "Join the halves of the crest",
+      "operation": "Union"
+    },
+    {
+      "id": 9,
+      "name": "Draw the crockets climbing the right slope, and half the finial, on the parting plane",
+      "operation": "Sketch"
+    },
+    {
+      "id": 10,
+      "name": "Raise the cope half of the crockets along the pull",
+      "operation": "Extrude"
+    },
+    {
+      "id": 11,
+      "name": "Mirror the crockets into the drag half",
+      "operation": "Mirror"
+    },
+    {
+      "id": 12,
+      "name": "Join the halves of the crockets",
+      "operation": "Union"
+    },
+    {
+      "id": 13,
+      "name": "Set the crockets on the crest",
+      "operation": "Union"
+    },
+    {
+      "id": 14,
+      "name": "Mirror the climb across the crown onto the left slope",
+      "operation": "Mirror"
+    },
+    {
+      "id": 15,
+      "name": "Join both climbs and close the finial",
+      "operation": "Union"
+    },
+    {
+      "id": 16,
+      "name": "Lay a plane over the cope foot",
+      "operation": "Work plane"
+    },
+    {
+      "id": 17,
+      "name": "Draw one lancet niche on the foot plane",
+      "operation": "Sketch"
+    },
+    {
+      "id": 18,
+      "name": "Sink the niche along the pull",
+      "operation": "Extrude"
+    },
+    {
+      "id": 19,
+      "name": "Array the niches round the cope foot, clear of the gable",
+      "operation": "Ring array"
+    },
+    {
+      "id": 20,
+      "name": "Mirror the niches into the drag foot",
+      "operation": "Mirror"
+    },
+    {
+      "id": 21,
+      "name": "Lay a plane over the whole cope half",
+      "operation": "Work plane"
+    },
+    {
+      "id": 22,
+      "name": "Draw the three lancet lights in the gable",
+      "operation": "Sketch"
+    },
+    {
+      "id": 23,
+      "name": "Pierce the lights down to the parting plane",
+      "operation": "Extrude"
+    },
+    {
+      "id": 24,
+      "name": "Mirror the lights up from the drag side",
+      "operation": "Mirror"
+    },
+    {
+      "id": 25,
+      "name": "Cut the cope foot's niches",
+      "operation": "Subtract"
+    },
+    {
+      "id": 26,
+      "name": "Cut the first niche",
+      "operation": "Subtract"
+    },
+    {
+      "id": 27,
+      "name": "Cut the drag foot's niches",
+      "operation": "Subtract"
+    },
+    {
+      "id": 28,
+      "name": "Raise the gable on the band",
+      "operation": "Union"
+    },
+    {
+      "id": 29,
+      "name": "Join the crest, the crockets and the finial to the gable",
+      "operation": "Union"
+    },
+    {
+      "id": 30,
+      "name": "Pierce the cope half of the lights",
+      "operation": "Subtract"
+    },
+    {
+      "id": 31,
+      "name": "Pierce the drag half of the lights",
+      "operation": "Subtract"
+    }
+  ],
+  "field": {
+    "min_draft_deg": 3.0,
+    "min_section_mm": 0.8,
+    "notes": [
+      "CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply"
+    ],
+    "thinnest_wall_mm": 0.0,
+    "undercut_percent": 0.0,
+    "verdict": "Castable with care"
+  },
+  "gates": [
+    {
+      "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+      "pass": false
+    },
+    {
+      "gate": "every CAD part closed without crossings, every feature Ok",
+      "pass": true
+    },
+    {
+      "gate": "solids and parts notes empty",
+      "pass": true
+    },
+    {
+      "gate": "nothing enters the finger hole",
+      "pass": true
+    },
+    {
+      "gate": "sand field verdict Castable",
+      "pass": false
+    },
+    {
+      "gate": "ray release clean at 0.100 mm",
+      "pass": false
+    },
+    {
+      "gate": "ray release clean at 0.075 mm",
+      "pass": false
+    },
+    {
+      "gate": "local wall at or above the 0.8 mm section",
+      "pass": false
+    },
+    {
+      "gate": "sketch lands at or above the floors",
+      "pass": false
+    },
+    {
+      "gate": "zero DFM findings",
+      "pass": true
+    },
+    {
+      "gate": "stones reported equal the preview",
+      "pass": true
+    },
+    {
+      "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+      "pass": false
+    },
+    {
+      "gate": "export build within the 2 million triangle budget",
+      "pass": true
+    },
+    {
+      "gate": "cold reload identical",
+      "pass": true
+    }
+  ],
+  "gates_passed": false,
+  "geometry": {
+    "boundary_edges": 0,
+    "bounds_mm": [
+      28.75908088684082,
+      37.75907897949219,
+      4.199999809265137
+    ],
+    "degenerate_faces": 3,
+    "non_manifold_edges": 0,
+    "self_crossings": 0,
+    "shells": 1,
+    "volume_mm3": 1173.212540448442,
+    "watertight": true
+  },
+  "grams_silver": 12.15448191904586,
+  "land_widths": {
+    "axial_web_between_floors_mm": 0.9,
+    "crocket_lobe_notch_mm": 0.3,
+    "crocket_pitch_along_gable_mm": 3.5,
+    "crocket_plate_thickness_at_face_mm": 1.5161475531471342,
+    "crocket_stem_mm": 1.6,
+    "floors": {
+      "sand_web_mm": 0.6,
+      "section_mm": 0.8
+    },
+    "niche_bar_mm": 2.8725660088821185,
+    "niche_depth_head_mm": 0.8457801993893457,
+    "niche_depth_inner_mm": 1.6437747020369262,
+    "niche_to_bore_rail_mm": 0.7799999999999994,
+    "niche_width_at_floor_mm": 1.185128104939531
+  },
+  "made_parts": [
+    [
+      "Pierce the drag half of the lights",
+      0
+    ]
+  ],
+  "name": "Ogiva — the keel",
+  "pattern": {
+    "degenerate_faces": 3,
+    "self_crossings": 0,
+    "triangles": 81046,
+    "watertight": true
+  },
+  "process": "Sand (two-part)",
+  "release_0_075": {
+    "details": [
+      "CAD component: inspect local wall and detail dimensions; the band-only radial wall and ornament checks do not apply"
+    ],
+    "fits_flask": true,
+    "local_wall": {
+      "below_limit": 42,
+      "limit_mm": 0.8,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "point": [
+        7.1567362149556475,
+        16.995648701985676,
+        -0.029999913026889164
+      ],
+      "rays": 383,
+      "sampled_min_mm": 0.01997675342143771,
+      "unresolved": 0
+    },
+    "low_draft_area_mm2": 427.09187684382914,
+    "obstructions": 16,
+    "pitch_mm": [
+      0.07634396851062775,
+      0.1002354050676028
+    ],
+    "status": "Blocked",
+    "unresolved_rays": 0
+  },
+  "release_0_100": {
+    "details": [
+      "CAD component: inspect local wall and detail dimensions; the band-only radial wall and ornament checks do not apply"
+    ],
+    "fits_flask": true,
+    "local_wall": {
+      "below_limit": 42,
+      "limit_mm": 0.8,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "point": [
+        7.1567362149556475,
+        16.995648701985676,
+        -0.029999913026889164
+      ],
+      "rays": 383,
+      "sampled_min_mm": 0.01997675342143771,
+      "unresolved": 0
+    },
+    "low_draft_area_mm2": 427.09187684382914,
+    "obstructions": 24,
+    "pitch_mm": [
+      0.09971457111592195,
+      0.1002354050676028
+    ],
+    "status": "Blocked",
+    "unresolved_rays": 0
+  },
+  "sand": "Delft clay",
+  "size": "US 8.6",
+  "solids": {
+    "notes": [],
+    "parts_notes": [],
+    "stamps": 0
+  },
+  "stones": {
+    "previewed": 0,
+    "reported": 0
+  }
+}

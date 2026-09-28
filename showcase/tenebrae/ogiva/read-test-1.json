@@ -1,0 +1,30 @@
+{
+  "ring": "ogiva",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A cog or sprocket: a plain rounded band with a row of evenly spaced round studs round the upper edge, like gear teeth or rivet heads, and a ring of small dark slots down the side like a vented bearing race. Nothing says pointed arch or Gothic cathedral. The crockets read as bolts or pegs because they are identical knobs with no curl, no lean and no leaf. The niches read as punched slots or dashes, because at 300 px their pointed heads are too small to see. The keel does not show: the band reads round-shouldered in the hero, and end-on the face view is a thin featureless lens or blade, not a lancet gable. A jeweller would say 'gear ring' or 'studded band', not 'Gothic'.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Crockets, the 'Crocket' sketch and the 'Thirteen crockets' pattern (theta 18 to 162)",
+      "change": "Remake each crocket as an unmistakable curled leaf hook, not a knob. Make it about 2x larger in plan (about 1.8 mm reach and 1.6 mm tall, up from about 0.9), with the leaf body leaning up the keel toward the apex and the tip rolling back into a crook with a visible 0.6 to 0.8 mm dark gap, plus one or two lobes notched into the leaf edge. Grade the sizes so they are not identical studs: largest near theta 90 (the apex of the hand), smaller toward the feet. Add a taller finial (a fleur or cross-flower, about 2.5 mm) at the top-dead-centre crocket position so the row climbs to a point.",
+      "acceptance": "At 300 px each crocket shows a hook silhouette with a dark eye and a lean in one direction, and the row no longer reads as round gear teeth or rivets."
+    },
+    {
+      "priority": 2,
+      "where": "Side-face niches, the 'Niche' sketch and 'Cut the niches' plus mirror (both feet, all 360)",
+      "change": "Swap the 36 small slots for a readable blind lancet arcade: 20 to 24 niches, each about 1.5 wide x 2.4 tall with a clearly pointed two-centred head, cut at least 1.0 deep so the floors render dark, with a 0.9 mm colonnette bar left between them. Add a thin hood-mould or trefoil cusp inside each head if the land allows.",
+      "acceptance": "In the 300 px hero, at least 5 niches show a legible pointed-arch head (lancet shape, not a dash or slot) on the visible side face."
+    },
+    {
+      "priority": 3,
+      "where": "Pointed-arch section (feature 2) and the crest",
+      "change": "Make the pointed-arch section itself visible. Sharpen the keel from 155 degrees to about 120 to 130 degrees and raise the apex about 0.8 to 1.0 mm, keeping the flanks within Delft draft, so the crest renders as a crisp ridge line catching a highlight. Add a narrow step or roll moulding on each flank about 0.8 mm below the apex so the gable profile shows in the end-on face view.",
+      "acceptance": "The 300 px face (end-on) view shows a pointed gable silhouette, not a thin lens, and the hero shows one bright ridge line running along the crest between the crockets."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/ogiva/hero-300.png",
+    "showcase/tenebrae/ogiva/face-300.png"
+  ]
+}

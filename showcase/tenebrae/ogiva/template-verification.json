@@ -1,0 +1,49 @@
+{
+  "authoring_ms": {
+    "graph_creation": 16.381565000000002,
+    "source_read": 7.992956
+  },
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "design_set_patches": [
+    {
+      "graph": "Ogiva — the keel",
+      "node": 67,
+      "pointer": "/manufacturing"
+    }
+  ],
+  "detail_findings": 0,
+  "editable_design_bytes": 2346538,
+  "editable_graph_reload": true,
+  "export_geometry_verified": true,
+  "exposed_control_policy": "explicit_allowlist",
+  "exposed_controls": [],
+  "geometry_check_resolution": {
+    "profile_steps": 448,
+    "refine": null,
+    "theta_steps": 1536
+  },
+  "nodes": 37,
+  "open_ms": {
+    "bake": 0.022660999999999997,
+    "bake_again": 0.000417,
+    "detail": 0.717467,
+    "detail_again": 0.6629729999999999,
+    "evaluate": 9.050958,
+    "first_build": 2110.736097,
+    "read": 3.374651,
+    "rebuild": 1.771034,
+    "unpack": null,
+    "verdict": 0.379869
+  },
+  "size_budget_bytes": 300000,
+  "size_review_required": true,
+  "source_identical": true,
+  "source_method": "lift",
+  "template_bytes": 1137494,
+  "template_class": "procedural",
+  "template_gate_passed": false,
+  "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
+  "triangles": 81046,
+  "vertices_faces_normals_identical": true
+}
