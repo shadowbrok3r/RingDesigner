@@ -61,6 +61,25 @@ fn component_inputs(f: &mut Feature, i: &Inputs) -> Result<(), NodeError> {
     f.component.placement = serde_json::from_value(placement).map_err(|e| NodeError::new(e.to_string()))?;
     Ok(())
 }
+/// A bundled or saved sketch by name as a Sketch feature's operation, scaled about its origin.
+fn library_sketch(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
+    let name = i.text("name")?;
+    let scale = i.number("scale")?;
+    if !(scale.is_finite() && scale > 0.0) {
+        return Err(NodeError::input("scale", "a scale above zero"));
+    }
+    let all = ringdesign_core::library::list_sketches();
+    let Some((_, sketch)) = all.iter().find(|(n, _)| n == name) else {
+        let names: Vec<&str> = all.iter().map(|(n, _)| n.as_str()).collect();
+        return Err(NodeError::input("name", format!("no sketch called {name:?}; the library holds {}", names.join(", "))));
+    };
+    let mut sketch = sketch.clone();
+    for p in &mut sketch.points {
+        p.xy = p.xy.map(|v| v * scale);
+    }
+    let op = serde_json::to_value(Operation::Sketch { sketch }).map_err(|e| NodeError::new(e.to_string()))?;
+    Ok(Outputs::one("operation", op))
+}
 fn resize(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
     let d = match i.get("design") {
         Value::Design(d) => d,
@@ -119,6 +138,15 @@ pub fn register(reg: &mut Registry) {
         feature_spec = feature_spec.input(PinSpec::item(pin, ValueKind::Number).optional().doc(doc));
     }
     reg.register(feature_spec.output(PinSpec::item("design", ValueKind::Design).doc("Design with appended feature.")).eval(feature)).expect("unique");
+    reg.register(
+        NodeSpec::new("sketch.library", "Library sketch", Category::Assembly)
+            .doc("A sketch from the library by name, as a Sketch feature's operation: the bundled Gothic outlines, tracery nets and artwork (gothic/...), or the user's own. Wire it into a CAD feature, or through Tracery first for a net.")
+            .input(PinSpec::item("name", ValueKind::Text).default("gothic/fleur-de-lis").doc("The sketch's library name, its path without .svg."))
+            .input(PinSpec::item("scale", ValueKind::Number).default(1.0).doc("How much larger than drawn, about the sketch's origin."))
+            .output(PinSpec::item("operation", ValueKind::Json).doc("The Sketch feature's operation."))
+            .eval(library_sketch),
+    )
+    .expect("unique");
     reg.register(NodeSpec::new("manufacturing.inspect","Inspect pattern",Category::Util).doc("Shared arbitrary-pull release, stock, flask and wall inspection on the prepared pattern.").input(PinSpec::item("design",ValueKind::Design).doc("Evaluated source design and manufacturing setup.")).output(PinSpec::item("report",ValueKind::Json).doc("Identified sampled manufacturing report.")).eval(inspect_pattern)).expect("unique");
     reg.register(
         NodeSpec::new("cad.inspect", "Inspect assembly", Category::Util)
@@ -1340,5 +1368,25 @@ mod tests {
         let out = crate::eval::evaluate_design(&mut crate::eval::Evaluator::new(), &g, &reg, &lib, 0).unwrap();
         let doc = out.design.cad.as_ref().unwrap();
         assert_eq!((doc.features.len(), doc.outputs.clone()), (1, vec![id]));
+    }
+    #[test]
+    fn a_library_sketch_feeds_tracery_and_names_the_library_when_it_is_missing() {
+        let mut g = Graph::default();
+        let net = g.add("sketch.library").unwrap();
+        g.set_input(net, "name", Literal::Text("gothic/jali-honeycomb".into())).unwrap();
+        g.set_input(net, "scale", Literal::Number(1.5)).unwrap();
+        let lights = g.add("sketch.tracery").unwrap();
+        g.connect(net, "operation", lights, "operation").unwrap();
+        g.set_input(lights, "bar_mm", Literal::Number(0.4)).unwrap();
+        let missing = g.add("sketch.library").unwrap();
+        g.set_input(missing, "name", Literal::Text("gothic/nothing".into())).unwrap();
+        let r = crate::eval::Evaluator::new().evaluate(&g, &Registry::builtin(), &ringdesign_core::AlphaLibrary::default(), 0, crate::eval::Targets::AllPure);
+        assert!(matches!(r.value(lights, "lights"), Some(Value::Int(7))), "{:?}", r.value(lights, "lights"));
+        let Some(Value::Json(op)) = r.value(net, "operation") else { panic!() };
+        let Operation::Sketch { sketch } = serde_json::from_value::<Operation>((**op).clone()).unwrap() else { panic!() };
+        let span = sketch.points.iter().map(|p| p.xy[0]).fold(f64::MIN, f64::max) - sketch.points.iter().map(|p| p.xy[0]).fold(f64::MAX, f64::min);
+        assert!((span - 1.5 * 7.5).abs() < 1e-6, "a rosette 7.5 mm across, hexagons of 1.5 mm a side, scaled 1.5: {span}");
+        let why = &r.status[&missing].errors[0].1;
+        assert!(why.contains("no sketch called \"gothic/nothing\"") && why.contains("gothic/fleur-de-lis"), "{why}");
     }
 }

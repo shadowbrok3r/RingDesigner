@@ -745,6 +745,54 @@ pub fn list_outlines() -> Vec<crate::CustomOutline> {
     overlay(bundled, list_outlines_in(&outline_dir()), |o| o.name.clone())
 }
 
+/// Where the user's own sketches live: SVG files, in subfolders if they like.
+pub fn sketch_dir() -> PathBuf {
+    data_root().join("sketches")
+}
+
+/// Every bundled sketch (outlines, tracery nets and artwork, each named by its path without `.svg`, like
+/// `gothic/fleur-de-lis`), with the user's own laid over them by name. A file that does not import is skipped.
+pub fn list_sketches() -> Vec<(String, crate::sketch::Sketch)> {
+    let bundled = ringdesign_assets::SKETCHES.iter().filter_map(|a| sketch_named(a.name, &a.text()));
+    overlay(bundled, list_sketches_in(&sketch_dir()), |(name, _)| name.clone())
+}
+
+/// [`list_sketches`] from an explicit directory, named by path under it.
+pub fn list_sketches_in(dir: &Path) -> Vec<(String, crate::sketch::Sketch)> {
+    fn sweep(root: &Path, dir: &Path, out: &mut Vec<(String, crate::sketch::Sketch)>) {
+        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        for path in entries.flatten().map(|e| e.path()) {
+            if path.is_dir() {
+                sweep(root, &path, out);
+                continue;
+            }
+            let Some(name) = path.strip_prefix(root).ok().and_then(|p| p.to_str()).and_then(|p| p.strip_suffix(".svg")).map(|p| p.replace('\\', "/")) else { continue };
+            match std::fs::read_to_string(&path) {
+                Ok(text) => out.extend(sketch_named(&name, &text)),
+                Err(e) => log::warn!("{}: {e} — skipping", path.display()),
+            }
+        }
+    }
+    let mut out = Vec::new();
+    sweep(dir, dir, &mut out);
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out
+}
+
+/// An SVG read as a sketch called `name`, or nothing with the reason logged.
+fn sketch_named(name: &str, text: &str) -> Option<(String, crate::sketch::Sketch)> {
+    match crate::sketch::exchange::import_svg(text) {
+        Ok(mut sketch) => {
+            sketch.name = name.rsplit('/').next().unwrap_or(name).to_string();
+            Some((name.to_string(), sketch))
+        }
+        Err(e) => {
+            log::warn!("sketch {name}: {e:#} — skipping");
+            None
+        }
+    }
+}
+
 /// The user's own entries laid over the bundled ones, keyed by `key`, sorted
 /// by that key. A jeweller's file of a bundled name replaces it rather than
 /// appearing twice.
@@ -1184,6 +1232,58 @@ mod tests {
         assert_eq!(serde_json::to_string(&load_design_str(&text).unwrap()).unwrap(), serde_json::to_string(&design).unwrap());
     }
 
+    /// Every bundled sketch imports whole: an outline sweeps the area its file records, and a net draws a light in every cell at its bar.
+    #[test]
+    fn every_bundled_gothic_sketch_sweeps_its_area_or_traces_its_lights() {
+        let attr = |text: &str, key: &str| -> Option<f64> {
+            let at = text.find(&format!("{key}=\""))? + key.len() + 2;
+            text[at..].split('"').next()?.parse().ok()
+        };
+        let all = list_sketches();
+        let bundled: Vec<&(String, crate::sketch::Sketch)> = all.iter().filter(|(name, _)| name.starts_with("gothic/")).collect();
+        for asset in ringdesign_assets::SKETCHES {
+            if let Err(e) = crate::sketch::exchange::import_svg(&asset.text()) {
+                panic!("{} does not import: {e:#}", asset.name);
+            }
+        }
+        assert_eq!(bundled.len(), ringdesign_assets::SKETCHES.len());
+        for want in ["gallery-ogee", "gallery-quatrefoil", "gallery-cusped-lozenge", "ornament-quatrefoil-ring", "fleur-de-lis", "jali-lozenge", "jali-quatrefoil", "jali-honeycomb", "jali-intersecting-arches", "crocket-leaf", "fleur-cresting", "nave-arcade", "gargoyle-silhouette", "gargoyle-face", "memento-mori", "cross-pattee"] {
+            assert!(bundled.iter().any(|(name, _)| name == &format!("gothic/{want}")), "{want} is bundled");
+        }
+        for asset in ringdesign_assets::SKETCHES {
+            let text = asset.text();
+            let (_, sketch) = bundled.iter().find(|(name, _)| name == asset.name).unwrap();
+            assert!(!text.contains("transform") && text.contains("mm\" height=\""), "{}: import_svg-clean", asset.name);
+            if let Some(lights) = attr(&text, "data-lights") {
+                let bar = attr(&text, "data-bar-mm").unwrap();
+                let mut s = sketch.clone();
+                let net: Vec<crate::sketch::Id> = s.entities.iter().map(|e| e.id).collect();
+                let traced = s.tracery(&net, bar).unwrap_or_else(|e| panic!("{}: {e:#}", asset.name));
+                assert!(traced.skipped.is_empty(), "{}: {:?}", asset.name, traced.skipped);
+                assert_eq!(traced.lights.len(), lights as usize, "{}: a light per cell", asset.name);
+                assert_eq!(s.sweep_regions().unwrap().len(), lights as usize, "{}: the lights sweep apart", asset.name);
+            } else {
+                let want = attr(&text, "data-area-mm2").unwrap_or_else(|| panic!("{} records no area", asset.name));
+                let got: f64 = sketch.sweep_regions().unwrap_or_else(|e| panic!("{}: {e:#}", asset.name)).iter().map(|r| r.area()).sum();
+                assert!((got / want - 1.0).abs() < 1e-5, "{}: sweeps {got:.5} mm² against {want:.5}", asset.name);
+            }
+        }
+        // A user's file of a bundled name shadows it, and one of a new name joins the list.
+        let dir = std::env::temp_dir().join(format!("rd-sketches-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("gothic")).unwrap();
+        let square = r#"<svg xmlns="http://www.w3.org/2000/svg" width="2mm" height="2mm" viewBox="0 0 2 2"><polygon points="0,0 2,0 2,2 0,2"/></svg>"#;
+        std::fs::write(dir.join("gothic/cross-pattee.svg"), square).unwrap();
+        std::fs::write(dir.join("mine.svg"), square).unwrap();
+        std::fs::write(dir.join("broken.svg"), "<svg>").unwrap();
+        let mine = list_sketches_in(&dir);
+        assert_eq!(mine.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), ["gothic/cross-pattee", "mine"]);
+        let laid = overlay(bundled.iter().map(|b| (*b).clone()), mine, |(n, _)| n.clone());
+        let cross = &laid.iter().find(|(n, _)| n == "gothic/cross-pattee").unwrap().1;
+        assert!((cross.sweep_regions().unwrap()[0].area() - 4.0).abs() < 1e-9);
+        assert_eq!(laid.len(), bundled.len() + 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     /// A shank turned about the finger's axis: read in the world, or in its XZ section's own plane.
     fn turned(in_plane: bool) -> crate::cad::Feature {
         use crate::cad::{Component, Feature, Operation};
@@ -1229,6 +1329,35 @@ mod tests {
         let text = design_json(&in_document).unwrap();
         assert!(text.contains(STORED_MESHES) && text.contains(r#""in_plane": true"#));
         assert_eq!(serde_json::to_string(&load_design_str(&text).unwrap()).unwrap(), serde_json::to_string(&in_document).unwrap());
+    }
+
+    /// A build that reads up to 5 takes `{feature, regions}` for the whole sketch and sweeps every region; written at 6, it is refused by name.
+    #[test]
+    fn several_picked_regions_write_the_design_at_six_and_one_stays_at_five() {
+        use crate::cad::{Component, Feature, Operation, Profile};
+        use crate::sketch::{RegionRef, Sketch};
+        let pick = RegionRef { entity: 1, at: [0.0, 0.0] };
+        let extrude = |sketch: Profile| Feature { id: 2, name: "Lights".into(), enabled: true, operation: Operation::Extrude { sketch, height_mm: 1.0, draft_deg: 0.0 }, component: Component::default() };
+        let with = |sketch: Profile| {
+            let mut doc = crate::cad::Document::default();
+            doc.append(Feature { id: 1, name: "Net".into(), enabled: true, operation: Operation::Sketch { sketch: Sketch::rectangle(2.0, 2.0) }, component: Component::default() }).unwrap();
+            doc.append(extrude(sketch)).unwrap();
+            RingDesign { name: "Picked".into(), cad: Some(doc), ..RingDesign::default() }
+        };
+        let several = with(Profile::Regions { feature: 1, regions: vec![pick, pick] });
+        let node = serde_json::json!({ "id": 2, "kind": "cad.feature", "params": serde_json::to_value(extrude(Profile::Regions { feature: 1, regions: vec![pick] })).unwrap() });
+        let in_graph = RingDesign { graph: Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [node] })), ..RingDesign::default() };
+        for (name, design) in [("document", &several), ("graph", &in_graph)] {
+            assert!(crate::cad::picks_regions(design), "{name}");
+            assert_eq!(format_version_for(design), FORMAT_VERSION, "{name}");
+            let older = read_design(&design_json(design).unwrap(), PLAIN_FORMAT_VERSION).unwrap_err().to_string();
+            assert!(older.contains("format version 6"), "{name}: {older}");
+        }
+        for one in [Profile::Region { feature: 1, region: pick }, Profile::Feature { feature: 1 }] {
+            let design = with(one);
+            assert!(!crate::cad::picks_regions(&design));
+            assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
+        }
     }
 
     #[test]
@@ -1333,35 +1462,6 @@ mod tests {
         ));
         design.embed_alphas(&crate::AlphaLibrary::builtin());
         assert!(design.embedded.is_empty());
-    }
-
-    /// A build that reads up to 5 takes `{feature, regions}` for the whole sketch and sweeps every region; written at 6, it is refused by name.
-    #[test]
-    fn several_picked_regions_write_the_design_at_six_and_one_stays_at_five() {
-        use crate::cad::{Component, Feature, Operation, Profile};
-        use crate::sketch::{RegionRef, Sketch};
-        let pick = RegionRef { entity: 1, at: [0.0, 0.0] };
-        let extrude = |sketch: Profile| Feature { id: 2, name: "Lights".into(), enabled: true, operation: Operation::Extrude { sketch, height_mm: 1.0, draft_deg: 0.0 }, component: Component::default() };
-        let with = |sketch: Profile| {
-            let mut doc = crate::cad::Document::default();
-            doc.append(Feature { id: 1, name: "Net".into(), enabled: true, operation: Operation::Sketch { sketch: Sketch::rectangle(2.0, 2.0) }, component: Component::default() }).unwrap();
-            doc.append(extrude(sketch)).unwrap();
-            RingDesign { name: "Picked".into(), cad: Some(doc), ..RingDesign::default() }
-        };
-        let several = with(Profile::Regions { feature: 1, regions: vec![pick, pick] });
-        let node = serde_json::json!({ "id": 2, "kind": "cad.feature", "params": serde_json::to_value(extrude(Profile::Regions { feature: 1, regions: vec![pick] })).unwrap() });
-        let in_graph = RingDesign { graph: Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [node] })), ..RingDesign::default() };
-        for (name, design) in [("document", &several), ("graph", &in_graph)] {
-            assert!(crate::cad::picks_regions(design), "{name}");
-            assert_eq!(format_version_for(design), FORMAT_VERSION, "{name}");
-            let older = read_design(&design_json(design).unwrap(), PLAIN_FORMAT_VERSION).unwrap_err().to_string();
-            assert!(older.contains("format version 6"), "{name}: {older}");
-        }
-        for one in [Profile::Region { feature: 1, region: pick }, Profile::Feature { feature: 1 }] {
-            let design = with(one);
-            assert!(!crate::cad::picks_regions(&design));
-            assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
-        }
     }
 
     #[test]

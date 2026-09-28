@@ -1768,6 +1768,19 @@ and halos carry the field through their seats.
   fenced at design format 6 and graph format 2. Every head is cleaned of
   sub-20 nm slivers after the stone's notch: overlapping rails left
   4.8e-7 mm edges that f32 turned into degenerate faces.
+- **A Gothic piercing grows by a true offset** (C-T3). Lancet, Ogee,
+  Trefoil, Quatrefoil and Mouchette join the five older plans
+  (`cutters::Shape`, `PIERCE_SHAPES`, the right-click list). Their plans
+  have concave cusps, and a bright cut that pushed each point along its
+  normal, as the round and the oval do, folds a quatrefoil's cusps through
+  each other. So a Gothic plan is drawn dense, read on fixed rays from a
+  centre it is star-shaped about (each ray turned onto the nearest point or
+  cusp), and grown by the Minkowski offset of the drawn plan along the same
+  rays: every grown point stands exactly `g` off the plan (to 1e-6), a cusp
+  moves straight out along its own ray, and the point count never changes,
+  so rings still loft point for point. The five older plans are untouched,
+  and a piercing of a Gothic shape is fenced at 6 (`geometry_extended`),
+  since an older reader would cut it as a round.
 - **Beads** are centres and radii, not solids, until every seat is placed:
   `apply` merges any two within 1.4 radii in ring space, so neighbours share
   the beads between them (pinned by volume: three stones gain less than
@@ -3526,7 +3539,16 @@ asset the program has — 342 alphas, 68 factory profiles, 19 signet plans,
 20 true gem meshes, 26 graph templates, the clusters and presets, 20
 `.ringbase.json` masters, five showcase designs and the app icon — as one
 deflated blob with a generated index, decoded per asset on first read.
-Nothing is looked up in a source tree at run time.
+Nothing is looked up in a source tree at run time. The `SKETCHES` family
+(`bundled/sketches/**.svg`, named by path, so `gothic/fleur-de-lis`) is the
+one swept through subfolders: Tenebrae's outlines, tracery nets and
+artwork, each `import_svg`-clean and carrying on its root what the core's
+test holds it to (the area it sweeps, or the lights its net traces). Nine
+of them stand in for 3DM profiles that live only in the workstation's
+git-ignored `assets/User/Profiles/`; `tools/harvest_gothic.py`
+replaces them under the same names, and `tools/author_gothic.py`
+draws the rest. A graph reaches any of them by name through `sketch.library`,
+and a net on through `sketch.tracery`.
 
 It replaced two mechanisms that both only worked on the machine that built
 them. `library::bundled_alpha_dir()` resolved `<workspace>/assets/alphas`
@@ -3539,8 +3561,9 @@ else.
 
 The user's library still wins. `AlphaLibrary::installed()` loads the
 builtins, then the bundle, then the data root's own directory, and
-`insert` replaces by name; `list_profiles` and `list_outlines` lay the
-user's files over the bundled ones through `library::overlay`; a gem cut
+`insert` replaces by name; `list_profiles`, `list_outlines` and
+`list_sketches` lay the user's files over the bundled ones through
+`library::overlay`; a gem cut
 takes the user's `<cut>.obj` before the bundled one. So an imported alpha
 or a saved section of a bundled name shadows it, which is the behaviour
 `alpha_dirs()` used to give by ordering two directories.

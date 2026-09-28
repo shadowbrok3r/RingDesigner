@@ -222,6 +222,53 @@ fn every_outline_turns_anticlockwise_grows_without_folding_and_is_star_shaped_ab
     assert!(lobes - cleft > 0.15, "the cleft stands {:.3} in from the lobes", lobes - cleft);
 }
 
+/// The least distance from `p` to the closed polygon `poly`.
+fn to_polygon(poly: &[[f64; 2]], p: [f64; 2]) -> f64 {
+    (0..poly.len())
+        .map(|i| {
+            let (a, b) = (poly[i], poly[(i + 1) % poly.len()]);
+            let d = [b[0] - a[0], b[1] - a[1]];
+            let t = (((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1]) / (d[0] * d[0] + d[1] * d[1]).max(1e-30)).clamp(0.0, 1.0);
+            (p[0] - a[0] - t * d[0]).hypot(p[1] - a[1] - t * d[1])
+        })
+        .fold(f64::INFINITY, f64::min)
+}
+
+#[test]
+fn a_gothic_plan_grows_by_a_true_offset_so_its_cusps_inset_instead_of_folding() {
+    for shape in Shape::ALL.into_iter().filter(|s| s.gothic()) {
+        assert_eq!(Shape::named(shape.name()), Some(shape));
+        assert!(PIERCE_SHAPES.contains(&shape.name()) && GOTHIC_SHAPES.contains(&shape.name()));
+        let (l, w) = (2.4, 1.6);
+        let (plan, c, _) = gothic_plan(shape, l, w);
+        let base = outline(shape, l, w, 0.0);
+        // Read on rays from its centre, the plan keeps its area: it is star-shaped about that centre.
+        assert!(inside(&base, c), "{shape:?}: the centre lies inside");
+        assert!((area(&base) / area(&plan) - 1.0).abs() < 2e-3, "{shape:?}: {:.4} read against {:.4} drawn", area(&base), area(&plan));
+        for g in [0.1, 0.3] {
+            let grown = outline(shape, l, w, g);
+            // Every point of the grown plan stands exactly `g` off the plan: a true offset, cusps and points included.
+            for (i, p) in grown.iter().enumerate() {
+                let d = to_polygon(&plan, *p);
+                assert!((d - g).abs() < 1e-6, "{shape:?} grown {g}: point {i} stands {d:.7} off");
+            }
+            let (a0, a1) = (area(&base), area(&grown));
+            assert!(a1 > a0 && a1 < a0 + perimeter(&base) * g + PI * g * g + 1e-6, "{shape:?} grown {g}: {a0:.4} to {a1:.4}");
+        }
+    }
+    // A quatrefoil's cusp sits on its own ray and moves straight out along it as the plan grows.
+    let q = |g: f64| outline(Shape::Quatrefoil, 2.0, 2.0, g);
+    let cusp = |o: &[[f64; 2]]| o.iter().filter(|p| (p[1] - p[0]).abs() < 1e-9 && p[0] > 0.0).map(|p| p[0].hypot(p[1])).fold(f64::INFINITY, f64::min);
+    let (c0, c1) = (cusp(&q(0.0)), cusp(&q(0.2)));
+    assert!(c0 < 0.8 && c1 > c0 + 0.2 - 1e-6, "the cusp at 45° stands at {c0:.4}, then {c1:.4}");
+    // A lancet's and an ogee's point, a trefoil's single lobe and a mouchette's tip lie at −x.
+    for shape in [Shape::Lancet, Shape::Ogee, Shape::Mouchette] {
+        let o = outline(shape, 3.0, 1.5, 0.0);
+        let tip = o.iter().copied().min_by(|a, b| a[0].total_cmp(&b[0])).unwrap();
+        assert!((tip[0] + 0.5 * shape.sized(3.0, 1.5).0).abs() < 1e-6, "{shape:?}: {tip:?}");
+    }
+}
+
 #[test]
 fn a_piercing_through_the_crown_takes_its_area_times_the_wall_it_crosses_in_every_shape() {
     let band = court();
@@ -309,12 +356,16 @@ fn a_piercing_through_a_side_face_runs_along_the_pull_through_the_band_width() {
         let expected = area(&plan) * wall + 0.5 * perimeter(&plan) * chamfer * chamfer;
         let removed = bare.report.volume_mm3 - built.report.volume_mm3;
         assert!((removed / expected - 1.0).abs() < 0.03, "{shape:?}: removed {removed:.4} against {expected:.4}");
-        // A heart's and a drop's point is toward the bore.
-        if matches!(shape, Shape::Heart | Shape::Drop) {
-            let (l, turn) = (at.params["length_mm"].as_f64().unwrap(), at.params["turn_deg"].as_f64().unwrap().to_radians());
-            let q = turned([-0.5 * l, 0.0], turn);
-            let tip = c.frame.point([q[0], q[1], 0.0]);
-            assert!(tip[0].hypot(tip[1]) < c.frame.origin[0].hypot(c.frame.origin[1]) - 0.2, "{shape:?}: its point is toward the bore");
+        // A heart's and a drop's point is toward the bore; an arch's point and a trefoil's lobe stand away from it.
+        let (l, turn) = (at.params["length_mm"].as_f64().unwrap(), at.params["turn_deg"].as_f64().unwrap().to_radians());
+        let q = turned([-0.5 * l, 0.0], turn);
+        let tip = c.frame.point([q[0], q[1], 0.0]);
+        let (tip_r, origin_r) = (tip[0].hypot(tip[1]), c.frame.origin[0].hypot(c.frame.origin[1]));
+        if matches!(shape, Shape::Heart | Shape::Drop | Shape::Mouchette) {
+            assert!(tip_r < origin_r - 0.2, "{shape:?}: its point is toward the bore");
+        }
+        if matches!(shape, Shape::Lancet | Shape::Ogee | Shape::Trefoil) {
+            assert!(tip_r > origin_r + 0.2, "{shape:?}: its point stands away from the bore");
         }
         eprintln!("side {shape:?}: {:.3} mm², wall {wall:.3} mm, removed {removed:.4} against {expected:.4} mm³", area(&plan));
     }
