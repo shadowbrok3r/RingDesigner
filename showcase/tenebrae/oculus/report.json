@@ -1,0 +1,138 @@
+{
+  "alloy": "Silver 925",
+  "band": {
+    "lights": 24,
+    "thickness_mm": 4.6,
+    "width_mm": 7.0
+  },
+  "bore_mm": 18.600018864336207,
+  "cad_features": 9,
+  "design_bytes": 74712,
+  "draft": {
+    "build": [
+      768,
+      320
+    ],
+    "build_s": 3.362971333,
+    "gates": {
+      "bore_radius_mm": 9.3,
+      "cold_reload_identical": null,
+      "degenerate_faces": 0,
+      "dfm_findings": [],
+      "features": [
+        {
+          "id": 1,
+          "name": "Procedural shank",
+          "status": "Ok"
+        },
+        {
+          "id": 2,
+          "name": "High side face, lifted clear of the metal",
+          "status": "Ok"
+        },
+        {
+          "id": 3,
+          "name": "Parting plane",
+          "status": "Ok"
+        },
+        {
+          "id": 4,
+          "name": "Low side face, lifted clear of the metal",
+          "status": "Ok"
+        },
+        {
+          "id": 5,
+          "name": "One lancet light, as it opens on the high side face",
+          "status": "Ok"
+        },
+        {
+          "id": 6,
+          "name": "Its waist on the parting plane",
+          "status": "Ok"
+        },
+        {
+          "id": 7,
+          "name": "The same light on the low side face",
+          "status": "Ok"
+        },
+        {
+          "id": 8,
+          "name": "Pierce one light through the band, drafted from both side faces to its waist",
+          "status": "Ok"
+        },
+        {
+          "id": 9,
+          "name": "Wheel the light round the finger: twenty-four lights",
+          "status": "Ok"
+        }
+      ],
+      "field_notes": [
+        "Field-sampled: the surface itself carries no undercut at this parting.",
+        "Judged with the ring as built: 2 CAD parts (0 joined, 2 cut) at the parting plane z = +0.00 mm — 1037.6 mm² of part surface, none of it locking."
+      ],
+      "field_verdict": "Castable",
+      "made_part_self_crossings": [
+        [
+          "Pierce one light through the band, drafted from both side faces to its waist",
+          0
+        ],
+        [
+          "Wheel the light round the finger: twenty-four lights",
+          0
+        ]
+      ],
+      "min_vertex_radius_mm": 9.300009432168103,
+      "parts_notes": [],
+      "pattern": {
+        "degenerate_faces": 0,
+        "self_crossings": 0,
+        "watertight": true
+      },
+      "release_0_075": {
+        "obstructions": 0,
+        "status": "Review",
+        "unresolved": 0
+      },
+      "release_0_100": {
+        "obstructions": 0,
+        "status": "Review",
+        "unresolved": 0
+      },
+      "ring_self_crossings": 0,
+      "solids_notes": [],
+      "stamps_unresolved": 0,
+      "stones_previewed": 0,
+      "stones_reported": 0,
+      "thinnest_wall_mm": 4.390391256788703,
+      "triangles": 469152,
+      "undercut_percent": 0.0,
+      "vertices_inside_bore": 0,
+      "watertight": true,
+      "worst_draft_deg": 0.0
+    },
+    "gates_passed": true,
+    "lands": {
+      "axial_web_mm": 7.0,
+      "bore_rail_mm": 1.0,
+      "light_height_mm": 2.0999999999999996,
+      "light_width_inner_mm": 1.804275385778217,
+      "light_width_spring_mm": 1.9359278833656126,
+      "mullion_mm": 0.9,
+      "outer_rail_mm": 1.1999999999999993
+    }
+  },
+  "draft_settings": {
+    "auto_parting": false,
+    "min_detail_mm": 0.3,
+    "min_draft_deg": 3.0,
+    "min_section_mm": 0.8,
+    "parting_z_mm": 0.0,
+    "process": "SandTwoPart",
+    "sand": "DelftClay"
+  },
+  "grams_silver_925": 18.83147076650317,
+  "layers": [],
+  "name": "Oculus",
+  "process": "Sand (two-part) / Delft clay",
+  "size": "US 8.6"
+}
