@@ -667,7 +667,7 @@ mod tests {
             g
         };
         let band_off = |g: &mut Graph| g.set_input(band, "enabled", Literal::Bool(false)).unwrap();
-        let expose = |g: &mut Graph| g.exposed.push(Exposed { node: band, input: "enabled".into(), name: "Band".into(), doc: String::new() });
+        let expose = |g: &mut Graph| g.exposed.push(Exposed { node: band, input: "enabled".into(), name: "Band".into(), doc: String::new(), range: None });
         let cases = [
             ("as converted", with(&|_| {}), false, false),
             ("band pinned off", with(&band_off), true, true),
