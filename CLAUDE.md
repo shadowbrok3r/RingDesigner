@@ -196,7 +196,10 @@ graph's JSON, clusters included), is written at format 6
 (`library::format_version_for`), everything else still at 5, so an older
 build keeps opening a plain design and refuses the others by name — an
 older build would read an in-plane line as a world one and turn the region
-about the wrong axis without a word. Graph, cluster and preset files carrying
+about the wrong axis without a word. A profile naming several regions of one
+sketch (`Profile::Regions`, `cad::picks_regions`) is fenced the same way:
+untagged serde would read `{feature, regions}` as the whole sketch and sweep
+every region. Graph, cluster and preset files carrying
 an in-plane revolution are fenced the same way at their own version 2
 (`graph_to_string`, `preset_to_string`, which every writer goes through);
 every other graph file is still 1, byte for byte. A 6
@@ -1160,6 +1163,20 @@ pins both directions. On top of that:
   area to except by name. With `up`, the part's axis, faces turned toward
   its ends are not read.
 
+  A **CAD cut's lands** are asked for, never volunteered:
+  `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
+  `manufacturing_check { cut_land_mm }`) reports, per Cut extrusion, the
+  narrowest metal between two of its regions, between it and each copy a
+  Pattern makes, and to the band's or host part's edge, labelled
+  `CUT_LAND` under `dfm::PART`. Regions are measured between their
+  outlines in the sketch's plane, carried to each copy by its motion. The
+  edge is found through the metal as built: out from each outline in that
+  plane until a line along the normal, within the cut's reach, meets no
+  metal; where that line runs through a copy's opening instead (a ring of
+  copies converges toward the bore, so its lands are narrower at the metal
+  than in the plane), the land is the copy's. Until a floor is asked for, an
+  author script asserts its lands from its own sketch numbers.
+
   A **flute** is measured *around* the ring, not across the band. It was
   filed as a `FeatureFootprint::across` — whose own doc named a flute —
   which sets `feature_u_mm` to infinity, and `metal_feature_mm` scales only
@@ -1765,6 +1782,19 @@ and halos carry the field through their seats.
   fenced at design format 6 and graph format 2. Every head is cleaned of
   sub-20 nm slivers after the stone's notch: overlapping rails left
   4.8e-7 mm edges that f32 turned into degenerate faces.
+- **A Gothic piercing grows by a true offset** (C-T3). Lancet, Ogee,
+  Trefoil, Quatrefoil and Mouchette join the five older plans
+  (`cutters::Shape`, `PIERCE_SHAPES`, the right-click list). Their plans
+  have concave cusps, and a bright cut that pushed each point along its
+  normal, as the round and the oval do, folds a quatrefoil's cusps through
+  each other. So a Gothic plan is drawn dense, read on fixed rays from a
+  centre it is star-shaped about (each ray turned onto the nearest point or
+  cusp), and grown by the Minkowski offset of the drawn plan along the same
+  rays: every grown point stands exactly `g` off the plan (to 1e-6), a cusp
+  moves straight out along its own ray, and the point count never changes,
+  so rings still loft point for point. The five older plans are untouched,
+  and a piercing of a Gothic shape is fenced at 6 (`geometry_extended`),
+  since an older reader would cut it as a round.
 - **Beads** are centres and radii, not solids, until every seat is placed:
   `apply` merges any two within 1.4 radii in ring space, so neighbours share
   the beads between them (pinned by volume: three stones gain less than
@@ -2584,6 +2614,16 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   apart takes 2.4 mm³. A cut keeps its sign through Scale, grips and
   press-pull: a sketch-made cut grips its depth and its floor pulls it
   deeper.
+- **Tracery is drawn from a net, never offset by hand** (C-T1).
+  `Sketch::tracery(net, bar_mm)` only composes what is already proven: split
+  the net where it crosses, take its cells (`profile_regions`), offset each
+  rim in by half the bar (holes out), mark the net construction. A cell whose
+  offset would fold is left out whole and named in `Tracery::skipped`, never
+  half-made; the rest of the sketch is neither split nor moved. Two lights
+  either side of a mullion stand exactly one bar apart (a 24-cell wheel at
+  0.9: every gap 0.9 ± 1e-6). A branched sketch that carries several depths
+  sweeps its cells by `Profile::Regions`; one Sketch feature per depth is
+  still the plainer way. The graph reaches it as `sketch.tracery`.
 
 ## Python: `crates/ringdesign-py`
 
@@ -3513,7 +3553,16 @@ asset the program has — 342 alphas, 68 factory profiles, 19 signet plans,
 20 true gem meshes, 26 graph templates, the clusters and presets, 20
 `.ringbase.json` masters, five showcase designs and the app icon — as one
 deflated blob with a generated index, decoded per asset on first read.
-Nothing is looked up in a source tree at run time.
+Nothing is looked up in a source tree at run time. The `SKETCHES` family
+(`bundled/sketches/**.svg`, named by path, so `gothic/fleur-de-lis`) is the
+one swept through subfolders: Tenebrae's outlines, tracery nets and
+artwork, each `import_svg`-clean and carrying on its root what the core's
+test holds it to (the area it sweeps, or the lights its net traces). Nine
+of them stand in for 3DM profiles that live only in the workstation's
+git-ignored `assets/User/Profiles/`; `tools/harvest_gothic.py`
+replaces them under the same names, and `tools/author_gothic.py`
+draws the rest. A graph reaches any of them by name through `sketch.library`,
+and a net on through `sketch.tracery`.
 
 It replaced two mechanisms that both only worked on the machine that built
 them. `library::bundled_alpha_dir()` resolved `<workspace>/assets/alphas`
@@ -3526,8 +3575,9 @@ else.
 
 The user's library still wins. `AlphaLibrary::installed()` loads the
 builtins, then the bundle, then the data root's own directory, and
-`insert` replaces by name; `list_profiles` and `list_outlines` lay the
-user's files over the bundled ones through `library::overlay`; a gem cut
+`insert` replaces by name; `list_profiles`, `list_outlines` and
+`list_sketches` lay the user's files over the bundled ones through
+`library::overlay`; a gem cut
 takes the user's `<cut>.obj` before the bundled one. So an imported alpha
 or a saved section of a bundled name shadows it, which is the behaviour
 `alpha_dirs()` used to give by ordering two directories.

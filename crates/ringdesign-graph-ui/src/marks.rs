@@ -53,7 +53,7 @@ pub fn node(key: &str) -> Option<Icon> {
 
         // --- the band ----------------------------------------------------
         "band.profile" => Icon::NodeProfile,
-        "band.profile.library" | "outline.library" | "alpha.library" => Icon::Files,
+        "band.profile.library" | "outline.library" | "alpha.library" | "sketch.library" => Icon::Files,
         "band.size" => Icon::NodeSize,
         "band.size.fit" => Icon::NodeFit,
         "design.new" => Icon::Add,
@@ -112,7 +112,7 @@ pub fn node(key: &str) -> Option<Icon> {
         "design.info" => Icon::NodeInfo,
         "design.resize" => Icon::Scale,
         "cad.source" => Icon::CadBand,
-        "cad.feature" => Icon::CadSketch,
+        "cad.feature" | "sketch.tracery" => Icon::CadSketch,
 
         // --- sinks --------------------------------------------------------
         "gate.castable" => Icon::NodeGate,

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="5.64mm" height="7mm" viewBox="-2.82 -3.5 5.64 7" data-area-mm2="11.611133462">
+  <title>gallery-cusped-lozenge</title>
+  <desc>Stand-in drawn in place of Under Gallery Cut 003 (cusped lozenge) (assets/User/Profiles, git-ignored, not in this checkout); tools/harvest_gothic.py replaces it from the 3DM under this name. A lozenge of eight arcs, cusped at each side.</desc>
+  <path d="M 0 -3 A 1.845629988 1.845629988 0 0 0 -0.694914892 -1.042372338 A 1.249760637 1.249760637 0 0 0 -2 0 A 1.249760637 1.249760637 0 0 0 -0.694914892 1.042372338 A 1.845629988 1.845629988 0 0 0 0 3 A 1.845629988 1.845629988 0 0 0 0.694914892 1.042372338 A 1.249760637 1.249760637 0 0 0 2 0 A 1.249760637 1.249760637 0 0 0 0.694914892 -1.042372338 A 1.845629988 1.845629988 0 0 0 0 -3 Z"/>
+</svg>

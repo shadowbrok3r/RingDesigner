@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="6.04mm" height="6.04mm" viewBox="-3.02 -3.02 6.04 6.04" data-area-mm2="15.374669895">
+  <title>gallery-quatrefoil</title>
+  <desc>Stand-in drawn in place of Under Gallery Cut 002 (quatrefoil) (assets/User/Profiles, git-ignored, not in this checkout); tools/harvest_gothic.py replaces it from the 3DM under this name. Four lobes on the axes.</desc>
+  <path d="M 1.070405184 -1.070405184 A 1.12 1.12 0 0 0 0 -2.52 A 1.12 1.12 0 0 0 -1.070405184 -1.070405184 A 1.12 1.12 0 0 0 -2.52 0 A 1.12 1.12 0 0 0 -1.070405184 1.070405184 A 1.12 1.12 0 0 0 0 2.52 A 1.12 1.12 0 0 0 1.070405184 1.070405184 A 1.12 1.12 0 0 0 2.52 0 A 1.12 1.12 0 0 0 1.070405184 -1.070405184 Z"/>
+</svg>

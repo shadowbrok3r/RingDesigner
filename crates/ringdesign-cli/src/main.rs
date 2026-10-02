@@ -231,6 +231,7 @@ fn export(
     let mut shrink: Option<&'static metal::Metal> = None;
     let mut out_dir: Option<PathBuf> = None;
     let mut params = base.build;
+    let mut cut_land: Option<f64> = None;
 
     let mut it = opts.iter();
     while let Some(flag) = it.next() {
@@ -256,6 +257,12 @@ fn export(
                 );
             }
             "--out" => out_dir = Some(PathBuf::from(value()?)),
+            // Asked for, every CAD cut's lands are held to this floor too (`dfm::cut_lands`).
+            "--cut-land" => {
+                let mm: f64 = value()?.trim().parse()?;
+                anyhow::ensure!(mm.is_finite() && mm > 0.0, "--cut-land wants a floor in mm, e.g. 0.8");
+                cut_land = Some(mm);
+            }
             "--steps" => {
                 let v = value()?;
                 let (t, p) = v
@@ -292,7 +299,10 @@ fn export(
     );
 
     for &size in &sizes {
-        let SizeRun { design: d, built, field: f, dfm, stones: stones_at, stone_warnings } = size_run(&base, lib, size, params)?;
+        let SizeRun { design: d, built, field: f, mut dfm, stones: stones_at, stone_warnings } = size_run(&base, lib, size, params)?;
+        if let Some(floor) = cut_land {
+            dfm.extend(ringdesign_core::dfm::cut_lands(&d, &built, floor));
+        }
         // GLB is the finished ring, built only when asked for and different from the pattern.
         let finished = if formats.iter().any(|f| f == "glb") && (ringdesign_core::setting::any(&d) || carries_parts(&d)) { Some(try_build(&d, lib, params)?.mesh) } else { None };
         let v = built.report.validation;
