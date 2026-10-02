@@ -1,0 +1,115 @@
+{
+  "bore": {
+    "nearest_vertex_mm": 9.299999525547445,
+    "radius_mm": 9.3,
+    "vertices_inside": 0
+  },
+  "build": {
+    "author_s": 0.701024983,
+    "build_s": 9.108204355,
+    "profile_steps": 320,
+    "theta_steps": 768,
+    "triangles": 542972
+  },
+  "clamp": "no skin::draft_clamp is used: the side-face relief is a curve, decals and stamps, none painted through a Hide",
+  "dfm_findings": [],
+  "features": [
+    [
+      "#1",
+      "Ok"
+    ],
+    [
+      "#2",
+      "Ok"
+    ],
+    [
+      "#3",
+      "Ok"
+    ],
+    [
+      "#4",
+      "Ok"
+    ],
+    [
+      "#5",
+      "Ok"
+    ],
+    [
+      "#6",
+      "Ok"
+    ]
+  ],
+  "field": {
+    "notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Cut at the bench after casting, and so not judged here: Crown leaf sinus, 1, Crown leaf sinus, 2, Crown midrib, 1, Crown midrib, 2, Crown midrib, 3, Crown leaf sinus, 3, Crown leaf sinus, 4, Crown midrib, 4, Crown midrib, 5, Crown midrib, 6, Crown leaf sinus, 5, Crown leaf sinus, 6, Crown midrib, 7, Crown midrib, 8, Crown midrib, 9, Crown leaf sinus, 7, Crown leaf sinus, 8, Crown midrib, 10, Crown midrib, 11, Crown midrib, 12.",
+      "Judged with the ring as built: 5 CAD parts (5 joined, 0 cut) at the parting plane z = +0.00 mm — 62.7 mm² of part surface, none of it locking."
+    ],
+    "undercut_percent": 0.0011497946900749848,
+    "verdict": "Castable",
+    "worst_draft_deg": -6.113898246692226
+  },
+  "geometry": {
+    "degenerate_faces": 0,
+    "self_crossings": 0,
+    "watertight": true
+  },
+  "made_parts": [
+    [
+      "Large prickle",
+      0
+    ],
+    [
+      "Large prickles on the upper nodes",
+      0
+    ],
+    [
+      "Small prickle A",
+      0
+    ],
+    [
+      "Small prickle B",
+      0
+    ],
+    [
+      "Small prickles between the upper nodes",
+      0
+    ]
+  ],
+  "name": "Rubus",
+  "notes": {
+    "parts": [],
+    "solids": []
+  },
+  "process": "Sand (two-part)",
+  "release": {
+    "at_0_075": "Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved",
+    "at_0_100": "Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved"
+  },
+  "side_gate_probe_row": {
+    "keys": {
+      "internode": [
+        0.97,
+        0.93,
+        0.95
+      ],
+      "node": [
+        1.05,
+        1.35,
+        1.1
+      ]
+    },
+    "narrowest_gated_face_mm": 2.158281766678973,
+    "stations": 360,
+    "worst_at_deg": 0.0,
+    "worst_spill_mm": 0.0,
+    "zero_spill": true
+  },
+  "stage": "block-out",
+  "stamps": {
+    "bench": 20,
+    "count": 38,
+    "not_parting_monotone": [],
+    "resolved": 38
+  }
+}

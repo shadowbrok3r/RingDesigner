@@ -1,0 +1,33 @@
+{
+  "ring": "rubus",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A smooth, slightly lumpy polished band with a row of thin curved spikes along the top edge and small granulated rosettes dotted along both side edges. At 300 px it reads as a punk spiked band or a crown of thorns with rivets, not as a plant. The spikes are needle-thin wires with no broad base, so they look like pins or claws rather than bramble prickles. The 2.3 mm drupelet decals read as small studs or flower rosettes, not blackberries; in the face view they become a beaded rim on the edge. There are no leaves, no runner and no visible knuckled cane, so nothing names bramble over hawthorn, a rose stem or plain studded metal. Next to Caiman and the Reptilia sheet most of the band is empty polished surface.",
+  "changes": [
+    {
+      "priority": 1,
+      "change": "Add the leaves. They name a bramble faster than anything else. Put one serrated leaflet stamp on each internode on both side faces, 14 in all, as the section plans: outline::leaf Serrate with 4 teeth. Raise the size from 3.2 x 1.6 mm to about 4.2 x 2.2 mm, height 0.5 mm, with a gable midrib. Turn alternate leaflets so they read as a three-leaflet group, the bramble's trifoliate leaf, where the runner swings to the edge. Add the 0.8 x 0.45 mm side-face runner arching from node to node to carry them.",
+      "where": "Both side faces, every internode (theta = node + 25.7 deg)",
+      "acceptance": "In hero-300.png at least four leaflets show a toothed outline and a midrib, separate from the berries."
+    },
+    {
+      "priority": 2,
+      "change": "Make the blackberries read as fruit, not studs. Grow the berry decal from 2.3 to 3.4 mm with 0.9 mm height, and use 9 to 12 drupelets about 0.9 mm across with dark gaps between them, so it is a domed bumpy cluster. Hang each berry from a short calyx stalk off the runner instead of setting it flush. Fewer and bigger is better: one berry per node on each face, or clusters of two or three on the upper nodes only.",
+      "where": "Side-face decal layer, node thetas",
+      "acceptance": "In hero-300.png each berry shows as a raised round cluster with individual drupelets, at least 5 px across, and reads as a blackberry, not a rivet or a flower."
+    },
+    {
+      "priority": 3,
+      "change": "Rebuild the prickles as bramble prickles: a broad, laterally flattened base flaring into a short hooked point that curves back round the ring. Raise the base from 1.1 to about 1.8 mm, shorten the arc from 70 to about 45 deg, and keep the 0.31 mm tip, every one turning the same way. Strengthen the node knuckles (thickness key 1.15 to about 1.25, or apply P5) so the band reads as a jointed cane, not a smooth hoop.",
+      "where": "CAD #2 and #4/#5 Twist prickles (crest theta 347 to 193 deg); shank keyframes at the node thetas",
+      "acceptance": "In face-300.png and hero-300.png the prickles show as cat's-claw hooks with a visibly wide base, and the band visibly swells at each node."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/rubus/hero-300.png",
+    "showcase/vepres/rubus/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

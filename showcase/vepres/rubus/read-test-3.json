@@ -1,0 +1,33 @@
+{
+  "ring": "rubus",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Hero: a wavy, slightly polygonal polished band with thin spikes standing off the outer rim and both side edges crusted with small knobbly beads. It looks like a crown of thorns or a barbed band with a granulated border. The berries are now 34 decals of about 2 mm, smaller than the 2.3 mm of attempt 1, packed in twos and threes. At 300 px they merge into a lumpy beaded rim about 5 to 7 px per bead, so they read as encrustation or barnacles rather than blackberries. The side-face leaflets, still 0.30 mm high, are almost invisible; only one or two flat, lined shapes near the top crest come through, and they say 'leaf', not which leaf. Face: a polished barrel with a centre row of five oval studs, two needle spikes off the ends, and a three-lobed crown leaf that reads as an arrowhead or chevron, the exact failure Logan named ('look like arrows'). The edges are rough beading, and most of the face is still bare mirror metal. A jeweller would say 'thorn ring' or 'crown of thorns', maybe 'briar'. Nobody would say bramble or blackberry unprompted. This is the third attempt with the same diagnosis: the fruit is the only motif that can name Rubus, and it has got smaller, not bigger.",
+  "changes": [
+    {
+      "priority": 1,
+      "change": "Make the blackberries the hero motif, and do it at the size asked for twice already. Replace the 34 decals of about 2 mm with 10 to 14 berries of 3.6 to 4.0 mm across and at least 1.2 mm high (sand floor permitting). Each should be a domed hemisphere of 9 to 12 drupelets about 0.9 mm across with dark gaps between them. Use a gradient SVG with real gaps between drupelets, not a granulated disc. On each upper node per face, put a single big berry or a pair. Add a 5-point calyx star stamp, about 1.8 mm across with a tier-1 cut between the points, at the stalk side of each berry, so the calyx and fruit read together. Drop the berry clusters on the palm nodes (244 and 296 deg).",
+      "where": "Decal layer (layers[1]) at the node thetas 90 + k*51.43 deg, both side faces; a new calyx stamp family 1.5 mm toward the runner from each berry",
+      "acceptance": "In hero-300.png at least three berries are 12 px or more across and show separate drupelets with dark gaps and a visible calyx star. A viewer shown the image cold says 'blackberry'."
+    },
+    {
+      "priority": 2,
+      "change": "Remove the three-lobed crown leaves from the crest. In face-300.png they read as arrowheads. Put that metal into the side-face leaflets instead. Build them as trifoliate groups at each internode: centre leaflet about 4.6 x 2.4 mm, side leaflets about 3.6 x 2.0 mm, at +/-50 deg. Raise the height from 0.30 to at least 0.55 mm and cut the serration deeper (6 to 7 teeth, depth 0.30 to 0.35 mm), with the midrib as a dark cut. Then the leaflets show on the side face instead of vanishing into the beading.",
+      "where": "The 'Crown leaf, n' stamps and their sinus and midrib cuts on the crest (remove); the 'Leaflet, 1-14' stamps at the internodes (node + 25.7 deg), both faces",
+      "acceptance": "face-300.png shows no arrow or chevron shapes on the crest. In hero-300.png at least two three-leaflet groups are visible on the near face, each with a toothed edge and a dark midrib."
+    },
+    {
+      "priority": 3,
+      "change": "Turn the prickles from needles into bramble hooks, and clean up the face. Widen each prickle base to 1.8 to 2.0 mm, laterally flattened rather than round (from 1.1 mm). Shorten the arc from 70 to about 45 deg so each prickle hooks back, every one leaning the same way. Swell the node knuckles (thickness key about 1.25) so the crest reads as a jointed cane, not a polished barrel with a row of studs. The five oval studs on the face centre should read as prickle bases, not rivets.",
+      "where": "CAD #2 large prickle and #4/#5 small prickles with their patterns #3/#6 (crest theta 347 through 90 to 193 deg); shank keyframes at the node thetas",
+      "acceptance": "In face-300.png each prickle shows as a triangular, hooked thorn with a visibly broad base (no round studs or pins), and the band visibly swells at each node."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/rubus/hero-300.png",
+    "showcase/vepres/rubus/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

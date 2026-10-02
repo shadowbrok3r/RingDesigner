@@ -1,0 +1,33 @@
+{
+  "ring": "rubus",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Hero: a wavy, polished band with thin pin-like spikes standing off the outer rim and a recessed side channel holding a chain of small knobbly rosettes linked by faint almond-shaped leaves on a thin vine. It reads as a thorned or barbed band with a vine border, closer to barbed wire or a generic briar than to a bramble. The berries are about 8 px, flat granulated discs that read as daisies or rivets. The leaves are now present but come out as small featureless almonds about 4 px wide, with no visible teeth, so they say 'leaf' but not which plant. Face: a smooth polished barrel with a row of five round studs down the centre and two needle spikes poking off the edges. End-on, the small prickles read as rivets, the big ones as pins, and the side-face work is invisible. Most of both views is still empty polished metal next to Caiman and the Reptilia sheet. A jeweller would say 'thorny vine ring' and could not name bramble over rose stem, hawthorn or barbed wire.",
+  "changes": [
+    {
+      "priority": 1,
+      "change": "Make the blackberries the motif that names the plant. Raise the berry decal from about 2.3 to 3.4-3.8 mm across and 0.55 to at least 0.9 mm high, with 9-12 domed drupelets of about 0.9 mm and dark gaps between them, so the berry is a raised hemisphere and not a flat rosette. Hang each one from a short stalk with a 5-point calyx (a small star stamp, about 1.6 mm, with a tier-1 cut between the points) where it joins the runner. Group them as clusters of 2-3 at the four upper nodes on each face, and leave the palm nodes with a single berry or none. Fewer, bigger and clustered reads; 14 identical dots read as a border pattern.",
+      "where": "Side-face decal layer at the node thetas (90 + k*51.43 deg), both faces; calyx stamps at the same thetas offset 1.5 mm toward the runner",
+      "acceptance": "In hero-300.png each upper-node berry is at least 12 px across, shows separate drupelets with shadowed gaps and a visible calyx star, and reads as a blackberry rather than a flower or rivet."
+    },
+    {
+      "priority": 2,
+      "change": "Make the leaves read as bramble leaves. Build the trifoliate leaf: at each internode put three leaflets fanned from one point on the runner (centre leaflet about 4.6 x 2.4 mm, the two side leaflets about 3.6 x 2.0 mm, angled +/-50 deg). Cut the margin deeper (Serrate teeth 6-7, depth 0.22 to 0.35 mm) so the teeth survive the render, raise height from 0.30 to 0.5 mm, and darken the midrib and two or three lateral veins as cuts rather than a soft ridge. Thicken the runner from 0.8 to about 1.1 mm wide so it reads as a stem carrying the leaves.",
+      "where": "Side-face leaflet stamps at the internode thetas (node + 25.7 deg), both faces; runner curve layer",
+      "acceptance": "In hero-300.png at least three three-leaflet groups are visible on the near face, each with a toothed edge and a dark midrib, and a viewer can tell them from ivy, rose or holly leaves."
+    },
+    {
+      "priority": 3,
+      "change": "Turn the prickles from pins into bramble prickles and fill the crest. Give each prickle a broad, laterally flattened base of about 1.8-2.0 mm (from 1.1), shorten the arc from 70 to about 45 deg so it curves back as a hook, and lean every one the same way round the ring. Swell the nodes further (thickness key about 1.25, or P5's width key) so the crest reads as a jointed cane, and add a bench-only bark line or a faint longitudinal stripe between the prickles so the crest is not bare mirror metal in the face view.",
+      "where": "CAD #2, #4, #5 Twist prickles and their patterns (crest theta 347 through 90 to 193 deg); shank keyframes at the node thetas",
+      "acceptance": "In face-300.png the prickles show as hooks with a visibly wide, triangular base, not round studs or needles; the band visibly swells at each node; and less than half of the face view is plain polished surface."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/rubus/hero-300.png",
+    "showcase/vepres/rubus/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
