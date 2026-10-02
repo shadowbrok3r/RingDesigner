@@ -1,0 +1,61 @@
+{
+  "ring": "Rubus",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.7,
+  "summary": "Round 3 fixes the easy items. The palm crest is now bare (palm.png), the wall_exceptions text quotes the sampled minimums, and the small prickles now sample at 0.191 mm. The bark now covers the upper crest. The leaflets have moved from charted stamps to CAD extrusions. The plant still reads at 300 px from the berries and hooked prickles. The workmanship items that held the ring at 6.3 and 6.6 are still open, though. The leaf serrations still render as stair-stepped, castellated blocks (palm.png, shoulder.png, hero.png), and in side.png the leaves show as flat, smeared camouflage patches. The new bark is ruled, evenly spaced parallel grooves that read as a machined, corrugated band, not a cane. Combing and castellated tabs remain at the crest edges (face.png, crown-close.png, stones.png lower edge). The small prickles still stand as truncated horn stubs with hard cut walls and no fillet. A round recess is still visible on the upper crest (hero.png, shoulder.png), and the almond boss is still on the centreline (face.png). The sepals are still flat star plates, and the stalks are still straight radial pins, so the berries read as lollipops, not hanging fruit. The leaf parts also introduce a wall record the gate cannot accept. ray_walls samples the leaves at 0.065 to 0.076 mm and the midribs at 0.063 to 0.125 mm, below the 0.15 mm detail floor, and the author swaps in an outline-stroke figure (leaf_lands) to pass them. The ring is below Caiman for density and finish and well below 7.5, and this is round 3, so it is cut.",
+  "strengths": [
+    "The bramble reads without a caption at 300 px: drupelet berries and same-handed hooked prickles (hero-300.png, face-300.png, contact-300.png).",
+    "The seven-knuckle cane silhouette, ringed with berries and horns, is unique in Vepres (side.png, bare-vs-finished.png).",
+    "The palm crest is now bare and polished, as the section asks; round 2 P0 #2 is done (palm.png, reverse.png).",
+    "The large prickles are well-modelled broad-based hooked horns (stones.png, cane-close.png).",
+    "Every gate but the leaf walls is honestly recorded and green: watertight, 0 degenerates and 0 crossings at both resolutions, 0 DFM findings, field Castable with a 2.88 mm thinnest wall, 1.37 M triangles, cold reload identical, and a template gate of 1 patch at 298,939 B against 300,000 B."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "Bramble throughout. The palm berries are gone, and the palm crest is bare with the runner and leaflets carried on the side faces (palm.png)."},
+    {"item": "Reads as its plant at 300 px without caption", "result": "pass", "reason": "Berries and hooked prickles name a bramble in hero-300.png and face-300.png. The leaves add nothing at that size."},
+    {"item": "Figurative motifs have true outlines, crisp, no combing/smearing/stair-steps", "result": "fail", "reason": "The leaf serrations still render as pixel-stepped, castellated teeth (palm.png, shoulder.png, hero.png left side). In side.png the leaves render as smeared, blotchy patches, and in cane-close.png the leaf is a ragged, torn-foil shape. The crest edges show combing and castellated tabs (face.png edge striping, crown-close.png top and bottom, stones.png lower-left and bottom). Round 1 #1 and round 2 #1 are not done."},
+    {"item": "Stones in made settings, coloured as fruit/buds", "result": "pass", "reason": "Not applicable: an all-metal piece; 0 stones previewed and 0 reported."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "The small prickles are truncated stubs with sharp cut faces and no fillet into the bark (crown-close.png centre). A round recess is still on the upper crest (hero.png, shoulder.png), and the almond boss is still on the crest centreline (face.png). The sepals are flat star plates (crown-close.png, stones.png). The stalks are straight radial cylinders. The new bark is evenly ruled parallel grooves, which reads as corrugated machining."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "result": "pass", "reason": "Not applicable: a procedural keyframed band."},
+    {"item": "Silhouette distinct from the other Vepres rings", "result": "pass", "reason": "The knuckled cane with outward berries and horns is unique."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "The large tier (cane, berries, horns) works. The medium tier, the leaves, is still illegible and broken. The small tier is the ruled bark, which is uniform rather than rich. The inner side faces between the runner and the bore are blank polish. Caiman is textured and legible edge to edge at every scale; Rubus is not."}
+  ],
+  "gates": [
+    {"gate": "Process (draft block)", "claimed": "LostWax, section 0.8 mm, detail 0.15 mm, draft 0", "verified": "draft.process LostWax, min_section 0.8, min_detail 0.15; judged against its own process", "pass": true},
+    {"gate": "Watertight, 0 degenerate faces, 0 self-crossings (ring)", "claimed": "pass", "verified": "geometry and coarse: watertight, 0 degenerates, 0 crossings at 1536x448; draft_build at 768x320 the same", "pass": true},
+    {"gate": "Every made part closed, 0 crossings", "claimed": "pass", "verified": "21 made parts, each with 0 crossings; made_solids empty", "pass": true},
+    {"gate": "Solids and parts notes empty, features Ok", "claimed": "pass", "verified": "notes.parts [] and notes.solids []; features #1 to #22 Ok", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "bore radius 9.3, nearest vertex 9.2999995, vertices_inside 0", "pass": true},
+    {"gate": "Lost wax: verdict Castable, thinnest wall >= 0.8 mm, pointed details >= 0.15 mm", "claimed": "Castable; the prickles and calyx are at the 0.15 mm detail floor; the leaves are 'judged by their outlines' finest strokes' (leaf_lands 0.467 mm, midrib 0.341 mm)", "verified": "Field Castable, thinnest_wall 2.877 mm at 220.8 deg. The ray walls for the prickles (0.239 and 0.191) and the calyx (0.243) clear 0.15. But the leaf parts sample at 0.065 (high) and 0.076 (low) mm, with 185 to 186 of 278 rays below the floor. Midrib 1 samples at 0.063 mm with 292 of 300 rays below, and midribs 2 and 3 at 0.125 mm. All are below the 0.15 mm detail floor this ring's own exception sets. The outline-stroke figure measures the 2-D outline, not the cast metal, and does not answer the sampled wall. That is the same standard that let round 2 pass the prickles, and here it fails.", "pass": false},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings []", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "0 = 0", "verified": "previewed 0, reported 0; stones.json empty", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "cold_reload_identical true; verification.json vertices_faces_normals_identical true", "pass": true},
+    {"gate": "Export within 2 M triangles", "claimed": "pass", "verified": "1,372,962 triangles at 1536 x 448", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "pattern watertight, 0 degenerates, 0 crossings", "pass": true},
+    {"gate": "Template: at most 4 design.set patches within class budget", "claimed": "pass", "verified": "1 patch (/manufacturing); 298,939 B of 300,000 B procedural (1 KB of headroom); source_identical, cold graph and design reload, mesh parity, export verified; first build 1.70 s", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P0", "zone": "Both side faces, CAD #14 to #22 'Bramble leaf, high/low face' and midribs, at the internodes (node + 25.7 deg)", "change": "Cut, so no round remains. If the ring is revived: rebuild the leaflet as a lofted or stored-mesh solid with a smooth serrate margin (6 to 7 teeth, 0.25 to 0.3 mm deep), at least 0.3 mm thick at the margin and blended 0.1 mm into the face. Fold the midrib into the leaf rather than extruding it as a separate thin sheet.", "acceptance": "In palm.png, shoulder.png and side.png no leaf edge shows steps or smearing at 1600 px. ray_walls lists every leaf and midrib part at a sampled minimum of at least 0.15 mm."},
+    {"number": 2, "priority": "P0", "zone": "Crest, small prickles #4/#5/#6, the round recess and the almond boss on the centreline", "change": "Carried from rounds 1 and 2. Seat each small prickle on the bark with a 0.3 to 0.4 mm fillet and no cut walls. Remove the recess and the almond, or make the almond a crescent leaf scar at a node.", "acceptance": "crown-close.png, face.png and hero.png show no cup, hole, cut face or unexplained almond on the crest."},
+    {"number": 3, "priority": "P1", "zone": "Layer 'Cane bark', theta 347 to 193 deg, and the crest edges", "change": "Replace the ruled parallel grooves with broken, wavering striae of varied length, 0.08 to 0.10 mm deep, with node rings at each knuckle. Fix the combing and castellated tabs at the crest-to-side-face edge.", "acceptance": "face.png and stones.png show organic bark and clean crest edges with no vertical striping or tabs."},
+    {"number": 4, "priority": "P1", "zone": "Calyx #9/#12, stalks #7/#10, array #13", "change": "Carried from round 2, item 4. Make the sepals cupped and tapered, curled back on the berry. Bend the stalks 20 to 30 deg and hang each berry 30 to 40 deg down the side face.", "acceptance": "No flat star plates appear in crown-close.png. In side.png and hero.png the berries hang on bent stalks rather than standing as radial pins."}
+  ],
+  "viewed_images": [
+    "showcase/vepres/rubus/hero-300.png",
+    "showcase/vepres/rubus/face-300.png",
+    "showcase/vepres/rubus/hero.png",
+    "showcase/vepres/rubus/face.png",
+    "showcase/vepres/rubus/crown-close.png",
+    "showcase/vepres/rubus/cane-close.png",
+    "showcase/vepres/rubus/side.png",
+    "showcase/vepres/rubus/palm.png",
+    "showcase/vepres/rubus/shoulder.png",
+    "showcase/vepres/rubus/reverse.png",
+    "showcase/vepres/rubus/stones.png",
+    "showcase/vepres/rubus/contact-300.png",
+    "showcase/vepres/rubus/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

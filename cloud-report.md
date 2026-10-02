@@ -2,145 +2,160 @@
 
 Branch `claude/vepres-rubus`, from `master`. Example: `crates/ringdesign-core/examples/vepres_rubus.rs`. Outputs: `showcase/vepres/rubus/`.
 
-## Outcome: stopped at the block-out; the subject needs rethinking
+## Outcome: cut at round 3, score 6.7
 
-None of the three block-outs read as a bramble at 300 px, so under the loop's rule I stopped and did not build the detail rounds.
+Rubus now reads as a bramble at 300 px. It never reached the 7.5 ship bar, and the round-3 reviewer cut it at 6.7.
 
-- Read tests: 3 of 3 used, all `reads: false`.
-- Review rounds: 0 of 3 used. No full review was run, so there is no score and no ship or cut verdict.
-- Every draft gate the block-out can run is green (below). The failure is the read alone, as with the Bestiarium and Cataphracta cuts.
+| Item | Count |
+|---|---|
+| Block-out read tests | 4 (three in Delft sand failed; the fourth, in lost wax, read) |
+| Review rounds | 3 of 3 |
 
-| Read test | reads | What the eye saw (reviewer's words, shortened) |
-|---|---|---|
-| 1 (`read-test-1.json`) | false | "A punk spiked band or a crown of thorns with rivets, not a plant." The prickles looked like needle-thin pins, the 2.3 mm berries like studs or flower rosettes, and there were no leaves. |
-| 2 (`read-test-2.json`) | false | "Thorny vine ring", closer to barbed wire than to bramble. The berries were about 8 px flat granulated discs ("daisies or rivets"), and the leaves showed as 4 px almonds with no teeth. Most of the face view was bare polished metal. |
-| 3 (`read-test-3.json`) | false | "Thorn ring" or "crown of thorns", perhaps "briar". The berries merged into a lumpy beaded rim ("encrustation or barnacles"). The trifoliate crown leaf read as "an arrowhead or chevron, the exact failure Logan named". |
+The fourth read test and the three review rounds were run after Logan asked for a lost-wax rebuild that keeps the earlier work. Under `TASK.md` alone the ring would have stopped after three failed block-outs.
 
-### What each attempt changed
+| Step | Verdict | Score | What the reviewer saw |
+|---|---|---|---|
+| Read test 1 (sand) | reads: false | n/a | "A punk spiked band or a crown of thorns with rivets." Pin prickles, berries like studs or rosettes, no leaves. |
+| Read test 2 (sand) | reads: false | n/a | "Thorny vine ring", closer to barbed wire. 8 px berry discs, toothless leaves. |
+| Read test 3 (sand) | reads: false | n/a | "Crown of thorns." Beaded-rim berries, and the crown leaf read as "an arrowhead or chevron". |
+| Read test 4 (lost wax) | **reads: true** | n/a | "Blackberry … thorns plus blackberries name a bramble." Only just: the berries looked like finials and the crown leaves like arrows. |
+| Round 1 | revise | **6.3** | The berries and hooked prickles carry the read. Leaves stair-stepped; calyx tabs looked flat; cups around the small prickles; crest bare. The wall and template record was incomplete (897 KB design). |
+| Round 2 | revise | **6.6** | Gate record green and honest. Leaves still stair-stepped. Palm berries broke the bare-palm rule. Flat sepals, pin-like stalks, density below Caiman's. |
+| Round 3 | **cut** | **6.7** | Palm bare and wall text fixed. But the leaf margins still render stepped or smeared, the bark reads as ruled corrugation, the small prickles are stubs, the sepals still look flat, and the berries still look like lollipops. The reviewer failed the lost-wax wall gate on the leaf parts' sampled walls (below). |
 
-- **Attempt 1.** The section's block-out as written:
-  - the knuckled cane with P5's keys;
-  - 13 prickles, each a 1.1 mm round twist with a 70° hook;
-  - 14 blackberry decals, 2.3 mm across, seven drupelets each.
-- **Attempt 2.** Read test 1's changes:
-  - The prickles got flattened elliptic feet, 1.8 × 1.1 mm (round the ring × along the finger), and a shorter 45° hook.
-  - The node thickness key went from 1.15 to 1.25.
-  - Added the 0.8 × 0.45 mm side-face runner, phased to crest at the nodes.
-  - Added 14 serrated leaflet stamps, 4.2 × 1.9 mm, with a midrib ridge.
-  - Domed berries with 19 hex-packed drupelets.
-  - Parting fixed at z = 0. Before this, auto-parting had judged the field at z = −0.04, which made the prickles "Castable with care".
-- **Attempt 3.** Read test 2's changes, as far as sand allows:
-  - The upper nodes swell to a thickness key of 1.35; the palm nodes stay at 1.15.
-  - The prickles grew again: the large ones to 2.0 × 1.2 mm with a 2.0 mm, 45° hook, the small ones to 1.5 × 0.9 mm.
-  - The runner went to 1.1 × 0.55 mm.
-  - Clusters of three berries at each upper node, with a stalk and a calyx star in the art.
-  - A trifoliate leaf on the crown of each upper internode, where the face camera looks.
+## What the last round leaves open
 
-### Why it does not read: the diagnosis for the rethink
+These are from the round-3 punch list, kept for anyone who revives the ring:
 
-1. **The side faces are too small to carry the fruit.** On a 3.4 mm LowDome with flat sides, the station-aware gate gives 2.16 to 2.75 mm of face, even with the knuckle key at 1.35.
-   - Berries larger than about 2.4 mm are clipped square by the side-face gate. In attempt 3 I tried 3.0 mm and the clusters rendered as blocks.
-   - Read tests 1 to 3 each asked for 3.4 to 3.8 mm berries. That cannot be done on these faces in sand.
-   - The hero and face cameras also see the side faces obliquely or edge-on. The lessons file says side-face work supports a read but cannot carry one, and all three tests confirmed it.
-2. **The crest in sand only takes relief that is monotone through the parting line.** A trifoliate leaf has laterals off the parting line, and `parting_monotone` refuses them.
-   - Laid as separate stamps, they failed on every outline point, and the ray release found 16 obstructions up to 1.4 mm deep.
-   - The legal form is the filled outline, with the sinuses cut back at the bench (the Ilex fallback). That casts and pulls cleanly, but it reads as an arrowhead.
-3. **The prickles read as needles at 300 px**, even with flattened 2.0 mm feet. Seen from above, a hook lying in the parting plane is a short oval: the "row of studs" every test describes.
+1. **Leaves (P0).** Rebuild each leaflet as a lofted or stored-mesh solid with a smooth serrate margin, at least 0.3 mm thick at the edge and blended into the face. The midrib should be folded into the leaf, not extruded as a separate thin sheet. Every leaf part must sample at least 0.15 mm on rays.
+2. **Crest (P0).** Seat the small prickles with a 0.3 to 0.4 mm fillet. Remove the round recess and the almond on the centreline; that almond is the large prickle's foot seen from above.
+3. **Bark (P1).** Use broken, wavering striae with node rings in place of ruled flutes. Clean the crest-edge combing.
+4. **Berries (P1).** Cup and curl the sepals back on the berry. Hang each berry further down its side face.
 
-### Recommendation
+I disagree with one point for the record, not to reopen the verdict: the stalks were bent 28° in round 3, and the reviewer still read them as straight radial pins.
 
-Rethink Rubus before detailing it. The candidate that answers all three diagnoses is lost wax, which the brief allows when sand costs the read:
+## Process
 
-- **Berries as true 3-D CAD parts.** Drupelet clusters, 3.5 to 4 mm across, with their calyces, seated on the crown shoulders where both cameras look.
-- **Trifoliate leaves as real separate leaflets** draped over the shoulders.
-- **Prickles that splay out of the parting plane**, so the face view shows hooks rather than ovals.
+The ring is **lost wax** (`probe::wax_setup`): 0.8 mm section, 0.15 mm detail, no draft. The brief allows this when sand costs the read. Sand failed three read tests for these reasons:
 
-If the ring must stay in sand, the cane needs a far thicker section, about 5 mm, so the side faces reach 3.5 mm. Even then the side faces cannot carry the read on their own.
+- **The side faces are too small for fruit.** The station-aware faces are only 2.16 to 2.75 mm, so any berry over about 2.4 mm is clipped square.
+- **The crest takes only parting-monotone relief.** Separate leaflets off the parting line lock in the mould, and the filled outline the gate allows reads as an arrow.
+- **The prickles show end-on.** Hooks lying in the parting plane look like studs from above.
 
-## Gates (block-out attempt 3, draft build 768 × 320)
+What carried over from the sand work:
+- the knuckled cane;
+- the in-plane hooked prickles;
+- the side-face runner;
+- the trifoliate leaf outline;
+- the side-gate probe row, which still shows 0.000 mm spill.
+
+## Gates (final state, draft 768 × 320 and export 1536 × 448)
 
 | Gate | Result |
 |---|---|
-| Finished mesh | Watertight, 0 degenerate faces, 0 self-crossings, 542,972 triangles |
-| CAD parts | All 5 made parts have 0 self-crossings. Features #1 to #6 are all `FeatureStatus::Ok`. |
-| Notes | `built.solids.notes` and `built.parts.notes` are empty. 38 of 38 stamps resolved (20 of them are bench cuts). |
-| Finger hole | 0 vertices inside. The nearest vertex is at 9.29999 mm against a 9.3 mm bore radius. |
-| Field | `attributed_field_report` 256 × 128 plus `judge_parts`: **Castable**, 0.0011% undercut, worst −6.1°. Parting fixed at z = 0, the set-up's own. |
-| Ray release at 0.100 and 0.075 mm | 0 obstructions and 0 unresolved at both pitches. The status reads "Review", not "Blocked". |
-| Draft clamp | Not used. No relief is painted through a `Hide`, so there is no clamp bite. |
-| `parting_monotone` | Every cast stamp passes; bench stamps are exempt. |
-| DFM | `dfm::findings_in`: 0 findings |
-| Stones | None, by design |
-| Side-gate probe row (P5) | For keys node {w 1.05, t 1.35, c 1.10}, palm node {1.03, 1.15, 1.05} and internode {0.97, 0.93, 0.95}: across 360 stations, the gate spills 0.000 mm past each station's own faces. The narrowest gated face is 2.16 mm. Recorded in `report.json`. |
+| Finished mesh | Watertight, 0 degenerate faces, 0 self-crossings at both builds and at 384 × 192 |
+| CAD parts | 21 made parts, each with 0 crossings. 22 features, all `Ok`. Parts and solids notes empty. |
+| Finger hole | 0 vertices inside; nearest 9.2999995 mm against a 9.3 mm bore radius |
+| Lost-wax field | **Castable**, thinnest band wall 2.877 mm at 220.8° |
+| Part walls | See the next table |
+| DFM | 0 findings |
+| Stones | None: 0 reported, 0 previewed |
+| Cold reload (`--verify`) | Identical at export |
+| Export size | 1,372,962 triangles, under the 2 M budget |
+| Casting pattern | Watertight, 0 degenerate faces, 0 crossings |
+| Side-gate probe row (P5) | 0.000 mm spill over 360 stations |
+| Template gate | **Pass** (see "Template gate" below) |
 
-**Not run**, because the loop stopped before round 1 (the block-out only renders at draft):
+Part walls are sampled on rays with `cad::measure::thickness`:
 
-- the export build at 1536 × 448 and its 2 M triangle budget;
-- `--verify` (cold reload);
-- the casting-pattern mesh;
-- the 384 × 192 stamp re-check;
-- the template gate.
+| Part | Sampled minimum | Floor it is judged against |
+|---|---|---|
+| Berries | 1.686 mm | 0.8 mm section |
+| Stalks | 0.811 mm | 0.8 mm section |
+| Large prickle | 0.239 mm | 0.15 mm detail (pointed) |
+| Small prickles | 0.191 mm | 0.15 mm detail (pointed) |
+| Calyces | 0.243 mm | 0.15 mm detail (pointed) |
+| Leaves | **0.065 / 0.076 mm** | 0.15 mm detail |
+| Midribs | **0.063 to 0.125 mm** | 0.15 mm detail |
 
-Since no round was reached, there are no template-gate numbers to record.
+The leaf and midrib rows are below the floor. I judged the leaves by their outlines' finest strokes instead (0.467 mm for the leaf, 0.341 mm for the midrib, 0.8 and 0.32 mm thick), and the example's gate passes on that. **The reviewer rejected that substitution, so count this gate as failed.** The ray measure is also noisy on thin relief: the same leaf sampled anywhere from 0.065 to 0.165 mm between builds.
 
-## The ring as authored (attempt 3)
+The ring weighs about 32.5 g in 18k gold, at size US 8.6.
+
+## Template gate
+
+Command: `collection_templates vepres … --only rubus --verify-export`, with `template_class` set to `procedural`.
+
+| Measure | Result |
+|---|---|
+| `design.set` patches | **1** (`/manufacturing`) |
+| Graph size | **298,939 B** against the 300 KB procedural budget |
+| Nodes | 57 |
+| Cold source | Identical |
+| Graph and design reload | Pass |
+| Vertex, face and normal parity | Pass |
+| Export geometry | Verified |
+| First build | 1.7 s |
+
+To get under budget:
+- the decal raster went;
+- the 84 leaf stamps became 8 sketch-extrude parts;
+- the berry meshes were coarsened;
+- the calyx, stalk and prickle polygons were trimmed.
+
+## The ring as authored
 
 ### Base
 
-- `RingDesign::default()`, bore 18.6 mm.
-- LowDome profile, 7.0 × 3.4 mm: crown 0.6, `flatten_sides`, edge round 0.3, comfort fit 0.1.
-- Delft sand from `probe::sand_setup(0.1)`, with `draft.auto_parting = false` and parting at z = 0.
-- `ShankKind::Keyframes` with amount 1.0 and 14 keys. Nodes sit at 90 + k·51.43°, internodes at node + 25.71°.
+- LowDome 7.0 × 3.4 mm with flat sides, bore 18.6 mm.
+- Keyframed at seven nodes (90° + k·51.43°):
+  - upper nodes {w 1.05, t 1.35, c 1.10};
+  - palm nodes {1.03, 1.15, 1.05};
+  - internodes {0.97, 0.93, 0.95}.
 
 ### CAD feature tree
 
-1. **#1 Cane** is the procedural band (`Operation::Band`, role Shank).
-2. **#2 Large prickle** is a twisted sweep:
-   - its foot is a 48-point elliptic polyline, 2.0 mm round the ring by 1.2 mm along the finger;
-   - its path rises 0.7 mm radially, then turns 45° round a 2.0 mm bend;
-   - it tapers to 0.26 of the foot, so the tip is 0.31 mm across the parting plane.
-   - It is seated at 347.14°, sunk 0.35 mm, joined with a 0.35 mm seam bead, cast stage, with no cant, spin or tilt.
-3. **#3 Ring array** repeats #2 five times over 205.71°, so the large prickles stand on the nodes at 347°, 39°, 90°, 141° and 193°.
-4. **#4 and #5 Small prickles** are twisted sweeps with a 1.5 × 0.9 mm foot, a 0.5 mm rise and a 1.4 mm, 42° bend, tapering to 0.36. They stand at 20.07° and 28.57°, in the upper half of each upper internode, clear of the crown leaf and of every hook.
-5. **#6 Ring array** of #4 and #5 together, four times over 154.29°, gives the 8 small prickles. Multi-source, so format 6.
+1. **#1 Cane:** the procedural band.
+2. **#2 Large prickle:** a twisted sweep at 347.14°.
+   - Its foot is a 24-sided ellipse, 2.8 × 1.5 mm, rising 1.3 mm then turning 55° round a 2.7 mm bend.
+   - It tapers to 0.26 of the foot.
+   - Joined, sunk 0.35 mm, with no seam bead.
+3. **#3:** five copies of #2 over 205.71°, so a large prickle stands on each upper node.
+4. **#4 and #5 Small prickles:** twisted sweeps with a 2.2 × 1.2 mm foot and a 1.8 mm, 50° hook, tapering to 0.46.
+   - They sit at the internode on the high and the low shoulder (across ±2.3 mm), canted ±50° out over the side faces.
+5. **#6:** four copies of #4 and #5 over 154.29°.
+6. **#7 to #12 Berry parts on the first upper node.** On each shoulder, staggered ±9.37° either side of the node, at across ±3.0 mm and cant ±55°:
+   - a stalk, 0.84 mm round and 1.4 mm long, bent a further 28° down the side face;
+   - a blackberry, a 3.8 × 3.5 mm ellipsoid raised into 36 drupelets;
+   - a five-sepal calyx, tapering from 0.65 to 0.25 mm thick and curling 0.5 mm up the berry.
+   - All three are stored meshes.
+7. **#13:** five copies of #7 to #12 over 205.71°, giving ten berries on the upper nodes.
+8. **#14 to #21 Side leaves.** On each side face of the first internode:
+   - the trifoliate leaf's true outline extruded 0.8 mm square out of the face, sunk 0.25 mm. The outline is the marching-squares union of a 4.4 × 1.6 mm terminal leaflet and two 3.0 × 1.0 mm laterals at ±20°, all serrate;
+   - three raised midribs.
+9. **#22:** seven copies of #14 to #21 round the ring.
 
 ### Layers
 
-- **Runner:** a `CurveLayer`, Round profile, 1.1 × 0.55 mm.
-  - One arch per node cell, `mirror_v`, landed on the side face at 0.7 fill and gated `SideFaces(Both)`.
-  - C-B1's `phase` has not landed, so the control points are shifted by `fract(90/51.43) + 0.25` of a cell. That puts the arch at the crown edge at each node.
-- **Blackberries:** a `DecalLayer` reading the SVG alpha "Drupelet cluster", gated `SideFaces(Both)` with `Blend::Max`, 34 decals.
-  - The art is hex-packed radial-gradient drupelets over a receptacle that stays above half ink, so the sand sees no gap finer than its floor.
-  - It also carries a stalk and a calyx star.
-  - At each upper node a 2.15 mm berry sits on the node, with a berry at 0.92 scale either side at ±9.5°. Each palm node has one berry at 0.92 scale.
+- **Runner:** a `CurveLayer`, round wire 1.1 × 0.55 mm, on both side faces. It crests at the nodes through a control-point shift, because C-B1's `phase` has not landed.
+- **Cane bark:** flutes running round the ring, 22 ribs, 0.045 mm high, over the upper 200° of the crown and kept off the palm.
 
-### Stamps
+### Stamps and stones
 
-- **Leaflets 1 to 14** sit one per internode per face:
-  - outline: serrated, 4 teeth at 0.22 mm, 4.2 × 1.9 mm;
-  - top: a 0.4 mm `Ridge` midrib over 0.3 mm eaves;
-  - `along_pull`, 3° draft;
-  - laid along the runner's tangent, alternately turned ±8°.
-- **Crown leaves 1 to 4** sit one per upper internode, springing 1.6 mm past the lower node.
-  - Each is one filled outline: the |y| envelope of a 3.6 × 2.2 mm terminal leaflet (6 teeth) and two 2.9 × 1.5 mm laterals (5 teeth) spread at ±46°.
-  - The top is a 0.3 mm `Gable` whose ridge lies in the parting plane, over 0.35 mm eaves.
-- **Crown leaf sinuses 1 to 8** are tier-1 bench cuts. They remove the plan between the terminal, or the stalk, and each lateral, sunk 0.45 mm from the leaf's top.
-- **Crown midribs 1 to 12** are tier-1 bench cuts, each a 0.18 mm lanceolate groove 0.12 mm into its leaflet.
-
-### Stones
-
-None.
+None of either. The palm crest is bare.
 
 ## What I could not do
 
-- **Make Rubus read.** This is the whole verdict above.
-- **Keep the brief's exact knuckle keys.** The node thickness key went from 1.15 to 1.35 on the upper nodes, at the reviewer's request and to enlarge the side faces. The side-gate row confirms zero spill with the new keys.
-- **Keep the small prickles where the section put them.** They moved from 4.29° and 21.43° to 20.07° and 28.57°, so the crown leaf has room and no hook overhangs it. With hooks over the leaf the release was blocked, at up to 0.78 mm deep.
-- **Lay the side-face veins.** The section's bench-cut veins and withered-leaflet bites belong to round 1, which was never reached.
+- **Reach 7.5.** The verdict stands.
+- **Keep the ring in sand.** See "Process" above.
+- **Lay organic bark.** Diagonal flutes (`lean` 0.12) left degenerate faces where they met the parts.
+- **Put seam beads on the prickles.** Beads folded or pinched over the bark, so there are none, which is what the reviewer read as cut walls.
+- **Build procedural berries.** Revolves whose profile touches the axis would not tessellate. Lofts of whole circles were refused. Polyline lofts of overlapping drupelets self-crossed inside their patterns. Stored meshes were the only route that passed.
+- **Make the leaf walls honest on rays.** See "Part walls" above.
 
 ## Core changes wanted
 
-C-B1's `CurveLayer::phase`, so the runner's crest can be set without rewriting its points. In `crates/ringdesign-core/src/curve.rs`:
+C-B1's `CurveLayer::phase`, in `crates/ringdesign-core/src/curve.rs`:
 
 ```rust
 // in `pub struct CurveLayer`, after `mirror_v`:
@@ -153,4 +168,12 @@ C-B1's `CurveLayer::phase`, so the runner's crest can be set without rewriting i
 
 // in `CurveLayer::height`, replacing the `x_frac` line:
         let x_frac = ((uv.u / circ).rem_euclid(1.0) * repeats - self.phase).rem_euclid(repeats);
+```
+
+A deterministic `cad::measure::thickness`: sample every face of a component rather than a stride, so a ring's wall record does not move between builds. In `crates/ringdesign-core/src/cad/measure.rs`:
+
+```rust
+pub fn thickness_all(mesh: &Mesh, limit_mm: f64) -> Thickness {
+    // as `thickness`, with `let stride = 1;` and the 250 000-face guard raised to the part's own face count
+}
 ```
