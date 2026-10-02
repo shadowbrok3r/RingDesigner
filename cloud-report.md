@@ -1,154 +1,124 @@
-# Tenebrae enablers C-T1, C-T3, C-T4: cloud report
+# Vepres ring: Ilex (`ilex`), cloud report
 
-Branch `claude/tenebrae-enablers` from `master` at `a66879e`: `8246c5a` (C-T1), `67a3493` (C-T3),
-`0905b88` (C-T4), then this report. Pull request: https://github.com/shadowbrok3r/RingDesigner/pull/239
-Every enabler is opt-in: nothing existing changes shape, and every new saved form is fenced at design
-format 6 / graph format 2 without a new version.
+**Verdict: cut at 6.3 after round 3** (ship bar 7.5). It used 2 block-out read tests and all 3 review rounds. Every gate was green at every reviewed round, and so was the template gate. The ring failed on art, not on a gate.
 
-## C-T1: tracery from a net, and `Profile::Regions`
+- Branch: `claude/vepres-ilex` from `master` at `72b9857`.
+- Commits: `e78fe13` (block-out), `d10741e` (round 1), `b43a137` (round 2), `ff09d9b` (round 3), then this report.
+- Example: `crates/ringdesign-core/examples/vepres_ilex.rs`.
+- Outputs: `showcase/vepres/ilex/`. That folder holds the renders, `report.json`, `verification.json`, `template.graph.json`, the read tests and the reviews. The STL files are git-ignored.
+- Run: `target/release/examples/vepres_ilex [OUT_DIR] [--draft] [--verify] [--blockout] [--resize-check]`.
 
-**What landed**
-- `Sketch::tracery(net, bar_mm) -> Tracery { lights, skipped }` (`sketch/edit.rs`). It composes the
-  proven calls: `split_at_intersections` on the net alone (every other drawn curve stands aside as
-  construction while it splits, so the rest of the sketch is neither split nor moved), the cells from
-  `profile_regions`, each rim offset in by `bar/2` and each hole out by as much, then the net marked
-  construction. A cell whose offset folds is left out whole and named in `skipped` with the reason. A
-  bar no cell takes is refused, and the sketch is left unchanged.
-- `Profile::Regions { feature, regions }`, an untagged arm placed before `Feature`. `regions_of` takes
-  every picked region once (a pick named twice counts once), and an empty list is refused. A twisted
-  sweep, a loft and a sweep take one region and refuse several by name. Wired through every exhaustive
-  match (workbench grips, GUI sketch mode, and the GUI profile source, which shows "regions 1, 3 of 5").
-- Fence: `cad::picks_regions` / `picks_regions_json` (document and graph JSON, clusters included) join
-  `library::format_version_for` and the graph writers' `fenced_json`. An older build would read
-  `{feature, regions}` as `Feature` and sweep every region.
-- Exposure: a `sketch.tracery` graph node takes a Sketch operation or a bare sketch, the net's ids
-  (empty takes every drawn curve) and the bar. It returns the operation, how many lights, and each
-  skipped cell with its reason. MCP reaches it through its graph tools.
-- CLAUDE.md: the fence sentence, and a "Tracery is drawn from a net" bullet under the CAD rules.
+## Read tests and reviews
 
-**Tests**
-- `sketch::edit::tests::a_polar_net_traces_to_one_light_per_cell_each_a_bar_from_its_neighbours`:
-  a 24-cell polar net at bar 0.9 gives 24 loops, and each loop's gap to its neighbour round the wheel is
-  0.9 ± 1e-6. The test also checks that the net ends as construction and a circle beside it is untouched.
-- `sketch::edit::tests::a_cell_too_narrow_for_the_bar_is_skipped_whole_and_a_bar_no_cell_takes_is_refused`
-- `cad::tests::several_regions_of_one_branched_sketch_extrude_together_and_read_back_as_regions`:
-  the two outer cells of a three-cell box extrude as (12 + 16) × 2 mm³, the whole branched sketch is
-  refused, and each profile shape round-trips through untagged serde as itself.
-- `library::tests::several_picked_regions_write_the_design_at_six_and_one_stays_at_five` (document
-  and graph), and `nodes::cad::tests::a_tracery_node_draws_one_light_per_cell_of_a_sketch_operation`.
+| Step | Result | Score | What the reviewer said |
+|---|---|---|---|
+| Read test 1 (block-out) | **reads: false** | — | Two stones either side of one 8 × 5 leaf read as "a monster face with a toothy grin". Asked for the berries gathered into a bunch at the sprig's heart, two leaves end to end, and prouder relief. |
+| Read test 2 (block-out) | **reads: true** | — | "Holly, at once": two spined leaves end to end with a tight bunch of three red berries where their stems meet. Weakness: "a signet with a holly emblem", small and flat. |
+| Round 1 | revise | **5.6** | Holly reads, but the execution is below the bar. The bench-cut wreath frame read as "a torn, dashed border". Leaves were flat, vertical-walled plates with stair-steps. Cheek berries sat in rows on cones and read as rivets. Shoulder leaves were isolated "bat silhouettes". Density was well below Caiman's. |
+| Round 2 | revise | **6.2** | Wreath gone. The cheek sprays were now "the best passage". The garland was continuous. Still failing: the face leaves (fold and notch, still 6.3 mm), the matte as two hard panels, stair-steps, the garland as a "crenellated fringe", and the bark reading as combing. |
+| Round 3 | **cut** | **6.3** | Identity holds at 300 px, and the cheek sprays and berry triangles are good. Still failing: face leaves "bats or crowns, not curved blades", the matte panels, the unsplayed garland plates, stair-steps, and density short of Caiman's. |
 
-## C-T3: Gothic cutter shapes, the outline library and the artwork set
+The reviews are `read-test-1.json`, `read-test-2.json` and `review-round1.json` to `review-round3.json`, all in `showcase/vepres/ilex/`.
 
-**What landed**
-- `cutters::Shape` gains Lancet, Ogee, Trefoil, Quatrefoil and Mouchette, and `PIERCE_SHAPES` lists all
-  ten, which reaches the inspector's choice and the `cad.op.cutter.pierce` node. The workbench's
-  right-click "Cut here" list (`PIERCE_KEYS`) carries all ten on desktop and phone. `pierce_at` sizes
-  each one, and an arch's point and a trefoil's lobe stand away from the bore.
-- The bright cut insets concave cusps. Each Gothic plan is drawn dense, read on fixed rays from a centre
-  it is star-shaped about (each ray turned onto the nearest point or cusp), and grown along those rays by
-  the true Minkowski offset of the drawn plan. The point count never changes, the fan never folds, and a
-  cusp moves straight out along its own ray. The five older plans are untouched.
-- Fence: a piercing with a Gothic shape is `geometry_extended`, so it is written at 6 and graph 2. An
-  older reader would otherwise cut it as a Round.
-- Library: `bundled/sketches/gothic/*.svg`, 16 pieces, all in `import_svg`-clean form. The
-  `ringdesign-assets` `SKETCHES` family is swept through subfolders and named by path (for example
-  `gothic/fleur-de-lis`). `library::list_sketches()` / `list_sketches_in(dir)` / `sketch_dir()` lay the
-  user's `sketches/` folder over the bundled set by name, like `list_outlines`. A `sketch.library` graph
-  node serves any of them by name, with a scale.
-- Outlines and nets: gallery-ogee, gallery-quatrefoil, gallery-cusped-lozenge,
-  ornament-quatrefoil-ring, and the four jalis (lozenge, quatrefoil, honeycomb, intersecting arches) as
-  centre lines for `tracery`.
-- Artwork: fleur-de-lis, fleur-cresting, crocket-leaf, nave-arcade (three lancet bays),
-  gargoyle-silhouette, gargoyle-face (an eye, a brow, a nostril and a fang: Logan now allows faces),
-  memento-mori (crossed bones under an open hourglass) and cross-pattee.
-- Tools: `tools/author_gothic.py` draws the set, with exact lines and arcs for the geometric
-  pieces and shapely polygons for the figurative ones. `tools/harvest_gothic.py` (rhino3dm) is the
-  3DM harvester; it was smoke-tested here on synthetic 3DM files (a line+arc polycurve, a circle, a
-  B-rep box).
-- CLAUDE.md: a "Gothic piercing grows by a true offset" bullet, and the `SKETCHES` family in the assets
-  section.
+## Step 1: the 16 × 17 resize (settled)
 
-**Tests**
-- `cutters::tests::a_gothic_plan_grows_by_a_true_offset_so_its_cusps_inset_instead_of_folding`: every
-  grown point stands exactly `g` off the drawn plan (1e-6). The ray reading keeps the drawn area, so each
-  plan is star-shaped about its centre. A quatrefoil's cusp moves out along its ray, and each point or
-  tip lies at −x.
-- The existing outline, crown-piercing (volume to 3%), blind, side-face and edge tests now run all ten
-  shapes. The side-face test also pins which way the new points face.
-- `library::tests::every_bundled_gothic_sketch_sweeps_its_area_or_traces_its_lights`: every file
-  imports. Each outline sweeps the area recorded on its root (1e-5). Each net traces to the recorded light
-  count with none skipped. A user file overlays a bundled one and a new name joins the list.
-- `nodes::cad::tests::a_library_sketch_feeds_tracery_and_names_the_library_when_it_is_missing`, and the
-  assets crate's round-trip, length, name and SVG checks now cover `SKETCHES`.
+Factory 006 through the sand master goes straight from its native 16 × 21 face to 16 × 17 with no baked step. It builds watertight with 0 degenerate faces. The envelope fill is **0.016 mm** at 123.5° (limit 0.3), and the bare pull shows 0 obstructions and 0 unresolved rays at 384 × 192 and at 0.075 mm. The native 16 × 21 fill is 0.018 mm. The example measures both on every run and falls back to 16 × 21 (leaf lengthened) only if 16 × 17 stops building clean. The table is 16 × 17, the bore is 18.6 mm and the alloy is 18k yellow gold.
 
-**Could not do**
-- The nine harvested pieces (Under Gallery Cuts 001–003, Jalis 000/002/010/016, Ornaments 027/028)
-  are drawn stand-ins. `assets/User/Profiles/` is git-ignored (`.gitignore` line 3: `assets/`). It is not
-  on master or any branch, so the 3DM files were not in this checkout. Each stand-in says so in its
-  `<desc>`. Run `uv run --no-project --with rhino3dm==8.32.0 --with shapely python
-  tools/harvest_gothic.py assets/User/Profiles` on the workstation to replace them under the same
-  names, then rerun `every_bundled_gothic_sketch`. The file matching (folder keyword plus number) is a
-  guess at the folder names; `--dry-run` shows what it would take.
-- The gargoyle pieces are a serviceable first pass and have not been through a render review. Hold them
-  to that bar, and cut the face variant if it does not read at size.
+## Gates (final build, round 3)
 
-## C-T4: DFM land width for CAD cuts
+The process is Delft clay, two-part sand: 3.0° draft, 0.8 mm section, 0.30 mm detail.
 
-**What landed**
-- `dfm::cut_lands(design, built, floor_mm) -> Vec<DfmFinding>`, with `CUT_LAND` as the label and
-  `dfm::PART` as the layer sentinel. For every Cut extrusion it reports the narrowest land in three
-  places: between two of its regions, between it and each copy a Pattern makes, and to the band's or host
-  part's edge. Each kind is reported once when it falls under the floor, for example
-  `Cut #3 'Pierce the lights': 0.60 mm between lights 1 and 2 (floor 0.8)`.
-- How it measures:
-  - Region lands are measured between outlines in the sketch's plane (`cad::extruded_regions` gives the
-    plane as built, face-anchored sketches included), and carried to copies by their copy motions.
-  - The edge land is walked out from each outline in the plane until a line along the normal, within the
-    cut's reach, meets no metal in the built ring.
-  - Where that line runs through a copy's opening instead, the land is booked to the copy. A ring of
-    copies converges toward the bore, so its land at the metal is narrower than in the plane.
-- It only runs when asked, so nothing existing changes. It is reachable through `ringdesign export
-  --cut-land <mm>` and MCP `manufacturing_check { cut_land_mm }`, which adds `cut_lands` to the report.
-- CLAUDE.md: a "CAD cut's lands" paragraph beside the made-part lands.
+| Gate | Draft 768 × 320 | 384 × 192 | Export 1536 × 448 |
+|---|---|---|---|
+| Triangles | 540,128 | 220,356 | **1,353,792** (limit 2,000,000) |
+| Watertight, degenerate faces | yes, 0 | yes, 0 | yes, 0 |
+| `csg::self_crossings` (ring; no CAD parts) | 0 | 0 | 0 |
+| `solids.notes` / `parts.notes` | empty / empty | empty / empty | empty / empty |
+| Bore margin (minimum vertex radius minus bore radius) | −4.7e-7 mm | −4.7e-7 mm | −4.8e-7 mm |
+| Field verdict (`attributed_field_report` + `judge_parts`) | **Castable**, 0.000% undercut | Castable | Castable |
+| Ray release at 0.100 mm (obstructions / unresolved) | 0 / 0 | 0 / 0 | 0 / 0 |
+| Ray release at 0.075 mm | 0 / 0 | 0 / 0 | 0 / 0 |
+| `draft_clamp` bites | none (no painted relief) | none | none |
+| `parting_monotone`, parting-line stamps | 16 of 16 | 16 of 16 | 16 of 16 |
+| `dfm::findings_in` | 0 | 0 | 0 |
+| Stones reported / previewed; metal inside stones | 9 / 9; 0 | 9 / 9; 0 | 9 / 9; 0 |
 
-**Test**
-- `dfm::tests::a_cut_names_the_narrowest_land_between_its_lights_its_copies_and_the_edge` covers five
-  cases on a Court band:
-  - Two 1 mm lights 0.6 mm apart report exactly `0.60 mm between lights 1 and 2 (floor 0.8)`.
-  - A lower floor stays silent, and so does the design's own report.
-  - Lights a full floor apart pass.
-  - A light 0.5 mm in from the side reports 0.5 ± 0.06 mm to the edge.
-  - A ring of 48 copies reports a copy land.
+Notes on the table:
 
-**Could not do**
-- Revolve and sweep cuts are not measured; only extrusions have a plane to measure in.
+- **Ray-release status.** It reads "Review", not "Clear". The cause is the stock's own sub-3° table and bore walls (about 539 mm²); the bare stock reports the same.
+- **Sand-slot notes.** The release also lists seven sand-slot notes, 0.10 to 0.60 mm wide, along the shoulder garland. These are cautions for the founder, not obstructions. They are recorded in `report.json`.
+- **Closest stones.** The closest pair is 0.19 mm apart at the girdle (Cheek berry 2,1 to 2,3). All nine stones weigh 0.245 ct together.
+- **Metal.** The ring weighs about 40.8 g of 18k gold.
 
-## Checks run
+Further gates:
 
-All on the final tree, with rustc 1.98.1. The workstation's `systemd-run` guard and `--offline` were
-not used here, as TASK.md says.
+- `--verify` passes: a cold reload with an empty library gives identical vertices, faces and normals.
+- The casting pattern (`try_build_pattern`) is watertight with 0 degenerate faces and 0 self-crossings, at 1,344,334 triangles.
+- `design.ring.json` is 708,842 bytes at format 6. Format 6 is needed because the stamps are tiered and use shaped tops and fine caps.
 
-- `cargo test -p ringdesign-core`: 839 passed, 0 failed, 16 ignored. `tests/golden.rs` passed.
-- `cargo test -p ringdesign-graph --no-fail-fast`: 109 lib tests passed, plus `bestiarium_templates`,
-  `cad_edits`, `imported_bases`, `showcase_templates`, `template_nodes` and the `collection_templates`
-  example (25 more), 0 failed. This includes the struct-coverage and table-consistency tests for the two
-  new nodes.
-- `cargo test -p ringdesign-assets`: 4 passed.
-- `cargo check --no-default-features --target wasm32-unknown-unknown -p ringdesign-core`: clean.
-- `cargo check --tests` of graph, workbench, gui, mcp, cli and the Android app: clean. The only warning
-  is the existing `COMFY_GATE_KEY` build note.
-- Spot suites for the touched exposure points:
-  - workbench `viewport::cutters`/`menu`/`grips`: 12 passed. Every one of the ten right-click keys plans
-    on a Court band.
-  - gui `cutter`/`sweep`: 13 passed.
-  - `ringdesign-mcp --lib`: 45 passed.
-- Commits `8246c5a` and `67a3493` were each checked on their own (core, graph, workbench and gui, plus
-  assets for C-T3), so the history bisects.
-- The full workspace test run was not done; I ran the suites TASK.md names plus the crates whose code I
-  touched.
+## Template gate (run after the last round)
 
-Housekeeping: the 30 GB disk allowance ran out once, mid-run, from the example binaries under
-`target/debug/examples` (20 GB). I deleted them and reran that step. `tools/harvest/` is git-ignored by
-design ("never tracked"), so the two new scripts live at `tools/author_gothic.py` and
-`tools/harvest_gothic.py`, beside `audit_3dm_profiles.py`. I stayed out of
-`crates/ringdesign-core/examples/tenebrae_*`.
+The gate ran on the stock class with `--verify-export`:
+
+- **1 `design.set` patch** (`/manufacturing`), within the limit of 4.
+- The graph is **805,533 bytes** against the 1 MB stock budget, with 137 nodes. It carries the stock as a `base.preset` node; P7 removed the 3 MB mesh patch.
+- Cold source is identical, and the cold graph reloads.
+- Vertex, face and normal parity holds at 1,353,792 triangles.
+- The first build takes 2.2 s.
+
+The record is `showcase/vepres/ilex/verification.json`, and it is also merged into `report.json` as `template_gate`. Round 2's build gave 1 patch and 793,951 bytes.
+
+## The CAD feature tree and the stack, as sentences
+
+There are no CAD features; Ilex is stock, stamps and seats.
+
+- **Base.** The base is factory 006 Square through the sand master, with the envelope on. It uses a Flat profile 17 mm wide, a 16 mm head, an 18.6 mm bore, a 0.3 mm edge round and a 0.1 mm comfort fit. The chart is set from this stock before anything is drawn on it.
+- **Face leaves** (2 cast stamps, tier 0). These are two holly leaves end to end on the parting line, placed at `Hide::crest_at`. Each starts 1.25 mm from the head's centre.
+  - The outline is ring-local `holly()`: a pointed blade with three sharp spines a side leaning to the tip, concave bays between them, a spined tip and a rounded stalk. Each margin is a function of x, so the monotone rule holds by construction.
+  - Each leaf is the longest, in 0.1 mm steps, whose ends stay on the line on both sides: **6.8 × 5.5 mm**. Each leaf is turned by the least that keeps it on the line.
+  - The top is a 0.55 mm dome over 0.45 mm eaves, with 4° draft and a fine cap.
+  - Why: the leaf is the subject, struck square to the face camera on the only line where sand lets relief stand.
+- **Face veins** (18 bench cuts, tier 1). Each leaf has a rounded midrib stroke 0.25 mm deep and four pairs of tapering laterals 0.12 mm deep, leaning 42° to the tip. They are cut after the pour and never enter the pattern.
+- **Face berries** (3 garnet cabochons, 2.0 mm, flush gypsy seats).
+  - One sits on the line at the sprig's heart and is cast with a raised 0.6 mm drill mark, which pulls on the line.
+  - The other two sit 2.05 mm off the line and are wholly bench work (`bench_only`, no mound, no mark): any mound off the line has a flank facing its own mould half.
+  - Why: a three-berry bunch where the stems meet is what made read test 2 say holly.
+- **Table matte** (2 bench-only tiling layers). A procedural "Hammered" stipple 0.04 mm deep is cut into the table above and below the sprig, from 2.3 to 5.9 chart-v off the line, over 50° of the head. Why: to part the polished sprig from the field.
+- **Cheek sprays** (each head wall that faces the pull).
+  - Three leaf stamps a side are struck along the pull (`along_pull`): two of 6.0 × 3.2 mm either side of the bunch and one of 3.9 × 2.4 mm angled down at the lower corner. Each has a 0.4 mm eave and a 0.45 mm gable, plus a bench vein comb.
+  - Three 1.8 mm garnets sit in a touching triangle in gypsy mounds 2.2 mm across and 0.45 mm proud, each with a raised mark.
+  - The wall is a crescent over the bore, so the bunch rides its widest band.
+- **Shoulder garland** (14 cast stamps on the parting line, plus 2 curve layers).
+  - `stamp_row` places seven 4.2 × 2.4 mm leaves a side with `RowPath::PartingLine`, a 0.24 taper, `fold_clear_mm` 1.0 and mirrored shoulders. The row starts 1 mm past the last fold, where the line turns over the head's end walls, and runs 19 mm.
+  - A station the line will not take as struck is moved along it, by 0.5° steps up to 2°, and levelled by turning it at most 4°.
+  - Under the leaves, a 0.9 × 0.42 mm round `CurveLayer` stem runs on the line from the head's end wall down each shoulder.
+  - The alternate ±20° splay the round-2 review asked for was tried on every station. The line refused it everywhere, so all 14 leaves lie along the line.
+- **Palm.** It is bare, polished factory stock, as the plan has it.
+
+## What I could not do
+
+- **Face leaves at 7.5 mm.** The face is 16 mm long and the berry bunch takes its middle, so the leaves cannot reach 7.5 mm. The longest leaf both ends of the parting line accept is 6.8 mm; at 6.9 mm and above the tip leaves the line where the table turns down, and it locks. Raising the leaf over 0.7 mm made the stamp fail to join the band (degenerate CSG).
+- **Stair-steps.** The stair-stepped margins come from the stamp cap's grid: `cap_pitch` is at least 0.1 mm even with `fine_cap`. A finer outline (0.015 mm sampling, over 512 points) broke the joins of the face and cheek leaves. The stamps have no top-edge round.
+- **A seamless matte.** One uniform matte field with a halo round the sprig needs a mask. Struck under the leaves, the texture made the face stamps fail to join, and a lean design has no mask alpha to carry the halo. Two bands either side of the sprig were the workaround; the reviewer still read them as panels.
+- **The garland splay.** No splayed garland leaf passes `parting_monotone` on this shoulder.
+- **CSG fragility.** Several otherwise harmless placements failed to join ("two cuts cross inside a face"), so the cheek leaves were nudged until they joined at every build size.
+- **Bark on the flanks.** The procedural Bark tiling aliased into combing and was removed. With it went most of the small-scale density that Caiman has.
+
+## Core changes wanted (exact code)
+
+1. **A finer stamp cap for spined outlines.** In `core/setting.rs`, `Stamp::cap_pitch`:
+   ```rust
+   fn cap_pitch(&self, reach: f64) -> f64 {
+       if self.fine_cap { (reach / 56.0).clamp(0.04, 0.2) } else { (reach / 14.0).clamp(0.12, 0.35) }
+   }
+   ```
+   `fine_cap` is already fenced at format 6, so no saved file changes. The point is to let a 6 mm holly leaf's cap reach its 0.03 mm outline instead of stepping at 0.11 mm.
+2. **A cushioned top with eaves.** A dome falling to a margin height, not to the eaves. In `StampTop`, add:
+   ```rust
+   /// A dome from `margin_mm` over the eaves at the outline to `crown_mm` over the origin.
+   Cushion { crown_mm: f64, margin_mm: f64 },
+   ```
+   Its lift would be `margin_mm + (crown_mm - margin_mm) * (1.0 - (d / reach).powi(2)).max(0.0)`, where `d` is the distance to the origin and `reach` is the outline's reach along that ray. It would be monotone from the origin on the parting line, as `Dome` already is.
+3. **A stamp-shaped layer mask.** A `LayerEntry::mask_stamps: Option<f64>` (halo width in mm) that zeroes a layer within that distance of any tier-0 stamp's plan. That gives one matte field round a cast sprig without an embedded alpha. In `field.rs`, where an entry's mask is applied, multiply by `1.0 - smoothstep(halo, halo + 0.2, dist_to_stamp_plans(uv))` when the field is set.
+
+The example works around all three: it relies on a fine cap and keeps the matte off the sprig's band.

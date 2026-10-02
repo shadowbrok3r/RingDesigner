@@ -1,0 +1,63 @@
+{
+  "ring": "Ilex",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.3,
+  "summary": "Cut at 6.3, up from 6.2 in round 2. This is round 3, and the ship bar is 7.5 (Caiman scores 7; Basiliscus was cut at 7.2). Every gate is green and matches report.json and verification.json: Castable, release 0/0 at both steps, no clamp bites, DFM 0, 9 of 9 stones, cold reload identical, 1,353,792 export triangles, casting pattern closed, template 1 patch at 805,533 bytes. The ring still reads as holly at 300 px with no caption. The berry triangles and the spined leaf silhouettes carry it, and the side view of the cheek spray is still the best passage. Round 3 did little of what round 2 asked. (1) The face leaves grew from 6.3 to 6.8 mm, not the 7.5 asked for. Their height fell from 0.7 to 0.45 mm. They still fold on the parting line, so face.png and stones.png show a lit upper half over a lower half that reads as a dark, vertical-walled notch with stepped spines. The leaves read as bats or crowns, not curved blades. (2) The table matte is still two hard-edged rectangular panels ('Table matte, upper/lower'), and they render as two different textures: coarse pitting above, a soft wavy pebble below. The face reads as a box with sandpaper inlays and a badge across the middle. (3) The garland is unchanged. All 14 stations are turned 180 deg, with no +/-25 deg alternation and no dome. reverse.png, shoulder.png and palm.png still show a crenellated fringe of flat plates along a polished shank. (4) Stair-steps remain on the face-leaf margins, the matte panel edges and the garland plates. Cheek leaf 3 moved only 0.3 of the 1.0 mm asked, and it still breaks over the head corner. (5) The bark tiling was deleted, so the shank flanks no longer comb. The banding on the shank that the stock itself shows is still visible in reverse.png and shoulder.png. Against Caiman's fully worked surfaces and the Reptilia sheet, most of the ring is bare polish with flat-cut ornaments on it. No round remains, so the ring is cut.",
+  "strengths": [
+    "Identity holds at 300 px with no caption: spined holly leaves with a red berry triangle at the stem junction read as holly at once (hero-300, face-300).",
+    "The cheek sprays (side.png) are the best passage: a touching triangle of three garnets between two veined spiny leaves, flush in mounds with no cones.",
+    "Garnet tint reads as holly fruit, and the berries sit in made gypsy mounds with metal_in_stones 0 for all nine.",
+    "The streaky 'Bark' tilings are gone from the shank flanks.",
+    "Every gate is green and recorded, including the template gate: 1 design.set patch, 805,533 of 1,000,000 bytes, cold source identical."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "Holly runs from face to cheeks to shoulder garland, with a bare palm as planned. The theme is coherent even though it is thin."},
+    {"item": "Reads as its plant at 300 px without caption", "result": "pass", "reason": "Spined leaves and red berry clusters say holly in hero-300 and face-300."},
+    {"item": "Figurative motifs have true, crisp outlines", "result": "fail", "reason": "The face-leaf margins and spines are stair-stepped, and the lower halves read as notched cut-outs (stones.png, face.png). The matte panel edges and the garland plates are stepped too."},
+    {"item": "Stones in made settings, visible, coloured as fruit", "result": "pass", "reason": "Nine garnet cabochons sit in flush gypsy mounds, grouped in berry triangles. They are clearly visible and fruit-red."},
+    {"item": "No flat, blocky or mechanical CAD; sculpted forms", "result": "fail", "reason": "Every leaf is a flat, vertical-walled plate. The garland is a crenellated strip. The matte is two rectangular inlays."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "result": "pass", "reason": "The 006 head keeps its crisp table and end-wall edges (bare-vs-finished.png)."},
+    {"item": "Silhouette distinct from other Vepres rings", "result": "pass", "reason": "A square 006 signet with a parting-line garland. No other Vepres ring shares it."},
+    {"item": "Large/medium/small forms; density and legibility at least Caiman's", "result": "fail", "reason": "Large and medium forms are present, but the small scale is weak. Most of the shank and walls are bare polish, well below Caiman's fully worked surfaces and the Reptilia sheet."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces (draft, coarse, export)", "claimed": "pass", "verified": "watertight true, degenerate_faces 0, boundary/non-manifold 0 at 384, 768 and 1536", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "pass", "verified": "self_crossings 0; made_parts [] (settings left to bench)", "pass": true},
+    {"gate": "Solids/parts notes empty", "claimed": "pass", "verified": "solids_notes [] and parts_notes []", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "bore_margin_mm -4.8e-7 (zero within tolerance)", "pass": true},
+    {"gate": "Field verdict Castable (Delft sand)", "claimed": "Castable", "verified": "field_verdict 'Castable', undercut 0%", "pass": true},
+    {"gate": "Ray release 0.100 mm", "claimed": "0 obstructions, 0 unresolved", "verified": "release_0100_obstructions 0, unresolved 0 (Review for low-draft area on factory table/bore, same as bare stock)", "pass": true},
+    {"gate": "Ray release 0.075 mm", "claimed": "0 obstructions, 0 unresolved", "verified": "release_0075_obstructions 0, unresolved 0", "pass": true},
+    {"gate": "Draft-clamp bite <= 0.05 mm", "claimed": "none", "verified": "clamp_bites_mm []; no painted relief", "pass": true},
+    {"gate": "parting_monotone on every parting-line stamp", "claimed": "pass", "verified": "true for Face leaf 1-2 and all 14 garland leaves", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] at all builds; verification detail_findings 0", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "9", "verified": "stones_reported 9 = stones_previewed 9; metal in stones 0 each", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "cold_reload_identical true; vertices_faces_normals_identical true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "1,353,792 triangles at 1536 x 448", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "watertight, 0 degenerate, 0 self-crossings, 1,344,334 triangles", "pass": true},
+    {"gate": "Template gate (<= 4 design.set patches, budget)", "claimed": "pass", "verified": "1 patch (/manufacturing), 805,533 of 1,000,000 bytes, cold source identical, mesh parity true", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P0", "zone": "Face leaves 'Face leaf, 1' / 'Face leaf, 2' (theta 73.65 / 106.35 deg, v 9.86)", "change": "If the ring is ever revived: rebuild the face leaves as sculpted geometry, not gabled stamps. 7.5 x 5.5 mm, a domed two-slope top (0.45 mm on the midrib, falling to 0.15 at the margin), 0.8 mm high, with a 0.1 mm top-edge round. If the parting line forbids the dome, use the hull_and_bays fallback.", "acceptance": "face.png: each leaf reads as one lit, curved blade top and bottom, with no dark notch below the parting line. placed.face_leaf_mm about [7.5, 7.5]; parting_monotone true."},
+    {"number": 2, "priority": "P0", "zone": "Layers 'Table matte, upper/lower'", "change": "Replace the two rectangular panels with one uniform stipple of 0.03-0.04 mm over the whole table, inset 0.8 mm from the edge, with a 0.4 mm polished halo masked round every leaf and berry. Both halves must use the same texture and phase.", "acceptance": "face.png: no panel edges; the texture is identical above and below the sprig."},
+    {"number": 3, "priority": "P0", "zone": "All struck leaf outlines (face, cheek, garland)", "change": "Resample the outlines to 512 or more points, or strike them as true geometry, so that no wall is stepped. Pull 'Cheek leaf 1/2, 3' 1.0 mm in from the head corner (v about 17.6 / 2.1).", "acceptance": "stones.png, side.png and shoulder.png at full size: no zig-zag margins, and every cheek leaf is whole."},
+    {"number": 4, "priority": "P1", "zone": "Garland leaves left/right 1-7 (theta 36.4 to -57.2 and 143.6 to 239.2)", "change": "Alternate rot_deg by +/-25 deg from station to station. Give each leaf a domed top (0.2 mm rise). Raise the stem to 0.6 mm wide and 0.3 mm proud.", "acceptance": "reverse.png and palm.png: individual leaves splay off a visible stem, with no crenellated strip."},
+    {"number": 5, "priority": "P2", "zone": "Shank flanks and stock banding", "change": "Smooth the stock's banding at export, and add soft small-scale texture so density reaches Caiman's level while the palm stays bare.", "acceptance": "reverse.png and shoulder.png: no horizontal banding, and the flanks carry an even, fine texture."}
+  ],
+  "viewed_images": [
+    "showcase/vepres/ilex/hero-300.png",
+    "showcase/vepres/ilex/face-300.png",
+    "showcase/vepres/ilex/hero.png",
+    "showcase/vepres/ilex/face.png",
+    "showcase/vepres/ilex/side.png",
+    "showcase/vepres/ilex/reverse.png",
+    "showcase/vepres/ilex/stones.png",
+    "showcase/vepres/ilex/shoulder.png",
+    "showcase/vepres/ilex/palm.png",
+    "showcase/vepres/ilex/contact-300.png",
+    "showcase/vepres/ilex/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
