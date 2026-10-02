@@ -6,22 +6,26 @@
     "vertices_inside": 0
   },
   "build": {
-    "author_s": 0.78817144,
-    "build_s": 10.993963258,
+    "author_s": 0.725368005,
+    "build_s": 11.636549133,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 666106
+    "triangles": 608220
   },
   "coarse": {
     "degenerate_faces": 0,
+    "notes": [
+      [],
+      []
+    ],
     "self_crossings": 0,
-    "stamped": 84,
+    "stamped": 14,
     "watertight": true
   },
   "cold_reload_identical": null,
   "design": {
-    "bytes": 896943,
-    "cad_features": 11,
+    "bytes": 198622,
+    "cad_features": 16,
     "format_version": 6
   },
   "dfm_findings": [],
@@ -78,26 +82,54 @@
     [
       "#11",
       "Ok"
+    ],
+    [
+      "#12",
+      "Ok"
+    ],
+    [
+      "#13",
+      "Ok"
+    ],
+    [
+      "#14",
+      "Ok"
+    ],
+    [
+      "#15",
+      "Ok"
+    ],
+    [
+      "#16",
+      "Ok"
     ]
   ],
   "field": {
     "min_detail_mm": 0.15,
     "min_section_mm": 0.8,
     "notes": [
-      "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
-      "Measured with the ring as built: 10 CAD parts (10 joined, 0 cut), 495.2 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Twisted sweep \"Small prickle, high shoulder\" (#4) would undercut a two-part pull over 2.4 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Small prickle, low shoulder\" (#5) would undercut a two-part pull over 2.4 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Ring array \"Small prickles between the upper nodes\" (#6) would undercut a two-part pull over 14.3 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Blackberry, high shoulder\" (#7) would undercut a two-part pull over 14.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx, high shoulder\" (#8) would undercut a two-part pull over 2.3 mm² (worst -55°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Blackberry, low shoulder\" (#9) would undercut a two-part pull over 14.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx, low shoulder\" (#10) would undercut a two-part pull over 2.0 mm² (worst -49°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Ring array \"Blackberries on the upper nodes\" (#11) would undercut a two-part pull over 134.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: 2.20% of the surface would undercut a two-part pull (worst 12.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 324–216° on the crest: 15.4 mm² leaning to 8° — caused by \"Cane bark\"; muting it clears it.",
+      "Measured with the ring as built: 15 CAD parts (15 joined, 0 cut), 694.8 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Twisted sweep \"Large prickle\" (#2) would undercut a two-part pull over 0.2 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Ring array \"Large prickles on the upper nodes\" (#3) would undercut a two-part pull over 0.8 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Small prickle, high shoulder\" (#4) would undercut a two-part pull over 2.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Small prickle, low shoulder\" (#5) would undercut a two-part pull over 2.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Ring array \"Small prickles between the upper nodes\" (#6) would undercut a two-part pull over 16.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Stalk, high shoulder\" (#7) would undercut a two-part pull over 0.4 mm² (worst -53°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blackberry, high shoulder\" (#8) would undercut a two-part pull over 15.3 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx, high shoulder\" (#9) would undercut a two-part pull over 4.9 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Stalk, low shoulder\" (#10) would undercut a two-part pull over 0.4 mm² (worst -53°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blackberry, low shoulder\" (#11) would undercut a two-part pull over 15.3 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx, low shoulder\" (#12) would undercut a two-part pull over 4.1 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Ring array \"Blackberries on the upper nodes\" (#13) would undercut a two-part pull over 162.4 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Palm blackberry, high face\" (#14) would undercut a two-part pull over 5.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Palm blackberry, low face\" (#15) would undercut a two-part pull over 5.6 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Ring array \"Blackberries on the palm nodes\" (#16) would undercut a two-part pull over 11.4 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "thinnest_wall_mm": 2.8713711877563934,
     "thinnest_wall_theta_deg": 220.78125,
-    "undercut_percent_reported_only": 9.495324941501588,
+    "undercut_percent_reported_only": 12.944254459028109,
     "verdict": "Castable"
   },
   "gates": [
@@ -115,6 +147,10 @@
     },
     {
       "gate": "nothing enters the finger hole",
+      "pass": true
+    },
+    {
+      "gate": "every part's ray-sampled wall at the 0.8 mm section, its pointed details (prickles, sepals) at the 0.15 mm detail floor",
       "pass": true
     },
     {
@@ -152,10 +188,10 @@
     "self_crossings": 0,
     "watertight": true
   },
-  "grams_18k": 32.042029077452675,
+  "grams_18k": 33.142485612082154,
   "layers": [
     "Runner",
-    "Blackberries"
+    "Cane bark"
   ],
   "made_parts": [
     [
@@ -179,11 +215,19 @@
       0
     ],
     [
+      "Stalk, high shoulder",
+      0
+    ],
+    [
       "Blackberry, high shoulder",
       0
     ],
     [
       "Calyx, high shoulder",
+      0
+    ],
+    [
+      "Stalk, low shoulder",
       0
     ],
     [
@@ -197,592 +241,114 @@
     [
       "Blackberries on the upper nodes",
       0
+    ],
+    [
+      "Palm blackberry, high face",
+      0
+    ],
+    [
+      "Palm blackberry, low face",
+      0
+    ],
+    [
+      "Blackberries on the palm nodes",
+      0
     ]
   ],
   "made_solids": [
     {
-      "name": "Side leaf 1, terminal leaflet",
+      "name": "Side leaf, 1",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 1, terminal midrib",
+      "name": "Side leaf, 2",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 1, lateral leaflet (up)",
+      "name": "Side leaf, 3",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 1, lateral midrib (up)",
+      "name": "Side leaf, 4",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 1, lateral leaflet (down)",
+      "name": "Side leaf, 5",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 1, lateral midrib (down)",
+      "name": "Side leaf, 6",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 2, terminal leaflet",
+      "name": "Side leaf, 7",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 2, terminal midrib",
+      "name": "Side leaf, 8",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 2, lateral leaflet (up)",
+      "name": "Side leaf, 9",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 2, lateral midrib (up)",
+      "name": "Side leaf, 10",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 2, lateral leaflet (down)",
+      "name": "Side leaf, 11",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 2, lateral midrib (down)",
+      "name": "Side leaf, 12",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 3, terminal leaflet",
+      "name": "Side leaf, 13",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Side leaf 3, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 3, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 3, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 3, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 3, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 4, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 4, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 4, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 4, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 4, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 4, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 5, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 5, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 5, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 5, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 5, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 5, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 6, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 6, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 6, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 6, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 6, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 6, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 7, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 7, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 7, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 7, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 7, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 7, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 8, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 8, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 8, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 8, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 8, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 8, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 9, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 9, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 9, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 9, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 9, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 9, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 10, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 10, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 10, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 10, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 10, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 10, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 11, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 11, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 11, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 11, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 11, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 11, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 12, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 12, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 12, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 12, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 12, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 12, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 13, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 13, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 13, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 13, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 13, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 13, lateral midrib (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 14, terminal leaflet",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 14, terminal midrib",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 14, lateral leaflet (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 14, lateral midrib (up)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 14, lateral leaflet (down)",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf 14, lateral midrib (down)",
+      "name": "Side leaf, 14",
       "open_edges": 0,
       "repeated_edges": 0,
       "self_crossings": 0,
@@ -797,79 +363,86 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 666106,
+    "triangles": 608220,
     "watertight": true
   },
   "process": "Lost wax",
   "ray_walls": [
     {
-      "below_floor": 152,
+      "below_floor": 124,
       "part": "Large prickle",
-      "rays": 335,
-      "sampled_min_mm": 0.05348744255561793,
+      "rays": 334,
+      "sampled_min_mm": 0.23893780775097861,
       "unresolved": 0
     },
     {
-      "below_floor": 173,
-      "part": "Large prickles on the upper nodes",
-      "rays": 383,
-      "sampled_min_mm": 0.05348744270644398,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 208,
+      "below_floor": 134,
       "part": "Small prickle, high shoulder",
-      "rays": 383,
-      "sampled_min_mm": 0.033207392966397964,
+      "rays": 286,
+      "sampled_min_mm": 0.15171598230329136,
       "unresolved": 0
     },
     {
-      "below_floor": 208,
+      "below_floor": 134,
       "part": "Small prickle, low shoulder",
-      "rays": 383,
-      "sampled_min_mm": 0.033206353344288626,
+      "rays": 286,
+      "sampled_min_mm": 0.1517158001624947,
       "unresolved": 0
     },
     {
-      "below_floor": 207,
-      "part": "Small prickles between the upper nodes",
-      "rays": 383,
-      "sampled_min_mm": 0.033208101799260946,
+      "below_floor": 0,
+      "part": "Stalk, high shoulder",
+      "rays": 64,
+      "sampled_min_mm": 0.8434761598752175,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Blackberry, high shoulder",
-      "rays": 376,
-      "sampled_min_mm": 1.4318059388055069,
+      "rays": 378,
+      "sampled_min_mm": 1.6865551894097268,
       "unresolved": 0
     },
     {
-      "below_floor": 148,
+      "below_floor": 185,
       "part": "Calyx, high shoulder",
-      "rays": 320,
-      "sampled_min_mm": 0.5048187502644109,
+      "rays": 300,
+      "sampled_min_mm": 0.3086831283765894,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Stalk, low shoulder",
+      "rays": 64,
+      "sampled_min_mm": 0.8434761475394973,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Blackberry, low shoulder",
-      "rays": 376,
-      "sampled_min_mm": 1.431798634765311,
+      "rays": 378,
+      "sampled_min_mm": 1.6865685911441568,
       "unresolved": 0
     },
     {
-      "below_floor": 190,
+      "below_floor": 185,
       "part": "Calyx, low shoulder",
-      "rays": 320,
-      "sampled_min_mm": 0.5048185737355259,
+      "rays": 300,
+      "sampled_min_mm": 0.3086818672832217,
       "unresolved": 0
     },
     {
-      "below_floor": 9,
-      "part": "Blackberries on the upper nodes",
-      "rays": 384,
-      "sampled_min_mm": 0.5048344610410314,
+      "below_floor": 0,
+      "part": "Palm blackberry, high face",
+      "rays": 380,
+      "sampled_min_mm": 1.1909455111740297,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Palm blackberry, low face",
+      "rays": 380,
+      "sampled_min_mm": 1.1909459425374662,
       "unresolved": 0
     }
   ],
@@ -895,12 +468,12 @@
   "size": "US 8.6",
   "stage": "full",
   "stamps": {
-    "count": 84,
-    "resolved": 84
+    "count": 14,
+    "resolved": 14
   },
   "stones": {
     "previewed": 0,
     "reported": 0
   },
-  "wall_exceptions": "the prickles taper to their points below 0.8 mm by design: details judged at the 0.15 mm floor (points 0.26 mm and over), as Manticora's aculeus point was"
+  "wall_exceptions": "pointed details are judged at the 0.15 mm detail floor, not the 0.8 mm section, as Manticora's aculeus point was: the prickles taper to points 0.39 mm (large) and 0.38 mm (small) across, and the calyx sepals to 0.35 mm-thick tips; their sampled minimums are in ray_walls (ring arrays are rigid copies of their sources and are measured on the sources). Every other part (stalks, berries) samples at or above 0.8 mm."
 }
