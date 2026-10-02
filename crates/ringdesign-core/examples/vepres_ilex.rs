@@ -448,31 +448,28 @@ fn on_cheek(a: &Atlas, x: f64, y: f64, side: f64) -> Option<(f64, f64)> {
 /// Face berries: one on the parting line at the sprig's heart, and the cluster's other two just off it.
 const FACE_BERRIES: [(f64, f64, bool); 3] = [(0.0, 0.0, true), (-1.15, 2.05, false), (1.15, 2.05, false)];
 /// The face leaves: the stalk's distance from the head's centre and the leaf's length and width, mm.
-const FACE_LEAF: (f64, f64, f64) = (1.45, 6.3, 5.5);
-const FACE_LEAF_HEIGHT: f64 = 0.7;
+const FACE_LEAF: (f64, f64, f64) = (1.25, 7.0, 5.5);
+const FACE_LEAF_HEIGHT: f64 = 0.45;
 /// Arc from the garland's first leaf to its last, mm.
 const GARLAND_SPAN_MM: f64 = 19.0;
 const GARLAND_COUNT: u32 = 7;
+/// Each garland leaf turns off the stem by this much, alternately.
+const GARLAND_SPLAY_DEG: f64 = 20.0;
 /// The garland's stem wire, width and height, mm.
 const STEM_MM: (f64, f64) = (0.9, 0.42);
 /// The parting line's chart `v` on this stock.
 const CREST_V: f64 = 9.858;
 /// The table's matte: depth, chart span across, and span round the ring.
-const MATTE_DEPTH_MM: f64 = 0.06;
+const MATTE_DEPTH_MM: f64 = 0.04;
 /// Chart `v` off the parting line where the matte starts and ends.
-const MATTE_V: (f64, f64) = (2.5, 5.75);
-const MATTE_SPAN_DEG: f64 = 47.0;
-/// The flanks' bark: depth, chart (centre, span) of one flank, centre and span round the ring.
-const BARK_DEPTH_MM: f64 = 0.07;
-const BARK_V: (f64, f64) = (4.0, 5.6);
-const BARK_CENTRE_DEG: f64 = -8.0;
-const BARK_SPAN_DEG: f64 = 92.0;
-const FACE_LEAF_RISE: f64 = 0.5;
+const MATTE_V: (f64, f64) = (2.3, 5.9);
+const MATTE_SPAN_DEG: f64 = 50.0;
+const FACE_LEAF_RISE: f64 = 0.55;
 
 /// A cheek spray, seen along the finger with x round the ring and y up from the axis: two leaves (centre, length,
 /// width, turn of the tip from +x in degrees) either side of an arc of three berries. The wall is a crescent over
 /// the bore, so the berries ride its widest band and the leaves its lower corners.
-const CHEEK_LEAVES: [([f64; 2], f64, f64, f64); 3] = [([-4.7, 11.9], 5.6, 3.1, 184.0), ([4.7, 11.9], 5.6, 3.1, -4.0), ([5.0, 9.8], 4.2, 2.5, -47.0)];
+const CHEEK_LEAVES: [([f64; 2], f64, f64, f64); 3] = [([-4.6, 11.9], 6.0, 3.2, 184.0), ([4.6, 11.9], 6.0, 3.2, -4.0), ([5.2, 10.2], 3.9, 2.4, -40.0)];
 const CHEEK_BERRIES: [[f64; 2]; 3] = [[-0.98, 12.85], [0.98, 12.85], [0.0, 11.15]];
 /// How proud the cheek berries' mounds stand, mm.
 const CHEEK_MOUND_MM: f64 = 0.45;
@@ -501,6 +498,8 @@ fn author(face: (f64, f64), blockout: bool) -> Result<(RingDesign, AlphaLibrary,
     let leaf_on = |len: f64, k: usize, sign: f64| {
         let at = hide.crest_at(&a, sign * (stalk + 0.5 * len));
         let mut leaf = holly_stamp(&format!("Face leaf, {}", k + 1), at, len, wid, 3, 0.6, FACE_LEAF_HEIGHT, FACE_LEAF_RISE);
+        // A cushioned blade, not a fold: the top swells from the margin to the midrib on both sides alike.
+        leaf.top = StampTop::Dome { crown_mm: FACE_LEAF_RISE };
         // The tip leads away from the heart; theta grows toward -x.
         leaf.rot_deg = if sign < 0.0 { 180.0 } else { 0.0 };
         if std::env::var("ILEX_DEBUG").is_ok() {
@@ -558,7 +557,6 @@ fn author(face: (f64, f64), blockout: bool) -> Result<(RingDesign, AlphaLibrary,
         if std::env::var("ILEX_NO_MATTE").is_err() {
             table_matte(&mut d);
         }
-        flank_bark(&mut d);
     }
     if !blockout && std::env::var("ILEX_NO_GARLAND").is_err() {
         garland(&mut d, &a, &hide, &mut placed)?;
@@ -579,37 +577,17 @@ fn table_matte(d: &mut RingDesign) {
     t.rows = 2;
     // Two bands, above and below the sprig, mirrored about the parting line: the leaves and berries stand on the
     // cast table itself.
-    t.v_center_mm = CREST_V + 0.5 * (MATTE_V.0 + MATTE_V.1);
-    t.v_span_mm = MATTE_V.1 - MATTE_V.0;
-    t.mirror_v = true;
-    t.feather_mm = 0.5;
+    t.feather_mm = 0.25;
     t.continuous = true;
-    let mut e = LayerEntry::new("Table matte", Layer::Tiling(t));
-    e.blend = Blend::Subtract;
-    e.bench_only = true;
-    e.window = Window { enabled: true, theta_deg: 90.0, span_deg: MATTE_SPAN_DEG, fade_deg: 1.5, invert: false, v_gate: Default::default() };
-    d.layers.layers.push(e);
-}
-
-/// Holly's smooth grey bark on the shank's flanks, either side of the garland, fading out before the bare palm:
-/// a fine texture cut at the bench.
-fn flank_bark(d: &mut RingDesign) {
-    let ctx = d.field_context();
-    d.recipes.push(ProcRecipe { name: "Ilex bark".into(), kind: Procedural::Bark, repeats: 1, quarter_turns: 0, gamma: 1.0, invert: false });
-    for (name, centre) in [("Bark, left", BARK_CENTRE_DEG), ("Bark, right", 180.0 - BARK_CENTRE_DEG)] {
-        let mut t = TilingLayer::default_for("Ilex bark", &ctx);
-        t.height_mm = BARK_DEPTH_MM;
-        t.repeats_around = 30;
-        t.rows = 1;
-        t.v_center_mm = BARK_V.0;
-        t.v_span_mm = BARK_V.1;
-        t.mirror_v = true;
-        t.feather_mm = 0.6;
-        t.continuous = true;
+    // One field either side of the sprig, each struck the same way round, leaving a narrow polished halo along it.
+    for (name, sign) in [("Table matte, upper", 1.0), ("Table matte, lower", -1.0)] {
+        let mut t = t.clone();
+        t.v_center_mm = CREST_V + sign * 0.5 * (MATTE_V.0 + MATTE_V.1);
+        t.v_span_mm = MATTE_V.1 - MATTE_V.0;
         let mut e = LayerEntry::new(name, Layer::Tiling(t));
         e.blend = Blend::Subtract;
         e.bench_only = true;
-        e.window = Window { enabled: true, theta_deg: centre, span_deg: BARK_SPAN_DEG, fade_deg: 8.0, invert: false, v_gate: Default::default() };
+        e.window = Window { enabled: true, theta_deg: 90.0, span_deg: MATTE_SPAN_DEG, fade_deg: 1.0, invert: false, v_gate: Default::default() };
         d.layers.layers.push(e);
     }
 }
@@ -667,12 +645,18 @@ fn garland(d: &mut RingDesign, a: &Atlas, hide: &Hide, placed: &mut Placed) -> R
         }
     }
     for s in struck {
-        // A station the line will not take as struck moves along it, a little at a time, until it does.
-        let nudged = [0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.0, -2.0, 2.5, -2.5, 3.0, -3.0].into_iter().find_map(|dt| {
-            let one = StampRow { stamp: Stamp { name: s.name.clone(), ..s.clone() }, from_deg: s.theta_deg + dt, to_deg: s.theta_deg + dt, count: 1, mirror_shoulders: false, fold_clear_mm: 0.0, ..row.clone() };
-            let mut m = stamp_row(d, &one).into_iter().next()?;
-            m.name = s.name.clone();
-            level_on_line(d, &mut m).then_some((m, dt))
+        // Leaves splay off the stem by turns; a station the line will not take as struck moves along it, a little
+        // at a time, and gives up its splay before it gives up its place.
+        let k: usize = s.name.rsplit(' ').next().and_then(|n| n.parse().ok()).unwrap_or(1);
+        let splay = if k % 2 == 0 { GARLAND_SPLAY_DEG } else { -GARLAND_SPLAY_DEG };
+        let nudged = [splay, 0.0].into_iter().find_map(|turn| {
+            [0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.0, -2.0].into_iter().find_map(|dt| {
+                let one = StampRow { stamp: Stamp { name: s.name.clone(), ..s.clone() }, from_deg: s.theta_deg + dt, to_deg: s.theta_deg + dt, count: 1, mirror_shoulders: false, fold_clear_mm: 0.0, ..row.clone() };
+                let mut m = stamp_row(d, &one).into_iter().next()?;
+                m.name = s.name.clone();
+                m.rot_deg += turn;
+                level_on_line(d, &mut m).then_some((m, dt))
+            })
         });
         match nudged {
             Some((m, dt)) => {
@@ -840,6 +824,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         "release_0100_unresolved": coarse_release.unresolved_rays,
         "release_0075": release_line(&fine),
         "release_0075_obstructions": fine.obstructions.len(),
+        "release_0075_obstruction_at": fine.obstructions.iter().map(|o| format!("[{:.2}, {:.2}, {:.2}] {:.3} mm deep", o.world[0], o.world[1], o.world[2], o.depth_mm)).collect::<Vec<_>>(),
         "release_0075_unresolved": fine.unresolved_rays,
         "clamp_bites_mm": [],
         "clamp_note": "No painted relief: nothing passes through skin::draft_clamp.",
