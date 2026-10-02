@@ -6,9 +6,12 @@
 use anyhow::{Context, Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign,
+    alpha::{ProcRecipe, Procedural},
     castability::{self, SandProcess},
     csg, dfm,
-    field::{Blend, Layer, LayerEntry, SeatPadLayer, SeatStyle},
+    curve::{CurveLayer, WireProfile},
+    field::{Blend, Layer, LayerEntry, SeatPadLayer, SeatStyle, Window},
+    tiling::TilingLayer,
     gem::{Gem, GemCut},
     imported_base::{ImportedBase, PRESETS, SurfaceChart, sand_master},
     library, manufacturing as mf, mesh,
@@ -249,7 +252,8 @@ fn holly_stamp(name: &str, at: (f64, f64), len: f64, wid: f64, spines: usize, sp
         cut: false,
         bench: false,
         along_pull: false,
-        fine_cap: false,
+        // The cap gridded at half the pitch: at the coarse pitch a spined margin stair-steps.
+        fine_cap: std::env::var("ILEX_COARSE_CAP").is_err(),
         tier: 0,
         top: StampTop::Gable { rise_mm: rise, axis_deg: 0.0 },
     }
@@ -280,6 +284,58 @@ fn vein_comb(len: f64, pairs: usize, w: f64) -> Vec<[f64; 2]> {
     out
 }
 
+/// A tapered stroke from `p0` to `p1`, `w` wide at its widest, as a closed counter-clockwise outline.
+fn stroke(p0: [f64; 2], p1: [f64; 2], w: f64, swell: f64) -> Vec<[f64; 2]> {
+    let (dx, dy) = (p1[0] - p0[0], p1[1] - p0[1]);
+    let l = dx.hypot(dy).max(1e-9);
+    let n = [-dy / l, dx / l];
+    let steps = ((l / 0.04).ceil() as usize).max(8);
+    // Widest a `swell` share of the way along, running to a point at each end.
+    let half = |t: f64| {
+        let u = if t < swell { t / swell } else { (1.0 - t) / (1.0 - swell) };
+        0.5 * w * (u.clamp(0.0, 1.0) * (2.0 - u.clamp(0.0, 1.0))).sqrt()
+    };
+    let at = |t: f64, side: f64| [p0[0] + dx * t + side * n[0] * half(t), p0[1] + dy * t + side * n[1] * half(t)];
+    let mut out: Vec<[f64; 2]> = (0..=steps).map(|i| at(i as f64 / steps as f64, -1.0)).collect();
+    out.extend((1..steps).rev().map(|i| at(i as f64 / steps as f64, 1.0)));
+    out
+}
+
+/// A face leaf's veins cut at the bench as separate strokes: a rounded midrib and tapering laterals leaning to the tip.
+fn leaf_veins(leaf: &Stamp, len: f64, pairs: usize) -> Vec<Stamp> {
+    let stalk = (0.12 * len).max(0.35);
+    let (x0, x1) = (-0.5 * len + stalk * 0.6, 0.5 * len - 0.45);
+    let cut = |name: String, outline: Vec<[f64; 2]>, sink: f64| Stamp {
+        name,
+        theta_deg: leaf.theta_deg,
+        v_mm: leaf.v_mm,
+        rot_deg: leaf.rot_deg,
+        outline,
+        height_mm: 0.1,
+        sink_mm: sink,
+        draft_deg: 0.0,
+        cut: true,
+        bench: true,
+        along_pull: leaf.along_pull,
+        fine_cap: true,
+        tier: 1,
+        top: StampTop::Dome { crown_mm: 0.5 * sink },
+    };
+    let mut out = vec![cut(format!("{} midrib", leaf.name), stroke([x0, 0.0], [x1, 0.0], 0.24, 0.25), 0.25)];
+    let lean = 42f64.to_radians();
+    for i in 0..pairs {
+        let t = 0.16 + 0.62 * i as f64 / (pairs.max(2) - 1) as f64;
+        let x = x0 + (x1 - x0) * t;
+        // Laterals reach most of the way to the margin, shortening toward the tip.
+        let reach = 0.21 * len * (1.0 - 0.55 * t);
+        for side in [1.0f64, -1.0] {
+            let tip = [x + reach * lean.cos(), side * reach * lean.sin()];
+            out.push(cut(format!("{} vein {}{}", leaf.name, i + 1, if side > 0.0 { "a" } else { "b" }), if side > 0.0 { stroke([x, 0.0], tip, 0.13, 0.3) } else { stroke(tip, [x, 0.0], 0.13, 0.7) }, 0.12));
+        }
+    }
+    out
+}
+
 fn bench_veins(name: &str, leaf: &Stamp, len: f64, pairs: usize, depth: f64) -> Stamp {
     Stamp {
         name: name.into(),
@@ -302,7 +358,8 @@ fn bench_veins(name: &str, leaf: &Stamp, len: f64, pairs: usize, depth: f64) -> 
 /// How a berry is set: in a cast gypsy mound `mound` mm across, or flush in the surface with no mound.
 #[derive(Clone, Copy)]
 enum Set {
-    Mound(f64),
+    /// A gypsy mound `diameter` across standing `height` proud.
+    Mound(f64, f64),
     /// Flush on the parting line, where a raised drill mark pulls.
     FlushMarked,
     /// Flush off the line, where any mark or mound faces its own mould half: wholly bench work.
@@ -325,7 +382,10 @@ fn berry(d: &mut RingDesign, name: &str, at: (f64, f64), gem: Gem, set: Set) {
     };
     seat.fit_stone(gem);
     match set {
-        Set::Mound(m) => seat.diameter_mm = m,
+        Set::Mound(m, h) => {
+            seat.diameter_mm = m;
+            seat.height_mm = h;
+        }
         _ => seat.height_mm = 0.0,
     }
     let mut e = LayerEntry::new(name, Layer::SeatPad(seat));
@@ -360,7 +420,6 @@ struct Placed {
     folds_along_mm: Vec<f64>,
     reach_mm: f64,
     garland: Vec<String>,
-    wreath: usize,
     cheek: Vec<String>,
 }
 
@@ -389,22 +448,34 @@ fn on_cheek(a: &Atlas, x: f64, y: f64, side: f64) -> Option<(f64, f64)> {
 /// Face berries: one on the parting line at the sprig's heart, and the cluster's other two just off it.
 const FACE_BERRIES: [(f64, f64, bool); 3] = [(0.0, 0.0, true), (-1.15, 2.05, false), (1.15, 2.05, false)];
 /// The face leaves: the stalk's distance from the head's centre and the leaf's length and width, mm.
-const FACE_LEAF: (f64, f64, f64) = (1.45, 6.3, 5.0);
-const FACE_LEAF_HEIGHT: f64 = 0.4;
-/// The engraved wreath: inset from the table's edge, its corner radius, leaf count and leaf size, mm.
-const WREATH_INSET_MM: f64 = 1.35;
-const WREATH_CORNER_MM: f64 = 2.2;
-const WREATH_LEAVES: usize = 20;
-const WREATH_LEAF: (f64, f64) = (2.6, 1.5);
+const FACE_LEAF: (f64, f64, f64) = (1.45, 6.3, 5.5);
+const FACE_LEAF_HEIGHT: f64 = 0.7;
 /// Arc from the garland's first leaf to its last, mm.
-const GARLAND_SPAN_MM: f64 = 17.0;
-const FACE_LEAF_RISE: f64 = 0.75;
+const GARLAND_SPAN_MM: f64 = 19.0;
+const GARLAND_COUNT: u32 = 7;
+/// The garland's stem wire, width and height, mm.
+const STEM_MM: (f64, f64) = (0.9, 0.42);
+/// The parting line's chart `v` on this stock.
+const CREST_V: f64 = 9.858;
+/// The table's matte: depth, chart span across, and span round the ring.
+const MATTE_DEPTH_MM: f64 = 0.06;
+/// Chart `v` off the parting line where the matte starts and ends.
+const MATTE_V: (f64, f64) = (2.5, 5.75);
+const MATTE_SPAN_DEG: f64 = 47.0;
+/// The flanks' bark: depth, chart (centre, span) of one flank, centre and span round the ring.
+const BARK_DEPTH_MM: f64 = 0.07;
+const BARK_V: (f64, f64) = (4.0, 5.6);
+const BARK_CENTRE_DEG: f64 = -8.0;
+const BARK_SPAN_DEG: f64 = 92.0;
+const FACE_LEAF_RISE: f64 = 0.5;
 
 /// A cheek spray, seen along the finger with x round the ring and y up from the axis: two leaves (centre, length,
 /// width, turn of the tip from +x in degrees) either side of an arc of three berries. The wall is a crescent over
 /// the bore, so the berries ride its widest band and the leaves its lower corners.
-const CHEEK_LEAVES: [([f64; 2], f64, f64, f64); 2] = [([-5.6, 10.4], 5.5, 3.1, 204.0), ([5.6, 10.4], 5.5, 3.1, -24.0)];
-const CHEEK_BERRIES: [[f64; 2]; 3] = [[-2.05, 11.95], [0.0, 12.35], [2.05, 11.95]];
+const CHEEK_LEAVES: [([f64; 2], f64, f64, f64); 3] = [([-4.7, 11.9], 5.6, 3.1, 184.0), ([4.7, 11.9], 5.6, 3.1, -4.0), ([5.0, 9.8], 4.2, 2.5, -47.0)];
+const CHEEK_BERRIES: [[f64; 2]; 3] = [[-0.98, 12.85], [0.98, 12.85], [0.0, 11.15]];
+/// How proud the cheek berries' mounds stand, mm.
+const CHEEK_MOUND_MM: f64 = 0.45;
 const CHEEK_SIDES: [f64; 2] = [1.0, -1.0];
 
 fn author(face: (f64, f64), blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
@@ -412,6 +483,16 @@ fn author(face: (f64, f64), blockout: bool) -> Result<(RingDesign, AlphaLibrary,
     let lib = AlphaLibrary::builtin();
     let a = Atlas::of(&d, AW, AH)?;
     let hide = Hide::of(&a);
+    if std::env::var("ILEX_SECTIONS").is_ok() {
+        for theta in [0.0, 30.0, 90.0, 150.0, 270.0] {
+            let col: Vec<String> = (0..=20).map(|k| {
+                let v = k as f64;
+                let p = a.point(theta, v);
+                format!("v{v}:r{:.2},z{:.2}", p[0].hypot(p[1]), p[2])
+            }).collect();
+            eprintln!("theta {theta}: {}", col.join(" "));
+        }
+    }
     let mut placed = Placed { face_mm: [face.0, face.1], reach_mm: hide.reach(), folds_along_mm: hide.folds(&a, 12.0), ..Default::default() };
     // The face: a sprig of two leaves end to end on the parting line, midribs on it, stalks meeting at the berries.
     let (stalk, longest, wid) = FACE_LEAF;
@@ -438,12 +519,12 @@ fn author(face: (f64, f64), blockout: bool) -> Result<(RingDesign, AlphaLibrary,
         len -= 0.1;
         ensure!(len > 4.4, "no face leaf lies on the line");
     };
-    for (k, leaf) in pair.into_iter().enumerate() {
+    for leaf in pair {
         placed.leaf_at.push([leaf.theta_deg, leaf.v_mm]);
         placed.face_leaf_mm.push(len);
         d.stamps.push(leaf.clone());
         if !blockout {
-            d.stamps.push(bench_veins(&format!("Face leaf veins, {}", k + 1), &leaf, len * 0.8, 4, 0.3));
+            d.stamps.extend(leaf_veins(&leaf, len, 4));
         }
     }
     for (k, (x, z, line)) in FACE_BERRIES.into_iter().enumerate().filter(|(_, b)| b.2 || std::env::var("ILEX_NO_OFFLINE").is_err()) {
@@ -470,84 +551,99 @@ fn author(face: (f64, f64), blockout: bool) -> Result<(RingDesign, AlphaLibrary,
         for (k, c) in CHEEK_BERRIES.into_iter().enumerate().filter(|_| std::env::var("ILEX_NO_CHEEK_BERRY").is_err()) {
             let at = on_cheek(&a, c[0], c[1], side).with_context(|| format!("no cheek at {c:?}"))?;
             placed.cheek.push(format!("Cheek berry {}, {} at {:.2} deg, v {:.3}", side_k + 1, k + 1, at.0, at.1));
-            berry(&mut d, &format!("Cheek berry {}, {}", side_k + 1, k + 1), at, garnet(1.8), Set::Mound(2.15));
+            berry(&mut d, &format!("Cheek berry {}, {}", side_k + 1, k + 1), at, garnet(1.8), Set::Mound(2.2, CHEEK_MOUND_MM));
         }
     }
     if !blockout {
-        wreath(&mut d, &a, &mut placed);
+        if std::env::var("ILEX_NO_MATTE").is_err() {
+            table_matte(&mut d);
+        }
+        flank_bark(&mut d);
     }
     if !blockout && std::env::var("ILEX_NO_GARLAND").is_err() {
         garland(&mut d, &a, &hide, &mut placed)?;
     }
+    // The textures travel in the design as recipes, baked here as a cold reload bakes them.
+    let lib = mf::source_library(&d, &lib).into_owned();
     Ok((d, lib, placed))
 }
 
-/// The face's frame: a wreath of small holly leaves engraved round the table's edge, tips chasing one way round,
-/// cut at the bench into the cast table so the polished sprig stands inside an engraved ground.
-fn wreath(d: &mut RingDesign, a: &Atlas, placed: &mut Placed) {
-    let (hx, hz) = (0.5 * d.shank.head.length_mm - WREATH_INSET_MM, 0.5 * d.profile.width_mm - WREATH_INSET_MM);
-    let r = WREATH_CORNER_MM.min(hx).min(hz);
-    // The rounded rectangle as a closed path, sampled by arc length.
-    let (sx, sz) = (2.0 * (hx - r), 2.0 * (hz - r));
-    let quarter = 0.5 * PI * r;
-    let total = 2.0 * (sx + sz) + 4.0 * quarter;
-    let at = |u: f64| -> ([f64; 2], [f64; 2]) {
-        let mut u = u.rem_euclid(total);
-        // Start mid-way along the +z side, running toward +x.
-        let runs: [(f64, [f64; 2], [f64; 2], Option<[f64; 2]>); 8] = [
-            (0.5 * sx, [0.0, hz], [1.0, 0.0], None),
-            (quarter, [hx - r, hz - r], [0.0, 0.0], Some([PI * 0.5, 0.0])),
-            (sz, [hx, hz - r], [0.0, -1.0], None),
-            (quarter, [hx - r, -(hz - r)], [0.0, 0.0], Some([0.0, -PI * 0.5])),
-            (sx, [hx - r, -hz], [-1.0, 0.0], None),
-            (quarter, [-(hx - r), -(hz - r)], [0.0, 0.0], Some([-PI * 0.5, -PI])),
-            (sz, [-hx, -(hz - r)], [0.0, 1.0], None),
-            (quarter, [-(hx - r), hz - r], [0.0, 0.0], Some([PI, PI * 0.5])),
-        ];
-        for (len, o, dir, arc) in runs.iter().chain(std::iter::once(&(0.5 * sx, [-(hx - r), hz], [1.0, 0.0], None))) {
-            if u <= *len + 1e-9 {
-                return match arc {
-                    None => ([o[0] + dir[0] * u, o[1] + dir[1] * u], *dir),
-                    Some([a0, a1]) => {
-                        let t = a0 + (a1 - a0) * u / len;
-                        ([o[0] + r * t.cos(), o[1] + r * t.sin()], [-(a1 - a0).signum() * t.sin(), (a1 - a0).signum() * t.cos()])
-                    }
-                };
-            }
-            u -= len;
-        }
-        ([0.0, hz], [1.0, 0.0])
-    };
-    let n = WREATH_LEAVES;
-    for k in 0..n {
-        let (p, t) = at(total * k as f64 / n as f64);
-        // The wreath parts where the sprig's leaf tips run out to the table's ends.
-        if p[1].abs() < 1.7 {
-            continue;
-        }
-        let (theta, v) = on_face(a, p[0], p[1]);
-        // Theta grows toward -x and v toward +z on the table; each leaf leans out and in by turns, like a wreath's.
-        let lean = if k % 2 == 0 { 14.0 } else { -14.0 };
-        let rot = (t[1]).atan2(-t[0]).to_degrees() + lean;
-        d.stamps.push(Stamp {
-            name: format!("Wreath leaf, {}", k + 1),
-            theta_deg: theta,
-            v_mm: v,
-            rot_deg: rot,
-            outline: holly(WREATH_LEAF.0, WREATH_LEAF.1, 2, 0.2, false),
-            height_mm: 0.1,
-            sink_mm: 0.32,
-            draft_deg: 0.0,
-            cut: true,
-            bench: true,
-            along_pull: false,
-            fine_cap: false,
-            tier: 0,
-            // Chased, not routed: the floor rises to a ridge along the midrib, so the two halves take the light apart.
-            top: StampTop::Gable { rise_mm: 0.22, axis_deg: 0.0 },
-        });
+/// The table's ground: a fine hammered stipple worked at the bench, inset from the table's edge, so the polished
+/// sprig stands off a matte field. The cast sprig covers it where they meet.
+fn table_matte(d: &mut RingDesign) {
+    let ctx = d.field_context();
+    d.recipes.push(ProcRecipe { name: "Ilex matte".into(), kind: Procedural::Hammered, repeats: 1, quarter_turns: 0, gamma: 1.0, invert: false });
+    let mut t = TilingLayer::default_for("Ilex matte", &ctx);
+    t.height_mm = MATTE_DEPTH_MM;
+    t.repeats_around = 40;
+    t.rows = 2;
+    // Two bands, above and below the sprig, mirrored about the parting line: the leaves and berries stand on the
+    // cast table itself.
+    t.v_center_mm = CREST_V + 0.5 * (MATTE_V.0 + MATTE_V.1);
+    t.v_span_mm = MATTE_V.1 - MATTE_V.0;
+    t.mirror_v = true;
+    t.feather_mm = 0.5;
+    t.continuous = true;
+    let mut e = LayerEntry::new("Table matte", Layer::Tiling(t));
+    e.blend = Blend::Subtract;
+    e.bench_only = true;
+    e.window = Window { enabled: true, theta_deg: 90.0, span_deg: MATTE_SPAN_DEG, fade_deg: 1.5, invert: false, v_gate: Default::default() };
+    d.layers.layers.push(e);
+}
+
+/// Holly's smooth grey bark on the shank's flanks, either side of the garland, fading out before the bare palm:
+/// a fine texture cut at the bench.
+fn flank_bark(d: &mut RingDesign) {
+    let ctx = d.field_context();
+    d.recipes.push(ProcRecipe { name: "Ilex bark".into(), kind: Procedural::Bark, repeats: 1, quarter_turns: 0, gamma: 1.0, invert: false });
+    for (name, centre) in [("Bark, left", BARK_CENTRE_DEG), ("Bark, right", 180.0 - BARK_CENTRE_DEG)] {
+        let mut t = TilingLayer::default_for("Ilex bark", &ctx);
+        t.height_mm = BARK_DEPTH_MM;
+        t.repeats_around = 30;
+        t.rows = 1;
+        t.v_center_mm = BARK_V.0;
+        t.v_span_mm = BARK_V.1;
+        t.mirror_v = true;
+        t.feather_mm = 0.6;
+        t.continuous = true;
+        let mut e = LayerEntry::new(name, Layer::Tiling(t));
+        e.blend = Blend::Subtract;
+        e.bench_only = true;
+        e.window = Window { enabled: true, theta_deg: centre, span_deg: BARK_SPAN_DEG, fade_deg: 8.0, invert: false, v_gate: Default::default() };
+        d.layers.layers.push(e);
     }
-    placed.wreath = d.stamps.iter().filter(|s| s.name.starts_with("Wreath")).count();
+}
+
+/// The garland's stem: a round wire on the parting line from the head's end wall down each shoulder, under the
+/// leaves, falling away from the line on both sides as the sand needs.
+fn garland_stem(d: &mut RingDesign, a: &Atlas, hide: &Hide, from_along: f64, to_along: f64) {
+    for (name, sign) in [("Garland stem, left", -1.0f64), ("Garland stem, right", 1.0)] {
+        let mut pts: Vec<[f64; 2]> = Vec::new();
+        let mut last = None;
+        let steps = 24;
+        for k in 0..=steps {
+            let along = sign * (from_along + (to_along - from_along) * k as f64 / steps as f64);
+            let (theta, v) = hide.crest_at(a, along);
+            // Unwrap theta so the path runs on through 0 without a jump.
+            let theta = match last {
+                None => theta,
+                Some(prev) => prev + crate_wrap(theta - prev),
+            };
+            last = Some(theta);
+            pts.push([theta / 360.0, v]);
+        }
+        if sign < 0.0 {
+            pts.reverse();
+        }
+        let c = CurveLayer { points: pts, repeats_around: 1, closed: false, width_mm: STEM_MM.0, height_mm: STEM_MM.1, profile: WireProfile::Round, taper: 0.06, mirror_v: false };
+        let mut e = LayerEntry::new(name, Layer::Curve(c));
+        e.blend = Blend::Max;
+        d.layers.layers.push(e);
+    }
+}
+
+fn crate_wrap(d: f64) -> f64 {
+    (d + 180.0).rem_euclid(360.0) - 180.0
 }
 
 /// Four graded leaves a side on the parting line down both shoulders, clear of the folds where the line turns
@@ -555,13 +651,14 @@ fn wreath(d: &mut RingDesign, a: &Atlas, placed: &mut Placed) {
 fn garland(d: &mut RingDesign, a: &Atlas, hide: &Hide, placed: &mut Placed) -> Result<()> {
     let past_folds = placed.folds_along_mm.iter().map(|f| f.abs()).fold(0.0, f64::max) + 1.0;
     let first = past_folds + 2.8;
+    garland_stem(d, a, hide, 0.5 * d.shank.head.length_mm - 0.3, first + GARLAND_SPAN_MM + 2.6);
     let from = hide.crest_at(a, -first);
     // The line runs on through theta 0: unwrap the far end below the near one.
     let to = from.0 - (from.0 - hide.crest_at(a, -(first + GARLAND_SPAN_MM)).0).rem_euclid(360.0);
     let mut leaf = holly_stamp("Garland leaf", (0.0, 0.0), 4.2, 2.4, 3, 0.35, 0.45, 0.18);
     // Stations run down the shoulder toward theta 0: the tip leads away from the head.
     leaf.rot_deg = 180.0;
-    let row = StampRow { stamp: leaf, path: RowPath::PartingLine, from_deg: from.0, to_deg: to, count: 4, taper: 0.24, fold_clear_mm: 1.0, mirror_shoulders: true };
+    let row = StampRow { stamp: leaf, path: RowPath::PartingLine, from_deg: from.0, to_deg: to, count: GARLAND_COUNT, taper: 0.24, fold_clear_mm: 1.0, mirror_shoulders: true };
     let struck = stamp_row(d, &row);
     if std::env::var("ILEX_DEBUG").is_ok() {
         eprintln!("garland from {from:?} to {to:?}: {:?}", struck.iter().map(|s| (s.name.clone(), s.theta_deg, s.rot_deg)).collect::<Vec<_>>());
