@@ -1,0 +1,33 @@
+{
+  "ring": "rubus",
+  "mode": "read-test",
+  "attempt": 4,
+  "reads": true,
+  "what_the_eye_sees": "Hero: a wavy, crown-like band with pairs of big knobbly drupelet balls standing on the shoulders at each upper node, short spikes beside them, and faint leaf shapes on the crest between them. For the first time the fruit carries the image: each berry is about 12 to 15 px, a domed cluster of separate drupelets, and the first word is 'blackberry' (or raspberry, which is still Rubus). Thorns plus blackberries name a bramble without a caption, so it passes. It only just passes, though. The berries perch upright on the rim in matched pairs like crown finials, and the thin spikes next to them push the read toward a morning-star mace or a crown with pinecone finials. The berries do not hang from a cane. Face: it reads as a symmetric belt of berry pairs along both edges with needle spikes poking out sideways. The centre crest carries crown leaflets that read as arrowheads, chevrons and punched holes, not as bramble leaves. This is the same 'look like arrows' failure flagged in attempt 3, and it is the weakest part of the read. The side-face leaflets and runner still barely show at 300 px, and the prickles are still pins, not hooked bramble prickles. Density is now close to the bar. The read rests on the berries alone.",
+  "changes": [
+    {
+      "priority": 1,
+      "change": "Remove the 12 'Crown leaflet' stamps and their 'Crown midrib' cuts from the crest. In face-300.png they read as arrowheads and chevrons, and the cut-through holes read as punched rivets. Move that relief into the 14 side-face 'Leaflet' stamps instead. Make each one a trifoliate group (centre leaflet about 4.6 x 2.4 mm, side leaflets about 3.6 x 2.0 mm at +/-50 deg). Raise them from their current height to at least 0.55 mm and give them 6 to 7 serrations about 0.3 mm deep, with the midrib cut dark.",
+      "where": "Crest stamps 'Crown leaflet, 1-12' and 'Crown midrib, 1-12' (remove); 'Leaflet, 1-14' at the internodes (node + 25.7 deg), both side faces",
+      "acceptance": "face-300.png shows no arrow, chevron or punched-hole shapes on the crest. hero-300.png shows at least two toothed three-leaflet groups on the near side face."
+    },
+    {
+      "priority": 2,
+      "change": "Make the berries hang from the cane, not stand on it like crown finials. Tip each 'Blackberry, high/low shoulder' mesh outward and down the side face by about 30 to 40 deg, so it hangs off the shoulder. Stagger the pairs: at each upper node, offset the low-shoulder berry about 8 deg in theta from the high-shoulder one, so they stop reading as a mirrored pair. Enlarge the calyx so its 5 sepal points show as a dark star between berry and band, about 2.0 mm across, up from the current size that does not show at 300 px. Keep the berry size; it is the thing that now works.",
+      "where": "CAD #7 to #10 (Blackberry and Calyx, high and low shoulder) and the ring array #11 'Blackberries on the upper nodes'",
+      "acceptance": "In hero-300.png the berries read as fruit hanging off a stem, with a visible calyx star on at least three of them. No view shows them as an upright symmetric row of finials or mace heads."
+    },
+    {
+      "priority": 3,
+      "change": "Turn the needle prickles into bramble prickles so they stop reading as mace spikes. Widen each base to 1.8 to 2.0 mm, flattened laterally, up from 1.1 mm (large) and 0.8 mm (small). Shorten the arc from 70 deg (large) and 60 deg (small) to about 45 deg so each one hooks back, every one turning the same way round the ring. Swell the node knuckles (thickness key 1.15 to about 1.25) so the band reads as a jointed cane, not a polygonal crown.",
+      "where": "CAD #2 large prickle and #4/#5 small prickles with their patterns #3/#6 (crest theta 347 through 90 to 193 deg); shank keyframes at the node thetas",
+      "acceptance": "In hero-300.png and face-300.png each prickle shows a broad triangular base and a backward hook, not a pin, and the band visibly swells at each node."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/rubus/hero-300.png",
+    "showcase/vepres/rubus/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
