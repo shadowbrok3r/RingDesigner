@@ -1,6 +1,12 @@
 {
   "bore_mm": 18.6,
-  "casting_pattern": null,
+  "casting_pattern": {
+    "degenerate_faces": 0,
+    "pass": true,
+    "self_crossings": 0,
+    "triangles": 1349320,
+    "watertight": true
+  },
   "coarse_384x192": {
     "bore_margin_mm": -4.662539385691389e-7,
     "boundary_edges": 0,
@@ -8,19 +14,19 @@
       384,
       192
     ],
-    "build_s": 0.50323366,
+    "build_s": 1.192860362,
     "clamp_bites_mm": [],
     "clamp_note": "No painted relief: nothing passes through skin::draft_clamp.",
-    "closest_stones": "Cheek berry 1, 2 to Cheek berry 1, 3: -0.28 mm at the girdle, -0.29 mm deep",
+    "closest_stones": "Face berry, 2 to Face berry, 3: 0.27 mm at the girdle, 0.27 mm deep",
     "degenerate_faces": 0,
     "dfm_findings": [],
     "field_notes": [
       "Field-sampled: the surface itself carries no undercut at this parting.",
-      "Cut at the bench after casting, and so not judged here: Face berry, 2, Face berry, 3.",
+      "Cut at the bench after casting, and so not judged here: Face berry, 2, Face berry, 3, Face leaf veins, 1, Face leaf veins, 2, Cheek leaf veins 1, 1, Cheek leaf veins 1, 2, Cheek leaf veins 2, 1, Cheek leaf veins 2, 2, Wreath leaf, 1, Wreath leaf, 2, Wreath leaf, 3, Wreath leaf, 4, Wreath leaf, 5, Wreath leaf, 7, Wreath leaf, 8, Wreath leaf, 9, Wreath leaf, 10, Wreath leaf, 11, Wreath leaf, 12, Wreath leaf, 13, Wreath leaf, 14, Wreath leaf, 15, Wreath leaf, 17, Wreath leaf, 18, Wreath leaf, 19, Wreath leaf, 20.",
       "9 made settings left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
     ],
     "field_verdict": "Castable",
-    "grams_18k": 40.40916852183921,
+    "grams_18k": 40.375390708548714,
     "made_parts": [],
     "metal_inside_stones": [
       [
@@ -60,7 +66,7 @@
         0
       ]
     ],
-    "min_angle_deg": 0.001706888265579251,
+    "min_angle_deg": 0.001340546703279813,
     "non_manifold_edges": 0,
     "parting_monotone": [
       [
@@ -70,6 +76,38 @@
       [
         "Face leaf, 2",
         true
+      ],
+      [
+        "Garland leaf, left 1",
+        true
+      ],
+      [
+        "Garland leaf, left 2",
+        true
+      ],
+      [
+        "Garland leaf, left 3",
+        true
+      ],
+      [
+        "Garland leaf, left 4",
+        true
+      ],
+      [
+        "Garland leaf, right 1",
+        true
+      ],
+      [
+        "Garland leaf, right 2",
+        true
+      ],
+      [
+        "Garland leaf, right 3",
+        true
+      ],
+      [
+        "Garland leaf, right 4",
+        true
       ]
     ],
     "parts_notes": [],
@@ -78,24 +116,44 @@
     "release_0075_obstructions": 0,
     "release_0075_unresolved": 0,
     "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0100_low_draft_area_mm2": 548.6945304014873,
+    "release_0100_notes": [
+      "548.69 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
     "release_0100_obstructions": 0,
+    "release_0100_sand_findings": [
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-6.20, -9.59, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [6.30, -9.59, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [-9.90, -5.70, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [9.90, -5.70, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-9.80, 9.68, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [9.80, 9.68, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-11.20, -2.10, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-10.80, 5.29, 0.00]",
+      "Sand slot about 0.60 mm wide; inspect its support and depth at [-9.00, -7.20, 0.00]",
+      "Sand slot about 0.20 mm wide; inspect its support and depth at [8.80, -7.20, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [10.80, 5.29, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [11.20, -2.10, 0.00]"
+    ],
+    "release_0100_status_why": "Review, not Clear, with 0 obstructions: the factory table and bore walls carry under the sand's 3 deg draft (the bare stock reports the same). See the notes.",
     "release_0100_unresolved": 0,
     "seats_resolved": 9,
     "self_crossings": 0,
     "solids_notes": [],
-    "stamps_struck": 8,
+    "stamps_struck": 38,
     "stone_carats": 0.24463406064315124,
     "stone_warnings": [],
     "stones_previewed": 9,
     "stones_reported": 9,
     "thinnest_wall_mm": 1.3061619507275015,
-    "triangles": 165588,
+    "triangles": 203372,
     "undercut_percent": 0.0,
     "watertight": true,
-    "worst_draft_deg": -0.10608507487624769
+    "worst_draft_deg": -0.25832259033254057
   },
-  "cold_reload_identical": null,
-  "design_bytes": 215098,
+  "cold_reload_identical": true,
+  "design_bytes": 653275,
   "design_format": 6,
   "draft": {
     "bore_margin_mm": -4.7445255546563203e-7,
@@ -104,19 +162,19 @@
       768,
       320
     ],
-    "build_s": 1.256681937,
+    "build_s": 3.157198364,
     "clamp_bites_mm": [],
     "clamp_note": "No painted relief: nothing passes through skin::draft_clamp.",
-    "closest_stones": "Cheek berry 1, 2 to Cheek berry 1, 3: -0.28 mm at the girdle, -0.29 mm deep",
+    "closest_stones": "Face berry, 2 to Face berry, 3: 0.27 mm at the girdle, 0.27 mm deep",
     "degenerate_faces": 0,
     "dfm_findings": [],
     "field_notes": [
       "Field-sampled: the surface itself carries no undercut at this parting.",
-      "Cut at the bench after casting, and so not judged here: Face berry, 2, Face berry, 3.",
+      "Cut at the bench after casting, and so not judged here: Face berry, 2, Face berry, 3, Face leaf veins, 1, Face leaf veins, 2, Cheek leaf veins 1, 1, Cheek leaf veins 1, 2, Cheek leaf veins 2, 1, Cheek leaf veins 2, 2, Wreath leaf, 1, Wreath leaf, 2, Wreath leaf, 3, Wreath leaf, 4, Wreath leaf, 5, Wreath leaf, 7, Wreath leaf, 8, Wreath leaf, 9, Wreath leaf, 10, Wreath leaf, 11, Wreath leaf, 12, Wreath leaf, 13, Wreath leaf, 14, Wreath leaf, 15, Wreath leaf, 17, Wreath leaf, 18, Wreath leaf, 19, Wreath leaf, 20.",
       "9 made settings left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
     ],
     "field_verdict": "Castable",
-    "grams_18k": 40.41856748283825,
+    "grams_18k": 40.38453252003273,
     "made_parts": [],
     "metal_inside_stones": [
       [
@@ -156,7 +214,7 @@
         0
       ]
     ],
-    "min_angle_deg": 0.0017071534440511072,
+    "min_angle_deg": 0.0013433047837808213,
     "non_manifold_edges": 0,
     "parting_monotone": [
       [
@@ -166,6 +224,38 @@
       [
         "Face leaf, 2",
         true
+      ],
+      [
+        "Garland leaf, left 1",
+        true
+      ],
+      [
+        "Garland leaf, left 2",
+        true
+      ],
+      [
+        "Garland leaf, left 3",
+        true
+      ],
+      [
+        "Garland leaf, left 4",
+        true
+      ],
+      [
+        "Garland leaf, right 1",
+        true
+      ],
+      [
+        "Garland leaf, right 2",
+        true
+      ],
+      [
+        "Garland leaf, right 3",
+        true
+      ],
+      [
+        "Garland leaf, right 4",
+        true
       ]
     ],
     "parts_notes": [],
@@ -174,23 +264,187 @@
     "release_0075_obstructions": 0,
     "release_0075_unresolved": 0,
     "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0100_low_draft_area_mm2": 550.773087470614,
+    "release_0100_notes": [
+      "550.77 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
     "release_0100_obstructions": 0,
+    "release_0100_sand_findings": [
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-6.20, -9.59, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [6.30, -9.59, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [-9.90, -5.70, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [9.90, -5.70, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-9.80, 9.68, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [9.80, 9.68, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-11.20, -2.10, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-10.80, 5.29, 0.00]",
+      "Sand slot about 0.60 mm wide; inspect its support and depth at [-9.00, -7.20, 0.00]",
+      "Sand slot about 0.20 mm wide; inspect its support and depth at [8.80, -7.20, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [10.80, 5.29, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [11.20, -2.10, 0.00]"
+    ],
+    "release_0100_status_why": "Review, not Clear, with 0 obstructions: the factory table and bore walls carry under the sand's 3 deg draft (the bare stock reports the same). See the notes.",
     "release_0100_unresolved": 0,
     "seats_resolved": 9,
     "self_crossings": 0,
     "solids_notes": [],
-    "stamps_struck": 8,
+    "stamps_struck": 38,
     "stone_carats": 0.24463406064315124,
     "stone_warnings": [],
     "stones_previewed": 9,
     "stones_reported": 9,
     "thinnest_wall_mm": 1.3061619507275015,
-    "triangles": 504106,
+    "triangles": 531066,
     "undercut_percent": 0.0,
     "watertight": true,
-    "worst_draft_deg": -0.10608507487624769
+    "worst_draft_deg": -0.25832259033254057
   },
-  "export": null,
+  "export": {
+    "bore_margin_mm": -4.819586632009987e-7,
+    "boundary_edges": 0,
+    "build": [
+      1536,
+      448
+    ],
+    "build_s": 8.39964738,
+    "clamp_bites_mm": [],
+    "clamp_note": "No painted relief: nothing passes through skin::draft_clamp.",
+    "closest_stones": "Face berry, 2 to Face berry, 3: 0.27 mm at the girdle, 0.27 mm deep",
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Cut at the bench after casting, and so not judged here: Face berry, 2, Face berry, 3, Face leaf veins, 1, Face leaf veins, 2, Cheek leaf veins 1, 1, Cheek leaf veins 1, 2, Cheek leaf veins 2, 1, Cheek leaf veins 2, 2, Wreath leaf, 1, Wreath leaf, 2, Wreath leaf, 3, Wreath leaf, 4, Wreath leaf, 5, Wreath leaf, 7, Wreath leaf, 8, Wreath leaf, 9, Wreath leaf, 10, Wreath leaf, 11, Wreath leaf, 12, Wreath leaf, 13, Wreath leaf, 14, Wreath leaf, 15, Wreath leaf, 17, Wreath leaf, 18, Wreath leaf, 19, Wreath leaf, 20.",
+      "9 made settings left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
+    ],
+    "field_verdict": "Castable",
+    "grams_18k": 40.38668814993218,
+    "made_parts": [],
+    "metal_inside_stones": [
+      [
+        "Face berry, 1",
+        0
+      ],
+      [
+        "Face berry, 2",
+        0
+      ],
+      [
+        "Face berry, 3",
+        0
+      ],
+      [
+        "Cheek berry 1, 1",
+        0
+      ],
+      [
+        "Cheek berry 1, 2",
+        0
+      ],
+      [
+        "Cheek berry 1, 3",
+        0
+      ],
+      [
+        "Cheek berry 2, 1",
+        0
+      ],
+      [
+        "Cheek berry 2, 2",
+        0
+      ],
+      [
+        "Cheek berry 2, 3",
+        0
+      ]
+    ],
+    "min_angle_deg": 0.0018687119763828835,
+    "non_manifold_edges": 0,
+    "parting_monotone": [
+      [
+        "Face leaf, 1",
+        true
+      ],
+      [
+        "Face leaf, 2",
+        true
+      ],
+      [
+        "Garland leaf, left 1",
+        true
+      ],
+      [
+        "Garland leaf, left 2",
+        true
+      ],
+      [
+        "Garland leaf, left 3",
+        true
+      ],
+      [
+        "Garland leaf, left 4",
+        true
+      ],
+      [
+        "Garland leaf, right 1",
+        true
+      ],
+      [
+        "Garland leaf, right 2",
+        true
+      ],
+      [
+        "Garland leaf, right 3",
+        true
+      ],
+      [
+        "Garland leaf, right 4",
+        true
+      ]
+    ],
+    "parts_notes": [],
+    "pass": true,
+    "release_0075": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0075_obstructions": 0,
+    "release_0075_unresolved": 0,
+    "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0100_low_draft_area_mm2": 550.0654722296052,
+    "release_0100_notes": [
+      "550.07 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+    ],
+    "release_0100_obstructions": 0,
+    "release_0100_sand_findings": [
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-6.20, -9.59, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [6.30, -9.59, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [-9.90, -5.70, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [9.90, -5.70, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-9.80, 9.68, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [9.80, 9.68, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-11.20, -2.10, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-10.80, 5.29, 0.00]",
+      "Sand slot about 0.60 mm wide; inspect its support and depth at [-9.00, -7.20, 0.00]",
+      "Sand slot about 0.20 mm wide; inspect its support and depth at [8.80, -7.20, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [10.80, 5.29, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [11.20, -2.10, 0.00]"
+    ],
+    "release_0100_status_why": "Review, not Clear, with 0 obstructions: the factory table and bore walls carry under the sand's 3 deg draft (the bare stock reports the same). See the notes.",
+    "release_0100_unresolved": 0,
+    "seats_resolved": 9,
+    "self_crossings": 0,
+    "solids_notes": [],
+    "stamps_struck": 38,
+    "stone_carats": 0.24463406064315124,
+    "stone_warnings": [],
+    "stones_previewed": 9,
+    "stones_reported": 9,
+    "thinnest_wall_mm": 1.3061619507275015,
+    "triangles": 1366054,
+    "undercut_percent": 0.0,
+    "watertight": true,
+    "worst_draft_deg": -0.25832259033254057
+  },
   "face_mm": [
     16.0,
     17.0
@@ -216,26 +470,28 @@
       ],
       [
         94.21875,
-        11.321751250982249
+        11.398769966975326
       ],
       [
         85.78125,
-        11.321751250982249
+        11.398769966975326
       ]
     ],
     "cheek": [
-      "Cheek leaf 1, 1 at 110.39 deg, v 17.535",
-      "Cheek leaf 1, 2 at 69.79 deg, v 17.252",
-      "Cheek leaf 1, 3 at 57.30 deg, v 18.613",
-      "Cheek berry 1, 1 at 94.39 deg, v 17.150",
-      "Cheek berry 1, 2 at 85.61 deg, v 17.150",
-      "Cheek berry 1, 3 at 90.00 deg, v 17.945",
-      "Cheek leaf 2, 1 at 110.39 deg, v 2.182",
-      "Cheek leaf 2, 2 at 69.79 deg, v 2.465",
-      "Cheek leaf 2, 3 at 57.30 deg, v 1.104",
-      "Cheek berry 2, 1 at 94.39 deg, v 2.567",
-      "Cheek berry 2, 2 at 85.61 deg, v 2.567",
-      "Cheek berry 2, 3 at 90.00 deg, v 1.771"
+      "Cheek leaf 1, 1 at 118.30 deg, v 18.074",
+      "Cheek leaf 1, 2 at 61.70 deg, v 18.074",
+      "Cheek berry 1, 1 at 99.67 deg, v 17.560",
+      "Cheek berry 1, 2 at 90.00 deg, v 17.329",
+      "Cheek berry 1, 3 at 80.33 deg, v 17.560",
+      "Cheek leaf 2, 1 at 118.30 deg, v 1.643",
+      "Cheek leaf 2, 2 at 61.70 deg, v 1.643",
+      "Cheek berry 2, 1 at 99.67 deg, v 2.157",
+      "Cheek berry 2, 2 at 90.00 deg, v 2.388",
+      "Cheek berry 2, 3 at 80.33 deg, v 2.157"
+    ],
+    "face_leaf_mm": [
+      6.3,
+      6.3
     ],
     "face_mm": [
       16.0,
@@ -277,18 +533,28 @@
       -13.3,
       -13.4
     ],
-    "garland": [],
+    "garland": [
+      "Garland leaf, left 1 at 36.41 deg (moved -0.5), v 9.859, turned 180.00 deg",
+      "Garland leaf, left 2 at 8.10 deg (moved +0.0), v 9.859, turned 180.00 deg",
+      "Garland leaf, left 3 at -20.86 deg (moved +0.0), v 9.858, turned 180.00 deg",
+      "Garland leaf, left 4 at -47.99 deg (moved +0.0), v 9.858, turned 180.00 deg",
+      "Garland leaf, right 1 at 143.59 deg (moved +0.5), v 9.857, turned -180.00 deg",
+      "Garland leaf, right 2 at 171.90 deg (moved +0.0), v 9.858, turned -180.00 deg",
+      "Garland leaf, right 3 at 200.86 deg (moved +0.0), v 9.858, turned -180.00 deg",
+      "Garland leaf, right 4 at 227.99 deg (moved +0.0), v 9.858, turned -180.00 deg"
+    ],
     "leaf_at": [
       [
-        74.53125,
-        9.859880442669583
+        73.828125,
+        9.862015116325004
       ],
       [
-        105.46875,
-        9.858228664663772
+        106.171875,
+        9.858515671879793
       ]
     ],
-    "reach_mm": 42.41402758845039
+    "reach_mm": 42.41402758845039,
+    "wreath": 18
   },
   "process": "Sand (two-part)",
   "resize_check": [
@@ -332,87 +598,387 @@
   "sand": "Delft clay, 3.0 deg draft, 0.8 mm section, 0.30 mm detail",
   "size": "US 8.6",
   "slug": "ilex",
-  "stage": "block-out",
+  "stage": "full",
   "stamps": [
     {
       "along_pull": false,
       "bench": false,
       "cut": false,
-      "height_mm": 0.6,
+      "height_mm": 0.4,
       "name": "Face leaf, 1",
-      "theta_deg": 74.53125,
+      "theta_deg": 73.828125,
       "tier": 0,
-      "v_mm": 9.859880442669583
+      "v_mm": 9.862015116325004
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Face leaf veins, 1",
+      "theta_deg": 73.828125,
+      "tier": 1,
+      "v_mm": 9.862015116325004
     },
     {
       "along_pull": false,
       "bench": false,
       "cut": false,
-      "height_mm": 0.6,
+      "height_mm": 0.4,
       "name": "Face leaf, 2",
-      "theta_deg": 105.46875,
+      "theta_deg": 106.171875,
       "tier": 0,
-      "v_mm": 9.858228664663772
+      "v_mm": 9.858515671879793
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Face leaf veins, 2",
+      "theta_deg": 106.171875,
+      "tier": 1,
+      "v_mm": 9.858515671879793
     },
     {
       "along_pull": true,
       "bench": false,
       "cut": false,
-      "height_mm": 0.6,
+      "height_mm": 0.4,
       "name": "Cheek leaf 1, 1",
-      "theta_deg": 110.390625,
+      "theta_deg": 118.30078125,
       "tier": 0,
-      "v_mm": 17.534594341090422
+      "v_mm": 18.073725353041958
+    },
+    {
+      "along_pull": true,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Cheek leaf veins 1, 1",
+      "theta_deg": 118.30078125,
+      "tier": 1,
+      "v_mm": 18.073725353041958
     },
     {
       "along_pull": true,
       "bench": false,
       "cut": false,
-      "height_mm": 0.6,
+      "height_mm": 0.4,
       "name": "Cheek leaf 1, 2",
-      "theta_deg": 69.78515625,
+      "theta_deg": 61.69921875,
       "tier": 0,
-      "v_mm": 17.25219238244914
+      "v_mm": 18.073725353041958
+    },
+    {
+      "along_pull": true,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Cheek leaf veins 1, 2",
+      "theta_deg": 61.69921875,
+      "tier": 1,
+      "v_mm": 18.073725353041958
     },
     {
       "along_pull": true,
       "bench": false,
       "cut": false,
-      "height_mm": 0.6,
-      "name": "Cheek leaf 1, 3",
-      "theta_deg": 57.3046875,
-      "tier": 0,
-      "v_mm": 18.612856364993494
-    },
-    {
-      "along_pull": true,
-      "bench": false,
-      "cut": false,
-      "height_mm": 0.6,
+      "height_mm": 0.4,
       "name": "Cheek leaf 2, 1",
-      "theta_deg": 110.390625,
+      "theta_deg": 118.30078125,
       "tier": 0,
-      "v_mm": 2.182196953137168
+      "v_mm": 1.6430659411856325
+    },
+    {
+      "along_pull": true,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Cheek leaf veins 2, 1",
+      "theta_deg": 118.30078125,
+      "tier": 1,
+      "v_mm": 1.6430659411856325
     },
     {
       "along_pull": true,
       "bench": false,
       "cut": false,
-      "height_mm": 0.6,
+      "height_mm": 0.4,
       "name": "Cheek leaf 2, 2",
-      "theta_deg": 69.78515625,
+      "theta_deg": 61.69921875,
       "tier": 0,
-      "v_mm": 2.464598911778449
+      "v_mm": 1.6430659411856325
     },
     {
       "along_pull": true,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Cheek leaf veins 2, 2",
+      "theta_deg": 61.69921875,
+      "tier": 1,
+      "v_mm": 1.6430659411856325
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 1",
+      "theta_deg": 89.47265625,
+      "tier": 0,
+      "v_mm": 14.710574754677616
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 2",
+      "theta_deg": 79.8046875,
+      "tier": 0,
+      "v_mm": 14.607883133353514
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 3",
+      "theta_deg": 70.3125,
+      "tier": 0,
+      "v_mm": 14.35115408004326
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 4",
+      "theta_deg": 65.56640625,
+      "tier": 0,
+      "v_mm": 13.426929488126342
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 5",
+      "theta_deg": 66.26953125,
+      "tier": 0,
+      "v_mm": 11.655499020285582
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 7",
+      "theta_deg": 66.26953125,
+      "tier": 0,
+      "v_mm": 8.06129227394201
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 8",
+      "theta_deg": 65.56640625,
+      "tier": 0,
+      "v_mm": 6.28986180610125
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 9",
+      "theta_deg": 70.6640625,
+      "tier": 0,
+      "v_mm": 5.365637214184332
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 10",
+      "theta_deg": 79.62890625,
+      "tier": 0,
+      "v_mm": 5.108908160874075
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 11",
+      "theta_deg": 90.52734375,
+      "tier": 0,
+      "v_mm": 5.006216539549974
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 12",
+      "theta_deg": 100.1953125,
+      "tier": 0,
+      "v_mm": 5.108908160874075
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 13",
+      "theta_deg": 109.6875,
+      "tier": 0,
+      "v_mm": 5.365637214184332
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 14",
+      "theta_deg": 114.43359375,
+      "tier": 0,
+      "v_mm": 6.28986180610125
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 15",
+      "theta_deg": 113.73046875,
+      "tier": 0,
+      "v_mm": 8.06129227394201
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 17",
+      "theta_deg": 113.73046875,
+      "tier": 0,
+      "v_mm": 11.655499020285582
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 18",
+      "theta_deg": 114.43359375,
+      "tier": 0,
+      "v_mm": 13.426929488126342
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 19",
+      "theta_deg": 109.3359375,
+      "tier": 0,
+      "v_mm": 14.35115408004326
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "height_mm": 0.1,
+      "name": "Wreath leaf, 20",
+      "theta_deg": 100.37109375,
+      "tier": 0,
+      "v_mm": 14.607883133353514
+    },
+    {
+      "along_pull": false,
       "bench": false,
       "cut": false,
-      "height_mm": 0.6,
-      "name": "Cheek leaf 2, 3",
-      "theta_deg": 57.3046875,
+      "height_mm": 0.45,
+      "name": "Garland leaf, left 1",
+      "theta_deg": 36.4140625,
       "tier": 0,
-      "v_mm": 1.103934929234097
+      "v_mm": 9.859156608418267
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.41963386301350475,
+      "name": "Garland leaf, left 2",
+      "theta_deg": 8.101192308963075,
+      "tier": 0,
+      "v_mm": 9.858647865872818
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.3658521080368011,
+      "name": "Garland leaf, left 3",
+      "theta_deg": -20.855866781365975,
+      "tier": 0,
+      "v_mm": 9.85839498824005
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.342,
+      "name": "Garland leaf, left 4",
+      "theta_deg": -47.98828125,
+      "tier": 0,
+      "v_mm": 9.858397954163554
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.45,
+      "name": "Garland leaf, right 1",
+      "theta_deg": 143.5859375,
+      "tier": 0,
+      "v_mm": 9.857087586418888
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.41963386301350475,
+      "name": "Garland leaf, right 2",
+      "theta_deg": 171.89880769103692,
+      "tier": 0,
+      "v_mm": 9.858123479848047
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.3658521080368011,
+      "name": "Garland leaf, right 3",
+      "theta_deg": 200.855866781366,
+      "tier": 0,
+      "v_mm": 9.85839608838727
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.342,
+      "name": "Garland leaf, right 4",
+      "theta_deg": 227.98828125,
+      "tier": 0,
+      "v_mm": 9.858394378502165
     }
   ]
 }

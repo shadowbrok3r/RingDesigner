@@ -1,0 +1,16 @@
+{
+  "ring": "ilex",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": true,
+  "what_the_eye_sees": "Holly, at once. Straight on (face-300), two spiny, scalloped leaves lie end to end with a tight bunch of three red berries where their stems meet. That is the Christmas-card holly sprig, and nobody would call it anything else. The 'eyes and teeth' face from attempt 1 is gone. From the hero angle it still reads as holly: two pointed, spined leaves with the berry cluster between them, repeated on the head ends. The weakness now is scale and life, not identity. The sprig fills only about the middle 60% of a big, plain, polished square signet. The leaves are thin and flat, more like a stamped badge than a glossy curved blade. The cheeks and shoulders are bare metal at this size, so the ring reads as 'a signet with a holly emblem' rather than 'a holly ring'.",
+  "changes": [
+    "Face leaves: make them bigger and prouder. Grow each leaf from about 6 mm to about 7.5 x 5.5 mm long so the pair spans about 15 of the 16-17 mm table, with tips reaching within about 0.7 mm of the head ends. Raise height_mm to about 0.9 and the gable rise to about 0.45 so each blade throws a clear highlight on the midrib and a shadow along its spined margin. Acceptance: in hero-300 the leaves fill most of the table and show a lit ridge and a dark edge, not a flat cut-out.",
+    "Cheeks: strike the planned cheek sprays (three leaves and three 1.8 garnets a side) large enough to see at the hero angle. That means leaves of at least 5 x 2.6 mm and the berry cluster at the cheek's centre, not hidden near the shoulder. Acceptance: in hero-300 the visible cheek shows a second red berry bunch with spiny leaves, so the plant runs past the table.",
+    "Field separation: matte or lightly texture the table around the sprig, or deepen the tier-1 midrib cut (0.15 -> 0.3 mm), so the polished leaves part from the polished field. Acceptance: in face-300 the leaf outline stays crisp against the field without relying on the berries."
+  ],
+  "viewed_images": [
+    "showcase/vepres/ilex/hero-300.png",
+    "showcase/vepres/ilex/face-300.png"
+  ]
+}

@@ -2,6 +2,7 @@
 //! garnet berries, poured in Delft sand through the sand master.
 //! cargo build --release -p ringdesign-core --example vepres_ilex
 //! target/release/examples/vepres_ilex [OUT_DIR] [--draft] [--verify] [--blockout] [--resize-check]
+#![recursion_limit = "256"]
 use anyhow::{Context, Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign,
@@ -178,9 +179,12 @@ fn garnet(d_mm: f64) -> Gem {
 /// A holly leaf's outline, stalk at -x and tip at +x: a pointed blade whose margin dips into `bay` mm bays between
 /// `spines` sharp spines a side, each standing proud of the blade and leaning tipward, then the spined tip. Each margin
 /// is a function of x, so every line along the finger crosses the leaf once: the monotone rule by construction.
-fn holly(len: f64, wid: f64, spines: usize, bay: f64) -> Vec<[f64; 2]> {
-    let l = len;
-    let x0 = -0.5 * l;
+fn holly(len: f64, wid: f64, spines: usize, bay: f64, with_stalk: bool) -> Vec<[f64; 2]> {
+    // A short stalk at the base, an eighth of the whole and at least 0.35 mm.
+    let stalk = if with_stalk { (0.12 * len).max(0.35) } else { 0.0 };
+    let stalk_half = (0.035 * wid).max(0.15);
+    let l = len - stalk;
+    let x0 = -0.5 * len + stalk;
     let proud = 0.085 * wid;
     let w = 0.5 * wid - proud;
     // The blade: widest a little behind the middle, a short rounded base and a long point.
@@ -210,14 +214,19 @@ fn holly(len: f64, wid: f64, spines: usize, bay: f64) -> Vec<[f64; 2]> {
                 proud * (1.0 - d).max(0.0).powf(1.6)
             })
             .sum();
-        (env(x) - dip + spike).max(0.0)
+        let blade = (env(x) - dip + spike).max(0.0);
+        // The stalk runs into the blade's base.
+        let into = 1.0 - ((x - x0) / (0.06 * l)).clamp(0.0, 1.0);
+        // Its end rounded off, so no edge of the outline runs along the pull.
+        let end = ((x + 0.5 * len) / (2.0 * stalk_half)).clamp(0.0, 1.0);
+        if with_stalk { blade.max(stalk_half * into * (end * (2.0 - end)).sqrt()) } else { blade }
     };
     let step = 0.03;
-    let count = (l / step).round() as usize;
-    let upper: Vec<[f64; 2]> = (1..count).map(|i| x0 + l * i as f64 / count as f64).map(|x| [x, margin(x)]).filter(|p| p[1] > 1e-3).collect();
-    let mut out: Vec<[f64; 2]> = vec![[x0, 0.0]];
+    let count = (len / step).round() as usize;
+    let upper: Vec<[f64; 2]> = (1..count).map(|i| -0.5 * len + len * i as f64 / count as f64).map(|x| [x, margin(x)]).filter(|p| p[1] > 1e-3).collect();
+    let mut out: Vec<[f64; 2]> = vec![[-0.5 * len, 0.0]];
     out.extend(upper.iter().map(|p| [p[0], -p[1]]));
-    out.push([0.5 * l, 0.0]);
+    out.push([0.5 * len, 0.0]);
     out.extend(upper.iter().rev().copied());
     if std::env::var("ILEX_DEBUG").is_ok() {
         eprintln!("holly {len}x{wid}: {} pts, check {:?}, crossing {:?}", out.len(), ringdesign_core::outline::check(&out), ringdesign_core::outline::self_crossing(&out));
@@ -233,7 +242,7 @@ fn holly_stamp(name: &str, at: (f64, f64), len: f64, wid: f64, spines: usize, sp
         theta_deg: at.0,
         v_mm: at.1,
         rot_deg: 0.0,
-        outline: holly(len, wid, spines, spine_depth),
+        outline: holly(len, wid, spines, spine_depth, len >= 4.5),
         height_mm: height,
         sink_mm: 0.3,
         draft_deg: 4.0,
@@ -250,27 +259,28 @@ fn holly_stamp(name: &str, at: (f64, f64), len: f64, wid: f64, spines: usize, sp
 fn vein_comb(len: f64, pairs: usize, w: f64) -> Vec<[f64; 2]> {
     let h = 0.5 * w;
     let (x0, x1) = (-0.5 * len, 0.5 * len);
-    let lean = 50f64.to_radians();
-    let roots: Vec<f64> = (0..pairs).map(|i| x0 + len * (0.18 + 0.62 * i as f64 / (pairs.max(2) - 1) as f64)).collect();
-    // Laterals shorten toward the tip with the blade.
-    let reach = |x: f64| 0.30 * len * (1.0 - ((x - x0) / len - 0.35).abs() * 1.1).max(0.35);
+    let lean = 38f64.to_radians();
+    let roots: Vec<f64> = (0..pairs).map(|i| x0 + len * (0.2 + 0.58 * i as f64 / (pairs.max(2) - 1) as f64)).collect();
+    // Laterals taper to a point and shorten toward the tip with the blade; the midrib narrows to the tip.
+    let reach = |x: f64| 0.24 * len * (1.0 - ((x - x0) / len - 0.35).abs() * 1.2).max(0.35);
+    let half = |x: f64| h * (1.0 - 0.6 * ((x - x0) / len).clamp(0.0, 1.0));
     let (c, s) = (lean.cos(), lean.sin());
-    let mut lower = vec![[x0, -h * 0.6]];
+    let mut lower = vec![[x0, -h * 0.8]];
     for &x in &roots {
         let r = reach(x);
-        lower.push([x - h / s, -h]);
-        lower.push([x - h / s + r * c, -h - r * s]);
-        lower.push([x + h / s + r * c, -h - r * s]);
-        lower.push([x + h / s, -h]);
+        let hx = half(x);
+        lower.push([x - 1.2 * hx / s, -hx]);
+        lower.push([x + r * c, -hx - r * s]);
+        lower.push([x + 0.6 * hx / s, -hx]);
     }
-    lower.push([x1, -0.02]);
+    lower.push([x1, -0.03]);
     let mut out = lower.clone();
     out.extend(lower.iter().rev().skip(1).take(lower.len() - 2).map(|p| [p[0], -p[1]]));
-    out.push([x0, h * 0.6]);
+    out.push([x0, h * 0.8]);
     out
 }
 
-fn bench_veins(name: &str, leaf: &Stamp, len: f64, pairs: usize) -> Stamp {
+fn bench_veins(name: &str, leaf: &Stamp, len: f64, pairs: usize, depth: f64) -> Stamp {
     Stamp {
         name: name.into(),
         theta_deg: leaf.theta_deg,
@@ -278,7 +288,7 @@ fn bench_veins(name: &str, leaf: &Stamp, len: f64, pairs: usize) -> Stamp {
         rot_deg: leaf.rot_deg,
         outline: vein_comb(len, pairs, 0.16),
         height_mm: 0.1,
-        sink_mm: 0.15,
+        sink_mm: depth,
         draft_deg: 0.0,
         cut: true,
         bench: true,
@@ -326,17 +336,18 @@ fn berry(d: &mut RingDesign, name: &str, at: (f64, f64), gem: Gem, set: Set) {
 
 /// Away from the head's centre the parting line runs a hair off the ring's tangent, so a long leaf struck square
 /// to the tangent lifts its tip off the line. Turn it, by the least that works, until it lies along the line.
-fn level_on_line(d: &RingDesign, s: &mut Stamp) {
+fn level_on_line(d: &RingDesign, s: &mut Stamp) -> bool {
     let base = s.rot_deg;
-    for k in 0..=60 {
+    for k in 0..=40 {
         for sign in [1.0, -1.0] {
-            s.rot_deg = base + sign * 0.05 * k as f64;
+            s.rot_deg = base + sign * 0.1 * k as f64;
             if s.parting_monotone(d).is_ok() {
-                return;
+                return true;
             }
         }
     }
     s.rot_deg = base;
+    false
 }
 
 /// What was struck and where, for the report.
@@ -344,10 +355,12 @@ fn level_on_line(d: &RingDesign, s: &mut Stamp) {
 struct Placed {
     face_mm: [f64; 2],
     leaf_at: Vec<[f64; 2]>,
+    face_leaf_mm: Vec<f64>,
     berries_at: Vec<[f64; 2]>,
     folds_along_mm: Vec<f64>,
     reach_mm: f64,
     garland: Vec<String>,
+    wreath: usize,
     cheek: Vec<String>,
 }
 
@@ -374,14 +387,24 @@ fn on_cheek(a: &Atlas, x: f64, y: f64, side: f64) -> Option<(f64, f64)> {
 }
 
 /// Face berries: one on the parting line at the sprig's heart, and the cluster's other two just off it.
-const FACE_BERRIES: [(f64, f64, bool); 3] = [(0.0, 0.0, true), (-1.15, 1.95, false), (1.15, 1.95, false)];
+const FACE_BERRIES: [(f64, f64, bool); 3] = [(0.0, 0.0, true), (-1.15, 2.05, false), (1.15, 2.05, false)];
 /// The face leaves: the stalk's distance from the head's centre and the leaf's length and width, mm.
-const FACE_LEAF: (f64, f64, f64) = (1.7, 5.3, 4.4);
+const FACE_LEAF: (f64, f64, f64) = (1.45, 6.3, 5.0);
+const FACE_LEAF_HEIGHT: f64 = 0.4;
+/// The engraved wreath: inset from the table's edge, its corner radius, leaf count and leaf size, mm.
+const WREATH_INSET_MM: f64 = 1.35;
+const WREATH_CORNER_MM: f64 = 2.2;
+const WREATH_LEAVES: usize = 20;
+const WREATH_LEAF: (f64, f64) = (2.6, 1.5);
+/// Arc from the garland's first leaf to its last, mm.
+const GARLAND_SPAN_MM: f64 = 17.0;
+const FACE_LEAF_RISE: f64 = 0.75;
 
-/// A cheek spray, seen along the finger with x round the ring and y up from the axis: leaves (centre, length,
-/// width, turn of the tip from +x in degrees) round a cluster of three berries.
-const CHEEK_LEAVES: [([f64; 2], f64, f64, f64); 3] = [([-4.3, 11.6], 5.2, 3.0, 185.0), ([4.4, 12.0], 4.8, 2.7, -3.0), ([5.9, 9.2], 3.2, 2.0, -35.0)];
-const CHEEK_BERRIES: [[f64; 2]; 3] = [[-0.95, 12.6], [0.95, 12.6], [0.0, 11.5]];
+/// A cheek spray, seen along the finger with x round the ring and y up from the axis: two leaves (centre, length,
+/// width, turn of the tip from +x in degrees) either side of an arc of three berries. The wall is a crescent over
+/// the bore, so the berries ride its widest band and the leaves its lower corners.
+const CHEEK_LEAVES: [([f64; 2], f64, f64, f64); 2] = [([-5.6, 10.4], 5.5, 3.1, 204.0), ([5.6, 10.4], 5.5, 3.1, -24.0)];
+const CHEEK_BERRIES: [[f64; 2]; 3] = [[-2.05, 11.95], [0.0, 12.35], [2.05, 11.95]];
 const CHEEK_SIDES: [f64; 2] = [1.0, -1.0];
 
 fn author(face: (f64, f64), blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
@@ -391,23 +414,36 @@ fn author(face: (f64, f64), blockout: bool) -> Result<(RingDesign, AlphaLibrary,
     let hide = Hide::of(&a);
     let mut placed = Placed { face_mm: [face.0, face.1], reach_mm: hide.reach(), folds_along_mm: hide.folds(&a, 12.0), ..Default::default() };
     // The face: a sprig of two leaves end to end on the parting line, midribs on it, stalks meeting at the berries.
-    let (stalk, len, wid) = FACE_LEAF;
-    let long = if face.1 > 19.0 { 0.5 } else { 0.0 };
-    for (k, sign) in [-1.0f64, 1.0].into_iter().enumerate() {
-        let at = hide.crest_at(&a, sign * (stalk + 0.5 * (len + long)));
-        placed.leaf_at.push([at.0, at.1]);
-        if std::env::var("ILEX_DEBUG").is_ok() {
-            let p = a.point(at.0, at.1);
-            let q = a.point(at.0 + 0.5, at.1);
-            eprintln!("face leaf {k} at {at:?}: point {p:?}, 0.5 deg on {q:?}");
-        }
-        let mut leaf = holly_stamp(&format!("Face leaf, {}", k + 1), at, len + long, wid, 3, 0.55, 0.6, 0.6);
-        // The tip leads away from the heart; theta grows toward +x.
+    let (stalk, longest, wid) = FACE_LEAF;
+    // The longest leaf, in 0.1 mm steps, whose tip still lies on the line on both sides where the table turns
+    // down to its ends: one length for both, so the sprig stays symmetrical.
+    let leaf_on = |len: f64, k: usize, sign: f64| {
+        let at = hide.crest_at(&a, sign * (stalk + 0.5 * len));
+        let mut leaf = holly_stamp(&format!("Face leaf, {}", k + 1), at, len, wid, 3, 0.6, FACE_LEAF_HEIGHT, FACE_LEAF_RISE);
+        // The tip leads away from the heart; theta grows toward -x.
         leaf.rot_deg = if sign < 0.0 { 180.0 } else { 0.0 };
-        level_on_line(&d, &mut leaf);
+        if std::env::var("ILEX_DEBUG").is_ok() {
+            if let Err(bad) = leaf.parting_monotone(&d) {
+                eprintln!("face {len:.1} {sign}: {:?}", bad.iter().map(|i| leaf.outline[*i]).map(|p| [(p[0] * 100.0).round() / 100.0, (p[1] * 100.0).round() / 100.0]).collect::<Vec<_>>());
+            }
+        }
+        level_on_line(&d, &mut leaf).then_some(leaf)
+    };
+    let mut len = longest;
+    let pair = loop {
+        let both: Vec<Stamp> = [-1.0f64, 1.0].into_iter().enumerate().filter_map(|(k, sign)| leaf_on(len, k, sign)).collect();
+        if both.len() == 2 {
+            break both;
+        }
+        len -= 0.1;
+        ensure!(len > 4.4, "no face leaf lies on the line");
+    };
+    for (k, leaf) in pair.into_iter().enumerate() {
+        placed.leaf_at.push([leaf.theta_deg, leaf.v_mm]);
+        placed.face_leaf_mm.push(len);
         d.stamps.push(leaf.clone());
         if !blockout {
-            d.stamps.push(bench_veins(&format!("Face leaf veins, {}", k + 1), &leaf, (len + long) * 0.86, 4));
+            d.stamps.push(bench_veins(&format!("Face leaf veins, {}", k + 1), &leaf, len * 0.8, 4, 0.3));
         }
     }
     for (k, (x, z, line)) in FACE_BERRIES.into_iter().enumerate().filter(|(_, b)| b.2 || std::env::var("ILEX_NO_OFFLINE").is_err()) {
@@ -419,38 +455,136 @@ fn author(face: (f64, f64), blockout: bool) -> Result<(RingDesign, AlphaLibrary,
     }
     // The cheeks face the pull: a spray each side, leaves struck along it.
     for (side_k, side) in CHEEK_SIDES.into_iter().enumerate().filter(|_| std::env::var("ILEX_NO_CHEEK").is_err()) {
-        for (k, (c, len, wid, turn)) in CHEEK_LEAVES.into_iter().enumerate() {
+        for (k, (c, len, wid, turn)) in CHEEK_LEAVES.into_iter().enumerate().filter(|_| std::env::var("ILEX_NO_CHEEK_LEAF").is_err()) {
             let at = on_cheek(&a, c[0], c[1], side).with_context(|| format!("no cheek at {c:?}"))?;
-            let mut leaf = holly_stamp(&format!("Cheek leaf {}, {}", side_k + 1, k + 1), at, len, wid, 3, 0.4, 0.6, 0.25);
+            let mut leaf = holly_stamp(&format!("Cheek leaf {}, {}", side_k + 1, k + 1), at, len, wid, 3, 0.45, 0.4, 0.45);
             leaf.along_pull = true;
             // Theta runs one way round on the cheek facing +z and the other on its mirror.
             leaf.rot_deg = if side > 0.0 { turn } else { 180.0 - turn };
             placed.cheek.push(format!("{} at {:.2} deg, v {:.3}", leaf.name, at.0, at.1));
             d.stamps.push(leaf.clone());
             if !blockout {
-                d.stamps.push(bench_veins(&format!("Cheek leaf veins {}, {}", side_k + 1, k + 1), &leaf, len * 0.86, 3));
+                d.stamps.push(bench_veins(&format!("Cheek leaf veins {}, {}", side_k + 1, k + 1), &leaf, len * 0.86, 3, 0.2));
             }
         }
-        for (k, c) in CHEEK_BERRIES.into_iter().enumerate() {
+        for (k, c) in CHEEK_BERRIES.into_iter().enumerate().filter(|_| std::env::var("ILEX_NO_CHEEK_BERRY").is_err()) {
             let at = on_cheek(&a, c[0], c[1], side).with_context(|| format!("no cheek at {c:?}"))?;
             placed.cheek.push(format!("Cheek berry {}, {} at {:.2} deg, v {:.3}", side_k + 1, k + 1, at.0, at.1));
-            berry(&mut d, &format!("Cheek berry {}, {}", side_k + 1, k + 1), at, garnet(1.8), Set::Mound(2.3));
+            berry(&mut d, &format!("Cheek berry {}, {}", side_k + 1, k + 1), at, garnet(1.8), Set::Mound(2.15));
         }
     }
     if !blockout {
+        wreath(&mut d, &a, &mut placed);
+    }
+    if !blockout && std::env::var("ILEX_NO_GARLAND").is_err() {
         garland(&mut d, &a, &hide, &mut placed)?;
     }
     Ok((d, lib, placed))
 }
 
-/// Four graded leaves a side on the parting line down both shoulders.
+/// The face's frame: a wreath of small holly leaves engraved round the table's edge, tips chasing one way round,
+/// cut at the bench into the cast table so the polished sprig stands inside an engraved ground.
+fn wreath(d: &mut RingDesign, a: &Atlas, placed: &mut Placed) {
+    let (hx, hz) = (0.5 * d.shank.head.length_mm - WREATH_INSET_MM, 0.5 * d.profile.width_mm - WREATH_INSET_MM);
+    let r = WREATH_CORNER_MM.min(hx).min(hz);
+    // The rounded rectangle as a closed path, sampled by arc length.
+    let (sx, sz) = (2.0 * (hx - r), 2.0 * (hz - r));
+    let quarter = 0.5 * PI * r;
+    let total = 2.0 * (sx + sz) + 4.0 * quarter;
+    let at = |u: f64| -> ([f64; 2], [f64; 2]) {
+        let mut u = u.rem_euclid(total);
+        // Start mid-way along the +z side, running toward +x.
+        let runs: [(f64, [f64; 2], [f64; 2], Option<[f64; 2]>); 8] = [
+            (0.5 * sx, [0.0, hz], [1.0, 0.0], None),
+            (quarter, [hx - r, hz - r], [0.0, 0.0], Some([PI * 0.5, 0.0])),
+            (sz, [hx, hz - r], [0.0, -1.0], None),
+            (quarter, [hx - r, -(hz - r)], [0.0, 0.0], Some([0.0, -PI * 0.5])),
+            (sx, [hx - r, -hz], [-1.0, 0.0], None),
+            (quarter, [-(hx - r), -(hz - r)], [0.0, 0.0], Some([-PI * 0.5, -PI])),
+            (sz, [-hx, -(hz - r)], [0.0, 1.0], None),
+            (quarter, [-(hx - r), hz - r], [0.0, 0.0], Some([PI, PI * 0.5])),
+        ];
+        for (len, o, dir, arc) in runs.iter().chain(std::iter::once(&(0.5 * sx, [-(hx - r), hz], [1.0, 0.0], None))) {
+            if u <= *len + 1e-9 {
+                return match arc {
+                    None => ([o[0] + dir[0] * u, o[1] + dir[1] * u], *dir),
+                    Some([a0, a1]) => {
+                        let t = a0 + (a1 - a0) * u / len;
+                        ([o[0] + r * t.cos(), o[1] + r * t.sin()], [-(a1 - a0).signum() * t.sin(), (a1 - a0).signum() * t.cos()])
+                    }
+                };
+            }
+            u -= len;
+        }
+        ([0.0, hz], [1.0, 0.0])
+    };
+    let n = WREATH_LEAVES;
+    for k in 0..n {
+        let (p, t) = at(total * k as f64 / n as f64);
+        // The wreath parts where the sprig's leaf tips run out to the table's ends.
+        if p[1].abs() < 1.7 {
+            continue;
+        }
+        let (theta, v) = on_face(a, p[0], p[1]);
+        // Theta grows toward -x and v toward +z on the table; each leaf leans out and in by turns, like a wreath's.
+        let lean = if k % 2 == 0 { 14.0 } else { -14.0 };
+        let rot = (t[1]).atan2(-t[0]).to_degrees() + lean;
+        d.stamps.push(Stamp {
+            name: format!("Wreath leaf, {}", k + 1),
+            theta_deg: theta,
+            v_mm: v,
+            rot_deg: rot,
+            outline: holly(WREATH_LEAF.0, WREATH_LEAF.1, 2, 0.2, false),
+            height_mm: 0.1,
+            sink_mm: 0.32,
+            draft_deg: 0.0,
+            cut: true,
+            bench: true,
+            along_pull: false,
+            fine_cap: false,
+            tier: 0,
+            // Chased, not routed: the floor rises to a ridge along the midrib, so the two halves take the light apart.
+            top: StampTop::Gable { rise_mm: 0.22, axis_deg: 0.0 },
+        });
+    }
+    placed.wreath = d.stamps.iter().filter(|s| s.name.starts_with("Wreath")).count();
+}
+
+/// Four graded leaves a side on the parting line down both shoulders, clear of the folds where the line turns
+/// over the head's end walls.
 fn garland(d: &mut RingDesign, a: &Atlas, hide: &Hide, placed: &mut Placed) -> Result<()> {
-    let start = hide.crest_at(a, -(0.5 * d.shank.head.length_mm + 1.0 + 2.1));
-    let leaf = holly_stamp("Garland leaf", (0.0, 0.0), 4.2, 2.4, 3, 0.35, 0.45, 0.18);
-    let row = StampRow { stamp: leaf, path: RowPath::PartingLine, from_deg: start.0, to_deg: start.0 - 32.0, count: 4, taper: 0.24, fold_clear_mm: 1.0, mirror_shoulders: true };
+    let past_folds = placed.folds_along_mm.iter().map(|f| f.abs()).fold(0.0, f64::max) + 1.0;
+    let first = past_folds + 2.8;
+    let from = hide.crest_at(a, -first);
+    // The line runs on through theta 0: unwrap the far end below the near one.
+    let to = from.0 - (from.0 - hide.crest_at(a, -(first + GARLAND_SPAN_MM)).0).rem_euclid(360.0);
+    let mut leaf = holly_stamp("Garland leaf", (0.0, 0.0), 4.2, 2.4, 3, 0.35, 0.45, 0.18);
+    // Stations run down the shoulder toward theta 0: the tip leads away from the head.
+    leaf.rot_deg = 180.0;
+    let row = StampRow { stamp: leaf, path: RowPath::PartingLine, from_deg: from.0, to_deg: to, count: 4, taper: 0.24, fold_clear_mm: 1.0, mirror_shoulders: true };
     let struck = stamp_row(d, &row);
-    placed.garland = struck.iter().map(|s| format!("{} at {:.2} deg, v {:.3}", s.name, s.theta_deg, s.v_mm)).collect();
-    d.stamps.extend(struck);
+    if std::env::var("ILEX_DEBUG").is_ok() {
+        eprintln!("garland from {from:?} to {to:?}: {:?}", struck.iter().map(|s| (s.name.clone(), s.theta_deg, s.rot_deg)).collect::<Vec<_>>());
+        for along in [8.0, 10.0, 12.0, 14.0, 16.0, 20.0, 25.0, 30.0, 35.0, 40.0] {
+            eprintln!("  along -{along}: {:?} {:?}", hide.crest_at(a, -along), hide.crest_point(a, -along));
+        }
+    }
+    for s in struck {
+        // A station the line will not take as struck moves along it, a little at a time, until it does.
+        let nudged = [0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.0, -2.0, 2.5, -2.5, 3.0, -3.0].into_iter().find_map(|dt| {
+            let one = StampRow { stamp: Stamp { name: s.name.clone(), ..s.clone() }, from_deg: s.theta_deg + dt, to_deg: s.theta_deg + dt, count: 1, mirror_shoulders: false, fold_clear_mm: 0.0, ..row.clone() };
+            let mut m = stamp_row(d, &one).into_iter().next()?;
+            m.name = s.name.clone();
+            level_on_line(d, &mut m).then_some((m, dt))
+        });
+        match nudged {
+            Some((m, dt)) => {
+                placed.garland.push(format!("{} at {:.2} deg (moved {dt:+.1}), v {:.3}, turned {:.2} deg", m.name, m.theta_deg, m.v_mm, m.rot_deg));
+                d.stamps.push(m);
+            }
+            None => placed.garland.push(format!("{} at {:.2} deg dropped: it would not lie on the line", s.name, s.theta_deg)),
+        }
+    }
     Ok(())
 }
 
@@ -556,6 +690,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
     let stones = ringdesign_core::stones::report(d, field.parting_z_mm);
     let previewed = preview_count(d, lib);
     let inside = metal_in_stones(d, &built.mesh);
+    let closest_gap = stones.as_ref().and_then(|s| s.closest.as_ref()).map_or(f64::MAX, |p| p.gap_mm.min(p.gap_deep_mm));
     let closest = stones.as_ref().and_then(|s| s.closest.as_ref()).map(|p| format!("{} to {}: {:.2} mm at the girdle, {:.2} mm deep", p.a, p.b, p.gap_mm, p.gap_deep_mm));
     let mut warnings: Vec<String> = stones.iter().flat_map(|s| s.seats.iter().flat_map(|seat| seat.warnings.iter().cloned())).collect();
     warnings.dedup();
@@ -575,6 +710,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         && monotone.iter().all(|(_, ok)| *ok)
         && findings.is_empty()
         && reported == previewed
+        && closest_gap >= 0.1
         && inside.iter().all(|(_, n)| *n == 0)
         && built.mesh.faces.len() <= 2_000_000;
     let g = json!({
@@ -600,6 +736,10 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         "thinnest_wall_mm": field.thinnest_wall_mm,
         "release_0100": release_line(coarse_release),
         "release_0100_obstructions": coarse_release.obstructions.len(),
+        "release_0100_status_why": "Review, not Clear, with 0 obstructions: the factory table and bore walls carry under the sand's 3 deg draft (the bare stock reports the same). See the notes.",
+        "release_0100_low_draft_area_mm2": coarse_release.low_draft_area_mm2,
+        "release_0100_sand_findings": coarse_release.sand_findings.iter().map(|f| format!("{} at [{:.2}, {:.2}, {:.2}]", f.message, f.point[0], f.point[1], f.point[2])).collect::<Vec<_>>(),
+        "release_0100_notes": coarse_release.notes,
         "release_0100_unresolved": coarse_release.unresolved_rays,
         "release_0075": release_line(&fine),
         "release_0075_obstructions": fine.obstructions.len(),
