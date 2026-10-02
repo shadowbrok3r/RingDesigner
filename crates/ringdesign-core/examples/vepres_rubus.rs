@@ -5,7 +5,7 @@
 //! target/release/examples/vepres_rubus [OUT_DIR] [--draft] [--verify] [--blockout]
 use anyhow::{Result, ensure};
 use ringdesign_core::{
-    AlphaLibrary, BuildParams, FieldContext, ProfileStyle, RingDesign,
+    AlphaLibrary, BuildParams, ProfileStyle, RingDesign,
     cad::{self, Attach, Component, ComponentRole, Document, Feature, FeatureStatus, Operation, PatternKind, Placement, Stage, SurfaceKind, stored},
     castability,
     csg, dfm,
@@ -13,9 +13,9 @@ use ringdesign_core::{
     field::{Blend, FluteProfile, FlutesLayer, Layer, LayerEntry, SIDE_FACE_MIN_DRAFT_DEG, SideFacePick, SurfaceProfile, VGate, Window},
     library, mesh,
     outline::{self, Margin},
-    profile::{REFERENCE_PROFILE_STEPS, ShankKey, ShankKind},
+    profile::{MAX_PROFILE_STEPS, REFERENCE_PROFILE_STEPS, ShankKey, ShankKind},
     render,
-    setting::{self, Stamp, StampTop},
+    setting,
     stl,
     sketch::{Geometry, Sketch, Workplane},
 };
@@ -30,6 +30,8 @@ mod probe;
 const BORE_MM: f64 = 18.6;
 /// The lost-wax section floor the brief sets for a sand ring moved to wax.
 const MIN_SECTION_MM: f64 = 0.8;
+/// The investment's detail floor.
+const MIN_DETAIL_MM: f64 = 0.15;
 /// Seven leaf nodes, the first on the crest.
 const NODES: usize = 7;
 const NODE0_DEG: f64 = 90.0;
@@ -55,47 +57,48 @@ const SMALL_SPAN_DEG: f64 = 154.285_714;
 const PRICKLE_SINK_MM: f64 = 0.35;
 /// Sides of each prickle's foot polygon.
 const PRICKLE_SIDES: usize = 24;
-const PRICKLE_BLEAD_MM: f64 = 0.2;
+const PRICKLE_BLEAD_MM: f64 = 0.0;
 /// The shoulder prickles grow out of the bark on a fuller bead.
-const SMALL_BLEND_MM: f64 = 0.2;
+const SMALL_BLEND_MM: f64 = 0.0;
 /// The runner: a round wire on both side faces, filling this share of the face.
 const RUNNER_W_MM: f64 = 1.1;
 const RUNNER_H_MM: f64 = 0.55;
 const RUNNER_FILL: f64 = 0.7;
 /// The side-face trifoliate leaf: each leaflet's (length, width, centre's reach from the foot), the laterals'
 /// spread off the terminal, the teeth's depth, eaves height and fold.
-const SIDE_TERMINAL: (f64, f64, f64) = (3.6, 1.7, 1.9);
-const SIDE_LATERAL: (f64, f64, f64) = (2.5, 1.05, 1.25);
-const SIDE_SPREAD_DEG: f64 = 24.0;
+const SIDE_TERMINAL: (f64, f64, f64) = (4.4, 1.6, 2.3);
+const SIDE_LATERAL: (f64, f64, f64) = (3.0, 1.0, 1.5);
+const SIDE_SPREAD_DEG: f64 = 20.0;
 const SIDE_TEETH_MM: f64 = 0.2;
 const SIDE_HIGH_MM: f64 = 0.55;
-const SIDE_RISE_MM: f64 = 0.28;
+const SIDE_RISE_MM: f64 = 0.2;
+/// How far each leaf is sunk into its face, and its midribs' width.
+const LEAF_SINK_MM: f64 = 0.25;
+const LEAF_RIB_MM: f64 = 0.42;
 /// The shoulder blackberries: length out of the cane, width, how far the foot is sunk, where they stand across
 /// the crown and how far they lean out over the side face, their seam bead.
 const BERRY3_LEN_MM: f64 = 3.8;
 const BERRY3_W_MM: f64 = 3.5;
-const BERRY3_LIFT_MM: f64 = 0.9;
+/// The stalk: its arc's length out of the cane, its further bend down the side face; the berry's foot sinks
+/// this far over the stalk's end.
+const STALK_LEN_MM: f64 = 1.4;
+const STALK_BEND_DEG: f64 = 28.0;
+const BERRY3_SINK_MM: f64 = 0.3;
 /// Drupelets over the whole berry, and how deep the valleys between them run as a share of its radius; the
 /// stored mesh's rings and segments, held coarse so the template stays light.
 const DRUPELETS: usize = 36;
 const DRUPELET_DEPTH: f64 = 0.14;
 const BERRY_RINGS: usize = 28;
 const BERRY_AROUND: usize = 56;
-const PALM_RINGS: usize = 20;
-const PALM_AROUND: usize = 40;
 /// The stalk each berry hangs on: radius, and how far it reaches into the cane under the seat.
-const STALK_R_MM: f64 = 0.43;
+const STALK_R_MM: f64 = 0.42;
 const STALK_ROOT_MM: f64 = 0.713;
-/// The palm's smaller berries, lying on the side faces at the two palm nodes.
-const PALM_BERRY: (f64, f64) = (2.7, 2.5);
-const PALM_ACROSS_MM: f64 = 3.2;
-const PALM_CANT_DEG: f64 = 78.0;
 /// The bark: ribs across the band, their width and height, the crown band they fill and the arc of crest.
-const BARK_RIBS: u32 = 28;
+const BARK_RIBS: u32 = 22;
 const BARK_RIB_MM: f64 = 0.22;
-const BARK_HIGH_MM: f64 = 0.07;
-const BARK_BAND_MM: f64 = 1.4;
-const BARK_SPAN_DEG: f64 = 190.0;
+const BARK_HIGH_MM: f64 = 0.045;
+const BARK_BAND_MM: f64 = 5.4;
+const BARK_SPAN_DEG: f64 = 200.0;
 const BERRY3_ACROSS_MM: f64 = 3.0;
 const BERRY3_CANT_DEG: f64 = 55.0;
 /// The high shoulder's berry stands this far back of the node and the low one's this far ahead, clear of the
@@ -104,10 +107,10 @@ const BERRY3_STAGGER_DEG: f64 = 9.37;
 /// The calyx under each berry: across its sepal tips, its thickness, its height over the seat.
 const CALYX3_MM: f64 = 4.2;
 /// Sepal thickness at the root and at the tip, how far the tips curl up the berry; the mesh's resolution.
-const CALYX3_ROOT_MM: f64 = 0.9;
-const CALYX3_TIP_MM: f64 = 0.35;
+const CALYX3_ROOT_MM: f64 = 0.65;
+const CALYX3_TIP_MM: f64 = 0.25;
 const CALYX3_CURL_MM: f64 = 0.5;
-const CALYX_AROUND: usize = 50;
+const CALYX_AROUND: usize = 40;
 const CALYX_RINGS: usize = 3;
 
 fn draft_params() -> BuildParams {
@@ -183,7 +186,7 @@ struct Hook {
 }
 
 const LARGE: Hook = Hook { along: 2.8, across: 1.5, radial: 1.3, bend_r: 2.7, bend_deg: 55.0, end_scale: 0.26 };
-const SMALL: Hook = Hook { along: 2.2, across: 1.2, radial: 0.7, bend_r: 1.8, bend_deg: 50.0, end_scale: 0.32 };
+const SMALL: Hook = Hook { along: 2.2, across: 1.2, radial: 0.7, bend_r: 1.8, bend_deg: 50.0, end_scale: 0.46 };
 
 /// A closed ellipse as a polyline, centred on the sketch origin: `a` mm full along the path's turn (round the
 /// ring), `b` mm across it (along the finger).
@@ -227,18 +230,9 @@ fn prickles(d: &mut RingDesign) -> Result<()> {
     doc.append(Feature { id: 3, name: "Large prickles on the upper nodes".into(), enabled: true, operation: Operation::Pattern { sources: 2.into(), kind: PatternKind::Ring { count: 5, span_deg: LARGE_SPAN_DEG } }, component: array.clone() })?;
     doc.append(Feature { id: 4, name: "Small prickle, high shoulder".into(), enabled: true, operation: prickle(SMALL), component: Component { blend_mm: SMALL_BLEND_MM, ..seated_at(SMALL_DEG - SMALL_STAGGER_DEG, SMALL_ACROSS_MM, SMALL_CANT_DEG, -PRICKLE_SINK_MM) } })?;
     doc.append(Feature { id: 5, name: "Small prickle, low shoulder".into(), enabled: true, operation: prickle(SMALL), component: Component { blend_mm: SMALL_BLEND_MM, ..seated_at(SMALL_DEG + SMALL_STAGGER_DEG, -SMALL_ACROSS_MM, -SMALL_CANT_DEG, -PRICKLE_SINK_MM) } })?;
-    doc.append(Feature { id: 6, name: "Small prickles between the upper nodes".into(), enabled: true, operation: Operation::Pattern { sources: ringdesign_core::cad::pattern::Sources(vec![4, 5]), kind: PatternKind::Ring { count: 4, span_deg: SMALL_SPAN_DEG } }, component: array })?;
+    doc.append(Feature { id: 6, name: "Small prickles between the upper nodes".into(), enabled: true, operation: Operation::Pattern { sources: ringdesign_core::cad::pattern::Sources(vec![4, 5]), kind: PatternKind::Ring { count: 4, span_deg: SMALL_SPAN_DEG } }, component: Component { blend_mm: SMALL_BLEND_MM, ..array } })?;
     d.cad = Some(doc);
     Ok(())
-}
-
-/// The side faces at `theta` in the chart's v, low and high, from P5's station-aware gates.
-fn faces_at(ctx: &FieldContext, theta: f64) -> Result<((f64, f64), (f64, f64))> {
-    let f = ctx.side_faces_at(theta).ok_or_else(|| anyhow::anyhow!("no side faces at {theta:.1} deg"))?;
-    match (f.low, f.high) {
-        (Some(l), Some(h)) => Ok((l, h)),
-        _ => anyhow::bail!("one side face missing at {theta:.1} deg"),
-    }
 }
 
 /// The runner: one arch per internode cell, cresting toward the crown at each node, on both side faces.
@@ -327,7 +321,7 @@ fn union_outline(polys: &[Vec<[f64; 2]>], h: f64, spacing: f64) -> Result<Vec<[f
     }
     let mut pts: Vec<[f64; 2]> = best.iter().map(|&(a, b)| [lo[0] + a as f64 * 0.5 * h, lo[1] + b as f64 * 0.5 * h]).collect();
     // The grid's stair-steps smoothed away: a few passes of neighbour averaging, gentler than a tooth.
-    for _ in 0..4 {
+    for _ in 0..7 {
         let n = pts.len();
         pts = (0..n).map(|k| {
             let (a, b, c) = (pts[(k + n - 1) % n], pts[k], pts[(k + 1) % n]);
@@ -368,64 +362,79 @@ fn trifoliate() -> Result<Vec<[f64; 2]>> {
     let (ll, lw, lr) = SIDE_LATERAL;
     let terminal = outline::leaf(Margin::Serrate { teeth: 6, depth_mm: SIDE_TEETH_MM, lean_deg: 35.0 }, tl, tw);
     let lateral = outline::leaf(Margin::Serrate { teeth: 5, depth_mm: SIDE_TEETH_MM, lean_deg: 35.0 }, ll, lw);
-    union_outline(&[placed(&terminal, 0.0, tr), placed(&lateral, SIDE_SPREAD_DEG, lr), placed(&lateral, -SIDE_SPREAD_DEG, lr)], 0.02, 0.095)
+    union_outline(&[placed(&terminal, 0.0, tr), placed(&lateral, SIDE_SPREAD_DEG, lr), placed(&lateral, -SIDE_SPREAD_DEG, lr)], 0.02, 0.0995)
 }
 
-/// One trifoliate leaf per internode on each side face, laid over the runner where it has swung to the bore edge
-/// and along its slope there, pointing back down the cane, folded on the terminal's midrib.
-fn leaflets(d: &mut RingDesign, run: &CurveLayer) -> Result<Vec<serde_json::Value>> {
-    let ctx = d.field_context();
-    let path = run.sample_path(32);
-    let r = d.inner_radius_mm() + 0.5 * d.profile.thickness_mm;
+/// A closed polyline sketch on `plane` through `points` (in the plane's own x, y).
+fn poly_sketch(name: &str, plane: Workplane, points: &[[f64; 2]]) -> Sketch {
+    let mut s = Sketch { plane, ..Sketch::default() };
+    s.name = name.into();
+    let ids: Vec<_> = points.iter().map(|p| s.point(*p)).collect();
+    s.entity(Geometry::Polyline { points: ids, closed: true });
+    s
+}
+
+/// The side face's plane at `theta`: its z on the `side` (+1 high, -1 low) and its run in r, from the section.
+fn side_face(d: &RingDesign, theta: f64, side: f64) -> (f64, f64, f64) {
+    let reference = d.reference_loop();
+    let l = d.section_at(theta, MAX_PROFILE_STEPS, None, Some(&reference));
+    let z = l.pts.iter().filter(|p| p.surface).map(|p| side * p.z).fold(f64::MIN, f64::max);
+    // The flat run: every surface point within 0.02 mm of the face's plane.
+    let run: Vec<f64> = l.pts.iter().filter(|p| p.surface && (side * p.z - z).abs() < 0.02).map(|p| p.r).collect();
+    let (r0, r1) = run.iter().fold((f64::MAX, f64::MIN), |(a, b), &r| (a.min(r), b.max(r)));
+    (side * z, r0, r1)
+}
+
+/// The trifoliate leaf on each side face of the first internode, a true outline extruded square out of the face
+/// with a raised midrib down each leaflet, then the same parts again at every internode round the ring. Built as
+/// parts, in the face's own plane, so the margin's teeth are the outline's own edges and not a charted relief.
+fn leaves(d: &mut RingDesign) -> Result<serde_json::Value> {
+    let theta = (NODE0_DEG + 0.5 * STEP_DEG).rem_euclid(360.0);
     let leaf = trifoliate()?;
     let (tl, _, tr) = SIDE_TERMINAL;
-    let mut out = Vec::new();
-    for k in 0..NODES {
-        let mid = (node_deg(k) + 0.5 * STEP_DEG).rem_euclid(360.0);
-        let (lo, hi) = faces_at(&ctx, mid)?;
-        // The runner's slope in the chart at the internode: the leaf lies along it.
-        let x = (mid / STEP_DEG).fract();
-        let near = |x: f64| {
-            path.iter()
-                .min_by(|a, b| {
-                    let da = (a[0] - x).rem_euclid(1.0).min((x - a[0]).rem_euclid(1.0));
-                    let db = (b[0] - x).rem_euclid(1.0).min((x - b[0]).rem_euclid(1.0));
-                    da.total_cmp(&db)
-                })
-                .copied()
-                .unwrap_or([x, 0.0])
+    let (ll, _, lr) = SIDE_LATERAL;
+    let ribs = [placed(&outline::lanceolate(tl * 0.8, LEAF_RIB_MM, 0.3), 0.0, tr), placed(&outline::lanceolate(ll * 0.75, LEAF_RIB_MM, 0.3), SIDE_SPREAD_DEG, lr), placed(&outline::lanceolate(ll * 0.75, LEAF_RIB_MM, 0.3), -SIDE_SPREAD_DEG, lr)];
+    let (s, c) = theta.to_radians().sin_cos();
+    let (er, eth) = ([c, s, 0.0], [-s, c, 0.0]);
+    let mut record = Vec::new();
+    let mut parts = Vec::new();
+    let free = Component { attach: Attach::Join, stage: Stage::Cast, ..Component::default() };
+    for (side, name) in [(1.0, "high"), (-1.0, "low")] {
+        let (z, r0, r1) = side_face(d, theta, side);
+        let r_mid = 0.5 * (r0 + r1);
+        // The leaf's foot sits up the cane from the internode so the leaf centres on it, pointing back down it.
+        let foot = 0.5 * (tr + 0.5 * tl);
+        // The plane: x and y in the face, its normal out of it; plan x (the terminal) runs back round the ring.
+        let (x, y) = if side > 0.0 { (er, eth) } else { (eth, er) };
+        let to_sketch = |p: [f64; 2]| {
+            let (along, radial) = (foot - p[0], p[1]);
+            if side > 0.0 { [radial, along] } else { [along, radial] }
         };
-        let (a, b) = (near(x - 0.02), near(x + 0.02));
-        let slope = ((b[1] - a[1]) / (0.04 * ctx.circumference_mm / NODES as f64)).atan().to_degrees();
-        for (face, (a0, a1)) in [("low", lo), ("high", hi)] {
-            let v_mid = 0.5 * (a0 + a1);
-            let (sx, sy) = chart_signs(d, &ctx, mid, v_mid);
-            // The foot sits up the cane from the internode so the whole leaf centres on it, pointing back.
-            let h = (180.0 + slope).to_radians();
-            let theta = (mid + (0.5 * (tr + 0.5 * tl) / r).to_degrees()).rem_euclid(360.0);
-            let rot = (sy * h.sin()).atan2(sx * h.cos()).to_degrees();
-            let mut st = stamp(format!("Side leaf, {}", out.len() + 1), theta, v_mid, rot, leaf.clone(), SIDE_HIGH_MM, StampTop::Gable { rise_mm: SIDE_RISE_MM, axis_deg: 0.0 });
-            st.along_pull = true;
-            // Wax needs no draft, and drafted walls close up across the narrow sinuses between leaflets.
-            st.draft_deg = 0.0;
-            d.stamps.push(st);
-            out.push(json!({"internode_deg": mid, "face": face, "face_mm": [a0, a1], "slope_deg": slope}));
+        let base = z - side * LEAF_SINK_MM;
+        let plane = |lift: f64| Workplane { origin: [r_mid * c, r_mid * s, base + side * lift], x, y, ..Default::default() };
+        let doc = d.cad.as_mut().ok_or_else(|| anyhow::anyhow!("no CAD document"))?;
+        let mut add = |n: String, op: Operation| -> Result<u64> {
+            let id = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
+            doc.append(Feature { id, name: n, enabled: true, operation: op, component: free.clone() })?;
+            Ok(id)
+        };
+        let pts: Vec<[f64; 2]> = leaf.iter().map(|&p| to_sketch(p)).collect();
+        parts.push(add(format!("Bramble leaf, {name} face"), Operation::Extrude { sketch: poly_sketch("Trifoliate leaf", plane(0.0), &pts).into(), height_mm: LEAF_SINK_MM + SIDE_HIGH_MM, draft_deg: 0.0 })?);
+        // Each midrib on planes of its own: where they meet at the foot, shared planes would make the union degenerate.
+        for (k, rib) in ribs.iter().enumerate() {
+            let pts: Vec<[f64; 2]> = rib.iter().map(|&p| to_sketch(p)).collect();
+            parts.push(add(format!("Bramble leaf, {name} face: midrib {}", k + 1), Operation::Extrude { sketch: poly_sketch("Midrib", plane(LEAF_SINK_MM + SIDE_HIGH_MM - 0.12 - 0.013 * k as f64), &pts).into(), height_mm: SIDE_RISE_MM + 0.12 + 0.007 * k as f64, draft_deg: 0.0 })?);
         }
+        record.push(json!({"face": name, "z_mm": z, "face_r_mm": [r0, r1]}));
+        let _ = name;
     }
-    Ok(out)
-}
-
-fn stamp(name: String, theta: f64, v: f64, rot: f64, outline: Vec<[f64; 2]>, height: f64, top: StampTop) -> Stamp {
-    Stamp { name, theta_deg: theta, v_mm: v, rot_deg: rot, outline, height_mm: height, sink_mm: 0.25, draft_deg: 3.0, cut: false, bench: false, along_pull: false, tier: 0, top, fine_cap: true }
-}
-
-/// The signs that carry a stamp's own x (along) and y (across) onto the chart's theta and v at `(theta, v)`.
-fn chart_signs(d: &RingDesign, ctx: &FieldContext, theta: f64, v: f64) -> (f64, f64) {
-    let at = |t: f64, w: f64| stamp(String::new(), t, w, 0.0, outline::circle(1.0), 0.1, StampTop::Flat).frame(d, ctx);
-    let f = at(theta, v);
-    let (ft, fv) = (at(theta + 1.0, v), at(theta, v + 0.3));
-    let dot = |a: [f64; 3], b: [f64; 3], o: [f64; 3]| (0..3).map(|i| (a[i] - o[i]) * b[i]).sum::<f64>();
-    (dot(ft.origin, f.x, f.origin).signum(), dot(fv.origin, f.y, f.origin).signum())
+    let doc = d.cad.as_mut().ok_or_else(|| anyhow::anyhow!("no CAD document"))?;
+    let id = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
+    doc.append(Feature { id, name: "Bramble leaves at every internode".into(), enabled: true, operation: Operation::Pattern { sources: ringdesign_core::cad::pattern::Sources(parts), kind: PatternKind::Ring { count: NODES as u32, span_deg: 360.0 } }, component: free })?;
+    // The outlines' finest strokes, the design-time measure of a relief's narrowest land.
+    let finest = |o: &[[f64; 2]]| dfm::stamp_finest_mm(o, MIN_DETAIL_MM).unwrap_or(f64::NAN);
+    let span = leaf.iter().fold((f64::MAX, f64::MIN), |(a, b), p| (a.min(p[1]), b.max(p[1])));
+    Ok(json!({"faces": record, "leaf_radial_span_mm": span.1 - span.0, "leaf_finest_mm": finest(&leaf), "midrib_finest_mm": ribs.iter().map(|r| finest(r)).fold(f64::MAX, f64::min), "leaf_thick_mm": SIDE_HIGH_MM + LEAF_SINK_MM, "midrib_thick_mm": SIDE_RISE_MM + 0.12}))
 }
 
 // --- Blackberries as parts ------------------------------------------------------------------------------
@@ -534,28 +543,6 @@ fn calyx_solid(outer: f64, inner: f64, root: f64, tip: f64, curl: f64, z0: f64) 
     s
 }
 
-/// A round stalk along z from `z0` to `z1`, capped.
-fn stalk_solid(r: f64, z0: f64, z1: f64) -> csg::Solid {
-    let n = 16;
-    let mut s = csg::Solid::default();
-    s.v.push([0.0, 0.0, z0]);
-    s.v.push([0.0, 0.0, z1]);
-    for z in [z0, z1] {
-        for j in 0..n {
-            let a = 2.0 * PI * j as f64 / n as f64;
-            s.v.push([r * a.cos(), r * a.sin(), z]);
-        }
-    }
-    let (b, t) = (|j: usize| (2 + j % n) as u32, |j: usize| (2 + n + j % n) as u32);
-    for j in 0..n {
-        s.f.push([0, b(j + 1), b(j)]);
-        s.f.push([1, t(j), t(j + 1)]);
-        s.f.push([b(j), b(j + 1), t(j + 1)]);
-        s.f.push([b(j), t(j + 1), t(j)]);
-    }
-    s
-}
-
 fn stored_op(solid: &csg::Solid, op: &str, params: serde_json::Value) -> Result<Operation> {
     Ok(Operation::Stored {
         recipe: stored::Recipe { kernel: "vepres_rubus".into(), op: op.into(), params, digest: String::new() },
@@ -564,82 +551,109 @@ fn stored_op(solid: &csg::Solid, op: &str, params: serde_json::Value) -> Result<
     })
 }
 
-/// A blackberry hanging on its stalk from its calyx on each shoulder of the first upper node, staggered either
-/// side of it, then the six parts again on the other four upper nodes: ten berries, each hanging out over its
-/// side face. Then a smaller berry lying on each side face at the first palm node, and again at the second.
+/// `s` turned `phi` about the part frame's y (along the ring), then moved to `at`.
+fn turned(mut s: csg::Solid, phi: f64, at: P3) -> csg::Solid {
+    let (sn, cs) = phi.sin_cos();
+    for v in &mut s.v {
+        let (x, z) = (v[0], v[2]);
+        *v = [x * cs + z * sn + at[0], v[1] + at[1], -x * sn + z * cs + at[2]];
+    }
+    s
+}
+
+/// A round stalk rising `root` mm out of the cane along z, then bending `phi` about y over an arc `len` long;
+/// returns it with its end point, where the calyx and berry seat at the same turn.
+fn bent_stalk(r: f64, root: f64, len: f64, phi: f64) -> (csg::Solid, P3) {
+    let rr = len / phi.abs().max(1e-6);
+    let centre = |a: f64| [phi.signum() * rr * (1.0 - a.abs().cos()), 0.0, rr * a.abs().sin()];
+    let mut line: Vec<(P3, f64)> = vec![([0.0, 0.0, -root], 0.0)];
+    let steps = 10;
+    line.extend((0..=steps).map(|k| {
+        let a = phi * k as f64 / steps as f64;
+        (centre(a), a)
+    }));
+    let n = 12;
+    let mut s = csg::Solid::default();
+    s.v.push(line[0].0);
+    s.v.push(line[line.len() - 1].0);
+    for &(c, a) in &line {
+        let (sa, ca) = a.sin_cos();
+        let x = [ca, 0.0, -sa];
+        for j in 0..n {
+            let u = 2.0 * PI * j as f64 / n as f64;
+            s.v.push([c[0] + r * (u.cos() * x[0]), c[1] + r * u.sin(), c[2] + r * (u.cos() * x[2])]);
+        }
+    }
+    let m = line.len();
+    let ring = |i: usize, j: usize| (2 + i * n + j % n) as u32;
+    for j in 0..n {
+        s.f.push([0, ring(0, j + 1), ring(0, j)]);
+        s.f.push([1, ring(m - 1, j), ring(m - 1, j + 1)]);
+    }
+    for i in 0..m - 1 {
+        for j in 0..n {
+            s.f.push([ring(i, j), ring(i, j + 1), ring(i + 1, j + 1)]);
+            s.f.push([ring(i, j), ring(i + 1, j + 1), ring(i + 1, j)]);
+        }
+    }
+    (s, line[m - 1].0)
+}
+
+/// A blackberry hanging on a bent stalk from its calyx on each shoulder of the first upper node, staggered either
+/// side of it, the stalk turning it a further `STALK_BEND_DEG` down the side face, then the six parts again on the
+/// other four upper nodes: ten berries. The palm stays bare for wear.
 fn berries(d: &mut RingDesign) -> Result<()> {
     let (hl, hw) = (0.5 * BERRY3_LEN_MM, 0.5 * BERRY3_W_MM);
-    let berry = berry_solid(hl, hw, -BERRY3_LIFT_MM, (BERRY_RINGS, BERRY_AROUND));
-    let calyx = calyx_solid(CALYX3_MM, hw * 0.5, CALYX3_ROOT_MM, CALYX3_TIP_MM, CALYX3_CURL_MM, BERRY3_LIFT_MM + 0.137);
-    let stalk = stalk_solid(STALK_R_MM, -STALK_ROOT_MM, BERRY3_LIFT_MM + 0.413);
-    let palm = berry_solid(0.5 * PALM_BERRY.0, 0.5 * PALM_BERRY.1, 0.35, (PALM_RINGS, PALM_AROUND));
     // Parts seated on parts: no seam bead, which would fold between berry, calyx and stalk.
     let joined = |theta: f64, across: f64, cant: f64| Component { blend_mm: 0.0, ..seated_at(theta, across, cant, 0.0) };
     let doc = d.cad.as_mut().ok_or_else(|| anyhow::anyhow!("no CAD document"))?;
-    let params = json!({"length_mm": BERRY3_LEN_MM, "width_mm": BERRY3_W_MM, "lift_mm": BERRY3_LIFT_MM, "drupelets": DRUPELETS, "depth": DRUPELET_DEPTH});
+    let params = json!({"length_mm": BERRY3_LEN_MM, "width_mm": BERRY3_W_MM, "stalk_mm": STALK_LEN_MM, "bend_deg": STALK_BEND_DEG, "drupelets": DRUPELETS, "depth": DRUPELET_DEPTH});
     let calyx_params = json!({"across_mm": CALYX3_MM, "root_mm": CALYX3_ROOT_MM, "tip_mm": CALYX3_TIP_MM, "curl_mm": CALYX3_CURL_MM});
-    let stalk_params = json!({"radius_mm": STALK_R_MM});
     let mut sources = Vec::new();
     for (id, side, name, theta) in [(7u64, 1.0, "high", LARGE_FROM_DEG - BERRY3_STAGGER_DEG), (10, -1.0, "low", LARGE_FROM_DEG + BERRY3_STAGGER_DEG)] {
         let (across, cant) = (side * BERRY3_ACROSS_MM, side * BERRY3_CANT_DEG);
-        doc.append(Feature { id, name: format!("Stalk, {name} shoulder"), enabled: true, operation: stored_op(&stalk, "stalk", stalk_params.clone())?, component: joined(theta, across, cant) })?;
+        // The bend carries on the cant's lean: toward the part frame's -x on the high shoulder, +x on the low.
+        let phi = -side * STALK_BEND_DEG.to_radians();
+        let (stalk, end) = bent_stalk(STALK_R_MM, STALK_ROOT_MM, STALK_LEN_MM, phi);
+        let berry = turned(berry_solid(hl, hw, BERRY3_SINK_MM, (BERRY_RINGS, BERRY_AROUND)), phi, end);
+        let calyx = turned(calyx_solid(CALYX3_MM, hw * 0.5, CALYX3_ROOT_MM, CALYX3_TIP_MM, CALYX3_CURL_MM, 0.037), phi, end);
+        doc.append(Feature { id, name: format!("Stalk, {name} shoulder"), enabled: true, operation: stored_op(&stalk, "stalk", json!({"radius_mm": STALK_R_MM, "length_mm": STALK_LEN_MM, "bend_deg": STALK_BEND_DEG, "side": name}))?, component: joined(theta, across, cant) })?;
         doc.append(Feature { id: id + 1, name: format!("Blackberry, {name} shoulder"), enabled: true, operation: stored_op(&berry, "blackberry", params.clone())?, component: joined(theta, across, cant) })?;
         doc.append(Feature { id: id + 2, name: format!("Calyx, {name} shoulder"), enabled: true, operation: stored_op(&calyx, "calyx", calyx_params.clone())?, component: joined(theta, across, cant) })?;
         sources.extend([id, id + 1, id + 2]);
     }
-    let array = Component { attach: Attach::Join, stage: Stage::Cast, ..Component::default() };
     doc.append(Feature {
         id: 13,
         name: "Blackberries on the upper nodes".into(),
         enabled: true,
         operation: Operation::Pattern { sources: ringdesign_core::cad::pattern::Sources(sources), kind: PatternKind::Ring { count: 5, span_deg: LARGE_SPAN_DEG } },
-        component: array.clone(),
-    })?;
-    let palm_params = json!({"length_mm": PALM_BERRY.0, "width_mm": PALM_BERRY.1, "drupelets": DRUPELETS, "depth": DRUPELET_DEPTH});
-    for (id, side, name) in [(14u64, 1.0, "high"), (15, -1.0, "low")] {
-        doc.append(Feature { id, name: format!("Palm blackberry, {name} face"), enabled: true, operation: stored_op(&palm, "blackberry", palm_params.clone())?, component: joined(node_deg(3), side * PALM_ACROSS_MM, side * PALM_CANT_DEG) })?;
-    }
-    doc.append(Feature {
-        id: 16,
-        name: "Blackberries on the palm nodes".into(),
-        enabled: true,
-        operation: Operation::Pattern { sources: ringdesign_core::cad::pattern::Sources(vec![14, 15]), kind: PatternKind::Ring { count: 2, span_deg: STEP_DEG } },
-        component: array,
+        component: Component { attach: Attach::Join, stage: Stage::Cast, ..Component::default() },
     })?;
     Ok(())
 }
 
-/// Cane bark on the upper crest: fine ribs running round the ring down the crown's middle, fading out well short of
-/// the shoulder prickles' feet (bark under a seam bead folds it) and before the palm, so the crest between prickles is never bare polish and the palm stays smooth.
+/// Cane bark over the upper crown: low, soft ribs running round the ring (true to it: a drift off true leaves
+/// degenerate faces where the ribs meet the parts), faded out before the palm, which stays smooth for wear.
 fn bark(d: &mut RingDesign) {
     let ctx = d.field_context();
-    let f = FlutesLayer { count: BARK_RIBS, profile: FluteProfile::Vee, width_mm: BARK_RIB_MM, height_mm: BARK_HIGH_MM, lean: 0.0, along: true };
-    let mut e = LayerEntry::new("Cane bark", Layer::Flutes(f));
+    let crown = FlutesLayer { count: BARK_RIBS, profile: FluteProfile::Vee, width_mm: BARK_RIB_MM, height_mm: BARK_HIGH_MM, lean: 0.0, along: true };
+    let mut e = LayerEntry::new("Cane bark", Layer::Flutes(crown));
     e.window = Window::around(NODE0_DEG, BARK_SPAN_DEG);
-    e.window.v_gate = VGate::Band { center_mm: ctx.crest_v_mm, span_mm: BARK_BAND_MM, fade_mm: 0.25 };
+    e.window.v_gate = VGate::Band { center_mm: ctx.crest_v_mm, span_mm: BARK_BAND_MM, fade_mm: 0.5 };
     d.layers.layers.push(e);
 }
 
-/// Every stamp outline held to the micron: the saved design and its template carry no float noise.
-fn rounded(d: &mut RingDesign) {
-    for st in &mut d.stamps {
-        for p in &mut st.outline {
-            *p = p.map(|v| (v * 1000.0).round() / 1000.0);
-        }
-    }
-}
-
 /// The whole ring as authored at this stage.
-fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary)> {
+fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, serde_json::Value)> {
     let mut d = cane();
     prickles(&mut d)?;
     let run = runner(&mut d)?;
     bark(&mut d);
-    leaflets(&mut d, &run)?;
+    let _ = run;
     berries(&mut d)?;
-    rounded(&mut d);
+    let leaf = leaves(&mut d)?;
     let _ = blockout;
-    Ok((d, AlphaLibrary::builtin()))
+    Ok((d, AlphaLibrary::builtin(), leaf))
 }
 
 // --- The side-gate probe row: P5's gate against each station's own faces ------------------------------
@@ -875,6 +889,10 @@ fn walls_ok(walls: &[serde_json::Value], detail: f64) -> bool {
     walls.iter().all(|w| {
         let name = w["part"].as_str().unwrap_or("");
         let pointed = name.contains("rickle") || name.contains("Calyx");
+        // Leaves are joined relief, judged by their outlines' finest strokes (leaf_lands), not by rays.
+        if name.contains("leaf") {
+            return true;
+        }
         w["sampled_min_mm"].as_f64().is_some_and(|m| m >= if pointed { detail } else { MIN_SECTION_MM })
     })
 }
@@ -888,7 +906,7 @@ fn main() -> Result<()> {
     std::fs::create_dir_all(&out)?;
     println!("Rubus{}", if blockout { " (block-out)" } else { "" });
     let started = std::time::Instant::now();
-    let (d, lib) = author(blockout)?;
+    let (d, lib, leaf_lands) = author(blockout)?;
     let author_s = started.elapsed().as_secs_f64();
     let gate_row = side_gate_row(&d);
     println!("  side-gate probe row: {gate_row}");
@@ -956,6 +974,7 @@ fn main() -> Result<()> {
         ("solids and parts notes empty, every stamp resolved, every feature Ok", solids_notes.is_empty() && parts_notes.is_empty() && stamped == d.stamps.len() && status.iter().all(|(_, s)| s == "Ok")),
         ("nothing enters the finger hole", inside == 0),
         ("every part's ray-sampled wall at the 0.8 mm section, its pointed details (prickles, sepals) at the 0.15 mm detail floor", walls_ok(&wall, d.draft.min_detail_mm)),
+        ("the leaves' and midribs' finest strokes at the 0.15 mm detail floor", leaf_lands["leaf_finest_mm"].as_f64().is_some_and(|f| f >= MIN_DETAIL_MM) && leaf_lands["midrib_finest_mm"].as_f64().is_some_and(|f| f >= MIN_DETAIL_MM)),
         ("lost-wax verdict Castable with the 0.8 mm section", field.process == castability::CastProcess::LostWax && field.verdict == castability::Verdict::Castable && field.thinnest_wall_mm >= MIN_SECTION_MM),
         ("zero DFM findings", findings.is_empty()),
         ("stones reported equal the preview (none)", reported == previewed),
@@ -980,7 +999,11 @@ fn main() -> Result<()> {
         "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
         "field": {"verdict": field.verdict.label(), "thinnest_wall_mm": field.thinnest_wall_mm, "thinnest_wall_theta_deg": field.thinnest_wall_theta_deg, "min_section_mm": d.draft.min_section_mm, "min_detail_mm": d.draft.min_detail_mm, "undercut_percent_reported_only": field.undercut_fraction() * 100.0, "notes": field.notes},
         "ray_walls": wall,
-        "wall_exceptions": "pointed details are judged at the 0.15 mm detail floor, not the 0.8 mm section, as Manticora's aculeus point was: the prickles taper to points 0.39 mm (large) and 0.38 mm (small) across, and the calyx sepals to 0.35 mm-thick tips; their sampled minimums are in ray_walls (ring arrays are rigid copies of their sources and are measured on the sources). Every other part (stalks, berries) samples at or above 0.8 mm.",
+        "leaf_lands": leaf_lands,
+        "wall_exceptions": format!(
+            "Pointed details are judged at the 0.15 mm detail floor, not the 0.8 mm section, as Manticora's aculeus point was. Sampled minimums (ray_walls): {}. The leaves are joined relief, judged by their outlines' finest strokes (leaf_lands). Ring arrays are rigid copies of their sources and are measured on the sources; every other part (stalks, berries) samples at or above 0.8 mm.",
+            wall.iter().filter(|w| { let n = w["part"].as_str().unwrap_or(""); n.contains("rickle") || n.contains("Calyx") }).map(|w| format!("{} {:.3} mm", w["part"].as_str().unwrap_or(""), w["sampled_min_mm"].as_f64().unwrap_or(f64::NAN))).collect::<Vec<_>>().join(", ")
+        ),
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "side_gate_probe_row": gate_row,
         "stamps": {"count": d.stamps.len(), "resolved": stamped},

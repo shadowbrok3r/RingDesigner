@@ -6,11 +6,11 @@
     "vertices_inside": 0
   },
   "build": {
-    "author_s": 0.725368005,
-    "build_s": 11.636549133,
+    "author_s": 0.802290579,
+    "build_s": 3.14935746,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 608220
+    "triangles": 549644
   },
   "coarse": {
     "degenerate_faces": 0,
@@ -19,13 +19,13 @@
       []
     ],
     "self_crossings": 0,
-    "stamped": 14,
+    "stamped": 0,
     "watertight": true
   },
   "cold_reload_identical": null,
   "design": {
-    "bytes": 198622,
-    "cad_features": 16,
+    "bytes": 289215,
+    "cad_features": 22,
     "format_version": 6
   },
   "dfm_findings": [],
@@ -102,34 +102,58 @@
     [
       "#16",
       "Ok"
+    ],
+    [
+      "#17",
+      "Ok"
+    ],
+    [
+      "#18",
+      "Ok"
+    ],
+    [
+      "#19",
+      "Ok"
+    ],
+    [
+      "#20",
+      "Ok"
+    ],
+    [
+      "#21",
+      "Ok"
+    ],
+    [
+      "#22",
+      "Ok"
     ]
   ],
   "field": {
     "min_detail_mm": 0.15,
     "min_section_mm": 0.8,
     "notes": [
-      "Lost wax: 2.20% of the surface would undercut a two-part pull (worst 12.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 324–216° on the crest: 15.4 mm² leaning to 8° — caused by \"Cane bark\"; muting it clears it.",
-      "Measured with the ring as built: 15 CAD parts (15 joined, 0 cut), 694.8 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Twisted sweep \"Large prickle\" (#2) would undercut a two-part pull over 0.2 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Ring array \"Large prickles on the upper nodes\" (#3) would undercut a two-part pull over 0.8 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Small prickle, high shoulder\" (#4) would undercut a two-part pull over 2.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Small prickle, low shoulder\" (#5) would undercut a two-part pull over 2.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Ring array \"Small prickles between the upper nodes\" (#6) would undercut a two-part pull over 16.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Stalk, high shoulder\" (#7) would undercut a two-part pull over 0.4 mm² (worst -53°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Blackberry, high shoulder\" (#8) would undercut a two-part pull over 15.3 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx, high shoulder\" (#9) would undercut a two-part pull over 4.9 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Stalk, low shoulder\" (#10) would undercut a two-part pull over 0.4 mm² (worst -53°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Blackberry, low shoulder\" (#11) would undercut a two-part pull over 15.3 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx, low shoulder\" (#12) would undercut a two-part pull over 4.1 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Ring array \"Blackberries on the upper nodes\" (#13) would undercut a two-part pull over 162.4 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Palm blackberry, high face\" (#14) would undercut a two-part pull over 5.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Palm blackberry, low face\" (#15) would undercut a two-part pull over 5.6 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Ring array \"Blackberries on the palm nodes\" (#16) would undercut a two-part pull over 11.4 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: 2.05% of the surface would undercut a two-part pull (worst 5.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 317–223° on the crest: 18.1 mm² leaning to 6° — caused by \"Cane bark\"; muting it clears it.",
+      "Measured with the ring as built: 21 CAD parts (21 joined, 0 cut), 817.2 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Twisted sweep \"Small prickle, high shoulder\" (#4) would undercut a two-part pull over 1.9 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Small prickle, low shoulder\" (#5) would undercut a two-part pull over 2.6 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Ring array \"Small prickles between the upper nodes\" (#6) would undercut a two-part pull over 13.5 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Stalk, high shoulder\" (#7) would undercut a two-part pull over 1.3 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blackberry, high shoulder\" (#8) would undercut a two-part pull over 18.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx, high shoulder\" (#9) would undercut a two-part pull over 6.0 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Stalk, low shoulder\" (#10) would undercut a two-part pull over 1.3 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blackberry, low shoulder\" (#11) would undercut a two-part pull over 18.0 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx, low shoulder\" (#12) would undercut a two-part pull over 4.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Ring array \"Blackberries on the upper nodes\" (#13) would undercut a two-part pull over 198.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Extrude \"Bramble leaf, high face: midrib 2\" (#16) would undercut a two-part pull over 0.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Extrude \"Bramble leaf, high face: midrib 3\" (#17) would undercut a two-part pull over 0.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Extrude \"Bramble leaf, low face: midrib 2\" (#20) would undercut a two-part pull over 0.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Extrude \"Bramble leaf, low face: midrib 3\" (#21) would undercut a two-part pull over 0.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Ring array \"Bramble leaves at every internode\" (#22) would undercut a two-part pull over 0.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
-    "thinnest_wall_mm": 2.8713711877563934,
+    "thinnest_wall_mm": 2.876831040202708,
     "thinnest_wall_theta_deg": 220.78125,
-    "undercut_percent_reported_only": 12.944254459028109,
+    "undercut_percent_reported_only": 12.963499860072927,
     "verdict": "Castable"
   },
   "gates": [
@@ -151,6 +175,10 @@
     },
     {
       "gate": "every part's ray-sampled wall at the 0.8 mm section, its pointed details (prickles, sepals) at the 0.15 mm detail floor",
+      "pass": true
+    },
+    {
+      "gate": "the leaves' and midribs' finest strokes at the 0.15 mm detail floor",
       "pass": true
     },
     {
@@ -188,11 +216,36 @@
     "self_crossings": 0,
     "watertight": true
   },
-  "grams_18k": 33.142485612082154,
+  "grams_18k": 32.54010421243282,
   "layers": [
     "Runner",
     "Cane bark"
   ],
+  "leaf_lands": {
+    "faces": [
+      {
+        "face": "high",
+        "face_r_mm": [
+          9.418054641174335,
+          11.763706975309669
+        ],
+        "z_mm": 3.395
+      },
+      {
+        "face": "low",
+        "face_r_mm": [
+          9.4,
+          11.763706975309663
+        ],
+        "z_mm": -3.395
+      }
+    ],
+    "leaf_finest_mm": 0.4671875,
+    "leaf_radial_span_mm": 2.098166873455357,
+    "leaf_thick_mm": 0.8,
+    "midrib_finest_mm": 0.34140624999999997,
+    "midrib_thick_mm": 0.32
+  },
   "made_parts": [
     [
       "Large prickle",
@@ -243,118 +296,43 @@
       0
     ],
     [
-      "Palm blackberry, high face",
+      "Bramble leaf, high face",
       0
     ],
     [
-      "Palm blackberry, low face",
+      "Bramble leaf, high face: midrib 1",
       0
     ],
     [
-      "Blackberries on the palm nodes",
+      "Bramble leaf, high face: midrib 2",
+      0
+    ],
+    [
+      "Bramble leaf, high face: midrib 3",
+      0
+    ],
+    [
+      "Bramble leaf, low face",
+      0
+    ],
+    [
+      "Bramble leaf, low face: midrib 1",
+      0
+    ],
+    [
+      "Bramble leaf, low face: midrib 2",
+      0
+    ],
+    [
+      "Bramble leaf, low face: midrib 3",
+      0
+    ],
+    [
+      "Bramble leaves at every internode",
       0
     ]
   ],
-  "made_solids": [
-    {
-      "name": "Side leaf, 1",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 2",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 3",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 4",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 5",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 6",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 7",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 8",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 9",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 10",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 11",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 12",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 13",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    },
-    {
-      "name": "Side leaf, 14",
-      "open_edges": 0,
-      "repeated_edges": 0,
-      "self_crossings": 0,
-      "zero_area_faces": 0
-    }
-  ],
+  "made_solids": [],
   "name": "Rubus",
   "notes": {
     "parts": [],
@@ -363,7 +341,7 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 608220,
+    "triangles": 549644,
     "watertight": true
   },
   "process": "Lost wax",
@@ -372,77 +350,119 @@
       "below_floor": 124,
       "part": "Large prickle",
       "rays": 334,
-      "sampled_min_mm": 0.23893780775097861,
+      "sampled_min_mm": 0.2389412337665804,
       "unresolved": 0
     },
     {
-      "below_floor": 134,
+      "below_floor": 96,
       "part": "Small prickle, high shoulder",
       "rays": 286,
-      "sampled_min_mm": 0.15171598230329136,
+      "sampled_min_mm": 0.1910520484706665,
       "unresolved": 0
     },
     {
-      "below_floor": 134,
+      "below_floor": 96,
       "part": "Small prickle, low shoulder",
       "rays": 286,
-      "sampled_min_mm": 0.1517158001624947,
+      "sampled_min_mm": 0.1910525460242333,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Stalk, high shoulder",
-      "rays": 64,
-      "sampled_min_mm": 0.8434761598752175,
+      "rays": 288,
+      "sampled_min_mm": 0.8111484958768093,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Blackberry, high shoulder",
       "rays": 378,
-      "sampled_min_mm": 1.6865551894097268,
+      "sampled_min_mm": 1.6864926816942096,
       "unresolved": 0
     },
     {
-      "below_floor": 185,
+      "below_floor": 220,
       "part": "Calyx, high shoulder",
-      "rays": 300,
-      "sampled_min_mm": 0.3086831283765894,
+      "rays": 240,
+      "sampled_min_mm": 0.2426350595734804,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Stalk, low shoulder",
-      "rays": 64,
-      "sampled_min_mm": 0.8434761475394973,
+      "rays": 288,
+      "sampled_min_mm": 0.8111485086132741,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Blackberry, low shoulder",
       "rays": 378,
-      "sampled_min_mm": 1.6865685911441568,
+      "sampled_min_mm": 1.6864232916927056,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 220,
+      "part": "Calyx, low shoulder",
+      "rays": 240,
+      "sampled_min_mm": 0.2426315007293527,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 184,
+      "part": "Bramble leaf, high face",
+      "rays": 278,
+      "sampled_min_mm": 0.089972506167905,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 292,
+      "part": "Bramble leaf, high face: midrib 1",
+      "rays": 300,
+      "sampled_min_mm": 0.06339576408766924,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 188,
+      "part": "Bramble leaf, high face: midrib 2",
+      "rays": 196,
+      "sampled_min_mm": 0.12462951336776297,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 188,
+      "part": "Bramble leaf, high face: midrib 3",
+      "rays": 196,
+      "sampled_min_mm": 0.12462882396618917,
       "unresolved": 0
     },
     {
       "below_floor": 185,
-      "part": "Calyx, low shoulder",
+      "part": "Bramble leaf, low face",
+      "rays": 278,
+      "sampled_min_mm": 0.09327755560607966,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 292,
+      "part": "Bramble leaf, low face: midrib 1",
       "rays": 300,
-      "sampled_min_mm": 0.3086818672832217,
+      "sampled_min_mm": 0.06339576408766924,
       "unresolved": 0
     },
     {
-      "below_floor": 0,
-      "part": "Palm blackberry, high face",
-      "rays": 380,
-      "sampled_min_mm": 1.1909455111740297,
+      "below_floor": 188,
+      "part": "Bramble leaf, low face: midrib 2",
+      "rays": 196,
+      "sampled_min_mm": 0.1246287967718853,
       "unresolved": 0
     },
     {
-      "below_floor": 0,
-      "part": "Palm blackberry, low face",
-      "rays": 380,
-      "sampled_min_mm": 1.1909459425374662,
+      "below_floor": 188,
+      "part": "Bramble leaf, low face: midrib 3",
+      "rays": 196,
+      "sampled_min_mm": 0.12463048358132091,
       "unresolved": 0
     }
   ],
@@ -468,12 +488,12 @@
   "size": "US 8.6",
   "stage": "full",
   "stamps": {
-    "count": 14,
-    "resolved": 14
+    "count": 0,
+    "resolved": 0
   },
   "stones": {
     "previewed": 0,
     "reported": 0
   },
-  "wall_exceptions": "pointed details are judged at the 0.15 mm detail floor, not the 0.8 mm section, as Manticora's aculeus point was: the prickles taper to points 0.39 mm (large) and 0.38 mm (small) across, and the calyx sepals to 0.35 mm-thick tips; their sampled minimums are in ray_walls (ring arrays are rigid copies of their sources and are measured on the sources). Every other part (stalks, berries) samples at or above 0.8 mm."
+  "wall_exceptions": "Pointed details are judged at the 0.15 mm detail floor, not the 0.8 mm section, as Manticora's aculeus point was. Sampled minimums (ray_walls): Large prickle 0.239 mm, Small prickle, high shoulder 0.191 mm, Small prickle, low shoulder 0.191 mm, Calyx, high shoulder 0.243 mm, Calyx, low shoulder 0.243 mm. The leaves are joined relief, judged by their outlines' finest strokes (leaf_lands). Ring arrays are rigid copies of their sources and are measured on the sources; every other part (stalks, berries) samples at or above 0.8 mm."
 }
