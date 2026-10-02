@@ -366,7 +366,7 @@ impl RingApp {
                 }
             }
             for (tab, label) in [
-                (Tab::Workshop, "CAD & mould workshop"),
+                (Tab::Workshop, "Casting workshop"),
                 (Tab::Graph, "Recipe graph"),
                 (Tab::Files, "Files & exports"),
             ] {
