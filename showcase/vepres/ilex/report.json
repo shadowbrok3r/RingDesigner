@@ -1,0 +1,418 @@
+{
+  "bore_mm": 18.6,
+  "casting_pattern": null,
+  "coarse_384x192": {
+    "bore_margin_mm": -4.662539385691389e-7,
+    "boundary_edges": 0,
+    "build": [
+      384,
+      192
+    ],
+    "build_s": 0.50323366,
+    "clamp_bites_mm": [],
+    "clamp_note": "No painted relief: nothing passes through skin::draft_clamp.",
+    "closest_stones": "Cheek berry 1, 2 to Cheek berry 1, 3: -0.28 mm at the girdle, -0.29 mm deep",
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Cut at the bench after casting, and so not judged here: Face berry, 2, Face berry, 3.",
+      "9 made settings left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
+    ],
+    "field_verdict": "Castable",
+    "grams_18k": 40.40916852183921,
+    "made_parts": [],
+    "metal_inside_stones": [
+      [
+        "Face berry, 1",
+        0
+      ],
+      [
+        "Face berry, 2",
+        0
+      ],
+      [
+        "Face berry, 3",
+        0
+      ],
+      [
+        "Cheek berry 1, 1",
+        0
+      ],
+      [
+        "Cheek berry 1, 2",
+        0
+      ],
+      [
+        "Cheek berry 1, 3",
+        0
+      ],
+      [
+        "Cheek berry 2, 1",
+        0
+      ],
+      [
+        "Cheek berry 2, 2",
+        0
+      ],
+      [
+        "Cheek berry 2, 3",
+        0
+      ]
+    ],
+    "min_angle_deg": 0.001706888265579251,
+    "non_manifold_edges": 0,
+    "parting_monotone": [
+      [
+        "Face leaf, 1",
+        true
+      ],
+      [
+        "Face leaf, 2",
+        true
+      ]
+    ],
+    "parts_notes": [],
+    "pass": true,
+    "release_0075": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0075_obstructions": 0,
+    "release_0075_unresolved": 0,
+    "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0100_obstructions": 0,
+    "release_0100_unresolved": 0,
+    "seats_resolved": 9,
+    "self_crossings": 0,
+    "solids_notes": [],
+    "stamps_struck": 8,
+    "stone_carats": 0.24463406064315124,
+    "stone_warnings": [],
+    "stones_previewed": 9,
+    "stones_reported": 9,
+    "thinnest_wall_mm": 1.3061619507275015,
+    "triangles": 165588,
+    "undercut_percent": 0.0,
+    "watertight": true,
+    "worst_draft_deg": -0.10608507487624769
+  },
+  "cold_reload_identical": null,
+  "design_bytes": 215098,
+  "design_format": 6,
+  "draft": {
+    "bore_margin_mm": -4.7445255546563203e-7,
+    "boundary_edges": 0,
+    "build": [
+      768,
+      320
+    ],
+    "build_s": 1.256681937,
+    "clamp_bites_mm": [],
+    "clamp_note": "No painted relief: nothing passes through skin::draft_clamp.",
+    "closest_stones": "Cheek berry 1, 2 to Cheek berry 1, 3: -0.28 mm at the girdle, -0.29 mm deep",
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Cut at the bench after casting, and so not judged here: Face berry, 2, Face berry, 3.",
+      "9 made settings left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
+    ],
+    "field_verdict": "Castable",
+    "grams_18k": 40.41856748283825,
+    "made_parts": [],
+    "metal_inside_stones": [
+      [
+        "Face berry, 1",
+        0
+      ],
+      [
+        "Face berry, 2",
+        0
+      ],
+      [
+        "Face berry, 3",
+        0
+      ],
+      [
+        "Cheek berry 1, 1",
+        0
+      ],
+      [
+        "Cheek berry 1, 2",
+        0
+      ],
+      [
+        "Cheek berry 1, 3",
+        0
+      ],
+      [
+        "Cheek berry 2, 1",
+        0
+      ],
+      [
+        "Cheek berry 2, 2",
+        0
+      ],
+      [
+        "Cheek berry 2, 3",
+        0
+      ]
+    ],
+    "min_angle_deg": 0.0017071534440511072,
+    "non_manifold_edges": 0,
+    "parting_monotone": [
+      [
+        "Face leaf, 1",
+        true
+      ],
+      [
+        "Face leaf, 2",
+        true
+      ]
+    ],
+    "parts_notes": [],
+    "pass": true,
+    "release_0075": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0075_obstructions": 0,
+    "release_0075_unresolved": 0,
+    "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0100_obstructions": 0,
+    "release_0100_unresolved": 0,
+    "seats_resolved": 9,
+    "self_crossings": 0,
+    "solids_notes": [],
+    "stamps_struck": 8,
+    "stone_carats": 0.24463406064315124,
+    "stone_warnings": [],
+    "stones_previewed": 9,
+    "stones_reported": 9,
+    "thinnest_wall_mm": 1.3061619507275015,
+    "triangles": 504106,
+    "undercut_percent": 0.0,
+    "watertight": true,
+    "worst_draft_deg": -0.10608507487624769
+  },
+  "export": null,
+  "face_mm": [
+    16.0,
+    17.0
+  ],
+  "gates_passed": true,
+  "layers": [
+    "Face berry, 1",
+    "Face berry, 2",
+    "Face berry, 3",
+    "Cheek berry 1, 1",
+    "Cheek berry 1, 2",
+    "Cheek berry 1, 3",
+    "Cheek berry 2, 1",
+    "Cheek berry 2, 2",
+    "Cheek berry 2, 3"
+  ],
+  "name": "Ilex — the Holly King's standard",
+  "placed": {
+    "berries_at": [
+      [
+        90.0,
+        9.858395828591748
+      ],
+      [
+        94.21875,
+        11.321751250982249
+      ],
+      [
+        85.78125,
+        11.321751250982249
+      ]
+    ],
+    "cheek": [
+      "Cheek leaf 1, 1 at 110.39 deg, v 17.535",
+      "Cheek leaf 1, 2 at 69.79 deg, v 17.252",
+      "Cheek leaf 1, 3 at 57.30 deg, v 18.613",
+      "Cheek berry 1, 1 at 94.39 deg, v 17.150",
+      "Cheek berry 1, 2 at 85.61 deg, v 17.150",
+      "Cheek berry 1, 3 at 90.00 deg, v 17.945",
+      "Cheek leaf 2, 1 at 110.39 deg, v 2.182",
+      "Cheek leaf 2, 2 at 69.79 deg, v 2.465",
+      "Cheek leaf 2, 3 at 57.30 deg, v 1.104",
+      "Cheek berry 2, 1 at 94.39 deg, v 2.567",
+      "Cheek berry 2, 2 at 85.61 deg, v 2.567",
+      "Cheek berry 2, 3 at 90.00 deg, v 1.771"
+    ],
+    "face_mm": [
+      16.0,
+      17.0
+    ],
+    "folds_along_mm": [
+      8.6,
+      8.700000000000001,
+      8.8,
+      8.9,
+      9.0,
+      9.1,
+      9.200000000000001,
+      9.3,
+      9.9,
+      10.0,
+      10.100000000000001,
+      10.200000000000001,
+      13.0,
+      13.100000000000001,
+      13.200000000000001,
+      13.3,
+      13.4,
+      -8.6,
+      -8.700000000000001,
+      -8.8,
+      -8.9,
+      -9.0,
+      -9.1,
+      -9.200000000000001,
+      -9.3,
+      -9.9,
+      -10.0,
+      -10.100000000000001,
+      -10.200000000000001,
+      -13.0,
+      -13.100000000000001,
+      -13.200000000000001,
+      -13.3,
+      -13.4
+    ],
+    "garland": [],
+    "leaf_at": [
+      [
+        74.53125,
+        9.859880442669583
+      ],
+      [
+        105.46875,
+        9.858228664663772
+      ]
+    ],
+    "reach_mm": 42.41402758845039
+  },
+  "process": "Sand (two-part)",
+  "resize_check": [
+    {
+      "bore_mm": 18.599999044749946,
+      "builds": true,
+      "degenerate_faces": 0,
+      "envelope_fill_mm": 0.0156287910103039,
+      "envelope_fill_theta_deg": 123.5,
+      "face_mm": [
+        16.0,
+        17.0
+      ],
+      "pull_0075": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+      "pull_384": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+      "table_mm": [
+        12.192306518554688,
+        1.5612913370132446
+      ],
+      "watertight": true
+    },
+    {
+      "bore_mm": 18.599999044749946,
+      "builds": true,
+      "degenerate_faces": 0,
+      "envelope_fill_mm": 0.018263301221146833,
+      "envelope_fill_theta_deg": 123.5,
+      "face_mm": [
+        16.0,
+        21.0
+      ],
+      "pull_0075": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+      "pull_384": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+      "table_mm": [
+        12.192306518554688,
+        1.9286540746688843
+      ],
+      "watertight": true
+    }
+  ],
+  "sand": "Delft clay, 3.0 deg draft, 0.8 mm section, 0.30 mm detail",
+  "size": "US 8.6",
+  "slug": "ilex",
+  "stage": "block-out",
+  "stamps": [
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.6,
+      "name": "Face leaf, 1",
+      "theta_deg": 74.53125,
+      "tier": 0,
+      "v_mm": 9.859880442669583
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.6,
+      "name": "Face leaf, 2",
+      "theta_deg": 105.46875,
+      "tier": 0,
+      "v_mm": 9.858228664663772
+    },
+    {
+      "along_pull": true,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.6,
+      "name": "Cheek leaf 1, 1",
+      "theta_deg": 110.390625,
+      "tier": 0,
+      "v_mm": 17.534594341090422
+    },
+    {
+      "along_pull": true,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.6,
+      "name": "Cheek leaf 1, 2",
+      "theta_deg": 69.78515625,
+      "tier": 0,
+      "v_mm": 17.25219238244914
+    },
+    {
+      "along_pull": true,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.6,
+      "name": "Cheek leaf 1, 3",
+      "theta_deg": 57.3046875,
+      "tier": 0,
+      "v_mm": 18.612856364993494
+    },
+    {
+      "along_pull": true,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.6,
+      "name": "Cheek leaf 2, 1",
+      "theta_deg": 110.390625,
+      "tier": 0,
+      "v_mm": 2.182196953137168
+    },
+    {
+      "along_pull": true,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.6,
+      "name": "Cheek leaf 2, 2",
+      "theta_deg": 69.78515625,
+      "tier": 0,
+      "v_mm": 2.464598911778449
+    },
+    {
+      "along_pull": true,
+      "bench": false,
+      "cut": false,
+      "height_mm": 0.6,
+      "name": "Cheek leaf 2, 3",
+      "theta_deg": 57.3046875,
+      "tier": 0,
+      "v_mm": 1.103934929234097
+    }
+  ]
+}

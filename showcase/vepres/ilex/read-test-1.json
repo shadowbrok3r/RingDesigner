@@ -1,0 +1,16 @@
+{
+  "ring": "ilex",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain, heavy square signet with one small, flat, jagged lozenge in the middle of a big empty table and two red stones set well apart on either side of it. Straight on (face-300) it reads as a face: two red eyes and a grinning mouth of teeth, like a little monster or a toothy fish. From the hero angle the motif is a pale sliver smaller than a quarter of the table, so it reads as a saw-edged slot or a crack, not a leaf. Nothing ties the red stones to the leaf, so they read as eyes or rivets, not berries. Spiky leaf plus red dots is the right holly vocabulary, but at 300 px nobody would say 'holly' without the caption; the face is mostly bare polished metal and the cheeks show nothing.",
+  "changes": [
+    "Face berries: move the two 2.0 garnets off their far ends (hide.crest_at +/-5.9) and gather them, plus one more, into a tight cluster of three touching mounds at the centre of the face where the leaf stems meet (crest_at 0.0, stones 0.2-0.4 mm apart). If an off-line berry leans past the cast-dot limit, cast the line berries and drill the third as a bench seat. A berry cluster at a leaf junction is what says holly; two stones one either side of a mouth say eyes. Acceptance: in face-300, the red reads as one bunch touching the leaf, and no one sees a pair of eyes.",
+    "Face leaves: replace the single 8 x 5 leaf with two holly leaves end to end along the parting line, stems at the centre berry cluster and tips toward the head ends, each about 7.5 x 5.5 mm so the pair spans about 15 of the 16-17 mm table (now the leaf covers about a quarter of it). Use 4-5 spines a side with depth_mm 0.35 -> 0.7 so the margin scallops deeply and the spines point outward and forward, not like teeth. Acceptance: in hero-300 the leaf outline is readable as two pointed, spiny leaves that fill most of the table.",
+    "Relief and veining: raise the leaf height_mm 0.55 -> 0.9 and the gable rise 0.25 -> 0.45 so each leaf reads as a proud, glossy, curved blade with a clear midrib, not a recessed slot. Cut the tier-1 bench midrib deeper (0.15 -> 0.3 mm) and matte or texture the field around the leaves so the polished leaves separate from the polished table. Then strike the cheek sprays (three leaves and three berries a side) so the plant repeats on the cheeks at the hero angle. Acceptance: in hero-300 the leaves throw a visible highlight/shadow edge and the cheek shows a second holly spray."
+  ],
+  "viewed_images": [
+    "showcase/vepres/ilex/hero-300.png",
+    "showcase/vepres/ilex/face-300.png"
+  ]
+}
