@@ -50,21 +50,21 @@ const SECTION_PTS: usize = 160;
 /// reference width). The tail's tip runs into the jaws at 68° and is narrowest just inside them, the band widens
 /// under the head to the neck, holds broad and flat through the body, and tapers from the hips round to the tail.
 const KEYS: [(f64, f64, f64, f64); 15] = [
-    (0.0, 0.95, 0.74, 0.8),
-    (40.0, 0.72, 0.62, 0.65),
-    (58.0, 0.55, 0.54, 0.55),
-    (68.0, 0.44, 0.48, 0.5),
-    (74.0, 0.32, 0.44, 0.5),
-    (86.0, 0.6, 0.6, 0.6),
-    (100.0, 1.1, 0.88, 0.8),
-    (112.0, 1.3, 1.02, 1.0),
-    (125.0, 1.3, 1.06, 1.0),
-    (148.0, 1.6, 1.12, 1.0),
-    (190.0, 1.68, 1.1, 1.0),
-    (228.0, 1.56, 1.04, 1.0),
-    (262.0, 1.42, 0.96, 0.95),
-    (300.0, 1.24, 0.88, 0.9),
-    (332.0, 1.1, 0.8, 0.85),
+    (0.0, 0.88, 0.74, 0.8),
+    (40.0, 0.66, 0.62, 0.65),
+    (58.0, 0.48, 0.54, 0.55),
+    (68.0, 0.34, 0.48, 0.5),
+    (74.0, 0.3, 0.44, 0.5),
+    (86.0, 0.55, 0.6, 0.6),
+    (100.0, 1.0, 0.88, 0.8),
+    (112.0, 1.12, 1.1, 1.0),
+    (125.0, 1.15, 1.12, 1.0),
+    (148.0, 1.4, 1.12, 1.0),
+    (190.0, 1.5, 1.1, 1.0),
+    (228.0, 1.42, 1.04, 1.0),
+    (262.0, 1.3, 0.96, 0.95),
+    (300.0, 1.15, 0.88, 0.9),
+    (332.0, 1.0, 0.8, 0.85),
 ];
 
 // --- The head's primary forms, along `s` mm from the snout's tip --------------------------------------------------
@@ -95,19 +95,18 @@ const CREST: [(f64, f64); 11] = [
     (3.2, 3.35),
     (4.8, 3.55),
     (6.6, 3.65),
-    (8.4, 3.7),
-    (9.6, 3.62),
-    (10.4, 3.45),
-    (11.2, 3.0),
+    (8.4, 3.68),
+    (9.6, 3.5),
+    (10.4, 3.32),
+    (11.2, 3.1),
 ];
-/// The dorsal fall from the crest to the canthus, before the plate tiers' risers: a flat skull.
-const DOME: [(f64, f64); 4] = [(0.0, 0.1), (3.0, 0.12), (7.0, 0.16), (11.2, 0.16)];
+/// The dorsal fall from the crest to the canthus: a flat skull rounding over at its edges.
+const DOME: [(f64, f64); 4] = [(0.0, 0.35), (3.0, 0.45), (7.0, 0.55), (11.2, 0.5)];
 /// The cephalic shields' sutures in plan, (s, z) segments on the +z half: rostral and internasals, the frontonasal,
 /// the prefrontals, the long frontal between the supraoculars, the frontoparietals, the interparietal flanked by the
 /// parietals, and the occipital row ahead of the spiny fringe. Paired shields meet on a median suture.
-const SUTURES: [[(f64, f64); 2]; 22] = [
+const SUTURES: [[(f64, f64); 2]; 18] = [
     [(0.8, 0.0), (1.0, 1.1)],
-    [(1.0, 1.1), (1.3, 1.55)],
     [(2.2, 0.0), (2.3, 1.75)],
     [(3.3, 0.0), (3.3, 1.0)],
     [(3.3, 1.0), (3.1, 2.1)],
@@ -124,18 +123,15 @@ const SUTURES: [[(f64, f64); 2]; 22] = [
     [(6.6, 1.6), (6.8, 0.75)],
     [(6.6, 1.6), (8.6, 2.35)],
     [(8.6, 2.35), (8.3, 0.6)],
-    [(9.4, 0.0), (9.6, 1.2)],
-    [(9.6, 1.2), (9.7, 2.7)],
     [(1.0, 0.0), (3.3, 0.0)],
-    [(8.8, 0.0), (9.4, 0.0)],
 ];
 /// A suture's depth and half-width, mm.
-const SUTURE: (f64, f64) = (0.14, 0.11);
+const SUTURE: (f64, f64) = (0.22, 0.13);
 /// How far the dorsal plan stands inside the side wall's widest.
 const TOP_INSET: [(f64, f64); 4] = [(0.0, 0.1), (3.0, 0.14), (7.0, 0.2), (11.2, 0.15)];
 /// The head's length from the snout's tip to where it sinks into the neck, and where that burial starts.
-const HEAD_LEN: f64 = 11.2;
-const BURY_FROM: f64 = 10.2;
+const HEAD_LEN: f64 = 12.2;
+const BURY_FROM: f64 = 10.0;
 /// The spiny occipital fringe on the plan: first spine's root, pitch, and each spine's reach, mm. Each spine rises
 /// slowly toward its point and drops back steeply behind it, so the points rake back over the neck.
 const SPINES: (f64, f64, [f64; 4]) = (7.2, 0.8, [0.38, 0.55, 0.62, 0.5]);
@@ -159,10 +155,10 @@ const GAPE_MM: f64 = 0.45;
 const GAPE_W: f64 = 0.24;
 
 /// The eye: centre along the head and over the bore, radius, and how far it bulges past the wall.
-const EYE_S: f64 = 4.1;
+const EYE_S: f64 = 4.4;
 const EYE_H: f64 = 2.7;
 const EYE_R: f64 = 0.95;
-const EYE_BULGE: f64 = 0.75;
+const EYE_BULGE: f64 = 0.85;
 /// The round pupil: radius and depth.
 const PUPIL: (f64, f64) = (0.34, 0.2);
 /// The orbit groove round the eye: width and depth.
@@ -193,9 +189,9 @@ const fn bone(a: [f64; 2], b: [f64; 2], r: (f64, f64), h: (f64, f64)) -> Bone {
 /// A foreleg tucked back along the flank: a fat upper arm running back from the shoulder to the elbow, the forearm
 /// bent sharply down to the wrist by the bore, four splayed, clawed toes raking tailward.
 const FORELEG: [Bone; 7] = [
-    bone([0.0, 2.05], [1.7, 1.8], (0.95, 0.66), (2.0, 1.75)),
-    bone([1.7, 1.8], [2.6, 0.8], (0.6, 0.48), (1.7, 1.4)),
-    bone([2.6, 0.8], [2.9, 0.8], (0.5, 0.48), (1.35, 1.25)),
+    bone([0.0, 2.05], [1.7, 1.8], (0.95, 0.66), (1.4, 1.3)),
+    bone([1.7, 1.8], [2.6, 0.8], (0.6, 0.48), (1.25, 1.1)),
+    bone([2.6, 0.8], [2.9, 0.8], (0.5, 0.48), (1.05, 1.0)),
     bone([2.9, 0.8], [3.75, 1.75], (0.3, 0.2), (1.1, 0.65)),
     bone([2.9, 0.8], [4.35, 1.3], (0.3, 0.2), (1.1, 0.65)),
     bone([2.9, 0.8], [4.45, 0.62], (0.28, 0.2), (1.05, 0.6)),
@@ -204,8 +200,8 @@ const FORELEG: [Bone; 7] = [
 /// A hind leg folded along the tail: the thigh back from the hip to the knee, the shin bent down to the ankle, four
 /// long toes.
 const HINDLEG: [Bone; 7] = [
-    bone([0.0, 1.85], [1.9, 1.5], (1.0, 0.7), (1.9, 1.65)),
-    bone([1.9, 1.5], [2.9, 0.72], (0.58, 0.46), (1.55, 1.3)),
+    bone([0.0, 1.85], [1.9, 1.5], (1.0, 0.7), (1.6, 1.45)),
+    bone([1.9, 1.5], [2.9, 0.72], (0.58, 0.46), (1.35, 1.15)),
     bone([2.9, 0.72], [3.2, 0.72], (0.48, 0.46), (1.25, 1.15)),
     bone([3.2, 0.72], [4.2, 1.65], (0.3, 0.2), (1.0, 0.6)),
     bone([3.2, 0.72], [4.85, 1.2], (0.3, 0.2), (1.0, 0.6)),
@@ -228,8 +224,12 @@ const WHORL_SEAM_DEG: f64 = SNOUT_DEG + 4.0;
 const WHORL_MM: f64 = 0.6;
 /// How far each girdle's free edge bows tailward at the crest, as a share of the pitch.
 const WHORL_BOW: f64 = 0.32;
+/// Each girdle's free edge is toothed into this many spiny scale points across the crown, each reaching this share of
+/// the pitch.
+const TEETH: f64 = 5.0;
+const TOOTH: f64 = 0.28;
 /// The whorls run from the nape round to the tail's tip: the window's centre and span, and its fade, degrees.
-const WHORL_WINDOW: (f64, f64, f64) = (274.0, 310.0, 3.0);
+const WHORL_WINDOW: (f64, f64, f64) = (268.0, 298.0, 8.0);
 /// The flank spines on the side faces, one per girdle on its trailing edge: height, mm.
 const SPINE_MM: f64 = 0.4;
 /// The girdles' continuation down the flanks, lower than on the back so the legs stand clear of it, mm.
@@ -440,7 +440,7 @@ impl Head<'_> {
     fn dorsal(&self, st: &Station, z: f64) -> f64 {
         let s = st.s;
         let u = (z / st.top_w.max(1e-6)).min(1.0);
-        let mut h = st.crest - pchip(&DOME, s) * u.powf(2.2);
+        let mut h = st.crest - pchip(&DOME, s).min(0.5 * (st.crest - st.lip)) * u.powf(3.2);
         // Each shield is domed a little between its sutures, which are cut as rounded V grooves.
         let mut near = f64::MAX;
         for [a, b] in SUTURES {
@@ -664,7 +664,7 @@ impl Leg<'_> {
             let h = b.h.0 + (b.h.1 - b.h.0) * t;
             out = out.min(d - r);
             if d < r {
-                top = top.max((h + FLANK_MM + 0.1) * (1.0 - (d / r).powi(2)).powf(0.45));
+                top = top.max((h + FLANK_MM + 0.1) * (1.0 - (d / r).powi(2)).powf(0.6));
             }
         }
         (top, out)
@@ -793,38 +793,45 @@ struct Composition {
     whorls: Option<(u32, [f64; 2], f64)>,
 }
 
-/// One girdle per tile: a plate whose free edge bows tailward in a U with its apex on the crest, rising in a rounded
-/// loaf to that edge and dropping onto the next girdle, which it overlaps.
-fn girdle_svg(w: f64, h: f64) -> String {
+/// Two girdles per tile. Each is a plate whose free edge bows tailward in a U with its apex on the crest, rising in a
+/// rounded loaf to that edge and dropping onto the next girdle, which it overlaps. The edge is toothed into a row of
+/// spiny scale points, the points of one girdle offset half a scale from the next.
+fn girdle_svg(w2: f64, h: f64) -> String {
+    let w = 0.5 * w2;
     let bow = WHORL_BOW * w;
-    let n = 40;
-    let edge = |y: f64| w - bow * ((y - 0.5 * h) / (0.5 * h)).powi(2);
+    let n = 160;
+    // The free edge: the U, toothed into a row of spiny scale points, offset half a scale on alternate girdles.
+    let edge = |y: f64, odd: bool| {
+        let f = (y / h * TEETH + if odd { 0.5 } else { 0.0 }).fract();
+        w - bow * ((y - 0.5 * h) / (0.5 * h)).powi(2) - TOOTH * w * (2.0 * (f - 0.5).abs()).powf(0.8)
+    };
     let mut defs = String::new();
-    let mut body = String::new();
-    for (k, dx) in [-w, 0.0, w].iter().enumerate() {
+    let mut plates = String::new();
+    for (k, g) in (-1i32..=2).enumerate() {
+        let dx = g as f64 * w;
         let (x1, x2) = (dx - bow, dx + w);
         let mut stops = String::new();
         for j in 0..=20 {
             let t = j as f64 / 20.0;
             let v = 0.52 + 0.48 * (t * PI * 0.5).sin().powf(0.7);
-            let g = ((1.0 - v) * 255.0).round() as u8;
-            stops.push_str(&format!(r##"<stop offset="{t:.3}" stop-color="rgb({g},{g},{g})"/>"##));
+            let c = ((1.0 - v) * 255.0).round() as u8;
+            stops.push_str(&format!(r##"<stop offset="{t:.3}" stop-color="rgb({c},{c},{c})"/>"##));
         }
         defs.push_str(&format!(r##"<linearGradient id="p{k}" gradientUnits="userSpaceOnUse" x1="{x1:.4}" y1="0" x2="{x2:.4}" y2="0">{stops}</linearGradient>"##));
+        let (odd, prev) = (g.rem_euclid(2) == 1, g.rem_euclid(2) == 0);
         let mut pts = String::new();
         for j in 0..=n {
             let y = h * j as f64 / n as f64;
-            pts.push_str(&format!("{:.4},{:.4} ", dx + edge(y), y));
+            pts.push_str(&format!("{:.4},{:.4} ", dx + edge(y, odd), y));
         }
         for j in (0..=n).rev() {
             let y = h * j as f64 / n as f64;
-            pts.push_str(&format!("{:.4},{:.4} ", dx + edge(y) - w, y));
+            pts.push_str(&format!("{:.4},{:.4} ", dx + edge(y, prev) - w, y));
         }
-        body.push_str(&format!(r##"<polygon points="{pts}" fill="url(#p{k})"/>"##));
+        plates.push_str(&format!(r##"<polygon points="{pts}" fill="url(#p{k})"/>"##));
     }
-    let blur = 0.04;
     format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}mm" height="{h:.4}mm" viewBox="0 0 {w:.4} {h:.4}"><defs>{defs}<filter id="round" x="-0.5" y="-0.5" width="2" height="2"><feGaussianBlur stdDeviation="{blur:.3}"/></filter></defs><rect width="{w:.4}" height="{h:.4}" fill="rgb(122,122,122)"/><g filter="url(#round)">{body}</g></svg>"##
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w2:.4}mm" height="{h:.4}mm" viewBox="0 0 {w2:.4} {h:.4}"><defs>{defs}<filter id="round" x="-0.5" y="-0.5" width="2" height="2"><feGaussianBlur stdDeviation="0.07"/></filter></defs><rect width="{w2:.4}" height="{h:.4}" fill="rgb(122,122,122)"/><g filter="url(#round)">{plates}</g></svg>"##
     )
 }
 
@@ -833,10 +840,10 @@ fn girdle_svg(w: f64, h: f64) -> String {
 fn hide(d: &mut RingDesign, lib: &mut AlphaLibrary, art: &Path, comp: &mut Composition) -> Result<()> {
     let ctx = d.field_context();
     let k = (WHORL_PITCH.0 / WHORL_PITCH.1).ln();
-    let n = (ctx.circumference_mm / WHORL_PITCH.0 * k.exp_m1() / k).round() as u32;
+    let n = 2 * (0.5 * ctx.circumference_mm / WHORL_PITCH.0 * k.exp_m1() / k).round() as u32;
     let grade = TileGrade { taper: 1.0 - WHORL_PITCH.1 / WHORL_PITCH.0, theta_deg: WHORL_SEAM_DEG, law: GradeLaw::Spiral { seam_deg: WHORL_SEAM_DEG }, isotropic: false };
     let mut t = TilingLayer::default_for("Whorl", &ctx);
-    t.repeats_around = n;
+    t.repeats_around = n / 2;
     t.rows = 1;
     t.v_center_mm = ctx.crest_v_mm;
     t.v_span_mm = (ctx.band_v_len_mm - 0.6).max(1.0);
@@ -844,7 +851,7 @@ fn hide(d: &mut RingDesign, lib: &mut AlphaLibrary, art: &Path, comp: &mut Compo
     t.height_mm = WHORL_MM;
     t.grade = Some(grade);
     let (cw, ch) = t.cell_size(&ctx);
-    let fine = cw * grade.finest_over_nominal();
+    let fine = 0.5 * cw * grade.finest_over_nominal();
     let svg = girdle_svg(cw, ch);
     std::fs::write(art.join("whorl.svg"), &svg)?;
     d.svgs.push(SvgAlpha { name: "Whorl".into(), svg, invert: false });

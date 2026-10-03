@@ -6,11 +6,11 @@
   },
   "bore_mm": 18.59999905109489,
   "build": {
-    "author_s": 1.973195328,
-    "build_s": 4.99112823,
+    "author_s": 2.285798869,
+    "build_s": 5.412399284,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 605992
+    "triangles": 595432
   },
   "coarse_384x192": {
     "degenerate_faces": 0,
@@ -40,16 +40,16 @@
     "parts_joined": 5,
     "self_crossings": 0,
     "stamped": 0,
-    "triangles": 296460,
+    "triangles": 286056,
     "watertight": true
   },
   "cold_reload_identical": null,
   "composition": {
     "head_faces": 153600,
-    "head_least_half_width_mm": 0.010516790713514116,
+    "head_least_half_width_mm": 0.01027802774057392,
     "head_length_mm": 10.4,
     "head_ratio": 1.4054054054054055,
-    "head_volume_mm3": 150.52188437860605,
+    "head_volume_mm3": 152.65287758283466,
     "head_width_mm": 7.4,
     "leg_faces": [
       13612,
@@ -58,16 +58,16 @@
       14596
     ],
     "whorls": [
-      49,
+      48,
       [
-        1.5515620860586326,
+        3.167772592369708,
         7.296957699593772
       ],
-      0.9992632140027657
+      1.0200811976278235
     ]
   },
   "design": {
-    "bytes": 2091686,
+    "bytes": 2188018,
     "stamps": 0
   },
   "dfm_findings": [],
@@ -83,50 +83,76 @@
   },
   "field": {
     "notes": [
-      "Lost wax: 0.07% of the surface would undercut a two-part pull (worst 1.3 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 38–38° on the crest: 0.1 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
-      "Undercut 198–198° on the crest: 0.1 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
-      "Undercut 232–232° on the crest: 0.1 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
-      "Undercut 248–248° on the crest: 0.1 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
-      "Undercut 270–270° on the crest: 0.1 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
-      "Undercut 349–349° on the crest: 0.0 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
-      "Measured with the ring as built: 5 CAD parts (5 joined, 0 cut), 282.7 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 9.1 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: 2.50% of the surface would undercut a two-part pull (worst 41.8 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 353–4° on the crest: 1.1 mm² leaning to 31° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 11–16° on the crest: 0.8 mm² leaning to 23° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 22–31° on the crest: 0.8 mm² leaning to 21° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 38–47° on the crest: 0.5 mm² leaning to 41° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 54–63° on the crest: 0.5 mm² leaning to 42° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 122–124° on the crest: 1.0 mm² leaning to 25° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 130–133° on the upper shoulder: 0.7 mm² leaning to 7° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 142–144° on the crest: 1.2 mm² leaning to 19° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 153–155° on the crest: 0.8 mm² leaning to 15° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 162–164° on the crest: 1.1 mm² leaning to 17° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 173–173° on the crest: 0.9 mm² leaning to 9° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 182–182° on the crest: 0.7 mm² leaning to 23° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 191–194° on the crest: 0.9 mm² leaning to 17° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 200–202° on the crest: 0.9 mm² leaning to 25° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 209–209° on the crest: 0.9 mm² leaning to 17° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 218–218° on the crest: 0.8 mm² leaning to 23° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 225–227° on the upper shoulder: 0.4 mm² leaning to 9° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 234–236° on the crest: 0.7 mm² leaning to 23° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 243–243° on the crest: 0.8 mm² leaning to 14° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 250–252° on the crest: 0.7 mm² leaning to 16° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 259–259° on the crest: 0.8 mm² leaning to 12° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 266–266° on the crest: 0.5 mm² leaning to 27° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 272–274° on the crest: 0.3 mm² leaning to 8° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 281–281° on the crest: 0.6 mm² leaning to 26° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 288–288° on the crest: 0.7 mm² leaning to 16° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 295–295° on the crest: 0.6 mm² leaning to 28° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 302–302° on the crest: 0.6 mm² leaning to 23° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 308–308° on the crest: 0.4 mm² leaning to 30° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 315–315° on the crest: 0.7 mm² leaning to 23° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 322–322° on the crest: 0.5 mm² leaning to 31° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 328–328° on the crest: 0.6 mm² leaning to 30° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 335–346° on the crest: 1.1 mm² leaning to 34° — caused by \"Whorls\"; muting it clears it.",
+      "Measured with the ring as built: 5 CAD parts (5 joined, 0 cut), 264.7 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 11.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Stored mesh \"Foreleg, near\" (#3) would undercut a two-part pull over 0.0 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Stored mesh \"Foreleg, far\" (#4) would undercut a two-part pull over 0.0 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, near\" (#5) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, far\" (#6) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: Stored mesh \"Hind leg, near\" (#5) would undercut a two-part pull over 0.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far\" (#6) would undercut a two-part pull over 0.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "parts": [
       {
         "name": "Head",
-        "note": "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 9.1 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 171.23167332163172
+        "note": "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 11.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 169.48779376523157
       },
       {
         "name": "Foreleg, near",
         "note": "Lost wax: Stored mesh \"Foreleg, near\" (#3) would undercut a two-part pull over 0.0 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 27.70822037895737
+        "total_mm2": 22.391298736610896
       },
       {
         "name": "Foreleg, far",
         "note": "Lost wax: Stored mesh \"Foreleg, far\" (#4) would undercut a two-part pull over 0.0 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 27.548673180294767
+        "total_mm2": 22.259625362876243
       },
       {
         "name": "Hind leg, near",
-        "note": "Lost wax: Stored mesh \"Hind leg, near\" (#5) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 28.281663195320654
+        "note": "Lost wax: Stored mesh \"Hind leg, near\" (#5) would undercut a two-part pull over 0.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 25.41794876461631
       },
       {
         "name": "Hind leg, far",
-        "note": "Lost wax: Stored mesh \"Hind leg, far\" (#6) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 27.929994843198646
+        "note": "Lost wax: Stored mesh \"Hind leg, far\" (#6) would undercut a two-part pull over 0.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 25.104739169162364
       }
     ],
     "process": "Lost wax",
-    "thinnest_wall_mm": 1.1412015366796062,
-    "undercut_percent": 0.799189685118055,
+    "thinnest_wall_mm": 1.1545727445611078,
+    "undercut_percent": 2.953426847454997,
     "verdict": "Castable"
   },
   "gates": [
@@ -186,35 +212,35 @@
       "name": "Head",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 150.52188437860605
+      "volume_mm3": 152.65287758283466
     },
     {
       "faces": 13612,
       "name": "Foreleg, near",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 15.018409586159017
+      "volume_mm3": 12.100534316580713
     },
     {
       "faces": 13612,
       "name": "Foreleg, far",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 15.018409586159017
+      "volume_mm3": 12.100534316580713
     },
     {
       "faces": 14596,
       "name": "Hind leg, near",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 15.827943213633512
+      "volume_mm3": 13.911677468726948
     },
     {
       "faces": 14596,
       "name": "Hind leg, far",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 15.827943213633512
+      "volume_mm3": 13.911677468726948
     }
   ],
   "main": {
@@ -245,14 +271,14 @@
     "parts_joined": 5,
     "self_crossings": 0,
     "stamped": 0,
-    "triangles": 605992,
+    "triangles": 595432,
     "watertight": true
   },
   "name": "Ouroborus — the girdled wheel",
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 605992,
+    "triangles": 595432,
     "watertight": true
   },
   "process": "Lost wax",
@@ -260,8 +286,8 @@
   "release": {
     "applies": false,
     "bonus_petrobond_0100": {
-      "deepest_mm": 1.5403818702177512,
-      "obstructions": 49,
+      "deepest_mm": 1.3408554366808088,
+      "obstructions": 149,
       "unresolved": 0
     },
     "note": "No pull rule in lost wax."

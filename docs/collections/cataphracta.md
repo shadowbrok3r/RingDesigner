@@ -642,9 +642,11 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 
 ## Ouroborus — *the girdled wheel*
 
-> **Logan's confirmed subject (2026-10-03), overriding the concept below:** a **snake's head biting its own tail**: a real serpent head with closed jaws on the tail's tip, **with eyes** and head scales, poured in **Petrobond**. The "lizard" and "plates only: no eyes, no nostrils, no teeth" lines below are superseded; the girdled whorls and the keel on the body stand.
+> **Logan's confirmed subject (2026-10-03), overriding the concept below and the earlier "snake" note:** the subject is the **lizard** the ring is named for, *Ouroborus cataphractus*, the armadillo girdled lizard, curled into a ring with its own tail in its jaws. It must read "lizard biting its tail", never "snake ring" (a snake would repeat Serpentarium's Ouroboros). It has **four short legs tucked against the body** (forelegs behind the head, hind legs at the hips); a **broad, flat, triangular head about 1.4 times as long as wide**, armoured with large lizard head shields and **spiny occipital scales**; and the body and tail ringed with **spiny girdles** whose trailing edges are rounded and overlapping, graded from nape to tail. **Faces and eyes are allowed** (Logan's later decision overrides "plates only: no eyes"), and an ear opening is a lizard's. The "serpent", "colubrid" and "plates only: no eyes" lines anywhere in this section are superseded.
+>
+> **Process (Logan's rule, 2026-10-03): lost wax**, 0.8 mm minimum section, no pull rule, replacing Petrobond. The sand gates (ray release, draft clamp, side-face gates) no longer apply; whether the ring also pulls from Petrobond is reported as a bonus only.
 
-- **Status:** not started.
+- **Status:** second cloud lane (`claude/cataphracta-ouroborus-2`), block-outs 4–6 as the lizard in lost wax. The blockers below were the sand plan's and no longer hold in lost wax.
   - Blocked on **P5**, which is **required**: the body runs both wider and narrower than the reference, so the reference-only gate spills.
   - Blocked on **C-R2's `Spiral` law**, also required.
   - Also needs **C-R1** (the head shield; a painted fallback exists) and **C-R7**, plus P7 for its keys as nodes.
@@ -675,7 +677,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
     | 82 | 0.55 | 0.70 | 1.0 |
 
   - Thickness stays at or above width at every key, but the tail runs thinner than the reference, which shrinks the side face (to about 0.94 mm at 82°). The reference-only gate therefore spills onto the fillet at the tail.
-- **Process:** **Petrobond** (Logan confirmed). The whorls are ≥ 1 mm.
+- **Process:** **lost wax** (Logan's rule, 2026-10-03; it was Petrobond). The whorls are ≥ 1 mm.
 - **Stones:** none.
 - **Build, step by step:**
   1. **"Whorls":**
