@@ -1983,6 +1983,16 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
                 cad::PatternKind::Mirror { .. } => {
                     ui.weak("One reflected copy; what it reflects across is in Advanced source.");
                 }
+                cad::PatternKind::Line { count, pitch_mm, .. } => {
+                    ui.add(egui::DragValue::new(count).range(2..=cad::pattern::MAX_PATTERN_COUNT).prefix("Instances "));
+                    number(ui, "Pitch mm", pitch_mm);
+                }
+                cad::PatternKind::Along(a) => {
+                    ui.add(egui::DragValue::new(&mut a.count).range(0..=cad::pattern::MAX_PATTERN_COUNT).prefix("Instances "));
+                    number(ui, "Alternate degrees", &mut a.alternate_deg);
+                    number(ui, "Roll degrees", &mut a.roll_deg);
+                    ui.weak("The path, pitch, phase and scale are in Advanced source.");
+                }
             }
         }
         Operation::Plane { offset_mm, .. } => number(ui, "Offset mm", offset_mm),

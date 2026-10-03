@@ -657,6 +657,23 @@ fn moved(m: &Motion, f: &Motion) -> Motion {
     t
 }
 
+/// Stone `g` standing in `s` carried by a pattern's motion `m`: a copy an array along a path scales keeps a square frame and
+/// sets the stone scaled with it.
+fn carried_by(m: &Motion, g: Gem, s: &Motion) -> (Gem, Motion) {
+    let k = pattern::scale_of(m);
+    if k == 1.0 {
+        return (g, moved(m, s));
+    }
+    let mut t = pattern::then(m, s);
+    for axis in [&mut t.x_axis, &mut t.y_axis, &mut t.z_axis] {
+        *axis = axis.map(|v| v / k);
+    }
+    if t.reflects() {
+        t.y_axis = cross(t.z_axis, t.x_axis);
+    }
+    (Gem { w_mm: g.w_mm * k, l_mm: g.l_mm * k, ..g }, t)
+}
+
 /// `m` read in the frame `c` carries the world to: `c ∘ m ∘ c⁻¹`.
 fn conjugate(c: &Motion, m: &Motion) -> Motion {
     pattern::then(c, &pattern::then(m, &pattern::inverse(c)))
@@ -820,7 +837,7 @@ fn carried(doc: &Document, frames: &dyn Frames, f: &Feature, depth: u32) -> (Vec
             let Some(first) = sources.first().filter(|_| !inner.is_empty()) else { return (Vec::new(), over) };
             let copies = frames.copies(f, first, kind);
             let over = over || copies.len().saturating_mul(inner.len()) > MAX_CAD_STONES;
-            (copies.iter().flat_map(|m| inner.iter().map(move |(g, s)| (*g, moved(m, s)))).take(MAX_CAD_STONES).collect(), over)
+            (copies.iter().flat_map(|m| inner.iter().map(move |(g, s)| carried_by(m, *g, s))).take(MAX_CAD_STONES).collect(), over)
         }
         _ => (Vec::new(), false),
     }

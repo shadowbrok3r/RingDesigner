@@ -2341,16 +2341,42 @@ impl<'a> BareSurface<'a> {
 
     /// Point, normal and tangents of the bare surface at a chart point, interpolated on a swept band.
     fn at(&self, theta_deg: f64, v_mm: f64) -> SurfacePoint {
-        self.kept(theta_deg, v_mm, false, || {
-            if self.design.imported_base.is_some() {
-                return crate::stones::surface_frame(self.design, self.ctx, theta_deg, v_mm);
+        self.kept(theta_deg, v_mm, false, || self.point(theta_deg, v_mm))
+    }
+
+    /// [`Self::at`] made afresh, leaving the cross-call store to the stamps.
+    pub(crate) fn point(&self, theta_deg: f64, v_mm: f64) -> SurfacePoint {
+        if self.design.imported_base.is_some() {
+            return crate::stones::surface_frame(self.design, self.ctx, theta_deg, v_mm);
+        }
+        let ([r, z], [nr, nz]) = self.section_point(theta_deg, v_mm);
+        let l = nr.hypot(nz).max(1e-12);
+        let (nr, nz) = (nr / l, nz / l);
+        let (sin, cos) = theta_deg.to_radians().sin_cos();
+        ([r * cos, r * sin, z], [nr * cos, nr * sin, nz], [-sin, cos, 0.0], [-nz * cos, -nz * sin, nr])
+    }
+
+    /// The outward normal of the bare section at `theta_deg` where its surface comes nearest `(r, z)`; `None` with no surface there.
+    pub(crate) fn normal_near(&self, theta_deg: f64, r: f64, z: f64) -> Option<[f64; 3]> {
+        let samples = self.samples(theta_deg);
+        let s = &samples.0;
+        let mut best: Option<(f64, f64, f64)> = None;
+        for w in s.windows(2) {
+            let (a, b) = (w[0], w[1]);
+            let (dr, dz) = (b[1] - a[1], b[2] - a[2]);
+            let t = (((r - a[1]) * dr + (z - a[2]) * dz) / (dr * dr + dz * dz).max(1e-18)).clamp(0.0, 1.0);
+            let d = (r - a[1] - dr * t).hypot(z - a[2] - dz * t);
+            if best.is_none_or(|(nearest, _, _)| d < nearest) {
+                best = Some((d, a[3] + (b[3] - a[3]) * t, a[4] + (b[4] - a[4]) * t));
             }
-            let ([r, z], [nr, nz]) = self.section_point(theta_deg, v_mm);
-            let l = nr.hypot(nz).max(1e-12);
-            let (nr, nz) = (nr / l, nz / l);
-            let (sin, cos) = theta_deg.to_radians().sin_cos();
-            ([r * cos, r * sin, z], [nr * cos, nr * sin, nz], [-sin, cos, 0.0], [-nz * cos, -nz * sin, nr])
-        })
+        }
+        let (_, nr, nz) = best?;
+        let l = nr.hypot(nz);
+        if !(l > 1e-12) {
+            return None;
+        }
+        let (sin, cos) = theta_deg.to_radians().sin_cos();
+        Some([nr / l * cos, nr / l * sin, nz / l])
     }
 
     /// [`crate::stones::surface_frame`] bit for bit: on a swept band the nearest sample of a [`PLAIN_SECTION_STEPS`] section.
@@ -2389,7 +2415,7 @@ impl<'a> BareSurface<'a> {
     }
 
     /// The chart `v` nearest `guess` at which the section at `theta_deg` crosses the parting plane.
-    fn parting_v(&self, theta_deg: f64, guess: f64) -> Option<f64> {
+    pub(crate) fn parting_v(&self, theta_deg: f64, guess: f64) -> Option<f64> {
         let (design, ctx) = (self.design, self.ctx);
         if design.imported_base.is_some() {
             let z = |v: f64| crate::stones::surface_frame(design, ctx, theta_deg, v).0[2];

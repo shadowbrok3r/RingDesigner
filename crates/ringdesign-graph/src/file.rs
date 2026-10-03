@@ -20,7 +20,7 @@ use crate::value::Literal;
 pub const GRAPH_EXT: &str = "graph.json";
 pub const CLUSTER_EXT: &str = "cluster.json";
 pub const PRESET_EXT: &str = "preset.json";
-/// The newest version this build reads; version 2 fences an in-plane revolution, a pattern of several parts and a cut on a ring of parts alone off from older readers.
+/// The newest version this build reads; version 2 fences an in-plane revolution, a pattern of several parts, an array along a path or a line, the path nodes and a cut on a ring of parts alone off from older readers.
 pub const GRAPH_FORMAT_VERSION: u32 = 2;
 /// The version a file with none of them is written at.
 pub const PLAIN_GRAPH_FORMAT_VERSION: u32 = 1;

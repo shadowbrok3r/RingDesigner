@@ -2624,6 +2624,37 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   0.9: every gap 0.9 ± 1e-6). A branched sketch that carries several depths
   sweeps its cells by `Profile::Regions`; one Sketch feature per depth is
   still the plainer way. The graph reaches it as `sketch.tracery`.
+- **An array along a path carries its source from the path's first
+  station** (C-V2, `PatternKind::Along`, `cad/pattern/along.rs`). The path
+  is the crest (where the outer surface crosses the parting plane, solved
+  per station as `stamp_row`'s parting line is), chart points, a sweep's
+  path or a twisted sweep's centreline, curves of a sketch on its own plane
+  or a work plane, or world points. A station's frame is `y` along the
+  path, `z` out of the band or the sketch's plane, `x = y × z` — on the
+  crest, the frame a ring placement seats by — and the source, wherever it
+  stands, keeps its pose to the first station at every other, turned
+  (`alternate_deg`, `roll_deg`), scaled (`scale`) and laid square to the
+  parting plane (`level`) as asked. `count` counts the source, as every
+  pattern does; a pitch with no count fits as many as the path holds, under
+  `MAX_PATTERN_COUNT`. A chart path reads its direction a hair either side
+  of each station and a sketch curve its own derivative: the one-sided chord
+  at a sampled path's end leaned the first frame half a sample and put every
+  crest copy 0.014° short. A scaled copy is a similarity, not a rigid
+  motion: `inverse` divides by the square of the scale, and the stone
+  record (`setstone::carried_by`) keeps each copied girdle frame square and
+  scales its gem, so a graded head still holds a stone its own size and
+  the 480-stone cap still counts every copy. `PatternKind::Line` steps
+  copies along a direction in the source's seated frame. Either writes the
+  design at 6 and a graph at 2.
+- **Paths are graph values** (C-V5, `graph/nodes/path.rs`): `path.arc`,
+  `path.helix`, `path.wreath`, `path.climb` and `path.crest` make
+  `[[x, y, z], …]` JSON in world millimetres (one per strand for a wreath),
+  `path.sweep` turns one into a sweep's operation and `path.along` into an
+  array along it, and `cad.features` appends one feature per list item to
+  one design, where a list on `cad.feature`'s operation makes one design per
+  item; feature `k` of a `cad.features` node is that node's id times 2²⁰
+  plus `k + 1`, out of reach of any node's own id. A wreath's opposite
+  strands pass at two canes less the overlap, never a tangency.
 
 ## Python: `crates/ringdesign-py`
 

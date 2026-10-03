@@ -845,6 +845,20 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
                 number(ui, "Span °", span_deg);
             }
             cad::PatternKind::Mirror { .. } => { ui.weak("One reflected copy; change what it reflects across in Feature source."); }
+            cad::PatternKind::Line { count, pitch_mm, .. } => {
+                crate::controls::row(ui, "Instances", |ui| {
+                    ui.add(egui::DragValue::new(count).range(2..=cad::pattern::MAX_PATTERN_COUNT));
+                });
+                number(ui, "Pitch mm", pitch_mm);
+            }
+            cad::PatternKind::Along(a) => {
+                crate::controls::row(ui, "Instances", |ui| {
+                    ui.add(egui::DragValue::new(&mut a.count).range(0..=cad::pattern::MAX_PATTERN_COUNT));
+                });
+                number(ui, "Alternate °", &mut a.alternate_deg);
+                number(ui, "Roll °", &mut a.roll_deg);
+                ui.weak("The path, pitch, phase and scale are in Feature source.");
+            }
         },
         Operation::Plane { offset_mm, .. } => number(ui, "Offset mm", offset_mm),
         Operation::PressPull { distance_mm, .. } => number(ui, "Distance mm", distance_mm),

@@ -44,20 +44,21 @@ pub const DESIGN_EXT: &str = "ring.json";
 // Version 6 protects a stored mesh, which no earlier build can parse, and keeps each one once in the file's table;
 // it also protects a revolution whose line is read in its sketch's plane, which an earlier build would turn about the world's line,
 // a pattern of several parts, which an earlier build cannot parse, a cut carved from a ring of parts alone, which an earlier
-// build pours as metal, and a stamp with a tier, a shaped top or an outline over 512 points, which an earlier build flattens
-// or refuses.
+// build pours as metal, a stamp with a tier, a shaped top or an outline over 512 points, which an earlier build flattens
+// or refuses, and a line array or an array along a path, which an earlier build cannot parse.
 // A design with none of these is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
 /// The version a design carrying none of the format-6 features is written at, so builds that read up to it still open the file.
 pub const PLAIN_FORMAT_VERSION: u32 = 5;
 
-/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a cut on a ring of parts alone or a stamp a format-5 build cannot strike.
+/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a line array or an array along a path, a cut on a ring of parts alone or a stamp a format-5 build cannot strike.
 pub fn format_version_for(design: &RingDesign) -> u32 {
     if crate::cad::stored::carried_by(design)
         || crate::cad::turns_in_plane(design)
         || crate::cad::picks_regions(design)
         || crate::cad::pattern::several_sources(design)
+        || crate::cad::pattern::follows_line_or_path(design)
         || crate::parts::cuts_apart(design)
         || design.stamps.iter().any(|s| !s.is_plain())
         || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(&f.operation, crate::cad::Operation::Builder { key, params, .. } if crate::cad::builders::geometry_extended(key, params))))
@@ -116,6 +117,8 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
         || (kind == "layer.seatrun" && pin == "bare") || (kind == "layer.group" && pin == "clamp")
         || (kind == "layer.tiling" && matches!(pin, "grade" | "space"));
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
+    // A line array or an array along a path, which an older reader cannot parse.
+    if value.get("Pattern").and_then(|p| p.get("kind")).is_some_and(|k| k.get("line").is_some() || k.get("along").is_some()) { return true; }
     if value.get("Builder").is_some_and(|builder| builder.get("key").and_then(serde_json::Value::as_str)
         .is_some_and(|key| crate::cad::builders::geometry_extended(key, &builder["params"]))) { return true; }
     if value.get("v_gate").is_some_and(|gate| gate.get("Draft").is_some() || gate.get("SideFaces").is_some()) { return true; }
@@ -127,8 +130,8 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     if value.get("mask").and_then(serde_json::Value::as_str).is_some_and(|m| m.starts_with(crate::skin::REGION_PREFIX)) { return true; }
     if value.get("taper").is_some() && value.get("law").is_some_and(|law| law == "Cosine" || law.get("Spiral").is_some()) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
-        if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
-            || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }
+        if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps" | "cad.features")
+            || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") || kind.starts_with("path.") { return true; }
         if value.get("inputs").and_then(serde_json::Value::as_object).is_some_and(|inputs| inputs.iter().any(|(pin, v)| {
             new_pin(kind, pin) && !v.is_null() && v.as_bool() != Some(false) && (kind != "window" || pin != "v_gate" || matches!(v.as_str(), Some("side_faces" | "draft")))
                 && (kind != "layer.tiling" || pin != "space" || v.as_str() == Some("Hide"))
