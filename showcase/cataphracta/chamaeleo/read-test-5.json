@@ -1,0 +1,34 @@
+{
+  "ring": "chamaeleo",
+  "mode": "read-test",
+  "attempt": 5,
+  "reads": false,
+  "what_the_eye_sees": "Closest yet, but my first word is still 'toad', not 'chameleon'. In hero-300 a round, warty gold head peers over the top of a tall plinth. Its near eye bulges on the side, and the far eye pokes up over the crown as a knob, like a frog's. The pebbled skin finally reads, and the curl on the plinth's side, with a stroke running back toward the stone, reads as a coiled tail. Three things keep it from naming itself. First, the casque, the chameleon's signature, renders as a flat-topped, hard-edged slab with a square-cut end, like a block glued onto the back of the head. It reads as CAD, not a helmet. Second, there is no snout: the eye sits at the very front of the head with nothing ahead of it and no mouth line in either 300 px view. That blunt, round, eye-forward head is a toad's face. Third, the eye is a stack of smooth rings ending in a sharp spike, so it reads as a bolt or a snail's horn, not a scaly turret. Face-300 is weaker still: a granulated oval with two spiked knobs sticking out of its sides at the left end (rivets or antennae), a smooth rectangular slab behind them, and the stone at the tail. A jeweller who sees spiral plus bug-eye plus pebbles might guess chameleon on a second look, but the first read is a frog or toad on a signet.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Sculpt the casque as a rounded helmet that grows out of the head, not a flat slab stuck on it",
+      "where": "The sculpted head part (sculpt.rs): the casque at the back of the head, hero-300 about x 105-135, y 40-65 (the flat tilted plane with the square-cut end); face-300 the smooth rectangle at about x 150-190",
+      "by_how_much": "Remove every planar facet and the square-cut back face. Blend the casque into the skull with a fillet of at least 1 mm on each side, so the granulated head skin runs up its flanks and only a narrow (about 0.8 mm) ridge on the centre line stays smooth. Keep the peak about 2 to 2.5 mm above the head, but round its top in profile: a convex helmet that curves up from between the eyes, rolls over at the back and drops to the neck in a curved, not cut, back edge. In plan, make it a wedge about 2 mm wide between the eyes, widening to 4 to 5 mm at the back, with rounded corners. Acceptance: in hero-300 the head's top outline is one continuous curve from snout to helmet peak, with no straight edge or flat face longer than about 8 px. In face-300 the area behind the eyes is a pebbled wedge with a narrow smooth ridge, not a smooth rectangle."
+    },
+    {
+      "priority": 2,
+      "what": "Give the head a snout ahead of the eyes and a mouth line, so it stops reading as a toad",
+      "where": "The sculpted head part: its front end (hero-300 about x 55-75, y 85-120, where the eye currently sits at the very tip); face-300 left end, about x 90-115",
+      "by_how_much": "Extend the head forward 3 to 4 mm beyond the eye turrets, tapering to a blunt, squarish snout about 60% of the head's width, and slope the snout's top down about 15 degrees from the brow. Cut the downturned mouth groove, about 0.5 mm deep and 0.6 mm wide (wide enough to hold a shadow at 300 px), from the snout tip back and down to below the rear of the eye turret, about 7 to 8 mm long. Acceptance: in hero-300 there is a visible snout of at least 10 px in front of the near eye and a dark mouth line running from it under the eye. In face-300 the head's outline narrows ahead of the eyes into a snout, rather than ending at them."
+    },
+    {
+      "priority": 3,
+      "what": "Turn the spiked, stacked-ring eye cones into scaly domed turrets",
+      "where": "The two eye turrets on the sculpted head: hero-300 near eye about x 85, y 110, far eye the knob at about x 75, y 70; face-300 the two spiked knobs at about x 122, y 115 and y 185",
+      "by_how_much": "Remove the sharp spike tip, and replace the smooth stacked rings with a hemispherical dome about 4 mm across, standing 1.5 to 2 mm proud, covered in 3 to 4 concentric rings of granules (radius 0.25 to 0.35 mm) like the head's skin. Leave a small smooth pupil boss about 1 mm across with a 0.3 mm pit at its centre, aimed forward and outward. Lower the far eye about 0.5 mm so it no longer pops above the crown as a frog's knob. Acceptance: in hero-300 the near eye is a pebbled dome at least 15 px across with a dark pupil dot and no spike. In face-300 the eyes show as two rounded, textured bulges with no pointed tips."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/chamaeleo/hero-300.png",
+    "showcase/cataphracta/chamaeleo/face-300.png",
+    "showcase/cataphracta/chamaeleo/contact-300.png",
+    "showcase/cataphracta/chamaeleo/hero.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}
