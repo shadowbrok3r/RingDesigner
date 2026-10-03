@@ -178,7 +178,7 @@ impl Default for Workshop {
         Self {
             session: Session::default(),
             worker: None,
-            stage: Stage::Nominal,
+            stage: Stage::Pattern,
             tab: 0,
             feature: 0,
             layer: 0,
@@ -207,6 +207,12 @@ pub struct Events {
     pub files: Vec<Artifact>,
 }
 impl Workshop {
+    /// Enter the guided casting flow from a host's quick casting controls.
+    pub fn open_casting(&mut self) {
+        self.tab = 0;
+        self.stage = Stage::Pattern;
+    }
+
     fn send(&mut self, ui: &egui::Ui, d: &RingDesign, lib: &AlphaLibrary, action: Action) {
         if self.session.busy {
             return;

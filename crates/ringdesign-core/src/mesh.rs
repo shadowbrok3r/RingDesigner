@@ -470,6 +470,7 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
     // `None` is the whole equal-arc-length path, not a flat density: with
     // adaptive off the cross-section must not redistribute by curvature either.
     let field_v = params.adaptive.then_some(&spacing.v);
+    let cell_u = if design.crisp_relief { ctx.circumference_mm / n_theta as f64 } else { 0.0 };
 
     // --- Sweep: one displaced cross-section per angular step. ---
     #[cfg(feature = "parallel")]
@@ -498,8 +499,10 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
                 inner_r,
                 min_wall,
             };
+            let rows = loop_i.pts.iter().filter(|p| p.surface).count().max(1);
+            let cell = (cell_u, if cell_u > 0.0 { ctx.band_v_len_mm / rows as f64 } else { 0.0 });
             for p in &loop_i.pts {
-                let d = disp.at(p, loop_i.surface_len_mm, u);
+                let d = disp.at_cell(p, loop_i.surface_len_mm, u, cell);
                 hi = hi.max(d.h);
                 lo = lo.min(d.h);
                 verts.push(Vec3(
@@ -720,9 +723,20 @@ impl Displacer<'_> {
         surface_len_mm: f64,
         u: f64,
     ) -> Displaced {
+        self.at_cell(p, surface_len_mm, u, (0.0, 0.0))
+    }
+
+    /// [`Displacer::at`] with the relief averaged over a build cell `(u, v)` in chart mm.
+    pub fn at_cell(
+        &self,
+        p: &crate::profile::ProfileSample,
+        surface_len_mm: f64,
+        u: f64,
+        cell: (f64, f64),
+    ) -> Displaced {
         let h = if p.surface && p.weight > 0.0 {
             let v = p.v_mm / surface_len_mm.max(1e-9) * self.ctx.band_v_len_mm;
-            let h = soft_height(self.stack, Uv { u, v }, self.ctx, self.lib, self.soften_mm)
+            let h = cell_height(self.stack, Uv { u, v }, self.ctx, self.lib, self.soften_mm, cell)
                 * p.weight;
             if h.is_finite() { h } else { 0.0 }
         } else {
@@ -760,6 +774,39 @@ pub(crate) fn soft_height(
         }
     }
     acc
+}
+
+/// Corner mean and centre agreeing within this, mm, read the relief as linear across a cell.
+const CELL_LINEAR_MM: f64 = 0.002;
+
+/// The stack's height averaged over `cell` (u, v), chart mm, centred on `uv`; a zero cell is the point read.
+pub(crate) fn cell_height(
+    stack: &crate::field::LayerStack,
+    uv: Uv,
+    ctx: &crate::field::FieldContext,
+    lib: &AlphaLibrary,
+    soften_mm: f64,
+    cell: (f64, f64),
+) -> f64 {
+    let read = |du: f64, dv: f64| soft_height(stack, Uv { u: uv.u + du, v: uv.v + dv }, ctx, lib, soften_mm);
+    let centre = read(0.0, 0.0);
+    if !(cell.0 > 1e-9 && cell.1 > 1e-9) {
+        return centre;
+    }
+    let (cu, cv) = cell;
+    let corners = read(-cu, -cv) + read(cu, -cv) + read(-cu, cv) + read(cu, cv);
+    if (0.25 * corners - centre).abs() < CELL_LINEAR_MM {
+        return centre;
+    }
+    // A tent one cell either way, the filter that matches the mesh's linear interpolation.
+    const TAPS: [(f64, f64); 6] = [(-5.0 / 6.0, 1.0 / 6.0), (-0.5, 0.5), (-1.0 / 6.0, 5.0 / 6.0), (1.0 / 6.0, 5.0 / 6.0), (0.5, 0.5), (5.0 / 6.0, 1.0 / 6.0)];
+    let mut sum = 0.0;
+    for (ou, wu) in TAPS {
+        for (ov, wv) in TAPS {
+            sum += wu * wv * read(ou * cu, ov * cv);
+        }
+    }
+    sum / 9.0
 }
 
 /// Area-weighted vertex normals: face normals are accumulated unnormalized, so
@@ -811,6 +858,76 @@ pub(crate) fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
 
 pub(crate) fn norm(a: [f64; 3]) -> f64 {
     (a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).sqrt()
+}
+
+#[cfg(test)]
+mod crisp_tests {
+    use super::{build, BuildParams};
+
+    /// A wall leaning across the grid: point reads step it a row at a time, cell reads lay it straight.
+    #[test]
+    fn crisp_relief_lays_an_oblique_wall_straight_and_leaves_the_verdict_alone() {
+        use crate::field::{Decal, DecalLayer, Layer, LayerEntry};
+        let mut d = crate::RingDesign::default();
+        d.profile.width_mm = 8.0;
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><polygon points="0,1024 1024,1024 1024,300 0,700" fill="black"/></svg>"#;
+        d.svgs.push(crate::svg::SvgAlpha { name: "Edge".into(), svg: svg.into(), invert: false });
+        let v = d.field_context().band_v_len_mm * 0.5;
+        let decal = Decal { theta_deg: 90.0, v_mm: v, size_mm: 5.0, rotation_deg: 0.0, height_mm: 0.4, flip: false };
+        d.layers.layers.push(LayerEntry::new("Edge", Layer::Decals(DecalLayer { alpha: "Edge".into(), decals: vec![decal], feather_mm: 0.0, invert: false })));
+        let lib = crate::manufacturing::source_library(&d, &crate::AlphaLibrary::default()).into_owned();
+        let params = BuildParams { theta_steps: 512, profile_steps: 192, ..Default::default() };
+        let bare = {
+            let mut b = d.clone();
+            b.layers.layers.clear();
+            build(&b, &lib, params).mesh
+        };
+        // Each slice's rows where the relief crosses half height; the steeper series is the leaning wall.
+        let wobble = |crisp: bool| {
+            let d = crate::RingDesign { crisp_relief: crisp, ..d.clone() };
+            let m = build(&d, &lib, params).mesh;
+            let np = params.profile_steps;
+            let lift = |k: usize| {
+                let (a, b) = (m.vertices[k], bare.vertices[k]);
+                ((a.0 - b.0) as f64).hypot((a.1 - b.1) as f64).hypot((a.2 - b.2) as f64)
+            };
+            let mut series: [Vec<(f64, f64)>; 2] = [Vec::new(), Vec::new()];
+            for i in 0..params.theta_steps {
+                let theta = i as f64 * 360.0 / params.theta_steps as f64;
+                if (theta - 90.0).abs() > 8.0 {
+                    continue;
+                }
+                let cross: Vec<f64> = (0..np - 1).filter_map(|j| {
+                    let (a, b) = (lift(i * np + j) - 0.2, lift(i * np + j + 1) - 0.2);
+                    (a * b < 0.0).then(|| j as f64 + a / (a - b))
+                }).collect();
+                if cross.len() == 2 {
+                    series[0].push((i as f64, cross[0]));
+                    series[1].push((i as f64, cross[1]));
+                }
+            }
+            let fit = |s: &[(f64, f64)]| {
+                let n = s.len() as f64;
+                let (mx, my) = (s.iter().map(|p| p.0).sum::<f64>() / n, s.iter().map(|p| p.1).sum::<f64>() / n);
+                let slope = s.iter().map(|p| (p.0 - mx) * (p.1 - my)).sum::<f64>() / s.iter().map(|p| (p.0 - mx).powi(2)).sum::<f64>();
+                let rms = (s.iter().map(|p| (p.1 - my - slope * (p.0 - mx)).powi(2)).sum::<f64>() / n).sqrt();
+                (slope.abs(), rms)
+            };
+            assert!(series[0].len() > 20, "{} slices cross the wall", series[0].len());
+            let (a, b) = (fit(&series[0]), fit(&series[1]));
+            if a.0 > b.0 { a.1 } else { b.1 }
+        };
+        let (stepped, straight) = (wobble(false), wobble(true));
+        assert!(stepped > 0.15, "point reads step the wall {stepped:.3} rows");
+        assert!(straight < 0.4 * stepped, "cell reads leave {straight:.3} rows of {stepped:.3}");
+        let crisp = crate::RingDesign { crisp_relief: true, ..d.clone() };
+        let (plain, sharp) = (crate::castability::analyze_field(&d, &lib, &d.draft, 128, 96), crate::castability::analyze_field(&crisp, &lib, &crisp.draft, 128, 96));
+        assert_eq!(format!("{plain:?}"), format!("{sharp:?}"), "the verdict reads the true surface");
+        assert!(serde_json::to_value(&d).unwrap().get("crisp_relief").is_none());
+        assert_eq!(crate::library::format_version_for(&crisp), crate::library::FORMAT_VERSION);
+        let set = serde_json::json!({"kind": "design.set", "inputs": {"pointer": "/crisp_relief", "value": true}});
+        assert!(crate::library::template_features_in_json(&set), "a graph setting it is fenced");
+    }
 }
 
 #[cfg(test)]

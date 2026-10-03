@@ -1,4 +1,5 @@
-//! Patterns of a part as its tessellation carried by rigid motions, work planes, and press-pull.
+//! Patterns of a part as its tessellation carried by rigid motions (or, along a path, motions that also scale), work planes,
+//! and press-pull.
 use super::{
     BuildCtx, Built, Document, EvaluatedComponent, FaceRef, Feature, Operation, Placement, Scope, SurfaceKind, Tessellated, Value, builders::Made, resolve_face, surface_hit, tessellated,
 };
@@ -13,6 +14,9 @@ use cadkernel::brep::{self, Body};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+
+pub mod along;
+pub use along::{Along, AlongPath};
 
 /// The key a pattern's copies carry as a mesh.
 pub const PATTERN: &str = "pattern";
@@ -50,6 +54,11 @@ pub enum PatternKind {
     },
     /// One copy reflected across `plane`.
     Mirror { plane: MirrorPlane },
+    /// `count` instances, the source first, each `pitch_mm` further along `along`: a direction read in the frame the first
+    /// source is seated by on the ring, or in the world for a part standing free.
+    Line { along: [f64; 3], count: u32, pitch_mm: f64 },
+    /// Instances along a path, the source standing at its first station: [`Along`].
+    Along(Along),
 }
 
 /// What a mirror reflects across.
@@ -105,28 +114,34 @@ impl PatternKind {
             Self::Ring { .. } => "Ring array",
             Self::About { .. } => "Array round a part",
             Self::Mirror { .. } => "Mirror",
+            Self::Line { .. } => "Line array",
+            Self::Along(_) => "Array along a path",
         }
     }
-    /// The features the copies are placed by, beside the source: the part an array turns about, the plane a mirror reflects across.
+    /// The features the copies are placed by, beside the source: the part an array turns about, the plane a mirror reflects
+    /// across, the sweep or sketch an array follows.
     pub fn reads(&self) -> Vec<Id> {
         match self {
             Self::About { part, .. } => vec![*part],
             Self::Mirror { plane: MirrorPlane::Plane { feature } } => vec![*feature],
-            Self::Ring { .. } | Self::Mirror { .. } => Vec::new(),
+            Self::Along(a) => a.path.reads(),
+            Self::Ring { .. } | Self::Mirror { .. } | Self::Line { .. } => Vec::new(),
         }
     }
-    /// Instances in all, the source's own among them.
+    /// Instances in all, the source's own among them; 0 for an array along a path that fits as many as its pitch allows.
     pub fn count(&self) -> u32 {
         match self {
-            Self::Ring { count, .. } | Self::About { count, .. } => *count,
+            Self::Ring { count, .. } | Self::About { count, .. } | Self::Line { count, .. } => *count,
+            Self::Along(a) => a.count,
             Self::Mirror { .. } => 2,
         }
     }
-    /// Each copy's turn in degrees, the source's own left out; refused past the counts and spans a pattern takes.
+    /// Each copy's turn in degrees, the source's own left out; refused past the counts and spans a pattern takes. A mirror, a
+    /// line and an array along a path turn no copy round the finger.
     pub fn angles(&self) -> Result<Vec<f64>> {
         let (count, span) = match self {
             Self::Ring { count, span_deg } | Self::About { count, span_deg, .. } => (*count, *span_deg),
-            Self::Mirror { .. } => return Ok(Vec::new()),
+            Self::Mirror { .. } | Self::Line { .. } | Self::Along(_) => return Ok(Vec::new()),
         };
         ensure!((2..=MAX_PATTERN_COUNT).contains(&count), "A pattern holds 2 to {MAX_PATTERN_COUNT} instances, its source among them, not {count}");
         ensure!(span.is_finite() && span.abs() > 1e-6 && span.abs() <= 360.0 + 1e-9, "A pattern spans more than 0° and at most 360° either way");
@@ -163,11 +178,26 @@ pub fn then(a: &Motion, b: &Motion) -> Motion {
     Motion { x_axis: a.vector(b.x_axis), y_axis: a.vector(b.y_axis), z_axis: a.vector(b.z_axis), origin: a.point(b.origin) }
 }
 
-/// The motion undoing a rigid one, a reflection included.
+/// The motion undoing a rigid one, a reflection included, or one that also scales everything alike, as an array along a path's
+/// copies may.
 pub fn inverse(m: &Motion) -> Motion {
     let row = |k: usize| [m.x_axis[k], m.y_axis[k], m.z_axis[k]];
     let back = |axis: [f64; 3]| -dot(axis, m.origin);
-    Motion { x_axis: row(0), y_axis: row(1), z_axis: row(2), origin: [back(m.x_axis), back(m.y_axis), back(m.z_axis)] }
+    let rigid = Motion { x_axis: row(0), y_axis: row(1), z_axis: row(2), origin: [back(m.x_axis), back(m.y_axis), back(m.z_axis)] };
+    match m.scale() {
+        // The transpose of a similarity is its inverse scaled by the square of its scale.
+        Some(s) if (s - 1.0).abs() > 1e-9 => {
+            let k = 1.0 / (s * s);
+            let by = |v: [f64; 3]| v.map(|c| c * k);
+            Motion { x_axis: by(rigid.x_axis), y_axis: by(rigid.y_axis), z_axis: by(rigid.z_axis), origin: by(rigid.origin) }
+        }
+        _ => rigid,
+    }
+}
+
+/// How much a pattern's motion scales its copy by: 1 for a rigid one.
+pub fn scale_of(m: &Motion) -> f64 {
+    m.scale().filter(|s| (s - 1.0).abs() > 1e-9).unwrap_or(1.0)
 }
 
 /// A right-handed turn of `deg` about the line through `origin` along `axis`.
@@ -193,13 +223,13 @@ pub fn reflect(origin: [f64; 3], normal: [f64; 3]) -> Motion {
     Motion { x_axis: m([1.0, 0.0, 0.0]), y_axis: m([0.0, 1.0, 0.0]), z_axis: m([0.0, 0.0, 1.0]), origin: n.map(|v| v * off) }
 }
 
-/// The Ring placement seating `id` and the feature carrying it, through modifiers, band booleans and settings; a stone on a part's face has none.
+/// The Ring or Side placement seating `id` and the feature carrying it, through modifiers, band booleans and settings; a stone on a part's face has none.
 pub fn seat_of(doc: &Document, id: Id) -> Option<(Id, Placement)> {
     let band = doc.band();
     let mut at = id;
     for _ in 0..32 {
         let f = doc.feature(at)?;
-        if matches!(f.component.placement, Placement::Ring { .. }) {
+        if matches!(f.component.placement, Placement::Ring { .. } | Placement::Side { .. }) {
             return Some((at, f.component.placement.clone()));
         }
         at = match &f.operation {
@@ -236,7 +266,8 @@ fn mirror_of(plane: &MirrorPlane, frame_of: &dyn Fn(Id) -> Option<Motion>) -> Re
     }
 }
 
-/// The world motions carrying a part onto each copy, before a seated source drops onto the band again.
+/// The world motions carrying a part onto each copy, before a seated source drops onto the band again. An array along a path is
+/// read against the band, and so by [`motions_seated`].
 pub fn world_motions(kind: &PatternKind, frame_of: &dyn Fn(Id) -> Option<Motion>) -> Result<Vec<Motion>> {
     match kind {
         PatternKind::Ring { .. } => Ok(kind.angles()?.into_iter().map(|a| turn_about([0.0; 3], [0.0, 0.0, 1.0], a)).collect()),
@@ -245,7 +276,24 @@ pub fn world_motions(kind: &PatternKind, frame_of: &dyn Fn(Id) -> Option<Motion>
             Ok(kind.angles()?.into_iter().map(|a| turn_about(f.origin, f.z_axis, a)).collect())
         }
         PatternKind::Mirror { plane } => Ok(vec![mirror_of(plane, frame_of)?]),
+        PatternKind::Line { .. } => line_motions(kind, &Motion::IDENTITY),
+        PatternKind::Along(_) => bail!("An array along a path is read against the ring it follows"),
     }
+}
+
+/// The motions stepping a part seated by `frame` along a line array's direction, read in that frame.
+fn line_motions(kind: &PatternKind, frame: &Motion) -> Result<Vec<Motion>> {
+    let PatternKind::Line { along, count, pitch_mm } = kind else { bail!("Not a line array") };
+    ensure!((2..=MAX_PATTERN_COUNT).contains(count), "A pattern holds 2 to {MAX_PATTERN_COUNT} instances, its source among them, not {count}");
+    ensure!(
+        pitch_mm.is_finite() && pitch_mm.abs() >= along::MIN_PITCH_MM && pitch_mm.abs() <= along::MAX_PITCH_MM,
+        "A line array steps {} to {} mm between copies either way, not {pitch_mm}",
+        along::MIN_PITCH_MM,
+        along::MAX_PITCH_MM
+    );
+    let d = along.iter().all(|v| v.is_finite()).then(|| unit(*along)).flatten().context("A line array runs along a direction, and [0, 0, 0] is none")?;
+    let step = frame.vector(d);
+    Ok((1..*count).map(|k| Motion::at(step.map(|v| v * pitch_mm * f64::from(k)))).collect())
 }
 
 /// The motions carrying the placed source onto each copy, a `seat`ed source dropped onto `surface` at each.
@@ -261,15 +309,31 @@ pub fn motions_seated(
     seat: Option<(&Placement, &Motion)>,
     frame_of: &dyn Fn(Id) -> Option<Motion>,
 ) -> Result<Vec<Motion>> {
+    match kind {
+        PatternKind::Line { .. } => return line_motions(kind, seat.map_or(&Motion::IDENTITY, |(_, used)| used)),
+        PatternKind::Along(a) => return along::motions(a, &along::Env { design, seated, frame_of }),
+        _ => {}
+    }
     let Some((p, used)) = seat else { return world_motions(kind, frame_of) };
-    let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } = *p else { return world_motions(kind, frame_of) };
+    if let (Placement::Side { theta_deg, radius_mm, face, height_mm, spin_deg, tilt_deg }, PatternKind::Ring { .. }) = (p, kind) {
+        let back = inverse(used);
+        return kind
+            .angles()?
+            .into_iter()
+            .map(|a| {
+                let at = Placement::Side { theta_deg: theta_deg + a, radius_mm: *radius_mm, face: *face, height_mm: *height_mm, spin_deg: *spin_deg, tilt_deg: *tilt_deg };
+                Ok(then(&seated(&at)?, &back))
+            })
+            .collect();
+    }
+    let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level } = *p else { return world_motions(kind, frame_of) };
     let back = inverse(used);
     match kind {
         PatternKind::Ring { .. } => kind
             .angles()?
             .into_iter()
             .map(|a| {
-                let at = Placement::Ring { theta_deg: theta_deg + a, across_mm, height_mm, spin_deg, tilt_deg, cant_deg };
+                let at = Placement::Ring { theta_deg: theta_deg + a, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level };
                 Ok(then(&seated(&at)?, &back))
             })
             .collect(),
@@ -278,7 +342,7 @@ pub fn motions_seated(
                 MirrorPlane::Section { theta_deg: through } => (2.0 * through - theta_deg, across_mm),
                 _ => (theta_deg, -across_mm),
             };
-            let q = Placement::Ring { theta_deg: theta, across_mm: across, height_mm, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+            let q = Placement::Ring { theta_deg: theta, across_mm: across, height_mm, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level };
             let local = then(&inverse(&q.frame(design)?), &then(&mirror_of(plane, frame_of)?, &p.frame(design)?));
             Ok(vec![then(&seated(&q)?, &then(&local, &back))])
         }
@@ -334,7 +398,10 @@ pub struct Instance {
 
 /// Every copy of `kind` carried by `motions`, none of them off a face.
 fn instances(kind: &PatternKind, motions: Vec<Motion>) -> Result<Vec<Instance>> {
-    let angles = if matches!(kind, PatternKind::Mirror { .. }) { vec![0.0; motions.len()] } else { kind.angles()? };
+    let angles = match kind {
+        PatternKind::Ring { .. } | PatternKind::About { .. } => kind.angles()?,
+        PatternKind::Mirror { .. } | PatternKind::Line { .. } | PatternKind::Along(_) => vec![0.0; motions.len()],
+    };
     Ok(motions.into_iter().zip(angles).map(|(motion, angle_deg)| Instance { motion, angle_deg, off_face: false }).collect())
 }
 
@@ -514,6 +581,26 @@ pub fn several_sources_json(v: &serde_json::Value) -> bool {
             many || map.values().any(several_sources_json)
         }
         serde_json::Value::Array(items) => items.iter().any(several_sources_json),
+        _ => false,
+    }
+}
+
+/// Whether `design` carries a line array or an array along a path, in its document or anywhere in its graph.
+pub fn follows_line_or_path(design: &RingDesign) -> bool {
+    let in_document = design.cad.as_ref().is_some_and(|doc| {
+        doc.features.iter().any(|f| matches!(&f.operation, Operation::Pattern { kind: PatternKind::Line { .. } | PatternKind::Along(_), .. }))
+    });
+    in_document || design.graph.as_ref().is_some_and(follows_line_or_path_json)
+}
+
+/// Whether `v` holds a line array or an array along a path anywhere: an object keyed `Pattern` whose kind is `line` or `along`.
+pub fn follows_line_or_path_json(v: &serde_json::Value) -> bool {
+    match v {
+        serde_json::Value::Object(map) => {
+            let kind = map.get("Pattern").and_then(|p| p.get("kind"));
+            kind.is_some_and(|k| k.get("line").is_some() || k.get("along").is_some()) || map.values().any(follows_line_or_path_json)
+        }
+        serde_json::Value::Array(items) => items.iter().any(follows_line_or_path_json),
         _ => false,
     }
 }
@@ -1133,7 +1220,7 @@ mod tests {
         let lib = AlphaLibrary::builtin();
         let court = template("Court band");
         let surface = bare(&court, &lib);
-        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 1.0, height_mm: 0.3, spin_deg: 25.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 1.0, height_mm: 0.3, spin_deg: 25.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         let mirror = |plane| Operation::Pattern { sources: 2.into(), kind: PatternKind::Mirror { plane } };
         let d = with(
             court.clone(),
@@ -1535,5 +1622,22 @@ mod tests {
         doc.apply(&CadEdit::Operation { id: 2, operation: Operation::Plane { base: PlaneBase::Parting, offset_mm: 0.0 } }).unwrap();
         assert_eq!(doc.outputs, vec![1]);
         assert_eq!(CadEdit::Add { feature: feature(0, "", Operation::Pattern { sources: 1.into(), kind: PatternKind::Ring { count: 3, span_deg: 360.0 } }, Component::default()), after: None }.label(), "Add Ring array");
+    }
+
+    mod along_tests;
+
+    /// Where an array along a path is read, as the evaluation reads it off `e` on `surface`.
+    #[allow(clippy::type_complexity)]
+    fn env_on<'a>(d: &'a RingDesign, surface: &'a Mesh, e: &'a Evaluated) -> (impl Fn(&Placement) -> Result<Motion> + 'a, impl Fn(Id) -> Option<Motion> + 'a) {
+        let seated = move |p: &Placement| p.frame_on(d, Some(surface));
+        let frame_of = move |id: Id| e.components.iter().find(|c| c.id == id).map(|c| c.frame).or_else(|| e.planes.iter().find(|p| p.id == id).map(WorkPlane::placement));
+        (seated, frame_of)
+    }
+    fn crest(from_deg: f64, to_deg: f64, count: u32) -> Along {
+        Along { path: AlongPath::Crest { from_deg, to_deg }, count, ..Along::default() }
+    }
+    fn unit_frame(m: &Motion) -> bool {
+        let n = |v: [f64; 3]| (dot(v, v).sqrt() - 1.0).abs() < 1e-9;
+        n(m.x_axis) && n(m.y_axis) && n(m.z_axis) && dot(m.x_axis, m.y_axis).abs() < 1e-9 && dot(m.y_axis, m.z_axis).abs() < 1e-9
     }
 }

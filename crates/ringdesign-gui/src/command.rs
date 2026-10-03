@@ -920,6 +920,8 @@ fn gizmo_of(app: &mut RingDesignerApp) -> Option<(FeatureId, Gizmo)> {
         }
         // A part round a stone standing free of the ring has nothing to drag until the stone is placed.
         Placement::Free if carried.is_some() => return None,
+        // No gizmo for a part placed relative to another part or on a side face.
+        Placement::Relative { .. } | Placement::Side { .. } => return None,
         Placement::Free => {
             let (lo, hi) = part?.mesh.bounds()?;
             let centre = [(lo.0 + hi.0) as f64 * 0.5, (lo.1 + hi.1) as f64 * 0.5, (lo.2 + hi.2) as f64 * 0.5];

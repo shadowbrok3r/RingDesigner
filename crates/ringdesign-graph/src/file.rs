@@ -20,7 +20,7 @@ use crate::value::Literal;
 pub const GRAPH_EXT: &str = "graph.json";
 pub const CLUSTER_EXT: &str = "cluster.json";
 pub const PRESET_EXT: &str = "preset.json";
-/// The newest version this build reads; version 2 fences an in-plane revolution, a pattern of several parts and a cut on a ring of parts alone off from older readers.
+/// The newest version this build reads; version 2 fences an in-plane revolution, a pattern of several parts, an array along a path or a line, the path nodes and a cut on a ring of parts alone off from older readers.
 pub const GRAPH_FORMAT_VERSION: u32 = 2;
 /// The version a file with none of them is written at.
 pub const PLAIN_GRAPH_FORMAT_VERSION: u32 = 1;
@@ -37,15 +37,19 @@ fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
 /// Version 2 only fences an in-plane revolution, a pattern of several parts and a cut on a ring of parts alone off from older readers; a version-1 document has the same shape.
 fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 
-/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, a profile of several regions, or a pattern of several parts.
+/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, a profile of several regions, a pattern of several parts, or a sweep that closes, twists, scales, follows a sketch entity or runs through points in space.
 fn fenced_json(v: &serde_json::Value) -> bool {
-    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::picks_regions_json(v) || ringdesign_core::cad::pattern::several_sources_json(v) || library::template_features_in_json(v)
+    ringdesign_core::cad::turns_in_plane_json(v)
+        || ringdesign_core::cad::picks_regions_json(v)
+        || ringdesign_core::cad::pattern::several_sources_json(v)
+        || ringdesign_core::cad::sweeps_extended_json(v)
+        || library::template_features_in_json(v)
 }
 
 /// Whether a literal holds what an older reader must be fenced from: what [`fenced_json`] fences, or a cut on a ring of parts alone.
 fn literal_fenced(l: &Literal) -> bool {
     match l {
-        Literal::Json(v) => fenced_json(v) || ringdesign_core::parts::cuts_apart_json(v),
+        Literal::Json(v) => fenced_json(v) || ringdesign_core::parts::cuts_apart_json(v) || ringdesign_core::parts::beads_apart_json(v),
         Literal::List(items) => items.iter().any(literal_fenced),
         _ => false,
     }
@@ -53,7 +57,7 @@ fn literal_fenced(l: &Literal) -> bool {
 
 /// Whether `g`, read with every node's pins, its wires and its exposures, may evaluate to a ring of parts alone carrying a cut, clusters included.
 fn graph_cuts_apart(g: &Graph) -> bool {
-    serde_json::to_value(g).map_or(true, |v| ringdesign_core::parts::cuts_apart_json(&v))
+    serde_json::to_value(g).map_or(true, |v| ringdesign_core::parts::cuts_apart_json(&v) || ringdesign_core::parts::beads_apart_json(&v))
 }
 
 /// The version `g` is written at: the newest when a node carries a revolution read in its sketch's plane or a pattern of several parts, or the graph, or a cluster in it, may evaluate to a ring of parts alone carrying a cut.
@@ -477,7 +481,7 @@ mod tests {
     fn template_controls_fence_graphs_clusters_and_presets_from_released_readers() {
         use super::*;
         use crate::graph::Mode;
-        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "blend_mm"), ("cad.feature", "theta_deg")] {
+        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "blend_mm"), ("cad.feature", "theta_deg"), ("layer.curve", "widths"), ("layer.curve", "heights"), ("layer.curve", "beads")] {
             for form in ["literal", "wire", "exposure"] {
                 let mut g = Graph::new("Editable geometry", Mode::Free);
                 let node = g.add(kind).unwrap();
@@ -601,6 +605,49 @@ mod tests {
     }
 
     #[test]
+    fn a_closed_scaled_or_sketch_following_sweep_fences_its_graph_cluster_and_preset_at_two_and_a_plain_one_stays_at_one() {
+        use ringdesign_core::cad::{Operation, SweepPath, TwistPath};
+        use ringdesign_core::sketch::Sketch;
+        let reg = Registry::builtin();
+        let line = vec![[0.0; 3], [0.0, 0.0, 5.0]];
+        let plain_sweep = serde_json::to_value(Operation::sweep(Sketch::circle(1.0), line.clone())).unwrap();
+        let mut plain = Graph::new("Swept", Mode::Free);
+        let n = plain.add("cad.feature").unwrap();
+        plain.node_mut(n).unwrap().params = serde_json::json!({ "id": 2, "name": "Cane", "enabled": true, "operation": plain_sweep });
+        let text = graph_to_string(&plain).unwrap();
+        assert_eq!(text, serde_json::to_string_pretty(&Versioned { format_version: 1, doc: &plain }).unwrap());
+        assert_eq!(read_graph(&text, Some(&reg), PLAIN_GRAPH_FORMAT_VERSION).unwrap(), plain);
+        let along = Operation::Sweep { sketch: Sketch::circle(0.2).into(), path: SweepPath::Sketch { feature: 1, entity: 4, lift_mm: 0.1 }, closed: false, twist_deg: 0.0, end_scale: 1.0 };
+        let cane = Operation::Twist {
+            sketch: Sketch::circle(0.72).into(),
+            path: TwistPath::Points { points: vec![[10.0, 0.0, 0.0], [0.0, 10.0, 1.0], [-10.0, 0.0, 0.0], [0.0, -10.0, -1.0]], smooth: true },
+            degrees: 0.0,
+            end_scale: 1.0,
+            scale: vec![[0.0, 1.0], [0.5, 0.85], [1.0, 1.0]],
+            closed: true,
+        };
+        for (name, op) in [("a sweep along a sketch", along), ("a closed cane", cane)] {
+            let op = serde_json::to_value(op).unwrap();
+            let mut in_params = plain.clone();
+            in_params.nodes[0].params["operation"] = op.clone();
+            let mut on_pin = plain.clone();
+            on_pin.nodes[0].inputs.insert("operation".into(), Literal::Json(op.clone()));
+            let mut in_cluster = Graph::new("Swept cluster", Mode::Free);
+            let c = in_cluster.add("cluster").unwrap();
+            in_cluster.node_mut(c).unwrap().params = serde_json::json!({ "graph": serde_json::to_value(&in_params).unwrap() });
+            for (place, g) in [("params", &in_params), ("pin", &on_pin), ("cluster", &in_cluster)] {
+                assert_eq!(graph_version_for(g), GRAPH_FORMAT_VERSION, "{name} in its {place}");
+                let text = graph_to_string(g).unwrap();
+                assert_eq!(&load_graph_str(&text, Some(&reg)).unwrap(), g, "{name} in its {place}");
+                let older = read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
+                assert_eq!(older, "graph file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner", "{name} in its {place}");
+            }
+            let preset = Preset { name: "Swept".into(), cluster: "Swept cluster".into(), values: [("Operation".to_string(), Literal::Json(op))].into_iter().collect(), doc: String::new() };
+            assert!(preset_to_string(&preset).unwrap().contains("\"format_version\": 2"), "{name}");
+        }
+    }
+
+    #[test]
     fn a_cut_on_a_ring_of_parts_alone_fences_its_graph_cluster_and_preset_at_two_and_a_banded_one_stays_at_one() {
         use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation};
         let reg = Registry::builtin();
@@ -667,7 +714,7 @@ mod tests {
             g
         };
         let band_off = |g: &mut Graph| g.set_input(band, "enabled", Literal::Bool(false)).unwrap();
-        let expose = |g: &mut Graph| g.exposed.push(Exposed { node: band, input: "enabled".into(), name: "Band".into(), doc: String::new() });
+        let expose = |g: &mut Graph| g.exposed.push(Exposed { node: band, input: "enabled".into(), name: "Band".into(), doc: String::new(), range: None });
         let cases = [
             ("as converted", with(&|_| {}), false, false),
             ("band pinned off", with(&band_off), true, true),
