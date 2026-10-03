@@ -1,0 +1,18 @@
+{
+  "ring": "Ogiva",
+  "slug": "ogiva",
+  "mode": "read-test",
+  "reads": false,
+  "what_the_eye_sees": "A plain, smooth gold band, like a washer, an O-ring or a flat comfort-fit wedding band seen at an angle. The hero shows a soft rounded outer face with one faint hairline running round it. The face view is a plain gold donut with a highlight. No pointed arch, no keel ridge, no crockets, no niches, nothing Gothic and nothing cathedral. The section and side views show a fine lancet with a stepped spire tip, but that shape lives only in cross-section: at 300 px from the hero or face angle the 155-degree keel is too obtuse and too small to catch light, and the stepped collar near the apex shows only as a hairline. A jeweller would call this a plain band.",
+  "changes": [
+    "Put the brief's ornament on the ring: the 13 crockets over the top 144 degrees of the keel (theta 18 to 162, each at least 0.8 mm stroke and standing about 0.8 to 1.0 mm proud of the keel) and the 36 blind lancet niches on each foot (0.9 x 1.2 mm, 0.5 to 0.9 mm deep). Acceptance: the hero-300 shows a row of hooked bumps along the crest and a band of pointed-arch recesses on the flanks that a viewer can count.",
+    "Make the keel read as a sharp ridge, not a rounded crown: tighten the crest from 155 degrees to about 120 to 130 degrees over the top 1.2 mm of the section, and drop or blend the step at the spire collar (the shoulders at about 70 percent height in section.png) so the arch outline is one clean lancet. Acceptance: in hero-300 the crest carries a continuous bright specular line with a dark side, and in side.png the silhouette reads as an unbroken pointed arch.",
+    "Turn the hero camera so the pointed silhouette shows: tilt about 20 to 30 degrees more toward the side so the ring's outer edge profiles against the background as a peaked lancet, and light the keel from one side so one flank goes dark. Acceptance: in hero-300 the outer silhouette at the near edge is visibly pointed, not rounded."
+  ],
+  "viewed_images": [
+    "target/readtest/m7/section.png",
+    "target/readtest/m7/side.png",
+    "target/readtest/m7/hero-300.png",
+    "target/readtest/m7/face-300.png"
+  ]
+}

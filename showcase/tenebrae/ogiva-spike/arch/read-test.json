@@ -1,0 +1,18 @@
+{
+  "ring": "ogiva",
+  "mode": "read-test",
+  "reads": true,
+  "what_the_eye_sees": "Face at 300 px: a pointed lancet arch at once, with nested archivolt orders stepping in at the apex and two impost blocks at the springing line. A jeweller says 'Gothic arch' or 'church window' without a caption. Hero at 300 px is weaker: a smooth gold band shaped like a teardrop or Reuleaux triangle, with two small tabs at the sides. The apex grooves are too shallow and too short to carry the archivolts at that size, and nothing on the surface says cathedral beyond the outline. It passes on the face and on the iconic outline, not on surface detail. The hero alone could pass for a modern geometric band.",
+  "changes": [
+    "Keel crest, over the top 144 deg: add the 13 crockets as distinct leaf knobs, about 1.0-1.2 mm proud of the keel, spaced evenly, with a finial at the apex about 1.5 mm proud. The hero silhouette has to break from a smooth curve into a crocketed gable edge that is visible at 300 px.",
+    "Archivolt orders on the front and back faces: carry the stepped recesses from the apex all the way down both flanks to the imposts, about 0.5 mm deep per step, with 2-3 orders each at least 0.6 mm wide. In the hero they should read as concentric moulded arches, not as two hairline grooves at the top.",
+    "Imposts and feet: turn the flat tabs into moulded capitals about 1.2 mm tall (abacus plus bell). Cut the planned blind lancet niches into the flat lower feet, at least 3 per side visible in the hero, about 0.6 mm deep. The plain flat-bottomed lower third then reads as masonry jambs rather than an empty slab."
+  ],
+  "viewed_images": [
+    "target/readtest/q4/hero-300.png",
+    "target/readtest/q4/face-300.png",
+    "target/readtest/q4/hero.png",
+    "target/readtest/q4/face.png",
+    "target/readtest/q4/side.png"
+  ]
+}
