@@ -289,27 +289,11 @@ fn curve_node() -> NodeSpec {
     .field(PinSpec::select("profile", enum_names(WireProfile::ALL)).doc("The wire's section."))
     .field(PinSpec::item("taper", ValueKind::Number).doc("Thinning toward the ends, 0..1."))
     .field(PinSpec::item("mirror_v", ValueKind::Bool).doc("Mirror onto the other side face."))
-    .extra(PinSpec::list("widths", ValueKind::Number).doc("Per point, times the width; a short list repeats its last value."))
-    .extra(PinSpec::list("heights", ValueKind::Number).doc("Per point, times the height; a short list repeats its last value."))
-    .extra(PinSpec::item("beads", ValueKind::Json).doc("A bead row: pitch_mm, diameter_mm, height_mm, offset, graded, phase, span, stagger, cup."))
-    .finish(curve_profile)
+    .list_field(PinSpec::list("widths", ValueKind::Number).doc("Per control point, times the width; a short list repeats its last value, and an empty one leaves the wire's own."))
+    .list_field(PinSpec::list("heights", ValueKind::Number).doc("Per control point, times the height; a short list repeats its last value, and an empty one leaves the wire's own."))
+    .field(PinSpec::item("beads", ValueKind::Json).doc("A bead row along the wire: pitch_mm, diameter_mm, height_mm, offset (-1..1 across), graded, phase (0..1 of a pitch), span, stagger and cup; a field left out takes its default."))
+    .sparse(&["widths", "heights", "beads"])
     .build()
-}
-
-/// Writes the per-point profile and the bead row when their pins are set.
-fn curve_profile(c: &mut CurveLayer, i: &Inputs, _: &mut EvalCtx<'_>) -> Result<(), NodeError> {
-    for (pin, field) in [("widths", &mut c.widths), ("heights", &mut c.heights)] {
-        let items = i.list(pin);
-        if !items.is_empty() {
-            *field = items.iter().map(|v| v.as_number().ok_or_else(|| NodeError::input(pin, "expected numbers"))).collect::<Result<_, _>>()?;
-        }
-    }
-    let beads = i.get("beads");
-    if !beads.is_null() {
-        let json = beads.to_json_any().ok_or_else(|| NodeError::input("beads", "expected a bead row"))?;
-        c.beads = Some(serde_json::from_value(json).map_err(|e| NodeError::input("beads", e.to_string()))?);
-    }
-    Ok(())
 }
 
 fn curve_preset(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
@@ -653,9 +637,14 @@ mod tests {
         edited.set_input(modifier, "width_mm", Literal::Number(1.5)).unwrap();
         let Layer::Curve(kept) = layer_of(&run(&edited), modifier) else { panic!() };
         assert_eq!((kept.width_mm, &kept.widths, &kept.heights, kept.beads), (1.5, &arm.widths, &arm.heights, arm.beads), "unset profile pins leave the base's alone");
+        edited.set_input(modifier, "widths", Literal::List(Vec::new())).unwrap();
+        let Layer::Curve(empty) = layer_of(&run(&edited), modifier) else { panic!() };
+        assert_eq!(empty.widths, arm.widths, "an empty list leaves the base's too");
         edited.set_input(modifier, "widths", Literal::List(vec![Literal::Number(0.8)])).unwrap();
+        edited.set_input(modifier, "beads", Literal::Json(serde_json::json!({"offset": 0.5, "phase": 0.25}))).unwrap();
         let Layer::Curve(set) = layer_of(&run(&edited), modifier) else { panic!() };
         assert_eq!(set.widths, vec![0.8]);
+        assert_eq!(set.beads, Some(CurveBeads { offset: 0.5, phase: 0.25, ..CurveBeads::default() }), "a bead row's unnamed fields take their defaults");
     }
 
     fn layer_of(r: &crate::eval::EvalReport, id: NodeId) -> Layer {

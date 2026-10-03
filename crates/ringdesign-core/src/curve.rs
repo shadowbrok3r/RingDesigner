@@ -132,6 +132,7 @@ impl Default for CurveLayer {
 
 /// A row of beads standing on a wire, each in the wire's own profile.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct CurveBeads {
     /// Spacing along the path, mm.
     pub pitch_mm: f64,
@@ -144,23 +145,16 @@ pub struct CurveBeads {
     /// Where along one pitch the first bead sits, 0..1.
     pub phase: f64,
     /// Share of the path's length the row runs over, from its first point.
-    #[serde(default = "full_span")]
     pub span: [f64; 2],
     /// Alternate beads step this far either side of `offset`, fraction of the half-width.
-    #[serde(default)]
     pub stagger: f64,
     /// Depth of a dimple at each bead's centre, fraction of its height: 0 is a dome, toward 1 a cup.
-    #[serde(default)]
     pub cup: f64,
-}
-
-fn full_span() -> [f64; 2] {
-    [0.0, 1.0]
 }
 
 impl Default for CurveBeads {
     fn default() -> Self {
-        Self { pitch_mm: 0.75, diameter_mm: 0.55, height_mm: 0.25, offset: 0.0, graded: true, phase: 0.0, span: full_span(), stagger: 0.0, cup: 0.0 }
+        Self { pitch_mm: 0.75, diameter_mm: 0.55, height_mm: 0.25, offset: 0.0, graded: true, phase: 0.0, span: [0.0, 1.0], stagger: 0.0, cup: 0.0 }
     }
 }
 
@@ -1075,6 +1069,90 @@ mod tests {
         assert_eq!(arm.bead_census(&c).0, MAX_CURVE_BEADS);
         let h = arm.height(Uv { u: 30.0, v: 4.0 }, &c);
         assert!(h.is_finite() && h > 0.0);
+    }
+
+    #[test]
+    fn a_bead_rows_phase_sets_its_first_bead_along_one_pitch() {
+        let c = ctx();
+        let row = |phase: f64| CurveLayer {
+            points: vec![[0.05, 4.0], [0.95, 4.0]],
+            repeats_around: 1,
+            taper: 0.0,
+            width_mm: 2.0,
+            height_mm: 0.5,
+            beads: Some(CurveBeads { pitch_mm: 1.0, diameter_mm: 0.8, height_mm: 0.3, graded: false, phase, ..CurveBeads::default() }),
+            ..CurveLayer::default()
+        };
+        for (phase, count) in [(0.0, 55), (0.25, 54), (0.5, 54), (0.75, 54)] {
+            let l = row(phase);
+            assert_eq!(l.bead_census(&c).0, count, "phase {phase}");
+            for k in [0.0, 10.0, 40.0] {
+                let centre = l.height(Uv { u: 3.0 + phase + k, v: 4.0 }, &c);
+                let between = l.height(Uv { u: 3.5 + phase + k, v: 4.0 }, &c);
+                assert!((centre - 0.8).abs() < 1e-9 && (between - 0.5).abs() < 1e-9, "phase {phase}, bead {k}: {centre} {between}");
+            }
+        }
+    }
+
+    /// The ring brief's phase for a wire with no phase of its own: every control point's `x` shifted.
+    #[test]
+    fn a_control_point_shift_moves_a_plain_a_graded_and_a_beaded_wire_by_exactly_that_much() {
+        let c = ctx();
+        let runner = CurveLayer { repeats_around: 7, mirror_v: true, ..CurveLayer::preset_vine(&c) };
+        let arm = CurveLayer {
+            points: vec![[0.05, 3.0], [0.35, 5.0], [0.65, 3.5], [0.95, 4.5]],
+            repeats_around: 3,
+            taper: 0.1,
+            width_mm: 1.6,
+            height_mm: 0.8,
+            widths: vec![1.0, 0.6, 0.3, 0.17],
+            heights: vec![1.0, 0.5, 0.25],
+            beads: Some(CurveBeads { offset: -0.6, stagger: 0.2, cup: 0.4, ..CurveBeads::default() }),
+            ..CurveLayer::default()
+        };
+        for wire in [runner, arm] {
+            let shift = 0.75;
+            let cell = c.circumference_mm / f64::from(wire.repeats_around);
+            let mut shifted = wire.clone();
+            for p in &mut shifted.points {
+                p[0] += shift;
+            }
+            let ((count, smallest), (moved, moved_smallest)) = (wire.bead_census(&c), shifted.bead_census(&c));
+            assert!(count == moved && (smallest == moved_smallest || (smallest - moved_smallest).abs() < 1e-12), "{count} {smallest} / {moved} {moved_smallest}");
+            let (mut worst, mut lit) = (0.0f64, 0);
+            for i in 0..600 {
+                for j in 0..41 {
+                    let (u, v) = (i as f64 * 0.1, 2.0 + j as f64 * 0.1);
+                    let here = wire.height(Uv { u, v }, &c);
+                    worst = worst.max((here - shifted.height(Uv { u: u + shift * cell, v }, &c)).abs());
+                    lit += usize::from(here > 0.0);
+                }
+            }
+            assert!(lit > 1000, "the wire stands on the samples: {lit}");
+            assert!(worst < 1e-9, "a shift of {shift} of a cell is not a rigid move round the ring: {worst:e}");
+        }
+    }
+
+    #[test]
+    fn the_sands_detail_floor_reads_a_graded_wire_at_its_thinnest_point_and_a_row_at_its_smallest_bead() {
+        let mut d = crate::RingDesign::default();
+        d.draft.min_detail_mm = 0.35;
+        let fc = d.field_context();
+        let uniform = CurveLayer { width_mm: 0.6, taper: 0.0, ..CurveLayer::preset_vine(&fc) };
+        let graded = CurveLayer { widths: vec![1.0, 0.5], ..uniform.clone() };
+        let beaded = CurveLayer { beads: Some(CurveBeads { diameter_mm: 0.6, ..CurveBeads::default() }), ..graded.clone() };
+        let found = |l: &CurveLayer| {
+            let mut d = d.clone();
+            d.layers.layers.push(crate::LayerEntry::new("Wire", crate::Layer::Curve(l.clone())));
+            crate::dfm::findings(&d).into_iter().map(|f| f.message).collect::<Vec<_>>()
+        };
+        let finest = |l: &CurveLayer| l.feature_footprints(&fc).iter().map(|f| f.metal_feature_mm(&fc)).fold(f64::MAX, f64::min);
+        assert!(found(&uniform).is_empty(), "0.6 mm of wire holds the floor: {:?}", found(&uniform));
+        assert!(finest(&graded) <= 0.3 + 1e-12 && finest(&beaded) <= 0.3 + 1e-12, "{} {}", finest(&graded), finest(&beaded));
+        let thin = found(&graded);
+        assert!(thin.len() == 1 && thin[0].starts_with(&format!("the wire run {:.2} mm", finest(&graded))), "the thinnest point is under it: {thin:?}");
+        let beads = found(&beaded);
+        assert!(beads.len() == 1 && beads[0].starts_with(&format!("the wire or its beads run {:.2} mm", finest(&beaded))), "so is the smallest bead: {beads:?}");
     }
 
     #[test]
