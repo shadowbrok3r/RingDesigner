@@ -610,7 +610,7 @@ impl Wolf {
         let end = (CORNER_DEG + 3.0 - ang.abs()).to_radians() * rho.max(1.0);
         // Below the lip's roll the gum widens into the jaw's body, so no slot opens between them.
         let widen = if ang >= 0.0 { (l[2] + 0.4) * smooth(l[1] - l[3] + 0.1, l[1] - l[3] - 0.5, s[2]) } else { (jaw_out(ang) - l[0] - 0.5).max(0.0) * smooth(0.8, -1.0, s[2]) };
-        smax((rho - l[0] - 0.3 - widen).max(s[2] - gum_h(ang)).max(-(s[2] + 2.5)), end, 0.4)
+        smax(smax((rho - l[0] - 0.3 - widen).max(s[2] - gum_h(ang)), -(s[2] + 2.5), 0.4), end, 0.4)
     }
     /// The throat under the chin, hanging over the apex wall, its lowest point a millimetre and more over the finger.
     fn throat(s: P3) -> f64 {
@@ -2047,6 +2047,12 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
         "census": {"edges_60_deg_by_zone": lands.census, "seam_crease_run_mm": lands.seam_run},
         "gates": gates.iter().map(|(g, p)| json!({"gate": g, "pass": p})).collect::<Vec<_>>(),
     });
+    let mut report = report;
+    // The draft build's own report rides along in the export's, so one file carries every gate at both resolutions.
+    if let Some(path) = std::env::args().find_map(|a| a.strip_prefix("--draft-report=").map(String::from)) {
+        let draft: Value = serde_json::from_str(&std::fs::read_to_string(&path)?)?;
+        report["draft"] = json!({"build": draft["build"], "gates": draft["gates"], "geometry": draft["geometry"], "made_parts": draft["made_parts"], "field": draft["field"], "dfm": draft["dfm"], "stones": draft["stones"], "grams_18k": draft["grams_18k"], "hollow": draft["hollow"], "internal_voids": draft["internal_voids"], "land_widths": draft["land_widths"], "pattern": draft["pattern"], "jaws": draft["jaws"]});
+    }
     std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
     std::fs::write(out.join("mesh.json"), serde_json::to_vec_pretty(&built.report)?)?;
     if !draft {
