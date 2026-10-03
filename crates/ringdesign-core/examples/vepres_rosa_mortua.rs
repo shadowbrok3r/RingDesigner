@@ -38,17 +38,31 @@ const BUD_DEG: f64 = 115.0;
 const BUD_NOD_DEG: f64 = 15.0;
 const HIP_DEG: f64 = 65.0;
 /// How far each stone is lifted to stand on its arm's stem.
-const BUD_LIFT_MM: f64 = 0.9;
+const BUD_LIFT_MM: f64 = 1.15;
 const HIP_LIFT_MM: f64 = 0.6;
 /// The two arms' stems over the band: round, `STEM_R_MM`, standing `STEM_PROUD_MM` proud, from this far either
 /// side of the top to under their stones.
 const STEM_R_MM: f64 = 1.05;
 const STEM_PROUD_MM: f64 = 0.75;
-const STEM_FROM_DEG: [f64; 2] = [42.0, 75.0];
+const STEM_FROM_DEG: [f64; 2] = [42.0, 42.0];
 const STEM_BLEND_MM: f64 = 0.0;
 /// The bud's collet.
 const BUD_WALL_MM: f64 = 0.45;
 const BUD_LIP: f64 = 0.3;
+/// Which end of the pear's own x its point lies at.
+const BUD_POINT_X: f64 = -1.0;
+/// The sepals round the collet's rounded end, at plan azimuths from the point (180 deg is the round end): broad,
+/// pointed, climbing the collet's wall to `BUD_SEPAL_TOP_MM` over the girdle and curling off it.
+const BUD_SEPAL_PHI_DEG: [f64; 5] = [180.0, 136.0, 224.0, 96.0, 264.0];
+const BUD_SEPAL_TOP_MM: f64 = 1.5;
+const BUD_SEPAL_OFF_MM: f64 = 0.45;
+const BUD_SEPAL_FOOT_MM: f64 = 0.6;
+const BUD_SEPAL_CURL_MM: f64 = 1.0;
+const BUD_SEPAL_W_MM: f64 = 1.9;
+const BUD_SEPAL_T_MM: f64 = 0.55;
+/// The receptacle bulb under the round end: semi-axes along, across and up, how far past the end and how far under
+/// the girdle its centre stands.
+const BUD_RECEPTACLE: (f64, f64, f64, f64, f64) = (2.3, 2.0, 0.75, -2.6, 2.85);
 /// Four petals wrapped round the collet, each a layer `PETAL_LAYER_MM` further out and `PETAL_STEP_DEG` further
 /// round (the golden angle, as a rose lays them), each lower than the last and flaring wider.
 /// Three rings of petals: (count, rise over the horizontal in degrees, length, width, foot height in mm under the
@@ -69,42 +83,52 @@ const SEPAL_T_MM: f64 = 0.55;
 /// The hip: a garnet cabochon held by five Sepal claws, which are its dried crown.
 const HIP_CLAWS: u32 = 5;
 const HIP_WIRE_MM: f64 = 0.75;
-const HIP_RISE: f64 = 0.45;
+const HIP_RISE: f64 = 0.6;
+/// The hip's body under the stone: semi-axes and how far its centre stands under the girdle.
+const HIP_BODY: (f64, f64, f64, f64) = (2.6, 2.6, 1.35, 1.55);
 /// The dried sepal crown on the hip, between its claws: five wisps, each a lens `WISP_W x WISP_T` swept up
 /// `WISP_RISE` then curling out over `WISP_CURL_DEG` on a `WISP_BEND` radius, turning and tapering.
 const WISPS: u32 = 5;
-const WISP_W_MM: f64 = 1.2;
-const WISP_T_MM: f64 = 0.5;
-const WISP_RISE_MM: f64 = 0.35;
+const WISP_W_MM: f64 = 1.3;
+const WISP_T_MM: f64 = 0.45;
+const WISP_RISE_MM: f64 = 2.4;
 const WISP_BEND_MM: f64 = 1.0;
-const WISP_CURL_DEG: f64 = 80.0;
+const WISP_CURL_DEG: f64 = 100.0;
 const WISP_TWIST_DEG: f64 = 50.0;
 const WISP_END: f64 = 0.35;
-const WISP_ROOT_Z_MM: f64 = 0.2;
-const WISP_ROOT_OUT_MM: f64 = 0.15;
+const WISP_ROOT_Z_MM: f64 = -0.1;
+const WISP_ROOT_OUT_MM: f64 = 0.3;
 /// The leaf: where its rachis starts, how far across, the rachis's run, each leaflet's (length, width), the
 /// laterals' spread; how far it stands off the band, arches, domes and how thick it is.
-const LEAF_DEG: f64 = 37.0;
-const LEAF_Z_MM: f64 = 0.0;
+const LEAF_DEG: f64 = 133.0;
+const LEAF_Z_MM: f64 = -0.2;
 const LEAF_RACHIS_MM: f64 = 1.3;
-const LEAF_TERMINAL: (f64, f64) = (4.2, 2.0);
-const LEAF_LATERAL: (f64, f64) = (3.0, 1.7);
-const LEAF_SPREAD_DEG: f64 = 45.0;
+const LEAF_TERMINAL: (f64, f64) = (5.4, 2.8);
+const LEAF_LATERAL: (f64, f64) = (4.2, 2.2);
+const LEAF_SPREAD_DEG: f64 = 50.0;
 const LEAF_SINK_MM: f64 = 0.12;
-const DRAPE_Z_MM: (f64, f64) = (-0.45, 1.1);
-const DRAPE_SLOPE: f64 = 0.5;
+const DRAPE_Z_MM: (f64, f64) = (-0.8, 0.45);
+const DRAPE_SLOPE: f64 = 0.2;
 const LEAF_T_MM: f64 = 0.6;
 const LEAF_TOOTH: f64 = 0.12;
 /// Seven prickles down each arm, the first this far from the top, then every `PRICKLE_STEP_DEG`.
 const PRICKLES: usize = 7;
-const PRICKLE_FROM_DEG: [f64; 2] = [82.0, 50.0];
-const PRICKLE_STEP_DEG: [f64; 2] = [13.0, 14.0];
+const PRICKLE_FROM_DEG: [f64; 2] = [48.0, 70.0];
+const PRICKLE_STEP_DEG: [f64; 2] = [10.0, 10.0];
 /// The smallest prickle's scale, at the palm end.
 const PRICKLE_LAST_SCALE: f64 = 0.6;
 const PRICKLE_SINK_MM: f64 = 0.3;
 const PRICKLE_BLEND_MM: f64 = 0.25;
 const PRICKLE_SPIN_DEG: f64 = 25.0;
 const PRICKLE_SIDES: usize = 24;
+/// A rose prickle: a broad flattened foot (round the ring, across), a short rise, then hooked down the stem.
+const PRICKLE_FOOT_MM: (f64, f64) = (4.2, 2.1);
+const PRICKLE_RISE_MM: f64 = 0.45;
+const PRICKLE_BEND_MM: f64 = 1.9;
+const PRICKLE_HOOK_DEG: f64 = 78.0;
+/// Alternate prickles stand this far either side of the crest, canted with it.
+const PRICKLE_ACROSS_MM: f64 = 0.55;
+const PRICKLE_CANT_DEG: f64 = 18.0;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -186,10 +210,10 @@ fn ellipse_on(plane: Workplane, a: f64, b: f64, name: &str) -> Sketch {
 /// then hooked 60 deg on a 2.2 mm bend, tapering to a point.
 fn prickle(scale: f64) -> Operation {
     Operation::Twist {
-        sketch: ellipse_on(Workplane::default(), 3.0 * scale, 1.4 * scale, "Prickle foot").into(),
-        path: TwistPath::Sketch(hook_path(0.9 * scale + PRICKLE_SINK_MM, 2.2 * scale, 60.0)),
+        sketch: ellipse_on(Workplane::default(), PRICKLE_FOOT_MM.0 * scale, PRICKLE_FOOT_MM.1 * scale, "Prickle foot").into(),
+        path: TwistPath::Sketch(hook_path(PRICKLE_RISE_MM * scale + PRICKLE_SINK_MM, PRICKLE_BEND_MM * scale, PRICKLE_HOOK_DEG)),
         degrees: 0.0,
-        end_scale: 0.22,
+        end_scale: 0.14,
         scale: Vec::new(),
         closed: false,
     }
@@ -423,6 +447,92 @@ fn petal(gem: Gem, at: &PetalAt) -> csg::Solid {
     })
 }
 
+/// The pear's half-width at `x` along its length in its own frame (point toward `BUD_POINT_X` x): a round end of
+/// the stone's half-width, tapering straight to the point.
+fn pear_half(gem: Gem, x: f64) -> f64 {
+    let (a, b) = (0.5 * gem.l_mm, 0.5 * gem.w_mm);
+    let u = BUD_POINT_X * x;
+    let cr = -(a - b);
+    if u <= cr {
+        (b * b - (u - cr).powi(2)).max(0.0).sqrt()
+    } else {
+        (b * (a - u) / (a - cr)).max(0.0)
+    }
+}
+
+/// How far the pear's girdle reaches from its centre at plan azimuth `phi`.
+fn pear_r(gem: Gem, phi: f64) -> f64 {
+    let (sn, cs) = phi.sin_cos();
+    let mut r = 0.0;
+    while r < gem.l_mm && pear_half(gem, r * cs) >= (r * sn).abs() {
+        r += 0.01;
+    }
+    r
+}
+
+/// One sepal of the bud in the stone frame at plan azimuth `phi` (0 toward the point): a broad pointed leaf rooted
+/// in the receptacle under the collet, climbing the collet's wall and curling off it just under the lip.
+fn bud_sepal(gem: Gem, phi: f64) -> csg::Solid {
+    let (a, b) = (0.5 * gem.l_mm + BUD_WALL_MM, 0.5 * gem.w_mm + BUD_WALL_MM);
+    let depth = setting::collet_depth_mm(gem);
+    let _ = (a, b);
+    // Azimuths are read from the point: turn them onto the pear's own x.
+    let phi = if BUD_POINT_X < 0.0 { phi + PI } else { phi };
+    let (sn, cs) = phi.sin_cos();
+    let r = pear_r(gem, phi) + BUD_WALL_MM + BUD_SEPAL_OFF_MM;
+    let radial = [cs, sn, 0.0];
+    let tangent = [-sn, cs, 0.0];
+    let top = BUD_SEPAL_TOP_MM;
+    let c = move |t: f64| {
+        // Under the collet, out to its wall, up it, then off it at the tip.
+        let z = -depth - 0.4 + (top + depth + 0.4) * t;
+        // The collet's drum flares toward its foot: the sepal stands off it further there.
+        let o = r + 0.5 * BUD_SEPAL_T_MM + 0.05 + BUD_SEPAL_FOOT_MM * (1.0 - t) + BUD_SEPAL_CURL_MM * smooth01((t - 0.6) / 0.4).powi(2);
+        add3([0.0, 0.0, z], radial, o)
+    };
+    ribbon(40, 10, c, move |_| tangent, |t| BUD_SEPAL_W_MM * (PI * (0.12 + 0.88 * t.powf(0.9))).sin().max(0.1).powf(0.55), |t| BUD_SEPAL_T_MM * (1.0 - 0.35 * t), 0.3)
+}
+
+/// The bud's receptacle in the stone frame: a swollen bulb under the round end, where the sepals meet the stem.
+fn bud_receptacle(gem: Gem) -> csg::Solid {
+    let a = 0.5 * gem.l_mm;
+    ellipsoid([-BUD_POINT_X * (a + BUD_RECEPTACLE.3), 0.0, -BUD_RECEPTACLE.4], (BUD_RECEPTACLE.0, BUD_RECEPTACLE.1, BUD_RECEPTACLE.2))
+}
+
+/// A closed ellipsoid about `c` with semi-axes `(ra, rb, rc)`.
+fn ellipsoid(c: P3, (ra, rb, rc): (f64, f64, f64)) -> csg::Solid {
+    let (rings, around) = (20, 40);
+    let at = |t: f64, p: f64| [c[0] + ra * t.cos(), c[1] + rb * t.sin() * p.cos(), c[2] + rc * t.sin() * p.sin()];
+    let mut s = csg::Solid::default();
+    s.v.push(at(0.0, 0.0));
+    for i in 1..rings {
+        let t = PI * i as f64 / rings as f64;
+        for j in 0..around {
+            s.v.push(at(t, std::f64::consts::TAU * j as f64 / around as f64));
+        }
+    }
+    s.v.push(at(PI, 0.0));
+    let last = (s.v.len() - 1) as u32;
+    let ring = |i: usize, j: usize| (1 + (i - 1) * around + j % around) as u32;
+    for j in 0..around {
+        s.f.push([0, ring(1, j), ring(1, j + 1)]);
+        s.f.push([last, ring(rings - 1, j + 1), ring(rings - 1, j)]);
+    }
+    for i in 1..rings - 1 {
+        for j in 0..around {
+            s.f.push([ring(i, j), ring(i + 1, j), ring(i + 1, j + 1)]);
+            s.f.push([ring(i, j), ring(i + 1, j + 1), ring(i, j + 1)]);
+        }
+    }
+    let vol: f64 = s.f.iter().map(|f| dot(s.v[f[0] as usize], cross3(s.v[f[1] as usize], s.v[f[2] as usize]))).sum();
+    if vol < 0.0 {
+        for f in &mut s.f {
+            f.swap(1, 2);
+        }
+    }
+    s
+}
+
 /// The pavilion's plan share at height `z` under the girdle, as a share of the collet's plan.
 fn pavilion_share(gem: Gem, z: f64) -> f64 {
     let (_, b) = collet_plan(gem);
@@ -574,21 +684,21 @@ fn leaflet(ch: &Chart<'_>, s0: f64, z0: f64, heading: f64, len: f64, width: f64,
     })
 }
 
-/// The leaf: a terminal leaflet and a pair of laterals on a short rachis, lying on the crest of arm A's shoulder
-/// under the hip and pointing down the stem toward the palm.
+/// The leaf: a terminal leaflet and a pair of laterals on a short rachis, springing from the crossing between the
+/// bud and the hip and draping off the stem's low edge, where the face view sees it whole.
 fn leaf(d: &RingDesign) -> Vec<(String, csg::Solid)> {
     let radius = surface_r(d, LEAF_DEG, 0.0);
     let ch = Chart { d, radius };
     let s0 = radius * LEAF_DEG.to_radians();
     let z0 = LEAF_Z_MM;
-    // It points down arm A toward the palm, toward smaller theta.
-    let mut out = vec![("Leaf, terminal leaflet".to_string(), leaflet(&ch, s0 - LEAF_RACHIS_MM, z0, PI, LEAF_TERMINAL.0, LEAF_TERMINAL.1, 7.0, LEAF_SINK_MM))];
+    // It lies along the crest beyond the bud, pointing down the stem toward the palm.
+    let mut out = vec![("Leaf, terminal leaflet".to_string(), leaflet(&ch, s0 + LEAF_RACHIS_MM, z0, 0.0, LEAF_TERMINAL.0, LEAF_TERMINAL.1, 9.0, LEAF_SINK_MM))];
     // Each leaflet sunk a little differently, so where their feet overlap no two faces lie on one another.
     for (name, sign) in [("upper", 1.0), ("lower", -1.0)] {
-        out.push((format!("Leaf, {name} lateral leaflet"), leaflet(&ch, s0 - 0.35 * LEAF_RACHIS_MM, z0 + sign * 0.2, PI - sign * LEAF_SPREAD_DEG.to_radians(), LEAF_LATERAL.0, LEAF_LATERAL.1, 6.0, LEAF_SINK_MM + 0.035 * (1.0 + sign))));
+        out.push((format!("Leaf, {name} lateral leaflet"), leaflet(&ch, s0 + 0.35 * LEAF_RACHIS_MM, z0 + sign * 0.2, sign * LEAF_SPREAD_DEG.to_radians(), LEAF_LATERAL.0, LEAF_LATERAL.1, 7.0, LEAF_SINK_MM + 0.035 * (1.0 + sign))));
     }
     // The rachis: a tapering stalk along the crest from the stem to the terminal leaflet.
-    let path: Vec<P3> = (0..=16).map(|k| ch.at(s0 + 0.8 - (LEAF_RACHIS_MM + 1.3) * k as f64 / 16.0, z0, 0.2).0).collect();
+    let path: Vec<P3> = (0..=16).map(|k| ch.at(s0 - 0.8 + (LEAF_RACHIS_MM + 1.3) * k as f64 / 16.0, z0, 0.2).0).collect();
     let radius_at: Vec<f64> = (0..=16).map(|k| 0.42 - 0.12 * k as f64 / 16.0).collect();
     out.push(("Leaf, rachis".to_string(), tube(&path, &radius_at, 16)));
     out
@@ -609,7 +719,7 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
     doc.append(builders::stone_feature(
         2,
         bud,
-        Placement::Ring { theta_deg: BUD_DEG, across_mm: bud_z, height_mm: builders::stand_off_mm(builders::BEZEL, bud) + BUD_LIFT_MM, spin_deg: 0.0, tilt_deg: BUD_NOD_DEG, cant_deg: 0.0, level: false },
+        Placement::Ring { theta_deg: BUD_DEG, across_mm: bud_z, height_mm: builders::stand_off_mm(builders::BEZEL, bud) + BUD_LIFT_MM, spin_deg: 180.0, tilt_deg: BUD_NOD_DEG, cant_deg: 0.0, level: false },
     ))?;
     doc.append(builders::feature_on(3, "Bud collet", builders::BEZEL, 2, json!({"wall_mm": BUD_WALL_MM, "lip": BUD_LIP})))?;
     doc.append(builders::stone_feature(
@@ -622,6 +732,7 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
     let rec = setstone::record(d, None);
     let frame_of = |id: Id| rec.stones.iter().find(|s| s.cad_feature() == Some(id)).and_then(|s| s.frame).ok_or_else(|| anyhow::anyhow!("stone #{id} has no frame"));
     let (bud_frame, hip_frame) = (frame_of(2)?, frame_of(4)?);
+    eprintln!("bud frame x {:?} y {:?} z {:?} o {:?}", bud_frame.x_axis, bud_frame.y_axis, bud_frame.z_axis, bud_frame.origin);
     let (tube_a, path_a) = stem_tube(d, true);
     let (tube_b, path_b) = stem_tube(d, false);
     let doc = d.cad.as_mut().unwrap();
@@ -631,18 +742,14 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
     let _ = (bud_frame, &moved);
     doc.append(feature(6, "Stem of arm A", stored_op(&tube_a, "stem", json!({"arm": "A", "radius_mm": STEM_R_MM, "proud_mm": STEM_PROUD_MM}))?, free(STEM_BLEND_MM)))?;
     doc.append(feature(7, "Stem of arm B", stored_op(&tube_b, "stem", json!({"arm": "B", "radius_mm": STEM_R_MM, "proud_mm": STEM_PROUD_MM}))?, free(STEM_BLEND_MM)))?;
-    doc.append(feature(8, "Receptacle", stored_op(&receptacle(bud), "receptacle", json!({"under": "bud"}))?, on(2)))?;
+    doc.append(feature(8, "Receptacle", stored_op(&bud_receptacle(bud), "receptacle", json!({"semi_axes_mm": [BUD_RECEPTACLE.0, BUD_RECEPTACLE.1, BUD_RECEPTACLE.2]}))?, on(2)))?;
     let mut id: Id = 9;
-    for (k, at) in petal_layout().iter().enumerate() {
-        doc.append(feature(id, &format!("Petal {}", k + 1), stored_op(&petal(bud, at), "petal", json!({"ring": at.ring, "azimuth_deg": at.azimuth.to_degrees(), "rise_deg": at.rise_deg, "length_mm": at.length, "width_mm": at.width, "thick_mm": PETAL_T_MM}))?, on(2)))?;
+    for (k, phi) in BUD_SEPAL_PHI_DEG.iter().enumerate() {
+        doc.append(feature(id, &format!("Bud sepal {}", k + 1), stored_op(&bud_sepal(bud, phi.to_radians()), "bud sepal", json!({"azimuth_deg": phi, "top_mm": BUD_SEPAL_TOP_MM, "width_mm": BUD_SEPAL_W_MM}))?, on(2)))?;
         id += 1;
     }
-    for k in 0..SEPALS {
-        let psi = std::f64::consts::TAU * (k as f64 + 0.25) / SEPALS as f64;
-        doc.append(feature(id, &format!("Sepal {}", k + 1), stored_op(&sepal(bud, psi), "sepal", json!({"azimuth_deg": psi.to_degrees(), "length_mm": SEPAL_LEN_MM}))?, on(2)))?;
-        id += 1;
-    }
-    // The dried sepal crown: one wisp between two claws, curling up and out off the hip, then four more about it.
+    // The dried sepal crown: one wisp from the claws' gallery between two claws, rising past the dome and curling
+    // out over it, then four more about the hip.
     let az = (180.0 / HIP_CLAWS as f64).to_radians();
     let (ex, ey, ez) = ([az.cos(), az.sin(), 0.0], [-az.sin(), az.cos(), 0.0], [0.0, 0.0, 1.0]);
     let root = add3([0.0, 0.0, WISP_ROOT_Z_MM], ex, 0.5 * hip.w_mm + WISP_ROOT_OUT_MM);
@@ -659,6 +766,11 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
     doc.append(feature(id, "Dried sepal", Operation::Twist { sketch: section.into(), path: TwistPath::Sketch(path), degrees: WISP_TWIST_DEG, end_scale: WISP_END, scale: Vec::new(), closed: false }, on(4)))?;
     doc.append(feature(id + 1, "Dried sepal crown", Operation::Pattern { sources: id.into(), kind: PatternKind::About { part: 4, count: WISPS, span_deg: 360.0 } }, free(0.0)))?;
     id += 2;
+    // The hip's body: the swollen fruit under the cabochon, its top clear of the stone's base.
+    let hip_body = ellipsoid([0.0, 0.0, -HIP_BODY.3], (HIP_BODY.0, HIP_BODY.1, HIP_BODY.2));
+    let doc = d.cad.as_mut().unwrap();
+    doc.append(feature(id, "Hip body", stored_op(&hip_body, "hip body", json!({"semi_axes_mm": [HIP_BODY.0, HIP_BODY.1, HIP_BODY.2]}))?, on(4)))?;
+    id += 1;
     for (name, solid) in leaf(d) {
         let doc = d.cad.as_mut().unwrap();
         doc.append(feature(id, &name, stored_op(&solid, "leaf", json!({"leaflet": name}))?, free(0.0)))?;
@@ -679,13 +791,14 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
             let lift = if on_stem { stem_proud(theta, from, to).max(0.0) } else { 0.0 };
             let scale = 1.0 + (PRICKLE_LAST_SCALE - 1.0) * k as f64 / (PRICKLES - 1) as f64;
             let base_spin = if arm_a { 180.0 } else { 0.0 };
-            let spin = base_spin + if k % 2 == 0 { PRICKLE_SPIN_DEG } else { -PRICKLE_SPIN_DEG };
+            let side = if k % 2 == 0 { 1.0 } else { -1.0 };
+            let spin = base_spin + side * PRICKLE_SPIN_DEG;
             let doc = d.cad.as_mut().unwrap();
             doc.append(feature(
                 id,
                 &format!("Prickle, arm {} {}", if arm_a { "A" } else { "B" }, k + 1),
                 prickle(scale),
-                joined(Placement::Ring { theta_deg: theta.rem_euclid(360.0), across_mm: z, height_mm: lift - PRICKLE_SINK_MM, spin_deg: spin, tilt_deg: 0.0, cant_deg: 0.0, level: false }, PRICKLE_BLEND_MM),
+                joined(Placement::Ring { theta_deg: theta.rem_euclid(360.0), across_mm: z + side * PRICKLE_ACROSS_MM, height_mm: lift - PRICKLE_SINK_MM, spin_deg: spin, tilt_deg: 0.0, cant_deg: side * PRICKLE_CANT_DEG, level: false }, PRICKLE_BLEND_MM),
             ))?;
             placed.push(json!({"id": id, "arm": if arm_a { "A" } else { "B" }, "theta_deg": theta.rem_euclid(360.0), "across_mm": z, "scale": scale, "spin_deg": spin, "on_stem": on_stem}));
             id += 1;
@@ -777,11 +890,21 @@ fn metal_in_stones(d: &RingDesign, built: &mesh::BuildResult) -> Vec<(String, us
                 .mesh
                 .vertices
                 .iter()
-                .filter(|p| {
+                .enumerate()
+                .filter(|(i, p)| {
                     let q = [p.0 as f64 - f.origin[0], p.1 as f64 - f.origin[1], p.2 as f64 - f.origin[2]];
                     let (x, y, z) = (dot(q, f.x_axis), dot(q, f.y_axis), dot(q, f.z_axis));
-                    let e = (x / a).powi(2) + (y / b).powi(2);
-                    if z >= 0.0 { crown > 0.0 && z < crown && e < 1.0 - (z / crown).powi(2) } else { pav > 0.0 && -z < pav && e.sqrt() < 1.0 + z / pav }
+                    // The stone's section at height z is its plan shrunk by k about the centre: a faceted crown narrows
+                    // straight to its table, a cabochon's dome as a quarter ellipse, the pavilion straight to the culet.
+                    let k = if z >= 0.0 {
+                        if crown <= 0.0 || z >= crown { 0.0 } else if st.gem.form == ringdesign_core::gem::GemForm::Cabochon { (1.0 - (z / crown).powi(2)).sqrt() } else { 1.0 - 0.45 * z / crown }
+                    } else if pav <= 0.0 || -z >= pav { 0.0 } else { 1.0 + z / pav };
+                    let inside = k > 0.0 && if st.gem.cut == GemCut::Pear { x.abs() < k * a && y.abs() < k * pear_half(st.gem, x / k) } else { (x / (k * a)).powi(2) + (y / (k * b)).powi(2) < 1.0 };
+                    if inside && std::env::var("ROSA_DEBUG").is_ok() {
+                        let owner = built.mesh.origin.get(*i).and_then(|o| o.checked_sub(mesh::SOLID_VERTEX + built.parts.first as u32)).and_then(|j| built.parts.features.get(j as usize)).and_then(|id| d.cad.as_ref()?.feature(*id)).map(|f| f.name.as_str()).unwrap_or("band or seat");
+                        println!("    {} intruded by {owner} at ({x:.2}, {y:.2}, {z:.2})", st.label);
+                    }
+                    inside
                 })
                 .count();
             (st.label.clone(), n)
@@ -844,9 +967,8 @@ fn mesh_of(s: &csg::Solid) -> mesh::Mesh {
 /// The bud's sculpted parts alone in the stone frame, from above and from the side: a quick look while shaping.
 fn bud_preview(out: &Path) -> Result<()> {
     let gem = ruby();
-    let mut parts = vec![receptacle(gem)];
-    parts.extend(petal_layout().iter().map(|at| petal(gem, at)));
-    parts.extend((0..SEPALS).map(|k| sepal(gem, std::f64::consts::TAU * (k as f64 + 0.25) / SEPALS as f64)));
+    let mut parts = vec![bud_receptacle(gem)];
+    parts.extend(BUD_SEPAL_PHI_DEG.iter().map(|p| bud_sepal(gem, p.to_radians())));
     let meshes: Vec<mesh::Mesh> = parts.iter().map(mesh_of).collect();
     // Turn z (the table axis) to the render's up, +y: x stays, (y, z) -> (-z, y).
     let turned: Vec<mesh::Mesh> = meshes.into_iter().map(|mut m| { for v in m.vertices.iter_mut().chain(m.normals.iter_mut()) { *v = mesh::Vec3(v.0, v.2, -v.1); } m }).collect();
@@ -886,8 +1008,20 @@ fn contact(path: &Path, parts: &[render::Part<'_>]) -> Result<()> {
     Ok(())
 }
 
-fn renders(out: &Path, lib: &AlphaLibrary, finished: &render::Finished, edge: usize) -> Result<()> {
+fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, finished: &render::Finished, edge: usize) -> Result<()> {
     let parts = finished.parts(render::GOLD);
+    // Close-ups framed on whole parts (never a cropped mesh): the bud, the hip, the leaf.
+    let rec = setstone::record(d, None);
+    let girdle = |id: Id| rec.stones.iter().find(|s| s.cad_feature() == Some(id)).and_then(|s| s.frame).map(|f| f.origin);
+    if let Some(c) = girdle(2) {
+        render::write_png_framed(out.join("bud-close.png"), &parts, render::yaw_facing(BUD_DEG), 0.75, render::Framing::new(c, 7.0), edge)?;
+    }
+    if let Some(c) = girdle(4) {
+        render::write_png_framed(out.join("hip-close.png"), &parts, render::yaw_facing(HIP_DEG), 0.75, render::Framing::new(c, 6.0), edge)?;
+    }
+    let lt = (LEAF_DEG + 12.0).to_radians();
+    let lr = surface_r(d, LEAF_DEG + 12.0, 0.0);
+    render::write_png_framed(out.join("leaf-close.png"), &parts, render::yaw_facing(LEAF_DEG + 12.0), 1.0, render::Framing::new([lr * lt.cos(), lr * lt.sin(), 0.0], 6.0), edge)?;
     for (name, yaw, pitch) in VIEWS {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
     }
@@ -1063,7 +1197,7 @@ fn main() -> Result<()> {
         }
         std::fs::write(out.join("stones.json"), serde_json::to_vec_pretty(&json!({"stones": entries}))?)?;
     }
-    renders(&out, &lib, &finished, if draft { 1000 } else { 1600 })?;
+    renders(&out, &d, &lib, &finished, if draft { 1000 } else { 1600 })?;
     let _ = setting::claw_count;
     for (g, pass) in &gates {
         println!("  {} {g}", if *pass { "pass" } else { "FAIL" });
