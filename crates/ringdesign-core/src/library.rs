@@ -68,6 +68,7 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || station_gates_in_stack(&design.layers, design.gate_sections_are_reference())
         || fenced_runs_in_stack(&design.layers)
         || tiling_features_in_stack(&design.layers)
+        || crate::curve::profiled_in(&design.layers)
         || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
         || design.graph.as_ref().is_some_and(template_features_in_json)
         || design.shank.bypass_fair_deg != 0.0
@@ -119,7 +120,8 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && matches!(pin, "keys" | "bypass_fair_deg"))
         || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"))
         || (kind == "layer.seatrun" && pin == "bare") || (kind == "layer.group" && pin == "clamp")
-        || (kind == "layer.tiling" && matches!(pin, "grade" | "space"));
+        || (kind == "layer.tiling" && matches!(pin, "grade" | "space"))
+        || (kind == "layer.curve" && matches!(pin, "widths" | "heights" | "beads"));
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
     if crate::cad::extended_placement_json(value) { return true; }
     if value.get("Builder").is_some_and(|builder| builder.get("key").and_then(serde_json::Value::as_str)
@@ -137,7 +139,9 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     if value.get("space").and_then(serde_json::Value::as_str) == Some("Hide") { return true; }
     if value.get("mask").and_then(serde_json::Value::as_str).is_some_and(|m| m.starts_with(crate::skin::REGION_PREFIX)) { return true; }
     if value.get("taper").is_some() && value.get("law").is_some_and(|law| law == "Cosine" || law.get("Spiral").is_some()) { return true; }
+    if value.get("Curve").is_some_and(crate::curve::profiled_json) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
+        if kind == "layer.curve" && value.get("inputs").and_then(|i| i.get("profile")).and_then(serde_json::Value::as_str) == Some("Tube") { return true; }
         if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
             || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }
         if value.get("inputs").and_then(serde_json::Value::as_object).is_some_and(|inputs| inputs.iter().any(|(pin, v)| {
@@ -301,6 +305,38 @@ mod template_source_tests {
     }
 
     #[test]
+    fn profiled_wires_fence_the_design_nested_layers_and_graph_json_while_plain_wires_stay_plain() {
+        use crate::curve::{CurveBeads, CurveLayer};
+        use crate::field::GroupLayer;
+        let entry = |c: CurveLayer| crate::LayerEntry::new("Arm", crate::Layer::Curve(c));
+        let stack = |layers| crate::LayerStack { layers };
+        let patch = |c: &CurveLayer| serde_json::json!({"nodes":[{"kind":"design.set","params":{"json_value":[{"layer":{"Curve":serde_json::to_value(c).unwrap()}}]}}]});
+        let plain = CurveLayer::default();
+        assert_eq!(format_version_for(&RingDesign { layers: stack(vec![entry(plain.clone())]), ..RingDesign::default() }), PLAIN_FORMAT_VERSION);
+        assert_eq!(format_version_for(&RingDesign { graph: Some(patch(&plain)), ..RingDesign::default() }), PLAIN_FORMAT_VERSION);
+        let profiled = [
+            CurveLayer { widths: vec![1.0, 0.5], ..CurveLayer::default() },
+            CurveLayer { heights: vec![0.5], ..CurveLayer::default() },
+            CurveLayer { beads: Some(CurveBeads::default()), ..CurveLayer::default() },
+            CurveLayer { profile: crate::curve::WireProfile::Tube, ..CurveLayer::default() },
+        ];
+        for c in profiled {
+            let group = crate::LayerEntry::new("Group", crate::Layer::Group(GroupLayer { stack: stack(vec![entry(c.clone())]), ..Default::default() }));
+            for layers in [vec![entry(plain.clone()), entry(c.clone())], vec![group]] {
+                let d = RingDesign { layers: stack(layers), ..RingDesign::default() };
+                assert_eq!(format_version_for(&d), FORMAT_VERSION);
+                let text = design_json(&d).unwrap();
+                assert!(read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string().contains("format version 6"));
+                assert_eq!(serde_json::to_value(load_design_str(&text).unwrap()).unwrap(), serde_json::to_value(&d).unwrap());
+            }
+            assert_eq!(format_version_for(&RingDesign { graph: Some(patch(&c)), ..RingDesign::default() }), FORMAT_VERSION);
+        }
+        let node = |profile: &str| serde_json::json!({"nodes":[{"id":1,"kind":"layer.curve","inputs":{"profile":profile}}]});
+        assert_eq!(format_version_for(&RingDesign { graph: Some(node("Round")), ..RingDesign::default() }), PLAIN_FORMAT_VERSION);
+        assert_eq!(format_version_for(&RingDesign { graph: Some(node("Tube")), ..RingDesign::default() }), FORMAT_VERSION);
+    }
+
+    #[test]
     fn bundled_stock_references_reopen_exactly_and_inline_or_modified_stock_keeps_its_source() {
         for preset in PRESETS {
             for sand_master in [false, true].into_iter().filter(|sand| !sand || preset.sand_safe()) {
@@ -348,7 +384,7 @@ mod template_source_tests {
 
     #[test]
     fn new_template_controls_are_fenced_even_when_only_wired_exposed_or_nested() {
-        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "theta_deg"), ("cad.feature", "blend_mm")] {
+        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "theta_deg"), ("cad.feature", "blend_mm"), ("layer.curve", "widths"), ("layer.curve", "heights"), ("layer.curve", "beads")] {
             let node = serde_json::json!({"id":7,"kind":kind,"inputs":{}});
             let plain = serde_json::json!({"nodes":[node],"wires":[],"exposed":[]});
             assert!(!template_features_in_json(&plain));

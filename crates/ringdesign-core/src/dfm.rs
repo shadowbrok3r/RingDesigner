@@ -171,6 +171,7 @@ pub fn findings(design: &RingDesign) -> Vec<DfmFinding> {
         let what = match &entry.layer {
             Layer::Milgrain(_) => "beads",
             Layer::Tiling(_) => "tile cells",
+            Layer::Curve(c) if c.beads.is_some() => "the wire or its beads",
             Layer::Curve(_) => "the wire",
             Layer::Flutes(_) => "the flutes",
             Layer::Decals(_) => "a stamp",

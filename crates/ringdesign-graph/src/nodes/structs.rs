@@ -30,6 +30,8 @@ pub type FinishFn<T> = fn(&mut T, &Inputs, &mut EvalCtx<'_>) -> Result<(), NodeE
 struct FieldPin {
     pin: String,
     path: String,
+    /// An empty list leaves the field as it was.
+    keep_when_empty: bool,
 }
 
 /// A node built over a serde struct `T`.
@@ -85,7 +87,15 @@ where
 
     /// A pin written at a JSON pointer inside the struct (`/head/length_mm`).
     pub fn field_at(mut self, pin: PinSpec, path: impl Into<String>) -> Self {
-        self.fields.push(FieldPin { pin: pin.name.clone(), path: path.into() });
+        self.fields.push(FieldPin { pin: pin.name.clone(), path: path.into(), keep_when_empty: false });
+        self.spec = self.spec.input(pin.optional());
+        self
+    }
+
+    /// A list pin written at `/<name>` only when it carries items; unset or empty, the base's field stays.
+    pub fn list_field(mut self, pin: PinSpec) -> Self {
+        let path = format!("/{}", pin.name);
+        self.fields.push(FieldPin { pin: pin.name.clone(), path, keep_when_empty: true });
         self.spec = self.spec.input(pin.optional());
         self
     }
@@ -205,7 +215,7 @@ where
             let mut touched = false;
             for f in fields.iter() {
                 let v = inputs.get(&f.pin);
-                if v.is_null() {
+                if v.is_null() || (f.keep_when_empty && matches!(v, Value::List(items) if items.is_empty())) {
                     continue;
                 }
                 let jv = v.to_json_any().ok_or_else(|| NodeError::input(&f.pin, format!("{} cannot be written into a field", v.kind().label())))?;
@@ -375,6 +385,38 @@ mod tests {
         assert!(matches!(&spec.inputs[0].widget, Widget::Select(v) if v.len() == ShankKind::ALL.len()));
         assert!(spec.inputs.iter().all(|p| p.optional), "struct pins are optional");
         assert_eq!(spec.outputs[0].kind, ValueKind::Shank);
+    }
+
+    #[test]
+    fn a_list_field_replaces_its_field_only_with_a_list_that_carries_items() {
+        let hidden: Vec<String> = serde_json::to_value(ShankStyle::default()).unwrap().as_object().unwrap().keys().filter(|k| *k != "keys").cloned().collect();
+        let hidden: Vec<&str> = hidden.iter().map(String::as_str).collect();
+        let node = StructNode::new(NodeSpec::new("test.keyed", "Keyed", Category::Shank).doc("A shank."), "shank", ShankStyle::default, |s| Value::Shank(Arc::new(s)), |v| match v {
+            Value::Shank(s) => Some((**s).clone()),
+            _ => None,
+        })
+        .base("shank", ValueKind::Shank, "Start from this shank.")
+        .list_field(PinSpec::list("keys", ValueKind::Json).doc("Keys."))
+        .hidden(&hidden);
+        assert!(node.coverage().is_ok());
+        let mut reg = Registry::empty();
+        reg.register(node.build()).unwrap();
+        let key = |theta: f64| Literal::Json(serde_json::json!({"theta_deg": theta, "width_scale": 1.2, "thickness_scale": 1.0, "crown_scale": 1.0}));
+        let thetas = |g: &Graph, id| match run(g, &reg).value(id, "shank") {
+            Some(Value::Shank(s)) => s.keys.iter().map(|k| k.theta_deg).collect::<Vec<_>>(),
+            other => panic!("{other:?}"),
+        };
+        let mut g = Graph::default();
+        let a = g.add("test.keyed").unwrap();
+        g.set_input(a, "keys", Literal::List(vec![key(90.0), key(270.0)])).unwrap();
+        let b = g.add("test.keyed").unwrap();
+        g.connect(a, "shank", b, "shank").unwrap();
+        assert_eq!(thetas(&g, a), [90.0, 270.0]);
+        assert_eq!(thetas(&g, b), [90.0, 270.0], "unset, the base's list stays");
+        g.set_input(b, "keys", Literal::List(Vec::new())).unwrap();
+        assert_eq!(thetas(&g, b), [90.0, 270.0], "empty, the base's list stays");
+        g.set_input(b, "keys", Literal::List(vec![key(10.0)])).unwrap();
+        assert_eq!(thetas(&g, b), [10.0], "carrying items, the pin's list replaces it");
     }
 
     #[test]
