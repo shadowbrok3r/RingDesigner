@@ -1,0 +1,34 @@
+{
+  "ring": "Ogiva",
+  "slug": "ogiva",
+  "mode": "read-test",
+  "reads": false,
+  "what_the_eye_sees": "A winged dragon or griffin statuette standing on a flat-topped signet, with a quartz crystal or obelisk stuck upright at its left corner and a row of seven small slots, like teeth or a battlement, along the front edge of the table. At 300 px the jeweller says 'dragon signet ring', possibly 'gargoyle', but never 'pointed arch' and only weakly 'Gothic cathedral'. Nothing in the silhouette is an ogive: the shank is a plain round signet band, the table is a rectangle, and the only pointed arches are the seven 1 mm niches, which read as notches. The beast is a flat cut-out slab with a few incised lines (the side view shows a stacked extrusion, not a sculpted figure), so it reads as a stamped badge glued on top. The spire has no crockets or finial, so it reads as a crystal, not a pinnacle.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Face and head silhouette (the whole crown above the shoulders, theta -40 to +40 deg)",
+      "change": "Make the pointed arch the dominant form. Replace the rectangular signet table plus statuette with one lancet arch outline at least 13 mm tall and 10 mm wide at the springers, rising from the shoulders, with a clear apex point and an open or deep-recessed tympanum. The arch must be the silhouette in the face view, not a feature on it. If the gargoyle stays, it sits on a springer or on the apex at no more than one third of the arch's height.",
+      "acceptance": "In face-300.png, with no caption, the outline of the ring's top is a pointed (two-centred) arch, and a viewer names 'pointed arch' or 'Gothic window/portal' before naming any animal."
+    },
+    {
+      "priority": 2,
+      "where": "Front edge niches (the seven slots below the table) and the shank shoulders",
+      "change": "Cut the count to 3 to 5 lancet niches and scale each up about 2.5x, to about 2.5 mm wide by 4 mm tall, with a visible pointed head and a 0.8 mm sunk floor; carry the same lancet profile down each shoulder so the band itself is arcaded rather than a plain signet shank.",
+      "acceptance": "In hero-300.png each niche's pointed head is resolvable as a point (not a rounded slot) and the shoulders show at least two lancets per side."
+    },
+    {
+      "priority": 3,
+      "where": "Left-corner spire and the beast figure",
+      "change": "Give the spire crockets (3 to 4 per edge, about 0.8 mm) and a cross-shaped or fleur finial so it reads as a pinnacle, not a crystal. Sculpt the beast in the round (at least 3 mm of modelled depth with rounded volumes) or remove it; the flat extruded cut-out with incised outlines reads as a badge.",
+      "acceptance": "In side.png the figure shows rounded modelled volume rather than stacked flat slabs; in face-300.png the spire shows a toothed edge and a finial."
+    }
+  ],
+  "viewed_images": [
+    "target/readtest/w5/hero-300.png",
+    "target/readtest/w5/face-300.png",
+    "target/readtest/w5/hero.png",
+    "target/readtest/w5/face.png",
+    "target/readtest/w5/side.png"
+  ]
+}
