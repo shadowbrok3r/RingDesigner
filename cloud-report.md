@@ -1,187 +1,172 @@
-# Fenrir, round 3: final report
+# Fenrir revival: final report
 
-- **Branch** `claude/bestiarium-fenrir-r3`, pushed. The checkout is `/home/user/RingDesigner`; the session had no `/home/user/repo`. The branch was cut from `origin/bestiarium-fenrir` and merged with `origin/master` with no conflicts. The export commit is `1de8db4`, and this report is the last commit on top of it.
-- **Source:** `crates/ringdesign-core/examples/bestiarium_fenrir.rs`, the only code file changed. There are no `src/` changes.
-- **Renders** are in `showcase/bestiarium/fenrir/`: `hero face palm side shoulder reverse stones bare-vs-finished .png`, `face-300.png`, `hero-300.png` and `section-70/90/110.png`. The other outputs are `design.ring.json`, `report.json`, `mesh.json`, `stones.json`, `verification.json` and `artwork/`. The STLs are git-ignored.
-- **New CLI modes:** `--hollow` previews the pocket, `--slice=x,u,h,step,along_u` prints a field slice (with `FENRIR_PROBE`), and `--recensus` recounts creases from the saved design.
+**Verdict: cut at 7.0** after the two revival rounds (round 4 revise 7.0, round 5 cut 7.0). The ship bar is 7.5. Every gate is green at draft and at export, and the template gate passes on the submitted design.
 
-## Gates (draft 768 x 320 / export 1536 x 448)
+- **Branch:** `claude/bestiarium-fenrir-revival`, pushed. It was cut from `claude/bestiarium-fenrir-r3` and merged with `origin/master` three times: at the start, before round 4 (PR #248, crisp edges), and at the start of round 5. Conflicts arose only in this file, and this report was kept each time.
+- **Checkout:** `/home/user/RingDesigner`. The session had no `/home/user/repo`, so a symlink points there.
+- **Code:** `crates/ringdesign-core/examples/bestiarium_fenrir.rs` is the only code file changed. There are no `src/` edits.
+- **Outputs:** in `showcase/bestiarium/fenrir/`.
+  - Renders: `hero face palm side shoulder reverse stones bare-vs-finished` `.png`, `hero-300.png`, `face-300.png`, a new `contact-300.png` sheet, and three framed close-ups: `close-head.png`, `close-ruff.png` and `close-binding.png`.
+  - Data and sections: `design.ring.json`, `report.json` (with a `draft` block), `mesh.json`, `stones.json`, `verification.json`, `section-70/90/110.png` and `artwork/`.
+- **Reviews:** `review-round4.json` and `review-round5.json` sit beside the outputs. Rounds 1–3 are in `target/previous/` on the seed branch.
 
-| Gate | Draft | Export |
+## Verdicts, all five rounds
+
+| Round | Verdict | Score | What held it |
+|---|---|---|---|
+| 1 | revise | 5.5 | Grille muzzle, goggle brow, porthole lips, speckled skin; no land-width gate |
+| 2 | revise | 6.5 | Lip frame, bead teeth, terraced ruff, a sealed void |
+| 3 | cut | 7.0 | Bulldog/gargoyle face: short muzzle, horseshoe flews, floating lower jaw; combed ruff |
+| **4 (revival 1)** | **revise** | **7.0** | Head moved the right way and face-300 now reads as a wolf. The ruff, cheek fur and bindings did not move. verification.json was stale (a gate fail). |
+| **5 (revival 2)** | **cut** | **7.0** | Flews and muzzle closed and the template gate is green. The ruff still shows terraced, sawtooth rims, the cheek fur is melted blobs, and the bindings are jagged lozenges. The nose pad reads as a faceted block. Seam crease run is 1.09 mm against 0.7. |
+
+The round-5 reviewer's own words: the 300 px hero and face "read as a wolf's head biting a moon". The face-read problem the revival was opened for is solved. What cut the ring is the small-scale work: the painted ruff, the cheek fur and the bindings.
+
+## Gates (round 5, the submitted design)
+
+| Gate | Draft 768 × 320 | Export 1536 × 448 |
 |---|---|---|
-| Watertight, degenerate faces | yes, 0 | yes, 0 (1,257,542 tris, within the 2 M budget) |
-| Self-crossings: ring; made parts (stone, Fangs, head, hollow) | 0; [0,0,0,0] | 0; [0,0,0,0] |
+| Watertight, degenerate faces | yes, 0 (417,318 tris) | yes, 0 (1,226,212 tris, within 2 M) |
+| Self-crossings: ring; parts (stone, Fangs, head, hollow) | 0; [0,0,0,0] | 0; [0,0,0,0] |
 | Solids / parts notes | empty / empty | empty / empty |
-| Nothing in the finger hole | innermost 9.491 / bore 9.500 | 9.491 / 9.500 |
-| Lost-wax field verdict, 0.8 mm fill | Castable, thinnest wall 1.32 mm at 255.9° | same |
-| **Closed internal voids (new, P0)** | **0** | **0** |
-| Land widths | nothing unnamed; head mass ≥ 0.923 mm; 24 teeth ≥ 0.844 mm | same |
+| Nothing in the finger hole | innermost 9.491 / bore 9.500 | same |
+| Lost-wax verdict, 0.8 mm fill | Castable, thinnest wall 1.32 mm at 256° | same |
+| Land widths | nothing unnamed, head mass ≥ 0.887 mm | same |
 | DFM findings | 0 | 0 |
 | Stones report / preview | 1 / 1, 4.147 ct, no warnings | same |
-| Investment pattern | watertight, 0 degenerates, 0 crossings | same |
-| Cold reload (`--verify`) | n/a | identical vertices, faces, normals |
-| Weight and metal over the hollow at θ90 | 31.6 g 18k, 1.12 mm | 31.55 g, 1.116 mm |
-| **Sections at θ70 / 90 / 110 (new)** | over 1.75 / 1.12 / 1.66 mm, floor 1.16 / – / 1.17 mm | same |
+| Investment pattern | watertight, 0 degenerate faces, 0 crossings | same |
+| Cold reload (`--verify`) | identical | identical vertices, faces and normals |
+| Closed internal voids | 0 | 0 |
+| Hollow, θ70 / 90 / 110 | over 1.21 / 1.11 / 1.20 mm, floor 1.16 / – / 1.17 mm | same |
+| Weight, 18k | 31.77 g (limit 32) | 31.78 g |
 
-**Template gate:** 0 `design.set` patches, 39 nodes. The template is 2,414,284 bytes against the painted budget of 3,000,000 (round 2 was 2,683,392). Cold design reload, cold graph reload and source parity all pass, the mesh at 1536 x 448 is identical, and there are 0 detail findings.
+**Named land-width exceptions.** Every other section is 0.8 mm or more.
 
-**Named land-width exceptions** (all other sections are 0.8 mm or more):
-- Ear points: 0.44 and 0.46 mm, within 0.81 mm of the tip.
-- The four P6 claws: 0.44–0.46 mm within 1.55 mm of the tip, unchanged from round 2.
-- The four canine sheaths: 0.50–0.53 mm within 1.6 mm of the tip. They lie on the dome over their claws and are closed with the claws at the bench.
-- The nose rule exists but is not triggered.
+| Feature | Min section | Sub-floor from its tip | Bench treatment |
+|---|---|---|---|
+| Ears, left / right | 0.58 / 0.55 mm | within 0.76 mm | Ear point: a thick root tapering to the tip; cast in place and polished |
+| Fang sheaths 1–4 | 0.50–0.52 mm | within 1.65 mm | Lie on the moon's dome round their claws; closed onto it at the bench |
+| Fang claws 1–4 | 0.44–0.46 mm | within 1.55 mm | Claw tips; closed over the girdle |
+| Lower right premolar | 0.72 mm | within 0.11 mm | Tooth point; polished |
+| Nose | 0.61 mm | at the nostril rims | Nostril commas; polished |
 
-**Crease census**, edges of 60° or more by zone (export):
+**Determinism (round-3 item 10).** The head is now built with `ringdesign_core::sculpt` (`tetra_mesh`, `relax`, `clean_decimate`, `settle`, `open_shells`, `packed`, `Stock`, `Heights`). The example's own copies of those tools are gone. The draft and export runs gave the same packed head, FNV-1a `5fd2acdb59fcbfc4`, which `report.json` records under `composition.head.packed_fnv1a`.
 
-| Zone | Edges |
+## Template gate (after the last round)
+
+`collection_templates bestiarium target/tpl-src --only fenrir --verify-export`, with class `painted`:
+
+| | |
 |---|---|
-| Cheeks, brow, muzzle, crown, eyes, ears, ear tips, lower jaw and chin | **0** |
-| Nose pad | 2 (0.13 mm long, where the pad meets the bridge) |
-| Mouth, gums and lips | 23 |
-| Teeth | 16 |
-| Head flanks and throat | 1,243 |
-| Fang claws | 263 (their feet and buried facets) |
-| Hollow under the head | 806 |
-| Band and painted layers | 16,021 (the fur texture) |
+| `design.set` patches | **0** (4 allowed) |
+| Graph size | **2,326,787 bytes** against the painted budget of 3,000,000, in 39 nodes |
+| Cold design reload | pass |
+| Cold graph reload | pass |
+| Source and mesh parity | pass: 1,226,212 identical triangles at 1536 × 448 |
+| Detail findings | 0 |
+| `template_gate_passed` | true |
 
-The longest seam crease run is 0.67 mm. Round 2's zone of 943 edges covering "mouth, teeth, fangs and rail" was mostly the claw facets; those are now counted in their own zone.
-
-## Punch list, item by item
-
-1. **P0, sealed void.** Found and closed.
-   - What it was: a tunnel of air between the upper gum and the lip body, 0.25 mm over the table. The new gate found 5 such pockets on round 2's geometry: 0.11 mm³ at (0, 1.30, 0.25) and four smaller ones.
-   - Fix: the gums now run out under the lips down to the table, and the muzzle's underside is filled solid to the table.
-   - New gate: `internal_voids` counts closed shells of negative volume in the finished mesh, and `report.json` carries `internal_voids: 0`.
-   - Further finding: the new θ70 and θ110 sections showed the pocket running on past its mouth over a floor only 0.4–0.6 mm thick above the finger. No gate had measured this. The floor is now 1.16–1.17 mm and has its own gate.
-2. **Upper lip.**
-   - The frame is replaced by a spline-driven flew. It is narrow under the nose (0.85 mm), hitched up to 2.75 mm over the fang, drawn back to 7.05 mm and 2.0 mm wide over the premolars, and curls down to a rounded cap at the corner.
-   - Its section is an elliptical roll with no flat top, and a cleft divides the two flews under the nose.
-   - `report.json` jaws: `upper_lip_width_min_mm` 0.85, `upper_lip_width_max_mm` 2.02 (narrowest ≤ half the widest).
-   - Three snarl wrinkles fan up from above each fang.
-   - A mouth-corner notch parts the two jaws: corner gaps are 4.22 mm (round 2: 3.25).
-3. **Teeth and lower jaw.**
-   - (a) 24 teeth, all listed in `land_widths` at 0.844 mm or more:
-     - two chisel incisors at 0.55 and 0.62 mm;
-     - premolars as laterally flattened blades at 0.85 and 0.95 mm;
-     - a two-cusped carnassial at 1.1 mm;
-     - a broad low molar in the corner.
-
-     Each tooth is a stout body kept at 0.8 mm or more until 0.55 mm from its point. The teeth stand nearly upright, 4–10° outward, with at least 0.35 mm clear of the lip. Leaning them 20–30° opened 0.12 mm slots against the lips, which are fins in investment.
-   - (b) The lower jaw's outer face carries 3.6 mm locks sweeping back from the chin to each corner. The lower lip is scalloped over the teeth.
-   - (c) The chin's reach from the moon's axis is now 8.0 mm, down from 9.3.
-4. **Fangs.** P6 cannot round or curve its claws: the tube is fixed at 14 sides (core change 1 below). As interim, each claw is wrapped in a sculpted canine sheath:
-   - a round tube 0.12 mm fuller than the claw, following the claw's own arc;
-   - it runs out to a round point 0.13 mm across;
-   - it is cut to the moonstone's hull, taken from a quick parts build.
-
-   Reach inside the moon's disc is unchanged at 0.80 / 0.81 / 0.75 / 0.77 mm.
-5. **Ruff terraces.** The cause was in `flames`: it searched only ±1 row, but a bowed and tilted lock reaches two rows over, so every lock was cut off along the row lines. Those cuts were the stacked contour rings. Changes:
-   - `flames` now searches every row a lock can reach;
-   - locks have a cos² cross-section and join by a soft maximum of 0.3 of the relief (0.18 mm);
-   - the fold-room cap is a soft minimum instead of a hard clamp;
-   - hair lines run only along the leading lock and fade where two locks meet;
-   - locks are 5.0 mm long with an S-bow.
-6. **Ears.**
-   - Each ear is a stadium section with 0.5 mm edges, bowed so the back is convex and the front cupped.
-   - It twists 13° outward toward the point, which is tapered and rounded.
-   - There is a three-lock tuft at the inner base and an ellipsoidal cup.
-   - Sub-floor stretches are only within 0.81 mm of the tip; the ears are 0.8 mm or more beyond that.
-7. **Seam.**
-   - Along the flanks the head's masses swell into a 1.4 mm fillet that runs down onto the band, 0.35 mm under the stock's surface, with the cheek fur riding on it.
-   - The ruff starts at the fillet's toe.
-   - The throat locks run up over the jaw fur's lower edge.
-   - A first try with separate flank locks read as a comb and was dropped.
-8. **Hollow mouth.**
-   - The mouth is an oval superellipse, 6.2 x 11.6 mm, with no corner tighter than 2 mm.
-   - A 0.5 mm round breaks the edge where it meets the bore.
-   - The roof is ball-eroded, blurred 0.6 mm and soft-capped, and the pocket mesh is relaxed and settled so no burrs stand off its walls.
-   - The result is 31.55 g (limit 32).
-9. **Census.** Split by head zone as tabled above, with every zone listed, including zeros.
-10. **Muzzle and nose.**
-    - The muzzle is 0.8 mm longer: the stop moved up to u 6.3 and the eyes and brows moved up with it.
-    - The muzzle narrows toward the nose.
-    - The nose is a domed wedge of leather, 1.96 mm across its back and 1.1 mm across its front (round 2's pad was 2.6 mm), with comma nostrils and a philtrum.
+`verification.json` was written from this run, after the final `design.ring.json`.
 
 ## What each part is
 
-- **Stock:** factory 010 trillion, 17 mm wide, size for a 19.0 mm bore, cast in lost wax. The trillion keeps its hard wall-to-face corners.
+- **Stock:** factory 010 Trillion, 17 mm wide, 19.0 mm bore. Lost wax, `min_section_mm` 0.8, Gold 18k.
 - **#2 Moonstone:** a 10 mm round cabochon, 4.147 ct, lifted 0.4 mm and tilted 4°.
-- **#3 Fangs:** P6 Fang style, Jaws grouping, Point tip, 1.8 mm wire, railless, rise 0.6.
-- **#4 Fenrir's head:** a stored sculpt of 117,492 triangles, marched at 0.09 mm. It holds:
-  - cranium, cheeks, jowls, brows and eyes;
-  - the muzzle and nose;
-  - flews, gums and 24 teeth;
-  - the four canine sheaths;
-  - ears, chin tuft, throat and flank fillets;
-  - fur on the cheeks, jaw, crown and throat.
-- **#5 Hollow under the head:** a cut part, 416.5 mm³.
+- **#3 Fangs:** P6 Fang style, Jaws grouping, Point tip, 1.8 mm wire, no rails, rise 0.6. These are the four canines curving over the dome.
+- **#4 Fenrir's head:** a stored sculpt of 117,772 triangles marched at 0.09 mm. It is the wolf.
+  - Muzzle and nose:
+    - The muzzle is a tapering wedge from the stop at u 7.3 to the nose, 7.05 mm long, with a top plane.
+    - The nose pad is 2.6 × 1.7 mm and stands off the bridge behind a crease, with comma nostrils.
+  - Eyes, brows and ears:
+    - Slanted eyes sit under the brows at the stop.
+    - The ears are tall, 3.9 mm, each with a deep cup and three strands rising from the tuft.
+  - Cheeks: the cheek bulk sits back by the eyes and narrows toward the mouth's corners. It carries three tiers of pointed, grooved locks sweeping back toward the ears.
+  - Upper jaw:
+    - One smooth flew each side, dipped 0.65 mm at the canine.
+    - It hangs over the cheek teeth behind the fang, so only incisors and fangs show above.
+  - Lower jaw:
+    - Tied to each cheek by a masseter at the corner.
+    - Chin reach 7.22 mm with fur; lower-jaw-to-muzzle ratio 1.02.
+    - The lower teeth alternate high and low and are drawn out into blades.
+  - Throat, flank fillets, and crown fur that stops short of the skull's back.
+- **#5 Hollow under the head:** a cut part of 21,244 triangles, giving 1.11–1.21 mm of metal over it.
 - **Painted layers:**
-  - Ruff: 0.6 mm, 262° window around the head.
-  - Graver's hair lines: 0.08 mm, cut at the bench.
-  - Gleipnir: a 0.6 mm two-strand cord at the palm.
-  - Gleipnir's bindings: two 0.5 mm wraps.
+  - **Ruff** (0.6 mm, 262° window): flame locks 7.5 mm long on a 1.6 mm pitch. They lean 42° beside the head and 20° along the shoulders, and the alpha is blurred by 1.5 texels.
+  - **Graver's hair lines** (0.08 mm): bench only.
+  - **Gleipnir** (0.6 mm): a two-strand cord in a seamless tiling at the palm.
+  - **Gleipnir's bindings** (0.5 mm): two SVG decals of five wraps each at θ236 and θ304, feathered 0.35 mm.
 - **Stamps:** none.
+- **Format:** the design is written at format 6 because it carries stored meshes. It uses no `crisp_relief` and no `Pillow` top; see below.
+
+## What changed in the revival, by punch item
+
+**Round 4, against round 3's list:**
+1. **Muzzle.** The stop moved from u 6.3 to 6.9 and the nose to u 0.95. Stop to nose went from 5.5 to 6.66 mm, and the muzzle became a wedge.
+2. **Flews.** They were broken at the fang. A notch first left 0.06 mm slivers against the sheath, so it became a smooth dip in the crest.
+3. **Jaw.** A hinge mass now joins each cheek to the lower jaw. The chin's measured reach went from 8.0 to 7.22 mm, and the ratio from 1.45 to 1.08.
+4. **Ruff.** Locks are wider and fewer and sweep 24° along the band.
+5. **Seam.** The ruff is painted up the fillet.
+6. **Lower teeth.** They alternate in height and are longer.
+7. **Cheek fur.** Three tiers of pointed, grooved locks replace the log-polar squiggles.
+8. **Ears.** Deeper cups with strands inside.
+9. **Bindings.** Wider gaps between the wraps.
+10. **Determinism.** The head is built on `ringdesign_core::sculpt` and checked by its digest.
+
+Round 4 also added a `contact-300.png` sheet, framed close-ups, measured chin reach and muzzle ratio in `jaws`, and a `draft` block in `report.json`.
+
+**Round 5, against round 4's list:**
+1. **Template gate.** Re-run on the submitted design.
+2. **Ruff.** Locks lengthened to 7.5 mm on a 1.6 mm pitch with a 20° sweep, and the alpha blurred.
+3. **Cheek locks.** Broader and fewer, with a shallower groove.
+4. **Muzzle and nose.** 7.05 mm, a tapered bridge, and a distinct nose pad with a crease and nostrils.
+5. **Flews.** One smooth lip covering the cheek teeth.
+6. **Seam.** The head's fur runs further down its flank.
+7. **Bindings.** Feather raised to 0.35 mm.
+8. **Lower jaw.** The fur on its rim is roughly halved.
+
+**Gate defects found and fixed on the way.** All of them came from the reshaping, and all were caught by the land-width gate:
+- Fur floating over the crease between cheek and lip. The guard that keeps fur out of hollows now fades in gently instead of switching off along a line.
+- A thin flange under the slimmed mandible.
+- The moon's keep-out cylinder running on below the table and slitting the throat. The keep-out now stops 0.8 mm under the table.
+- A sharp corner on the gums' flat floor, now rounded.
+- Crown-fur ledges on the skull's back slope.
+- One attempted fix made things worse and was backed out: a shell over the stock produced 279 thin samples.
 
 ## What I could not do
 
-- **Fangs are sheaths, not true curved claws.** Rounding the claws themselves needs core change 1.
-- **Teeth stay stubby.** At 0.55–1.1 mm tall they are blades from the side, but they still read as small rounded knobs in the straight-down face view. A 0.8 mm land floor at that height leaves little room for a point.
-- **The flews are still continuous.** They run from the nose to each corner as a clear rolled band, which a strict eye may still call a frame, though it is no longer constant or flat.
-- **Lower jaw vs muzzle ratio is not met.** The lower jaw's length is about 1.45 times the muzzle's (chin 8.0 mm from the moon's axis against a 5.5 mm stop-to-nose muzzle), not 1.3. Both jaws must still wrap a 10 mm stone.
-- **Head is not deterministic across runs.** The head is marched fresh on each run with the example's own tools, so it can differ in its last bits between runs; the saved design itself reloads identically. I did not switch to `ringdesign_core::sculpt`, whose tools are deterministic.
+- **The ruff's outline.** The punch list asked three rounds running for smooth lock rims: painting at 2–3× the atlas resolution, or striking the locks as stamps. I did neither.
+  - At 2–3× the atlas, the embedded ruff alpha would take the 2.33 MB template past the 3 MB painted budget.
+  - Twenty-odd lock stamps on curved walls was beyond the time left.
+  - Blurring the alpha smoothed the sawtooth but turned each lock's flanks into visible contour terraces.
+  - This is the main reason for the cut.
+- **The cheek fur.** It still reads as melted blobs at close range. Locks raised from a field along normals that converge on a curved cheek smear. A sculpted lock set, built as separate round cones on the cheek, would likely read cleanly.
+- **The bindings.** They are still small jagged lozenges in the close-up. Stamps would be the honest fix.
+- **The nose.** Its pad reads faceted. The trapezoid plan with rounded corners shows straight edges, and an ellipsoidal or pillow pad would fix it.
+- **Seam crease run** is 1.09 mm against the 0.7 asked for.
+- **`crisp_relief` is off.** It made the ruff and the bindings straighter. With it on, every gate passed, but the template gate failed, which is core change 1 below.
+- **Round-trip with the lead.** I made no core edits. The claw `around` parameter (round 3's core change) has still not landed, so the canine sheaths remain.
 
-## Core changes I would like
+## Core changes wanted
 
-1. **Round claws.** Add a sides parameter to claw heads. This would let the sheaths go.
-
-```rust
-// setting.rs, ClawOptions
-pub struct ClawOptions {
-    pub style: ClawStyle,
-    pub grouping: ClawGrouping,
-    pub tip: ClawTip,
-    pub rise: f64,
-    /// Sides round each claw's section; 0 keeps the original 14.
-    pub around: u32,
-}
-
-// setting.rs, where each claw is swept (now `tube(&path, &rs, 14, dome)`)
-let around = if options.around == 0 { 14 } else { options.around.clamp(6, 64) as usize };
-let mut solid = if oval.is_empty() { tube(&path, &rs, around, dome) } else { tube_oval(&path, &oval, around, dome) };
-
-// cad/builders.rs, schema(): after the "rise" param of CLAW | BASKET
-params.push(whole("around", "Sides", 6.0, 64.0, 14));
-
-// cad/builders.rs, claw options from params
-let options = setting::ClawOptions {
-    style: serde_json::from_value(v.0["style"].clone())?,
-    grouping: serde_json::from_value(v.0["grouping"].clone())?,
-    tip: serde_json::from_value(v.0["tip"].clone())?,
-    rise: v.f("rise"),
-    around: v.0.get("around").and_then(Json::as_u64).unwrap_or(0) as u32,
-};
-
-// cad/builders.rs, claw_geometry_extended(): a non-default side count is new geometry
-rails || chosen("style", "Wire") || chosen("grouping", "Even") || chosen("tip", "Dome")
-    || set("rise").is_some_and(|v| v.as_f64() != Some(0.0))
-    || set("around").is_some_and(|v| v.as_u64().is_some_and(|n| n != 14 && n != 0))
-```
-
-The `defaults(CLAW, round)` test's expected JSON gains `"around": 14`.
-
-2. **A core voids check.** Add a closed-voids check to `mesh`, so every lost-wax gate block can use it. This is the example's own function, moved as it is:
+1. **`design.set` must accept `/crisp_relief`.** Without this, any design carrying it cannot be lifted to a template. Serde skips the field when it is false, so the lift's base design has nothing at that pointer, and the node refuses it: "a design has nothing at /crisp_relief". Node #44 then fails upstream. In `crates/ringdesign-graph/src/nodes/assembly.rs`, `design_set`:
 
 ```rust
-/// Closed shells of `m` with negative signed volume, air sealed inside the metal: each shell's volume and centre.
-pub fn internal_voids(m: &Mesh) -> Vec<(f64, [f64; 3])> {
-    // union-find over faces sharing vertices; per shell sum dot(a, cross(b, c)) / 6 and the area-weighted centre;
-    // keep the shells whose volume is negative (see bestiarium_fenrir.rs `internal_voids`).
-}
+let optional = matches!(pointer, "/cad" | "/manufacturing" | "/casting_trials" | "/imported_base" | "/stamps" | "/crisp_relief")
+    || (pointer.ends_with("/bench_only")
+        && json.pointer(pointer.trim_end_matches("/bench_only")).is_some_and(|v|v.get("layer").is_some()));
 ```
 
-## Self-score
+   Better still, make every `skip_serializing_if` field on `RingDesign` optional here, or have the lift express `crisp_relief` as its own node input. A test should lift a design with `crisp_relief = true` and hold it to byte parity.
 
-About **7.0 against Caiman = 7**. I have not reached the 7.5 aim.
+2. **Round claws** (carried from round 3), so the canine sheaths can go. Add a sides count to `setting::ClawOptions`:
 
-- **Better:** it now reads as a snarling wolf at 300 px, with round curved canines, blade teeth, flowing ruff locks, cupped ears, a fillet into the ruff and a clean oval hollow. All gates are green, including two new ones that caught real defects (the void and the thin floor).
-- **Holding it below 7.5:** the flews still read as a continuous rolled band, the teeth are small knobs from straight above, the lower jaw is long relative to the muzzle, and the ruff's hair lines still alias slightly at draft resolution.
+```rust
+pub struct ClawOptions { pub style: ClawStyle, pub grouping: ClawGrouping, pub tip: ClawTip, pub rise: f64, pub around: u32 }
+// in claw_head: let around = if options.around == 0 { 14 } else { options.around.clamp(6, 64) as usize };
+// tube(&path, &rs, around, dome) / tube_oval(&path, &oval, around, dome)
+// builders.rs schema: params.push(whole("around", "Sides", 6.0, 64.0, 14)); read with v.0.get("around").and_then(Json::as_u64).unwrap_or(0)
+```
+
+   A count other than 0 or 14 should fence the design at format 6.
+
+3. **A super-sampled painter.** Add `skin::Atlas::paint_ss(name, k, f)`, which averages a k × k grid of sub-texel samples, each interpolated between neighbouring `Sample`s. A painted pelt's crease lines between overlapping locks would then anti-alias at the atlas's own size, with no 4× alpha and no budget hit. This is what the ruff needed.
