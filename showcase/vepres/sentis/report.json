@@ -1,16 +1,16 @@
 {
   "alloy_for_weight": "Gold 18k",
   "bore": {
-    "nearest_vertex_mm": 9.353461474098173,
+    "nearest_vertex_mm": 9.35329707014487,
     "radius_mm": 9.3,
     "vertices_inside": 0
   },
   "build": {
-    "author_s": 0.176930516,
-    "build_s": 1.710395092,
-    "profile_steps": 320,
-    "theta_steps": 768,
-    "triangles": 181368
+    "author_s": 0.167162676,
+    "build_s": 0.991021771,
+    "profile_steps": 448,
+    "theta_steps": 1536,
+    "triangles": 125292
   },
   "coarse": {
     "degenerate_faces": 0,
@@ -21,10 +21,10 @@
     "self_crossings": 0,
     "watertight": true
   },
-  "cold_reload_identical": null,
+  "cold_reload_identical": true,
   "design": {
-    "bytes": 730415,
-    "cad_features": 37,
+    "bytes": 273620,
+    "cad_features": 29,
     "format_version": 6
   },
   "dfm_findings": [],
@@ -36,6 +36,766 @@
     "parting_z_mm": 0.0,
     "process": "LostWax",
     "sand": null
+  },
+  "draft_build": {
+    "alloy_for_weight": "Gold 18k",
+    "bore": {
+      "nearest_vertex_mm": 9.35329707014487,
+      "radius_mm": 9.3,
+      "vertices_inside": 0
+    },
+    "build": {
+      "author_s": 0.186097097,
+      "build_s": 1.024856498,
+      "profile_steps": 320,
+      "theta_steps": 768,
+      "triangles": 125292
+    },
+    "coarse": {
+      "degenerate_faces": 0,
+      "notes": [
+        [],
+        []
+      ],
+      "self_crossings": 0,
+      "watertight": true
+    },
+    "cold_reload_identical": null,
+    "design": {
+      "bytes": 273620,
+      "cad_features": 29,
+      "format_version": 6
+    },
+    "dfm_findings": [],
+    "draft": {
+      "auto_parting": false,
+      "min_detail_mm": 0.15,
+      "min_draft_deg": 0.0,
+      "min_section_mm": 0.8,
+      "parting_z_mm": 0.0,
+      "process": "LostWax",
+      "sand": null
+    },
+    "features": [
+      [
+        "#1",
+        "Ok"
+      ],
+      [
+        "#2",
+        "Ok"
+      ],
+      [
+        "#3",
+        "Ok"
+      ],
+      [
+        "#4",
+        "Ok"
+      ],
+      [
+        "#5",
+        "Ok"
+      ],
+      [
+        "#6",
+        "Ok"
+      ],
+      [
+        "#7",
+        "Ok"
+      ],
+      [
+        "#8",
+        "Ok"
+      ],
+      [
+        "#9",
+        "Ok"
+      ],
+      [
+        "#10",
+        "Ok"
+      ],
+      [
+        "#11",
+        "Ok"
+      ],
+      [
+        "#12",
+        "Ok"
+      ],
+      [
+        "#13",
+        "Ok"
+      ],
+      [
+        "#14",
+        "Ok"
+      ],
+      [
+        "#15",
+        "Ok"
+      ],
+      [
+        "#16",
+        "Ok"
+      ],
+      [
+        "#17",
+        "Ok"
+      ],
+      [
+        "#18",
+        "Ok"
+      ],
+      [
+        "#19",
+        "Ok"
+      ],
+      [
+        "#20",
+        "Ok"
+      ],
+      [
+        "#21",
+        "Ok"
+      ],
+      [
+        "#22",
+        "Ok"
+      ],
+      [
+        "#23",
+        "Ok"
+      ],
+      [
+        "#24",
+        "Ok"
+      ],
+      [
+        "#25",
+        "Ok"
+      ],
+      [
+        "#26",
+        "Ok"
+      ],
+      [
+        "#27",
+        "Ok"
+      ],
+      [
+        "#28",
+        "Ok"
+      ],
+      [
+        "#29",
+        "Ok"
+      ]
+    ],
+    "field": {
+      "min_detail_mm": 0.15,
+      "min_section_mm": 0.8,
+      "notes": [
+        "CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply"
+      ],
+      "thinnest_wall_mm": 0.0,
+      "thinnest_wall_theta_deg": 0.0,
+      "verdict": "Castable with care"
+    },
+    "gates": [
+      {
+        "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+        "pass": true
+      },
+      {
+        "gate": "every CAD part closed without crossings",
+        "pass": true
+      },
+      {
+        "gate": "one shell: nothing floats",
+        "pass": true
+      },
+      {
+        "gate": "solids and parts notes empty, every feature Ok",
+        "pass": true
+      },
+      {
+        "gate": "nothing enters the finger hole",
+        "pass": true
+      },
+      {
+        "gate": "every part's ray-sampled wall at the 0.8 mm section, its pointed details (thorns, shoots) at the 0.15 mm detail floor",
+        "pass": true
+      },
+      {
+        "gate": "zero DFM findings",
+        "pass": true
+      },
+      {
+        "gate": "stones reported equal the preview",
+        "pass": true
+      },
+      {
+        "gate": "no metal inside a stone",
+        "pass": true
+      },
+      {
+        "gate": "crowding census clean",
+        "pass": true
+      },
+      {
+        "gate": "metal-in-stone check ran on every stone",
+        "pass": true
+      },
+      {
+        "gate": "gates hold at 384 x 192",
+        "pass": true
+      },
+      {
+        "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "export build within the 2 million triangle budget",
+        "pass": true
+      },
+      {
+        "gate": "cold reload identical",
+        "pass": true
+      }
+    ],
+    "gates_passed": true,
+    "geometry": {
+      "degenerate_faces": 0,
+      "self_crossings": 0,
+      "shells": 1,
+      "watertight": true
+    },
+    "grams_18k": 4.701866810705514,
+    "lost_wax_note": "Lost wax (Logan, 2026-10-03): 0.8 mm minimum section, no pull rule. The band-field verdict reads 'Castable with care' for every CAD-only design by construction (castability.rs: no procedural band to sample), so the lost-wax gate is the wall gate. Walls are sampled on the finished mesh: up to 320 inward rays per part from the faces it owns, through the whole finished metal; faces touching a hard edge (over 50 degrees) and rays stopped within 0.03 mm at a seam fold are not counted and are tallied per part. Bodies (canes, receptacle, stalk, petiole and rachis) are judged at 0.8 mm; pointed details (prickles, calyx, leaflets) at the 0.15 mm detail floor, as Manticora's aculeus was.",
+    "made_parts": [
+      [
+        "Briar cane 1",
+        0
+      ],
+      [
+        "Briar cane 2",
+        0
+      ],
+      [
+        "Prickle 1 on cane 1",
+        0
+      ],
+      [
+        "Prickle 2 on cane 1",
+        0
+      ],
+      [
+        "Prickle 3 on cane 1",
+        0
+      ],
+      [
+        "Prickle 4 on cane 1",
+        0
+      ],
+      [
+        "Prickle 5 on cane 2",
+        0
+      ],
+      [
+        "Prickle 6 on cane 2",
+        0
+      ],
+      [
+        "Prickle 7 on cane 2",
+        0
+      ],
+      [
+        "Prickle 8 on cane 2",
+        0
+      ],
+      [
+        "Prickle 9 on cane 2",
+        0
+      ],
+      [
+        "Prickle 10 on cane 2",
+        0
+      ],
+      [
+        "Hip receptacle",
+        0
+      ],
+      [
+        "Hip stalk",
+        0
+      ],
+      [
+        "Hip calyx, sepal 1",
+        0
+      ],
+      [
+        "Hip calyx, sepal 2",
+        0
+      ],
+      [
+        "Hip calyx, sepal 3",
+        0
+      ],
+      [
+        "Hip calyx, sepal 4",
+        0
+      ],
+      [
+        "Hip calyx, sepal 5",
+        0
+      ],
+      [
+        "Hip calyx, boss",
+        0
+      ],
+      [
+        "Round cabochon 5.6 mm",
+        0
+      ],
+      [
+        "Rose leaf 1, pair 1 left leaflet",
+        0
+      ],
+      [
+        "Rose leaf 1, pair 1 right leaflet",
+        0
+      ],
+      [
+        "Rose leaf 1, pair 2 left leaflet",
+        0
+      ],
+      [
+        "Rose leaf 1, pair 2 right leaflet",
+        0
+      ],
+      [
+        "Rose leaf 1, terminal leaflet",
+        0
+      ],
+      [
+        "Rose leaf 1, petiole and rachis",
+        0
+      ],
+      [
+        "Rose leaf 2: the leaflets and rachis of leaf 1 turned round the hip",
+        0
+      ]
+    ],
+    "name": "Sentis",
+    "notes": {
+      "parts": [],
+      "solids": []
+    },
+    "pattern": {
+      "degenerate_faces": 0,
+      "self_crossings": 0,
+      "triangles": 125292,
+      "watertight": true
+    },
+    "process": "Lost wax",
+    "ray_walls": [
+      {
+        "at": [
+          -3.3,
+          -10.938,
+          1.721
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.8,
+        "hard_edge_faces_skipped": 0,
+        "part": "Briar cane 1",
+        "rays": 318,
+        "sampled_min_mm": 1.1809137728683476,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          3.426,
+          -10.293,
+          -1.841
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.8,
+        "hard_edge_faces_skipped": 1090,
+        "part": "Briar cane 2",
+        "rays": 319,
+        "sampled_min_mm": 1.1800449896290013,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          -11.885,
+          -2.625,
+          -2.017
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 234,
+        "part": "Prickle 1 on cane 1",
+        "rays": 301,
+        "sampled_min_mm": 0.39071655938113553,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          -10.671,
+          -6.27,
+          -0.691
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 185,
+        "part": "Prickle 2 on cane 1",
+        "rays": 292,
+        "sampled_min_mm": 0.38188248972897204,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          -2.134,
+          -11.611,
+          2.298
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 244,
+        "part": "Prickle 3 on cane 1",
+        "rays": 315,
+        "sampled_min_mm": 0.3098663037634206,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          0.802,
+          -10.212,
+          2.77
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 206,
+        "part": "Prickle 4 on cane 1",
+        "rays": 297,
+        "sampled_min_mm": 0.34874191802741333,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          -10.728,
+          -0.924,
+          2.895
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 290,
+        "part": "Prickle 5 on cane 2",
+        "rays": 310,
+        "sampled_min_mm": 0.38977271662230306,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          -0.471,
+          -10.716,
+          -2.802
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 215,
+        "part": "Prickle 6 on cane 2",
+        "rays": 284,
+        "sampled_min_mm": 0.2431623624493696,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          3.441,
+          -11.675,
+          -1.593
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 217,
+        "part": "Prickle 7 on cane 2",
+        "rays": 310,
+        "sampled_min_mm": 0.34130499380774043,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          6.228,
+          -10.911,
+          -1.113
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 203,
+        "part": "Prickle 8 on cane 2",
+        "rays": 292,
+        "sampled_min_mm": 0.35247165716336604,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          10.781,
+          -5.835,
+          1.271
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 241,
+        "part": "Prickle 9 on cane 2",
+        "rays": 293,
+        "sampled_min_mm": 0.3694691732568439,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          11.453,
+          -2.471,
+          2.956
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 200,
+        "part": "Prickle 10 on cane 2",
+        "rays": 285,
+        "sampled_min_mm": 0.3921848335519097,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          0.658,
+          11.967,
+          2.57
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.8,
+        "hard_edge_faces_skipped": 163,
+        "part": "Hip receptacle",
+        "rays": 155,
+        "sampled_min_mm": 1.8619079459258383,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          1.376,
+          11.498,
+          -2.781
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.8,
+        "hard_edge_faces_skipped": 436,
+        "part": "Hip stalk",
+        "rays": 295,
+        "sampled_min_mm": 0.9183990714711054,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          0.449,
+          13.208,
+          3.739
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 100,
+        "part": "Hip calyx, sepal 1",
+        "rays": 194,
+        "sampled_min_mm": 0.2489885220916688,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          3.546,
+          12.973,
+          0.693
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 91,
+        "part": "Hip calyx, sepal 2",
+        "rays": 191,
+        "sampled_min_mm": 0.24888427209292555,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          2.723,
+          12.96,
+          -2.648
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 163,
+        "part": "Hip calyx, sepal 3",
+        "rays": 194,
+        "sampled_min_mm": 0.24924602256233702,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          -2.462,
+          12.973,
+          -2.645
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 109,
+        "part": "Hip calyx, sepal 4",
+        "rays": 190,
+        "sampled_min_mm": 0.24902288858316943,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          -3.417,
+          13.208,
+          1.583
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 101,
+        "part": "Hip calyx, sepal 5",
+        "rays": 194,
+        "sampled_min_mm": 0.24776234419579393,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          0.657,
+          16.0,
+          0.092
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 300,
+        "part": "Hip calyx, boss",
+        "rays": 80,
+        "sampled_min_mm": 0.34831840770513384,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          4.617,
+          12.273,
+          4.118
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 1038,
+        "part": "Rose leaf 1, pair 1 left leaflet",
+        "rays": 290,
+        "sampled_min_mm": 0.36496669544294974,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          5.371,
+          11.962,
+          -1.939
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 1012,
+        "part": "Rose leaf 1, pair 1 right leaflet",
+        "rays": 308,
+        "sampled_min_mm": 0.39414270841418675,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          7.752,
+          10.851,
+          4.431
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 969,
+        "part": "Rose leaf 1, pair 2 left leaflet",
+        "rays": 301,
+        "sampled_min_mm": 0.3971319901137788,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          8.496,
+          10.278,
+          -1.4
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 992,
+        "part": "Rose leaf 1, pair 2 right leaflet",
+        "rays": 278,
+        "sampled_min_mm": 0.3911960970712209,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          10.88,
+          6.576,
+          2.082
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 1102,
+        "part": "Rose leaf 1, terminal leaflet",
+        "rays": 296,
+        "sampled_min_mm": 0.4970487456177969,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          3.176,
+          11.254,
+          1.524
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.8,
+        "hard_edge_faces_skipped": 1540,
+        "part": "Rose leaf 1, petiole and rachis",
+        "rays": 311,
+        "sampled_min_mm": 0.9983181207224607,
+        "seam_folds_skipped": 0
+      },
+      {
+        "at": [
+          -4.595,
+          11.4,
+          -1.615
+        ],
+        "below_floor": 0,
+        "floor_mm": 0.15,
+        "hard_edge_faces_skipped": 7346,
+        "part": "Rose leaf 2: the leaflets and rachis of leaf 1 turned round the hip",
+        "rays": 317,
+        "sampled_min_mm": 0.5268386328531118,
+        "seam_folds_skipped": 0
+      }
+    ],
+    "size": "US 8.6",
+    "stage": "round 1",
+    "stone_feature": 22,
+    "stones": {
+      "crowding": [],
+      "metal_inside": [
+        [
+          "Round cabochon 5.6 mm",
+          0
+        ]
+      ],
+      "previewed": 1,
+      "reported": 1
+    },
+    "thorns": 10
   },
   "features": [
     [
@@ -153,38 +913,6 @@
     [
       "#29",
       "Ok"
-    ],
-    [
-      "#30",
-      "Ok"
-    ],
-    [
-      "#31",
-      "Ok"
-    ],
-    [
-      "#32",
-      "Ok"
-    ],
-    [
-      "#33",
-      "Ok"
-    ],
-    [
-      "#34",
-      "Ok"
-    ],
-    [
-      "#35",
-      "Ok"
-    ],
-    [
-      "#36",
-      "Ok"
-    ],
-    [
-      "#37",
-      "Ok"
     ]
   ],
   "field": {
@@ -220,7 +948,7 @@
     },
     {
       "gate": "every part's ray-sampled wall at the 0.8 mm section, its pointed details (thorns, shoots) at the 0.15 mm detail floor",
-      "pass": false
+      "pass": true
     },
     {
       "gate": "zero DFM findings",
@@ -257,16 +985,21 @@
     {
       "gate": "cold reload identical",
       "pass": true
+    },
+    {
+      "gate": "template gate: at most 4 design.set patches, within the 300 KB procedural budget, cold source and mesh parity",
+      "pass": true
     }
   ],
-  "gates_passed": false,
+  "gates_passed": true,
   "geometry": {
     "degenerate_faces": 0,
     "self_crossings": 0,
     "shells": 1,
     "watertight": true
   },
-  "grams_18k": 4.764574696136131,
+  "grams_18k": 4.701866810705514,
+  "lost_wax_note": "Lost wax (Logan, 2026-10-03): 0.8 mm minimum section, no pull rule. The band-field verdict reads 'Castable with care' for every CAD-only design by construction (castability.rs: no procedural band to sample), so the lost-wax gate is the wall gate. Walls are sampled on the finished mesh: up to 320 inward rays per part from the faces it owns, through the whole finished metal; faces touching a hard edge (over 50 degrees) and rays stopped within 0.03 mm at a seam fold are not counted and are tallied per part. Bodies (canes, receptacle, stalk, petiole and rachis) are judged at 0.8 mm; pointed details (prickles, calyx, leaflets) at the 0.15 mm detail floor, as Manticora's aculeus was.",
   "made_parts": [
     [
       "Briar cane 1",
@@ -293,11 +1026,11 @@
       0
     ],
     [
-      "Prickle 5 on cane 1",
+      "Prickle 5 on cane 2",
       0
     ],
     [
-      "Prickle 6 on cane 1",
+      "Prickle 6 on cane 2",
       0
     ],
     [
@@ -314,74 +1047,6 @@
     ],
     [
       "Prickle 10 on cane 2",
-      0
-    ],
-    [
-      "Prickle 11 on cane 2",
-      0
-    ],
-    [
-      "Prickle 12 on cane 2",
-      0
-    ],
-    [
-      "Prickle 13 on cane 2",
-      0
-    ],
-    [
-      "Rose leaf 1, pair 1 left leaflet",
-      0
-    ],
-    [
-      "Rose leaf 1, pair 1 right leaflet",
-      0
-    ],
-    [
-      "Rose leaf 1, pair 2 left leaflet",
-      0
-    ],
-    [
-      "Rose leaf 1, pair 2 right leaflet",
-      0
-    ],
-    [
-      "Rose leaf 1, terminal leaflet",
-      0
-    ],
-    [
-      "Rose leaf 1, petiole",
-      0
-    ],
-    [
-      "Rose leaf 1, rachis",
-      0
-    ],
-    [
-      "Rose leaf 2, pair 1 left leaflet",
-      0
-    ],
-    [
-      "Rose leaf 2, pair 1 right leaflet",
-      0
-    ],
-    [
-      "Rose leaf 2, pair 2 left leaflet",
-      0
-    ],
-    [
-      "Rose leaf 2, pair 2 right leaflet",
-      0
-    ],
-    [
-      "Rose leaf 2, terminal leaflet",
-      0
-    ],
-    [
-      "Rose leaf 2, petiole",
-      0
-    ],
-    [
-      "Rose leaf 2, rachis",
       0
     ],
     [
@@ -413,7 +1078,39 @@
       0
     ],
     [
+      "Hip calyx, boss",
+      0
+    ],
+    [
       "Round cabochon 5.6 mm",
+      0
+    ],
+    [
+      "Rose leaf 1, pair 1 left leaflet",
+      0
+    ],
+    [
+      "Rose leaf 1, pair 1 right leaflet",
+      0
+    ],
+    [
+      "Rose leaf 1, pair 2 left leaflet",
+      0
+    ],
+    [
+      "Rose leaf 1, pair 2 right leaflet",
+      0
+    ],
+    [
+      "Rose leaf 1, terminal leaflet",
+      0
+    ],
+    [
+      "Rose leaf 1, petiole and rachis",
+      0
+    ],
+    [
+      "Rose leaf 2: the leaflets and rachis of leaf 1 turned round the hip",
       0
     ]
   ],
@@ -425,267 +1122,393 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 181368,
+    "triangles": 125292,
     "watertight": true
   },
   "process": "Lost wax",
   "ray_walls": [
     {
+      "at": [
+        -3.3,
+        -10.938,
+        1.721
+      ],
       "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 0,
       "part": "Briar cane 1",
-      "rays": 383,
-      "sampled_min_mm": 1.1707678304740272,
-      "unresolved": 0
+      "rays": 318,
+      "sampled_min_mm": 1.1809137728683476,
+      "seam_folds_skipped": 0
     },
     {
+      "at": [
+        3.426,
+        -10.293,
+        -1.841
+      ],
       "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 1090,
       "part": "Briar cane 2",
-      "rays": 383,
-      "sampled_min_mm": 1.1707725161778109,
-      "unresolved": 0
+      "rays": 319,
+      "sampled_min_mm": 1.1800449896290013,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 331,
+      "at": [
+        -11.885,
+        -2.625,
+        -2.017
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 234,
       "part": "Prickle 1 on cane 1",
-      "rays": 382,
-      "sampled_min_mm": 0.06530722814530189,
-      "unresolved": 0
+      "rays": 301,
+      "sampled_min_mm": 0.39071655938113553,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 331,
+      "at": [
+        -10.671,
+        -6.27,
+        -0.691
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 185,
       "part": "Prickle 2 on cane 1",
-      "rays": 382,
-      "sampled_min_mm": 0.06524488465165851,
-      "unresolved": 0
+      "rays": 292,
+      "sampled_min_mm": 0.38188248972897204,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 343,
+      "at": [
+        -2.134,
+        -11.611,
+        2.298
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 244,
       "part": "Prickle 3 on cane 1",
-      "rays": 382,
-      "sampled_min_mm": 0.06159317741400334,
-      "unresolved": 0
+      "rays": 315,
+      "sampled_min_mm": 0.3098663037634206,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 345,
+      "at": [
+        0.802,
+        -10.212,
+        2.77
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 206,
       "part": "Prickle 4 on cane 1",
-      "rays": 382,
-      "sampled_min_mm": 0.05963490378847761,
-      "unresolved": 0
+      "rays": 297,
+      "sampled_min_mm": 0.34874191802741333,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 356,
-      "part": "Prickle 5 on cane 1",
-      "rays": 382,
-      "sampled_min_mm": 0.053815847592028586,
-      "unresolved": 0
+      "at": [
+        -10.728,
+        -0.924,
+        2.895
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 290,
+      "part": "Prickle 5 on cane 2",
+      "rays": 310,
+      "sampled_min_mm": 0.38977271662230306,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 356,
-      "part": "Prickle 6 on cane 1",
-      "rays": 382,
-      "sampled_min_mm": 0.053972746387997636,
-      "unresolved": 0
+      "at": [
+        -0.471,
+        -10.716,
+        -2.802
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 215,
+      "part": "Prickle 6 on cane 2",
+      "rays": 284,
+      "sampled_min_mm": 0.2431623624493696,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 326,
+      "at": [
+        3.441,
+        -11.675,
+        -1.593
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 217,
       "part": "Prickle 7 on cane 2",
-      "rays": 382,
-      "sampled_min_mm": 0.06651735470002974,
-      "unresolved": 0
+      "rays": 310,
+      "sampled_min_mm": 0.34130499380774043,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 345,
+      "at": [
+        6.228,
+        -10.911,
+        -1.113
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 203,
       "part": "Prickle 8 on cane 2",
-      "rays": 382,
-      "sampled_min_mm": 0.060583407393914296,
-      "unresolved": 0
+      "rays": 292,
+      "sampled_min_mm": 0.35247165716336604,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 359,
+      "at": [
+        10.781,
+        -5.835,
+        1.271
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 241,
       "part": "Prickle 9 on cane 2",
-      "rays": 382,
-      "sampled_min_mm": 0.05144232375707638,
-      "unresolved": 0
+      "rays": 293,
+      "sampled_min_mm": 0.3694691732568439,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 356,
+      "at": [
+        11.453,
+        -2.471,
+        2.956
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 200,
       "part": "Prickle 10 on cane 2",
-      "rays": 382,
-      "sampled_min_mm": 0.053598942382958266,
-      "unresolved": 0
+      "rays": 285,
+      "sampled_min_mm": 0.3921848335519097,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 353,
-      "part": "Prickle 11 on cane 2",
-      "rays": 382,
-      "sampled_min_mm": 0.05558451792591392,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 347,
-      "part": "Prickle 12 on cane 2",
-      "rays": 382,
-      "sampled_min_mm": 0.05741427681336609,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 343,
-      "part": "Prickle 13 on cane 2",
-      "rays": 382,
-      "sampled_min_mm": 0.06190318309402568,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 318,
-      "part": "Rose leaf 1, pair 1 left leaflet",
-      "rays": 359,
-      "sampled_min_mm": 0.2560192995239436,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 318,
-      "part": "Rose leaf 1, pair 1 right leaflet",
-      "rays": 359,
-      "sampled_min_mm": 0.22128603801504582,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 318,
-      "part": "Rose leaf 1, pair 2 left leaflet",
-      "rays": 359,
-      "sampled_min_mm": 0.19190592692028968,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 316,
-      "part": "Rose leaf 1, pair 2 right leaflet",
-      "rays": 359,
-      "sampled_min_mm": 0.1895615857312821,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 312,
-      "part": "Rose leaf 1, terminal leaflet",
-      "rays": 359,
-      "sampled_min_mm": 0.2961833222839025,
-      "unresolved": 0
-    },
-    {
+      "at": [
+        0.658,
+        11.967,
+        2.57
+      ],
       "below_floor": 0,
-      "part": "Rose leaf 1, petiole",
-      "rays": 276,
-      "sampled_min_mm": 0.8591337790784063,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 12,
-      "part": "Rose leaf 1, rachis",
-      "rays": 384,
-      "sampled_min_mm": 0.17272010010259986,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 316,
-      "part": "Rose leaf 2, pair 1 left leaflet",
-      "rays": 359,
-      "sampled_min_mm": 0.25632815308749685,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 316,
-      "part": "Rose leaf 2, pair 1 right leaflet",
-      "rays": 359,
-      "sampled_min_mm": 0.21718974329668342,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 318,
-      "part": "Rose leaf 2, pair 2 left leaflet",
-      "rays": 359,
-      "sampled_min_mm": 0.18997639203344543,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 318,
-      "part": "Rose leaf 2, pair 2 right leaflet",
-      "rays": 359,
-      "sampled_min_mm": 0.17367102465152245,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 313,
-      "part": "Rose leaf 2, terminal leaflet",
-      "rays": 359,
-      "sampled_min_mm": 0.31323995684115014,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 0,
-      "part": "Rose leaf 2, petiole",
-      "rays": 276,
-      "sampled_min_mm": 0.8591336062045614,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 16,
-      "part": "Rose leaf 2, rachis",
-      "rays": 384,
-      "sampled_min_mm": 0.1631523970313033,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 163,
       "part": "Hip receptacle",
-      "rays": 238,
-      "sampled_min_mm": 1.0116391115487047,
-      "unresolved": 0
+      "rays": 155,
+      "sampled_min_mm": 1.8619079459258383,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 6,
+      "at": [
+        1.376,
+        11.498,
+        -2.781
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 436,
       "part": "Hip stalk",
-      "rays": 356,
-      "sampled_min_mm": 0.19911823469800266,
-      "unresolved": 0
+      "rays": 295,
+      "sampled_min_mm": 0.9183990714711054,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 240,
+      "at": [
+        0.449,
+        13.208,
+        3.739
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 100,
       "part": "Hip calyx, sepal 1",
-      "rays": 240,
-      "sampled_min_mm": 0.29395940599149223,
-      "unresolved": 0
+      "rays": 194,
+      "sampled_min_mm": 0.2489885220916688,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 240,
+      "at": [
+        3.546,
+        12.973,
+        0.693
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 91,
       "part": "Hip calyx, sepal 2",
-      "rays": 240,
-      "sampled_min_mm": 0.2940939490907044,
-      "unresolved": 0
+      "rays": 191,
+      "sampled_min_mm": 0.24888427209292555,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 240,
+      "at": [
+        2.723,
+        12.96,
+        -2.648
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 163,
       "part": "Hip calyx, sepal 3",
-      "rays": 240,
-      "sampled_min_mm": 0.2947240850485811,
-      "unresolved": 0
+      "rays": 194,
+      "sampled_min_mm": 0.24924602256233702,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 239,
+      "at": [
+        -2.462,
+        12.973,
+        -2.645
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 109,
       "part": "Hip calyx, sepal 4",
-      "rays": 240,
-      "sampled_min_mm": 0.2942706859261782,
-      "unresolved": 0
+      "rays": 190,
+      "sampled_min_mm": 0.24902288858316943,
+      "seam_folds_skipped": 0
     },
     {
-      "below_floor": 240,
+      "at": [
+        -3.417,
+        13.208,
+        1.583
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 101,
       "part": "Hip calyx, sepal 5",
-      "rays": 240,
-      "sampled_min_mm": 0.2941167309498854,
-      "unresolved": 0
+      "rays": 194,
+      "sampled_min_mm": 0.24776234419579393,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        0.657,
+        16.0,
+        0.092
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 300,
+      "part": "Hip calyx, boss",
+      "rays": 80,
+      "sampled_min_mm": 0.34831840770513384,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        4.617,
+        12.273,
+        4.118
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 1038,
+      "part": "Rose leaf 1, pair 1 left leaflet",
+      "rays": 290,
+      "sampled_min_mm": 0.36496669544294974,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        5.371,
+        11.962,
+        -1.939
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 1012,
+      "part": "Rose leaf 1, pair 1 right leaflet",
+      "rays": 308,
+      "sampled_min_mm": 0.39414270841418675,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        7.752,
+        10.851,
+        4.431
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 969,
+      "part": "Rose leaf 1, pair 2 left leaflet",
+      "rays": 301,
+      "sampled_min_mm": 0.3971319901137788,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        8.496,
+        10.278,
+        -1.4
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 992,
+      "part": "Rose leaf 1, pair 2 right leaflet",
+      "rays": 278,
+      "sampled_min_mm": 0.3911960970712209,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        10.88,
+        6.576,
+        2.082
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 1102,
+      "part": "Rose leaf 1, terminal leaflet",
+      "rays": 296,
+      "sampled_min_mm": 0.4970487456177969,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        3.176,
+        11.254,
+        1.524
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 1540,
+      "part": "Rose leaf 1, petiole and rachis",
+      "rays": 311,
+      "sampled_min_mm": 0.9983181207224607,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -4.595,
+        11.4,
+        -1.615
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 7346,
+      "part": "Rose leaf 2: the leaflets and rachis of leaf 1 turned round the hip",
+      "rays": 317,
+      "sampled_min_mm": 0.5268386328531118,
+      "seam_folds_skipped": 0
     }
   ],
   "size": "US 8.6",
-  "stage": "block-out",
-  "stone_feature": 37,
+  "stage": "round 1",
+  "stone_feature": 22,
   "stones": {
     "crowding": [],
     "metal_inside": [
@@ -697,5 +1520,25 @@
     "previewed": 1,
     "reported": 1
   },
-  "thorns": 13
+  "thorns": 10,
+  "template_gate": {
+    "template_class": "procedural",
+    "template_bytes": 279268,
+    "size_budget_bytes": 300000,
+    "design_set_patches": [
+      {
+        "graph": "Sentis",
+        "node": 64,
+        "pointer": "/manufacturing"
+      }
+    ],
+    "nodes": 36,
+    "source_identical": true,
+    "cold_graph_reload": true,
+    "cold_design_reload": true,
+    "vertices_faces_normals_identical": true,
+    "export_geometry_verified": true,
+    "template_gate_passed": true,
+    "design_set_patch_count": 1
+  }
 }
