@@ -938,7 +938,7 @@ fn halo(gem: Gem, v: &Values, wall: Option<setting::Wall>) -> Result<Made> {
     }
     // The rail runs round the outside of the melee's bases, clear of their pavilions, so the ring is one piece.
     let r = (0.3 * melee.w_mm).clamp(0.2, 0.45);
-    let plan = setting::Plan { a, b, pow: 2.0 };
+    let plan = setting::Plan::superellipse(a, b, 2.0);
     let (offset, rail_z) = (reach - 0.5 * r, lo[2] + z + 0.6 * r);
     let section: Vec<setting::Station> = (0..16).map(|k| {
         let t = std::f64::consts::TAU * (k as f64 + 0.31) / 16.0;
@@ -1903,7 +1903,7 @@ mod tests {
                 for &(theta, across, tilt) in &seats {
                     for (key, p) in &settings {
                         // The stone as the build seats it: its frame and the metal under it.
-                        let placement = Placement::Ring { theta_deg: theta, across_mm: across, height_mm: stand_off_mm(key, gem), spin_deg: 0.0, tilt_deg: tilt, cant_deg: 0.0 };
+                        let placement = Placement::Ring { theta_deg: theta, across_mm: across, height_mm: stand_off_mm(key, gem), spin_deg: 0.0, tilt_deg: tilt, cant_deg: 0.0, level: false };
                         let mut doc = Document::default();
                         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
                         doc.append(stone_feature(2, gem, placement)).unwrap();
@@ -1946,6 +1946,39 @@ mod tests {
             }
             eprintln!("{band_name}: {made_ok} built keeping {thinnest:.3} mm or more, {refusals} refused by name; four claws before: {broke_before} of {four_claws} broke the {keep} mm wall, the deepest {deepest_before:.3} mm");
             assert!(broke_before > 0 && refusals > 0, "{band_name}");
+        }
+    }
+
+    /// The claw and bezel presets build watertight and uncrossed on every true-girdle cut; cabochons take the claws.
+    #[test]
+    fn the_setting_presets_build_on_every_true_girdle() {
+        let lib = AlphaLibrary::builtin();
+        for cut in GemCut::ALL.iter().copied().filter(|c| c.has_true_girdle()) {
+            for gem in [Gem::calibrated(cut, 5.0), Gem::cabochon(cut, 6.0)] {
+                let keys: &[&str] = if gem.form == GemForm::Cabochon { &["claw4"] } else { &["claw4", "bezel"] };
+                for &key in keys {
+                    let who = format!("{cut:?} {:?} {key}", gem.form);
+                    let mut doc = Document::default();
+                    doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+                    doc.append(stone_feature(2, gem, Placement::ring(90.0, stand_off_mm(key, gem)))).unwrap();
+                    let mut next = 2;
+                    for f in setting_features(key, 2, gem, false, &mut || { next += 1; next }).unwrap() {
+                        doc.append(f).unwrap();
+                    }
+                    let d = RingDesign { cad: Some(doc), ..court() };
+                    let full = crate::mesh::try_build(&d, &lib, params()).unwrap_or_else(|e| panic!("{who}: {e}"));
+                    let v = &full.report.validation;
+                    assert!(v.watertight && v.boundary_edges == 0 && v.non_manifold_edges == 0, "{who}: {v:?}");
+                    assert!(full.parts.notes.is_empty(), "{who}: {:?}", full.parts.notes);
+                    let e = full.parts.evaluated.as_ref().unwrap();
+                    assert!(e.features.iter().all(|r| r.status.is_ok()), "{who}: {:?}", e.features);
+                    let made: Vec<_> = e.components.iter().filter_map(|c| c.made.as_ref().map(|m| (c.name.clone(), m.clone()))).collect();
+                    assert!(made.len() >= 2, "{who}: {} made parts", made.len());
+                    for (name, m) in &made {
+                        assert_eq!(csg::self_crossings(m.solid()), 0, "{who}: {name} folds through itself");
+                    }
+                }
+            }
         }
     }
 }

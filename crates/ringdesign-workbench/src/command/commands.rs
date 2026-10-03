@@ -255,7 +255,7 @@ impl MoveCmd {
                 Dof::new(Axis::Across, "across", "Δacross", Unit::Mm, 0.0),
                 Dof::new(Axis::Height, "height", "Δheight", Unit::Mm, 0.0),
             ],
-            Placement::Free => vec![
+            Placement::Free | Placement::Relative { .. } | Placement::Side { .. } => vec![
                 Dof::new(Axis::X, "x", "Δx", Unit::Mm, 0.0),
                 Dof::new(Axis::Y, "y", "Δy", Unit::Mm, 0.0),
                 Dof::new(Axis::Z, "z", "Δz", Unit::Mm, 0.0),
@@ -268,8 +268,8 @@ impl MoveCmd {
     pub fn of(f: &Feature, fresh_id: u64) -> Self {
         let mut cmd = Self::new(f.id, f.component.placement.clone(), fresh_id);
         cmd.free = match f.operation {
-            Operation::Transform { source, translation, rotation_deg } => FreeMove::Edit { source, translation, rotation_deg },
-            _ => FreeMove::Wrap(f.component.clone()),
+            Operation::Transform { source, translation, rotation_deg } if f.component.placement == Placement::Free => FreeMove::Edit { source, translation, rotation_deg },
+            _ => FreeMove::Wrap(Component { placement: Placement::Free, ..f.component.clone() }),
         };
         cmd
     }
@@ -293,7 +293,7 @@ impl MoveCmd {
             std::iter::once(from).chain(landed).find(|at| off(*at).abs() < SETTLE).unwrap_or(value)
         };
         match (&self.base, &self.free) {
-            (Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg }, _) => Effect::Placement {
+            (Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level }, _) => Effect::Placement {
                 feature: self.feature,
                 placement: Placement::Ring {
                     theta_deg: settle(wrap360(theta_deg + v(0)), *theta_deg, 0),
@@ -302,9 +302,10 @@ impl MoveCmd {
                     spin_deg: *spin_deg,
                     tilt_deg: *tilt_deg,
                     cant_deg: *cant_deg,
+                    level: *level,
                 },
             },
-            (Placement::Free, FreeMove::Edit { source, translation, rotation_deg }) => Effect::Operation {
+            (_, FreeMove::Edit { source, translation, rotation_deg }) => Effect::Operation {
                 feature: self.feature,
                 operation: Operation::Transform {
                     source: *source,
@@ -312,7 +313,7 @@ impl MoveCmd {
                     rotation_deg: *rotation_deg,
                 },
             },
-            (Placement::Free, FreeMove::Wrap(component)) => {
+            (_, FreeMove::Wrap(component)) => {
                 Effect::Add { feature: wrapped(self.fresh_id, self.feature, component, [v(0), v(1), v(2)], [0.0; 3]) }
             }
         }
@@ -345,7 +346,7 @@ impl ViewCommand for MoveCmd {
                 self.delta = match (&self.face, &self.base) {
                     (Some(h), _) => [dot(d, h.along), dot(d, h.across), dot(d, h.normal)],
                     (None, Placement::Ring { .. }) => [wrap180(theta_deg - a.theta), across_mm - a.across, height_mm - a.height],
-                    (None, Placement::Free) => d,
+                    (None, _) => d,
                 };
                 self.world = world;
                 self.snapped = snapped.as_ref().map(|s| s.label.clone());
@@ -426,7 +427,7 @@ impl RotateCmd {
                 Dof::new(Axis::Tilt, "tilt", "Δtilt", Unit::Deg, 0.0),
                 Dof::new(Axis::Cant, "cant", "Δcant", Unit::Deg, 0.0),
             ],
-            Placement::Free => vec![
+            Placement::Free | Placement::Relative { .. } | Placement::Side { .. } => vec![
                 Dof::new(Axis::X, "x", "Δx", Unit::Deg, 0.0),
                 Dof::new(Axis::Y, "y", "Δy", Unit::Deg, 0.0),
                 Dof::new(Axis::Z, "z", "Δz", Unit::Deg, 0.0),
@@ -437,7 +438,7 @@ impl RotateCmd {
     }
     /// Turns a document feature; a free part keeps its component on the `Transform` that turns it.
     pub fn of(f: &Feature, fresh_id: u64) -> Self {
-        Self { component: f.component.clone(), ..Self::new(f.id, f.component.placement.clone(), fresh_id) }
+        Self { component: Component { placement: Placement::Free, ..f.component.clone() }, ..Self::new(f.id, f.component.placement.clone(), fresh_id) }
     }
     /// Reads the pointer as its angle about the pivot's axes, as a gizmo ring is dragged; a free part then turns about the pivot's centre.
     pub fn about(self, pivot: Pivot) -> Self {
@@ -448,7 +449,7 @@ impl RotateCmd {
         self.lock.unwrap_or(match self.base {
             _ if self.face.is_some() => Axis::Spin,
             Placement::Ring { .. } => Axis::Spin,
-            Placement::Free => Axis::Z,
+            Placement::Free | Placement::Relative { .. } | Placement::Side { .. } => Axis::Z,
         })
     }
     fn apply_sweep(&mut self) {
@@ -473,7 +474,7 @@ impl RotateCmd {
                 let r = now.world[0].hypot(now.world[1]).max(1e-9);
                 [deg(round(a), round(now)), -wrap180(now.theta - a.theta), -(now.across - a.across).atan2(r).to_degrees()]
             }
-            Placement::Free => {
+            Placement::Free | Placement::Relative { .. } | Placement::Side { .. } => {
                 let about = |p: [f64; 3]| [p[2].atan2(p[1]), p[0].atan2(p[2]), p[1].atan2(p[0])];
                 let (from, to) = (about(a.world), about(now.world));
                 std::array::from_fn(|k| deg(from[k], to[k]))
@@ -486,7 +487,7 @@ impl RotateCmd {
             return Effect::Operation { feature: self.feature, operation: h.operation(&h.moved(0.0, 0.0, 0.0, v(0))) };
         }
         match self.base {
-            Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } => Effect::Placement {
+            Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level } => Effect::Placement {
                 feature: self.feature,
                 placement: Placement::Ring {
                     theta_deg,
@@ -495,9 +496,10 @@ impl RotateCmd {
                     spin_deg: wrap180(spin_deg + v(0)),
                     tilt_deg: wrap180(tilt_deg + v(1)),
                     cant_deg: wrap180(cant_deg + v(2)),
+                    level,
                 },
             },
-            Placement::Free => {
+            Placement::Free | Placement::Relative { .. } | Placement::Side { .. } => {
                 let rotation = [v(0), v(1), v(2)];
                 // About a pivot the turn carries its centre back to where it was.
                 let translation = self.pivot.map_or([0.0; 3], |p| {
@@ -717,6 +719,8 @@ impl ViewCommand for ScaleCmd {
 pub struct PlaceCmd {
     feature: u64,
     kept: [f64; 3],
+    /// Whether the seat is levelled, kept from a part already on the ring.
+    level: bool,
     /// Whether the part already stands on the ring.
     seated: bool,
     world: Option<[f64; 3]>,
@@ -726,18 +730,18 @@ pub struct PlaceCmd {
 }
 impl PlaceCmd {
     pub fn new(feature: u64, base: Placement) -> Self {
-        let (at, kept, seated) = match base {
-            Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } => {
-                ([theta_deg, across_mm, height_mm], [spin_deg, tilt_deg, cant_deg], true)
+        let (at, kept, seated, level) = match base {
+            Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level } => {
+                ([theta_deg, across_mm, height_mm], [spin_deg, tilt_deg, cant_deg], true, level)
             }
-            Placement::Free => ([90.0, 0.0, 0.0], [0.0; 3], false),
+            Placement::Free | Placement::Relative { .. } | Placement::Side { .. } => ([90.0, 0.0, 0.0], [0.0; 3], false, false),
         };
         let dofs = vec![
             Dof::new(Axis::Theta, "theta", "θ", Unit::Deg, at[0]),
             Dof::new(Axis::Across, "across", "Across", Unit::Mm, at[1]),
             Dof::new(Axis::Height, "height", "Height", Unit::Mm, at[2]),
         ];
-        Self { feature, kept, seated, world: None, snapped: None, lock: None, dofs }
+        Self { feature, kept, level, seated, world: None, snapped: None, lock: None, dofs }
     }
     fn placement(&self) -> Placement {
         Placement::Ring {
@@ -747,6 +751,7 @@ impl PlaceCmd {
             spin_deg: self.kept[0],
             tilt_deg: self.kept[1],
             cant_deg: self.kept[2],
+            level: self.level,
         }
     }
 }
@@ -869,6 +874,7 @@ impl AddPrimitiveCmd {
             spin_deg: 0.0,
             tilt_deg: 0.0,
             cant_deg: 0.0,
+            level: false,
         }
     }
     fn feature(&self) -> Feature {
@@ -1197,7 +1203,7 @@ mod tests {
         StepInput::Pointer { world, normal: [0.0, 0.0, 1.0], theta_deg: 90.0, across_mm: 0.0, height_mm: 0.0, snapped: None, dragging: true }
     }
     fn ring() -> Placement {
-        Placement::Ring { theta_deg: 90.0, across_mm: 0.5, height_mm: 0.2, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0 }
+        Placement::Ring { theta_deg: 90.0, across_mm: 0.5, height_mm: 0.2, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0, level: false }
     }
     fn values(cmd: &dyn ViewCommand) -> Vec<(&'static str, f64, bool)> {
         cmd.dimensions().into_iter().map(|d| (d.key, d.value, d.locked)).collect()
@@ -1253,7 +1259,7 @@ mod tests {
         assert_eq!(p.ghost.len(), 2);
         assert_eq!(p.placement.as_ref().and_then(Placement::theta_deg), Some(102.0));
         let placement = placement_of(s.enter());
-        assert_eq!(placement, Placement::Ring { theta_deg: 102.0, across_mm: 0.5, height_mm: 0.2, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0 });
+        assert_eq!(placement, Placement::Ring { theta_deg: 102.0, across_mm: 0.5, height_mm: 0.2, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0, level: false });
         assert!(!s.is_live());
     }
 
@@ -1319,7 +1325,7 @@ mod tests {
 
     #[test]
     fn rotate_spins_as_the_pointer_circles_the_seat_and_types_the_rest() {
-        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.0, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.0, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         let mut c = RotateCmd::new(3, seat.clone(), 99);
         // From the −finger side of the seat round to its +θ side is a quarter turn about the normal.
         c.feed(&pointer(90.0, -1.0, 0.0));
@@ -1431,14 +1437,14 @@ mod tests {
         assert!(matches!(c.feed(&StepInput::Confirm), Outcome::Refused(m) if m == "Point at the ring or type θ"), "a free part has no seat to keep");
         c.feed(&pointer(45.0, 0.3, 0.1));
         let p = placement_of(c.feed(&StepInput::Click));
-        assert_eq!(p, Placement::Ring { theta_deg: 45.0, across_mm: 0.3, height_mm: 0.1, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 });
-        let mut c = PlaceCmd::new(4, Placement::Ring { theta_deg: 0.0, across_mm: 0.0, height_mm: 0.0, spin_deg: 33.0, tilt_deg: 4.0, cant_deg: -2.0 });
+        assert_eq!(p, Placement::Ring { theta_deg: 45.0, across_mm: 0.3, height_mm: 0.1, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false });
+        let mut c = PlaceCmd::new(4, Placement::Ring { theta_deg: 0.0, across_mm: 0.0, height_mm: 0.0, spin_deg: 33.0, tilt_deg: 4.0, cant_deg: -2.0, level: false });
         c.feed(&StepInput::Lock(Axis::Theta));
         c.feed(&pointer(200.0, 1.0, 1.0));
         c.feed(&StepInput::Typed { key: "height", value: 0.4 });
         assert_eq!(c.preview().caption, "Place θ 200.0° · across 0.00 mm · height 0.40 mm · theta locked");
         let p = placement_of(c.feed(&StepInput::Confirm));
-        assert_eq!(p, Placement::Ring { theta_deg: 200.0, across_mm: 0.0, height_mm: 0.4, spin_deg: 33.0, tilt_deg: 4.0, cant_deg: -2.0 });
+        assert_eq!(p, Placement::Ring { theta_deg: 200.0, across_mm: 0.0, height_mm: 0.4, spin_deg: 33.0, tilt_deg: 4.0, cant_deg: -2.0, level: false });
         let mut typed = PlaceCmd::new(4, Placement::Free);
         typed.feed(&StepInput::Typed { key: "theta", value: -30.0 });
         assert_eq!(placement_of(typed.feed(&StepInput::Confirm)), Placement::ring(330.0, 0.0), "a typed angle seats a free part");

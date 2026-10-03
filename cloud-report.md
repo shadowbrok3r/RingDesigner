@@ -1,154 +1,53 @@
-# Tenebrae enablers C-T1, C-T3, C-T4: cloud report
+# Core: CAD operations that stop failing on Gothic geometry
 
-Branch `claude/tenebrae-enablers` from `master` at `a66879e`: `8246c5a` (C-T1), `67a3493` (C-T3),
-`0905b88` (C-T4), then this report. Pull request: https://github.com/shadowbrok3r/RingDesigner/pull/239
-Every enabler is opt-in: nothing existing changes shape, and every new saved form is fenced at design
-format 6 / graph format 2 without a new version.
+Branch `claude/core-cad-robust`, off master `8e5a59a`, with master merged in up to `60b3881` (crisp edges, Gothic clusters, frame timing, relief sculpt, true stone plans). One code commit, three merges and this report. The last merge's conflicts were in `twist.rs`, where master's closed and scaled sweep keeps its form and the cap's `fill` takes the label that `cad::draft` and `cad::turn` share, and in CLAUDE.md, where master's twisted-sweep text comes first and the new doctrine bullet follows it.
 
-## C-T1: tracery from a net, and `Profile::Regions`
+**The rule behind every fix:** each one is a fallback that runs only where the kernel failed. If the kernel already built a body, the core still uses that body, so no existing result moves. The core suite and golden test pass unchanged, and the graph and template tests are below. No new option, no serde field and no format change were needed, so nothing is fenced. `cadkernel` is not forked; every fix is in `cad.rs`, the new `cad/draft.rs` and `cad/turn.rs`, `cad/twist.rs` (two helpers made `pub(super)`) and `sketch/region.rs`.
 
-**What landed**
-- `Sketch::tracery(net, bar_mm) -> Tracery { lights, skipped }` (`sketch/edit.rs`). It composes the
-  proven calls: `split_at_intersections` on the net alone (every other drawn curve stands aside as
-  construction while it splits, so the rest of the sketch is neither split nor moved), the cells from
-  `profile_regions`, each rim offset in by `bar/2` and each hole out by as much, then the net marked
-  construction. A cell whose offset folds is left out whole and named in `skipped` with the reason. A
-  bar no cell takes is refused, and the sketch is left unchanged.
-- `Profile::Regions { feature, regions }`, an untagged arm placed before `Feature`. `regions_of` takes
-  every picked region once (a pick named twice counts once), and an empty list is refused. A twisted
-  sweep, a loft and a sweep take one region and refuse several by name. Wired through every exhaustive
-  match (workbench grips, GUI sketch mode, and the GUI profile source, which shows "regions 1, 3 of 5").
-- Fence: `cad::picks_regions` / `picks_regions_json` (document and graph JSON, clusters included) join
-  `library::format_version_for` and the graph writers' `fenced_json`. An older build would read
-  `{feature, regions}` as `Feature` and sweep every region.
-- Exposure: a `sketch.tracery` graph node takes a Sketch operation or a bare sketch, the net's ids
-  (empty takes every drawn curve) and the bar. It returns the operation, how many lights, and each
-  skipped cell with its reason. MCP reaches it through its graph tools.
-- CLAUDE.md: the fence sentence, and a "Tracery is drawn from a net" bullet under the CAD rules.
+## Per request
 
-**Tests**
-- `sketch::edit::tests::a_polar_net_traces_to_one_light_per_cell_each_a_bar_from_its_neighbours`:
-  a 24-cell polar net at bar 0.9 gives 24 loops, and each loop's gap to its neighbour round the wheel is
-  0.9 ± 1e-6. The test also checks that the net ends as construction and a circle beside it is untouched.
-- `sketch::edit::tests::a_cell_too_narrow_for_the_bar_is_skipped_whole_and_a_bar_no_cell_takes_is_refused`
-- `cad::tests::several_regions_of_one_branched_sketch_extrude_together_and_read_back_as_regions`:
-  the two outer cells of a three-cell box extrude as (12 + 16) × 2 mm³, the whole branched sketch is
-  refused, and each profile shape round-trips through untagged serde as itself.
-- `library::tests::several_picked_regions_write_the_design_at_six_and_one_stays_at_five` (document
-  and graph), and `nodes::cad::tests::a_tracery_node_draws_one_light_per_cell_of_a_sketch_operation`.
+| # | Request | Status | What changed |
+|---|---|---|---|
+| 3 | Revolved arcs do not tessellate | **Fixed** | There were two separate defects. (a) "N nonmanifold edges": the kernel covers a revolved arc's torus seam with a zero-width strip, every triangle laid twice, once each way. `tessellate_traced` now removes opposite twin triangles wherever some edge has more than two faces (`cancel_twins`). The volume is unchanged and the body stays the kernel's. (b) "Kernel could not tessellate 1 faces": the kernel drops a torus face (on Ogiva's arch it is the comfort arc), and whether it does depends on the chord (on one arch it failed at 0.04 mm, passed at 0.015 and failed again at 0.012). Retrying cannot be relied on, so a revolve that has arcs and fails to tessellate becomes our own mesh (`cad::turn`). It is sampled at a quarter of the chord, with full and part turns, holes on full turns, and points on the axis shared. |
+| 4 | Drafted extrusion refuses Béziers and inset-dropping outlines | **Fixed** | When the kernel's tapered extrude refuses a region with no holes, `cad::draft` builds it. The outline is walked to the chord, and the far end is a mitred inset that removes each edge as the wavefront collapses it. Each side face is planar. A draft that would carry a notch's root across the outline (a split event) is refused by name: "the draft closes the outline across a neck or notch". |
+| 7 | Brep − Brep gives `NoClosedForm` (`CutRefused` here) | **Fixed** | When `brep::combine` fails, the Boolean goes through `csg` on the operands tessellated at the export chord, the same path a mesh operand already took. The 500-face refusal before the kernel stays as it was. |
+| 2 | Loft through non-parallel sections has open seams | **Fixed** | The kernel splits a ruled face's straight edge where its planar neighbour leaves it whole, so the seam has T-junctions. `split_t_junctions` fans each open edge's triangle through the open corners lying on it, within 1e-6 mm. No vertex moves. |
+| 6 | Loft only runs along the section normal | **Fixed, differently** | Measured: what decides success is the sections' winding relative to the direction the loft runs, not their order. On the probe's fanned planes, the order the report found working has (c1 − c0) · n0 **> 0**, so the literal rule ("reverse when > 0") would reverse the order that works. Instead, when the kernel refuses a polygon loft, `wound_sections` winds every section about the first-to-last centre line and lines each one up with the section before it. Either order now gives the same solid. |
+| 1 | Loft winding read off the first corner | **Fixed** | The same `wound_sections` pass also starts every section together where the first and last sections are convex at their second corner. The kernel's `polygon_normal` reads that corner through the first fan triangle, so it is the one that matters, not the first corner itself. |
+| 5 | Mirrored outlines in one sketch fail the drafted extrude | **Fixed** | Measured cause: the halves overlap or touch at the centre line, and the sketch refuses "loops may nest but not touch". The extrude itself does not fail. Now a **Sketch feature** whose loops meet extrudes each loop alone (straight, kernel-drafted or `cad::draft`) and joins the loops by `csg`. Inline profiles still refuse several loops, as their tests pin. Each loop is drafted on its own, so halves that only touch leave a draft groove along the line where they meet. Overlap them by at least the draft's inset (height × tan(draft)), as Ogiva's `FINIAL_OVERLAP_MM` did. |
 
-## C-T3: Gothic cutter shapes, the outline library and the artwork set
+Every fallback part is a mesh value, as `cad::twist` is. Fillet, press-pull and sketch-on-face refuse it by name: "a drafted extrusion's mesh", "a revolution's mesh", "a mesh of loops extruded and joined".
 
-**What landed**
-- `cutters::Shape` gains Lancet, Ogee, Trefoil, Quatrefoil and Mouchette, and `PIERCE_SHAPES` lists all
-  ten, which reaches the inspector's choice and the `cad.op.cutter.pierce` node. The workbench's
-  right-click "Cut here" list (`PIERCE_KEYS`) carries all ten on desktop and phone. `pierce_at` sizes
-  each one, and an arch's point and a trefoil's lobe stand away from the bore.
-- The bright cut insets concave cusps. Each Gothic plan is drawn dense, read on fixed rays from a centre
-  it is star-shaped about (each ray turned onto the nearest point or cusp), and grown along those rays by
-  the true Minkowski offset of the drawn plan. The point count never changes, the fan never folds, and a
-  cusp moves straight out along its own ray. The five older plans are untouched.
-- Fence: a piercing with a Gothic shape is `geometry_extended`, so it is written at 6 and graph 2. An
-  older reader would otherwise cut it as a Round.
-- Library: `bundled/sketches/gothic/*.svg`, 16 pieces, all in `import_svg`-clean form. The
-  `ringdesign-assets` `SKETCHES` family is swept through subfolders and named by path (for example
-  `gothic/fleur-de-lis`). `library::list_sketches()` / `list_sketches_in(dir)` / `sketch_dir()` lay the
-  user's `sketches/` folder over the bundled set by name, like `list_outlines`. A `sketch.library` graph
-  node serves any of them by name, with a scale.
-- Outlines and nets: gallery-ogee, gallery-quatrefoil, gallery-cusped-lozenge,
-  ornament-quatrefoil-ring, and the four jalis (lozenge, quatrefoil, honeycomb, intersecting arches) as
-  centre lines for `tracery`.
-- Artwork: fleur-de-lis, fleur-cresting, crocket-leaf, nave-arcade (three lancet bays),
-  gargoyle-silhouette, gargoyle-face (an eye, a brow, a nostril and a fang: Logan now allows faces),
-  memento-mori (crossed bones under an open hourglass) and cross-pattee.
-- Tools: `tools/author_gothic.py` draws the set, with exact lines and arcs for the geometric
-  pieces and shapely polygons for the figurative ones. `tools/harvest_gothic.py` (rhino3dm) is the
-  3DM harvester; it was smoke-tested here on synthetic 3DM files (a line+arc polycurve, a circle, a
-  B-rep box).
-- CLAUDE.md: a "Gothic piercing grows by a true offset" bullet, and the `SKETCHES` family in the assets
-  section.
+## Tests
 
-**Tests**
-- `cutters::tests::a_gothic_plan_grows_by_a_true_offset_so_its_cusps_inset_instead_of_folding`: every
-  grown point stands exactly `g` off the drawn plan (1e-6). The ray reading keeps the drawn area, so each
-  plan is star-shaped about its centre. A quatrefoil's cusp moves out along its ray, and each point or
-  tip lies at −x.
-- The existing outline, crown-piercing (volume to 3%), blind, side-face and edge tests now run all ten
-  shapes. The side-face test also pins which way the new points face.
-- `library::tests::every_bundled_gothic_sketch_sweeps_its_area_or_traces_its_lights`: every file
-  imports. Each outline sweeps the area recorded on its root (1e-5). Each net traces to the recorded light
-  count with none skipped. A user file overlays a bundled one and a new name joins the list.
-- `nodes::cad::tests::a_library_sketch_feeds_tracery_and_names_the_library_when_it_is_missing`, and the
-  assets crate's round-trip, length, name and SVG checks now cover `SKETCHES`.
+New tests in `cad::robust_tests` and `cad::draft::tests`, each built from the report's kind of geometry:
 
-**Could not do**
-- The nine harvested pieces (Under Gallery Cuts 001–003, Jalis 000/002/010/016, Ornaments 027/028)
-  are drawn stand-ins. `assets/User/Profiles/` is git-ignored (`.gitignore` line 3: `assets/`). It is not
-  on master or any branch, so the 3DM files were not in this checkout. Each stand-in says so in its
-  `<desc>`. Run `uv run --no-project --with rhino3dm==8.32.0 --with shapely python
-  tools/harvest_gothic.py assets/User/Profiles` on the workstation to replace them under the same
-  names, then rerun `every_bundled_gothic_sketch`. The file matching (folder keyword plus number) is a
-  guess at the folder names; `--dry-run` shows what it would take.
-- The gargoyle pieces are a serviceable first pass and have not been through a render review. Hold them
-  to that bar, and cut the face variant if it does not read at size.
+- `a_revolved_sketch_arc_closes_and_holds_its_volume` (3a): a domed band section, closed at preview and export, volume within 0.4% / 0.15% of Pappus, and still the kernel's body.
+- `a_pointed_arch_revolves_whole_and_in_part` (3b): Ogiva's arch (comfort arc, jambs, two head arcs). It asserts the kernel's own tessellation still fails, then checks the full turn against a fine-walked Pappus within 0.5% / 0.2%, and the half turn either way within 0.5% of half.
+- `a_brep_cut_the_kernel_refuses_is_resolved_by_csg` (7): a revolved ring less a lancet niche. It asserts `brep::combine` still refuses, then checks the volume against the analytic ring less the niche's foot.
+- `a_loft_through_fanned_sections_closes_listed_either_way` (2, 6): five fanned sections, both orders, preview and export, all closed with identical volumes.
+- `a_loft_section_may_start_on_a_concave_corner` (1): asserts `brep::loft` still refuses, then checks the volume is exactly 10.
+- `mirrored_loops_that_meet_extrude_together` (5): straight volume exactly the union's 9.0, drafted below it, closed.
+- `a_bezier_outline_drafts`, `an_inset_that_drops_a_piece_drafts`, `a_draft_the_kernel_takes_is_still_its_body` (4): each asserts `brep::extrude_tapered` still refuses. Checked: the first-order draft volume, the mirrored run, the collapsed tip (5 far corners), the filled notch on the grown rectangle, the named refusal of a split, and that a draft the kernel accepts stays its body.
 
-## C-T4: DFM land width for CAD cuts
+Reproduced on unmodified master first, with a scratch probe that was not committed: domed revolve "0 open and 16 nonmanifold edges"; arch "Kernel could not tessellate 1 faces"; ring − niche "CutRefused"; Bézier and notch drafts "unsupported or degenerate geometry"; fanned loft "68 open edges" in one order and "unsupported" in the other; overlapping halves "loops may nest but not touch". Tests that cannot fail on master by construction instead assert the kernel's own refusal in place.
 
-**What landed**
-- `dfm::cut_lands(design, built, floor_mm) -> Vec<DfmFinding>`, with `CUT_LAND` as the label and
-  `dfm::PART` as the layer sentinel. For every Cut extrusion it reports the narrowest land in three
-  places: between two of its regions, between it and each copy a Pattern makes, and to the band's or host
-  part's edge. Each kind is reported once when it falls under the floor, for example
-  `Cut #3 'Pierce the lights': 0.60 mm between lights 1 and 2 (floor 0.8)`.
-- How it measures:
-  - Region lands are measured between outlines in the sketch's plane (`cad::extruded_regions` gives the
-    plane as built, face-anchored sketches included), and carried to copies by their copy motions.
-  - The edge land is walked out from each outline in the plane until a line along the normal, within the
-    cut's reach, meets no metal in the built ring.
-  - Where that line runs through a copy's opening instead, the land is booked to the copy. A ring of
-    copies converges toward the bore, so its land at the metal is narrower than in the plane.
-- It only runs when asked, so nothing existing changes. It is reachable through `ringdesign export
-  --cut-land <mm>` and MCP `manufacturing_check { cut_land_mm }`, which adds `cut_lands` to the report.
-- CLAUDE.md: a "CAD cut's lands" paragraph beside the made-part lands.
+Results:
+- `cargo test -p ringdesign-core`: 848 passed, 0 failed, 16 ignored; golden 1 passed. After merging master up to `60b3881`: 912 passed, 0 failed, 17 ignored; golden and the other integration test both pass.
+- `cargo test -p ringdesign-graph` (templates byte for byte, showcase, bestiarium, imported bases, cad edits): all passed before the merges (140) and after them (152, including the new `gothic_clusters`), 0 failed.
 
-**Test**
-- `dfm::tests::a_cut_names_the_narrowest_land_between_its_lights_its_copies_and_the_edge` covers five
-  cases on a Court band:
-  - Two 1 mm lights 0.6 mm apart report exactly `0.60 mm between lights 1 and 2 (floor 0.8)`.
-  - A lower floor stays silent, and so does the design's own report.
-  - Lights a full floor apart pass.
-  - A light 0.5 mm in from the side reports 0.5 ± 0.06 mm to the edge.
-  - A ring of 48 copies reports a copy land.
+**Merge note.** Master (from `779a3d6`) brought its own seam repair, `zip_chord_seams`, which splits open edges at the other side's samples within the chord. The merged `tessellate_traced` runs master's `stitch_chord_gaps` and then `zip_chord_seams` exactly as master does. Only what those two leave open goes on to `cancel_twins` and `split_t_junctions`, followed by one more stitch. So whatever master's pass already closes is closed byte for byte as master closes it, and my passes see only what it cannot close: the doubled seams, and T-junctions it reverts.
 
-**Could not do**
-- Revolve and sweep cuts are not measured; only extrusions have a plane to measure in.
+## For a ring author
 
-## Checks run
+Draw what you mean and stop working around the kernel:
 
-All on the final tree, with rustc 1.98.1. The workstation's `systemd-run` guard and `--offline` were
-not used here, as TASK.md says.
+- **Revolves:** use real sketch arcs, not chord-walked polylines.
+- **Drafted extrusions:** Béziers and sharp crocket tips are fine. A draft that would close a neck is refused by name; draft less or widen the neck.
+- **Mirrored outlines:** they may share one Sketch feature. Overlap the halves by at least height × tan(draft), or a groove stays where they meet.
+- **Lofts:** list fanned sections in either order, and start a section on any corner.
+- **Booleans:** a Brep minus a Brep the kernel cannot close now resolves through csg.
 
-- `cargo test -p ringdesign-core`: 839 passed, 0 failed, 16 ignored. `tests/golden.rs` passed.
-- `cargo test -p ringdesign-graph --no-fail-fast`: 109 lib tests passed, plus `bestiarium_templates`,
-  `cad_edits`, `imported_bases`, `showcase_templates`, `template_nodes` and the `collection_templates`
-  example (25 more), 0 failed. This includes the struct-coverage and table-consistency tests for the two
-  new nodes.
-- `cargo test -p ringdesign-assets`: 4 passed.
-- `cargo check --no-default-features --target wasm32-unknown-unknown -p ringdesign-core`: clean.
-- `cargo check --tests` of graph, workbench, gui, mcp, cli and the Android app: clean. The only warning
-  is the existing `COMFY_GATE_KEY` build note.
-- Spot suites for the touched exposure points:
-  - workbench `viewport::cutters`/`menu`/`grips`: 12 passed. Every one of the ten right-click keys plans
-    on a Court band.
-  - gui `cutter`/`sweep`: 13 passed.
-  - `ringdesign-mcp --lib`: 45 passed.
-- Commits `8246c5a` and `67a3493` were each checked on their own (core, graph, workbench and gui, plus
-  assets for C-T3), so the history bisects.
-- The full workspace test run was not done; I ran the suites TASK.md names plus the crates whose code I
-  touched.
+Each of these comes back as a mesh rather than a kernel body only where the kernel failed. So fillet before the step that falls back, not after it, and check `Value::mesh_words` in any refusal you see.
 
-Housekeeping: the 30 GB disk allowance ran out once, mid-run, from the example binaries under
-`target/debug/examples` (20 GB). I deleted them and reran that step. `tools/harvest/` is git-ignored by
-design ("never tracked"), so the two new scripts live at `tools/author_gothic.py` and
-`tools/harvest_gothic.py`, beside `audit_3dm_profiles.py`. I stayed out of
-`crates/ringdesign-core/examples/tenebrae_*`.
+What remains: a part turn of a section with holes that the kernel cannot tessellate is still refused. A revolve with arcs now pays one extra tessellation in `body_for`, about the cost of one tessellation, so up to about 0.6 s at export on a large arch.

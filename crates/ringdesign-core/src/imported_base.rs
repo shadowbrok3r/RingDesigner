@@ -203,9 +203,10 @@ impl FieldSurface {
     pub fn point(&self, theta: f64, fraction: f64) -> [f64; 3] {
         let u = theta.rem_euclid(360.) / 360. * STATIONS as f64;
         let v = fraction.clamp(0., 1.) * (FIELD_ACROSS - 1) as f64;
-        let x = u.floor() as usize;
+        // `rem_euclid` rounds a hair under zero up to 360 itself.
+        let x = (u.floor() as usize) % STATIONS;
         let y = (v.floor() as usize).min(FIELD_ACROSS - 2);
-        let (fu, fv) = (u - x as f64, v - y as f64);
+        let (fu, fv) = (u - u.floor(), v - y as f64);
         std::array::from_fn(|k| {
             let a = self.points[x * FIELD_ACROSS + y][k] as f64;
             let b = self.points[x * FIELD_ACROSS + y + 1][k] as f64;
@@ -697,7 +698,7 @@ impl ImportedBase {
     pub fn section(&self, d: &RingDesign, theta: f64, n: usize) -> Result<ProfileLoop> {
         let s = self.surface(d)?;
         let f = theta.rem_euclid(360.0) * STATIONS as f64 / 360.0;
-        let i = f.floor() as usize;
+        let i = (f.floor() as usize) % STATIONS;
         let t = f.fract();
         let a = sample_loop(&s.sections[i], n, d.inner_radius_mm());
         let b = sample_loop(&s.sections[(i + 1) % STATIONS], n, d.inner_radius_mm());
@@ -959,7 +960,7 @@ fn project_uv(
     let r = (p.0 as f64).hypot(p.1 as f64);
     let z = p.2 as f64;
     let f = theta / std::f64::consts::TAU * STATIONS as f64;
-    let i = f.floor() as usize;
+    let i = (f.floor() as usize) % STATIONS;
     let t = f.fract();
     let project = |sec: &OuterPath| {
         let mut best = f64::INFINITY;
@@ -1052,8 +1053,8 @@ pub fn build(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<
                     return (*p, 0.0);
                 }
                 let (uv, weight) = project_uv(*p, &sections, &ctx);
-                let h =
-                    crate::mesh::soft_height(&d.layers, uv, &ctx, lib, params.soften_mm) * weight;
+                let cell = if d.crisp_relief { (edge, edge) } else { (0.0, 0.0) };
+                let h = crate::mesh::cell_height(&d.layers, uv, &ctx, lib, params.soften_mm, cell) * weight;
                 let h = if h.is_finite() { h } else { 0.0 };
                 let mut out = Vec3(
                     p.0 + (h * normal.0 as f64) as f32,
@@ -1243,6 +1244,38 @@ presets! {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_sand_masters_shading_hides_its_facets_and_follows_its_shape() {
+        let mut d = RingDesign::default();
+        let preset = PRESETS.iter().find(|p| p.id == "006").unwrap();
+        ImportedBase::attach(&mut d, sand_master(preset.load().unwrap()).unwrap()).unwrap();
+        d.imported_base.as_mut().unwrap().sand_envelope = true;
+        let params = BuildParams { theta_steps: 768, profile_steps: 320, ..Default::default() };
+        let built = build(&d, &AlphaLibrary::builtin(), params).unwrap();
+        let geometric = smooth_normals(&built.mesh.vertices, &built.mesh.faces);
+        let (nt, np) = (params.theta_steps, params.profile_steps);
+        let no = (np * 3 / 4 / 2) * 2;
+        let angle = |a: Vec3, b: Vec3| ((a.0 * b.0 + a.1 * b.1 + a.2 * b.2) as f64).clamp(-1.0, 1.0).acos().to_degrees();
+        // The 90th percentile change of turn round the ring: zero on a smooth ring, a spike at each facet edge.
+        let jolt = |n: &[Vec3]| {
+            let rows = (0..nt).flat_map(|i| (1..no).map(move |j| (i, j)));
+            let mut all: Vec<f64> = rows
+                .map(|(i, j)| {
+                    let (a, b, c) = (n[((i + nt - 1) % nt) * np + j], n[i * np + j], n[((i + 1) % nt) * np + j]);
+                    angle(unit(Vec3(a.0 + c.0, a.1 + c.1, a.2 + c.2)), b)
+                })
+                .collect();
+            all.sort_by(f64::total_cmp);
+            all[all.len() * 9 / 10]
+        };
+        let (shade, facets) = (jolt(&built.mesh.normals), jolt(&geometric));
+        assert!(shade < 0.35 * facets, "shading jolts {shade:.4} deg a column against the facets' {facets:.4}");
+        let mut off: Vec<f64> = (0..nt).flat_map(|i| (1..no).map(move |j| i * np + j)).map(|k| angle(built.mesh.normals[k], geometric[k])).collect();
+        off.sort_by(f64::total_cmp);
+        let p99 = off[off.len() * 99 / 100];
+        assert!(p99 < 12.0, "shading leaves the surface by {p99:.2} deg at the 99th percentile");
+    }
 
     /// Every preset's plan fills its own polygon's share of the box; the round is a disc, the quatrefoil's corners and
     /// its lobes' notches are empty, and the mask is mirror-true where the plan is.

@@ -65,10 +65,7 @@ fn run() -> anyhow::Result<()> {
         ),
         (
             "sweep",
-            vec![Op::Sweep {
-                sketch: ringdesign_core::sketch::Sketch::circle(1.0).into(),
-                path: vec![[0.0; 3], [0.0, 0.0, 5.0]],
-            }],
+            vec![Op::sweep(ringdesign_core::sketch::Sketch::circle(1.0), vec![[0.0; 3], [0.0, 0.0, 5.0]])],
         ),
     ];
     let mut top = ringdesign_core::sketch::Sketch::rectangle(6.0, 4.0);

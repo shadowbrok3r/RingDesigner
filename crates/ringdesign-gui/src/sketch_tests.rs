@@ -441,7 +441,7 @@ fn a_face_of_a_block_on_the_bands_flank_anchors_a_sketch_the_build_lays_on_it() 
         let mut doc = Document::default();
         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
         // 2.2 mm off the crest line the half-round's surface leans 34 degrees off the radial.
-        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 2.2, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 2.2, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         let block = Component { attach: Attach::Join, placement: seat, ..Component::default() };
         doc.append(Feature { id: BOX, name: "Block".into(), enabled: true, operation: Operation::Box { size: [2.0, 2.0, 1.0] }, component: block }).unwrap();
         d.cad = Some(doc);
