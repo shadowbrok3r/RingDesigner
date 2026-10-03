@@ -516,6 +516,8 @@ impl Alpha {
         held.insert(key, None);
         drop(held);
         let got = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.measure_features(stop.as_deref())));
+        #[cfg(feature = "test-hooks")]
+        hooks::measured(stop.as_deref(), key);
         let mut held = cache.lock().unwrap_or_else(|e| e.into_inner());
         match got {
             Ok(Ok(got)) => {
@@ -685,28 +687,56 @@ pub mod hooks {
         atomic::{AtomicBool, Ordering},
     };
 
-    /// The armed flag, and whether a measure running under it has raised it.
-    static ARMED: Mutex<Option<(Arc<AtomicBool>, bool)>> = Mutex::new(None);
+    /// The armed flag, whether a measure running under it has raised it, and that measure's content key once it returns.
+    struct Armed {
+        flag: Arc<AtomicBool>,
+        raised: bool,
+        key: Option<u64>,
+    }
+
+    static ARMED: Mutex<Option<Armed>> = Mutex::new(None);
+
+    fn is(armed: &Armed, stop: Option<&AtomicBool>) -> bool {
+        stop.is_some_and(|s| std::ptr::eq(s, Arc::as_ptr(&armed.flag)))
+    }
 
     /// Arms `stop`: a mask measure running under it raises it once it has read its first opening.
     pub fn raise_mid_measure(stop: &Arc<AtomicBool>) {
-        *ARMED.lock().unwrap_or_else(|e| e.into_inner()) = Some((stop.clone(), false));
+        *ARMED.lock().unwrap_or_else(|e| e.into_inner()) = Some(Armed { flag: stop.clone(), raised: false, key: None });
     }
 
-    /// Whether a measure raised the armed flag; disarms it.
-    pub fn disarm() -> bool {
-        ARMED.lock().unwrap_or_else(|e| e.into_inner()).take().is_some_and(|(_, raised)| raised)
+    /// The content key of the mask whose measure raised the armed flag part way, once that measure returned; disarms it.
+    pub fn disarm() -> Option<u64> {
+        ARMED.lock().unwrap_or_else(|e| e.into_inner()).take().and_then(|a| a.key)
+    }
+
+    /// What the measure cache holds for `key`: `None` nothing, `Some(false)` a measure in flight, `Some(true)` a result.
+    pub fn cached(key: u64) -> Option<bool> {
+        let (cache, _) = super::MEASURED.get()?;
+        cache.lock().unwrap_or_else(|e| e.into_inner()).get(&key).map(Option::is_some)
     }
 
     /// Raises the armed flag if `stop` is it and no measure has raised it yet.
     pub(super) fn opening_read(stop: Option<&AtomicBool>) {
         let mut armed = ARMED.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((flag, raised)) = armed.as_mut()
-            && !*raised
-            && stop.is_some_and(|s| std::ptr::eq(s, Arc::as_ptr(flag)))
+        if let Some(a) = armed.as_mut()
+            && !a.raised
+            && is(a, stop)
         {
-            flag.store(true, Ordering::Relaxed);
-            *raised = true;
+            a.flag.store(true, Ordering::Relaxed);
+            a.raised = true;
+        }
+    }
+
+    /// Notes `key` as the mask whose measure raised the armed flag, if the measure under `stop` did.
+    pub(super) fn measured(stop: Option<&AtomicBool>, key: u64) {
+        let mut armed = ARMED.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(a) = armed.as_mut()
+            && a.raised
+            && a.key.is_none()
+            && is(a, stop)
+        {
+            a.key = Some(key);
         }
     }
 }

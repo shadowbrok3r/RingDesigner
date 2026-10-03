@@ -861,17 +861,14 @@ mod tests {
         let path = file_with_a_fresh_mask(&dir);
         let lib = Arc::new(AlphaLibrary::builtin());
         let handles: Arc<std::sync::OnceLock<(Arc<Progress>, Arc<AtomicBool>)>> = Arc::default();
-        let measuring: Arc<Mutex<Option<std::time::Instant>>> = Arc::default();
-        let (seen, at) = (handles.clone(), measuring.clone());
+        let armed = Arc::new(std::sync::Once::new());
+        let (seen, once) = (handles.clone(), armed.clone());
         let opening = open_file(path.clone(), lib.clone(), true, move || {
             // Blocks until the handles are set.
             let (progress, stop) = seen.wait();
             if progress.stage() == Stage::Measuring {
                 // The measure raises the open's flag itself once it has read its first opening.
-                at.lock().unwrap().get_or_insert_with(|| {
-                    ringdesign_core::alpha::hooks::raise_mid_measure(stop);
-                    std::time::Instant::now()
-                });
+                once.call_once(|| ringdesign_core::alpha::hooks::raise_mid_measure(stop));
             }
         });
         handles.set((opening.progress(), opening.cancel_handle())).ok().expect("set once");
@@ -880,11 +877,12 @@ mod tests {
             assert!(started.elapsed().as_secs() < 120, "the thread never stopped");
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
-        let given_up = measuring.lock().unwrap().expect("it reached the measure").elapsed();
+        assert!(armed.is_completed(), "it reached the measure");
         assert!(!matches!(opening.answer.try_recv(), Ok(Ok(_))), "the thread keeps nothing it made");
         assert!(!matches!(opening.poll(), Some(Ok(_))), "nothing lands");
-        assert!(ringdesign_core::alpha::hooks::disarm(), "the measure raised its flag part way");
-        // The same measure made whole, which it could neither skip nor wait on had the cancelled one kept anything.
+        let key = ringdesign_core::alpha::hooks::disarm().expect("the measure raised its flag part way");
+        assert_eq!(ringdesign_core::alpha::hooks::cached(key), None, "the given-up measure keeps nothing, held or in flight");
+        // The same measure made whole, which would wait forever on an entry left in flight, caches that very mask.
         let (tx, measured) = mpsc::channel();
         let (file, base) = (path.clone(), lib.clone());
         std::thread::spawn(move || {
@@ -892,12 +890,11 @@ mod tests {
             let mut baked = (*base).clone();
             design.unpack_embedded(&mut baked);
             design.bake_all(&mut baked);
-            let t = std::time::Instant::now();
             ringdesign_core::dfm::findings_in(&design, &baked);
-            let _ = tx.send(t.elapsed());
+            let _ = tx.send(());
         });
-        let whole = measured.recv_timeout(std::time::Duration::from_secs(120)).expect("the whole measure finished");
-        assert!(given_up * 3 < whole, "given up in {given_up:?} against {whole:?} for the whole measure");
+        measured.recv_timeout(std::time::Duration::from_secs(120)).expect("the whole measure finished");
+        assert_eq!(ringdesign_core::alpha::hooks::cached(key), Some(true), "measured whole, the same mask is kept");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

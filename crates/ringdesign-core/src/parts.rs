@@ -1568,15 +1568,14 @@ mod tests {
         let lib = AlphaLibrary::builtin();
         // The overhanging bezel: its bead spends most of the build settling and re-sweeping its corners.
         let d = with_parts(template("Court band"), vec![bezel(3.0, 0.5, 0.3)]);
-        // Left alone, no bead runs a third of the build without reading its flag.
+        // Left alone, no bead runs half its own work without reading its flag, on its thread's run-time clock: under a fifth measured, seven tenths with the settle rounds unread.
         blend::record_polls(None);
-        let started = std::time::Instant::now();
         crate::mesh::try_build(&d, &lib, params()).unwrap();
-        let full = started.elapsed();
         let beads = blend::polled().beads;
         let longest = beads.iter().flat_map(|b| b.windows(2).map(|w| w[1] - w[0])).max().expect("a bead");
-        eprintln!("bead in flight: full build {full:?}, {} bead(s), longest between reads of the flag {longest:?}", beads.len());
-        assert!(longest * 3 < full, "a bead ran {longest:?} without reading its flag, in a build of {full:?}");
+        let spent: std::time::Duration = beads.iter().map(|b| b[b.len() - 1] - b[0]).sum();
+        eprintln!("bead in flight: {} bead(s) ran {spent:?}, longest between reads of the flag {longest:?}", beads.len());
+        assert!(longest * 2 < spent, "a bead ran {longest:?} without reading its flag, of {spent:?}");
         // The bead raises the flag itself at its second read, as its second settle round begins.
         blend::record_polls(Some(1));
         let stop = AtomicBool::new(false);

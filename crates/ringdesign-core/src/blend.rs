@@ -407,7 +407,7 @@ pub fn bead_against(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: 
 fn cancelled(flag: Option<&AtomicBool>) -> Result<(), String> {
     #[cfg(test)]
     note(|p| {
-        let now = std::time::Instant::now();
+        let now = thread_cpu();
         if p.raise_at == Some(p.polls)
             && let Some(f) = flag
         {
@@ -422,12 +422,23 @@ fn cancelled(flag: Option<&AtomicBool>) -> Result<(), String> {
     if flag.is_some_and(|f| f.load(Ordering::Relaxed)) { Err(Snag::Cancelled.to_string()) } else { Ok(()) }
 }
 
+/// This thread's run time, from the scheduler on Linux and the wall clock elsewhere.
+#[cfg(test)]
+pub(crate) fn thread_cpu() -> std::time::Duration {
+    static EPOCH: std::sync::OnceLock<Option<std::time::Instant>> = std::sync::OnceLock::new();
+    let read = || std::fs::read_to_string("/proc/thread-self/schedstat").ok()?.split_whitespace().next()?.parse::<u64>().ok();
+    match EPOCH.get_or_init(|| read().is_none().then(std::time::Instant::now)) {
+        Some(epoch) => epoch.elapsed(),
+        None => std::time::Duration::from_nanos(read().unwrap_or(0)),
+    }
+}
+
 /// What the beads on one thread did while recorded.
 #[cfg(test)]
 #[derive(Default)]
 pub(crate) struct Polls {
-    /// Per bead, when it began, each time it read its flag, and when it ended.
-    pub beads: Vec<Vec<std::time::Instant>>,
+    /// Per bead, on this thread's run-time clock, when it began, each time it read its flag, and when it ended.
+    pub beads: Vec<Vec<std::time::Duration>>,
     /// Flag reads made.
     pub polls: usize,
     /// Whether a bead raised its own flag.
@@ -706,11 +717,11 @@ pub fn bead_seam(traced: &Traced, seam: &Seam, radius_mm: f64, cancel: Option<&A
         return None;
     }
     #[cfg(test)]
-    note(|p| p.beads.push(vec![std::time::Instant::now()]));
+    note(|p| p.beads.push(vec![thread_cpu()]));
     let surfaces = Surfaces::near(traced, &seam.points, (REACH_MAX + 1.5) * radius_mm + 0.05);
     let bead = bead_polled(&seam.points, &seam.normals_a, &seam.normals_b, radius_mm, Some(&surfaces), cancel);
     #[cfg(test)]
-    note(|p| p.beads.last_mut().into_iter().for_each(|b| b.push(std::time::Instant::now())));
+    note(|p| p.beads.last_mut().into_iter().for_each(|b| b.push(thread_cpu())));
     Some(bead)
 }
 
