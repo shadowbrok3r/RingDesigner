@@ -646,7 +646,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 >
 > **Process (Logan's rule, 2026-10-03): lost wax**, 0.8 mm minimum section, no pull rule, replacing Petrobond. The sand gates (ray release, draft clamp, side-face gates) no longer apply; whether the ring also pulls from Petrobond is reported as a bonus only.
 
-- **Status:** second cloud lane (`claude/cataphracta-ouroborus-2`), block-outs 4–6 as the lizard in lost wax. The blockers below were the sand plan's and no longer hold in lost wax.
+- **Status:** stopped at the block-out (2026-10-03). Six read tests, all `reads: false`: 1–3 as a serpent in Petrobond (first lane), 4–6 as the lizard in lost wax (`claude/cataphracta-ouroborus-2`). The subject needs rethinking before any detailing; see that branch's `cloud-report.md`. The blockers below were the sand plan's and no longer hold in lost wax.
   - Blocked on **P5**, which is **required**: the body runs both wider and narrower than the reference, so the reference-only gate spills.
   - Blocked on **C-R2's `Spiral` law**, also required.
   - Also needs **C-R1** (the head shield; a painted fallback exists) and **C-R7**, plus P7 for its keys as nodes.
