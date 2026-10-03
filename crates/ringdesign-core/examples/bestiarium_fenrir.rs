@@ -610,11 +610,11 @@ impl Wolf {
         let end = (CORNER_DEG + 3.0 - ang.abs()).to_radians() * rho.max(1.0);
         // Below the lip's roll the gum widens into the jaw's body, so no slot opens between them.
         let widen = if ang >= 0.0 { (l[2] + 0.4) * smooth(l[1] - l[3] + 0.1, l[1] - l[3] - 0.5, s[2]) } else { (jaw_out(ang) - l[0] - 0.5).max(0.0) * smooth(0.8, -1.0, s[2]) };
-        smax((rho - l[0] - 0.3 - widen).max(s[2] - gum_h(ang)).max(-(s[2] + 2.0)), end, 0.4)
+        smax((rho - l[0] - 0.3 - widen).max(s[2] - gum_h(ang)).max(-(s[2] + 2.5)), end, 0.4)
     }
     /// The throat under the chin, hanging over the apex wall, its lowest point a millimetre and more over the finger.
     fn throat(s: P3) -> f64 {
-        ellipsoid(sub(s, [0.0, MOON_U - 4.85, -2.3]), [3.7, 1.6, 2.2])
+        ellipsoid(sub(s, [0.0, MOON_U - 4.85, -1.95]), [3.7, 1.6, 1.7])
     }
     /// A pricked ear: a leaf standing up from the crown's corner, its section a stadium rounded 0.5 mm at the edges and
     /// bowed so the back is convex and the front cupped, twisting outward toward its point, which curls back; a deeper
