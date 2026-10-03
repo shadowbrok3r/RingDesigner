@@ -45,7 +45,7 @@ fn fenced_json(v: &serde_json::Value) -> bool {
 /// Whether a literal holds what an older reader must be fenced from: what [`fenced_json`] fences, or a cut on a ring of parts alone.
 fn literal_fenced(l: &Literal) -> bool {
     match l {
-        Literal::Json(v) => fenced_json(v) || ringdesign_core::parts::cuts_apart_json(v),
+        Literal::Json(v) => fenced_json(v) || ringdesign_core::parts::cuts_apart_json(v) || ringdesign_core::parts::beads_apart_json(v),
         Literal::List(items) => items.iter().any(literal_fenced),
         _ => false,
     }
@@ -53,7 +53,7 @@ fn literal_fenced(l: &Literal) -> bool {
 
 /// Whether `g`, read with every node's pins, its wires and its exposures, may evaluate to a ring of parts alone carrying a cut, clusters included.
 fn graph_cuts_apart(g: &Graph) -> bool {
-    serde_json::to_value(g).map_or(true, |v| ringdesign_core::parts::cuts_apart_json(&v))
+    serde_json::to_value(g).map_or(true, |v| ringdesign_core::parts::cuts_apart_json(&v) || ringdesign_core::parts::beads_apart_json(&v))
 }
 
 /// The version `g` is written at: the newest when a node carries a revolution read in its sketch's plane or a pattern of several parts, or the graph, or a cluster in it, may evaluate to a ring of parts alone carrying a cut.
@@ -477,7 +477,7 @@ mod tests {
     fn template_controls_fence_graphs_clusters_and_presets_from_released_readers() {
         use super::*;
         use crate::graph::Mode;
-        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "blend_mm"), ("cad.feature", "theta_deg")] {
+        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "blend_mm"), ("cad.feature", "theta_deg"), ("layer.curve", "widths"), ("layer.curve", "heights"), ("layer.curve", "beads")] {
             for form in ["literal", "wire", "exposure"] {
                 let mut g = Graph::new("Editable geometry", Mode::Free);
                 let node = g.add(kind).unwrap();

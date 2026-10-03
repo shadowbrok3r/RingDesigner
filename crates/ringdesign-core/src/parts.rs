@@ -117,18 +117,25 @@ impl Chain<'_> {
 
     /// Every seam loop of `t`, the boolean of the running solid with `tool`, that some part on it asks
     /// to fillet and `buried` passes over, beaded against `t`'s faces at the largest `blend_mm` among
-    /// the parts behind its tool faces, whatever their order; `parts` are the tool's parts and
-    /// `face_part` the part index behind each tool face. Each filleted part a seam reached is added to
-    /// `touched`; a bead that fails is a note, and a raised flag is the error.
+    /// the parts behind its tool faces and the parts `a_owner` names behind its running-solid faces,
+    /// whatever their order; `parts` are those parts and `face_part` the part index behind each tool
+    /// face. Each filleted part a seam reached is added to `touched`; a bead that fails is a note, and
+    /// a raised flag is the error.
     #[allow(clippy::too_many_arguments)]
-    fn beads<'p>(&self, t: &Traced, tool: &Solid, concave: bool, parts: &[&'p Part], face_part: &[u32], buried: &dyn Fn(&[P3]) -> bool, notes: &mut Vec<String>, touched: &mut Vec<u32>) -> Result<Vec<(&'p Part, blend::Bead)>> {
+    fn beads<'p>(&self, t: &Traced, tool: &Solid, concave: bool, parts: &[&'p Part], face_part: &[u32], a_owner: &dyn Fn(u32) -> Option<u32>, buried: &dyn Fn(&[P3]) -> bool, notes: &mut Vec<String>, touched: &mut Vec<u32>) -> Result<Vec<(&'p Part, blend::Bead)>> {
         let mut out = Vec::new();
         for seam in blend::seams(t, &self.solid, tool, concave) {
-            // Every part behind the seam's tool faces, in face order; the largest fillet among them is the bead's.
+            // Every part behind the seam's tool faces, in face order, then any `a_owner` names; the largest fillet among them is the bead's.
             let mut on: Vec<&Part> = Vec::new();
             for &bf in &seam.b_faces {
                 let index = face_part.get(bf as usize).copied().unwrap_or(parts[0].index);
                 let part = parts.iter().copied().find(|p| p.index == index).unwrap_or(parts[0]);
+                if !on.iter().any(|p| p.index == part.index) {
+                    on.push(part);
+                }
+            }
+            for &af in &seam.a_faces {
+                let Some(part) = a_owner(af).and_then(|index| parts.iter().copied().find(|p| p.index == index)) else { continue };
                 if !on.iter().any(|p| p.index == part.index) {
                     on.push(part);
                 }
@@ -298,7 +305,7 @@ fn resolve_inner(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, c
                 Ok(t) => {
                     let parts: Vec<&Part> = group.iter().map(|g| &joins[*g]).collect();
                     let mut touched = Vec::new();
-                    let beads = chain.beads(&t, &tool, true, &parts, &face_part, &open, &mut out.notes, &mut touched)?;
+                    let beads = chain.beads(&t, &tool, true, &parts, &face_part, &|_| None, &open, &mut out.notes, &mut touched)?;
                     unfollowed(parts.iter().copied(), &touched, &mut out.notes);
                     chain.take(t, &face_part, joins[group[0]].index, base);
                     chain.lay(beads, Op::Union, base, None, &mut out)?;
@@ -318,7 +325,7 @@ fn resolve_inner(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, c
                         Ok(t) => {
                             let own = vec![p.index; p.solid.f.len()];
                             let mut touched = Vec::new();
-                            let beads = chain.beads(&t, &p.solid, true, &[p], &own, &open, &mut out.notes, &mut touched)?;
+                            let beads = chain.beads(&t, &p.solid, true, &[p], &own, &|_| None, &open, &mut out.notes, &mut touched)?;
                             unfollowed([p], &touched, &mut out.notes);
                             chain.take(t, &own, p.index, base);
                             chain.lay(beads, Op::Union, base, None, &mut out)?;
@@ -343,7 +350,7 @@ fn resolve_inner(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, c
         match chain.combine(&p.solid, Op::Subtract) {
             Ok(t) => {
                 let own = vec![p.index; p.solid.f.len()];
-                let beads = chain.beads(&t, &p.solid, false, &[p], &own, &in_stand_ins, &mut out.notes, &mut touched)?;
+                let beads = chain.beads(&t, &p.solid, false, &[p], &own, &|_| None, &in_stand_ins, &mut out.notes, &mut touched)?;
                 chain.take(t, &own, p.index, base);
                 chain.lay(beads, Op::Subtract, base, None, &mut out)?;
                 out.cut += 1;
@@ -383,7 +390,7 @@ fn resolve_inner(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, c
                     let reached = t.parent.iter().any(|f| matches!(f, Parent::B(_)));
                     carved |= reached;
                     let faces = vec![c.index; c.solid.f.len()];
-                    let beads = apart.beads(&t, &c.solid, false, &[c], &faces, &buried, &mut out.notes, &mut touched)?;
+                    let beads = apart.beads(&t, &c.solid, false, &[c], &faces, &|_| None, &buried, &mut out.notes, &mut touched)?;
                     let walls = if reached { out.pocket(p.index, c.index) } else { p.index };
                     apart.take(t, &vec![walls; c.solid.f.len()], p.index, base);
                     apart.lay(beads, Op::Subtract, base, Some(walls), &mut out)?;
@@ -624,27 +631,62 @@ pub fn cuts_apart(design: &RingDesign) -> bool {
     in_document || design.graph.as_ref().is_some_and(cuts_apart_json)
 }
 
+/// Whether `design` is a ring of parts alone with a part or cut carrying a fillet in its document, or may evaluate to one anywhere in its graph.
+pub fn beads_apart(design: &RingDesign) -> bool {
+    let filleted = |d: &cad::Document, id: Id| d.feature(id).is_some_and(|f| f.component.blend_mm > 0.0);
+    let in_document = !design.band_is_procedural() && design.cad.as_ref().is_some_and(|d| d.attachments().iter().any(|(id, ..)| filleted(d, *id)));
+    in_document || design.graph.as_ref().is_some_and(beads_apart_json)
+}
+
+/// A feature's JSON is a cut that is not a reference stone.
+fn cuts_json(f: &serde_json::Value) -> bool {
+    use serde_json::Value;
+    let component = |key: &str| f.get("component").and_then(|c| c.get(key));
+    component("attach").and_then(Value::as_str) == Some("cut") && component("reference").and_then(Value::as_bool) != Some(true)
+}
+
+/// A feature's JSON carries a fillet and is not a reference stone.
+fn beads_json(f: &serde_json::Value) -> bool {
+    use serde_json::Value;
+    let component = |key: &str| f.get("component").and_then(|c| c.get(key));
+    component("blend_mm").and_then(Value::as_f64).is_some_and(|b| b > 0.0) && component("reference").and_then(Value::as_bool) != Some(true)
+}
+
 /// Whether features given as their JSON hold an enabled cut and no enabled band.
 pub fn features_cut_apart<'a>(features: impl IntoIterator<Item = &'a serde_json::Value>) -> bool {
+    features_apart(features, cuts_json)
+}
+
+/// Whether features given as their JSON hold an enabled one `carries` picks and no enabled band.
+fn features_apart<'a>(features: impl IntoIterator<Item = &'a serde_json::Value>, carries: fn(&serde_json::Value) -> bool) -> bool {
     use serde_json::Value;
-    let (mut band, mut cut) = (false, false);
+    let (mut band, mut carried) = (false, false);
     for f in features.into_iter().filter(|f| f.get("enabled").and_then(Value::as_bool) != Some(false)) {
         band |= f.get("operation").and_then(Value::as_str) == Some("Band");
-        let component = |key: &str| f.get("component").and_then(|c| c.get(key));
-        cut |= component("attach").and_then(Value::as_str) == Some("cut") && component("reference").and_then(Value::as_bool) != Some(true);
+        carried |= carries(f);
     }
-    cut && !band
+    carried && !band
 }
 
 /// Whether `v` holds a ring of parts alone carrying a cut anywhere: a list of features with a cut and no band, or a graph whose `cad.feature` nodes, read with their pins, may evaluate to one.
 pub fn cuts_apart_json(v: &serde_json::Value) -> bool {
+    apart_json(v, cuts_json)
+}
+
+/// Whether `v` holds a ring of parts alone with a part or cut carrying a fillet anywhere, as [`cuts_apart_json`] reads a cut.
+pub fn beads_apart_json(v: &serde_json::Value) -> bool {
+    apart_json(v, beads_json)
+}
+
+/// Whether `v` holds a ring of parts alone with a feature `carries` picks: a list of features, or a graph's `cad.feature` nodes read with their pins.
+fn apart_json(v: &serde_json::Value, carries: fn(&serde_json::Value) -> bool) -> bool {
     use serde_json::Value;
     match v {
         Value::Array(items) => {
             let feature = |x: &&Value| x.get("operation").is_some() && x.get("component").is_some();
-            features_cut_apart(items.iter().filter(feature)) || items.iter().any(cuts_apart_json)
+            features_apart(items.iter().filter(feature), carries) || items.iter().any(|x| apart_json(x, carries))
         }
-        Value::Object(map) => graph_cuts_apart(map) || map.values().any(cuts_apart_json),
+        Value::Object(map) => graph_apart(map, carries) || map.values().any(|x| apart_json(x, carries)),
         _ => false,
     }
 }
@@ -686,8 +728,8 @@ fn feeding_output(graph: &serde_json::Map<String, serde_json::Value>, nodes: &[s
     sets.fold(first, |all, next| all.intersection(&next).copied().collect())
 }
 
-/// Whether a graph's JSON may evaluate to a ring of parts alone carrying a cut: a band counts only where it is certain, a cut wherever it is possible.
-fn graph_cuts_apart(graph: &serde_json::Map<String, serde_json::Value>) -> bool {
+/// Whether a graph's JSON may evaluate to a ring of parts alone with a feature `carries` picks: a band counts only where it is certain, the feature wherever it is possible.
+fn graph_apart(graph: &serde_json::Map<String, serde_json::Value>, carries: fn(&serde_json::Value) -> bool) -> bool {
     use serde_json::Value;
     let Some(nodes) = graph.get("nodes").and_then(Value::as_array) else { return false };
     let on_chain = feeding_output(graph, nodes);
@@ -700,7 +742,7 @@ fn graph_cuts_apart(graph: &serde_json::Map<String, serde_json::Value>) -> bool 
     if !features.is_empty() && nodes.iter().filter(|n| kind(n, "design.set")).any(|n| writes_features(&n)) {
         return true;
     }
-    let (mut band, mut cut) = (false, false);
+    let (mut band, mut carried) = (false, false);
     for n in features {
         let Some(f) = n.get("params").filter(|f| f.get("enabled").and_then(Value::as_bool) != Some(false)) else { continue };
         let enabled = match pin_literal(graph, n, "enabled") {
@@ -715,17 +757,18 @@ fn graph_cuts_apart(graph: &serde_json::Map<String, serde_json::Value>) -> bool 
         };
         let reaches = n.get("id").and_then(Value::as_u64).is_some_and(|id| on_chain.contains(&id));
         band |= reaches && enabled == Some(true) && operation.and_then(Value::as_str) == Some("Band");
-        let component = |key: &str| f.get("component").and_then(|c| c.get(key));
-        cut |= enabled != Some(false) && component("attach").and_then(Value::as_str) == Some("cut") && component("reference").and_then(Value::as_bool) != Some(true);
+        carried |= enabled != Some(false) && carries(f);
     }
-    cut && !band
+    carried && !band
 }
 
 /// A CAD-only ring's components as one mesh: parts whose boxes meet are united so a shank and the
 /// head standing in it are counted once, parts that touch nothing ride along as their own shells,
 /// and a union that will not resolve leaves both shells as they were, said in the notes. Each cut
-/// then carves the united parts its box meets. Each vertex's origin names its part from index 0,
-/// a cut's walls the cut after them, and the evaluation rides in the [`Resolved`].
+/// then carves the united parts its box meets. A seam two parts meet along takes a rolling-ball bead
+/// at the larger `blend_mm` of the parts on it, and a cut asking for one rounds the rims it leaves,
+/// each bead named for its part. Each vertex's origin names its part from index 0, a cut's walls the
+/// cut after them, and the evaluation rides in the [`Resolved`].
 pub fn assembled(e: cad::Evaluated, cancel: Option<&AtomicBool>) -> Result<(Mesh, Resolved)> {
     let mut out = Resolved { notes: status_notes(&e), ..Default::default() };
     let metal: Vec<&cad::EvaluatedComponent> = e.components.iter().filter(|c| is_metal(c)).collect();
@@ -737,40 +780,66 @@ pub fn assembled(e: cad::Evaluated, cancel: Option<&AtomicBool>) -> Result<(Mesh
     }
     let solids: Vec<Solid> = metal.iter().map(|c| solid_of(c)).collect();
     let cuts: Vec<Solid> = cutting.iter().map(|c| solid_of(c)).collect();
+    // Every part by its origin index, metal then cuts, carrying its fillet.
+    let records: Vec<Part> = metal
+        .iter()
+        .chain(&cutting)
+        .enumerate()
+        .map(|(i, c)| Part { index: i as u32, name: c.name.clone(), solid: Solid::default(), blend_mm: blend_of(c) })
+        .collect();
+    let all: Vec<&Part> = records.iter().collect();
     let refs: Vec<&Solid> = solids.iter().collect();
     let name_of = |i: usize| SOLID_VERTEX + i as u32;
+    let never = AtomicBool::new(false);
+    let flag = cancel.unwrap_or(&never);
+    let open = |_: &[P3]| false;
     let mut solid = Solid::default();
     let mut origin: Vec<u32> = Vec::new();
     let mut reached = vec![false; cuts.len()];
+    let mut touched: Vec<u32> = Vec::new();
     for group in csg::cluster(&refs, 0.0) {
-        let mut tool = solids[group[0]].clone();
-        let mut named = vec![name_of(group[0]); tool.v.len()];
+        let first = &solids[group[0]];
+        let mut chain = Chain { solid: first.clone(), origin: vec![name_of(group[0]); first.v.len()], vouched: false, cancel: flag };
+        let filleted = group.iter().any(|g| records[*g].blend_mm > 0.0);
         for &g in &group[1..] {
-            match csg::combine_traced(&tool, &solids[g], Op::Union, cancel) {
+            match csg::combine_traced(&chain.solid, &solids[g], Op::Union, cancel) {
                 Ok(t) => {
-                    extend_origin(&mut named, &t, tool.v.len(), &vec![g as u32; solids[g].f.len()], g as u32, 0);
-                    tool = t.solid;
+                    let own = vec![g as u32; solids[g].f.len()];
+                    let beads = if filleted {
+                        let owner = |face: u32| face_owner(&chain.solid, &chain.origin, face);
+                        chain.beads(&t, &solids[g], true, &all, &own, &owner, &open, &mut out.notes, &mut touched)?
+                    } else {
+                        Vec::new()
+                    };
+                    chain.take(t, &own, g as u32, 0);
+                    chain.lay(beads, Op::Union, 0, None, &mut out)?;
                 }
                 Err(Snag::Cancelled) => anyhow::bail!(cad::CANCELLED),
                 Err(err) => {
                     out.notes.push(format!("{} and {}: overlap counted twice, their union did not resolve ({err})", metal[group[0]].name, metal[g].name));
-                    tool.push(&solids[g]);
-                    named.extend(std::iter::repeat_n(name_of(g), solids[g].v.len()));
+                    chain.solid.push(&solids[g]);
+                    chain.origin.extend(std::iter::repeat_n(name_of(g), solids[g].v.len()));
                 }
             }
         }
         let names = || group.iter().map(|g| metal[*g].name.as_str()).collect::<Vec<_>>().join(", ");
         let (mut carved, mut consumed) = (false, false);
         for (k, cut) in cuts.iter().enumerate() {
-            if !meets(&tool, cut) {
+            if !meets(&chain.solid, cut) {
                 continue;
             }
             let index = (metal.len() + k) as u32;
-            match csg::combine_traced(&tool, cut, Op::Subtract, cancel) {
+            match csg::combine_traced(&chain.solid, cut, Op::Subtract, cancel) {
                 Ok(t) => {
                     let hit = t.parent.iter().any(|f| matches!(f, Parent::B(_)));
-                    extend_origin(&mut named, &t, tool.v.len(), &vec![index; cut.f.len()], group[0] as u32, 0);
-                    tool = t.solid;
+                    let walls = vec![index; cut.f.len()];
+                    let beads = if hit && records[index as usize].blend_mm > 0.0 {
+                        chain.beads(&t, cut, false, &[all[index as usize]], &walls, &|_| None, &open, &mut out.notes, &mut touched)?
+                    } else {
+                        Vec::new()
+                    };
+                    chain.take(t, &walls, group[0] as u32, 0);
+                    chain.lay(beads, Op::Subtract, 0, None, &mut out)?;
                     carved |= hit;
                     reached[k] |= hit;
                 }
@@ -788,8 +857,8 @@ pub fn assembled(e: cad::Evaluated, cancel: Option<&AtomicBool>) -> Result<(Mesh
             out.carved.extend(group.iter().map(|g| metal[*g].id));
         }
         if !consumed {
-            solid.push(&tool);
-            origin.extend(named);
+            solid.push(&chain.solid);
+            origin.extend(chain.origin);
         }
     }
     for (c, hit) in cutting.iter().zip(&reached) {
@@ -797,6 +866,8 @@ pub fn assembled(e: cad::Evaluated, cancel: Option<&AtomicBool>) -> Result<(Mesh
             out.notes.push(format!("{}: reaches no part to carve", c.name));
         }
     }
+    let carving: Vec<u32> = reached.iter().enumerate().filter(|(_, hit)| **hit).map(|(k, _)| (metal.len() + k) as u32).collect();
+    unfollowed(records.iter().filter(|p| (p.index as usize) < metal.len() || carving.contains(&p.index)), &touched, &mut out.notes);
     anyhow::ensure!(!solid.f.is_empty(), "The cuts take every part of this ring away");
     let mesh = into_mesh(solid, &[], origin);
     out.first = 0;
@@ -806,6 +877,18 @@ pub fn assembled(e: cad::Evaluated, cancel: Option<&AtomicBool>) -> Result<(Mesh
     out.faces = mesh.faces.len();
     out.evaluated = Some(e);
     Ok((mesh, out))
+}
+
+/// A component's fillet radius, none where it is not a finite positive number.
+fn blend_of(c: &cad::EvaluatedComponent) -> f64 {
+    if c.settings.blend_mm.is_finite() { c.settings.blend_mm.max(0.0) } else { 0.0 }
+}
+
+/// The part a face of a ring of parts alone belongs to: the one most of its corners name, its first corner's on a three-way split.
+fn face_owner(solid: &Solid, origin: &[u32], face: u32) -> Option<u32> {
+    let f = solid.f.get(face as usize)?;
+    let [a, b, c] = f.map(|v| origin.get(v as usize).copied().and_then(|o| o.checked_sub(SOLID_VERTEX)));
+    if b.is_some() && b == c { b } else { a.or(b).or(c) }
 }
 
 /// Each metal part of a ring of parts alone a cut reaches, carved on its own: its mesh, or `None` where a cut takes it whole.
@@ -1387,7 +1470,7 @@ mod tests {
         let court = template("Court band");
         // Two 1 mm posts side by side across the crown, overlapping, their feet 0.5 mm in: one cluster, one seam loop round both.
         let post = |id, name: &str, across_mm, blend_mm| {
-            let mut f = part(id, name, cylinder(1.0, 2.5), Attach::Join, Stage::Cast, Placement::Ring { theta_deg: 90.0, across_mm, height_mm: 0.75, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 });
+            let mut f = part(id, name, cylinder(1.0, 2.5), Attach::Join, Stage::Cast, Placement::Ring { theta_deg: 90.0, across_mm, height_mm: 0.75, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false });
             f.component.blend_mm = blend_mm;
             f
         };
@@ -1443,7 +1526,7 @@ mod tests {
         let lib = AlphaLibrary::builtin();
         let court = template("Court band");
         // A 0.8 mm wire along the ring, sunk 0.05 mm at the top: the wedge under it closes toward both tips.
-        let mut wire = part(1, "wire", cylinder(0.4, 3.0), Attach::Join, Stage::Cast, Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.35, spin_deg: 0.0, tilt_deg: 90.0, cant_deg: 0.0 });
+        let mut wire = part(1, "wire", cylinder(0.4, 3.0), Attach::Join, Stage::Cast, Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.35, spin_deg: 0.0, tilt_deg: 90.0, cant_deg: 0.0, level: false });
         wire.component.blend_mm = 0.3;
         let built = crate::mesh::try_build(&with_parts(court, vec![wire]), &lib, params()).unwrap();
         assert!(built.report.validation.watertight, "{:?}", built.report.validation);
@@ -1728,5 +1811,122 @@ mod tests {
         assert!(built.report.validation.watertight && built.report.quality.degenerate_faces == 0, "{:?}", built.report.validation);
         let added = built.report.volume_mm3 - bare.report.volume_mm3;
         assert!(added > 1.0 && added < row.volume(), "the row adds {added:.3} mm3 of its {:.3}", row.volume());
+    }
+}
+
+#[cfg(test)]
+mod apart_bead_tests {
+    use super::*;
+    use crate::cad::{Component, Document, Feature, Operation, Placement, Stage};
+
+    fn params() -> BuildParams {
+        BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() }
+    }
+    /// Volume of the round a post of radius `big` takes on a plane under an arc of radius `arc` about the ball of radius `r` tangent to both, by Pappus.
+    fn arc_fillet_volume(big: f64, r: f64, arc: f64) -> f64 {
+        let end = r - (arc * arc - r * r).max(0.0).sqrt();
+        let n = 20_000;
+        let h = end / n as f64;
+        let area_moment: f64 = (0..n).map(|i| (i as f64 + 0.5) * h).map(|x| (big + x) * (r - (arc * arc - (x - r).powi(2)).sqrt()).max(0.0) * h).sum();
+        2.0 * std::f64::consts::PI * area_moment
+    }
+    fn part(id: Id, name: &str, operation: Operation, attach: Attach, blend_mm: f64) -> Feature {
+        Feature { id, name: name.into(), enabled: true, operation, component: Component { attach, stage: Stage::Cast, placement: Placement::Free, blend_mm, ..Default::default() } }
+    }
+    /// A ring of parts alone: a disc 4 mm in radius and 1.5 thick, and a post 1 mm in radius standing on it sunk 0.25 into it.
+    fn post_on_disc(disc_blend: f64, post_blend: f64) -> RingDesign {
+        let mut doc = Document::default();
+        doc.append(part(1, "disc", Operation::Cylinder { radius_mm: 4.0, height_mm: 1.5 }, Attach::Join, disc_blend)).unwrap();
+        doc.append(part(2, "post blank", Operation::Cylinder { radius_mm: 1.0, height_mm: 2.5 }, Attach::Join, 0.0)).unwrap();
+        doc.append(part(3, "post", Operation::Transform { source: 2, translation: [0.0, 0.0, 0.75 + 1.25 - 0.25], rotation_deg: [0.0; 3] }, Attach::Join, post_blend)).unwrap();
+        RingDesign { cad: Some(doc), ..RingDesign::default() }
+    }
+
+    #[test]
+    fn a_ring_of_parts_alone_beads_where_two_cylinders_meet() {
+        let lib = AlphaLibrary::builtin();
+        let plain = crate::mesh::try_build(&post_on_disc(0.0, 0.0), &lib, params()).unwrap();
+        assert!(plain.report.validation.watertight);
+        assert_eq!((plain.parts.beads, plain.parts.bead_stations), (0, 0));
+        let started = std::time::Instant::now();
+        let beaded = crate::mesh::try_build(&post_on_disc(0.0, 0.3), &lib, params()).unwrap();
+        let ms = started.elapsed().as_millis();
+        assert!(beaded.report.validation.watertight, "{:?}", beaded.report.validation);
+        assert!(beaded.parts.notes.is_empty(), "{:?}", beaded.parts.notes);
+        assert_eq!((beaded.parts.beads, beaded.parts.bead_clamped), (1, 0));
+        assert_eq!(csg::self_crossings(&Solid { v: beaded.mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: beaded.mesh.faces.clone() }), 0);
+        let gained = beaded.report.volume_mm3 - plain.report.volume_mm3;
+        let fillet = blend::torus_fillet_volume(1.0, 0.3);
+        let laid = arc_fillet_volume(1.0, 0.3, 0.3 + blend::proud(0.3));
+        assert!((arc_fillet_volume(1.0, 0.3, 0.3) / fillet - 1.0).abs() < 1e-6);
+        eprintln!("post on a disc: {ms} ms, {} stations, gained {gained:.5} mm³: the laid arc's fillet {laid:.5}, the torus fillet {fillet:.5}", beaded.parts.bead_stations);
+        // The round is the fillet its own arc bounds, the arc standing `proud` toward the corner as every band bead's does.
+        assert!((gained / laid - 1.0).abs() < 0.01, "gained {gained:.5} mm³ against the laid arc's {laid:.5}");
+        assert!((gained / fillet - 1.0).abs() < 0.07, "gained {gained:.5} mm³ against the torus fillet's {fillet:.5}");
+        // The bead is the post's own metal: every vertex it adds names the post.
+        let post = beaded.parts.features.iter().position(|id| *id == 3).unwrap() as u32;
+        let named: std::collections::BTreeSet<u32> = beaded.mesh.origin.iter().copied().collect();
+        assert_eq!(named, [SOLID_VERTEX, SOLID_VERTEX + post].into_iter().collect(), "the disc's and the post's vertices, and nothing else");
+        let fillet_zone = |m: &Mesh, part: u32| m.vertices.iter().zip(&m.origin).filter(|(p, o)| **o == SOLID_VERTEX + part && (p.2 as f64) < 1.05 && (p.0 as f64).hypot(p.1 as f64) > 1.02).count();
+        assert!(fillet_zone(&beaded.mesh, post) > fillet_zone(&plain.mesh, post) + 100, "the round's vertices stand off the post at its foot");
+        // Whichever part asks for the round, the seam takes the larger fillet of the parts on it.
+        for (disc, post) in [(0.3, 0.0), (0.3, 0.2), (0.1, 0.3)] {
+            let other = crate::mesh::try_build(&post_on_disc(disc, post), &lib, params()).unwrap();
+            assert!(other.report.validation.watertight && other.parts.notes.is_empty(), "{disc} {post}: {:?}", other.parts.notes);
+            let added = other.report.volume_mm3 - plain.report.volume_mm3;
+            assert!((added - gained).abs() < 0.01 * gained, "{disc} on the disc, {post} on the post: {added:.5} against {gained:.5}");
+        }
+    }
+
+    #[test]
+    fn a_fillet_on_a_part_that_meets_nothing_is_said_and_a_cut_rounds_its_rims() {
+        let lib = AlphaLibrary::builtin();
+        // A 6 x 6 x 3 block drilled through by a 1 mm pilot set a little off its centre, and a bead standing clear of it.
+        let drilled = |at: [f64; 3], blend_mm: f64| {
+            let mut doc = Document::default();
+            doc.append(part(1, "block", Operation::Box { size: [6.0, 6.0, 3.0] }, Attach::Join, 0.0)).unwrap();
+            doc.append(part(2, "pilot blank", Operation::Cylinder { radius_mm: 1.0, height_mm: 8.0 }, Attach::Cut, 0.0)).unwrap();
+            doc.append(part(3, "pilot", Operation::Transform { source: 2, translation: at, rotation_deg: [0.0; 3] }, Attach::Cut, blend_mm)).unwrap();
+            doc.append(part(4, "lone bead", Operation::Sphere { radius_mm: 0.5 }, Attach::Join, 0.2)).unwrap();
+            doc.append(part(5, "moved bead", Operation::Transform { source: 4, translation: [10.0, 0.0, 0.0], rotation_deg: [0.0; 3] }, Attach::Join, 0.2)).unwrap();
+            RingDesign { cad: Some(doc), ..RingDesign::default() }
+        };
+        let off = [0.13, 0.07, 0.0];
+        let plain = crate::mesh::try_build(&drilled(off, 0.0), &lib, params()).unwrap();
+        assert!(plain.report.validation.watertight);
+        assert_eq!(plain.parts.notes, ["moved bead: its fillet found no seam long enough to follow"]);
+        let built = crate::mesh::try_build(&drilled(off, 0.2), &lib, params()).unwrap();
+        assert!(built.report.validation.watertight, "{:?}", built.report.validation);
+        assert_eq!((built.parts.cut, built.parts.beads, built.parts.bead_clamped), (1, 2, 0), "a rim on each face the pilot opens: {:?}", built.parts.notes);
+        let removed = plain.report.volume_mm3 - built.report.volume_mm3;
+        let fillet = 2.0 * blend::torus_fillet_volume(1.0, 0.2);
+        assert!(removed > 0.8 * fillet && removed < 1.05 * fillet, "removed {removed:.5} of two rims' {fillet:.5}");
+        // A pilot dead on the block's centre leaves rims no bead can be laid on, through the blend module's own path too: noted, and the ring builds closed.
+        let centred = crate::mesh::try_build(&drilled([0.0; 3], 0.2), &lib, params()).unwrap();
+        assert!(centred.report.validation.watertight && centred.parts.beads == 0);
+        assert!(centred.parts.notes.iter().filter(|n| n.starts_with("pilot: its fillet could not be laid")).count() == 2, "{:?}", centred.parts.notes);
+    }
+
+    #[test]
+    fn a_fillet_on_a_ring_of_parts_alone_fences_the_design_and_its_graph() {
+        use crate::library::{self, FORMAT_VERSION, PLAIN_FORMAT_VERSION};
+        let plain = post_on_disc(0.0, 0.0);
+        let beaded = post_on_disc(0.0, 0.3);
+        assert!(!beads_apart(&plain) && beads_apart(&beaded));
+        assert_eq!((library::format_version_for(&plain), library::format_version_for(&beaded)), (PLAIN_FORMAT_VERSION, FORMAT_VERSION));
+        assert!(library::read_design(&library::design_json(&beaded).unwrap(), PLAIN_FORMAT_VERSION).is_err());
+        // On a band the fillet was always laid, so the design stays plain.
+        let mut banded = beaded.clone();
+        let doc = banded.cad.as_mut().unwrap();
+        doc.features.insert(0, Feature { id: 9, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() });
+        assert!(!beads_apart(&banded));
+        // A graph whose features may assemble with the fillet is fenced; one with no fillet is not.
+        let graph = |design: &RingDesign| serde_json::json!({"nodes": design.cad.as_ref().unwrap().features.iter().enumerate().map(|(k, f)| serde_json::json!({"id": k + 1, "kind": "cad.feature", "params": f})).collect::<Vec<_>>()});
+        assert!(beads_apart_json(&graph(&beaded)) && !beads_apart_json(&graph(&plain)));
+        let features = serde_json::to_value(&beaded.cad.as_ref().unwrap().features).unwrap();
+        assert!(beads_apart_json(&features));
+        let mut reference = beaded.clone();
+        reference.cad.as_mut().unwrap().feature_mut(3).unwrap().component.reference = true;
+        assert!(!beads_apart(&reference), "a reference stone carries no metal to round");
     }
 }

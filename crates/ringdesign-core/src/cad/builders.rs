@@ -1903,7 +1903,7 @@ mod tests {
                 for &(theta, across, tilt) in &seats {
                     for (key, p) in &settings {
                         // The stone as the build seats it: its frame and the metal under it.
-                        let placement = Placement::Ring { theta_deg: theta, across_mm: across, height_mm: stand_off_mm(key, gem), spin_deg: 0.0, tilt_deg: tilt, cant_deg: 0.0 };
+                        let placement = Placement::Ring { theta_deg: theta, across_mm: across, height_mm: stand_off_mm(key, gem), spin_deg: 0.0, tilt_deg: tilt, cant_deg: 0.0, level: false };
                         let mut doc = Document::default();
                         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
                         doc.append(stone_feature(2, gem, placement)).unwrap();
