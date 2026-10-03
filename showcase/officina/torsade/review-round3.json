@@ -1,0 +1,64 @@
+{
+  "ring": "torsade",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.9,
+  "summary": "Cut at 6.9, up from 6.6. Ship needs 7.5 and this was the last round. Every gate is now green: stone_warnings is empty, the template gate is recorded (1 design.set patch), and the doc section matches the 9-step timeline. The read is still immediate: with no caption, hero-300 and face-300 show a rope-edged cabochon solitaire. The rope is now one closed twist round each arris, so the free rope ends from rounds 1 and 2 are gone. The band now has edge round 0.22 and crown 0.35, and the cab apex renders smooth. But the main punch item from rounds 1 and 2 is still open: the collet. In side.png it is a straight-sided washer about twice the band width, sitting on the crest with a hard line under it. Under the washer there is a cut-off bowl, not a tapered wall that grows out of the band. In palm.png the collet's underside hangs below the band's front edge as a bare cone, about 2 mm proud of each side face. That cone shows radial pinch streaks at its apex, and the rope crosses its face with no seam. All nine joins still have blend_mm 0.0. The doc explains this as a seam-bead trap, but the explanation does not make the joins look made. Next to Caiman (7), which resolves every transition, this ring is clean but has one unresolved mechanical part at the heart of the piece. A student learns the rope from it. Logan would not sell the collet as it is.",
+  "strengths": [
+    "Instant read at 300 px: hero-300, face-300 and contact-300 all name a rope-edged collet with no caption.",
+    "The ropes now run as closed 8-turn twists (2880 degrees, lay angle about 31 degrees) on both arrises, with opposite lays. There are no end caps or free tips anywhere, and the plies are crisp and countable with no combing.",
+    "Band finish is done as asked: edge_round_mm 0.22, crown_mm 0.35, comfort 0.3. The bore edges are soft in hero.png and reverse.png, and the crest rolls a broad highlight.",
+    "The setting now counts as a made setting: stone_warnings is [] in draft and export, the stone is 0.02 mm over its seat, and stones.png shows a rounded double-roll lip with a thin bearing line.",
+    "The cabochon apex is smooth in side.png and reverse.png.",
+    "timeline.png is a model lesson: 9 features, each adding one visible step, and the doc's step list now matches it.",
+    "Every gate is green, including the template gate (16 nodes, 27 KB, 1 patch)."
+  ],
+  "checklist": [
+    {"item": "One idea face to palm, reads at 300 px without caption", "result": "pass", "reason": "Ropes on both arrises run all the way round, the collet sits at the top, and the side faces and bore are plain. It reads uncaptioned at 300 px."},
+    {"item": "Finished piece a jeweller would sell (proportion, weight, seam beads, no glued-on look)", "result": "fail", "reason": "The collet is about 8.8 mm across on a 4.4 mm band. side.png shows a straight-walled washer with a flat underside step, standing on the crest. palm.png shows its cone underside hanging below the band's front edge, well clear of the side face, with the rope crossing it at a hard line. Every join has blend_mm 0.0, so the collet and ropes look laid on rather than grown out of the band."},
+    {"item": "No flat, blocky or mechanical CAD", "result": "fail", "reason": "The band and ropes now pass. The collet does not: its slab wall and flat lip band in side.png and reverse.png read as a turned washer, and the bare cone in palm.png is plain lathe geometry. The doc admits the cone-to-wall crease and the base edge are left sharp."},
+    {"item": "Outlines crisp, no combing, smearing or stair-steps", "result": "fail", "reason": "Rope, lip and cab outlines are crisp. But palm.png shows radial pinch and fan streaks at the collet cone's apex, which is a tessellation defect visible at 1600 px."},
+    {"item": "Stones sit in made settings and are visible", "result": "pass", "reason": "The garnet is fully visible in a rounded collet lip. The stone report is clean and the seat is closed."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "result": "pass", "reason": "Not applicable: a procedural Flat band."},
+    {"item": "Lesson legible in timeline.png", "result": "pass", "reason": "Band, plane, path, plane, section, rope, mirror, collet, stone: each step adds one visible thing. The doc matches."},
+    {"item": "Silhouette distinct from other Officina rings and starters", "result": "pass", "reason": "Twin rope arrises on a flat band with a cabochon collet. It differs from the Braided band (cords on the side faces) and the Bezel solitaire."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces", "claimed": "watertight, 0 degenerate", "verified": "Draft 736,006 and export 1,390,544 triangles: watertight, 0 boundary, 0 non-manifold, 0 degenerate.", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "0", "verified": "Metal 0. Rope, Mirror across the band, Collet and Garnet cabochon are all 0 in draft and export.", "pass": true},
+    {"gate": "Solids notes empty", "claimed": "empty", "verified": "solids_notes [] and parts_notes [] in draft and export.", "pass": true},
+    {"gate": "Every CAD feature Ok", "claimed": "features_ok true", "verified": "All 9 features Ok in draft and export.", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "0", "verified": "inside_finger_hole 0; nearest_to_axis 9.10 mm against bore radius 9.1.", "pass": true},
+    {"gate": "Field verdict (lost wax, own process)", "claimed": "Castable", "verified": "field_verdict Castable in draft and export. The first field note still says 'no undercut anywhere' while later notes list undercuts. The text is contradictory but does not gate under wax.", "pass": true},
+    {"gate": "Sand ray release 0.100 / 0.075 mm", "claimed": "n/a", "verified": "Lost wax, so this gate does not apply.", "pass": true},
+    {"gate": "cad::measure::thickness clean at 0.8 mm", "claimed": "thickness_clean true", "verified": "sampled_min 0.980 mm, below_limit 0, unresolved 0, over 384 rays.", "pass": true},
+    {"gate": "dfm::cut_lands clean", "claimed": "clean", "verified": "cut_lands [] in draft and export.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] in draft and export.", "pass": true},
+    {"gate": "Stone count equals preview; stone report clean", "claimed": "1 = 1", "verified": "stones_reported 1, stones_previewed 1, crowding_tight_pairs 0, stone_warnings [] in draft and export.", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "export.cold_reload_identical true (draft null; export is the gate).", "pass": true},
+    {"gate": "Export within 2M triangles", "claimed": "true", "verified": "1,390,544 triangles.", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "watertight", "verified": "Pattern watertight, 0 boundary, 0 non-manifold, 0 degenerate, 0 self-crossings in draft and export.", "pass": true},
+    {"gate": "Template gate (at most 4 design.set patches)", "claimed": "1 patch", "verified": "template_gate passed: procedural, 16 nodes, 27,390 bytes, 1 patch (/manufacturing), cold design and graph reload true, export geometry verified.", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Collet (feature 8 'Collet section', theta 70-110)", "change": "Redraw the half-section so one wall runs from the band crest to the lip, tapering 6 to 8 degrees narrower toward the band, with no flat-faced washer band under the lip. Today points 1-2 are a vertical 2.0 mm wall and points 2-3 are a 45-degree step. Make the cup's widest point no more than 1.0 mm beyond each band side face, and end the underside in a rounded foot of radius 0.5 mm or more, not a bare cone.", "acceptance": "side.png shows one continuous tapered collet silhouette, with no flat-sided washer and no dark line at the crest. palm.png shows no cone or disc hanging more than 1 mm past the band edge."},
+    {"number": 2, "priority": "high", "zone": "Collet cone apex, palm side (feature 8)", "change": "Fix the radial pinch streaks at the cone apex. Close the profile on the axis with a short flat or a rounded tip, rather than letting the -0.02 offset meet at a point, or remove the apex from view as item 1 asks.", "acceptance": "palm.png shows a clean, evenly shaded underside with no fan or pinch streaks."},
+    {"number": 3, "priority": "medium", "zone": "Collet-to-band and collet-to-rope joins (features 7-8)", "change": "Add a seam where the collet foot meets the crest and the ropes: a blend of about 0.1 mm on the Collet join only (the doc's fold trap is on the rope arris, not on the collet), or a 0.3 to 0.5 mm cove in the revolve profile at the crest.", "acceptance": "shoulder.png and side.png show a soft bead where the collet meets the band and ropes, not a hard contact line."},
+    {"number": 4, "priority": "low", "zone": "report.json field_notes", "change": "Remove the contradictory 'no undercut anywhere' first note, or reword it so it agrees with the undercut notes after it.", "acceptance": "The field_notes list makes no claim that contradicts another note."}
+  ],
+  "viewed_images": [
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/officina/torsade/hero-300.png",
+    "showcase/officina/torsade/face-300.png",
+    "showcase/officina/torsade/contact-300.png",
+    "showcase/officina/torsade/hero.png",
+    "showcase/officina/torsade/side.png",
+    "showcase/officina/torsade/shoulder.png",
+    "showcase/officina/torsade/palm.png",
+    "showcase/officina/torsade/reverse.png",
+    "showcase/officina/torsade/face.png",
+    "showcase/officina/torsade/stones.png",
+    "showcase/officina/torsade/timeline.png",
+    "showcase/officina/torsade/bare-vs-finished.png"
+  ]
+}
