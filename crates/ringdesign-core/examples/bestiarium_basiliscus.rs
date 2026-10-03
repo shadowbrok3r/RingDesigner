@@ -21,7 +21,7 @@ use serde_json::{Value, json};
 use std::{f64::consts::PI, path::Path, time::Instant};
 
 const AW: usize = 2048;
-const HACKLE_HEIGHT: f64 = 0.75;
+const HACKLE_HEIGHT: f64 = 0.55;
 const BELLY_HEIGHT: f64 = 0.34;
 /// Scale of the painted serpent layer, mm.
 const SERPENT_HEIGHT: f64 = 2.0;
@@ -842,7 +842,7 @@ impl Hackles {
                 let barb = t * length - 1.43 * y.abs();
                 let fray = 1.0 - 0.04 * (1.0 - morph) * (1.0 - (2.0 * (barb / 0.45).rem_euclid(1.0) - 1.0).abs()) * smooth(0.2, 0.6, t);
                 let half = (0.06 + (0.5 * pitch - 0.06) * spread) * fray;
-                let roll = (0.3 * (1.0 - morph) + 0.18 * morph).min(0.8 * half);
+                let roll = (0.45 * (1.0 - morph) + 0.2 * morph).min(0.85 * half);
                 let edge = smooth(0.0, roll.max(0.04), half - y.abs());
                 let tip = 1.0;
                 let root_in = smooth(0.0, 0.3 - 0.15 * morph, t);
@@ -1846,7 +1846,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
         let Some((flat, round)) = rims.edge.nearest([s.p[0], s.p[2]], 2.5) else { return 0.0 };
         let depth = a.top - s.p[1];
         let r = s.p[0].hypot(s.p[1]);
-        let w = smooth(0.8, 1.8, depth.hypot(flat)) * smooth(a.bore + 0.2, a.bore + 1.5, r) * (1.0 - smooth(0.8, 1.6, flat));
+        let w = smooth(0.8, 1.8, depth.hypot(flat)) * smooth(a.bore + 0.2, a.bore + 1.5, r) * (1.0 - smooth(0.5, 1.1, flat));
         if w <= 0.0 {
             return 0.0;
         }
