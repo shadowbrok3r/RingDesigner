@@ -841,6 +841,7 @@ That is expected for most Vepres rings. Say so in each README line.
 
 - **Process:** Lost wax. Spines radiate from a dome; in two-part sand only about a quarter of them would release.
   - Decision (Logan's rules, 2026-10-03): judged as lost wax, 0.8 mm minimum section, no pull rule. Any sand pull it happens to pass is reported as a bonus only.
+- **Rethink (approved by Logan, 2026-10-03):** the first block-out failed three read tests (urchin, thistle, chestnut burr): a spined fruit alone does not name datura at 300 px. The ring now leads with one large white trumpet flower, 18 to 22 mm, seen in three-quarter profile, lying across the badge and along a shoulder with its mouth flaring past the badge; the spined capsule stands smaller beside it. 011 Badge first, 018 Butterfly if 011 cannot hold it. Read tests continue from 4 (at most three more).
 
 - **Stones:** Eight black spinel round 1.5, the seeds.
 
