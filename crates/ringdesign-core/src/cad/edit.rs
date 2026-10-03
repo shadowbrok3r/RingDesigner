@@ -102,15 +102,15 @@ fn bodiless(f: &Feature) -> Option<&'static str> {
         _ => None,
     }
 }
-/// Refuses a placement the build could not seat: any value that is not a finite number.
+/// Refuses a placement the build could not seat: any value that is not a finite number, or a side placement it cannot stand.
 fn check_placement(who: &str, p: &Placement) -> Result<()> {
-    if let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } = p {
+    if let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, .. } = p {
         ensure!(
             [theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg].iter().all(|v| v.is_finite()),
             "{who}: a placement needs finite numbers"
         );
     }
-    Ok(())
+    p.validate().map_err(|e| anyhow::anyhow!("{who}: {e}"))
 }
 fn check_blend(who: &str, blend_mm: f64) -> Result<()> {
     ensure!(blend_mm.is_finite() && blend_mm >= 0.0, "{who}: blend radius must be finite and not negative");
@@ -143,9 +143,9 @@ impl Document {
     pub fn position(&self, id: Id) -> Option<usize> {
         self.features.iter().position(|f| f.id == id)
     }
-    /// The features this one reads, each once, in the order its operation names them.
+    /// The features this one reads, each once, in the order its operation and then its placement name them.
     pub fn sources_of(&self, id: Id) -> Vec<Id> {
-        self.feature(id).map(|f| distinct(f.operation.sources())).unwrap_or_default()
+        self.feature(id).map(|f| distinct(f.sources())).unwrap_or_default()
     }
     /// Every feature that reads this one, directly or through another, in document order.
     pub fn dependents(&self, id: Id) -> Vec<Id> {
@@ -153,7 +153,7 @@ impl Document {
         loop {
             let before = set.len();
             for f in &self.features {
-                if !set.contains(&f.id) && f.operation.sources().iter().any(|s| set.contains(s)) {
+                if !set.contains(&f.id) && f.sources().iter().any(|s| set.contains(s)) {
                     set.push(f.id);
                 }
             }
@@ -220,12 +220,14 @@ impl Document {
             CadEdit::Component { id, component } => {
                 self.known(*id)?;
                 check_component(&self.who(*id), component)?;
+                self.placed_after(*id, &component.placement)?;
                 self.feature_mut(*id).unwrap().component = component.clone();
                 None
             }
             CadEdit::Placement { id, placement } => {
                 self.known(*id)?;
                 check_placement(&self.who(*id), placement)?;
+                self.placed_after(*id, placement)?;
                 self.feature_mut(*id).unwrap().component.placement = placement.clone();
                 None
             }
@@ -276,7 +278,7 @@ impl Document {
             Some(a) => self.known(a).map_err(|_| anyhow::anyhow!("Add after #{a}: no such feature"))? + 1,
             None => self.features.len(),
         };
-        let sources = distinct(f.operation.sources());
+        let sources = distinct(f.sources());
         for s in &sources {
             let p = self.position(*s).ok_or_else(|| anyhow::anyhow!("Add {}: source #{s} is not in the document", f.name))?;
             ensure!(p < at, "Add {}: its source {} would come after it", f.name, self.who(*s));
@@ -351,6 +353,18 @@ impl Document {
         }
         let f = self.features.remove(pos);
         self.features.insert(at, f);
+        Ok(())
+    }
+    /// Refuses a placement on `id` standing in a part that is missing, later in the history, or reading `id`.
+    fn placed_after(&self, id: Id, placement: &Placement) -> Result<()> {
+        let pos = self.known(id)?;
+        let dependents = self.dependents(id);
+        for s in placement.sources() {
+            ensure!(s != id, "{}: a part cannot stand relative to itself", self.who(id));
+            let p = self.position(s).ok_or_else(|| anyhow::anyhow!("{}: part #{s} it stands relative to is not in the document", self.who(id)))?;
+            ensure!(!dependents.contains(&s), "{}: standing relative to {} would form a cycle, it already depends on this feature", self.who(id), self.who(s));
+            ensure!(p < pos, "{}: part {} it stands relative to comes after it; move it first", self.who(id), self.who(s));
+        }
         Ok(())
     }
     fn set_operation(&mut self, id: Id, operation: Operation) -> Result<()> {
