@@ -1,0 +1,68 @@
+{
+  "ring": "Fenrir",
+  "round": 5,
+  "verdict": "cut",
+  "score": 7.0,
+  "summary": "Cut at 7.0. This was the last revival round, and the ship bar is 7.5. Every gate is green, and the template gate is now recorded against the submitted design: verification.json was written at 17:21, after the design at 17:18, its 1,226,212 triangles match report.json, and it carries 0 design.set patches. Two punch items are closed. The flews are now one smooth lip each side with the canine notch kept, and the muzzle runs 7.05 mm stop to nose. Shown without the caption, the 300 px hero and face read as a wolf's head biting a moon. The ears, the jaws round the orb and the four fangs all carry. The work that held the ring at 7.0 in rounds 3 and 4 has not moved. The Ruff, which is half the ring, still reads as terraced chevron stacks with sawtooth, stair-stepped rims (close-ruff.png, shoulder.png, reverse.png). The cheek fur is still melted blobs and squiggles, not locks (close-head.png). The Gleipnir bindings are still jagged lozenges, not wraps (close-binding.png). The lower jaw's rim is still lumpy. The nasal bridge is still a near-parallel plank. It now ends in a faceted hexagonal block, so the nose reads as CAD rather than leather. seam_crease_run is 1.09 mm against the 0.7 mm asked for. The head scores about Caiman's level and the fur scores below it, so the whole stays at 7.0 for a third straight round.",
+  "strengths": [
+    "Clear concept at 300 px: a wolf's head with upright ears holding a moonstone in open jaws, four curved fangs over the dome, and the stone fully visible in a made claw setting.",
+    "Distinct silhouette: the eared head cantilevered over a domed cabochon is unlike Arachne, Manticora or any Reptilia tile.",
+    "The upper flews are now one smooth lip each side, notched at each canine (close-head.png), which closes round-4 item 5.",
+    "Muzzle stop to nose is 7.05 mm (target 7.0 or more); the lower-jaw-to-muzzle ratio is 1.02.",
+    "Engineering is clean: watertight, 0 degenerate faces, 0 self-crossings on the ring and on all four made parts, empty solids notes, and a 1.0 mm or thicker hollow at theta 70, 90 and 110 with no closed voids. Weight is 31.8 g in 18k, under the 32 g cap.",
+    "Lost-wax land widths are measured, and each of the 12 sub-0.8 mm sections (ears, fang sheaths, claws, one premolar, nostril rims) is named with a bench treatment."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "Wolf head on the face, ruff down both shoulders and Gleipnir cord at the palm (palm.png). One story throughout."},
+    {"item": "Reads as its creature at 300 px without caption", "result": "pass", "reason": "hero-300 and face-300 read as a wolf's head with a moon in its jaws. The ears, fangs and orb carry it. The broad, blobby cheeks still pull it slightly toward a cat or lion at a glance."},
+    {"item": "Figurative motifs have true outlines (no combing, smearing, stair-steps)", "result": "fail", "reason": "close-ruff.png shows every lock outlined by 3-4 stepped contour terraces with sawtooth rims. close-binding.png shows the binding lozenges with jagged, combed edges. The cheek fur is smeared blobs. Unchanged since round 4 items 2, 3 and 7."},
+    {"item": "Stones in made settings and visible", "result": "pass", "reason": "The 10 mm moonstone is held by four fang claws joined to the head, fully visible on face and hero. Report and preview both count 1 stone, with no warnings."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "The nasal bridge is a straight-sided plank. The nose is now a faceted hexagonal block (close-head.png x 640-940, y 1060-1170). The head's surface is rippled and melted rather than modelled in planes."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "Lost-wax head over 010 Trillion, where the head replaces the face. The plain stock walls behind it keep their edges (palm.png, side.png)."},
+    {"item": "Silhouette distinct from Arachne, Manticora and Reptilia", "result": "pass", "reason": "An eared head over a domed orb is unique in the set."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "The large forms (head, ears, orb) are strong. The medium and small forms are illegible, though: the ruff is noisy terracing and the cheeks are mush. Caiman's plates and knobs read crisply at every scale; Fenrir's fur does not."}
+  ],
+  "gates": [
+    {"gate": "watertight, 0 degenerate faces", "claimed": "watertight, 0 boundary, 0 non-manifold, 0 degenerate (1,226,212 tri)", "verified": "report.json geometry and mesh.json agree: watertight, boundary 0, non-manifold 0, degenerate_faces 0", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "0 on ring; 0 on cabochon, Fangs, Fenrir's head, Hollow", "verified": "geometry.self_crossings 0; made_parts all 0", "pass": true},
+    {"gate": "empty solids notes", "claimed": "empty", "verified": "solids.notes [] and parts_notes []", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "pass", "verified": "innermost radius 9.4906 mm against a 9.5 mm bore, 0.009 mm, which is bore-facet chord tolerance", "pass": true},
+    {"gate": "lost wax: verdict and 0.8 mm fill", "claimed": "Castable, thinnest wall 1.32 mm", "verified": "field.verdict Castable; thinnest_wall 1.323 mm at 256 deg. The two-part undercut notes are informational under wax.", "pass": true},
+    {"gate": "lost wax land_widths: every section under 0.8 mm removed or named", "claimed": "pass", "verified": "12 exceptions (ears 0.55-0.58, fang sheaths 0.50-0.52, claws 0.44-0.46, premolar 0.72, nostril rims 0.61), each named with a bench treatment", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "report dfm [] and draft.dfm []; verification detail_findings 0", "pass": true},
+    {"gate": "stone count equals preview", "claimed": "1 / 1", "verified": "stones.reported 1, previewed 1, warnings []", "pass": true},
+    {"gate": "cold reload identical", "claimed": "identical", "verified": "cold_reload.identical_vertices_faces_normals true; verification cold_design_reload and cold_graph_reload true", "pass": true},
+    {"gate": "export within 2 million triangles", "claimed": "1,226,212", "verified": "1,226,212 at 1536x448", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "watertight, 0 degenerate, 0 crossings", "verified": "pattern.validation watertight, 0 boundary/non-manifold, 0 degenerate, self_crossings 0 (1,226,218 tri)", "pass": true},
+    {"gate": "template gate: at most 4 design.set patches in class budget", "claimed": "passed, 0 patches, painted class", "verified": "verification.json (17:21) is newer than design.ring.json (17:18), its triangles equal report.json, template_gate_passed true, design_set_patches [], and template 2.33 MB under the 3.0 MB budget", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P1 (why cut)", "zone": "Layer 'Ruff', shoulders theta 20-70 and 110-160 and the head walls: close-ruff.png, shoulder.png x 300-900, reverse.png x 420-1250", "change": "Unaddressed from rounds 3 and 4. Rebuild the locks as smooth relief: paint at 2-3x atlas resolution or strike them as stamps, with no quantised contour terraces. Bases 1.2-1.6 mm, about 30% fewer locks, each S-bow swept 20-30 deg back along the band, and no stacked-chevron rows.", "acceptance": "close-ruff.png: no stepped contour rings and no sawtooth on any lock rim. The shoulder at 300 px reads as flowing fur. DFM stays at 0."},
+    {"number": 2, "priority": "P1 (why cut)", "zone": "Head #4 cheeks and brow: close-head.png x 0-560 and 1040-1600, y 250-1000", "change": "Unaddressed from rounds 3 and 4. Relax the base surface by 0.3 mm, then carve 2-3 tiers of pointed locks, 3-4 mm long, sweeping back toward the ears, each with a rounded crest and one centre groove.", "acceptance": "close-head.png: every cheek stroke is a lock with a pointed tip, with no closed blob or worm shapes and no rippled specular between locks."},
+    {"number": 3, "priority": "P1", "zone": "Head #4 nasal bridge and nose: close-head.png x 640-940, y 250-1170", "change": "Taper the bridge from about 4 mm at the stop to 2.5 mm at the nose. Replace the faceted hexagonal nose block with a rounded leather pad 3 mm wide and 0.4 mm proud, with two comma nostrils.", "acceptance": "close-head.png: the bridge visibly narrows toward the nose, and the nose pad has no flat facets or straight edges."},
+    {"number": 4, "priority": "P2", "zone": "Layer \"Gleipnir's bindings\" at theta 236/304: close-binding.png", "change": "Unaddressed from rounds 3 and 4. Draw 4-6 rounded wraps with a tucked end, crossing the cord at 70-80 deg, as stamps or at 2x atlas resolution.", "acceptance": "close-binding.png: countable wraps with smooth rims and no sawtooth edges."},
+    {"number": 5, "priority": "P2", "zone": "Head flank to Ruff seam, theta 90 +/- 25-35", "change": "Paint the Ruff's first row up the fillet, overlapping the cheek fur by 1 mm or more.", "acceptance": "census.seam_crease_run_mm 0.7 or less (now 1.09)."},
+    {"number": 6, "priority": "P3", "zone": "Head #4 lower jaw rim: face.png x 440-1160, y 1010-1210", "change": "Unaddressed from round 4. Give the lower lip one clean rolled edge 0.8-1.0 mm wide.", "acceptance": "face.png: the lower jaw's outline is one smooth curve with no nibbled bumps over 0.15 mm."}
+  ],
+  "viewed_images": [
+    "showcase/bestiarium/fenrir/hero-300.png",
+    "showcase/bestiarium/fenrir/face-300.png",
+    "showcase/bestiarium/fenrir/contact-300.png",
+    "showcase/bestiarium/fenrir/close-head.png",
+    "showcase/bestiarium/fenrir/close-ruff.png",
+    "showcase/bestiarium/fenrir/close-binding.png",
+    "showcase/bestiarium/fenrir/face.png",
+    "showcase/bestiarium/fenrir/hero.png",
+    "showcase/bestiarium/fenrir/shoulder.png",
+    "showcase/bestiarium/fenrir/reverse.png",
+    "showcase/bestiarium/fenrir/palm.png",
+    "showcase/bestiarium/fenrir/side.png",
+    "showcase/bestiarium/fenrir/stones.png",
+    "showcase/bestiarium/fenrir/bare-vs-finished.png",
+    "showcase/bestiarium/fenrir/section-90.png",
+    "showcase/bestiarium/fenrir/section-70.png",
+    "showcase/bestiarium/fenrir/section-110.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
