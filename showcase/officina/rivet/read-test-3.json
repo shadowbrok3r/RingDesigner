@@ -1,0 +1,16 @@
+{
+  "ring": "rivet",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "A gold band with a raised centre strip carrying a row of round studs, big and small in turn. The alternation now counts clearly in both views, and the small heads hold up as dots on the hero's flanks. That part is fixed. But at 300 px the large heads still read as beads or pearls, not rivets: in face-300 each one shows a bright round highlight over a dark lower crescent, like a ball half sunk in the metal, not a low cap pressed flat onto a strip. The strip itself reads as a wide centre panel with a thin flat rim above and below it. In the hero that gives two parallel lines down each side (the strip edge, then the band edge), so the first impression is still 'beaded spinner' or 'studded band'. A jeweller would say beaded or studded. Without the caption, 'riveted strap' still does not come to mind, though it is closer than attempt 2.",
+  "changes": [
+    "Kill the ball look on the large heads (features 2-3). The dark crescent under each head in face-300 says the cap's side is showing. Most likely the cap's vertical skirt (sketch points 2-3, r 1.2 from y -0.4 to 0) is exposed where the strap curves away under the head's 2.4 mm footprint. Sink or conform the head so its foot circle lies on the strap surface all the way round: lower the placement from height -0.12 to about -0.20, or cut the skirt so the arc meets the strap directly. Keep it about 0.35 mm proud. Give the crown a flatter top: raise the arc radius from about 1.69 to about 2.2 mm, keep footprint 2.4 mm, and keep blend 0.08-0.10. Acceptance: in face-300 no large head shows a dark lower half darker than the strap beside it. Each shows a broad, soft cap highlight and a thin, even shadow line at its foot all the way round.",
+    "Make the strip read as a strap laid on a band, not a spinner panel. In face-300 the plain band either side of the strip shows only as a thin flat rim, about a tenth of the width each side. Narrow the strap or widen the visible band so 1.2-1.5 mm of curved LowDome shows on each side of a strap about 3.0-3.4 mm wide. Let that band fall away as a curve with no flat shelf, so the band edge (edge_round 0.5) does not draw a second line parallel to the strap edge. Acceptance: in hero-300 each side shows one crisp strap edge line, with clearly curving, shaded band metal outside it and no second parallel line before the band's outer edge. In face-300 the band either side of the strap is at least a quarter of the face height in total.",
+    "Give the small heads (features 4-5) the same cap profile as the large ones, so the pair reads as two rivet sizes and not as balls and dots: the same flat arc ratio, foot conformed to the strap, about 0.30 mm proud (the Delft detail floor) on about 1.4 mm footprint. Acceptance: in face-300 the small heads show the same cap highlight and foot line as the large ones, and in hero-300 at least five large-small pitches still count clearly on each side of centre."
+  ],
+  "viewed_images": [
+    "showcase/officina/rivet/hero-300.png",
+    "showcase/officina/rivet/face-300.png"
+  ]
+}
