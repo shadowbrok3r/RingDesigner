@@ -1,0 +1,28 @@
+{
+  "ring": "ouroborus",
+  "mode": "read-test",
+  "attempt": 5,
+  "subject": "Ouroborus cataphractus, the armadillo girdled lizard, biting its tail (Logan's confirmed subject, 2026-10-03)",
+  "reads": false,
+  "what_the_eye_sees": "Hero at 300 px: a scaled reptile coiled round the finger, with its head at about 1 o'clock where the coil closes. The hide now covers the whole band, which is an improvement. But the girdles are rows of rectangular, square-topped scutes of nearly the same size all the way round, so the body reads as crocodile or dragon armour, not a girdled lizard's spiny rings. The head is a small, boxy block. One small spike near the head might be a foreleg, but at this size it reads as a stray burr. No leg can be named, and nothing tells the eye this animal has legs. The bite also fails to read: you cannot see a thin tail tip going into the jaws. A jeweller without a caption says 'snake ring' or 'dragon ouroboros', which is exactly the read the brief forbids. Face at 300 px: this view still fails. The head is a rounded, symmetric dome tiled with small polygons, with two short spikes at its back corners. It reads as a turtle shell or a beetle, not a broad, flat, triangular lizard head. There is no snout point, no eye or ear on the outline, and no mouth line. In front of the head (left of frame), a squared collar block with a vertical slot is butted against a scaled cylinder that is almost as wide as the head and ends bluntly at the frame edge. The ruled grooves of attempt 4 are gone, but the effect is the same: a pipe pushed into a clamp, not a tapering tail held in jaws. The body on the right is a row of even ribs, like a spring. Without a caption, no jeweller names a lizard from these two views. The hero says 'snake' at best, and the face says 'turtle' or 'hardware'.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the face view a lizard's head seen from above: a broad, flat triangle, not a polygon-tiled dome. Remove the squared collar or jaw block in front of it.",
+      "where": "Head shield group and the 'Serpent head' part, theta about 90-125 deg (crown, side faces and snout); the slotted block at about 85-95 deg",
+      "by_how_much": "Flatten the crown dome by at least 30% so the top reads as a plane. In plan, make the head a triangle about 1.4x as long as it is wide. Make it widest at the jaw hinge (about 1.35x the band, at about 115 deg), taper it in straight flanks to a blunt point about 0.5x the band at the snout, and pinch the neck to about 0.8x the jaw width at 125-135 deg. Replace the field of small voronoi polygons with 7-9 large head shields in relief, with edges 0.25-0.3 mm deep. Add a row of 3-4 spiny occipital scales across the back of the head that break its outline by 0.4-0.6 mm, pointing back. Set each eye 0.3-0.4 mm proud of the side outline under a brow, with an ear opening behind it. Cut a 0.3 mm mouth line along both flanks from the snout to the hinge. Remove the squared slotted block entirely: nothing in front of the snout may be wider or taller than the snout. Acceptance: face-300 shows a flat triangular head with eye bumps and spiky occipitals on its outline and a visible neck. Nobody would call it a turtle shell, a helmet or a clamp."
+    },
+    {
+      "priority": 2,
+      "what": "Show the legs. Four short legs tucked against the body are the single feature that says 'lizard, not snake', and none reads at 300 px today.",
+      "where": "Forelegs on both side faces just behind the neck, theta about 130-150 deg; hind legs on both side faces at the hips, where the body becomes the tail (about two-thirds of the way round from the nape)",
+      "by_how_much": "Model each leg as a solid limb about 1.2-1.5 mm thick, with a visible elbow or knee and a foot of 3-4 splayed toes, about 3.5-4.5 mm from shoulder to toe tip. Lay it along the side face pointing tailward, standing 0.6-0.9 mm proud of the side outline, so that each leg breaks the silhouette. The girdles must stop around each leg rather than run over it. Acceptance: in hero-300 at least one foreleg, with its toes, can be seen beside the head and at least one hind leg on the far side of the coil. In face-300 the two forelegs show as limbs on either side behind the head, not as two short spikes."
+    },
+    {
+      "priority": 3,
+      "what": "Make the bite and the girdles read: a thin tail tip in the jaws, and spiny, graded girdles instead of uniform rectangular scutes.",
+      "where": "The tail and bite, theta about 70-95 deg; the 'Whorls' and 'Whorl spines' layers, theta 125 deg through the palm to about 78 deg",
+      "by_how_much": "Taper the tail over theta 70-88 deg to 1.0 mm or less at the tip, at no more than 0.55x the band width, and pass it at least 1.5 mm under an upper jaw that overhangs it by about 0.3 mm. Round each girdle's square top into a loaf, and split it across the crown into 3-5 scales offset by half a scale from girdle to girdle. Bring the trailing-edge spines up to 0.4-0.6 mm, pointing tailward, so that the outer edge reads as a ring of spines rather than crenellations. Make the pitch fall visibly from 2.6 mm at the nape to 1.0 mm at the tail. Acceptance: in hero-300 the tail visibly narrows into the jaws, the scales shrink toward the mouth, and the outer edge bristles. In face-300 the left of the frame narrows to a point into the mouth, and the body no longer reads as a spring."
+    }
+  ]
+}
