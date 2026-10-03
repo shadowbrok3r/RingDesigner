@@ -228,15 +228,6 @@ impl Skin {
         let r = at(i, j) * (1.0 - fu) * (1.0 - fv) + at(i + 1, j) * fu * (1.0 - fv) + at(i, j + 1) * (1.0 - fu) * fv + at(i + 1, j + 1) * fu * fv;
         (!r.is_nan()).then_some(r)
     }
-    /// The surface point and outward normal at `theta` (radians) and `z`.
-    fn at(&self, theta: f64, z: f64) -> Option<(P3, P3)> {
-        let p = |t: f64, z: f64| self.radius(t, z).map(|r| [r * t.cos(), r * t.sin(), z]);
-        let (e, h) = (0.004, 0.05);
-        let c = p(theta, z)?;
-        let dt = sub3(p(theta + e, z)?, p(theta - e, z)?);
-        let dz = sub3(p(theta, z + h)?, p(theta, z - h)?);
-        Some((c, unit3(cross3(dt, dz))))
-    }
     /// How far across the band reaches at `theta` (degrees): the least and greatest z with skin.
     fn across(&self, theta_deg: f64) -> (f64, f64) {
         let t = theta_deg.to_radians();
@@ -884,9 +875,20 @@ fn dir_to_world(v: P3) -> P3 {
     [v[0], v[2], -v[1]]
 }
 
-fn solid_to_world(s: &csg::Solid, top: f64) -> csg::Solid {
-    // The map is a proper rotation, so the winding holds.
-    csg::Solid { v: s.v.iter().map(|&p| to_world(p, top)).collect(), f: s.f.clone() }
+/// Capsule frame to the frame `Placement::Ring` seats the capsule by at the table's centre: there x runs along the
+/// finger (world -z), y round the ring backward (world -x) and z out of the table.
+fn to_part(p: P3) -> P3 {
+    [p[1], -p[0], p[2]]
+}
+
+fn in_part(s: &csg::Solid) -> csg::Solid {
+    // A quarter turn about z, so the winding holds.
+    csg::Solid { v: s.v.iter().map(|&p| to_part(p)).collect(), f: s.f.clone() }
+}
+
+/// The turns `Placement::Relative` takes (tilt about x, cant about y, no spin) to stand a part's z along `n`.
+fn leans_to(n: P3) -> [f64; 3] {
+    [(-n[1]).clamp(-1.0, 1.0).asin().to_degrees(), n[0].atan2(n[2]).to_degrees(), 0.0]
 }
 
 fn stored_op(solid: &csg::Solid, op: &str, params: Value) -> Result<Operation> {
@@ -916,52 +918,9 @@ struct SeedReport {
     pad_mm: [f64; 2],
 }
 
-/// A ring placement whose seat frame stands at `target` with its z along `normal`, found on the band's own surface:
-/// the ray's angle, offset and height walk the origin onto the target, and the two leans turn z onto the normal.
-fn seat_for(d: &RingDesign, surface: &mesh::Mesh, target: P3, normal: P3) -> Result<(Placement, f64)> {
-    let (mut th, mut ac, mut hh) = (target[1].atan2(target[0]).to_degrees(), target[2], 0.0);
-    let (mut tilt, mut cant) = (0.0f64, 0.0f64);
-    let frame = |th: f64, ac: f64, hh: f64, tilt: f64, cant: f64| {
-        Placement::Ring { theta_deg: th, across_mm: ac, height_mm: hh, spin_deg: 0.0, tilt_deg: tilt, cant_deg: cant }.frame_on(d, Some(surface))
-    };
-    let mut err = f64::MAX;
-    for _ in 0..40 {
-        let f = frame(th, ac, hh, tilt, cant)?;
-        let miss = sub3(target, f.origin);
-        let turn = 1.0 - dot3(f.z_axis, normal);
-        err = dot3(miss, miss).sqrt() + turn;
-        if err < 1e-7 {
-            break;
-        }
-        let r = f.origin[0].hypot(f.origin[1]).max(1e-6);
-        let round = [-f.origin[1] / r, f.origin[0] / r, 0.0];
-        // The origin rides the hit's normal: its height is how far out along it the origin stands.
-        let f0 = frame(th, ac, 0.0, 0.0, 0.0)?;
-        th += (dot3(miss, round) / r).to_degrees();
-        ac += miss[2];
-        hh += dot3(miss, f0.z_axis);
-        // The leans by a numerical Jacobian of z against tilt and cant.
-        let e = 0.01;
-        let z0 = f.z_axis;
-        let zt = frame(th, ac, hh, tilt + e, cant)?.z_axis;
-        let zc = frame(th, ac, hh, tilt, cant + e)?.z_axis;
-        let (jt, jc) = (sub3(zt, z0).map(|v| v / e), sub3(zc, z0).map(|v| v / e));
-        let want = sub3(normal, z0);
-        let (a11, a12, a22) = (dot3(jt, jt), dot3(jt, jc), dot3(jc, jc));
-        let (b1, b2) = (dot3(jt, want), dot3(jc, want));
-        let det = a11 * a22 - a12 * a12;
-        if det.abs() > 1e-12 {
-            tilt += (a22 * b1 - a12 * b2) / det;
-            cant += (a11 * b2 - a12 * b1) / det;
-        }
-    }
-    Ok((Placement::Ring { theta_deg: th, across_mm: ac, height_mm: hh, spin_deg: 0.0, tilt_deg: tilt, cant_deg: cant }, err))
-}
-
 /// The CAD parts: the capsule joined to the badge, and the eight seeds with their seats cut into the splits.
 fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Result<(CapsuleReport, Vec<SeedReport>, Vec<Laid>)> {
     let (local, report, c) = capsule(SHAPE, blockout)?;
-    let world = solid_to_world(&local, t.top_mm);
     let mut doc = Document::default();
     doc.append(feature(1, "Badge", Operation::Band, Component { role: ComponentRole::Shank, ..Component::default() }))?;
     let mut bare = d.clone();
@@ -977,6 +936,16 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Re
     let mut id: Id = 2;
     let mut laid_out = Vec::new();
     let joined = |blend: f64| Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::Free, blend_mm: blend, ..Component::default() };
+    // The capsule seats at the table's centre; everything on it stands in its frame and follows it on a resize.
+    let capsule_id = id;
+    doc.append(feature(
+        capsule_id,
+        "Thorn-apple capsule",
+        stored_op(&in_part(&local), "capsule", json!({ "shape": SHAPE, "rows": report.rows }))?,
+        Component { placement: Placement::ring(90.0, 0.0), ..joined(0.0) },
+    ))?;
+    id += 1;
+    let on_capsule = |at: P3, n: P3| Placement::Relative { part: capsule_id, at: to_part(at), rotation_deg: leans_to(to_part(n)) };
     // Four leaves out along the table's diagonals from under the frill, turned off the diagonal by turns.
     for (k, bearing) in [48.0f64, 132.0, 250.0, 290.0].into_iter().map(f64::to_radians).enumerate() {
         let from = 3.4;
@@ -986,7 +955,7 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Re
         ensure!(solid.open_edges() == (0, 0) && csg::self_crossings(&solid) == 0, "Leaf {} does not close cleanly", k + 1);
         let name = format!("Datura leaf {}", k + 1);
         laid_out.push(Laid { name: name.clone(), bearing_deg: bearing.to_degrees(), from_mm: from, length_mm: len, width_mm: wid, triangles: solid.f.len() });
-        doc.append(feature(id, &name, stored_op(&solid_to_world(&solid, t.top_mm), "leaf", json!({ "bearing_deg": bearing.to_degrees(), "from_mm": from, "length_mm": len, "width_mm": wid }))?, joined(0.0)))?;
+        doc.append(feature(id, &name, stored_op(&in_part(&solid), "leaf", json!({ "bearing_deg": bearing.to_degrees(), "from_mm": from, "length_mm": len, "width_mm": wid }))?, Component { placement: on_capsule([0.0; 3], [0.0, 0.0, 1.0]), ..joined(0.0) }))?;
         id += 1;
     }
     // Two furled buds along the ring from the capsule's foot, their points just past the table's ends.
@@ -996,17 +965,9 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Re
         ensure!(solid.open_edges() == (0, 0) && csg::self_crossings(&solid) == 0, "Bud {} does not close cleanly", k + 1);
         let name = format!("Datura bud {}", k + 1);
         laid_out.push(Laid { name: name.clone(), bearing_deg: bearing.to_degrees(), from_mm: from, length_mm: len, width_mm: 2.0, triangles: solid.f.len() });
-        doc.append(feature(id, &name, stored_op(&solid_to_world(&solid, t.top_mm), "bud", json!({ "bearing_deg": bearing.to_degrees(), "from_mm": from, "length_mm": len }))?, joined(0.0)))?;
+        doc.append(feature(id, &name, stored_op(&in_part(&solid), "bud", json!({ "bearing_deg": bearing.to_degrees(), "from_mm": from, "length_mm": len }))?, Component { placement: on_capsule([0.0; 3], [0.0, 0.0, 1.0]), ..joined(0.0) }))?;
         id += 1;
     }
-    let capsule_id = id;
-    doc.append(feature(
-        capsule_id,
-        "Thorn-apple capsule",
-        stored_op(&world, "capsule", json!({ "shape": SHAPE, "rows": report.rows, "table_mm": t.top_mm }))?,
-        joined(0.0),
-    ))?;
-    id += 1;
     // Each seed stands on the top face of a small pad sunk in its split's floor: the bur opens its seat in the pad and
     // three thorn claws stand on it, so the setting reaches the pad and never the table below.
     let places = seed_places(&c);
@@ -1015,14 +976,11 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Re
         // The kernel's cylinder is centred on its origin.
         let top = add3(*p, *n, PAD_PROUD_MM);
         let origin = add3(top, *n, -0.5 * PAD_H_MM);
-        let (wp, wn) = (to_world(origin, t.top_mm), unit3(dir_to_world(*n)));
-        let (placement, err) = seat_for(d, &surface, wp, wn)?;
-        ensure!(err < 1e-3, "Seed pad {} cannot be seated: {err:.4} mm off", k + 1);
         doc.append(feature(
             id,
             &format!("Seed pad {}", k + 1),
             Operation::Cylinder { radius_mm: PAD_R_MM, height_mm: PAD_H_MM },
-            Component { placement, ..joined(0.0) },
+            Component { placement: on_capsule(origin, *n), ..joined(0.0) },
         ))?;
         pads.push(id);
         id += 1;
@@ -1279,25 +1237,6 @@ fn save_rgb(path: &Path, rgb: &[u8], w: usize, h: usize) -> Result<()> {
     Ok(())
 }
 
-fn crop(m: &mesh::Mesh, centre: P3, radius: f64) -> mesh::Mesh {
-    let near = |i: u32| {
-        let p = m.vertices[i as usize];
-        (p.0 as f64 - centre[0]).hypot(p.1 as f64 - centre[1]).hypot(p.2 as f64 - centre[2]) < radius
-    };
-    let mut index = std::collections::HashMap::new();
-    let mut out = mesh::Mesh::default();
-    for f in m.faces.iter().filter(|f| f.iter().all(|&i| near(i))) {
-        let g = f.map(|i| {
-            *index.entry(i).or_insert_with(|| {
-                out.vertices.push(m.vertices[i as usize]);
-                out.normals.push(m.normals.get(i as usize).copied().unwrap_or(mesh::Vec3(0.0, 0.0, 1.0)));
-                (out.vertices.len() - 1) as u32
-            })
-        });
-        out.faces.push(g);
-    }
-    out
-}
 
 /// A copy of `m` for the camera with its normals averaged only across edges gentler than `crease_deg`, each face's
 /// share weighted by its area: flat faces render flat beside the parts joined to them.
@@ -1355,16 +1294,9 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: mesh::BuildRes
         }
     }
     save_rgb(&out.join("contact-300.png"), &sheet, cols * 300, rows * 300)?;
-    // The seeds close up: the capsule's top.
-    let close_metal = crop(&fin.metal, [0.0, top + 6.0, 0.0], 10.0);
-    let mut close = vec![render::Part::metal(&close_metal, render::GOLD)];
-    close.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    render::write_png_parts(out.join("stones.png"), &close, 0.35, 1.2, edge)?;
-    // The table at twice the face view's scale, for the outlines.
-    let table_metal = crop(&fin.metal, [0.0, top, 0.0], 11.5);
-    let mut zoom = vec![render::Part::metal(&table_metal, render::GOLD)];
-    zoom.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    render::write_png_parts(out.join("face-zoom.png"), &zoom, 0.0, PI * 0.5, edge)?;
+    // The seeds close up over the capsule's crown, and the table at twice the face view's scale, framed whole.
+    render::write_png_framed(out.join("stones.png"), &parts, render::yaw_facing(90.0) + 0.35, 1.2, render::Framing::new([0.0, top + 7.0, 0.0], 6.0), edge)?;
+    render::write_png_framed(out.join("face-zoom.png"), &parts, 0.0, PI * 0.5, render::Framing::new([0.0, top, 0.0], 11.0), edge)?;
     // Bare stock against the finished ring, at the hero's angle.
     let mut bare = d.clone();
     bare.cad = None;

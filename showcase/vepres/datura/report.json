@@ -58,7 +58,7 @@
   },
   "casting_pattern": null,
   "cold_reload_identical": null,
-  "design_bytes": 3351725,
+  "design_bytes": 3353456,
   "design_format": 6,
   "draft": {
     "bore_margin_mm": -8.918060068197065e-8,
@@ -67,7 +67,7 @@
       768,
       320
     ],
-    "build_s": 3.550052526,
+    "build_s": 2.834698726,
     "crowding": [
       "Seed 6 (180 deg) to Seed 8 (270 deg): 1.03 / 0.67 mm",
       "Seed 2 (0 deg) to Seed 4 (90 deg): 1.03 / 0.67 mm",
@@ -85,13 +85,13 @@
       "Undercut 182–182° on the crest: 0.1 mm² leaning to 1° — no single layer explains it.",
       "Undercut 358–358° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
       "Measured with the ring as built: 31 CAD parts (23 joined, 8 cut), 525.9 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Datura leaf 1\" (#2) would undercut a two-part pull over 10.4 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Datura leaf 2\" (#3) would undercut a two-part pull over 9.7 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Datura leaf 3\" (#4) would undercut a two-part pull over 6.7 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Datura leaf 4\" (#5) would undercut a two-part pull over 6.3 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Datura bud 1\" (#6) would undercut a two-part pull over 3.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Datura bud 2\" (#7) would undercut a two-part pull over 3.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Thorn-apple capsule\" (#8) would undercut a two-part pull over 79.1 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Thorn-apple capsule\" (#2) would undercut a two-part pull over 79.1 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura leaf 1\" (#3) would undercut a two-part pull over 10.4 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura leaf 2\" (#4) would undercut a two-part pull over 9.7 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura leaf 3\" (#5) would undercut a two-part pull over 6.7 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura leaf 4\" (#6) would undercut a two-part pull over 6.3 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura bud 1\" (#7) would undercut a two-part pull over 3.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura bud 2\" (#8) would undercut a two-part pull over 3.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Cylinder \"Seed pad 2\" (#10) would undercut a two-part pull over 0.0 mm² (worst -4°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Cylinder \"Seed pad 3\" (#11) would undercut a two-part pull over 0.0 mm² (worst -31°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Cylinder \"Seed pad 6\" (#14) would undercut a two-part pull over 0.0 mm² (worst -4°) — fine for investment, but this pattern cannot move to sand as-is.",
@@ -115,8 +115,12 @@
     ],
     "field_process": "Lost wax",
     "field_verdict": "Castable",
-    "grams_18k": 33.606261493625794,
+    "grams_18k": 33.606260898584274,
     "made_parts": [
+      [
+        "Thorn-apple capsule",
+        0
+      ],
       [
         "Datura leaf 1",
         0
@@ -139,10 +143,6 @@
       ],
       [
         "Datura bud 2",
-        0
-      ],
-      [
-        "Thorn-apple capsule",
         0
       ],
       [
@@ -275,7 +275,7 @@
       ]
     ],
     "metal_in_stones": [],
-    "min_angle_deg": 0.0012827803424057648,
+    "min_angle_deg": 0.0015621815827042541,
     "non_manifold_edges": 0,
     "parts_cut": 8,
     "parts_joined": 23,
@@ -291,9 +291,9 @@
     "stones_reported": 8,
     "thinnest_wall_mm": 1.5800248089114177,
     "thinnest_wall_theta_deg": 246.09375,
-    "triangles": 286836,
-    "undercut_percent_reported_only": 9.549287327686317,
-    "volume_mm3": 2157.012932838626,
+    "triangles": 286410,
+    "undercut_percent_reported_only": 9.549139078476953,
+    "volume_mm3": 2157.012894645974,
     "watertight": true
   },
   "export": null,

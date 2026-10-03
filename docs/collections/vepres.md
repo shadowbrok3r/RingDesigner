@@ -840,6 +840,7 @@ That is expected for most Vepres rings. Say so in each README line.
 - **Base:** Factory 011 Badge 18 × 20 at native size, not mirrored (`sand_envelope = false`), with the lost-wax recipe as `base()` sets non-sand stock. Its sinuate outline reads as a calyx. Fallback base: 018 Butterfly, which is also wax-only.
 
 - **Process:** Lost wax. Spines radiate from a dome; in two-part sand only about a quarter of them would release.
+  - Decision (Logan's rules, 2026-10-03): judged as lost wax, 0.8 mm minimum section, no pull rule. Any sand pull it happens to pass is reported as a bonus only.
 
 - **Stones:** Eight black spinel round 1.5, the seeds.
 
