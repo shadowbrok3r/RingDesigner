@@ -25,6 +25,7 @@ pub(super) fn build(
     // the supported surface rather than under it.
     let (mut cast, mut bench) = (d.layers.clone(), d.layers.clone());
     let any_bench = d.layers.layers.iter().any(|e| e.enabled && e.bench_only);
+    let cell = if d.crisp_relief { (ctx.circumference_mm / nt as f64, ctx.band_v_len_mm / no as f64) } else { (0.0, 0.0) };
     for e in &mut cast.layers { e.enabled &= !e.bench_only; }
     for e in &mut bench.layers { e.enabled &= e.bench_only; }
     #[cfg(feature = "parallel")]
@@ -72,7 +73,7 @@ pub(super) fn build(
             let h = if r < d.inner_radius_mm() + 0.15 {
                 0.
             } else {
-                crate::mesh::soft_height(
+                crate::mesh::cell_height(
                     &cast,
                     crate::Uv {
                         u: ctx.u_of_theta(theta),
@@ -81,11 +82,12 @@ pub(super) fn build(
                     &ctx,
                     lib,
                     params.soften_mm,
+                    cell,
                 ) * weight
             };
             let h = if h.is_finite() { h } else { 0. };
             let cut = if any_bench && r >= d.inner_radius_mm() + 0.15 {
-                crate::mesh::soft_height(&bench, crate::Uv { u: ctx.u_of_theta(theta), v: f * ctx.band_v_len_mm }, &ctx, lib, params.soften_mm) * weight
+                crate::mesh::cell_height(&bench, crate::Uv { u: ctx.u_of_theta(theta), v: f * ctx.band_v_len_mm }, &ctx, lib, params.soften_mm, cell) * weight
             } else {
                 0.
             };
@@ -190,31 +192,8 @@ pub(super) fn build(
         }
     }
     let rest_geometric = smooth_normals(&rest, &mesh.faces);
-    let mut baseline = rest_geometric.clone();
-    // Smooth only the unornamented stock normals. Keep the relief's normal
-    // delta intact, so fine beadwork stays sharp without striping the shank.
-    for _ in 0..5 {
-        let previous = baseline.clone();
-        for i in 0..nt {
-            for j in 0..np {
-                let at = i * np + j;
-                let mut n = previous[at];
-                n = Vec3(n.0 * 4., n.1 * 4., n.2 * 4.);
-                for k in [
-                    ((i + 1) % nt) * np + j,
-                    ((i + nt - 1) % nt) * np + j,
-                    i * np + (j + 1) % np,
-                    i * np + (j + np - 1) % np,
-                ] {
-                    let v = previous[k];
-                    n.0 += v.0;
-                    n.1 += v.1;
-                    n.2 += v.2;
-                }
-                baseline[at] = unit(n);
-            }
-        }
-    }
+    // Smooth only the unornamented stock normals; the relief's normal delta is added back below.
+    let baseline = soften_normals(&soften_normals(&rest_geometric, &rest, nt, np, Walk::Theta), &rest, nt, np, Walk::Profile);
     mesh.normals = smooth_normals(&mesh.vertices, &mesh.faces)
         .iter()
         .zip(&rest_geometric)
@@ -223,4 +202,58 @@ pub(super) fn build(
         .collect();
     log::info!("Imported sand envelope: maximum radial support {added:.4} mm");
     Ok((mesh, hi + added, lo))
+}
+
+/// Gaussian width of the stock's shading normals, mm: wider than the master's 0.55 mm facets.
+const SHADE_SIGMA_MM: f64 = 0.45;
+/// Cosine of 12°: a normal turned further than this from the vertex's own ends that walk.
+const SHADE_CREASE_COS: f64 = 0.978;
+
+#[derive(Clone, Copy)]
+enum Walk {
+    Theta,
+    Profile,
+}
+
+/// `normals` blurred along one grid direction by arc length, each walk stopping at a crease.
+fn soften_normals(normals: &[Vec3], points: &[Vec3], nt: usize, np: usize, walk: Walk) -> Vec<Vec3> {
+    let step = |at: usize, dir: isize| -> usize {
+        let (i, j) = (at / np, at % np);
+        match walk {
+            Walk::Theta => ((i as isize + dir).rem_euclid(nt as isize) as usize) * np + j,
+            Walk::Profile => i * np + (j as isize + dir).rem_euclid(np as isize) as usize,
+        }
+    };
+    let reach = 3.0 * SHADE_SIGMA_MM;
+    let limit = match walk {
+        Walk::Theta => nt / 2,
+        Walk::Profile => np / 2,
+    };
+    let one = |at: usize| -> Vec3 {
+        let own = normals[at];
+        let mut acc = [own.0 as f64, own.1 as f64, own.2 as f64];
+        for dir in [-1isize, 1] {
+            let (mut k, mut s) = (at, 0.0);
+            for _ in 0..limit {
+                let next = step(k, dir);
+                let (p, q) = (points[k], points[next]);
+                s += ((q.0 - p.0) as f64).hypot((q.1 - p.1) as f64).hypot((q.2 - p.2) as f64);
+                let n = normals[next];
+                if s > reach || (n.0 * own.0 + n.1 * own.1 + n.2 * own.2) as f64 <= SHADE_CREASE_COS {
+                    break;
+                }
+                let w = (-0.5 * (s / SHADE_SIGMA_MM).powi(2)).exp();
+                acc = [acc[0] + w * n.0 as f64, acc[1] + w * n.1 as f64, acc[2] + w * n.2 as f64];
+                k = next;
+            }
+        }
+        unit(Vec3(acc[0] as f32, acc[1] as f32, acc[2] as f32))
+    };
+    #[cfg(feature = "parallel")]
+    {
+        use rayon::prelude::*;
+        (0..normals.len()).into_par_iter().map(one).collect()
+    }
+    #[cfg(not(feature = "parallel"))]
+    (0..normals.len()).map(one).collect()
 }

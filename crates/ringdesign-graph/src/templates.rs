@@ -233,9 +233,30 @@ mod refinement_tests {
 /// one node. A user-dir cluster of the same name wins. The vine needs the
 /// kernel, so a build without it does not list a cluster it cannot run.
 #[cfg(not(feature = "kernel-manifold"))]
-pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[("Signet", "signet")];
+pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[
+    ("Signet", "signet"),
+    ("Wheel window", "wheel-window"),
+    ("Pointed-arch section", "pointed-arch-section"),
+    ("Rose tracery", "rose-tracery"),
+    ("Lancet arcade", "lancet-arcade"),
+];
 #[cfg(feature = "kernel-manifold")]
-pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[("Signet", "signet"), ("Vine semi-mount", "vine-semi-mount")];
+pub static BUNDLED_CLUSTERS: &[(&str, &str)] = &[
+    ("Signet", "signet"),
+    ("Vine semi-mount", "vine-semi-mount"),
+    ("Wheel window", "wheel-window"),
+    ("Pointed-arch section", "pointed-arch-section"),
+    ("Rose tracery", "rose-tracery"),
+    ("Lancet arcade", "lancet-arcade"),
+];
+
+/// The Gothic clusters Tenebrae's templates are packaged with, by name and slug.
+pub static GOTHIC_CLUSTERS: &[(&str, &str)] = &[
+    ("Wheel window", "wheel-window"),
+    ("Pointed-arch section", "pointed-arch-section"),
+    ("Rose tracery", "rose-tracery"),
+    ("Lancet arcade", "lancet-arcade"),
+];
 
 /// Bundled presets for the bundled clusters.
 pub static BUNDLED_PRESETS: &[(&str, &str)] = &[("Heart signet", "heart-signet"), ("Cushion signet", "cushion-signet")];
@@ -295,6 +316,165 @@ fn vine_cluster() -> Result<Graph, GraphError> {
     g.expose_output(vine, "stones", "stones")?;
     g.expose_output(verdict, "verdict", "verdict")?;
     g.expose_output(verdict, "undercut_pct", "undercut_pct")?;
+    arrange(&mut g);
+    Ok(g)
+}
+
+/// Tenebrae's 18.6 mm bore as the US size the Gothic clusters default to.
+pub fn tenebrae_size() -> f64 {
+    ringdesign_core::resize::size_from_bore(18.6).expect("18.6 mm is a ring size").0
+}
+
+/// The Gothic cluster called `name`, as its builder makes it.
+pub fn build_gothic_cluster(name: &str) -> Option<Graph> {
+    let g = match name {
+        "Wheel window" => wheel_window_cluster(),
+        "Pointed-arch section" => pointed_arch_cluster(),
+        "Rose tracery" => rose_tracery_cluster(),
+        "Lancet arcade" => lancet_arcade_cluster(),
+        _ => return None,
+    };
+    Some(g.expect("a Gothic cluster wires"))
+}
+
+/// `input` of `node` promoted to the cluster's panel as `name`, with what it does.
+fn control(g: &mut Graph, node: NodeId, input: &str, name: &str, doc: &str) -> Result<(), GraphError> {
+    g.expose(node, input, name)?;
+    if let Some(e) = g.exposed.iter_mut().find(|e| e.name == name) {
+        e.doc = doc.into();
+    }
+    Ok(())
+}
+
+/// `out` of `node` handed out of the cluster as `name`, with what it is.
+fn result(g: &mut Graph, node: NodeId, out: &str, name: &str, doc: &str) -> Result<(), GraphError> {
+    g.expose_output(node, out, name)?;
+    if let Some(e) = g.outputs.iter_mut().find(|e| e.name == name) {
+        e.doc = doc.into();
+    }
+    Ok(())
+}
+
+fn labelled(g: &mut Graph, kind: &str, label: &str) -> Result<NodeId, GraphError> {
+    let id = g.add(kind)?;
+    g.node_mut(id).expect("added").label = Some(label.into());
+    Ok(id)
+}
+
+/// A wheel of lancet lights about the bore, its circles following the ring size.
+fn wheel_window_cluster() -> Result<Graph, GraphError> {
+    use crate::nodes::gothic::LIGHTS;
+    let mut g = Graph::new("Wheel window", Mode::SandRing);
+    let size = labelled(&mut g, "band.size", "Bore")?;
+    set(&mut g, size, &[("size", n(tenebrae_size()))])?;
+    let sill = labelled(&mut g, "math.add", "Sill circle")?;
+    g.connect(size, "bore_radius_mm", sill, "a")?;
+    set(&mut g, sill, &[("b", n(1.0))])?;
+    let outer = labelled(&mut g, "math.add", "Outer circle")?;
+    g.connect(size, "bore_radius_mm", outer, "a")?;
+    set(&mut g, outer, &[("b", n(3.1))])?;
+    let apex = labelled(&mut g, "math.sub", "Apex circle")?;
+    g.connect(outer, "out", apex, "a")?;
+    set(&mut g, apex, &[("b", n(0.35))])?;
+    let lights = labelled(&mut g, LIGHTS, "Wheel")?;
+    set(&mut g, lights, &[("count", i(24)), ("bar_mm", n(0.9)), ("head", t("Pointed")), ("name", t("Wheel window"))])?;
+    g.connect(sill, "out", lights, "sill_r_mm")?;
+    g.connect(apex, "out", lights, "apex_r_mm")?;
+    control(&mut g, size, "size", "Size", "US ring size; the wheel is drawn about its bore.")?;
+    control(&mut g, lights, "count", "Lights", "How many lancet lights round the wheel.")?;
+    control(&mut g, lights, "bar_mm", "Bar", "Metal between neighbouring lights, mm.")?;
+    control(&mut g, sill, "b", "Rail", "Metal between the bore and the lights' sills, mm.")?;
+    control(&mut g, outer, "b", "Reach", "How far outside the bore the wheel's outer circle stands, mm.")?;
+    control(&mut g, apex, "b", "Drop", "How far inside the outer circle each light's apex stands, mm.")?;
+    control(&mut g, lights, "head", "Head", "How each light's head closes.")?;
+    control(&mut g, lights, "phase_deg", "Phase", "The first light's axis, degrees from the sketch's x; 90 is the crown.")?;
+    control(&mut g, lights, "plane", "Plane", "The work plane the wheel lies on, by feature id: a parting plane offset to a side face.")?;
+    result(&mut g, lights, "operation", "sketch_op", "The wheel as a Sketch feature's operation, a closed loop per light.")?;
+    result(&mut g, lights, "lights", "lights", "How many lights the wheel drew.")?;
+    result(&mut g, lights, "land_mm", "land_mm", "The narrowest metal between neighbouring lights, mm.")?;
+    arrange(&mut g);
+    Ok(g)
+}
+
+/// The blunt-lancet section a ring revolves from, standing on the bore the ring size gives.
+fn pointed_arch_cluster() -> Result<Graph, GraphError> {
+    use crate::nodes::gothic::ARCH;
+    let mut g = Graph::new("Pointed-arch section", Mode::SandRing);
+    let size = labelled(&mut g, "band.size", "Bore")?;
+    set(&mut g, size, &[("size", n(tenebrae_size()))])?;
+    let arch = labelled(&mut g, ARCH, "Section")?;
+    set(&mut g, arch, &[("width_mm", n(5.6)), ("thickness_mm", n(3.6)), ("keel", n(1.0)), ("fillet_mm", n(0.3)), ("comfort_mm", n(0.12)), ("name", t("Pointed-arch section"))])?;
+    g.connect(size, "bore_radius_mm", arch, "bore_r_mm")?;
+    control(&mut g, size, "size", "Size", "US ring size; the section stands on its bore.")?;
+    control(&mut g, arch, "width_mm", "Width", "Across the band, mm.")?;
+    control(&mut g, arch, "thickness_mm", "Thickness", "From the bore's tightest point to the keel, mm.")?;
+    control(&mut g, arch, "keel", "Keel", "1 springs the flanks from the bore corners into a sharp keel; 0 rounds the head on straight feet.")?;
+    control(&mut g, arch, "fillet_mm", "Fillet", "Radius rounding each bore corner, mm.")?;
+    control(&mut g, arch, "comfort_mm", "Comfort", "How much wider the bore is at the band's edges than at its middle, mm.")?;
+    result(&mut g, arch, "operation", "sketch_op", "The section as a Sketch feature's operation on the plane through the finger's axis; revolve it about the finger.")?;
+    arrange(&mut g);
+    Ok(g)
+}
+
+/// Lights radiating between two net circles, inset half a bar from each.
+fn rose_tracery_cluster() -> Result<Graph, GraphError> {
+    use crate::nodes::gothic::LIGHTS;
+    let mut g = Graph::new("Rose tracery", Mode::SandRing);
+    let bar = labelled(&mut g, "number", "Bar")?;
+    set(&mut g, bar, &[("value", n(0.8))])?;
+    let half = labelled(&mut g, "math.mul", "Half the bar")?;
+    g.connect(bar, "out", half, "a")?;
+    set(&mut g, half, &[("b", n(0.5))])?;
+    let sill = labelled(&mut g, "math.add", "Sill circle")?;
+    set(&mut g, sill, &[("a", n(3.6))])?;
+    g.connect(half, "out", sill, "b")?;
+    let apex = labelled(&mut g, "math.sub", "Apex circle")?;
+    set(&mut g, apex, &[("a", n(7.1))])?;
+    g.connect(half, "out", apex, "b")?;
+    let lights = labelled(&mut g, LIGHTS, "Rose")?;
+    set(&mut g, lights, &[("count", i(8)), ("head", t("Trefoil")), ("name", t("Rose tracery"))])?;
+    g.connect(bar, "out", lights, "bar_mm")?;
+    g.connect(sill, "out", lights, "sill_r_mm")?;
+    g.connect(apex, "out", lights, "apex_r_mm")?;
+    control(&mut g, lights, "count", "Lights", "How many lights round the rose.")?;
+    control(&mut g, sill, "a", "Inner radius", "The net's inner circle; each light's sill stands half a bar outside it, mm.")?;
+    control(&mut g, apex, "a", "Outer radius", "The net's outer circle; each light's apex stands half a bar inside it, mm.")?;
+    control(&mut g, bar, "value", "Bar", "Metal between neighbouring lights and to both circles, mm.")?;
+    control(&mut g, lights, "head", "Head", "Pointed, Round, Trefoil, or the whole light a Mouchette.")?;
+    control(&mut g, lights, "width_mm", "Width", "0 fills each cell; above 0, every light is parallel-sided at this width, mm.")?;
+    control(&mut g, lights, "phase_deg", "Phase", "The first light's axis, degrees from the sketch's x.")?;
+    control(&mut g, lights, "clockwise", "Clockwise", "Mouchettes lean clockwise instead of counter-clockwise.")?;
+    control(&mut g, lights, "centre_x_mm", "Centre x", "Where the rose is centred along the sketch's x, mm.")?;
+    control(&mut g, lights, "centre_y_mm", "Centre y", "Where the rose is centred along the sketch's y, mm.")?;
+    control(&mut g, lights, "plane", "Plane", "The work plane or part the rose lies on, by feature id.")?;
+    control(&mut g, lights, "face", "Face", "Which planar face of that feature; a work plane has one, 0.")?;
+    result(&mut g, lights, "operation", "sketch_op", "The rose as a Sketch feature's operation, a closed loop per light.")?;
+    result(&mut g, lights, "lights", "count", "How many lights the rose drew, for an array of stones round it.")?;
+    result(&mut g, lights, "land_mm", "land_mm", "The narrowest metal between neighbouring lights, mm.")?;
+    arrange(&mut g);
+    Ok(g)
+}
+
+/// A row of lancet bays on a sill, as niches to cut and as one stamp outline.
+fn lancet_arcade_cluster() -> Result<Graph, GraphError> {
+    use crate::nodes::gothic::ARCADE;
+    let mut g = Graph::new("Lancet arcade", Mode::SandRing);
+    let arcade = labelled(&mut g, ARCADE, "Arcade")?;
+    set(&mut g, arcade, &[("bays", i(3)), ("width_mm", n(6.0)), ("height_mm", n(2.4)), ("bar_mm", n(0.6)), ("sill_mm", n(0.4)), ("head", t("Pointed")), ("name", t("Lancet arcade"))])?;
+    control(&mut g, arcade, "bays", "Bays", "How many bays.")?;
+    control(&mut g, arcade, "width_mm", "Width", "Across every bay and the posts between them, mm.")?;
+    control(&mut g, arcade, "height_mm", "Height", "From the sill's foot to the apexes, mm.")?;
+    control(&mut g, arcade, "bar_mm", "Bar", "Width of each post between two bays, mm.")?;
+    control(&mut g, arcade, "sill_mm", "Sill", "Height of the sill the bays stand on, mm.")?;
+    control(&mut g, arcade, "head", "Head", "Pointed, Round, or Trefoil cusped.")?;
+    control(&mut g, arcade, "x_mm", "X", "Where the arcade's centre sits along the sketch's x, mm.")?;
+    control(&mut g, arcade, "y_mm", "Y", "Where the arcade's centre sits along the sketch's y, mm.")?;
+    control(&mut g, arcade, "turn_deg", "Turn", "Turn about the arcade's centre, degrees.")?;
+    control(&mut g, arcade, "plane", "Plane", "The work plane or part the arcade lies on, by feature id.")?;
+    control(&mut g, arcade, "face", "Face", "Which planar face of that feature; a work plane has one, 0.")?;
+    result(&mut g, arcade, "operation", "sketch_op", "The bays as a Sketch feature's operation, a closed loop each.")?;
+    result(&mut g, arcade, "outline", "outline", "The bays on their sill as one stamp outline about the origin, mm.")?;
+    result(&mut g, arcade, "bay_mm", "bay_mm", "Width of one bay between its jambs, mm.")?;
     arrange(&mut g);
     Ok(g)
 }
@@ -712,6 +892,10 @@ mod tests {
         std::fs::create_dir_all(dir.join("presets")).unwrap();
         std::fs::write(dir.join("clusters/signet.cluster.json"), crate::file::graph_to_string(&build_signet_cluster()).unwrap()).unwrap();
         std::fs::write(dir.join("clusters/vine-semi-mount.cluster.json"), crate::file::graph_to_string(&build_vine_cluster()).unwrap()).unwrap();
+        for (name, slug) in GOTHIC_CLUSTERS {
+            let g = build_gothic_cluster(name).unwrap();
+            std::fs::write(dir.join("clusters").join(format!("{slug}.cluster.json")), crate::file::graph_to_string(&g).unwrap()).unwrap();
+        }
         for p in build_presets() {
             std::fs::write(dir.join("presets").join(format!("{}.preset.json", crate::file::slug(&p.name))), crate::file::preset_to_string(&p).unwrap()).unwrap();
         }
@@ -751,6 +935,87 @@ mod tests {
         // The file layer sees bundled clusters and presets, user ones first.
         assert!(crate::file::load_cluster("Signet", Some(&reg)).is_some());
         assert!(crate::file::list_presets().iter().any(|p| p.name == "Heart signet"));
+    }
+
+    /// `cluster` as a node in a graph of its own with `values` on its pins: the evaluation and the node.
+    fn run_cluster(cluster: &Graph, values: &[(&str, Literal)]) -> (crate::eval::EvalReport, NodeId) {
+        let reg = Registry::builtin();
+        let mut g = Graph::new("outer", Mode::SandRing);
+        let node = crate::nodes::cluster::add_cluster(&mut g, cluster).unwrap();
+        for (pin, v) in values {
+            g.set_input(node, *pin, v.clone()).unwrap();
+        }
+        assert!(g.validate(Some(&reg)).is_empty(), "{:?}", g.validate(Some(&reg)));
+        let r = Evaluator::new().evaluate(&g, &reg, &AlphaLibrary::builtin(), 0, crate::eval::Targets::AllPure);
+        assert!(!r.any_failed() && r.errors.is_empty(), "{}: {:?}", cluster.name, r.notes(&g));
+        (r, node)
+    }
+
+    /// The Sketch operation a construction's sketch makes, under the name a cluster gives it.
+    fn sketch_op(mut sketch: ringdesign_core::sketch::Sketch, name: &str) -> serde_json::Value {
+        sketch.name = name.into();
+        serde_json::to_value(ringdesign_core::cad::Operation::Sketch { sketch }).unwrap()
+    }
+
+    /// Each Gothic cluster is its committed file, reads at the plain graph format, and draws the core construction it wraps, byte for byte.
+    #[test]
+    fn the_gothic_clusters_are_their_files_and_draw_their_constructions() {
+        use ringdesign_core::sketch::gothic::{self, Head};
+        use ringdesign_core::sizing::RingSize;
+        let reg = Registry::builtin();
+        let bundled = bundled_clusters();
+        let mut clusters = std::collections::BTreeMap::new();
+        for (name, slug) in GOTHIC_CLUSTERS {
+            let built = build_gothic_cluster(name).unwrap();
+            let file = bundled.iter().find(|c| c.name == *name).unwrap_or_else(|| panic!("{name} is not bundled"));
+            assert_eq!(*file, built, "{name}: the committed cluster has drifted from its builder; rerun with RD_WRITE_TEMPLATE_GRAPHS=1");
+            assert!(file.validate(Some(&reg)).is_empty(), "{name}: {:?}", file.validate(Some(&reg)));
+            assert_eq!(crate::file::graph_version_for(file), crate::file::PLAIN_GRAPH_FORMAT_VERSION, "{name} reads in every released build");
+            assert!(ringdesign_assets::find(ringdesign_assets::CLUSTERS, slug).is_some(), "{slug} is in the binary");
+            assert_eq!(crate::file::load_cluster(name, Some(&reg)).as_ref(), Some(file));
+            clusters.insert(*name, built);
+        }
+        let json = |r: &crate::eval::EvalReport, node: NodeId, pin: &str| r.value(node, pin).and_then(crate::value::Value::to_json_any).unwrap_or_else(|| panic!("{pin}"));
+        let bore = |size: f64| RingSize(size).inner_diameter_mm() * 0.5;
+
+        // The wheel's circles follow the ring size: at Tenebrae's bore, and two sizes up with twenty lights on plane 2.
+        let wheel = &clusters["Wheel window"];
+        for (size, count, plane) in [(tenebrae_size(), 24u32, None), (tenebrae_size() + 2.0, 20, Some(2i64))] {
+            let mut values = vec![("Size", Literal::Number(size)), ("Lights", Literal::Int(i64::from(count)))];
+            values.extend(plane.map(|p| ("Plane", Literal::Int(p))));
+            let (r, node) = run_cluster(wheel, &values);
+            let b = bore(size);
+            let l = gothic::Lights { count, sill_r_mm: b + 1.0, apex_r_mm: b + 3.1 - 0.35, ..gothic::Lights::default() };
+            let mut want = gothic::lights(&l).unwrap();
+            if let Some(p) = plane {
+                want.plane.on_face = Some(ringdesign_core::sketch::FaceAnchor { feature: p as u64, face: ringdesign_core::cad::FaceRef::bare(0) });
+            }
+            assert_eq!(serde_json::to_string(&json(&r, node, "sketch_op")).unwrap(), serde_json::to_string(&sketch_op(want, "Wheel window")).unwrap());
+            assert_eq!(r.value(node, "lights"), Some(&crate::value::Value::Int(i64::from(count))));
+            assert!((r.value(node, "land_mm").and_then(crate::value::Value::as_number).unwrap() - 0.9).abs() < 1e-6);
+        }
+
+        // The section stands on the bore its size gives.
+        let (r, node) = run_cluster(&clusters["Pointed-arch section"], &[("Keel", Literal::Number(0.6))]);
+        let want = gothic::arch_section(&gothic::ArchSection { bore_r_mm: bore(tenebrae_size()), keel: 0.6, ..gothic::ArchSection::default() }).unwrap();
+        assert_eq!(serde_json::to_string(&json(&r, node, "sketch_op")).unwrap(), serde_json::to_string(&sketch_op(want, "Pointed-arch section")).unwrap());
+
+        // The rose's lights stand half a bar inside each net circle.
+        let (r, node) = run_cluster(&clusters["Rose tracery"], &[("Head", Literal::Text("Mouchette".into())), ("Bar", Literal::Number(0.6))]);
+        let l = gothic::Lights { count: 8, sill_r_mm: 3.6 + 0.6 * 0.5, apex_r_mm: 7.1 - 0.6 * 0.5, bar_mm: 0.6, head: Head::Mouchette, ..gothic::Lights::default() };
+        assert_eq!(serde_json::to_string(&json(&r, node, "sketch_op")).unwrap(), serde_json::to_string(&sketch_op(gothic::lights(&l).unwrap(), "Rose tracery")).unwrap());
+        assert_eq!(r.value(node, "count"), Some(&crate::value::Value::Int(8)));
+        let (r, node) = run_cluster(&clusters["Rose tracery"], &[]);
+        let l = gothic::Lights { count: 8, sill_r_mm: 3.6 + 0.8 * 0.5, apex_r_mm: 7.1 - 0.8 * 0.5, bar_mm: 0.8, head: Head::Trefoil, ..gothic::Lights::default() };
+        assert_eq!(serde_json::to_string(&json(&r, node, "sketch_op")).unwrap(), serde_json::to_string(&sketch_op(gothic::lights(&l).unwrap(), "Rose tracery")).unwrap());
+
+        // The arcade draws its niches and its stamp outline from the same bays.
+        let (r, node) = run_cluster(&clusters["Lancet arcade"], &[("Head", Literal::Text("Trefoil".into())), ("Y", Literal::Number(11.0))]);
+        let a = gothic::Arcade { head: Head::Trefoil, ..gothic::Arcade::default() };
+        let want = gothic::arcade(&a, [0.0, 11.0], 0.0).unwrap();
+        assert_eq!(serde_json::to_string(&json(&r, node, "sketch_op")).unwrap(), serde_json::to_string(&sketch_op(want, "Lancet arcade")).unwrap());
+        assert_eq!(r.value(node, "outline"), Some(&crate::value::Value::from(gothic::arcade_outline(&a, ringdesign_core::outline::STEP).unwrap())));
+        assert_eq!(r.value(node, "bay_mm"), Some(&crate::value::Value::Number(a.bay_mm())));
     }
 
     #[test]

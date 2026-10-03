@@ -20,6 +20,8 @@ const PATCH_PROFILE: usize = crate::profile::REFERENCE_PROFILE_STEPS;
 const PATCH_MARGIN_MM: f64 = 0.3;
 /// Chart rows the patch reads across the band, over the dot's own reach there.
 const PATCH_ROWS_REACH: f64 = 1.5;
+/// How near the parting line a part's foot stands for a dot moved onto the line to stand where it was, mm.
+const ON_LINE_MM: f64 = 0.05;
 
 /// A raised dot the sand pattern carries where a joined or cut part left to the bench meets the band.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -86,6 +88,11 @@ impl LocatingMark {
             )
         } else if self.on.is_some() {
             format!("{} {who}: the pattern carries a raised {what} on {}'s face {at}, {:.0}°, {:.1} mm across.", self.label, self.on_label, self.theta_deg, self.diameter_mm)
+        } else if self.on_parting_line && (self.foot_across_mm - self.across_mm).abs() < ON_LINE_MM {
+            format!(
+                "{} {who}: {what} on the parting line at {:.0}°, where the {centre} already is, and it still leans to {:.0}° over {:.2} mm² there; a cut engraved from the drawing needs no mark, so switch its mark off.",
+                self.label, self.theta_deg, self.foot_worst_deg, self.foot_undercut_mm2
+            )
         } else if self.on_parting_line {
             let off = self.foot_across_mm - self.across_mm;
             format!(
@@ -150,7 +157,7 @@ pub(super) fn place(design: &RingDesign, pattern: &mut RingDesign, lib: &AlphaLi
     let bench: Vec<(Id, Attach)> = doc
         .attachments()
         .into_iter()
-        .filter(|(_, a, s)| *s == Stage::Bench && *a != Attach::Separate)
+        .filter(|(id, a, s)| *s == Stage::Bench && *a != Attach::Separate && doc.feature(*id).is_none_or(|f| f.component.mark))
         .map(|(id, a, _)| (id, a))
         .collect();
     if bench.is_empty() {
@@ -200,6 +207,16 @@ pub(super) fn place(design: &RingDesign, pattern: &mut RingDesign, lib: &AlphaLi
     }
     pattern.layers.layers.extend(marks.iter().filter(|m| m.on.is_none()).map(LocatingMark::entry));
     marks
+}
+
+/// The joined or cut parts of `design` left to the bench that stand no mark in a sand pattern, as the report names them.
+pub(super) fn unmarked(design: &RingDesign) -> Vec<String> {
+    let Some(doc) = &design.cad else { return Vec::new() };
+    doc.attachments()
+        .into_iter()
+        .filter(|(id, a, s)| *s == Stage::Bench && *a != Attach::Separate && doc.feature(*id).is_some_and(|f| !f.component.mark))
+        .map(|(id, _, _)| label(doc, id))
+        .collect()
 }
 
 /// Height of a dot on a part's face over the face, as a share of its width: the band's dot's.
@@ -521,7 +538,7 @@ mod tests {
         let mut doc = Document::default();
         let feature = |id, name: &str, operation, component| crate::cad::Feature { id, name: name.into(), enabled: true, operation, component };
         doc.append(feature(0, "Procedural shank", Operation::Band, Component::default())).unwrap();
-        let placement = Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.6, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let placement = Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.6, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         let post = Component { attach: Attach::Join, stage: Stage::Bench, placement, ..Default::default() };
         doc.append(feature(3, "Post", Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, post)).unwrap();
         d.cad = Some(doc);
@@ -626,7 +643,7 @@ mod tests {
         let mut doc = Document::default();
         let feature = |id, name: &str, operation, component| crate::cad::Feature { id, name: name.into(), enabled: true, operation, component };
         doc.append(feature(1, "Procedural shank", Operation::Band, Component::default())).unwrap();
-        let placement = Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.65, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let placement = Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.65, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         doc.append(feature(2, "Plate", Operation::Box { size }, Component { attach: Attach::Join, stage: Stage::Cast, placement, ..Default::default() })).unwrap();
         d.cad = Some(doc.clone());
         let e = crate::cad::evaluate(&d, &lib, crate::BuildParams { theta_steps: 256, profile_steps: 128, ..Default::default() }).unwrap();
@@ -681,6 +698,98 @@ mod tests {
         assert!(m.on == Some(2) && !m.on_parting_line && m.across_mm == m.foot_across_mm && m.foot_across_mm > 0.9, "{m:?}");
         assert!(m.foot_undercut_mm2 > 0.1 && m.foot_worst_deg < -30.0, "{m:?}");
         assert!(m.note().contains("that face does not reach the parting line"), "{}", m.note());
+    }
+
+    /// Sigillum's seal on the factory sand master `preset`: a quatrefoil field 9 mm across, a fleur 5 mm tall and a
+    /// mirrored two-word Textura legend round a 6.2 mm circle, each cut at the bench into the table's middle.
+    fn seal(preset: &str, mark: bool) -> RingDesign {
+        use crate::cad::{FaceRef, PlaneBase, Profile};
+        use crate::sketch::text::{TextAlign, TextArc, TextLayout};
+        let preset = crate::imported_base::PRESETS.iter().find(|p| p.id == preset).unwrap();
+        let mut d = templates::stock_as(preset, true).unwrap();
+        let mut doc = Document::default();
+        let feature = |id, name: &str, operation, component| crate::cad::Feature { id, name: name.into(), enabled: true, operation, component };
+        doc.append(feature(1, "Band", Operation::Band, Component::default())).unwrap();
+        doc.append(feature(2, "Table", Operation::Plane { base: PlaneBase::Tangent { theta_deg: 90.0, across_mm: 0.0 }, offset_mm: 0.0 }, Component::default())).unwrap();
+        let plane = Workplane { on_face: Some(FaceAnchor { feature: 2, face: FaceRef::bare(0) }), ..Workplane::default() };
+        let library = crate::library::list_sketches();
+        // Drawn `tall_mm` tall and centred on the sketch's origin.
+        let sized = |name: &str, tall_mm: f64| {
+            let mut s = library.iter().find(|(n, _)| n == name).unwrap().1.clone();
+            let (lo, hi) = s.points.iter().fold(([f64::MAX; 2], [f64::MIN; 2]), |(lo, hi), p| ([lo[0].min(p.xy[0]), lo[1].min(p.xy[1])], [hi[0].max(p.xy[0]), hi[1].max(p.xy[1])]));
+            let k = tall_mm / (hi[1] - lo[1]);
+            s.points.iter_mut().for_each(|p| p.xy = [(p.xy[0] - 0.5 * (lo[0] + hi[0])) * k, (p.xy[1] - 0.5 * (lo[1] + hi[1])) * k]);
+            s
+        };
+        let mut legend = TextLayout {
+            arc: Some(TextArc { radius_mm: 6.2, start_deg: 90.0, clockwise: true }),
+            align: TextAlign::Centre,
+            mirror: true,
+            ..TextLayout::new(crate::text::TextFont::Textura, "SIGILLVM CAPITVLI", 1.2)
+        };
+        legend.tracking = legend.tracking_for(300f64.to_radians() * 6.2).unwrap();
+        let mut cuts = vec![("Seal field", sized("gothic/gallery-quatrefoil", 9.0), -0.30), ("Fleur", sized("gothic/fleur-de-lis", 5.0), -0.70)];
+        cuts.extend(legend.parts().unwrap().into_iter().map(|s| ("Legend", s, -0.40)));
+        let bench = Component { attach: Attach::Cut, stage: Stage::Bench, mark, ..Component::default() };
+        let mut id = 2;
+        for (name, sketch, depth) in cuts {
+            let sketch = Sketch { plane: plane.clone(), ..sketch };
+            doc.append(feature(id + 1, name, Operation::Sketch { sketch }, Component::default())).unwrap();
+            let cut = Operation::Extrude { sketch: Profile::Feature { feature: id + 1 }, height_mm: depth, draft_deg: 0.0 };
+            doc.append(feature(id + 2, &format!("Cut the {}", name.to_lowercase()), cut, bench.clone())).unwrap();
+            id += 2;
+        }
+        d.cad = Some(doc);
+        d
+    }
+
+    /// C-T5, measured on 017 Tonneau, the sand master Zenith proved clean in Delft clay: every dot a seal's bench cuts
+    /// stand on its zero-draft table leans, the one at the table's middle on the parting line too, and with the
+    /// engraving's opt-out the pattern is the bare stock and its verdict exactly the bare one.
+    #[test]
+    fn a_seal_cut_at_the_bench_leans_its_drill_marks_and_an_engraving_carries_none() {
+        let lib = AlphaLibrary::builtin();
+        let marked = seal("017", true);
+        let e = evaluate(&marked, &lib).unwrap();
+        assert!(e.failures().is_empty(), "{:?}", e.failures());
+        let p = crate::castability::pattern_parts(&marked, &lib);
+        for m in &p.marks {
+            eprintln!("{}: {:.2}° at {:.3} mm across (foot {:.3}), {:.2} mm, a dot at the foot leaned {:.4} mm² to {:.1}°", m.label, m.theta_deg, m.across_mm, m.foot_across_mm, m.diameter_mm, m.foot_undercut_mm2, m.foot_worst_deg);
+        }
+        assert!(p.marks.len() == 4 && p.marks.iter().all(|m| m.attach == Attach::Cut && m.on.is_none() && m.diameter_mm == 1.0), "{:?}", p.marks);
+        // Each dot leans where it stands: a bump on a zero-draft table has a flank facing back across the parting line.
+        assert!(p.marks.iter().all(|m| m.foot_undercut_mm2 > BLAME_MM2 && m.foot_worst_deg < -FIELD_NOISE_DEG), "{:?}", p.marks);
+        // The field is centred on the table's middle, already on the parting line, so its dot has nowhere better to go.
+        let field = &p.marks[0];
+        assert!((field.theta_deg - 90.0).abs() < 0.5 && field.across_mm.abs() < 1e-6 && field.foot_across_mm.abs() < 1e-6, "{field:?}");
+        assert!(field.note().contains("where the hole's centre already is, and it still leans") && field.note().contains("switch its mark off"), "{}", field.note());
+        // A legend cut a word at a time is marked at each word's own middle, a millimetre off the line and 25° round.
+        for m in &p.marks[2..] {
+            assert!((m.theta_deg - 90.0).abs() > 20.0 && m.foot_across_mm.abs() > 0.5 && m.on_parting_line, "{m:?}");
+        }
+        let bare = {
+            let mut b = marked.clone();
+            b.cad = None;
+            crate::castability::attributed_field_report(&b, &lib, &b.draft, 256, 128)
+        };
+        let with = crate::castability::attributed_field_report(&marked, &lib, &marked.draft, 256, 128);
+        eprintln!("017 sand master bare: {:?} {:.4} mm² at {:.1}°; with the seal's drill marks {:?} {:.4} mm² at {:.1}°", bare.verdict, bare.undercut_area_mm2, bare.worst_draft_deg, with.verdict, with.undercut_area_mm2, with.worst_draft_deg);
+        assert!(with.undercut_area_mm2 > bare.undercut_area_mm2 + BLAME_MM2, "the marks add undercut: {} against {}", with.undercut_area_mm2, bare.undercut_area_mm2);
+        // An engraving needs no drill dot: with the opt-out the pattern is the bare stock, and the report says why.
+        let engraved = seal("017", false);
+        let p = crate::castability::pattern_parts(&engraved, &lib);
+        assert!(p.marks.is_empty() && p.parts.len() == 4 && p.unmarked.len() == 4, "{:?} {:?}", p.marks, p.unmarked);
+        assert_eq!(p.unmarked[0], "Extrude \"Cut the seal field\" (#4)");
+        assert!(p.design.layers.layers.iter().all(|e| !e.name.contains(" mark: ")));
+        let f = crate::castability::attributed_field_report(&engraved, &lib, &engraved.draft, 256, 128);
+        assert_eq!((f.verdict, f.undercut_area_mm2), (bare.verdict, bare.undercut_area_mm2));
+        let note = f.notes.iter().find(|n| n.starts_with("Left to the bench with no mark")).unwrap_or_else(|| panic!("{:?}", f.notes));
+        assert!(note.contains("\"Cut the fleur\" (#6)") && note.contains("an engraving is laid out from the drawing"), "{note}");
+        // The opt-out travels in the file only when it is taken.
+        let component = |d: &RingDesign| serde_json::to_value(&d.cad.as_ref().unwrap().features[3].component).unwrap();
+        assert!(component(&marked).get("mark").is_none() && component(&engraved)["mark"] == serde_json::json!(false));
+        let back = crate::library::load_design_str(&crate::library::design_json(&engraved).unwrap()).unwrap();
+        assert!(!back.cad.unwrap().features[3].component.mark);
     }
 
     /// Relief elsewhere in the dot's own sections is not the dot's lean: the patch is read over the rows the dot reaches, and costs a patch.
