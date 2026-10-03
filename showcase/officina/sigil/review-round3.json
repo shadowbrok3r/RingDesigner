@@ -1,0 +1,80 @@
+{
+  "ring": "sigil",
+  "round": 3,
+  "verdict": "ship",
+  "score": 7.5,
+  "summary": "Round 3 closes every punch item from round 2. The bordure's outer wall is now one clean curve with no milled-coin teeth in hero.png or stones.png. The lesson is back to Logan's 7 features, and all seven timeline frames use one camera. The shield outline is a continuous groove from chief to point, so the escutcheon reads as one shape, quartered with the first and fourth quarters sunk. The README now discloses both the 0.55 mm stock facets with the render-only normal smoothing, and the 4-micron 'Parting seam dressed' bead. Every recorded gate is green, including the template gate (1 design.set patch, 39 KB against a 300 KB budget). The result is a clean, saleable 10.98 g signet whose one idea, a quartered seal on the table, reads at 300 px in both the hero and the face. It just clears the bar. What holds it at 7.5 is polish, not structure. (1) face.png shows a ragged reflection smear across the table's crest, at about x 550 to 1020, y 770 to 830, and it is faintly visible in face-300. (2) In timeline frame 6 the translucent slab almost hides the seal. (3) The reverse shoulder (reverse.png, upper left) is soft and lumpy, but that is stock 013's own form (bare-vs-finished shows it bare too), not the author's work. None of these blocks the gallery. They are listed below as post-ship polish.",
+  "strengths": [
+    "One idea, face to palm: a quartered heater shield inside a sunk bordure on the table, with bare stock 013 everywhere else. Nothing is scattered.",
+    "It reads without a caption at 300 px. face-300 shows the quarterly field plainly, and hero-300 shows a shield in a roundel on a signet.",
+    "The intaglio walls are square and crisp, and the bordure's outer edge is now one smooth highlight (stones.png, hero.png). The serration is gone.",
+    "The escutcheon is closed: one outline groove runs round the whole shield, and the stepped quarterly division sits inside it (stones.png).",
+    "Cut depths are even on the crowned table: quarters 0.436 to 0.468 mm, bordure 0.357 to 0.421 mm.",
+    "The lesson is legible in 7 steps with one camera: stock, plane, sketch, cutter, crown, slab, intersect. Each frame adds one visible thing.",
+    "The two-stage model is honest. The seal is bench-only, the pattern is the bare stock, and the Delft verdict judges the pour."
+  ],
+  "checklist": [
+    {"item": "One idea face to palm, reads at 300 px without the caption", "result": "pass", "reason": "face-300 reads 'quartered shield seal'. hero-300 reads 'shield signet'. The quartering is weaker in hero-300 but still visible as two tones. The shank and palm are bare stock."},
+    {"item": "Finished piece a jeweller would sell (proportion, weight, every part meeting the band)", "result": "pass", "reason": "A 10.98 g 18k round signet with the seal cut square into the table, a sensible seal-to-table ratio and a 0.45 mm land outside the bordure. Nothing looks glued on."},
+    {"item": "No flat, blocky or mechanical CAD", "result": "pass", "reason": "The shank highlights are continuous (shoulder.png, palm.png). The reverse shoulder is soft and slightly lumpy, but that is stock 013's own form and shows in the bare half of bare-vs-finished. There are no slabs or cut sheet."},
+    {"item": "Outlines crisp, no combing, smearing or stair-steps", "result": "pass", "reason": "The bordure and shield outlines are clean in stones.png, hero.png and face.png. Caveat: face.png has a ragged reflection smear across the table crest (x 550 to 1020, y 770 to 830). It sits on the field, not on an outline, and is only faint at 300 px. It is punch item 1."},
+    {"item": "Stones in made settings and visible", "result": "pass", "reason": "Not applicable: no stones. The preview and the report both count 0."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "The table wall and shoulder notch stay hard in hero.png, side.png and bare-vs-finished."},
+    {"item": "Lesson legible in timeline.png", "result": "pass", "reason": "There are 7 frames, matching Logan's decision, all from one camera, and each adds one step. Frame 6's translucent slab nearly hides the seal (punch item 2), but the step still reads."},
+    {"item": "Silhouette distinct from the other Officina rings and the starter gallery", "result": "pass", "reason": "The outline is stock 013 by Logan's decision, and the seal sets it apart from Rivet, Keystone, Aile, Torsade, Fenestra and the stone starters."}
+  ],
+  "gates": [
+    {"gate": "watertight, 0 degenerate faces", "claimed": "watertight true, degenerate 0", "verified": "mesh.json: 0 boundary edges, 0 non-manifold edges, 0 degenerate faces. min_angle is 0.002 deg (stock slivers, disclosed in the README; not a gate)", "pass": true},
+    {"gate": "0 self-crossings on the ring and every made part", "claimed": "ring 0; 'Seal sunk' 0", "verified": "gates.ring_self_crossings 0; made_parts [['Seal sunk', 0]]", "pass": true},
+    {"gate": "solids notes empty", "claimed": "[]", "verified": "solids_notes [] and parts_notes []", "pass": true},
+    {"gate": "every CAD feature Ok", "claimed": "features_ok true", "verified": "#1 to #7 all Ok (7 features)", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "bore_clear true", "verified": "min_vertex_radius 9.0999995 mm against a 9.1 mm bore radius", "pass": true},
+    {"gate": "sand field verdict Castable", "claimed": "Castable at 192x128 and 256x128", "verified": "field_verdict Castable at both, undercut 0.0%, worst draft -0.34 deg. The seam-dressing bead is disclosed in the notes and the README.", "pass": true},
+    {"gate": "ray release 0 obstructions, 0 unresolved at 0.100 and 0.075 mm", "claimed": "[0,0] at both", "verified": "release_0100 [0,0,'Review']; release_0075 [0,0,'Review']", "pass": true},
+    {"gate": "lost-wax thickness 0.8 and cut_lands", "claimed": "cut_lands_08 []", "verified": "cut_lands_08 is empty and the thinnest wall is 1.37 mm (informational for a sand ring)", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "[]", "verified": "dfm_findings []", "pass": true},
+    {"gate": "stone count equals preview", "claimed": "0 / 0", "verified": "stones.json is empty; stones_previewed equals stones_reported at 0", "pass": true},
+    {"gate": "cold reload identical", "claimed": "gates true (draft block null)", "verified": "gates.cold_reload_identical true; template gate cold_design_reload and cold_graph_reload true", "pass": true},
+    {"gate": "export within 2 million triangles", "claimed": "within_two_million true", "verified": "1,363,746 triangles (mesh.json)", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "pattern watertight, 0 degenerate, 0 crossings", "verified": "gates.pattern_watertight true, 0 degenerate, 0 crossings, 1,376,256 triangles; casting-pattern.stl present (draft block nulls are superseded by the gates block)", "pass": true},
+    {"gate": "template gate (at most 4 design.set patches within class budget)", "claimed": "passed, 1 patch", "verified": "template-gate.json: 1 design.set patch (/manufacturing), 39,456 bytes against a 300,000-byte procedural budget, source_identical, mesh parity and export geometry verified", "pass": true}
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P2",
+      "zone": "Table crest across the seal at theta 90, face.png about x 550 to 1020, y 770 to 830 (the blend between the diffused shank normals and the table's own normals)",
+      "change": "Remove the ragged reflection smear on the table crest. Shade the whole table inside the stock's table wall from its own faces, or extend the normal diffusion seamlessly across the crest. Leave the geometry unchanged.",
+      "acceptance": "In face.png the table's horizontal reflection is one smooth band with no blocky or ragged spots, and face-300 shows no band artefact across the shield."
+    },
+    {
+      "number": 2,
+      "priority": "P2",
+      "zone": "timeline.png frame 6 'Crown let down'",
+      "change": "Lower the slab's opacity to about 20%, or draw it as an outline with a light tint, so the seal regions from frame 4 stay visible through it.",
+      "acceptance": "In frame 6 the shield outline and bordure are visible through the slab."
+    },
+    {
+      "number": 3,
+      "priority": "P3",
+      "zone": "hero-300, sunk quarters 1 and 4",
+      "change": "Optional: deepen the tone contrast of the oxidised satin floors by about 10% so the quartering reads in the three-quarter hero as clearly as in the face.",
+      "acceptance": "In hero-300 the two sunk quarters are visibly darker than the bright quarters, not only as a stepped line."
+    }
+  ],
+  "viewed_images": [
+    "showcase/officina/sigil/hero-300.png",
+    "showcase/officina/sigil/face-300.png",
+    "showcase/officina/sigil/hero.png",
+    "showcase/officina/sigil/face.png",
+    "showcase/officina/sigil/stones.png",
+    "showcase/officina/sigil/timeline.png",
+    "showcase/officina/sigil/side.png",
+    "showcase/officina/sigil/shoulder.png",
+    "showcase/officina/sigil/palm.png",
+    "showcase/officina/sigil/reverse.png",
+    "showcase/officina/sigil/bare-vs-finished.png",
+    "showcase/officina/sigil/contact-300.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}
