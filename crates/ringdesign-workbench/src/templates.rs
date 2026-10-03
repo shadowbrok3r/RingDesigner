@@ -75,7 +75,7 @@ fn open(name: Name, source: Source, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, 
     let cancelled = Arc::new(AtomicBool::new(false));
     let finished = Arc::new(AtomicBool::new(false));
     let (tx, answer) = mpsc::channel();
-    let (at, stop, done) = (progress.clone(), cancelled.clone(), finished.clone());
+    let (at, told, stop, done) = (progress.clone(), progress.clone(), cancelled.clone(), finished.clone());
     let wake = Arc::new(wake);
     // The host is woken from a thread of its own, never from the pool threads a bake tells its stages on.
     let (signal, signalled) = mpsc::sync_channel::<()>(1);
@@ -93,7 +93,9 @@ fn open(name: Name, source: Source, reg: Arc<Registry>, lib: Arc<AlphaLibrary>, 
         let opened = opened(source, &reg, &lib, set.clone(), &stop).and_then(|o| {
             if measured {
                 anyhow::ensure!(!stop.load(Ordering::Relaxed), ringdesign_graph::eval::CANCELLED);
-                set(Stage::Measuring);
+                told.set(Stage::Measuring);
+                // Wakes the host on this thread before the measure starts.
+                wake();
                 // Fills the detail measure's content cache before the design lands, given up once cancelled.
                 ringdesign_core::alpha::measuring_until(&stop, || ringdesign_core::dfm::findings_in(&o.design, &o.after));
                 anyhow::ensure!(!stop.load(Ordering::Relaxed), ringdesign_graph::eval::CANCELLED);
@@ -268,13 +270,17 @@ impl Opening {
         self.progress.clone()
     }
 
-    /// The opened template once it has landed, or why it could not be opened.
+    /// The opened template once it has landed, or why it could not be opened; once cancelled, never a design, whenever its thread answered.
     pub fn poll(&self) -> Option<Result<Opened, String>> {
-        match self.answer.try_recv() {
-            Ok(opened) => Some(opened),
-            Err(TryRecvError::Empty) => None,
-            Err(TryRecvError::Disconnected) => Some(Err("the thread opening it stopped without an answer".into())),
+        let answer = match self.answer.try_recv() {
+            Ok(opened) => opened,
+            Err(TryRecvError::Empty) => return None,
+            Err(TryRecvError::Disconnected) => Err("the thread opening it stopped without an answer".into()),
+        };
+        if self.cancelled.load(Ordering::Relaxed) {
+            return Some(Err(ringdesign_graph::eval::CANCELLED.into()));
         }
+        Some(answer)
     }
 
     /// Stops the thread at its next node or bake; nothing lands.
@@ -858,11 +864,11 @@ mod tests {
         let measuring: Arc<Mutex<Option<std::time::Instant>>> = Arc::default();
         let (seen, at) = (handles.clone(), measuring.clone());
         let opening = open_file(path.clone(), lib.clone(), true, move || {
-            if let Some((progress, stop)) = seen.get() {
-                if progress.stage() == Stage::Measuring {
-                    at.lock().unwrap().get_or_insert_with(std::time::Instant::now);
-                    stop.store(true, Ordering::Relaxed);
-                }
+            // Blocks until the handles are set.
+            let (progress, stop) = seen.wait();
+            if progress.stage() == Stage::Measuring {
+                at.lock().unwrap().get_or_insert_with(std::time::Instant::now);
+                stop.store(true, Ordering::Relaxed);
             }
         });
         handles.set((opening.progress(), opening.cancel_handle())).ok().expect("set once");
@@ -1028,5 +1034,31 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
         assert_eq!(progress.stage(), Stage::Reading, "no node ran after the drop");
+    }
+
+    #[test]
+    fn a_cancel_after_its_thread_answered_lands_nothing() {
+        let reg = Arc::new(ringdesign_script::registry());
+        let lib = Arc::new(AlphaLibrary::builtin());
+        let court = collections().iter().flat_map(|c| &c.templates).find(|t| t.slug == "court-band").unwrap();
+        let finished = |opening: &Opening| {
+            let started = std::time::Instant::now();
+            while !opening.is_finished() {
+                assert!(started.elapsed().as_secs() < 60, "the thread never finished");
+                std::thread::yield_now();
+            }
+        };
+        let answer = |opening: &Opening| loop {
+            if let Some(answer) = opening.poll() {
+                break answer;
+            }
+        };
+        let left = court.open(reg.clone(), lib.clone(), || {});
+        finished(&left);
+        assert!(answer(&left).is_ok(), "left alone, it lands");
+        let opening = court.open(reg, lib, || {});
+        finished(&opening);
+        opening.cancel();
+        assert_eq!(answer(&opening).err().as_deref(), Some(ringdesign_graph::eval::CANCELLED), "nothing lands");
     }
 }
