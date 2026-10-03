@@ -822,13 +822,33 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
         Operation::Chamfer { distance_mm, .. } => number(ui, "Distance mm", distance_mm),
         Operation::Shell { thickness_mm, .. } => number(ui, "Wall mm", thickness_mm),
         Operation::Twist {
-            degrees, end_scale, ..
+            degrees, end_scale, scale, closed, path, ..
         } => {
             number(ui, "Twist °", degrees);
-            number(ui, "End scale", end_scale);
+            if scale.is_empty() {
+                number(ui, "End scale", end_scale);
+            } else {
+                ui.weak(format!("Scale law of {} knots; edit it in Feature source.", scale.len()));
+            }
+            ui.checkbox(closed, "Closed round the path");
+            if let cad::TwistPath::Points { points, smooth } = path {
+                ui.checkbox(smooth, "Smooth through the points");
+                for (i,p) in points.iter_mut().enumerate() { xyz(ui,&format!("Point {i} mm"),p); }
+            }
         }
-        Operation::Sweep { path, .. } => {
-            for (i,p) in path.iter_mut().enumerate() { xyz(ui,&format!("Station {i} mm"),p); }
+        Operation::Sweep { path, closed, twist_deg, end_scale, .. } => {
+            match path {
+                cad::SweepPath::Points(points) => {
+                    for (i,p) in points.iter_mut().enumerate() { xyz(ui,&format!("Station {i} mm"),p); }
+                }
+                cad::SweepPath::Sketch { feature, entity, lift_mm } => {
+                    ui.weak(format!("Along entity #{entity} of sketch #{feature}; it follows every edit to it."));
+                    number(ui, "Lift mm", lift_mm);
+                }
+            }
+            ui.checkbox(closed, "Closed round the path");
+            number(ui, "Twist °", twist_deg);
+            number(ui, "End scale", end_scale);
         }
         Operation::Loft { sections } => {
             for (i,p) in sections.iter_mut().enumerate() { if let Some(s) = p.sketch_mut() { xyz(ui,&format!("Section {i} origin"),&mut s.plane.origin); } else { ui.weak(format!("Section {i}: sketch feature #{}", p.feature().unwrap_or(0))); } }

@@ -31,7 +31,7 @@ fn path(radial: f64, bend_r: f64, bend_deg: f64) -> Sketch {
 
 /// The Rubus large prickle: a 1.1 mm round rising 0.5 mm, then 70° round a 1.6 mm bend, tapered to 0.28.
 fn prickle() -> Operation {
-    Operation::Twist { sketch: Sketch::circle(0.55).into(), path: path(0.5, 1.6, 70.0), degrees: 0.0, end_scale: 0.28 }
+    Operation::twist(Sketch::circle(0.55), path(0.5, 1.6, 70.0), 0.0, 0.28)
 }
 
 #[derive(Clone, Copy)]

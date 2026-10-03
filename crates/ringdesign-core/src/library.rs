@@ -45,7 +45,8 @@ pub const DESIGN_EXT: &str = "ring.json";
 // it also protects a revolution whose line is read in its sketch's plane, which an earlier build would turn about the world's line,
 // a pattern of several parts, which an earlier build cannot parse, a cut carved from a ring of parts alone, which an earlier
 // build pours as metal, and a stamp with a tier, a shaped top or an outline over 512 points, which an earlier build flattens
-// or refuses.
+// or refuses; and a sweep that closes, twists, scales, follows a sketch entity or runs through points in space, which an
+// earlier build refuses or builds open, untwisted and unscaled.
 // A design with none of these is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
@@ -56,6 +57,7 @@ pub const PLAIN_FORMAT_VERSION: u32 = 5;
 pub fn format_version_for(design: &RingDesign) -> u32 {
     if crate::cad::stored::carried_by(design)
         || crate::cad::turns_in_plane(design)
+        || crate::cad::sweeps_extended(design)
         || crate::cad::picks_regions(design)
         || crate::cad::pattern::several_sources(design)
         || crate::parts::cuts_apart(design)
@@ -1357,6 +1359,48 @@ mod tests {
             let design = with(one);
             assert!(!crate::cad::picks_regions(&design));
             assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
+        }
+    }
+
+    /// Each new sweep form writes the design at 6, in the document or a graph; a plain sweep stays at 5.
+    #[test]
+    fn sweeps_that_close_twist_scale_or_follow_a_sketch_write_the_design_at_six() {
+        use crate::cad::{Component, Feature, Operation, SweepPath, TwistPath};
+        use crate::sketch::Sketch;
+        let feature = |operation: Operation| Feature { id: 2, name: "Swept".into(), enabled: true, operation, component: Component::default() };
+        let with = |operation: Operation| {
+            let mut doc = crate::cad::Document::default();
+            doc.append(feature(operation)).unwrap();
+            RingDesign { name: "Swept".into(), cad: Some(doc), ..RingDesign::default() }
+        };
+        let line = vec![[0.0; 3], [0.0, 0.0, 5.0]];
+        let sweep = |path: SweepPath, closed: bool, twist_deg: f64, end_scale: f64| Operation::Sweep { sketch: Sketch::circle(1.0).into(), path, closed, twist_deg, end_scale };
+        let twist = |path: TwistPath, scale: Vec<[f64; 2]>, closed: bool| Operation::Twist { sketch: Sketch::circle(1.0).into(), path, degrees: 360.0, end_scale: 0.5, scale, closed };
+        for plain in [Operation::sweep(Sketch::circle(1.0), line.clone()), Operation::twist(Sketch::circle(1.0), Sketch::default(), 90.0, 0.5)] {
+            let design = with(plain);
+            assert!(!crate::cad::sweeps_extended(&design));
+            assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
+        }
+        let points = TwistPath::Points { points: line.clone(), smooth: true };
+        for (name, op) in [
+            ("a closed sweep", sweep(line.clone().into(), true, 0.0, 1.0)),
+            ("a twisted sweep", sweep(line.clone().into(), false, 90.0, 1.0)),
+            ("a scaled sweep", sweep(line.clone().into(), false, 0.0, 0.5)),
+            ("a sweep along a sketch entity", sweep(SweepPath::Sketch { feature: 1, entity: 4, lift_mm: 0.2 }, false, 0.0, 1.0)),
+            ("a twisted sweep through points", twist(points.clone(), vec![], false)),
+            ("a twisted sweep under a scale law", twist(Sketch::default().into(), vec![[0.0, 1.0], [1.0, 0.5]], false)),
+            ("a closed twisted sweep", twist(Sketch::default().into(), vec![], true)),
+        ] {
+            let design = with(op.clone());
+            assert!(crate::cad::sweeps_extended(&design), "{name}");
+            assert_eq!(format_version_for(&design), FORMAT_VERSION, "{name}");
+            let text = design_json(&design).unwrap();
+            let older = read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string();
+            assert!(older.contains("format version 6"), "{name}: {older}");
+            assert_eq!(serde_json::to_string(&load_design_str(&text).unwrap()).unwrap(), serde_json::to_string(&design).unwrap(), "{name}: read back bit for bit");
+            let node = serde_json::json!({ "id": 2, "kind": "cad.feature", "params": serde_json::to_value(feature(op)).unwrap() });
+            let in_graph = RingDesign { graph: Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [node] })), ..RingDesign::default() };
+            assert_eq!(format_version_for(&in_graph), FORMAT_VERSION, "{name} in a graph");
         }
     }
 
