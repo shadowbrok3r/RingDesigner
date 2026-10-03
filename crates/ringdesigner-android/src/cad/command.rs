@@ -260,6 +260,8 @@ pub fn gizmo_of(c: &Ctx, live: &Live) -> Option<(Id, Gizmo)> {
             let reach_mm = part.map_or(0.0, |x| gizmo::reach(&x.mesh, x.frame.origin));
             Gizmo { reach_mm, ..g }
         }
+        // No gizmo for a part placed relative to another part or on a side face.
+        Placement::Relative { .. } | Placement::Side { .. } => return None,
         Placement::Free => match part.and_then(|x| FaceHold::of(&f, x)) {
             // A stone on a part's face gets the face's own arrows, its spin, and the dial through its foot.
             Some(hold) => return Some((id, hold.gizmo(part.map_or(0.0, |x| gizmo::reach(&x.mesh, hold.origin))))),

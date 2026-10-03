@@ -982,7 +982,7 @@ mod tests {
                 status: if i % 17 == 5 { FeatureStatus::Failed("Edge 9 is unavailable".into()) } else { FeatureStatus::Ok },
             })
             .collect();
-        (doc, Evaluated { components: vec![], features: reports, band: Some(1), planes: vec![] })
+        (doc, Evaluated { components: vec![], features: reports, band: Some(1), planes: vec![], frames: Default::default() })
     }
 
     /// Mean wall time of `f` over `n` runs, in microseconds.

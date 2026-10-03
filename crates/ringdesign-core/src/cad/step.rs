@@ -540,7 +540,7 @@ fn ring_built(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams, name
     };
     let Some(doc) = &design.cad else {
         let built = crate::mesh::try_build(design, lib, params)?;
-        let none = Evaluated { components: Vec::new(), features: Vec::new(), band: None, planes: Vec::new() };
+        let none = Evaluated { components: Vec::new(), features: Vec::new(), band: None, planes: Vec::new(), frames: Default::default() };
         let small = collapse.and_then(|tol| collapsed(&built.mesh, tol));
         let solid = small.as_ref().map_or(&built.mesh, |(m, _)| m);
         let faceted = [Faceted { name: name.to_string(), mesh: solid }];

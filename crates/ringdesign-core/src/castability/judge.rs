@@ -395,7 +395,7 @@ mod tests {
     const SINK: f64 = 0.4;
     /// A post standing on the top of the ring `across` along the finger, its foot sunk `SINK` so it seats.
     fn post_at(across: f64) -> Placement {
-        Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.5 * POST_H - SINK, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 }
+        Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.5 * POST_H - SINK, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false }
     }
     fn post(across: f64, stage: Stage) -> RingDesign {
         with_part(band(), "Post", Operation::Cylinder { radius_mm: POST_R, height_mm: POST_H }, Attach::Join, stage, post_at(across))
@@ -704,7 +704,7 @@ mod tests {
     fn a_flat_wall_leaning_back_across_the_parting_plane_locks_where_a_curved_walls_chord_does_not() {
         const SPIN: f64 = 3.0;
         let block = |spin: f64| {
-            let place = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 1.0 - SINK, spin_deg: spin, tilt_deg: 0.0, cant_deg: 0.0 };
+            let place = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 1.0 - SINK, spin_deg: spin, tilt_deg: 0.0, cant_deg: 0.0, level: false };
             with_part(band(), "Block", Operation::Box { size: [2.0, 2.0, 2.0] }, Attach::Join, Stage::Cast, place)
         };
         // Square to the ring its walls round the ring stand along the pull.

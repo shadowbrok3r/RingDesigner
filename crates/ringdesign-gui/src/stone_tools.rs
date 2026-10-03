@@ -107,8 +107,11 @@ fn stone_part(design: &RingDesign, id: Id, key: &str) -> Result<(Gem, Option<Cad
     let gem = builders::gem_of(params).map_err(|e| format!("{e:#}"))?;
     let held = builders::stand_off_mm(key, gem);
     let edit = match f.component.placement.clone() {
-        Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } => ((held - height_mm).abs() > 1e-9)
-            .then_some(CadEdit::Placement { id, placement: Placement::Ring { theta_deg, across_mm, height_mm: held, spin_deg, tilt_deg, cant_deg } }),
+        Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level } => ((held - height_mm).abs() > 1e-9)
+            .then_some(CadEdit::Placement { id, placement: Placement::Ring { theta_deg, across_mm, height_mm: held, spin_deg, tilt_deg, cant_deg, level } }),
+        Placement::Side { theta_deg, radius_mm, face, height_mm, spin_deg, tilt_deg } => ((held - height_mm).abs() > 1e-9)
+            .then_some(CadEdit::Placement { id, placement: Placement::Side { theta_deg, radius_mm, face, height_mm: held, spin_deg, tilt_deg } }),
+        Placement::Relative { .. } => None,
         Placement::Free => match FaceSeat::of(params).map_err(|e| format!("{e:#}"))? {
             Some(seat) if (held - seat.height_mm).abs() > 1e-9 => {
                 let mut operation = f.operation.clone();
@@ -133,7 +136,7 @@ fn seat_stone(app: &RingDesignerApp, path: &[usize]) -> Option<(Placement, Gem)>
         .as_ref()
         .and_then(|b| ringdesign_core::cad::surface_hit(&b.mesh, st.theta_deg, across_mm))
         .map_or(stand_off, |(hit, n)| (0..3).map(|k| (frame.girdle[k] - hit[k]) * n[k]).sum());
-    Some((Placement::Ring { theta_deg: st.theta_deg, across_mm, height_mm, spin_deg: st.rot_deg(), tilt_deg: 0.0, cant_deg: 0.0 }, st.gem))
+    Some((Placement::Ring { theta_deg: st.theta_deg, across_mm, height_mm, spin_deg: st.rot_deg(), tilt_deg: 0.0, cant_deg: 0.0, level: false }, st.gem))
 }
 
 /// Seats a reference stone named by `key` on planar face `face` of part `feature`, where the right-click landed on it.
