@@ -50,7 +50,7 @@ const ROLL_R: f64 = 0.3;
 const ROLL_IN: f64 = 0.5;
 /// Every round moulding's centre stands this far under the surface it rises from, so less than half of it shows and
 /// every ray in from its face meets buried metal past its centre.
-const BED: f64 = 0.04;
+const BED: f64 = 0.06;
 /// The doorway: the trumeau between the leaves and its column, the jambs either side, the sill under the leaves,
 /// and the lintel bar over them.
 const TRUMEAU_W: f64 = 0.85;
@@ -60,17 +60,20 @@ const DOOR_JAMB: f64 = 0.35;
 const DOOR_LEAF_W: f64 = 1.45;
 const SILL_H: f64 = 0.12;
 const LINTEL_R: f64 = 0.42;
-/// The ruby: a 3.0 mm round, its collet wall, and how far its girdle stands over the tympanum floor.
+/// The ruby: a 3.0 mm round, the clear margin kept round it in the tympanum, and how far its girdle stands over the floor.
 const RUBY_MM: f64 = 3.0;
 const COLLET_WALL_MM: f64 = 0.3;
-const GIRDLE_OVER_FLOOR: f64 = 0.55;
+const GIRDLE_OVER_FLOOR: f64 = -0.12;
 const RUBY_TINT: [f32; 3] = [0.45, 0.01, 0.04];
 /// The ruby's light under its culet: a pilot this radius, straight to the finger.
-const PILOT_R: f64 = 0.95;
+const PILOT_R: f64 = 1.15;
 /// The ogee hood: its centreline clears the outer arch by this, its roll's width, and the ogee point.
 const HOOD_GAP: f64 = 1.0;
 const HOOD_W: f64 = 0.92;
 const HOOD_RISE: f64 = 0.7;
+/// The hood's label stops: bosses this radius, their centres this far over the table.
+const LABEL_STOP_R: f64 = 0.62;
+const LABEL_STOP_LIFT: f64 = 0.1;
 const OGEE_U: f64 = 7.7;
 /// The hood's sides meet the point this far off the axis, degrees.
 const OGEE_TIP_DEG: f64 = 28.0;
@@ -88,6 +91,9 @@ const FLEUR_CURL: f64 = 0.6;
 /// The crypt trefoil at the round end.
 const CRYPT_U: f64 = -7.1;
 const CRYPT_MM: f64 = 2.4;
+/// The palm's comfort bevel: from θ and through how many degrees, and its line z = r − this.
+const PALM_BEVEL_DEG: (f64, f64) = (215.0, 110.0);
+const PALM_BEVEL_OFF: f64 = 7.05;
 /// The shoulder lancets: θ off the crown and length, each side.
 const LANCETS: [(f64, f64); 4] = [(42.0, 2.8), (52.0, 2.45), (62.0, 2.1), (72.0, 1.8)];
 
@@ -489,16 +495,6 @@ fn taper(t: &mut Tree, name: &str, path: &[P2], r: f64, end: f64) -> Result<Id> 
     Ok(id)
 }
 
-/// A lobe of a crocket: a sphere of radius `r` centred on the table at `(u, w)`, so a half-dome stands proud of it.
-fn knob(t: &mut Tree, name: &str, at: P2, r: f64, table: f64) -> Result<Id> {
-    let theta = table.atan2(at[1]).to_degrees();
-    t.add(
-        name,
-        Operation::Sphere { radius_mm: r },
-        part(Attach::Join, Placement::Ring { theta_deg: theta, across_mm: at[0], height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 }, 0.0),
-    )
-}
-
 /// The table's height over the finger's axis, read off the bare stock.
 fn table_height(d: &RingDesign) -> Result<f64> {
     let mut bare = d.clone();
@@ -593,10 +589,12 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
         gem,
         Placement::Ring { theta_deg: CROWN_DEG, across_mm: inn.ruby_u, height_mm: -inn.floor + GIRDLE_OVER_FLOOR, spin_deg: SPIN_DEG, tilt_deg: 0.0, cant_deg: 0.0 },
     ))?;
-    let mut collet = builders::feature_on(0, "Collet the ruby in the tympanum", builders::BEZEL, stone, json!({ "wall_mm": COLLET_WALL_MM }));
+    // Set flush (gypsy): its girdle just under the tympanum's floor, the seat burred into the floor's own metal and its rim
+    // burnished over the girdle at the bench, so no thin collet wall stands in the cut.
+    let mut collet = builders::feature_on(0, "Collet the ruby in the tympanum floor", builders::BEZEL, stone, json!({ "wall_mm": COLLET_WALL_MM }));
     collet.component.stage = Stage::Cast;
     t.push(collet)?;
-    let mut bur = builders::feature_on(0, "Bur the ruby's seat", builders::BUR, stone, json!({ "through": false }));
+    let mut bur = builders::feature_on(0, "Bur the ruby's flush seat into the tympanum floor", builders::BUR, stone, json!({ "through": false }));
     bur.component.stage = Stage::Cast;
     t.push(bur)?;
     // Its light: a straight pilot under the culet to the finger, so the ruby is set à jour.
@@ -607,6 +605,15 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
     let mut hood: Vec<P2> = right.iter().map(|p| [p[0], p[1]]).collect();
     hood.extend(right.iter().rev().skip(1).map(|p| [p[0], -p[1]]));
     oval_tube(&mut t, "Roll the ogee hood-mould over the arch", &hood, -BED, HOOD_W / 2.0, HOOD_RISE + BED, Attach::Join)?;
+    // Its label stops: a boss over each end, where the hood comes down beside the springing.
+    let table = table_height(&d)?;
+    for (end, which) in [(hood[0], "right"), (hood[hood.len() - 1], "left")] {
+        t.add(
+            &format!("Stop the hood's {which} end on a boss"),
+            Operation::Sphere { radius_mm: LABEL_STOP_R },
+            part(Attach::Join, Placement::Ring { theta_deg: table.atan2(end[1]).to_degrees(), across_mm: end[0], height_mm: LABEL_STOP_LIFT, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 }, 0.0),
+        )?;
+    }
     // Crockets: tapering leaves up each side of the hood, each springing out of its back and curling over toward the point.
     let (along, normals) = hood_frame(&right);
     for (i, f) in CROCKETS.iter().enumerate() {
@@ -639,12 +646,28 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
     let head = d.inner_radius_mm();
     let _ = head;
     cut(&mut t, "Pierce the crypt quatrefoil through the round end", &[foil([CRYPT_U, 0.0], CRYPT_MM, 4)], 0.03, 6.0)?;
+    // The palm's inner edges eased with a comfort bevel, which also takes away the stock's own folded facets there.
+    for side in [1.0, -1.0] {
+        let a = PALM_BEVEL_DEG.0.to_radians();
+        let mut sk = Sketch::default();
+        sk.name = "Palm bevel".into();
+        sk.plane = ringdesign_core::sketch::Workplane { origin: [0.0; 3], x: [a.cos(), a.sin(), 0.0], y: [0.0, 0.0, 1.0], on_face: None };
+        let (r0, r1) = (d.inner_radius_mm() - 0.4, d.inner_radius_mm() + 1.6);
+        let tri: Vec<Id> = [[r0, side * (r0 - PALM_BEVEL_OFF)], [r1, side * (r1 - PALM_BEVEL_OFF)], [r0, side * (r1 - PALM_BEVEL_OFF)]].iter().map(|p| sk.point(*p)).collect();
+        sk.entity(Geometry::Polyline { points: tri, closed: true });
+        let which = if side > 0.0 { "front" } else { "back" };
+        t.add(
+            &format!("Bevel the palm's {which} inner edge for comfort"),
+            Operation::Revolve { sketch: Profile::Inline(sk), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: PALM_BEVEL_DEG.1, in_plane: false },
+            part(Attach::Cut, Placement::Free, 0.0),
+        )?;
+    }
     // Four lancets pierced through each shoulder, diminishing away from the head, each pointing to it.
     for (off, len) in LANCETS {
         for side in [1.0, -1.0] {
             let theta = CROWN_DEG + side * off;
             let width = len * 0.42;
-            let params = json!({ "shape": "Lancet", "width_mm": width, "length_mm": len, "turn_deg": side * 90.0, "through": true, "depth_mm": 4.0, "chamfer_mm": 0.12 });
+            let params = json!({ "shape": "Lancet", "width_mm": width, "length_mm": len, "turn_deg": side * 90.0, "through": true, "depth_mm": 4.0, "chamfer_mm": 0.0 });
             let which = if side > 0.0 { "left" } else { "right" };
             t.add(
                 &format!("Pierce the {which} shoulder's lancet at {off:.0} degrees"),
@@ -714,8 +737,8 @@ fn bore_margin(d: &RingDesign, m: &mesh::Mesh) -> f64 {
 }
 
 /// Stones the gem preview draws: its triangles welded into connected pieces.
-fn preview_count(d: &RingDesign, lib: &AlphaLibrary) -> usize {
-    let v = ringdesign_core::gems::preview_vertices(d, lib);
+fn preview_count(d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult) -> usize {
+    let v = ringdesign_core::gems::built_vertices(d, lib, built);
     let mut index = std::collections::HashMap::new();
     let mut parent: Vec<usize> = Vec::new();
     fn find(p: &mut Vec<usize>, i: usize) -> usize {
@@ -782,7 +805,8 @@ fn thin_samples(d: &RingDesign, built: &mesh::BuildResult, limit: f64) -> Vec<(S
             .filter_map(|(_, (p, q, r))| ray_tri(o, dir, *p, *q, *r))
             .fold(f64::MAX, f64::min);
         if t < limit {
-            out.push((name(&m.faces[i]), o, t));
+            let e = [o[0] + dir[0] * t, o[1] + dir[1] * t, o[2] + dir[2] * t];
+            out.push((format!("{} (exits at u {:.2} w {:.2} h {:.2}, dir {:.2} {:.2} {:.2})", name(&m.faces[i]), e[2], e[0], e[1] - 13.322, dir[2], dir[0], dir[1]), o, t));
         }
     }
     out
@@ -845,7 +869,8 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
             let mut pts: Vec<(f32, f32)> = bb.mesh.vertices.iter().filter(|v| v.0.abs() < 0.08 && v.2.abs() > 5.5 && v.1 > 0.0).map(|v| (v.2, v.1)).collect();
             pts.sort_by(|a, b| a.0.total_cmp(&b.0));
             eprintln!("  crown section: {:?}", pts.iter().map(|(u, y)| format!("({u:.2},{y:.2})")).collect::<Vec<_>>());
-            let mut pts: Vec<(f32, f32)> = bb.mesh.vertices.iter().filter(|v| (v.2 - 5.0).abs() < 0.08 && v.1 > 5.0).map(|v| (v.0, v.1)).collect();
+            let su: f32 = std::env::var("PORTA_SECTION").unwrap().parse().unwrap_or(5.0);
+            let mut pts: Vec<(f32, f32)> = bb.mesh.vertices.iter().filter(|v| (v.2 - su).abs() < 0.08 && v.1 > 5.0 && v.0 < 0.0).map(|v| (v.0, v.1)).collect();
             pts.sort_by(|a, b| a.0.total_cmp(&b.0));
             eprintln!("  section u=5: {:?}", pts.iter().map(|(u, y)| format!("({u:.2},{y:.2})")).collect::<Vec<_>>());
         }
@@ -863,14 +888,20 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         // Bisect the bare stock's crossings down to small boxes.
         let mut stack = vec![([-20.0f32, -20.0, -20.0], [20.0f32, 20.0, 20.0])];
         while let Some((lo, hi)) = stack.pop() {
-            let mut m = bb.mesh.clone();
-            m.faces.retain(|f| f.iter().any(|&i| { let v = bb.mesh.vertices[i as usize]; let p = [v.0, v.1, v.2]; (0..3).all(|k| p[k] >= lo[k] && p[k] < hi[k]) }));
+            let mut m = built.mesh.clone();
+            m.faces.retain(|f| f.iter().any(|&i| { let v = built.mesh.vertices[i as usize]; let p = [v.0, v.1, v.2]; (0..3).all(|k| p[k] >= lo[k] && p[k] < hi[k]) }));
             let n = self_crossings(&m);
             if n == 0 { continue; }
             let size = (0..3).map(|k| hi[k] - lo[k]).fold(0.0, f32::max);
             if size < 0.15 {
                 let c = [(lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0, (lo[2] + hi[2]) / 2.0];
-                eprintln!("  crossing at theta {:.1} r {:.3} z {:.3}: {n} ({} faces)", (c[1] as f64).atan2(c[0] as f64).to_degrees(), (c[0] as f64).hypot(c[1] as f64), c[2], m.faces.len());
+                let mut names: Vec<String> = m.faces.iter().map(|f| {
+                    let o = built.mesh.origin.get(f[0] as usize).copied().unwrap_or(0);
+                    built.parts.named_of(o).and_then(|id| d.cad.as_ref()?.feature(id)).map_or("band".to_string(), |f| f.name.clone())
+                }).collect();
+                names.sort();
+                names.dedup();
+                eprintln!("  crossing at u {:.2} w {:.2} h {:.2}: {n} ({} faces) {:?}", c[2], c[0], c[1] - 13.322, m.faces.len(), names);
                 continue;
             }
             let k = (0..3).max_by(|a, b| (hi[*a] - lo[*a]).total_cmp(&(hi[*b] - lo[*b]))).unwrap();
@@ -908,6 +939,17 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
     let thick_mesh = if built.mesh.faces.len() <= 250_000 { built.mesh.clone() } else { mesh::try_build(d, lib, coarse_params())?.mesh };
     let thick = ringdesign_core::cad::measure::thickness(&thick_mesh, MIN_SECTION_MM);
     if std::env::var("PORTA_DEBUG").is_ok() {
+        for f in &built.mesh.faces {
+            let Some((a, b, c)) = built.mesh.triangle(f) else { continue };
+            let e = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+            let g = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+            let n = [e[1] * g[2] - e[2] * g[1], e[2] * g[0] - e[0] * g[2], e[0] * g[1] - e[1] * g[0]];
+            if 0.5 * (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt() < 1e-10 {
+                let o = built.mesh.origin.get(f[0] as usize).copied().unwrap_or(0);
+                let who = built.parts.named_of(o).and_then(|id| d.cad.as_ref()?.feature(id)).map_or("band".to_string(), |f| f.name.clone());
+                eprintln!("  degenerate at u {:.3} w {:.3} h {:.3}: {who}", a[2], a[0], a[1] - 13.322);
+            }
+        }
         let thin_built = if built.mesh.faces.len() <= 250_000 { None } else { Some(mesh::try_build(d, lib, coarse_params())?) };
         let mut bare = d.clone();
         bare.cad = None;
@@ -921,11 +963,20 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
             eprintln!("  thin {t:.3} mm at u {:.2} w {:.2} h {:.2}: {who}", p[2], p[0], p[1] - 13.322);
         }
     }
+    // Every sample the screen finds thin, with the feature its face came from, and the bare stock's own screen beside it.
+    let thin_on = if built.mesh.faces.len() <= 250_000 { None } else { Some(mesh::try_build(d, lib, coarse_params())?) };
+    let thin: Vec<String> = thin_samples(d, thin_on.as_ref().unwrap_or(&built), MIN_SECTION_MM)
+        .into_iter()
+        .map(|(who, p, t)| format!("{t:.3} mm at u {:.2} w {:.2}, {:.2} under the table: {who}", p[2], p[0], 13.322 - p[1]))
+        .collect();
+    let mut bare = d.clone();
+    bare.cad = None;
+    let bare_thick = ringdesign_core::cad::measure::thickness(&mesh::try_build(&bare, lib, coarse_params())?.mesh, MIN_SECTION_MM);
     let lands: Vec<String> = dfm::cut_lands(d, &built, MIN_SECTION_MM).iter().map(|f| format!("{}: {}", f.label, f.message)).collect();
     let field = castability::attributed_field_report(d, lib, &d.draft, 256, 128);
     let findings: Vec<String> = dfm::findings_in(d, lib).iter().map(|f| format!("{}: {}", f.label, f.message)).collect();
     let stones = ringdesign_core::stones::report(d, field.parting_z_mm);
-    let previewed = preview_count(d, lib);
+    let previewed = preview_count(d, lib, &built);
     let reported = stones.as_ref().map_or(0, |s| s.stone_count as usize);
     let mut warnings: Vec<String> = stones.iter().flat_map(|s| s.seats.iter().flat_map(|seat| seat.warnings.iter().cloned())).collect();
     warnings.dedup();
@@ -968,6 +1019,8 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
             "sampled_min_mm": thick.sampled_min_mm,
             "at": thick.point,
             "note": thick.note,
+            "samples_below": thin,
+            "bare_stock_same_screen": { "rays": bare_thick.rays, "below_limit": bare_thick.below_limit, "sampled_min_mm": bare_thick.sampled_min_mm },
             "pass": thick_ok,
         },
         "cut_lands_0_8": lands,
@@ -994,26 +1047,6 @@ const VIEWS: [(&str, f64, f64); 6] = [
     ("shoulder", -0.9, 0.62),
     ("reverse", 1.6, 0.8),
 ];
-
-fn crop(m: &mesh::Mesh, centre: [f64; 3], radius: f64) -> mesh::Mesh {
-    let near = |i: u32| {
-        let p = m.vertices[i as usize];
-        (p.0 as f64 - centre[0]).hypot(p.1 as f64 - centre[1]).hypot(p.2 as f64 - centre[2]) < radius
-    };
-    let mut index = std::collections::HashMap::new();
-    let mut out = mesh::Mesh::default();
-    for f in m.faces.iter().filter(|f| f.iter().all(|&i| near(i))) {
-        let g = f.map(|i| {
-            *index.entry(i).or_insert_with(|| {
-                out.vertices.push(m.vertices[i as usize]);
-                out.normals.push(m.normals.get(i as usize).copied().unwrap_or(mesh::Vec3(0.0, 0.0, 1.0)));
-                (out.vertices.len() - 1) as u32
-            })
-        });
-        out.faces.push(g);
-    }
-    out
-}
 
 fn save_rgb(path: &Path, rgb: &[u8], w: usize, h: usize) -> Result<()> {
     image::save_buffer(path, rgb, w as u32, h as u32, image::ColorType::Rgb8)?;
@@ -1050,12 +1083,16 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: mesh::BuildRes
         }
     }
     save_rgb(&out.join("contact-300.png"), &sheet, cols * 300, rows * 300)?;
-    // The stone close-up frames the tympanum.
+    // Close-ups framed on the whole ring, never a cropped mesh: the ruby in its tympanum, and the portal face-on at 2x.
     let top = fin.metal.vertices.iter().map(|v| v.1 as f64).fold(0.0, f64::max);
-    let close_metal = crop(&fin.metal, [0.0, top - 1.0, 0.0], 9.0);
-    let mut close = vec![render::Part::metal(&close_metal, render::GOLD)];
-    close.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    render::write_png_parts(out.join("stones.png"), &close, 0.3, 1.15, edge)?;
+    let ruby = fin.stones.first().map(|(m, _)| {
+        let n = m.vertices.len().max(1) as f64;
+        let s = m.vertices.iter().fold([0.0; 3], |a, v| [a[0] + v.0 as f64, a[1] + v.1 as f64, a[2] + v.2 as f64]);
+        [s[0] / n, s[1] / n, s[2] / n]
+    });
+    let centre = ruby.unwrap_or([0.0, top - 1.0, 0.0]);
+    render::write_png_framed(out.join("stones.png"), &parts, 0.3, 1.15, render::Framing::new(centre, 4.5), edge)?;
+    render::write_png_framed(out.join("portal-2x.png"), &parts, 0.0, PI * 0.5, render::Framing::new([0.0, top, -2.0], 5.5), edge)?;
     // Bare stock against the finished ring, at the hero's angle.
     let mut bare = d.clone();
     bare.cad = None;
@@ -1087,9 +1124,29 @@ fn main() -> Result<()> {
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../showcase/tenebrae/porta"));
     std::fs::create_dir_all(&out)?;
     println!("Porta");
+    if let Ok(su) = std::env::var("PORTA_PROBE_U") {
+        // The bare stock's section across the finger's axis at u: every vertex within 0.06 of the plane, on the w < 0 side.
+        let su: f32 = su.parse()?;
+        let mut bare = stock()?;
+        bare.cad = None;
+        let bb = mesh::try_build(&bare, &AlphaLibrary::builtin(), draft_params())?;
+        let mut pts: Vec<(f32, f32)> = bb.mesh.vertices.iter().filter(|v| (v.2 - su).abs() < 0.06 && v.1 > 4.0 && v.0 < 0.0).map(|v| (v.0, v.1)).collect();
+        pts.sort_by(|a, b| a.0.total_cmp(&b.0));
+        println!("{:?}", pts.iter().map(|(w, y)| format!("({w:.2},{y:.2})")).collect::<Vec<_>>());
+        return Ok(());
+    }
     let (d, placed) = author(blockout)?;
     println!("  placed {}", serde_json::to_string(&placed)?);
     let lib = AlphaLibrary::builtin();
+    if std::env::var("PORTA_FRAMES").is_ok() {
+        let mut bare = d.clone();
+        bare.cad = None;
+        let bb = mesh::try_build(&bare, &lib, draft_params())?;
+        for f in d.cad.as_ref().unwrap().features.iter().filter(|f| f.name.contains("niche")) {
+            let fr = f.component.placement.frame_on(&d, Some(&bb.mesh))?;
+            println!("  {}: origin {:?} z {:?}", f.name, fr.origin.map(|v| (v * 100.0).round() / 100.0), fr.z_axis.map(|v| (v * 100.0).round() / 100.0));
+        }
+    }
     let params = if draft { draft_params() } else { export_params() };
     let (draft_gates, draft_pass, draft_built) = gates(&d, &lib, draft_params())?;
     println!("  draft: {draft_gates}");

@@ -1,9 +1,15 @@
 {
   "base": "Factory 009 Drop, unmirrored, resized to 14.5 x 19",
   "bore_mm": 18.6,
-  "casting_pattern": null,
-  "cold_reload_identical": null,
-  "design_bytes": 1049291,
+  "casting_pattern": {
+    "degenerate_faces": 0,
+    "pass": true,
+    "self_crossings": 0,
+    "triangles": 122508,
+    "watertight": true
+  },
+  "cold_reload_identical": true,
+  "design_bytes": 794989,
   "design_format": 6,
   "draft": {
     "bore_margin_mm": -0.001504700556685279,
@@ -12,7 +18,7 @@
       768,
       320
     ],
-    "build_s": 2.492329431,
+    "build_s": 1.65161398,
     "cut_lands_0_8": [],
     "degenerate_faces": 0,
     "dfm_findings": [],
@@ -35,10 +41,6 @@
         "Ok"
       ],
       [
-        "Run the hollow beside archivolt 1's roll",
-        "Ok"
-      ],
-      [
         "Draw archivolt 2's order, 0.90 mm deep",
         "Ok"
       ],
@@ -48,10 +50,6 @@
       ],
       [
         "Sink archivolt 2, sparing its roll",
-        "Ok"
-      ],
-      [
-        "Run the hollow beside archivolt 2's roll",
         "Ok"
       ],
       [
@@ -67,10 +65,6 @@
         "Ok"
       ],
       [
-        "Run the hollow beside archivolt 3's roll",
-        "Ok"
-      ],
-      [
         "Draw archivolt 4's order, 1.80 mm deep",
         "Ok"
       ],
@@ -80,10 +74,6 @@
       ],
       [
         "Sink archivolt 4, sparing its roll",
-        "Ok"
-      ],
-      [
-        "Run the hollow beside archivolt 4's roll",
         "Ok"
       ],
       [
@@ -119,11 +109,11 @@
         "Ok"
       ],
       [
-        "Collet the ruby in the tympanum",
+        "Collet the ruby in the tympanum floor",
         "Ok"
       ],
       [
-        "Bur the ruby's seat",
+        "Bur the ruby's flush seat into the tympanum floor",
         "Ok"
       ],
       [
@@ -132,6 +122,14 @@
       ],
       [
         "Roll the ogee hood-mould over the arch",
+        "Ok"
+      ],
+      [
+        "Stop the hood's right end on a boss",
+        "Ok"
+      ],
+      [
+        "Stop the hood's left end on a boss",
         "Ok"
       ],
       [
@@ -175,7 +173,15 @@
         "Ok"
       ],
       [
-        "Pierce the crypt trefoil through the round end",
+        "Pierce the crypt quatrefoil through the round end",
+        "Ok"
+      ],
+      [
+        "Bevel the palm's front inner edge for comfort",
+        "Ok"
+      ],
+      [
+        "Bevel the palm's back inner edge for comfort",
         "Ok"
       ],
       [
@@ -213,7 +219,7 @@
     ],
     "field_notes": [
       "Lost wax: 0.56% of the surface would undercut a two-part pull (worst 4.3 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "34 CAD parts stand on the band (12 joined, 22 cut, 0 separate), not judged here: the built ring judges them.",
+      "34 CAD parts stand on the band (14 joined, 20 cut, 0 separate), not judged here: the built ring judges them.",
       "Undercut 290–9° on the crest: 1.4 mm² leaning to 2° — no single layer explains it.",
       "Undercut 38–61° on the crest: 2.2 mm² leaning to 3° — no single layer explains it.",
       "Undercut 119–144° on the crest: 2.2 mm² leaning to 3° — no single layer explains it.",
@@ -221,14 +227,10 @@
       "Undercut 173–212° on the crest: 0.7 mm² leaning to 3° — no single layer explains it."
     ],
     "field_verdict_informational": "Castable",
-    "grams_18k": 19.301129182200985,
+    "grams_18k": 19.00881102658121,
     "made_parts": [
       [
         "Sink archivolt 1, sparing its roll",
-        0
-      ],
-      [
-        "Run the hollow beside archivolt 1's roll",
         0
       ],
       [
@@ -236,23 +238,11 @@
         0
       ],
       [
-        "Run the hollow beside archivolt 2's roll",
-        0
-      ],
-      [
         "Sink archivolt 3, sparing its roll",
         0
       ],
       [
-        "Run the hollow beside archivolt 3's roll",
-        0
-      ],
-      [
         "Sink archivolt 4, sparing its roll",
-        0
-      ],
-      [
-        "Run the hollow beside archivolt 4's roll",
         0
       ],
       [
@@ -272,11 +262,11 @@
         0
       ],
       [
-        "Collet the ruby in the tympanum",
+        "Collet the ruby in the tympanum floor",
         0
       ],
       [
-        "Bur the ruby's seat",
+        "Bur the ruby's flush seat into the tympanum floor",
         0
       ],
       [
@@ -285,6 +275,14 @@
       ],
       [
         "Roll the ogee hood-mould over the arch",
+        0
+      ],
+      [
+        "Stop the hood's right end on a boss",
+        0
+      ],
+      [
+        "Stop the hood's left end on a boss",
         0
       ],
       [
@@ -328,7 +326,15 @@
         0
       ],
       [
-        "Pierce the crypt trefoil through the round end",
+        "Pierce the crypt quatrefoil through the round end",
+        0
+      ],
+      [
+        "Bevel the palm's front inner edge for comfort",
+        0
+      ],
+      [
+        "Bevel the palm's back inner edge for comfort",
         0
       ],
       [
@@ -364,52 +370,453 @@
         0
       ]
     ],
-    "min_angle_deg": 0.0001637599281328299,
+    "min_angle_deg": 0.00014569791736175253,
     "non_manifold_edges": 0,
     "parts_notes": [],
     "pass": false,
-    "self_crossings": 14,
+    "self_crossings": 0,
     "solids_notes": [],
     "stone_carats": 0.102114,
     "stone_warnings": [],
-    "stones_previewed": 0,
+    "stones_previewed": 1,
     "stones_reported": 1,
     "thickness_0_8": {
       "at": [
-        -2.776111443837484,
-        11.481966654459635,
-        -2.161088228225708
+        4.63706906636556,
+        8.317352930704752,
+        -6.9334767659505205
       ],
-      "below_limit": 64,
-      "mesh_triangles": 165320,
+      "bare_stock_same_screen": {
+        "below_limit": 13,
+        "rays": 374,
+        "sampled_min_mm": 0.00016110918476703272
+      },
+      "below_limit": 3,
+      "mesh_triangles": 122508,
       "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
       "pass": false,
-      "rays": 384,
-      "sampled_min_mm": 0.0021061382679223436,
+      "rays": 383,
+      "sampled_min_mm": 0.26104093430440806,
+      "samples_below": [
+        "0.605 mm at u -8.23 w -2.87, 3.92 under the table: band (exits at u -7.82 w -2.53 h -4.20, dir 0.69 0.56 -0.46)",
+        "0.261 mm at u -6.93 w 4.64, 5.00 under the table: band (exits at u -6.87 w 4.71 h -4.76, dir 0.24 0.29 0.93)",
+        "0.311 mm at u 6.91 w 2.27, -0.00 under the table: Curl crocket 1 up the hood's right (exits at u 7.08 w 2.54 h 0.00, dir 0.52 0.85 -0.00)"
+      ],
       "unresolved": 0
     },
-    "triangles": 165320,
+    "triangles": 122508,
     "watertight": true
   },
-  "export": null,
+  "export": {
+    "bore_margin_mm": -0.001504700556685279,
+    "boundary_edges": 0,
+    "build": [
+      1536,
+      448
+    ],
+    "build_s": 1.7147597989999999,
+    "cut_lands_0_8": [],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "every_feature_ok": true,
+    "features": [
+      [
+        "The drop's band",
+        "Ok"
+      ],
+      [
+        "Draw archivolt 1's order, 0.45 mm deep",
+        "Ok"
+      ],
+      [
+        "Run the roll up the foot of archivolt 1",
+        "Ok"
+      ],
+      [
+        "Sink archivolt 1, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw archivolt 2's order, 0.90 mm deep",
+        "Ok"
+      ],
+      [
+        "Run the roll up the foot of archivolt 2",
+        "Ok"
+      ],
+      [
+        "Sink archivolt 2, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw archivolt 3's order, 1.35 mm deep",
+        "Ok"
+      ],
+      [
+        "Run the roll up the foot of archivolt 3",
+        "Ok"
+      ],
+      [
+        "Sink archivolt 3, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw archivolt 4's order, 1.80 mm deep",
+        "Ok"
+      ],
+      [
+        "Run the roll up the foot of archivolt 4",
+        "Ok"
+      ],
+      [
+        "Sink archivolt 4, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the tympanum and the door opening",
+        "Ok"
+      ],
+      [
+        "Lay the lintel bar across the doorway",
+        "Ok"
+      ],
+      [
+        "Stand the trumeau's column between the doors",
+        "Ok"
+      ],
+      [
+        "Sink the tympanum, sparing the lintel bar",
+        "Ok"
+      ],
+      [
+        "Sink the door opening, sparing the trumeau",
+        "Ok"
+      ],
+      [
+        "Open the right door leaf through to the finger",
+        "Ok"
+      ],
+      [
+        "Open the left door leaf through to the finger",
+        "Ok"
+      ],
+      [
+        "Round 3 mm",
+        "Ok"
+      ],
+      [
+        "Collet the ruby in the tympanum floor",
+        "Ok"
+      ],
+      [
+        "Bur the ruby's flush seat into the tympanum floor",
+        "Ok"
+      ],
+      [
+        "Open the ruby's light through to the finger, à jour",
+        "Ok"
+      ],
+      [
+        "Roll the ogee hood-mould over the arch",
+        "Ok"
+      ],
+      [
+        "Stop the hood's right end on a boss",
+        "Ok"
+      ],
+      [
+        "Stop the hood's left end on a boss",
+        "Ok"
+      ],
+      [
+        "Curl crocket 1 up the hood's right",
+        "Ok"
+      ],
+      [
+        "Curl crocket 1 up the hood's left",
+        "Ok"
+      ],
+      [
+        "Curl crocket 2 up the hood's right",
+        "Ok"
+      ],
+      [
+        "Curl crocket 2 up the hood's left",
+        "Ok"
+      ],
+      [
+        "Curl crocket 3 up the hood's right",
+        "Ok"
+      ],
+      [
+        "Curl crocket 3 up the hood's left",
+        "Ok"
+      ],
+      [
+        "Rise the fleur's centre petal",
+        "Ok"
+      ],
+      [
+        "Curl the fleur's right petal",
+        "Ok"
+      ],
+      [
+        "Curl the fleur's left petal",
+        "Ok"
+      ],
+      [
+        "Bind the fleur's petals with its band",
+        "Ok"
+      ],
+      [
+        "Pierce the crypt quatrefoil through the round end",
+        "Ok"
+      ],
+      [
+        "Bevel the palm's front inner edge for comfort",
+        "Ok"
+      ],
+      [
+        "Bevel the palm's back inner edge for comfort",
+        "Ok"
+      ],
+      [
+        "Pierce the left shoulder's lancet at 42 degrees",
+        "Ok"
+      ],
+      [
+        "Pierce the right shoulder's lancet at 42 degrees",
+        "Ok"
+      ],
+      [
+        "Pierce the left shoulder's lancet at 52 degrees",
+        "Ok"
+      ],
+      [
+        "Pierce the right shoulder's lancet at 52 degrees",
+        "Ok"
+      ],
+      [
+        "Pierce the left shoulder's lancet at 62 degrees",
+        "Ok"
+      ],
+      [
+        "Pierce the right shoulder's lancet at 62 degrees",
+        "Ok"
+      ],
+      [
+        "Pierce the left shoulder's lancet at 72 degrees",
+        "Ok"
+      ],
+      [
+        "Pierce the right shoulder's lancet at 72 degrees",
+        "Ok"
+      ]
+    ],
+    "field_notes": [
+      "Lost wax: 0.56% of the surface would undercut a two-part pull (worst 4.3 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "34 CAD parts stand on the band (14 joined, 20 cut, 0 separate), not judged here: the built ring judges them.",
+      "Undercut 290–9° on the crest: 1.4 mm² leaning to 2° — no single layer explains it.",
+      "Undercut 38–61° on the crest: 2.2 mm² leaning to 3° — no single layer explains it.",
+      "Undercut 119–144° on the crest: 2.2 mm² leaning to 3° — no single layer explains it.",
+      "Undercut 151–162° on the crest: 0.3 mm² leaning to 1° — no single layer explains it.",
+      "Undercut 173–212° on the crest: 0.7 mm² leaning to 3° — no single layer explains it."
+    ],
+    "field_verdict_informational": "Castable",
+    "grams_18k": 19.00881102658121,
+    "made_parts": [
+      [
+        "Sink archivolt 1, sparing its roll",
+        0
+      ],
+      [
+        "Sink archivolt 2, sparing its roll",
+        0
+      ],
+      [
+        "Sink archivolt 3, sparing its roll",
+        0
+      ],
+      [
+        "Sink archivolt 4, sparing its roll",
+        0
+      ],
+      [
+        "Sink the door opening, sparing the trumeau",
+        0
+      ],
+      [
+        "Open the right door leaf through to the finger",
+        0
+      ],
+      [
+        "Open the left door leaf through to the finger",
+        0
+      ],
+      [
+        "Round 3 mm",
+        0
+      ],
+      [
+        "Collet the ruby in the tympanum floor",
+        0
+      ],
+      [
+        "Bur the ruby's flush seat into the tympanum floor",
+        0
+      ],
+      [
+        "Open the ruby's light through to the finger, à jour",
+        0
+      ],
+      [
+        "Roll the ogee hood-mould over the arch",
+        0
+      ],
+      [
+        "Stop the hood's right end on a boss",
+        0
+      ],
+      [
+        "Stop the hood's left end on a boss",
+        0
+      ],
+      [
+        "Curl crocket 1 up the hood's right",
+        0
+      ],
+      [
+        "Curl crocket 1 up the hood's left",
+        0
+      ],
+      [
+        "Curl crocket 2 up the hood's right",
+        0
+      ],
+      [
+        "Curl crocket 2 up the hood's left",
+        0
+      ],
+      [
+        "Curl crocket 3 up the hood's right",
+        0
+      ],
+      [
+        "Curl crocket 3 up the hood's left",
+        0
+      ],
+      [
+        "Rise the fleur's centre petal",
+        0
+      ],
+      [
+        "Curl the fleur's right petal",
+        0
+      ],
+      [
+        "Curl the fleur's left petal",
+        0
+      ],
+      [
+        "Bind the fleur's petals with its band",
+        0
+      ],
+      [
+        "Pierce the crypt quatrefoil through the round end",
+        0
+      ],
+      [
+        "Bevel the palm's front inner edge for comfort",
+        0
+      ],
+      [
+        "Bevel the palm's back inner edge for comfort",
+        0
+      ],
+      [
+        "Pierce the left shoulder's lancet at 42 degrees",
+        0
+      ],
+      [
+        "Pierce the right shoulder's lancet at 42 degrees",
+        0
+      ],
+      [
+        "Pierce the left shoulder's lancet at 52 degrees",
+        0
+      ],
+      [
+        "Pierce the right shoulder's lancet at 52 degrees",
+        0
+      ],
+      [
+        "Pierce the left shoulder's lancet at 62 degrees",
+        0
+      ],
+      [
+        "Pierce the right shoulder's lancet at 62 degrees",
+        0
+      ],
+      [
+        "Pierce the left shoulder's lancet at 72 degrees",
+        0
+      ],
+      [
+        "Pierce the right shoulder's lancet at 72 degrees",
+        0
+      ]
+    ],
+    "min_angle_deg": 0.00014569791736175253,
+    "non_manifold_edges": 0,
+    "parts_notes": [],
+    "pass": false,
+    "self_crossings": 0,
+    "solids_notes": [],
+    "stone_carats": 0.102114,
+    "stone_warnings": [],
+    "stones_previewed": 1,
+    "stones_reported": 1,
+    "thickness_0_8": {
+      "at": [
+        4.63706906636556,
+        8.317352930704752,
+        -6.9334767659505205
+      ],
+      "bare_stock_same_screen": {
+        "below_limit": 13,
+        "rays": 374,
+        "sampled_min_mm": 0.00016110918476703272
+      },
+      "below_limit": 3,
+      "mesh_triangles": 122508,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "pass": false,
+      "rays": 383,
+      "sampled_min_mm": 0.26104093430440806,
+      "samples_below": [
+        "0.605 mm at u -8.23 w -2.87, 3.92 under the table: band (exits at u -7.82 w -2.53 h -4.20, dir 0.69 0.56 -0.46)",
+        "0.261 mm at u -6.93 w 4.64, 5.00 under the table: band (exits at u -6.87 w 4.71 h -4.76, dir 0.24 0.29 0.93)",
+        "0.311 mm at u 6.91 w 2.27, -0.00 under the table: Curl crocket 1 up the hood's right (exits at u 7.08 w 2.54 h 0.00, dir 0.52 0.85 -0.00)"
+      ],
+      "unresolved": 0
+    },
+    "triangles": 122508,
+    "watertight": true
+  },
   "features": [
     "The drop's band",
     "Draw archivolt 1's order, 0.45 mm deep",
     "Run the roll up the foot of archivolt 1",
     "Sink archivolt 1, sparing its roll",
-    "Run the hollow beside archivolt 1's roll",
     "Draw archivolt 2's order, 0.90 mm deep",
     "Run the roll up the foot of archivolt 2",
     "Sink archivolt 2, sparing its roll",
-    "Run the hollow beside archivolt 2's roll",
     "Draw archivolt 3's order, 1.35 mm deep",
     "Run the roll up the foot of archivolt 3",
     "Sink archivolt 3, sparing its roll",
-    "Run the hollow beside archivolt 3's roll",
     "Draw archivolt 4's order, 1.80 mm deep",
     "Run the roll up the foot of archivolt 4",
     "Sink archivolt 4, sparing its roll",
-    "Run the hollow beside archivolt 4's roll",
     "Draw the tympanum and the door opening",
     "Lay the lintel bar across the doorway",
     "Stand the trumeau's column between the doors",
@@ -418,10 +825,12 @@
     "Open the right door leaf through to the finger",
     "Open the left door leaf through to the finger",
     "Round 3 mm",
-    "Collet the ruby in the tympanum",
-    "Bur the ruby's seat",
+    "Collet the ruby in the tympanum floor",
+    "Bur the ruby's flush seat into the tympanum floor",
     "Open the ruby's light through to the finger, à jour",
     "Roll the ogee hood-mould over the arch",
+    "Stop the hood's right end on a boss",
+    "Stop the hood's left end on a boss",
     "Curl crocket 1 up the hood's right",
     "Curl crocket 1 up the hood's left",
     "Curl crocket 2 up the hood's right",
@@ -432,7 +841,9 @@
     "Curl the fleur's right petal",
     "Curl the fleur's left petal",
     "Bind the fleur's petals with its band",
-    "Pierce the crypt trefoil through the round end",
+    "Pierce the crypt quatrefoil through the round end",
+    "Bevel the palm's front inner edge for comfort",
+    "Bevel the palm's back inner edge for comfort",
     "Pierce the left shoulder's lancet at 42 degrees",
     "Pierce the right shoulder's lancet at 42 degrees",
     "Pierce the left shoulder's lancet at 52 degrees",
@@ -448,23 +859,23 @@
   "placed": {
     "doors_floor_mm": 2.25,
     "fleur_u": [
-      8.15,
-      10.1
+      7.8500000000000005,
+      9.8
     ],
-    "hood_clear_of_arch_mm": 0.5,
-    "inner_apex_u": 3.2794736614282654,
+    "hood_clear_of_arch_mm": 0.5045254451728167,
+    "inner_apex_u": 3.320831300812525,
     "inner_threshold_u": -4.6,
     "lintel_u": [
-      -2.2805263385717356,
-      -1.8605263385717357
+      -1.9291686991874755,
+      -1.5091686991874755
     ],
-    "ruby_u": 0.40947366142826436,
-    "springing_u": -2.8,
+    "ruby_u": 0.7608313008125245,
+    "springing_u": -0.95,
     "tympanum_floor_mm": 2.25
   },
   "process": "Lost wax",
   "size": "US 8.6",
   "slug": "porta",
-  "stage": "block-out",
+  "stage": "full",
   "stamps": []
 }

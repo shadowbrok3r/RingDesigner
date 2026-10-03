@@ -1,0 +1,17 @@
+{
+  "stones": [
+    {
+      "dispersion": 0.018,
+      "ior": 1.77,
+      "mesh": "reference-ruby.stl",
+      "name": "Ruby",
+      "roughness": 0.05,
+      "tint": [
+        0.44999998807907104,
+        0.009999999776482582,
+        0.03999999910593033
+      ],
+      "transmission": 0.6
+    }
+  ]
+}
