@@ -185,7 +185,7 @@ mod tests {
         // Every bundled font named with its copyright, and the OFL in full.
         assert!(code("Fonts").contains("SIL OPEN FONT LICENSE Version 1.1") && code("Fonts").contains("OTHER DEALINGS IN THE FONT SOFTWARE."));
         for holder in ["The EB Garamond Project Authors", "The Great Vibes Pro Project Authors", "with Reserved Font Name UnifrakturMaguntia", "Peter Wiegel"] {
-            assert!(notices.contains(holder), "{holder}");
+            assert!(blocks.iter().any(|b| matches!(b, Block::Text(t) if t.contains(holder))), "{holder}");
         }
         assert!(notices.contains("https://github.com/Open-Cascade-SAS/OCCT/archive/refs/tags/V8_0_1.tar.gz"));
         assert!(notices.contains("makes use of, and is in part based on,\nfacilities provided by the Open CASCADE Technology software"));
