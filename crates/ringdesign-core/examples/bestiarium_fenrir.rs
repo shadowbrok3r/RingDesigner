@@ -1414,7 +1414,10 @@ fn head_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
     let t = Instant::now();
     let (lo, hi) = sculpt_box(wolf.table);
     let field = |p: P3| wolf.sdf(p);
-    let mut raw = tetra_mesh(lo, hi, SCULPT_STEP, &field);
+    let raw = tetra_mesh(lo, hi, SCULPT_STEP, &field);
+    // Only the shell that stands on the stock is the head: a fleck of fur the field leaves floating off it would cast
+    // as a loose crumb, so it is left out and counted.
+    let (mut raw, islands) = sculpt::open_shells(&raw, |p| p[1] < wolf.table - 0.5);
     relax(&mut raw, &field, 3);
     let nets = settle(clean_decimate(&raw, SCULPT_FACES), &field, &|p| wolf.in_face_zone(p));
     let (bad, volume) = sculpt::closure(&nets);
@@ -1424,7 +1427,7 @@ fn head_feature(wolf: &Wolf) -> Result<(Feature, Value)> {
     let mesh = sculpt::packed(&nets)?;
     // A digest of the packed mesh, so two runs can show the sculpt is the same bit for bit.
     let digest = format!("{:016x}", mesh.data.bytes().fold(0xcbf29ce484222325u64, |h, b| (h ^ b as u64).wrapping_mul(0x100000001b3)));
-    let stats = json!({"packed_fnv1a": digest, "marching_step_mm": SCULPT_STEP, "raw_triangles": raw.f.len(), "triangles": nets.f.len(), "vertices": nets.v.len(), "volume_mm3": volume, "packed_bytes": mesh.data.len(), "self_crossings": crossings, "seconds": t.elapsed().as_secs_f64()});
+    let stats = json!({"packed_fnv1a": digest, "loose_islands_left_out": islands, "marching_step_mm": SCULPT_STEP, "raw_triangles": raw.f.len(), "triangles": nets.f.len(), "vertices": nets.v.len(), "volume_mm3": volume, "packed_bytes": mesh.data.len(), "self_crossings": crossings, "seconds": t.elapsed().as_secs_f64()});
     println!("  head: {} triangles from {} in {:.1} s, {} KB packed", nets.f.len(), raw.f.len(), t.elapsed().as_secs_f64(), mesh.data.len() / 1024);
     let recipe = cad::stored::Recipe {
         kernel: "fenrir".into(),
