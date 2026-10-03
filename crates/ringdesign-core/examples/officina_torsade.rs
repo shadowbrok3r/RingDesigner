@@ -29,16 +29,8 @@ const THICKNESS_MM: f64 = 1.8;
 /// The rope's axis: its radius round the finger and its height off the parting plane.
 const PATH_R_MM: f64 = 10.68;
 const PATH_Z_MM: f64 = 2.1;
-/// Where the rope leaves the collet and where it comes back to it, the long way round the palm.
-fn env_f(k: &str, d: f64) -> f64 {
-    std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d)
-}
-fn start_deg() -> f64 {
-    env_f("START", 100.0)
-}
-fn end_deg() -> f64 {
-    env_f("END", 80.0)
-}
+/// The rope's loop starts and ends at the top of the ring, under the collet.
+const START_DEG: f64 = 90.0;
 /// Eight full turns: a slow lay that reads as rope, under the ten a twisted sweep takes.
 const TWIST_DEG: f64 = 2880.0;
 /// Three round strands laid about the rope's axis: each strand's radius and its centre's offset.
@@ -47,31 +39,28 @@ const STRAND_R_MM: f64 = 0.5;
 const STRAND_OFFSET_MM: f64 = 0.3;
 /// The fillet rounding each groove between two strands.
 const GROOVE_R_MM: f64 = 0.10;
-fn rope_blend_mm() -> f64 {
-    std::env::var("ROPE_BLEND").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0)
-}
 const MIN_SECTION_MM: f64 = 0.8;
 /// The collet, turned in one piece: its base on the band, the girdle's height, the lip's height over it, the wall's radii.
-const COLLET_BASE_MM: f64 = 9.95;
+const COLLET_BASE_MM: f64 = 9.6;
 const GIRDLE_MM: f64 = 11.55;
 const LIP_RISE_MM: f64 = 0.4;
 /// The wall's outer radius where it meets the band, and where it stands upright under the lip.
-const COLLET_FOOT_R_MM: f64 = 3.6;
-fn collet_r_mm() -> f64 {
-    env_f("COLLET_R", 4.4)
-}
+const COLLET_FOOT_R_MM: f64 = 2.0;
+const COLLET_R_MM: f64 = 4.5;
 /// The wall's bore, a hair over the stone's girdle.
 const COLLET_BORE_R_MM: f64 = 3.55;
-/// Where the flared lower wall turns upright, below the girdle.
-const COLLET_KNEE_MM: f64 = 11.2;
-const COLLET_RIM_MM: f64 = 0.2;
-/// The lip's two rounds, together nearly a half-round across the wall.
-const LIP_ROUND_MM: f64 = 0.4;
+/// Where the flared foot turns upright, just over the crest.
+const COLLET_KNEE_MM: f64 = 10.8;
+/// The lip's outer and inner rounds, together nearly a half-round across the wall.
+const LIP_OUTER_MM: f64 = 0.4;
+const LIP_INNER_MM: f64 = 0.4;
 /// The seat under the stone stands this far below its flat back.
 const SEAT_GAP_MM: f64 = 0.02;
+/// The round where each side face meets the crest.
+const EDGE_ROUND_MM: f64 = 0.22;
 const CREST_MM: f64 = BORE_MM / 2.0 + THICKNESS_MM;
 /// The crest's barrel crown: the drop from the middle of the crest to each arris.
-const CROWN_MM: f64 = 0.2;
+const CROWN_MM: f64 = 0.35;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -124,6 +113,7 @@ fn band() -> RingDesign {
     d.profile.shape_a = 2.0;
     d.profile.comfort_fit_mm = 0.3;
     d.profile.flatten_sides();
+    d.profile.edge_round_mm = EDGE_ROUND_MM;
     CastProcess::LostWax.apply(&mut d.draft);
     d.draft.min_section_mm = MIN_SECTION_MM;
     d.manufacturing = Some(setup());
@@ -153,9 +143,10 @@ fn path_sketch() -> Sketch {
         [PATH_R_MM * c, PATH_R_MM * sn]
     };
     let center = s.point([0.0, 0.0]);
-    let start = s.point(at(start_deg()));
-    let end = s.point(at(end_deg()));
-    s.entity(Geometry::Arc { center, start, end });
+    // Two half-arcs, so the loop starts at the top, under the collet.
+    let (top, bottom) = (s.point(at(START_DEG)), s.point(at(START_DEG + 180.0)));
+    s.entity(Geometry::Arc { center, start: top, end: bottom });
+    s.entity(Geometry::Arc { center, start: bottom, end: top });
     on_plane(&mut s, 2);
     s
 }
@@ -233,22 +224,23 @@ fn rounded(s: &mut Sketch, corners: &[([f64; 2], f64)]) {
     }
 }
 
-/// The collet's half-section in the plane through the finger's axis and the stone's: radius out from the finger along x, distance from the stone's axis along y. A wall flaring up from the band, standing upright under a rounded lip, round a solid seat under the stone.
+/// The collet's half-section in the stone's own frame: height from the girdle along x, distance from the stone's axis along y. A wall flaring up from the band, standing upright under a rounded lip, round a solid seat under the stone.
 fn collet_sketch() -> Sketch {
     let mut s = Sketch::default();
     s.name = "Collet section".into();
-    s.plane.x = [0.0, 1.0, 0.0];
-    s.plane.y = [0.0, 0.0, 1.0];
-    let (lo, top, seat) = (COLLET_BASE_MM, GIRDLE_MM + LIP_RISE_MM, GIRDLE_MM - SEAT_GAP_MM);
-    let (ro, ri) = (collet_r_mm(), COLLET_BORE_R_MM);
+    s.plane.x = [0.0, 0.0, 1.0];
+    s.plane.y = [1.0, 0.0, 0.0];
+    let g = GIRDLE_MM;
+    let (lo, top, seat) = (COLLET_BASE_MM - g, LIP_RISE_MM, -SEAT_GAP_MM);
+    let (ro, ri) = (COLLET_R_MM, COLLET_BORE_R_MM);
     rounded(
         &mut s,
         &[
             ([lo, 0.0], 0.0),
-            ([lo, COLLET_FOOT_R_MM], COLLET_RIM_MM),
-            ([COLLET_KNEE_MM, ro], 0.0),
-            ([top, ro], LIP_ROUND_MM),
-            ([top, ri], LIP_ROUND_MM),
+            ([lo, COLLET_FOOT_R_MM], 0.0),
+            ([COLLET_KNEE_MM - g, ro], 0.0),
+            ([top, ro], LIP_OUTER_MM),
+            ([top, ri], LIP_INNER_MM),
             ([seat, ri], 0.0),
             ([seat, 0.0], 0.0),
         ],
@@ -263,27 +255,27 @@ fn author() -> Result<RingDesign> {
     doc.append(feature(1, "Band", Operation::Band, ComponentRole::Shank))?;
     doc.append(feature(2, "Plane over the arris", Operation::Plane { base: PlaneBase::Parting, offset_mm: PATH_Z_MM }, ComponentRole::Other))?;
     doc.append(feature(3, "Path", Operation::Sketch { sketch: path_sketch() }, ComponentRole::Other))?;
-    doc.append(feature(4, "Plane across the path", Operation::Plane { base: PlaneBase::Section { theta_deg: start_deg() }, offset_mm: 0.0 }, ComponentRole::Other))?;
+    doc.append(feature(4, "Plane across the path", Operation::Plane { base: PlaneBase::Section { theta_deg: START_DEG }, offset_mm: 0.0 }, ComponentRole::Other))?;
     doc.append(feature(5, "Section", Operation::Sketch { sketch: section_sketch() }, ComponentRole::Other))?;
     let mut rope = feature(
         6,
         "Rope",
-        Operation::Twist { sketch: Profile::Feature { feature: 5 }, path: path_sketch(), degrees: TWIST_DEG, end_scale: 1.0 },
+        Operation::Twist { sketch: Profile::Feature { feature: 5 }, path: path_sketch().into(), degrees: TWIST_DEG, end_scale: 1.0, scale: Vec::new(), closed: true },
         ComponentRole::Shank,
     );
     rope.component.attach = Attach::Join;
-    rope.component.blend_mm = rope_blend_mm();
     doc.append(rope)?;
     let mut mirror = feature(7, "Mirror across the band", Operation::Pattern { sources: 6.into(), kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, ComponentRole::Shank);
     mirror.component.attach = Attach::Join;
-    mirror.component.blend_mm = rope_blend_mm();
     doc.append(mirror)?;
     let mut collet = feature(
         8,
         "Collet",
-        Operation::Revolve { sketch: collet_sketch().into(), pivot: [0.0; 3], axis: [0.0, 1.0, 0.0], degrees: 360.0, in_plane: false },
-        ComponentRole::Setting,
+        Operation::Revolve { sketch: collet_sketch().into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0, in_plane: false },
+        ComponentRole::Head,
     );
+    // Standing where the stone stands, a head made by hand holds it.
+    collet.component.placement = Placement::ring(90.0, GIRDLE_MM - CREST_MM);
     collet.component.attach = Attach::Join;
     doc.append(collet)?;
     let mut stone = builders::stone_feature(9, g, Placement::ring(90.0, GIRDLE_MM - CREST_MM));
@@ -500,6 +492,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, verify: Option
         && g.stones_reported as usize == g.stones_previewed
         && g.crowding_tight_pairs == 0
         && g.stone_over_seat_mm >= 0.0
+        && g.stone_warnings.is_empty()
         && p.watertight
         && p.degenerate_faces == 0
         && p.self_crossings == 0
@@ -560,13 +553,13 @@ fn guides(id: u64) -> Vec<mesh::Mesh> {
     };
     let path = || {
         let n = 240;
-        (0..=n).map(|k| ring_pt(start_deg() + (end_deg() + 360.0 - start_deg()) * k as f64 / n as f64, PATH_R_MM, PATH_Z_MM)).collect::<Vec<_>>()
+        (0..=n).map(|k| ring_pt(START_DEG + 360.0 * k as f64 / n as f64, PATH_R_MM, PATH_Z_MM)).collect::<Vec<_>>()
     };
     let plane2 = || {
         let h = 13.5;
         vec![[-h, -h, PATH_Z_MM], [h, -h, PATH_Z_MM], [h, h, PATH_Z_MM], [-h, h, PATH_Z_MM]]
     };
-    let plane4 = || vec![ring_pt(start_deg(), 8.2, -3.0), ring_pt(start_deg(), 13.4, -3.0), ring_pt(start_deg(), 13.4, 3.6), ring_pt(start_deg(), 8.2, 3.6)];
+    let plane4 = || vec![ring_pt(START_DEG, 8.2, -3.0), ring_pt(START_DEG, 13.4, -3.0), ring_pt(START_DEG, 13.4, 3.6), ring_pt(START_DEG, 8.2, 3.6)];
     let section = || {
         let step = 2.0 * PI / STRANDS as f64;
         (0..96)
@@ -580,7 +573,7 @@ fn guides(id: u64) -> Vec<mesh::Mesh> {
                         cc + (STRAND_R_MM.powi(2) - (STRAND_OFFSET_MM * d.sin()).powi(2)).sqrt()
                     })
                     .fold(0.0, f64::max);
-                ring_pt(start_deg(), PATH_R_MM + rr * a.cos(), PATH_Z_MM + rr * a.sin())
+                ring_pt(START_DEG, PATH_R_MM + rr * a.cos(), PATH_Z_MM + rr * a.sin())
             })
             .collect::<Vec<_>>()
     };
@@ -709,7 +702,7 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
 
 /// The finished ring with each stone welded and its normals averaged, so a cabochon's dome shades smooth.
 fn dressed(d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult) -> render::Finished {
-    let stones = ringdesign_core::gems::built_meshes(d, lib, built).into_iter().map(|(m, t)| (weld(&m), t)).collect();
+    let stones = ringdesign_core::gems::built_meshes(d, lib, built).into_iter().map(|(m, t)| (domed(&weld(&m)), t)).collect();
     render::Finished { metal: built.mesh.clone(), stones }
 }
 fn parts_of(fin: &render::Finished) -> Vec<render::Part<'_>> {
@@ -719,6 +712,48 @@ fn parts_of(fin: &render::Finished) -> Vec<render::Part<'_>> {
     }
     parts
 }
+/// The cabochon for pictures only: its welded mesh split twice and the dome's points laid back on the dome, an ellipsoid over the girdle round the stone's axis (world y at the top of the ring), shaded by the dome's own normal.
+fn domed(m: &mesh::Mesh) -> mesh::Mesh {
+    let mut m = m.clone();
+    for _ in 0..2 {
+        let mut mid = std::collections::HashMap::new();
+        let mut faces = Vec::with_capacity(m.faces.len() * 4);
+        let old = m.faces.clone();
+        for f in &old {
+            let mut e = [0u32; 3];
+            for k in 0..3 {
+                let (a, b) = (f[k], f[(k + 1) % 3]);
+                let key = (a.min(b), a.max(b));
+                e[k] = *mid.entry(key).or_insert_with(|| {
+                    let (p, q) = (m.vertices[a as usize], m.vertices[b as usize]);
+                    m.vertices.push(mesh::Vec3((p.0 + q.0) / 2.0, (p.1 + q.1) / 2.0, (p.2 + q.2) / 2.0));
+                    (m.vertices.len() - 1) as u32
+                });
+            }
+            faces.extend([[f[0], e[0], e[2]], [e[0], f[1], e[1]], [e[2], e[1], f[2]], [e[0], e[1], e[2]]]);
+        }
+        m.faces = faces;
+    }
+    let g = GIRDLE_MM as f32;
+    let (rr, cc) = m.vertices.iter().fold((0.0f32, 0.0f32), |(r, c), v| (r.max(v.0.hypot(v.2)), c.max(v.1 - g)));
+    m.normals = m
+        .vertices
+        .iter_mut()
+        .map(|v| {
+            let h = v.1 - g;
+            if h <= 1e-3 {
+                return mesh::Vec3(0.0, -1.0, 0.0);
+            }
+            let k = 1.0 / ((v.0 * v.0 + v.2 * v.2) / (rr * rr) + h * h / (cc * cc)).sqrt();
+            *v = mesh::Vec3(v.0 * k, g + h * k, v.2 * k);
+            let n = [v.0 / (rr * rr), (v.1 - g) / (cc * cc), v.2 / (rr * rr)];
+            let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt().max(1e-12);
+            mesh::Vec3(n[0] / l, n[1] / l, n[2] / l)
+        })
+        .collect();
+    m
+}
+
 fn weld(m: &mesh::Mesh) -> mesh::Mesh {
     let mut out = mesh::Mesh::default();
     let mut index = std::collections::HashMap::new();
@@ -792,7 +827,7 @@ fn rope_timing(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Resul
         .filter(|c| c.name == "Rope")
         .map(|c| c.mesh.faces.len())
         .sum();
-    let length = PATH_R_MM * (end_deg() + 360.0 - start_deg()).to_radians();
+    let length = 2.0 * PI * PATH_R_MM;
     let turns = TWIST_DEG / 360.0;
     let pitch = length / turns;
     let outer = STRAND_OFFSET_MM + STRAND_R_MM;

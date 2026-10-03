@@ -720,7 +720,7 @@ Rules common to all eight:
 | 2 | Sigil | a quartered seal on the round | stock 013, native size | Delft (sand master) | — | 7 | not started; buildable now after a spike; light template needs P7 |
 | 3 | Keystone | a drafted cartouche | Flat 6.0 × 2.0, `flatten_sides` | Delft | — | 8 | not started; buildable now |
 | 4 | Aile | wings clasping a bezel | DShape 2.4 × 1.8, ReverseTaper 0.4 | lost wax | Oval 7 × 5 | 12 | not started; buildable now |
-| 5 | Torsade | a rope-edged collet | Flat 4.4 × 1.8, `flatten_sides` | lost wax | Round cabochon 7.0 | 9 | not started; buildable now |
+| 5 | Torsade | a rope-edged collet | Flat 4.4 × 1.8, `flatten_sides` | lost wax | Round cabochon 7.0 | 9 | built (claude/officina-torsade) |
 | 6 | Fenestra | windows along the pull | Flat 3.2 × 2.4, `flatten_sides`, Cathedral 0.8 | lost wax | Oval 7 × 5 | 8 | not started; buildable now |
 
 ### Build order and why
@@ -864,30 +864,30 @@ Officina has no C-* enabler of its own. It depends on:
 
 ## Torsade — *a rope-edged collet*
 
-- **Status:** not started. Buildable now.
-- **Concept:** a flat band whose two edges carry twisted ropes, which butt into a cabochon's collet at the top.
+- **Status:** built on `claude/officina-torsade` (`examples/officina_torsade.rs`, `showcase/officina/torsade/`).
+- **Concept:** a flat band whose two edges carry twisted ropes, which run into a cabochon's collet at the top.
 - **Theme face to palm:** ropes along both arrises from the collet round the palm and back; the collet at the top. Plain side faces and bore.
-- **Base:** Flat 4.4 × 1.8, `flatten_sides`, bore 18.2 mm. The side faces are at z = ±2.2 and the crest at r 10.9.
+- **Base:** Flat 4.4 × 1.8, `flatten_sides`, crown 0.35 with `shape_a` 2.0 (a barrel crest), edge round 0.22, comfort 0.3, bore 18.2 mm.
 - **Process:** lost wax. "A true helix locks in the sand" (doctrine).
-- **Stones:** `Gem::cabochon(GemCut::Round, 7.0)` (`core/gem.rs:250`).
-- **Build, step by step:**
+- **Stone:** a 7.0 mm round garnet cabochon (`Gem::cabochon(GemCut::Round, 7.0)` with a preview tint).
+- **Build, step by step (9 features, as the timeline shows them):**
   1. `Band`.
-  2. `Plane { base: Parting, offset_mm: 2.05 }`.
-  3. `Sketch` "Path" on 2: one `Arc` about (0, 0), r 10.75, from θ 112 the long way round to θ 68 (316°, about 59 mm). Whether `Arc` runs counter-clockwise from start to end is **(unverified)**: if it is clockwise, swap `start` and `end`.
-  4. `Plane { base: Section { theta_deg: 112.0 } }`.
-  5. `Sketch` "Section" on 4: a diamond 1.1 mm across, centred on the path's start (x 10.75, y 2.05), square to the path, as `twist::sweep` requires (`core/cad/twist.rs:360-380`).
-  6. `Twist { sketch: Profile::Feature { feature: 5 }, path: <feature 3's Sketch, inline, plane anchored to 2>, degrees: 7200.0, end_scale: 1.0 }`, Join, blend 0.08. `Twist::path` is an inline `Sketch`, not a feature id (`core/cad.rs:81-86`).
-  7. `Pattern { sources: [6], kind: Mirror { plane: MirrorPlane::Band } }`, Join. This gives the opposite lay on the −Z arris.
-  8. `stone_feature(8, gem, Placement::ring(90.0, stand_off_mm("head.bezel", gem)))`.
-  9. `head.bezel` on 8, Cast. Its lip comes from the cabochon's dome ("The bezel stands on its stone"). The rope ends at ±22° butt into the collet wall.
-- **What it shows off:** paths against sections, the twist parameters, mirroring across the band's mid-plane, and a cabochon collet.
+  2. `Plane { base: Parting, offset_mm: 2.1 }`: the plane over the arris.
+  3. `Sketch` "Path" on 2: a closed loop about (0, 0), r 10.68 (67.1 mm), drawn as two half-arcs from θ 90 to 270 and back, so the loop starts at the top under the collet (a `Circle` starts at θ 0). `Arc` runs counter-clockwise from start to end (`cadkernel::geom2d::Arc::sweep`).
+  4. `Plane { base: Section { theta_deg: 90 } }`: square to the path where it starts.
+  5. `Sketch` "Section" on 4: three round strands (r 0.5, 0.3 off the path) as one trefoil 1.6 mm across, each groove rounded by a 0.1 mm fillet, centred on the path's start (x 10.68, y 2.1).
+  6. `Twist { sketch: Profile::Feature { feature: 5 }, path: <feature 3's Sketch, inline, on plane 2>, degrees: 2880, end_scale: 1.0, closed: true }` (C-V3), Join: eight whole turns round a closed loop with no caps, lay pitch 8.4 mm, lay angle about 31°. A closed twist writes the design at format 6.
+  7. `Pattern { sources: [6], kind: Mirror { plane: MirrorPlane::Band } }`, Join: the opposite lay on the −Z arris.
+  8. "Collet": a `Revolve` of a half-section drawn in the stone's own frame and seated at the stone's placement, role Head, Join: a cone flaring from inside the band to an upright wall, a lip of two 0.4 mm rounds, and a solid seat under the stone. Standing where the stone stands, it is the stone's hand-made head. The ropes pass through its solid foot, so the rope has no end to show.
+  9. `stone_feature(9, gem, Placement::ring(90.0, 0.65))`: the girdle 0.65 mm over the crest.
+- **What it shows off:** paths against sections, the twist parameters, mirroring across the band's mid-plane, and a turned collet as a hand-made head.
+- **Measured:** the 67 mm rope's twisted sweep plus its csg join takes about 1.4 s at draft and 2.4 s at export (248k triangles a rope); the mirror's join about 1.0 s and 1.9 s (`report.json`, `rope`).
 - **Traps and how they are avoided:**
-  - **The brief buried the rope.** At r 10.6 and z 1.55, a 1.0 mm diamond stands only 0.2 mm proud of the 10.9 crest and stops 0.15 mm short of the side face. At r 10.75 and z 2.05, 1.1 mm across, it stands 0.4 mm proud and 0.4 mm past the face, wrapping the arris.
-  - Stations: 7200° / `TWIST_STEP_DEG` 3 = 2400, under `MAX_STATIONS` 8192. About 40k triangles, under `MAX_TRIANGLES` 2 M.
-  - A twist is a mesh, so fillet and press-pull refuse it by name (doctrine).
-- **Needs:** nothing new.
-- **Template:** lift. About 15 KB.
-- **Risk:** medium. The csg join time along the 59 mm rope has not been measured. Fallback: 3600° with a 1.3 mm section.
+  - **The section's 7200° does not build.** `Operation::Twist` refuses more than ten turns (3600°). The lesson uses 2880°, which reads as rope at 300 px.
+  - **Seam beads do not lay on a twisted rope.** The bead folds where the strand grooves cross the band's arris and pinched at the open rope's end caps, at every radius tried (0.04 to 0.3 mm); the closed rope has no caps but still folds where the grooves cross the arris, so the rope and collet join crisp, like soldered twisted wire.
+  - **A torus round next to a cone breaks the revolve's tessellation** (non-manifold edges), so the collet's cone meets its upright wall at a sharp, obtuse crease and its base edge stays sharp inside the band.
+  - **`head.bezel` over a 4.4 mm band shows its open underside**: its wall stops at the crest, so beyond the band the stone's back shows. The turned collet has a closed seat.
+- **Template:** lift, 16 nodes, 27 KB, one `design.set` patch (`/manufacturing`).
 
 ## Fenestra — *windows along the pull*
 

@@ -1,16 +1,16 @@
 {
-  "format_version": 5,
+  "format_version": 6,
   "name": "Torsade — a rope-edged collet",
   "size": 8.10862207660166,
   "profile": {
     "style": "Flat",
     "width_mm": 4.4,
     "thickness_mm": 1.8,
-    "crown_mm": 0.2,
+    "crown_mm": 0.35,
     "shape_a": 2.0,
     "shape_b": 1.0,
     "crest_bias": 0.0,
-    "edge_round_mm": 0.05,
+    "edge_round_mm": 0.22,
     "comfort_fit_mm": 0.3,
     "side_draft_deg": 0.0,
     "flange": {
@@ -296,16 +296,16 @@
                 {
                   "id": 2,
                   "xy": [
-                    -1.8545625374828156,
-                    10.51774680217038
+                    6.539613907446866e-16,
+                    10.68
                   ],
                   "fixed": false
                 },
                 {
                   "id": 3,
                   "xy": [
-                    1.8545625374828167,
-                    10.51774680217038
+                    -1.9618841722340595e-15,
+                    -10.68
                   ],
                   "fixed": false
                 }
@@ -321,10 +321,21 @@
                       "end": 3
                     }
                   }
+                },
+                {
+                  "id": 5,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 1,
+                      "start": 3,
+                      "end": 2
+                    }
+                  }
                 }
               ],
               "constraints": [],
-              "next_id": 5,
+              "next_id": 6,
               "grid_mm": 0.5
             }
           }
@@ -353,7 +364,7 @@
           "Plane": {
             "base": {
               "section": {
-                "theta_deg": 100.0
+                "theta_deg": 90.0
               }
             },
             "offset_mm": 0.0
@@ -640,16 +651,16 @@
                 {
                   "id": 2,
                   "xy": [
-                    -1.8545625374828156,
-                    10.51774680217038
+                    6.539613907446866e-16,
+                    10.68
                   ],
                   "fixed": false
                 },
                 {
                   "id": 3,
                   "xy": [
-                    1.8545625374828167,
-                    10.51774680217038
+                    -1.9618841722340595e-15,
+                    -10.68
                   ],
                   "fixed": false
                 }
@@ -665,14 +676,26 @@
                       "end": 3
                     }
                   }
+                },
+                {
+                  "id": 5,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 1,
+                      "start": 3,
+                      "end": 2
+                    }
+                  }
                 }
               ],
               "constraints": [],
-              "next_id": 5,
+              "next_id": 6,
               "grid_mm": 0.5
             },
             "degrees": 2880.0,
-            "end_scale": 1.0
+            "end_scale": 1.0,
+            "closed": true
           }
         },
         "component": {
@@ -737,20 +760,20 @@
                 ],
                 "x": [
                   0.0,
-                  1.0,
-                  0.0
-                ],
-                "y": [
-                  0.0,
                   0.0,
                   1.0
+                ],
+                "y": [
+                  1.0,
+                  0.0,
+                  0.0
                 ]
               },
               "points": [
                 {
                   "id": 1,
                   "xy": [
-                    9.95,
+                    -1.950000000000001,
                     0.0
                   ],
                   "fixed": false
@@ -758,63 +781,63 @@
                 {
                   "id": 2,
                   "xy": [
-                    9.95,
-                    3.4905468467255067
+                    -1.950000000000001,
+                    2.0
                   ],
                   "fixed": false
                 },
                 {
                   "id": 3,
                   "xy": [
-                    10.042189260715325,
-                    3.659001126857809
+                    -0.75,
+                    4.5
                   ],
                   "fixed": false
                 },
                 {
                   "id": 4,
                   "xy": [
-                    10.149999999999999,
-                    3.4905468467255067
+                    -5.551115123125783e-17,
+                    4.5
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 5,
+                  "xy": [
+                    0.4,
+                    4.1
                   ],
                   "fixed": false
                 },
                 {
                   "id": 6,
                   "xy": [
-                    11.2,
-                    4.4
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 7,
-                  "xy": [
-                    11.55,
-                    4.4
+                    0.0,
+                    4.1
                   ],
                   "fixed": false
                 },
                 {
                   "id": 8,
                   "xy": [
-                    11.950000000000001,
-                    4.0
+                    0.4,
+                    3.9499999999999997
                   ],
                   "fixed": false
                 },
                 {
                   "id": 9,
                   "xy": [
-                    11.55,
-                    4.0
+                    -5.551115123125783e-17,
+                    3.55
                   ],
                   "fixed": false
                 },
                 {
-                  "id": 11,
+                  "id": 10,
                   "xy": [
-                    11.950000000000001,
+                    0.0,
                     3.9499999999999997
                   ],
                   "fixed": false
@@ -822,7 +845,7 @@
                 {
                   "id": 12,
                   "xy": [
-                    11.55,
+                    -0.02,
                     3.55
                   ],
                   "fixed": false
@@ -830,23 +853,7 @@
                 {
                   "id": 13,
                   "xy": [
-                    11.55,
-                    3.9499999999999997
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 15,
-                  "xy": [
-                    11.530000000000001,
-                    3.55
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 16,
-                  "xy": [
-                    11.530000000000001,
+                    -0.02,
                     0.0
                   ],
                   "fixed": false
@@ -854,40 +861,29 @@
               ],
               "entities": [
                 {
-                  "id": 5,
+                  "id": 7,
                   "construction": false,
                   "geometry": {
                     "Arc": {
-                      "center": 4,
-                      "start": 3,
-                      "end": 2
+                      "center": 6,
+                      "start": 5,
+                      "end": 4
                     }
                   }
                 },
                 {
-                  "id": 10,
+                  "id": 11,
                   "construction": false,
                   "geometry": {
                     "Arc": {
-                      "center": 9,
-                      "start": 8,
-                      "end": 7
+                      "center": 10,
+                      "start": 9,
+                      "end": 8
                     }
                   }
                 },
                 {
                   "id": 14,
-                  "construction": false,
-                  "geometry": {
-                    "Arc": {
-                      "center": 13,
-                      "start": 12,
-                      "end": 11
-                    }
-                  }
-                },
-                {
-                  "id": 17,
                   "construction": false,
                   "geometry": {
                     "Line": {
@@ -897,12 +893,42 @@
                   }
                 },
                 {
-                  "id": 18,
+                  "id": 15,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 2,
+                      "b": 3
+                    }
+                  }
+                },
+                {
+                  "id": 16,
                   "construction": false,
                   "geometry": {
                     "Line": {
                       "a": 3,
-                      "b": 6
+                      "b": 4
+                    }
+                  }
+                },
+                {
+                  "id": 17,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 5,
+                      "b": 8
+                    }
+                  }
+                },
+                {
+                  "id": 18,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 9,
+                      "b": 12
                     }
                   }
                 },
@@ -911,8 +937,8 @@
                   "construction": false,
                   "geometry": {
                     "Line": {
-                      "a": 6,
-                      "b": 7
+                      "a": 12,
+                      "b": 13
                     }
                   }
                 },
@@ -921,44 +947,14 @@
                   "construction": false,
                   "geometry": {
                     "Line": {
-                      "a": 8,
-                      "b": 11
-                    }
-                  }
-                },
-                {
-                  "id": 21,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 12,
-                      "b": 15
-                    }
-                  }
-                },
-                {
-                  "id": 22,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 15,
-                      "b": 16
-                    }
-                  }
-                },
-                {
-                  "id": 23,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 16,
+                      "a": 13,
                       "b": 1
                     }
                   }
                 }
               ],
               "constraints": [],
-              "next_id": 24,
+              "next_id": 21,
               "grid_mm": 0.5
             },
             "pivot": [
@@ -968,14 +964,14 @@
             ],
             "axis": [
               0.0,
-              1.0,
-              0.0
+              0.0,
+              1.0
             ],
             "degrees": 360.0
           }
         },
         "component": {
-          "role": "Setting",
+          "role": "Head",
           "material": "Gold 18k",
           "manufacturing": null,
           "visible": true,
@@ -983,7 +979,13 @@
           "stone_id": null,
           "bench_notes": "",
           "placement": {
-            "kind": "free"
+            "kind": "ring",
+            "theta_deg": 90.0,
+            "across_mm": 0.0,
+            "height_mm": 0.6500000000000004,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
           },
           "attach": "join",
           "stage": "cast",
