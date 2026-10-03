@@ -1,0 +1,33 @@
+{
+  "ring": "sentis",
+  "mode": "read-test",
+  "attempt": 4,
+  "reads": false,
+  "what_the_eye_sees": "Much closer, and it no longer reads as a crown of thorns. The hero shows two thin gold canes twined round the finger with small spikes, a leafy sprig lying over the crown, and a red ball with a small pale star on top. That could pass for a berry on a thorny branch. In the face view, a dull red-brown oval cabochon sits in claws between two leafy sprigs. Each sprig carries many narrow, toothed leaflets, about six or seven a side, set close along a midrib. They read as a fern frond, a laurel or olive sprig, or a rowan leaf, not as a five-leaflet rose leaf. From the front the stone is a carnelian cabochon: no calyx shows, it has no stalk, and the claw feet are visible beneath it. At both ends of the face view, where the canes part, there are bulbous, beaked lumps with spikes. They look like small bird heads or tulip buds, and they pull the eye away from the plant. The prickles are still small, straight spikes. A jeweller would say 'thorny vine with leaves and a red stone' or 'laurel and thorns'. 'Hawthorn' or 'berry branch' are possible. They would not reliably say rose, briar or rose hip.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make each leaf a true rose leaf. Cut the leaflets from about 6-7 a side down to exactly 5: one terminal leaflet and two opposite pairs. Widen each leaflet to a broad oval about 3.2 x 2.2 mm, so the length-to-width ratio drops from about 2.5 to about 1.5. Space the pairs about 1.8 mm apart along a visible rachis about 0.4 mm thick, so dark gaps show between them. Make the terminal leaflet the largest. Keep the saw teeth (6-8 a side, about 0.3 mm deep) and the sunk midrib.",
+      "where": "Both rose leaves either side of the hip, crown theta about 60-120, as seen in the face view.",
+      "acceptance": "In face-300 you can count five separate broad leaflets on each leaf, in opposite pairs with a larger terminal one, and neither leaf reads as a fern, laurel or wheat sprig."
+    },
+    {
+      "priority": 2,
+      "what": "Make the hip read as fruit from the front. Stand the cabochon about 1.5 mm higher on its receptacle, with the long axis radial, so it is not a flat oval in a setting. Enlarge the calyx to 5 sepals each about 2.5 mm long, curling back over the hip's top so they overhang its outline by about 1 mm in the face view. Show about 2 mm of a 0.7 mm stalk into a cane. Hide the claw feet under the receptacle or the sepals. Shift the tint from brown-red toward orange-red, about [0.70, 0.18, 0.06].",
+      "where": "Hip cabochon, Hip receptacle, Hip calyx, Hip stalk and the claws; crown theta 90.",
+      "acceptance": "In face-300 the sepal star overlaps the top of the stone and no prongs show. In hero-300 the stalk visibly joins a cane. The stone reads as an orange-red rose hip, not a carnelian cabochon."
+    },
+    {
+      "priority": 3,
+      "what": "Remove the beaked lumps at the ends of the face view: smooth the cane junctions or trim them by about 1 mm, so nothing there reads as a bird head or bud. Then make the prickles into rose prickles: broad flattened bases about 0.8 mm across, about 1.0 mm long, all hooked back the same way along each cane. Make the crown prickles about 1.4x the palm ones.",
+      "where": "Cane parting/crossing points at the face-view flanks (shoulders, about theta 40-60 and 120-140); every prickle on both canes.",
+      "acceptance": "In face-300 neither end of the face shows a head- or bud-like lump. In hero-300 the prickles show wide triangular bases with hooked tips, and none read as straight needles."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/sentis/hero-300.png",
+    "showcase/vepres/sentis/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
