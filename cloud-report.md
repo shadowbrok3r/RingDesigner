@@ -1,154 +1,199 @@
-# Tenebrae enablers C-T1, C-T3, C-T4: cloud report
+# Bestiarium revival: Basiliscus — cloud report
 
-Branch `claude/tenebrae-enablers` from `master` at `a66879e`: `8246c5a` (C-T1), `67a3493` (C-T3),
-`0905b88` (C-T4), then this report. Pull request: https://github.com/shadowbrok3r/RingDesigner/pull/239
-Every enabler is opt-in: nothing existing changes shape, and every new saved form is fenced at design
-format 6 / graph format 2 without a new version.
+Branch `claude/bestiarium-basiliscus-revival`, cut from `claude/bestiarium-basiliscus`. I merged `origin/master`
+three times: at the start (`ad39165`), before round 4's final renders (`f741ef7`, the crisp renders of PR #248),
+and at the start of round 5 (`d6fc2f9`).
+- Example: `crates/ringdesign-core/examples/bestiarium_basiliscus.rs`.
+- Outputs: `showcase/bestiarium/basiliscus/`.
+- Nothing was pushed to master or any other branch, nothing was tagged, and no `src/` file was edited.
 
-## C-T1: tracery from a net, and `Profile::Regions`
+## Verdict: cut at 7.4
 
-**What landed**
-- `Sketch::tracery(net, bar_mm) -> Tracery { lights, skipped }` (`sketch/edit.rs`). It composes the
-  proven calls: `split_at_intersections` on the net alone (every other drawn curve stands aside as
-  construction while it splits, so the rest of the sketch is neither split nor moved), the cells from
-  `profile_regions`, each rim offset in by `bar/2` and each hole out by as much, then the net marked
-  construction. A cell whose offset folds is left out whole and named in `skipped` with the reason. A
-  bar no cell takes is refused, and the sketch is left unchanged.
-- `Profile::Regions { feature, regions }`, an untagged arm placed before `Feature`. `regions_of` takes
-  every picked region once (a pick named twice counts once), and an empty list is refused. A twisted
-  sweep, a loft and a sweep take one region and refuse several by name. Wired through every exhaustive
-  match (workbench grips, GUI sketch mode, and the GUI profile source, which shows "regions 1, 3 of 5").
-- Fence: `cad::picks_regions` / `picks_regions_json` (document and graph JSON, clusters included) join
-  `library::format_version_for` and the graph writers' `fenced_json`. An older build would read
-  `{feature, regions}` as `Feature` and sweep every region.
-- Exposure: a `sketch.tracery` graph node takes a Sketch operation or a bare sketch, the net's ids
-  (empty takes every drawn curve) and the bar. It returns the operation, how many lights, and each
-  skipped cell with its reason. MCP reaches it through its graph tools.
-- CLAUDE.md: the fence sentence, and a "Tracery is drawn from a net" bullet under the CAD rules.
+| Round | Verdict | Score | Reviewer's main reasons |
+|---|---|---|---|
+| 1 | revise | 6.5 | Land census missing; head a smooth bill; crown three dots; flanks combed |
+| 2 | revise | 6.8 | Body lost its scales; chopped wall slabs; crown a bar with pins |
+| 3 | cut | 7.2 | Head blocky at 3/4; crown balls on pyramids; bare polished walls; ruled scutes |
+| **4 (revival)** | **revise** | **7.3** | Round 3's cut reasons largely fixed: the head is sculpted and the walls carry scales. Still failing: ruled palm scutes and planks past the morph, frond-like hackles with stepped ends, a gecko-like head, a seam at the neck, braille-like pits, and sheared corner scales |
+| **5 (revival, last)** | **cut** | **7.4** | The best Basiliscus yet. For the first time the 3/4 view names a crowned snake, the field is clean and the neck seam is gone. Still under the bar: the hackles read as fronds with stepped ends; the crown points read as pawns (balls on stalks) with decimation facets; the skull reads smooth with no plates; the coil and boss walls streak; the corner wall scales shear; the palm scutes still read as bars |
 
-**Tests**
-- `sketch::edit::tests::a_polar_net_traces_to_one_light_per_cell_each_a_bar_from_its_neighbours`:
-  a 24-cell polar net at bar 0.9 gives 24 loops, and each loop's gap to its neighbour round the wheel is
-  0.9 ± 1e-6. The test also checks that the net ends as construction and a circle beside it is untouched.
-- `sketch::edit::tests::a_cell_too_narrow_for_the_bar_is_skipped_whole_and_a_bar_no_cell_takes_is_refused`
-- `cad::tests::several_regions_of_one_branched_sketch_extrude_together_and_read_back_as_regions`:
-  the two outer cells of a three-cell box extrude as (12 + 16) × 2 mm³, the whole branched sketch is
-  refused, and each profile shape round-trips through untagged serde as itself.
-- `library::tests::several_picked_regions_write_the_design_at_six_and_one_stays_at_five` (document
-  and graph), and `nodes::cad::tests::a_tracery_node_draws_one_light_per_cell_of_a_sketch_operation`.
+- The reviews are `review-round4.json` and `review-round5.json`. The earlier ones are in `previous/` on the seed
+  branch.
+- Ship needed 7.5. Under TASK.md the reviewer's verdict stands, so the ring is cut.
 
-## C-T3: Gothic cutter shapes, the outline library and the artwork set
+## Gates (round 5, final build)
 
-**What landed**
-- `cutters::Shape` gains Lancet, Ogee, Trefoil, Quatrefoil and Mouchette, and `PIERCE_SHAPES` lists all
-  ten, which reaches the inspector's choice and the `cad.op.cutter.pierce` node. The workbench's
-  right-click "Cut here" list (`PIERCE_KEYS`) carries all ten on desktop and phone. `pierce_at` sizes
-  each one, and an arch's point and a trefoil's lobe stand away from the bore.
-- The bright cut insets concave cusps. Each Gothic plan is drawn dense, read on fixed rays from a centre
-  it is star-shaped about (each ray turned onto the nearest point or cusp), and grown along those rays by
-  the true Minkowski offset of the drawn plan. The point count never changes, the fan never folds, and a
-  cusp moves straight out along its own ray. The five older plans are untouched.
-- Fence: a piercing with a Gothic shape is `geometry_extended`, so it is written at 6 and graph 2. An
-  older reader would otherwise cut it as a Round.
-- Library: `bundled/sketches/gothic/*.svg`, 16 pieces, all in `import_svg`-clean form. The
-  `ringdesign-assets` `SKETCHES` family is swept through subfolders and named by path (for example
-  `gothic/fleur-de-lis`). `library::list_sketches()` / `list_sketches_in(dir)` / `sketch_dir()` lay the
-  user's `sketches/` folder over the bundled set by name, like `list_outlines`. A `sketch.library` graph
-  node serves any of them by name, with a scale.
-- Outlines and nets: gallery-ogee, gallery-quatrefoil, gallery-cusped-lozenge,
-  ornament-quatrefoil-ring, and the four jalis (lozenge, quatrefoil, honeycomb, intersecting arches) as
-  centre lines for `tracery`.
-- Artwork: fleur-de-lis, fleur-cresting, crocket-leaf, nave-arcade (three lancet bays),
-  gargoyle-silhouette, gargoyle-face (an eye, a brow, a nostril and a fang: Logan now allows faces),
-  memento-mori (crossed bones under an open hourglass) and cross-pattee.
-- Tools: `tools/author_gothic.py` draws the set, with exact lines and arcs for the geometric
-  pieces and shapely polygons for the figurative ones. `tools/harvest_gothic.py` (rhino3dm) is the
-  3DM harvester; it was smoke-tested here on synthetic 3DM files (a line+arc polycurve, a circle, a
-  B-rep box).
-- CLAUDE.md: a "Gothic piercing grows by a true offset" bullet, and the `SKETCHES` family in the assets
-  section.
+Every gate was green at draft and at export. The reviewer checked each one against the JSON files.
 
-**Tests**
-- `cutters::tests::a_gothic_plan_grows_by_a_true_offset_so_its_cusps_inset_instead_of_folding`: every
-  grown point stands exactly `g` off the drawn plan (1e-6). The ray reading keeps the drawn area, so each
-  plan is star-shaped about its centre. A quatrefoil's cusp moves out along its ray, and each point or
-  tip lies at −x.
-- The existing outline, crown-piercing (volume to 3%), blind, side-face and edge tests now run all ten
-  shapes. The side-face test also pins which way the new points face.
-- `library::tests::every_bundled_gothic_sketch_sweeps_its_area_or_traces_its_lights`: every file
-  imports. Each outline sweeps the area recorded on its root (1e-5). Each net traces to the recorded light
-  count with none skipped. A user file overlays a bundled one and a new name joins the list.
-- `nodes::cad::tests::a_library_sketch_feeds_tracery_and_names_the_library_when_it_is_missing`, and the
-  assets crate's round-trip, length, name and SVG checks now cover `SKETCHES`.
+| Gate | Draft 768 x 320 | Export 1536 x 448 |
+|---|---|---|
+| Watertight, 0 degenerate faces, 0 self-crossings, notes empty, bore clear | pass (545,250 triangles) | pass (1,790,518 triangles, under 2 M) |
+| The same at 384 x 192 | pass (226,336 triangles) | pass |
+| Every made part closed and uncrossed (the seat and the sculpted head) | pass | pass |
+| Casting pattern watertight, 0 degenerate faces, 0 crossings | pass | pass |
+| Lost wax Castable at 0.8 mm fill (thinnest wall 1.669 mm) | pass | pass |
+| Land census: every section at or above 0.8 mm, or named | pass | pass |
+| 0 DFM findings | pass | pass |
+| One stone in report and preview, no warnings or crowding | pass | pass |
+| `--verify` cold reload identical | pass | pass |
 
-**Could not do**
-- The nine harvested pieces (Under Gallery Cuts 001–003, Jalis 000/002/010/016, Ornaments 027/028)
-  are drawn stand-ins. `assets/User/Profiles/` is git-ignored (`.gitignore` line 3: `assets/`). It is not
-  on master or any branch, so the 3DM files were not in this checkout. Each stand-in says so in its
-  `<desc>`. Run `uv run --no-project --with rhino3dm==8.32.0 --with shapely python
-  tools/harvest_gothic.py assets/User/Profiles` on the workstation to replace them under the same
-  names, then rerun `every_bundled_gothic_sketch`. The file matching (folder keyword plus number) is a
-  guess at the folder names; `--dry-run` shows what it would take.
-- The gargoyle pieces are a serviceable first pass and have not been through a render review. Hold them
-  to that bar, and cut the face variant if it does not read at size.
+`report.json` holds the export run and a `draft` block; `draft-gates.json` is the full draft report.
 
-## C-T4: DFM land width for CAD cuts
+Land census (export). The sculpted-head rows are measured on the decimated head mesh, as round 4's reviewer asked:
+each is the narrowest chord through the feature over 40 directions.
 
-**What landed**
-- `dfm::cut_lands(design, built, floor_mm) -> Vec<DfmFinding>`, with `CUT_LAND` as the label and
-  `dfm::PART` as the layer sentinel. For every Cut extrusion it reports the narrowest land in three
-  places: between two of its regions, between it and each copy a Pattern makes, and to the band's or host
-  part's edge. Each kind is reported once when it falls under the floor, for example
-  `Cut #3 'Pierce the lights': 0.60 mm between lights 1 and 2 (floor 0.8)`.
-- How it measures:
-  - Region lands are measured between outlines in the sketch's plane (`cad::extruded_regions` gives the
-    plane as built, face-anchored sketches included), and carried to copies by their copy motions.
-  - The edge land is walked out from each outline in the plane until a line along the normal, within the
-    cut's reach, meets no metal in the built ring.
-  - Where that line runs through a copy's opening instead, the land is booked to the copy. A ring of
-    copies converges toward the bore, so its land at the metal is narrower than in the plane.
-- It only runs when asked, so nothing existing changes. It is reachable through `ringdesign export
-  --cut-land <mm>` and MCP `manufacturing_check { cut_land_mm }`, which adds `cut_lands` to the report.
-- CLAUDE.md: a "CAD cut's lands" paragraph beside the made-part lands.
+| Feature | Land, mm | Status |
+|---|---|---|
+| Boss wall round the girdle | 0.849 | at or above 0.8 |
+| Boss rim at the bright-cut bevel | 0.630 | named: chamfer recut and burnished over the stone |
+| Painted body to the tail's tip | 0.800 | at or above 0.8 |
+| Crown band height | 1.152 | at or above 0.8 |
+| Crown points, plate at mid-height | 1.085 | at or above 0.8 |
+| Crown points, waist under the pearl | 0.932 | at or above 0.8 |
+| Crown points, side petal | 0.668 | named: investment detail |
+| Crown pearls | 0.947 | at or above 0.8 |
+| Fang near its tip | 0.718 | named: investment detail |
+| Tongue stem | 0.602 | named: investment detail |
+| Tongue tines near their ends | 0.399 | named: investment detail |
+| Bordure beads and rim beads | 0.440 | named: burnished |
 
-**Test**
-- `dfm::tests::a_cut_names_the_narrowest_land_between_its_lights_its_copies_and_the_edge` covers five
-  cases on a Court band:
-  - Two 1 mm lights 0.6 mm apart report exactly `0.60 mm between lights 1 and 2 (floor 0.8)`.
-  - A lower floor stays silent, and so does the design's own report.
-  - Lights a full floor apart pass.
-  - A light 0.5 mm in from the side reports 0.5 ± 0.06 mm to the edge.
-  - A ring of 48 copies reports a copy land.
+## Template gate (after the last round)
 
-**Could not do**
-- Revolve and sweep cuts are not measured; only extrusions have a plane to measure in.
+Run with `collection_templates bestiarium … --only basiliscus --verify-export`, class `painted`; the result is in
+`template-gate.json`.
+- **design.set patches:** 0 (the limit is 4).
+- **Graph size:** 2,750,332 bytes against the 3,000,000-byte budget for a painted ring, so no size review is needed.
+  The graph has 56 nodes.
+- **Cold source:** identical.
+- **Cold design and graph reloads:** passed.
+- **Export mesh parity:** passed (1,790,518 identical triangles).
+- **Round 4 note:** the first run came to 3,432,917 bytes, over budget. I re-decimated the head from 135k to about
+  80k faces to bring it under.
 
-## Checks run
+## What the ring is now
 
-All on the final tree, with rustc 1.98.1. The workstation's `systemd-run` guard and `--offline` were
-not used here, as TASK.md says.
+**Stock:** native 020 escutcheon, unmirrored. Lost wax, `min_section_mm` 0.8, Silver 925 investment.
 
-- `cargo test -p ringdesign-core`: 839 passed, 0 failed, 16 ignored. `tests/golden.rs` passed.
-- `cargo test -p ringdesign-graph --no-fail-fast`: 109 lib tests passed, plus `bestiarium_templates`,
-  `cad_edits`, `imported_bases`, `showcase_templates`, `template_nodes` and the `collection_templates`
-  example (25 more), 0 failed. This includes the struct-coverage and table-consistency tests for the two
-  new nodes.
-- `cargo test -p ringdesign-assets`: 4 passed.
-- `cargo check --no-default-features --target wasm32-unknown-unknown -p ringdesign-core`: clean.
-- `cargo check --tests` of graph, workbench, gui, mcp, cli and the Android app: clean. The only warning
-  is the existing `COMFY_GATE_KEY` build note.
-- Spot suites for the touched exposure points:
-  - workbench `viewport::cutters`/`menu`/`grips`: 12 passed. Every one of the ten right-click keys plans
-    on a Court band.
-  - gui `cutter`/`sweep`: 13 passed.
-  - `ringdesign-mcp --lib`: 45 passed.
-- Commits `8246c5a` and `67a3493` were each checked on their own (core, graph, workbench and gui, plus
-  assets for C-T3), so the history bisects.
-- The full workspace test run was not done; I ran the suites TASK.md names plus the crates whose code I
-  touched.
+**Sculpted part, `Basilisk's crowned head`.** A stored mesh made with `ringdesign_core::sculpt` the way Fenrir's wolf
+was, and joined at the table. The distance field is meshed at 0.045 mm and decimated to 83,434 triangles (896 KB
+packed). The mesh is closed with 0 crossings and stands 4.5 mm over the table.
+- **Skull:** a wedge with a flattened snout top and a canthus ridge from each nostril to the brow. A smaller eye
+  (socket, ball and slit pupil) sits under a brow shelf. Nostrils, and eight domed head shields parted by V-grooves.
+- **Jaws:** low scalloped labials. The lower jaw is set in its own, less-rolled frame, so it drops across the table
+  rather than into it.
+- **Fangs and tongue:** a fang hangs on each side, and a forked tongue lies on the jaw and the field.
+- **Crown:** five points on a flared band that hugs the skull. Each point is a fleur, with the pearl on the leaf's
+  tip and two blade petals, and two cabochons sit on the band.
+- **Pose:** the skull rolls 28° toward the viewer, so both the face camera and the hero camera see the crown in
+  silhouette.
+- **Neck:** it copies the painted coil's own surface, scales and all. It stands 1.5× proud behind the head and eases
+  down to 0.85 of the paint's height, so the two skins share every scale and meet along one line.
 
-Housekeeping: the 30 GB disk allowance ran out once, mid-run, from the example binaries under
-`target/debug/examples` (20 GB). I deleted them and reran that step. `tools/harvest/` is git-ignored by
-design ("never tracked"), so the two new scripts live at `tools/author_gothic.py` and
-`tools/harvest_gothic.py`, beside `audit_3dm_profiles.py`. I stayed out of
-`crates/ringdesign-core/examples/tenebrae_*`.
+**Painted layers:**
+- `Basiliscus`: the coil round the stone. Where it laps the boss it rides the boss's wall as a 0.35 mm fillet.
+- `Beaded bordure`: one bead row round a plain polished field. Round 4's pits are removed.
+- `Rim beads`.
+- `Wall scales`: domed round scales in true mm down the walls under the table. They start with a 1 mm ramp and fade
+  out over the last 1.5 mm above the bore.
+- `Hackles into scales`, with the bench layer `Graver's barbs and keels`.
+- `Belly scutes`: curved, shingled scutes, each lip rolling over the next plate. They hand over to keeled dorsal
+  scales at 0.84 mm pitch between 28° and 46° from the palm. The dorsal scales cross over to the mantling between
+  60° and 76°.
+
+**Seat:** `Tsavorite, flush`, an 8 × 4 mm marquise in a boss with a bright-cut bevel.
+
+**Stamps:** none. The eye, pupil, nostril, fangs, tongue and crown that used to be stamps are now part of the sculpt.
+
+**Renders:** `stones.png` and the new `head.png` are framed close-ups made with `render::write_png_framed`, not cropped
+meshes. I also added `contact-300.png`.
+
+**Format:** the design is written at format 6. `crisp_relief` is off on purpose: on this unmirrored stock it outlined
+the wall scales on the right-hand wall, and the scales read better without it.
+
+## What I could not do
+
+- **Hackles.** They were the P1 item in rounds 3, 4 and 5, and I did not redraw them. I only softened their edges (a
+  0.36 mm roll), thinned the midrib to 0.035 mm, raised the lift and eased the sickle to 10°. The truncation near
+  atlas x 340 (θ ≈ 60) is a deliberate mask. Removing it gave 43 self-crossings on the shoulder wall (θ 57,
+  z −2.9), so I put it back with a wider 1.1 mm ramp. A real fix needs the hackle field redrawn so it does not fold
+  in that concave corner.
+- **Head plates and crown read.**
+  - The eight head shields (0.1 mm domes, 0.09 mm V-grooves) are in the field, but the reviewer could not see them on
+    the decimated 83k-face mesh.
+  - The crown's fleurs still read as pawns, and the band shows decimation facets.
+  - Fixing both needs either more faces (the template budget has about 250 KB left) or decimation that preserves
+    curvature.
+- **Grazing streaks.** The coil's outer wall and the boss wall still streak at grazing light. The fillet onto the boss
+  only acts where the coil laps it.
+- **Right-hand wall.** The wall under the chief shows sheared, outlined scales on the right-hand side and not on the
+  left. The stock is unmirrored, and the painted relief resolves worse on that side.
+
+## Core changes wanted (exact code)
+
+1. **Measure land on a closed mesh**, for any sculpted or stored part. This is the example's `chord_land`; it would
+   go in `crates/ringdesign-core/src/cad/measure.rs`:
+
+```rust
+/// The narrowest chord through `p` of the closed mesh `m` over forty directions on a golden spiral, mm: the land a
+/// thin feature has at `p`. `f64::MAX` when `p` is not enclosed.
+pub fn chord_land(m: &crate::csg::Solid, p: [f64; 3]) -> f64 {
+    let sub = |a: [f64; 3], b: [f64; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    let cross = |a: [f64; 3], b: [f64; 3]| [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    let hit = |o: [f64; 3], d: [f64; 3]| -> f64 {
+        let mut best = f64::MAX;
+        for t in &m.f {
+            let [a, b, c] = t.map(|i| m.v[i as usize]);
+            let (e1, e2) = (sub(b, a), sub(c, a));
+            let h = cross(d, e2);
+            let det = dot(e1, h);
+            if det.abs() < 1e-14 {
+                continue;
+            }
+            let s = sub(o, a);
+            let u = dot(s, h) / det;
+            let q = cross(s, e1);
+            let v = dot(d, q) / det;
+            let t = dot(e2, q) / det;
+            if (0.0..=1.0).contains(&u) && v >= 0.0 && u + v <= 1.0 && t > 1e-9 {
+                best = best.min(t);
+            }
+        }
+        best
+    };
+    (0..40)
+        .map(|k| {
+            let z = (k as f64 + 0.5) / 40.0;
+            let (r, th) = ((1.0 - z * z).sqrt(), k as f64 * 2.399_963);
+            let d = [r * th.cos(), z, r * th.sin()];
+            hit(p, d) + hit(p, [-d[0], -d[1], -d[2]])
+        })
+        .fold(f64::MAX, f64::min)
+}
+```
+
+2. **Decimation that preserves curvature**, for sculpts that must fit a template budget. `decimate`'s `max_turn_deg`
+   is fixed at 18° today; this lets a caller set it, in `crates/ringdesign-core/src/sculpt.rs`:
+
+```rust
+pub fn clean_decimate_turn(raw: &Solid, target: usize, max_turn_deg: f64) -> Solid {
+    for (k, cap) in [2e-3, 1e-3, 5e-4, 2e-4].into_iter().enumerate() {
+        let nets = decimate(raw, target + 20_000 * k, cap, 2.0 + k as f64, max_turn_deg, 35.0);
+        if csg::self_crossings(&nets) == 0 {
+            return nets;
+        }
+    }
+    decimate(raw, raw.f.len(), 0.0, 0.0, 0.0, 180.0)
+}
+
+pub fn clean_decimate(raw: &Solid, target: usize) -> Solid {
+    clean_decimate_turn(raw, target, 18.0)
+}
+```
+
+   A tighter turn limit (8–10°) on the crown and plates is the most direct route to round 5's punch item 2.
+
+3. **A per-layer opt-out of `crisp_relief`** (not written). A ring could then keep crisp walls on its table and stamps
+   but leave one painted wall layer smooth. The shape I have in mind is a `crisp: Option<bool>` on `LayerEntry`, read
+   where `imported_base.rs:1056` checks `d.crisp_relief`. I have not written it because it touches the build's cell
+   logic.
