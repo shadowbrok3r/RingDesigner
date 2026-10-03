@@ -1891,22 +1891,49 @@ fn operation_ui(ui: &mut egui::Ui, op: &mut Operation, tree: &[(NodeId, String)]
             vector(ui, direction, axis);
             number(ui, "Revolution degrees", degrees);
         }
-        Operation::Sweep { sketch, path } => {
+        Operation::Sweep { sketch, path, closed, twist_deg, end_scale } => {
             profile_source(ui, "Section", sketch, tree, None);
-            for (i, p) in path.iter_mut().enumerate() {
-                vector(ui, &format!("Station {i} mm"), p);
+            match path {
+                cad::SweepPath::Points(path) => {
+                    for (i, p) in path.iter_mut().enumerate() {
+                        vector(ui, &format!("Station {i} mm"), p);
+                    }
+                    if ui.small_button("Add path station").clicked() && path.len() < cad::MAX_SWEEP_STATIONS {
+                        let p = path.last().copied().unwrap_or([0.0; 3]);
+                        path.push([p[0], p[1], p[2] + 5.0]);
+                    }
+                }
+                cad::SweepPath::Sketch { feature, entity, lift_mm } => {
+                    ui.weak(format!("Along entity #{entity} of sketch #{feature}, sampled every {} mm; it follows every edit to the sketch.", cad::SWEEP_STEP_MM));
+                    number(ui, "Lift off the sketch mm", lift_mm);
+                }
             }
-            if ui.small_button("Add path station").clicked() && path.len() < 128 {
-                let p = path.last().copied().unwrap_or([0.0; 3]);
-                path.push([p[0], p[1], p[2] + 5.0]);
-            }
+            ui.checkbox(closed, "Closed round the path");
+            number(ui, "Twist degrees", twist_deg);
+            number(ui, "End scale", end_scale);
         }
         Operation::Twist {
-            degrees, end_scale, ..
+            degrees, end_scale, scale, closed, path, ..
         } => {
             number(ui, "Twist degrees", degrees);
-            number(ui, "End scale", end_scale);
-            ui.weak("Edit the planar path in Debug; the section stands square to the path at its start.");
+            if scale.is_empty() {
+                number(ui, "End scale", end_scale);
+            } else {
+                ui.weak(format!("Scaled by a law of {} knots; edit it in Debug.", scale.len()));
+            }
+            ui.checkbox(closed, "Closed round the path");
+            match path {
+                cad::TwistPath::Sketch(_) => {
+                    ui.weak("Edit the planar path in Debug; the section stands square to the path at its start.");
+                }
+                cad::TwistPath::Points { points, smooth } => {
+                    ui.checkbox(smooth, "Smooth through the points");
+                    for (i, p) in points.iter_mut().enumerate() {
+                        vector(ui, &format!("Point {i} mm"), p);
+                    }
+                    ui.weak("The section's own plane rides the path from its first point.");
+                }
+            }
         }
         Operation::Loft { sections } => {
             for (i, p) in sections.iter_mut().enumerate() {

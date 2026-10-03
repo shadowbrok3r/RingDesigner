@@ -1161,7 +1161,14 @@ pins both directions. On top of that:
   along its inward normal and returns the thinnest section and the area
   under the floor — a claw's diameter, a collet's wall, a point as a little
   area to except by name. With `up`, the part's axis, faces turned toward
-  its ends are not read.
+  its ends are not read. It is a fold over `dfm::face_sections`, each
+  face's own read, which a ring that names its faces (toes, spines, hide)
+  folds by name. Relief is not a section: `dfm::part_sections_relief` sets
+  apart a short ray that runs within `max_deg` of the base surface's tangent
+  plane and leaves near it — a tubercle's or a scale's own chord — reading
+  the base off a skin field (the part without its relief) or off the mesh's
+  normals averaged over a radius, so pebbled hide over a thick body no
+  longer reads 0.000 mm while a thin fin on it still reads its 0.3.
 
   A **CAD cut's lands** are asked for, never volunteered:
   `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
@@ -2444,6 +2451,27 @@ What the runtime settled while being built, each pinned by a test:
   evaluates to the code template **byte for byte** (pinned). The file
   layer lists user-dir clusters and presets first and the bundled ones
   behind them, so a user file of the same name shadows a bundled one.
+- **The Gothic clusters draw their tracery exactly** (C-T2;
+  `graphs/clusters/{wheel-window,pointed-arch-section,rose-tracery,lancet-arcade}.cluster.json`,
+  built by `templates::build_gothic_cluster`, listed in `GOTHIC_CLUSTERS`).
+  Each wraps a native node over `sketch::gothic` and hands out `sketch_op`,
+  a Sketch feature's operation for a `cad.feature`'s `operation` pin:
+  `sketch.gothic.lights` (lights radiating between a sill and an apex
+  radius, a bar apart, Pointed, Round, Trefoil or each a whole Mouchette),
+  `sketch.gothic.arch` (the blunt-lancet section a ring revolves from) and
+  `sketch.gothic.arcade` (lancet bays on a sill, as niche loops and as one
+  stamp outline). Nothing is split or offset, so an example that calls
+  `sketch::gothic` and the template's cluster draw the same sketch byte for
+  byte. The wheel and the section take the bore from `band.size`, so a
+  resize moves the architecture; the rose's lights stand half a bar inside
+  its net circles. A pointed head too tall for its light springs from the
+  sill as a drop arch; a head that cannot fit is refused by name. The arch
+  section is one polyline of short chords: the kernel cannot tessellate a
+  revolved comfort arc. Trefoil cusps and mouchette tails refuse a draft
+  and cut straight. Two drafted halves of one window meeting at the parting
+  plane, mirrored, fail csg's coincidence check, drafted or not; a sand
+  wheel sinks blind drafted lights from each side face, a wax wheel
+  pierces straight through.
 - **The lift is exact by construction** (`lift.rs`, `Graph::from_design`):
   it wires the nodes a person would, evaluates them, diffs the result
   against the design field by field, and carries whatever the nodes cannot
@@ -2635,7 +2663,22 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   and traced, because cadkernel's tessellation of it left open edges.
   Closed at every twist from −720° to 720°, its volume area × length to
   0.05% on a straight path; like a builder's part it is a mesh, so fillet,
-  press-pull and sketch-on-face refuse it by name.
+  press-pull and sketch-on-face refuse it by name. It also runs through
+  points in space (`TwistPath::Points`, mitred or a centripetal
+  Catmull-Rom), the section's own plane carried from the first point on a
+  rotation-minimising frame — a sketch path keeps its plane's normal and
+  builds bit for bit as before; under a scale law (`scale`, a monotone
+  cubic through its knots, `twist::LEAF_LAW` and `THORN_LAW`), whose
+  curvature places stations too, or a straight untwisted leaf loses its
+  belly; and round a closed loop (`closed`: whole turns, a scale that ends
+  where it starts, the turn the frame gathers given back along the loop,
+  no caps). A `Sweep` closes (`closed`) and scales (`end_scale`) in the
+  kernel; twisted (`twist_deg`) it is this sweep, its section on the
+  kernel's own base point, because the kernel's twisted surface tessellates
+  open on every section but a round one (33 to 396 open edges, measured).
+  `SweepPath::Sketch` follows a sketch entity every 0.3 mm (≤128
+  stations), so a moulding follows edits to its arch. Each writes the
+  design at 6 and a graph at 2.
 - **A head moves by its stone.** G, R and the gizmo on a builder part act on
   the stone it is built round — its ring placement, or its `FaceSeat` on a
   part's face — and the head follows. A Transform wrapped round a head would
@@ -2659,6 +2702,18 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   0.9: every gap 0.9 ± 1e-6). A branched sketch that carries several depths
   sweeps its cells by `Profile::Regions`; one Sketch feature per depth is
   still the plainer way. The graph reaches it as `sketch.tracery`.
+- **A drafted arc's seams are zipped closed.** The kernel tapers an
+  extrusion by lofting to an offset profile, and the lofted wall samples a
+  shared arc at other points than the planar cap does. Where the old
+  three-edge stitch leaves the mesh open, `zip_chord_seams` splits each open
+  edge at the other side's samples within the chord tolerance (each sample
+  to its nearest edge, no vertex moved) and keeps the result only if it
+  closes. The stitch now leaves a gap lying inside the face beside it (a
+  concave arc's, where the gap triangle folds over the cap) to the zip: on a
+  wheel's concave sills it laid 0.5 mm² of down-facing slivers that the sand
+  verdict read as undercut. Both run only on a mesh the kernel left open:
+  a part the kernel tessellates closed is unchanged, and only a part the
+  old stitch closed with a fold now closes differently.
 
 ## Python: `crates/ringdesign-py`
 
@@ -3422,7 +3477,23 @@ and `trapezoid`, met to the ring through a `Stock` field, meshed by
 `tetra_mesh`, `relax`ed, `clean_decimate`d to a budget (backing off until
 `csg::self_crossings` reads zero) and `settle`d — sliver collapse, edge-flip
 polish, fold-corner smoothing, each kept only while the mesh stays closed and
-uncrossed. A hollow is `Heights::first_air` eroded by a ball of the wall,
+uncrossed. A relax that folds a thin crease through itself is
+undone only round the fold (`relax_clean`), and a decimation that cannot
+come clean says where it crossed (`clean_decimate_or_sites`) so the field
+can be mended there, rather than handing back the raw mesh. A stored part
+whose component sets `fillet_into_band` (mm; 0 is off, unwritten, and the
+key fences graph format 2) grows out of the band as built instead of
+sitting on it. `sculpt::fillet_into` keeps the part's own mesh and unites
+it with a collar meshed round its foot: `smin` of the part, tucked a
+little inside itself, and the band's signed distance, sunk 2% of the
+radius, so the fillet crosses both rather than lying along either; past
+the foot the band curves down before the clip to the part's footprint, so
+the collar's rim lies buried deeper than a decimation moves a crease, and
+above the fillet the collar ends inside the part. Remeshing the whole
+part instead softened Moloch's hide to the fillet's step; the collar
+leaves every vertex clear of the band bit for bit. Only a joined part
+grows, and a collar that will not come clean or unite leaves the part as
+stored, said. A hollow is `Heights::first_air` eroded by a ball of the wall,
 kept by `open_shells` where it opens into the bore; `packed` refuses an open
 or crossing mesh. On Fenrir's own wolf the hollow and every stage up to
 fold-corner smoothing are bit for bit the example's. That one changed: it

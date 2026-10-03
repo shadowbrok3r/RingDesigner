@@ -13,6 +13,7 @@ pub mod draw;
 pub mod edit;
 pub mod exchange;
 pub mod fill;
+pub mod gothic;
 mod graph;
 pub mod query;
 pub mod region;
