@@ -118,11 +118,15 @@ fn stone_part(design: &RingDesign, id: Id, key: &str) -> Result<(Gem, Option<Pla
     }
     let gem = builders::gem_of(params).map_err(|e| format!("{e:#}"))?;
     let placement = match f.component.placement.clone() {
-        Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } => {
+        Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level } => {
             let held = builders::stand_off_mm(key, gem);
-            ((held - height_mm).abs() > 1e-9).then_some(Placement::Ring { theta_deg, across_mm, height_mm: held, spin_deg, tilt_deg, cant_deg })
+            ((held - height_mm).abs() > 1e-9).then_some(Placement::Ring { theta_deg, across_mm, height_mm: held, spin_deg, tilt_deg, cant_deg, level })
         }
-        Placement::Free => None,
+        Placement::Side { theta_deg, radius_mm, face, height_mm, spin_deg, tilt_deg } => {
+            let held = builders::stand_off_mm(key, gem);
+            ((held - height_mm).abs() > 1e-9).then_some(Placement::Side { theta_deg, radius_mm, face, height_mm: held, spin_deg, tilt_deg })
+        }
+        Placement::Free | Placement::Relative { .. } => None,
     };
     Ok((gem, placement))
 }
@@ -135,7 +139,7 @@ fn seat_stone(design: &RingDesign, mesh: Option<&Mesh>, path: &[usize]) -> Optio
     let height_mm = mesh
         .and_then(|m| ringdesign_core::cad::surface_hit(m, st.theta_deg, across_mm))
         .map_or(stand_off, |(hit, n)| (0..3).map(|k| (frame.girdle[k] - hit[k]) * n[k]).sum());
-    Some((Placement::Ring { theta_deg: st.theta_deg, across_mm, height_mm, spin_deg: st.rot_deg(), tilt_deg: 0.0, cant_deg: 0.0 }, st.gem))
+    Some((Placement::Ring { theta_deg: st.theta_deg, across_mm, height_mm, spin_deg: st.rot_deg(), tilt_deg: 0.0, cant_deg: 0.0, level: false }, st.gem))
 }
 
 /// The mirror of part `f` across `plane`, meeting the band by `attach`; refused when the part stands on the plane.
