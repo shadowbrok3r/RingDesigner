@@ -1,0 +1,64 @@
+{
+  "ring": "Ogiva",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.2,
+  "summary": "Cut at 6.2 in round 3, the same score as round 2 (Caiman scores 7; a ring ships at 7.5). The subject still reads. Uncaptioned at 300 px, face-300 and hero-300 show a crocketed Gothic pointed arch on two piers with a finial, and the silhouette is unique in the collection. The round-3 build changed almost nothing a render can see, though. The feature count went from 85 to 101, adding boss tiers and straight belts across the parting line at the trefoil and the bore. Every structural complaint from rounds 1 and 2 is still open. All 101 features still carry blend_mm 0.0, so there is not one seam bead. The capitals and abaci are still box-on-box (hero.png, shoulder.png, reverse.png). The crocket and finial outlines still show chord facets, and their tiers are stepped plates (stones.png). The finial is still a square-armed cross. The 'bosses' are faceted discs. The head is still one small trefoil in a flat spandrel. The pier lancets are still hairlines that vanish at 300 px. The palm is a plain slab with two grooves (palm.png). The worn view (top.png) is still a plain band with a row of toothed blocks. The face is 28.1 x 31.5 mm, taller than round 2's 30.8 and over round 1's 29 mm target. On the gates: both release studies have 0 obstructions and 0 unresolved, but both still report status 'Review', with sand slots down to 0.10 mm (0.100 study) and 0.07 mm (0.075 study). The 0.075 study again failed to reach its pitch (0.075 x 0.084, 'Grid capped at 384 cells per axis'), so the 0.075 gate is unverified for the third round running. Round 3 is below 7.5 with a gate unverified, so the verdict is cut. The arch concept is sound and worth a fresh brief, with sculpted forms (beads, moulded imposts, smooth leaf curves, real tracery) rather than more planar extrusions.",
+  "strengths": [
+    "It reads at once: at 300 px, uncaptioned, the face view is a Gothic pointed arch with crockets climbing to a finial, after the keel failed seven read tests.",
+    "One theme face to palm. Arch, piers, capitals and sill are one building, and nothing is scattered.",
+    "Sound sand logic. Everything is drawn on the parting plane and extruded along the pull with drafted halves, and ray release is 0 obstructions and 0 unresolved at both pitches.",
+    "Clean geometry: watertight, one shell, 0 degenerate faces, 0 self-crossings, all 101 features Ok, nothing in the finger hole, centre of mass 0.54 mm off the bore axis.",
+    "The template lifts source-identical at 291,657 bytes with one design.set patch, and the cold reload is identical."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "The whole ring is one arch on two piers and a sill. Nothing is off-theme."},
+    {"item": "Reads as its Gothic subject at 300 px, not a perforated or grooved band", "result": "pass", "reason": "face-300 and hero-300 read uncaptioned as a crocketed pointed arch with a finial. The worn view (top.png) still reads as a plain band with toothed blocks, which is the weak angle."},
+    {"item": "Figurative motifs have true outlines, crisp, no combing or stair-steps", "result": "fail", "reason": "The silhouettes are true CAD outlines, but coarse. stones.png and face.png show chord facets on every crocket hook, on the finial lobes and on the faceted boss discs. Each crocket is a pair of stepped flat plates, not a leaf."},
+    {"item": "Stones in made settings, à jour, coloured as stained glass", "result": "pass", "reason": "Not applicable: there are no stones by brief. 0 reported, 0 previewed."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "blend_mm is 0.0 on all 101 features, against house rule 10. The capitals and abaci are box-on-box (shoulder.png, reverse.png). The sill is a slab with square arrises (palm.png). The keel flanks and the order are planar steps. It reads as stacked 2.5D extrusions."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "Not applicable: this is a CAD-only ring with no factory stock."},
+    {"item": "Distinct silhouette; custom heads >= 13 mm; shoulder ornament not cut off", "result": "pass", "reason": "The silhouette is unique among the Tenebrae rings. The face is 28.1 x 31.5 mm. The crockets run from the finial to above the imposts, and the order runs to the springers."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "The large form (the arch) and the medium forms (6 crockets, finial, capitals) are legible. Small form is nearly absent: the spandrel is flat metal with one trefoil, the extrados land is plain, the pier lancets are invisible at 300 px, and the palm is bare. It is far sparser than Caiman's hero or the Reptilia sheet."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces, 0 self-crossings (ring)", "claimed": "pass", "verified": "boundary 0, non-manifold 0, degenerate 0, self_crossings 0, one shell", "pass": true},
+    {"gate": "Every made part closed, 0 crossings, features Ok", "claimed": "pass", "verified": "made_parts: one ('Pierce the bore through the arch'); feature_status 1-101 all Ok", "pass": true},
+    {"gate": "Solids notes empty", "claimed": "pass", "verified": "solids.notes [], parts_notes []", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "vertices_inside 0, nearest vertex at 9.297 mm against radius 9.3", "pass": true},
+    {"gate": "Field verdict Castable, or its exemption recorded", "claimed": "exempt: parts-only ring, judged by ray release and local wall", "verified": "field.applies false, verdict 'Castable with care' with the parts-only note. The exemption is recorded per the Ogiva brief, and local wall reads sampled min 0.818 mm, 0 below 0.8.", "pass": true},
+    {"gate": "Ray release 0 obstructions, 0 unresolved at 0.100 mm", "claimed": "pass", "verified": "obstructions 0, unresolved 0, pitch 0.0998 x 0.0998. Status is 'Review', with 28 sand-slot warnings from 0.10 to 0.60 mm under the 0.6 mm sand web; round 2's punch item 6 was not addressed.", "pass": true},
+    {"gate": "Ray release 0 obstructions, 0 unresolved at 0.075 mm", "claimed": "pass", "verified": "obstructions 0, unresolved 0, but pitch 0.075 x 0.084 with 'Grid capped at 384 cells per axis; requested pitch was not reached'. The study did not run at 0.075 for the third round running, and its status is 'Review' with sand slots down to 0.07 mm.", "pass": false},
+    {"gate": "Draft-clamp bites at most 0.05 mm", "claimed": "none: no painted relief", "verified": "The design has no painted layers, so this does not apply.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings [], detail_findings 0", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "pass", "verified": "reported 0, previewed 0", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "pass", "verified": "cold_reload_identical true; vertices_faces_normals_identical true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "17,968 triangles", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "pattern watertight, 0 degenerates, 0 crossings", "pass": true},
+    {"gate": "Template gate: at most 4 design.set patches within the class budget", "claimed": "pass", "verified": "one patch (/manufacturing), 291,657 of 300,000 bytes, source_identical true", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Every join (keel flanks, face, crockets, bosses, finial, capitals, abaci; features 9, 15, 24, 30, 42, 43, 70, 73)", "change": "Open since round 1 and still open: set blend_mm to 0.2-0.3 on every Union, and replace the box-on-box imposts with moulded capitals (an abacus chamfered 0.3 mm over a roll or cavetto drawn as a curved outline on the parting plane).", "acceptance": "design.ring.json shows blend_mm > 0 on every joined feature. shoulder.png and reverse.png show no square box-on-box impost."},
+    {"number": 2, "priority": "high", "zone": "Crockets (features 17-30) and finial (34-41)", "change": "Open since round 1: redraw the outlines as smooth curves with no chord over 0.1 mm, give each leaf lobes and a curled tip in place of stepped plates and faceted discs, and make the finial a foliate fleuron rather than a cross.", "acceptance": "stones.png and face.png at 1600 px show no polygon facets on any crocket or finial edge. The finial reads as a fleuron in face-300."},
+    {"number": 3, "priority": "high", "zone": "Head/spandrel (features 44-55, 82-91) and pier faces (74-81)", "change": "Open since round 1: fill the head with tracery (a cusped intrados, the trefoil and two mouchettes), and replace the hairline pier lancets with 1.4 x 3.5 mm cusped blind lancets sunk 0.6 mm, two per pier face. Hold every bar at 0.8 mm or more.", "acceptance": "face-300 shows tracery across the head and visible pier arcading. land_widths stay at or above 0.8 mm."},
+    {"number": 4, "priority": "high", "zone": "Release studies (report.json)", "change": "Run the 0.075 study at a true 0.075 pitch on both axes (raise the grid cap or tile the study). Close or widen the sand slots under 0.6 mm, or record per finding why each is acceptable.", "acceptance": "release_0_075 pitch_mm is at or below 0.075 on both axes with no 'pitch was not reached' note, and no unexplained sand slot under 0.6 mm."},
+    {"number": 5, "priority": "medium", "zone": "Extrados land, worn view (top.png); palm sill (palm.png)", "change": "Mould the keel (a fillet with hollow chamfers) and add a small repeating motif between the crockets (ballflower or dogtooth about 1.0 mm at 2.5 mm pitch). Give the sill a plinth roll and blind arcading on its palm face.", "acceptance": "top.png reads as a moulded keel with ornament, not a strip with blocks. palm.png shows a moulded plinth with arcading."}
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/ogiva/hero-300.png",
+    "showcase/tenebrae/ogiva/face-300.png",
+    "showcase/tenebrae/ogiva/contact-300.png",
+    "showcase/tenebrae/ogiva/hero.png",
+    "showcase/tenebrae/ogiva/face.png",
+    "showcase/tenebrae/ogiva/stones.png",
+    "showcase/tenebrae/ogiva/top.png",
+    "showcase/tenebrae/ogiva/palm.png",
+    "showcase/tenebrae/ogiva/shoulder.png",
+    "showcase/tenebrae/ogiva/side.png",
+    "showcase/tenebrae/ogiva/reverse.png",
+    "showcase/tenebrae/ogiva/section.png",
+    "showcase/tenebrae/ogiva/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
