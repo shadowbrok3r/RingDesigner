@@ -1,0 +1,221 @@
+{
+  "ring": "Basiliscus — king of serpents",
+  "round": 3,
+  "candidate_head": "4df7a53",
+  "verdict": "cut",
+  "score": 7.2,
+  "summary": "Cut at 7.2 (round 1: 6.5, round 2: 6.8, Caiman: 7, ship bar: 7.5). Every gate is green and was checked against the JSON. This is the best Basiliscus so far. The coil is scaled from the neck to the tail, the bordure runs round the whole shield (73 beads), the chopped wall slabs and cracked-mud cells are gone, the tongue leaves the gape, the fangs hang from the upper jaw and the crown is now an arched circlet. Face-on at 300 px it reads without the caption as a crowned serpent coiled round a green stone on an escutcheon. It still falls short of 7.5, and this was the last round. The subject's key feature, the head, is still the weak point at 3/4. In stones.png and hero.png the upper jaw is a slab with a flat vertical side. The skull plates are a grid of pillow tiles and the circlet is a lumpy tube. The crown points read as pyramids carrying balls. In hero-300 the head and crown merge into a knot of bumps, so the 3/4 thumbnail does not name the animal. The walls were fixed by polishing them, which leaves large bare mirror faces under the table (side.png, hero.png, shoulder.png). Together with the ruled, bar-like palm scutes and the blocky segments past the morph (reverse.png, palm.png), the ring is dense on the table but bare and mechanical everywhere else, unlike Caiman and the Reptilia sheet. The hackles now have barbs and notches but still read as fern fronds rather than plumage, and their walls comb at grazing angles. The dark crease where the coil drapes over the boss is still visible. Manticora shipped at 7.5 with flaws only in its secondary ornament. Here the primary figure at 3/4 and most of the band's area are still below the bar.",
+  "strengths": [
+    "Face-on subject read: face-300.png shows a crowned serpent coiled round the tsavorite on a heraldic shield, with no caption needed. It is the clearest face-on figure in the wax row.",
+    "Body scales restored: reptile::snake at 0.24 mm relief (composition.body_scale_relief_mm), sized to 0.36 of the body's width. Face.png shows scales from the neck to the tail with no half-faded dashes, and the coil now separates from the boss rim.",
+    "The bordure is continuous (73 beads, 0.26 mm high) round every edge segment, including the lower flanks and the point (face.png x 540-1120, y 980-1160).",
+    "The wall skins are clean. The normal-gated slabs and cracked-mud cells are gone, and the walls under the chief and point are polished with one line of 46 rim beads (side.png, stones.png, shoulder.png).",
+    "The tongue now emerges from the gape and the fangs hang from the upper jaw (stones.png x 420-560, y 560-720). Face.png shows closed head plates, a slit pupil in a socketed eye and a nostril.",
+    "The circlet is arched along the skull (sagitta 0.684 mm, rise 0.45 mm, 6.03 mm across, land 0.86 mm) with rounded ends. The pearls sit 0.71-0.96 mm inside the chief.",
+    "The silhouette is distinct: the only escutcheon signet in the Bestiarium, clear of Arachne, Manticora, Corvus, Fenrir, Harpyia and Kraken.",
+    "The build is exemplary: 1,799,184 triangles, watertight, 0 degenerates and 0 crossings at three resolutions, 15 made parts clean, the land census complete, and the template lifts with 0 patches at 1.55 MB."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "pass",
+      "reason": "One crowned serpent-king throughout: the crest on the table, hackles morphing to keeled scales on the shoulders, polished and beaded walls, and ventral scutes on the palm. Nothing foreign."
+    },
+    {
+      "item": "Figurative motifs have true outlines (stamps, parts or crisp painted relief)",
+      "result": "partial",
+      "reason": "The serpent, eye, pupil, nostril, fangs, tongue, crown points and pearls all have crisp outlines face-on. The painted hackles' outlines hold, but their walls comb into vertical striations at grazing angles (side.png x 230-340 and x 1280-1380, y 380-1150; hero.png x 1000-1350, y 480-660). The author concedes this ('frayed feather walls look streaky')."
+    },
+    {
+      "item": "Faces and eyes allowed when they read well; a poor face is a defect",
+      "result": "partial",
+      "reason": "Face-on the head reads: slit-pupil eye, three or more closed plates, lip scales, gape, fangs and tongue (face.png x 590-900, y 520-720). At 3/4 it is still blocky. In stones.png (x 460-900, y 380-640) the upper jaw has a flat vertical side, the head plates are a rectangular grid of pillow tiles, and the circlet is a lumpy tube. In hero.png (x 320-560, y 250-500) the head, plates and crown merge into a mechanical cluster."
+    },
+    {
+      "item": "Stones sit in made settings and are visible",
+      "result": "pass",
+      "reason": "The tsavorite marquise 8 x 4 is flush in a made bur with a through pilot, visible in hero, face and stones and through the bore in palm.png. The coil laps 0.52 mm onto the 0.849 mm boss wall. Defect: a dark crease where the coil drapes over the boss (stones.png x 420-1000, y 620-940), acknowledged by the author."
+    },
+    {
+      "item": "Shoulder ornament not cut off toward the face",
+      "result": "pass",
+      "reason": "The hackles emerge from under both sides of the shield (face.png x 230-470 and x 1130-1380) and run unbroken to the morph. The walls under the table are deliberately polished, which is a density issue, not a cut-off."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "fail",
+      "reason": "(a) The palm scutes are flat rectangular bars with ruled edge lines (palm.png x 350-1260, y 390-650). (b) Past the morph the band carries flat plank segments with straight steps (reverse.png x 1150-1360, y 460-900). (c) The 3/4 head is slab-sided with a tile-grid skull (stones.png x 460-900, y 380-640). (d) The crown points read as faceted pyramids carrying balls (stones.png x 580-840, y 270-400)."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles",
+      "result": "pass",
+      "reason": "bare-vs-finished.png: the 020's table edge, cusped chief and point are intact. The rim beads sit 0.5 mm under the edge without rounding it, and the prism arris still runs down the wall under the point (side.png x 790-815, y 260-420)."
+    },
+    {
+      "item": "A silhouette distinct from the other Bestiarium rings",
+      "result": "pass",
+      "reason": "The only escutcheon signet. Arachne's bezel pair and legs, Manticora's sting, Corvus's skull head, Fenrir's wolf head, Harpyia's winged claw setting and Kraken's tentacles all differ clearly."
+    },
+    {
+      "item": "Reads as its subject at a glance at 300 px, without the caption",
+      "result": "partial",
+      "reason": "face-300.png reads as a crowned serpent round a stone on a shield. hero-300.png does not: the head and crown are a knot of bumps at the top left of the shield (x 60-130, y 50-100), the coil is a textured ring round the stone and the shoulder reads as generic foliage. The author concedes the hero crown is 'three bumps on an arc'."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "fail",
+      "reason": "Large (shield, coil, stone) and small (pits, beads, scales, barbs) are present on the table. Off the table, density falls well below Caiman and the Reptilia sheet: the walls under the table are large bare mirror faces (side.png x 450-1180, y 260-720; hero.png x 460-1120, y 600-900; shoulder.png x 1000-1350, y 700-1000), the palm is ruled bars and the lower shank is plain. Caiman carries relief on every face it shows."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Draft build 768 x 320: watertight, 0 degenerates, 0 self-crossings",
+      "claimed": "504,588 triangles, watertight, 0 / 0.",
+      "verified": "draft-gates.json geometry: 504,588 triangles, watertight, degenerate_faces 0, self_crossings 0, 14/14 stamps struck, solids_resolved 1, solids_notes and parts_notes empty, all 9 gates pass.",
+      "pass": true
+    },
+    {
+      "gate": "Export build 1536 x 448 within the 2 million triangle budget",
+      "claimed": "1,799,184 triangles, under 2M, watertight, 0 / 0.",
+      "verified": "report.json geometry and mesh.json: 1,799,184 triangles, 899,590 vertices, watertight, 0 boundary and 0 non-manifold edges, 0 degenerate, 0 self-crossings. Worst aspect 71,451 (min angle 0.0008 deg) is a sliver, not a degenerate. 200,816 triangles of headroom.",
+      "pass": true
+    },
+    {
+      "gate": "Coarse build 384 x 192",
+      "claimed": "174,736 triangles, watertight, 0 / 0.",
+      "verified": "report.json coarse_384x192: 174,736 triangles, watertight, 0 degenerate, 0 self-crossings, 14/14 stamps, notes empty, bore clear, pass true.",
+      "pass": true
+    },
+    {
+      "gate": "Every made part closed, 0 degenerates, 0 self-crossings",
+      "claimed": "All 15 made parts closed with 0 crossings.",
+      "verified": "made_parts: 15 entries (13 stamps, Pupil and the 'Tsavorite, flush' bur). The sum of open_edges, repeated_edges, zero_area_faces and self_crossings is 0 in both report.json and draft-gates.json.",
+      "pass": true
+    },
+    {
+      "gate": "Solids notes empty",
+      "claimed": "Implied by 'every gate green'.",
+      "verified": "solids_notes [] and parts_notes [] at draft, export and coarse. pattern.notes [].",
+      "pass": true
+    },
+    {
+      "gate": "Nothing inside the finger hole",
+      "claimed": "Bore clear, 0 vertices inside.",
+      "verified": "bore_vertices_inside 0 at all three resolutions. bore_clearance_min_mm -0.00023 is f32 noise on the bore surface. inner_diameter_mm 18.5995 against size_from_bore(18.6).",
+      "pass": true
+    },
+    {
+      "gate": "Investment pattern",
+      "claimed": "Watertight with 0 crossings.",
+      "verified": "pattern: 1,799,184 triangles, watertight, 0 degenerate, 0 self-crossings, scale 1.01937. Bench layer 'Graver's barbs and keels' excluded.",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax field verdict, 0.8 mm fill",
+      "claimed": "Castable, thinnest wall 1.670 mm.",
+      "verified": "field: process LostWax, verdict Castable, thinnest_wall_mm 1.6702 at 232.0 deg, marginal area 0. The undercut of 191.4 of 1438.4 mm2 (13.31%, worst -82.6 deg) is informational under wax. process.minimum_section_mm 0.8.",
+      "pass": true
+    },
+    {
+      "gate": "land_widths: every section under 0.8 mm removed or named with its bench treatment",
+      "claimed": "Rows added for the crown points and pearls, circlet, jewels, rim beads, fangs, tongue and jaws. Every row at or above 0.8 mm or named.",
+      "verified": "21 rows, and none is un-named under 0.8 mm. Named exceptions: boss bevel 0.63, crown points 0.60 (waist under the pearl), fangs 0.178, tongue stem 0.397, tines 0.297, jewels 0.50, bordure and rim beads 0.44, each with its treatment. The tail's tip is exactly 0.800. Caveat: the fangs thinned from round 2's 0.36-0.40 to 0.178 mm, only 0.028 above the 0.15 detail floor; they are legal but fragile in 925. Pearl necks (0.44 mm) and the pearl radius (0.41) are only in the author's report; the JSON gives pearl lands of 0.815.",
+      "pass": true
+    },
+    {
+      "gate": "0 DFM findings",
+      "claimed": "0.",
+      "verified": "dfm [] in report.json and draft-gates.json. template-gate.json detail_findings 0.",
+      "pass": true
+    },
+    {
+      "gate": "Stone count equals the preview",
+      "claimed": "One stone, no warnings, 0 tight pairs.",
+      "verified": "stones: reported 1, previewed 1, warnings [], tight_pairs 0. stones.json lists one Tsavorite.",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical",
+      "claimed": "Identical.",
+      "verified": "cold_reload.identical_vertices_faces_normals true (draft and export). verification.json matches. template-gate.json: cold_design_reload, cold_graph_reload and editable_graph_reload true, vertices_faces_normals_identical true.",
+      "pass": true
+    },
+    {
+      "gate": "Template gate: at most 4 design.set patches, within class budget",
+      "claimed": "1,550,359 bytes (limit 3,000,000), 0 patches, 74 nodes.",
+      "verified": "template_class painted, template_bytes 1,550,359 against size_budget_bytes 3,000,000, design_set_patches [], 74 nodes, source_identical true, export_geometry_verified true, template_gate_passed true. exposed_controls [] (US size deliberately not exposed, as noted).",
+      "pass": true
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P1 (reason for the cut)",
+      "zone": "Painted head in layer 'Basiliscus' (upper and lower jaw, head plates) and the circlet, seen at 3/4",
+      "change": "Model the head as a volume, not a plan extruded upward. Crown the upper jaw across its width by at least 0.25 mm and roll its outer side into the top with a radius of at least 0.4 mm, so no vertical side face remains. Replace the rectangular plate grid with 3-5 irregular domed plates (frontal, supraoculars, parietals) of varied size, 0.08-0.12 mm proud, separated by V-grooves rather than ruled lines. Give the circlet a smooth domed section instead of the current lumpy crest.",
+      "acceptance": "stones.png (x 460-900, y 380-640): no flat vertical facet on the upper jaw, one continuous highlight from the lip over the crown of the snout, and plates of unequal size with no grid. hero.png (x 320-560, y 250-500): the head reads as a snake's head in profile, separate from the crown."
+    },
+    {
+      "number": 2,
+      "priority": "P1 (reason for the cut)",
+      "zone": "Stamps 'Crown point, 1-3' and 'Crown pearl, 1-3'; the hero 3/4 read",
+      "change": "Scale the crown up by about 1.4x: points 1.6-1.8 mm wide at the band, pearls r 0.55. Use a curved fleur or trefoil outline with a Dome top instead of a pyramid under a ball, so the crown carries at 3/4. Keep pearl lands at 0.8 mm or above and the waist named.",
+      "acceptance": "hero-300.png: the crown reads as a three-pointed crown over a recognisable serpent head, at least 25 px wide, and the subject can be named without the caption. stones.png (x 580-840, y 270-400): no faceted pyramid under a ball."
+    },
+    {
+      "number": 3,
+      "priority": "P1 (reason for the cut)",
+      "zone": "Head walls under the table, theta about 50-130 deg (walls under the chief and point and both side walls), currently polished with 46 rim beads",
+      "change": "Carry the serpent-king onto the walls instead of leaving mirror faces: domed round scales laid in true mm (0.6-0.9 mm, 0.10-0.15 mm relief) gated by Hide distance with ramps of at least 1.0 mm, fading to polish only in the last 1.5 mm above the bore edge. Keep the rim bead line.",
+      "acceptance": "side.png (x 450-1180, y 260-720), hero.png (x 460-1120, y 600-900) and shoulder.png (x 1000-1350, y 700-1000): no smooth area wider than 2 mm, no slab and no vertical streak, with scale texture continuous with the shoulder morph."
+    },
+    {
+      "number": 4,
+      "priority": "P1",
+      "zone": "Layer 'Ventral scutes' on the palm (theta 270 +/- 55) and the band past the morph (reverse.png)",
+      "change": "Replace the ruled rectangular bars with overlapping ventral scutes, each domed at least 0.12 mm with a rounded trailing edge that laps the next, and remove the ruled edge lines. Blend the flat plank segments past the morph into keeled dorsal scales, 0.84 mm pitch, over at least 3 mm.",
+      "acceptance": "palm.png (x 350-1260, y 390-650): scutes read as shingled, curved plates with no straight ruled lines. reverse.png (x 1150-1360, y 460-900): no flat planks or straight step edges."
+    },
+    {
+      "number": 5,
+      "priority": "P2",
+      "zone": "Layer 'Hackles into scales', 0-70 deg off the head: feather walls and outlines",
+      "change": "Make the hackles read as plumage, not fern. Taper each feather's vane width by 50% over its last third to a single point, curve the shaft by 8-12 deg, and let each row overlap the next by at least 30% of its length. Replace the frayed vertical walls with a 0.15 mm rolled edge so they do not comb at grazing angles. Close the 0.7 mm channel in the reverse box.",
+      "acceptance": "face.png (x 230-470 and x 1130-1380, y 440-920): shingled, curved, pointed feathers, not fronds with a midrib. side.png (x 230-340 and x 1280-1380): no vertical striation on feather walls. reverse.png (x 600-900, y 330-460): no channel wider than 0.3 mm."
+    },
+    {
+      "number": 6,
+      "priority": "P2",
+      "zone": "Seat 'Tsavorite, flush' and the coil where it laps the boss",
+      "change": "Remove the dark crease under the stone. Lower the boss wall to 0.6 mm where the coil laps it (theta of the lap only; name the section in land_widths) or fill the drape with a 0.3 mm fillet between the coil's underside and the boss.",
+      "acceptance": "stones.png (x 420-1000, y 620-940) and face.png (x 560-1080, y 780-1010): no continuous dark line between coil and boss, and face-300.png no longer shows a dark ring round the boss."
+    },
+    {
+      "number": 7,
+      "priority": "P3",
+      "zone": "Stamps 'Fang, 1-2'",
+      "change": "Raise the fang land from 0.178 mm to at least 0.30 mm (round 2 had 0.36-0.40) by thickening the root, keeping the down-and-back hook.",
+      "acceptance": "land_widths rows 'Fang, 1-2' at 0.30 mm or more. stones.png (x 460-560, y 560-680): the fangs still read as hooked fangs."
+    }
+  ],
+  "viewed_images": [
+    "candidate/hero.png",
+    "candidate/face.png",
+    "candidate/hero-300.png",
+    "candidate/face-300.png",
+    "candidate/stones.png",
+    "candidate/side.png",
+    "candidate/shoulder.png",
+    "candidate/reverse.png",
+    "candidate/palm.png",
+    "candidate/bare-vs-finished.png",
+    "refs/caiman-hero.png",
+    "refs/reptilia-collection.png",
+    "refs/bestiarium/arachne-hero.png",
+    "refs/bestiarium/corvus-hero.png",
+    "refs/bestiarium/fenrir-hero.png",
+    "refs/bestiarium/harpyia-hero.png",
+    "refs/bestiarium/kraken-hero.png",
+    "refs/bestiarium/manticora-hero.png"
+  ]
+}
