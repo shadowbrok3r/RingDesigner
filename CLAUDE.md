@@ -129,6 +129,20 @@ on a side face automatically when the profile has one, and `WireProfile::Round`
 is a cosine dome rather than a circle because a circular section carries a
 vertical wall at its own edge.
 
+A wire can taper and carry beads (C-B1): `CurveLayer::widths` and `heights`
+are per-control-point multipliers on `width_mm` and `height_mm` (empty is
+uniform, a short list repeats its last value), and `beads` is a `CurveBeads`
+row laid by arc length — `offset` across the wire, `phase` along one pitch,
+`graded` with the local width, plus `span`, `stagger` and a `cup` dimple —
+capped at `MAX_CURVE_BEADS`. A wire carrying any of them is the union of its
+sections swept along the path; a plain one keeps the nearest-point
+construction and samples bit for bit as before. Its footprint is its thinnest
+point and its smallest bead. Any of them, or `WireProfile::Tube` (a
+`(1 − x²)^1.25` section, for lost wax), writes the design at 6 and a graph at
+2; they are `layer.curve`'s own pins, so a lift carries a profiled wire with no
+patch. A wire has no phase of its own: shift every control point's `x`, an
+exact move round the ring because `x` wraps.
+
 ### Pipeline
 
 ```
@@ -1517,7 +1531,9 @@ the pour, all hand-rolled in core with tests:
   which reads the height field through a one-cell tent where it is not
   linear across the cell, so a wall crossing the grid lies straight
   instead of stepping a row at a time. `docs/crisp/` has the measured
-  before and after.
+  before and after. In a graph crisp relief is the `design.settings`
+  node's `crisp_relief` pin, which writes the graph at 2, so a lift
+  carries it with no patch.
 
 The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply,step`.
 
@@ -2175,6 +2191,26 @@ overhung its own stock by 0.6 mm at each end.
 - The halo follows suit: its ring is the centre's own outline grown by the
   gap, with accents placed at **equal arc length** round it, so an oval
   centre gets an oval halo instead of a circle drawn round its length.
+
+**Pear, Trillion, Heart and HalfMoon sit on their true girdles** (C-B2,
+`girdle.rs`, `GemCut::girdle`): the exact silhouette of the bundled mesh the
+preview draws — read from the bundled mesh only, never a user's override, so a
+design builds the same metal on every machine — and grown by Minkowski sum
+along the ray, so a heart's cleft fills instead of folding. On the superellipse
+a 5 mm half moon stood 0.96 mm outside its own seat. The pad's stock is
+`Girdle::stock`, the girdle's hull mirrored across both axes: convex so no two
+skirts face each other, mirrored so it still peaks on the crest line (a half
+moon's own outline fielded 0.23% at −4.2°, the stock 0.0000%). The made
+settings, the claws, the census, the clearance envelopes and the stone map
+all read the girdle. There is no opt-in and no fence, because the file carries
+nothing new: **a saved design carrying one of these four stones is re-seated
+on its true girdle when it is reopened**, and an older build still reads it as
+it always did. No shipped design carries one. The other ten cuts keep the
+superellipse, pinned byte for byte by `tests/superellipse_cuts.rs`, so a
+princess's corner still stands 0.39 mm out of its own seat and a baguette's
+0.60; moving a cut over is one line in `GemCut::has_true_girdle` and a
+regeneration of the templates that carry it. The crowding table's trillion
+row below was measured on the superellipse.
 
 ### Cabochons are flat-backed, and refusing them was a bug
 
