@@ -411,7 +411,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 
 ## Heloderma — *the beaded one*
 
-- **Status:** revived for extra rounds. Rounds 1 to 3 scored 5.8, 6.4 and 6.3 (cut on 2026-10-02, branch `claude/cataphracta-heloderma`); the revival is on `claude/cataphracta-heloderma-revival`.
+- **Status:** cut at round 5 (6.9). Rounds 1 to 3 scored 5.8, 6.4 and 6.3 (cut on 2026-10-02, branch `claude/cataphracta-heloderma`); the revival on `claude/cataphracta-heloderma-revival` scored 6.8 in round 4 and 6.9 in round 5.
 - **Extension:** 2026-10-03, Logan granted two extra reviewed rounds (rounds 4 and 5) beyond the three-round cap.
 - **Process decision (Logan, 2026-10-03):** lost wax (decided 2026-09-27). Judge it as lost wax: 0.8 mm minimum section, no pull rule. The ray-release counts and the two-part undercut are reported, not gated.
 - **As built (revival, round 5):**

@@ -1,0 +1,205 @@
+{
+  "ring": "Heloderma — the beaded one",
+  "round": 5,
+  "verdict": "cut",
+  "score": 6.9,
+  "summary": "Cut at 6.9. The earlier scores were 5.8, 6.4, 6.3 and 6.8. Caiman scores 7 and the ship bar is 7.5. For scale, Basiliscus was cut at 7.2, Kraken at 7.0 and Corvus at 6.6. This is round 5, the last of the two extra rounds Logan granted on 2026-10-03, so a score under 7.5 means a cut. Every gate is green. I checked each one against report.json, design.ring.json and template-verification.json under the ring's own process: lost wax, min_draft 0, min_section 0.8 mm. As in rounds 2 to 4 and for Kraken and Manticora, the ray-release counts and the two-part undercut are reported, not gated. The round made real progress. The head is now a flat, blunt block with an eye sunk under a lid, and in side.png it reads as a lizard's head rather than a crocodile snout. Every foot ends inside the rims. The tail stays on the crown. The bead ground now runs up to the collet, and its old polished halo is gone. The snout sits about 0.8 mm from the lip domes. The ring still does not reach 7.5, for four reasons. (1) At 300 px the figure reads as 'a lizard', or a ribbed grub with a fish-like head, not as a Gila monster. The salmon bands are still rings of big beads standing proud of the sunk black bands, so the trunk reads as hoops, not as light and dark banding (face-300, close-body). From above, the eye sits at the front corner of the head and the head is pinched off at the neck, which gives it a fish's or toad's face. (2) The sculpt's surface is still not crisp. The tail rings are torn and crumpled (close-tail). The legs carry crumpled, torn facets. Needle slivers stick out of the forked band edges (close-body), and there are torn notches on the head's flanks (close-head). The feet are smooth webbed paddles like a frog's, not clawed digits. (3) The collet still has a wide, plain polished top ring. Its 'lip' of domes is a loose ring of ball bearings on the ground, not a beaded lip on the collet, and there is a small bald dip to its right (stones.png). (4) At the palm the coarse beads are lumpy, pear-shaped and merged in pairs, and a few small bald lands remain (close-palm, palm.png). Of round 4's six punch items, two are closed (items 4 and 5, apart from the collet top), two are partly closed (items 3 and 6), and two are still open (items 1 and 2). Five rounds have moved the ring from 5.8 to 6.9. It is close to Caiman, not to the ship bar.",
+  "strengths": [
+    "A distinctive silhouette: the only Cataphracta ring with a full crawling figure that breaks the top of the circle in side.png, unlike any Reptilia tile.",
+    "One continuous bead ground from face to palm, with no rectangular blocks, sector walls, radial cuts or rim ledges. The banding carries on round the shank by bead size and reads as chevron bands in side.png.",
+    "The head is now a flat, blunt-snouted block with an eye sunk under a lid. In side.png and reverse.png it reads as a lizard's head, not a crocodile's.",
+    "The feet end inside the rims and the tail stays on the crown (hero.png, side.png, shoulder.png).",
+    "The bead ground runs up to the collet with no polished halo, and the stone reads as held at the snout in hero-300.",
+    "Every gate is green with margin: 1,505,566 triangles, a 2.49 MB template, 1 patch, and a 2.10 mm thinnest wall."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "pass",
+      "reason": "One Gila beadwork theme: the figure on a continuous bead ground, with the banding carried round the shank by bead size. The only mechanical note is the collet's plain polished top ring."
+    },
+    {
+      "item": "The hide reads as this specific animal at 300 px without the caption",
+      "result": "fail",
+      "reason": "In hero-300 and face-300 the figure reads as a lizard, or a ribbed grub with a fish-like head. The salmon bands are raised hoops of big beads, so the trunk reads as segments, not as pale and dark Gila bands. The head is pinched at the neck and has its eye at the front corner, which reads as a fish or a toad. Round the shank (contact-300) the hide reads as granulation with faint stripes."
+    },
+    {
+      "item": "Figurative motifs have true outlines: crisp, with no combing, smearing or stair-steps",
+      "result": "fail",
+      "reason": "The tail rings are torn and crumpled (close-tail, upper centre). The legs carry crumpled, torn facets (close-body, upper-left limb and right hind leg). Needle slivers stick out of the band edges (close-body, centre and right). The head's flanks have torn notches (close-head, top and left). At the palm the coarse beads are lumpy and merged (close-palm)."
+    },
+    {
+      "item": "Stones, where the ring carries one, sit in made settings and are visible",
+      "result": "pass",
+      "reason": "The spessartite is visible in hero, face, reverse and stones.png, in a collet just ahead of the snout. Weaknesses: the collet's top ring is wide and plain, and the dome 'lip' sits loose on the ground rather than on the collet."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "pass",
+      "reason": "The figure and the ground are sculpted and domed. The collet tube is the only mechanical form, and it is small."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles",
+      "result": "pass",
+      "reason": "Not applicable: the base is a procedural half-round, not factory stock. bare-vs-finished.png shows the dome form kept under the hide."
+    },
+    {
+      "item": "A silhouette distinct from the other Cataphracta rings and from the Reptilia tiles",
+      "result": "pass",
+      "reason": "A crawling figure over a domed, beaded band. side.png shows the figure riding the top of the circle, and no Reptilia tile has that."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "pass",
+      "reason": "Figure, bead bands and fine ground give three scales. The density is above Caiman's, and the legibility is level with it at best, because the figure's inner structure muddies at 300 px."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Process from the draft block",
+      "claimed": "Lost wax, min_draft 0, min_section 0.8 mm",
+      "verified": "design.ring.json draft: process LostWax, sand null, min_draft_deg 0.0, min_section_mm 0.8, min_detail_mm 0.15. field.process is LostWax at draft and export.",
+      "pass": true
+    },
+    {
+      "gate": "Watertight, 0 degenerate faces",
+      "claimed": "pass",
+      "verified": "At draft and export: watertight true, degenerate_faces 0, boundary_edges 0, non_manifold_edges 0.",
+      "pass": true
+    },
+    {
+      "gate": "0 self-crossings on the ring and every made part",
+      "claimed": "pass",
+      "verified": "geometry.self_crossings 0 and made.figure_self_crossings 0 at draft and export. Pattern self_crossings 0.",
+      "pass": true
+    },
+    {
+      "gate": "Solids notes empty",
+      "claimed": "pass",
+      "verified": "made.solids_notes [] and parts_notes []; stamps 0, stamped 0, parts_joined 1.",
+      "pass": true
+    },
+    {
+      "gate": "Nothing inside the finger hole",
+      "claimed": "pass",
+      "verified": "bore.vertices_inside 0. The closest vertex is 9.29997 mm (draft) and 9.29999 mm (export) against a 9.3 mm bore radius.",
+      "pass": true
+    },
+    {
+      "gate": "Field verdict Castable (not 'with care')",
+      "claimed": "Castable",
+      "verified": "field.verdict 'Castable' at draft and export under LostWax. Thinnest wall 2.10 mm at θ 277°.",
+      "pass": true
+    },
+    {
+      "gate": "Ray release at 0.100 and 0.075 mm",
+      "claimed": "recorded; lost wax: not applicable",
+      "verified": "Draft: 1034 obstructions at 0.100 mm and 1505 at 0.075 mm. Export: 1020 and 1591. 0 unresolved rays in all four. Status NotApplicable, gated false. Under Logan's lost-wax decision these counts are reported, not gated (as for Kraken and Manticora).",
+      "pass": true
+    },
+    {
+      "gate": "Draft-clamp bite ≤ 0.05 mm",
+      "claimed": "none applied, bite 0",
+      "verified": "draft_clamp.applied false, max_bite_mm 0.0 at draft and export.",
+      "pass": true
+    },
+    {
+      "gate": "0 DFM findings",
+      "claimed": "pass",
+      "verified": "dfm_findings [] at draft and export.",
+      "pass": true
+    },
+    {
+      "gate": "Stone count equals the preview",
+      "claimed": "pass",
+      "verified": "stones.reported 1, previewed 1 at draft and export. stones.json lists 1 spessartite.",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical",
+      "claimed": "pass",
+      "verified": "report cold_reload_identical true. template-verification: cold_design_reload and cold_graph_reload true, vertices_faces_normals_identical true, source_identical true.",
+      "pass": true
+    },
+    {
+      "gate": "Export within 2 million triangles",
+      "claimed": "pass",
+      "verified": "Export: 1,505,566 triangles at 1536 × 448.",
+      "pass": true
+    },
+    {
+      "gate": "Casting pattern closed",
+      "claimed": "pass",
+      "verified": "Pattern watertight true, 0 degenerate, 0 crossings at export (1,505,566 triangles) and at draft (647,538).",
+      "pass": true
+    },
+    {
+      "gate": "Template gate: ≤ 4 design.set patches within the class budget",
+      "claimed": "pass",
+      "verified": "template_gate_passed true. 1 patch (/manufacturing). Class painted, 2,487,420 of 3,000,000 bytes. Triangles 1,505,566, equal to the export's. Note: editable_design_bytes is 3,033,504, just over 3 MB, but size_review_required is false and the template bytes are what is gated.",
+      "pass": true
+    },
+    {
+      "gate": "Land widths (lost-wax section floor)",
+      "claimed": "every load-bearing feature measured at the floor or named",
+      "verified": "Every load-bearing feature measures at least 0.8 mm: toes 0.82, limbs 1.36, tail end 1.12, neck 1.85. Claw tips (0.52), collet lip beads and bead chords are named under the floor.",
+      "pass": true
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P1 (for any restart; round 4 item 2 still open)",
+      "zone": "Gila dorsal surface, nape to tail tip",
+      "change": "Stop the salmon bands standing proud. Cap the salmon bead crowns at the trunk envelope, at or below it, with no hoop above the black bands. Make the black bands read as matt shadow: fine beads 0.30-0.35 mm at a pitch of 0.40 mm or less, sunk 0.48 mm. Cut each band edge as a forked, zig-zag reticulation crossing the back obliquely, not a straight hoop.",
+      "acceptance": "In face-300 a viewer counts 3 dark stripes on the trunk and 4 on the tail, and the trunk's outline shows no bumps at the band edges (it no longer reads as a ribbed grub)."
+    },
+    {
+      "number": 2,
+      "priority": "P1 (round 4 item 1 still open)",
+      "zone": "Gila figure, tail rings, legs and band edges (close-tail, close-body, close-head)",
+      "change": "Remesh the stored part at 0.05 mm or finer before the bead relief is applied, so the rings and bead seams stop tearing. Delete the needle slivers at the forked band edges. Close the notches on the head's flanks. Replace the webbed paddle feet with 4-5 separate tapered toes, 0.8 mm through, each ending in a 0.5 mm rounded claw.",
+      "acceptance": "close-tail, close-body and close-head show no torn, crumpled or needle facets, and each foot shows countable separate clawed toes."
+    },
+    {
+      "number": 3,
+      "priority": "P1",
+      "zone": "Gila head, from above (θ about 45-60)",
+      "change": "Move the eyes back to about 40% of the head's length from the snout, on the sides of the head. Thicken the neck so the head blends into it with only the 0.3 mm crease, not a pinch. Taper the head slightly toward a broad, blunt snout.",
+      "acceptance": "In face-300 the head reads as a broad wedge leading into a thick neck, not as a fish's or toad's face."
+    },
+    {
+      "number": 4,
+      "priority": "P2",
+      "zone": "Spessartite collet, θ 37.5° on the crest",
+      "change": "Bevel or bead the collet's top ring so its plain polished face reads at most 0.3 mm wide from above. Put the 22 lip domes on the collet's top edge instead of on the ground around it. Fill the bald dip to the right of the collet with ground beads.",
+      "acceptance": "In stones.png the collet's lip reads as a beaded edge, and no plain polished band wider than 0.3 mm or bald patch remains."
+    },
+    {
+      "number": 5,
+      "priority": "P2 (round 4 item 6 partly open)",
+      "zone": "Coarse salmon-bead bands at the palm (θ 215-325)",
+      "change": "Build the coarse beads as separate analytic domes on the lattice, with at least 0.10 mm of land between neighbours, so none merge into pear or twin shapes. Fill the remaining bald lands with fine beads.",
+      "acceptance": "In close-palm every coarse bead is a single round dome, and no bald land wider than 0.46 mm appears inside a band."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/heloderma/hero-300.png",
+    "showcase/cataphracta/heloderma/face-300.png",
+    "showcase/cataphracta/heloderma/contact-300.png",
+    "showcase/cataphracta/heloderma/hero.png",
+    "showcase/cataphracta/heloderma/face.png",
+    "showcase/cataphracta/heloderma/side.png",
+    "showcase/cataphracta/heloderma/shoulder.png",
+    "showcase/cataphracta/heloderma/palm.png",
+    "showcase/cataphracta/heloderma/reverse.png",
+    "showcase/cataphracta/heloderma/stones.png",
+    "showcase/cataphracta/heloderma/close-head.png",
+    "showcase/cataphracta/heloderma/close-body.png",
+    "showcase/cataphracta/heloderma/close-tail.png",
+    "showcase/cataphracta/heloderma/close-palm.png",
+    "showcase/cataphracta/heloderma/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
