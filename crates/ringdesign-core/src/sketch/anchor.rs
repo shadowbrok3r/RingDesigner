@@ -38,7 +38,7 @@ mod tests {
         d.profile.thickness_mm = 3.0;
         let band = crate::mesh::try_build(&d, &lib, params).unwrap();
         // A block on the flank, where the surface leans well off the radial the reference crest assumes.
-        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 2.2, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 2.2, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         let (reference, built) = (seat.frame(&d).unwrap(), seat.frame_on(&d, Some(&band.mesh)).unwrap());
         let lean = dot(reference.z_axis, built.z_axis).clamp(-1.0, 1.0).acos().to_degrees();
         assert!(lean > 30.0, "the flank leans {lean:.1}° off the radial");

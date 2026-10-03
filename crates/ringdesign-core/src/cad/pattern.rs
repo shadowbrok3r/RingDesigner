@@ -223,13 +223,13 @@ pub fn reflect(origin: [f64; 3], normal: [f64; 3]) -> Motion {
     Motion { x_axis: m([1.0, 0.0, 0.0]), y_axis: m([0.0, 1.0, 0.0]), z_axis: m([0.0, 0.0, 1.0]), origin: n.map(|v| v * off) }
 }
 
-/// The Ring placement seating `id` and the feature carrying it, through modifiers, band booleans and settings; a stone on a part's face has none.
+/// The Ring or Side placement seating `id` and the feature carrying it, through modifiers, band booleans and settings; a stone on a part's face has none.
 pub fn seat_of(doc: &Document, id: Id) -> Option<(Id, Placement)> {
     let band = doc.band();
     let mut at = id;
     for _ in 0..32 {
         let f = doc.feature(at)?;
-        if matches!(f.component.placement, Placement::Ring { .. }) {
+        if matches!(f.component.placement, Placement::Ring { .. } | Placement::Side { .. }) {
             return Some((at, f.component.placement.clone()));
         }
         at = match &f.operation {
@@ -315,14 +315,25 @@ pub fn motions_seated(
         _ => {}
     }
     let Some((p, used)) = seat else { return world_motions(kind, frame_of) };
-    let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } = *p else { return world_motions(kind, frame_of) };
+    if let (Placement::Side { theta_deg, radius_mm, face, height_mm, spin_deg, tilt_deg }, PatternKind::Ring { .. }) = (p, kind) {
+        let back = inverse(used);
+        return kind
+            .angles()?
+            .into_iter()
+            .map(|a| {
+                let at = Placement::Side { theta_deg: theta_deg + a, radius_mm: *radius_mm, face: *face, height_mm: *height_mm, spin_deg: *spin_deg, tilt_deg: *tilt_deg };
+                Ok(then(&seated(&at)?, &back))
+            })
+            .collect();
+    }
+    let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level } = *p else { return world_motions(kind, frame_of) };
     let back = inverse(used);
     match kind {
         PatternKind::Ring { .. } => kind
             .angles()?
             .into_iter()
             .map(|a| {
-                let at = Placement::Ring { theta_deg: theta_deg + a, across_mm, height_mm, spin_deg, tilt_deg, cant_deg };
+                let at = Placement::Ring { theta_deg: theta_deg + a, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level };
                 Ok(then(&seated(&at)?, &back))
             })
             .collect(),
@@ -331,7 +342,7 @@ pub fn motions_seated(
                 MirrorPlane::Section { theta_deg: through } => (2.0 * through - theta_deg, across_mm),
                 _ => (theta_deg, -across_mm),
             };
-            let q = Placement::Ring { theta_deg: theta, across_mm: across, height_mm, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+            let q = Placement::Ring { theta_deg: theta, across_mm: across, height_mm, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level };
             let local = then(&inverse(&q.frame(design)?), &then(&mirror_of(plane, frame_of)?, &p.frame(design)?));
             Ok(vec![then(&seated(&q)?, &then(&local, &back))])
         }
@@ -1209,7 +1220,7 @@ mod tests {
         let lib = AlphaLibrary::builtin();
         let court = template("Court band");
         let surface = bare(&court, &lib);
-        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 1.0, height_mm: 0.3, spin_deg: 25.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 1.0, height_mm: 0.3, spin_deg: 25.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         let mirror = |plane| Operation::Pattern { sources: 2.into(), kind: PatternKind::Mirror { plane } };
         let d = with(
             court.clone(),

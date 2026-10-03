@@ -1538,6 +1538,7 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, hd: &Head, neck_deg: f64) -> Re
             spin_deg: 90.0,
             tilt_deg: 0.0,
             cant_deg: 0.0,
+            level: false,
         },
     ))?;
     doc.append(builders::feature_on(

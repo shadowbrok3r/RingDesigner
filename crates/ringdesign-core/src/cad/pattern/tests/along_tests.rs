@@ -138,7 +138,7 @@ fn an_array_along_a_sweep_steps_its_pitch_along_the_stem_and_alternates_sides() 
             [r * t.cos(), r * t.sin(), 0.8 * (k as f64 / 40.0 * PI).sin()]
         })
         .collect();
-    let stem = feature(2, "Stem", Operation::Sweep { sketch: Sketch::circle(0.3).into(), path: path.clone() }, joined(Placement::Free));
+    let stem = feature(2, "Stem", Operation::sweep(Sketch::circle(0.3), path.clone()), joined(Placement::Free));
     let rootlet = feature(3, "Rootlet", Operation::Cylinder { radius_mm: 0.1, height_mm: 0.4 }, joined(Placement::ring(60.0, 0.2)));
     let a = Along { path: AlongPath::Feature(2), pitch_mm: Some(0.6), alternate_deg: 180.0, ..Along::default() };
     let rootlets = feature(4, "Rootlets", Operation::Pattern { sources: 3.into(), kind: PatternKind::Along(a.clone()) }, joined(Placement::Free));
@@ -175,6 +175,64 @@ fn an_array_along_a_sweep_steps_its_pitch_along_the_stem_and_alternates_sides() 
     let v = &built.report.validation;
     eprintln!("{} rootlets along {length:.2} mm of stem: {} faces, watertight {}", st.len(), built.mesh.faces.len(), v.watertight);
     assert!(v.watertight && built.parts.notes.is_empty(), "{v:?} {:?}", built.parts.notes);
+}
+
+#[test]
+fn an_array_follows_a_closed_sweep_round_a_sweep_along_a_sketch_and_a_smooth_twist_through_points() {
+    use crate::cad::{SweepPath, TwistPath};
+    use crate::sketch::Geometry;
+    let lib = AlphaLibrary::builtin();
+    let court = template("Court band");
+    let surface = bare(&court, &lib);
+    let r = court.inner_radius_mm() + court.profile.thickness_mm + 0.5;
+    // A closed sweep: a hoop round the crest, its first station not repeated last.
+    let hoop: Vec<[f64; 3]> = (0..48).map(|k| {
+        let t = (7.5 * k as f64).to_radians();
+        [r * t.cos(), r * t.sin(), 0.0]
+    }).collect();
+    let closed = Operation::Sweep { sketch: Sketch::circle(0.3).into(), path: SweepPath::Points(hoop.clone()), closed: true, twist_deg: 0.0, end_scale: 1.0 };
+    // A sweep along a sketch's arc on the parting plane, and a smooth twist through points.
+    let mut arc = Sketch::default();
+    let (c, a, b) = (arc.point([0.0, 0.0]), arc.point([r, 0.0]), arc.point([0.0, r]));
+    let entity = arc.entity(Geometry::Arc { center: c, start: a, end: b });
+    let along_sketch = Operation::Sweep { sketch: Sketch::circle(0.3).into(), path: SweepPath::Sketch { feature: 3, entity, lift_mm: 0.0 }, closed: false, twist_deg: 0.0, end_scale: 1.0 };
+    let bent: Vec<[f64; 3]> = [0.0, 30.0, 60.0, 90.0].iter().map(|deg: &f64| {
+        let t = deg.to_radians();
+        [r * t.cos(), r * t.sin(), 0.4 * t.sin()]
+    }).collect();
+    let smooth = Operation::Twist { sketch: Sketch::circle(0.3).into(), path: TwistPath::Points { points: bent.clone(), smooth: true }, degrees: 0.0, end_scale: 1.0, scale: Vec::new(), closed: false };
+    let d = with(court.clone(), vec![
+        band(),
+        feature(2, "Hoop", closed, joined(Placement::Free)),
+        feature(3, "Arc", Operation::Sketch { sketch: arc }, Component::default()),
+        feature(4, "Along the arc", along_sketch, joined(Placement::Free)),
+        feature(5, "Smooth", smooth, joined(Placement::Free)),
+    ]);
+    let e = on(&d, &lib, &surface);
+    assert!(e.failures().is_empty(), "{:?}", e.failures());
+    let (seated, frame_of) = env_on(&d, &surface, &e);
+    let env = along::Env { design: &d, seated: &seated, frame_of: &frame_of };
+    // Round the closed hoop, eight copies stand 45° apart and the last stops short of the first.
+    let round = along::stations(&Along { path: AlongPath::Feature(2), count: 8, ..Along::default() }, &env).unwrap();
+    let angles: Vec<f64> = round.iter().map(|s| s.frame.origin[1].atan2(s.frame.origin[0]).to_degrees().rem_euclid(360.0)).collect();
+    for (k, a) in angles.iter().enumerate() {
+        assert!((a - 45.0 * k as f64).abs() < 1e-6, "{angles:?}");
+    }
+    // Along the sketch's arc, the stations stand on the arc where the sweep samples it.
+    let arc_stations = along::stations(&Along { path: AlongPath::Feature(4), count: 4, ..Along::default() }, &env).unwrap();
+    for s in &arc_stations {
+        let o = s.frame.origin;
+        assert!((o[0].hypot(o[1]) - r).abs() < 0.01 && o[2].abs() < 1e-9, "{o:?}");
+    }
+    let last = arc_stations[3].frame.origin;
+    assert!(last[0].abs() < 1e-6 && (last[1] - r).abs() < 1e-6, "{last:?}");
+    // Through the smooth twist's points, the path is its curve: it passes each point it was drawn through.
+    let st = along::stations(&Along { path: AlongPath::Feature(5), count: 4, ..Along::default() }, &env).unwrap();
+    assert!(dist(st[0].frame.origin, bent[0]) < 1e-9 && dist(st[3].frame.origin, bent[3]) < 1e-9);
+    let run = crate::cad::twist::path_points(&bent, true, false, 32).unwrap();
+    for p in &bent {
+        assert!(run.iter().any(|(q, _)| dist(*p, *q) < 1e-9), "the curve passes {p:?}");
+    }
 }
 
 #[test]

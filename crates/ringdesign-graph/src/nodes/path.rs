@@ -177,7 +177,7 @@ fn crest(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError
         .iter()
         .map(|f| {
             let o = f.origin;
-            let p = Placement::Ring { theta_deg: o[1].atan2(o[0]).to_degrees().rem_euclid(360.0), across_mm: o[2], height_mm: 0.0, spin_deg: spin_onto(f.y_axis, f.z_axis), tilt_deg: 0.0, cant_deg: 0.0 };
+            let p = Placement::Ring { theta_deg: o[1].atan2(o[0]).to_degrees().rem_euclid(360.0), across_mm: o[2], height_mm: 0.0, spin_deg: spin_onto(f.y_axis, f.z_axis), tilt_deg: 0.0, cant_deg: 0.0, level: false };
             Value::from(serde_json::to_value(p).unwrap_or_default())
         })
         .collect();
@@ -211,7 +211,7 @@ fn sweep(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError
             serde_json::from_value(json).map_err(|e| NodeError::input("section", format!("expected a profile: {e}")))?
         }
     };
-    let op = Operation::Sweep { sketch: section, path };
+    let op = Operation::sweep(section, path);
     Ok(Outputs::one("operation", serde_json::to_value(op).map_err(|e| NodeError::new(e.to_string()))?))
 }
 
@@ -410,7 +410,7 @@ mod tests {
         let Some(Value::List(ops)) = report.value(s, "operation") else { panic!() };
         assert_eq!(ops.len(), 4, "one sweep per strand");
         let op: Operation = serde_json::from_value(ops[1].to_json_any().unwrap()).unwrap();
-        assert!(matches!(op, Operation::Sweep { ref path, .. } if path.len() == 97));
+        assert!(matches!(op, Operation::Sweep { path: ringdesign_core::cad::SweepPath::Points(ref p), .. } if p.len() == 97));
     }
 
     #[test]

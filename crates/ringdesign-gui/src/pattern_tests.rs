@@ -225,7 +225,7 @@ fn an_array_round_its_stone_turns_a_post_about_the_stone_it_stands_by_and_refuse
 fn mirrors_across_the_band_and_through_the_head_land_at_once_and_a_part_on_the_plane_is_refused() {
     let mut h = harness();
     let block = |id: u64, theta: f64, across: f64| {
-        let seat = Placement::Ring { theta_deg: theta, across_mm: across, height_mm: 0.3, spin_deg: 25.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let seat = Placement::Ring { theta_deg: theta, across_mm: across, height_mm: 0.3, spin_deg: 25.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         part(id, "Block", Operation::Box { size: [1.2, 0.8, 1.0] }, seat)
     };
     let pane = ring_with(&mut h, vec![block(2, 90.0, 1.0), block(3, 60.0, 0.0), block(4, 90.0, 0.0)]);

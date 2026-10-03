@@ -7,9 +7,9 @@
 //! crest running round the ring is the frame a ring placement seats a part by.
 use super::{MAX_PATTERN_COUNT, Motion, cross, dot, inverse, on_plane, then, unit};
 use crate::RingDesign;
-use crate::cad::{Document, Operation, Placement};
+use crate::cad::{Document, Operation, Placement, SweepPath, TwistPath};
 use crate::setting::BareSurface;
-use crate::sketch::{Id, Sketch};
+use crate::sketch::{Id, Sketch, Workplane};
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use cadkernel::geom2d::Curve;
 use serde::{Deserialize, Serialize};
@@ -33,6 +33,8 @@ const CREST_STEP_DEG: f64 = 1.0;
 const CHART_STEP_MM: f64 = 0.1;
 /// Furthest a sketch curve is walked between samples, mm.
 const CURVE_STEP_MM: f64 = 0.02;
+/// Steps a smooth twisted sweep's path is walked between two of its points.
+const SPLINE_STEPS: usize = 32;
 /// Most samples a walked sketch path takes.
 const MAX_WALK: usize = 50_000;
 
@@ -458,23 +460,52 @@ fn walk(path: &AlongPath, env: &Env, band: &Band) -> Result<Walk> {
             let f = doc.feature(*id).ok_or_else(|| anyhow!("Feature #{id} the array follows is not in the document"))?;
             let who = format!("#{} {}", f.id, f.name);
             let seat = (env.seated)(&f.component.placement).with_context(|| format!("Where {who} stands"))?;
-            match &f.operation {
-                Operation::Sweep { path, .. } => {
-                    ensure!(path.len() >= 2, "{who} sweeps along fewer than two stations");
-                    let mut kept: Vec<P3> = Vec::with_capacity(path.len());
-                    for p in path.iter().map(|p| seat.point(*p)) {
-                        if kept.last().is_none_or(|q| gap(*q, p) > 1e-9) {
-                            kept.push(p);
-                        }
+            // A polyline in the part's own frame, seated, closed when the feature closes it or its ends meet.
+            let polyline = |stations: &[P3], closes: bool| -> Result<Walk> {
+                ensure!(stations.len() >= 2, "{who} runs along fewer than two stations");
+                let mut kept: Vec<P3> = Vec::with_capacity(stations.len() + 1);
+                for p in stations.iter().map(|p| seat.point(*p)) {
+                    if kept.last().is_none_or(|q| gap(*q, p) > 1e-9) {
+                        kept.push(p);
                     }
-                    let (points, closed) = closing(kept);
-                    let ups = points.iter().map(|p| band.up_near(*p)).collect();
-                    Ok(Walk { points, ups, tangents: None, chart: None, crest: false, closed })
                 }
-                Operation::Twist { path, .. } => {
+                if closes && kept.len() > 2 && gap(kept[0], kept[kept.len() - 1]) > 1e-9 {
+                    kept.push(kept[0]);
+                }
+                let (points, closed) = closing(kept);
+                let ups = points.iter().map(|p| band.up_near(*p)).collect();
+                Ok(Walk { points, ups, tangents: None, chart: None, crest: false, closed })
+            };
+            match &f.operation {
+                Operation::Sweep { path, closed, .. } => match path {
+                    SweepPath::Points(points) => polyline(points, *closed),
+                    SweepPath::Sketch { feature, entity, lift_mm } => {
+                        let s = doc.feature(*feature).ok_or_else(|| anyhow!("Sketch #{feature} {who} sweeps along is not in the document"))?;
+                        let Operation::Sketch { sketch } = &s.operation else { bail!("#{feature} {who} sweeps along is not a sketch") };
+                        // The sketch laid where it lies, as the evaluation lays it before sampling the entity.
+                        let plane = sketch_plane(sketch, doc, env, &who)?;
+                        let mut laid = sketch.clone();
+                        laid.plane = Workplane { origin: plane.origin, x: plane.x_axis, y: plane.y_axis, on_face: None };
+                        let (points, round) = crate::cad::sweep_path_points(&laid, *entity, *lift_mm).with_context(|| format!("{who}'s path, entity #{entity} of sketch #{feature}"))?;
+                        polyline(&points, *closed || round)
+                    }
+                },
+                Operation::Twist { path: TwistPath::Points { points, smooth }, closed, .. } => match smooth {
+                    false => polyline(points, *closed),
+                    true => {
+                        let run = crate::cad::twist::path_points(points, true, *closed, SPLINE_STEPS).with_context(|| format!("{who}'s path"))?;
+                        let points: Vec<P3> = run.iter().map(|(p, _)| seat.point(*p)).collect();
+                        let tangents = run.iter().map(|(_, t)| seat.vector(*t)).collect();
+                        let ups = points.iter().map(|p| band.up_near(*p)).collect();
+                        let (points, closed) = closing(points);
+                        Ok(Walk { points, ups, tangents: Some(tangents), chart: None, crest: false, closed })
+                    }
+                },
+                Operation::Twist { path: TwistPath::Sketch(path), closed: closes, .. } => {
                     let plane = sketch_plane(path, doc, env, &who)?;
                     let solved = path.solve().with_context(|| format!("{who}'s path"))?.sketch;
                     let (chained, closed) = chain(solved.curves().with_context(|| format!("{who}'s path"))?, false).with_context(|| format!("{who}: the path"))?;
+                    ensure!(closed || !closes, "{who} closes round a path whose ends do not meet");
                     let normal = plane.normal().context("The path's plane has no normal")?;
                     let (points, along) = walk_curves(&plane, &chained, closed)?;
                     let points: Vec<P3> = points.into_iter().map(|p| seat.point(p)).collect();
