@@ -1,0 +1,32 @@
+{
+  "option": "openwork",
+  "ring": "Capsa",
+  "slug": "capsa",
+  "mode": "read-test",
+  "test": 2,
+  "reads": false,
+  "what_the_eye_sees": "Hero: a small house on a ring. It is a gable-roofed box on a plinth, with a stone at each corner of the eaves and a saw-tooth ridge. A jeweller who knows coffin rings might guess 'casket' or 'shrine', so the reliquary half-reads. Nothing about it says Gothic cathedral. The roof pitch is low, like a Greek temple. The wall openings are vertical slots between square posts with round or flat heads, so the wall reads as a colonnade, not pointed arches. The ridge cresting reads as castle battlements or a saw blade, not fleurs-de-lis, and the finials are tiny beads. Taken together it reads as a Monopoly house or a little temple. Face: a plain rectangular plaque with a ladder of slots down the middle and two red cabochons in opposite corners, like a belt buckle or a circuit board. The face shows no reliquary and nothing Gothic. The shoulders show rows of small round holes, which read as a perforated band.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the roof steeply Gothic and give the skyline an unmistakable silhouette.",
+      "where": "Lid: the pentagon sketch, ridge cresting and ridge-end finials.",
+      "by_how_much": "Raise the ridge from about 2.0 to 3.5-4.0 mm above the eaves, a pitch of at least 55 degrees (it now looks about 30 degrees). Replace the saw-tooth cresting with true fleur-de-lis or trefoil cresting 1.2-1.5 mm tall, with open gaps between the units. Replace the bead finials with pointed pinnacles at least 2.5 mm tall, or crocketed finials, at both ridge ends.",
+      "acceptance": "In hero-300 the lid reads as a steep pointed gable with a lacy cresting and two spires. It no longer reads as a low temple roof with battlements."
+    },
+    {
+      "priority": 2,
+      "what": "Turn the wall slots into pointed lancet arches.",
+      "where": "Both long walls (three bays each) and both gables.",
+      "by_how_much": "Each bay gets a pointed, two-centred apex that is clearly visible, with the springing at about 60 percent of the bay height. Bays run about 3.0 mm tall on the 3.8 wall. Thin the posts toward 0.6-0.8 mm and give them small cusps or trefoil heads. Put each centre-bay cabochon inside a pointed niche. Give each gable a pointed-arch or trefoil frame round its sapphire.",
+      "acceptance": "In hero-300 the near long wall shows three pointed arches whose apexes you can count. The wall no longer reads as a row of rectangular slots between square columns."
+    },
+    {
+      "priority": 3,
+      "what": "Give the face (top-down) view something Gothic to read, because the roof slopes are now blank panels with a slot ladder.",
+      "where": "Both roof slopes and the ridge, as seen from above.",
+      "by_how_much": "Add a pierced or relief quatrefoil, or a two-light tracery panel, about 3-4 mm across, on each slope round or beside its garnet. Add a slate or fish-scale texture of about 0.15 mm relief on the remaining roof field. Make the ridge cresting read from above as a continuous fleur strip, not a dotted line. Replace the round shoulder holes with quatrefoils (C-T3) so they stop reading as perforations.",
+      "acceptance": "At face-300 a viewer names tracery, a quatrefoil or a steep tiled roof with cresting, not a plaque or buckle. The shoulders show four-lobed piercings."
+    }
+  ]
+}

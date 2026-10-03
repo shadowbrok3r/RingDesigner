@@ -1,0 +1,28 @@
+{
+  "option": "across-openwork",
+  "ring": "capsa",
+  "mode": "read-test",
+  "test": 3,
+  "reads": false,
+  "what_the_eye_sees": "A little Gothic church front on a signet: a crocketed gable with a blue cabochon where a rose would be, two pinnacle towers with knops, a pointed-arch doorway, set on a plinth studded with red and blue cabochons, on a plain band with a few tiny scattered piercings on the shoulders. 'Gothic' reads at once and 'cathedral/chapel' follows. 'Reliquary' does not: the head reads as a flat façade slab standing on a block, not as a casket or chest with a lid. In the face view the skull in the doorway reads as a skull and pushes the read toward 'memento-mori shrine', but in the 3/4 hero it is a small blob behind the arch that could be a door or a figure. A jeweller would say 'Gothic chapel (or church) ring', not 'reliquary'.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Chest block, roof and gable (the whole head above the plinth)",
+      "change": "Make the head a casket, not a façade. Give the chest real depth (front-to-back depth at least 70% of its width, against the thin slab now) and carry the gable back as a pitched roof whose two slopes and ridge show in the 3/4 hero, with a cresting of small finials or a pierced crest along the ridge. Repeat a two- or three-bay blind arcade on the chest's side wall so the side reads as a chest's long side.",
+      "acceptance": "In hero-300 the roof slope facing the camera covers at least 25 px and the side wall shows at least two arched bays; the head's silhouette reads as a house-shaped box (a chasse), not a front wall."
+    },
+    {
+      "priority": 2,
+      "where": "West window and skull (Loft the skull / Open the west window in tracery over the skull)",
+      "change": "Make the relic the focus: scale the skull up so it fills about 45% of the façade's width (now roughly 20%), widen the window opening to match, and keep the cavity behind it deep and dark so the skull sits clearly inside a lit-from-the-front niche behind open tracery bars.",
+      "acceptance": "In hero-300 the skull's eye sockets and jaw read as a skull (at least 30 px tall) seen through the window; in face-300 the skull is the largest single form below the gable."
+    },
+    {
+      "priority": 3,
+      "where": "Chest front and lid line, between plinth and gable",
+      "change": "Show that it opens: cut a clear horizontal lid seam at the eaves (at least 0.3 mm groove, crisp), and add a hasp or lock plate on the front below the window and visible hinge knuckles at the back. Keep the plinth cabochons, but align them as a jewelled band along the chest base rather than loose dots.",
+      "acceptance": "In both 300 px renders a continuous lid line is visible across the front and the hasp reads as a distinct small form, so the eye names 'box' or 'casket' before 'building'."
+    }
+  ]
+}

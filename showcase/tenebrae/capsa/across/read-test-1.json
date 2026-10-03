@@ -1,0 +1,18 @@
+{
+  "option": "across",
+  "ring": "Capsa",
+  "slug": "capsa",
+  "mode": "read-test",
+  "read_test": 1,
+  "renders": [
+    "showcase/tenebrae/capsa/across/hero-300.png",
+    "showcase/tenebrae/capsa/across/face-300.png"
+  ],
+  "reads": false,
+  "what_the_eye_sees": "A little Gothic church front on a signet. The face view is a flat gabled facade with two corner pinnacles, a fleur-like finial, a pointed-arch niche with a blue cabochon and a blue cabochon in the gable. 'Gothic chapel' or 'church ring' comes at once, so the 'Gothic cathedral' half of the test passes. 'Reliquary' never comes. Nothing says casket. In the hero the facade stands upright like a stage flat on a plain, deep, square slab, and the slab looks like a CAD block, not a chest. No roof slopes run back from the gable, no lid line or eave overhang separates a lid from a box, no ridge cresting runs along the top, and no arcaded long wall with set stones shows. The two red cabochons on the slab's front step and the red dots at its sides read as scattered studs. The shoulder marks are tiny dots and diamonds that look like stray engraving, not quatrefoils. A jeweller would say 'a church façade ring', not 'a chasse' or 'a reliquary casket'.",
+  "changes": [
+    "Make it read as a chest with a lid, not a facade on a slab. Give the gable a real gabled roof running back the full chest length, with both slopes visible in the hero, and set a cabochon on each slope. Mark the lid as a separate body: overhang the eaves about 0.4-0.5 mm past the chest walls on all four sides, and leave a dark lid seam about 0.15-0.2 mm deep at the eave line. In the hero, the roof and the chest walls should together take up at least 60% of the head's visible area. The facade should take no more than 40%.",
+    "Turn the head so a long, arcaded side wall faces the hero camera, or turn the hero camera about 35-45° so it does. Cut the three-bay blind arcade on that wall 0.3 mm deep. Give the centre bay a bezel-set garnet that is at least 2.3 mm long and clearly framed by the pointed niche. At 300 px the long wall with its bays and stone must be as legible as the gable is now, because the casket reads from the long side and not the gable end.",
+    "Run fleur-de-lis cresting along the ridge, at least 0.8 mm tall and continuous between the two finials, so the top edge reads as the crest of a chasse. Then clean up what reads as scattered. Take the two red studs off the slab's front step and the red dots off its sides, or fold them into the plinth as one deliberate moulded band. Enlarge the shoulder piercings to true quatrefoils of at least 1.2 mm, graded, so they don't read as stray dots."
+  ]
+}
