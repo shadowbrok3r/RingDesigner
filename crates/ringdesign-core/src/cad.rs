@@ -77,13 +77,28 @@ pub enum Operation {
     },
     Sweep {
         sketch: Profile,
-        path: Vec<[f64; 3]>,
+        path: SweepPath,
+        /// The path closes on itself: its last station joins its first and the sweep has no caps.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        closed: bool,
+        /// Section turn over the path, degrees, whole turns when closed; a twisted sweep is built as a [`twist`] mesh.
+        #[serde(default, skip_serializing_if = "is_zero")]
+        twist_deg: f64,
+        /// The section's scale at the path's end, straight from one at its start; one round a closed path.
+        #[serde(default = "one", skip_serializing_if = "is_one")]
+        end_scale: f64,
     },
     Twist {
         sketch: Profile,
-        path: Sketch,
+        path: TwistPath,
         degrees: f64,
         end_scale: f64,
+        /// (share, scale) knots joined by a monotone cubic ([`twist::law_at`]); when given, it replaces the run to `end_scale`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        scale: Vec<[f64; 2]>,
+        /// The path closes on itself and the sweep joins round it: whole turns, a scale that ends where it starts, no caps.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        closed: bool,
     },
     Loft {
         sections: Vec<Profile>,
@@ -169,6 +184,109 @@ impl From<Sketch> for Profile {
         Self::Inline(sketch)
     }
 }
+fn is_zero(v: &f64) -> bool {
+    *v == 0.0
+}
+fn is_one(v: &f64) -> bool {
+    *v == 1.0
+}
+fn one() -> f64 {
+    1.0
+}
+/// A twisted sweep's path: points in space or curves on one plane; untagged, points first, so older files read as sketches.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum TwistPath {
+    /// Up to [`twist::MAX_PATH_POINTS`] points, mitred or a centripetal Catmull-Rom when `smooth`; the section's plane rides from the first.
+    Points { points: Vec<[f64; 3]>, smooth: bool },
+    /// Curves on one plane; the section stands square to the path at its start, a closed path's start being its first curve's.
+    Sketch(Sketch),
+}
+impl From<Sketch> for TwistPath {
+    fn from(sketch: Sketch) -> Self {
+        Self::Sketch(sketch)
+    }
+}
+/// A sweep's path: stations in space, or a sketch entity sampled as it lies now; untagged, so older files read as stations.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum SweepPath {
+    Points(Vec<[f64; 3]>),
+    /// Entity `entity` of `Sketch` feature `feature`, sampled by [`sweep_path_points`]; a closed entity closes the sweep.
+    Sketch {
+        feature: Id,
+        entity: Id,
+        #[serde(default)]
+        lift_mm: f64,
+    },
+}
+impl From<Vec<[f64; 3]>> for SweepPath {
+    fn from(points: Vec<[f64; 3]>) -> Self {
+        Self::Points(points)
+    }
+}
+impl SweepPath {
+    /// The `Sketch` feature the path is read from, when it is read from one.
+    pub fn feature(&self) -> Option<Id> {
+        match self {
+            Self::Sketch { feature, .. } => Some(*feature),
+            Self::Points(_) => None,
+        }
+    }
+}
+/// Spacing of a sweep's stations along a curve of the sketch entity it follows, mm.
+pub const SWEEP_STEP_MM: f64 = 0.3;
+/// Most stations a sweep takes.
+pub const MAX_SWEEP_STATIONS: usize = 128;
+/// World stations along `entity` of the laid `sketch`, every [`SWEEP_STEP_MM`] on a curve and a line's ends, lifted `lift_mm`; and whether it closes.
+pub fn sweep_path_points(sketch: &Sketch, entity: Id, lift_mm: f64) -> Result<(Vec<[f64; 3]>, bool)> {
+    use cadkernel::geom2d::Curve;
+    ensure!(lift_mm.is_finite() && lift_mm.abs() < 10000.0, "the lift must be finite and below 10000 mm");
+    let solved = sketch.solve()?.sketch;
+    let e = solved.entities.iter().find(|e| e.id == entity).ok_or_else(|| anyhow::anyhow!("the sketch has no entity #{entity} to run along"))?;
+    let curves = solved.curves_of(e)?;
+    let plane = solved.plane.plane()?;
+    let normal = plane.normal().context("the sketch's plane has no normal")?;
+    let lengths: Vec<f64> = curves.iter().map(Curve::length).collect();
+    let total: f64 = lengths.iter().sum();
+    ensure!(total.is_finite() && total > 1e-6, "entity #{entity} has no length");
+    let runs = MAX_SWEEP_STATIONS - 1;
+    ensure!(curves.len() <= runs, "entity #{entity} runs in {} pieces; a sweep takes at most {runs}", curves.len());
+    let counts = |step: f64| -> Vec<usize> {
+        curves.iter().zip(&lengths).map(|(c, len)| if matches!(c, Curve::Line(_)) { 1 } else { ((len / step).ceil() as usize).max(1) }).collect()
+    };
+    let fits = |step: f64| counts(step).iter().sum::<usize>() <= runs;
+    let mut step = SWEEP_STEP_MM;
+    if !fits(step) {
+        // Bisects for the finest step that fits; one run per piece always fits.
+        let (mut lo, mut hi) = (step, total.max(step));
+        for _ in 0..64 {
+            let mid = 0.5 * (lo + hi);
+            if fits(mid) {
+                hi = mid;
+            } else {
+                lo = mid;
+            }
+        }
+        step = hi;
+    }
+    let count = counts(step);
+    let lift = |uv: [f64; 2]| -> [f64; 3] {
+        let p = plane.point_at(uv);
+        std::array::from_fn(|k| p[k] + normal[k] * lift_mm)
+    };
+    let mut points = Vec::with_capacity(runs + 1);
+    for ((c, len), k) in curves.iter().zip(&lengths).zip(&count) {
+        points.extend((0..*k).map(|i| lift(c.point_at(c.parameter_at_distance(len * i as f64 / *k as f64)))));
+    }
+    let (start, end) = (curves[0].point_at(0.0), curves[curves.len() - 1].point_at(1.0));
+    let size = start.iter().chain(&end).fold(1.0_f64, |m, v| m.max(v.abs()));
+    let round = (start[0] - end[0]).hypot(start[1] - end[1]) <= 1e-9 * size;
+    if !round {
+        points.push(lift(end));
+    }
+    Ok((points, round))
+}
 impl Profile {
     pub fn feature(&self) -> Option<Id> {
         match self {
@@ -198,6 +316,22 @@ impl Profile {
     }
 }
 impl Operation {
+    /// A sweep of `sketch` along `path`: open, untwisted and unscaled unless set after.
+    pub fn sweep(sketch: impl Into<Profile>, path: impl Into<SweepPath>) -> Self {
+        Self::Sweep { sketch: sketch.into(), path: path.into(), closed: false, twist_deg: 0.0, end_scale: 1.0 }
+    }
+    /// A twisted sweep of `sketch` along `path`, open, turned `degrees` and scaled straight to `end_scale`.
+    pub fn twist(sketch: impl Into<Profile>, path: impl Into<TwistPath>, degrees: f64, end_scale: f64) -> Self {
+        Self::Twist { sketch: sketch.into(), path: path.into(), degrees, end_scale, scale: Vec::new(), closed: false }
+    }
+    /// Whether this sweep needs a format-6 reader: a twist through points, closed or under a law, or a sweep that closes, twists, scales or follows a sketch.
+    pub fn sweeps_extended(&self) -> bool {
+        match self {
+            Self::Twist { path, scale, closed, .. } => *closed || !scale.is_empty() || matches!(path, TwistPath::Points { .. }),
+            Self::Sweep { path, closed, twist_deg, end_scale, .. } => *closed || *twist_deg != 0.0 || *end_scale != 1.0 || path.feature().is_some(),
+            _ => false,
+        }
+    }
     pub fn label(&self) -> &'static str {
         match self {
             Self::Band => "Procedural shank",
@@ -243,10 +377,17 @@ impl Operation {
             | Self::Shell { source, .. }
             | Self::PressPull { source, .. }
             | Self::Transform { source, .. } => vec![*source],
-            Self::Extrude { sketch, .. } | Self::Revolve { sketch, .. } | Self::Sweep { sketch, .. } => sketch.dependencies(),
+            Self::Extrude { sketch, .. } | Self::Revolve { sketch, .. } => sketch.dependencies(),
+            Self::Sweep { sketch, path, .. } => {
+                let mut ids = sketch.dependencies();
+                ids.extend(path.feature());
+                ids
+            }
             Self::Twist { sketch, path, .. } => {
                 let mut ids = sketch.dependencies();
-                ids.extend(path.plane.on_face.iter().map(|a| a.feature));
+                if let TwistPath::Sketch(path) = path {
+                    ids.extend(path.plane.on_face.iter().map(|a| a.feature));
+                }
                 ids
             }
             Self::Loft { sections } => sections.iter().flat_map(Profile::dependencies).collect(),
@@ -303,6 +444,13 @@ pub struct Component {
     pub stage: Stage,
     /// Radius of the seam bead laid along a `Join`/`Cut` junction; 0 lays none.
     pub blend_mm: f64,
+    /// Radius of the fillet a joined stored part grows out of the band with, the two united as fields
+    /// ([`crate::sculpt::fillet_into`]); 0 grows none and is not written.
+    #[serde(skip_serializing_if = "is_zero_mm")]
+    pub fillet_into_band: f64,
+}
+fn is_zero_mm(v: &f64) -> bool {
+    *v == 0.0
 }
 /// How a component's solid meets the band once both are built.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -347,6 +495,7 @@ struct ComponentWire {
     attach: Attach,
     stage: Stage,
     blend_mm: f64,
+    fillet_into_band: f64,
     ring_anchor_deg: Option<f64>,
     anchor_height_mm: f64,
 }
@@ -365,6 +514,7 @@ impl Default for ComponentWire {
             attach: c.attach,
             stage: c.stage,
             blend_mm: c.blend_mm,
+            fillet_into_band: c.fillet_into_band,
             ring_anchor_deg: None,
             anchor_height_mm: 0.0,
         }
@@ -388,6 +538,7 @@ impl From<ComponentWire> for Component {
             attach: w.attach,
             stage: w.stage,
             blend_mm: w.blend_mm,
+            fillet_into_band: w.fillet_into_band,
         }
     }
 }
@@ -1420,7 +1571,9 @@ pub fn sign_refs(op: &mut Operation, e: &Evaluated) -> usize {
         }
         Operation::Twist { sketch, path, .. } => {
             anchors.extend(sketch.sketch_mut().and_then(|s| s.plane.on_face.as_mut()));
-            anchors.extend(path.plane.on_face.as_mut());
+            if let TwistPath::Sketch(path) = path {
+                anchors.extend(path.plane.on_face.as_mut());
+            }
         }
         Operation::Loft { sections } => anchors.extend(sections.iter_mut().filter_map(|p| p.sketch_mut()?.plane.on_face.as_mut())),
         _ => {}
@@ -1464,6 +1617,7 @@ impl Default for Component {
             attach: Attach::Separate,
             stage: Stage::Cast,
             blend_mm: 0.0,
+            fillet_into_band: 0.0,
         }
     }
 }
@@ -2110,12 +2264,36 @@ fn body_for(
             let (plane, angle) = if cut && *degrees < 360.0 { cleared_turn(plane, &regions, pivot, axis, *degrees) } else { (plane, degrees.to_radians()) };
             crate::sketch::solid::revolve(plane, &regions, pivot, axis, angle)
         }
-        Operation::Sweep { sketch: from, path } => {
-            ensure!(
-                path.len() >= 2 && path.len() <= 128,
-                "Sweep needs 2–128 path stations"
-            );
-            coords(path)?;
+        Operation::Sweep { sketch: from, path, closed, twist_deg, end_scale } => {
+            let (stations, round) = match path {
+                SweepPath::Points(points) => {
+                    ensure!(
+                        points.len() >= 2 && points.len() <= MAX_SWEEP_STATIONS,
+                        "Sweep needs 2–128 path stations"
+                    );
+                    coords(points)?;
+                    (std::borrow::Cow::Borrowed(points.as_slice()), false)
+                }
+                SweepPath::Sketch { feature, entity, lift_mm } => {
+                    let along = sketches.get(feature).ok_or_else(|| anyhow::anyhow!("Sweep: the path's sketch feature #{feature} is unavailable or suppressed"))?;
+                    let (points, round) = sweep_path_points(along, *entity, *lift_mm).with_context(|| format!("Sweep along entity #{entity} of sketch #{feature}"))?;
+                    (std::borrow::Cow::Owned(points), round)
+                }
+            };
+            let closed = *closed || round;
+            ensure!(twist_deg.is_finite() && twist_deg.abs() <= 3600.0, "Sweep: the twist exceeds ten turns");
+            positive(*end_scale, "Sweep end scale")?;
+            // The kernel joins a path round whose last station is its first, closed or not.
+            let length: f64 = stations.windows(2).map(|w| crate::mesh::norm(std::array::from_fn(|k| w[1][k] - w[0][k]))).sum();
+            let (first, last) = (stations[0], stations[stations.len() - 1]);
+            let loops = closed || crate::mesh::norm(std::array::from_fn(|k| last[k] - first[k])) <= length.max(1.0) * 1e-9;
+            if loops {
+                ensure!(stations.len() >= 3, "Sweep: a closed path runs through three stations at least");
+                let turns = twist_deg / 360.0;
+                ensure!((turns - turns.round()).abs() < 1e-9, "Sweep: a closed sweep turns its section whole turns round the loop, so its ends meet; {twist_deg}° is not");
+                ensure!(*end_scale == 1.0, "Sweep: a closed sweep keeps its section's size round the loop, so its ends meet; its end scale is {end_scale}");
+            }
+            let path = &*stations;
             let sketch = profile(from, sketches)?;
             let plane = plane_of(sketch, values, frames, notes)?;
             // One region of several sweeps its own loops, holes and all; any other profile is its one closed loop.
@@ -2128,15 +2306,24 @@ fn body_for(
                 }
                 _ => vec![sketch.profile_curves()?],
             };
+            if *twist_deg != 0.0 {
+                // A twisted sweep is built as a [`twist`] mesh, its section on the kernel's base point.
+                ensure!(wires.len() == 1, "Sweep: a twisted sweep takes one closed loop, and the profile has {}; sweep its outline", wires.len());
+                let base = brep::sweep_profile_base(plane, &wires).context("Sweep: the section has no point to stand on the path")?;
+                let uv = plane.project(base).context("Sweep: the section's plane has no axes")?;
+                let shift = cadkernel::geom2d::Transform::translation([-uv[0], -uv[1]]);
+                let outline: Vec<cadkernel::geom2d::Curve> = wires[0].iter().map(|c| c.transformed(&shift)).collect::<Option<_>>().context("Sweep: the section will not move onto the path")?;
+                let laid = cadkernel::space::Plane::from_axes(base, plane.x_axis, plane.y_axis);
+                let options = twist::Options { twist: twist_deg.to_radians(), scale: twist::Scale::Linear(*end_scale), closed: loops, chord: part_chord(params) };
+                let made = twist::sweep(laid, &outline, twist::Path::Points { points: path, smooth: false }, options)?;
+                return Ok(Value::Mesh(Arc::new(made)));
+            }
             maybe(
                 brep::sweep_path(
                     plane,
                     &wires,
-                    brep::SweepPath::Polyline3d {
-                        points: path,
-                        closed: false,
-                    },
-                    brep::SweepOptions::default(),
+                    brep::SweepPath::Polyline3d { points: path, closed },
+                    brep::SweepOptions { scale: *end_scale, ..brep::SweepOptions::default() },
                 ),
                 "Sweep",
             )
@@ -2146,6 +2333,8 @@ fn body_for(
             path,
             degrees,
             end_scale,
+            scale,
+            closed,
         } => {
             ensure!(
                 degrees.is_finite() && degrees.abs() <= 3600.0,
@@ -2155,8 +2344,19 @@ fn body_for(
             let sketch = profile(from, sketches)?;
             let plane = plane_of(sketch, values, frames, notes)?;
             let outline = region_loop(from, sketch, "Twisted sweep", notes)?;
-            let along = plane_of(path, values, frames, notes)?;
-            let made = twist::sweep(plane, &outline, along, &path.solved_curves()?, degrees.to_radians(), *end_scale, part_chord(params))?;
+            let options = twist::Options {
+                twist: degrees.to_radians(),
+                scale: if scale.is_empty() { twist::Scale::Linear(*end_scale) } else { twist::Scale::Law(scale) },
+                closed: *closed,
+                chord: part_chord(params),
+            };
+            let made = match path {
+                TwistPath::Sketch(path) => {
+                    let along = plane_of(path, values, frames, notes)?;
+                    twist::sweep(plane, &outline, twist::Path::Planar { plane: along, curves: &path.solved_curves()? }, options)?
+                }
+                TwistPath::Points { points, smooth } => twist::sweep(plane, &outline, twist::Path::Points { points, smooth: *smooth }, options)?,
+            };
             return Ok(Value::Mesh(Arc::new(made)));
         }
         Operation::Loft { sections } => {
@@ -2346,6 +2546,32 @@ pub fn turns_in_plane_json(v: &serde_json::Value) -> bool {
             map.get("Revolve").and_then(|r| r.get("in_plane")).and_then(serde_json::Value::as_bool) == Some(true) || map.values().any(turns_in_plane_json)
         }
         serde_json::Value::Array(items) => items.iter().any(turns_in_plane_json),
+        _ => false,
+    }
+}
+/// Whether `design` carries a sweep only a format-6 reader builds, in its document or anywhere in its graph.
+pub fn sweeps_extended(design: &RingDesign) -> bool {
+    let in_document = design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| f.operation.sweeps_extended()));
+    in_document || design.graph.as_ref().is_some_and(sweeps_extended_json)
+}
+/// Whether `v` holds such a sweep anywhere, read off the keys of its `Twist` and `Sweep` objects.
+pub fn sweeps_extended_json(v: &serde_json::Value) -> bool {
+    use serde_json::Value;
+    match v {
+        Value::Object(map) => {
+            let closes = |op: &Value| op.get("closed").and_then(Value::as_bool) == Some(true);
+            let twist = map.get("Twist").is_some_and(|t| {
+                closes(t) || t.get("scale").and_then(Value::as_array).is_some_and(|law| !law.is_empty()) || t.get("path").is_some_and(|p| p.get("smooth").is_some())
+            });
+            let sweep = map.get("Sweep").is_some_and(|s| {
+                closes(s)
+                    || s.get("twist_deg").and_then(Value::as_f64).is_some_and(|d| d != 0.0)
+                    || s.get("end_scale").and_then(Value::as_f64).is_some_and(|k| k != 1.0)
+                    || s.get("path").is_some_and(Value::is_object)
+            });
+            twist || sweep || map.values().any(sweeps_extended_json)
+        }
+        Value::Array(items) => items.iter().any(sweeps_extended_json),
         _ => false,
     }
 }
@@ -2662,7 +2888,12 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
             f.operation,
             Operation::Builder { .. } | Operation::Pattern { .. } | Operation::Plane { base: PlaneBase::Tangent { .. }, .. }
         );
-        if f.component.placement != Placement::Free || reads_surface {
+        // A stored part grown into the band reads the band, and its radius.
+        let grows = f.component.fillet_into_band != 0.0 && matches!(f.operation, Operation::Stored { .. });
+        if grows {
+            f.component.fillet_into_band.to_bits().hash(&mut h);
+        }
+        if f.component.placement != Placement::Free || reads_surface || grows {
             surface_epoch.hash(&mut h);
             design.inner_radius_mm().to_bits().hash(&mut h);
             design.profile.thickness_mm.to_bits().hash(&mut h);
@@ -3613,10 +3844,7 @@ mod tests {
                     distance_mm: 0.5,
                 },
             ],
-            vec![Operation::Sweep {
-                sketch: Sketch::circle(1.0).into(),
-                path: vec![[0.0; 3], [0.0, 0.0, 5.0]],
-            }],
+            vec![Operation::sweep(Sketch::circle(1.0), vec![[0.0; 3], [0.0, 0.0, 5.0]])],
         ];
         for ops in cases {
             let label = ops.last().unwrap().label();
@@ -3665,15 +3893,15 @@ mod tests {
         };
         // Swept 4 mm up the finger: the 3 mm square alone, and the framed square with its hole kept.
         let up = vec![[0.0; 3], [0.0, 0.0, 4.0]];
-        near(run(Operation::Sweep { sketch: pick(three), path: up.clone() }), 9.0 * 4.0);
-        near(run(Operation::Sweep { sketch: pick(framed), path: up.clone() }), (36.0 - 4.0) * 4.0);
+        near(run(Operation::sweep(pick(three), up.clone())), 9.0 * 4.0);
+        near(run(Operation::sweep(pick(framed), up.clone())), (36.0 - 4.0) * 4.0);
         // The whole sketch is four loops, which a sweep never took.
-        assert!(run(Operation::Sweep { sketch: Profile::Feature { feature: 1 }, path: up }).unwrap_err().contains("4 separate loops"));
+        assert!(run(Operation::sweep(Profile::Feature { feature: 1 }, up)).unwrap_err().contains("4 separate loops"));
         // Twisted along a 5 mm line up the finger without a turn: the 3 mm square's prism.
         let mut line = Sketch { plane: Workplane::section(), ..Sketch::default() };
         let (a, b) = (line.point([0.0, 0.0]), line.point([0.0, 5.0]));
         line.entity(Geometry::Line { a, b });
-        let twist = |from: Profile| Operation::Twist { sketch: from, path: line.clone(), degrees: 0.0, end_scale: 1.0 };
+        let twist = |from: Profile| Operation::twist(from, line.clone(), 0.0, 1.0);
         near(run(twist(pick(three))), 9.0 * 5.0);
         let holed = run(twist(pick(framed))).unwrap_err();
         assert!(holed.contains("Twisted sweep: the region of sketch #1 has 1 hole; it takes one closed loop"), "{holed}");
@@ -3683,6 +3911,131 @@ mod tests {
         near(run(Operation::Loft { sections: vec![pick(three), top.clone().into()] }), 9.0 * 5.0);
         let holed = run(Operation::Loft { sections: vec![pick(framed), top.into()] }).unwrap_err();
         assert!(holed.contains("Loft: the region of sketch #1 has 1 hole; it takes one closed loop"), "{holed}");
+    }
+
+    /// A half round of radius `r` on the plane z = 0, and the id of its arc.
+    fn arch(r: f64) -> (Sketch, Id) {
+        let mut s = Sketch::default();
+        let (c, a, b) = (s.point([0.0, 0.0]), s.point([r, 0.0]), s.point([-r, 0.0]));
+        let id = s.entity(crate::sketch::Geometry::Arc { center: c, start: a, end: b });
+        (s, id)
+    }
+    /// The low and high corners of a mesh's box.
+    fn bounds(m: &Mesh) -> ([f64; 3], [f64; 3]) {
+        m.vertices.iter().fold(([f64::MAX; 3], [f64::MIN; 3]), |(lo, hi), v| {
+            let p = [f64::from(v.0), f64::from(v.1), f64::from(v.2)];
+            (std::array::from_fn(|k| lo[k].min(p[k])), std::array::from_fn(|k| hi[k].max(p[k])))
+        })
+    }
+
+    #[test]
+    fn a_sweep_along_a_sketch_entity_follows_every_edit_to_it() {
+        let lib = AlphaLibrary::builtin();
+        // A 0.2 mm roll along an arch drawn as feature #1, lifted 0.3 mm off the arch's plane.
+        let roll = |entity: Id, lift_mm: f64| Operation::Sweep { sketch: Sketch::circle(0.2).into(), path: SweepPath::Sketch { feature: 1, entity, lift_mm }, closed: false, twist_deg: 0.0, end_scale: 1.0 };
+        let (four, entity) = arch(4.0);
+        assert_eq!(roll(entity, 0.3).sources(), vec![1], "the sweep reads the sketch it runs along");
+        // Every 0.3 mm round the arch: a half round of 4 mm is 42 runs and 43 stations, lifted onto z = 0.3.
+        let (points, round) = sweep_path_points(&four, entity, 0.3).unwrap();
+        assert!(!round && points.len() == 43 && points.iter().all(|p| (p[2] - 0.3).abs() < 1e-12 && (p[0].hypot(p[1]) - 4.0).abs() < 1e-9), "{points:?}");
+        let cache = Mutex::new(Cache::default());
+        let never = std::sync::atomic::AtomicBool::new(false);
+        let run = |arch: &Sketch, op: Operation| -> std::result::Result<Mesh, String> {
+            let e = evaluate_memo(&design(vec![Operation::Sketch { sketch: arch.clone() }, op]), &lib, BuildParams::default(), &BuildCtx::new(&never), Memo::new(&cache)).unwrap();
+            match e.status_of(2) {
+                Some(FeatureStatus::Ok) => Ok(e.components.iter().find(|c| c.id == 2).unwrap().mesh.clone()),
+                other => Err(format!("{other:?}")),
+            }
+        };
+        // The roll stands on the arch: round its top, over its plane by the lift, and Pappus's volume for its length.
+        for (r, sketch) in [(4.0, four.clone()), (5.0, arch(5.0).0)] {
+            let mesh = run(&sketch, roll(entity, 0.3)).unwrap();
+            assert!(mesh.validate().watertight, "{r}");
+            let (lo, hi) = bounds(&mesh);
+            assert!((hi[1] - (r + 0.2)).abs() < 0.01 && (lo[2] - 0.1).abs() < 0.01 && (hi[2] - 0.5).abs() < 0.01, "{r}: {lo:?} {hi:?}");
+            let want = std::f64::consts::PI * 0.04 * std::f64::consts::PI * r;
+            assert!((mesh.volume_mm3() / want - 1.0).abs() < 0.01, "{r}: {} against {want}", mesh.volume_mm3());
+        }
+        // A whole circle closes the sweep round it: a torus.
+        let mut hoop = Sketch::default();
+        let (c, rim) = (hoop.point([0.0, 0.0]), hoop.point([4.0, 0.0]));
+        let circle = hoop.entity(crate::sketch::Geometry::Circle { center: c, rim });
+        let (points, round) = sweep_path_points(&hoop, circle, 0.0).unwrap();
+        assert!(round && points.len() == 84, "{}", points.len());
+        let torus = run(&hoop, roll(circle, 0.0)).unwrap();
+        assert!(torus.validate().watertight);
+        let want = std::f64::consts::PI * 0.04 * std::f64::consts::TAU * 4.0;
+        assert!((torus.volume_mm3() / want - 1.0).abs() < 0.01, "{} against {want}", torus.volume_mm3());
+        // A long curve widens its step to keep within the most stations; a polyline is its corners.
+        let mut wide = Sketch::default();
+        let (c, rim) = (wide.point([0.0, 0.0]), wide.point([12.0, 0.0]));
+        let big = wide.entity(crate::sketch::Geometry::Circle { center: c, rim });
+        let ids = [[0.0, 0.0], [3.0, 0.0], [3.0, 2.0]].map(|p| wide.point(p));
+        let bent = wide.entity(crate::sketch::Geometry::Polyline { points: ids.to_vec(), closed: false });
+        assert_eq!(sweep_path_points(&wide, big, 0.0).unwrap().0.len(), MAX_SWEEP_STATIONS - 1);
+        assert_eq!(sweep_path_points(&wide, bent, 0.0).unwrap(), (vec![[0.0; 3], [3.0, 0.0, 0.0], [3.0, 2.0, 0.0]], false));
+        // Refused by name: an entity the sketch does not hold, a sketch feature that is not there.
+        assert!(run(&four, roll(99, 0.0)).unwrap_err().contains("the sketch has no entity #99"));
+        let lost = Operation::Sweep { sketch: Sketch::circle(0.2).into(), path: SweepPath::Sketch { feature: 7, entity, lift_mm: 0.0 }, closed: false, twist_deg: 0.0, end_scale: 1.0 };
+        assert!(run(&four, lost).unwrap_err().contains("sketch feature #7 is unavailable"));
+        // Written as before when it follows stations, and as the sketch it reads when it follows one.
+        let old = serde_json::json!({ "Sweep": { "sketch": Sketch::circle(1.0), "path": [[0.0, 0.0, 0.0], [0.0, 0.0, 5.0]] } });
+        let op: Operation = serde_json::from_value(old.clone()).unwrap();
+        assert!(matches!(&op, Operation::Sweep { path: SweepPath::Points(p), closed: false, .. } if p.len() == 2));
+        assert_eq!(serde_json::to_value(&op).unwrap(), old);
+        let text = serde_json::to_string(&roll(entity, 0.3)).unwrap();
+        assert!(text.contains(&format!(r#""path":{{"feature":1,"entity":{entity},"lift_mm":0.3}}"#)), "{text}");
+        assert_eq!(serde_json::to_string(&serde_json::from_str::<Operation>(&text).unwrap()).unwrap(), text);
+    }
+
+    #[test]
+    fn a_sweep_closes_and_scales_through_the_kernel_and_twists_as_our_own() {
+        let lib = AlphaLibrary::builtin();
+        let run = |op: Operation| -> std::result::Result<f64, String> {
+            let e = evaluate(&design(vec![op]), &lib, BuildParams::default()).unwrap();
+            match e.status_of(1) {
+                Some(FeatureStatus::Ok) => {
+                    let mesh = &e.components[0].mesh;
+                    assert!(mesh.validate().watertight);
+                    Ok(mesh.volume_mm3())
+                }
+                other => Err(format!("{other:?}")),
+            }
+        };
+        let sweep = |path: Vec<[f64; 3]>, closed: bool, twist_deg: f64, end_scale: f64| Operation::Sweep { sketch: Sketch::rectangle(1.0, 1.0).into(), path: path.into(), closed, twist_deg, end_scale };
+        // Four stations round a square, closed: a mitred frame near the section's area times the length round.
+        let square = vec![[10.0, -10.0, 0.0], [10.0, 10.0, 0.0], [-10.0, 10.0, 0.0], [-10.0, -10.0, 0.0]];
+        let v = run(sweep(square.clone(), true, 0.0, 1.0)).unwrap();
+        assert!((v / 80.0 - 1.0).abs() < 5e-3, "{v}");
+        let v = run(sweep(square.clone(), true, 360.0, 1.0)).unwrap();
+        assert!((v / 80.0 - 1.0).abs() < 0.01, "turned once round: {v}");
+        // Open, turned a quarter and narrowed to half: the mean square of the scale times the prism.
+        let v = run(sweep(vec![[0.0; 3], [0.0, 0.0, 6.0]], false, 90.0, 0.5)).unwrap();
+        let want = 6.0 * (1.0 + 0.5 + 0.25) / 3.0;
+        assert!((v / want - 1.0).abs() < 5e-3, "{v} against {want}");
+        // Twisted, it is our own sweep, a mesh standing where the kernel stands the untwisted one.
+        let part = |twist_deg: f64| {
+            let op = Operation::Sweep { sketch: Sketch::rectangle(2.0, 1.5).into(), path: vec![[1.0, 2.0, 0.0], [1.0, 2.0, 6.0], [4.0, 2.0, 9.0]].into(), closed: false, twist_deg, end_scale: 1.0 };
+            evaluate(&design(vec![op]), &lib, BuildParams::default()).unwrap().components.remove(0)
+        };
+        let (kernel, ours) = (part(0.0), part(1e-4));
+        assert!(kernel.made.is_none() && ours.made.as_ref().is_some_and(|m| m.key == twist::TWIST));
+        let ((a, b), (c, d)) = (bounds(&kernel.mesh), bounds(&ours.mesh));
+        let apart = (0..3).map(|k| (a[k] - c[k]).abs().max((b[k] - d[k]).abs())).fold(0.0, f64::max);
+        assert!(apart < 1e-3, "{a:?} {b:?} against {c:?} {d:?}");
+        assert!((kernel.mesh.volume_mm3() / ours.mesh.volume_mm3() - 1.0).abs() < 1e-3);
+        // Round a loop it keeps whole turns and its size; a path that ends where it starts is a loop too.
+        let mut back = square.clone();
+        back.push(square[0]);
+        for (op, why) in [
+            (sweep(square.clone(), true, 90.0, 1.0), "whole turns"),
+            (sweep(back, false, 0.0, 0.5), "keeps its section's size"),
+            (sweep(vec![[0.0; 3], [0.0, 0.0, 6.0]], true, 0.0, 1.0), "three stations at least"),
+            (sweep(vec![[0.0; 3], [0.0, 0.0, 6.0]], false, 9000.0, 1.0), "ten turns"),
+        ] {
+            let why_not = run(op).unwrap_err();
+            assert!(why_not.contains(why), "{why_not}");
+        }
     }
 
     #[test]
@@ -4780,7 +5133,7 @@ mod sketch_tests {
         assert_eq!((sketch.sources(), sketch.consumes()), (vec![1], vec![]));
         let by_id = extrude(Profile::Feature { feature: 2 }, 1.0);
         assert_eq!((by_id.sources(), by_id.consumes()), (vec![2], vec![2]));
-        let twist = Operation::Twist { sketch: Sketch::circle(0.5).into(), path: anchored, degrees: 90.0, end_scale: 1.0 };
+        let twist = Operation::twist(Sketch::circle(0.5), anchored, 90.0, 1.0);
         assert_eq!((twist.sources(), twist.consumes()), (vec![1], vec![]));
         let fillet = Operation::Fillet { source: 3, edges: vec![EdgeRef::bare(0)], radius_mm: 0.2 };
         assert_eq!(fillet.sources(), fillet.consumes());

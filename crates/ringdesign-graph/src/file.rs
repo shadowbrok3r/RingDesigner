@@ -37,9 +37,13 @@ fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
 /// Version 2 only fences an in-plane revolution, a pattern of several parts and a cut on a ring of parts alone off from older readers; a version-1 document has the same shape.
 fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 
-/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, a profile of several regions, or a pattern of several parts.
+/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, a profile of several regions, a pattern of several parts, or a sweep that closes, twists, scales, follows a sketch entity or runs through points in space.
 fn fenced_json(v: &serde_json::Value) -> bool {
-    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::picks_regions_json(v) || ringdesign_core::cad::pattern::several_sources_json(v) || library::template_features_in_json(v)
+    ringdesign_core::cad::turns_in_plane_json(v)
+        || ringdesign_core::cad::picks_regions_json(v)
+        || ringdesign_core::cad::pattern::several_sources_json(v)
+        || ringdesign_core::cad::sweeps_extended_json(v)
+        || library::template_features_in_json(v)
 }
 
 /// Whether a literal holds what an older reader must be fenced from: what [`fenced_json`] fences, or a cut on a ring of parts alone.
@@ -598,6 +602,49 @@ mod tests {
         assert!(preset_to_string(&preset(pattern(&[3]))).unwrap().contains("\"format_version\": 1"));
         let text = preset_to_string(&preset(pattern(&[2, 3]))).unwrap();
         assert_eq!(read_preset(&text, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string(), "preset file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner");
+    }
+
+    #[test]
+    fn a_closed_scaled_or_sketch_following_sweep_fences_its_graph_cluster_and_preset_at_two_and_a_plain_one_stays_at_one() {
+        use ringdesign_core::cad::{Operation, SweepPath, TwistPath};
+        use ringdesign_core::sketch::Sketch;
+        let reg = Registry::builtin();
+        let line = vec![[0.0; 3], [0.0, 0.0, 5.0]];
+        let plain_sweep = serde_json::to_value(Operation::sweep(Sketch::circle(1.0), line.clone())).unwrap();
+        let mut plain = Graph::new("Swept", Mode::Free);
+        let n = plain.add("cad.feature").unwrap();
+        plain.node_mut(n).unwrap().params = serde_json::json!({ "id": 2, "name": "Cane", "enabled": true, "operation": plain_sweep });
+        let text = graph_to_string(&plain).unwrap();
+        assert_eq!(text, serde_json::to_string_pretty(&Versioned { format_version: 1, doc: &plain }).unwrap());
+        assert_eq!(read_graph(&text, Some(&reg), PLAIN_GRAPH_FORMAT_VERSION).unwrap(), plain);
+        let along = Operation::Sweep { sketch: Sketch::circle(0.2).into(), path: SweepPath::Sketch { feature: 1, entity: 4, lift_mm: 0.1 }, closed: false, twist_deg: 0.0, end_scale: 1.0 };
+        let cane = Operation::Twist {
+            sketch: Sketch::circle(0.72).into(),
+            path: TwistPath::Points { points: vec![[10.0, 0.0, 0.0], [0.0, 10.0, 1.0], [-10.0, 0.0, 0.0], [0.0, -10.0, -1.0]], smooth: true },
+            degrees: 0.0,
+            end_scale: 1.0,
+            scale: vec![[0.0, 1.0], [0.5, 0.85], [1.0, 1.0]],
+            closed: true,
+        };
+        for (name, op) in [("a sweep along a sketch", along), ("a closed cane", cane)] {
+            let op = serde_json::to_value(op).unwrap();
+            let mut in_params = plain.clone();
+            in_params.nodes[0].params["operation"] = op.clone();
+            let mut on_pin = plain.clone();
+            on_pin.nodes[0].inputs.insert("operation".into(), Literal::Json(op.clone()));
+            let mut in_cluster = Graph::new("Swept cluster", Mode::Free);
+            let c = in_cluster.add("cluster").unwrap();
+            in_cluster.node_mut(c).unwrap().params = serde_json::json!({ "graph": serde_json::to_value(&in_params).unwrap() });
+            for (place, g) in [("params", &in_params), ("pin", &on_pin), ("cluster", &in_cluster)] {
+                assert_eq!(graph_version_for(g), GRAPH_FORMAT_VERSION, "{name} in its {place}");
+                let text = graph_to_string(g).unwrap();
+                assert_eq!(&load_graph_str(&text, Some(&reg)).unwrap(), g, "{name} in its {place}");
+                let older = read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).unwrap_err().to_string();
+                assert_eq!(older, "graph file is format version 2, but this build reads up to 1 — it was saved by a newer RingDesigner", "{name} in its {place}");
+            }
+            let preset = Preset { name: "Swept".into(), cluster: "Swept cluster".into(), values: [("Operation".to_string(), Literal::Json(op))].into_iter().collect(), doc: String::new() };
+            assert!(preset_to_string(&preset).unwrap().contains("\"format_version\": 2"), "{name}");
+        }
     }
 
     #[test]
