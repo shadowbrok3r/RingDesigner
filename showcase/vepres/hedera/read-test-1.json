@@ -1,0 +1,31 @@
+{
+  "ring": "hedera",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain gold band with a smooth vine wrapped round it, a few narrow, sharp, star-shaped leaves, and on the crown a tight dome of five to seven black balls packed together. Uncaptioned, the first guess is a blackberry (bramble) or a mulberry: a drupelet cluster sitting on a vine. The second guess for the leaves is holly or a thistle, because the lobes are thin, pointed and spiky. Nothing says ivy. The leaves have no broad palmate blade, no heart-shaped base and no pale veins, and the 'berries' read as one compound fruit, not an umbel of separate berries on stalks. In the face view the stem looks like a smooth tube with no rootlets, and the leaves look like spiky bracts. That is the very confusion this collection cannot afford, because Rubus is the bramble.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Crown leaves (the three adult ivy_cordate stamps around theta 90) and the six juvenile ivy() stamps on the shoulders",
+      "change": "Redraw the leaves as true ivy. Juvenile leaves: broad palmate blades with 3 to 5 short, wide triangular lobes. Sinus depth about 0.2 of the length, not 0.35+. Lobe tips blunt (radius at least 0.25 mm), and an overall width:length of at least 0.9. Adult crown leaves: a clear heart shape, about 5.0 x 4.6, with a visible cordate notch at the petiole. Add 3 to 5 palmate vein cuts radiating from the base, sunk 0.12 to 0.15 mm, so the vein star shows at 300 px. Raise blade area by about 50% so each crown leaf is at least as wide on screen as one berry pair.",
+      "acceptance": "At 300 px the face and hero show at least two leaves whose outline is a broad 3- to 5-lobed spade or heart, with radiating veins. None reads as a spiky star, holly or thistle."
+    },
+    {
+      "priority": 2,
+      "where": "Umbel at theta 90 (the seven collets and their stalks)",
+      "change": "Break the packed dome apart into a true umbel. Each berry needs its own visible stalk. Lengthen the stalks to 1.5 to 2.0 mm and spread them from one common point, so you get a gap of at least 0.5 mm between neighbouring collets. Shrink the collet walls so each berry is a separate sphere on a pin, not a cell in a honeycomb boss. Remove the solid dome under the berries.",
+      "acceptance": "At 300 px, metal-coloured stalks show between the black berries in both the hero and the face. The cluster reads as a spray of separate berries radiating from one point, not as one blackberry or mulberry."
+    },
+    {
+      "priority": 3,
+      "where": "Stem along its whole path, most of all on the visible shoulders (theta 30 to 150) and the crown crossing",
+      "change": "Give the stem ivy's clinging character. Make the rootlet fringe visible: rows of short rootlets either side of the stem, 0.5 to 0.6 mm proud at about 0.6 mm pitch, gripping the band. Put each leaf on a visible petiole, 1.5 to 2.5 mm long, leaving the stem at alternating sides, rather than sitting flat against it. Keep the stem itself smooth; do not add thorns or prickles.",
+      "acceptance": "At 300 px the hero shows a fuzzy, hairy edge along the stem where it meets the band, and at least two leaves clearly held off the stem on stalks. There are no spike or thorn silhouettes along the stem."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/hedera/hero-300.png",
+    "showcase/vepres/hedera/face-300.png"
+  ]
+}
