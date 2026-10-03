@@ -354,6 +354,23 @@ impl Body {
         Some(best)
     }
 
+    /// As [`Body::nearest`], over the spine's first `run` mm only.
+    fn nearest_until(&self, p: P2, run: f64) -> Option<(f64, f64, f64)> {
+        let mut best = (f64::MAX, 0.0, 0.0);
+        let end = self.at.partition_point(|&a| a < run).min(self.spine.len() - 1);
+        for i in 0..end {
+            let (a, b) = (self.spine[i], self.spine[i + 1]);
+            let (d, t) = seg_dist(p, a, b);
+            if d < best.0 {
+                let e = [b[0] - a[0], b[1] - a[1]];
+                let l = e[0].hypot(e[1]).max(1e-12);
+                let side = ((p[0] - a[0]) * e[1] - (p[1] - a[1]) * e[0]) / l;
+                best = (d, self.at[i] + t * l, side);
+            }
+        }
+        (best.0 < f64::MAX).then_some(best)
+    }
+
     /// The body's crest height and its steepest flank over the outer quarter of the girth, degrees, both without the scales.
     fn profile(&self) -> (f64, f64) {
         let (mut crest, mut steep): (f64, f64) = (0.0, 0.0);
@@ -468,8 +485,10 @@ impl Line {
     }
 }
 
-/// Punched pits: radius, the pitch of the rows that outline each arm, the grain of the fill between them, mm.
-const PIT: (f64, f64, f64) = (0.21, 0.5, 0.78);
+/// Punched pits: radius and the even ground's pitch, mm (the third is the ground's pitch again).
+const PIT: (f64, f64, f64) = (0.21, 0.62, 0.62);
+/// The polished halo kept round every arm, mm past a pit's rim.
+const PIT_HALO: f64 = 0.22;
 /// The bordure's beads: inset from the table's edge, pitch and radius, mm.
 const BEADS: (f64, f64, f64) = (0.5, 0.62, 0.22);
 /// The seat's skirt beyond its rim, mm.
@@ -683,7 +702,7 @@ impl Arms {
             let spaced = beads.last().is_none_or(|b| (b[0] - w[1][0]).hypot(b[1] - w[1][1]) > 0.95 * pitch);
             if run >= pitch && spaced {
                 run = 0.0;
-                if self.clear(w[1]) > radius + 0.3 {
+                if self.clear(w[1]) > radius + 0.12 {
                     beads.push(w[1]);
                 }
             }
@@ -716,61 +735,22 @@ impl Arms {
 
     /// Lays the punched ground: a row of pits following every arm's outline, then a jittered grain filling the field.
     fn pounce(&mut self) {
-        let (r, pitch, grain) = PIT;
-        let gap = 0.12;
-        let mut rows: Vec<Vec<P2>> = Vec::new();
-        let offset = |poly: &[P2], by: f64| -> Vec<P2> {
-            let n = poly.len();
-            (0..n)
-                .map(|i| {
-                    let (a, b) = (poly[(i + n - 1) % n], poly[(i + 1) % n]);
-                    let t = [b[0] - a[0], b[1] - a[1]];
-                    let l = t[0].hypot(t[1]).max(1e-12);
-                    [poly[i][0] + t[1] / l * by, poly[i][1] - t[0] / l * by]
-                })
-                .collect()
-        };
-        rows.push(self.head.row(r + gap, 0.25));
-        rows.push(offset(&self.boss.poly, SKIRT + r + gap));
-        let spine = &self.body.spine;
-        for side in [1.0, -1.0] {
-            let mut row = Vec::new();
-            for i in 0..spine.len() {
-                let (a, b) = (spine[i.saturating_sub(1)], spine[(i + 1).min(spine.len() - 1)]);
-                let t = [b[0] - a[0], b[1] - a[1]];
-                let l = t[0].hypot(t[1]).max(1e-12);
-                let by = self.body.girth(self.body.at[i]) + r + gap;
-                row.push([spine[i][0] - t[1] / l * by * side, spine[i][1] + t[0] / l * by * side]);
-            }
-            rows.push(row);
-        }
-        let tail = *spine.last().unwrap();
-        let by = GIRTH.1 + r + gap;
-        rows.push((0..48).map(|k| {
-            let a = 2.0 * PI * k as f64 / 48.0;
-            [tail[0] + by * a.cos(), tail[1] + by * a.sin()]
-        }).collect());
-        rows.push(offset(&self.table.poly, -(BEADS.0 + BEADS.2 + 0.13 + r)));
+        // One even ground over the whole open field on a jittered staggered lattice, with a polished halo round every
+        // arm and no rows tracing their outlines.
+        let (_, pitch, _) = PIT;
         let mut pits: Vec<P2> = Vec::new();
-        let spaced = |pits: &[P2], q: P2, d: f64| pits.iter().all(|p| (p[0] - q[0]).hypot(p[1] - q[1]) >= d);
-        for row in &rows {
-            for &q in row {
-                if self.pit_fits(q, gap - 0.03) && spaced(&pits, q, pitch) {
-                    pits.push(q);
-                }
-            }
-        }
         let [lo, hi] = [self.table.lo, self.table.hi];
-        let (i0, i1) = ((lo[0] / grain).floor() as i64, (hi[0] / grain).ceil() as i64);
-        let (j0, j1) = ((lo[1] / grain).floor() as i64, (hi[1] / grain).ceil() as i64);
+        let row = pitch * 0.866;
+        let (i0, i1) = ((lo[0] / pitch).floor() as i64 - 1, (hi[0] / pitch).ceil() as i64 + 1);
+        let (j0, j1) = ((lo[1] / row).floor() as i64 - 1, (hi[1] / row).ceil() as i64 + 1);
         for j in j0..=j1 {
             for i in i0..=i1 {
                 let stagger = if j.rem_euclid(2) == 0 { 0.0 } else { 0.5 };
                 let q = [
-                    (i as f64 + stagger + 0.2 * (skin::hash(i, j) - 0.5)) * grain,
-                    (j as f64 * 0.866 + 0.2 * (skin::hash(j + 7919, i) - 0.5)) * grain,
+                    (i as f64 + stagger + 0.06 * (skin::hash(i, j) - 0.5)) * pitch,
+                    j as f64 * row + 0.06 * pitch * (skin::hash(j + 7919, i) - 0.5),
                 ];
-                if self.pit_fits(q, gap + 0.12) && spaced(&pits, q, pitch) {
+                if self.pit_fits(q, PIT_HALO) {
                     pits.push(q);
                 }
             }
@@ -1003,9 +983,9 @@ impl Hackles {
                 let edge = 1.0 - smooth((half - 0.36).max(0.0), half, y.abs());
                 let tip = 1.0 - smooth(0.92, 1.0, t);
                 let root_in = smooth(0.0, 0.30 - 0.17 * morph, t);
-                let lift = 0.13 * smooth(0.55, 0.9, t) * (1.0 - morph);
+                let lift = 0.2 * smooth(0.55, 0.9, t) * (1.0 - morph);
                 let vane = 0.44 + 0.33 * smooth(0.0, 0.8, t) - 0.12 * (y / half.max(0.1)).powi(2) + lift;
-                let rachis = 0.11 * (1.0 - smooth(0.03, 0.15, y.abs())) * smooth(0.05, 0.25, t);
+                let rachis = 0.035 * (1.0 - smooth(0.03, 0.12, y.abs())) * smooth(0.05, 0.25, t);
                 let notch_at = if y > 0.0 { 0.52 } else { 0.7 };
                 let notch = 1.0 - (1.0 - morph) * (1.0 - smooth(0.02, 0.08, (barb - notch_at * length).abs())) * smooth(0.3, 0.55, y.abs() / half.max(0.1));
                 let h = (vane + rachis) * edge * tip * root_in * notch;
@@ -1025,20 +1005,39 @@ impl Hackles {
 /// the next scute's root, with no step anywhere; the joints bow toward the head across the band.
 fn scute(u: f64, across: f64) -> f64 {
     let c = across.clamp(-1.0, 1.0);
-    let u = u + 0.14 * c * c;
+    let u = u + 0.26 * c * c;
     let t = u - u.floor();
     let lip = smooth(0.0, 0.16, t).sqrt();
     let rise = smooth(0.0, 0.84, 1.0 - t);
     let dome = 1.0 - 0.4 * c * c;
-    (0.62 + 0.38 * rise * lip) * dome
+    (0.5 + 0.5 * rise * lip) * dome
 }
 
-/// How much of the palm's skin is ventral scutes rather than the mantling's keeled scales at ring angle `theta`: 1 over
-/// the palm, crossing over to the scales between 50 and 72 degrees from it, about 4 mm of the band.
-fn ventral_share(theta: f64) -> f64 {
-    let from_palm = ((theta - 270.0 + 180.0).rem_euclid(360.0) - 180.0).abs();
-    1.0 - smooth(50.0, 72.0, from_palm)
+/// Degrees from the palm's centre.
+fn from_palm(theta: f64) -> f64 {
+    ((theta - 270.0 + 180.0).rem_euclid(360.0) - 180.0).abs()
 }
+
+/// How much of the palm's skin is ventral scutes: 1 over the palm, handing over to keeled dorsal scales between 28 and
+/// 46 degrees from it, about 3.5 mm of the band.
+fn ventral_share(theta: f64) -> f64 {
+    1.0 - smooth(28.0, 46.0, from_palm(theta))
+}
+
+/// How much of the band is the mantling's own morph rather than the dorsal scales that run on to the palm: 0 within
+/// 60 degrees of the palm, 1 past 76.
+fn mantling_share(theta: f64) -> f64 {
+    smooth(60.0, 76.0, from_palm(theta))
+}
+
+/// Keeled dorsal scales, 0..1, in true mm at `DORSAL_PITCH` across and 1.2 times that along.
+fn dorsal(along: f64, across: f64) -> f64 {
+    reptile::snake(along / (1.2 * DORSAL_PITCH), across / DORSAL_PITCH)
+}
+
+/// The dorsal scales' pitch across the band, mm, and their relief as a share of the scutes' height.
+const DORSAL_PITCH: f64 = 0.84;
+const DORSAL_SHARE: f64 = 0.6;
 
 fn skin_masks(a: &Atlas, hide: &Hide, s: &Sample) -> (f64, f64, f64) {
     let h = hide.at(s);
@@ -1048,7 +1047,7 @@ fn skin_masks(a: &Atlas, hide: &Hide, s: &Sample) -> (f64, f64, f64) {
     let crease = smooth(0.40, 1.00, edge.abs());
     let neck = smooth(38.0, 46.0, s.theta)
         * (1.0 - smooth(64.0, 72.0, s.theta))
-        * (1.0 - smooth(0.30, 0.75, (s.p[2] + 3.05).abs()));
+        * (1.0 - smooth(0.30, 1.4, (s.p[2] + 3.05).abs()));
     (over_bore * crease * (1.0 - neck), crown, h.along.abs())
 }
 
@@ -1190,7 +1189,7 @@ fn round_box2(p: P2, b: P2, r: f64) -> f64 {
 /// The head's frame on the face: where its axis stands (face `x`, `z` and height over the table, mm), the snout's
 /// heading from -x toward the stone, how far the crown rolls toward the viewer and how far the snout pitches to the table
 /// (degrees).
-const HEAD_FRAME: (P3, f64, f64, f64) = ([-0.95, -1.95, 0.5], 6.0, 28.0, 6.0);
+const HEAD_FRAME: (P3, f64, f64, f64) = ([-0.6, -1.95, 0.5], 6.0, 28.0, 6.0);
 /// The lower jaw rolls less than the skull, so it drops across the table toward the stone rather than into it, degrees.
 const JAW_ROLL: f64 = 4.0;
 /// The gape: the mouth's corner along the head, the upper lip's height under the axis, and how far the lower jaw drops
@@ -1206,22 +1205,23 @@ const CROWN: (f64, f64, f64, f64) = (-0.75, 0.62, 0.9, 0.55);
 const FLEURONS: [(f64, f64, f64); 5] = [(-4.0, 1.0, 0.66), (44.0, 1.18, 0.74), (90.0, 1.38, 0.8), (136.0, 1.18, 0.74), (184.0, 1.0, 0.66)];
 /// A fleuron's thickness off the band, how far it leans out, the pearl's radius and the leaf's half-width where it
 /// meets the pearl, mm and degrees.
-const FLEURON_BODY: (f64, f64, f64, f64) = (0.78, 6.0, 0.37, 0.2);
+const FLEURON_BODY: (f64, f64, f64, f64) = (0.78, 6.0, 0.37, 0.3);
 /// Fangs, one each side of the upper jaw: root along the head, radius at the root and at the rounded tip, mm.
-const FANG: (f64, f64, f64) = (2.85, 0.25, 0.165);
+const FANG: (f64, f64, f64) = (3.25, 0.25, 0.165);
 /// The tongue's stem and tines, radius at the root, the fork and the tines' rounded ends, mm.
 const TONGUE_R: (f64, f64, f64) = (0.25, 0.21, 0.17);
 /// How far the head's skirt sits under the table, how deep the part is buried, and the fillet where it meets the table.
 const SKIRT_UNDER: (f64, f64, f64) = (0.12, 0.6, 0.45);
-/// The neck's stations: face `x`, `z`, axis height over the table and radius, from the head's back to where it dives
-/// steeply under the painted coil, so the two meet along a crisp line rather than grazing.
-const NECK_RUN: [(f64, f64, f64, f64); 5] =
-    [(2.2, -1.75, 0.6, 1.45), (3.45, -1.3, 0.5, 1.36), (4.3, -0.7, 0.5, 1.3), (4.75, 0.3, -0.9, 1.0), (4.85, 0.9, -1.6, 0.8)];
+/// The neck: how far down the coil's spine the sculpt carries the painted body's own surface, about where it passes
+/// under the paint, and where it has sunk to 0.85 of the paint's height, mm.
+const NECK_RUN: (f64, f64, f64) = (5.0, 2.9, 4.0);
+/// The grid the neck reads the painted coil from: its corner (face `x`, `z`), its size and its step, mm.
+const NECK_GRID: (P2, [usize; 2], f64) = ([0.5, -4.0], [351, 326], 0.02);
 /// Marching step and face budget of the sculpt.
 const SCULPT_STEP: f64 = 0.045;
 /// The head's size over the units its frame is drawn in.
 const HEAD_SCALE: f64 = 1.28;
-const SCULPT_FACES: usize = 85_000;
+const SCULPT_FACES: usize = 92_000;
 
 /// The basilisk's head as a distance field over world millimetres, standing on the table with its neck running down into
 /// the painted coil.
@@ -1242,7 +1242,9 @@ struct Basilisk {
     band: (f64, f64),
     tongue: Vec<(P3, f64)>,
     tines: [Vec<(P3, f64)>; 2],
-    neck: Vec<(P3, f64)>,
+    /// The painted coil's surface over the neck's zone, sampled every `NECK_GRID.2` mm from `NECK_GRID.0`: its height,
+    /// how far outside its edge, and how far down its spine.
+    neck: Vec<[f32; 3]>,
     /// The table's outline, for keeping the skirt on it.
     outline: Shape,
 }
@@ -1267,8 +1269,7 @@ impl Basilisk {
         let uj = sub3(uj, mul3(a, dot3(uj, a)));
         let uj = mul3(uj, 1.0 / len3(uj));
         let o = [o[0], table_y + o[2], o[1]];
-        let neck = NECK_RUN.iter().map(|&(x, z, h, r)| ([x, table_y + h, z], r)).collect();
-        let mut me = Self { table: table_y, o, a, u, w, uj, wj, hinge: [0.0, 0.0], eye_w: 0.0, nose_w: 0.0, band: (0.0, 0.0), tongue: Vec::new(), tines: [Vec::new(), Vec::new()], neck, outline: Shape::new(outline.poly.clone()) };
+        let mut me = Self { table: table_y, o, a, u, w, uj, wj, hinge: [0.0, 0.0], eye_w: 0.0, nose_w: 0.0, band: (0.0, 0.0), tongue: Vec::new(), tines: [Vec::new(), Vec::new()], neck: Vec::new(), outline: Shape::new(outline.poly.clone()) };
         let (corner, lip, _) = GAPE;
         let h = me.jq([corner - 0.3, lip - 0.05, 0.0]);
         me.hinge = [h[0], h[1]];
@@ -1281,8 +1282,19 @@ impl Basilisk {
             0.5 * (lo + hi)
         };
         me.eye_w = surface(&me, EYE_AT);
-        me.nose_w = surface(&me, [3.5, 0.12]);
+        me.nose_w = surface(&me, [4.0, 0.15]);
         me.band = me.section(CROWN.1 + 0.5 * CROWN.2);
+        let body = Body::new();
+        let ([x0, z0], [nx, nz], step) = NECK_GRID;
+        me.neck = (0..nx * nz)
+            .map(|k| {
+                let p = [x0 + (k % nx) as f64 * step, z0 + (k / nx) as f64 * step];
+                match body.nearest_until(p, NECK_RUN.0 + 0.5) {
+                    Some((d, s, _)) => [body.height(p, true) as f32, (d - body.girth(s)) as f32, s as f32],
+                    None => [0.0, 9.0, 99.0],
+                }
+            })
+            .collect();
         // The tongue leaves the gape over the lower jaw and runs out past the snout onto the table, lying on whatever
         // is under it, and forks there with its tines on the field.
         let (r0, r1, r2) = TONGUE_R;
@@ -1294,7 +1306,7 @@ impl Basilisk {
             [p[0], table_y + h.max(0.0) + 0.85 * r, p[2]]
         };
         let rise = r0 / HEAD_SCALE;
-        let mut path: Vec<P3> = [0.7, 2.2, 3.6].iter().map(|&ja| me.jaw_world(ja, 0.04 + 0.8 * rise, 0.0)).collect();
+        let mut path: Vec<P3> = [0.7, 2.4, 4.0].iter().map(|&ja| me.jaw_world(ja, 0.04 + 0.8 * rise, 0.0)).collect();
         // Past the chin it dips onto the field and turns down toward the stone, where it forks.
         let (p1, p2) = (path[1], path[2]);
         let run = {
@@ -1370,8 +1382,8 @@ impl Basilisk {
         let w = j[2];
         let (corner, lip, _) = GAPE;
         let (ja, ju) = self.jaw_frame(j);
-        let taper = 1.0 - 0.3 * (ja / 4.2).clamp(0.0, 1.0);
-        let jaw = smax(ellipsoid([ja - 1.85, ju + 0.34, w / taper], [2.35, 0.56, 1.1]) * taper, ju - 0.04, 0.2);
+        let taper = 1.0 - 0.32 * (ja / 4.6).clamp(0.0, 1.0);
+        let jaw = smax(ellipsoid([ja - 2.05, ju + 0.34, w / taper], [2.6, 0.56, 1.1]) * taper, ju - 0.04, 0.2);
         let _ = (a, u, w, corner, lip);
         jaw
     }
@@ -1382,14 +1394,18 @@ impl Basilisk {
         let wj = j[2];
         let cran = ellipsoid([a - 0.1, u - 0.3, w], [2.9, 1.0, 1.45]);
         let jowl = ellipsoid([a + 1.75, u + 0.02, w], [1.7, 1.12, 1.72]);
-        let snout = ellipsoid([a - 2.05, u - 0.18, w], [1.9, 0.66, 0.9]);
+        // The snout: a long wedge, its top flattened, narrowing to the rostral.
+        let snout = smax(ellipsoid([a - 2.35, u - 0.18, w], [2.2, 0.66, 0.9 - 0.08 * (a - 2.35).max(0.0)]), u - 0.62, 0.2);
         let mut up = smin(smin(cran, jowl, 0.8), snout, 0.9);
+        // The canthus: a crisp ridge each side from the nostril back to the brow, where the flat top turns down the side.
+        let canthus = round_cone([a, u, w.abs()], [4.2, 0.52, 0.42], [1.75, 0.82, 0.92], 0.07, 0.12);
+        up = smin(up, canthus, 0.12);
         let (corner, lip, gape) = GAPE;
         let region = (u - lip).max(corner - a);
         up = smax(up, -region, 0.18);
         let (ja, ju) = self.jaw_frame(j);
-        let taper = 1.0 - 0.3 * (ja / 4.2).clamp(0.0, 1.0);
-        let jaw = ellipsoid([ja - 1.85, ju + 0.34, wj / taper], [2.35, 0.56, 1.1]) * taper;
+        let taper = 1.0 - 0.32 * (ja / 4.6).clamp(0.0, 1.0);
+        let jaw = ellipsoid([ja - 2.05, ju + 0.34, wj / taper], [2.6, 0.56, 1.1]) * taper;
         let jaw = smax(jaw, ju - 0.04, 0.2);
         let throat = ellipsoid([a + 1.5, u + 0.7, w], [1.35, 0.78, 1.3]);
         let _ = gape;
@@ -1407,12 +1423,13 @@ impl Basilisk {
     /// Plates over the snout and between the eyes: unequal domed shields parted by V-grooves; mm the surface moves out.
     fn plates(&self, q: P3) -> f64 {
         let (a, u, w) = (q[0], q[1], q[2].abs());
-        let mask = smooth(0.62, 0.95, u) * smooth(0.55, 0.95, a) * (1.0 - smooth(3.75, 4.0, a));
+        let mask = smooth(0.55, 0.85, u) * smooth(0.75, 1.05, a) * (1.0 - smooth(4.45, 4.7, a));
         if mask <= 0.0 {
             return 0.0;
         }
-        // Frontal, the supraoculars over each eye, prefrontals, internasals and the rostral, each with its own reach.
-        const SITES: [(f64, f64, f64); 6] = [(1.85, 0.0, 0.55), (1.3, 0.95, 0.62), (2.75, 0.42, 0.42), (3.35, 0.24, 0.32), (3.85, 0.0, 0.3), (2.4, 0.0, 0.3)];
+        // Rostral, internasals, prefrontals, the long frontal and a supraocular over each eye: eight shields of
+        // unequal size, each with its own reach.
+        const SITES: [(f64, f64, f64); 5] = [(4.4, 0.0, 0.3), (3.9, 0.27, 0.34), (3.15, 0.44, 0.48), (2.05, 0.0, 0.72), (1.35, 0.92, 0.6)];
         let mut best = (f64::MAX, f64::MAX);
         for &(sa, sw, r) in &SITES {
             for m in [1.0, -1.0] {
@@ -1427,9 +1444,9 @@ impl Basilisk {
                 }
             }
         }
-        let edge = (best.1 - best.0) * 0.22;
-        let groove = 0.085 * (1.0 - smooth(0.0, 0.07, edge));
-        let dome = 0.06 * (1.0 - best.0.min(1.2).powi(2) / 1.44);
+        let edge = (best.1 - best.0) * 0.25;
+        let groove = 0.09 * (1.0 - edge / 0.08).max(0.0);
+        let dome = 0.1 * (1.0 - best.0.min(1.2).powi(2) / 1.44);
         mask * (dome - groove)
     }
 
@@ -1441,7 +1458,7 @@ impl Basilisk {
         let mut out = 0.0;
         // Supralabials: a row of low scalloped plates over the upper lip, parted by soft hollows.
         let t = (u - lip) / 0.5;
-        if (0.0..1.3).contains(&t) && a > corner + 0.1 && a < 3.75 {
+        if (0.0..1.3).contains(&t) && a > corner + 0.1 && a < 4.2 {
             let k = (a - corner - 0.1) / 0.62;
             let f = k - k.floor();
             let dome = (PI * f).sin().powf(0.8) * (PI * t.min(1.0)).sin().max(0.0);
@@ -1451,20 +1468,20 @@ impl Basilisk {
         let (ja, ju) = self.jaw_frame(j);
         let side_j = smooth(0.25, 0.55, j[2].abs());
         let t = -ju / 0.45;
-        if (0.0..1.3).contains(&t) && ja > 0.5 && ja < 4.0 {
+        if (0.0..1.3).contains(&t) && ja > 0.5 && ja < 4.4 {
             let k = (ja - 0.5) / 0.6;
             let f = k - k.floor();
             let dome = (PI * f).sin().powf(0.8) * (PI * t.min(1.0)).sin().max(0.0);
             out += side_j * 0.04 * dome * (1.0 - smooth(1.0, 1.3, t));
         }
         // Temporal and jowl scales behind the eye, clear of the lips and the crown.
-        let behind = 1.0 - smooth(0.4, 0.85, a);
+        let behind = 1.0 - smooth(0.55, 0.95, a);
         let clear_lip = smooth(0.55, 0.8, u - lip);
         let under_crown = 1.0 - smooth(CROWN.1 - 0.25, CROWN.1, u) * (1.0 - smooth(0.9, 1.6, (a - CROWN.0).abs()));
         let m = behind * clear_lip * under_crown * side;
         if m > 0.0 {
-            let lat = u.atan2(w) * 1.25 / 0.4;
-            out += m * 0.075 * (soft_scale(-a / 0.52, lat) - 0.5);
+            let lat = u.atan2(w) * 1.25 / 0.42;
+            out += m * smooth(0.45, 0.8, w) * 0.06 * soft_scale(-a / 0.58, lat);
         }
         out
     }
@@ -1511,10 +1528,12 @@ impl Basilisk {
             // flanks bowed in, so neighbouring points meet at the band in one serrated rim.
             let foot2 = round_box2([t, along + 0.05], [half, 0.32], 0.14);
             let k = (along / high).clamp(0.0, 1.0);
-            let leaf_w = half * (1.0 - k).powf(1.35) + petal * k;
+            let leaf_w = 0.62 * half * (1.0 - k).powf(1.1) + petal * k;
             let leaf = (t.abs() - leaf_w).max(-along - 0.1).max(along - high);
-            let shape = smin(foot2, leaf, 0.12);
-            let half_thick = 0.5 * thick * (0.82 + 0.18 * (-shape / 0.25).clamp(0.0, 1.0));
+            // Two rounded side lobes lean out from the leaf: a trefoil, the pearl seated on the leaf's own tip.
+            let lobe = ((t.abs() - 0.72 * half).hypot(along - 0.42 * high) - 0.32).max(-along);
+            let shape = smin(smin(foot2, leaf, 0.12), lobe, 0.16);
+            let half_thick = 0.5 * thick * (0.82 + 0.3 * (-shape / 0.3).clamp(0.0, 1.0));
             let r = 0.2;
             let dz = off.abs() - half_thick + r;
             let s2 = shape + r;
@@ -1539,6 +1558,28 @@ impl Basilisk {
             d = smin(d, ellipsoid([t, du - mid, o], [0.4, 0.33, 0.2]), 0.06);
         }
         d
+    }
+
+    /// The head-frame point of crown point `k` at `t` across its plane, `along` up it and `off` through it.
+    fn fleuron_point(&self, k: usize, t: f64, along: f64, off: f64) -> P3 {
+        let (ca, foot, tall, proud) = CROWN;
+        let (ea, ew) = self.band;
+        let (_, lean, _, _) = FLEURON_BODY;
+        let top = tall - 0.1;
+        let (deg, _, _) = FLEURONS[k];
+        let (s, c) = deg.to_radians().sin_cos();
+        let (ra_t, rw_t) = (ea + 0.18 * top / tall, ew + 0.18 * top / tall);
+        let p = [ra_t * c, rw_t * s];
+        let n = {
+            let v = [c / ra_t, s / rw_t];
+            let l = v[0].hypot(v[1]);
+            [v[0] / l, v[1] / l]
+        };
+        let tdir = [-n[1], n[0]];
+        let (sl, cl) = lean.to_radians().sin_cos();
+        let nn = along * sl + off * cl + 0.5 * proud;
+        let v = along * cl - off * sl;
+        [ca + p[0] + t * tdir[0] + nn * n[0], foot + v + top, p[1] + t * tdir[1] + nn * n[1]]
     }
 
     /// The skull's half-length and half-width at height `u` up its crown, mm: where the crown's band sits on it.
@@ -1570,13 +1611,14 @@ impl Basilisk {
         // The brow ridge over each eye, the eye sunk in its socket under it, and a slit pupil.
         let (ea, eu) = (EYE_AT[0], EYE_AT[1]);
         let ew = self.eye_w;
-        let brow = ellipsoid([s[0] - ea + 0.05, s[1] - eu - 0.55, s[2] - ew + 0.38], [0.92, 0.3, 0.42]);
-        d = smin(d, brow, 0.22);
-        d = smax(d, -ellipsoid([s[0] - ea, s[1] - eu, s[2] - ew - 0.1], [0.62, 0.55, 0.45]), 0.1);
-        d = smin(d, ellipsoid([s[0] - ea, s[1] - eu, s[2] - ew + 0.35], [0.5, 0.48, 0.5]), 0.05);
-        d = smax(d, -ellipsoid([s[0] - ea, s[1] - eu, s[2] - ew - 0.25], [0.13, 0.36, 0.22]), 0.03);
+        // The brow is a shelf standing out over the eye by 0.2 mm, so the eye sits in its shadow.
+        let brow = ellipsoid([s[0] - ea + 0.05, s[1] - eu - 0.45, s[2] - ew + 0.12], [0.85, 0.24, 0.36]);
+        d = smin(d, brow, 0.16);
+        d = smax(d, -ellipsoid([s[0] - ea, s[1] - eu, s[2] - ew - 0.1], [0.48, 0.42, 0.42]), 0.08);
+        d = smin(d, ellipsoid([s[0] - ea, s[1] - eu, s[2] - ew + 0.3], [0.38, 0.36, 0.4]), 0.04);
+        d = smax(d, -ellipsoid([s[0] - ea, s[1] - eu, s[2] - ew - 0.12], [0.1, 0.28, 0.2]), 0.03);
         // Nostrils.
-        d = smax(d, -ellipsoid([s[0] - 3.5, s[1] - 0.12, s[2] - self.nose_w - 0.05], [0.2, 0.13, 0.17]), 0.05);
+        d = smax(d, -ellipsoid([s[0] - 4.0, s[1] - 0.15, s[2] - self.nose_w - 0.05], [0.2, 0.13, 0.17]), 0.05);
         // A fang hanging from each side of the upper jaw, curving back into the gape.
         let (fa, r0, r1) = FANG;
         let (_, lip, _) = GAPE;
@@ -1592,32 +1634,26 @@ impl Basilisk {
         c.windows(2).fold(f64::MAX, |m, w| m.min(round_cone(p, w[0].0, w[1].0, w[0].1, w[1].1)))
     }
 
-    /// The neck, round in section and scaled as the coil is, sinking from the head's back into the painted body.
+    /// The neck: the painted coil's own surface, scales and all, raised by half again behind the head and easing down
+    /// to sink just under the paint by `NECK_RUN.2`, so the two skins share every scale and meet along one clean line
+    /// across the body instead of grazing.
     fn neck_d(&self, p: P3) -> f64 {
-        let mut best = (f64::MAX, 0.0, 0.0, 0.0);
-        let mut run = 0.0;
-        for w in self.neck.windows(2) {
-            let (a, b) = (w[0], w[1]);
-            let e = sub3(b.0, a.0);
-            let l = len3(e);
-            let t = (dot3(sub3(p, a.0), e) / (l * l)).clamp(0.0, 1.0);
-            let c = add3(a.0, mul3(e, t));
-            let r = a.1 + (b.1 - a.1) * t;
-            let d = len3(sub3(p, c)) - r;
-            if d < best.0 {
-                let side = sub3(p, c);
-                let up = side[1];
-                let across = side[0] * -e[2] / l + side[2] * e[0] / l;
-                best = (d, run + t * l, up.atan2(across) * r, r);
-            }
-            run += l;
+        let ([x0, z0], [nx, nz], step) = NECK_GRID;
+        let (fx, fz, h) = ((p[0] - x0) / step, (p[2] - z0) / step, p[1] - self.table);
+        if fx < 0.0 || fz < 0.0 || fx >= (nx - 1) as f64 || fz >= (nz - 1) as f64 || h > 3.5 {
+            return 1.0;
         }
-        let (d, s, arc, r) = best;
-        if d > 0.6 {
-            return d;
-        }
-        let width = (0.36 * r).clamp(0.25, 0.55);
-        d - 0.16 * soft_scale(s / (1.37 * width), arc / width) * (1.0 - smooth(0.2, 0.5, d.abs()))
+        let (i, j) = (fx as usize, fz as usize);
+        let (tx, tz) = (fx - i as f64, fz - j as f64);
+        let at = |c: usize| {
+            let g = |a: usize, b: usize| self.neck[(j + b) * nx + i + a][c] as f64;
+            (g(0, 0) * (1.0 - tx) + g(1, 0) * tx) * (1.0 - tz) + (g(0, 1) * (1.0 - tx) + g(1, 1) * tx) * tz
+        };
+        let (painted, outside, s) = (at(0), at(1), at(2));
+        let (run, level, under) = NECK_RUN;
+        let k = 1.5 - 0.65 * smooth(0.5, under, s);
+        let _ = level;
+        (h - painted * k).max(outside + 0.15).max(-(h + 0.6)).max(s - run)
     }
 
     /// The whole part: head, tongue and neck, met to the table by a fillet over a skirt just under it, and buried
@@ -1684,8 +1720,74 @@ fn preview_head(out: &Path, step: f64) -> Result<()> {
     Ok(())
 }
 
+/// The narrowest chord through `p` of the closed mesh `m` over forty directions, mm: the land a feature has there.
+fn chord_land(m: &csg::Solid, p: P3) -> f64 {
+    let hit = |o: P3, d: P3| -> f64 {
+        let mut best = f64::MAX;
+        for t in &m.f {
+            let [a, b, c] = t.map(|i| m.v[i as usize]);
+            let (e1, e2) = (sub3(b, a), sub3(c, a));
+            let h = [d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0]];
+            let det = dot3(e1, h);
+            if det.abs() < 1e-14 {
+                continue;
+            }
+            let sv = sub3(o, a);
+            let u = dot3(sv, h) / det;
+            if !(0.0..=1.0).contains(&u) {
+                continue;
+            }
+            let q = [sv[1] * e1[2] - sv[2] * e1[1], sv[2] * e1[0] - sv[0] * e1[2], sv[0] * e1[1] - sv[1] * e1[0]];
+            let v = dot3(d, q) / det;
+            if v < 0.0 || u + v > 1.0 {
+                continue;
+            }
+            let dist = dot3(e2, q) / det;
+            if dist > 1e-9 {
+                best = best.min(dist);
+            }
+        }
+        best
+    };
+    let mut least = f64::MAX;
+    // Forty directions spread over a hemisphere on a golden spiral; each chord runs both ways.
+    for k in 0..40 {
+        let z = (k as f64 + 0.5) / 40.0;
+        let (r, th) = ((1.0 - z * z).sqrt(), k as f64 * 2.399_963);
+        let d = [r * th.cos(), z, r * th.sin()];
+        least = least.min(hit(p, d) + hit(p, mul3(d, -1.0)));
+    }
+    least
+}
+
+/// The sculpt's thin members measured on the decimated mesh, each as its narrowest chord at its thinnest station.
+fn head_lands(b: &Basilisk, m: &csg::Solid) -> Vec<(String, f64, Option<&'static str>)> {
+    let k = HEAD_SCALE;
+    let at = |l: P3| b.world(mul3(l, k));
+    let (_, _, pearl, _) = FLEURON_BODY;
+    let mut out = Vec::new();
+    let crown = |f: &dyn Fn(usize) -> P3| (0..FLEURONS.len()).map(|i| chord_land(m, at(f(i)))).fold(f64::MAX, f64::min);
+    out.push(("Crown points, the plate at mid-height (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.0, 0.45 * FLEURONS[i].1, 0.0)), None));
+    out.push(("Crown points, the leaf's waist under its pearl (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.0, FLEURONS[i].1 - pearl - 0.06, 0.0)), Some("Point's waist under its pearl: investment detail, cast in place and cleaned up with a graver")));
+    out.push(("Crown points, each side lobe (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.72 * FLEURONS[i].2, 0.42 * FLEURONS[i].1, 0.0)), Some("Trefoil's side lobe: investment detail, cast in place")));
+    out.push(("Crown pearls (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.0, FLEURONS[i].1, 0.0)), None));
+    let (fa, _, _) = FANG;
+    let (_, lip, _) = GAPE;
+    let tip = [fa - 0.38, lip - 1.02, 0.5];
+    let bend = [fa - 0.08, lip - 0.55, 0.55];
+    let near_tip = add3(tip, mul3(sub3(bend, tip), 0.18));
+    out.push(("Fang near its rounded tip (sculpted, measured)".to_string(), chord_land(m, at(near_tip)), Some("Fang hanging from the upper jaw to a rounded point: investment detail, cast in place")));
+    out.push(("Forked tongue, stem (sculpted, measured)".to_string(), chord_land(m, b.tongue[2].0), Some("Tongue's round stem: investment detail cast in place, lying on the jaw and the field")));
+    let tine = b.tines.iter().map(|t| {
+        let (e, p) = (t[2].0, t[1].0);
+        chord_land(m, add3(e, mul3(sub3(p, e), 0.25)))
+    }).fold(f64::MAX, f64::min);
+    out.push(("Forked tongue, tines near their ends (sculpted, measured)".to_string(), tine, Some("Tongue's tine to a rounded end, lying on the field: investment detail cast in place")));
+    out
+}
+
 /// The sculpted head as a stored part joined to the stock, its solid for the footprint, and its numbers.
-fn head_part(b: &Basilisk) -> Result<(Feature, csg::Solid, Value)> {
+fn head_part(b: &Basilisk) -> Result<(Feature, csg::Solid, Value, Vec<(String, f64, Option<&'static str>)>)> {
     let t = Instant::now();
     let field = |p: P3| b.sdf(p);
     let (lo, hi) = b.bounds();
@@ -1719,7 +1821,8 @@ fn head_part(b: &Basilisk) -> Result<(Feature, csg::Solid, Value)> {
         digest: String::new(),
     };
     let component = Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::Free, blend_mm: 0.0, ..Component::default() };
-    Ok((Feature { id: 2, name: "Basilisk's crowned head".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh }, component }, nets, stats))
+    let lands = head_lands(b, &nets);
+    Ok((Feature { id: 2, name: "Basilisk's crowned head".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh }, component }, nets, stats, lands))
 }
 
 fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<Value>)> {
@@ -1731,7 +1834,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
     let hide = Hide::of(&a);
     let outline = table_outline(&a);
     let basilisk = Basilisk::new(a.top, &Shape::new(outline.clone()));
-    let (head, head_solid, head_stats) = head_part(&basilisk)?;
+    let (head, head_solid, head_stats, head_lands) = head_part(&basilisk)?;
     let doc = d.cad.get_or_insert_with(Document::default);
     doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
     doc.append(head)?;
@@ -1763,8 +1866,10 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
     let l70 = hide.along[(AW as f64 * 160.0 / 360.0).round() as usize].abs();
     let l110 = hide.along[(AW as f64 * 200.0 / 360.0).round() as usize].abs();
     let on_table = |s: &Sample| s.n[1] > 0.95 && s.p[1] > a.top - 0.05;
-    let near_table = |s: &Sample| s.n[1] > 0.3 && s.p[1] > a.top - 1.2;
-    let off_table = a.paint("off", |s| if near_table(s) { smooth(0.05, 0.45, -arms.table.sdf([s.p[0], s.p[2]], 1.0)) } else { 1.0 });
+    let off_table = a.paint("off", |s| {
+        let high = smooth(a.top - 1.6, a.top - 0.9, s.p[1]);
+        1.0 - high * (1.0 - smooth(0.05, 0.45, -arms.table.sdf([s.p[0], s.p[2]], 1.0)))
+    });
     let width: Vec<f64> = (0..=400).map(|k| arms.table_width_at(-10.0 + 0.05 * k as f64)).collect();
     let width_at = |z: f64| width[((z + 10.0) / 0.05).round().clamp(0.0, 400.0) as usize];
     let mut lib = AlphaLibrary::builtin();
@@ -1822,46 +1927,50 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
     // bore edge, and handing over to the mantling where the wall runs out into the shoulder.
     let (pitch, radius, wall_relief) = WALL_SCALES;
     let alpha = a.paint("Wall scales", |s| {
-        if !within(s.theta, 90.0, 66.0) || on_table(s) || s.p[1] > a.top - 0.3 {
+        if !within(s.theta, 90.0, 52.0) || on_table(s) || s.p[1] > a.top - 0.3 {
             return 0.0;
         }
         let Some((flat, round)) = rims.edge.nearest([s.p[0], s.p[2]], 2.5) else { return 0.0 };
         let depth = a.top - s.p[1];
         let r = s.p[0].hypot(s.p[1]);
-        let w = smooth(0.8, 1.8, depth.hypot(flat)) * smooth(a.bore + 0.2, a.bore + 1.5, r) * (1.0 - smooth(1.4, 2.4, flat));
+        let w = smooth(0.8, 1.8, depth.hypot(flat)) * smooth(a.bore + 0.2, a.bore + 1.5, r) * (1.0 - smooth(0.8, 1.6, flat));
         if w <= 0.0 {
             return 0.0;
         }
         w * round_scales(round, depth, pitch, radius)
     });
-    portable(&mut d, &mut lib, alpha, wall_relief, window(90.0, 132.0), false, Some(REACH))?;
+    portable(&mut d, &mut lib, alpha, wall_relief, window(90.0, 100.0), false, Some(REACH))?;
     let alpha = a.paint("Hackles into scales", |s| {
         if !within(s.theta, 90.0, 136.0) {
             return 0.0;
         }
         let (bore, _, _) = skin_masks(&a, &hide, s);
-        feather(s).0 * bore * off_table.data[s.i] as f64 * (1.0 - ventral_share(s.theta))
+        feather(s).0 * bore * off_table.data[s.i] as f64 * mantling_share(s.theta)
     });
     portable(&mut d, &mut lib, alpha, HACKLE_HEIGHT, window(90.0, 260.0), false, Some(REACH))?;
     let far = hide.reach();
     let alpha = a.paint("Belly scutes", |s| {
-        if !within(s.theta, 270.0, 75.0) {
+        if !within(s.theta, 270.0, 82.0) {
             return 0.0;
         }
         let h = hide.at(s);
         let (bore, _, _) = skin_masks(&a, &hide, s);
-        scute((far - h.along.abs()) / 2.2, h.across / h.rim.max(0.5)) * smooth(0.0, 0.8, h.rim - h.across.abs()) * bore * ventral_share(s.theta)
+        let keep = smooth(0.0, 0.8, h.rim - h.across.abs()) * bore;
+        let v = ventral_share(s.theta);
+        let belly = scute((far - h.along.abs()) / 2.2, h.across / h.rim.max(0.5)) * v;
+        let back = DORSAL_SHARE * dorsal(h.along.abs(), h.across) * (1.0 - v) * (1.0 - mantling_share(s.theta));
+        belly.max(back) * keep
     });
-    portable(&mut d, &mut lib, alpha, BELLY_HEIGHT, window(270.0, 150.0), false, Some(REACH))?;
+    portable(&mut d, &mut lib, alpha, BELLY_HEIGHT, window(270.0, 164.0), false, Some(REACH))?;
     let alpha = a.paint("Graver's barbs and keels", |s| {
         if !within(s.theta, 90.0, 136.0) {
             return 0.0;
         }
         let (bore, _, along) = skin_masks(&a, &hide, s);
-        feather(s).1 * bore * off_table.data[s.i] as f64 * (1.0 - smooth(0.35, 0.9, smooth(l70, l110, along))) * (1.0 - ventral_share(s.theta))
+        feather(s).1 * bore * off_table.data[s.i] as f64 * (1.0 - smooth(0.35, 0.9, smooth(l70, l110, along))) * mantling_share(s.theta)
     });
     portable(&mut d, &mut lib, alpha, 0.065, window(90.0, 260.0), true, Some(REACH))?;
-    let lands = land_rows(&arms, &seat, gem);
+    let lands = land_rows(&arms, &seat, gem, &head_lands);
     let mut e = LayerEntry::new("Tsavorite, flush", Layer::SeatPad(seat));
     e.blend = Blend::Max;
     d.layers.layers.push(e);
@@ -1891,7 +2000,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
 }
 
 /// The lost-wax land census: every proud feature's narrowest land in plan, and what names it when it is under the floor.
-fn land_rows(arms: &Arms, seat: &SeatPadLayer, gem: Gem) -> Vec<Value> {
+fn land_rows(arms: &Arms, seat: &SeatPadLayer, gem: Gem, head: &[(String, f64, Option<&'static str>)]) -> Vec<Value> {
     let row = |name: &str, kind: &str, land: f64, note: Option<&str>| {
         json!({"name": name, "kind": kind, "min_land_mm": (land * 1000.0).round() / 1000.0,
                "status": if land >= LAND_FLOOR - 1e-3 { "at or above 0.8".to_string() } else { note.map_or("UNNAMED".to_string(), str::to_string) },
@@ -1925,15 +2034,10 @@ fn land_rows(arms: &Arms, seat: &SeatPadLayer, gem: Gem) -> Vec<Value> {
     rows.push(row("Serpent's body to the tail's tip (painted)", "painted", thinnest, None));
     // The sculpted head's thin members, from the sizes its field is drawn with.
     let k = HEAD_SCALE;
-    let (thick, _, pearl, petal) = FLEURON_BODY;
     rows.push(row("Crown band, its height on the skull (sculpted)", "sculpt", CROWN.2 * k, None));
-    rows.push(row("Crown fleurons, plate thickness at the edge (sculpted)", "sculpt", 0.82 * thick * k, None));
-    rows.push(row("Crown points, the leaf's waist under its pearl (sculpted)", "sculpt", 2.0 * petal * k, Some("Point's waist under its pearl: investment detail, cast in place and cleaned up with a graver")));
-    rows.push(row("Crown pearls (sculpted)", "sculpt", 2.0 * pearl * k, None));
-    rows.push(row("Crown jewels, cabochons on the band (sculpted)", "sculpt", 2.0 * 0.33 * k, None));
-    rows.push(row("Fangs, at the rounded tip (sculpted)", "sculpt", 2.0 * FANG.2 * k, Some("Fang hanging from the upper jaw to a rounded point: investment detail, cast in place")));
-    rows.push(row("Forked tongue, stem (sculpted)", "sculpt", 2.0 * TONGUE_R.0, Some("Tongue's round stem: investment detail cast in place, lying on the jaw and the field")));
-    rows.push(row("Forked tongue, tines at their rounded ends (sculpted)", "sculpt", 2.0 * TONGUE_R.2, Some("Tongue's tine to a rounded end, lying on the field: investment detail cast in place")));
+    for (name, land, note) in head {
+        rows.push(row(name, "sculpt", *land, *note));
+    }
     rows.push(row("Beaded bordure beads (painted)", "painted", 2.0 * BEADS.2, Some("Bordure bead: investment detail, cast in place and burnished")));
     rows.push(row("Rim beads under the table's edge (painted)", "painted", 2.0 * RIM_BEADS.2, Some("Rim bead under the table's edge: investment detail, cast in place and burnished")));
     rows
@@ -2131,6 +2235,9 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
     let built = mesh::try_build(&d, &lib, params)?;
     println!("built {} faces in {:.1} s (authored in {authored_s:.1} s); {:?}", built.mesh.faces.len(), start.elapsed().as_secs_f64(), built.solids.notes);
     let geometry = mesh_gates(&d, &built);
+    for p in sculpt::crossing_sites(&solid(&built.mesh)).iter().take(12) {
+        println!("  crossing at x {:.2} y {:.2} z {:.2} (theta {:.1})", p[0], p[1], p[2], p[1].atan2(p[0]).to_degrees());
+    }
     let coarse = mesh_gates(&d, &mesh::try_build(&d, &lib, coarse_params())?);
     let gems = ringdesign_core::gems::built_meshes(&d, &lib, &built);
     let mut field = castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
