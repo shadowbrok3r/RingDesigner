@@ -1572,22 +1572,21 @@ mod tests {
         let started = std::time::Instant::now();
         crate::mesh::try_build(&d, &lib, params()).unwrap();
         let full = started.elapsed();
-        let stop = std::sync::Arc::new(AtomicBool::new(false));
-        let raise = std::thread::spawn({
-            let stop = stop.clone();
-            move || {
-                std::thread::sleep(full / 2);
-                stop.store(true, Ordering::Relaxed);
-            }
-        });
+        // The bead raises the flag itself as its second settle round begins.
+        const AT: usize = 1;
+        blend::settle_rounds(Some(AT));
+        let stop = AtomicBool::new(false);
         let started = std::time::Instant::now();
         let result = crate::mesh::try_build_with(&d, &lib, params(), &stop);
-        let elapsed = started.elapsed();
-        raise.join().unwrap();
-        let error = result.err().unwrap_or_else(|| panic!("the build finished in {elapsed:?} with the flag raised at {:?}", full / 2));
+        let (returned, elapsed) = (std::time::Instant::now(), started.elapsed());
+        let (begun, raised) = blend::settle_rounds(None);
+        let raised = raised.unwrap_or_else(|| panic!("the build finished in {elapsed:?} after {begun} settle rounds without its bead raising the flag"));
+        let error = result.err().unwrap_or_else(|| panic!("the build finished in {elapsed:?} with the flag raised at {:?}", raised - started));
         assert_eq!(error.root_cause().to_string(), cad::CANCELLED);
-        eprintln!("bead in flight: full build {full:?}, flag at {:?}, stopped {:?} after it", full / 2, elapsed.saturating_sub(full / 2));
-        assert!(elapsed < full / 2 + std::time::Duration::from_millis(200), "stopped {:?} after the flag, full build {full:?}", elapsed.saturating_sub(full / 2));
+        assert_eq!(begun, AT + 1, "settle rounds begun, the last with the flag up");
+        let after = returned - raised;
+        eprintln!("bead in flight: full build {full:?}, flag at {:?}, stopped {after:?} after it", raised - started);
+        assert!(after < std::time::Duration::from_millis(200), "stopped {after:?} after the flag, full build {full:?}");
     }
 
     #[test]

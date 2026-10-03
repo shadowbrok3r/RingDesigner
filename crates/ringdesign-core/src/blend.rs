@@ -408,6 +408,32 @@ fn cancelled(flag: Option<&AtomicBool>) -> Result<(), String> {
     if flag.is_some_and(|f| f.load(Ordering::Relaxed)) { Err(Snag::Cancelled.to_string()) } else { Ok(()) }
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Settle rounds begun on this thread, the round at which a bead raises its own flag, and when it did.
+    static SETTLE_ROUNDS: std::cell::Cell<(usize, Option<usize>, Option<std::time::Instant>)> = const { std::cell::Cell::new((0, None, None)) };
+}
+
+/// Counts a settle round begun on this thread, raising `cancel` if it is the armed one.
+#[cfg(test)]
+fn settle_round_begun(cancel: Option<&AtomicBool>) {
+    SETTLE_ROUNDS.with(|c| {
+        let (n, at, mut raised) = c.get();
+        if at == Some(n) && let Some(flag) = cancel {
+            flag.store(true, Ordering::Relaxed);
+            raised = Some(std::time::Instant::now());
+        }
+        c.set((n + 1, at, raised));
+    });
+}
+
+/// Restarts this thread's settle round count with a bead raising its own flag as round `at` begins; the rounds begun before and when the flag went up.
+#[cfg(test)]
+pub(crate) fn settle_rounds(at: Option<usize>) -> (usize, Option<std::time::Instant>) {
+    let (n, _, raised) = SETTLE_ROUNDS.with(|c| c.replace((0, at, None)));
+    (n, raised)
+}
+
 /// [`bead_against`] that stops soon after `cancel` is raised: read between the settling rounds and the fold rounds.
 fn bead_polled(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: f64, surfaces: Option<&Surfaces>, cancel: Option<&AtomicBool>) -> Result<Bead, String> {
     if seam.len() < 3 {
@@ -476,6 +502,8 @@ pub fn station_at(p: P3) -> String {
 fn settle(st: &mut [Station], radii: &mut [f64], step: f64, surfaces: Option<&Surfaces>, cancel: Option<&AtomicBool>) -> Result<usize, String> {
     let mut m_arc = 3;
     for _round in 0..4 {
+        #[cfg(test)]
+        settle_round_begun(cancel);
         cancelled(cancel)?;
         for (s, r) in st.iter_mut().zip(radii.iter()) {
             s.r = *r;
