@@ -1,0 +1,32 @@
+{
+  "option": "openwork",
+  "ring": "Capsa",
+  "slug": "capsa",
+  "mode": "read-test",
+  "test": 5,
+  "reads": false,
+  "what_the_eye_sees": "Hero: a small gabled house or shrine sitting on a plinth on a plain band, with a red stone at each eave corner and a blue stone in the gable. A jeweller who knows coffin and memento-mori rings would say 'casket', 'chasse' or 'little shrine', so the reliquary half-reads, and that is the strongest thing on the ring. Gothic cathedral does not read. The roof is still shallow, about 30 degrees, so the box looks like a temple or a Monopoly house. The ridge cresting is a row of square steps, so it reads as battlements or a saw blade, not fleurs-de-lis. The finials are pinhead beads. The long wall shows a row of short openings between square posts, which reads as a colonnade or a stable front. At 300 px no pointed apex can be counted in it. The gable opening round the sapphire is the only arch-like shape, and it is too small to carry the read. Face: a flat rectangular plaque. Down the middle runs a ladder of small triangles and slots, with a red oval in two opposite corners and blue dots at the ends. It reads as a belt buckle, a domino or a circuit board. Nothing on it says roof, tracery or Gothic. The shoulders carry small clusters of punched shapes that read as dot-and-diamond perforation, not quatrefoils. Little has changed in the read since test 2.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the roof a steep Gothic gable with a real skyline.",
+      "where": "Lid: the pentagon sketch, the ridge cresting and the ridge-end finials.",
+      "by_how_much": "Raise the ridge from about 2.0 to 3.5-4.0 mm above the eaves, a pitch of 55 degrees or more. Replace the stepped cresting with open fleur-de-lis or trefoil units 1.2-1.5 mm tall with visible gaps between them. Replace the bead finials with pointed pinnacles at least 2.5 mm tall at both ridge ends.",
+      "acceptance": "In hero-300 the silhouette against the background is a steep pointed roof with a lacy crest and two spires. Nobody reads a low temple roof or battlements."
+    },
+    {
+      "priority": 2,
+      "what": "Make the wall bays unmistakable pointed lancets.",
+      "where": "Both long walls (three bays each) and both gables.",
+      "by_how_much": "Bays about 3.0 mm tall on the 3.8 wall, with a two-centred pointed head springing at about 60 percent of the bay height. Recess them a full 0.3 mm with a crisp edge so they cast shadow at 300 px. Thin the posts to 0.6-0.8 mm and drop the square caps. Seat the centre-bay garnet inside its pointed niche, and frame each gable sapphire in a pointed arch at least 3 mm tall.",
+      "acceptance": "In hero-300 you can count three pointed apexes on the near long wall and see a pointed frame on the gable. The wall no longer reads as square posts and slots."
+    },
+    {
+      "priority": 3,
+      "what": "Give the top-down face a Gothic read instead of a plaque.",
+      "where": "Both roof slopes and the ridge as seen in face-300, plus the shoulder piercings.",
+      "by_how_much": "Put a relief or pierced quatrefoil or two-light tracery panel, 3-4 mm across, on each slope round or beside its garnet. Give the rest of each slope a fish-scale or slate texture of about 0.15 mm relief. Make the cresting read from above as one continuous fleur strip, not a ladder of triangles. Replace the shoulder punch clusters with single quatrefoils of about 1.5-2.0 mm.",
+      "acceptance": "At face-300 a viewer names a tiled roof with tracery and cresting, not a buckle or a domino. The shoulders show clear four-lobed piercings."
+    }
+  ]
+}

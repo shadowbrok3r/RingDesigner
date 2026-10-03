@@ -700,6 +700,7 @@ fn pinnacle(doc: &mut Document, ids: &mut impl FnMut() -> Id, theta: f64, spread
 
 ## Capsa — *the reliquary*
 
+- **Process decision (Logan, 2026-10-03):** lost wax, judged at 0.8 mm minimum section with no pull rule (Capsa was lost wax already; no sand gate applies). Any sand pull it happens to have is a bonus for the report only.
 - **Status:** Not started. Buildable now as the plan orders it: **native only** (a `Chamfer` on the eaves instead of the OpenCascade fillet, format 5). The artwork comes from C-T3; C-V2 is optional for the bays.
 - **Concept:** A Gothic chasse lies along the finger, in the coffin-ring convention of memento-mori rings. It stands on a plinth, its long walls arcaded and set with cabochons like Limoges enamels. Its gabled roof is a **separate cast lid**, hinged at the bench and crested with fleurs-de-lis. Lift it: crossed bones under an hourglass lie on the relic floor.
 - **Theme face to palm:**

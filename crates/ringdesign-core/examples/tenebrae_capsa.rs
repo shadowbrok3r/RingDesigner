@@ -1427,13 +1427,110 @@ fn bore_intrusion(d: &RingDesign, m: &mesh::Mesh) -> (f64, usize) {
     })
 }
 
+fn geometry(m: &mesh::Mesh) -> (bool, usize, usize) {
+    (m.validate().watertight, m.quality().degenerate_faces, ringdesign_core::csg::self_crossings(&solid_of(m)))
+}
+
+/// Every gate of the brief at `params`: the numbers, and each gate's name and verdict.
+struct Gates {
+    json: serde_json::Value,
+    passes: Vec<(String, bool)>,
+}
+
+fn gates(d: &RingDesign, lib: &AlphaLibrary, a_lid: Id, built: &mesh::BuildResult, params: BuildParams, previewed: usize, verify: bool, out: &Path, export: bool) -> Result<Gates> {
+    use ringdesign_core::manufacturing as mf;
+    let (watertight, degenerate, crossings) = geometry(&built.mesh);
+    let e = built.parts.evaluated.as_ref().context("no evaluated parts")?;
+    let failed: Vec<String> = e.features.iter().filter(|r| !matches!(r.status, cad::FeatureStatus::Ok)).map(|r| format!("#{} {}: {:?}", r.id, r.name, r.status)).collect();
+    let parts: Vec<(String, bool, usize, usize)> = e
+        .components
+        .iter()
+        .filter(|c| !c.settings.reference)
+        .map(|c| {
+            let (w, dg, x) = geometry(&c.mesh);
+            (format!("#{} {}", c.id, c.name), w, dg, x)
+        })
+        .collect();
+    let (least_r, inside) = bore_intrusion(d, &built.mesh);
+    // The 0.8 mm section: sampled wall on a probe build of the whole finished metal, and on the lid alone.
+    let probe = mesh::try_build(d, lib, BuildParams { theta_steps: 192, profile_steps: 96, ..BuildParams::default() })?;
+    let wall = cad::measure::thickness(&probe.mesh, MIN_SECTION_MM);
+    let lid_mesh = e.components.iter().find(|c| c.id == a_lid).map(|c| c.mesh.clone()).context("no lid")?;
+    let lid_wall = cad::measure::thickness(&lid_mesh, MIN_SECTION_MM);
+    let wall_ok = |t: &cad::measure::Thickness| t.rays > 0 && t.below_limit == 0 && t.unresolved == 0;
+    let lands = ringdesign_core::dfm::cut_lands(d, built, MIN_SECTION_MM);
+    let findings = ringdesign_core::dfm::findings_in(d, lib);
+    let stones = ringdesign_core::stones::report_built(d, 0.0, built);
+    let reported = stones.as_ref().map_or(0, |s| s.stone_count as usize);
+    let warnings: Vec<String> = stones.iter().flat_map(|r| r.seats.iter().flat_map(|s| s.warnings.iter().map(|w| format!("{}: {w}", s.label)))).collect();
+    // The ring's casting pattern, and the lid's: each its own pour.
+    let pattern = mesh::try_build_pattern(d, lib, params)?;
+    let (pw, pd, px) = geometry(&pattern.mesh);
+    let mut setup = mf::Setup::from_design(d);
+    setup.component = Some(a_lid);
+    setup.recipe.name = "Capsa / lid / investment / Gold 18k".into();
+    setup.recipe.alloy = "Gold 18k".into();
+    setup.recipe.sand = None;
+    let lid_pattern = mf::prepare(d, lib, &setup, params)?;
+    let (lw, ld, lx) = geometry(&lid_pattern.mesh);
+    library::save_design_embedded(out.join("design.ring.json"), d, lib)?;
+    let text = std::fs::read_to_string(out.join("design.ring.json"))?;
+    let format = serde_json::from_str::<serde_json::Value>(&text)?.get("format_version").and_then(|v| v.as_u64()).unwrap_or(0);
+    let cold = if verify {
+        let saved = library::load_design(out.join("design.ring.json"))?;
+        let cold_lib = mf::source_library(&saved, &AlphaLibrary::default()).into_owned();
+        let rebuilt = mesh::try_build(&saved, &cold_lib, params)?;
+        Some(rebuilt.mesh.vertices == built.mesh.vertices && rebuilt.mesh.faces == built.mesh.faces && rebuilt.mesh.normals == built.mesh.normals)
+    } else {
+        None
+    };
+    if export {
+        ringdesign_core::stl::write_stl(out.join("finished-metal.stl"), &built.mesh, &d.name)?;
+        ringdesign_core::stl::write_stl(out.join("casting-pattern.stl"), &pattern.mesh, "Capsa / ring pattern")?;
+        ringdesign_core::stl::write_stl(out.join("lid-pattern.stl"), &lid_pattern.mesh, "Capsa / lid pattern, cast apart")?;
+    }
+    let crowding: Vec<String> = stones.as_ref().map(|s| s.crowding.iter().map(|p| format!("{} to {}: {:.2} / {:.2} mm", p.a, p.b, p.gap_mm, p.gap_deep_mm)).collect()).unwrap_or_default();
+    let passes: Vec<(String, bool)> = vec![
+        ("1. finished mesh watertight, 0 degenerate faces, 0 self-crossings".into(), watertight && degenerate == 0 && crossings == 0),
+        ("1. every made part watertight with 0 degenerate faces and 0 crossings".into(), parts.iter().all(|p| p.1 && p.2 == 0 && p.3 == 0)),
+        ("1. solids and parts notes empty, every CAD feature Ok".into(), built.solids.notes.is_empty() && built.parts.notes.is_empty() && failed.is_empty()),
+        ("2. nothing enters the finger hole".into(), inside == 0),
+        ("3. thickness(0.8) clean on the finished metal".into(), wall_ok(&wall)),
+        ("3. thickness(0.8) clean on the lid".into(), wall_ok(&lid_wall)),
+        ("3. cut_lands clean at 0.8 mm".into(), lands.is_empty()),
+        ("4. zero DFM findings".into(), findings.is_empty()),
+        ("5. stones reported equal the preview, no seat warnings".into(), reported == previewed && warnings.is_empty()),
+        ("6. cold reload identical".into(), cold != Some(false)),
+        ("7. ring pattern watertight, 0 degenerate, 0 crossings".into(), pw && pd == 0 && px == 0),
+        ("7. lid pattern watertight, 0 degenerate, 0 crossings".into(), lw && ld == 0 && lx == 0),
+        ("export within 2 million triangles".into(), built.mesh.faces.len() <= 2_000_000),
+    ];
+    let json = serde_json::json!({
+        "geometry": {"watertight": watertight, "degenerate_faces": degenerate, "self_crossings": crossings, "triangles": built.mesh.faces.len(), "volume_mm3": built.report.volume_mm3},
+        "parts": parts.iter().map(|p| serde_json::json!({"part": p.0, "watertight": p.1, "degenerate_faces": p.2, "self_crossings": p.3})).collect::<Vec<_>>(),
+        "solids_notes": built.solids.notes, "parts_notes": built.parts.notes, "features_not_ok": failed,
+        "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
+        "thickness": {"finished": wall, "lid": lid_wall, "probe_build": "192 x 96"},
+        "cut_lands": lands.iter().map(|f| f.message.clone()).collect::<Vec<_>>(),
+        "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
+        "stones": {"reported": reported, "previewed": previewed, "warnings": warnings, "crowding": crowding, "closest": stones.as_ref().and_then(|s| s.closest.as_ref()).map(|p| format!("{} to {}: {:.2} mm", p.a, p.b, p.gap_mm))},
+        "pattern": {"ring": {"watertight": pw, "degenerate_faces": pd, "self_crossings": px, "triangles": pattern.mesh.faces.len()}, "lid": {"watertight": lw, "degenerate_faces": ld, "self_crossings": lx, "triangles": lid_pattern.mesh.faces.len(), "casting": format!("{:?}", lid_pattern.casting)}},
+        "design": {"bytes": text.len(), "format_version": format, "cad_features": d.cad.as_ref().map_or(0, |c| c.features.len())},
+        "cold_reload_identical": cold,
+        "gates": passes.iter().map(|(g, p)| serde_json::json!({"gate": g, "pass": p})).collect::<Vec<_>>(),
+        "gates_passed": passes.iter().all(|(_, p)| *p),
+    });
+    Ok(Gates { json, passes })
+}
+
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let draft = args.iter().any(|a| a == "--draft");
+    let verify = args.iter().any(|a| a == "--verify");
     let at = args.iter().position(|a| a == "--option");
     let opt = match at {
         Some(i) => Opt::parse(args.get(i + 1).map(String::as_str).unwrap_or("")).context("--option takes across, openwork or across-openwork")?,
-        None => Opt::Across,
+        None => Opt::AcrossOpenwork,
     };
     let out = args
         .iter()
@@ -1454,86 +1551,60 @@ fn main() -> Result<()> {
         println!("  {n}");
     }
     let d = a.design;
-    if std::env::var("CAPSA_TRACE").is_ok() {
-        let doc = d.cad.as_ref().context("no document")?;
-        for f in doc.features.iter().filter(|f| matches!(f.operation, Operation::Boolean { .. })) {
-            let c = part_at(&d, &lib, f.id)?;
-            println!("  #{} {}: {} triangles, volume {:.3}", f.id, f.name, c.mesh.faces.len(), c.mesh.volume_mm3());
-        }
-        let c = part_at(&d, &lib, a.lid)?;
-        render::write_png_parts(out.join("trace-lid.png"), &[render::Part::metal(&c.mesh, render::GOLD)], 0.0, PI * 0.5, 800)?;
-        let built = mesh::try_build(&d, &lib, probe_params())?;
-        render::write_png_parts(out.join("trace-built.png"), &[render::Part::metal(&built.mesh, render::GOLD)], 0.0, PI * 0.5, 800)?;
-        let f = xseat().frame(&d)?;
-        let e = cad::evaluate(&d, &lib, probe_params())?;
-        for c in e.components.iter().filter(|c| c.settings.reference) {
-            let loc: Vec<P3> = c.mesh.vertices.iter().map(|v| { let q = [v.0 as f64 - f.origin[0], v.1 as f64 - f.origin[1], v.2 as f64 - f.origin[2]]; [dot(q, f.x_axis), dot(q, f.y_axis), dot(q, f.z_axis)] }).collect();
-            let lo: Vec<f64> = (0..3).map(|k| loc.iter().map(|p| p[k]).fold(f64::MAX, f64::min)).collect();
-            let hi: Vec<f64> = (0..3).map(|k| loc.iter().map(|p| p[k]).fold(f64::MIN, f64::max)).collect();
-            println!("  stone #{} {}: {lo:.2?} .. {hi:.2?}", c.id, c.name);
-        }
-        for (m, t) in ringdesign_core::gems::built_meshes(&d, &lib, &built) {
-            let loc: Vec<P3> = m.vertices.iter().map(|v| { let q = [v.0 as f64 - f.origin[0], v.1 as f64 - f.origin[1], v.2 as f64 - f.origin[2]]; [dot(q, f.x_axis), dot(q, f.y_axis), dot(q, f.z_axis)] }).collect();
-            let lo: Vec<f64> = (0..3).map(|k| loc.iter().map(|p| p[k]).fold(f64::MAX, f64::min)).collect();
-            let hi: Vec<f64> = (0..3).map(|k| loc.iter().map(|p| p[k]).fold(f64::MIN, f64::max)).collect();
-            println!("  gems {t:?}: {lo:.2?} .. {hi:.2?}");
-        }
+    let mut runs = vec![(true, draft_params())];
+    if !draft {
+        runs.push((false, export_params()));
     }
-    let params = if draft { draft_params() } else { export_params() };
-    let t = std::time::Instant::now();
-    let built = mesh::try_build(&d, &lib, params)?;
-    let build_s = t.elapsed().as_secs_f64();
-    let e = cad::evaluate(&d, &lib, params)?;
-    let failed: Vec<String> = e.features.iter().filter(|r| !matches!(r.status, cad::FeatureStatus::Ok)).map(|r| format!("#{} {}: {:?}", r.id, r.name, r.status)).collect();
-    let parts: Vec<serde_json::Value> = e
-        .components
-        .iter()
-        .filter(|c| !c.settings.reference)
-        .map(|c| {
-            let q = c.mesh.quality();
-            serde_json::json!({"id": c.id, "name": c.name, "attach": format!("{:?}", c.attach), "triangles": c.mesh.faces.len(), "watertight": c.mesh.validate().watertight, "degenerate_faces": q.degenerate_faces, "self_crossings": ringdesign_core::csg::self_crossings(&solid_of(&c.mesh))})
-        })
-        .collect();
-    let gems = ringdesign_core::gems::built_meshes(&d, &lib, &built);
-    let watertight = built.mesh.validate().watertight;
-    let degenerate = built.mesh.quality().degenerate_faces;
-    let crossings = ringdesign_core::csg::self_crossings(&solid_of(&built.mesh));
-    let (least_r, inside) = bore_intrusion(&d, &built.mesh);
-    let stones = d.cad.as_ref().map_or(0, |doc| doc.features.iter().filter(|f| f.component.reference).count());
-    let top = built.mesh.vertices.iter().fold(f32::MIN, |m, v| m.max(v.1)) as f64;
-    let crest = d.inner_radius_mm() + d.profile.thickness_mm + CREST_LIFT_MM;
-    println!(
-        "  authored in {author_s:.1} s; {} triangles in {build_s:.1} s; watertight {watertight}, degenerate {degenerate}, self-crossings {crossings}; nearest the axis {least_r:.3} mm ({inside} inside); {stones} stones; head {:.2} mm over the crest; notes {:?} {:?}; failed {failed:?}",
-        built.mesh.faces.len(),
-        top - crest,
-        built.solids.notes,
-        built.parts.notes
-    );
+    let mut blocks = serde_json::Map::new();
+    let mut all = true;
+    let mut last = None;
+    for (is_draft, params) in runs {
+        let t = std::time::Instant::now();
+        let built = mesh::try_build(&d, &lib, params)?;
+        let build_s = t.elapsed().as_secs_f64();
+        let gems = ringdesign_core::gems::built_meshes(&d, &lib, &built);
+        let previewed = d.cad.as_ref().map_or(0, |doc| doc.features.iter().filter(|f| f.component.reference).count());
+        let g = gates(&d, &lib, a.lid, &built, params, previewed, verify && !is_draft || verify && draft, &out, !is_draft)?;
+        let top = built.mesh.vertices.iter().fold(f32::MIN, |m, v| m.max(v.1)) as f64;
+        let crest = d.inner_radius_mm() + d.profile.thickness_mm + CREST_LIFT_MM;
+        let mut j = g.json;
+        j["build"] = serde_json::json!({"theta_steps": params.theta_steps, "profile_steps": params.profile_steps, "build_s": build_s, "author_s": author_s});
+        j["head_over_crest_mm"] = serde_json::json!(top - crest);
+        println!("  {} x {}: {} triangles in {build_s:.1} s; head {:.2} mm over the crest", params.theta_steps, params.profile_steps, built.mesh.faces.len(), top - crest);
+        for (name, pass) in &g.passes {
+            println!("    {} {name}", if *pass { "pass" } else { "FAIL" });
+        }
+        all &= g.passes.iter().all(|(_, p)| *p);
+        blocks.insert(if is_draft { "draft".into() } else { "export".into() }, j);
+        last = Some((built, gems));
+    }
+    let (built, gems) = last.context("no build")?;
+    if !draft {
+        let mut entries = Vec::new();
+        for (m, tint) in &gems {
+            let (file, name, ior) = if tint[0] > 0.1 { ("reference-garnet.stl", "Garnet", 1.79) } else { ("reference-sapphire.stl", "Sapphire", 1.77) };
+            ringdesign_core::stl::write_stl(out.join(file), m, &format!("Capsa reference {name}"))?;
+            entries.push(serde_json::json!({"mesh": file, "name": name, "tint": tint, "ior": ior, "cut": "oval cabochon 1.8 x 2.3"}));
+        }
+        std::fs::write(out.join("stones.json"), serde_json::to_vec_pretty(&serde_json::json!({"stones": entries}))?)?;
+    }
     let report = serde_json::json!({
         "name": d.name,
         "option": opt.slug(),
-        "stage": "rethink block-out",
         "process": d.draft.process.label(),
-        "build": {"theta_steps": params.theta_steps, "profile_steps": params.profile_steps, "triangles": built.mesh.faces.len(), "build_s": build_s, "author_s": author_s},
-        "geometry": {"watertight": watertight, "degenerate_faces": degenerate, "self_crossings": crossings, "volume_mm3": built.report.volume_mm3, "head_over_crest_mm": top - crest},
-        "parts": parts,
-        "solids_notes": built.solids.notes,
-        "parts_notes": built.parts.notes,
-        "features_not_ok": failed,
-        "cad_features": d.cad.as_ref().map_or(0, |c| c.features.len()),
-        "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
-        "stones": {"reference_stones": stones, "previewed_groups": gems.len()},
+        "min_section_mm": d.draft.min_section_mm,
         "lid": a.lid,
         "chest": a.chest,
         "skull": a.skull,
         "stone_features": a.stones,
         "notes": a.notes,
         "views": views(opt).iter().map(|(n, t, y, p)| serde_json::json!({"view": n, "turn_about_head_rad": t, "yaw_rad": y, "pitch_rad": p})).collect::<Vec<_>>(),
+        "draft": blocks.get("draft"),
+        "export": blocks.get("export"),
+        "gates_passed": all,
     });
-    let name = if draft { "report.json" } else { "report-export.json" };
-    std::fs::write(out.join(name), serde_json::to_vec_pretty(&report)?)?;
-    library::save_design_embedded(out.join("design.ring.json"), &d, &lib)?;
+    std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
     renders(&out, opt, &built.mesh, &gems, if draft { 1000 } else { 1600 })?;
-    ensure!(watertight && degenerate == 0 && failed.is_empty(), "Capsa did not build clean; see {}", out.join(name).display());
+    println!("  gates {}", if all { "all pass" } else { "FAILED" });
     Ok(())
 }

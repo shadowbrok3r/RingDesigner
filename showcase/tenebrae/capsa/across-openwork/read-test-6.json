@@ -1,0 +1,26 @@
+{
+  "option": "across-openwork",
+  "ring": "Capsa",
+  "slug": "capsa",
+  "mode": "read-test",
+  "test": 6,
+  "reads": true,
+  "what_the_eye_sees": "A little Gothic chapel front set on a plain band: a steep crocketed gable with a finial, two spired pinnacles, a pointed-arch niche holding a skull, a blue cabochon in a rose-like ring in the gable and a row of red-blue-red cabochons along the base. At 300 px a jeweller says 'Gothic shrine / reliquary with a memento-mori skull', so the subject and the cathedral language both land. It still reads as a solid facade with a relief skull in it rather than a box holding a relic you see through a window: the niche looks closed and shallow, the body is a flat-sided slab, and the base stones sit on a ledge that reads like a separate strip. The small marks on the shank wall read as dents rather than ornament.",
+  "changes": [
+    {
+      "what": "Make the relic window read as open: pierce the pointed-arch niche around the skull so dark shows behind it (openwork lights on either side of the skull and above its crown), and sink the skull at least 1.0 mm deeper behind a raised arch frame",
+      "where": "Front face of the casket, the pointed-arch niche (the face-300 centre)",
+      "by_how_much": "Dark gaps at least 0.6 mm wide around the skull; at 300 px the niche must show black around the skull, not gold"
+    },
+    {
+      "what": "Turn the slab body into a casket: add corner buttresses or colonnettes down the front edges and a moulded lid line or roof eave where the gable meets the box, so it reads as a lidded chest and not a flat building front",
+      "where": "Front corners and the gable/body junction of the head",
+      "by_how_much": "Corner members proud by at least 0.5 mm; eave moulding at least 0.4 mm proud, visible as a shadow line in the hero"
+    },
+    {
+      "what": "Bring the three base cabochons into the facade in made collets (or a footed plinth) instead of a ledge strip, and enlarge the shank-wall marks into legible quatrefoils or drop them",
+      "where": "Base row of stones under the facade; shank walls either side of the head",
+      "by_how_much": "Collets with a visible bezel rim at least 0.3 mm; shank motifs at least 2.0 mm across or removed"
+    }
+  ]
+}

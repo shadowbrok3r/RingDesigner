@@ -1,0 +1,28 @@
+{
+  "option": "across",
+  "ring": "capsa",
+  "mode": "read-test",
+  "read_test": 4,
+  "reads": false,
+  "what_the_eye_sees": "A small Gothic church front on a signet ring. The front has a steep gable with crockets and a finial, two needle pinnacles, a pointed-arch doorway and two blue oval cabochons. 'Gothic church' or 'chapel' comes at once, so the cathedral half of the read works. 'Reliquary' does not come. Behind the gable the head is a flat-topped rectangular block sitting on two stepped slabs, so in the hero it looks like a church front glued onto a box, not a house-shaped shrine. Nothing says lid, casket or relic: no ridge roof running back, no lid seam, no skull. The side walls of the box are blank. The shank motifs are small clover-like stamps that turn to smudges at 300 px. A jeweller would name it a 'church ring', not a reliquary.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Head body behind the front gable, the full front-to-back depth",
+      "change": "Replace the flat top with a pitched roof that carries the front gable's slope all the way back, as on a chasse. Use the same pitch as the gable, a ridge at least 2 mm above the eaves, a pierced cresting along the ridge and a finial at the back end. Show the lid as a separate tier: a 0.2 to 0.3 mm parting groove at the eave line on all four sides.",
+      "acceptance": "In hero-300 the head reads as a gabled, house-shaped box with a visible roof ridge and a lid line, with no flat top surface visible."
+    },
+    {
+      "priority": 2,
+      "where": "Front face, the doorway (now the lower blue oval)",
+      "change": "Put the relic in view. Place the memento-mori skull, at least 4 mm tall in crisp relief, inside the pointed arch, either in place of the lower oval cabochon or behind a pierced grille. Keep the upper oval as the gable light.",
+      "acceptance": "In face-300 a viewer can name a skull inside the arch without a caption."
+    },
+    {
+      "priority": 3,
+      "where": "Side walls of the box and the two stepped base slabs",
+      "change": "Carry the architecture onto the sides: a blind arcade of 3 or 4 pointed arches per side, about 0.4 mm deep. Turn the two plain slabs into a moulded plinth on four small feet, about 1 mm tall, so the head stands as a casket and not as stacked blocks. Enlarge the shank stamps by about 50 percent, or swap them for a single quatrefoil row, so they stay legible.",
+      "acceptance": "In hero-300 the side wall shows pointed arches, the box stands on feet, and the shank motifs read as distinct shapes, not smudges."
+    }
+  ]
+}
