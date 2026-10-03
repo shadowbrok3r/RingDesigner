@@ -980,29 +980,6 @@ fn walls(built: &mesh::BuildResult) -> Vec<serde_json::Value> {
 /// The camera for each named view: yaw about the finger's axis, pitch toward it.
 const VIEWS: [(&str, f64, f64); 6] = [("hero", 0.5, 1.0), ("face", 0.0, PI * 0.5), ("palm", PI, 1.05), ("side", 0.0, 0.0), ("shoulder", 0.75, 0.6), ("reverse", PI - 0.5, 0.35)];
 
-/// The faces of `m` whose every corner lies within `half_deg` of `theta` round the ring and past `over` mm out.
-fn wedge(m: &mesh::Mesh, theta: f64, half_deg: f64, over: f64) -> mesh::Mesh {
-    let near = |i: u32| {
-        let p = m.vertices[i as usize];
-        let t = (p.1 as f64).atan2(p.0 as f64).to_degrees();
-        let d = (t - theta + 540.0).rem_euclid(360.0) - 180.0;
-        d.abs() <= half_deg && (p.0 as f64).hypot(p.1 as f64) >= over
-    };
-    let mut index = std::collections::HashMap::new();
-    let mut out = mesh::Mesh::default();
-    for f in m.faces.iter().filter(|f| f.iter().all(|&i| near(i))) {
-        let g = f.map(|i| {
-            *index.entry(i).or_insert_with(|| {
-                out.vertices.push(m.vertices[i as usize]);
-                out.normals.push(m.normals[i as usize]);
-                (out.vertices.len() - 1) as u32
-            })
-        });
-        out.faces.push(g);
-    }
-    out
-}
-
 fn save_rgb(path: &Path, img: &[u8], w: usize, h: usize) -> Result<()> {
     image::save_buffer(path, img, w as u32, h as u32, image::ColorType::Rgb8)?;
     Ok(())
@@ -1023,20 +1000,19 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, fin: &render::Finishe
         }
     }
     save_rgb(&out.join("contact-300.png"), &sheet, cols * 300, rows * 300)?;
-    // The crown seen square from above, cropped to the umbel and the two crown leaves.
-    let crown = wedge(&fin.metal, CROWN_DEG, 70.0, 10.0);
-    let mut close = vec![render::Part::metal(&crown, render::GOLD)];
-    close.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    render::write_png_parts(out.join("crown-close.png"), &close, 0.0, PI * 0.5, edge)?;
-    render::write_png_parts(out.join("crown-hero.png"), &close, -0.5, 0.9, edge)?;
+    // The crown framed from above and from the hero's side: the umbel and the two crown leaves, whole metal, never a
+    // cropped mesh.
+    let crown = umbel_hub(&Chart::of(d));
+    render::write_png_framed(out.join("crown-close.png"), &parts, render::yaw_facing(CROWN_DEG), PI * 0.5, render::Framing::new(crown, 7.5), edge)?;
+    render::write_png_framed(out.join("crown-hero.png"), &parts, VIEWS[0].1, 0.9, render::Framing::new(crown, 8.0), edge)?;
     if quick {
         return Ok(());
     }
     for (name, yaw, pitch) in VIEWS {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
     }
-    // The umbel close-up: the crown seen from above and a little ahead.
-    render::write_png_parts(out.join("stones.png"), &parts, -0.3, 1.2, edge)?;
+    // The umbel close-up: the berries on their stalks, from above and a little ahead.
+    render::write_png_framed(out.join("stones.png"), &parts, -0.3, 1.2, render::Framing::new(umbel_hub(&Chart::of(d)), 5.0), edge)?;
     let bare = mesh::try_build(&host(), lib, draft_params())?;
     let (yaw, pitch) = (VIEWS[0].1, VIEWS[0].2);
     let left = render::render_parts_ss(&[render::Part::metal(&bare.mesh, render::GOLD)], yaw, pitch, edge, edge, 3);

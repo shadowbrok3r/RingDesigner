@@ -1,0 +1,32 @@
+{
+  "ring": "hedera",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Better than attempt 1, but it still does not read. In the hero, the leaf on the right shoulder is now a broad palmate leaf with veins, so a jeweller might say 'ivy or maple'. That is the closest this ring gets. In the face, the two crown leaves are puffy, inflated five-pointed stars with sharp tips of equal length. Uncaptioned, they read as maple, sweetgum or star anise, not ivy. The centre is a bouquet of thick gold tube collets, each with a small black dot at the end. It looks like a cluster of bezel-set gems, or a bundle of cannon barrels, not berries, because the gold walls outweigh the black stones and no stalks show. The stem does not register at all. What follows the band edges is a row of rectangular blocks, which reads as a tyre tread or crenellation, not a clinging vine. The guess a jeweller would give is 'a leaf ring with a black-stone cluster, maybe maple'. They would not say ivy.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "The crown leaves flanking the umbel (the ivy_cordate stamps near theta 90) and the shoulder juvenile ivy() stamps",
+      "change": "Redraw the leaves from five equal star points into the iconic ivy outline. The central lobe should be about 1.5x as long as each side lobe. Use two short, wide lateral lobes and two small basal lobes. Each leaf needs a clear cordate notch at the petiole, pointing toward the stem or umbel. Make the lobe tips blunt (tip radius at least 0.3 mm) and the sinus depth about 0.2 of the length. Flatten the pillowy dome: keep the blade near-flat at height_mm 0.35 to 0.45 with crisp edges. Raise the palmate veins 0.12 to 0.15 mm, three to five radiating from the notch, so they catch light.",
+      "acceptance": "In the 300 px face, both crown leaves show a long central point, shorter side lobes and a heart notch at the base, with veins visible. No leaf reads as a symmetric five-pointed star, a maple or a puffy pillow."
+    },
+    {
+      "priority": 2,
+      "where": "The umbel at theta 90 (the seven collets and their stalks)",
+      "change": "Make the berries dominate the gold. Cut the collet tube height so only the bezel lip shows, with no cylindrical side wall exposed above the stalk. Seat each 2.2 cabochon so at least half its height stands proud of the lip. Lengthen the stalks to 1.5 to 2.0 mm, spread from one common point, so metal stalks show between the berries with gaps of at least 0.5 mm.",
+      "acceptance": "In the 300 px hero and face, each berry is a black dome with only a thin gold rim, and the black area is the larger part of each disc. Thin stalks are visible converging to one point. Nothing reads as a tube, a barrel or a bezel gem cluster."
+    },
+    {
+      "priority": 3,
+      "where": "Stem and rootlets along the shoulders and band edges (theta 0 to 360, most visible at theta 30 to 150 and 210 to 330)",
+      "change": "Make the stem a visible round cable that climbs the band. Expose at least 60% of its diameter, 1.2 mm or more, and let it cross the top face diagonally so its line reads against the polished band. Replace the rectangular edge blocks with fine rootlet fringe: short cones 0.5 to 0.6 mm at about 0.6 mm pitch, tight under the stem. Join each leaf to the stem by a visible petiole.",
+      "acceptance": "In the 300 px hero, a continuous round stem can be traced across the band from leaf to umbel, with a fine hairy edge beneath it. There are no square tabs, tread or crenellation silhouettes on the band edges."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/hedera/hero-300.png",
+    "showcase/vepres/hedera/face-300.png",
+    "showcase/vepres/hedera/contact-300.png"
+  ]
+}
