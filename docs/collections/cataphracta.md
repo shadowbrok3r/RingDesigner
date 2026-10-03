@@ -578,7 +578,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 ## Gekko — *the tokay*
 
 - **Process decision (2026-10-03, Logan's rule):** Gekko is judged as **lost wax** (0.8 mm minimum section, no pull rule). The Delft block-out's figure was held back by the sand gates, not by its read: a tokay with bent limbs, splayed toe pads and bulging eyes lying on the crown needs a pull fill and bench cuts in sand. The two-part sand undercut is reported as a number only; any sand pull is a bonus.
-- **Status:** not started.
+- **Status (2026-10-03):** stopped at the block-out. Three read tests, none reads (sand attempt 1; lost-wax attempts 2 and 3). Attempt 3 reads as "a lizard on a pebbled band": the head reads as an arrowhead, the spotted back as Heloderma, and the toe pads are the only gecko cue. Branch `claude/cataphracta-gekko`; see `showcase/cataphracta/gekko/read-test-*.json`.
   - Blocked on **C-R1** (the crown clamp), **C-R2** (the graded lamellae) and **C-R7**.
   - Fallbacks today: the crown can be painted with `Atlas`/`draft_clamp`, and the lamellae painted as a series from `skin::Joints::eccentric`, which already has the cosine law.
   - **P5** is optional: the keys are thickness-only.
