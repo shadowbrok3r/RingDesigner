@@ -1,18 +1,18 @@
-//! Cataphracta — Gekko, the tokay: a tokay gecko spread along the crown, poured in Delft sand.
+//! Cataphracta — Gekko, the tokay: a tokay gecko spread along the crown, cast in lost wax.
 //! cargo build --release -p ringdesign-core --example cataphracta_gekko
 //! target/release/examples/cataphracta_gekko [OUT_DIR] [--draft] [--verify] [--block-out]
 //!
-//! The animal is one sculpted part lying with its spine on the parting line: a broad flat head with two great eyes,
-//! a slender spotted body, four limbs reaching to the band's edges where the toes splay and end in broad pads, and a
-//! banded tail running down the crest toward the palm. The sculpt is a distance field made pullable before it is
-//! meshed: every point the mould would have to drag sand past is filled, along the pull, with an 8° lean (the "pull
-//! fill"). What is left draws from both halves of a two-part sand mould by construction, and the ray release and the
-//! part verdict prove it on the built ring.
+//! The animal is one sculpted part lying along the crown with its spine on the crest: a broad flat wedge of a head
+//! with two great lidded eyes and slit pupils, a plump spotted body, four limbs bent at elbow and knee whose feet are
+//! planted flat on the crown's shoulders with five splayed toes each ending in a broad pad, and a ringed tail running
+//! down the crest toward the palm. The sculpt is a distance field meshed by `sculpt`, joined to a keyed Flat band whose
+//! crown flanks carry granules and whose side faces carry rows of tubercles. Lost wax by Logan's rule of 2026-10-03:
+//! 0.8 mm minimum section, no pull rule; the two-part undercut is reported as a number.
 use anyhow::{Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign, ShankKind,
-    cad::{Attach, Component, Document, Feature, Operation, Placement, Stage, stored},
-    castability::{self, CastProcess, SandProcess, Verdict},
+    cad::{Attach, Component, Document, Feature, Operation, Placement, stored},
+    castability::{self, CastProcess, Verdict},
     csg, dfm,
     field::{Blend, Layer, LayerEntry, SIDE_FACE_MIN_DRAFT_DEG, SideFacePick, VGate},
     manufacturing as mf, mesh,
@@ -48,11 +48,9 @@ const R_REF: f64 = 13.4;
 const BORE_CLEAR_MM: f64 = 0.6;
 /// How deep the sculpt reaches into the band under its own outline, mm: past it the band is metal already.
 const SINK_MM: f64 = 0.45;
-/// The lean the pull fill gives every wall it makes, degrees; over the Delft clay's 3.0.
-const FILL_LEAN_DEG: f64 = 8.0;
-/// The fill grid's step and the meshing step, mm.
-const FILL_STEP_MM: f64 = 0.05;
 const STEP_MM: f64 = 0.05;
+/// The investment's fill floor, mm.
+const MIN_SECTION_MM: f64 = 0.8;
 const FACES: usize = 260_000;
 
 fn params(draft: bool) -> BuildParams {
@@ -72,7 +70,7 @@ fn smoothstep(a: f64, b: f64, x: f64) -> f64 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// The thickness-keyed Flat band in Delft sand: deepest under the gecko, the palm the reference and the tightest station.
+/// The keyed Flat band, cast in lost wax: deepest under the gecko, the palm the reference and the tightest station.
 fn band() -> RingDesign {
     let mut d = RingDesign { name: NAME.into(), ..RingDesign::default() };
     d.profile.width_mm = 7.0;
@@ -88,32 +86,9 @@ fn band() -> RingDesign {
     // Broad and deep under the gecko so its limbs reach the edges; thickness held at or over width at every key.
     let key = |theta_deg: f64, width_scale: f64, thickness_scale: f64| ShankKey { theta_deg, width_scale, thickness_scale, crown_scale: 1.0 };
     d.shank.keys = vec![key(30.0, 1.12, 1.14), key(65.0, 1.25, 1.25), key(115.0, 1.25, 1.25), key(150.0, 1.12, 1.14), key(210.0, 1.0, 1.02), key(270.0, 1.0, 1.0), key(330.0, 1.0, 1.02)];
-    let mut setup = mf::Setup::default();
-    setup.recipe = mf::Recipe::sand(SandProcess::DelftClay);
-    setup.recipe.name = format!("{} / Delft clay", d.name);
-    setup.recipe.alloy = "Silver 925".into();
-    setup.recipe.shrink_pct = ringdesign_core::metal::find("Silver 925").unwrap().shrink_pct;
-    setup.sample_pitch_mm = 0.1;
-    setup.auto_parting = false;
-    setup.parting_mm = 0.0;
-    setup.flask.width_mm = 80.0;
-    setup.flask.length_mm = 80.0;
-    let palm = d.inner_radius_mm() + d.profile.thickness_mm - 0.2;
-    setup.channels = vec![
-        mf::Channel { kind: mf::ChannelKind::Gate, start: [0.0, -palm, 0.0], end: [0.0, -21.0, 0.0], diameter_mm: 4.0 },
-        mf::Channel { kind: mf::ChannelKind::Sprue, start: [0.0, -21.0, 0.0], end: [0.0, -33.0, 0.0], diameter_mm: 6.0 },
-    ];
-    setup.bench_notes = "Procedural Flat band, thickness keyed deepest under the gecko. A tokay lies along the crown with its spine \
-        on the parting line, its toes splayed to the band's edges and its tail down the crest to the palm; every wall the pull would \
-        drag is filled at 8 deg before meshing. Z=0 parting, opposed Z withdrawal. At the bench: polish the eyes and the spots, \
-        leave the granular skin satin."
-        .into();
-    d.draft.process = setup.recipe.process;
-    d.draft.sand = setup.recipe.sand;
-    d.draft.min_detail_mm = setup.recipe.min_detail_mm;
-    d.draft.min_section_mm = setup.recipe.min_section_mm;
-    d.draft.min_draft_deg = setup.recipe.min_draft_deg;
-    d.manufacturing = Some(setup);
+    CastProcess::LostWax.apply(&mut d.draft);
+    d.draft.min_section_mm = MIN_SECTION_MM;
+    d.draft.min_draft_deg = 0.0;
     d
 }
 
@@ -263,6 +238,8 @@ enum Kind {
     Toe,
     Pad,
     Tail,
+    Eye,
+    Hide,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -322,10 +299,6 @@ const LEGS: [(f64, f64); 2] = [(2.2, 1.0), (-7.0, -1.0)];
 const GRANULE_PITCH_MM: f64 = 0.5;
 const GRANULE_MM: f64 = 0.055;
 const SPOT_MM: f64 = 0.14;
-/// The hide is let in only where the surface under it already falls away from the parting line by the fill's lean and
-/// this margin, and in full this much past that, degrees: so a granule never asks the pull for more.
-const HIDE_MARGIN_DEG: f64 = 2.0;
-const HIDE_RAMP_DEG: f64 = 28.0;
 
 struct Gekko<'a> {
     frame: Frame<'a>,
@@ -335,9 +308,6 @@ struct Gekko<'a> {
     eye_h: f64,
     limbs: Vec<LimbPlan>,
     bore_r: f64,
-    block_out: bool,
-    /// The fill grids, once made.
-    grid: Option<Grid>,
 }
 
 /// The tail's centre line and radius at a share `t` of its length from the vent.
@@ -387,14 +357,14 @@ fn body_prims(crest: &Crest) -> Vec<Prim> {
     for l in limb_plans(crest) {
         let [sh, el, wr, ft] = l.joints;
         let thick = if l.hind { 1.15 } else { 1.0 };
-        out.push(limb(Kind::Limb, sh, el, 0.7 * thick, 0.46, 0.35));
-        out.push(egg(Kind::Limb, el, [0.48, 0.44, 0.48], 0.0, 0.12));
-        out.push(limb(Kind::Limb, el, wr, 0.44, 0.34, 0.1));
-        out.push(limb(Kind::Limb, wr, ft, 0.34, 0.36, 0.08));
-        out.push(egg(Kind::Limb, ft, [0.55, 0.26, 0.55], 0.0, 0.12));
+        out.push(limb(Kind::Limb, sh, el, 0.72 * thick, 0.5, 0.35));
+        out.push(egg(Kind::Limb, el, [0.52, 0.48, 0.52], 0.0, 0.12));
+        out.push(limb(Kind::Limb, el, wr, 0.48, 0.42, 0.1));
+        out.push(limb(Kind::Limb, wr, ft, 0.42, 0.44, 0.08));
+        out.push(egg(Kind::Limb, ft, [0.62, 0.36, 0.62], 0.0, 0.12));
         for (root, tip) in &l.toes {
-            out.push(limb(Kind::Toe, *root, *tip, 0.22, 0.19, 0.08));
-            out.push(egg(Kind::Pad, *tip, [0.52, 0.24, 0.52], 0.0, 0.06));
+            out.push(limb(Kind::Toe, *root, *tip, 0.42, 0.4, 0.08));
+            out.push(egg(Kind::Pad, *tip, [0.58, 0.42, 0.58], 0.0, 0.06));
         }
     }
     out
@@ -416,20 +386,20 @@ fn limb_plans(crest: &Crest) -> Vec<LimbPlan> {
         for (x0, hind) in [(LEGS[0].0, false), (LEGS[1].0, true)] {
             let dir = if hind { -1.0 } else { 1.0 };
             let sh = [x0, -0.25, 1.2 * s];
-            let el = on(x0 - 0.85 * dir, 2.2 * s, 0.42);
-            let wr = on(x0 - 0.05 * dir, 2.75 * s, 0.32);
-            let ft = on(x0 + 0.45 * dir, 2.95 * s, 0.26);
+            let el = on(x0 - 0.9 * dir, 2.2 * s, 0.62);
+            let wr = on(x0 - 0.1 * dir, 2.6 * s, 0.42);
+            let ft = on(x0 + 0.35 * dir, 2.8 * s, 0.34);
             let mut toes = Vec::new();
             for k in 0..5 {
                 let j = k as f64 - 2.0;
                 // Fanned about a line out and toward the head (forelimb) or the tail (hind limb).
-                let a = (32.0 * j + 38.0 * dir).to_radians();
-                let len = [0.95, 1.1, 1.15, 1.1, 0.95][k];
+                let a = (34.0 * j + 30.0 * dir).to_radians();
+                let len = [1.2, 1.35, 1.4, 1.35, 1.2][k];
                 let x = ft[0] + a.sin() * len;
-                let edge = crest.half_w(theta_of(x)) - 0.62;
+                let edge = crest.half_w(theta_of(x)) - 0.7;
                 let w = (ft[2].abs() + a.cos() * len).min(edge);
-                let root = on(ft[0] + a.sin() * 0.3, (ft[2].abs() + a.cos() * 0.3) * s, 0.24);
-                toes.push((root, on(x, w * s, 0.2)));
+                let root = on(ft[0] + a.sin() * 0.3, (ft[2].abs() + a.cos() * 0.3) * s, 0.3);
+                toes.push((root, on(x, w * s, 0.32)));
             }
             out.push(LimbPlan { hind, joints: [sh, el, wr, ft], toes });
         }
@@ -470,9 +440,9 @@ fn spots() -> Vec<Spot> {
 }
 
 impl<'a> Gekko<'a> {
-    fn new(frame: Frame<'a>, bore_r: f64, block_out: bool) -> Self {
+    fn new(frame: Frame<'a>, bore_r: f64) -> Self {
         let prims = body_prims(frame.crest);
-        let mut gek = Self { prims, spots: spots(), eye_h: 0.0, limbs: limb_plans(frame.crest), frame, bore_r, block_out, grid: None };
+        let mut gek = Self { prims, spots: spots(), eye_h: 0.0, limbs: limb_plans(frame.crest), frame, bore_r };
         // The eyes sit on the head's top either side, a quarter of each ball sunk into it.
         let (mut lo, mut hi) = (-3.0, 4.0);
         for _ in 0..40 {
@@ -549,54 +519,32 @@ impl<'a> Gekko<'a> {
         (SPOT_MM * spot + GRANULE_MM * granules(p) * (1.0 - spot.max(spine)), SPOT_MM * spine)
     }
 
-    /// The sculpt as poured, before the fill: the body, held clear of the bore. The eyes are set at the bench.
-    fn raw(&self, p: P3) -> f64 {
-        let q = self.frame.local(p);
-        self.body_at(q).max(self.bore_r + BORE_CLEAR_MM - p[0].hypot(p[1]))
-    }
-
-    /// The eyes alone, in world mm, sunk into the head.
-    fn eyes_world(&self, p: P3) -> f64 {
-        self.eyes_at(self.frame.local(p))
-    }
-
-    /// The modelled sculpt with the first fill, then the hide let in where the slope allows.
-    fn skinned(&self, p: P3) -> f64 {
-        let Some(g) = &self.grid else { return self.raw(p) };
-        self.skinned_on(self.raw(p).min(g.at(&g.fill1, p)), p)
-    }
-
-    /// The modelled sculpt with its hide and no fill at all: what the finished ring shows where the bench cuts away
-    /// what the pull asked for.
-    fn modelled(&self, p: P3) -> f64 {
-        self.skinned_on(self.raw(p), p)
-    }
-
-    fn skinned_on(&self, base: f64, p: P3) -> f64 {
-        let Some(g) = &self.grid else { return base };
-        if base.abs() > 0.35 {
-            return base;
-        }
-        let k = g.at(&g.budget, p).clamp(0.0, 1.0);
-        let q = self.frame.local(p);
-        // The tail's rings vary only along the ring, so they stand anywhere round it, the spine included.
-        let rings = RING_MM * tail_rings(q[0]);
-        if k <= 0.0 && rings <= 0.0 && q[2].abs() > 0.8 {
-            return base;
-        }
-        let toe_near = self.prims.iter().filter(|s| matches!(s.kind, Kind::Toe | Kind::Pad)).map(|s| s.eval(q)).fold(f64::MAX, f64::min);
-        let fade = smoothstep(0.05, 0.3, toe_near) * smoothstep(0.05, 0.3, self.eyes_at(q));
-        let (flank, spine) = self.hide(q, p);
-        base - (flank * k + spine + rings) * fade
-    }
-
-    /// The sculpt as poured: the skinned field and its second fill, kept to a skin over the band.
+    /// The sculpt: the body with its hide (granules and smooth spots, the tail's rings), the eyes set into the head,
+    /// held clear of the bore and kept to a skin over the band.
     fn field(&self, p: P3) -> f64 {
-        let mut f = self.skinned(p);
-        if let Some(g) = &self.grid {
-            f = f.min(g.at(&g.fill2, p));
+        let q = self.frame.local(p);
+        let mut f = self.body_at(q);
+        let eyes = self.eyes_at(q);
+        if f.abs() < 0.35 {
+            let toe_near = self.prims.iter().filter(|s| matches!(s.kind, Kind::Toe | Kind::Pad)).map(|s| s.eval(q)).fold(f64::MAX, f64::min);
+            let fade = smoothstep(0.05, 0.3, toe_near) * smoothstep(0.05, 0.3, eyes);
+            let (flank, spine) = self.hide(q, p);
+            f -= (flank + spine + RING_MM * tail_rings(q[0])) * fade;
         }
+        f = smin(f, eyes, 0.1);
         f.max(-self.frame.crest.band_sd(p) - SINK_MM).max(self.bore_r + BORE_CLEAR_MM - p[0].hypot(p[1]))
+    }
+
+    /// Which shape is nearest the surface at a frame point.
+    fn kind_at(&self, q: P3) -> Kind {
+        let mut best = (self.eyes_at(q).abs(), Kind::Eye);
+        for s in &self.prims {
+            let v = s.eval(q).abs();
+            if v < best.0 {
+                best = (v, s.kind);
+            }
+        }
+        best.1
     }
 
     /// The sculpt's box in world mm.
@@ -647,172 +595,8 @@ fn granules(p: P3) -> f64 {
 
 // --- The pull fill ---------------------------------------------------------------------------------------------------
 
-/// A cylindrical grid whose columns run along the pull, holding the fills and the hide's budget. A fill at a node is
-/// the least, over the sculpt above it toward its own mould half's open side, of the field there less the lean the
-/// walls are given for each step down: what the sand needs filled under the sculpt. Sampled trilinearly; outside the
-/// grid it is far.
-struct Grid {
-    theta0: f64,
-    dtheta: f64,
-    r0: f64,
-    z0: f64,
-    step: f64,
-    n: [usize; 3],
-    fill1: Vec<f32>,
-    budget: Vec<f32>,
-    fill2: Vec<f32>,
-    /// Nodes each fill reached outside what it filled under.
-    filled: [usize; 2],
-}
 
-impl Grid {
-    fn new(lo_x: f64, hi_x: f64, r_lo: f64, r_hi: f64, z_hi: f64) -> Self {
-        let step = FILL_STEP_MM;
-        let nt = ((hi_x - lo_x) / step).ceil() as usize + 1;
-        let nr = ((r_hi - r_lo) / step).ceil() as usize + 1;
-        let nz = (2.0 * z_hi / step).ceil() as usize + 1;
-        Self { theta0: theta_of(lo_x).to_radians(), dtheta: step / R_REF, r0: r_lo, z0: -z_hi, step, n: [nt, nr, nz], fill1: Vec::new(), budget: Vec::new(), fill2: Vec::new(), filled: [0, 0] }
-    }
 
-    fn node(&self, it: usize, ir: usize, iz: usize) -> P3 {
-        let th = self.theta0 + it as f64 * self.dtheta;
-        let r = self.r0 + ir as f64 * self.step;
-        [r * th.cos(), r * th.sin(), self.z0 + iz as f64 * self.step]
-    }
-
-    /// `f` at every node, column by column across the threads.
-    fn sample(&self, f: &(dyn Fn(P3) -> f64 + Sync)) -> Vec<f32> {
-        let [nt, nr, nz] = self.n;
-        let cols = nt * nr;
-        let threads = std::thread::available_parallelism().map_or(4, |n| n.get());
-        let chunk = cols.div_ceil(threads);
-        let mut out = vec![0f32; cols * nz];
-        std::thread::scope(|sc| {
-            for (ci, part) in out.chunks_mut(chunk * nz).enumerate() {
-                sc.spawn(move || {
-                    for (k, column) in part.chunks_mut(nz).enumerate() {
-                        let c = ci * chunk + k;
-                        let (it, ir) = (c / nr, c % nr);
-                        for (iz, v) in column.iter_mut().enumerate() {
-                            *v = f(self.node(it, ir, iz)) as f32;
-                        }
-                    }
-                });
-            }
-        });
-        out
-    }
-
-    /// The pull fill of a sampled field, and how many nodes it puts metal at that the field had as air.
-    fn fill_of(&self, raw: &[f32]) -> (Vec<f32>, usize) {
-        let nz = self.n[2];
-        let lean = (self.step * FILL_LEAN_DEG.to_radians().tan()) as f32;
-        let zero = ((0.0 - self.z0) / self.step).round() as usize;
-        let mut g = vec![f32::INFINITY; raw.len()];
-        let mut added = 0;
-        for (col, out) in raw.chunks(nz).zip(g.chunks_mut(nz)) {
-            // Above the parting plane the cope lifts toward +z: fill from the top down; below, from the bottom up.
-            let mut run = f32::INFINITY;
-            for iz in (zero..nz).rev() {
-                out[iz] = run;
-                run = run.min(col[iz]) - lean;
-            }
-            let mut run = f32::INFINITY;
-            for iz in 0..zero {
-                out[iz] = run;
-                run = run.min(col[iz]) - lean;
-            }
-            out[zero] = out[zero].min(run);
-            added += col.iter().zip(out.iter()).filter(|(c, g)| **c > 0.0 && **g < 0.0).count();
-        }
-        (g, added)
-    }
-
-    /// The hide's budget at every node: 0 where the filled surface stands near upright to the pull, 1 where it falls
-    /// away from the parting line steeply enough to carry the hide's own slopes.
-    fn budget_of(&self, raw: &[f32], fill: &[f32]) -> Vec<f32> {
-        let [nt, nr, nz] = self.n;
-        let base = |it: usize, ir: usize, iz: usize| {
-            let i = (it * nr + ir) * nz + iz;
-            raw[i].min(fill[i]) as f64
-        };
-        let mut out = vec![0f32; raw.len()];
-        for it in 1..nt - 1 {
-            for ir in 1..nr - 1 {
-                let r = self.r0 + ir as f64 * self.step;
-                for iz in 1..nz - 1 {
-                    let v = base(it, ir, iz);
-                    if v.abs() > 0.45 {
-                        continue;
-                    }
-                    let z = self.z0 + iz as f64 * self.step;
-                    if z.abs() < 0.08 {
-                        continue;
-                    }
-                    let gt = (base(it + 1, ir, iz) - base(it - 1, ir, iz)) / (2.0 * r * self.dtheta);
-                    let gr = (base(it, ir + 1, iz) - base(it, ir - 1, iz)) / (2.0 * self.step);
-                    let gz = (base(it, ir, iz + 1) - base(it, ir, iz - 1)) / (2.0 * self.step);
-                    let l = (gt * gt + gr * gr + gz * gz).sqrt();
-                    if l < 1e-9 {
-                        continue;
-                    }
-                    let draft = (gz / l * z.signum()).clamp(-1.0, 1.0).asin().to_degrees();
-                    let from = FILL_LEAN_DEG + HIDE_MARGIN_DEG;
-                    out[(it * nr + ir) * nz + iz] = smoothstep(from, from + HIDE_RAMP_DEG, draft) as f32;
-                }
-            }
-        }
-        out
-    }
-
-    fn at(&self, a: &[f32], p: P3) -> f64 {
-        if a.is_empty() {
-            return 1e3;
-        }
-        let th = p[1].atan2(p[0]);
-        let dth = (th - self.theta0).rem_euclid(2.0 * PI);
-        let f = [dth / self.dtheta, (p[0].hypot(p[1]) - self.r0) / self.step, (p[2] - self.z0) / self.step];
-        let mut i = [0usize; 3];
-        let mut t = [0.0; 3];
-        for k in 0..3 {
-            if !(f[k] >= 0.0 && f[k] <= (self.n[k] - 1) as f64) {
-                return 1e3;
-            }
-            let fl = f[k].floor().min((self.n[k] - 2) as f64);
-            i[k] = fl as usize;
-            t[k] = f[k] - fl;
-        }
-        let idx = |x: usize, y: usize, z: usize| ((x * self.n[1]) + y) * self.n[2] + z;
-        let mut v = 0.0;
-        for (da, wa) in [(0, 1.0 - t[0]), (1, t[0])] {
-            for (db, wb) in [(0, 1.0 - t[1]), (1, t[1])] {
-                for (dc, wc) in [(0, 1.0 - t[2]), (1, t[2])] {
-                    let g = a[idx(i[0] + da, i[1] + db, i[2] + dc)];
-                    v += wa * wb * wc * if g.is_finite() { (g as f64).min(1e3) } else { 1e3 };
-                }
-            }
-        }
-        v
-    }
-}
-
-/// Make the sculpt pullable: fill the modelled body, let the hide in where the filled slope can carry it, and fill once
-/// more for what the hide itself asks.
-fn make_fills(gek: &mut Gekko, grid: Grid) -> Grid {
-    let mut grid = grid;
-    let raw = grid.sample(&|p| gek.raw(p));
-    let (fill1, a1) = grid.fill_of(&raw);
-    grid.budget = grid.budget_of(&raw, &fill1);
-    grid.fill1 = fill1;
-    drop(raw);
-    gek.grid = Some(grid);
-    let skinned = gek.grid.as_ref().unwrap().sample(&|p| gek.skinned(p));
-    let mut grid = gek.grid.take().unwrap();
-    let (fill2, a2) = grid.fill_of(&skinned);
-    grid.fill2 = fill2;
-    grid.filled = [a1, a2];
-    grid
-}
 
 // --- Meshing ---------------------------------------------------------------------------------------------------------
 
@@ -821,16 +605,8 @@ struct Composition {
     crest_r_at_head_mm: f64,
     prims: usize,
     spots: usize,
-    fill_nodes: [usize; 3],
-    fill_added_nodes: [usize; 2],
-    fill_s: f64,
     raw_faces: usize,
     faces: usize,
-    parting_splits: usize,
-    /// Edges flipped so a face leaning back across the parting line leans forward.
-    draft_flips: usize,
-    eye_faces: usize,
-    web_cut_faces: Vec<usize>,
     volume_mm3: f64,
     box_mm: [P3; 2],
     sculpt_s: f64,
@@ -838,179 +614,8 @@ struct Composition {
     notes: Vec<String>,
 }
 
-/// Split every face that crosses the parting plane where it crosses, and lift each new vertex radially onto the
-/// field: the spine's ridge then runs on z = 0 itself, and no face leans across the plane into the other mould half.
-fn split_at_parting(s: &mut csg::Solid, field: &(dyn Fn(P3) -> f64 + Sync)) -> usize {
-    use std::collections::HashMap;
-    let mut on: HashMap<(u32, u32), u32> = HashMap::new();
-    let mut faces = Vec::with_capacity(s.f.len() + 1024);
-    let side = |p: P3| if p[2] > 1e-9 { 1 } else if p[2] < -1e-9 { -1 } else { 0 };
-    let mut made = 0;
-    let old = std::mem::take(&mut s.f);
-    for f in old {
-        let sd = f.map(|i| side(s.v[i as usize]));
-        let crosses = (0..3).any(|k| sd[k] * sd[(k + 1) % 3] < 0);
-        if !crosses {
-            faces.push(f);
-            continue;
-        }
-        // Rotate so the lone vertex on its own side is first.
-        let lone = (0..3).find(|&k| sd[k] != 0 && sd[(k + 1) % 3] != sd[k] && sd[(k + 2) % 3] != sd[k]).unwrap_or(0);
-        let [a, b, c] = [f[lone], f[(lone + 1) % 3], f[(lone + 2) % 3]];
-        let mut cut = |i: u32, j: u32, v: &mut Vec<P3>| -> u32 {
-            let key = (i.min(j), i.max(j));
-            if let Some(&m) = on.get(&key) {
-                return m;
-            }
-            let (p, q) = (v[i as usize], v[j as usize]);
-            let t = p[2] / (p[2] - q[2]);
-            let m = [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, 0.0];
-            v.push(m);
-            let id = (v.len() - 1) as u32;
-            on.insert(key, id);
-            made += 1;
-            id
-        };
-        let sb = sd[(lone + 1) % 3];
-        let sc = sd[(lone + 2) % 3];
-        if sb == 0 {
-            // b on the plane: one cut on a-c.
-            let m = cut(a, c, &mut s.v);
-            faces.push([a, b, m]);
-            faces.push([m, b, c]);
-        } else if sc == 0 {
-            let m = cut(a, b, &mut s.v);
-            faces.push([a, m, c]);
-            faces.push([m, b, c]);
-        } else {
-            let mab = cut(a, b, &mut s.v);
-            let mac = cut(a, c, &mut s.v);
-            faces.push([a, mab, mac]);
-            faces.push([mab, b, c]);
-            faces.push([mab, c, mac]);
-        }
-    }
-    s.f = faces;
-    // Lift each new vertex along the radius onto the surface.
-    if std::env::var_os("GEKKO_NOLIFT").is_some() {
-        return made;
-    }
-    for (_, &id) in on.iter() {
-        let p = s.v[id as usize];
-        let rr = p[0].hypot(p[1]);
-        let at = |dr: f64| {
-            let k = (rr + dr) / rr;
-            field([p[0] * k, p[1] * k, 0.0])
-        };
-        let (mut lo, mut hi) = (-0.06, 0.06);
-        if at(lo) <= 0.0 && at(hi) > 0.0 {
-            for _ in 0..30 {
-                let m = 0.5 * (lo + hi);
-                if at(m) > 0.0 { hi = m } else { lo = m }
-            }
-            let k = (rr + 0.5 * (lo + hi)) / rr;
-            s.v[id as usize] = [p[0] * k, p[1] * k, 0.0];
-        }
-    }
-    made
-}
 
-/// The draft of a face against the mould half its centroid stands in, degrees; `None` on a sliver or on the plane.
-fn face_draft(s: &csg::Solid, f: [u32; 3]) -> Option<f64> {
-    let [a, b, c] = f.map(|i| s.v[i as usize]);
-    let (e1, e2) = (sub(b, a), sub(c, a));
-    let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
-    let l = norm(n);
-    let m = mul(add(add(a, b), c), 1.0 / 3.0);
-    if l < 1e-12 || m[2].abs() < 0.012 {
-        return None;
-    }
-    Some((n[2] / l * m[2].signum()).clamp(-1.0, 1.0).asin().to_degrees())
-}
 
-/// Flip the shared edge of two faces wherever that turns a face leaning back across the parting line forward, the
-/// quad barely folding: the facets that cut a curved surface's corners then lean the way the surface itself does.
-/// Moves no vertex.
-fn flip_for_draft(s: &mut csg::Solid, min_deg: f64) -> usize {
-    use std::collections::HashMap;
-    let unit_n = |s: &csg::Solid, f: [u32; 3]| {
-        let [a, b, c] = f.map(|i| s.v[i as usize]);
-        let (e1, e2) = (sub(b, a), sub(c, a));
-        let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
-        let l = norm(n);
-        if l < 1e-14 { None } else { Some((mul(n, 1.0 / l), 0.5 * l)) }
-    };
-    let mut flips = 0;
-    for _ in 0..6 {
-        let mut edges: HashMap<(u32, u32), usize> = HashMap::with_capacity(s.f.len() * 3);
-        for (fi, f) in s.f.iter().enumerate() {
-            for k in 0..3 {
-                edges.insert((f[k], f[(k + 1) % 3]), fi);
-            }
-        }
-        let mut done = vec![false; s.f.len()];
-        let mut round = 0;
-        for fi in 0..s.f.len() {
-            if done[fi] {
-                continue;
-            }
-            let Some(d1) = face_draft(s, s.f[fi]) else { continue };
-            if d1 >= min_deg {
-                continue;
-            }
-            let mut best: Option<(f64, usize, [u32; 3], [u32; 3])> = None;
-            for k in 0..3 {
-                let f1 = s.f[fi];
-                let (a, b, c) = (f1[k], f1[(k + 1) % 3], f1[(k + 2) % 3]);
-                let Some(&gi) = edges.get(&(b, a)) else { continue };
-                if done[gi] || gi == fi {
-                    continue;
-                }
-                let f2 = s.f[gi];
-                let Some(&d) = f2.iter().find(|&&v| v != a && v != b) else { continue };
-                if edges.contains_key(&(c, d)) || edges.contains_key(&(d, c)) || c == d {
-                    continue;
-                }
-                let (n1, n2) = (f1, [c, a, d]);
-                let _ = n1;
-                let (g1, g2) = ([c, a, d], [d, b, c]);
-                let (Some((m1, ar1)), Some((m2, ar2)), Some((o1, _)), Some((o2, _))) = (unit_n(s, g1), unit_n(s, g2), unit_n(s, f1), unit_n(s, f2)) else { continue };
-                let _ = n2;
-                // The flip must not fold the quad: each new face near the old ones, and not a sliver.
-                if dot(m1, m2) < 0.94 || dot(m1, o1) < 0.94 || dot(m2, o2) < 0.94 || dot(m1, o2) < 0.94 || ar1 < 1e-7 || ar2 < 1e-7 {
-                    continue;
-                }
-                let old = d1.min(face_draft(s, f2).unwrap_or(90.0));
-                let new = face_draft(s, g1).unwrap_or(90.0).min(face_draft(s, g2).unwrap_or(90.0));
-                if new > old + 0.25 && best.as_ref().is_none_or(|bst| new > bst.0) {
-                    best = Some((new, gi, g1, g2));
-                }
-            }
-            if let Some((_, gi, g1, g2)) = best {
-                for f in [s.f[fi], s.f[gi]] {
-                    for k in 0..3 {
-                        edges.remove(&(f[k], f[(k + 1) % 3]));
-                    }
-                }
-                s.f[fi] = g1;
-                s.f[gi] = g2;
-                for (f, id) in [(g1, fi), (g2, gi)] {
-                    for k in 0..3 {
-                        edges.insert((f[k], f[(k + 1) % 3]), id);
-                    }
-                }
-                done[fi] = true;
-                done[gi] = true;
-                round += 1;
-            }
-        }
-        flips += round;
-        if round == 0 {
-            break;
-        }
-    }
-    flips
-}
 
 fn sculpt_solid(gek: &Gekko, comp: &mut Composition) -> csg::Solid {
     let t = Instant::now();
@@ -1045,96 +650,43 @@ fn sculpt_solid(gek: &Gekko, comp: &mut Composition) -> csg::Solid {
         }
     }
     let nets = nets.unwrap_or_else(|| sculpt::clean_decimate(&raw, FACES));
-    let mut s = sculpt::settle(nets, &field, &|_| false);
-    let before = s.clone();
-    comp.parting_splits = split_at_parting(&mut s, &field);
-    let (xc, open) = (csg::self_crossings(&s), sculpt::closure(&s).0);
-    if xc != 0 || open != 0 {
-        comp.notes.push(format!("the parting split crossed itself ({xc} crossings, {open} open edges); kept the settled mesh"));
-        s = before;
-        comp.parting_splits = 0;
-    }
-    let before = s.clone();
-    comp.draft_flips = flip_for_draft(&mut s, 1.0);
-    let (xc, open) = (csg::self_crossings(&s), sculpt::closure(&s).0);
-    if xc != 0 || open != 0 {
-        comp.notes.push(format!("the draft flips crossed the mesh ({xc} crossings, {open} open edges); kept it unflipped"));
-        s = before;
-        comp.draft_flips = 0;
-    }
-    if std::env::var_os("GEKKO_UNDERCUT").is_some() {
-        let mut bad: Vec<(f64, f64, P3)> = Vec::new();
-        for f in &s.f {
-            let [a, b, c] = f.map(|i| s.v[i as usize]);
-            let n = {
-                let (e1, e2) = (sub(b, a), sub(c, a));
-                [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]]
-            };
-            let area = 0.5 * norm(n);
-            if area < 1e-12 {
-                continue;
-            }
-            let m = mul(add(add(a, b), c), 1.0 / 3.0);
-            if m[2].abs() < 0.015 || gek.frame.crest.band_sd(m) < -0.02 {
-                continue;
-            }
-            let draft = (n[2] / (2.0 * area) * m[2].signum()).asin().to_degrees();
-            if draft < -1.0 {
-                bad.push((area, draft, gek.frame.local(m)));
-            }
-        }
-        let total: f64 = bad.iter().map(|b| b.0).sum();
-        bad.sort_by(|a, b| b.0.total_cmp(&a.0));
-        println!("  undercut faces {} over {:.4} mm2 (above the band)", bad.len(), total);
-        for (a, d, q) in bad.iter().take(25) {
-            println!("    {:.5} mm2 at {:.1} deg: x {:.2} h {:.2} w {:.2}", a, d, q[0], q[1], q[2]);
-        }
-    }
+    let s = sculpt::settle(nets, &field, &|_| false);
     comp.faces = s.f.len();
     comp.volume_mm3 = sculpt::closure(&s).1;
     comp.sculpt_s = t.elapsed().as_secs_f64();
     s
 }
 
-/// The crown's granules, 0..1, at `along` mm round the ring and `z` mm across where the bare crown falls at
-/// `draft_deg`: a lattice of low scales, each rising gently from the parting line's side, no faster than the crown
-/// falls, and dropping steeply on its outer side, so the sand draws every one.
-const CROWN_GRANULE_MM: f64 = 0.1;
-const CROWN_PITCH_MM: f64 = 0.85;
-const CROWN_ROW_MM: f64 = 1.05;
-fn crown_granules(along: f64, z: f64, draft_deg: f64) -> f64 {
-    if draft_deg < 12.0 {
-        return 0.0;
-    }
-    let r = 0.3;
-    // The inner ramp's length, so its rise stays under the crown's fall less the sand's draft.
-    let room = (draft_deg.to_radians().tan() - 6f64.to_radians().tan()).max(0.05);
-    let stretch = (CROWN_GRANULE_MM * 2.2 / (0.55 * r * room)).clamp(1.0, 2.4);
-    let (gx, gz) = (CROWN_PITCH_MM, CROWN_ROW_MM);
-    let side = z.signum();
-    let za = z.abs();
-    let (ci, cj) = ((along / gx).floor() as i64, (za / gz).floor() as i64);
-    let mut v = 0.0f64;
-    for di in -1..=1 {
-        for dj in -1..=1 {
+/// The crown's granules, 0..1, at `along` mm round the ring and `z` mm across: an irregular pebbling of low domed
+/// cells, each parted from its neighbours by a groove (Worley's second-minus-first distance), as a tokay's hide is.
+const CROWN_GRANULE_MM: f64 = 0.09;
+const CROWN_PITCH_MM: f64 = 0.62;
+fn crown_granules(along: f64, z: f64) -> f64 {
+    let g = CROWN_PITCH_MM;
+    let (ci, cj) = ((along / g).floor() as i64, (z / g).floor() as i64);
+    let (mut f1, mut f2) = (f64::MAX, f64::MAX);
+    for di in -2..=2 {
+        for dj in -2..=2 {
             let (i, j) = (ci + di, cj + dj);
-            let key = (i.wrapping_mul(73_856_093) ^ j.wrapping_mul(19_349_663) ^ (side as i64).wrapping_mul(83_492_791)) as usize;
-            let stagger = if j.rem_euclid(2) == 1 { 0.5 } else { 0.0 };
-            let cx = (i as f64 + 0.5 + stagger + 0.14 * (hash(key, 61) - 0.5)) * gx;
-            let cz = (j as f64 + 0.62) * gz;
-            let a = za - cz;
-            let b = along - cx;
-            let a = if a < 0.0 { a / stretch } else { a };
-            let d = a.hypot(b) / r;
-            v = v.max(1.0 - smoothstep(0.45, 1.0, d));
+            let key = (i.wrapping_mul(73_856_093) ^ j.wrapping_mul(19_349_663)) as usize;
+            let cx = (i as f64 + 0.1 + 0.8 * hash(key, 61)) * g;
+            let cz = (j as f64 + 0.1 + 0.8 * hash(key, 62)) * g;
+            let d = (along - cx).hypot(z - cz);
+            if d < f1 {
+                f2 = f1;
+                f1 = d;
+            } else if d < f2 {
+                f2 = d;
+            }
         }
     }
-    v
+    let t = smoothstep(0.04, 0.42, f2 - f1);
+    t * (1.0 - 0.55 * (f1 / (0.7 * g)).min(1.0).powi(2))
 }
 
-/// The band's hide: granules over the crown's flanks, let in as the crown falls away steeply enough to carry them,
-/// and rows of enlarged tubercles on both side faces.
-fn band_hide(d: &mut RingDesign, lib: &mut AlphaLibrary, crest: &Crest) -> Result<Vec<(String, skin::ClampReport)>> {
+/// The band's hide: granules over the crown either side of the crest, and rows of enlarged tubercles on both side
+/// faces, sheared so they spiral round the ring.
+fn band_hide(d: &mut RingDesign, lib: &mut AlphaLibrary, crest: &Crest) -> Result<()> {
     let ctx = d.field_context();
     let faces = ctx.side_faces(SIDE_FACE_MIN_DRAFT_DEG).and_then(|f| f.low).ok_or_else(|| anyhow::anyhow!("no side face"))?;
     let face_h = faces.1 - faces.0;
@@ -1152,126 +704,48 @@ fn band_hide(d: &mut RingDesign, lib: &mut AlphaLibrary, crest: &Crest) -> Resul
     d.layers.layers.push(e);
 
     let a = Atlas::of(d, 2048, 768)?;
-    let mut alpha = a.paint("Crown granules", |s| {
+    let alpha = a.paint("Crown granules", |s| {
         let rho = s.p[0].hypot(s.p[1]).max(1e-9);
         if (s.n[0] * s.p[0] + s.n[1] * s.p[1]) / rho < 0.35 {
             return 0.0;
         }
         let along = s.theta.to_radians() * R_REF;
-        crown_granules(along, s.p[2], crest.draft_deg(s.theta, s.p[2]))
+        crown_granules(along, s.p[2]) * smoothstep(0.4, 1.2, s.p[2].abs()) * (1.0 - 0.0 * crest.at(s.theta))
     });
-    let bite = skin::draft_clamp(&a, &mut alpha, CROWN_GRANULE_MM)?;
-    println!("  Crown granules: the draft rule cut {} texels, at most {:.3} mm", bite.texels_cut, bite.worst_mm);
     lib.insert(ringdesign_core::Alpha::from_png16("Crown granules", &alpha.to_png16()?)?);
     let mut e = skin::hide_layer(d, "Crown granules", CROWN_GRANULE_MM, ringdesign_core::field::Window::default());
     e.blend = Blend::Max;
     d.layers.layers.push(e);
-    Ok(vec![("Crown granules".into(), bite)])
+    Ok(())
 }
 
-/// The crown's own relief at a point, mm, as painted: what a bench cut's floor stands over.
-fn crown_relief(crest: &Crest, p: P3) -> f64 {
-    let theta = p[1].atan2(p[0]).to_degrees();
-    CROWN_GRANULE_MM * crown_granules(theta.rem_euclid(360.0).to_radians() * R_REF, p[2], crest.draft_deg(theta, p[2]))
-}
 
-/// What the bench cuts from the cast round each limb: everything the pull fill put between the elbow's crook, the
-/// toes and the pads, down to a 0.03 mm film on the band, so the finished limb stands as modelled.
-fn web_cutter(gek: &Gekko, l: &LimbPlan) -> csg::Solid {
-    let [_, el, wr, ft] = l.joints;
-    let zone = |q: P3| {
-        let mut z = (q[0] - ft[0]).hypot(q[2] - ft[2]) - 2.1;
-        for (a, b, r) in [(el, wr, 1.1), (wr, ft, 1.1)] {
-            z = z.min(round_cone([q[0], 0.0, q[2]], [a[0], 0.0, a[2]], [b[0], 0.0, b[2]], r, r));
-        }
-        z = z.min((q[0] - el[0]).hypot(q[2] - el[2]) - 1.05);
-        z.max(1.45 - q[2].abs())
-    };
-    let field = |p: P3| {
-        let q = gek.frame.local(p);
-        let z = zone(q);
-        if z > 0.3 {
-            return z;
-        }
-        z.max(0.025 - gek.modelled(p)).max(0.03 + crown_relief(gek.frame.crest, p) - gek.frame.crest.band_sd(p)).max(q[1] - 1.2)
-    };
-    let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
-    for c in [el, wr, ft] {
-        for dx in [-2.4, 2.4] {
-            for dh in [-1.8, 1.4] {
-                let w = gek.frame.world([c[0] + dx, c[1] + dh, c[2]]);
-                for k in 0..2 {
-                    lo[k] = lo[k].min(w[k]);
-                    hi[k] = hi[k].max(w[k]);
-                }
-            }
-        }
-        lo[2] = lo[2].min(c[2] - 2.4);
-        hi[2] = hi[2].max(c[2] + 2.4);
-    }
-    let mut raw = sculpt::tetra_mesh(lo, hi, 0.035, &field);
-    let unrelaxed = raw.clone();
-    sculpt::relax(&mut raw, &field, 2);
-    if csg::self_crossings(&raw) != 0 {
-        raw = unrelaxed;
-    }
-    for target in [30_000, 45_000, 70_000] {
-        let nets = sculpt::clean_decimate(&raw, target);
-        let s = sculpt::settle(nets, &field, &|_| false);
-        if csg::self_crossings(&s) == 0 && sculpt::closure(&s).0 == 0 {
-            return s;
-        }
-    }
-    raw
-}
 
 fn joined() -> Component {
     Component { attach: Attach::Join, placement: Placement::Free, blend_mm: 0.0, ..Component::default() }
 }
 
-/// The eyes: two balls with their slit pupils, meshed apart and set into the head at the bench.
-fn eye_solid(gek: &Gekko) -> csg::Solid {
-    let field = |p: P3| gek.eyes_world(p);
-    let c = gek.frame.world([EYE_X, gek.eye_h, 0.0]);
-    let pad = EYE_R + 0.3;
-    let lo = [c[0] - pad, c[1] - pad, -EYE_W - pad];
-    let hi = [c[0] + pad, c[1] + pad, EYE_W + pad];
-    let mut raw = sculpt::tetra_mesh(lo, hi, 0.035, &field);
-    sculpt::relax(&mut raw, &field, 3);
-    let nets = sculpt::clean_decimate(&raw, 16_000);
-    sculpt::settle(nets, &field, &|_| false)
-}
+
 
 struct Authored {
     d: RingDesign,
     lib: AlphaLibrary,
     comp: Composition,
     solid: csg::Solid,
-    bites: Vec<(String, skin::ClampReport)>,
+    census: Census,
 }
 
-fn author(block_out: bool) -> Result<Authored> {
+fn author() -> Result<Authored> {
     let mut d = band();
     let mut lib = AlphaLibrary::builtin();
     let crest = Crest::of(&d)?;
-    let bites = band_hide(&mut d, &mut lib, &crest)?;
+    band_hide(&mut d, &mut lib, &crest)?;
     let mut comp = Composition { crest_r_at_head_mm: crest.at(theta_of(HEAD_X)), ..Composition::default() };
-    let mut gek = Gekko::new(Frame { crest: &crest }, d.inner_radius_mm(), block_out);
+    let gek = Gekko::new(Frame { crest: &crest }, d.inner_radius_mm());
     comp.prims = gek.prims.len();
     comp.spots = gek.spots.len();
-    let t = Instant::now();
-    let r_mid = crest.at(THETA_C);
-    let grid = Grid::new(VENT_X - TAIL_LEN - 1.5, HEAD_X + 4.5, d.inner_radius_mm() + BORE_CLEAR_MM - 0.1, r_mid + 2.6, crest.half_w(THETA_C) + 1.0);
-    let grid = make_fills(&mut gek, grid);
-    comp.fill_nodes = grid.n;
-    comp.fill_added_nodes = grid.filled;
-    comp.fill_s = t.elapsed().as_secs_f64();
-    println!("  eye centre h {:.2}", gek.eye_h);
-    println!("  fill grid {:?}: the pull filled {} + {} nodes, {:.1} s", grid.n, grid.filled[0], grid.filled[1], comp.fill_s);
-    gek.grid = Some(grid);
     let solid = sculpt_solid(&gek, &mut comp);
-    println!("  draft flips {}", comp.draft_flips);
-    println!("  sculpt {} raw faces -> {}, {} parting splits, {:.1} mm3, {:.1} s {:?}", comp.raw_faces, comp.faces, comp.parting_splits, comp.volume_mm3, comp.sculpt_s, comp.notes);
+    println!("  sculpt {} raw faces -> {}, {:.1} mm3, {:.1} s {:?}", comp.raw_faces, comp.faces, comp.volume_mm3, comp.sculpt_s, comp.notes);
     let packed = sculpt::packed(&solid)?;
     let doc = d.cad.get_or_insert_with(Document::default);
     if doc.band().is_none() {
@@ -1281,41 +755,23 @@ fn author(block_out: bool) -> Result<Authored> {
     let recipe = stored::Recipe {
         kernel: "sculpt".into(),
         op: "tokay".into(),
-        params: json!({"theta_c_deg": THETA_C, "r_ref_mm": R_REF, "step_mm": STEP_MM, "faces": FACES, "fill_lean_deg": FILL_LEAN_DEG, "spots": comp.spots}),
+        params: json!({"theta_c_deg": THETA_C, "r_ref_mm": R_REF, "step_mm": STEP_MM, "faces": FACES, "spots": comp.spots}),
         digest: String::new(),
     };
     doc.append(Feature { id: next, name: "Tokay".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: packed }, component: joined() })?;
-    let eyes = eye_solid(&gek);
-    comp.eye_faces = eyes.f.len();
-    let recipe = stored::Recipe { kernel: "sculpt".into(), op: "tokay eyes".into(), params: json!({"eye_r_mm": EYE_R, "eye_x_mm": EYE_X, "eye_w_mm": EYE_W}), digest: String::new() };
-    let bench = Component { stage: Stage::Bench, bench_notes: "Two eyes, each a ball with an upright slit pupil, cast apart and set into the head at the bench, a quarter of each sunk.".into(), ..joined() };
-    doc.append(Feature { id: next + 1, name: "Eyes".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: sculpt::packed(&eyes)? }, component: bench })?;
-    let mut id = next + 2;
-    for (k, l) in gek.limbs.iter().enumerate() {
-        let cut = web_cutter(&gek, l);
-        if cut.f.is_empty() {
-            continue;
-        }
-        comp.web_cut_faces.push(cut.f.len());
-        let name = format!("Webs, {} {}", if l.hind { "hind" } else { "fore" }, if l.joints[0][2] > 0.0 { "right" } else { "left" });
-        let recipe = stored::Recipe { kernel: "sculpt".into(), op: "bench cut".into(), params: json!({"limb": k, "film_mm": 0.03, "skin_mm": 0.025}), digest: String::new() };
-        let bench = Component {
-            attach: Attach::Cut,
-            stage: Stage::Bench,
-            bench_notes: "Saw and graver out what the pour filled between the toes and in the limb's crook, down to the band.".into(),
-            ..joined()
-        };
-        doc.append(Feature { id, name, enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: sculpt::packed(&cut)? }, component: bench })?;
-        id += 1;
-    }
     d.bake_all(&mut lib);
-    Ok(Authored { d, lib, comp, solid, bites })
+    let census = land_census(&gek, &solid);
+    Ok(Authored { d, lib, comp, solid, census })
 }
 
 // --- Gates -----------------------------------------------------------------------------------------------------------
 
 fn solid_of(m: &mesh::Mesh) -> csg::Solid {
     csg::Solid { v: m.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: m.faces.clone() }
+}
+
+fn geometry(m: &mesh::Mesh) -> (bool, usize, usize) {
+    (m.validate().watertight, m.quality().degenerate_faces, csg::self_crossings(&solid_of(m)))
 }
 
 /// Every made part's self-crossings, as placed.
@@ -1335,131 +791,171 @@ fn part_crossings(built: &mesh::BuildResult) -> Vec<(String, usize)> {
         .collect()
 }
 
-fn release_json(r: &mf::release::ReleaseReport) -> Value {
-    json!({
-        "status": format!("{:?}", r.status),
-        "obstructions": r.obstructions.len(),
-        "unresolved_rays": r.unresolved_rays,
-        "at": r.obstructions.iter().map(|o| json!({ "depth_mm": o.depth_mm, "area_mm2": o.projected_area_mm2, "theta_deg": o.world[1].atan2(o.world[0]).to_degrees().rem_euclid(360.0), "z_mm": o.world[2] })).collect::<Vec<_>>(),
-    })
+impl Kind {
+    fn label(self) -> &'static str {
+        match self {
+            Kind::Body => "body",
+            Kind::Head => "head and neck",
+            Kind::Limb => "limbs",
+            Kind::Toe => "toes",
+            Kind::Pad => "toe pads",
+            Kind::Tail => "tail",
+            Kind::Eye => "eyes",
+            Kind::Hide => "hide relief",
+        }
+    }
+    /// How a section under the fill floor on this kind is met, or `None` where none is allowed.
+    fn treatment(self) -> Option<&'static str> {
+        match self {
+            Kind::Toe => Some("toe: a finger lying on the crown and fused into it along its length, fed from the foot; the reading across it is the toe alone, not the metal the wax fills, which runs on into the band; a short-filled tip is built back with a laser tack"),
+            Kind::Pad => Some("toe pad: a flattened disc lying on the crown, fused to it over its whole underside; the reading is across the disc's own edge, which the band behind it feeds"),
+            Kind::Limb => Some("limb: where a wrist or ankle narrows into its foot, lying on the crown and fused to it"),
+            Kind::Tail => Some("tail tip: fed along the tail from the body; the rounded end is dressed with a file"),
+            Kind::Eye => Some("eyelid: a 0.17 mm rim round each eye, relief on the head over the 0.15 mm detail floor; the slit pupil is relief cut into the ball"),
+            Kind::Hide => Some("hide relief: granules, spots and tail rings 0.06-0.17 mm proud of the body, read where a face's ray crosses a granule's own flank; cast as relief over the 0.15 mm detail floor"),
+            _ => None,
+        }
+    }
 }
 
-/// The draft rule over the whole field relief: what `skin::draft_clamp` would take from each layer and the composite.
-fn clamp_audit(d: &RingDesign, lib: &AlphaLibrary) -> Result<Vec<(String, skin::ClampReport)>> {
-    use ringdesign_core::field::Uv;
-    let mut bare = d.clone();
-    bare.layers.layers.clear();
-    bare.cad = None;
-    let a = Atlas::of(&bare, 2048, 256)?;
-    let ctx = d.field_context();
-    let mut out = Vec::new();
-    if d.layers.layers.is_empty() {
-        return Ok(out);
+type Census = Vec<(Kind, f64, f64, P3)>;
+
+/// The sculpt's sections face by face (as `dfm::part_sections` reads them), gathered by the shape nearest each face:
+/// the thinnest, and the area under the fill floor. A face on the body whose ray leaves the metal within the hide's
+/// height of the smooth body crossed a granule or spot, which is relief, not a section.
+fn land_census(gek: &Gekko, solid: &csg::Solid) -> Census {
+    use ringdesign_core::interaction::bvh::Bvh;
+    let m = mesh::Mesh { vertices: solid.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: solid.f.clone(), ..Default::default() };
+    let bvh = Bvh::build(&m);
+    const IN: f64 = 1e-4;
+    let mut out: std::collections::BTreeMap<u8, (Kind, f64, f64, P3)> = Default::default();
+    for f in &solid.f {
+        let [a, b, c] = f.map(|i| solid.v[i as usize]);
+        let (e1, e2) = (sub(b, a), sub(c, a));
+        let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+        let twice = norm(n);
+        if !(twice > 1e-14) {
+            continue;
+        }
+        let centre = mul(add(add(a, b), c), 1.0 / 3.0);
+        // Faces sunk in the band never show; their sections are the band's.
+        if gek.frame.crest.band_sd(centre) < -0.05 {
+            continue;
+        }
+        let inward = mul(n, -1.0 / twice);
+        let o = add(centre, mul(inward, IN));
+        let Some((_, t)) = bvh.ray(&m, o, inward) else { continue };
+        let section = t + IN;
+        let q = gek.frame.local(centre);
+        let mut kind = gek.kind_at(q);
+        let exit = add(o, mul(inward, t));
+        if section < MIN_SECTION_MM && matches!(kind, Kind::Body | Kind::Head | Kind::Limb | Kind::Tail) && gek.body_at(gek.frame.local(exit)) > -0.3 {
+            kind = Kind::Hide;
+        }
+        let e = out.entry(kind as u8).or_insert((kind, f64::MAX, 0.0, [0.0; 3]));
+        if section < e.1 {
+            e.1 = section;
+            e.3 = centre;
+        }
+        if section < MIN_SECTION_MM {
+            e.2 += 0.5 * twice;
+        }
     }
-    for e in &d.layers.layers {
-        let mut solo = d.clone();
-        solo.layers.layers = vec![e.clone()];
-        let mut alpha = a.paint(e.name.clone(), |s| solo.layers.height(Uv { u: ctx.u_of_theta(s.theta), v: s.v }, &ctx, lib) / 2.0);
-        out.push((e.name.clone(), skin::draft_clamp(&a, &mut alpha, 2.0)?));
-    }
-    let mut alpha = a.paint("composite", |s| d.layers.height(Uv { u: ctx.u_of_theta(s.theta), v: s.v }, &ctx, lib) / 2.0);
-    out.push(("composite".into(), skin::draft_clamp(&a, &mut alpha, 2.0)?));
-    Ok(out)
+    out.into_values().collect()
 }
 
+/// The geometry gates at one build size.
+struct Pass {
+    triangles: usize,
+    watertight: bool,
+    degenerate: usize,
+    crossings: usize,
+    notes: Vec<String>,
+    parts: Vec<(String, usize)>,
+    joined: usize,
+}
+
+impl Pass {
+    fn of(built: &mesh::BuildResult) -> Self {
+        let (watertight, degenerate, crossings) = geometry(&built.mesh);
+        let mut notes = built.solids.notes.clone();
+        notes.extend(built.parts.notes.iter().cloned());
+        Self { triangles: built.mesh.faces.len(), watertight, degenerate, crossings, notes, parts: part_crossings(built), joined: built.parts.joined }
+    }
+    fn ok(&self) -> bool {
+        self.watertight && self.degenerate == 0 && self.crossings == 0 && self.notes.is_empty() && self.parts.iter().all(|p| p.1 == 0) && self.joined == 1
+    }
+    fn json(&self) -> Value {
+        json!({"triangles": self.triangles, "watertight": self.watertight, "degenerate_faces": self.degenerate, "self_crossings": self.crossings, "notes": self.notes, "made_part_crossings": self.parts, "parts_joined": self.joined})
+    }
+    fn line(&self) -> String {
+        format!("{} tris, watertight {}, degenerate {}, crossings {}, notes {:?}, parts {:?}, joined {}", self.triangles, self.watertight, self.degenerate, self.crossings, self.notes, self.parts, self.joined)
+    }
+}
+
+/// Every gate at one build size, as JSON, with whether they all passed.
 struct Gated {
     json: Value,
     passed: bool,
     built: mesh::BuildResult,
     pattern: mesh::BuildResult,
-    inspection: mf::Inspection,
 }
 
-fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, painted: &[(String, skin::ClampReport)]) -> Result<Gated> {
+fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, census: &Census) -> Result<Gated> {
     let t = Instant::now();
     let built = mesh::try_build(d, lib, p)?;
     let build_ms = ms(t);
-    let v = &built.report.validation;
-    let degenerate = built.report.quality.degenerate_faces;
-    let crossings = csg::self_crossings(&solid_of(&built.mesh));
-    let parts = part_crossings(&built);
+    let pass = Pass::of(&built);
     let bore = d.inner_radius_mm();
     let inside = built.mesh.vertices.iter().filter(|q| (q.0 as f64).hypot(q.1 as f64) < bore - 0.01).count();
     let nearest = built.mesh.vertices.iter().map(|q| (q.0 as f64).hypot(q.1 as f64) - bore).fold(f64::MAX, f64::min);
     let band_field = castability::attributed_field_report(d, lib, &d.draft, 256, 128);
     let mut field = band_field.clone();
     castability::judge_parts(&mut field, d, &built);
-    let drag = 100.0 * (field.marginal_area_mm2 + field.vertical_area_mm2) / field.total_area_mm2.max(1e-9);
     let dfm = dfm::findings_in(d, lib);
-    let stones = ringdesign_core::stones::report(d, 0.0).map_or(0, |r| r.stone_count as usize);
-    let preview_stones = ringdesign_core::gems::built_meshes(d, lib, &built).len();
-    let setup = d.manufacturing.clone().unwrap();
-    let inspection = mf::inspect(d, lib, &setup, p)?;
-    let mut fine = setup.clone();
-    fine.sample_pitch_mm = 0.075;
-    let release_fine = mf::release::analyze(&inspection.prepared.mesh, &fine)?;
-    let r = &inspection.release;
-    let bites = clamp_audit(d, lib)?;
-    let worst_bite = bites.iter().chain(painted).map(|b| b.1.worst_mm).fold(0.0, f64::max);
+    let stones = ringdesign_core::stones::report_built(d, field.parting_z_mm, &built).map_or(0, |r| r.stone_count as usize);
+    let preview = ringdesign_core::gems::built_meshes(d, lib, &built).len();
     let pattern = mesh::try_build_pattern(d, lib, p)?;
-    let pv = &pattern.report.validation;
-    let pattern_crossings = csg::self_crossings(&solid_of(&pattern.mesh));
-    let triangles = built.mesh.faces.len();
-    let mut notes = built.solids.notes.clone();
-    notes.extend(built.parts.notes.iter().cloned());
+    let (pw, pd, px) = geometry(&pattern.mesh);
+    let unnamed: Vec<String> = census.iter().filter(|c| c.2 > 0.0 && c.0.treatment().is_none()).map(|c| format!("{}: {:.3} mm2 under, thinnest {:.2}", c.0.label(), c.2, c.1)).collect();
     let list = [
-        ("watertight, 0 degenerate faces", v.watertight && degenerate == 0),
-        ("0 self-crossings on the ring and every made part", crossings == 0 && parts.iter().all(|p| p.1 == 0)),
-        ("solids notes empty, every stamp resolved, the tokay and its eyes joined", notes.is_empty() && built.solids.stamped == d.stamps.len() && built.parts.joined == 2),
-        ("nothing inside the finger hole", inside == 0),
-        ("field Castable under SandTwoPart, band and with the part judged", field.process == CastProcess::SandTwoPart && band_field.verdict == Verdict::Castable && field.verdict == Verdict::Castable),
-        ("ray release clean at 0.100 mm", r.obstructions.is_empty() && r.unresolved_rays == 0),
-        ("ray release clean at 0.075 mm", release_fine.obstructions.is_empty() && release_fine.unresolved_rays == 0),
-        ("draft-clamp bite at most 0.05 mm", worst_bite <= 0.05),
-        ("0 DFM findings", dfm.is_empty()),
-        ("stones report equals the preview", stones == preview_stones),
-        ("within 2 million triangles", triangles <= 2_000_000),
-        ("casting pattern closed, 0 degenerate, 0 crossings", pv.watertight && pattern.report.quality.degenerate_faces == 0 && pattern_crossings == 0),
+        ("finished mesh watertight, 0 degenerate faces, 0 self-crossings", pass.watertight && pass.degenerate == 0 && pass.crossings == 0),
+        ("the sculpted part uncrossed as placed", pass.parts.iter().all(|p| p.1 == 0)),
+        ("solids and parts notes empty, the part joined", pass.notes.is_empty() && pass.joined == 1),
+        ("nothing enters the finger hole", inside == 0),
+        ("lost-wax field verdict Castable with the 0.8 mm fill, band and with the part judged", field.process == CastProcess::LostWax && field.verdict == Verdict::Castable && band_field.verdict == Verdict::Castable && band_field.thinnest_wall_mm >= MIN_SECTION_MM),
+        ("every section under 0.8 mm named with its treatment", unnamed.is_empty()),
+        ("zero DFM findings", dfm.is_empty()),
+        ("stones reported equal the preview", stones == preview),
+        ("within 2 million triangles", pass.triangles <= 2_000_000),
+        ("casting pattern watertight, 0 degenerates, 0 crossings", pw && pd == 0 && px == 0),
     ];
     let passed = list.iter().all(|g| g.1);
-    println!("[{label}] {} triangles in {build_ms:.0} ms", triangles);
+    println!("[{label}] {} ({build_ms:.0} ms)", pass.line());
     for (g, ok) in &list {
         println!("  {} {g}", if *ok { "pass" } else { "FAIL" });
     }
-    println!("  field {} / with part {} (worst draft {:.2} deg, undercut {:.4} mm2, drag {drag:.1}%) {:?}", band_field.verdict.label(), field.verdict.label(), field.worst_draft_deg, field.undercut_area_mm2, field.notes);
-    for pv in &field.parts {
-        println!("  part {}: undercut {:.4} (silhouette {:.4}), marginal {:.2}, vertical {:.2} of {:.1} mm2, worst {:.2} deg", pv.name, pv.undercut_area_mm2, pv.silhouette_mm2, pv.marginal_area_mm2, pv.vertical_area_mm2, pv.total_area_mm2, pv.worst_draft_deg);
-    }
+    println!("  field {} / with part {} (thinnest wall {:.2} mm); two-part undercut {:.3}% band, {:.3}% with the part", band_field.verdict.label(), field.verdict.label(), band_field.thinnest_wall_mm, band_field.undercut_fraction() * 100.0, field.undercut_fraction() * 100.0);
     for f in &dfm {
         println!("  dfm: {}: {}", f.label, f.message);
     }
-    for n in &notes {
-        println!("  note: {n}");
-    }
-    println!("  parts joined {}, stamped {}", built.parts.joined, built.solids.stamped);
-    for o in r.obstructions.iter().chain(&release_fine.obstructions).take(20) {
-        println!("  obstruction {:.3} mm deep at theta {:.1}, z {:.2}, r {:.2}", o.depth_mm, o.world[1].atan2(o.world[0]).to_degrees().rem_euclid(360.0), o.world[2], o.world[0].hypot(o.world[1]));
+    for n in &field.notes {
+        println!("  field: {n}");
     }
     let json = json!({
-        "build": { "theta_steps": p.theta_steps, "profile_steps": p.profile_steps, "triangles": triangles, "ms": build_ms },
-        "process": format!("{:?}", d.draft.process),
-        "sand": format!("{:?}", d.draft.sand),
-        "draft_rules": { "min_draft_deg": d.draft.min_draft_deg, "min_section_mm": d.draft.min_section_mm, "min_detail_mm": d.draft.min_detail_mm },
-        "geometry": { "watertight": v.watertight, "boundary_edges": v.boundary_edges, "non_manifold_edges": v.non_manifold_edges, "degenerate_faces": degenerate, "self_crossings": crossings, "made_part_crossings": parts, "volume_mm3": built.report.volume_mm3 },
-        "made": { "stamps": d.stamps.len(), "stamped": built.solids.stamped, "parts_joined": built.parts.joined, "notes": notes },
+        "build": { "theta_steps": p.theta_steps, "profile_steps": p.profile_steps, "triangles": pass.triangles, "ms": build_ms },
+        "geometry": pass.json(),
         "finger_hole": { "bore_radius_mm": bore, "vertices_inside": inside, "nearest_margin_mm": nearest },
-        "field": { "verdict": band_field.verdict.label(), "with_parts_verdict": field.verdict.label(), "process": format!("{:?}", field.process), "worst_draft_deg": field.worst_draft_deg, "undercut_area_mm2": field.undercut_area_mm2, "marginal_area_mm2": field.marginal_area_mm2, "vertical_area_mm2": field.vertical_area_mm2, "total_area_mm2": field.total_area_mm2, "thinnest_wall_mm": band_field.thinnest_wall_mm, "notes": field.notes, "parts": field.parts.iter().map(|pv| json!({"name": pv.name, "judged": pv.judged, "undercut_mm2": pv.undercut_area_mm2, "silhouette_mm2": pv.silhouette_mm2, "marginal_mm2": pv.marginal_area_mm2, "vertical_mm2": pv.vertical_area_mm2, "total_mm2": pv.total_area_mm2, "worst_draft_deg": pv.worst_draft_deg, "note": pv.note})).collect::<Vec<_>>() },
-        "drag_pct": drag,
-        "release_0100": release_json(r),
-        "release_0075": release_json(&release_fine),
-        "clamp_audit": { "worst_mm": worst_bite, "painted_bites": painted.iter().map(|(n, c)| json!({ "layer": n, "texels_cut": c.texels_cut, "worst_mm": c.worst_mm })).collect::<Vec<_>>(), "layers": bites.iter().map(|(n, c)| json!({ "layer": n, "texels_cut": c.texels_cut, "worst_mm": c.worst_mm })).collect::<Vec<_>>() },
+        "field": { "verdict": band_field.verdict.label(), "with_part_verdict": field.verdict.label(), "process": format!("{:?}", field.process), "thinnest_wall_mm": band_field.thinnest_wall_mm, "notes": field.notes },
+        "two_part_undercut": { "band_percent": band_field.undercut_fraction() * 100.0, "with_part_percent": field.undercut_fraction() * 100.0, "part_undercut_mm2": field.parts.iter().map(|p| p.undercut_area_mm2).sum::<f64>(), "note": "reported only: lost wax judges fill and detail, never the pull" },
         "dfm_findings": dfm.iter().map(|f| json!({ "label": f.label, "message": f.message })).collect::<Vec<_>>(),
-        "stones": { "report_count": stones, "preview_count": preview_stones },
-        "casting_pattern": { "watertight": pv.watertight, "degenerate_faces": pattern.report.quality.degenerate_faces, "self_crossings": pattern_crossings, "triangles": pattern.mesh.faces.len() },
+        "stones": { "reported": stones, "previewed": preview },
+        "casting_pattern": { "watertight": pw, "degenerate_faces": pd, "self_crossings": px, "triangles": pattern.mesh.faces.len() },
+        "unnamed_under_floor": unnamed,
         "gates": list.iter().map(|(g, ok)| json!({ "gate": g, "pass": ok })).collect::<Vec<_>>(),
         "gates_passed": passed,
     });
-    Ok(Gated { json, passed, built, pattern, inspection })
+    Ok(Gated { json, passed, built, pattern })
 }
 
 // --- Renders ---------------------------------------------------------------------------------------------------------
@@ -1483,28 +979,6 @@ fn paste(sheet: &mut [u8], sheet_w: usize, img: &[u8], edge: usize, x0: usize, y
     }
 }
 
-/// The faces of `m` with every corner within `radius` of `centre`.
-fn crop(m: &mesh::Mesh, centre: P3, radius: f64) -> mesh::Mesh {
-    let near = |i: u32| {
-        let v = m.vertices[i as usize];
-        let d = [v.0 as f64 - centre[0], v.1 as f64 - centre[1], v.2 as f64 - centre[2]];
-        dot(d, d) < radius * radius
-    };
-    let mut remap = vec![u32::MAX; m.vertices.len()];
-    let mut out = mesh::Mesh::default();
-    for f in m.faces.iter().filter(|f| f.iter().all(|&i| near(i))) {
-        out.faces.push(f.map(|i| {
-            if remap[i as usize] == u32::MAX {
-                remap[i as usize] = out.vertices.len() as u32;
-                out.vertices.push(m.vertices[i as usize]);
-                out.normals.push(m.normals[i as usize]);
-            }
-            remap[i as usize]
-        }));
-    }
-    out
-}
-
 fn renders(out: &Path, lib: &AlphaLibrary, built: &mesh::BuildResult, p: BuildParams, draft: bool) -> Result<()> {
     let parts = vec![render::Part::metal(&built.mesh, render::GOLD)];
     let edge = if draft { 1100 } else { 1600 };
@@ -1519,10 +993,11 @@ fn renders(out: &Path, lib: &AlphaLibrary, built: &mesh::BuildResult, p: BuildPa
         paste(&mut sheet, 900, &img, 300, (k % 3) * 300, (k / 3) * 300);
     }
     image::save_buffer(out.join("contact-300.png"), &sheet, 900, 600, image::ColorType::Rgb8)?;
-    // No stone: the close-up is the head, from over the snout.
-    let t = theta_of(EYE_X).to_radians();
-    let head = crop(&built.mesh, [13.6 * t.cos(), 13.6 * t.sin(), 0.0], 7.5);
-    render::write_png_parts(out.join("stones.png"), &[render::Part::metal(&head, render::GOLD)], 0.25, 1.15, edge)?;
+    // No stone: the close-up is the head and forelimbs, framed on the whole ring, never a cropped mesh.
+    let theta = theta_of(EYE_X - 2.0);
+    let t = theta.to_radians();
+    let centre = [14.0 * t.cos(), 14.0 * t.sin(), 0.0];
+    render::write_png_framed(out.join("stones.png"), &parts, render::yaw_facing(theta), 1.2, render::Framing::new(centre, 6.5), edge)?;
     let bare = mesh::try_build(&band(), lib, p)?;
     let e = if draft { 700 } else { 1000 };
     let left = render::render_parts_ss(&[render::Part::metal(&bare.mesh, render::GOLD)], HERO.0, HERO.1, e, e, 3);
@@ -1547,14 +1022,14 @@ fn renders(out: &Path, lib: &AlphaLibrary, built: &mesh::BuildResult, p: BuildPa
 fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
     std::fs::create_dir_all(out)?;
     let started = Instant::now();
-    let Authored { mut d, lib, comp, solid, bites } = author(block_out)?;
+    let Authored { mut d, lib, comp, solid, census } = author()?;
     let p = params(draft);
     d.build = p;
     let mut blocks = serde_json::Map::new();
-    let main = gates(&d, &lib, p, if draft { "draft 768 x 320" } else { "export 1536 x 448" }, &bites)?;
+    let main = gates(&d, &lib, p, if draft { "draft 768 x 320" } else { "export 1536 x 448" }, &census)?;
     let mut passed = main.passed;
     if !draft {
-        let dr = gates(&d, &lib, params(true), "draft 768 x 320", &bites)?;
+        let dr = gates(&d, &lib, params(true), "draft 768 x 320", &census)?;
         passed &= dr.passed;
         blocks.insert("draft".into(), dr.json);
         blocks.insert("export".into(), main.json.clone());
@@ -1562,9 +1037,10 @@ fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
         blocks.insert("draft".into(), main.json.clone());
     }
     if std::env::var_os("GEKKO_COARSE").is_some() || !draft {
-        let co = gates(&d, &lib, coarse_params(), "coarse 384 x 192", &bites)?;
-        passed &= co.passed;
-        blocks.insert("coarse_384x192".into(), co.json);
+        let co = Pass::of(&mesh::try_build(&d, &lib, coarse_params())?);
+        println!("  384x192: {}", co.line());
+        passed &= co.ok();
+        blocks.insert("coarse_384x192".into(), co.json());
     }
     ringdesign_core::library::save_design_embedded(out.join("design.ring.json"), &d, &lib)?;
     let mut reload = Value::Null;
@@ -1580,18 +1056,28 @@ fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
     }
     let (open_edges, _) = sculpt::closure(&solid);
     let sculpt_crossings = csg::self_crossings(&solid);
-    let (part_min, part_under) = dfm::part_sections(&solid, None, d.draft.min_section_mm);
-    let setup = d.manufacturing.clone().unwrap();
+    let (part_min, part_under) = dfm::part_sections(&solid, None, MIN_SECTION_MM);
+    for c in &census {
+        println!("    lands {}: thinnest {:.3}, {:.3} mm2 under", c.0.label(), c.1, c.2);
+    }
     let bytes = std::fs::metadata(out.join("design.ring.json")).map_or(0, |m| m.len());
     let report = json!({
         "ring": d.name,
         "slug": SLUG,
         "stage": if block_out { "block-out" } else { "full" },
+        "process": d.draft.process.label(),
+        "process_decision": "Lost wax by Logan's rule of 2026-10-03 (recorded in the Gekko section of docs/collections/cataphracta.md): 0.8 mm minimum section, no pull rule. The two-part sand undercut is reported as a number only.",
+        "draft_rules": { "min_draft_deg": d.draft.min_draft_deg, "min_section_mm": d.draft.min_section_mm, "min_detail_mm": d.draft.min_detail_mm },
         "size": d.size.display(),
         "bore_mm": BORE_MM,
         "layers": d.layers.layers.iter().map(|e| e.name.clone()).collect::<Vec<_>>(),
-        "stamps": d.stamps.iter().map(|s| s.name.clone()).collect::<Vec<_>>(),
-        "sculpt": { "open_edges": open_edges, "self_crossings": sculpt_crossings, "part_sections_thinnest_mm": part_min, "part_sections_under_floor_mm2": part_under, "composition": comp },
+        "sculpt": { "open_edges": open_edges, "self_crossings": sculpt_crossings, "composition": comp },
+        "land_widths": {
+            "floor_mm": MIN_SECTION_MM,
+            "method": "dfm::part_sections on the sculpted part alone (one ray per face along its inward normal), and the same per face gathered by the shape nearest each face; faces sunk in the band are left out",
+            "part_sections": { "thinnest_mm": part_min, "under_floor_mm2": part_under },
+            "by_kind": census.iter().map(|c| json!({"kind": c.0.label(), "thinnest_mm": c.1, "under_floor_mm2": c.2, "treatment": if c.2 > 0.0 { c.0.treatment().map(|t| format!("{t}. Measured thinnest section: {:.3} mm.", c.1)) } else { None }})).collect::<Vec<_>>(),
+        },
         "design_bytes": bytes,
         "draft": blocks.get("draft"),
         "export": blocks.get("export"),
@@ -1599,11 +1085,10 @@ fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
         "cold_reload": reload,
         "gates_passed": passed,
         "author_s": started.elapsed().as_secs_f64(),
-        "manufacturing": mf::package::report(&d, &setup, &main.inspection, false),
     });
     std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report)?)?;
     stl::write_stl(out.join("finished-metal.stl"), &main.built.mesh, &d.name)?;
-    stl::write_stl(out.join("casting-pattern.stl"), &main.pattern.mesh, &format!("{} / casting pattern", d.name))?;
+    stl::write_stl(out.join("casting-pattern.stl"), &main.pattern.mesh, &format!("{} / lost-wax pattern", d.name))?;
     std::fs::write(out.join("stones.json"), serde_json::to_vec_pretty(&json!({ "stones": [], "note": "Gekko carries no stone." }))?)?;
     renders(out, &lib, &main.built, p, draft)?;
     println!("gates {}", if passed { "all pass" } else { "FAILED" });

@@ -1,0 +1,35 @@
+{
+  "ring": "Gekko — the tokay",
+  "slug": "gekko",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Better than attempt 1, but not yet a gecko. From the face a jeweller says 'a lizard crawling across a pebbled band'. The four splayed feet are the best thing on the ring: they show as little rosettes, and someone who looks hard might say 'sticky feet, so a gecko'. Everything else argues against that. The head at the left end is a small rounded knob, about as wide as the neck, with no wedge, no jaw line and no eye mass, so the front end does not say tokay. The body is a knobbly, beaded ridge, not a plump smooth torso. With the pebbled band all round it, the beaded back reads more like a Gila monster or a little crocodile than a gecko, which also puts it too close to Heloderma, the beaded one. The figure and the ground use the same granular texture at about the same scale, so at 300 px the creature melts into the band. From the hero angle there is no animal at all, just an encrusted lump of beads and knots on the crown. The head bumps and the foot rosettes read as clusters of nodules, and the tail is lost. Verdict: the face says 'lizard', the hero says 'lump', and nobody would name a gecko without the caption.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Give it a tokay head. Widen the head into a broad, flat, triangular wedge about 1.5x the neck width (about 4.5–5 mm across at the jaw hinge, 5–6 mm long) with a blunt rounded snout and a clear jaw line notched in at the neck. Put the two big eye bulges at the rear corners of the wedge, each about 1.5 mm across and 0.6–0.8 mm proud, now that the 2026-10-03 process decision allows them. Keep the skull top smooth or very finely granular so it stands apart from the pebbled band. Thicken the neck to clear the 0.8 mm floor; the report lists head and neck at 0.46 mm.",
+      "where": "The 'Tokay' stored part, head and neck, the left end of the figure in face view",
+      "acceptance": "In face-300.png the head is the widest, clearest shape on the figure, with a triangular outline and two eye domes. In hero-300.png a wedge head with eye bumps can be picked out at the front of the figure."
+    },
+    {
+      "priority": 2,
+      "what": "Make the body a gecko body and separate it from the ground. Replace the knobbly beaded dorsal ridge with one continuous, plump, soft-sided torso about 4 mm wide at mid-body and 1.0–1.2 mm proud of the band, with a smooth back. Carry the tokay's spots as a few low, rounded tubercles (0.2–0.3 mm) spaced 1.5–2 mm apart, not as a string of beads. Then build contrast: either calm the band's granules to half height within about 1.5 mm of the figure's outline, or give the figure a smooth, polished skin, so figure and ground no longer share one texture.",
+      "where": "The 'Tokay' part from the shoulders to the hips, and the band's granular layer under and beside the figure (crown, about 60–120 degrees)",
+      "acceptance": "In face-300.png the body silhouette is one smooth, unbroken shape with a clear edge against the band. No beaded chain is visible, and the figure no longer reads as Heloderma."
+    },
+    {
+      "priority": 3,
+      "what": "Make the hero angle carry the animal. Lengthen each toe to about 1.5–2 mm, splayed in a fan with gaps of at least 0.5 mm and a rounded disc tip about 0.9–1.0 mm, so the feet read as fingers and not as nodule clusters. Bend the limbs clearly at elbow and knee. Run the tail as a smooth taper, from about 70% of the hip width at the root, curving down the shank so it shows in the hero. Lower the spiky peg row along the band's upper edge (visible at the top of face-300) by half, or remove it, so the silhouette isn't a serrated edge competing with the figure.",
+      "where": "All four feet and limbs; the tail from the hips down the shank (about 120–200 degrees); the peg row along the crest edge",
+      "acceptance": "In hero-300.png you can count four limbs with splayed toes and see a tapering tail leaving the figure. The figure's outline reads as an animal lying on the band, not as a lump."
+    }
+  ],
+  "notes": "Progress since attempt 1: the band now has hide, the legs bend and end in splayed pads, and the clip/staple read is gone. The read now fails on the head, the beaded body, and figure–ground contrast. This is outside the read test, but report.json has gates_passed false: the 'every section under 0.8 mm named with its treatment' gate fails, with the head and neck at 0.46 mm and the body at 0.57 mm and neither treated. Change 1 should clear the head and neck.",
+  "viewed_images": [
+    "showcase/cataphracta/gekko/hero-300.png",
+    "showcase/cataphracta/gekko/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
