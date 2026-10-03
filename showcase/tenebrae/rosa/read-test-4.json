@@ -1,0 +1,33 @@
+{
+  "ring": "rosa",
+  "mode": "read-test",
+  "attempt": 4,
+  "reads": true,
+  "what_the_eye_sees": "This passes, though only just, and it passes on the face alone. Face-300: a cushion signet whose table carries a round pierced wheel of gold tracery, dark through-openings everywhere, and a single ruby in a collet at the hub inside a raised ring. Removing the sapphires was the right call. The darkness now reads as glass between gold bars, not as a background behind stones, so the first read is 'rose window', or at worst 'pierced rosette window'. It is no longer 'flower cluster'. The inner ring of openings are lancets pointing outward, the outer ring are spandrels between pointed heads, a thin raised order closes the circle, and the trefoil bosses in the four corners are the cue that turns 'rosette' into 'Gothic'. The weakness is that the gold bars between the lights are curved, overlapping arcs and not straight radial mullions. The tracery reads partly as an interlaced lotus or mandala, which is a geometric flower, and a jeweller could still say 'openwork medallion' at a glance. The 16-cusp inner rim does not show at 300 px. Hero-300: the face reads as the same window seen in 3/4. Below it the ring is a smooth, plain cushion signet. The cheek arcade cannot be found at this size, only a few small dark slots low on the end wall, and the shoulder carries four small notches that read as rivets or a vent, not as graded oculi. Nothing outside the table says cathedral. A jeweller shown both images would say 'rose window signet', and from that 'Gothic', but the cathedral rests on the face alone. Next to Caiman, the head walls and shoulders are much sparser.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the mullions straight radial spokes, so the gold reads as a wheel of framed lancets and not as interlaced petal arcs.",
+      "where": "Table face, from the oculus order (about r 2.75) to the outer order (about r 7.2), on the 8 bar lines between the lancet lights",
+      "how_much": "Replace the curved sides with straight bars 1.0 mm wide that run unbroken from the oculus order to the outer order. Stand them 0.2 to 0.3 mm proud of the arch heads, and bend only at each lancet's pointed head. Raise the 16-cusp inner rim so each cusp is at least 0.5 mm deep and shows dark against the spandrels. Acceptance: in face-300 you can count eight straight spokes and a cusped rim, and no continuous curved gold line traces a petal from one light into the next."
+    },
+    {
+      "priority": 2,
+      "what": "Make the cheek and end-wall arcade visible at 300 px, so the cathedral carries below the table.",
+      "where": "Both cheeks and both end walls of the head, under the table rim",
+      "how_much": "Cut the three-lancet arcade at least 0.6 mm deep, with lancets at least 0.8 mm wide and pointed heads, and fill at least 60% of the wall height. Add a sill moulding under it. Acceptance: in hero-300 three or more dark pointed lancets can be counted on the visible cheek."
+    },
+    {
+      "priority": 3,
+      "what": "Turn the shoulder notches into graded oculi or quatrefoils that read as windows.",
+      "where": "Shoulders, about theta 90 minus 44 to 74 degrees, and the mirror",
+      "how_much": "Pierce four round or quatrefoil openings at 1.6, 1.4, 1.2 and 0.9 mm, each with a raised 0.3 mm rim. Acceptance: in hero-300 four distinct openings can be counted on the near shoulder, stepping smaller toward the palm."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/rosa/hero-300.png",
+    "showcase/tenebrae/rosa/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
