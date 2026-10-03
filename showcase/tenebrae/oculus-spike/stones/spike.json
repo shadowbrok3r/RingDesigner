@@ -1,0 +1,467 @@
+{
+  "bore_radius_mm": 9.3,
+  "build": [
+    768,
+    320
+  ],
+  "build_s": 4.72222294,
+  "degenerate_faces": 0,
+  "dfm_findings": [],
+  "features": [
+    {
+      "id": 1,
+      "name": "Procedural shank",
+      "status": "Ok"
+    },
+    {
+      "id": 2,
+      "name": "High side face",
+      "status": "Ok"
+    },
+    {
+      "id": 3,
+      "name": "The wheel's field between the hub and the rim",
+      "status": "Ok"
+    },
+    {
+      "id": 4,
+      "name": "Sink the field, leaving the hub and rim mouldings",
+      "status": "Ok"
+    },
+    {
+      "id": 5,
+      "name": "Light 1 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 6,
+      "name": "Collet of light 1",
+      "status": "Ok"
+    },
+    {
+      "id": 7,
+      "name": "Seat of light 1, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 8,
+      "name": "Light 2 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 9,
+      "name": "Collet of light 2",
+      "status": "Ok"
+    },
+    {
+      "id": 10,
+      "name": "Seat of light 2, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 11,
+      "name": "Light 3 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 12,
+      "name": "Collet of light 3",
+      "status": "Ok"
+    },
+    {
+      "id": 13,
+      "name": "Seat of light 3, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 14,
+      "name": "Light 4 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 15,
+      "name": "Collet of light 4",
+      "status": "Ok"
+    },
+    {
+      "id": 16,
+      "name": "Seat of light 4, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 17,
+      "name": "Light 5 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 18,
+      "name": "Collet of light 5",
+      "status": "Ok"
+    },
+    {
+      "id": 19,
+      "name": "Seat of light 5, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 20,
+      "name": "Light 6 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 21,
+      "name": "Collet of light 6",
+      "status": "Ok"
+    },
+    {
+      "id": 22,
+      "name": "Seat of light 6, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 23,
+      "name": "Light 7 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 24,
+      "name": "Collet of light 7",
+      "status": "Ok"
+    },
+    {
+      "id": 25,
+      "name": "Seat of light 7, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 26,
+      "name": "Light 8 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 27,
+      "name": "Collet of light 8",
+      "status": "Ok"
+    },
+    {
+      "id": 28,
+      "name": "Seat of light 8, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 29,
+      "name": "Light 9 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 30,
+      "name": "Collet of light 9",
+      "status": "Ok"
+    },
+    {
+      "id": 31,
+      "name": "Seat of light 9, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 32,
+      "name": "Light 10 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 33,
+      "name": "Collet of light 10",
+      "status": "Ok"
+    },
+    {
+      "id": 34,
+      "name": "Seat of light 10, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 35,
+      "name": "Light 11 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 36,
+      "name": "Collet of light 11",
+      "status": "Ok"
+    },
+    {
+      "id": 37,
+      "name": "Seat of light 11, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 38,
+      "name": "Light 12 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 39,
+      "name": "Collet of light 12",
+      "status": "Ok"
+    },
+    {
+      "id": 40,
+      "name": "Seat of light 12, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 41,
+      "name": "Foil 1 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 42,
+      "name": "Collet of foil 1",
+      "status": "Ok"
+    },
+    {
+      "id": 43,
+      "name": "Seat of foil 1, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 44,
+      "name": "Foil 2 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 45,
+      "name": "Collet of foil 2",
+      "status": "Ok"
+    },
+    {
+      "id": 46,
+      "name": "Seat of foil 2, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 47,
+      "name": "Foil 3 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 48,
+      "name": "Collet of foil 3",
+      "status": "Ok"
+    },
+    {
+      "id": 49,
+      "name": "Seat of foil 3, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 50,
+      "name": "Foil 4 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 51,
+      "name": "Collet of foil 4",
+      "status": "Ok"
+    },
+    {
+      "id": 52,
+      "name": "Seat of foil 4, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 53,
+      "name": "Foil 5 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 54,
+      "name": "Collet of foil 5",
+      "status": "Ok"
+    },
+    {
+      "id": 55,
+      "name": "Seat of foil 5, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 56,
+      "name": "Foil 6 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 57,
+      "name": "Collet of foil 6",
+      "status": "Ok"
+    },
+    {
+      "id": 58,
+      "name": "Seat of foil 6, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 59,
+      "name": "Foil 7 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 60,
+      "name": "Collet of foil 7",
+      "status": "Ok"
+    },
+    {
+      "id": 61,
+      "name": "Seat of foil 7, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 62,
+      "name": "Foil 8 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 63,
+      "name": "Collet of foil 8",
+      "status": "Ok"
+    },
+    {
+      "id": 64,
+      "name": "Seat of foil 8, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 65,
+      "name": "Foil 9 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 66,
+      "name": "Collet of foil 9",
+      "status": "Ok"
+    },
+    {
+      "id": 67,
+      "name": "Seat of foil 9, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 68,
+      "name": "Foil 10 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 69,
+      "name": "Collet of foil 10",
+      "status": "Ok"
+    },
+    {
+      "id": 70,
+      "name": "Seat of foil 10, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 71,
+      "name": "Foil 11 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 72,
+      "name": "Collet of foil 11",
+      "status": "Ok"
+    },
+    {
+      "id": 73,
+      "name": "Seat of foil 11, through for the light",
+      "status": "Ok"
+    },
+    {
+      "id": 74,
+      "name": "Foil 12 of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 75,
+      "name": "Collet of foil 12",
+      "status": "Ok"
+    },
+    {
+      "id": 76,
+      "name": "Seat of foil 12, through for the light",
+      "status": "Ok"
+    }
+  ],
+  "lands": {
+    "foil": "Round 1.25",
+    "foil_collet_outer_r_mm": 14.525,
+    "foil_radius_mm": 13.6,
+    "foil_to_foil_mm": 5.1898780267885645,
+    "light": "Marquise 1.5 x 3",
+    "light_collet_inner_r_mm": 10.05,
+    "light_collet_outer_r_mm": 13.75,
+    "light_radius_mm": 11.9,
+    "light_to_light_mm": 3.9598932734399934,
+    "lights": 12,
+    "side_face_run_end_r_mm": 15.0
+  },
+  "min_vertex_radius_mm": 9.300012264257278,
+  "notes": [],
+  "option": "stones",
+  "process": "neither clean at the draft check",
+  "revision": false,
+  "ring_self_crossings": 0,
+  "sand_check": {
+    "castable": false,
+    "field_verdict": "Will not release",
+    "notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Judged with the ring as built: 49 CAD parts (24 joined, 25 cut) at the parting plane z = +0.00 mm — 533.7 mm² of part surface, 65.4 mm² of it undercut.",
+      "Extrude \"Sink the field, leaving the hub and rim mouldings\" (#4): 53.5 mm² of undercut leaning to -90° on the hole's walls facing down above the parting plane, 175–169°, 3.5–3.6 mm toward the high edge — drill it at the bench: stage it Bench and the pattern keeps a raised drill mark at its centre.",
+      "Bezel \"Collet of light 1\" (#6): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 85–95°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 2\" (#9): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 115–125°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 3\" (#12): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 145–155°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 4\" (#15): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 175–185°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 5\" (#18): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 205–215°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 6\" (#21): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 235–245°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 7\" (#24): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 265–275°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 8\" (#27): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 295–305°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 9\" (#30): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 325–335°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 10\" (#33): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 355–5°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 11\" (#36): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 25–35°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of light 12\" (#39): 0.7 mm² of undercut leaning to -68° on its drag-facing flank above the parting plane, 55–65°, 3.5–3.7 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 1\" (#42): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 102–108°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 2\" (#45): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 132–138°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 3\" (#48): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 162–168°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 4\" (#51): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 192–198°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 5\" (#54): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 222–228°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 6\" (#57): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 252–258°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 7\" (#60): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 282–288°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 8\" (#63): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 312–318°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 9\" (#66): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 342–348°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 10\" (#69): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 12–18°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 11\" (#72): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 42–48°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Bezel \"Collet of foil 12\" (#75): 0.3 mm² of undercut leaning to -62° on its drag-facing flank above the parting plane, 72–78°, 3.6–3.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line."
+    ],
+    "process": "Delft clay, 3.0 deg, 0.8 section, 0.30 detail",
+    "thinnest_wall_mm": 5.80297155951833,
+    "undercut_percent": 2.6732434251055657,
+    "worst_draft_deg": -90.0
+  },
+  "stone_preview_triangles": 7968,
+  "stones_reported": 24,
+  "summary": "7 x 6 band whose high side face carries the wheel in stones: 12 marquise sapphires 1.5 x 3 pointing out along the spokes as the lights, 12 round rubies 1.25 between their heads as the foils, each in a collet set through, inside sunk hub and rim mouldings.",
+  "triangles": 461024,
+  "watertight": true,
+  "wax_check": {
+    "below_limit": 82,
+    "build": [
+      384,
+      160
+    ],
+    "clean": false,
+    "faces": 143372,
+    "limit_mm": 0.8,
+    "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+    "rays": 384,
+    "sampled_min_mm": 0.010160364306983239,
+    "unresolved": 0
+  }
+}

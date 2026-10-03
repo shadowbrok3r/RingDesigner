@@ -1,0 +1,121 @@
+{
+  "bore_radius_mm": 9.3,
+  "build": [
+    768,
+    320
+  ],
+  "build_s": 10.746528658999999,
+  "degenerate_faces": 0,
+  "dfm_findings": [],
+  "features": [
+    {
+      "id": 1,
+      "name": "Procedural shank",
+      "status": "Ok"
+    },
+    {
+      "id": 2,
+      "name": "The flange's outer face, proud of the high side face",
+      "status": "Ok"
+    },
+    {
+      "id": 3,
+      "name": "The flange: an annulus round the finger out to six and a half millimetres of run",
+      "status": "Ok"
+    },
+    {
+      "id": 4,
+      "name": "Raise the flange along the band's high edge",
+      "status": "Ok"
+    },
+    {
+      "id": 5,
+      "name": "The tracery field between the hub and the rim",
+      "status": "Ok"
+    },
+    {
+      "id": 6,
+      "name": "Sink the field, leaving the hub and rim mouldings standing",
+      "status": "Ok"
+    },
+    {
+      "id": 7,
+      "name": "The flange's face, lifted clear of the metal",
+      "status": "Ok"
+    },
+    {
+      "id": 8,
+      "name": "One bay of the wheel: a lancet on its spokes and the quatrefoil beside its head",
+      "status": "Ok"
+    },
+    {
+      "id": 9,
+      "name": "Pierce the bay through the flange and the band",
+      "status": "Ok"
+    },
+    {
+      "id": 10,
+      "name": "Wheel the bay round the finger",
+      "status": "Ok"
+    }
+  ],
+  "lands": {
+    "bore_rail_mm": 1.1999999999999993,
+    "flange_proud_of_crown_mm": 3.900000000000002,
+    "flange_thickness_mm": 2.4,
+    "foil_to_foil_mm": 2.5314482508335145,
+    "hub_step_to_light_mm": 0.15000000000000036,
+    "inner_radius_mm": 10.5,
+    "lancet_apex_r_mm": 14.434236798706664,
+    "lancet_to_foil_mm": 0.8466094321130746,
+    "lancet_to_lancet_mm": 0.9000000000000001,
+    "lancet_width_at_spring_mm": 2.355678100816707,
+    "lights": 24,
+    "outer_radius_mm": 15.300000000000002,
+    "radial_run_mm": 6.900000000000002,
+    "rim_rail_mm": 0.9000000000000004,
+    "rim_step_to_light_mm": 0.09999999999999964,
+    "spoke_mm": 0.9
+  },
+  "min_vertex_radius_mm": 9.299999525547445,
+  "notes": [],
+  "option": "flange",
+  "process": "lost wax",
+  "revision": false,
+  "ring_self_crossings": 0,
+  "sand_check": {
+    "castable": false,
+    "field_verdict": "Will not release",
+    "notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Judged with the ring as built: 4 CAD parts (1 joined, 3 cut) at the parting plane z = +0.00 mm — 1981.2 mm² of part surface, 238.2 mm² of it undercut.",
+      "Extrude \"Raise the flange along the band's high edge\" (#4): 226.6 mm² of undercut leaning to -90° on its drag-facing flank above the parting plane, 220–220°, 0.9–1.2 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Extrude \"Pierce the bay through the flange and the band\" (#9): 0.4 mm² of undercut leaning to -90° on the hole's walls facing down above the parting plane, 94–99°, 1.2–1.2 mm toward the high edge — drill it at the bench: stage it Bench and the pattern keeps a raised drill mark at its centre.",
+      "Ring array \"Wheel the bay round the finger\" (#10): 11.1 mm² of undercut leaning to -90° on the hole's walls facing down above the parting plane, 110–84°, 1.0–1.2 mm toward the high edge — drill it at the bench: stage it Bench and the pattern keeps a raised drill mark at its centre.",
+      "With its CAD parts 45.7% of the ring carries less than 3.0 deg of draft or stands parallel to the pull — it releases, but drags on the sand."
+    ],
+    "process": "Delft clay, 3.0 deg, 0.8 section, 0.30 detail",
+    "thinnest_wall_mm": 2.793879016041023,
+    "undercut_percent": 7.616763090583113,
+    "worst_draft_deg": -90.0
+  },
+  "stone_preview_triangles": 0,
+  "stones_reported": 0,
+  "summary": "6 x 3 band with one 2.4 mm flange on its high edge running out to r 16.2 (6.9 mm of radial run); the wheel is 24 lancets on 0.9 mm spokes and 24 quatrefoils between hub and rim mouldings, pierced through.",
+  "triangles": 359112,
+  "watertight": true,
+  "wax_check": {
+    "below_limit": 0,
+    "build": [
+      384,
+      160
+    ],
+    "clean": true,
+    "faces": 154934,
+    "limit_mm": 0.8,
+    "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+    "rays": 384,
+    "sampled_min_mm": 0.8480771232645214,
+    "unresolved": 0
+  }
+}

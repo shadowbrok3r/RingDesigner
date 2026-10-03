@@ -1,0 +1,133 @@
+{
+  "bore_radius_mm": 9.3,
+  "build": [
+    768,
+    320
+  ],
+  "build_s": 1.8610787069999999,
+  "degenerate_faces": 0,
+  "dfm_findings": [],
+  "features": [
+    {
+      "id": 1,
+      "name": "Procedural shank",
+      "status": "Ok"
+    },
+    {
+      "id": 2,
+      "name": "Back face of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 3,
+      "name": "The wheel's disc, standing on the crown",
+      "status": "Ok"
+    },
+    {
+      "id": 4,
+      "name": "Stand the wheel up across the band",
+      "status": "Ok"
+    },
+    {
+      "id": 6,
+      "name": "The plinth under the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 7,
+      "name": "Raise the plinth into the crown",
+      "status": "Ok"
+    },
+    {
+      "id": 9,
+      "name": "Front face of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 10,
+      "name": "The tracery field between the hub and the rim",
+      "status": "Ok"
+    },
+    {
+      "id": 11,
+      "name": "Sink the field in the front face, leaving the hub and rim mouldings",
+      "status": "Ok"
+    },
+    {
+      "id": 12,
+      "name": "Sink the same field in the back face",
+      "status": "Ok"
+    },
+    {
+      "id": 13,
+      "name": "Front face, lifted clear",
+      "status": "Ok"
+    },
+    {
+      "id": 14,
+      "name": "The wheel: lancets on spokes and a ring of quatrefoils",
+      "status": "Ok"
+    },
+    {
+      "id": 15,
+      "name": "Pierce the wheel through",
+      "status": "Ok"
+    }
+  ],
+  "lands": {
+    "foil_to_foil_mm": 2.484226598766755,
+    "head_proud_of_crown_mm": 11.537420042560319,
+    "hub_radius_mm": 1.9999999999999998,
+    "inner_radius_mm": 1.9999999999999998,
+    "lancet_apex_r_mm": 4.194664247500724,
+    "lancet_to_foil_mm": 0.8471014911210104,
+    "lancet_to_lancet_mm": 0.8499999999999996,
+    "lancet_width_at_spring_mm": 1.4876454814187192,
+    "lights": 8,
+    "lowest_light_over_crown_mm": 0.9000000000000021,
+    "outer_radius_mm": 5.0,
+    "rim_rail_mm": 1.0,
+    "spoke_mm": 0.85,
+    "wheel_diameter_mm": 12.0,
+    "wheel_thickness_mm": 3.0
+  },
+  "min_vertex_radius_mm": 9.299999525547445,
+  "notes": [],
+  "option": "head",
+  "process": "lost wax",
+  "revision": false,
+  "ring_self_crossings": 0,
+  "sand_check": {
+    "castable": false,
+    "field_verdict": "Castable with care",
+    "notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Judged with the ring as built: 5 CAD parts (2 joined, 3 cut) at the parting plane z = +0.00 mm — 465.9 mm² of part surface, 0.1 mm² of it undercut.",
+      "Extrude \"Raise the plinth into the crown\" (#7): 0.1 mm² of undercut leaning to -90° on flanks facing back across the parting plane, 72–108°, 1.5 mm toward the low edge to 1.5 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "With its CAD parts 22.0% of the ring carries less than 3.0 deg of draft or stands parallel to the pull — it releases, but drags on the sand."
+    ],
+    "process": "Delft clay, 3.0 deg, 0.8 section, 0.30 detail",
+    "thinnest_wall_mm": 2.3887889368385764,
+    "undercut_percent": 0.0055116602479950705,
+    "worst_draft_deg": -90.0
+  },
+  "stone_preview_triangles": 0,
+  "stones_reported": 0,
+  "summary": "6 x 2.6 band carrying a vertical wheel 12.0 mm across and 3 thick, square to the finger and standing 11.5 mm off the crown on a splayed plinth; 8 lancets on 0.85 mm spokes round a hub, 8 quatrefoils, a rim moulding, pierced through.",
+  "triangles": 508444,
+  "watertight": true,
+  "wax_check": {
+    "below_limit": 0,
+    "build": [
+      384,
+      160
+    ],
+    "clean": true,
+    "faces": 143816,
+    "limit_mm": 0.8,
+    "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+    "rays": 384,
+    "sampled_min_mm": 0.882794427294174,
+    "unresolved": 0
+  }
+}

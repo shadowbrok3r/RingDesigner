@@ -289,6 +289,8 @@ Iterate each ring for at most three review rounds. A ring still failing after ro
 
 ## Oculus — *the wheel*
 
+- **Process decision (Logan, 2026-10-03):** the concept spike (`showcase/tenebrae/oculus-spike/`, `examples/tenebrae_oculus_spike.rs`) judges every rethink option as **lost wax**: 0.8 mm minimum section, no pull rule. Any option that also pulls from Delft sand is reported as a bonus only.
+
 - **Status:** Not started. Buildable now: every API exists. The bore-driven template waits on C-T2.
 - **Concept:** Seen along the finger, a ring's side face is an annulus, which is the plan of a wheel window, and the finger is its oculus. Twenty-four lancet lights pierce the band from side face to side face along the pull, so light crosses the ring through the wheel. The crown carries the wheel's voussoirs.
 - **Theme face to palm:**
