@@ -1,0 +1,27 @@
+{
+  "ring": "chamaeleo",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "A squared gold signet with a teal cushion stone. The ziggurat is gone and the stone now reads at its proper size, which is real progress. But the table is now a framed panel: a raised rectangular plate edged with rows of small square studs, like rivets or a beaded Art Deco or Aztec border. Inside it, next to the stone, sits a pointed bullet or arrowhead boss. Face-on, the stud-framed plate, the bullet, the stone and the small spikes poking out at the left and right ends read as a mask, a robot face or a buckle, not an animal. The table's top edge in the hero is still flat, so no helmet rises anywhere in the silhouette. The tail curl is a speck: there is a tiny squiggle under the stone in the hero and at the plate's corners in the face view, nowhere near a coiled tail. The dorsal cones do not show. No pebbled hide shows either; the texture reads as rows of rivets around a large bare slab, which is still mostly plain on the far half of the face. A jeweller would call it a tribal or industrial signet with a green stone. Nobody would say chameleon.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Turn the pointed bullet into a true casque that breaks the table's silhouette",
+      "where": "Stamp 'Casque' (theta 108.8, now 0.25 mm high, a pointed lozenge about 2.75 mm wide). Replace it with the planned hide-space layer 'Casque' in group 'Casque and crests', on the parting line from the stone (along -4 mm) to the table's end, peaking at the occiput (along +5 mm)",
+      "by_how_much": "From 0.25 mm to about 1.8 to 2.0 mm high at the occiput, and from a point to a broad helmet: about 4 mm wide at the occiput with a rounded, swept-back top. Start low at the stone's back edge, rise steadily, and drop sharply at the table's end so the far end of the head lifts. It must not taper to a point away from the stone (today it reads as an arrowhead). Acceptance: in hero-300, the table's top outline shows a clear hump rising behind the stone, and face-300 shows a broad shield behind the stone, not a bullet."
+    },
+    {
+      "priority": 2,
+      "what": "Make the coiled tail a dominant, legible curl on each cheek",
+      "where": "Stamps 'Tail, fingertip' (v 14.8) and 'Tail, knuckle' (v 2.4), theta 90, centred on each cheek, including the cheek turned to the hero camera",
+      "by_how_much": "The height (0.8 mm) is already right; the size is the problem. The spiral now covers only about 1.5 mm of the cheek. Scale it to fill about 80% of the cheek height (outer radius about 3.6 to 5 mm), keep 2 to 2.5 turns with gaps of at least 0.5 mm, and use a thick outer stroke (at least 0.9 mm) that thins toward the centre, so it reads as a tail and not as a decorative scroll. Acceptance: hero-300 shows a closed spiral at least 25 px across on the near cheek below the table."
+    },
+    {
+      "priority": 3,
+      "what": "Replace the stud-framed plate with pebbled hide, and remove the rivet rows",
+      "where": "Stamps 'Temporal crest, outer' and 'Temporal crest, inner' (theta 90, 0.4 mm rectangular frames), the stud rows along the table's rim (layer 'Table grain'), and the bare table flanks either side of the casque (layer 'Hide, three granules')",
+      "by_how_much": "Cut the rectangular frame outlines: the temporal crests should be two straight, low steps (about 0.3 mm each) running along the ring beside the casque, not a closed rectangle around the head. Delete the square-stud rows. Fill the table flanks with round granules in three sizes (largest radius about 0.7 mm, height 0.35 to 0.5 mm), leaving only the casque and the stone's seat smooth. Raise the dorsal cones (now 0.15 down to 0.075 mm, invisible) to about 0.6 down to 0.3 mm so a graded crest shows on the shoulders. Acceptance: no closed rectangle or rivet row is visible in face-300, round pebbles cover the table except the casque, and at least four dorsal cones are visible on the shoulder in hero-300."
+    }
+  ]
+}

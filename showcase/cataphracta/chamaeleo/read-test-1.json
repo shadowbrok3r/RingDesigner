@@ -1,0 +1,27 @@
+{
+  "ring": "chamaeleo",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A smooth gold signet. Its main feature is a stepped, concentric ziggurat, like a beehive or snail shell, with a small round blue-green bead on top, next to a plain faceted wedge. The rest of the table is a large, empty, polished slab. Faint pitted texture runs only along the table's rim, and one small spike sticks out of the left edge in the face view. Seen face-on, the bead in its rings looks like a target or a single eye. A reptile specialist might guess a chameleon turret eye from that, but a jeweller would call it an abstract stepped signet with a cabochon. Nothing says chameleon: there is no helmet casque in the silhouette, no curled tail, and no pebbled hide. The stone reads as a ~2 mm round bead, not a 5 mm cushion.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the casque the silhouette and remove the concentric ziggurat around the stone",
+      "where": "Table, group 'Casque and crests': layer 'Casque' on the parting line from along -4 mm (stone) to the head's end, peak at +5 mm; layer 'Temporal crests'",
+      "by_how_much": "Raise the casque from 0.9 to about 1.8 mm at the occiput and widen it from 2.8 to about 4 mm, with a clean helmet-shaped rise from the stone and a sharp fall at the table's end. That way the hero's top edge shows a raised, swept-back helmet profile. Replace the round, stacked tiers ringing the stone with two straight, along-ring temporal crest steps per side (each about 0.4 mm), running parallel to the casque, so nothing reads as a target or eye. Set the alexandrite as the planned 5 mm cushion boss (it now reads as a ~2 mm bead) in front of the casque, at the base of the helmet. Acceptance: the hero-300 silhouette shows a crested helmet rising behind the stone, and no concentric rings remain on the face."
+    },
+    {
+      "priority": 2,
+      "what": "Make the coiled tail visible and large on each cheek",
+      "where": "Stamps 'Tail coil, fingertip' and 'Tail coil, knuckle', at the centre of each cheek, including the cheek turned to the hero camera",
+      "by_how_much": "The spiral does not show in hero-300 at all. Scale its outer radius until it fills about 80% of the cheek height (about 3.6 to 5 mm), raise height_mm from 0.45 to about 0.8, and keep 2.5 to 3 turns with gaps of at least 0.4 mm. Fall back to 2 turns if the larger stroke crowds. Acceptance: at 300 px, a closed curl reads on the near cheek below the table in the hero view."
+    },
+    {
+      "priority": 3,
+      "what": "Put pebbled chameleon hide on the empty table and walls",
+      "where": "'Granules, three sizes' on the table flanks either side of the casque (new region), on the cheeks around the coil, and on the shank walls; 'Lateral stripe' on the walls",
+      "by_how_much": "About 60% of the table is bare polish now. Cover the flanks with granules (largest radius about 0.7 mm, height 0.35 to about 0.5 mm) so the casque stands out from a pebbled field. Raise the lateral stripe's flat tubercles about 0.15 mm above the granules so the band reads. Acceptance: in hero-300 the table shows visible round granules everywhere except on the smooth casque, and density is at least Caiman's."
+    }
+  ]
+}

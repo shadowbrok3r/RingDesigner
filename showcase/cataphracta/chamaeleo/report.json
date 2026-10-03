@@ -1,0 +1,520 @@
+{
+  "bare_001": {
+    "bore_mm": 18.599999078972296,
+    "degenerate_faces": 0,
+    "face_mm": [
+      17.0,
+      14.5
+    ],
+    "field_verdict": "Castable with care",
+    "pull_0075": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "pull_384": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "table_mm": [
+      9.537307739257812,
+      1.3321216106414795
+    ],
+    "undercut_percent": 0.09843418946668321,
+    "watertight": true,
+    "worst_draft_deg": -1.7473767528026773
+  },
+  "bore_mm": 18.6,
+  "casting_pattern": null,
+  "coarse_384x192": {
+    "bore_margin_mm": -0.0001815892831427135,
+    "boundary_edges": 0,
+    "build": [
+      384,
+      192
+    ],
+    "build_s": 1.8048706700000001,
+    "clamp_bites_mm": [
+      {
+        "group": "Hide, three granules",
+        "texels_cut": 0,
+        "worst_mm": 0.0
+      }
+    ],
+    "closest_stones": null,
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "field_notes": [
+      "Field-sampled: clean but for 0.015% at 0.5 deg, inside the sampling noise band of a fast-curving feature.",
+      "Undercut 63–63° on the crest: 0.2 mm² leaning to 1° — caused by \"Alexandrite\"; muting it clears it.",
+      "Undercut 130–130° on the crest: 0.4 mm² leaning to 1° — no single layer explains it.",
+      "Cut at the bench after casting, and so not judged here: Table grain.",
+      "\"Hide, three granules\" is held to the sand's draft rule: 0 texels cut back.",
+      "1 made setting left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
+    ],
+    "field_verdict": "Castable",
+    "grams_925": 22.205495169365765,
+    "made_parts": [],
+    "metal_inside_stones": [
+      [
+        "Alexandrite",
+        0
+      ]
+    ],
+    "min_angle_deg": 0.00021241812824163413,
+    "non_manifold_edges": 0,
+    "parting_monotone": [
+      [
+        "Temporal crest, outer",
+        true
+      ],
+      [
+        "Temporal crest, inner",
+        true
+      ],
+      [
+        "Casque",
+        true
+      ],
+      [
+        "Dorsal cone, 1",
+        true
+      ],
+      [
+        "Dorsal cone, 2",
+        true
+      ],
+      [
+        "Dorsal cone, 3",
+        true
+      ],
+      [
+        "Dorsal cone, 4",
+        true
+      ],
+      [
+        "Dorsal cone, 5",
+        true
+      ],
+      [
+        "Dorsal cone, 6",
+        true
+      ],
+      [
+        "Dorsal cone, 7",
+        true
+      ],
+      [
+        "Dorsal cone, 8",
+        true
+      ]
+    ],
+    "parts_notes": [],
+    "pass": true,
+    "release_0075": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0075_obstruction_at": [],
+    "release_0075_obstructions": 0,
+    "release_0075_unresolved": 0,
+    "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0100_low_draft_area_mm2": 501.43866661738224,
+    "release_0100_notes": [
+      "501.44 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
+      "Some faces have negative draft without a resolved interval obstruction; inspect at finer sampling"
+    ],
+    "release_0100_obstructions": 0,
+    "release_0100_sand_findings": [
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-6.43, -9.55, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-8.43, -8.26, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [0.67, 15.11, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-11.73, 6.42, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-11.53, -3.26, 0.00]",
+      "Sand slot about 0.60 mm wide; inspect its support and depth at [-10.63, -5.76, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-9.03, -7.76, 0.00]"
+    ],
+    "release_0100_status_why": "Review, not Clear, with 0 obstructions: the factory table and bore walls carry under the sand's 3 deg draft (the bare stock reports the same). See the notes.",
+    "release_0100_unresolved": 0,
+    "seats_resolved": 1,
+    "self_crossings": 0,
+    "solids_notes": [],
+    "stamps_struck": 13,
+    "stone_carats": 0.40424,
+    "stone_warnings": [],
+    "stones_previewed": 1,
+    "stones_reported": 1,
+    "thinnest_wall_mm": 1.2964091177618844,
+    "triangles": 169390,
+    "undercut_percent": 0.014907248814758505,
+    "watertight": true,
+    "worst_draft_deg": -0.5398836223119426
+  },
+  "cold_reload_identical": null,
+  "design_bytes": 260087,
+  "design_format": 6,
+  "draft": {
+    "bore_margin_mm": -0.000071341164892047,
+    "boundary_edges": 0,
+    "build": [
+      768,
+      320
+    ],
+    "build_s": 5.118300629,
+    "clamp_bites_mm": [
+      {
+        "group": "Hide, three granules",
+        "texels_cut": 0,
+        "worst_mm": 0.0
+      }
+    ],
+    "closest_stones": null,
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "field_notes": [
+      "Field-sampled: clean but for 0.015% at 0.5 deg, inside the sampling noise band of a fast-curving feature.",
+      "Undercut 63–63° on the crest: 0.2 mm² leaning to 1° — caused by \"Alexandrite\"; muting it clears it.",
+      "Undercut 130–130° on the crest: 0.4 mm² leaning to 1° — no single layer explains it.",
+      "Cut at the bench after casting, and so not judged here: Table grain.",
+      "\"Hide, three granules\" is held to the sand's draft rule: 0 texels cut back.",
+      "1 made setting left to the bench: the pattern carries the stock and a raised drill mark for each — a pit would lock, a dot pulls — and claws or collets are soldered on after the pour."
+    ],
+    "field_verdict": "Castable",
+    "grams_925": 22.209058611062936,
+    "made_parts": [],
+    "metal_inside_stones": [
+      [
+        "Alexandrite",
+        0
+      ]
+    ],
+    "min_angle_deg": 0.00021241812824163413,
+    "non_manifold_edges": 0,
+    "parting_monotone": [
+      [
+        "Temporal crest, outer",
+        true
+      ],
+      [
+        "Temporal crest, inner",
+        true
+      ],
+      [
+        "Casque",
+        true
+      ],
+      [
+        "Dorsal cone, 1",
+        true
+      ],
+      [
+        "Dorsal cone, 2",
+        true
+      ],
+      [
+        "Dorsal cone, 3",
+        true
+      ],
+      [
+        "Dorsal cone, 4",
+        true
+      ],
+      [
+        "Dorsal cone, 5",
+        true
+      ],
+      [
+        "Dorsal cone, 6",
+        true
+      ],
+      [
+        "Dorsal cone, 7",
+        true
+      ],
+      [
+        "Dorsal cone, 8",
+        true
+      ]
+    ],
+    "parts_notes": [],
+    "pass": true,
+    "release_0075": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0075_obstruction_at": [],
+    "release_0075_obstructions": 0,
+    "release_0075_unresolved": 0,
+    "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
+    "release_0100_low_draft_area_mm2": 499.9765992920184,
+    "release_0100_notes": [
+      "499.98 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
+      "Some faces have negative draft without a resolved interval obstruction; inspect at finer sampling"
+    ],
+    "release_0100_obstructions": 0,
+    "release_0100_sand_findings": [
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-6.43, -9.55, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-8.43, -8.26, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [0.67, 15.11, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-11.73, 6.42, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-11.53, -3.26, 0.00]",
+      "Sand slot about 0.60 mm wide; inspect its support and depth at [-10.63, -5.76, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-9.03, -7.76, 0.00]"
+    ],
+    "release_0100_status_why": "Review, not Clear, with 0 obstructions: the factory table and bore walls carry under the sand's 3 deg draft (the bare stock reports the same). See the notes.",
+    "release_0100_unresolved": 0,
+    "seats_resolved": 1,
+    "self_crossings": 0,
+    "solids_notes": [],
+    "stamps_struck": 13,
+    "stone_carats": 0.40424,
+    "stone_warnings": [],
+    "stones_previewed": 1,
+    "stones_reported": 1,
+    "thinnest_wall_mm": 1.2964091177618844,
+    "triangles": 498994,
+    "undercut_percent": 0.014907248814758505,
+    "watertight": true,
+    "worst_draft_deg": -0.5398836223119426
+  },
+  "export": null,
+  "face_mm": [
+    17.0,
+    14.5
+  ],
+  "gates_passed": true,
+  "layers": [
+    "Alexandrite",
+    "Keel, snout side",
+    "Keel, occiput side",
+    "Table grain",
+    "Hide, three granules"
+  ],
+  "name": "Chamaeleo — the casque",
+  "placed": {
+    "boss": {
+      "diameter_mm": 5.2,
+      "elong": 1.1923076923076923,
+      "height_mm": 0.8,
+      "plan_pow": 3.2
+    },
+    "cheek": [
+      "Tail, fingertip at 90.00 deg, v 14.780, 650 points",
+      "Tail, knuckle at 90.00 deg, v 2.422, 650 points"
+    ],
+    "crest": [
+      "Dorsal cone, 1 at 147.13 deg, v 8.622",
+      "Dorsal cone, 2 at 159.70 deg, v 8.612",
+      "Dorsal cone, 3 at 172.97 deg, v 8.612",
+      "Dorsal cone, 4 at 186.46 deg, v 8.612",
+      "Dorsal cone, 5 at 199.16 deg, v 8.612",
+      "Dorsal cone, 6 at 211.10 deg, v 8.612",
+      "Dorsal cone, 7 at 222.50 deg, v 8.612",
+      "Dorsal cone, 8 at 233.61 deg, v 8.612"
+    ],
+    "face_mm": [
+      17.0,
+      14.5
+    ],
+    "folds_along_mm": [
+      9.1,
+      9.200000000000001,
+      9.3,
+      9.4,
+      9.5,
+      9.600000000000001,
+      9.700000000000001,
+      9.8,
+      9.9,
+      10.0,
+      10.100000000000001,
+      10.200000000000001,
+      10.3,
+      10.4,
+      10.5,
+      10.600000000000001,
+      10.700000000000001,
+      12.600000000000001,
+      12.700000000000001,
+      12.8,
+      12.9,
+      13.0,
+      -9.1,
+      -9.200000000000001,
+      -9.3,
+      -9.4,
+      -9.5,
+      -9.600000000000001,
+      -9.700000000000001,
+      -10.0,
+      -10.100000000000001,
+      -10.200000000000001,
+      -10.3,
+      -10.4,
+      -10.5,
+      -10.600000000000001,
+      -12.3,
+      -12.4,
+      -12.5,
+      -12.600000000000001,
+      -12.700000000000001,
+      -12.8,
+      -12.9,
+      -13.0
+    ],
+    "head_frame": [
+      90.0,
+      8.611594723238174,
+      0.0
+    ],
+    "keel": [
+      "Keel, snout side: -61.2 to 47.8 deg",
+      "Keel, occiput side: 132.2 to 241.3 deg"
+    ],
+    "levelled": true,
+    "reach_mm": 41.61053440773324,
+    "stone_at": [
+      74.70703125,
+      8.610002762623408
+    ]
+  },
+  "process": "Sand (two-part)",
+  "sand": "Delft clay, 3.0 deg draft, 0.8 mm section, 0.30 mm detail",
+  "size": "US 8.6",
+  "slug": "chamaeleo",
+  "stage": "block-out",
+  "stamps": [
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 8.112890624999999,
+      "height_mm": 0.4,
+      "name": "Temporal crest, outer",
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 8.611594723238174
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 6.603515624999999,
+      "height_mm": 0.4,
+      "name": "Temporal crest, inner",
+      "theta_deg": 90.0,
+      "tier": 1,
+      "v_mm": 8.611594723238174
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 2.7527343749999997,
+      "height_mm": 0.25,
+      "name": "Casque",
+      "theta_deg": 108.80859375,
+      "tier": 2,
+      "v_mm": 8.604981899141125
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 1.4398437499999999,
+      "height_mm": 0.15,
+      "name": "Dorsal cone, 1",
+      "theta_deg": 147.12890625,
+      "tier": 0,
+      "v_mm": 8.621921381142045
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 1.46953125,
+      "height_mm": 0.14510606684302488,
+      "name": "Dorsal cone, 2",
+      "theta_deg": 159.70343505856533,
+      "tier": 0,
+      "v_mm": 8.612431691791297
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 1.203125,
+      "height_mm": 0.1322131032140457,
+      "name": "Dorsal cone, 3",
+      "theta_deg": 172.97304251594488,
+      "tier": 0,
+      "v_mm": 8.612413609120793
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 1.0999999999999999,
+      "height_mm": 0.11547568304158509,
+      "name": "Dorsal cone, 4",
+      "theta_deg": 186.46284136441153,
+      "tier": 0,
+      "v_mm": 8.612412448136695
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 0.8749999999999999,
+      "height_mm": 0.09911586437299372,
+      "name": "Dorsal cone, 5",
+      "theta_deg": 199.15983577461202,
+      "tier": 0,
+      "v_mm": 8.612409918544131
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 0.8531249999999999,
+      "height_mm": 0.0860483745030893,
+      "name": "Dorsal cone, 6",
+      "theta_deg": 211.10318007881,
+      "tier": 0,
+      "v_mm": 8.612413799994453
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 0.7687499999999999,
+      "height_mm": 0.0778011813800497,
+      "name": "Dorsal cone, 7",
+      "theta_deg": 222.500113725611,
+      "tier": 0,
+      "v_mm": 8.612410271215513
+    },
+    {
+      "along_pull": false,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 0.7726562499999999,
+      "height_mm": 0.075,
+      "name": "Dorsal cone, 8",
+      "theta_deg": 233.61328125,
+      "tier": 0,
+      "v_mm": 8.612414938696624
+    },
+    {
+      "along_pull": true,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 0.50390625,
+      "height_mm": 0.8,
+      "name": "Tail, fingertip",
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 14.78015979918138
+    },
+    {
+      "along_pull": true,
+      "bench": false,
+      "cut": false,
+      "finest_mm": 0.5031249999999999,
+      "height_mm": 0.8,
+      "name": "Tail, knuckle",
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 2.422241666633671
+    }
+  ]
+}
