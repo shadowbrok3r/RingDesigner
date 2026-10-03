@@ -22,6 +22,8 @@ pub fn pattern_name(kind: &PatternKind, source: &Feature) -> String {
         PatternKind::Ring { .. } => format!("Ring array of {}", source.name),
         PatternKind::About { .. } => format!("Array of {}", source.name),
         PatternKind::Mirror { .. } => format!("Mirror of {}", source.name),
+        PatternKind::Line { .. } => format!("Line of {}", source.name),
+        PatternKind::Along(_) => format!("{} along a path", source.name),
     }
 }
 

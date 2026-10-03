@@ -169,7 +169,28 @@ fn place(gem: Gem, frame: &crate::stones::StoneFrame, out: &mut Vec<f32>) {
 /// The faceted solid in the stone's own frame: x along the length, y across,
 /// z up the crown. Girdle at z = 0, table above, culet below. Flat facets —
 /// the sparkle is per-face normals under the viewport's key light.
-type Tri = ([f64; 3], [f64; 3], [f64; 3]);
+pub(crate) type Tri = ([f64; 3], [f64; 3], [f64; 3]);
+
+/// A cut's mesh file, and whether that source runs the stone's length along X rather than Y (the half moon's).
+fn mesh_file(cut: GemCut) -> (&'static str, bool) {
+    let file = match cut {
+        GemCut::Round => "brilliant",
+        GemCut::Oval => "oval",
+        GemCut::Cushion => "cushion",
+        GemCut::Princess => "princess",
+        GemCut::Emerald => "emerald",
+        GemCut::Baguette => "baguette",
+        GemCut::Pear => "pear",
+        GemCut::Marquise => "marquise",
+        GemCut::Trillion => "trillion",
+        GemCut::Heart => "heart",
+        GemCut::Radiant => "radiant",
+        GemCut::Asscher => "asscher",
+        GemCut::Hexagon => "hexagonal",
+        GemCut::HalfMoon => "half-moon",
+    };
+    (file, cut == GemCut::HalfMoon)
+}
 
 /// True faceted meshes, loaded once per cut: the bundled `<cut>.obj`, or the
 /// user's own of that name in [`crate::library::gem_mesh_dir`], which wins.
@@ -183,26 +204,9 @@ fn true_facets(cut: GemCut) -> Option<&'static [Tri]> {
         let dir = crate::library::gem_mesh_dir();
         let mut map = HashMap::new();
         for &cut in GemCut::ALL {
-            let file = match cut {
-                GemCut::Round => "brilliant",
-                GemCut::Oval => "oval",
-                GemCut::Cushion => "cushion",
-                GemCut::Princess => "princess",
-                GemCut::Emerald => "emerald",
-                GemCut::Baguette => "baguette",
-                GemCut::Pear => "pear",
-                GemCut::Marquise => "marquise",
-                GemCut::Trillion => "trillion",
-                GemCut::Heart => "heart",
-                GemCut::Radiant => "radiant",
-                GemCut::Asscher => "asscher",
-                GemCut::Hexagon => "hexagonal",
-                GemCut::HalfMoon => "half-moon",
-            };
-            let user = parse_gem_obj(&std::fs::read_to_string(dir.join(format!("{file}.obj"))).unwrap_or_default());
-            let tris = user.or_else(|| {
-                parse_gem_obj(&ringdesign_assets::find(ringdesign_assets::GEMS, file)?.text())
-            });
+            let (file, long_x) = mesh_file(cut);
+            let user = parse_gem_obj_oriented(&std::fs::read_to_string(dir.join(format!("{file}.obj"))).unwrap_or_default(), long_x);
+            let tris = user.or_else(|| bundled_facets(cut).map(<[Tri]>::to_vec));
             if let Some(tris) = tris {
                 map.insert(cut, tris);
             }
@@ -212,11 +216,30 @@ fn true_facets(cut: GemCut) -> Option<&'static [Tri]> {
     cache.get(&cut).map(|v| v.as_slice())
 }
 
+/// The bundled mesh alone, never a user's override: the source of a seat's true girdle.
+pub(crate) fn bundled_facets(cut: GemCut) -> Option<&'static [Tri]> {
+    use std::sync::OnceLock;
+    static CACHE: [OnceLock<Option<Vec<Tri>>>; GemCut::ALL.len()] = [const { OnceLock::new() }; GemCut::ALL.len()];
+    let i = GemCut::ALL.iter().position(|c| *c == cut)?;
+    CACHE[i]
+        .get_or_init(|| {
+            let (file, long_x) = mesh_file(cut);
+            parse_gem_obj_oriented(&ringdesign_assets::find(ringdesign_assets::GEMS, file)?.text(), long_x)
+        })
+        .as_deref()
+}
+
 /// Parse a gem OBJ (v + tri/quad f lines) and normalize it: per-axis unit
 /// extents about the centre, the girdle (widest slab) at z = 0, and the
 /// source's width axis swapped onto `y` so `x` runs along the ring like the
 /// procedural facets. Returns `None` on anything unreadable.
+#[cfg(test)]
 fn parse_gem_obj(text: &str) -> Option<Vec<Tri>> {
+    parse_gem_obj_oriented(text, false)
+}
+
+/// [`parse_gem_obj`] for a source whose length runs along X when `long_x`.
+fn parse_gem_obj_oriented(text: &str, long_x: bool) -> Option<Vec<Tri>> {
     let mut verts: Vec<[f64; 3]> = Vec::new();
     let mut faces: Vec<Vec<usize>> = Vec::new();
     for line in text.lines() {
@@ -226,8 +249,8 @@ fn parse_gem_obj(text: &str) -> Option<Vec<Tri>> {
                 let x: f64 = it.next()?.parse().ok()?;
                 let y: f64 = it.next()?.parse().ok()?;
                 let z: f64 = it.next()?.parse().ok()?;
-                // Source frame: X across the band (width), Y along it.
-                verts.push([y, x, z]);
+                // Source frame: X across the band (width), Y along it, unless `long_x`.
+                verts.push(if long_x { [x, y, z] } else { [y, x, z] });
             }
             Some("f") => {
                 let idx: Vec<usize> = it
@@ -317,15 +340,18 @@ fn parse_gem_obj(text: &str) -> Option<Vec<Tri>> {
     Some(tris)
 }
 
-/// A cabochon: one dome on a flat back, its plan the same superellipse the
-/// seat under it is cut to. Faceted like everything else in the preview so
-/// the key light still reads its curvature, just at a finer step.
+/// A cabochon: one dome on a flat back, its plan the same outline the seat
+/// under it is cut to. Faceted like everything else in the preview so the
+/// key light still reads its curvature, just at a finer step.
 fn cabochon(gem: Gem) -> Vec<([f64; 3], [f64; 3], [f64; 3])> {
     // A cabochon is polished smooth, so its facets are an artefact of the
     // preview rather than the point of it — tessellate finely enough that
     // the flat shading reads as a dome.
     const SEG: usize = 48;
     const RINGS: usize = 14;
+    if gem.cut.girdle().is_some() {
+        return girdle_cabochon(gem, SEG, RINGS);
+    }
     let (hl, hw) = (gem.l_mm * 0.5, gem.w_mm * 0.5);
     let h = gem.depth_mm();
     let n = gem.cut.plan_pow();
@@ -354,11 +380,63 @@ fn cabochon(gem: Gem) -> Vec<([f64; 3], [f64; 3], [f64; 3])> {
     tris
 }
 
-fn facets(gem: Gem) -> Vec<([f64; 3], [f64; 3], [f64; 3])> {
+/// [`cabochon`] on a cut's true girdle, its rings sampled at the plan's own ring angles.
+fn girdle_cabochon(gem: Gem, seg: usize, rings: usize) -> Vec<Tri> {
+    let plan = crate::setting::Plan::of(gem);
+    let angles = plan.ring_angles(seg);
+    let n = angles.len();
+    let h = gem.depth_mm();
+    let at = |ring: usize, i: usize| -> [f64; 3] {
+        let t = ring as f64 / rings as f64;
+        let (scale, z) = (((1.0 - t * t).max(0.0)).sqrt(), h * t);
+        let p = plan.point(angles[i % n]);
+        [p[0] * scale, p[1] * scale, z]
+    };
+    let mut tris = Vec::with_capacity(n * (rings * 2 + 1));
+    for i in 0..n {
+        let j = (i + 1) % n;
+        tris.push((at(0, j), at(0, i), [0.0, 0.0, 0.0]));
+        for r in 0..rings - 1 {
+            tris.push((at(r, i), at(r, j), at(r + 1, j)));
+            tris.push((at(r, i), at(r + 1, j), at(r + 1, i)));
+        }
+        tris.push((at(rings - 1, i), at(rings - 1, j), [0.0, 0.0, h]));
+    }
+    tris
+}
+
+/// The preview stone in its own frame as a loose-triangle mesh with facet normals; never for export.
+pub fn stone_mesh(gem: Gem) -> crate::mesh::Mesh {
+    let tris = facets(gem);
+    let mut m = crate::mesh::Mesh { vertices: Vec::with_capacity(tris.len() * 3), normals: Vec::with_capacity(tris.len() * 3), faces: Vec::with_capacity(tris.len()), ..Default::default() };
+    for (a, b, c) in tris {
+        let n = normalize(cross(sub(b, a), sub(c, a)));
+        let base = m.vertices.len() as u32;
+        for p in [a, b, c] {
+            m.vertices.push(crate::mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32));
+            m.normals.push(crate::mesh::Vec3(n[0] as f32, n[1] as f32, n[2] as f32));
+        }
+        m.faces.push([base, base + 1, base + 2]);
+    }
+    m
+}
+
+/// The preview stone in its own frame, from the user's mesh when they keep one.
+pub(crate) fn facets(gem: Gem) -> Vec<Tri> {
+    facets_on(gem, true_facets(gem.cut))
+}
+
+/// [`facets`] drawn from the bundled mesh alone, as a seat's true girdle is read.
+#[cfg(test)]
+pub(crate) fn bundled_drawing(gem: Gem) -> Vec<Tri> {
+    facets_on(gem, bundled_facets(gem.cut))
+}
+
+fn facets_on(gem: Gem, unit: Option<&[Tri]>) -> Vec<Tri> {
     if gem.form == crate::gem::GemForm::Cabochon {
         return cabochon(gem);
     }
-    if let Some(unit) = true_facets(gem.cut) {
+    if let Some(unit) = unit {
         // Unit mesh scaled to the stone: length along the ring, width across
         // it, its own crown/pavilion split preserved inside `depth_mm`.
         let (l, w, d) = (gem.l_mm, gem.w_mm, gem.depth_mm());
@@ -616,6 +694,37 @@ f 1 4 6
         }
         // Existing files carry no new key and keep the historical tint.
         assert!(!serde_json::to_string(&Gem::default()).unwrap().contains("preview_tint"));
+    }
+
+    /// A half moon's straight side runs its full length, and its arc bows one width across.
+    #[test]
+    fn a_half_moon_lies_along_its_straight_side() {
+        let gem = Gem::calibrated(GemCut::HalfMoon, 4.0);
+        let pts: Vec<[f64; 3]> = bundled_drawing(gem).iter().flat_map(|(a, b, c)| [*a, *b, *c]).collect();
+        let top = pts.iter().map(|p| p[1]).fold(f64::MIN, f64::max);
+        let (lo, hi) = pts.iter().filter(|p| p[1] > top - 1e-4).fold((f64::MAX, f64::MIN), |(lo, hi), p| (lo.min(p[0]), hi.max(p[0])));
+        assert!(hi - lo > 0.99 * gem.l_mm, "the straight side spans {:.2} of {:.2} mm", hi - lo, gem.l_mm);
+        let bottom = pts.iter().map(|p| p[1]).fold(f64::MAX, f64::min);
+        assert!((top - bottom - gem.w_mm).abs() < 1e-9, "the arc bows out a width across: {}", top - bottom);
+    }
+
+    /// A true-girdle cabochon's foot lies on its girdle, corner for corner.
+    #[test]
+    fn a_cabochon_stands_on_its_true_girdle() {
+        for cut in GemCut::ALL.iter().copied().filter(|c| c.has_true_girdle()) {
+            let gem = Gem::cabochon(cut, 6.0);
+            let plan = crate::setting::Plan::of(gem);
+            let girdle = plan.table.unwrap();
+            let foot: Vec<[f64; 3]> = facets(gem).iter().flat_map(|(a, b, c)| [*a, *b, *c]).filter(|p| p[2] == 0.0 && p[0].hypot(p[1]) > 1e-9).collect();
+            assert!(!foot.is_empty());
+            for p in &foot {
+                assert!((p[0].hypot(p[1]) - girdle.radius_mm(p[0], p[1], plan.a, plan.b)).abs() < 1e-9, "{cut:?}: {p:?}");
+            }
+            for corner in girdle.points() {
+                let q = [corner[0] * plan.a, corner[1] * plan.b];
+                assert!(foot.iter().any(|p| (p[0] - q[0]).hypot(p[1] - q[1]) < 1e-9), "{cut:?}: no foot at {q:?}");
+            }
+        }
     }
 
     #[test]

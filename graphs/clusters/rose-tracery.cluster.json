@@ -1,0 +1,202 @@
+{
+  "format_version": 1,
+  "name": "Rose tracery",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "number",
+      "inputs": {
+        "value": 0.8
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Bar"
+    },
+    {
+      "id": 2,
+      "kind": "math.mul",
+      "inputs": {
+        "b": 0.5
+      },
+      "pos": [
+        240.0,
+        0.0
+      ],
+      "label": "Half the bar"
+    },
+    {
+      "id": 3,
+      "kind": "math.add",
+      "inputs": {
+        "a": 3.6
+      },
+      "pos": [
+        480.0,
+        0.0
+      ],
+      "label": "Sill circle"
+    },
+    {
+      "id": 4,
+      "kind": "math.sub",
+      "inputs": {
+        "a": 7.1
+      },
+      "pos": [
+        480.0,
+        150.0
+      ],
+      "label": "Apex circle"
+    },
+    {
+      "id": 5,
+      "kind": "sketch.gothic.lights",
+      "inputs": {
+        "count": 8,
+        "head": "Trefoil",
+        "name": "Rose tracery"
+      },
+      "pos": [
+        720.0,
+        0.0
+      ],
+      "label": "Rose"
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "out",
+      "to": 2,
+      "input": "a"
+    },
+    {
+      "from": 2,
+      "out": "out",
+      "to": 3,
+      "input": "b"
+    },
+    {
+      "from": 2,
+      "out": "out",
+      "to": 4,
+      "input": "b"
+    },
+    {
+      "from": 1,
+      "out": "out",
+      "to": 5,
+      "input": "bar_mm"
+    },
+    {
+      "from": 3,
+      "out": "out",
+      "to": 5,
+      "input": "sill_r_mm"
+    },
+    {
+      "from": 4,
+      "out": "out",
+      "to": 5,
+      "input": "apex_r_mm"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 5,
+      "input": "count",
+      "name": "Lights",
+      "doc": "How many lights round the rose."
+    },
+    {
+      "node": 3,
+      "input": "a",
+      "name": "Inner radius",
+      "doc": "The net's inner circle; each light's sill stands half a bar outside it, mm."
+    },
+    {
+      "node": 4,
+      "input": "a",
+      "name": "Outer radius",
+      "doc": "The net's outer circle; each light's apex stands half a bar inside it, mm."
+    },
+    {
+      "node": 1,
+      "input": "value",
+      "name": "Bar",
+      "doc": "Metal between neighbouring lights and to both circles, mm."
+    },
+    {
+      "node": 5,
+      "input": "head",
+      "name": "Head",
+      "doc": "Pointed, Round, Trefoil, or the whole light a Mouchette."
+    },
+    {
+      "node": 5,
+      "input": "width_mm",
+      "name": "Width",
+      "doc": "0 fills each cell; above 0, every light is parallel-sided at this width, mm."
+    },
+    {
+      "node": 5,
+      "input": "phase_deg",
+      "name": "Phase",
+      "doc": "The first light's axis, degrees from the sketch's x."
+    },
+    {
+      "node": 5,
+      "input": "clockwise",
+      "name": "Clockwise",
+      "doc": "Mouchettes lean clockwise instead of counter-clockwise."
+    },
+    {
+      "node": 5,
+      "input": "centre_x_mm",
+      "name": "Centre x",
+      "doc": "Where the rose is centred along the sketch's x, mm."
+    },
+    {
+      "node": 5,
+      "input": "centre_y_mm",
+      "name": "Centre y",
+      "doc": "Where the rose is centred along the sketch's y, mm."
+    },
+    {
+      "node": 5,
+      "input": "plane",
+      "name": "Plane",
+      "doc": "The work plane or part the rose lies on, by feature id."
+    },
+    {
+      "node": 5,
+      "input": "face",
+      "name": "Face",
+      "doc": "Which planar face of that feature; a work plane has one, 0."
+    }
+  ],
+  "outputs": [
+    {
+      "node": 5,
+      "out": "operation",
+      "name": "sketch_op",
+      "doc": "The rose as a Sketch feature's operation, a closed loop per light."
+    },
+    {
+      "node": 5,
+      "out": "lights",
+      "name": "count",
+      "doc": "How many lights the rose drew, for an array of stones round it."
+    },
+    {
+      "node": 5,
+      "out": "land_mm",
+      "name": "land_mm",
+      "doc": "The narrowest metal between neighbouring lights, mm."
+    }
+  ],
+  "next_id": 6
+}

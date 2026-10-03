@@ -57,11 +57,12 @@ fn nudge(op: &mut Operation) {
         Operation::TwistedRing { axial_mm, .. } => *axial_mm *= 1.05,
         Operation::Extrude { height_mm, .. } => *height_mm *= 1.05,
         Operation::Revolve { degrees, .. } => *degrees = (*degrees * 0.95).max(1.0),
-        Operation::Sweep { path, .. } => {
+        Operation::Sweep { path: ringdesign_core::cad::SweepPath::Points(path), .. } => {
             if let Some(p) = path.last_mut() {
                 p[2] += 0.1;
             }
         }
+        Operation::Sweep { end_scale, .. } => *end_scale *= 1.05,
         Operation::Twist { degrees, .. } => *degrees += 5.0,
         Operation::Fillet { radius_mm, .. } => *radius_mm *= 1.05,
         Operation::Chamfer { distance_mm, .. } => *distance_mm *= 1.05,

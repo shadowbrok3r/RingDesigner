@@ -5055,6 +5055,7 @@ dependencies = [
  "serde_json",
  "spade",
  "svgtypes",
+ "ttf-parser",
 ]
 
 [[package]]
