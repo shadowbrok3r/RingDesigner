@@ -145,10 +145,6 @@ const XTW_DEPTH: f64 = 2.4;
 const XTW_PROUD: f64 = 0.5;
 const XSPIRE_FROM: f64 = 0.9;
 const XSPIRE_TO: f64 = 4.9;
-/// The rose in the gable: its petals' radius round the sapphire and their size.
-const XROSE_PETALS: usize = 8;
-const XROSE_R: f64 = 1.74;
-const XROSE_PETAL: f64 = 0.34;
 /// Opened: the skull's place along the chest from its foot, its scale, and where the band stops covering the back (the back lights start).
 const XSKULL_X: f64 = 3.0;
 const XSKULL_S: f64 = 1.0;
@@ -680,25 +676,6 @@ fn cresting_sdf(ridge: f64) -> impl Fn(P2) -> f64 {
     }
 }
 
-/// A turned finial's half-section (x out from the axis, y up), from `z` in the roof to a round knop and a blunt point.
-fn finial_profile(z: f64) -> Vec<P2> {
-    let mut p = vec![[0.0, z], [0.55, z], [0.55, z + 0.7], [0.72, z + 0.8], [0.72, z + 0.95], [0.42, z + 1.0]];
-    let (c, r) = (z + 1.6, 0.7);
-    let a0 = (0.42f64 / r).acos();
-    for k in 1..12 {
-        let a = -a0 + 2.0 * a0 * k as f64 / 12.0;
-        p.push([r * a.cos(), c + r * a.sin()]);
-    }
-    p.push([0.42, c + r * a0.sin() + 0.02]);
-    p.push([0.42, z + 2.55]);
-    for k in 1..=6 {
-        let a = 0.42 * PI * k as f64 / 6.0;
-        p.push([0.42 * a.cos(), z + 2.55 + 0.42 * a.sin()]);
-    }
-    let top = p[p.len() - 1][1];
-    p.push([0.0, top]);
-    p
-}
 
 /// A turned knop of radius `r` centred at `c` (frame `fr`), its axis along the frame's x: a ball with a flat at each pole.
 fn knop(doc: &mut Document, ids: &mut Ids, fr: &Placement, name: &str, c: P3, r: f64, component: Component) -> Result<Id> {
@@ -813,41 +790,6 @@ fn skull(doc: &mut Document, ids: &mut Ids, at: &SkullSeat) -> Result<Id> {
 
 // ---------------------------------------------------------------- tracery
 
-/// A net for `Sketch::tracery`, drawn in the sketch's plane: a pointed window of span `w` round `cx` (sill `z0`, apex `apex`)
-/// split by a mullion into two pointed lights, with a roundel in the head. Returns the net's entity ids.
-fn window_net(sk: &mut Sketch, cx: f64, w: f64, z0: f64, apex: f64, share: f64) -> Vec<Id> {
-    let before = sk.entities.len();
-    lancet(sk, cx, w, z0, apex, share);
-    let a = w / 2.0;
-    let r = share * w;
-    let rise = (r * r - (r - a) * (r - a)).sqrt();
-    let zs = apex - rise;
-    let sub_w = a;
-    let sub_r = 0.8 * sub_w;
-    let sub_rise = (sub_r * sub_r - (sub_r - sub_w / 2.0).powi(2)).sqrt();
-    let sub_apex = zs + sub_rise * 0.95;
-    let sub_rise = sub_rise * 0.95;
-    let sub_r = (sub_rise * sub_rise + (sub_w / 2.0) * (sub_w / 2.0)) / sub_w;
-    for c in [cx - a / 2.0, cx + a / 2.0] {
-        let p0 = sk.point([c - sub_w / 2.0, zs]);
-        let p1 = sk.point([c + sub_w / 2.0, zs]);
-        let ap = sk.point([c, sub_apex]);
-        let cl = sk.point([c - sub_w / 2.0 + sub_r, zs]);
-        let cr = sk.point([c + sub_w / 2.0 - sub_r, zs]);
-        sk.entity(Geometry::Arc { center: cr, start: p1, end: ap });
-        sk.entity(Geometry::Arc { center: cl, start: ap, end: p0 });
-    }
-    let m0 = sk.point([cx, z0]);
-    let m1 = sk.point([cx, sub_apex]);
-    sk.entity(Geometry::Line { a: m0, b: m1 });
-    // The roundel in the head, between the lights' points and the window's.
-    let rc = ((apex - sub_apex) * 0.36).min(a * 0.62);
-    let cy = sub_apex + (apex - sub_apex) * 0.42;
-    let c = sk.point([cx, cy]);
-    let rim = sk.point([cx + rc, cy]);
-    sk.entity(Geometry::Circle { center: c, rim });
-    sk.entities[before..].iter().map(|e| e.id).collect()
-}
 
 /// Traces `net` in `sk` at the section floor; the lights it cut.
 fn trace_net(sk: &mut Sketch, net: &[Id]) -> Result<usize> {
@@ -1238,7 +1180,6 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
     // Towers flanking the front: a shaft webbed to the chest's top, and a crocketed spire lofted off its top past the eaves.
     let (spire0, spire1) = (xr + XSPIRE_FROM, xr + XSPIRE_TO);
     let (zt0, zt1) = (XD - XTW_DEPTH, XD + XTW_PROUD);
-    let ym = 0.5 * (XTW_IN + XTW_OUT);
     let zs = zt1 - 0.5 * (XTW_OUT - XTW_IN) - 0.1;
     let mut towers = Vec::new();
     for (side, sign) in [("north", 1.0f64), ("south", -1.0)] {
@@ -1721,42 +1662,6 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, a_lid: Id, built: &mesh::BuildResul
     Ok(Gates { json, passes })
 }
 
-/// Where `thickness` finds metal under `limit`: every sampled point (shrine frame) and its wall, for diagnosis (CAPSA_THIN).
-fn thin_points(d: &RingDesign, m: &mesh::Mesh, limit: f64, label: &str) -> Result<()> {
-    let f = xseat().frame(d)?;
-    let tri: Vec<_> = m.faces.iter().filter_map(|t| m.triangle(t)).collect();
-    let stride = tri.len().div_ceil(384).max(1);
-    let sub = |a: P3, b: P3| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-    let cross = |a: P3, b: P3| [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-    for (i, (a, b, c)) in tri.iter().enumerate().step_by(stride) {
-        let n = cross(sub(*b, *a), sub(*c, *a));
-        let l = dot(n, n).sqrt();
-        if l < 1e-12 { continue; }
-        let o: P3 = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0);
-        let dir = n.map(|v| -v / l);
-        let mut best = f64::MAX;
-        for (j, (p, q, r)) in tri.iter().enumerate() {
-            if j == i { continue; }
-            let (e1, e2) = (sub(*q, *p), sub(*r, *p));
-            let h = cross(dir, e2);
-            let det = dot(e1, h);
-            if det.abs() < 1e-12 { continue; }
-            let s0 = sub(o, *p);
-            let u = dot(s0, h) / det;
-            if !(0.0..=1.0).contains(&u) { continue; }
-            let qv = cross(s0, e1);
-            let v = dot(dir, qv) / det;
-            if v < 0.0 || u + v > 1.0 { continue; }
-            let t = dot(e2, qv) / det;
-            if t > 1e-5 && t < best { best = t; }
-        }
-        if best < limit {
-            let q = sub(o, f.origin);
-            println!("  thin {label}: {best:.3} mm at local ({:.2}, {:.2}, {:.2})", dot(q, f.x_axis), dot(q, f.y_axis), dot(q, f.z_axis));
-        }
-    }
-    Ok(())
-}
 
 /// The close-ups and sheets the brief asks for beside the six views: the stones and the front framed close (whole parts, never a
 /// cropped mesh), the bare band against the finished ring at the hero's angle, and a contact sheet of the 300 px views.
@@ -1828,17 +1733,6 @@ fn main() -> Result<()> {
         });
     std::fs::create_dir_all(&out)?;
     let lib = AlphaLibrary::builtin();
-    if std::env::var("CAPSA_COLLET").is_ok() {
-        for wall in [0.8, 0.9, 1.0, 1.1] {
-            for lip in [0.1, 0.2, 0.3, 0.45, 0.6] {
-                let n = ringdesign_core::setting::collet_named(garnet(), wall, lip, -ringdesign_core::setting::collet_depth_mm(garnet()));
-                let m = mesh::Mesh { vertices: n.solid.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), normals: vec![], faces: n.solid.f.clone(), ..Default::default() };
-                let t = cad::measure::thickness(&m, MIN_SECTION_MM);
-                println!("wall {wall} lip {lip}: min {:?} below {} of {}", t.sampled_min_mm, t.below_limit, t.rays);
-            }
-        }
-        return Ok(());
-    }
     println!("Capsa ({})", opt.slug());
     let t = std::time::Instant::now();
     let a = author(&lib, opt)?;
