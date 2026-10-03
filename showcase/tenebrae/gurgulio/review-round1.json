@@ -1,0 +1,216 @@
+{
+  "ring": "Gurgulio — the waterspout",
+  "round": 1,
+  "verdict": "revise",
+  "score": 6.2,
+  "summary": "Revise at 6.2 (Caiman 7, ship bar 7.5; Corvus was cut at 6.6). Two gates are red, so this is an automatic revise whatever the art scores. dfm::part_sections, which the ring's own section names as a gate, records 4.71 mm² under the 0.8 mm floor and a thinnest section of 0.0006 mm. The full-build thickness sampling (19,809 rays) finds 2 faces below 0.8 mm, the thinnest at 0.49 mm near (2.94, 12.11, 3.46). Neither appears in the gates list, which passes the thickness test on 384 samples alone. On art, the subject now reads: from the pair at 300 px a jeweller says 'gargoyle' (a snarling beast with paws over a ledge, and a spout thrust out along the finger in the face view), and nobody says dragon or hood ornament. But it reads as a cartoon bulldog gargoyle, not a carved Gothic grotesque. The sculpt is puffy and balloon-like, every form is a rounded sausage, the fangs end in blunt rods, and the claws are mittens. The close-up shows decimation shards and creased folds over the brow, cheeks, paws and wing. The perch is still a thin box from the hero camera. The only Gothic tracery is three tiny blind lancets on the pedestal front, and there is no quatrefoil. The folded wings are still a fan or mohawk crest from above. The stepped shoulder blocks read Art Deco or ziggurat, and their edges are smeared. From the shoulders round the palm the band is completely bare, so the theme does not run face to palm, and the density is far below Caiman's. Of the round-2 read-test changes, the perch item is partly done (lancets, a thin ledge), the posture item is partly done (head 11.5 mm past the coping, wings behind the head show, but the spout tip is hidden behind the jaw in hero-300), and the wings item is not done.",
+  "strengths": [
+    "The subject reads at 300 px from the pair: 'gargoyle' comes first, and the round-1 wire armature and the 'hood ornament' read are gone.",
+    "The face view is the best passage. The head thrusts out past the parapet with a spout pipe running out of the mouth along the finger, which is a true waterspout read.",
+    "The posture is right in plan: two forepaws grip the coping's front edge, and the head projects 11.47 mm past it (report composition).",
+    "The silhouette is the most distinct in Tenebrae, the only figure standing in the round. It is 22.8 mm along the finger and 12.8 mm above the coping, well past the 13 mm head minimum.",
+    "Geometry is clean where it is recorded: watertight, 0 degenerates and 0 crossings on the ring, the sculpt and the pattern; empty notes; the bore clear at 9.300 mm; the cold reload identical at export.",
+    "The side view shows three pointed blind lancets on the pedestal front, the first true Gothic architecture on the perch."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "fail",
+      "reason": "palm.png and reverse.png show a plain polished band from the shoulder blocks round the whole palm. The theme stops at the stepped shoulder blocks, which read as ziggurat or Art Deco steps, not as cathedral masonry."
+    },
+    {
+      "item": "Reads as its Gothic subject at 300 px without the caption",
+      "result": "pass",
+      "reason": "hero-300 shows a snarling beast with horns, fangs and paws over a ledge, and face-300 shows the head and spout thrust out past a block. A jeweller says 'gargoyle'. The 'Gothic cathedral' half rests on the gargoyle alone, because the perch reads as a plain box at 300 px and the spout is hidden in the hero."
+    },
+    {
+      "item": "Figurative motifs have true outlines, with no combing, smearing or stair-steps",
+      "result": "fail",
+      "reason": "stones.png (the close-up) shows triangular shards and creased folds scattered over the brow, muzzle, cheeks, paws and wing ribs, which are decimation and settle artifacts (1.74 M raw faces taken to 140 k at 0.006). The shoulder step blocks in hero.png and shoulder.png have smeared, jagged edges, and the side-view lancets are faceted and smudged."
+    },
+    {
+      "item": "Stones in made settings, à jour, coloured as stained glass",
+      "result": "pass",
+      "reason": "Not applicable: the ring's section specifies no stones, and the record shows 0 reported and 0 previewed."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "fail",
+      "reason": "The figure fails the other way: it is inflated and blobby, a toy or vinyl-figure finish with no carved planes, undercuts or stone-cut crispness. The perch is a bare rectangular box with a thin ledge, and the shoulder blocks are mechanical stepped boxes."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles",
+      "result": "pass",
+      "reason": "Not applicable: a procedural keyed band, as the section specifies."
+    },
+    {
+      "item": "Distinct silhouette; custom head at least 13 mm; shoulder ornament not cut off before the face",
+      "result": "pass",
+      "reason": "It is the only standing figure in the collection, with a figure envelope of 22.8 x 26.3 mm and 12.8 mm above the coping. The shoulder blocks run into the perch without a cut-off."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "fail",
+      "reason": "There are large forms (body, head) and medium ones (paws, horns, fangs), but almost no small form: no skin, scale, chisel or masonry texture, no tracery at a readable size. The whole band is empty. Caiman carries three scales of detail over the entire ring, and this carries one and a half over a third of it."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Finished mesh watertight, 0 degenerate faces, 0 self-crossings (draft and export)",
+      "claimed": "pass",
+      "verified": "draft 585,366 triangles and export 1,386,618: watertight true, degenerate_faces 0, self_crossings 0.",
+      "pass": true
+    },
+    {
+      "gate": "Every made part closed and uncrossed",
+      "claimed": "pass",
+      "verified": "The sculpt has open_edges 0 and self_crossings 0, and made_part_crossings for 'Grow the gargoyle and its parapet out of the band' is 0 at both builds.",
+      "pass": true
+    },
+    {
+      "gate": "Solids notes empty, every feature Ok",
+      "claimed": "pass",
+      "verified": "geometry.notes [], features_not_ok [], parts_joined 1.",
+      "pass": true
+    },
+    {
+      "gate": "Nothing inside the finger hole",
+      "claimed": "pass",
+      "verified": "vertices_inside 0, nearest vertex 9.300 mm against a 9.3 mm bore radius at both builds.",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax field verdict Castable at 0.8 mm fill",
+      "claimed": "pass",
+      "verified": "verdict and band_verdict both 'Castable', thinnest wall 1.80 mm, min_section_mm 0.8. The field notes contradict each other ('no undercut anywhere — would also pull from two-part sand' beside '380.3 mm² undercut, cannot move to sand'), so the first note is wrong and should go. This does not gate.",
+      "pass": true
+    },
+    {
+      "gate": "cad::measure::thickness at 0.8 mm",
+      "claimed": "pass (thickness_0_8.pass true: part min 0.855 mm, ring min 0.887 mm on 384 samples each)",
+      "verified": "The report's own full-build sampling with the same test (thickness_0_8.sampled_on_the_final_build, 19,809 rays) finds below_limit 2 and thinnest 0.492 mm at (2.94, 12.11, 3.46). The 384-ray pass misses walls the denser run finds, and its note admits that small features are unsampled. A measured 0.49 mm wall is under the 0.8 mm floor.",
+      "pass": false
+    },
+    {
+      "gate": "dfm::part_sections against 0.8 mm (a gate named in the ring's section)",
+      "claimed": "Not claimed. part_sections_0_8 is recorded with no pass flag, and it is absent from the gates list.",
+      "verified": "thinnest_mm 0.00059 and under_floor_mm2 4.71. 4.7 mm² of the sculpt's surface is under 0.8 mm section, with a near-zero sliver somewhere (likely a fang, claw or wing-rib tip, or a pinch where a paw meets the coping).",
+      "pass": false
+    },
+    {
+      "gate": "dfm::cut_lands at 0.8 mm",
+      "claimed": "pass",
+      "verified": "cut_lands_0_8 [] at both builds.",
+      "pass": true
+    },
+    {
+      "gate": "0 DFM findings",
+      "claimed": "pass",
+      "verified": "dfm_findings [] at both builds.",
+      "pass": true
+    },
+    {
+      "gate": "Stone count equals the preview",
+      "claimed": "pass",
+      "verified": "reported 0, previewed 0.",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical",
+      "claimed": "pass (listed as passed at both builds)",
+      "verified": "export_build.cold_reload_identical true. draft_build.cold_reload_identical is null although its gate row says pass. Export is the build the rule names, so this passes, but the draft row must stop claiming a test it did not run.",
+      "pass": true
+    },
+    {
+      "gate": "Export within 2 million triangles",
+      "claimed": "pass",
+      "verified": "1,386,618 triangles.",
+      "pass": true
+    },
+    {
+      "gate": "Casting pattern closed",
+      "claimed": "pass",
+      "verified": "pattern watertight, 0 degenerates, 0 self-crossings, 1,386,618 triangles.",
+      "pass": true
+    },
+    {
+      "gate": "Template gate: at most 4 design.set patches within the class budget",
+      "claimed": "pass, painted class",
+      "verified": "0 patches, 1,555,960 bytes against the 3,000,000 painted budget (the stored-part precedent: Arachne and the Bestiarium README judge stored parts in the painted class). Source, vertices, faces and normals identical; cold design and graph reloads true; first open 9.2 s.",
+      "pass": true
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "gate (blocking)",
+      "zone": "Sculpted part 'Grow the gargoyle and its parapet out of the band': fang, claw, horn, ear and wing-rib tips, and the paw-to-coping contacts; the measured 0.49 mm wall at (2.94, 12.11, 3.46) in the ring frame",
+      "change": "Find every face that dfm::part_sections puts under 0.8 mm and every below-limit ray in the full-build thickness run. Thicken those features to at least 0.85 mm section: blunt the tips to a 0.45 mm minimum radius, and fill the pinch between paws and coping with a 0.3 mm fillet. Then make both measurements real gates: add 'dfm::part_sections ≥ 0.8' and 'full-build thickness ≥ 0.8' rows to the gates list, and retire the 384-ray thickness pass as the gate.",
+      "acceptance": "report.json: part_sections_0_8.under_floor_mm2 = 0, thinnest_mm ≥ 0.8; thickness_0_8.sampled_on_the_final_build.below_limit = 0, thinnest_mm ≥ 0.8; both appear as gate rows with pass true at draft and export."
+    },
+    {
+      "number": 2,
+      "priority": "gate hygiene",
+      "zone": "report.json draft_build and field notes",
+      "change": "Run the cold reload on the draft build, or drop that gate row from the draft. Remove the false field note 'no undercut anywhere — this pattern would also pull from two-part sand', which sits beside the 380.3 mm² undercut note.",
+      "acceptance": "draft_build.cold_reload_identical is true, or the draft gate row is absent; the field notes no longer contradict each other."
+    },
+    {
+      "number": 3,
+      "priority": "high",
+      "zone": "Whole figure surface: brow, muzzle, cheeks, forepaws, wing ribs (as in stones.png)",
+      "change": "Remove the shards and creased folds. Decimate less hard (target at least 400 k faces or a tolerance of at most 0.003), and re-settle the decimated mesh against the field so that no fold or flipped sliver survives. The export budget leaves about 600 k triangles to spend.",
+      "acceptance": "stones.png at full size shows continuous highlights over brow, cheek and paws with no triangular flecks or crease lines."
+    },
+    {
+      "number": 4,
+      "priority": "high",
+      "zone": "Head and forelimbs",
+      "change": "Carve the grotesque from inflated bulldog into stone-carved Gothic. Undercut a hard brow ridge 0.6-0.8 mm over deep eye sockets. Add cheekbone and snout planes with 2-3 furrows each side, at least 0.3 mm deep. Taper the fangs to points, ending at 0.85 mm, not rounded rods. Give the forelimbs a wrist and knuckles and three to four hooked claws per paw curling over the coping edge (each at least 0.85 mm at the base). Add a fine chisel or scale texture, 0.1-0.2 mm, on the shoulders and back as the small form.",
+      "acceptance": "In hero.png the brow casts a hard shadow line across the eye sockets, the fangs end in points, and separate hooked claws curl over the coping. In hero-300 the beast no longer reads as a soft cartoon dog, and a reader says 'stone grotesque'."
+    },
+    {
+      "number": 5,
+      "priority": "high",
+      "zone": "Wings, along the back (y ±2 to 3 mm), seen in face.png",
+      "change": "Open round-2 read-test item 3, which is still not done. Replace the radiating fan crest with two separate folded bat wings lying either side of the spine. Each wing gets 3-4 finger bones ending in claws at the wrist, and a scalloped trailing edge between the bones, with membranes recessed 0.3-0.5 mm below the bones.",
+      "acceptance": "In face-300, two distinct wing shapes with scalloped edges show either side of the spine, and nothing reads as a fan, crest or mohawk."
+    },
+    {
+      "number": 6,
+      "priority": "high",
+      "zone": "Perch (parapet block), its front (fingertip) face and both side faces",
+      "change": "Finish round-2 read-test item 1. Step the cornice twice, each step overhanging 0.8-1.0 mm, round the front and both sides. Taper a corbel under it into the band. Cut one blind quatrefoil, or a pair of trefoil-headed lancets, at least 0.5 mm deep into each side face. Enlarge the front lancets so each is at least 1.5 mm tall and has a crisp pointed head with no faceting.",
+      "acceptance": "In hero-300 and face-300 the block shows a lit cornice edge over a shadow band. In side.png and shoulder.png a quatrefoil or trefoil-headed panel shows on the side face with crisp edges."
+    },
+    {
+      "number": 7,
+      "priority": "high",
+      "zone": "Band from the shoulder blocks round the palm (all theta outside the perch footprint)",
+      "change": "Carry the cathedral round the ring. Replace the ziggurat step blocks with a Gothic moulding: a running blind arcade of pointed lancets (about 2 mm pitch, 0.4 mm deep) on each side wall, under a roll-and-hollow coping. Run a cut lead gutter, a 0.8 mm wide channel along the crown centre line, from the gargoyle's tail round the band, so the water the spout throws has a source. Taper the detail toward the palm, but do not stop it.",
+      "acceptance": "palm.png and reverse.png show the arcade or the gutter continuing on at least 70% of the shank circumference with crisp outlines, and no polished blank band longer than 8 mm."
+    },
+    {
+      "number": 8,
+      "priority": "medium",
+      "zone": "Spout and head pitch, hero camera",
+      "change": "Finish round-2 read-test item 2. Lift the spout pipe 10-15° above the finger axis and lengthen it 1.0-1.5 mm, so its tip clears the lower jaw from the hero camera. Cut its bore at least 0.6 mm wide so it reads as a pipe, keeping a 0.85 mm wall.",
+      "acceptance": "In hero-300 the spout tip is visible projecting from the open jaws."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/gurgulio/hero-300.png",
+    "showcase/tenebrae/gurgulio/face-300.png",
+    "showcase/tenebrae/gurgulio/hero.png",
+    "showcase/tenebrae/gurgulio/face.png",
+    "showcase/tenebrae/gurgulio/side.png",
+    "showcase/tenebrae/gurgulio/shoulder.png",
+    "showcase/tenebrae/gurgulio/palm.png",
+    "showcase/tenebrae/gurgulio/reverse.png",
+    "showcase/tenebrae/gurgulio/stones.png",
+    "showcase/tenebrae/gurgulio/bare-vs-finished.png",
+    "showcase/tenebrae/gurgulio/contact-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
