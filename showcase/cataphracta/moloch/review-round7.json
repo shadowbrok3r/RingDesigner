@@ -1,0 +1,62 @@
+{
+  "ring": "Moloch (moloch), Cataphracta",
+  "round": 7,
+  "verdict": "cut",
+  "score": 7.4,
+  "summary": "Cut at 7.4 in revival round 7. Scores so far: 6.3, 6.7, 7.0 (cut), 7.1, 7.2, 7.3 and now 7.4. Caiman is 7.0 and the ship bar is 7.5. Logan's grant of round 7 is now recorded in the Moloch section of cataphracta.md (commit b3d26da). No round after this one is recorded, so a score below 7.5 is a cut. Every lost-wax gate is green. I checked the export myself. finished-metal.stl has 1,399,866 triangles, 0 index-degenerate and 0 zero-area faces, and every directed edge is matched by its reverse with no duplicates, so the mesh is closed and 2-manifold. Its minimum radius about Z is 9.299999518 mm against the 9.3 mm bore, and its maximum |z| of 4.994 mm equals the cheek, so nothing stands past the side faces. casting-pattern.stl matches it byte for byte after the 80-byte header. template-verification.json was re-run on this build: 1,399,866 triangles, source_identical true, 0 design.set patches, 2,378,410 B against the 3 MB painted budget. What round 7 fixed: the ripples now have a steep lee face and an uneven pitch, and they read closer to dunes. The palm-side highlights are mostly continuous, with no crinkle. The brow horns stand upright with no forward tusk. The front limbs lie on the crown with no rod read in side.png. The thorn-point text now states the measured tip honestly. Four faults keep the ring below 7.5. (1) The new head is a smooth polished bulb carrying a cluster of recessed hexagon cells (stones.png). It reads as honeycomb or a tortoise shell set on a blob, not as a blunt plated thorny-devil wedge, and the smooth rim around the cells is the polished snout dome again. (2) In hero.png, hero-300 and bare-vs-finished.png, a dark socket at the nape beside the hump spine, and a dark-ringed dome behind it, still read as an eye. (3) In reverse.png (lower left) and the reverse tile of contact-300, five or six cones still stand out radially past the band's outline as a row of spikes. Axially they stay inside the cheek plane (past_cheek_mm -0.269 over the whole part), so this is a silhouette and wear issue, not a snag on the next finger. (4) At 300 px the ripples are still even, parallel wavy lines (face-300, hero-300, left), and they read as wood grain or water as easily as sand. A polished halo of about 1-2 mm still separates the ripples from the figure (face.png, around the head and the left feet). At 7.4 the ring sits above Basiliscus (7.2, cut) and just below Arachne and Manticora (7.5, shipped).",
+  "strengths": [
+    "With no caption, hero-300 and face-300 read as a thorny devil or horned lizard: a spiked, pebbled body, four splayed legs with clawed toes, and a tail running round the crest.",
+    "The side.png silhouette (upright horns and a graded thorn crest over a plain shank) is unlike every other Cataphracta ring and every Reptilia tile.",
+    "Large, medium and small forms are all present: figure and hump, graded cones, a pebbled tubercle field, and toes and claws. The figure is denser than Caiman's.",
+    "The ripple profile now has a steep lee face with a single highlight per crest across most of the palm (palm.png). The crinkle and pooling from rounds 4-6 are gone.",
+    "Every gate is green and independently confirmed. The template gate was re-run on this exact build.",
+    "Thorn-tip treatments now state the measured section instead of promising a 0.28 mm sphere."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "A lizard on a rippled sand band runs from face to palm, and the tail carries the figure round the crest (reverse.png, palm.png). The polished halo round the figure is weaker than in round 3 but still visible."},
+    {"item": "Hide reads as this specific animal at 300 px without caption", "result": "pass", "reason": "Graded cones over a pebbled tubercle field, the nuchal hump and splayed legs read as a thorny devil or horned lizard in hero-300 and face-300. The head is the weakest part (honeycomb bulb)."},
+    {"item": "Figurative motifs have true, crisp outlines", "result": "fail", "reason": "The body tubercles are crisp. The head's hexagon cells sit on a smooth, melted-looking bulb (stones.png), and in face.png the plates read as bubbled rather than cut. At 300 px the ripples are clean but generic."},
+    {"item": "Stones in made settings and visible", "result": "pass", "reason": "Not applicable: no stones (previewed 0, reported 0)."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "pass", "reason": "The figure is a sculpted SDF part, and the limbs now taper and lie on the band. The ripples are sinuous, not mechanical."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "The cheeks stay flat and polished with a crisp edge to the crown (side.png, bare-vs-finished.png). Nothing passes the cheek plane (max |z| 4.994 mm)."},
+    {"item": "Silhouette distinct from other Cataphracta rings and Reptilia tiles", "result": "pass", "reason": "The only ring with a full figure riding the band and upright horns in profile (side.png). The Reptilia tiles are all all-over textures."},
+    {"item": "Large/medium/small forms; density and legibility at least Caiman's", "result": "pass", "reason": "Exceeds Caiman's density and legibility. Three scales of form are present."},
+    {"item": "No faces and no eyes (Cataphracta gate checklist)", "result": "fail", "reason": "A dark socket at the nape beside the hump spine still reads as an eye in hero.png, hero-300 and bare-vs-finished.png."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces, 0 self-crossings (ring)", "claimed": "watertight true, 0 degenerate, 0 self-crossings at 1536x448 and at 384x192", "verified": "Independent STL check: 1,399,866 triangles, 0 index-degenerate, 0 zero-area, every directed edge matched by its reverse, no duplicate directed edges. Self-crossings taken from report.json.", "pass": true},
+    {"gate": "Made part closed and uncrossed", "claimed": "Thorny devil: 0 open edges, 0 self-crossings, 0 crossings as placed, joined", "verified": "report.json sculpt and made_part_crossings both 0. The note 'relax undone within 0.3 mm of 6 crossings' is a composition note, not a residual crossing.", "pass": true},
+    {"gate": "Solids notes empty", "claimed": "notes [] at main and at coarse", "verified": "Confirmed in report.json", "pass": true},
+    {"gate": "Nothing inside finger hole", "claimed": "vertices_inside 0, nearest 9.299999518 mm", "verified": "Independent: minimum radius about Z is 9.299999518 mm against the 9.3 mm bore", "pass": true},
+    {"gate": "Field verdict Castable", "claimed": "Castable (lost wax, 0.8 mm fill)", "verified": "band_verdict and verdict are both 'Castable', not 'with care'. Lost wax is Logan's recorded process for Moloch.", "pass": true},
+    {"gate": "Ray release 0/0 at 0.100 and 0.075 mm; draft-clamp bite <= 0.05 mm", "claimed": "Not applicable under lost wax. The two-part undercut is reported: 7.21% band, 13.33% with the part", "verified": "Sand gates waived by Logan's recorded rule (cataphracta.md, Moloch, 2026-10-03). The two-part undercut is recorded as a number.", "pass": true},
+    {"gate": "Land widths (every section under 0.8 mm named with treatment)", "claimed": "unnamed_under_floor []", "verified": "Every sub-floor kind carries a treatment. Toes 0.652 mm over 0.034 mm2. The thorn-point text now states the measured section.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "dfm_findings []", "verified": "Confirmed", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "0 = 0", "verified": "Confirmed", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "report.json true. template-verification shows vertices, faces and normals identical.", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "1,399,866", "verified": "STL header count is 1,399,866", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "watertight, 0 degenerate, 0 crossings", "verified": "casting-pattern.stl is byte-identical to finished-metal.stl after the 80-byte header", "pass": true},
+    {"gate": "Template gate (<= 4 design.set patches, class budget)", "claimed": "passed, 0 patches, painted class 2,378,410 B against 3,000,000 B", "verified": "template-verification.json triangles 1,399,866 match this build; source_identical true", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Head and neck (about 105-120 deg): the hexagon-plated snout and its smooth rim", "change": "Drop the recessed honeycomb cells and the smooth bulb under them. Model a blunt, flat-topped wedge about 2.2 mm long whose top and sides are fully covered by 6-10 raised, slightly domed tubercle plates. Leave no smooth polished area wider than 0.4 mm on the head.", "acceptance": "In stones.png the head is a blunt, plated wedge with no honeycomb and no smooth rim. At 300 px a viewer does not say 'shell' or 'honeycomb'."},
+    {"number": 2, "priority": "high", "zone": "Nape beside the hump spines (about 95-100 deg, both sides) and the dome just behind", "change": "Fill the dark socket at the root of each hump spine with tubercles, so the surface is convex everywhere within 1 mm of the spine root. Break the dark-ringed dome behind it into 3-4 tubercles.", "acceptance": "In hero.png, hero-300 and bare-vs-finished.png no dark round pocket or ringed dome on the head or nape reads as an eye."},
+    {"number": 3, "priority": "high", "zone": "Outer flank rows ('major thorns', 'minor thorns') where the body wraps the shoulder, about 140-200 deg", "change": "Shorten the outermost flank cones by 40% and lean them to within 25 deg of the local surface, so none rises more than 0.6 mm above the tubercle field.", "acceptance": "In reverse.png and the reverse tile of contact-300 no cone pokes out of the band's outline as a spike row. The report records a radial standoff of 0.6 mm or less for the outer flank cones."},
+    {"number": 4, "priority": "medium", "zone": "Band hide 'Sand ripples', especially beside the figure and in the face view (60-120 deg, 300-360 deg)", "change": "Let the ripple field run right up to the figure's outline (gap 0.3 mm or less) and break the even parallel stack: ripple lengths of 3-8 mm with staggered ends and 2-3 terminations per 90 deg, so no line spans the full face view.", "acceptance": "In face-300 and hero-300 a viewer says 'sand' or 'dunes', not wood grain or water. In face.png no polished gap wider than 0.5 mm separates ripples from the figure."}
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/moloch/hero-300.png",
+    "showcase/cataphracta/moloch/face-300.png",
+    "showcase/cataphracta/moloch/hero.png",
+    "showcase/cataphracta/moloch/face.png",
+    "showcase/cataphracta/moloch/stones.png",
+    "showcase/cataphracta/moloch/palm.png",
+    "showcase/cataphracta/moloch/reverse.png",
+    "showcase/cataphracta/moloch/side.png",
+    "showcase/cataphracta/moloch/shoulder.png",
+    "showcase/cataphracta/moloch/contact-300.png",
+    "showcase/cataphracta/moloch/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
