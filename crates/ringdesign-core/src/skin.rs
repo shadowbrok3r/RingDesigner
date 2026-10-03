@@ -15,6 +15,14 @@ pub const MAX_JOINTS: usize = 4096;
 /// Share of a layer's height a texel must lose to count as cut.
 pub const CLAMP_NOTICE: f32 = 0.02;
 
+/// Prefix of a built-in region mask's library name: `"##region:cheek"` names the cheek, baked from the design's own
+/// atlas like a `##sdf` field and never saved.
+pub const REGION_PREFIX: &str = "##region:";
+/// The built-in regions, each a mask over the whole chart.
+pub const REGIONS: [&str; 6] = ["table", "rim", "cheek", "wall", "shoulder", "palm"];
+/// Columns and rows of the atlas a region mask is painted on.
+pub const REGION_GRID: (usize, usize) = (1024, 256);
+
 /// One point of the bare surface: where it is, which way it faces, and where it sits in the chart.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Sample {
@@ -53,33 +61,54 @@ impl Atlas {
         ensure!(width >= 4 && height >= 3, "An atlas needs at least 4 x 3 samples");
         ensure!(width.saturating_mul(height) <= MAX_ATLAS_SAMPLES, "An atlas holds at most {MAX_ATLAS_SAMPLES} samples");
         let span = d.reference_loop().surface_len_mm;
-        let mut samples = vec![Sample::default(); width * height];
         if let Some(b) = &d.imported_base {
             let surface = b.field_surface(d)?;
-            for x in 0..width {
-                let theta = x as f64 / width as f64 * 360.;
-                for y in 0..height {
-                    let fraction = y as f64 / height as f64;
-                    samples[y * width + x] = Sample { p: surface.point(theta, fraction), theta, v: fraction * span, i: y * width + x, ..Default::default() };
-                }
-            }
-        } else {
-            ensure!(d.band_is_procedural(), "The band is replaced by CAD parts and has no chart");
-            let reference = d.reference_loop();
-            let at = |x: usize| column(d, &reference, x as f64 / width as f64 * 360., height);
-            #[cfg(feature = "parallel")]
-            let columns: Result<Vec<Vec<[f64; 2]>>> = (0..width).into_par_iter().map(at).collect();
-            #[cfg(not(feature = "parallel"))]
-            let columns: Result<Vec<Vec<[f64; 2]>>> = (0..width).map(at).collect();
-            for (x, rows) in columns?.into_iter().enumerate() {
-                let theta = x as f64 / width as f64 * 360.;
-                let (sin, cos) = theta.to_radians().sin_cos();
-                for (y, [r, z]) in rows.into_iter().enumerate() {
-                    let fraction = y as f64 / height as f64;
-                    samples[y * width + x] = Sample { p: [r * cos, r * sin, z], theta, v: fraction * span, i: y * width + x, ..Default::default() };
-                }
+            return Self::of_surface(&surface, width, height, span, d.inner_radius_mm(), d.shank.head.length_mm, d.profile.width_mm);
+        }
+        let mut samples = vec![Sample::default(); width * height];
+        ensure!(d.band_is_procedural(), "The band is replaced by CAD parts and has no chart");
+        let reference = d.reference_loop();
+        let at = |x: usize| column(d, &reference, x as f64 / width as f64 * 360., height);
+        #[cfg(feature = "parallel")]
+        let columns: Result<Vec<Vec<[f64; 2]>>> = (0..width).into_par_iter().map(at).collect();
+        #[cfg(not(feature = "parallel"))]
+        let columns: Result<Vec<Vec<[f64; 2]>>> = (0..width).map(at).collect();
+        for (x, rows) in columns?.into_iter().enumerate() {
+            let theta = x as f64 / width as f64 * 360.;
+            let (sin, cos) = theta.to_radians().sin_cos();
+            for (y, [r, z]) in rows.into_iter().enumerate() {
+                let fraction = y as f64 / height as f64;
+                samples[y * width + x] = Sample { p: [r * cos, r * sin, z], theta, v: fraction * span, i: y * width + x, ..Default::default() };
             }
         }
+        Ok(Self::with_normals(samples, width, height, span, d.inner_radius_mm(), d.shank.head.length_mm, d.profile.width_mm))
+    }
+
+    /// Imported stock's bare surface from its field surface, `span` mm of chart `v` across; `head_length_mm` and
+    /// `band_width_mm` only size [`face`](Self::face).
+    pub fn of_surface(
+        surface: &crate::imported_base::FieldSurface,
+        width: usize,
+        height: usize,
+        span: f64,
+        bore: f64,
+        head_length_mm: f64,
+        band_width_mm: f64,
+    ) -> Result<Self> {
+        ensure!(width >= 4 && height >= 3, "An atlas needs at least 4 x 3 samples");
+        ensure!(width.saturating_mul(height) <= MAX_ATLAS_SAMPLES, "An atlas holds at most {MAX_ATLAS_SAMPLES} samples");
+        let mut samples = vec![Sample::default(); width * height];
+        for x in 0..width {
+            let theta = x as f64 / width as f64 * 360.;
+            for y in 0..height {
+                let fraction = y as f64 / height as f64;
+                samples[y * width + x] = Sample { p: surface.point(theta, fraction), theta, v: fraction * span, i: y * width + x, ..Default::default() };
+            }
+        }
+        Ok(Self::with_normals(samples, width, height, span, bore, head_length_mm, band_width_mm))
+    }
+
+    fn with_normals(mut samples: Vec<Sample>, width: usize, height: usize, span: f64, bore: f64, head_length_mm: f64, band_width_mm: f64) -> Self {
         let top = samples.iter().map(|s| s.p[1]).fold(0_f64, f64::max);
         for y in 1..height - 1 {
             for x in 0..width {
@@ -94,16 +123,7 @@ impl Atlas {
                 samples[y * width + x].n = n.map(|a| a / l);
             }
         }
-        Ok(Self {
-            width,
-            height,
-            samples,
-            top,
-            bore: d.inner_radius_mm(),
-            span,
-            head_length_mm: d.shank.head.length_mm,
-            band_width_mm: d.profile.width_mm,
-        })
+        Self { width, height, samples, top, bore, span, head_length_mm, band_width_mm }
     }
 
     /// The sample at column `x`, row `y`.
@@ -202,6 +222,8 @@ pub struct Hide {
     pub wall: Vec<[f64; 2]>,
     /// The atlas row nearest the parting plane in each column.
     pub crest: Vec<usize>,
+    /// Rim and wall per column as measured, before any filter.
+    measured: [Vec<[f64; 2]>; 2],
 }
 
 fn distance(p: [f64; 3], q: [f64; 3]) -> f64 {
@@ -213,6 +235,12 @@ fn turn(p: [[f64; 3]; 3]) -> f64 {
     let (u, w): ([f64; 3], [f64; 3]) = (std::array::from_fn(|k| p[1][k] - p[0][k]), std::array::from_fn(|k| p[2][k] - p[1][k]));
     let dot = u[0] * w[0] + u[1] * w[1] + u[2] * w[2];
     (dot / (u.iter().map(|x| x * x).sum::<f64>() * w.iter().map(|x| x * x).sum::<f64>()).sqrt().max(1e-12)).clamp(-1.0, 1.0).acos().to_degrees()
+}
+
+/// Per-column values averaged over 13 columns around the ring.
+fn smooth(v: &[[f64; 2]]) -> Vec<[f64; 2]> {
+    let w = v.len() as i64;
+    (0..w).map(|x| std::array::from_fn(|k| (-6i64..=6).map(|o| v[(x + o).rem_euclid(w) as usize][k]).sum::<f64>() / 13.0)).collect()
 }
 
 impl Hide {
@@ -263,11 +291,27 @@ impl Hide {
                 wall[x][side] = (low - rim[x][side]).max(0.0);
             }
         }
-        let smooth = |v: &Vec<[f64; 2]>| -> Vec<[f64; 2]> {
-            (0..w).map(|x| std::array::from_fn(|k| (-6i64..=6).map(|o| v[(x as i64 + o).rem_euclid(w as i64) as usize][k]).sum::<f64>() / 13.0)).collect()
+        Self { width: w, height: h, along, across, rim: smooth(&rim), wall: smooth(&wall), crest, measured: [rim, wall] }
+    }
+
+    /// The hide with its rim and wall taken as the median over `2 * half + 1` columns before the average, so a few columns
+    /// whose sections run through an arm tip's end wall no longer spike them. `steadied(0)` is the hide as it was.
+    pub fn steadied(mut self, half: usize) -> Self {
+        let [rim, wall] = &self.measured;
+        let median = |v: &Vec<[f64; 2]>| -> Vec<[f64; 2]> {
+            let w = v.len() as i64;
+            (0..w)
+                .map(|x| {
+                    std::array::from_fn(|k| {
+                        let mut run: Vec<f64> = (-(half as i64)..=half as i64).map(|o| v[(x + o).rem_euclid(w) as usize][k]).collect();
+                        run.sort_by(f64::total_cmp);
+                        run[half]
+                    })
+                })
+                .collect()
         };
-        let (rim, wall) = (smooth(&rim), smooth(&wall));
-        Self { width: w, height: h, along, across, rim, wall, crest }
+        (self.rim, self.wall) = (smooth(&median(rim)), smooth(&median(wall)));
+        self
     }
 
     /// A sample's hide coordinates, the rim and wall read on its own side.
@@ -326,6 +370,32 @@ impl Hide {
         }
         out
     }
+}
+
+/// The built-in region `name` (one of [`REGIONS`]) painted on `a`, named with [`REGION_PREFIX`]:
+/// - `table`, `cheek` and `shoulder` are [`Atlas::face`], [`Atlas::cheek`] and [`Atlas::shoulder`];
+/// - `rim` is the outer surface from the parting line out to where each side turns to face the pull;
+/// - `wall` is the surface past that rim toward the bore edge;
+/// - `palm` is where the surface faces away from the head, within about 40 degrees of straight down.
+pub fn region(a: &Atlas, hide: &Hide, name: &str) -> Option<Alpha> {
+    let full = format!("{REGION_PREFIX}{name}");
+    let soft = 0.3;
+    Some(match name {
+        "table" => a.paint(full, |s| a.face(s)),
+        "cheek" => a.paint(full, |s| a.cheek(s)),
+        "shoulder" => a.paint(full, |s| a.shoulder(s)),
+        "rim" => a.paint(full, |s| {
+            let p = hide.at(s);
+            1. - smoothstep(p.rim - soft, p.rim, p.across.abs())
+        }),
+        "wall" => a.paint(full, |s| {
+            let p = hide.at(s);
+            let x = p.across.abs();
+            smoothstep(p.rim - soft, p.rim, x) * (1. - smoothstep(p.rim + p.wall - soft, p.rim + p.wall, x))
+        }),
+        "palm" => a.paint(full, |s| smoothstep(0.64, 0.8, -s.p[1] / s.p[0].hypot(s.p[1]).max(1e-9))),
+        _ => return None,
+    })
 }
 
 /// A deterministic hash of two integers onto 0..1, in steps of 1e-4.
@@ -699,5 +769,152 @@ mod tests {
         let head = hide.crest_point(&atlas, 0.0);
         assert!(head[0].abs() < 0.2 && head[2].abs() < 0.1 && head[1] > atlas.top - 0.2, "{head:?} against top {}", atlas.top);
         assert!((hide.reach() + hide.along.iter().copied().fold(f64::MAX, f64::min)).abs() < 0.3);
+    }
+
+    /// A bypass's rim spikes where its sections cross an arm tip's end wall; steadied, it climbs once and falls once to within 0.05 mm a side, less than half the plain hide's 0.12, and `steadied(0)` is the plain hide.
+    #[test]
+    fn a_steadied_hide_drops_the_end_wall_spikes() {
+        let a = Atlas::of(&bypass(), 512, 192).unwrap();
+        // Climb beyond one rise and one fall around the ring, mm.
+        let excess = |v: &[[f64; 2]], k: usize| {
+            let r: Vec<f64> = v.iter().map(|r| r[k]).collect();
+            let travel: f64 = (0..r.len()).map(|x| (r[(x + 1) % r.len()] - r[x]).abs()).sum();
+            travel - 2.0 * (r.iter().copied().fold(f64::MIN, f64::max) - r.iter().copied().fold(f64::MAX, f64::min))
+        };
+        let (plain, steady) = (Hide::of(&a), Hide::of(&a).steadied(3));
+        let same = Hide::of(&a).steadied(0);
+        assert!(plain.rim == same.rim && plain.wall == same.wall);
+        for k in 0..2 {
+            let (before, after) = (excess(&plain.rim, k), excess(&steady.rim, k));
+            let (wall_before, wall_after) = (excess(&plain.wall, k), excess(&steady.wall, k));
+            eprintln!("side {k}: rim excess {before:.4} -> {after:.4} mm, wall {wall_before:.4} -> {wall_after:.4} mm");
+            assert!(before > 0.1 && after < 0.05 && after < before / 2.0, "{before} -> {after}");
+            assert!(wall_after < wall_before, "{wall_before} -> {wall_after}");
+        }
+    }
+
+    /// On a plain band hide space is the chart with `v` measured from the parting line, mirroring included.
+    #[test]
+    fn hide_space_on_a_plain_band_is_the_chart_moved_to_the_parting_line() {
+        use crate::field::Uv;
+        use crate::tiling::ChartSpace;
+        let d = RingDesign::default();
+        let ctx = d.field_context();
+        assert!(ctx.crest_scale.is_none() && ctx.stretch.is_none());
+        let lib = AlphaLibrary::builtin();
+        let mut chart = TilingLayer::default_for("Scales", &ctx);
+        (chart.repeats_around, chart.rows, chart.stagger, chart.offset_u) = (17, 3, 0.5, 0.23);
+        let hide = TilingLayer { space: ChartSpace::Hide, v_center_mm: chart.v_center_mm - ctx.crest_v_mm, ..chart.clone() };
+        for mirror_v in [false, true] {
+            if mirror_v && (ctx.crest_v_mm - 0.5 * ctx.band_v_len_mm).abs() > 1e-9 {
+                continue;
+            }
+            let (chart, hide) = (TilingLayer { mirror_v, ..chart.clone() }, TilingLayer { mirror_v, ..hide.clone() });
+            let mut moved = 0;
+            for i in 0..4000 {
+                let uv = Uv { u: (i as f64 * 0.618_034).fract() * ctx.circumference_mm, v: (i as f64 * 0.414_214).fract() * ctx.band_v_len_mm };
+                let (a, b) = (chart.height(uv, &ctx, &lib), hide.height(uv, &ctx, &lib));
+                assert!((a - b).abs() < 1e-9, "mirror {mirror_v} at {uv:?}: chart {a}, hide {b}");
+                moved += (a > 1e-3) as usize;
+            }
+            assert!(moved > 400, "{moved}");
+        }
+        let at = ctx.hide_uv(Uv { u: ctx.u_of_theta(90.0), v: ctx.crest_v_mm }).unwrap();
+        assert!((at.u - ctx.circumference_mm * 0.25).abs() < 1e-12 && at.v.abs() < 1e-12, "{at:?}");
+    }
+
+    /// On a keyframed band hide space runs the crest's true arc: the chart's `u` understates it where the head
+    /// stands out, and the hide agrees with the atlas's own measurement within 2%.
+    #[test]
+    fn hide_space_runs_true_millimetres_on_a_keyframed_band() {
+        use crate::field::Uv;
+        let d = keyframed();
+        let ctx = d.field_context();
+        let hide = ctx.hide().unwrap();
+        let a = Atlas::of(&d, 720, 256).unwrap();
+        let measured = Hide::of(&a);
+        let along = |theta: f64| hide.at(theta, ctx.crest_v_mm, &ctx).0;
+        assert!(along(90.0).abs() < 1e-9);
+        let mut last = f64::MIN;
+        for k in 0..=359 {
+            let theta = 270.5 + k as f64;
+            let l = along(theta);
+            assert!(l > last, "along falls at {theta}: {l} after {last}");
+            last = l;
+        }
+        for theta in [120.0, 180.0, 240.0, 30.0, 330.0] {
+            let x = (theta / 360.0 * a.width as f64).round() as usize % a.width;
+            let (ours, atlas) = (along(theta), measured.along[x]);
+            assert!((ours / atlas - 1.0).abs() < 0.02, "{theta}: hide {ours:.3} against the atlas's {atlas:.3}");
+        }
+        // On the head the chart runs short of the metal by the crest scale.
+        let chart = ctx.u_of_theta(110.0) - ctx.u_of_theta(90.0);
+        assert!(along(110.0) > chart * 1.03, "{} against the chart's {chart}", along(110.0));
+        let across = ctx.hide_uv(Uv { u: ctx.u_of_theta(90.0), v: ctx.crest_v_mm + 1.0 }).unwrap().v;
+        assert!((across - ctx.station_stretch(90.0)).abs() < 1e-9 && across > 1.05, "{across}");
+    }
+
+    /// Stock's hide comes from its field surface: zero at the head's centre on the parting line, shared per surface.
+    #[test]
+    fn hide_space_on_stock_starts_at_the_head_on_the_parting_line() {
+        let d = master();
+        let ctx = d.field_context();
+        let Some(chart @ crate::field::HideChart::Stock { .. }) = ctx.hide() else { panic!("stock reads a stock hide") };
+        let atlas = Atlas::of(&d, 720, 384).unwrap();
+        let hide = Hide::of(&atlas);
+        let (theta, v) = hide.crest_at(&atlas, 0.0);
+        let (along, across) = chart.at(theta, v, &ctx);
+        assert!(along.abs() < 0.2 && across.abs() < 0.2, "({along}, {across}) at the head");
+        let (along, _) = chart.at(135.0, v, &ctx);
+        assert!(along > 3.0, "{along}");
+        let again = d.field_context();
+        assert!(std::ptr::eq(ctx.hide().unwrap(), again.hide().unwrap()), "one chart per surface");
+    }
+
+    /// A built-in region mask bakes from the band, masks its layer, follows the band, fences the design and is never embedded.
+    #[test]
+    fn region_masks_bake_from_the_band_and_are_never_saved() {
+        use crate::field::Uv;
+        use crate::library::{FORMAT_VERSION, format_version_for};
+        let mut d = RingDesign::default();
+        d.profile.apply_style(ProfileStyle::Flat);
+        let ctx = d.field_context();
+        let mut entry = LayerEntry::new("palm scales", Layer::Tiling(TilingLayer::default_for("Scales", &ctx)));
+        entry.mask = Some(format!("{REGION_PREFIX}palm"));
+        let mut rim = entry.clone();
+        rim.mask = Some(format!("{REGION_PREFIX}rim"));
+        d.layers.layers = vec![entry, rim];
+        assert_eq!(d.region_masks(), ["##region:palm", "##region:rim"]);
+        assert_eq!(format_version_for(&d), FORMAT_VERSION);
+        let mut lib = AlphaLibrary::builtin();
+        d.bake_all(&mut lib);
+        let palm = lib.get("##region:palm").unwrap();
+        assert_eq!((palm.width, palm.height), REGION_GRID);
+        let at = |a: &Alpha, theta: f64, v: f64| a.sample_wrapped(theta / 360.0, v / ctx.band_v_len_mm) as f64;
+        assert!(at(palm, 270.0, ctx.crest_v_mm) > 0.99 && at(palm, 90.0, ctx.crest_v_mm) < 0.01);
+        let rim_mask = lib.get("##region:rim").unwrap();
+        assert!(at(rim_mask, 30.0, ctx.crest_v_mm) > 0.99, "the crest is on the rim");
+        assert!(at(rim_mask, 30.0, 0.02) < 0.5, "the bore edge is not");
+        // It masks: nothing at the top, the tiling itself at the palm.
+        let first = &d.layers.layers[0];
+        let v = ctx.crest_v_mm;
+        assert_eq!(first.mask_at(Uv { u: ctx.u_of_theta(90.0), v }, &ctx, &lib), 0.0);
+        assert!(first.mask_at(Uv { u: ctx.u_of_theta(270.0), v }, &ctx, &lib) > 0.99);
+        // Shared per band, rebaked when it moves.
+        let mut again = AlphaLibrary::builtin();
+        d.bake_regions(&mut again);
+        assert!(std::sync::Arc::ptr_eq(lib.get_shared("##region:palm").unwrap(), again.get_shared("##region:palm").unwrap()));
+        let mut wider = d.clone();
+        wider.profile.width_mm += 1.0;
+        wider.bake_regions(&mut again);
+        assert!(!std::sync::Arc::ptr_eq(lib.get_shared("##region:palm").unwrap(), again.get_shared("##region:palm").unwrap()));
+        // Derived, so never embedded.
+        let mut saved = d.clone();
+        saved.embed_alphas(&lib);
+        assert!(saved.embedded.iter().all(|e| !e.name.starts_with(REGION_PREFIX)), "{:?}", saved.embedded.iter().map(|e| &e.name).collect::<Vec<_>>());
+        // Every region bakes on this band.
+        let a = Atlas::of(&d, 256, 96).unwrap();
+        let h = Hide::of(&a);
+        assert!(REGIONS.iter().all(|r| region(&a, &h, r).is_some()) && region(&a, &h, "tail").is_none());
     }
 }

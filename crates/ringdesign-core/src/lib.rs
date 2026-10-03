@@ -52,6 +52,7 @@ pub mod refine;
 pub mod render;
 pub mod reptile;
 pub mod setstone;
+pub mod sculpt;
 pub mod setting;
 pub mod skin;
 pub mod parts;
@@ -216,6 +217,79 @@ fn map_items<T: Sync, U: Send>(items: &[T], each: impl Fn(&T) -> U + Sync + Send
     items.iter().map(each).collect()
 }
 
+/// Every enabled clamped group in `stack` with its name, innermost first.
+pub(crate) fn clamped_groups(stack: &LayerStack) -> Vec<(&str, &field::LayerEntry)> {
+    fn walk<'a>(stack: &'a LayerStack, depth: usize, out: &mut Vec<(&'a str, &'a field::LayerEntry)>) {
+        if depth > field::MAX_GROUP_DEPTH {
+            return;
+        }
+        for e in stack.layers.iter().filter(|e| e.enabled) {
+            if let field::Layer::Group(g) = &e.layer {
+                walk(&g.stack, depth + 1, out);
+                if g.clamp.is_some() && !out.iter().any(|(n, _)| *n == e.name) {
+                    out.push((e.name.as_str(), e));
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(stack, 0, &mut out);
+    out
+}
+
+/// Clamp bakes by content key; `made` stores one, unless a bake of the same content raced it there, which is returned instead. A handful are kept, the oldest going first.
+fn clamp_cache(key: u64, made: Option<(std::sync::Arc<Alpha>, skin::ClampReport)>) -> Option<(std::sync::Arc<Alpha>, skin::ClampReport)> {
+    const KEPT: usize = 16;
+    static CACHE: std::sync::Mutex<Vec<(u64, std::sync::Arc<Alpha>, skin::ClampReport)>> = std::sync::Mutex::new(Vec::new());
+    let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((ceiling, report)) = made {
+        if let Some((_, raced, report)) = cache.iter().find(|(k, ..)| *k == key) {
+            return Some((raced.clone(), *report));
+        }
+        if cache.len() >= KEPT {
+            cache.remove(0);
+        }
+        cache.push((key, ceiling.clone(), report));
+        return Some((ceiling, report));
+    }
+    cache.iter().find(|(k, ..)| *k == key).map(|(_, a, r)| (a.clone(), *r))
+}
+
+/// Share of the composite's height a texel must lose for the ceiling to hold it: under this it is rounding, not the rule.
+const CLAMP_BITES: f32 = 1e-5;
+
+/// One group's ceiling and report: its composite at every atlas sample, normalized to its tallest, clamped, and kept where it was cut.
+fn paint_clamp(name: &str, layer: &field::Layer, clamp: field::SandClamp, atlas: &skin::Atlas, ctx: &field::FieldContext, lib: &AlphaLibrary) -> (std::sync::Arc<Alpha>, skin::ClampReport) {
+    let composite: Vec<f64> = map_items(&atlas.samples, |s| {
+        let h = layer.height(field::Uv { u: s.theta / 360.0 * ctx.circumference_mm, v: s.v }, ctx, lib);
+        if h.is_finite() { h } else { 0.0 }
+    });
+    let top = composite.iter().copied().fold(0.0, f64::max);
+    let unbounded = |w: usize, h: usize| Alpha::new(alpha::clamp_name(name), w, h, vec![f32::INFINITY; w * h]);
+    if !(top > 1e-9) {
+        return (std::sync::Arc::new(unbounded(1, 1)), skin::ClampReport::default());
+    }
+    let before: Vec<f32> = composite.iter().map(|h| (h / top).clamp(0.0, 1.0) as f32).collect();
+    let mut painted = Alpha::new(alpha::clamp_name(name), atlas.width, atlas.height, before.clone());
+    let slack = if clamp.slack.is_finite() && clamp.slack > 1e-6 { clamp.slack } else { 1.0 };
+    if skin::draft_clamp(atlas, &mut painted, top / slack).is_err() {
+        return (std::sync::Arc::new(unbounded(1, 1)), skin::ClampReport::default());
+    }
+    let mut report = skin::ClampReport::default();
+    let mut ceiling = unbounded(atlas.width, atlas.height);
+    for (i, (b, c)) in before.iter().zip(&painted.data).enumerate() {
+        let cut = b - c;
+        if cut > CLAMP_BITES {
+            ceiling.data[i] = (*c as f64 * top) as f32;
+        }
+        if cut > skin::CLAMP_NOTICE {
+            report.texels_cut += 1;
+        }
+        report.worst_mm = report.worst_mm.max(cut.max(0.0) as f64 * top);
+    }
+    (std::sync::Arc::new(ceiling), report)
+}
+
 impl RingDesign {
     /// The design's artwork in the order it lands: embedded images, then drawings, inscriptions, SVG art and recipes.
     fn artwork(&self, embedded: bool, derived: bool) -> Vec<Artwork<'_>> {
@@ -313,12 +387,96 @@ impl RingDesign {
                 lib.insert_shared(alpha::shared_sdf(&source));
             }
         }
+        // Region masks follow the band and gate layers a clamp reads, so they come first.
+        if fields {
+            self.bake_regions(lib);
+        }
+        // Clamps read the composite, fields and all, so they come last.
+        if fields && self.has_clamps() {
+            if stopped() {
+                return None;
+            }
+            self.bake_clamps(lib);
+            tick();
+        }
         Some(rasters)
     }
 
-    /// Units of work [`unpack_and_bake_observed`](Self::unpack_and_bake_observed) reports at most: artwork sources and distance fields.
+    /// Whether any group carries a [`SandClamp`](field::SandClamp).
+    pub fn has_clamps(&self) -> bool {
+        !clamped_groups(&self.layers).is_empty()
+    }
+
+    /// Hold every clamped group to the sand's draft rule: its composite
+    /// painted over the bare-surface atlas at the clamp's resolution, run
+    /// through [`skin::draft_clamp`], and the ceiling stored under
+    /// [`alpha::clamp_name`] with values only where the rule bit and
+    /// unbounded everywhere else. Inner groups bake first, so an outer clamp
+    /// reads them clamped. Derived, never saved, and shared by content: the
+    /// key is the serialized group, profile, shank and base, with the
+    /// content of every alpha the group reads. The report for each group, in
+    /// stack order of completion; a group whose atlas cannot be painted
+    /// stands unclamped and is not reported.
+    pub fn bake_clamps(&self, lib: &mut AlphaLibrary) -> Vec<(String, skin::ClampReport)> {
+        let groups = clamped_groups(&self.layers);
+        if groups.is_empty() {
+            return Vec::new();
+        }
+        let ctx = self.field_context();
+        let mut atlases: Vec<((usize, usize), Option<skin::Atlas>)> = Vec::new();
+        let mut out = Vec::new();
+        for (name, entry) in groups {
+            let field::Layer::Group(g) = &entry.layer else { continue };
+            let Some(clamp) = g.clamp else { continue };
+            let key = self.clamp_key(name, g, lib);
+            let (ceiling, report) = match clamp_cache(key, None) {
+                Some(hit) => hit,
+                None => {
+                    let size = clamp.size();
+                    if !atlases.iter().any(|(s, _)| *s == size) {
+                        atlases.push((size, skin::Atlas::of(self, size.0, size.1).map_err(|e| log::warn!("clamp \"{name}\": {e}")).ok()));
+                    }
+                    let Some(atlas) = atlases.iter().find(|(s, _)| *s == size).and_then(|(_, a)| a.as_ref()) else { continue };
+                    let made = paint_clamp(name, &entry.layer, clamp, atlas, &ctx, lib);
+                    clamp_cache(key, Some(made.clone())).unwrap_or(made)
+                }
+            };
+            lib.insert_shared(ceiling);
+            out.push((name.to_string(), report));
+        }
+        out
+    }
+
+    /// Whether a clamped group's ceiling is missing, or was baked for other content.
+    pub fn clamps_stale(&self, lib: &AlphaLibrary) -> bool {
+        clamped_groups(&self.layers).into_iter().any(|(name, entry)| {
+            let field::Layer::Group(g) = &entry.layer else { return false };
+            let held = lib.get_shared(&alpha::clamp_name(name));
+            match (held, clamp_cache(self.clamp_key(name, g, lib), None)) {
+                (Some(held), Some((baked, _))) => !std::sync::Arc::ptr_eq(held, &baked) && held.content_key() != baked.content_key(),
+                _ => true,
+            }
+        })
+    }
+
+    /// What a clamp's ceiling depends on.
+    fn clamp_key(&self, name: &str, g: &field::GroupLayer, lib: &AlphaLibrary) -> u64 {
+        let alphas: Vec<(String, Option<u64>, Option<u64>)> = g
+            .stack
+            .referenced_alphas()
+            .into_iter()
+            .map(|a| (a.to_string(), lib.get(a).map(Alpha::content_key), lib.sdf_of(a).map(Alpha::content_key)))
+            .collect();
+        let inner: Vec<(&str, Option<u64>)> = clamped_groups(&g.stack)
+            .into_iter()
+            .map(|(n, _)| (n, lib.clamp_of(n).map(Alpha::content_key)))
+            .collect();
+        alpha::source_key("clamp", &(name, g, &self.profile, &self.shank, &self.imported_base, alphas, inner))
+    }
+
+    /// Units of work [`unpack_and_bake_observed`](Self::unpack_and_bake_observed) reports at most: artwork sources, distance fields and the clamping.
     pub fn bake_units(&self) -> usize {
-        self.artwork(true, true).len() + self.sdf_sources().len()
+        self.artwork(true, true).len() + self.sdf_sources().len() + usize::from(self.has_clamps())
     }
 
     /// [`unpack_embedded`](Self::unpack_embedded) then [`bake_all`](Self::bake_all) on every core, telling `progress` each unit done; the rasters inserted, or `None` once `cancel` is set.
@@ -361,6 +519,55 @@ impl RingDesign {
         self.bake_pipeline(&[], true, lib, &|_, _| {}, &Default::default());
     }
 
+    /// Every built-in region mask (`"##region:…"`) an entry reads, groups included, once each.
+    pub fn region_masks(&self) -> Vec<&str> {
+        fn walk<'a>(stack: &'a LayerStack, out: &mut Vec<&'a str>) {
+            for e in &stack.layers {
+                if let Some(name) = e.mask.as_deref().filter(|n| n.starts_with(skin::REGION_PREFIX) && !out.contains(n)) {
+                    out.push(name);
+                }
+                if let field::Layer::Group(g) = &e.layer {
+                    walk(&g.stack, out);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(&self.layers, &mut out);
+        out
+    }
+
+    /// Paint every built-in region mask the stack reads onto the design's
+    /// atlas and insert it under its `"##region:…"` name. Derived like a
+    /// distance field: never saved, and shared across bakes of the same band,
+    /// so an editor may call it on every edit and pay only when the band moved.
+    pub fn bake_regions(&self, lib: &mut AlphaLibrary) {
+        let names = self.region_masks();
+        if names.is_empty() {
+            return;
+        }
+        let band = (&self.profile, &self.shank, self.imported_base.as_ref().map(|b| (b.source.fingerprint(), &b.chart)), self.inner_radius_mm().to_bits());
+        let chart = std::cell::OnceCell::new();
+        for name in names {
+            let region = &name[skin::REGION_PREFIX.len()..];
+            let made = alpha::shared_bake(alpha::source_key(name, &band), || {
+                let (atlas, hide) = chart
+                    .get_or_init(|| {
+                        let (w, h) = skin::REGION_GRID;
+                        skin::Atlas::of(self, w, h).map_err(|e| log::warn!("no region masks on this band: {e}")).ok().map(|a| {
+                            let hide = skin::Hide::of(&a);
+                            (a, hide)
+                        })
+                    })
+                    .as_ref()?;
+                skin::region(atlas, hide, region)
+            });
+            match made {
+                Some(r) => lib.insert_shared(r),
+                None => log::warn!("{name:?} is not a region this band has; the mask passes everything"),
+            }
+        }
+    }
+
     /// Whether any layer reading a distance field is missing one.
     ///
     /// `TilingLayer::height` falls back to brightness-as-height when the
@@ -370,6 +577,10 @@ impl RingDesign {
     /// layer, so an editor can ask on every edit and only pay for the bake
     /// when the answer is yes.
     pub fn sdfs_missing(&self, lib: &AlphaLibrary) -> bool {
+        // A clamped group's ceiling is derived the same way and goes stale the same way.
+        if self.has_clamps() && self.clamps_stale(lib) {
+            return true;
+        }
         fn walk(stack: &LayerStack, lib: &AlphaLibrary) -> bool {
             stack.layers.iter().any(|e| match &e.layer {
                 field::Layer::Tiling(t) if t.edge_mm > 1e-9 => {
@@ -402,11 +613,25 @@ impl RingDesign {
     /// Capture every referenced alpha that cannot be regenerated — not a
     /// builtin, not drawn — as embedded PNG data. Call on a save-time clone.
     pub fn embed_alphas(&mut self, lib: &AlphaLibrary) {
+        let names: Vec<_> = self.layers.referenced_alphas().into_iter().map(str::to_owned).collect();
+        self.embed_named_alphas(lib, names.iter().map(String::as_str));
+    }
+
+    /// Capture named artwork too, such as references in a reusable graph's inactive branches.
+    pub fn embed_named_alphas<'a>(&mut self, lib: &AlphaLibrary, names: impl IntoIterator<Item = &'a str>) {
         use base64::Engine as _;
         self.embedded.clear();
-        for name in self.layers.referenced_alphas() {
-            let regenerable = alpha::Procedural::ALL.iter().any(|p| p.label() == name)
-                || self.drawn.iter().any(|d| d.name == name)
+        for name in names {
+            // A region mask is derived from the band, like a distance field.
+            if name.starts_with(skin::REGION_PREFIX) {
+                continue;
+            }
+            // A builtin's name is regenerable only while the library holds that builtin or this design's recipe bakes it.
+            let builtin = alpha::Procedural::ALL.iter().copied().find(|p| p.label() == name);
+            let regenerable = builtin.is_some_and(|p| {
+                self.recipes.iter().any(|r| r.name == name)
+                    || lib.get(name).is_none_or(|a| a.content_key() == p.generate(alpha::BUILTIN_SIZE).content_key())
+            }) || self.drawn.iter().any(|d| d.name == name)
                 || self.texts.iter().any(|t| t.name == name);
             if regenerable {
                 continue;
@@ -431,7 +656,8 @@ impl RingDesign {
         // design carrying its own "band" or "sketch" silently rendered
         // the first one's art. `embed_alphas` never embeds anything
         // regenerable — no procedural builtin, no stroke, no inscription —
-        // so replacing here cannot clobber one of those.
+        // so a builtin's name is replaced only by a design that carried
+        // its own art under that name.
         self.bake_pipeline(&self.artwork(true, false), false, lib, &|_, _| {}, &Default::default());
     }
 
@@ -512,6 +738,7 @@ impl RingDesign {
             station_gates: tables.and_then(|t| t.gates),
             imported_surface,
             imported_seats,
+            hide_cache: Default::default(),
         }
     }
 
@@ -907,3 +1134,139 @@ mod design_tests {
     }
 }
 pub mod blend;
+
+#[cfg(test)]
+mod clamp_tests {
+    use super::*;
+    use crate::field::{Blend, BorderLayer, BorderProfile, GroupLayer, MilgrainLayer, SandClamp, Uv};
+
+    const SIZE: [u32; 2] = [256, 96];
+
+    /// Relief that breaks the rule: a stepped rail on each flank rises away
+    /// from the parting line as a wall, and beads Added over it stack higher.
+    fn beadwork(name: &str, v: f64) -> LayerEntry {
+        let mut rail = LayerEntry::new("Rail", Layer::Border(BorderLayer { v_mm: v, width_mm: 1.4, height_mm: 0.7, profile: BorderProfile::Step, mirror: true, rope_twists: 0 }));
+        rail.blend = Blend::Max;
+        let mut beads = LayerEntry::new("Beads", Layer::Milgrain(MilgrainLayer { v_mm: v, bead_diameter_mm: 0.9, beads_around: 40, height_mm: 0.4, mirror: true }));
+        beads.blend = Blend::Add;
+        let mut e = LayerEntry::new(name, Layer::Group(GroupLayer { stack: LayerStack { layers: vec![rail, beads] }, recipe: None, clamp: Some(SandClamp { resolution: SIZE, slack: 1.0 }) }));
+        e.blend = Blend::Max;
+        e
+    }
+
+    fn design(entries: Vec<LayerEntry>) -> RingDesign {
+        let mut d = RingDesign::default();
+        d.profile.apply_style(ProfileStyle::HalfRound);
+        d.layers.layers = entries;
+        d
+    }
+
+    fn unclamped(mut e: LayerEntry) -> LayerEntry {
+        if let Layer::Group(g) = &mut e.layer {
+            g.clamp = None;
+        }
+        e
+    }
+
+    /// The group's height at every atlas sample, as the stack composes it.
+    fn painted(d: &RingDesign, lib: &AlphaLibrary, atlas: &skin::Atlas) -> Vec<f64> {
+        let ctx = d.field_context();
+        atlas.samples.iter().map(|s| d.layers.height(Uv { u: s.theta / 360.0 * ctx.circumference_mm, v: s.v }, &ctx, lib)).collect()
+    }
+
+    /// The live clamp is the painted clamp: at every atlas sample the
+    /// clamped group stands exactly where `skin::draft_clamp` over the same
+    /// composite put it, to the f32 the painted alpha holds, and what it
+    /// leaves the rule no longer bites on.
+    #[test]
+    fn a_live_clamp_is_the_painted_clamp_at_every_sample() {
+        let v = RingDesign::default().field_context().band_v_len_mm * 0.22;
+        let d = design(vec![beadwork("Beadwork", v)]);
+        let loose = design(vec![unclamped(beadwork("Beadwork", v))]);
+        let mut lib = AlphaLibrary::builtin();
+        let reports = d.bake_clamps(&mut lib);
+        assert_eq!(reports.len(), 1);
+        let (name, report) = &reports[0];
+        assert_eq!(name, "Beadwork");
+        assert!(report.texels_cut > 20 && report.worst_mm > 0.1, "the rule bites on a stepped rail: {report:?}");
+        let atlas = skin::Atlas::of(&d, SIZE[0] as usize, SIZE[1] as usize).unwrap();
+        let composite = painted(&loose, &lib, &atlas);
+        let top = composite.iter().copied().fold(0.0, f64::max);
+        let mut clamped = Alpha::new("painted", atlas.width, atlas.height, composite.iter().map(|h| (h / top).clamp(0.0, 1.0) as f32).collect());
+        skin::draft_clamp(&atlas, &mut clamped, top).unwrap();
+        let live = painted(&d, &lib, &atlas);
+        for (i, (&l, &c)) in live.iter().zip(&clamped.data).enumerate() {
+            assert!((l - c as f64 * top).abs() <= 2e-6 * top, "sample {i}: live {l} against painted {}", c as f64 * top);
+        }
+        let mut again = Alpha::new("again", atlas.width, atlas.height, live.iter().map(|h| (h / top).clamp(0.0, 1.0) as f32).collect());
+        let second = skin::draft_clamp(&atlas, &mut again, top).unwrap();
+        assert!(second.worst_mm < 1e-4, "the live field keeps the rule: {second:?}");
+        // Unbaked, a clamped group stands as composed.
+        assert_eq!(painted(&d, &AlphaLibrary::builtin(), &atlas), composite);
+    }
+
+    /// Max keeps the rule: a clamped Max of two clamped groups has nothing
+    /// left to cut and builds bit-identical to the same Max unclamped. And
+    /// taking a clamp off leaves the design exactly as an unclamped one,
+    /// ceiling in the library or not.
+    #[test]
+    fn a_clamped_max_of_clamped_layers_cuts_nothing_and_the_clamp_comes_off_clean() {
+        let band = RingDesign::default().field_context().band_v_len_mm;
+        let mut outer = LayerEntry::new("Outer", Layer::Group(GroupLayer {
+            stack: LayerStack { layers: vec![beadwork("Low", band * 0.2), beadwork("High", band * 0.3)] },
+            recipe: None,
+            clamp: Some(SandClamp { resolution: SIZE, slack: 1.0 }),
+        }));
+        outer.blend = Blend::Max;
+        let d = design(vec![outer.clone()]);
+        let mut lib = AlphaLibrary::builtin();
+        let reports = d.bake_clamps(&mut lib);
+        assert_eq!(reports.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), ["Low", "High", "Outer"], "inner groups bake first");
+        assert!(reports[0].1.texels_cut > 0 && reports[1].1.texels_cut > 0);
+        assert_eq!(reports[2].1.texels_cut, 0, "Max of clamped layers keeps the rule: {:?}", reports[2].1);
+        let plain = design(vec![unclamped(outer)]);
+        let ctx = d.field_context();
+        for i in 0..720 {
+            for j in 0..=40 {
+                let uv = Uv { u: (i as f64 + 0.37) / 720.0 * ctx.circumference_mm, v: j as f64 / 40.0 * ctx.band_v_len_mm };
+                assert_eq!(d.layers.height(uv, &ctx, &lib).to_bits(), plain.layers.height(uv, &ctx, &lib).to_bits(), "at {uv:?}");
+            }
+        }
+        // Off, with the ceiling still in the library: the plain group, and the plain file.
+        let v = band * 0.22;
+        let (on, off) = (design(vec![beadwork("Beadwork", v)]), design(vec![unclamped(beadwork("Beadwork", v))]));
+        on.bake_clamps(&mut lib);
+        let mut never = AlphaLibrary::builtin();
+        for i in 0..360 {
+            let uv = Uv { u: i as f64 / 360.0 * ctx.circumference_mm, v: band * 0.25 };
+            assert_eq!(off.layers.height(uv, &ctx, &lib).to_bits(), off.layers.height(uv, &ctx, &never).to_bits());
+        }
+        assert!(off.bake_clamps(&mut never).is_empty());
+        assert!(serde_json::to_value(&off.layers).unwrap().to_string().find("clamp").is_none(), "skipped when off");
+        assert_eq!(library::format_version_for(&off), library::PLAIN_FORMAT_VERSION);
+        assert_eq!(library::format_version_for(&on), library::FORMAT_VERSION);
+        let text = library::design_json(&on).unwrap();
+        assert!(library::read_design(&text, library::PLAIN_FORMAT_VERSION).is_err());
+    }
+
+    /// The ceiling is derived like a distance field: it rides the bake, goes stale when the group changes, and is never saved.
+    #[test]
+    fn a_clamp_bakes_with_the_design_and_goes_stale_with_its_group() {
+        let v = RingDesign::default().field_context().band_v_len_mm * 0.22;
+        let mut d = design(vec![beadwork("Beadwork", v)]);
+        let mut lib = AlphaLibrary::builtin();
+        assert!(d.sdfs_missing(&lib), "an unbaked clamp asks for a bake");
+        d.bake_all(&mut lib);
+        assert!(lib.clamp_of("Beadwork").is_some());
+        assert!(!d.sdfs_missing(&lib));
+        if let Layer::Group(g) = &mut d.layers.layers[0].layer {
+            g.stack.layers[0].layer = Layer::Border(BorderLayer { v_mm: v, width_mm: 1.4, height_mm: 0.9, profile: BorderProfile::Step, mirror: true, rope_twists: 0 });
+        }
+        assert!(d.sdfs_missing(&lib), "an edited group's ceiling is stale");
+        d.bake_sdfs(&mut lib);
+        assert!(!d.sdfs_missing(&lib));
+        let mut saved = d.clone();
+        saved.embed_alphas(&lib);
+        assert!(saved.embedded.iter().all(|e| !crate::alpha::is_derived(&e.name)));
+    }
+}

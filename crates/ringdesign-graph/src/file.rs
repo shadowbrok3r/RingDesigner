@@ -37,9 +37,9 @@ fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
 /// Version 2 only fences an in-plane revolution, a pattern of several parts and a cut on a ring of parts alone off from older readers; a version-1 document has the same shape.
 fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 
-/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, or a pattern of several parts.
+/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, a profile of several regions, or a pattern of several parts.
 fn fenced_json(v: &serde_json::Value) -> bool {
-    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::pattern::several_sources_json(v) || library::template_features_in_json(v)
+    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::picks_regions_json(v) || ringdesign_core::cad::pattern::several_sources_json(v) || library::template_features_in_json(v)
 }
 
 /// Whether a literal holds what an older reader must be fenced from: what [`fenced_json`] fences, or a cut on a ring of parts alone.
@@ -313,6 +313,56 @@ pub fn list_presets() -> Vec<Preset> {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn a_fine_cap_stamp_fences_the_graph_and_the_preset_carrying_it() {
+        let stamp = |fine_cap: bool| ringdesign_core::setting::Stamp { name: "Dome".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline: ringdesign_core::outline::circle(2.0), height_mm: 0.3, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap, tier: 0, top: Default::default() };
+        for (fine_cap, expected) in [(false, PLAIN_GRAPH_FORMAT_VERSION), (true, GRAPH_FORMAT_VERSION)] {
+            let mut d = ringdesign_core::RingDesign::default();
+            d.stamps.push(stamp(fine_cap));
+            let mut graph = Graph::new("Stamped source", Mode::SandRing);
+            let source = graph.add("cad.source").unwrap();
+            graph.node_mut(source).unwrap().params = serde_json::to_value(&d).unwrap();
+            assert_eq!(graph_version_for(&graph), expected, "fine_cap {fine_cap}");
+            let mut preset = Preset::default();
+            preset.values.insert("Stamps".into(), Literal::Json(serde_json::to_value(vec![stamp(fine_cap)]).unwrap()));
+            assert_eq!(preset_version_in(&preset, None), expected, "fine_cap {fine_cap}");
+        }
+    }
+
+    #[test]
+    fn a_tiling_grade_fences_the_graph_by_literal_wire_or_exposure() {
+        let grade = serde_json::json!({"taper": 0.5, "theta_deg": 90.0, "law": "Cosine", "isotropic": false});
+        let mut plain = Graph::new("Tiling", Mode::Free);
+        plain.add("layer.tiling").unwrap();
+        assert_eq!(graph_version_for(&plain), PLAIN_GRAPH_FORMAT_VERSION);
+        for form in ["literal", "wire", "exposure"] {
+            let mut graph = Graph::new("Graded tiling", Mode::Free);
+            let tiling = graph.add("layer.tiling").unwrap();
+            match form {
+                "literal" => graph.set_input(tiling, "grade", Literal::Json(grade.clone())).unwrap(),
+                "wire" => { let source = graph.add("util.json").unwrap(); graph.connect(source, "value", tiling, "grade").unwrap(); }
+                _ => { graph.expose(tiling, "grade", "Grade").unwrap(); }
+            }
+            assert_eq!(graph_version_for(&graph), GRAPH_FORMAT_VERSION, "{form}");
+            let text = graph_to_string(&graph).unwrap();
+            assert!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).is_err());
+        }
+        let mut preset = Preset::default();
+        preset.values.insert("Grade".into(), Literal::Json(grade));
+        assert_eq!(preset_version_in(&preset, None), GRAPH_FORMAT_VERSION);
+        // Hide space fences; the chart, the default, does not.
+        for (space, expected) in [("Chart", PLAIN_GRAPH_FORMAT_VERSION), ("Hide", GRAPH_FORMAT_VERSION)] {
+            let mut graph = Graph::new("Hide tiling", Mode::Free);
+            let tiling = graph.add("layer.tiling").unwrap();
+            graph.set_input(tiling, "space", Literal::Text(space.into())).unwrap();
+            assert_eq!(graph_version_for(&graph), expected, "{space}");
+        }
+        let mut graph = Graph::new("Region mask", Mode::Free);
+        let entry = graph.add("entry").unwrap();
+        graph.set_input(entry, "mask", Literal::Text("##region:cheek".into())).unwrap();
+        assert_eq!(graph_version_for(&graph), GRAPH_FORMAT_VERSION);
+    }
+
+    #[test]
     fn station_gate_and_claw_controls_fence_graphs_presets_and_clusters() {
         for (pin, value) in [("v_gate", Literal::Text("side_faces".into())), ("v_gate", Literal::Text("draft".into())), ("draft_min_deg", Literal::Number(80.0)), ("draft_fade_deg", Literal::Number(5.0))] {
             for form in ["literal", "wire", "exposure"] {
@@ -340,8 +390,14 @@ mod tests {
             graph.set_input(window, "v_gate", Literal::Text(gate.into())).unwrap();
             assert_eq!(graph_version_for(&graph), PLAIN_GRAPH_FORMAT_VERSION);
         }
-        for (params, expected) in [(serde_json::json!({}), PLAIN_GRAPH_FORMAT_VERSION), (serde_json::json!({"style":"Wire","grouping":"Even","tip":"Dome"}), PLAIN_GRAPH_FORMAT_VERSION), (serde_json::json!({"style":"Tentacle"}), GRAPH_FORMAT_VERSION), (serde_json::json!({"grouping":"Jaws"}), GRAPH_FORMAT_VERSION), (serde_json::json!({"tip":"Point"}), GRAPH_FORMAT_VERSION)] {
-            let operation = serde_json::json!({"Builder":{"key":"head.claw","on":1,"params":params}});
+        for (key, params, expected) in [
+            ("head.claw", serde_json::json!({}), PLAIN_GRAPH_FORMAT_VERSION), ("head.claw", serde_json::json!({"style":"Wire","grouping":"Even","tip":"Dome"}), PLAIN_GRAPH_FORMAT_VERSION),
+            ("head.claw", serde_json::json!({"style":"Tentacle"}), GRAPH_FORMAT_VERSION), ("head.claw", serde_json::json!({"grouping":"Jaws"}), GRAPH_FORMAT_VERSION), ("head.claw", serde_json::json!({"tip":"Point"}), GRAPH_FORMAT_VERSION),
+            ("head.claw", serde_json::json!({"rails":"Seat","rise":0.0}), PLAIN_GRAPH_FORMAT_VERSION), ("head.claw", serde_json::json!({"rails":"Base"}), GRAPH_FORMAT_VERSION),
+            ("head.claw", serde_json::json!({"rails":"None"}), GRAPH_FORMAT_VERSION), ("head.claw", serde_json::json!({"rise":0.3}), GRAPH_FORMAT_VERSION),
+            ("head.basket", serde_json::json!({"rails":3}), PLAIN_GRAPH_FORMAT_VERSION), ("head.basket", serde_json::json!({"rails":0}), GRAPH_FORMAT_VERSION), ("head.basket", serde_json::json!({"rise":0.45}), GRAPH_FORMAT_VERSION),
+        ] {
+            let operation = serde_json::json!({"Builder":{"key":key,"on":1,"params":params}});
             let mut graph = Graph::new("Claw", Mode::Free);
             let node = graph.add("cad.feature").unwrap();
             graph.set_input(node, "operation", Literal::Json(operation.clone())).unwrap();
@@ -352,6 +408,68 @@ mod tests {
         for gate in [serde_json::json!({"Draft":{"min_deg":80.0,"fade_deg":5.0}}), serde_json::json!({"SideFaces":"Both"})] {
             let preset = Preset { values: [("Window".into(), Literal::Json(serde_json::json!({"v_gate":gate})))].into_iter().collect(), ..Default::default() };
             assert_eq!(preset_version_in(&preset, None), GRAPH_FORMAT_VERSION);
+        }
+    }
+
+    #[test]
+    fn a_centred_seat_run_fences_graphs_and_presets_while_an_anchored_one_stays_plain() {
+        use super::*;
+        use crate::graph::Mode;
+        use ringdesign_core::field::SeatRunLayer;
+        for (phase, expected) in [(None, PLAIN_GRAPH_FORMAT_VERSION), (Some(0.5), GRAPH_FORMAT_VERSION)] {
+            let run = serde_json::json!({"SeatRun": SeatRunLayer { taper: 0.4, centre_phase: phase, ..SeatRunLayer::default() }});
+            let mut g = Graph::new("Graded row", Mode::Free);
+            let node = g.add("layer.seatrun").unwrap();
+            g.set_input(node, "layer", Literal::Json(run.clone())).unwrap();
+            assert_eq!(graph_version_for(&g), expected);
+            let text = graph_to_string(&g).unwrap();
+            assert_eq!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).is_err(), phase.is_some());
+            let preset = Preset { values: [("Row".into(), Literal::Json(run))].into_iter().collect(), ..Default::default() };
+            assert_eq!(preset_version_in(&preset, None), expected);
+        }
+    }
+
+    #[test]
+    fn a_bare_seat_run_fences_graphs_and_presets_by_literal_pin_wire_and_exposure() {
+        use super::*;
+        use crate::graph::Mode;
+        use ringdesign_core::field::SeatRunLayer;
+        for bare in [false, true] {
+            let expected = if bare { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION };
+            let run = serde_json::json!({"SeatRun": SeatRunLayer { bare, ..SeatRunLayer::default() }});
+            let mut g = Graph::new("Beads", Mode::Free);
+            let node = g.add("layer.seatrun").unwrap();
+            g.set_input(node, "layer", Literal::Json(run.clone())).unwrap();
+            assert_eq!(graph_version_for(&g), expected);
+            let preset = Preset { values: [("Row".into(), Literal::Json(run))].into_iter().collect(), ..Default::default() };
+            assert_eq!(preset_version_in(&preset, None), expected);
+            let mut g = Graph::new("Beads", Mode::Free);
+            let node = g.add("layer.seatrun").unwrap();
+            g.set_input(node, "bare", Literal::Bool(bare)).unwrap();
+            assert_eq!(graph_version_for(&g), expected, "pin literal {bare}");
+        }
+        let mut g = Graph::new("Beads", Mode::Free);
+        let node = g.add("layer.seatrun").unwrap();
+        g.expose(node, "bare", "Stock only").unwrap();
+        assert_eq!(graph_version_for(&g), GRAPH_FORMAT_VERSION);
+    }
+
+    #[test]
+    fn a_clamped_group_fences_graphs_and_presets_while_an_unclamped_one_stays_plain() {
+        use super::*;
+        use crate::graph::Mode;
+        use ringdesign_core::field::{GroupLayer, SandClamp};
+        for clamp in [None, Some(SandClamp::default())] {
+            let expected = if clamp.is_some() { GRAPH_FORMAT_VERSION } else { PLAIN_GRAPH_FORMAT_VERSION };
+            let group = serde_json::json!({"Group": GroupLayer { clamp, ..Default::default() }});
+            let preset = Preset { values: [("Group".into(), Literal::Json(group))].into_iter().collect(), ..Default::default() };
+            assert_eq!(preset_version_in(&preset, None), expected);
+            let mut g = Graph::new("Beadwork", Mode::Free);
+            let node = g.add("layer.group").unwrap();
+            g.set_input(node, "clamp", Literal::Bool(clamp.is_some())).unwrap();
+            assert_eq!(graph_version_for(&g), expected);
+            let text = graph_to_string(&g).unwrap();
+            assert_eq!(read_graph(&text, None, PLAIN_GRAPH_FORMAT_VERSION).is_err(), clamp.is_some());
         }
     }
 
@@ -549,7 +667,7 @@ mod tests {
             g
         };
         let band_off = |g: &mut Graph| g.set_input(band, "enabled", Literal::Bool(false)).unwrap();
-        let expose = |g: &mut Graph| g.exposed.push(Exposed { node: band, input: "enabled".into(), name: "Band".into(), doc: String::new() });
+        let expose = |g: &mut Graph| g.exposed.push(Exposed { node: band, input: "enabled".into(), name: "Band".into(), doc: String::new(), range: None });
         let cases = [
             ("as converted", with(&|_| {}), false, false),
             ("band pinned off", with(&band_off), true, true),

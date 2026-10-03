@@ -6,14 +6,16 @@ use crate::csg::{P3, Solid};
 use crate::gem::{Gem, GemCut};
 use crate::mesh::MIN_WALL_MM;
 use crate::profile::MIN_EDGE_MM;
-use crate::setting::{self, Floor, Named, Plan, Rails, Wall};
+use crate::setting::{self, Floor, Named, Plan, Wall};
 use crate::sketch::Id;
 use anyhow::{Result, anyhow, bail, ensure};
 use serde_json::{Value as Json, json};
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 /// The plans a piercing takes, by the names its parameters carry.
-pub const PIERCE_SHAPES: &[&str] = &["Round", "Oval", "Marquise", "Heart", "Drop"];
+pub const PIERCE_SHAPES: &[&str] = &["Round", "Oval", "Marquise", "Heart", "Drop", "Lancet", "Ogee", "Trefoil", "Quatrefoil", "Mouchette"];
+/// The Gothic plans, which a format-5 reader does not know and would cut as a round.
+pub const GOTHIC_SHAPES: &[&str] = &["Lancet", "Ogee", "Trefoil", "Quatrefoil", "Mouchette"];
 /// The plans an azure window takes.
 pub const AZURE_SHAPES: &[&str] = &["Round", "Teardrop"];
 /// How far round the ring either side of the stone cathedral shoulders land, degrees, when the part does not say.
@@ -104,10 +106,20 @@ pub enum Shape {
     Marquise,
     Heart,
     Drop,
+    /// An equilateral pointed arch on straight jambs and a flat sill, its point at −x.
+    Lancet,
+    /// A pointed arch whose sides reverse, convex then concave, into a finial at −x.
+    Ogee,
+    /// Three lobes, one toward −x.
+    Trefoil,
+    /// Four lobes on the axes.
+    Quatrefoil,
+    /// A curved dagger: a round head at +x, its blade sweeping to a point at −x.
+    Mouchette,
 }
 
 impl Shape {
-    pub const ALL: [Shape; 5] = [Shape::Round, Shape::Oval, Shape::Marquise, Shape::Heart, Shape::Drop];
+    pub const ALL: [Shape; 10] = [Shape::Round, Shape::Oval, Shape::Marquise, Shape::Heart, Shape::Drop, Shape::Lancet, Shape::Ogee, Shape::Trefoil, Shape::Quatrefoil, Shape::Mouchette];
 
     /// The shape a name in the parameters stands for; a window's `Teardrop` is the drop.
     pub fn named(name: &str) -> Option<Self> {
@@ -117,6 +129,11 @@ impl Shape {
             "Marquise" => Self::Marquise,
             "Heart" => Self::Heart,
             "Drop" | "Teardrop" => Self::Drop,
+            "Lancet" => Self::Lancet,
+            "Ogee" => Self::Ogee,
+            "Trefoil" => Self::Trefoil,
+            "Quatrefoil" => Self::Quatrefoil,
+            "Mouchette" => Self::Mouchette,
             _ => return None,
         })
     }
@@ -129,7 +146,17 @@ impl Shape {
             Self::Marquise => "Marquise",
             Self::Heart => "Heart",
             Self::Drop => "Drop",
+            Self::Lancet => "Lancet",
+            Self::Ogee => "Ogee",
+            Self::Trefoil => "Trefoil",
+            Self::Quatrefoil => "Quatrefoil",
+            Self::Mouchette => "Mouchette",
         }
+    }
+
+    /// Whether this is one of the Gothic plans, sampled on rays and grown by a true offset.
+    pub fn gothic(self) -> bool {
+        matches!(self, Self::Lancet | Self::Ogee | Self::Trefoil | Self::Quatrefoil | Self::Mouchette)
     }
 
     /// The length along x and width across it the outline takes: a round as long as wide, a drop longer, a heart near square.
@@ -138,7 +165,10 @@ impl Shape {
             Self::Round => (w, w),
             Self::Heart => (l.max(0.72 * w), w),
             Self::Drop => (l.max(1.05 * w), w),
-            Self::Oval | Self::Marquise => (l, w),
+            Self::Oval | Self::Marquise | Self::Trefoil | Self::Quatrefoil => (l, w),
+            Self::Lancet => (l.max(w), w),
+            Self::Ogee => (l.max(1.2 * w), w),
+            Self::Mouchette => (l.max(1.6 * w), w),
         }
     }
 }
@@ -161,6 +191,10 @@ pub fn outline(shape: Shape, l: f64, w: f64, g: f64) -> Vec<[f64; 2]> {
         }
         Shape::Drop => drop_outline(l, w, g),
         Shape::Heart => heart_outline(l, w, g),
+        _ => {
+            let (plan, c, corners) = gothic_plan(shape, l, w);
+            rayed(&plan, c, &corners, g)
+        }
     }
 }
 
@@ -170,8 +204,176 @@ pub fn centre(shape: Shape, l: f64, w: f64) -> [f64; 2] {
     match shape {
         Shape::Drop => [0.5 * l - 0.5 * w, 0.0],
         Shape::Heart => [0.5 * l - 0.5 * w / (1.0 + HEART_CLEFT), 0.0],
+        s if s.gothic() => gothic_plan(s, l, w).1,
         _ => [0.0, 0.0],
     }
+}
+
+/// A Gothic plan `l` along x by `w` as drawn: a dense anticlockwise polygon star-shaped about the point it
+/// returns, and its corners (points and cusps), which the rays it is sampled on pass through.
+fn gothic_plan(shape: Shape, l: f64, w: f64) -> (Vec<[f64; 2]>, [f64; 2], Vec<[f64; 2]>) {
+    let (l, w) = shape.sized(l, w);
+    let arc = |c: [f64; 2], r: f64, a0: f64, a1: f64, out: &mut Vec<[f64; 2]>| {
+        let n = (((a1 - a0).abs() * r / SAMPLE_MM).ceil() as usize).clamp(8, 160);
+        out.extend((0..n).map(|i| {
+            let a = a0 + (a1 - a0) * i as f64 / n as f64;
+            [c[0] + r * a.cos(), c[1] + r * a.sin()]
+        }));
+    };
+    let line = |a: [f64; 2], b: [f64; 2], out: &mut Vec<[f64; 2]>| {
+        let n = (((b[0] - a[0]).hypot(b[1] - a[1]) / SAMPLE_MM).ceil() as usize).clamp(2, 80);
+        out.extend((0..n).map(|i| {
+            let t = i as f64 / n as f64;
+            [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
+        }));
+    };
+    let (q, x0, x1) = (0.5 * w, -0.5 * l, 0.5 * l);
+    let mut p = Vec::new();
+    match shape {
+        Shape::Lancet => {
+            // Each side's arc centred on the other springing point, radius the span; the jambs run on to the sill.
+            let xs = x0 + 3f64.sqrt() * q;
+            line([x1, -q], [x1, q], &mut p);
+            line([x1, q], [xs, q], &mut p);
+            arc([xs, -q], w, FRAC_PI_2, 5.0 * PI / 6.0, &mut p);
+            arc([xs, q], w, 7.0 * PI / 6.0, 1.5 * PI, &mut p);
+            line([xs, -q], [x1, -q], &mut p);
+            (p, [0.0, 0.0], vec![[x0, 0.0], [x1, q], [x1, -q]])
+        }
+        Shape::Ogee => {
+            // Two arcs of one radius each side, reversing at the head's mid-height, the finial tangent to the axis.
+            let h = (1.1 * w).min(0.85 * l);
+            let xs = x0 + h;
+            let alpha = 2.0 * (w / (2.0 * h)).atan();
+            let r = h / (2.0 * alpha.sin());
+            line([x1, -q], [x1, q], &mut p);
+            line([x1, q], [xs, q], &mut p);
+            // Upper side: convex about a centre inside, then concave about one outside.
+            arc([xs, q - r], r, FRAC_PI_2, FRAC_PI_2 + alpha, &mut p);
+            arc([x0, r], r, -FRAC_PI_2 + alpha, -FRAC_PI_2, &mut p);
+            // Lower side, the mirror, walked from the finial back to the springing.
+            arc([x0, -r], r, FRAC_PI_2, FRAC_PI_2 - alpha, &mut p);
+            arc([xs, r - q], r, -FRAC_PI_2 - alpha, -FRAC_PI_2, &mut p);
+            line([xs, -q], [x1, -q], &mut p);
+            // Seen from the head's mid-height every point of the concave sides is in view, the finial grazed along the axis.
+            (p, [xs - 0.5 * h, 0.0], vec![[x0, 0.0], [x1, q], [x1, -q]])
+        }
+        Shape::Trefoil | Shape::Quatrefoil => {
+            // Lobes on centres a unit out, one on −x, wide enough to cross their neighbours on the bisector: the cusps.
+            let (k, rho) = if shape == Shape::Trefoil { (3, 0.95) } else { (4, 0.8) };
+            let step = TAU / k as f64;
+            let centres: Vec<[f64; 2]> = (0..k).map(|i| [(PI + step * i as f64).cos(), (PI + step * i as f64).sin()]).collect();
+            let half = 0.5 * step;
+            // Where lobe i meets lobe i + 1, on the bisector, and the angle round lobe i each end of its arc.
+            let reach = half.cos() + (rho * rho - half.sin().powi(2)).sqrt();
+            let mut cusps = Vec::new();
+            for (i, c) in centres.iter().enumerate() {
+                let (a, b) = (PI + step * i as f64 - half, PI + step * i as f64 + half);
+                let (ca, cb) = ([reach * a.cos(), reach * a.sin()], [reach * b.cos(), reach * b.sin()]);
+                let from = (ca[1] - c[1]).atan2(ca[0] - c[0]);
+                let to = (cb[1] - c[1]).atan2(cb[0] - c[0]);
+                arc(*c, rho, from, from + (to - from).rem_euclid(TAU), &mut p);
+                cusps.push(ca);
+            }
+            let (lo, hi) = bounds(&p);
+            let (sx, sy) = (l / (hi[0] - lo[0]), w / (hi[1] - lo[1]));
+            let mid = [0.5 * (lo[0] + hi[0]), 0.5 * (lo[1] + hi[1])];
+            let fit = |v: [f64; 2]| [(v[0] - mid[0]) * sx, (v[1] - mid[1]) * sy];
+            (p.into_iter().map(fit).collect(), fit([0.0, 0.0]), cusps.into_iter().map(fit).collect())
+        }
+        _ => {
+            // A drop bent up along its blade from the head's centre, the tip carried 0.3 of the width aside, then fitted to the box asked for.
+            let head = [0.5 - 0.31, 0.0];
+            let bent = |v: [f64; 2]| {
+                let s = ((head[0] - v[0]) / (head[0] + 0.5)).max(0.0);
+                [v[0], v[1] + 0.3 * s * s]
+            };
+            let p: Vec<[f64; 2]> = drop_outline(1.0, 0.62, 0.0).into_iter().map(bent).collect();
+            let (lo, hi) = bounds(&p);
+            let (sx, sy) = (l / (hi[0] - lo[0]), w / (hi[1] - lo[1]));
+            let mid = [0.5 * (lo[0] + hi[0]), 0.5 * (lo[1] + hi[1])];
+            let fit = |v: [f64; 2]| [(v[0] - mid[0]) * sx, (v[1] - mid[1]) * sy];
+            (p.into_iter().map(fit).collect(), fit(head), vec![fit(bent([-0.5, 0.0]))])
+        }
+    }
+}
+
+/// The least and greatest corner of a point set's box.
+fn bounds(p: &[[f64; 2]]) -> ([f64; 2], [f64; 2]) {
+    p.iter().fold(([f64::MAX; 2], [f64::MIN; 2]), |(lo, hi), v| ([lo[0].min(v[0]), lo[1].min(v[1])], [hi[0].max(v[0]), hi[1].max(v[1])]))
+}
+
+/// `plan` grown `g` by a true offset, read on fixed rays from `c`: evenly round, each turned onto the corner
+/// nearest it, so every growth has one point count and a fan from `c` that never folds. A concave cusp moves
+/// out along its own ray instead of each side being pushed along its normal, which would cross them.
+fn rayed(plan: &[[f64; 2]], c: [f64; 2], corners: &[[f64; 2]], g: f64) -> Vec<[f64; 2]> {
+    let perimeter: f64 = (0..plan.len()).map(|i| (plan[(i + 1) % plan.len()][0] - plan[i][0]).hypot(plan[(i + 1) % plan.len()][1] - plan[i][1])).sum();
+    let n = ((perimeter / SAMPLE_MM).round() as usize).clamp(96, 256);
+    let step = TAU / n as f64;
+    // Rays start at −x, so the first point is the point a Gothic plan carries there.
+    let mut angles: Vec<f64> = (0..n).map(|i| PI + step * i as f64).collect();
+    for k in corners {
+        let a = (k[1] - c[1]).atan2(k[0] - c[0]);
+        let i = ((a - PI).rem_euclid(TAU) / step).round() as usize % n;
+        angles[i] = PI + step * i as f64 + ((a - PI - step * i as f64 + PI).rem_euclid(TAU) - PI);
+    }
+    let m = plan.len();
+    angles
+        .into_iter()
+        .map(|a| {
+            let u = [a.cos(), a.sin()];
+            let mut t = 0.0_f64;
+            for i in 0..m {
+                let (p, q) = (plan[i], plan[(i + 1) % m]);
+                t = t.max(far_along(c, u, p, q, g));
+            }
+            [c[0] + t * u[0], c[1] + t * u[1]]
+        })
+        .collect()
+}
+
+/// How far along the ray from `c` by unit `u` the segment `p q` grown by `g` last reaches: its capsule's far side, 0 when the ray misses it.
+fn far_along(c: [f64; 2], u: [f64; 2], p: [f64; 2], q: [f64; 2], g: f64) -> f64 {
+    // A hair of growth so a ray through a vertex of the plan as drawn still meets it.
+    let g = g.max(1e-9);
+    let d = [q[0] - p[0], q[1] - p[1]];
+    let len = d[0].hypot(d[1]);
+    let mut far = 0.0_f64;
+    // The ray against the segment's own line, within `g` of it and inside its span.
+    let (cp, uu) = ([c[0] - p[0], c[1] - p[1]], [u[0], u[1]]);
+    if len > 1e-15 {
+        let e = [d[0] / len, d[1] / len];
+        let (h0, h1) = (e[0] * cp[1] - e[1] * cp[0], e[0] * uu[1] - e[1] * uu[0]);
+        let (s0, s1) = (e[0] * cp[0] + e[1] * cp[1], e[0] * uu[0] + e[1] * uu[1]);
+        let mut lo = f64::NEG_INFINITY;
+        let mut hi = f64::INFINITY;
+        let mut within = |a0: f64, a1: f64, min: f64, max: f64| {
+            if a1.abs() < 1e-15 {
+                if a0 < min || a0 > max {
+                    lo = f64::INFINITY;
+                }
+            } else {
+                let (x, y) = ((min - a0) / a1, (max - a0) / a1);
+                lo = lo.max(x.min(y));
+                hi = hi.min(x.max(y));
+            }
+        };
+        within(h0, h1, -g, g);
+        within(s0, s1, 0.0, len);
+        if lo <= hi && hi >= 0.0 {
+            far = far.max(hi);
+        }
+    }
+    // The ray against the discs at the ends.
+    for v in [p, q] {
+        let f = [c[0] - v[0], c[1] - v[1]];
+        let b = f[0] * u[0] + f[1] * u[1];
+        let disc = b * b - (f[0] * f[0] + f[1] * f[1] - g * g);
+        if disc >= 0.0 {
+            far = far.max(-b + disc.sqrt());
+        }
+    }
+    far
 }
 
 /// A polygon's area, positive anticlockwise.
@@ -505,9 +707,9 @@ fn head_in(bore: &Bore, params: &Json, gem: Gem, seat: Seat, floor: Option<Floor
     let v = Values::of(key, gem, own)?;
     let (parts, claws) = match key.as_str() {
         CLAW | BASKET => {
-            let rails = if key == CLAW { Rails::Seat } else { Rails::Basket(v.n("rails")) };
-            let count = setting::claw_count(gem, v.n("prongs"));
-            (setting::claw_parts_reach(gem, v.n("prongs"), v.f("wire_mm"), rails, floor, wall).0, Plan::of(gem).claw_angles(count))
+            let (rails, options) = super::claw_choice(key, &v)?;
+            let (parts, _) = setting::claw_parts_reach_styled(gem, v.n("prongs"), v.f("wire_mm"), rails, floor, wall, options).map_err(|e| anyhow!("{who}: {named} {e}"))?;
+            (parts, setting::claw_bearings(gem, v.n("prongs"), v.f("wire_mm"), options.grouping))
         }
         _ => {
             let metal = floor.and_then(|f| under_wall(gem, v.f("wall_mm"), f)).unwrap_or(seat.surface_z).min(seat.surface_z);
@@ -1240,6 +1442,11 @@ pub fn shoulder_stage_for(design: &RingDesign, stone: Option<[f64; 3]>) -> Stage
     shoulder_stage_at(stone.map_or(f64::INFINITY, |p| p[2]), parting, super::sand(design))
 }
 
+/// The turn opposite `deg`, within ±180°.
+fn away(deg: f64) -> f64 {
+    if deg > 0.0 { deg - 180.0 } else { deg + 180.0 }
+}
+
 /// Rounded to the hundredth, as the inspector shows it.
 fn hundredth(x: f64) -> f64 {
     (x * 100.0).round() / 100.0
@@ -1282,6 +1489,12 @@ pub fn pierce_at(design: &RingDesign, theta_deg: f64, across_mm: f64, hit: Optio
         Shape::Marquise => (2.0 * s, s, 0.0),
         Shape::Heart => (s, 0.95 * s, point),
         Shape::Drop => (s, 0.62 * s, point),
+        // An arch and a trefoil's single lobe stand away from the bore, as a window stands on its sill.
+        Shape::Lancet => (1.6 * s, s, away(point)),
+        Shape::Ogee => (1.8 * s, s, away(point)),
+        Shape::Trefoil => (s, s, away(point)),
+        Shape::Quatrefoil => (s, s, 0.0),
+        Shape::Mouchette => (1.8 * s, 0.7 * s, point),
     };
     let (length, width) = shape.sized(length.max(WINDOW_MIN_MM), width.max(WINDOW_MIN_MM));
     let chamfer = (0.07 * width.min(length)).clamp(0.06, 0.2);

@@ -829,7 +829,17 @@ impl BandProfile {
         // The hollow lifts the whole bore chord; capped so the side wall
         // still has an edge to rise to.
         let lift = ok(m.bore_lift_mm).clamp(0.0, (edge_t - comfort - MIN_EDGE_MM).max(0.0));
-        let bore_r = |z: f64| -> f64 { inner_r + lift + comfort * ((z - b_c) / hw.max(1e-9)).powi(2) };
+        // The comfort dome's apex sits on the parting plane, not on the
+        // section's mid-plane: centred on a section slid along the finger,
+        // the flank between the two widens toward the plane and locks the
+        // bore's sand — 36 ray-release obstructions 0.9 mm deep on a bypass
+        // at comfort 0.2. Each side reaches the full depth at its own edge.
+        let apex = 0.0_f64.clamp(b_lo, b_hi);
+        let (reach_lo, reach_hi) = (apex - b_lo, b_hi - apex);
+        let bore_r = |z: f64| -> f64 {
+            let reach = if z < apex { reach_lo } else { reach_hi };
+            inner_r + lift + comfort * ((z - apex) / reach.max(1e-9)).powi(2)
+        };
 
         // --- Flange band, clamped to sit inside the outer profile. ---
         let flange = self.flange.enabled.then(|| {
@@ -1702,10 +1712,20 @@ pub struct ShankStyle {
     /// identically on any machine.
     #[serde(default)]
     pub custom_outlines: Vec<crate::field::CustomOutline>,
+    /// Bypass only: degrees along the ring the arms' union is faired over,
+    /// so each arm's tip ramps into the other arm instead of stepping; 0
+    /// keeps the hard union. Written only when non-zero, and fenced at
+    /// format 6 then.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub bypass_fair_deg: f64,
 }
 
 fn default_waves() -> u32 {
     1
+}
+
+fn is_zero(v: &f64) -> bool {
+    *v == 0.0
 }
 
 /// Circular local maxima of a boundary-radius table with prominence over
@@ -1769,6 +1789,7 @@ impl Default for ShankStyle {
             head: SignetHead::default(),
             extra_heads: Vec::new(),
             keys: Vec::new(),
+            bypass_fair_deg: 0.0,
         }
     }
 }
@@ -2363,6 +2384,27 @@ pub fn bypass_span(off: f64, k: f64) -> (f64, f64) {
     }
 }
 
+/// [`bypass_span`] faired along the ring: its span averaged over
+/// `off ± fair_deg` with weights `(1 - t²)²`, so an arm's rounded tip ramps
+/// into the other arm instead of leaving a re-entrant corner in the plan.
+/// `fair_deg <= 0` is the hard union, bit for bit.
+pub fn bypass_span_faired(off: f64, k: f64, fair_deg: f64) -> (f64, f64) {
+    if fair_deg <= 0.0 {
+        return bypass_span(off, k);
+    }
+    const N: i32 = 12;
+    let (mut lo, mut hi, mut sum) = (0.0, 0.0, 0.0);
+    for i in -N..=N {
+        let t = i as f64 / N as f64;
+        let w = (1.0 - t * t).powi(2);
+        let (l, h) = bypass_span(off + t * fair_deg, k);
+        lo += w * l;
+        hi += w * h;
+        sum += w;
+    }
+    (lo / sum, hi / sum)
+}
+
 /// Per-angle modulation of the cross-section.
 #[derive(Clone, Copy, Debug)]
 pub struct ShankMod {
@@ -2707,7 +2749,7 @@ impl ShankStyle {
                 // Split's does: the seam itself, along the crest, would be the
                 // valley no single parting plane clears.
                 let off = crate::field::wrap_delta(theta_deg - TOP_DEG, 360.0);
-                let (lo, hi) = bypass_span(off, k);
+                let (lo, hi) = bypass_span_faired(off, k, self.bypass_fair_deg);
                 let both = 1.0 - crate::field::smootherstep(0.0, BYPASS_TIP_DEG, off.abs());
                 ShankMod {
                     width_scale: (hi - lo) * 0.5,
@@ -4496,6 +4538,118 @@ mod tests {
         assert!(out.report.validation.watertight);
     }
 
+    /// `bypass_fair_deg` fairs the arms' union into a ramp. At 0 it is the
+    /// hard union bit for bit, and it neither writes itself nor lifts the
+    /// format; at 4 degrees the tip's step spreads over the arc, the band
+    /// still fields clean, and the file is fenced at format 6.
+    #[test]
+    fn a_faired_bypass_ramps_its_arm_tips_and_zero_keeps_the_hard_union() {
+        use crate::alpha::AlphaLibrary;
+        use crate::library;
+        for i in -720..=720 {
+            let off = i as f64 * 0.25;
+            for k in [0.3, 1.0] {
+                let (a, b) = (super::bypass_span(off, k), super::bypass_span_faired(off, k, 0.0));
+                assert!(a.0.to_bits() == b.0.to_bits() && a.1.to_bits() == b.1.to_bits(), "fair 0 moved the span at {off}");
+            }
+        }
+        // The steepest change of the high edge per degree, hard and faired.
+        let steep = |fair: f64| (0..800).map(|i| {
+            let off = i as f64 * 0.1;
+            (super::bypass_span_faired(off + 0.1, 1.0, fair).1 - super::bypass_span_faired(off, 1.0, fair).1).abs() / 0.1
+        }).fold(0.0, f64::max);
+        let (hard, faired) = (steep(0.0), steep(4.0));
+        assert!(faired < 0.6 * hard, "4 degrees should soften the tip's step: {hard:.3} -> {faired:.3} per degree");
+
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(ProfileStyle::LowDome);
+        d.profile.width_mm = 6.0;
+        d.shank.kind = ShankKind::Bypass;
+        d.shank.amount = 1.0;
+        let lib = AlphaLibrary::builtin();
+        let p = crate::BuildParams { theta_steps: 256, profile_steps: 96, ..Default::default() };
+        // An existing bypass file, written before the field existed, reads as
+        // 0 and builds exactly as before.
+        let text = library::design_json(&d).unwrap();
+        assert!(!text.contains("bypass_fair_deg"), "a zero fair is not written");
+        assert_eq!(library::format_version_for(&d), library::PLAIN_FORMAT_VERSION);
+        let old = library::read_design(&text, library::PLAIN_FORMAT_VERSION).unwrap();
+        assert_eq!(old.shank.bypass_fair_deg, 0.0);
+        let (a, b) = (crate::mesh::build(&d, &lib, p), crate::mesh::build(&old, &lib, p));
+        assert!(a.mesh.vertices == b.mesh.vertices && a.mesh.faces == b.mesh.faces && a.mesh.normals == b.mesh.normals);
+        let curated = crate::templates::settings::toi_et_moi();
+        let again = library::read_design(&library::design_json(&curated).unwrap(), library::FORMAT_VERSION).unwrap();
+        assert_eq!(again.shank.bypass_fair_deg, 0.0);
+        let (a, b) = (crate::mesh::build(&curated, &lib, p), crate::mesh::build(&again, &lib, p));
+        assert!(a.mesh.vertices == b.mesh.vertices && a.mesh.faces == b.mesh.faces, "the curated bypass rebuilds identically");
+
+        d.shank.bypass_fair_deg = 4.0;
+        assert_eq!(library::format_version_for(&d), library::FORMAT_VERSION);
+        let text = library::design_json(&d).unwrap();
+        assert!(read_design_refused(&text), "a released reader must refuse a faired bypass");
+        let back = library::read_design(&text, library::FORMAT_VERSION).unwrap();
+        assert_eq!(back.shank.bypass_fair_deg, 4.0);
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert!(f.undercut_fraction() < 5e-4, "a faired bypass locks: {:.4}%", f.undercut_fraction() * 100.0);
+        let out = crate::mesh::build(&d, &lib, p);
+        assert!(out.report.validation.watertight && out.report.quality.degenerate_faces == 0);
+    }
+
+    /// A comfort dome on a sliding section keeps its apex on the parting
+    /// plane. Centred on the section's own mid-plane it turned the bore's
+    /// drafted flanks toward the wrong mould half: 46 ray-release
+    /// obstructions up to 1.2 mm deep on Corvus at comfort 0.2, and on this
+    /// band 36 on the bore, 0.90 mm deep. Now none.
+    #[test]
+    fn a_comfort_fit_on_a_sliding_bypass_arm_keeps_its_apex_on_the_parting_plane() {
+        use crate::alpha::AlphaLibrary;
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(ProfileStyle::LowDome);
+        d.profile.width_mm = 6.0;
+        d.profile.thickness_mm = 2.8;
+        d.profile.comfort_fit_mm = 0.2;
+        d.shank.kind = ShankKind::Bypass;
+        d.shank.amount = 1.0;
+        let ir = d.inner_radius_mm();
+        let base = ir + d.profile.thickness_mm;
+
+        // On an arm that rides off the plane, the bore is narrowest at z = 0
+        // and widens monotonically away from it on both sides.
+        let m = d.modulation_at(TOP_DEG - 40.0, ir, base);
+        assert!(m.z_center_frac > 0.3, "{}", m.z_center_frac);
+        let l = d.profile.sample_mod(ir, 96, &m);
+        let bore: Vec<_> = l.pts.iter().filter(|p| !p.surface && (p.r - ir) < d.profile.comfort_fit_mm + 1e-9).collect();
+        let apex = bore.iter().min_by(|a, b| a.r.total_cmp(&b.r)).unwrap();
+        assert!((apex.r - ir).abs() < 1e-3, "the dome's apex left the bore radius: {:.4}", apex.r - ir);
+        for w in bore.windows(2) {
+            let (a, b) = (w[0], w[1]);
+            let away = if a.z.abs() > b.z.abs() { a.r >= b.r - 1e-12 } else { b.r >= a.r - 1e-12 };
+            assert!(away || a.z.signum() != b.z.signum(), "the bore narrows away from the plane at z {:.3}", a.z);
+        }
+
+        let lib = AlphaLibrary::builtin();
+        let out = crate::mesh::build(&d, &lib, crate::BuildParams { theta_steps: 256, profile_steps: 96, ..Default::default() });
+        assert!(out.report.validation.watertight);
+        let setup = crate::manufacturing::Setup { auto_parting: false, parting_mm: 0.0, sample_pitch_mm: 0.1, ..Default::default() };
+        let rel = crate::manufacturing::release::analyze(&out.mesh, &setup).unwrap();
+        // The bore's obstructions: those within the comfort band of the finger.
+        let on_bore = |o: &&crate::manufacturing::release::Obstruction| o.world[0].hypot(o.world[1]) < ir + d.profile.comfort_fit_mm + 0.15;
+        let bore_hits: Vec<_> = rel.obstructions.iter().filter(on_bore).collect();
+        let deepest = bore_hits.iter().map(|o| o.depth_mm).fold(0.0, f64::max);
+        assert!(bore_hits.is_empty(), "{} bore obstructions, deepest {deepest:.3} mm", bore_hits.len());
+        // What remains is the crest row standing a hair off z = 0 — one
+        // 0.024 mm sample at the crest, there before the change and not the
+        // bore's.
+        assert!(rel.obstructions.iter().all(|o| o.samples == 1 && o.depth_mm < 0.05), "{:?}", rel.obstructions);
+        assert_eq!(rel.unresolved_rays, 0);
+        let f = crate::castability::analyze_field(&d, &lib, &d.draft, 256, 128);
+        assert!(f.undercut_fraction() < 5e-4, "{:.4}%", f.undercut_fraction() * 100.0);
+    }
+
+    fn read_design_refused(text: &str) -> bool {
+        crate::library::read_design(text, crate::library::PLAIN_FORMAT_VERSION).is_err()
+    }
+
     /// The split's channel is real, and it costs nothing: the groove's floor
     /// faces along the pull and its walls stand radial, so the whole ring
     /// still fields clean.
@@ -4697,6 +4851,7 @@ mod tests {
             extra_heads: Vec::new(),
             keys: Vec::new(),
             custom_outlines: Vec::new(),
+            bypass_fair_deg: 0.0,
             head: SignetHead {
                 outline: SignetOutline::Round,
                 length_mm: 14.7,

@@ -1,0 +1,176 @@
+{
+  "build": [
+    768,
+    320
+  ],
+  "triangles": 510048,
+  "watertight": true,
+  "boundary_edges": 0,
+  "non_manifold_edges": 0,
+  "degenerate_faces": 0,
+  "mesh_self_crossings": 0,
+  "solids_notes": [],
+  "parts_notes": [],
+  "field_verdict": "Castable",
+  "thinnest_wall_mm": 1.8808131411513767,
+  "investment_min_section_mm": 0.8,
+  "dfm_findings": [],
+  "stones_reported": 2,
+  "stones_previewed": 2,
+  "metal_inside_stones": [
+    [
+      "Carapace bed, garnet",
+      0
+    ],
+    [
+      "Abdomen bed, onyx",
+      0
+    ]
+  ],
+  "bore_clearance": [
+    [
+      "Carapace, round the garnet",
+      1.7101012728818432,
+      0
+    ],
+    [
+      "Abdomen, round the onyx",
+      1.051264742451126,
+      0
+    ],
+    [
+      "Pedicel",
+      3.0014285026607865,
+      0
+    ],
+    [
+      "Spinnerets",
+      2.523339097006927,
+      0
+    ],
+    [
+      "Leg I coxa, low side",
+      1.8218559192055377,
+      0
+    ],
+    [
+      "Leg I continuous limb, low side",
+      0.40423119967721455,
+      0
+    ],
+    [
+      "Leg I coxa, high side",
+      1.8218559192055377,
+      0
+    ],
+    [
+      "Leg I continuous limb, high side",
+      0.40423119967721455,
+      0
+    ],
+    [
+      "Leg II coxa, low side",
+      1.807440170253816,
+      0
+    ],
+    [
+      "Leg II continuous limb, low side",
+      0.45732837594874454,
+      0
+    ],
+    [
+      "Leg II coxa, high side",
+      1.807440170253816,
+      0
+    ],
+    [
+      "Leg II continuous limb, high side",
+      0.45732837594874454,
+      0
+    ],
+    [
+      "Leg III coxa, low side",
+      2.829239516816642,
+      0
+    ],
+    [
+      "Leg III continuous limb, low side",
+      0.5868595151151919,
+      0
+    ],
+    [
+      "Leg III coxa, high side",
+      2.829239516816642,
+      0
+    ],
+    [
+      "Leg III continuous limb, high side",
+      0.5868595151151919,
+      0
+    ],
+    [
+      "Leg IV coxa, low side",
+      1.907909840384983,
+      0
+    ],
+    [
+      "Leg IV continuous limb, low side",
+      0.6034881159685384,
+      0
+    ],
+    [
+      "Leg IV coxa, high side",
+      1.907909840384983,
+      0
+    ],
+    [
+      "Leg IV continuous limb, high side",
+      0.6034881159685384,
+      0
+    ]
+  ],
+  "spider": {
+    "carapace_deg": 64.0,
+    "abdomen_deg": 104.45812023301147,
+    "spinneret_deg": 128.05814449008315,
+    "knee_deg": [
+      34.797196633163495,
+      46.95909094848277,
+      75.50371859632737,
+      82.1581933436046
+    ],
+    "claw_deg": [
+      4.0,
+      20.0,
+      108.0,
+      124.0
+    ],
+    "knee_proud_mm": 0.6000000000000001,
+    "knee_over_rim_mm": 0.5561163653305101,
+    "leg_most_proud_mm": 0.7214407299336627,
+    "leg_lowest_cheek_share": 0.5710356063647228,
+    "leg_abdomen_margin_mm": 0.5186501096217865,
+    "leg_lengths_mm": [
+      12.475110451468382,
+      10.775343345431976,
+      11.13270726482705,
+      12.759062588271021
+    ],
+    "leg_min_section_mm": 0.8,
+    "claw_diameter_mm": 0.8,
+    "tightest_bend_ratio": 1.2674201050323006,
+    "joint_loft_bend_ratio": 1.27787996315429,
+    "joint_ease_mm": 0.35,
+    "leg_vertex_abdomen_margin_mm": 0.4133149026277479,
+    "rim_flat_mm": [
+      0.34162773633240495,
+      0.265597048653874
+    ],
+    "wall_flare_deg": 9.0
+  },
+  "geometry_gates_passed": true,
+  "longest_bare_crown_run_mm": 3.149999999999997,
+  "largest_bare_cell_mm": 1.746424919657298,
+  "free_hub_root_gap_mm": 0.20059028812873886,
+  "cold_reload_identical": true
+}

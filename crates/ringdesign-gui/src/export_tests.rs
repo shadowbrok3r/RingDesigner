@@ -35,6 +35,28 @@ fn scratch(name: &str) -> std::path::PathBuf {
     dir
 }
 
+#[test]
+fn personal_template_file_opens_as_a_new_design_without_replacing_the_template() {
+    let mut h = harness();
+    let graph = ringdesign_graph::templates::simple();
+    let template = ringdesign_graph::personal::Template::new("Saved band", "Reusable", &court(), &graph, &h.state().lib).unwrap();
+    let dir = scratch("personal-template");
+    let path = dir.join("band.ringtemplate.json");
+    template.save_new(&path).unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    h.state_mut().document_path = Some(dir.join("previous.ring.json"));
+    crate::export::open_design_path(h.state_mut(), &path);
+    assert!(h.state().opening.is_some(), "the command-line/recent-file path uses the template loader");
+    crate::interaction_tests::wait_for_template(&mut h);
+    wait_for_build(&mut h);
+    assert_eq!(h.state().design.name, "Simple ring", "the graph's Name control keeps its authored default");
+    assert_eq!(ringdesign_graph::personal::load(&path).unwrap().name, "Saved band", "the builder has its own library title");
+    assert!(h.state().document_path.is_none(), "Save must ask for a new design path");
+    assert_eq!(h.state().graph_ed.as_ref().unwrap().graph().exposed.len(), graph.exposed.len());
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 /// The app showing `design`, built at a quick sweep and settled in its history.
 fn showing(h: &mut Harness<'static, RingDesignerApp>, design: RingDesign) {
     {

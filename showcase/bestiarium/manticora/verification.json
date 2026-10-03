@@ -1,0 +1,49 @@
+{
+  "authoring_ms": {
+    "graph_creation": 9.661487,
+    "source_read": 0.865548
+  },
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "design_set_patches": [
+    {
+      "graph": "Manticora — the tail that throws",
+      "node": 82,
+      "pointer": "/cad/joints"
+    }
+  ],
+  "detail_findings": 0,
+  "editable_design_bytes": 1979307,
+  "editable_graph_reload": true,
+  "export_geometry_verified": true,
+  "exposed_control_policy": "explicit_allowlist",
+  "exposed_controls": [],
+  "geometry_check_resolution": {
+    "profile_steps": 448,
+    "refine": null,
+    "theta_steps": 1536
+  },
+  "nodes": 114,
+  "open_ms": {
+    "bake": 0.25122300000000003,
+    "bake_again": 0.211222,
+    "detail": 612.1224400000001,
+    "detail_again": 18.609766999999998,
+    "evaluate": 4.658722,
+    "first_build": 1179.761949,
+    "read": 4.8716740000000005,
+    "rebuild": 1.15435,
+    "unpack": null,
+    "verdict": 22.694524
+  },
+  "size_budget_bytes": 3000000,
+  "size_review_required": false,
+  "source_identical": true,
+  "source_method": "lift",
+  "template_bytes": 1244173,
+  "template_class": "painted",
+  "template_gate_passed": true,
+  "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
+  "triangles": 1372332,
+  "vertices_faces_normals_identical": true
+}

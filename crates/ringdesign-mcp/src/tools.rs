@@ -35,6 +35,8 @@ pub struct ManufacturingParams {
     pub setup:Option<serde_json::Value>,
     /// One metal CAD component; omit for a procedural or single-component ring.
     pub component:Option<u64>,
+    /// Hold every CAD cut's lands (between its regions, its pattern copies, and to the band's or host part's edge) to this floor in mm; the report gains `cut_lands`. Omit to skip.
+    pub cut_land_mm:Option<f64>,
 }
 #[derive(Debug,Deserialize,JsonSchema)]
 pub struct ManufacturingPackageParams {
@@ -469,6 +471,11 @@ pub struct SetShankParams {
     /// Strength of the modulation, 0 to 1. On Signet this is how far the shank
     /// narrows: 1 takes it to 16% of the head width.
     pub amount: Option<f64>,
+    /// Bypass only: degrees along the ring (0 to 12) the two arms' union is
+    /// faired over, so each arm's rounded tip ramps into the other arm
+    /// instead of stepping. 0 keeps the hard union; a non-zero value saves
+    /// the design at format 6.
+    pub bypass_fair_deg: Option<f64>,
     /// Signet only: plan silhouette of the face — Oval, Round, Cushion,
     /// Rectangle, Hexagon, Octagon, Marquise, Shield, or Heart. The band's own
     /// width follows it.
@@ -1447,7 +1454,7 @@ const CURVE_FIELDS: &[&str] = &["repeats_around", "width_mm", "height_mm"];
 
 #[tool_router(vis = "pub(crate)")]
 impl RingDesignServer {
-    #[tool(description="Inspect the actual compensated pattern for arbitrary-direction two-part mold release, individual obstructions, draft, narrow sand, flask fit, and sampled wall thickness. Resolves the attached graph and uses the same manufacturing implementation as the Casting workspace and CLI. Reports include snapshot generation and pattern identity; sampled checks are not a physical mold-release guarantee.")]
+    #[tool(description="Inspect the actual compensated pattern for arbitrary-direction two-part mold release, individual obstructions, draft, narrow sand, flask fit, and sampled wall thickness; with cut_land_mm, also the narrowest land every CAD cut leaves. Resolves the attached graph and uses the same manufacturing implementation as the Casting workspace and CLI. Reports include snapshot generation and pattern identity; sampled checks are not a physical mold-release guarantee.")]
     async fn manufacturing_check(&self,Parameters(p):Parameters<ManufacturingParams>)->Result<Json<serde_json::Value>,ErrorData> {
         let (design,lib,generation)={let e=self.engine.lock();(e.design().clone(),e.library_arc(),e.generation())};
         let result=tokio::task::spawn_blocking(move||->anyhow::Result<_>{
@@ -1455,7 +1462,12 @@ impl RingDesignServer {
             let mut setup=if let Some(value)=p.setup {serde_json::from_value(value)?} else {d.manufacturing.clone().unwrap_or_else(||ringdesign_core::manufacturing::Setup::from_design(&d))};
             if p.component.is_some() {setup.component=p.component;}
             let i=ringdesign_core::manufacturing::inspect(&d,&lib,&setup,d.build)?;
-            let mut report=ringdesign_core::manufacturing::package::report(&d,&setup,&i,true);report["generation"]=generation.into();Ok(report)
+            let mut report=ringdesign_core::manufacturing::package::report(&d,&setup,&i,true);report["generation"]=generation.into();
+            if let Some(floor)=p.cut_land_mm {
+                let built=ringdesign_core::mesh::try_build(&d,&lib,d.build)?;
+                report["cut_lands"]=ringdesign_core::dfm::cut_lands(&d,&built,floor).into_iter().map(|f|serde_json::json!({"label":f.label,"message":f.message})).collect::<Vec<_>>().into();
+            }
+            Ok(report)
         }).await.map_err(|e|ErrorData::internal_error(format!("Manufacturing worker: {e}"),None))?.map_err(|e|ErrorData::invalid_params(format!("{e:#}"),None))?;
         Ok(Json(result))
     }
@@ -1724,6 +1736,7 @@ impl RingDesignServer {
             applied.push(format!("kind={kind:?}"));
         }
         put_range(&mut d.shank.amount, p.amount, "amount", 0.0, 1.0, &mut applied)?;
+        put_range(&mut d.shank.bypass_fair_deg, p.bypass_fair_deg, "bypass_fair_deg", 0.0, 12.0, &mut applied)?;
         if let Some(outline) = outline {
             d.shank.head.outline = outline;
             // Sized to the shape unless the call says otherwise, so an outline

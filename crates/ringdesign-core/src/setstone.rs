@@ -145,6 +145,8 @@ fn walk(ctx: &FieldContext, stack: &LayerStack, prefix: &str, path: &mut Vec<usi
                     }
                 }
             }
+            // A bare run casts its seats in the stock and sets nothing.
+            Layer::SeatRun(run) if run.bare => {}
             Layer::SeatRun(run) => {
                 let n = run.count.clamp(1, 200);
                 let mut fitted = run.seat;
@@ -219,9 +221,9 @@ pub fn record(design: &RingDesign, built: Option<&BuildResult>) -> Record {
     Record { stones, past_cap }
 }
 
-/// The head or halo holding the stones feature `id` carries: a stone's own head, a head or halo itself, a head a
-/// pattern copies, a Transform moves or a Boolean keeps. A pattern of a bare stone copies no head, so its copies are
-/// held by none, and a stone a Transform moved is held by a head built round the moved stone.
+/// The head or halo holding the stones feature `id` carries: a stone's own head or one made by hand in its placement, a
+/// head or halo itself, a head a pattern copies, a Transform moves or a Boolean keeps. A pattern of a bare stone copies no
+/// head, so its copies are held by none, and a stone a Transform moved is held by a head built round the moved stone.
 pub fn holder(doc: &Document, id: Id) -> Option<&Feature> {
     held_by(doc, id, false, 0)
 }
@@ -232,7 +234,7 @@ fn held_by(doc: &Document, id: Id, copied: bool, depth: u32) -> Option<&Feature>
         return None;
     }
     match &f.operation {
-        _ if is_stone(doc, f) => (!copied).then(|| builders::head_on(doc, id)).flatten().filter(|h| !moved_away(doc, h.id)),
+        _ if is_stone(doc, f) => (!copied).then(|| builders::head_on(doc, id).filter(|h| !moved_away(doc, h.id)).or_else(|| hand_head(doc, f))).flatten(),
         Operation::Builder { key, .. } if key == builders::HALO || builders::HEADS.contains(&key.as_str()) => Some(f),
         Operation::Pattern { sources, .. } => sources.iter().find_map(|id| held_by(doc, *id, true, depth + 1)),
         Operation::Fillet { source, .. }
@@ -846,6 +848,43 @@ fn moved_away(doc: &Document, id: Id) -> bool {
     doc.features.iter().any(|t| t.enabled && matches!(&t.operation, Operation::Transform { source, .. } if finished_from(doc, *source) == id))
 }
 
+/// The first enabled joined Head made by hand in `stone`'s own ring placement, from no builder and moved by no Transform.
+fn hand_head<'d>(doc: &'d Document, stone: &Feature) -> Option<&'d Feature> {
+    let at = &stone.component.placement;
+    if *at == Placement::Free {
+        return None;
+    }
+    doc.features.iter().find(|h| {
+        h.enabled
+            && h.id != stone.id
+            && h.component.role == cad::ComponentRole::Head
+            && h.component.attach == cad::Attach::Join
+            && h.component.placement == *at
+            && !from_builder(doc, h)
+            && !moved_away(doc, h.id)
+    })
+}
+
+/// Whether `f` is a builder's part or one a chain of transforms, fillets, chamfers, shells and press-pulls makes from it.
+fn from_builder(doc: &Document, f: &Feature) -> bool {
+    let mut at = f;
+    for _ in 0..=MAX_CARRY_DEPTH {
+        match &at.operation {
+            Operation::Builder { .. } => return true,
+            Operation::Transform { source, .. }
+            | Operation::Fillet { source, .. }
+            | Operation::Chamfer { source, .. }
+            | Operation::Shell { source, .. }
+            | Operation::PressPull { source, .. } => match doc.feature(*source) {
+                Some(s) => at = s,
+                None => return false,
+            },
+            _ => return false,
+        }
+    }
+    false
+}
+
 /// Whether `f` is a stone: a stone part, or one a Transform moved.
 fn is_stone(doc: &Document, f: &Feature) -> bool {
     let mut at = f;
@@ -1456,6 +1495,73 @@ mod tests {
         let check = report.seats.iter().find(|s| s.gem.is_some()).unwrap();
         assert_eq!(check.made, None, "the moved head holds nothing");
         assert!(check.warnings.iter().any(|w| w.starts_with("no setting holds this stone")), "{:?}", check.warnings);
+    }
+
+    /// The Court band with stone #2 at the top and four claws made by hand in its placement, claw #4 + 2k moving wire #3 + 2k.
+    fn hand_claws() -> RingDesign {
+        let court = crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
+        let gem = Gem::calibrated(GemCut::Round, 6.5);
+        let at = Placement::ring(90.0, builders::stand_off_mm(builders::CLAW, gem));
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Default::default() }).unwrap();
+        doc.append(builders::stone_feature(2, gem, at.clone())).unwrap();
+        for k in 0..4u64 {
+            let a = (45.0 + 90.0 * k as f64).to_radians();
+            let wire = Operation::Cylinder { radius_mm: 0.4, height_mm: 3.0 };
+            doc.append(Feature { id: 3 + 2 * k, name: format!("Wire {}", k + 1), enabled: true, operation: wire, component: Default::default() }).unwrap();
+            let claw = cad::Component { role: cad::ComponentRole::Head, attach: cad::Attach::Join, placement: at.clone(), ..Default::default() };
+            let moved = Operation::Transform { source: 3 + 2 * k, translation: [3.2 * a.cos(), 3.2 * a.sin(), -1.2], rotation_deg: [0.0; 3] };
+            doc.append(Feature { id: 4 + 2 * k, name: format!("Claw {}", k + 1), enabled: true, operation: moved, component: claw }).unwrap();
+        }
+        RingDesign { cad: Some(doc), ..court }
+    }
+
+    /// The report's line for the one stone: the setting it names and whether it warns that nothing holds it.
+    fn held_line(d: &RingDesign) -> (Option<String>, bool) {
+        let report = crate::stones::report(d, 0.0).unwrap();
+        let check = report.seats.iter().find(|s| s.gem.is_some()).unwrap();
+        (check.made.clone(), check.warnings.iter().any(|w| w.starts_with("no setting holds this stone")))
+    }
+
+    #[test]
+    fn claws_made_by_hand_in_the_stones_placement_hold_it() {
+        let d = hand_claws();
+        assert_eq!(holder(d.cad.as_ref().unwrap(), 2).map(|h| h.id), Some(4), "the first claw holds the stone");
+        assert_eq!(held_line(&d), (Some("Claw 1".into()), false));
+        let report = crate::stones::report(&d, 0.0).unwrap();
+        assert_eq!((report.stone_count, report.seats[0].style), (1, crate::field::SeatStyle::Boss));
+        // Claws that are no joined Head in the stone's own placement, or are switched off, hold nothing.
+        let edits: [(&str, fn(&mut Feature)); 5] = [
+            ("another role", |f| f.component.role = cad::ComponentRole::Other),
+            ("set apart", |f| f.component.attach = cad::Attach::Separate),
+            ("cut", |f| f.component.attach = cad::Attach::Cut),
+            ("a degree round the ring", |f| f.component.placement = Placement::ring(91.0, 0.0)),
+            ("switched off", |f| f.enabled = false),
+        ];
+        for (what, edit) in edits {
+            let mut d = hand_claws();
+            d.cad.as_mut().unwrap().features.iter_mut().filter(|f| f.name.starts_with("Claw")).for_each(edit);
+            assert!(holder(d.cad.as_ref().unwrap(), 2).is_none(), "{what}");
+            assert_eq!(held_line(&d), (None, true), "{what}");
+        }
+        // A claw a Transform moves away leaves the stone to the next.
+        let mut moved = hand_claws();
+        let away = Operation::Transform { source: 4, translation: [0.0, 0.0, 2.0], rotation_deg: [0.0; 3] };
+        moved.cad.as_mut().unwrap().append(Feature { id: 20, name: "Lift".into(), enabled: true, operation: away, component: Default::default() }).unwrap();
+        assert_eq!(held_line(&moved), (Some("Claw 2".into()), false));
+        // A builder's head on the stone comes first, and a stone left without one is held by no claw of a builder's.
+        let mut both = hand_claws();
+        both.cad.as_mut().unwrap().append(builders::feature_on(21, "Four-claw head", builders::CLAW, 2, serde_json::json!({ "prongs": 4 }))).unwrap();
+        assert_eq!(held_line(&both), (Some("Four-claw head".into()), false));
+        let mut copied = both.clone();
+        let doc = copied.cad.as_mut().unwrap();
+        for f in doc.features.iter_mut().filter(|f| f.name.starts_with("Claw")) {
+            f.enabled = false;
+        }
+        let lifted = Operation::Transform { source: 21, translation: [0.0, 0.0, 0.8], rotation_deg: [0.0; 3] };
+        let component = cad::Component { placement: Placement::ring(90.0, builders::stand_off_mm(builders::CLAW, Gem::calibrated(GemCut::Round, 6.5))), ..builders::component(builders::CLAW) };
+        doc.append(Feature { id: 22, name: "Moved head".into(), enabled: true, operation: lifted, component }).unwrap();
+        assert_eq!(held_line(&copied), (None, true), "a builder's head a Transform moved holds nothing, in the stone's placement or not");
     }
 
     #[test]

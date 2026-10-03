@@ -19,7 +19,7 @@ pub mod region;
 pub mod solid;
 pub mod solver;
 pub use dimension::{Held, Measure};
-pub use edit::Pattern;
+pub use edit::{Pattern, Tracery};
 pub use query::Near;
 pub use region::{Region, RegionRef};
 pub use solid::FaceFrame;

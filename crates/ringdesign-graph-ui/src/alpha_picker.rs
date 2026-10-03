@@ -127,7 +127,7 @@ pub fn show_in(ctx: &Context, bounds: egui::Rect) {
         ui.add(egui::TextEdit::singleline(&mut picker.filter).hint_text("Name or pattern").desired_width(f32::INFINITY)).labelled_by(label.id);
         let query = picker.filter.to_lowercase();
         let mut names: Vec<_> = picker.library.iter()
-            .filter(|a| !a.name.ends_with(ringdesign_core::alpha::SDF_SUFFIX) && a.name.to_lowercase().contains(&query))
+            .filter(|a| !ringdesign_core::alpha::is_derived(&a.name) && a.name.to_lowercase().contains(&query))
             .map(|a| a.name.clone()).collect();
         names.sort_by_cached_key(|name| name.to_lowercase());
         ui.weak(format!("{} alphas · imports are available from the Alphas library", names.len()));

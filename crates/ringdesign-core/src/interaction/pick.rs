@@ -729,7 +729,7 @@ mod tests {
         BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() }
     }
     fn template(name: &str) -> RingDesign {
-        templates::all().iter().find(|t| t.name == name).unwrap().design()
+        templates::fixture(name).unwrap_or_else(|| templates::all().iter().find(|t| t.name == name).unwrap().design())
     }
     /// A joined part at the top of the Court band, its centre `height` above the surface: a part
     /// sunk into the band buries its lower features, the ones a flat foot on a dome would float.
@@ -1106,7 +1106,7 @@ mod tests {
             let t = std::f64::consts::TAU * f64::from(i) / 40.0;
             [1.2 * t.cos(), 1.2 * t.sin()]
         });
-        d.stamps.push(crate::setting::Stamp { name: "Disc".into(), theta_deg: 270.0, v_mm: v, rot_deg: 0.0, outline: disc.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, tier: 0, top: Default::default() });
+        d.stamps.push(crate::setting::Stamp { name: "Disc".into(), theta_deg: 270.0, v_mm: v, rot_deg: 0.0, outline: disc.collect(), height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: Default::default() });
         d
     }
 

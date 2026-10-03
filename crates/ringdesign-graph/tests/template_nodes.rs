@@ -80,9 +80,10 @@ fn stamp_nodes_carry_shaped_tops_and_rows_and_lift_them_without_property_patches
         g.set_input(top, "shape", Literal::Text(shape.into())).unwrap();
         let stamp = g.add("stamp").unwrap();
         g.set_input(stamp, "tier", Literal::Int(2)).unwrap();
+        g.set_input(stamp, "fine_cap", Literal::Bool(true)).unwrap();
         g.connect(top, "top", stamp, "top").unwrap();
         let family: setting::Stamp = serde_json::from_value(value(&g, stamp, "stamp", &reg).to_json_any().unwrap()).unwrap();
-        assert_eq!(family.tier, 2);
+        assert_eq!((family.tier, family.fine_cap), (2, true));
         for (path_name, path) in [("PartingLine", RowPath::PartingLine), ("ChartV", RowPath::ChartV { v_mm: 0.5 }), ("SideFace", RowPath::SideFace { high: true, frac: 0.5 })] {
             let row = g.add("stamp.row").unwrap();
             g.connect(source, "design", row, "design").unwrap();

@@ -58,6 +58,9 @@ pub struct SeatCheck {
     pub warnings: Vec<String>,
 }
 
+/// What a bare seat run's line says in place of the setting that holds its stones.
+pub const STOCK_ONLY: &str = "stock only";
+
 impl SeatCheck {
     pub fn carats(&self) -> f64 {
         if let Some(c) = self.carats_override {
@@ -160,7 +163,7 @@ impl StonesReport {
 /// voice*. Both thresholds now come off the design's floor.
 pub const TIGHT_MULTIPLE: f64 = 1.5;
 
-/// Every seat in the design, checked, and every stone its CAD parts carry. `None` when it sets neither.
+/// Every seat in the design carrying a stone, checked, and every stone its CAD parts carry. `None` when it sets neither.
 ///
 /// `parting_z_mm` is the plane the draft numbers are signed against — pass
 /// the cast report's when there is one; 0 is the crest plane every profile
@@ -226,7 +229,7 @@ fn walk(
             continue;
         }
         match &entry.layer {
-            Layer::SeatPad(seat) => {
+            Layer::SeatPad(seat) if seat.gem.is_some() => {
                 let kept = station_kept(entry, ctx, seat.theta_deg, seat.v_mm);
                 let mut check = check_seat(
                     design,
@@ -251,7 +254,12 @@ fn walk(
                     .filter(|&(t, v)| station_kept(entry, ctx, t, v))
                     .collect();
                 let mut seat = run.seat;
-                seat.fit_stone(run.gem);
+                if run.bare {
+                    // Stock only: the authored plan, and no stone to judge.
+                    seat.gem = None;
+                } else {
+                    seat.fit_stone(run.gem);
+                }
                 let seat = run.turned(seat);
                 let mut check = check_seat(
                     design,
@@ -264,10 +272,13 @@ fn walk(
                     format!("{prefix}{}", entry.name),
                 );
                 check.count = stations.len() as u32;
+                if run.bare {
+                    check.made = Some(STOCK_ONLY.into());
+                }
                 // A graduated run's carats sum the graded stones, not count
                 // times the largest; the check's headline gem stays the
                 // largest, which is the one the pavilion depth must clear.
-                if run.taper > 0.0 {
+                if run.taper > 0.0 && !run.bare {
                     check.carats_override = Some(
                         stations.iter().map(|&(t, _)| run.gem_at(t).carats()).sum(),
                     );
@@ -471,12 +482,18 @@ fn cad_checks(
     checks.into_iter().map(|(_, check)| check).collect()
 }
 
-/// The made setting holding the stones feature `id` carries, and its builder.
+/// The key [`made_by`] gives a head made by hand.
+const HAND_MADE: &str = "made";
+
+/// The made setting holding the stones feature `id` carries, and its builder's key or [`HAND_MADE`].
 fn made_by(doc: &crate::cad::Document, id: crate::sketch::Id) -> Option<(String, &'static str)> {
     use crate::cad::{builders, Operation};
     let head = crate::setstone::holder(doc, id)?;
-    let Operation::Builder { key, .. } = &head.operation else { return None };
-    Some((head.name.clone(), builders::spec(key)?.key))
+    let key = match &head.operation {
+        Operation::Builder { key, .. } => builders::spec(key)?.key,
+        _ => HAND_MADE,
+    };
+    Some((head.name.clone(), key))
 }
 
 /// Every stone against every other, in millimetres of real metal.
@@ -711,6 +728,9 @@ fn seats_by_shape<'a>(
             continue;
         }
         let Layer::SeatPad(s) = &e.layer else { return None };
+        if s.gem.is_none() {
+            continue;
+        }
         let same = |p: &SeatPadLayer| {
             p.gem == s.gem
                 && p.style == s.style
@@ -943,6 +963,7 @@ mod tests {
             pad.height_mm = 0.8;
             pad.blend_mm = 0.5;
             pad.metal_true = metal_true;
+            pad.gem = Some(Gem::calibrated(GemCut::Round, 1.5));
             d.layers.layers.push(LayerEntry::new("Boss", Layer::SeatPad(pad)));
             d
         };
@@ -1415,6 +1436,37 @@ mod tests {
         assert_eq!(lw.verdict, Verdict::Castable, "{:?}", lw.notes);
     }
 
+    /// C-R3: a bare run is beads in the stock. It keeps the seat as drawn
+    /// (a 2.0 mm stone would refit it to 2.0 mm and space the row by that),
+    /// packs by its own plan, sets no stone, and says so.
+    #[test]
+    fn a_bare_run_keeps_its_plan_sets_nothing_and_reports_stock_only() {
+        let row = |bare: bool| {
+            let mut d = with_run();
+            let ctx = d.field_context();
+            let Layer::SeatRun(run) = &mut d.layers.layers[0].layer else { unreachable!() };
+            run.bare = bare;
+            run.seat.diameter_mm = 0.9;
+            run.solve_spacing(&ctx);
+            d
+        };
+        let run = |d: &RingDesign| match &d.layers.layers[0].layer { Layer::SeatRun(r) => *r, _ => unreachable!() };
+        let (set, bare) = (row(false), row(true));
+        assert_eq!(run(&bare).seat.diameter_mm, 0.9, "the authored plan stands");
+        assert!(run(&set).seat.diameter_mm > 1.9, "a set run refits to its stone");
+        assert!(run(&bare).count > run(&set).count * 2, "spaced by its own plan: {} vs {}", run(&bare).count, run(&set).count);
+        assert!(crate::setstone::set_stones(&bare).is_empty());
+        assert!(!crate::setstone::set_stones(&set).is_empty());
+        let r = report(&bare, 0.0).unwrap();
+        assert_eq!((r.stone_count, r.total_carats), (0, 0.0));
+        assert_eq!(r.seats[0].made.as_deref(), Some(STOCK_ONLY));
+        assert_eq!(r.seats[0].count, run(&bare).count);
+        assert_eq!(crate::library::format_version_for(&set), crate::library::PLAIN_FORMAT_VERSION);
+        assert_eq!(crate::library::format_version_for(&bare), crate::library::FORMAT_VERSION);
+        let saved = serde_json::to_value(run(&set)).unwrap();
+        assert!(saved.get("bare").is_none(), "skipped when default");
+    }
+
     #[test]
     fn a_run_reports_its_stations_and_carats() {
         let d = with_run();
@@ -1537,5 +1589,31 @@ mod tests {
         d2.layers.layers.last_mut().unwrap().enabled = false;
         assert!(report(&d2, 0.0).is_none());
         let _ = VGate::Off;
+    }
+
+    /// A pad carrying no stone is stock rather than a seat: the report neither lists nor warns it, alone or in a group.
+    #[test]
+    fn a_pad_with_no_stone_is_not_a_seat() {
+        let mut d = RingDesign::default();
+        let crest = d.field_context().crest_v_mm;
+        let edge = SeatPadLayer { theta_deg: 90.0, v_mm: 0.6, diameter_mm: 2.0, height_mm: 0.5, blend_mm: 0.4, ..Default::default() };
+        d.layers.layers.push(LayerEntry::new("Stock at the edge", Layer::SeatPad(edge)));
+        assert!(report(&d, 0.0).is_none(), "a stoneless pad sets no stone");
+        let seat = SeatPadLayer { theta_deg: 270.0, gem: Some(Gem::calibrated(GemCut::Round, 1.5)), ..edge };
+        d.layers.layers.push(LayerEntry::new("Seat at the edge", Layer::SeatPad(seat)));
+        let r = report(&d, 0.0).unwrap();
+        assert_eq!(r.seats.iter().map(|s| s.label.as_str()).collect::<Vec<_>>(), ["Seat at the edge"]);
+        assert!(r.seats[0].warnings.iter().any(|w| w.contains("feather edges will not fill")), "{:?}", r.seats[0].warnings);
+        let mut g = crate::field::GroupLayer::default();
+        g.stack.layers.push(LayerEntry::new("Plate", Layer::SeatPad(SeatPadLayer { theta_deg: 180.0, v_mm: crest, ..edge })));
+        for k in 0..3 {
+            let melee = SeatPadLayer { theta_deg: 175.0 + 5.0 * k as f64, v_mm: crest, diameter_mm: 1.4, height_mm: 0.3, gem: Some(Gem::calibrated(GemCut::Round, 1.0)), ..Default::default() };
+            g.stack.layers.push(LayerEntry::new(format!("Melee {k}"), Layer::SeatPad(melee)));
+        }
+        d.layers.layers.push(LayerEntry::new("Cluster", Layer::Group(g)));
+        let r = report(&d, 0.0).unwrap();
+        let cluster: Vec<(&str, u32)> = r.seats.iter().filter(|s| s.label.starts_with("Cluster")).map(|s| (s.label.as_str(), s.count)).collect();
+        assert_eq!(cluster, [("Cluster", 3)], "the plate is no shape of its own in the rollup");
+        assert_eq!(r.stone_count, 4);
     }
 }

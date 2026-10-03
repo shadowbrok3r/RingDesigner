@@ -87,7 +87,7 @@ pub fn app_icon_rgba() -> Vec<u8> {
 
 /// Bytes across every family, decoded — what the bundle would weigh on disk.
 pub fn bundled_size() -> usize {
-    [ALPHAS, PROFILES, OUTLINES, GEMS, GRAPHS, CLUSTERS, GRAPH_PRESETS, BASES, SIMPLE_GRAPH, DESIGNS, ICON]
+    [ALPHAS, PROFILES, OUTLINES, GEMS, GRAPHS, CLUSTERS, GRAPH_PRESETS, BASES, SKETCHES, SIMPLE_GRAPH, DESIGNS, ICON]
         .iter()
         .flat_map(|f| f.iter())
         .map(Asset::size)
@@ -116,6 +116,7 @@ mod tests {
                 "CLUSTERS" => CLUSTERS,
                 "GRAPH_PRESETS" => GRAPH_PRESETS,
                 "BASES" => BASES,
+                "SKETCHES" => SKETCHES,
                 "SIMPLE_GRAPH" => SIMPLE_GRAPH,
                 "DESIGNS" => DESIGNS,
                 other => panic!("{other} is not a family"),
@@ -131,7 +132,7 @@ mod tests {
     /// [`find`] answer by bundle order rather than by intent.
     #[test]
     fn every_bundled_asset_decodes_to_its_recorded_length() {
-        let families: [(&str, &[Asset]); 11] = [
+        let families: [(&str, &[Asset]); 12] = [
             ("alphas", ALPHAS),
             ("profiles", PROFILES),
             ("outlines", OUTLINES),
@@ -140,6 +141,7 @@ mod tests {
             ("clusters", CLUSTERS),
             ("graph presets", GRAPH_PRESETS),
             ("bases", BASES),
+            ("sketches", SKETCHES),
             ("simple graph", SIMPLE_GRAPH),
             ("designs", DESIGNS),
             ("icon", ICON),
@@ -185,6 +187,10 @@ mod tests {
         }
         for asset in GEMS {
             assert!(asset.text().contains("\nv "), "{} carries no vertices", asset.file);
+        }
+        for asset in SKETCHES {
+            assert!(asset.text().trim_start().starts_with("<svg"), "{} is not an SVG document", asset.file);
+            assert!(asset.name.starts_with("gothic/") && asset.file == format!("{}.svg", asset.name), "{} is named by its path", asset.file);
         }
     }
 }

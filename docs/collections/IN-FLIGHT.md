@@ -1,3 +1,97 @@
+# PAUSED by Logan (2026-09-26 afternoon)
+
+"once all current agents are finished, lets put a pause on the rest of the collections and such. we've already blown almost 40% of my weekly usage and it has only been 7 hours since my weekly reset"
+
+The agents running at that moment finish their current task (Kraken round 3, Basiliscus round 3, Fenrir round 2, Corvus round 2, Harpyia round 2, the packaging lane, Phoenix's final review). **No new agents, rounds, reviews or lanes start until Logan says so.** Each finished result is recorded in the table below with its next step. The desktop release waits with the rest.
+
+Packaging lane finished and merged (`bestiarium-package` `1c31c9c`, merge `89dc970`): Arachne and Manticora rebuilt on current master and registered as a Bestiarium group in File > New from template (menu 55 to 53, Workshop group retired; `showcase/workshop-collection` kept), bound template controls (request 15), studio renders, sheet and README. Every suite green on the branch, four-core CI emulation 1653. Its report, with the eleven steps to add one more shipped ring, is `docs/collections/bestiarium-package-report.json` (`add_a_ring`). Left for the release: the phone and desktop version bumps, a CHANGELOG line (Bestiarium added, Workshop retired), the tag and the Taildrop; build reels need an emulator. A tracked `crates/ringdesign-py/tests/__pycache__/*.pyc` is rewritten by every Python smoke run and should be untracked. Before the final Taildrop, smooth-shade the reference stones in the Blender renders: the onyx and ruby cabochons on `Bestiarium-collection.png` show stair-stepped highlights.
+
+# 2026-09-28 to 2026-10-02
+
+- **Cataphracta pilot over, none shipped.** Moloch was cut at 7.1 after the fourth round Logan asked for (6.3, 6.7, 7.0, 7.1): the ripples now read as wind-blown sand, but the new toes read as a gecko's and thinned to 0.18 mm. Heloderma's Gila figure, carried past its block-out at Logan's request, was cut at 6.3 (5.8, 6.4, 6.3). Sphenodon stands at 7.1. Each is on `claude/cataphracta-<slug>` with its `cloud-report.md`.
+- **Tenebrae started.** Oculus and Ogiva both stopped at the block-out after three read tests each (`claude/tenebrae-{oculus,ogiva}`). A wheel on a band's side face reads as a thin frame round the finger hole, and a revolved arch section shows only end-on. Their rethinks are Logan's call: for Oculus a side flange, a head, or orders made of stones; for Ogiva an arch cut along the pull, a verdict judged on the section, or another subject in its slot.
+- **Tenebrae enablers C-T1, C-T3 and C-T4 merged** (#239, merge `72b9857`): `Sketch::tracery`, `Profile::Regions`, the Gothic pierce shapes and sketch library, and `dfm::cut_lands`. Rosa, Arcus, Capsa (skull relic and hinged lid, Logan 09-28) and Porta's interim form can now start.
+- **Vepres started** (Logan, 10-02: "a couple more rings from other collections"): Rubus and Ilex, the plan's first two, both in Delft sand, as self-running cloud sessions. Seeds are `cloud/vepres-{rubus,ilex}`; results land on `claude/vepres-{rubus,ilex}`. The kits are in `.claude/collection-review/cloud-kit/{cataphracta,tenebrae,vepres}/`, and this round's lessons in `shared-lessons-2026-09-28.md`.
+
+# 2026-09-27
+
+- **Desktop 0.7.0 published** (https://github.com/shadowbrok3r/RingDesigner/releases/tag/desktop-v0.7.0, tag on `fb5e863` after an Intel-Mac test race was fixed) at Logan's request, without waiting for the collections: the Bestiarium group with Arachne and Manticora, Workshop retired, the rebuilt starters, and every core fix merged through the cloud sessions.
+- Cataphracta enablers C-R1 to C-R8 merged (#237, #238); the collet fix (#235) too. Master CI green on `140bcd4`.
+- Fenrir round 3 back (`claude/bestiarium-fenrir-r3` `4ae77ee`, self-score 7.0, sealed void gone); its final review runs from `review/fenrir-r3`.
+- **Sphenodon cut at 7.1** after three lost-wax rounds (6.5, 6.9, 7.1; `claude/cataphracta-sphenodon`): gates green, reads as a lizard but not a tuatara (screw-head eyes, a long monitor snout).
+- **All three pilots failed their sand read tests and restarted as lost wax** (Logan: lost wax when sand fails). Heloderma then failed three more as lost-wax beadwork, and restarted a third time as a figure (the Gila's head, forelegs and beaded body). Pilot finding: texture alone never names the animal; a head and body do (Sphenodon read "as a reptile at once" only with a head). Added to `cloud-kit/cataphracta/lessons.md`.
+- **Heloderma stopped at the block-out** (`claude/cataphracta-heloderma`): three read tests failed, each reading as a sea-urchin shell. On the plan's half-round the draft clamp shaves off-crest beads into half-beads that read as pits, and the high/low bands do not show at 300 px. Its lead for a rethink: an ogive crown (superellipse 1.1 / 1.2) holds 28-40 deg of draft from 0.4 mm off the ridge, so beads are legal almost everywhere; raised-cosine beads leaned 0.3 toward the edge; clamp slack 0.8. Decision for Logan: rethink or swap for Gekko.
+- Pilot rings running as self-running cloud sessions (block-out read test, then up to three reviewed rounds): Sphenodon, Heloderma and Moloch, seeds `cloud/lane-<slug>`, results on `claude/cataphracta-<slug>`. The kit lives in `.claude/collection-review/cloud-kit/` (launcher `launch.sh`, session log `sessions.txt`).
+
+# Cataphracta pilot (Logan, 2026-09-26 night)
+
+Logan chose Cataphracta next, as a three-ring pilot to measure the credit per ring and the ship rate before launching the rest. The Bestiarium shipped 2 of 9, and almost every cut failed the 300 px read without its caption, so the pilot changes the process: each ring blocks out its subject and passes a 300 px read test before detail and gates, and each ring runs as one self-running cloud session (author, then an independent reviewer agent inside the same session, up to three rounds, ending at ship or cut).
+
+The collection's enablers come first; none were on master. Running as cloud sessions: C-R1, C-R3, C-R5 and C-R6 (`claude/cataphracta-enablers-a`), and C-R2, C-R4, C-R7 and C-R8 (`claude/cataphracta-enablers-b`). Pilot rings once they merge: Sphenodon, Heloderma, then Moloch or Gekko (the plan's build order). Chelonia, Phrynosoma and Chamaeleo still wait on the plan's bare-base studies for Logan.
+
+# Cloud sessions (2026-09-26 evening, on Logan's one-time $250 cloud-session credit)
+
+Logan resumed the work on a credit that pays for plain cloud sessions only (not routines or projects; it expires 5 November). Sessions start with `claude --cloud` from a checkout of a small seed branch (`cloud/*` or `review/*`, standalone commits built with git plumbing) because the CLI uploads a bundle rather than cloning this repository, and bundles stop at 100 MB. A seed carries a `TASK.md` or `REVIEW.md`; the session clones the full repository inside its VM when it needs one, and pushes results to `claude/*` branches. Each session also pushes a `cloud-report.md` when it is done. The four Bestiarium reviews ran this way. Kraken was cut at 7.0 and Basiliscus at 7.2 (both final rounds); Corvus and Harpyia were sent to round 3 (the table above). Running now:
+
+| Session | Seed | Results branch |
+|---|---|---|
+| Corvus round 3 (with enabler C-B7, request 28) | `cloud/lane-corvus-r3` | `claude/bestiarium-corvus-r3` |
+| Harpyia round 3 | `cloud/lane-harpyia-r3` | `claude/bestiarium-harpyia-r3` |
+| Core requests 2, 13 and 26 (DFM texels, hide stations, land widths) | `cloud/core-dfm-texels-hide-lands` | `claude/core-dfm-texels-hide-lands` |
+| Core request 18 (`Hide::steadied`) | `cloud/core-hide-steadied` | `claude/core-hide-steadied` |
+| Core request 1 (graded run centre phase) | `cloud/core-graded-centre-phase` | `claude/core-graded-centre-phase` |
+| Core request 24 (fold errors name the point) | `cloud/core-fold-errors-name-the-point` | `claude/core-fold-errors-name-the-point` |
+| Fenrir round 2 review | `review/fenrir-r2` | `claude/review-fenrir-r2` |
+| Core request 29 (railless claw feet on a sloped table) | `cloud/core-claw-foot-lift` | `claude/core-claw-foot-lift` |
+| Core request 9 (sculpt tools into core) | `cloud/core-sculpt-tools` | `claude/core-sculpt-tools` |
+
+Results so far: every session pushed once told to push from its own checkout (`/home/user/repo`), and opened its own pull request. Core PRs: #230 (requests 2, 13, 26), #227 (1), #226 (29), #225 (24), #224 (9: the sculpt tools, on branch `claude/core-hide-steadied` by a mix-up in the lead's seed text; its own branch `claude/core-sculpt-tools` holds the same commit).  All seven core PRs are merged, each with its session report dropped: #224 sculpt tools (9), #225 fold and pinch messages (24), #226 railless claw feet (29), #227 graded-run centre phase (1), #230 DFM texels, inked hide stations and `dfm::part_sections` (2, 13, 26), #231 faired bypass (28), #232 `Hide::steadied` (18). A flaky wake count in the template-open test failed two PRs' CI; fixed on master (`4f16808`). Master CI green over all seven (`aa30aff`).
+
+Logan approved the four requests that move existing geometry (2026-09-26 evening); they run as cloud sessions working inside their own checkout, each PR to list every template and shipped ring it moves: request 16 comfort-fit apex on the parting plane (`claude/core-comfort-apex`), 23 seam bead radius from every part on the seam (`claude/core-seam-bead-radius`), 20 collet bearing on the pavilion's slope (`claude/core-collet-bearing-slope`), 11 finer stamp caps, opt-in per stamp (`claude/core-stamp-fine-cap`). Fenrir's round 2 review landed on `claude/review-fenrir-r2` once Logan pushed it from the session. The ring rounds' PRs #228 and #229 are drafts until their final reviews decide.
+
+# Checkpoint 2026-09-26 10:10 (Claude, at the account's 5-hour limit)
+
+Every lane below was stopped mid-round by the usage limit. Resume each by starting a fresh agent in its worktree with the shared brief (`.claude/collection-review/bestiarium-lane-brief.md`), its latest review JSON (in `.claude/collection-review/`, ignored dir) and "continue round N". Uncommitted files stay on disk: commit or finish them first.
+
+| Ring | Worktree / branch | Last commit | Latest review | Next |
+|---|---|---|---|---|
+| Arachne | `wf_9f675e59-c4d-1` / `bestiarium-arachne` | `a44f55c` | approved 7.5 (`arachne-final-art-review-20260924.json`) | **packaged, on master** (`89dc970`) |
+| Manticora | `bestiarium-manticora` | `9a4252f` round 3 | **shipped 7.5** (`manticora-round3-review.json`, optional polish listed) | **packaged, on master** (`89dc970`) |
+| Kraken | `bestiarium-kraken` (owns C-B1) | `567365a` round 3 (master merged as `62b2dfe`) | r3 author self-score 7.0; **cut at 7.0** by the final review (cloud session, 2026-09-26: gates green, claws splayed and curled as asked; short of 7.5) | none (kept on its branch) |
+| Phoenix | `bestiarium-phoenix` / `codex/bestiarium-phoenix` | `74dceaf` round 3 | **cut at 7.0** after round 3 (`phoenix-round3-review.json`: gates green, fails the 300 px read; optional polish listed) | none (kept on its branch) |
+| Basiliscus | `bestiarium-basiliscus` / `codex/bestiarium-basiliscus` | `4df7a53` round 3 | r3 author self-score 7.4; **cut at 7.2** by the final review (cloud: gates green; the head is still blocky at 3/4, and the 300 px hero does not name the animal) | none (kept on its branch) |
+| Fenrir | `bestiarium-fenrir` | `55022f3` round 2 (master `b611d2c` merged) | r3 author self-score 7.0; **cut at 7.0** by the final review (cloud, 2026-09-27: every gate green, sealed void gone, the strongest head in the Bestiarium; face-on it reads as a bulldog or gargoyle mask, short blunt muzzle, the upper flews one rolled horseshoe) | none (kept on `claude/bestiarium-fenrir-r3`); the Bestiarium is decided: 2 shipped, 7 cut |
+| Corvus | `bestiarium-corvus` | `claude/bestiarium-corvus-r3` `729e5d3` round 3 (cloud; draft PR #228, with enabler C-B7) | r3 author self-score 6.9; **cut at 6.6** by the final review (cloud: gates green, one hooked-bill head reads in the hero, but at 300 px the face view reads as a visor or a beetle, not two ravens; the skull scallops render smeared) | none (kept on `claude/bestiarium-corvus-r3`; draft PR #228 closed; its core request 28 is PR #231 on its own) |
+| Harpyia | `bestiarium-harpyia` (owns C-B4) | `claude/bestiarium-harpyia-r3` `f808587` round 3 (cloud; draft PR #229) | r3 author self-score 7.3; **cut at 6.8** by the final review (cloud: every gate green, the torso's land width measured at 2.56 mm; at 300 px she reads as a figure cradling an orb in two human hands, not talons striking; the ball-ended claws read as tubes) | none (kept on `claude/bestiarium-harpyia-r3`; draft PR #229 closed) |
+
+- Platform on master (pushed `2af7974`): batch 16, the starter gallery with re-framed splits, the GUI and workbench CI fixes (CI green), the embedded-art fix, the phone icon, C-B5 claw rails and cabochon rise.
+- C-B6 is on master (`22912a5`): stamp drop-ray reach, hand-made heads as holders, finer parting search, flat-part clean, stoneless pads out of the stones report. Requests and proposed code: `.claude/collection-review/core-change-requests.md`.
+- Review prompt template: `.claude/collection-review/review-prompt-template.md` (a ring under 7.5 after round 3 is cut).
+- Then: package the shipped rings, register them in File > New from template (Workshop leaves the menu), bump the desktop version, tag `desktop-v<version>`, Taildrop the final renders (Logan's instruction below).
+
+# Takeover checkpoint (2026-09-26, Claude)
+
+Codex's account hit its usage limit at 10:14 MDT on 2026-09-25 and cannot resume before Oct 1, so Claude took over every lane. Codex's own record follows below this section.
+
+- **Batch 16 is on master** as merge `67887c0` (tree identical to the validated `a89f4e4`): P5, P6, P8, the C-S2/C-S3 cutters, projected stamp solids and the fences. 36 checks, 1,836 tests, 0 failures, 0 warnings, plus 8 Python smoke tests: `batch16-integration-report.json`. Draft PRs #210, #216, #217 and #221 are contained in it.
+- **Ring lanes**, one worktree each under `.claude/worktrees/`, all built from `a89f4e4` or merged up to it:
+  - `bestiarium-corvus`, `bestiarium-manticora`, `bestiarium-fenrir` (new rings, not started by Codex);
+  - `bestiarium-kraken` (new ring, and owns enabler C-B1 in `core/curve.rs` and `graph/nodes/layer.rs`);
+  - `bestiarium-phoenix` (`codex/bestiarium-phoenix`: round-2 revision, Codex's uncommitted round-2 edits still in the tree);
+  - `bestiarium-basiliscus` (`codex/bestiarium-basiliscus`: the example is committed as `ab4c81e` and merged up to the platform; its export build fails the 2 million triangle budget);
+  - Harpyia next, from the spike on `codex/harpyia-feather-spike` (probe committed as `826f825`), owning an enabler C-B4 for a closed feather construction, because the kernel loft tessellates open.
+- Arachne's validated pattern export is committed as `a44f55c` on `bestiarium-arachne`.
+- **Starter gallery part 1 is on master** as merge `bc697ba` (validated at `867967e`: 41 checks, 1,854 tests, `starters-part1-report.json`). Stocks open as measured: 002, 006, 015, 017 in Delft; 001, 003, 005, 007, 012, 013, 016 in wax after failed sand trials; the nine upright plans in wax. Open follow-ups:
+  - (done, merge `600ac22`) the split shank and split gallery re-framed and opened up so the Y and the window read at 160 px;
+  - Trilogy's side head has 2 degenerate faces in its own part mesh at export chords of 512 steps and up (the joined ring is clean; the fix belongs in the claw builder);
+  - the desktop "Imported signet base" picker shows a sand-master stock's raw source name instead of selecting its preset;
+  - the phone's retired "Imported signet base..." menu entry needs a CHANGELOG line at the next release.
+- **Icons (2026-09-26, Logan):** the phone's launcher icon is now the desktop icon (`crates/ringdesigner-android/icon/ic_launcher.svg` links to `bundled/icon/ringdesigner.svg`; mipmaps re-rendered). The app store listing `ringdesigner-android` already serves it (uploaded directly to the store's icon endpoint). Installed phones show it from the next APK; add a CHANGELOG line then.
+- Lane instructions shared by every ring: `.claude/collection-review/bestiarium-lane-brief.md` (ignored dir; the review prompt template sits beside it). Gates add two to the list in README: nothing may enter the finger hole (Arachne's leg did, 0.36 mm, and nothing caught it) and the export build must fit the 2 million triangle budget.
+- **Read another worktree's files with Bash, not the Read tool**: each worktree carries its own copy of the long CLAUDE.md, and the Read tool injects it into the reader's context once per worktree touched.
+- All seven lanes launched on 2026-09-25 died within minutes on the account's usage limit and were relaunched the next morning, fewer at a time.
+- **Logan, 2026-09-26:** "When 100% done with the rings and replacing the apps built in templates with the new rings, push the new windows desktop app via the CI and send the updated final renders via taildrop." When every Bestiarium ring has shipped at 7.5+ (or been cut) and is registered in File > New from template (the Workshop group leaves the menu), bump `crates/ringdesign-gui` from 0.6.0, push master, push the annotated tag `desktop-v<version>` (`desktop-release.yml` publishes only if Linux, Windows and both macOS builds pass), then Taildrop the final renders to `logans-s26-ultra`. This authorizes that bump and tag.
+
 # Continuation checkpoint (2026-09-25)
 
 - Batch 15: all reviewer findings were already fixed with regression pins; every crate suite, NDK, wasm, locked and all-target checks passed. Master `9992ffa` was pushed. The b15 worktrees and branches had already been removed by the preceding integrator. Docs handoff merged and pushed as `1bd70a4`.

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::field::smoothstep;
 
 /// Resolution the built-in patterns are rendered at.
-const BUILTIN_SIZE: usize = 256;
+pub(crate) const BUILTIN_SIZE: usize = 256;
 
 /// Longest edge an alpha is kept at. Sources above this are downscaled on load.
 /// One f32 per pixel, so this is 1 MB per square alpha.
@@ -680,6 +680,18 @@ pub const SDF_SUFFIX: &str = "##sdf";
 
 pub fn sdf_name(name: &str) -> String {
     format!("{name}{SDF_SUFFIX}")
+}
+
+/// Suffix marking a clamped group's derived draft ceiling, beside [`SDF_SUFFIX`].
+pub const CLAMP_SUFFIX: &str = "##clamp";
+
+pub fn clamp_name(group: &str) -> String {
+    format!("{group}{CLAMP_SUFFIX}")
+}
+
+/// Whether `name` is a derived entry — a distance field or a clamp ceiling — never saved and never picked.
+pub fn is_derived(name: &str) -> bool {
+    name.ends_with(SDF_SUFFIX) || name.ends_with(CLAMP_SUFFIX)
 }
 
 /// Texels the shared bakes keep before the least recently used go.
@@ -1754,6 +1766,9 @@ pub struct AlphaLibrary {
     /// build (the mesh, the attributed field report, the modulus scan, the
     /// section view, the stones report), so the multiplier is real.
     sdf_index: HashMap<String, usize>,
+    /// Clamp ceilings, keyed by the group they hold, for the same reason: a
+    /// clamped group reads one per sample.
+    clamp_index: HashMap<String, usize>,
     /// Content version: fresh on every change, carried by a clone.
     revision: u64,
 }
@@ -1805,6 +1820,9 @@ impl AlphaLibrary {
         if let Some(base) = alpha.name.strip_suffix(SDF_SUFFIX) {
             self.sdf_index.insert(base.to_string(), self.entries.len());
         }
+        if let Some(group) = alpha.name.strip_suffix(CLAMP_SUFFIX) {
+            self.clamp_index.insert(group.to_string(), self.entries.len());
+        }
         self.index.insert(alpha.name.clone(), self.entries.len());
         self.entries.push(alpha);
         self.revision = next_revision();
@@ -1838,6 +1856,12 @@ impl AlphaLibrary {
             .enumerate()
             .filter_map(|(i, a)| Some((a.name.strip_suffix(SDF_SUFFIX)?.to_string(), i)))
             .collect();
+        self.clamp_index = self
+            .entries
+            .iter()
+            .enumerate()
+            .filter_map(|(i, a)| Some((a.name.strip_suffix(CLAMP_SUFFIX)?.to_string(), i)))
+            .collect();
         true
     }
 
@@ -1856,6 +1880,11 @@ impl AlphaLibrary {
     /// `TilingLayer::height` — once per sample.
     pub fn sdf_of(&self, base: &str) -> Option<&Alpha> {
         self.sdf_index.get(base).and_then(|&i| self.entries.get(i)).map(|a| &**a)
+    }
+
+    /// The draft ceiling baked for the clamped group named `group`, without building its name.
+    pub fn clamp_of(&self, group: &str) -> Option<&Alpha> {
+        self.clamp_index.get(group).and_then(|&i| self.entries.get(i)).map(|a| &**a)
     }
 
     pub fn get_index(&self, i: usize) -> Option<&Alpha> {

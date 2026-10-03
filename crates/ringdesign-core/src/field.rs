@@ -116,6 +116,8 @@ pub struct FieldContext {
     /// footprints instead of a whole-section average stretch.
     pub imported_surface: Option<std::sync::Arc<crate::imported_base::FieldSurface>>,
     pub imported_seats: std::collections::HashMap<(u64,u64),crate::imported_base::TangentFrame>,
+    /// The hide chart, found on first use by [`hide`](Self::hide).
+    pub hide_cache: std::sync::OnceLock<Option<std::sync::Arc<HideChart>>>,
 }
 
 impl FieldContext {
@@ -470,6 +472,126 @@ impl FieldContext {
     pub fn u_of_theta(&self, theta_deg: f64) -> f64 {
         theta_deg / 360.0 * self.circumference_mm
     }
+
+    /// The surface measured the way a hide is: along the parting line from
+    /// the head's centre and across the section from it. On a procedural
+    /// band it is the chart stretched by the section's own tables; on
+    /// imported stock, [`skin::Hide`](crate::skin::Hide) over the stock's
+    /// field surface, built once per surface. `None` on a degenerate band.
+    pub fn hide(&self) -> Option<&HideChart> {
+        self.hide_cache
+            .get_or_init(|| match &self.imported_surface {
+                Some(surface) => HideChart::of_stock(surface, self.band_v_len_mm, self.bore_radius_mm),
+                None => HideChart::of_band(self).map(std::sync::Arc::new),
+            })
+            .as_deref()
+    }
+
+    /// A chart point in hide millimetres: `(along, across)`. Hide space's
+    /// `u` is `along` from the head's centre at 90 degrees, so on a plain band
+    /// it is the chart's own `u`; its `v` is `across`, 0 on the parting line.
+    pub fn hide_uv(&self, uv: Uv) -> Option<Uv> {
+        let (along, across) = self.hide()?.at(self.theta_of_u(uv.u), uv.v, self);
+        Some(Uv { u: self.circumference_mm * 0.25 + along, v: across })
+    }
+}
+
+/// Columns round the ring and rows across of a stock's hide chart.
+const HIDE_STOCK_GRID: (usize, usize) = (720, 384);
+
+/// The surface in hide millimetres; see [`FieldContext::hide`].
+#[derive(Debug)]
+pub enum HideChart {
+    /// A procedural band: `along` is the crest arc from 90 degrees, per degree
+    /// of ring angle (361 entries from 0); `across` is `(v - crest_v)` times
+    /// the station's stretch.
+    Band { along: Option<Vec<f64>> },
+    /// Imported stock: the hide sampled on a grid over the chart.
+    Stock { width: usize, height: usize, span: f64, along: Vec<f64>, across: Vec<f64> },
+}
+
+impl HideChart {
+    fn of_band(ctx: &FieldContext) -> Option<Self> {
+        if !(ctx.circumference_mm > 1e-9 && ctx.band_v_len_mm > 1e-9) {
+            return None;
+        }
+        let along = ctx.crest_scale.as_ref().map(|_| {
+            let step = ctx.circumference_mm / 360.0;
+            let mut cum = vec![0.0; 361];
+            for i in 0..360 {
+                let (a, b) = (ctx.crest_scale(i as f64), ctx.crest_scale(i as f64 + 1.0));
+                cum[i + 1] = cum[i] + 0.5 * (a + b) * step;
+            }
+            let head = cum[90];
+            cum.iter_mut().for_each(|c| *c -= head);
+            cum
+        });
+        Some(HideChart::Band { along })
+    }
+
+    fn of_stock(surface: &std::sync::Arc<crate::imported_base::FieldSurface>, span: f64, bore: f64) -> Option<std::sync::Arc<Self>> {
+        type Held = (std::sync::Arc<crate::imported_base::FieldSurface>, u64, std::sync::Arc<HideChart>);
+        static CACHE: std::sync::Mutex<Vec<Held>> = std::sync::Mutex::new(Vec::new());
+        if !(span > 1e-9) {
+            return None;
+        }
+        let hit = |c: &Vec<Held>| c.iter().find(|h| std::sync::Arc::ptr_eq(&h.0, surface) && h.1 == span.to_bits()).map(|h| h.2.clone());
+        if let Some(chart) = hit(&CACHE.lock().unwrap_or_else(|e| e.into_inner())) {
+            return Some(chart);
+        }
+        let (w, h) = HIDE_STOCK_GRID;
+        let atlas = crate::skin::Atlas::of_surface(surface, w, h, span, bore, 0.0, 0.0).ok()?;
+        let hide = crate::skin::Hide::of(&atlas);
+        let chart = std::sync::Arc::new(HideChart::Stock { width: w, height: h, span, along: hide.along, across: hide.across });
+        let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(raced) = hit(&cache) {
+            return Some(raced);
+        }
+        if cache.len() >= 4 {
+            cache.remove(0);
+        }
+        cache.push((surface.clone(), span.to_bits(), chart.clone()));
+        Some(chart)
+    }
+
+    /// `(along, across)` at a chart point, mm.
+    pub fn at(&self, theta_deg: f64, v_mm: f64, ctx: &FieldContext) -> (f64, f64) {
+        match self {
+            HideChart::Band { along } => {
+                let d = wrap_delta(theta_deg - 90.0, 360.0);
+                let a = match along {
+                    None => d / 360.0 * ctx.circumference_mm,
+                    Some(cum) => {
+                        let t = (90.0 + d).rem_euclid(360.0);
+                        let i = (t.floor() as usize).min(359);
+                        let l = cum[i] + (cum[i + 1] - cum[i]) * (t - i as f64);
+                        // The back of the ring, past 270, runs round from the other shoulder.
+                        if t > 270.0 { l - (cum[360] - cum[0]) } else { l }
+                    }
+                };
+                (a, (v_mm - ctx.crest_v_mm) * ctx.station_stretch(theta_deg))
+            }
+            HideChart::Stock { width, height, span, along, across } => {
+                let (w, h) = (*width, *height);
+                let fx = theta_deg.rem_euclid(360.0) / 360.0 * w as f64;
+                let fy = (v_mm / span * h as f64).clamp(0.0, (h - 1) as f64);
+                let (x0, y0) = ((fx.floor() as usize) % w, (fy.floor() as usize).min(h - 2));
+                let (tx, ty) = (fx - fx.floor(), fy - y0 as f64);
+                let x1 = (x0 + 1) % w;
+                // `along` jumps by the whole run at the back: read the nearer column there.
+                let (a0, a1) = (along[x0], along[x1]);
+                let a = if (a1 - a0).abs() > 1.0 {
+                    if tx < 0.5 { a0 } else { a1 }
+                } else {
+                    a0 + (a1 - a0) * tx
+                };
+                let c = |x: usize, y: usize| across[y * w + x];
+                let top = c(x0, y0) + (c(x1, y0) - c(x0, y0)) * tx;
+                let bottom = c(x0, y0 + 1) + (c(x1, y0 + 1) - c(x0, y0 + 1)) * tx;
+                (a, top + (bottom - top) * ty)
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -729,6 +851,74 @@ pub struct GroupLayer {
     /// and analysis never read this: the stored stack is what a file means.
     #[serde(default)]
     pub recipe: Option<crate::pave::GenRecipe>,
+    /// The sand's draft rule, held live over the group's composite: see
+    /// [`SandClamp`]. `None` leaves the group exactly as it was. Fenced at
+    /// design format 6 when set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clamp: Option<SandClamp>,
+}
+
+/// A group held to a two-part pull. [`RingDesign::bake_clamps`](crate::RingDesign::bake_clamps)
+/// paints the group's composite over the bare-surface atlas
+/// ([`skin::Atlas`](crate::skin::Atlas)) at `resolution`, runs
+/// [`skin::draft_clamp`](crate::skin::draft_clamp) on it, and stores a
+/// derived ceiling under [`clamp_name`](crate::alpha::clamp_name) holding
+/// values only where the rule bit. The group's height is then
+/// `min(composite, ceiling)`.
+///
+/// The clamp cuts back and never fills, the opposite of the pull envelope.
+/// It is what makes a `SmoothMax` or `Add` composite legal under the rule:
+/// only `Max` of layers that each keep the rule keeps it by itself.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SandClamp {
+    /// Atlas columns round the ring and rows across the section.
+    pub resolution: [u32; 2],
+    /// How much steeper than the surface's own draft relief may rise, 1 for the rule as it stands.
+    pub slack: f64,
+}
+
+impl Default for SandClamp {
+    fn default() -> Self {
+        Self { resolution: [2048, 768], slack: 1.0 }
+    }
+}
+
+impl SandClamp {
+    /// The atlas size actually painted: at least 4 x 3, at most 4096 x 2048 and [`skin::MAX_ATLAS_SAMPLES`](crate::skin::MAX_ATLAS_SAMPLES) in all.
+    pub fn size(&self) -> (usize, usize) {
+        let w = (self.resolution[0] as usize).clamp(4, 4096);
+        let h = (self.resolution[1] as usize).clamp(3, 2048);
+        (w, h.min((crate::skin::MAX_ATLAS_SAMPLES / w).max(3)))
+    }
+}
+
+/// The ceiling a clamp bake stored, read at a chart point: bilinear over the
+/// texels where the rule bit, weighted by those alone, and unbounded where
+/// it bit nowhere near. Atlas columns stand at `x / width` of the ring and
+/// rows at `y / height` of the chart's span, so on a sample the texel is
+/// read back as painted.
+pub fn clamp_ceiling_at(ceiling: &crate::Alpha, uv: Uv, ctx: &FieldContext) -> f64 {
+    let (w, h) = (ceiling.width, ceiling.height);
+    if w == 0 || h == 0 || ceiling.data.len() != w * h || !(ctx.circumference_mm > 1e-9) || !(ctx.band_v_len_mm > 1e-9) {
+        return f64::INFINITY;
+    }
+    let fx = (uv.u / ctx.circumference_mm).rem_euclid(1.0) * w as f64;
+    let fy = (uv.v / ctx.band_v_len_mm * h as f64).clamp(0.0, (h - 1) as f64);
+    if !fx.is_finite() || !fy.is_finite() {
+        return f64::INFINITY;
+    }
+    let (x0, y0) = (fx.floor() as usize % w, (fy.floor() as usize).min(h - 1));
+    let (x1, y1) = ((x0 + 1) % w, (y0 + 1).min(h - 1));
+    let (tx, ty) = (fx - fx.floor(), fy - y0 as f64);
+    let (mut sum, mut weight) = (0.0, 0.0);
+    for (x, y, k) in [(x0, y0, (1.0 - tx) * (1.0 - ty)), (x1, y0, tx * (1.0 - ty)), (x0, y1, (1.0 - tx) * ty), (x1, y1, tx * ty)] {
+        let c = ceiling.data[y * w + x];
+        if c.is_finite() && k > 0.0 {
+            sum += k * c as f64;
+            weight += k;
+        }
+    }
+    if weight > 1e-12 { sum / weight } else { f64::INFINITY }
 }
 
 impl Layer {
@@ -1073,7 +1263,15 @@ impl LayerStack {
             if w <= 0.0 {
                 continue;
             }
-            let h = e.remap.apply(e.layer.height_d(uv, ctx, lib, depth)) * e.opacity * w;
+            let mut raw = e.layer.height_d(uv, ctx, lib, depth);
+            // A clamped group stands no higher than its baked ceiling; unbaked, it stands as composed.
+            if let Layer::Group(g) = &e.layer
+                && g.clamp.is_some()
+                && let Some(ceiling) = lib.clamp_of(&e.name)
+            {
+                raw = raw.min(clamp_ceiling_at(ceiling, uv, ctx));
+            }
+            let h = e.remap.apply(raw) * e.opacity * w;
             acc = e.blend.apply(acc, h, e.soft_mm);
         }
         acc
@@ -1421,7 +1619,7 @@ impl Default for SeatPadLayer {
 /// The eccentric-anomaly substitution: a monotone, odd reparameterization of
 /// the circle onto itself, the identity at `c = 1`, and the closed-form
 /// integral of `dΔ / (A + B cos Δ)`.
-fn eccentric_warp(x: f64, c: f64) -> f64 {
+pub(crate) fn eccentric_warp(x: f64, c: f64) -> f64 {
     let (sin, cos) = x.sin_cos();
     let (a, b) = (2.0 * c * sin, (1.0 + cos) - c * c * (1.0 - cos));
     a.atan2(b)
@@ -2106,6 +2304,23 @@ pub struct SeatRunLayer {
     /// it re-packs to the reach it has.
     #[serde(default)]
     pub tilt_deg: f64,
+    /// Where the station lattice stands against the taper centre, in
+    /// stations: 0 stands one on [`taper_theta_deg`](Self::taper_theta_deg),
+    /// 0.5 straddles it with a pair, and either way the row is mirror-true
+    /// about its centre. `None` keeps the lattice anchored at 0 degrees, so
+    /// a row whose centre is not a station angle grades lopsided. Fenced at
+    /// design format 6 when set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub centre_phase: Option<f64>,
+    /// A stone-less run: beads and mounds cast in the stock. The seat keeps
+    /// its authored plan (no [`fit_stone`](SeatPadLayer::fit_stone)), the
+    /// row is spaced by that plan, and no stone is set in it — the report
+    /// says "stock only". [`gem`](Self::gem) stays and is ignored. A bare
+    /// run keeps a fixed `v`, so on a factory stock whose parting line
+    /// wanders use a domed stamp row instead. Fenced at design format 6
+    /// when set.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bare: bool,
 }
 
 fn default_taper_theta() -> f64 {
@@ -2136,6 +2351,8 @@ impl Default for SeatRunLayer {
             taper_theta_deg: default_taper_theta(),
             shared_prong_mm: 0.0,
             tilt_deg: 0.0,
+            centre_phase: None,
+            bare: false,
         }
     }
 }
@@ -2154,7 +2371,9 @@ impl SeatRunLayer {
     /// Solve the count from the stone: fit the seat first, then take the most
     /// stations of that seat plus the bridge that fit the ring.
     pub fn solve_spacing(&mut self, ctx: &FieldContext) {
-        self.seat.fit_stone(self.gem);
+        if !self.bare {
+            self.seat.fit_stone(self.gem);
+        }
         // Solved in metal, not in chart arc: the seat's own span shrinks with
         // the row's radius exactly as the pitch does, so only the bridge is
         // an absolute. Keeps `bridge_at` at the asked-for figure, which is
@@ -2202,11 +2421,11 @@ impl SeatRunLayer {
     /// bit-identical.
     pub fn theta_of_station(&self, k: f64, ctx: &FieldContext) -> f64 {
         let n = self.count.clamp(1, 200) as f64;
-        if self.taper <= 0.0 {
+        if self.taper <= 0.0 && self.centred().is_none() {
             return k * 360.0 / n;
         }
         let c = self.spacing_c(ctx.arc_scale(self.seat.v_mm));
-        let phi = self.station_phase(c) + k * std::f64::consts::TAU / n;
+        let phi = self.station_phase(c, n) + k * std::f64::consts::TAU / n;
         self.taper_theta_deg + eccentric_warp(phi, 1.0 / c.max(1e-9)).to_degrees()
     }
 
@@ -2214,19 +2433,30 @@ impl SeatRunLayer {
     /// [`theta_of_station`](Self::theta_of_station).
     pub fn station_of_theta(&self, theta_deg: f64, ctx: &FieldContext) -> f64 {
         let n = self.count.clamp(1, 200) as f64;
-        if self.taper <= 0.0 {
+        if self.taper <= 0.0 && self.centred().is_none() {
             return theta_deg / 360.0 * n;
         }
         let c = self.spacing_c(ctx.arc_scale(self.seat.v_mm));
         let d = wrap_delta(theta_deg - self.taper_theta_deg, 360.0).to_radians();
-        (eccentric_warp(d, c) - self.station_phase(c)) / std::f64::consts::TAU * n
+        (eccentric_warp(d, c) - self.station_phase(c, n)) / std::f64::consts::TAU * n
     }
 
-    /// Where station 0 sits in the warped angle. Anchored so that ungrading
-    /// a row puts its stations back at `k · 360/n` exactly, rather than
-    /// sliding the whole lattice onto the taper's centre.
-    fn station_phase(&self, c: f64) -> f64 {
-        eccentric_warp(wrap_delta(-self.taper_theta_deg, 360.0).to_radians(), c)
+    /// Where station 0 sits in the warped angle. Anchored by default so that
+    /// ungrading a row puts its stations back at `k · 360/n` exactly, rather
+    /// than sliding the whole lattice onto the taper's centre. A
+    /// [`centre_phase`](Self::centre_phase) slides it there on purpose: the
+    /// warp is odd about the centre, so a lattice standing at 0 or half a
+    /// pitch from it is mirror-true in theta too.
+    fn station_phase(&self, c: f64, n: f64) -> f64 {
+        match self.centred() {
+            Some(p) => p * std::f64::consts::TAU / n,
+            None => eccentric_warp(wrap_delta(-self.taper_theta_deg, 360.0).to_radians(), c),
+        }
+    }
+
+    /// The centre phase, when it is one the lattice can stand on.
+    fn centred(&self) -> Option<f64> {
+        self.centre_phase.filter(|p| p.is_finite())
     }
 
     /// The seat's own reach along the ring, mm — its full width for a round
@@ -4122,6 +4352,56 @@ mod tests {
     }
 
     #[test]
+    fn a_centred_graded_run_is_mirror_true_about_its_taper_centre() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::LowDome);
+        let fc = d.field_context();
+        let run = |phase: Option<f64>, taper: f64| SeatRunLayer {
+            count: 13,
+            taper,
+            taper_theta_deg: 90.0,
+            centre_phase: phase,
+            ..SeatRunLayer::default()
+        };
+        // Station offsets from the centre, degrees, in (-180, 180].
+        let offsets = |r: &SeatRunLayer| -> Vec<f64> {
+            (0..r.count).map(|k| wrap_delta(r.theta_of_station(k as f64, &fc) - r.taper_theta_deg, 360.0)).collect()
+        };
+        let mirror_true = |r: &SeatRunLayer| {
+            let o = offsets(r);
+            o.iter().all(|a| o.iter().any(|b| wrap_delta(a + b, 360.0).abs() < 1e-9))
+        };
+
+        // Today's anchor at 0 degrees grades lopsided about a 90-degree centre.
+        assert!(!mirror_true(&run(None, 0.6)));
+        for taper in [0.0, 0.3, 0.85] {
+            let on = run(Some(0.0), taper);
+            let astride = run(Some(0.5), taper);
+            assert!(mirror_true(&on) && mirror_true(&astride), "taper {taper}");
+            // 0 stands the largest stone on the centre; 0.5 flanks it with an equal pair.
+            let o = offsets(&on);
+            assert!(o.iter().any(|a| a.abs() < 1e-9), "taper {taper}: {o:?}");
+            let mut o = offsets(&astride).into_iter().map(f64::abs).collect::<Vec<_>>();
+            o.sort_by(f64::total_cmp);
+            assert!(o[0] > 1.0 && (o[0] - o[1]).abs() < 1e-9, "taper {taper}: {o:?}");
+            // One lattice: the inverse still reads each station back.
+            for r in [&on, &astride] {
+                for k in 0..r.count {
+                    let theta = r.theta_of_station(k as f64, &fc);
+                    let back = r.station_of_theta(theta, &fc);
+                    assert!((wrap_delta(back - k as f64, r.count as f64)).abs() < 1e-9, "taper {taper} k {k}: {back}");
+                }
+            }
+        }
+
+        // Unset, the field is not written, so every existing file stays byte for byte.
+        let json = serde_json::to_value(run(None, 0.6)).unwrap();
+        assert!(json.get("centre_phase").is_none());
+        let back: SeatRunLayer = serde_json::from_value(serde_json::to_value(run(Some(0.5), 0.6)).unwrap()).unwrap();
+        assert_eq!(back.centre_phase, Some(0.5));
+    }
+
+    #[test]
     fn an_eternity_run_closes_seamlessly_and_releases() {
         let lib = crate::AlphaLibrary::builtin();
         let mut d = crate::RingDesign::default();
@@ -4437,6 +4717,7 @@ mod tests {
             Layer::Group(GroupLayer {
                 stack: LayerStack { layers: vec![wipe] },
                 recipe: None,
+                clamp: None,
             }),
         );
         grp.blend = Blend::Max;

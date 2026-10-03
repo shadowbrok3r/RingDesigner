@@ -17,7 +17,9 @@ in −Z.
   outer wall, or anything that leans back under itself, locks in the sand.
 - The **bore** is a straight through-hole. Zero draft, but it cores or gets
   reamed at the bench, so it is reported as a vertical wall, never an undercut.
-  A comfort-fit bore widens toward both edges and actually gains draft.
+  A comfort-fit bore widens toward both edges and actually gains draft —
+  away from the **parting plane**, which is where its apex sits, not the
+  section's own middle (see Bypass below).
 
 This is why the profile library is a family of domes and why the section view
 exists.
@@ -194,7 +196,10 @@ graph's JSON, clusters included), is written at format 6
 (`library::format_version_for`), everything else still at 5, so an older
 build keeps opening a plain design and refuses the others by name — an
 older build would read an in-plane line as a world one and turn the region
-about the wrong axis without a word. Graph, cluster and preset files carrying
+about the wrong axis without a word. A profile naming several regions of one
+sketch (`Profile::Regions`, `cad::picks_regions`) is fenced the same way:
+untagged serde would read `{feature, regions}` as the whole sketch and sweep
+every region. Graph, cluster and preset files carrying
 an in-plane revolution are fenced the same way at their own version 2
 (`graph_to_string`, `preset_to_string`, which every writer goes through);
 every other graph file is still 1, byte for byte. A 6
@@ -1008,6 +1013,22 @@ automatically, because `u` wraps at the circumference. That is why
 `TilingLayer::repeats_around`, `MilgrainLayer::beads_around`, and
 `BorderLayer::rope_twists` are all `u32`. Do not make them floats.
 
+**A graded tiling keeps its integer count.** `TilingLayer::grade` does not
+vary the count; it runs the lattice on φ(u), a monotone map of the circle onto
+itself, so the count closes exactly as an ungraded one does (C-R2).
+`GradeLaw::Cosine` is the graded seat run's own `eccentric_warp` with
+`c = sqrt(1 − taper)`: pitch a raised cosine, largest at `theta_deg`, `1 −
+taper` of it opposite. `GradeLaw::Spiral` shrinks the pitch geometrically all
+the way round from `seam_deg`, one kink there; stand the seam on a cell edge
+and no cell straddles it. `isotropic` narrows the band about `v_center_mm` by
+the same ratio, so rows converge like a tail's. At taper 0 the layer is
+bit-identical, `grade` is skipped when `None`, and a grade writes the design
+at 6 and a graph carrying one at 2. DFM measures a graded tiling at its
+small pole, `TilingLayer::finest_cell_size`: √(1 − taper) of the nominal
+width on the Cosine law, `taper / −ln(1 − taper)` on the Spiral, and the
+height by `1 − taper` when isotropic. A width-only grade barely moves a
+texture whose finest feature runs across the band, which is right.
+
 Alphas must also tile seamlessly in themselves — `Procedural::generate` builds
 every pattern from functions periodic in both axes. An **imported** image is
 used as drawn, seam and all: `Alpha::make_seamless` exists and is tested and
@@ -1084,12 +1105,22 @@ pins both directions. On top of that:
   first — the chart's `v` is that arc normalized, so on a lobe three
   times the reference thickness a stamp stands that much taller than it
   is wide — and the measurement replaces the footprint's 15%-of-size
-  guess, which called a 2.25 mm hook with a 0.45 mm stroke mush. Run on
+  guess, which called a 2.25 mm hook with a 0.45 mm stroke mush. **A
+  generated skin carries one period per tile** (`reptile::svg`, C-R7): a
+  builtin tile carries several and falls under the floor at a ring's
+  tightest station, so the Cataphracta generators draw one in mm and
+  each is measured there, ink and gaps, against 0.40
+  (`every_reptile_skin_holds_the_detail_floor_at_its_tightest_station`).
+  A drawn land reads about 0.01 mm narrow through the 1024-px raster, so a
+  tile meant to hold 0.40 draws 0.42; a true point holds no disc, so a
+  spine is blunt; and a hard-cornered trapezoid reads narrower than the
+  same shape under a blur, because the corners go first. `script` nodes
+  reach every generator through `reptile_svg(name, …)`. Run on
   the shipped templates (`dfm::measured_tests::the_templates_measured`,
   `--nocapture`) it names three: Waves at 0.04 mm strokes on the waved
   hexagon signet's 11.8 × 0.8 mm cells, Chevron at 0.03 mm gaps on the
-  shouldered cushion's 7.6 × 0.6 mm shoulders, Braid at 0.04 mm gaps on
-  the braided band — all castable by the field, all casting softer than
+  shouldered cushion's 7.6 × 0.6 mm shoulders, Braid at 0.10 mm gaps on
+  the braided band (0.04 before its tall texels were read square) — all castable by the field, all casting softer than
   drawn, which is what the chip now says instead of nothing.
 
   **A tiling is measured at the tightest station its window covers**, not
@@ -1101,7 +1132,50 @@ pins both directions. On top of that:
   two figures above moved from 0.10 and 0.07 when `worst_arc_ratio` was
   added, and the finding now names the angle (185° on both). A *decal* had
   always done this per station; a tiling covers an arc, so what matters is
-  the worst one in it.
+  the worst one in it. A **hide** — one tile round the whole ring — lays
+  each column at its own angle, so it is judged at the worst station where
+  it stands half its height, not where its window reaches: a table-only
+  texture had been read at a 50° station's 0.43 scale. And granulometry's
+  disc is round in texels, so on texels more than 5% from square the
+  coarser axis is repeated out to the finer pitch before it is read (the
+  proposed box-average down to the coarse pitch quantized a thin bar to two
+  texels and read it 25% fat); the finer pitch alone had read bars across a
+  tall cell at a quarter of their width. `fit_to_floor` keeps its closed
+  form at the finer pitch, because examples build from it: on tall texels
+  its solve is safe but not tight (Chevron solves 16 and flags from 24).
+
+  **A remap is measured as it is laid down** (`tiling_finest_mm_remapped`,
+  C-R6). `findings_in` hands each tiling the remaps its relief passes
+  through, its own entry's first and then each enclosing group's, and the
+  mask is read at the layer's height through them, renormalized to the
+  remapped top. A terrace last in the chain is also read tread by tread,
+  each interior tread as its own ink, because a tread is a flat between
+  two risers that the half-height threshold never sees: Pyramids on 24
+  repeats measures 0.25 mm strokes plain and 0.05 mm treads under an
+  eight-step terrace, which is the finding the terrace used to hide. No
+  remap on is the plain measurement exactly. `fit_to_floor` still solves
+  on the plain mask.
+
+  A **made part** is not a layer, and a lost-wax ring's lands are judged
+  on it: `dfm::part_sections(solid, up, floor)` reads each face by one ray
+  along its inward normal and returns the thinnest section and the area
+  under the floor — a claw's diameter, a collet's wall, a point as a little
+  area to except by name. With `up`, the part's axis, faces turned toward
+  its ends are not read.
+
+  A **CAD cut's lands** are asked for, never volunteered:
+  `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
+  `manufacturing_check { cut_land_mm }`) reports, per Cut extrusion, the
+  narrowest metal between two of its regions, between it and each copy a
+  Pattern makes, and to the band's or host part's edge, labelled
+  `CUT_LAND` under `dfm::PART`. Regions are measured between their
+  outlines in the sketch's plane, carried to each copy by its motion. The
+  edge is found through the metal as built: out from each outline in that
+  plane until a line along the normal, within the cut's reach, meets no
+  metal; where that line runs through a copy's opening instead (a ring of
+  copies converges toward the bore, so its lands are narrower at the metal
+  than in the plane), the land is the copy's. Until a floor is asked for, an
+  author script asserts its lands from its own sketch numbers.
 
   A **flute** is measured *around* the ring, not across the band. It was
   filed as a `FeatureFootprint::across` — whose own doc named a flute —
@@ -1118,6 +1192,15 @@ pins both directions. On top of that:
   shoulder: 2.1 mm² leaning to 18° — caused by "Flat boss"; muting it clears
   it." Runs only when there is undercut to explain;
   `attributed_field_report` is what the GUI worker and MCP call.
+- **Drag attribution** (`castability::attribute_drag`, C-R5): the same
+  mute-one-layer pass for the other sand gate. Each enabled layer of the
+  pattern is muted at the report's own parting plane and resolution, and
+  its `DragShare` is the marginal and vertical area that went with it,
+  signed (a layer that steepens what it covers gives drag back), largest
+  first. A diagnostic, never run by the verdict: the verdict turns Marginal
+  when `FieldReport::drag_fraction` passes `DRAG_FRACTION` (12%), and the
+  CLI's check prints the shares only then. A signet table on the crown is
+  the canonical carrier; milgrain barely moves it.
 - **As-cast preview** (`BuildParams::soften_mm`, toolbar "As-cast"): the
   height field evaluated through a 9-tap Gaussian at the sand's detail
   radius, so beads merge on screen the way they will in the pour. Preview
@@ -1252,6 +1335,23 @@ emits one line per distinct seat.
   the stones report and the gem preview all go through them, because three
   copies of a station formula is exactly the divergence this file warns
   about elsewhere.
+
+  **Mirror-true on request.** The lattice is anchored so station 0 stays at
+  0 degrees, which leaves a row whose centre is not a station angle graded
+  lopsided. `SeatRunLayer::centre_phase` (in stations: 0 stands one on the
+  centre, 0.5 straddles it) stands the lattice on the centre instead, and
+  because the warp is odd about the centre the row is then symmetric in
+  theta at any taper. `None` is today's anchor and is not written, so every
+  existing row is byte for byte; set, it is fenced at design format 6 and
+  graph format 2 (`library::template_features_in_json` sees the key).
+- **Stone-less runs**: `SeatRunLayer::bare` (C-R3) is beadwork cast in the
+  stock. The seat keeps its authored plan (no `fit_stone`), the row packs
+  by that plan, `setstone::set_stones` sets nothing in it, and the report's
+  line says "stock only" with no carats; `gem` stays and is ignored. It is
+  the procedural band's bead row; a bare run keeps a fixed `v`, so on a
+  factory stock whose parting line wanders a domed `stamp_row` is the
+  bead. `false` is not written; `true` is fenced like `centre_phase`, the
+  `layer.seatrun` node's `bare` pin included.
 - **Shared prongs**: `SeatRunLayer::shared_prong_mm` stands one post pair
   at each boundary between neighbouring stones — the Prongs_Row
   rule (pair each gem with its shift-by-one neighbour, prong the boundary,
@@ -1300,7 +1400,13 @@ emits one line per distinct seat.
   channel (1.0 mm at the crossing) — a seam along the crest would be the
   valley no parting plane clears. Measured 0.0085% at −0.8° on a low
   dome, 0.0000% on a flat band; `examples/bypass_probe.rs` prints the
-  table and renders hero, top and side views.
+  table and renders hero, top and side views. The comfort dome's apex
+  stays on the parting plane too, each side reaching full depth at its own
+  edge: centred on the sliding section, the flank between it and the plane
+  widened *toward* the plane and locked the bore's sand — 36 ray-release
+  obstructions 0.9 mm deep on a 6 mm low dome at comfort 0.2, none after.
+  The field verdict skips bore samples and never saw it; the release
+  analysis did.
 - **The casting sheet** (`spec.rs`): one self-contained printable HTML page —
   dimensions, weight in every alloy with its pattern scale, the field
   verdict with notes and DFM findings, the stones table with bench warnings,
@@ -1430,8 +1536,10 @@ corner angle, aspect, degenerate count — on the report panel and the sheet.
 
 ### Templates are code, and the field verdict edits them
 
-`templates.rs` holds the File-menu gallery (and MCP `apply_template`): nine
-starters built from the same API the panels drive, so they cannot go stale
+`templates.rs` holds the File-menu gallery (and MCP `apply_template`):
+thirteen starters (four bands, the shouldered cushion signet and eight stone
+settings) plus the twenty factory stocks, each stock opening in the process
+its own sand trial measured, built from the same API the panels drive, so they cannot go stale
 against the format. Only builtin alphas, so they open identically on an
 empty machine. The test holds every one to `analyze_field` — and that test
 did real work the day it was written: showcase 5's rails-and-milgrain crest
@@ -1646,7 +1754,8 @@ and halos carry the field through their seats.
 - **The collet** (`setting::collet`): one closed section swept round the
   girdle outline — tapered wall, bearing ledge at the pavilion's slope, a
   lip leaning 0.8 of the crown's own inset — plus a relief cut that clears
-  the pavilion through the band under it.
+  the pavilion through the band under it. The ledge takes the slope whole:
+  at 0.9 of it its inner edge stood 0.021 mm in Manticora's ruby (0.06 mm³).
 - **The claw head** (`setting::claw_head`): per claw a straight leaning
   wire, *one* bend of radius 0.8 of the wire, then a straight run lying an
   eighth of the wire outside the crown's facet to a domed tip; base and
@@ -1655,6 +1764,37 @@ and halos carry the field through their seats.
   subtracted), which is what flattens each claw onto its facet and cuts
   the girdle's bite. The envelope is the stone as `gems.rs` draws it, so
   the seat fits the stone the viewport shows.
+- **Claws take a style, a grouping, rails and a rise** (`setting::ClawOptions`,
+  the `head.claw` and `head.basket` params). Styles Wire, Talon, Fang,
+  Tentacle, Thorn and Sepal shape each claw; groupings Even, Feet and Jaws
+  place them; `rails` "Seat" keeps the base and gallery rails, "Base" only
+  the base rail, "None" none (a basket takes 0 to 6). A railless claw must
+  find metal at its own foot or the head is refused by name, so a claw landing
+  past a narrow band's edge asks for the Jaws grouping or a stone seated
+  further onto the band. A railless foot that already starts buried deeper
+  than the search accepts (a sloped table) is raised up its own line until it
+  sinks `FOOT_SINK_MM`, not called free; tied claws keep their own foot. On a
+  cabochon the shaped styles climb the dome and rest on it, the tip at `rise`
+  of the dome's height (0.3 by default, at most 0.6, lower where the claw's
+  bends cannot fit); a Seat rail hides most of a
+  climbing claw, so railless heads are what make fangs and tentacles read.
+  Defaults are bit-identical to the plain wire head, and anything else is
+  fenced at design format 6 and graph format 2. Every head is cleaned of
+  sub-20 nm slivers after the stone's notch: overlapping rails left
+  4.8e-7 mm edges that f32 turned into degenerate faces.
+- **A Gothic piercing grows by a true offset** (C-T3). Lancet, Ogee,
+  Trefoil, Quatrefoil and Mouchette join the five older plans
+  (`cutters::Shape`, `PIERCE_SHAPES`, the right-click list). Their plans
+  have concave cusps, and a bright cut that pushed each point along its
+  normal, as the round and the oval do, folds a quatrefoil's cusps through
+  each other. So a Gothic plan is drawn dense, read on fixed rays from a
+  centre it is star-shaped about (each ray turned onto the nearest point or
+  cusp), and grown by the Minkowski offset of the drawn plan along the same
+  rays: every grown point stands exactly `g` off the plan (to 1e-6), a cusp
+  moves straight out along its own ray, and the point count never changes,
+  so rings still loft point for point. The five older plans are untouched,
+  and a piercing of a Gothic shape is fenced at 6 (`geometry_extended`),
+  since an older reader would cut it as a round.
 - **Beads** are centres and radii, not solids, until every seat is placed:
   `apply` merges any two within 1.4 radii in ring space, so neighbours share
   the beads between them (pinned by volume: three stones gain less than
@@ -1828,6 +1968,10 @@ rows.** What the second version added, each measured:
   a bench cut per bay (`hull_and_bays`, `Stamp::cast_as_hull` — the
   crescent cutter generalised; a holly leaf is six bays, hull less bays its
   own area to 0.03 mm²).
+- **A fine cap is opt-in.** `Stamp::fine_cap` grids the cap at `reach / 28`
+  held to 0.1–0.2 mm instead of `reach / 14` held to 0.12–0.35: about three
+  times the cap points (267 to 846 on a 10 × 4 mm dome), so a large domed top
+  stops faceting. Off, a stamp builds bit for bit as before.
 - **`Stamp::parting_monotone`** is the plan rule a stamp on a signet's face
   must pass: every plan line along the pull meets the stamp in one stretch
   across the parting line, its top never rising away from it, resting
@@ -1843,9 +1987,9 @@ rows.** What the second version added, each measured:
   whose do. Over 60–120° the first draft struck ten keels, five of them
   coincident; an uneven 60–104° ×4 later struck two 0.26 mm apart.
 
-**Plain stamps build as a format-5 build struck them.** `tier` and `top`
-are skipped when default, so a plain design serializes byte for byte; a
-tier, a shaped top or an outline past `PLAIN_MAX_STAMP_POINTS` (512 —
+**Plain stamps build as a format-5 build struck them.** `tier`, `top` and
+`fine_cap` are skipped when default, so a plain design serializes byte for
+byte; a tier, a shaped top, a fine cap or an outline past `PLAIN_MAX_STAMP_POINTS` (512 —
 every released build refuses more, and the spiral is 540 at its sheet
 size) writes the design at 6. A design whose *poured* stamps are all plain
 reads every frame as `stones::surface_frame` does — the nearest sample of a
@@ -1861,8 +2005,9 @@ points are kept across calls (4096, keyed by a hash of everything the band
 is made from and the chart point): on the Heart signet 24 gabled keels on
 24 plates make a point each on first sight (7.95 ms) and none judged again
 (1.25 ms, against 0.63 on one tier). A graph's `/stamps` patch and a
-standalone graph file are not fenced; an older build drops `tier` and `top`
-from them silently.
+standalone graph file are not fenced for `tier` and `top`, and an older build
+drops them silently; `fine_cap: true` anywhere in a graph's JSON fences it at
+graph format 2 (`template_features_in_json`).
 
 **A saved design must reopen bit for bit, and `serde_json` does not promise
 that by default.** Without `float_roundtrip` a parsed float can be one unit
@@ -2246,7 +2391,7 @@ What the runtime settled while being built, each pinned by a test:
 - **`RingDesign::graph`** is the design's provenance (no ladder bump — an
   absent key reads `None`, an older build ignores it). Graph, cluster and
   preset files have their own ladder in `file.rs`, one step per version.
-- **The nine templates are committed graphs** (`graphs/templates/*.graph.json`,
+- **The thirteen starter templates are committed graphs** (`graphs/templates/*.graph.json`,
   bundled by `include_str!`) generated from builders in `templates.rs`;
   the golden test holds each file to its builder and each evaluation to the
   code template **byte for byte**. Regenerate with
@@ -2390,6 +2535,10 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   band (Separate, Join, Cut), whether it is poured or added at the bench,
   and the radius of the rolling-ball seam bead (`blend.rs`) laid along every
   seam the traced boolean reports — 0.0046 mm off the analytic torus fillet.
+  A seam that runs across several parts of a joined cluster takes the
+  largest `blend_mm` among them, whatever part owns its first face.
+  A bead that pinches or folds says where — ring angle, the section's r and
+  z, and the point (`blend::station_at`) — so no probe build hunts for it.
   A bench part is shown finished and left out of a sand pattern. Every part
   vertex names its feature through `Mesh.origin` (`Resolved::feature_of`).
 - **Edges are named by signature, not by position.** `EdgeRef` carries the
@@ -2465,6 +2614,16 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   apart takes 2.4 mm³. A cut keeps its sign through Scale, grips and
   press-pull: a sketch-made cut grips its depth and its floor pulls it
   deeper.
+- **Tracery is drawn from a net, never offset by hand** (C-T1).
+  `Sketch::tracery(net, bar_mm)` only composes what is already proven: split
+  the net where it crosses, take its cells (`profile_regions`), offset each
+  rim in by half the bar (holes out), mark the net construction. A cell whose
+  offset would fold is left out whole and named in `Tracery::skipped`, never
+  half-made; the rest of the sketch is neither split nor moved. Two lights
+  either side of a mullion stand exactly one bar apart (a 24-cell wheel at
+  0.9: every gap 0.9 ± 1e-6). A branched sketch that carries several depths
+  sweeps its cells by `Profile::Regions`; one Sketch feature per depth is
+  still the plainer way. The graph reaches it as `sketch.tracery`.
 
 ## Python: `crates/ringdesign-py`
 
@@ -3027,7 +3186,11 @@ stays the provenance — `Preset::id` is what a design or an example names one
 by, and `stock_name()` is what the master file calls itself — while `name`,
 `face_mm` and `plan` (48 polar radii off the table band of its own mesh) are
 what the picker draws. "002 · Signet" told a reader nothing about the head
-they were about to get.
+they were about to get. `imported_base::plan_mask(id, w, h)` fills the same
+48 radii as a mask (C-R8): the plan's bounding box fills the raster,
+columns along the head's length, so laid over a face of `face_mm` it sits
+on the table; each preset fills its own polygon's share of the box to
+0.004.
 
 `examples/stock_masterworks.rs` holds the two rings that came of it,
 **Saurian** (013, one stone) and **Zenith** (017, three), and the method:
@@ -3044,6 +3207,21 @@ hand over inside one skin. What the sand taught, all measured:
   the other way — walking out from the parting line, relief may rise only
   as fast as the stock's own draft allows, and what breaks it is cut back —
   so the envelope stays on as the guarantee and has nothing left to fill.
+- **The clamp is live on a group** (`GroupLayer::clamp`, C-R1). A
+  `SandClamp` asks `RingDesign::bake_clamps` — run by every bake that
+  derives distance fields, after them — to paint the group's composite
+  over the atlas at its resolution, `draft_clamp` it, and keep a ceiling
+  `"{group}##clamp"` beside the `##sdf` fields: derived, never saved,
+  holding values only where the rule bit. The group then stands at
+  `min(composite, ceiling)`, so at every atlas sample it is the painted
+  clamp to the f32 the painted alpha holds, and the rule no longer bites
+  on what it leaves. It cuts back and never fills. It is what makes a
+  `SmoothMax` or `Add` composite legal under the rule; `Max` of layers that
+  each keep the rule keeps it alone, and a clamped Max of clamped groups
+  cuts nothing and builds bit-identical to the same Max unclamped. Unbaked
+  or switched off, the group stands as composed; `sdfs_missing` says when
+  the ceiling is missing or was baked for other content, and the field
+  report names what each clamp cut. Clamped groups need distinct names.
 - The castable reptile form is therefore the **pointed scute**: a plate the
   width of the band whose free edge is a chevron with its point on the
   parting line, leading. Its wall faces round the ring and *away* from the
@@ -3086,7 +3264,11 @@ left to the bench. What it taught:
   face the pull, the wall below it). The chart's `theta` crosses a head's
   end wall in a few degrees; rows laid by distance along the parting line
   keep their size down it. Per-column rims are averaged along the ring, or
-  the steps laid from them comb the plates.
+  the steps laid from them comb the plates. Where sections run through an
+  arm tip's end wall a few columns spike (0.91 to 4.08 mm on a bypass) and
+  the average smears them into a bump: `Hide::steadied(half)` takes the
+  median over `2 * half + 1` columns first (opt-in; `steadied(0)` is the
+  plain hide).
 - **Layers joined by `Max` keep the draft clamp's guarantee**: each layer
   clamped alone is clamped together. Only the flanks' granules and knobs
   are trimmed at all, where the shank's walls lean back (0.2 mm at most).
@@ -3123,6 +3305,24 @@ painted alpha as one tile over the whole chart, joined by `Max`.
 `imported_base::sand_master(Arc<Source>)` is the stock's upper half mirrored
 about its mid-plane, refined to 0.55 mm edges and drafted toward the pull,
 deterministic.
+
+**A tiling can live in the hide, and a mask can name a region** (C-R4), so
+the painted route is no longer the only way to lay work in true
+millimetres. `TilingLayer::space = Hide` runs the lattice on
+`FieldContext::hide_uv`: `u` is the crest's own arc from the head's centre
+at 90°, `v` is `across`, 0 on the parting line, and `mirror_v` mirrors
+across the line. On a procedural band the chart is the chart stretched by
+its own tables (along integrates `crest_scale`, across is `(v − crest_v) ·
+station_stretch`) — on a plain band it is the chart with `v` moved to the
+line, to 1e-9, and on a keyframed band it agrees with the atlas's `Hide` to
+2%; on stock it is `Hide::of` over `Atlas::of_surface` of the field
+surface, cached per surface. The back of the ring, past 270°, runs from the
+other shoulder, so a hide tiling closes there only where the crest's arc
+totals the chart's; keep it off the back or window it. `"##region:NAME"`
+masks (`table`, `rim`, `cheek`, `wall`, `shoulder`, `palm`; `skin::region`
+says what each is) are painted on a 1024 × 256 atlas and inserted by the
+distance-field bake like `##sdf`, shared per band and never embedded. Both
+are skipped when unused, and either writes the design at 6 and a graph at 2.
 
 - **The atlas is where the metal is.** Against the swept mesh at 1024 rows
   a keyframed band misses by 0.0006 mm (0.005 of a texel) and a bypass by
@@ -3179,6 +3379,21 @@ deterministic.
   a 40° leaf filled to the rule with its bays cut at the bench pulls. Its
   −40° row is not a result: the leaf failed to join ("two cuts cross inside
   a face") and the row judged the bare table.
+
+**Sculpt is core too.** `sculpt.rs` is the toolkit Fenrir grew in its
+example, moved as it was, so any ring can carry a sculpted part as a stored
+mesh: a distance field built from `smin`/`smax`, `ellipsoid`, `round_cone`
+and `trapezoid`, met to the ring through a `Stock` field, meshed by
+`tetra_mesh`, `relax`ed, `clean_decimate`d to a budget (backing off until
+`csg::self_crossings` reads zero) and `settle`d — sliver collapse, edge-flip
+polish, fold-corner smoothing, each kept only while the mesh stays closed and
+uncrossed. A hollow is `Heights::first_air` eroded by a ball of the wall,
+kept by `open_shells` where it opens into the bore; `packed` refuses an open
+or crossing mesh. On Fenrir's own wolf the hollow and every stage up to
+fold-corner smoothing are bit for bit the example's. That one changed: it
+summed each corner's ring in `HashSet` order, so the example's head differed
+in its last bits run to run; the ring is sorted now and every tool is
+deterministic. A lattice is held to `MAX_GRID_POINTS` by coarsening its step.
 
 ## Reels are played by the app, not by a finger
 
@@ -3338,7 +3553,16 @@ asset the program has — 342 alphas, 68 factory profiles, 19 signet plans,
 20 true gem meshes, 26 graph templates, the clusters and presets, 20
 `.ringbase.json` masters, five showcase designs and the app icon — as one
 deflated blob with a generated index, decoded per asset on first read.
-Nothing is looked up in a source tree at run time.
+Nothing is looked up in a source tree at run time. The `SKETCHES` family
+(`bundled/sketches/**.svg`, named by path, so `gothic/fleur-de-lis`) is the
+one swept through subfolders: Tenebrae's outlines, tracery nets and
+artwork, each `import_svg`-clean and carrying on its root what the core's
+test holds it to (the area it sweeps, or the lights its net traces). Nine
+of them stand in for 3DM profiles that live only in the workstation's
+git-ignored `assets/User/Profiles/`; `tools/harvest_gothic.py`
+replaces them under the same names, and `tools/author_gothic.py`
+draws the rest. A graph reaches any of them by name through `sketch.library`,
+and a net on through `sketch.tracery`.
 
 It replaced two mechanisms that both only worked on the machine that built
 them. `library::bundled_alpha_dir()` resolved `<workspace>/assets/alphas`
@@ -3351,8 +3575,9 @@ else.
 
 The user's library still wins. `AlphaLibrary::installed()` loads the
 builtins, then the bundle, then the data root's own directory, and
-`insert` replaces by name; `list_profiles` and `list_outlines` lay the
-user's files over the bundled ones through `library::overlay`; a gem cut
+`insert` replaces by name; `list_profiles`, `list_outlines` and
+`list_sketches` lay the user's files over the bundled ones through
+`library::overlay`; a gem cut
 takes the user's `<cut>.obj` before the bundled one. So an imported alpha
 or a saved section of a bundled name shadows it, which is the behaviour
 `alpha_dirs()` used to give by ordering two directories.
@@ -3461,6 +3686,16 @@ space, and the threaded test harness reserves far more virtual than resident —
 a 4 GB `-v` cap fails ~10 unrelated tests that pass individually, which reads as
 a regression that is not there. `MemoryMax` caps actual RSS, which is what
 matters.
+
+**Never build two checkouts into one target directory.** Cargo gives a
+workspace member the same build hash in a git worktree as in the main checkout,
+so a `CARGO_TARGET_DIR` shared between them shares build-script outputs, and
+`ringdesign-assets` keeps the bundle of whichever checkout last swept its files:
+its `rerun-if-changed` paths point there, so a template changed in the other
+checkout never re-runs it. On 2026-09-26 master's graph tests ran against a
+worktree's two-day-old templates and failed four ways with nothing wrong. Give
+every worktree its own `target/`; after a shared build, `cargo clean -p
+ringdesign-assets`.
 
 Anything sized by a `u32`/`usize` struct field rather than a constant needs an
 explicit cap. `MAX_CELLS` is the pattern: clamp the loop bounds *and* break on

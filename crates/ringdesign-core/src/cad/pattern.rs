@@ -747,7 +747,7 @@ mod tests {
         BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() }
     }
     fn template(name: &str) -> RingDesign {
-        templates::all().iter().find(|t| t.name == name).unwrap().design()
+        templates::fixture(name).unwrap_or_else(|| templates::all().iter().find(|t| t.name == name).unwrap().design())
     }
     fn feature(id: Id, name: &str, operation: Operation, component: Component) -> Feature {
         Feature { id, name: name.into(), enabled: true, operation, component }
