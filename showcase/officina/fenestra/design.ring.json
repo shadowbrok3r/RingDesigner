@@ -11,7 +11,7 @@
     "shape_b": 1.0,
     "crest_bias": 0.0,
     "edge_round_mm": 0.45,
-    "comfort_fit_mm": 0.1,
+    "comfort_fit_mm": 0.15,
     "side_draft_deg": 0.0,
     "flange": {
       "enabled": false,
@@ -124,73 +124,73 @@
       },
       {
         "theta_deg": 80.0,
-        "width_scale": 1.6,
-        "thickness_scale": 1.64,
+        "width_scale": 1.68,
+        "thickness_scale": 1.66,
         "crown_scale": 1.0
       },
       {
         "theta_deg": 100.0,
-        "width_scale": 1.6,
-        "thickness_scale": 1.64,
+        "width_scale": 1.68,
+        "thickness_scale": 1.66,
         "crown_scale": 1.0
       },
       {
         "theta_deg": 68.0,
-        "width_scale": 1.56,
-        "thickness_scale": 1.52,
+        "width_scale": 1.53,
+        "thickness_scale": 1.58,
         "crown_scale": 1.0
       },
       {
         "theta_deg": 112.0,
-        "width_scale": 1.56,
-        "thickness_scale": 1.52,
+        "width_scale": 1.53,
+        "thickness_scale": 1.58,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 53.0,
-        "width_scale": 1.56,
-        "thickness_scale": 1.5,
+        "theta_deg": 55.0,
+        "width_scale": 1.49,
+        "thickness_scale": 1.51,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 127.0,
-        "width_scale": 1.56,
-        "thickness_scale": 1.5,
+        "theta_deg": 125.0,
+        "width_scale": 1.49,
+        "thickness_scale": 1.51,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 38.0,
-        "width_scale": 1.56,
-        "thickness_scale": 1.46,
+        "theta_deg": 40.0,
+        "width_scale": 1.443,
+        "thickness_scale": 1.44,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 142.0,
-        "width_scale": 1.56,
-        "thickness_scale": 1.46,
+        "theta_deg": 140.0,
+        "width_scale": 1.443,
+        "thickness_scale": 1.44,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 24.0,
-        "width_scale": 1.54,
-        "thickness_scale": 1.38,
+        "theta_deg": 26.0,
+        "width_scale": 1.4,
+        "thickness_scale": 1.33,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 156.0,
-        "width_scale": 1.54,
-        "thickness_scale": 1.38,
+        "theta_deg": 154.0,
+        "width_scale": 1.4,
+        "thickness_scale": 1.33,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 8.0,
-        "width_scale": 1.2,
+        "theta_deg": 10.0,
+        "width_scale": 1.15,
         "thickness_scale": 1.14,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 172.0,
-        "width_scale": 1.2,
+        "theta_deg": 170.0,
+        "width_scale": 1.15,
         "thickness_scale": 1.14,
         "crown_scale": 1.0
       },
@@ -330,6 +330,11 @@
               "cut": "Oval",
               "form": "Faceted",
               "l_mm": 7.0,
+              "tint": [
+                0.1599999964237213,
+                0.30000001192092896,
+                0.7799999713897705
+              ],
               "w_mm": 5.0
             }
           }
@@ -358,7 +363,7 @@
       },
       {
         "id": 3,
-        "name": "Basket head: four claws paired at the ends, two rails, set into the collar",
+        "name": "Basket head: paired claws, two rails",
         "enabled": true,
         "operation": {
           "Builder": {
@@ -445,13 +450,13 @@
           "stone_id": null,
           "bench_notes": "",
           "placement": {
-            "kind": "ring",
+            "kind": "side",
             "theta_deg": 63.0,
-            "across_mm": 0.0,
-            "height_mm": -1.81,
+            "radius_mm": 10.8,
+            "face": "High",
+            "height_mm": 0.0,
             "spin_deg": 0.0,
-            "tilt_deg": 0.0,
-            "cant_deg": -90.0
+            "tilt_deg": -1.5
           },
           "attach": "cut",
           "stage": "cast",

@@ -11,32 +11,32 @@
       ],
       [
         80.0,
-        1.6,
-        1.64
+        1.68,
+        1.66
       ],
       [
         68.0,
-        1.56,
-        1.52
+        1.53,
+        1.58
       ],
       [
-        53.0,
-        1.56,
-        1.5
+        55.0,
+        1.49,
+        1.51
       ],
       [
-        38.0,
-        1.56,
-        1.46
+        40.0,
+        1.443,
+        1.44
       ],
       [
-        24.0,
-        1.54,
-        1.38
+        26.0,
+        1.4,
+        1.33
       ],
       [
-        8.0,
-        1.2,
+        10.0,
+        1.15,
         1.14
       ],
       [
@@ -48,15 +48,15 @@
     "thickness_mm": 2.4,
     "width_mm": 3.2
   },
-  "bore_mm": 18.20000988436392,
+  "bore_mm": 18.20001472228632,
   "cad_features": 8,
-  "design_bytes": 12676,
+  "design_bytes": 12792,
   "draft": {
     "build": [
       768,
       320
     ],
-    "build_s": 1.870823792,
+    "build_s": 2.054764045,
     "gates": {
       "bore_radius_mm": 9.1,
       "cold_reload_identical": null,
@@ -67,17 +67,17 @@
       "features": [
         {
           "id": 1,
-          "name": "Band: Flat 3.2 × 2.4, its shoulders swelling to the head",
+          "name": "Band: Flat 3.2 \u00d7 2.4, its shoulders swelling to the head",
           "status": "Ok"
         },
         {
           "id": 2,
-          "name": "Oval 7 × 5, laid along the ring",
+          "name": "Oval 7 \u00d7 5, laid along the ring",
           "status": "Ok"
         },
         {
           "id": 3,
-          "name": "Basket head: four claws paired at the ends, two rails, set into the collar",
+          "name": "Basket head: paired claws, two rails",
           "status": "Ok"
         },
         {
@@ -107,10 +107,14 @@
         }
       ],
       "field_notes": [
-        "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
-        "Measured with the ring as built: 6 CAD parts (1 joined, 5 cut), 310.6 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Basket \"Basket head: four claws paired at the ends, two rails, set into the collar\" (#3) would undercut a two-part pull over 59.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Seat bur \"Seat bur, through to the finger, cut at the bench\" (#4) would undercut a two-part pull over 25.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Lost wax: no undercut anywhere \u2014 this pattern would also pull from two-part sand.",
+        "Measured with the ring as built: 6 CAD parts (1 joined, 5 cut), 296.7 mm\u00b2 of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Basket \"Basket head: paired claws, two rails\" (#3) would undercut a two-part pull over 57.9 mm\u00b2 (worst -90\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Seat bur \"Seat bur, through to the finger, cut at the bench\" (#4) would undercut a two-part pull over 25.1 mm\u00b2 (worst -89\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Drop window, through both side faces along the finger\" (#5) would undercut a two-part pull over 9.8 mm\u00b2 (worst -1\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Ring array \"Array the window down the shoulder\" (#6) would undercut a two-part pull over 18.8 mm\u00b2 (worst -1\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"Mirror the first window to the other shoulder\" (#7) would undercut a two-part pull over 9.8 mm\u00b2 (worst -1\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"Mirror the array to the other shoulder\" (#8) would undercut a two-part pull over 18.8 mm\u00b2 (worst -1\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is."
       ],
       "field_verdict": "Castable",
       "head_thickness_informational": {
@@ -122,11 +126,11 @@
       "investment_min_section_mm": 0.8,
       "made_part_self_crossings": [
         [
-          "Oval 7 × 5, laid along the ring",
+          "Oval 7 \u00d7 5, laid along the ring",
           0
         ],
         [
-          "Basket head: four claws paired at the ends, two rails, set into the collar",
+          "Basket head: paired claws, two rails",
           0
         ],
         [
@@ -150,7 +154,7 @@
           0
         ]
       ],
-      "min_vertex_radius_mm": 9.099964652749055,
+      "min_vertex_radius_mm": 9.099979701497427,
       "parts_notes": [],
       "pattern": {
         "degenerate_faces": 0,
@@ -167,21 +171,21 @@
           384,
           160
         ],
-        "faces": 128540,
+        "faces": 128464,
         "limit_mm": 0.8,
         "mesh": "the poured shank: the casting pattern with the bench's basket head and seat bur suppressed",
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
         "rays": 384,
-        "sampled_min_mm": 0.904271293162564,
+        "sampled_min_mm": 0.8928797424508094,
         "unresolved": 0
       },
       "thickness_finished_informational": {
-        "below_limit": 2,
+        "below_limit": 4,
         "note": "The finished ring after the bench's seat bur, which notches the claws for the girdle and opens the pilot; not the pour.",
         "rays": 384,
-        "sampled_min_mm": 0.3876717877868138
+        "sampled_min_mm": 0.37381283454033937
       },
-      "triangles": 489148,
+      "triangles": 489374,
       "vertices_inside_bore": 0,
       "watertight": true
     },
@@ -201,7 +205,7 @@
       1536,
       448
     ],
-    "build_s": 5.483066146,
+    "build_s": 5.812347386,
     "gates": {
       "bore_radius_mm": 9.1,
       "cold_reload_identical": true,
@@ -212,17 +216,17 @@
       "features": [
         {
           "id": 1,
-          "name": "Band: Flat 3.2 × 2.4, its shoulders swelling to the head",
+          "name": "Band: Flat 3.2 \u00d7 2.4, its shoulders swelling to the head",
           "status": "Ok"
         },
         {
           "id": 2,
-          "name": "Oval 7 × 5, laid along the ring",
+          "name": "Oval 7 \u00d7 5, laid along the ring",
           "status": "Ok"
         },
         {
           "id": 3,
-          "name": "Basket head: four claws paired at the ends, two rails, set into the collar",
+          "name": "Basket head: paired claws, two rails",
           "status": "Ok"
         },
         {
@@ -252,10 +256,14 @@
         }
       ],
       "field_notes": [
-        "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
-        "Measured with the ring as built: 6 CAD parts (1 joined, 5 cut), 310.6 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Basket \"Basket head: four claws paired at the ends, two rails, set into the collar\" (#3) would undercut a two-part pull over 59.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Seat bur \"Seat bur, through to the finger, cut at the bench\" (#4) would undercut a two-part pull over 25.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Lost wax: no undercut anywhere \u2014 this pattern would also pull from two-part sand.",
+        "Measured with the ring as built: 6 CAD parts (1 joined, 5 cut), 296.6 mm\u00b2 of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Basket \"Basket head: paired claws, two rails\" (#3) would undercut a two-part pull over 57.9 mm\u00b2 (worst -90\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Seat bur \"Seat bur, through to the finger, cut at the bench\" (#4) would undercut a two-part pull over 25.1 mm\u00b2 (worst -89\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Drop window, through both side faces along the finger\" (#5) would undercut a two-part pull over 9.8 mm\u00b2 (worst -1\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Ring array \"Array the window down the shoulder\" (#6) would undercut a two-part pull over 18.8 mm\u00b2 (worst -1\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"Mirror the first window to the other shoulder\" (#7) would undercut a two-part pull over 9.8 mm\u00b2 (worst -1\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"Mirror the array to the other shoulder\" (#8) would undercut a two-part pull over 18.8 mm\u00b2 (worst -1\u00b0) \u2014 fine for investment, but this pattern cannot move to sand as-is."
       ],
       "field_verdict": "Castable",
       "head_thickness_informational": {
@@ -267,11 +275,11 @@
       "investment_min_section_mm": 0.8,
       "made_part_self_crossings": [
         [
-          "Oval 7 × 5, laid along the ring",
+          "Oval 7 \u00d7 5, laid along the ring",
           0
         ],
         [
-          "Basket head: four claws paired at the ends, two rails, set into the collar",
+          "Basket head: paired claws, two rails",
           0
         ],
         [
@@ -295,7 +303,7 @@
           0
         ]
       ],
-      "min_vertex_radius_mm": 9.09999012185261,
+      "min_vertex_radius_mm": 9.09999257847613,
       "parts_notes": [],
       "pattern": {
         "degenerate_faces": 0,
@@ -312,27 +320,27 @@
           384,
           160
         ],
-        "faces": 128540,
+        "faces": 128464,
         "limit_mm": 0.8,
         "mesh": "the poured shank: the casting pattern with the bench's basket head and seat bur suppressed",
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
         "rays": 384,
-        "sampled_min_mm": 0.904271293162564,
+        "sampled_min_mm": 0.8928797424508094,
         "unresolved": 0
       },
       "thickness_finished_informational": {
-        "below_limit": 2,
+        "below_limit": 4,
         "note": "The finished ring after the bench's seat bur, which notches the claws for the girdle and opens the pilot; not the pour.",
         "rays": 384,
-        "sampled_min_mm": 0.3876717877868138
+        "sampled_min_mm": 0.37381283454033937
       },
-      "triangles": 1334996,
+      "triangles": 1336032,
       "vertices_inside_bore": 0,
       "watertight": true
     },
     "gates_passed": true
   },
-  "grams_gold_18k": 11.999356265976257,
+  "grams_gold_18k": 11.569503147594583,
   "name": "Fenestra",
   "process": "Lost wax",
   "size": "US 8.11",
@@ -350,5 +358,27 @@
     "per_shoulder": 3,
     "step_deg": 15.0,
     "width_mm": 1.4
+  },
+  "template_gate": {
+    "design_set_patches": 1,
+    "patches": [
+      {
+        "graph": "Fenestra",
+        "node": 47,
+        "pointer": "/manufacturing"
+      }
+    ],
+    "template_bytes": 20493,
+    "size_budget_bytes": 300000,
+    "template_class": "procedural",
+    "cad_feature_nodes": 8,
+    "source_identical": true,
+    "cold_design_reload": true,
+    "cold_graph_reload": true,
+    "vertices_faces_normals_identical": true,
+    "export_geometry_verified": true,
+    "triangles": 1336032,
+    "template_gate_passed": true,
+    "note": "Ship the template with Document::through = Some(3) so the timeline opens mid-lesson; that is packaging's, the saved design builds every feature."
   }
 }

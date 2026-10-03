@@ -1,0 +1,1060 @@
+{
+  "format_version": 2,
+  "name": "Fenestra",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 1,
+        "name": "Band: Flat 3.2 × 2.4, its shoulders swelling to the head",
+        "operation": "Band"
+      },
+      "pos": [
+        1920.0,
+        0.0
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "separate",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "across_mm": 0.0,
+            "cant_deg": 0.0,
+            "height_mm": 1.2500000000000004,
+            "kind": "ring",
+            "spin_deg": 0.0,
+            "theta_deg": 90.0,
+            "tilt_deg": 0.0
+          },
+          "reference": true,
+          "role": "Stone",
+          "stage": "cast",
+          "stone_id": "Oval 7 × 5",
+          "visible": true
+        },
+        "enabled": true,
+        "id": 2,
+        "name": "Oval 7 × 5, laid along the ring",
+        "operation": {
+          "Builder": {
+            "key": "stone",
+            "on": null,
+            "params": {
+              "cut": "Oval",
+              "form": "Faceted",
+              "l_mm": 7.0,
+              "tint": [
+                0.1599999964237213,
+                0.30000001192092896,
+                0.7799999713897705
+              ],
+              "w_mm": 5.0
+            }
+          }
+        }
+      },
+      "pos": [
+        2160.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "join",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Head",
+          "stage": "bench",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 3,
+        "name": "Basket head: paired claws, two rails",
+        "operation": {
+          "Builder": {
+            "key": "head.basket",
+            "on": 2,
+            "params": {
+              "grouping": "Jaws",
+              "prongs": 4,
+              "rails": 2,
+              "wire_mm": 1.4
+            }
+          }
+        }
+      },
+      "pos": [
+        2400.0,
+        0.0
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Setting",
+          "stage": "bench",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 4,
+        "name": "Seat bur, through to the finger, cut at the bench",
+        "operation": {
+          "Builder": {
+            "key": "seat.bur",
+            "on": 2,
+            "params": {
+              "through": true
+            }
+          }
+        }
+      },
+      "pos": [
+        2640.0,
+        0.0
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "face": "High",
+            "height_mm": 0.0,
+            "kind": "side",
+            "radius_mm": 10.8,
+            "spin_deg": 0.0,
+            "theta_deg": 63.0,
+            "tilt_deg": -1.5
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 5,
+        "name": "Drop window, through both side faces along the finger",
+        "operation": {
+          "Builder": {
+            "key": "cutter.pierce",
+            "on": null,
+            "params": {
+              "chamfer_mm": 0.15,
+              "depth_mm": 1.44,
+              "length_mm": 2.0,
+              "shape": "Drop",
+              "through": true,
+              "turn_deg": 180.0,
+              "width_mm": 1.4
+            }
+          }
+        }
+      },
+      "pos": [
+        2880.0,
+        0.0
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 6,
+        "name": "Array the window down the shoulder",
+        "operation": {
+          "Pattern": {
+            "kind": {
+              "ring": {
+                "count": 3,
+                "span_deg": -30.0
+              }
+            },
+            "source": 5
+          }
+        }
+      },
+      "pos": [
+        3120.0,
+        0.0
+      ]
+    },
+    {
+      "id": 7,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 7,
+        "name": "Mirror the first window to the other shoulder",
+        "operation": {
+          "Pattern": {
+            "kind": {
+              "mirror": {
+                "plane": {
+                  "section": {
+                    "theta_deg": 90.0
+                  }
+                }
+              }
+            },
+            "source": 5
+          }
+        }
+      },
+      "pos": [
+        3360.0,
+        0.0
+      ]
+    },
+    {
+      "id": 8,
+      "kind": "cad.feature",
+      "params": {
+        "component": {
+          "attach": "cut",
+          "bench_notes": "",
+          "blend_mm": 0.0,
+          "manufacturing": null,
+          "material": "Silver 925",
+          "placement": {
+            "kind": "free"
+          },
+          "reference": false,
+          "role": "Other",
+          "stage": "cast",
+          "stone_id": null,
+          "visible": true
+        },
+        "enabled": true,
+        "id": 8,
+        "name": "Mirror the array to the other shoulder",
+        "operation": {
+          "Pattern": {
+            "kind": {
+              "mirror": {
+                "plane": {
+                  "section": {
+                    "theta_deg": 90.0
+                  }
+                }
+              }
+            },
+            "source": 6
+          }
+        }
+      },
+      "pos": [
+        3600.0,
+        0.0
+      ]
+    },
+    {
+      "id": 9,
+      "kind": "band.profile",
+      "inputs": {
+        "comfort_fit_mm": 0.15,
+        "crest_bias": 0.0,
+        "crown_mm": 0.3,
+        "edge_round_mm": 0.45,
+        "shape_a": 8.0,
+        "shape_b": 1.0,
+        "side_draft_deg": 0.0,
+        "style": "Flat",
+        "thickness_mm": 2.4,
+        "width_mm": 3.2
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Band section"
+    },
+    {
+      "id": 10,
+      "kind": "shank",
+      "inputs": {
+        "amount": 1.0,
+        "kind": "Keyframes",
+        "waves": 1
+      },
+      "pos": [
+        1440.0,
+        0.0
+      ],
+      "label": "Shoulders and taper"
+    },
+    {
+      "id": 11,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 90.0,
+        "thickness_scale": 1.72,
+        "width_scale": 1.88
+      },
+      "pos": [
+        0.0,
+        150.0
+      ]
+    },
+    {
+      "id": 12,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 80.0,
+        "thickness_scale": 1.66,
+        "width_scale": 1.68
+      },
+      "pos": [
+        0.0,
+        300.0
+      ]
+    },
+    {
+      "id": 13,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 100.0,
+        "thickness_scale": 1.66,
+        "width_scale": 1.68
+      },
+      "pos": [
+        0.0,
+        450.0
+      ]
+    },
+    {
+      "id": 14,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 68.0,
+        "thickness_scale": 1.58,
+        "width_scale": 1.53
+      },
+      "pos": [
+        0.0,
+        600.0
+      ]
+    },
+    {
+      "id": 15,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 112.0,
+        "thickness_scale": 1.58,
+        "width_scale": 1.53
+      },
+      "pos": [
+        0.0,
+        750.0
+      ]
+    },
+    {
+      "id": 16,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 55.0,
+        "thickness_scale": 1.51,
+        "width_scale": 1.49
+      },
+      "pos": [
+        0.0,
+        900.0
+      ]
+    },
+    {
+      "id": 17,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 125.0,
+        "thickness_scale": 1.51,
+        "width_scale": 1.49
+      },
+      "pos": [
+        0.0,
+        1050.0
+      ]
+    },
+    {
+      "id": 18,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 40.0,
+        "thickness_scale": 1.44,
+        "width_scale": 1.443
+      },
+      "pos": [
+        0.0,
+        1200.0
+      ]
+    },
+    {
+      "id": 19,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 140.0,
+        "thickness_scale": 1.44,
+        "width_scale": 1.443
+      },
+      "pos": [
+        0.0,
+        1350.0
+      ]
+    },
+    {
+      "id": 20,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 26.0,
+        "thickness_scale": 1.33,
+        "width_scale": 1.4
+      },
+      "pos": [
+        0.0,
+        1500.0
+      ]
+    },
+    {
+      "id": 21,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 154.0,
+        "thickness_scale": 1.33,
+        "width_scale": 1.4
+      },
+      "pos": [
+        0.0,
+        1650.0
+      ]
+    },
+    {
+      "id": 22,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 10.0,
+        "thickness_scale": 1.14,
+        "width_scale": 1.15
+      },
+      "pos": [
+        0.0,
+        1800.0
+      ]
+    },
+    {
+      "id": 23,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 170.0,
+        "thickness_scale": 1.14,
+        "width_scale": 1.15
+      },
+      "pos": [
+        0.0,
+        1950.0
+      ]
+    },
+    {
+      "id": 24,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 330.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        2100.0
+      ]
+    },
+    {
+      "id": 25,
+      "kind": "shank.key",
+      "inputs": {
+        "crown_scale": 1.0,
+        "theta_deg": 210.0,
+        "thickness_scale": 1.0,
+        "width_scale": 1.0
+      },
+      "pos": [
+        0.0,
+        2250.0
+      ]
+    },
+    {
+      "id": 26,
+      "kind": "list.merge",
+      "pos": [
+        240.0,
+        0.0
+      ]
+    },
+    {
+      "id": 27,
+      "kind": "list.merge",
+      "pos": [
+        480.0,
+        0.0
+      ]
+    },
+    {
+      "id": 28,
+      "kind": "list.merge",
+      "pos": [
+        720.0,
+        0.0
+      ]
+    },
+    {
+      "id": 29,
+      "kind": "list.merge",
+      "pos": [
+        960.0,
+        0.0
+      ]
+    },
+    {
+      "id": 30,
+      "kind": "list.merge",
+      "pos": [
+        1200.0,
+        0.0
+      ]
+    },
+    {
+      "id": 31,
+      "kind": "design.new",
+      "inputs": {
+        "name": "Fenestra",
+        "size": 8.10862207660166
+      },
+      "pos": [
+        1680.0,
+        0.0
+      ]
+    },
+    {
+      "id": 40,
+      "kind": "cad.op.stone",
+      "inputs": {
+        "cut": "Oval",
+        "form": "Faceted",
+        "l_mm": 7.0,
+        "params": {
+          "tint": [
+            0.1599999964237213,
+            0.30000001192092896,
+            0.7799999713897705
+          ]
+        },
+        "w_mm": 5.0
+      },
+      "pos": [
+        0.0,
+        2400.0
+      ]
+    },
+    {
+      "id": 41,
+      "kind": "cad.op.head.basket",
+      "inputs": {
+        "grouping": "Jaws",
+        "on": 2,
+        "prongs": 4,
+        "rails": 2,
+        "wire_mm": 1.4
+      },
+      "pos": [
+        0.0,
+        2550.0
+      ]
+    },
+    {
+      "id": 42,
+      "kind": "cad.op.seat.bur",
+      "inputs": {
+        "on": 2,
+        "through": true
+      },
+      "pos": [
+        0.0,
+        2700.0
+      ]
+    },
+    {
+      "id": 43,
+      "kind": "cad.op.cutter.pierce",
+      "inputs": {
+        "chamfer_mm": 0.15,
+        "depth_mm": 1.44,
+        "length_mm": 2.0,
+        "shape": "Drop",
+        "through": true,
+        "turn_deg": 180.0,
+        "width_mm": 1.4
+      },
+      "pos": [
+        0.0,
+        2850.0
+      ]
+    },
+    {
+      "id": 44,
+      "kind": "design.settings",
+      "pos": [
+        3840.0,
+        0.0
+      ]
+    },
+    {
+      "id": 45,
+      "kind": "build.settings",
+      "inputs": {
+        "adaptive": false,
+        "min_wall_mm": 0.5,
+        "profile_steps": 448,
+        "soften_mm": 0.0,
+        "theta_steps": 1536
+      },
+      "pos": [
+        0.0,
+        3000.0
+      ]
+    },
+    {
+      "id": 46,
+      "kind": "draft.settings",
+      "inputs": {
+        "auto_parting": false,
+        "min_detail_mm": 0.15,
+        "min_draft_deg": 3.0,
+        "min_section_mm": 0.8,
+        "parting_z_mm": 0.0,
+        "process": "LostWax"
+      },
+      "pos": [
+        0.0,
+        3150.0
+      ]
+    },
+    {
+      "id": 47,
+      "kind": "design.set",
+      "inputs": {
+        "pointer": "/manufacturing",
+        "value": {
+          "auto_parting": false,
+          "axial_stock_mm": 0.0,
+          "bench_notes": "Investment cast in one piece with the basket, sprued at the palm. Flush investment from the six windows with water under pressure. Polish the band, the basket and the windows' bright cuts; set the oval in the four claws.",
+          "bore": "Molded",
+          "bore_stock_mm": 0.0,
+          "channels": [
+            {
+              "diameter_mm": 3.0,
+              "end": [
+                0.0,
+                -19.0,
+                0.0
+              ],
+              "kind": "Gate",
+              "start": [
+                0.0,
+                -10.5,
+                0.0
+              ]
+            },
+            {
+              "diameter_mm": 5.0,
+              "end": [
+                0.0,
+                -29.0,
+                0.0
+              ],
+              "kind": "Sprue",
+              "start": [
+                0.0,
+                -19.0,
+                0.0
+              ]
+            }
+          ],
+          "component": null,
+          "flask": {
+            "cope_mm": 20.0,
+            "drag_mm": 20.0,
+            "length_mm": 80.0,
+            "width_mm": 80.0
+          },
+          "parting_mm": 0.0,
+          "pull": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "radial_stock_mm": 0.0,
+          "recipe": {
+            "alloy": "Gold 18k",
+            "calibration_note": "Starting shrink allowance; confirm with the caster's alloy, pattern material and measured trials.",
+            "min_detail_mm": 0.15,
+            "min_draft_deg": 0.0,
+            "min_sand_web_mm": 0.6,
+            "min_section_mm": 0.8,
+            "name": "Fenestra / investment / Gold 18k",
+            "process": "LostWax",
+            "sand": null,
+            "sand_margin_mm": 5.0,
+            "shrink_pct": 1.3
+          },
+          "sample_pitch_mm": 0.1,
+          "tolerance_mm": 0.02
+        }
+      },
+      "pos": [
+        4080.0,
+        0.0
+      ],
+      "label": "Preserve /manufacturing"
+    },
+    {
+      "id": 48,
+      "kind": "sink.output",
+      "pos": [
+        4320.0,
+        0.0
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "from": 11,
+      "out": "key",
+      "to": 26,
+      "input": "a"
+    },
+    {
+      "from": 12,
+      "out": "key",
+      "to": 26,
+      "input": "b"
+    },
+    {
+      "from": 13,
+      "out": "key",
+      "to": 26,
+      "input": "c"
+    },
+    {
+      "from": 26,
+      "out": "out",
+      "to": 27,
+      "input": "a"
+    },
+    {
+      "from": 14,
+      "out": "key",
+      "to": 27,
+      "input": "b"
+    },
+    {
+      "from": 15,
+      "out": "key",
+      "to": 27,
+      "input": "c"
+    },
+    {
+      "from": 16,
+      "out": "key",
+      "to": 27,
+      "input": "d"
+    },
+    {
+      "from": 27,
+      "out": "out",
+      "to": 28,
+      "input": "a"
+    },
+    {
+      "from": 17,
+      "out": "key",
+      "to": 28,
+      "input": "b"
+    },
+    {
+      "from": 18,
+      "out": "key",
+      "to": 28,
+      "input": "c"
+    },
+    {
+      "from": 19,
+      "out": "key",
+      "to": 28,
+      "input": "d"
+    },
+    {
+      "from": 28,
+      "out": "out",
+      "to": 29,
+      "input": "a"
+    },
+    {
+      "from": 20,
+      "out": "key",
+      "to": 29,
+      "input": "b"
+    },
+    {
+      "from": 21,
+      "out": "key",
+      "to": 29,
+      "input": "c"
+    },
+    {
+      "from": 22,
+      "out": "key",
+      "to": 29,
+      "input": "d"
+    },
+    {
+      "from": 29,
+      "out": "out",
+      "to": 30,
+      "input": "a"
+    },
+    {
+      "from": 23,
+      "out": "key",
+      "to": 30,
+      "input": "b"
+    },
+    {
+      "from": 24,
+      "out": "key",
+      "to": 30,
+      "input": "c"
+    },
+    {
+      "from": 25,
+      "out": "key",
+      "to": 30,
+      "input": "d"
+    },
+    {
+      "from": 30,
+      "out": "out",
+      "to": 10,
+      "input": "keys"
+    },
+    {
+      "from": 9,
+      "out": "profile",
+      "to": 31,
+      "input": "profile"
+    },
+    {
+      "from": 10,
+      "out": "shank",
+      "to": 31,
+      "input": "shank"
+    },
+    {
+      "from": 31,
+      "out": "design",
+      "to": 1,
+      "input": "design"
+    },
+    {
+      "from": 1,
+      "out": "design",
+      "to": 2,
+      "input": "design"
+    },
+    {
+      "from": 2,
+      "out": "design",
+      "to": 3,
+      "input": "design"
+    },
+    {
+      "from": 3,
+      "out": "design",
+      "to": 4,
+      "input": "design"
+    },
+    {
+      "from": 4,
+      "out": "design",
+      "to": 5,
+      "input": "design"
+    },
+    {
+      "from": 5,
+      "out": "design",
+      "to": 6,
+      "input": "design"
+    },
+    {
+      "from": 6,
+      "out": "design",
+      "to": 7,
+      "input": "design"
+    },
+    {
+      "from": 7,
+      "out": "design",
+      "to": 8,
+      "input": "design"
+    },
+    {
+      "from": 40,
+      "out": "operation",
+      "to": 2,
+      "input": "operation"
+    },
+    {
+      "from": 41,
+      "out": "operation",
+      "to": 3,
+      "input": "operation"
+    },
+    {
+      "from": 42,
+      "out": "operation",
+      "to": 4,
+      "input": "operation"
+    },
+    {
+      "from": 43,
+      "out": "operation",
+      "to": 5,
+      "input": "operation"
+    },
+    {
+      "from": 8,
+      "out": "design",
+      "to": 44,
+      "input": "design"
+    },
+    {
+      "from": 45,
+      "out": "build",
+      "to": 44,
+      "input": "build"
+    },
+    {
+      "from": 46,
+      "out": "draft",
+      "to": 44,
+      "input": "draft"
+    },
+    {
+      "from": 44,
+      "out": "design",
+      "to": 47,
+      "input": "design"
+    },
+    {
+      "from": 47,
+      "out": "design",
+      "to": 48,
+      "input": "design"
+    }
+  ],
+  "next_id": 49
+}

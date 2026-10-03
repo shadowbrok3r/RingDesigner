@@ -27,15 +27,16 @@ use std::path::{Path, PathBuf};
 const BORE_MM: f64 = 18.2;
 const WIDTH_MM: f64 = 3.2;
 const THICKNESS_MM: f64 = 2.4;
-/// The shoulders' swell, as stations round the ring (theta, width scale, thickness scale), mirrored about the head: wide
-/// under the basket, then one steady width down the shoulders, so every window in the array meets square side faces at the
-/// same height as the first, and narrowing to the band's own at the sides; the thickness stands tall down the shoulders, where
-/// the windows go, and falls back to the palm.
-const SWELL: &[(f64, f64, f64)] = &[(90.0, 1.88, 1.72), (80.0, 1.6, 1.64), (68.0, 1.56, 1.52), (53.0, 1.56, 1.50), (38.0, 1.56, 1.46), (24.0, 1.54, 1.38), (8.0, 1.2, 1.14), (-30.0, 1.0, 1.0)];
+/// The shoulders' swell, as stations round the ring (theta, width scale, thickness scale), mirrored about the head: one
+/// continuous taper from the head, where the band carries the basket, down to the band's own at the sides, the side faces
+/// leaning by a near-steady angle down the shoulders where the windows go.
+const SWELL: &[(f64, f64, f64)] = &[(90.0, 1.88, 1.72), (80.0, 1.68, 1.66), (68.0, 1.53, 1.58), (55.0, 1.49, 1.51), (40.0, 1.443, 1.44), (26.0, 1.40, 1.33), (10.0, 1.15, 1.14), (-30.0, 1.0, 1.0)];
 const ALLOY: &str = "Gold 18k";
 /// The stone: an oval 7 × 5 laid along the ring.
 const STONE_L_MM: f64 = 7.0;
 const STONE_W_MM: f64 = 5.0;
+/// The oval's preview colour: a cornflower sapphire.
+const STONE_TINT: [f32; 3] = [0.16, 0.3, 0.78];
 /// The first window's centre, degrees round the ring (90 is the head); the array steps down the shoulder from it.
 const FIRST_WINDOW_DEG: f64 = 63.0;
 /// Windows down each shoulder and the angle they step by.
@@ -52,8 +53,15 @@ const WINDOW_TURN_DEG: f64 = 180.0;
 const STONE_SINK_MM: f64 = 0.9;
 /// The band's edge round, which rolls the light off every arris, mm.
 const EDGE_ROUND_MM: f64 = 0.45;
+/// The comfort roll on the bore's edges, which rounds the inner arrises as the edge round does the outer, mm.
+const COMFORT_MM: f64 = 0.15;
 /// The basket's claw and rail wire, mm.
 const WIRE_MM: f64 = 1.4;
+/// The windows' centre radius, mid-wall down the shoulders, mm.
+const WINDOW_R_MM: f64 = 10.8;
+/// The windows' lean along the ring, matching the side faces' gentle taper down the shoulders so the far mouth meets its face
+/// square; the near mouth carries the bright cut, degrees.
+const WINDOW_LEAN_DEG: f64 = -1.5;
 /// Least metal the investment fills, mm.
 const MIN_SECTION_MM: f64 = 0.8;
 
@@ -99,7 +107,7 @@ fn band() -> RingDesign {
     d.profile.thickness_mm = THICKNESS_MM;
     d.profile.flatten_sides();
     d.profile.edge_round_mm = EDGE_ROUND_MM;
-    d.profile.comfort_fit_mm = 0.1;
+    d.profile.comfort_fit_mm = COMFORT_MM;
     d.shank.kind = ShankKind::Keyframes;
     d.shank.amount = 1.0;
     d.shank.keys = SWELL
@@ -120,7 +128,7 @@ fn band() -> RingDesign {
 }
 
 fn gem() -> Gem {
-    Gem { l_mm: STONE_L_MM, ..Gem::calibrated(GemCut::Oval, STONE_W_MM) }
+    Gem { l_mm: STONE_L_MM, preview_tint: Some(STONE_TINT), ..Gem::calibrated(GemCut::Oval, STONE_W_MM) }
 }
 
 fn named(mut f: Feature, name: &str) -> Feature {
@@ -136,7 +144,7 @@ fn author() -> Result<RingDesign> {
     let g = gem();
     let at = Placement::ring(90.0, builders::stand_off_mm("basket", g) - STONE_SINK_MM);
     doc.append(named(builders::stone_feature(2, g, at), "Oval 7 × 5, laid along the ring"))?;
-    let mut basket = builders::feature_on(3, "Basket head: four claws paired at the ends, two rails, set into the collar", builders::BASKET, 2, json!({"prongs": 4, "rails": 2, "wire_mm": WIRE_MM, "grouping": "Jaws"}));
+    let mut basket = builders::feature_on(3, "Basket head: paired claws, two rails", builders::BASKET, 2, json!({"prongs": 4, "rails": 2, "wire_mm": WIRE_MM, "grouping": "Jaws"}));
     // A made basket head, soldered to the cast shank at the bench and set there: its claws are notched for the girdle, finer
     // than the investment's section, so it is not poured with the shank.
     basket.component.stage = cad::Stage::Bench;
@@ -151,6 +159,9 @@ fn author() -> Result<RingDesign> {
     let (p, n) = side_face_point(&d, FIRST_WINDOW_DEG);
     let at = cutters::pierce_at(&d, FIRST_WINDOW_DEG, 0.0, Some((p, n)), cutters::Shape::Drop)?;
     let mut w = cutters::pierce_feature(5, cutters::Shape::Drop, &at);
+    // Stood on the high side face itself, so the ring array reseats each copy on the face at its own angle and every window
+    // keeps its bright cut as the band tapers; leaned to the taper, so the far mouth meets its face square.
+    w.component.placement = Placement::Side { theta_deg: FIRST_WINDOW_DEG, radius_mm: WINDOW_R_MM, face: ringdesign_core::field::SideFacePick::High, height_mm: 0.0, spin_deg: 0.0, tilt_deg: WINDOW_LEAN_DEG };
     w.name = "Drop window, through both side faces along the finger".into();
     if let Operation::Builder { params, .. } = &mut w.operation {
         params["length_mm"] = json!(WINDOW_L_MM);
@@ -561,6 +572,22 @@ fn main() -> Result<()> {
         thickness.unresolved,
         thickness.point.map(|p| (p[0].hypot(p[1]), p[1].atan2(p[0]).to_degrees(), p[2]))
     );
+    if let Ok(t) = std::env::var("FENESTRA_FACE") {
+        let t: f64 = t.parse()?;
+        let b = mesh::try_build(&band(), &lib, draft_params())?.mesh;
+        let mut bins = std::collections::BTreeMap::new();
+        for v in &b.vertices {
+            let th = (v.1 as f64).atan2(v.0 as f64).to_degrees();
+            if (th - t).abs() < 0.3 && v.2 > 0.0 {
+                let r = (v.0 as f64).hypot(v.1 as f64);
+                let e = bins.entry((r * 5.0) as i64).or_insert(f64::MIN);
+                *e = f64::max(*e, v.2 as f64);
+            }
+        }
+        for (r, z) in bins {
+            println!("    face r {:.1}: z {z:.3}", r as f64 / 5.0);
+        }
+    }
     if std::env::var("FENESTRA_HEAD").is_ok() {
         let head = crop(&thin_mesh, |p| p[1] > 11.0 && (p[1].atan2(p[0]).to_degrees() - 90.0).abs() < 25.0);
         let all = thin_rays_every(&head, MIN_SECTION_MM, 1);
@@ -569,7 +596,7 @@ fn main() -> Result<()> {
         let mut sh: Vec<_> = thin_rays_every(&shoulders, MIN_SECTION_MM, 1).into_iter().filter(|x| x.0 > 0.05).collect();
         sh.sort_by(|a, b| a.0.total_cmp(&b.0));
         println!("    shoulders every face: {} of {} below past edge slivers", sh.len(), shoulders.faces.len());
-        for (v, c, n) in sh.iter().take(8) {
+        for (v, c, n) in sh.iter().step_by((sh.len() / 14).max(1)) {
             println!("      {v:.3} at r {:.2} θ {:.1} z {:.2} in {:?}", c[0].hypot(c[1]), c[1].atan2(c[0]).to_degrees(), c[2], n.map(|x| (x * 100.0).round() / 100.0));
         }
         let claws: Vec<_> = all.iter().filter(|x| x.1[0].hypot(x.1[1]) > 13.8 && x.0 > 0.05).collect();
