@@ -234,7 +234,9 @@ pub fn feather_loft(spec: &FeatherSpec) -> cad::Operation; // Loft through five 
 
 ## Basiliscus — *king of serpents*
 
-- **Status:** not started; buildable now (P3 and P4 are on master). A light template waits on P7.
+- **Status:** cut at 7.2 after round 3; revived (branch `claude/bestiarium-basiliscus-revival`) with a sculpted crowned head as a stored part. Revival round 4 scored 7.3 (revise), round 5 scored 7.4 (cut).
+- **Extension:** Logan granted revival round 6 on 2026-10-03.
+- **Process decision (2026-10-03):** judged as lost wax: 0.8 mm minimum section, no pull rule. The sand gates do not apply; any sand pull is reported as a bonus only.
 
 - **Concept:** The cockatrice, the serpent-king hatched from a cock's egg. Rooster hackles pour off an heraldic escutcheon and down both shoulders, turning into a serpent's keeled scales and then its belly. Its comb, the crown that names it, runs down the shield's pale through a flush marquise.
   - **What changed from the brief:** Logan moved it to **lost wax on the unmirrored 020**, and the mirrored-020 spike is dropped. The plan also has the hackles own the table and both shoulders, so the ring reads as plumage before scales, since Cataphracta owns scale hides.
