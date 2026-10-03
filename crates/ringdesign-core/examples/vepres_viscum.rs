@@ -15,7 +15,7 @@ use ringdesign_core::{
     gem::{Gem, GemCut},
     imported_base::{ImportedBase, PRESETS, SurfaceChart},
     library, manufacturing as mf, mesh, render,
-    setting::SolidKind,
+    setting::{SolidKind, Stamp, StampTop},
     skin::Atlas,
     stl,
 };
@@ -30,6 +30,11 @@ const SLUG: &str = "viscum";
 const AW: usize = 2048;
 const AH: usize = 768;
 const BORE_MM: f64 = 18.6;
+/// The factory stock and its face, length round the ring by width across it, mm.
+const STOCK_ID: &str = "001";
+const STOCK_FACE: (f64, f64) = (17.0, 14.5);
+/// Whether the stock comes through its sand master (the envelope on): stamps strike only there.
+const STOCK_SAND_MASTER: bool = true;
 /// Moonstone's milky white with a cold blue sheen: the berry.
 const MOONSTONE_TINT: [f32; 3] = [0.95, 0.95, 0.96];
 
@@ -65,14 +70,17 @@ fn setup() -> mf::Setup {
 
 /// Factory 003 Clover at its native 18 x 18 face, not mirrored, no sand envelope, on its own Flat chart.
 fn stock() -> Result<RingDesign> {
-    let preset = PRESETS.iter().find(|p| p.id == "003").context("no stock 003")?;
+    let id = std::env::var("VISCUM_STOCK").unwrap_or_else(|_| STOCK_ID.into());
+    let face: Vec<f64> = std::env::var("VISCUM_FACE").ok().map(|v| v.split('x').filter_map(|x| x.parse().ok()).collect()).unwrap_or_else(|| vec![STOCK_FACE.0, STOCK_FACE.1]);
+    let preset = PRESETS.iter().find(|p| p.id == id).with_context(|| format!("no stock {id}"))?;
     let mut d = RingDesign::default();
-    ImportedBase::attach(&mut d, preset.load()?)?;
-    d.imported_base.as_mut().unwrap().sand_envelope = false;
+    let sand = std::env::var("VISCUM_SAND").is_ok() || STOCK_SAND_MASTER;
+    ImportedBase::attach(&mut d, if sand { ringdesign_core::imported_base::sand_master(preset.load()?)? } else { preset.load()? })?;
+    d.imported_base.as_mut().unwrap().sand_envelope = sand;
     d.name = "Viscum \u{2014} the golden bough".into();
     d.profile.apply_style(ProfileStyle::Flat);
-    d.profile.width_mm = 18.0;
-    d.shank.head.length_mm = 18.0;
+    d.shank.head.length_mm = face[0];
+    d.profile.width_mm = face[1];
     d.size = ringdesign_core::resize::size_from_bore(BORE_MM).context("bore")?;
     d.profile.edge_round_mm = 0.3;
     d.profile.comfort_fit_mm = 0.1;
@@ -953,18 +961,19 @@ fn chart_at(a: &Atlas, p: P3) -> (f64, f64) {
     (s.theta, s.v)
 }
 
-/// The face's node, a little toward shoulder A off the crossing of the lobes' creases, mm on the table (x round
-/// the ring, z along the finger).
-const FACE_NODE: P2 = [-0.5, 0.0];
-/// The face's four strap leaves, two crossed opposite pairs: heading (degrees, along the lobes' axes), length,
-/// width and bend, mm. The 45/225 pair runs 1.5 mm longer than the other.
-const FACE_LEAVES: [(f64, f64, f64, f64); 4] = [(46.0, 9.4, 3.3, 0.3), (226.0, 9.0, 3.3, -0.3), (134.0, 7.9, 3.1, -0.3), (314.0, 7.5, 3.1, 0.3)];
-/// How far out from the node each leaf's blade begins, its stalk running in under it, mm.
-const FACE_LEAF_BASE_MM: f64 = 2.3;
-/// The sizes of the three berries in the crotch between the 46 and 314 degree leaves, mm.
-const FACE_BERRIES: [f64; 3] = [2.4, 2.1, 2.1];
-/// The pair astride the bough on the other side of the node, each this size, mm.
-const FACE_PAIR_MM: f64 = 1.9;
+/// The face's sprig on the cushion's table, mm (x round the ring, z along the finger): the joint where the bough
+/// from shoulder A forks, and the two joints its twigs end in.
+const FACE_NODE: P2 = [-4.2, 0.0];
+const FACE_TIPS: [P2; 2] = [[0.33, 3.29], [0.5, -3.2]];
+/// The face's leaves: the joint they grow from (0 the fork, 1 and 2 the tips), heading (degrees), length and width,
+/// mm. Narrow 3:1 straps in opposite pairs.
+const FACE_LEAVES: [(usize, f64, f64, f64); 6] = [(0, 110.0, 5.2, 1.75), (0, -108.0, 5.3, 1.75), (1, 2.0, 5.2, 1.75), (1, 46.0, 3.4, 1.2), (2, -3.0, 5.3, 1.75), (2, -45.0, 3.4, 1.2)];
+/// The berries: a tight triangle in the fork's crotch, and one in each tip's V, sizes in mm.
+const FACE_CROTCH: [f64; 3] = [2.2, 2.0, 1.9];
+const FACE_V: [f64; 3] = [1.5, 1.4, 1.35];
+/// How far the leaves stand and how high their pillow crowns, mm.
+const LEAF_WALL_MM: f64 = 0.35;
+const LEAF_CROWN_MM: f64 = 0.6;
 /// The bough's radius where it leaves the face.
 const BOUGH_R: f64 = 0.6;
 /// The shoulder units, from the head outward: the berries of the bunch each fork holds and the unit's scale.
@@ -1004,52 +1013,113 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
         placed.shoulder_width_mm.push([deg, top, hi - lo]);
     }
     let mut sprig = Sprig::default();
-    // The face: one node at the crossing of the lobes' creases, two crossed opposite pairs of strap leaves from
-    // it, one leaf filling each lobe and running a little past its tip, each cut round with a graver's trench and
-    // down its midrib. Their stalks run visibly into the node; three berries sit in the crotch beside it.
-    sprig.node(&face, "Face node", FACE_NODE, 0.0, 0.9, 0.5)?;
-    let face_bunch_end;
-    sprig.engrave = std::env::var("VISCUM_NO_ENGRAVE").is_err();
-    let mut face_leaves: Vec<Vec<P2>> = Vec::new();
-    for (k, (h, len, wid, bend)) in FACE_LEAVES.into_iter().enumerate() {
-        let base = add2(FACE_NODE, dir2(h), FACE_LEAF_BASE_MM);
-        sprig.blade(&face, &format!("Face leaf {}", k + 1), base, h, bend, len, wid, 0.95, 0.32)?;
-        face_leaves.push(leaf_outline(base, h, bend, len, wid));
+    // The face: one forked sprig on the quiet table. The bough comes in from shoulder A to the fork; two twigs
+    // run on to joints, every joint bears an opposite pair of narrow strap leaves, and a tight triangle of
+    // berries sits in the fork's crotch and in each tip's V. The leaves are struck as pillow-topped stamps with
+    // their walls standing clean off the field.
+    let sv = {
+        let lo = a.point(90.0, a.span * 0.5 - 1.0);
+        let hi = a.point(90.0, a.span * 0.5 + 1.0);
+        (hi[2] - lo[2]).signum()
+    };
+    sprig.node(&face, "Face joint 1", FACE_NODE, 0.0, 0.9, 0.5)?;
+    let mut keep_clear: Vec<(Vec<P2>, f64)> = Vec::new();
+    for (k, tip) in FACE_TIPS.into_iter().enumerate() {
+        let d = sub2(tip, FACE_NODE);
+        let mid = add2(add2(FACE_NODE, d, 0.5), [-d[1], d[0]], if k == 0 { -0.06 } else { 0.06 });
+        let twig = bezier(add2(FACE_NODE, d, 0.12), mid, tip);
+        sprig.stem(&face, &format!("Face twig {}", k + 1), twig.clone(), 0.55, 0.42)?;
+        sprig.node(&face, &format!("Face joint {}", k + 2), tip, d[1].atan2(d[0]).to_degrees(), 0.75, 0.5)?;
+        keep_clear.push((twig, 0.55 + 0.1));
+        keep_clear.push((vec![tip, tip], 0.75 + 0.1));
     }
-    sprig.engrave = false;
-    for (k, (h, ..)) in FACE_LEAVES.into_iter().enumerate() {
-        sprig.stem(&face, &format!("Face stalk {}", k + 1), vec![add2(FACE_NODE, dir2(h), 0.5), add2(FACE_NODE, dir2(h), FACE_LEAF_BASE_MM + 0.5)], 0.4, 0.42)?;
+    keep_clear.push((vec![FACE_NODE, FACE_NODE], 0.9 + 0.1));
+    for (k, (from, h, len, wid)) in FACE_LEAVES.into_iter().enumerate() {
+        let joint = if from == 0 { FACE_NODE } else { FACE_TIPS[from - 1] };
+        let base = add2(joint, dir2(h), 0.45);
+        let outline = leaf_outline(base, h, 0.0, len, wid);
+        let centre = add2(base, dir2(h), 0.5 * len);
+        let world = face.world(centre[0], centre[1], 0.0).context("no table under a leaf")?;
+        let (theta, v) = chart_at(&a, world);
+        // The stamp's frame runs along increasing theta (toward -x on the table) and across increasing v.
+        let mut local: Vec<[f64; 2]> = outline.iter().map(|p| [-(p[0] - centre[0]), sv * (p[1] - centre[1])]).collect();
+        local.dedup_by(|p, q| (p[0] - q[0]).hypot(p[1] - q[1]) < 1e-6);
+        if local.first().zip(local.last()).is_some_and(|(p, q)| (p[0] - q[0]).hypot(p[1] - q[1]) < 1e-6) {
+            local.pop();
+        }
+        if std::env::var("VISCUM_CIRCLE").is_ok() {
+            local = ringdesign_core::outline::circle(2.0);
+        }
+        // A stamp's outline runs counter-clockwise in its own frame.
+        let area: f64 = (0..local.len()).map(|i| { let (p, q) = (local[i], local[(i + 1) % local.len()]); p[0] * q[1] - q[0] * p[1] }).sum();
+        if area < 0.0 {
+            local.reverse();
+        }
+        if std::env::var("VISCUM_NO_STAMPS").is_err() { d.stamps.push(Stamp {
+            name: format!("Face leaf {}", k + 1),
+            theta_deg: theta,
+            v_mm: v,
+            rot_deg: 0.0,
+            outline: local,
+            height_mm: LEAF_WALL_MM,
+            sink_mm: 0.3,
+            draft_deg: 0.0,
+            cut: false,
+            bench: false,
+            along_pull: false,
+            fine_cap: std::env::var("VISCUM_COARSE").is_err(),
+            tier: 0,
+            top: if std::env::var("VISCUM_FLAT").is_ok() { StampTop::Flat } else { StampTop::Pillow { crown_mm: LEAF_CROWN_MM } },
+        }); }
+        keep_clear.push((outline, 0.05));
     }
-    // The bunch: one berry nearest the node, two beyond it either side of the crease, each 0.7 mm of gold from
-    // its neighbours, as near the node as the leaves allow.
-    let [d0, d1, d2] = FACE_BERRIES;
-    let (ra, rb) = (0.5 * d0, 0.5 * d1.max(d2));
-    let lat = rb + 0.45;
-    let fwd = ((ra + rb + 0.7).powi(2) - lat * lat).max(0.0).sqrt();
-    let bunch = |x: f64| vec![([x, 0.0], d0), ([x + fwd, lat], d1), ([x + fwd, -lat], d2)];
-    let fits = |x: f64| bunch(x).iter().all(|(c, d)| face_leaves.iter().all(|o| outline_distance(*c, o) >= 0.5 * d + 0.35 + 0.1));
-    let mut x = FACE_NODE[0] + 1.0;
-    while !fits(x) && x < 6.0 {
-        x += 0.05;
+    let clear = |c: P2, r: f64| {
+        keep_clear.iter().all(|(o, extra)| {
+            if o.len() > 60 {
+                outline_distance(c, o) >= r + extra
+            } else {
+                o.windows(2).all(|w| {
+                    let ab = sub2(w[1], w[0]);
+                    let t = (((c[0] - w[0][0]) * ab[0] + (c[1] - w[0][1]) * ab[1]) / (ab[0] * ab[0] + ab[1] * ab[1]).max(1e-12)).clamp(0.0, 1.0);
+                    len2(sub2(c, add2(w[0], ab, t))) >= r + extra
+                })
+            }
+        })
+    };
+    // A tight triangle along a bisector from a joint: one berry nearest it, two beyond side by side.
+    let triangle = |from: P2, heading: f64, sizes: [f64; 3], rim: f64| -> Option<Vec<(P2, f64)>> {
+        let (ra, rb) = (0.5 * sizes[0], 0.5 * sizes[1].max(sizes[2]));
+        let gap = 0.3;
+        let lat = rb + 0.5 * gap;
+        let fwd = ((ra + rb + gap).powi(2) - lat * lat).max(0.0).sqrt();
+        let (u, n) = (dir2(heading), dir2(heading + 90.0));
+        let mut dist = 0.6;
+        while dist < 7.0 {
+            let c0 = add2(from, u, dist);
+            let c1 = add2(add2(from, u, dist + fwd), n, lat);
+            let c2 = add2(add2(from, u, dist + fwd), n, -lat);
+            let spots = vec![(c0, sizes[0]), (c1, sizes[1]), (c2, sizes[2])];
+            if spots.iter().all(|(c, d)| clear(*c, 0.5 * d + rim)) {
+                return Some(spots);
+            }
+            dist += 0.05;
+        }
+        None
+    };
+    let mut bunches: Vec<Vec<(P2, f64)>> = vec![triangle(FACE_NODE, 0.0, FACE_CROTCH, 0.25).context("no room in the fork's crotch")?];
+    for (k, tip) in FACE_TIPS.into_iter().enumerate() {
+        let (h0, h1) = (FACE_LEAVES[2 + 2 * k].1, FACE_LEAVES[3 + 2 * k].1);
+        bunches.push(triangle(tip, 0.5 * (h0 + h1), FACE_V, 0.25).with_context(|| format!("no room in tip {}'s V", k + 1))?);
     }
-    ensure!(x < 6.0, "no room for the face's bunch");
-    for (k, (at, dmm)) in bunch(x).into_iter().enumerate() {
-        sprig.mounded_berry(&face, &format!("Face berry {}", k + 1), at, dmm, 0.35)?;
+    let mut n_berry = 0;
+    for bunch in &bunches {
+        for (c, dmm) in bunch {
+            n_berry += 1;
+            sprig.mounded_berry(&face, &format!("Face berry {n_berry}"), *c, *dmm, 0.3)?;
+        }
     }
-    face_bunch_end = x + fwd + rb;
-    // Two more on shoulder A's side of the node, astride the bough where it comes in.
-    let rr = 0.5 * FACE_PAIR_MM;
-    let side_lat = BOUGH_R + 0.15 + rr + 0.35;
-    let pair = |x: f64| [[x, side_lat], [x, -side_lat]];
-    let fits = |x: f64| pair(x).iter().all(|c| face_leaves.iter().all(|o| outline_distance(*c, o) >= rr + 0.35 + 0.1));
-    let mut x = FACE_NODE[0] - 1.0;
-    while !fits(x) && x > -7.0 {
-        x -= 0.05;
-    }
-    ensure!(x > -7.0, "no room for the face's second pair");
-    for (k, at) in pair(x).into_iter().enumerate() {
-        sprig.mounded_berry(&face, &format!("Face berry {}", k + 4), at, FACE_PAIR_MM, 0.35)?;
-    }
+    // Side B's bough comes up over the head's end and stops at the table's edge.
+    let face_bunch_end = 7.4;
     // The bough, one piece a side on the crest: out from under the knot along the crease, over the head's end and
     // down the shoulder. At each node a pair of leaves splays toward the palm and a berry sits in each axil,
     // between the bough and its leaf.
@@ -1165,32 +1235,6 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
             node += out * (far + 0.9 + next_knob);
         }
     }
-    // The cheeks: on each lobe's wall facing along the finger, a twig hanging down from the face's edge to a
-    // joint, a leaf pair splayed down the wall and, on one wall a cheek, a berry in their V.
-    for sign in [1.0f64, -1.0] {
-        let cheek = Depth::of(&a, Frame::Plane { u: [1.0, 0.0, 0.0], v: [0.0, 1.0, 0.0], n: [0.0, 0.0, sign] }, (-10.0, 10.0), (4.0, 15.0), 0.02);
-        let side = if sign > 0.0 { "A" } else { "B" };
-        for (w_k, wall) in [1.0f64, -1.0].into_iter().enumerate() {
-            let m = |p: P2| [wall * p[0], p[1]];
-            let at = m([3.9, 11.9]);
-            let unit = format!("{side}{}", w_k + 1);
-            sprig.stem(&cheek, &format!("Cheek twig {unit}"), vec![m([3.6, 13.1]), at], 0.42, 0.4)?;
-            sprig.node(&cheek, &format!("Cheek node {unit}"), at, 90.0, 0.55, 0.42)?;
-            let mut leaves = Vec::new();
-            for (l_k, h) in [-128.0, -52.0f64].into_iter().enumerate() {
-                let h = if wall > 0.0 { h } else { -180.0 - h };
-                let base = add2(at, dir2(h), 0.45);
-                sprig.leaf(&cheek, &format!("Cheek leaf {unit}.{}", l_k + 1), base, h, 0.1, 2.5, 1.25, 0.55, 0.34)?;
-                leaves.push(leaf_outline(base, h, 0.1, 2.5, 1.25));
-            }
-            let r = 0.5 * CHEEK_BERRY_MM;
-            let mut down = 0.55 + r + 0.15;
-            while !leaves.iter().all(|o| outline_distance(add2(at, [0.0, -1.0], down), o) >= r + 0.12) && down < 4.0 {
-                down += 0.05;
-            }
-            sprig.berry(&cheek, &format!("Cheek berry {unit}"), add2(at, [0.0, -1.0], down), CHEEK_BERRY_MM)?;
-        }
-    }
     let _ = blockout;
     if std::env::var("VISCUM_BARK").is_ok() {
         oak_bark(&mut d);
@@ -1290,6 +1334,16 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
         e.blend = Blend::Max;
         d.layers.layers.push(e);
         placed.berries.push(format!("{} {:.1} mm at {:.2} deg, v {:.3}", b.name, b.d_mm, theta, v));
+    }
+    if std::env::var("VISCUM_NO_CAD").is_ok() {
+        d.cad = None;
+    }
+    if std::env::var("VISCUM_STAMP_DEBUG").is_ok() {
+        let ctx = d.field_context();
+        for st in &d.stamps {
+            let f = st.frame(&d, &ctx);
+            eprintln!("  {}: theta {:.2} v {:.2} origin {:?} z {:?} x {:?}", st.name, st.theta_deg, st.v_mm, f.origin.map(|v| (v * 100.0).round() / 100.0), f.z.map(|v| (v * 100.0).round() / 100.0), f.x.map(|v| (v * 100.0).round() / 100.0));
+        }
     }
     let lib = mf::source_library(&d, &lib).into_owned();
     if std::env::var("VISCUM_BARK_DEBUG").is_ok() {
@@ -1622,6 +1676,25 @@ fn main() -> Result<()> {
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../showcase/vepres/viscum"));
     std::fs::create_dir_all(&out)?;
     println!("Viscum");
+    if args.iter().any(|a| a == "--probe") {
+        let mut d = stock()?;
+        d.imported_base.as_mut().unwrap().bare = true;
+        let lib = AlphaLibrary::builtin();
+        let a = Atlas::of(&d, AW, AH)?;
+        let face = Depth::of(&a, Frame::Plane { u: [1.0, 0.0, 0.0], v: [0.0, 0.0, 1.0], n: [0.0, 1.0, 0.0] }, (-12.0, 12.0), (-12.0, 12.0), 0.05);
+        println!("  top {:.2}", a.top);
+        for zz in (-6..=6).rev() {
+            let z = zz as f64 * 1.5;
+            let row: String = (-8..=8).map(|xx| face.depth(xx as f64 * 1.5, z).map_or("    . ".into(), |y| format!("{:6.2}", y - a.top))).collect();
+            println!("  z {z:5.1} {row}");
+        }
+        let b = mesh::try_build(&d, &lib, draft_params())?;
+        let parts = [render::Part::metal(&b.mesh, render::GOLD)];
+        for (name, yaw, pitch) in [("hero", 0.48, 1.0), ("face", 0.0, PI * 0.5), ("side", 0.0, 0.05)] {
+            render::write_png_parts(out.join(format!("probe-{name}.png")), &parts, yaw, pitch, 500)?;
+        }
+        return Ok(());
+    }
     let started = std::time::Instant::now();
     let (d, lib, placed) = author(blockout)?;
     println!("  authored in {:.1} s: {} parts, {} berries", started.elapsed().as_secs_f64(), placed.parts.len(), placed.berries.len());

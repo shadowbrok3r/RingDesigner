@@ -676,6 +676,7 @@ That is expected for most Vepres rings. Say so in each README line.
 
 ## Viscum — *the golden bough*
 
+- **Rethink (2026-10-03, Logan chose route (a) after three failed read tests on 003):** the forked twig and the tight three-berry bunch, which the reviewers praised, move onto **factory 001 Cushion at 17 × 14.5**. Its face is one quiet, gently crowned table with soft cushion corners: no lobes to read as petals, and not the hard box of 006, which Ilex already uses. The brief's 17 × 13 is refused, because 13 mm is below 70% of the 20 mm master. The stock comes through its sand master with the envelope on, because on every non-sand imported stock (001 at two sizes, and 006) struck stamps collapse the build to about 20k triangles and break into the bore. The leaves are struck as `StampTop::Pillow` stamps. Read tests continue at 4, with at most three (4 to 6).
 - **Process decided (2026-10-03, Logan's rule):** judged as lost wax on native 003, 0.8 mm minimum section, no pull rule; any sand pull is reported only as a bonus. No extra review rounds granted: the three-round cap applies.
 - **Status:** Not started. **Blocked on Logan's process decision** (§0). After that it is buildable now: route 1 needs nothing unlanded.
 
