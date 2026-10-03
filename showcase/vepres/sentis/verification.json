@@ -1,0 +1,49 @@
+{
+  "authoring_ms": {
+    "graph_creation": 22.010683999999998,
+    "source_read": 9.226542
+  },
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "design_set_patches": [
+    {
+      "graph": "Sentis",
+      "node": 133,
+      "pointer": "/manufacturing"
+    }
+  ],
+  "detail_findings": 0,
+  "editable_design_bytes": 2652226,
+  "editable_graph_reload": true,
+  "export_geometry_verified": true,
+  "exposed_control_policy": "explicit_allowlist",
+  "exposed_controls": [],
+  "geometry_check_resolution": {
+    "profile_steps": 448,
+    "refine": null,
+    "theta_steps": 1536
+  },
+  "nodes": 71,
+  "open_ms": {
+    "bake": 0.005279,
+    "bake_again": 0.0005430000000000001,
+    "detail": 1.120655,
+    "detail_again": 0.9787520000000001,
+    "evaluate": 12.636885000000001,
+    "first_build": 5648.034943,
+    "read": 4.2275469999999995,
+    "rebuild": 2.7266019999999997,
+    "unpack": null,
+    "verdict": 0.520915
+  },
+  "size_budget_bytes": 300000,
+  "size_review_required": true,
+  "source_identical": true,
+  "source_method": "lift",
+  "template_bytes": 1381182,
+  "template_class": "procedural",
+  "template_gate_passed": false,
+  "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
+  "triangles": 119320,
+  "vertices_faces_normals_identical": true
+}
