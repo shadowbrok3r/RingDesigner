@@ -52,9 +52,8 @@ const STATIONS: usize = 180;
 const THORNS_PER_CANE: usize = 22;
 /// How deep each prickle's foot sinks into its cane, as a share of its size.
 const THORN_SINK_MM: f64 = 0.26;
-/// The hip: an oval cabochon, its length and width.
-const HIP_L_MM: f64 = 6.4;
-const HIP_W_MM: f64 = 4.8;
+/// The hip: a round cabochon, its diameter.
+const HIP_D_MM: f64 = 5.6;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -66,9 +65,9 @@ fn export_params() -> BuildParams {
 
 /// The hip: an oval cabochon in the orange-red of a ripe rose hip.
 fn hip_gem() -> Gem {
-    Gem { l_mm: HIP_L_MM, form: GemForm::Cabochon, preview_tint: Some(HIP_TINT), ..Gem::calibrated(GemCut::Oval, HIP_W_MM) }
+    Gem { form: GemForm::Cabochon, preview_tint: Some(HIP_TINT), ..Gem::calibrated(GemCut::Round, HIP_D_MM) }
 }
-const HIP_TINT: [f32; 3] = [0.55, 0.12, 0.06];
+const HIP_TINT: [f32; 3] = [0.70, 0.18, 0.06];
 
 /// The design with no band: size, process and the analytic seat.
 fn ground() -> RingDesign {
@@ -275,9 +274,9 @@ struct Hook {
     bend_deg: f64,
 }
 
-const THORN: Hook = Hook { along: 2.6, across: 1.05, radial: 0.4, bend_r: 1.3, bend_deg: 70.0 };
+const THORN: Hook = Hook { along: 1.55, across: 0.9, radial: 0.35, bend_r: 1.0, bend_deg: 68.0 };
 /// Each prickle's tip across, at least.
-const THORN_TIP_MM: f64 = 0.42;
+const THORN_TIP_MM: f64 = 0.3;
 
 /// The prickle's foot: an ellipse `a` mm along the cane and `b` mm across it.
 fn ellipse(a: f64, b: f64) -> Sketch {
@@ -292,7 +291,7 @@ fn ellipse(a: f64, b: f64) -> Sketch {
 fn thorn(k: f64) -> Operation {
     let h = THORN;
     let tip = (THORN_TIP_MM / (h.across * k)).max(0.2);
-    let scale = vec![[0.0, 1.0], [0.25, 0.62], [0.6, 0.38], [1.0, (tip * 1e4).round() / 1e4]];
+    let scale = vec![[0.0, 1.0], [0.3, 0.7], [0.7, 0.48], [1.0, (tip * 1e4).round() / 1e4]];
     Operation::Twist { sketch: ellipse(h.along * k, h.across * k).into(), path: hook_path(h.radial * k, h.bend_r * k, h.bend_deg).into(), degrees: 0.0, end_scale: tip, scale, closed: false }
 }
 
@@ -321,7 +320,7 @@ fn thorn_sites() -> Vec<ThornAt> {
             let (me, other) = (cane_at(i, theta), cane_at(1 - i, theta));
             let apart = (me.0 - other.0).hypot(me.1 - other.1);
             let crown = 0.5 + 0.5 * (theta - CROWN_DEG).to_radians().cos();
-            let scale = 0.72 + 0.29 * crown + 0.05 * (hash(seed + 7) - 0.5);
+            let scale = 0.8 + 0.32 * crown + 0.05 * (hash(seed + 7) - 0.5);
             // The whole prickle, foot to hooked tip, clear of the other cane.
             let t = cane_tangent(i, theta);
             let foot = add3(cane_point(i, theta), mul(n, cane_r(theta)));
@@ -330,7 +329,7 @@ fn thorn_sites() -> Vec<ThornAt> {
             let clear = [0.0, 0.5, 1.0].iter().all(|&f| reach(add3(foot, add3(mul(n, 1.1 * scale * f), mul(t, hook * 1.2 * scale * f * f)))) > 0.35)
                 && reach(add3(foot, mul(t, 1.4 * scale))) > 0.2
                 && reach(add3(foot, mul(t, -1.4 * scale))) > 0.2;
-            if out_r < -0.3 || from_crown < 56.0 || apart < 1.8 || !clear {
+            if out_r < -0.3 || from_crown < 76.0 || apart < 1.8 || !clear {
                 continue;
             }
             if out.iter().any(|o: &ThornAt| o.cane == i && ((o.theta - theta + 540.0).rem_euclid(360.0) - 180.0).abs() < 11.0) {
@@ -397,31 +396,36 @@ fn lofted(loops: &[Vec<P3>], start: P3, end: P3) -> csg::Solid {
 /// and `wide` across; ovate, its finely serrate margin's teeth leaning forward, its top domed up from the margin to
 /// a sunk midrib, lifting `lift` radians as it runs out; its foot sunk `sink` mm.
 fn leaflet_solid(origin: [f64; 2], alpha: f64, len: f64, wide: f64, lift: f64, sink: f64) -> csg::Solid {
-    let (steps, across) = (72usize, 7usize);
+    let (steps, across) = (96usize, 11usize);
     let (edge, rib, keel) = (LEAF_EDGE_MM, LEAF_RIB_MM, 0.1);
     let d = [alpha.sin(), alpha.cos()];
     let perp = [d[1], -d[0]];
+    let smooth = |u: f64| 0.5 * wide * (PI * u.powf(0.85)).sin().powf(0.45);
     let half = |u: f64| {
-        let body = (PI * u.powf(0.8)).sin().powf(0.62);
-        let t = (u * LEAF_TEETH as f64).fract();
-        0.5 * wide * body * (1.0 - LEAF_TOOTH * t * (u > 0.15 && u < 0.93) as u8 as f64)
+        // Smooth forward-leaning teeth: a rounded notch between each, no step.
+        let t = (u * LEAF_TEETH as f64).fract().powf(0.7);
+        smooth(u) * (1.0 - LEAF_TOOTH * (PI * t).sin().powi(2) * (u > 0.15 && u < 0.93) as u8 as f64)
     };
     let (u0, u1) = (0.03, 0.95);
     let centre = |u: f64| -> P3 { [origin[0] + d[0] * u * len, origin[1] + d[1] * u * len, u * len * lift.tan()] };
     let loops: Vec<Vec<P3>> = (0..=steps).map(|i| {
         let u = u0 + (u1 - u0) * i as f64 / steps as f64;
         let (c, w) = (centre(u), half(u).max(0.17));
+        // The dome reads the distance from the midrib against the untoothed width, so the teeth cut the margin only.
+        let ws = smooth(u).max(0.17);
         let under = sink * (1.0 - u / 0.25).max(0.0);
         let mut l = Vec::with_capacity(2 * across + 2);
         for j in 0..=across {
             let v = -1.0 + 2.0 * j as f64 / across as f64;
-            let groove = LEAF_GROOVE_MM * (1.0 - (v.abs() / 0.22).min(1.0)).powi(2) * (u < 0.9) as u8 as f64;
-            let top = edge + (rib - edge) * (1.0 - v.abs()).powf(1.3) - groove;
+            let q = (v.abs() * w / ws).min(1.0);
+            let groove = LEAF_GROOVE_MM * (1.0 - (q / 0.22).min(1.0)).powi(2) * (u < 0.9) as u8 as f64;
+            let top = edge + (rib - edge) * (1.0 - q).powf(1.3) - groove;
             l.push([c[0] + perp[0] * v * w, c[1] + perp[1] * v * w, c[2] + top]);
         }
         for j in (0..=across).rev() {
             let v = -1.0 + 2.0 * j as f64 / across as f64;
-            l.push([c[0] + perp[0] * v * w, c[1] + perp[1] * v * w, c[2] - under - keel * (1.0 - v.abs())]);
+            let q = (v.abs() * w / ws).min(1.0);
+            l.push([c[0] + perp[0] * v * w, c[1] + perp[1] * v * w, c[2] - under - keel * (1.0 - q)]);
         }
         l
     }).collect();
@@ -431,8 +435,8 @@ fn leaflet_solid(origin: [f64; 2], alpha: f64, len: f64, wide: f64, lift: f64, s
 
 const LEAF_EDGE_MM: f64 = 0.32;
 const LEAF_RIB_MM: f64 = 0.66;
-const LEAF_TEETH: usize = 9;
-const LEAF_TOOTH: f64 = 0.1;
+const LEAF_TEETH: usize = 7;
+const LEAF_TOOTH: f64 = 0.13;
 const LEAF_GROOVE_MM: f64 = 0.12;
 
 /// A rose leaf: the rachis's foot at `theta_deg` on cane `cane`, its plan laid over the crown from `(theta0, z0)`
@@ -452,10 +456,10 @@ const LEAVES: [Leaf; 2] = [
     Leaf { cane: 1, foot_deg: CROWN_DEG + 14.0, theta0: CROWN_DEG + 15.0, z0: -0.9, dir: 1.0, skew: 0.12 },
 ];
 /// The rachis: its length to the terminal leaflet, its radius; the leaflet pairs' stations, angles, sizes.
-const RACHIS_MM: f64 = 5.4;
+const RACHIS_MM: f64 = 5.6;
 const RACHIS_R_MM: f64 = 0.43;
-const PAIRS: [(f64, f64, f64, f64); 2] = [(1.0, 62.0, 3.3, 2.1), (3.3, 52.0, 3.5, 2.25)];
-const TERMINAL: (f64, f64) = (4.2, 2.6);
+const PAIRS: [(f64, f64, f64, f64); 2] = [(1.0, 78.0, 3.0, 2.15), (3.1, 66.0, 3.3, 2.3)];
+const TERMINAL: (f64, f64) = (4.0, 2.75);
 /// How far the leaf's underside sits under the highest cane beneath it.
 const LEAF_SINK_MM: f64 = 0.15;
 
@@ -482,7 +486,7 @@ struct HipFrame {
 }
 
 /// The hip's girdle over the seat, the long axis's turn from along the finger toward round the ring, and its lift.
-const HIP_H_MM: f64 = 1.75;
+const HIP_H_MM: f64 = 2.4;
 const HIP_TURN_DEG: f64 = 28.0;
 
 /// The hip's placement: at the crown, its long axis turned `HIP_TURN_DEG` off the finger's axis, girdle level.
@@ -508,7 +512,7 @@ impl HipFrame {
 }
 
 /// The receptacle under the stone: an oval cup lofted down from just under the girdle into the canes.
-const HIP_CUP: [(f64, f64, f64); 5] = [(-2.3, 1.5, 1.05), (-1.6, 2.45, 1.85), (-0.85, 2.95, 2.2), (-0.3, 3.05, 2.28), (-0.06, 2.98, 2.22)];
+const HIP_CUP: [(f64, f64, f64); 6] = [(-3.0, 0.95, 0.95), (-2.3, 1.6, 1.6), (-1.6, 2.35, 2.35), (-0.9, 2.85, 2.85), (-0.35, 2.95, 2.95), (-0.06, 2.75, 2.75)];
 
 fn ellipse_on(plane: Workplane, name: &str, au: f64, av: f64) -> Sketch {
     let pts: Vec<[f64; 2]> = (0..40).map(|k| {
@@ -518,14 +522,59 @@ fn ellipse_on(plane: Workplane, name: &str, au: f64, av: f64) -> Sketch {
     poly_on(plane, name, &pts)
 }
 
-/// The calyx's sepals: how many, their length out from the hub and back along the hip, section and taper.
+/// The calyx: five sepal claws gripping the hip's dome.
 const SEPALS: usize = 5;
-const SEPAL_REACH_MM: f64 = 2.5;
-const SEPAL_BACK_MM: f64 = 1.6;
-const SEPAL_SECTION: (f64, f64) = (0.95, 0.55);
-/// The calyx hub's radius and its standing-off past the stone's tip.
-const HUB_OFF_MM: f64 = 0.78;
 const STALK_R_MM: f64 = 0.46;
+
+/// A sepal of the calyx in the hip's frame, at azimuth `beta`: a leafy strip lying a clearance off the dome from
+/// near the apex to the girdle, then flaring out and down into the receptacle.
+fn sepal_solid(h: &HipFrame, beta: f64) -> csg::Solid {
+    let gem = hip_gem();
+    let (rr, hh) = (0.5 * gem.w_mm, gem.depth_mm());
+    let e = add3(mul(h.u, beta.cos()), mul(h.v, beta.sin()));
+    let (half_t, clear) = (SEPAL_THICK_MM * 0.5, 0.1);
+    // Centreline points and the surface normal there, in the (e, w) plane.
+    let mut line: Vec<(f64, f64, f64, f64)> = Vec::new();
+    for i in 0..=9 {
+        let phi = 0.1 + (1.0 - 0.1) * i as f64 / 9.0;
+        let (rho, z) = (rr * phi.sin(), hh * phi.cos());
+        let n = (rho / (rr * rr), z / (hh * hh));
+        let l = n.0.hypot(n.1);
+        line.push((rho + n.0 / l * (clear + half_t), z + n.1 / l * (clear + half_t), n.0 / l, n.1 / l));
+    }
+    // Reflexed: off the dome's shoulder, out past the hip's outline, and down into the receptacle.
+    for &(rho, z, nr, nz) in &[(rr + 0.3, 0.95, 0.7, 0.7), (rr + 0.8, 0.35, 0.95, 0.3), (rr + 0.95, -0.35, 1.0, -0.1), (rr + 0.55, -0.95, 0.7, -0.7), (rr - 0.35, -1.35, 0.2, -1.0)] {
+        let l = f64::hypot(nr, nz);
+        line.push((rho, z, nr / l, nz / l));
+    }
+    let pts: Vec<P3> = line.iter().map(|&(rho, z, _, _)| add3(h.g, add3(mul(e, rho), mul(h.w, z)))).collect();
+    let m = pts.len();
+    let loops: Vec<Vec<P3>> = (0..m)
+        .map(|i| {
+            let tan = unit(sub(pts[(i + 1).min(m - 1)], pts[i.saturating_sub(1)]));
+            let (_, _, nr, nz) = line[i];
+            let nrm = unit(add3(mul(e, nr), mul(h.w, nz)));
+            let nrm = unit(sub(nrm, mul(tan, dot(nrm, tan))));
+            let bin = cross(tan, nrm);
+            let s = i as f64 / (m - 1) as f64;
+            // Leaf-shaped: narrow at the apex, broadest past the dome's shoulder, still broad where it tucks in.
+            // Lanceolate: a point at the apex, broadest over the shoulder, narrowing where it tucks in.
+            let half_w = 0.14 + SEPAL_HALF_W_MM * (PI * s.powf(0.8)).sin().powf(0.8) + 0.12 * s;
+            (0..16)
+                .map(|j| {
+                    let a = TAU * j as f64 / 16.0;
+                    add3(pts[i], add3(mul(bin, half_w * a.cos()), mul(nrm, half_t * a.sin())))
+                })
+                .collect()
+        })
+        .collect();
+    let t0 = unit(sub(pts[1], pts[0]));
+    let t1 = unit(sub(pts[m - 1], pts[m - 2]));
+    lofted(&loops, sub(pts[0], mul(t0, 0.12)), add3(pts[m - 1], mul(t1, 0.12)))
+}
+/// A sepal's thickness and its widest half-width.
+const SEPAL_THICK_MM: f64 = 0.42;
+const SEPAL_HALF_W_MM: f64 = 0.42;
 
 // --- The document ------------------------------------------------------------------------------------------
 
@@ -579,7 +628,9 @@ fn author(bare: bool) -> Result<Authored> {
             for side in [-1.0, 1.0] {
                 let a = head + side * ang.to_radians();
                 let lift = (5.0 + 2.0 * j as f64).to_radians();
-                leaflets.push((format!("pair {} {}", j + 1, if side > 0.0 { "right" } else { "left" }), leaflet_solid(along(s), a, len, wide, lift, 0.25 + 0.03 * j as f64 + 0.01 * side)));
+                let o = along(s);
+                let o = [o[0] + a.sin() * 0.25, o[1] + a.cos() * 0.25];
+                leaflets.push((format!("pair {} {}", j + 1, if side > 0.0 { "right" } else { "left" }), leaflet_solid(o, a, len, wide, lift, 0.25 + 0.03 * j as f64 + 0.01 * side)));
             }
         }
         leaflets.push(("terminal".into(), leaflet_solid(along(RACHIS_MM - 0.4), head, TERMINAL.0, TERMINAL.1, 4f64.to_radians(), 0.3)));
@@ -609,25 +660,17 @@ fn author(bare: bool) -> Result<Authored> {
     let stalk_pts: Vec<P3> = (0..=8).map(|k| { let t = k as f64 / 8.0; um(add3(add3(mul(p0, (1.0 - t) * (1.0 - t)), mul(p1, 2.0 * t * (1.0 - t))), mul(into, t * t))) }).collect();
     add(&mut doc, "Hip stalk".into(), Operation::Twist { sketch: Sketch::circle(STALK_R_MM).into(), path: TwistPath::Points { points: stalk_pts, smooth: true }, degrees: 0.0, end_scale: 1.0, scale: Vec::new(), closed: false }, free.clone())?;
     // The calyx: a hub past the stone's tip, five sepals flaring out of it and curling back over the hip's shoulders.
-    let hub = h.at([0.5 * HIP_L_MM + HUB_OFF_MM, 0.0, 0.05]);
+    // The calyx: five dried sepals radiating from the hip's apex over its dome, each lifting off past the
+    // girdle and tucking into the receptacle, so the calyx is the setting that clasps the stone.
     for k in 0..SEPALS {
-        let a = TAU * k as f64 / SEPALS as f64 + 0.5 * PI;
-        let out = add3(mul(h.v, a.cos()), mul(h.w, a.sin()));
-        let at = |o: f64, b: f64| um(add3(hub, add3(mul(out, o), mul(h.u, b))));
-        let points = vec![at(0.0, 0.15), at(0.9, 0.35), at(1.8, 0.1), at(SEPAL_REACH_MM, -0.6), at(SEPAL_REACH_MM + 0.15, -SEPAL_BACK_MM)];
-        let (sa, sb) = SEPAL_SECTION;
-        let pts: Vec<[f64; 2]> = (0..20).map(|j| { let t = TAU * j as f64 / 20.0; [0.5 * sa * t.cos(), 0.5 * sb * t.sin()] }).collect();
-        let scale = vec![[0.0, 0.8], [0.3, 1.1], [0.7, 0.75], [1.0, 0.5]];
-        add(&mut doc, format!("Hip sepal {}", k + 1), Operation::Twist { sketch: polygon("Sepal", &pts).into(), path: TwistPath::Points { points, smooth: true }, degrees: 0.0, end_scale: 0.5, scale, closed: false }, free.clone())?;
+        let beta = TAU * k as f64 / SEPALS as f64 + 0.3;
+        let solid = sepal_solid(&h, beta);
+        add(&mut doc, format!("Hip calyx, sepal {}", k + 1), stored_op(&solid, "sepal", json!({"sepal": k + 1, "of": SEPALS}))?, free.clone())?;
     }
     let gem = hip_gem();
     next += 1;
     let stone_id = next;
     doc.append(builders::stone_feature(stone_id, gem, stone_at))?;
-    next += 1;
-    let mut claws = builders::feature_on(next, "Thorn claws", builders::CLAW, stone_id, json!({"prongs": 4, "style": "Thorn", "tip": "Dome", "rails": "None"}));
-    claws.component.stage = Stage::Cast;
-    doc.append(claws)?;
     d.cad = Some(doc);
     Ok(Authored { design: d, thorns: sites.len(), stone_id })
 }
@@ -755,7 +798,7 @@ fn walls(built: &mesh::BuildResult) -> Vec<serde_json::Value> {
 
 /// Whether a part is a pointed detail, judged at the detail floor: thorns, shoots and the claws' points.
 fn pointed(name: &str) -> bool {
-    name.contains("Prickle") || name.contains("sepal") || name.contains("leaflet") || name.contains("claws")
+    name.contains("Prickle") || name.contains("calyx") || name.contains("leaflet")
 }
 
 fn walls_ok(walls: &[serde_json::Value]) -> bool {
@@ -768,7 +811,7 @@ fn walls_ok(walls: &[serde_json::Value]) -> bool {
 // --- Renders ---------------------------------------------------------------------------------------------
 
 /// The camera for each named view: yaw about the finger's axis, pitch toward it.
-const VIEWS: [(&str, f64, f64); 6] = [("hero", -0.65, 0.6), ("face", 0.0, PI * 0.5), ("palm", PI, 1.05), ("side", 0.0, 0.0), ("shoulder", 0.75, 0.6), ("reverse", PI - 0.5, 0.35)];
+const VIEWS: [(&str, f64, f64); 6] = [("hero", -0.35, 0.9), ("face", 0.0, PI * 0.5), ("palm", PI, 1.05), ("side", 0.0, 0.0), ("shoulder", 0.75, 0.6), ("reverse", PI - 0.5, 0.35)];
 
 fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<()> {
     let mut out = vec![0u8; edge * 2 * edge * 3];
@@ -796,7 +839,7 @@ fn contact(path: &Path, parts: &[render::Part<'_>]) -> Result<()> {
 
 /// The face view framed on the ring's whole width, down onto the crown.
 fn face_framing() -> render::Framing {
-    render::Framing::new(world(CROWN_DEG, (TWINE_R_MM, 0.0)), 12.6)
+    render::Framing::new(world(CROWN_DEG, (TWINE_R_MM, 0.0)), 11.0)
 }
 
 fn renders(out: &Path, finished: &render::Finished, edge: usize) -> Result<()> {

@@ -6,11 +6,11 @@
     "vertices_inside": 0
   },
   "build": {
-    "author_s": 0.168774803,
-    "build_s": 2.035212273,
+    "author_s": 0.176930516,
+    "build_s": 1.710395092,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 171654
+    "triangles": 181368
   },
   "coarse": {
     "degenerate_faces": 0,
@@ -23,8 +23,8 @@
   },
   "cold_reload_identical": null,
   "design": {
-    "bytes": 552168,
-    "cad_features": 40,
+    "bytes": 730415,
+    "cad_features": 37,
     "format_version": 6
   },
   "dfm_findings": [],
@@ -185,18 +185,6 @@
     [
       "#37",
       "Ok"
-    ],
-    [
-      "#38",
-      "Ok"
-    ],
-    [
-      "#39",
-      "Ok"
-    ],
-    [
-      "#40",
-      "Ok"
     ]
   ],
   "field": {
@@ -278,7 +266,7 @@
     "shells": 1,
     "watertight": true
   },
-  "grams_18k": 4.52960169305617,
+  "grams_18k": 4.764574696136131,
   "made_parts": [
     [
       "Briar cane 1",
@@ -313,7 +301,7 @@
       0
     ],
     [
-      "Prickle 7 on cane 1",
+      "Prickle 7 on cane 2",
       0
     ],
     [
@@ -338,14 +326,6 @@
     ],
     [
       "Prickle 13 on cane 2",
-      0
-    ],
-    [
-      "Prickle 14 on cane 2",
-      0
-    ],
-    [
-      "Prickle 15 on cane 2",
       0
     ],
     [
@@ -413,31 +393,27 @@
       0
     ],
     [
-      "Hip sepal 1",
+      "Hip calyx, sepal 1",
       0
     ],
     [
-      "Hip sepal 2",
+      "Hip calyx, sepal 2",
       0
     ],
     [
-      "Hip sepal 3",
+      "Hip calyx, sepal 3",
       0
     ],
     [
-      "Hip sepal 4",
+      "Hip calyx, sepal 4",
       0
     ],
     [
-      "Hip sepal 5",
+      "Hip calyx, sepal 5",
       0
     ],
     [
-      "Oval cabochon 6.4 × 4.8",
-      0
-    ],
-    [
-      "Thorn claws",
+      "Round cabochon 5.6 mm",
       0
     ]
   ],
@@ -449,7 +425,7 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 171654,
+    "triangles": 181368,
     "watertight": true
   },
   "process": "Lost wax",
@@ -469,143 +445,129 @@
       "unresolved": 0
     },
     {
-      "below_floor": 267,
+      "below_floor": 331,
       "part": "Prickle 1 on cane 1",
-      "rays": 287,
-      "sampled_min_mm": 0.026066338255518132,
+      "rays": 382,
+      "sampled_min_mm": 0.06530722814530189,
       "unresolved": 0
     },
     {
-      "below_floor": 260,
+      "below_floor": 331,
       "part": "Prickle 2 on cane 1",
-      "rays": 287,
-      "sampled_min_mm": 0.0447088713508496,
+      "rays": 382,
+      "sampled_min_mm": 0.06524488465165851,
       "unresolved": 0
     },
     {
-      "below_floor": 267,
+      "below_floor": 343,
       "part": "Prickle 3 on cane 1",
-      "rays": 287,
-      "sampled_min_mm": 0.026375424622588902,
+      "rays": 382,
+      "sampled_min_mm": 0.06159317741400334,
       "unresolved": 0
     },
     {
-      "below_floor": 269,
+      "below_floor": 345,
       "part": "Prickle 4 on cane 1",
-      "rays": 287,
-      "sampled_min_mm": 0.017489000746893368,
+      "rays": 382,
+      "sampled_min_mm": 0.05963490378847761,
       "unresolved": 0
     },
     {
-      "below_floor": 269,
+      "below_floor": 356,
       "part": "Prickle 5 on cane 1",
-      "rays": 287,
-      "sampled_min_mm": 0.0152147836685308,
+      "rays": 382,
+      "sampled_min_mm": 0.053815847592028586,
       "unresolved": 0
     },
     {
-      "below_floor": 276,
+      "below_floor": 356,
       "part": "Prickle 6 on cane 1",
-      "rays": 287,
-      "sampled_min_mm": 0.010651552528125498,
+      "rays": 382,
+      "sampled_min_mm": 0.053972746387997636,
       "unresolved": 0
     },
     {
-      "below_floor": 275,
-      "part": "Prickle 7 on cane 1",
-      "rays": 287,
-      "sampled_min_mm": 0.010840453195347651,
+      "below_floor": 326,
+      "part": "Prickle 7 on cane 2",
+      "rays": 382,
+      "sampled_min_mm": 0.06651735470002974,
       "unresolved": 0
     },
     {
-      "below_floor": 260,
+      "below_floor": 345,
       "part": "Prickle 8 on cane 2",
-      "rays": 287,
-      "sampled_min_mm": 0.03907805828385197,
+      "rays": 382,
+      "sampled_min_mm": 0.060583407393914296,
       "unresolved": 0
     },
     {
-      "below_floor": 263,
+      "below_floor": 359,
       "part": "Prickle 9 on cane 2",
-      "rays": 287,
-      "sampled_min_mm": 0.03096419219726354,
+      "rays": 382,
+      "sampled_min_mm": 0.05144232375707638,
       "unresolved": 0
     },
     {
-      "below_floor": 269,
+      "below_floor": 356,
       "part": "Prickle 10 on cane 2",
-      "rays": 287,
-      "sampled_min_mm": 0.015835186327371065,
+      "rays": 382,
+      "sampled_min_mm": 0.053598942382958266,
       "unresolved": 0
     },
     {
-      "below_floor": 278,
+      "below_floor": 353,
       "part": "Prickle 11 on cane 2",
-      "rays": 287,
-      "sampled_min_mm": 0.009111416605554229,
+      "rays": 382,
+      "sampled_min_mm": 0.05558451792591392,
       "unresolved": 0
     },
     {
-      "below_floor": 276,
+      "below_floor": 347,
       "part": "Prickle 12 on cane 2",
-      "rays": 287,
-      "sampled_min_mm": 0.010516816025482293,
+      "rays": 382,
+      "sampled_min_mm": 0.05741427681336609,
       "unresolved": 0
     },
     {
-      "below_floor": 275,
+      "below_floor": 343,
       "part": "Prickle 13 on cane 2",
-      "rays": 287,
-      "sampled_min_mm": 0.011927074141730014,
+      "rays": 382,
+      "sampled_min_mm": 0.06190318309402568,
       "unresolved": 0
     },
     {
-      "below_floor": 273,
-      "part": "Prickle 14 on cane 2",
-      "rays": 287,
-      "sampled_min_mm": 0.01307584050028049,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 269,
-      "part": "Prickle 15 on cane 2",
-      "rays": 287,
-      "sampled_min_mm": 0.018141200570995615,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 282,
+      "below_floor": 318,
       "part": "Rose leaf 1, pair 1 left leaflet",
-      "rays": 334,
-      "sampled_min_mm": 0.35539086014375604,
+      "rays": 359,
+      "sampled_min_mm": 0.2560192995239436,
       "unresolved": 0
     },
     {
-      "below_floor": 280,
+      "below_floor": 318,
       "part": "Rose leaf 1, pair 1 right leaflet",
-      "rays": 334,
-      "sampled_min_mm": 0.3561821618194467,
+      "rays": 359,
+      "sampled_min_mm": 0.22128603801504582,
       "unresolved": 0
     },
     {
-      "below_floor": 282,
+      "below_floor": 318,
       "part": "Rose leaf 1, pair 2 left leaflet",
-      "rays": 334,
-      "sampled_min_mm": 0.3513441127106165,
+      "rays": 359,
+      "sampled_min_mm": 0.19190592692028968,
       "unresolved": 0
     },
     {
-      "below_floor": 280,
+      "below_floor": 316,
       "part": "Rose leaf 1, pair 2 right leaflet",
-      "rays": 334,
-      "sampled_min_mm": 0.3500186960897645,
+      "rays": 359,
+      "sampled_min_mm": 0.1895615857312821,
       "unresolved": 0
     },
     {
-      "below_floor": 276,
+      "below_floor": 312,
       "part": "Rose leaf 1, terminal leaflet",
-      "rays": 334,
-      "sampled_min_mm": 0.3579845029349727,
+      "rays": 359,
+      "sampled_min_mm": 0.2961833222839025,
       "unresolved": 0
     },
     {
@@ -619,42 +581,42 @@
       "below_floor": 12,
       "part": "Rose leaf 1, rachis",
       "rays": 384,
-      "sampled_min_mm": 0.18235574183916606,
+      "sampled_min_mm": 0.17272010010259986,
       "unresolved": 0
     },
     {
-      "below_floor": 282,
+      "below_floor": 316,
       "part": "Rose leaf 2, pair 1 left leaflet",
-      "rays": 334,
-      "sampled_min_mm": 0.3577362439671545,
+      "rays": 359,
+      "sampled_min_mm": 0.25632815308749685,
       "unresolved": 0
     },
     {
-      "below_floor": 281,
+      "below_floor": 316,
       "part": "Rose leaf 2, pair 1 right leaflet",
-      "rays": 334,
-      "sampled_min_mm": 0.3546109407566524,
+      "rays": 359,
+      "sampled_min_mm": 0.21718974329668342,
       "unresolved": 0
     },
     {
-      "below_floor": 282,
+      "below_floor": 318,
       "part": "Rose leaf 2, pair 2 left leaflet",
-      "rays": 334,
-      "sampled_min_mm": 0.3517085920886953,
+      "rays": 359,
+      "sampled_min_mm": 0.18997639203344543,
       "unresolved": 0
     },
     {
-      "below_floor": 281,
+      "below_floor": 318,
       "part": "Rose leaf 2, pair 2 right leaflet",
-      "rays": 334,
-      "sampled_min_mm": 0.3500958191436325,
+      "rays": 359,
+      "sampled_min_mm": 0.17367102465152245,
       "unresolved": 0
     },
     {
-      "below_floor": 276,
+      "below_floor": 313,
       "part": "Rose leaf 2, terminal leaflet",
-      "rays": 334,
-      "sampled_min_mm": 0.3585962417600868,
+      "rays": 359,
+      "sampled_min_mm": 0.31323995684115014,
       "unresolved": 0
     },
     {
@@ -668,79 +630,72 @@
       "below_floor": 16,
       "part": "Rose leaf 2, rachis",
       "rays": 384,
-      "sampled_min_mm": 0.16812703686045244,
+      "sampled_min_mm": 0.1631523970313033,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Hip receptacle",
-      "rays": 198,
-      "sampled_min_mm": 0.8211069458041218,
+      "rays": 238,
+      "sampled_min_mm": 1.0116391115487047,
       "unresolved": 0
     },
     {
-      "below_floor": 8,
+      "below_floor": 6,
       "part": "Hip stalk",
-      "rays": 380,
-      "sampled_min_mm": 0.154323393905223,
+      "rays": 356,
+      "sampled_min_mm": 0.19911823469800266,
       "unresolved": 0
     },
     {
-      "below_floor": 338,
-      "part": "Hip sepal 1",
-      "rays": 384,
-      "sampled_min_mm": 0.2630974369387009,
+      "below_floor": 240,
+      "part": "Hip calyx, sepal 1",
+      "rays": 240,
+      "sampled_min_mm": 0.29395940599149223,
       "unresolved": 0
     },
     {
-      "below_floor": 338,
-      "part": "Hip sepal 2",
-      "rays": 384,
-      "sampled_min_mm": 0.26299391206425116,
+      "below_floor": 240,
+      "part": "Hip calyx, sepal 2",
+      "rays": 240,
+      "sampled_min_mm": 0.2940939490907044,
       "unresolved": 0
     },
     {
-      "below_floor": 338,
-      "part": "Hip sepal 3",
-      "rays": 384,
-      "sampled_min_mm": 0.2631083235881352,
+      "below_floor": 240,
+      "part": "Hip calyx, sepal 3",
+      "rays": 240,
+      "sampled_min_mm": 0.2947240850485811,
       "unresolved": 0
     },
     {
-      "below_floor": 338,
-      "part": "Hip sepal 4",
-      "rays": 384,
-      "sampled_min_mm": 0.26302546016252315,
+      "below_floor": 239,
+      "part": "Hip calyx, sepal 4",
+      "rays": 240,
+      "sampled_min_mm": 0.2942706859261782,
       "unresolved": 0
     },
     {
-      "below_floor": 338,
-      "part": "Hip sepal 5",
-      "rays": 384,
-      "sampled_min_mm": 0.26291907296754996,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 182,
-      "part": "Thorn claws",
-      "rays": 365,
-      "sampled_min_mm": 0.016165235936314165,
+      "below_floor": 240,
+      "part": "Hip calyx, sepal 5",
+      "rays": 240,
+      "sampled_min_mm": 0.2941167309498854,
       "unresolved": 0
     }
   ],
   "size": "US 8.6",
   "stage": "block-out",
-  "stone_feature": 39,
+  "stone_feature": 37,
   "stones": {
     "crowding": [],
     "metal_inside": [
       [
-        "Oval cabochon 6.4 × 4.8",
+        "Round cabochon 5.6 mm",
         0
       ]
     ],
     "previewed": 1,
     "reported": 1
   },
-  "thorns": 15
+  "thorns": 13
 }
