@@ -297,7 +297,8 @@ struct Keel {
 impl Keel {
     fn of(rev: bool) -> Self {
         if rev {
-            Self { width: 5.0, jamb: 0.4, share: 1.6, step_below: 1.1, step: 0.35, comfort: 0.12, foot: 0.3 }
+            // The revision drops the step, so the section is one clean lancet.
+            Self { width: 4.2, jamb: 0.5, share: 1.5, step_below: 0.0, step: 0.0, comfort: 0.12, foot: 0.3 }
         } else {
             Self { width: 4.2, jamb: 0.5, share: 1.5, step_below: 0.9, step: 0.25, comfort: 0.12, foot: 0.3 }
         }
@@ -349,9 +350,14 @@ fn keel_section(bore_r: f64, k: Keel) -> (Sketch, serde_json::Value) {
     let step_out = [step_r - run, zs(step_r - run)];
     let keel = [apex, 0.0];
     let mut pts: Vec<P2> = Vec::new();
-    arc(&mut pts, cap_u, keel, step_in, 0.05, true);
-    pts.push(step_in);
-    arc(&mut pts, upper_c, step_out, [rj, h], 0.1, true);
+    let stepped = k.step > 0.0;
+    if stepped {
+        arc(&mut pts, cap_u, keel, step_in, 0.05, true);
+        pts.push(step_in);
+        arc(&mut pts, upper_c, step_out, [rj, h], 0.1, true);
+    } else {
+        arc(&mut pts, upper_c, keel, [rj, h], 0.05, true);
+    }
     pts.push([rj, h]);
     arc(&mut pts, fu, fu_jamb, fu_bore, 0.05, true);
     arc(&mut pts, bore_c, fu_bore, fl_bore, 0.2, true);
@@ -360,9 +366,13 @@ fn keel_section(bore_r: f64, k: Keel) -> (Sketch, serde_json::Value) {
     pts.push([rj, -h]);
     let step_out_l = [step_out[0], -step_out[1]];
     let step_in_l = [step_in[0], -step_in[1]];
-    arc(&mut pts, lower_c, [rj, -h], step_out_l, 0.1, false);
-    pts.push(step_out_l);
-    arc(&mut pts, cap_l, step_in_l, keel, 0.05, true);
+    if stepped {
+        arc(&mut pts, lower_c, [rj, -h], step_out_l, 0.1, false);
+        pts.push(step_out_l);
+        arc(&mut pts, cap_l, step_in_l, keel, 0.05, true);
+    } else {
+        arc(&mut pts, lower_c, [rj, -h], keel, 0.05, false);
+    }
     let mut s = Sketch::default();
     s.name = "Keel section".into();
     s.plane = Workplane::section();
@@ -374,15 +384,70 @@ fn keel_section(bore_r: f64, k: Keel) -> (Sketch, serde_json::Value) {
 }
 
 fn author_keel(rev: bool) -> Result<(RingDesign, serde_json::Value)> {
-    let (section, info) = keel_section(BORE_MM / 2.0, Keel::of(rev));
+    let k = Keel::of(rev);
+    let (section, info) = keel_section(BORE_MM / 2.0, k);
     let mut t = Tree { doc: Document::default() };
     let sec = t.add("Draw the keel's lancet section", Operation::Sketch { sketch: section }, ComponentRole::Other);
-    t.add(
+    let ring = t.add(
         "Revolve the keel round the finger",
         Operation::Revolve { sketch: Profile::Feature { feature: sec }, pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0, in_plane: false },
         ComponentRole::Shank,
     );
-    Ok((cad_only("Ogiva spike — the keel", t.doc)?, json!({"section": info})))
+    if !rev {
+        return Ok((cad_only("Ogiva spike — the keel", t.doc)?, json!({"section": info})));
+    }
+    // The revision: thirteen crockets climbing the keel over the top of the hand to a finial, and a lancet arcade sunk into each flank.
+    let keel_r = info["keel_r_mm"].as_f64().unwrap();
+    let parting = t.plane("Lay the parting plane on the keel", -PARTING_OVERLAP_MM);
+    let mut leaves = Vec::new();
+    for i in 0..13 {
+        let theta = 18.0 + 12.0 * i as f64;
+        let (st, ct) = (theta as f64).to_radians().sin_cos();
+        let (p, n) = ([keel_r * ct, keel_r * st], [ct, st]);
+        // Round the ring toward the apex: a crocket leans and curls toward the finial.
+        let lean = if theta < 90.0 { 1.0 } else { -1.0 };
+        let tangent = [-st * lean, ct * lean];
+        let keys: Keys = if i == 6 {
+            vec![(-0.8, -1.0, true), (0.8, -1.0, true), (0.6, 0.4, false), (1.1, 1.0, false), (0.45, 1.25, false), (0.0, 2.1, false), (-0.45, 1.25, false), (-1.1, 1.0, false), (-0.6, 0.4, false)]
+        } else {
+            vec![(-0.7, -1.0, true), (0.7, -1.0, true), (0.75, 0.3, false), (1.15, 0.85, false), (0.7, 1.3, false), (-0.1, 1.15, false), (-0.65, 0.6, false)]
+        };
+        leaves.push(spline(&keys).into_iter().map(|[a, b]| [p[0] + a * tangent[0] + b * n[0], p[1] + a * tangent[1] + b * n[1]]).collect::<Vec<P2>>());
+    }
+    let crockets = t.both_halves("crockets climbing the keel to the finial", parting, &leaves, 0.8, DRAFT_DEG);
+    let mut cur = t.boolean("Set the crockets on the keel", ring, crockets, Boolean::Union);
+    // Twenty-four lancet niches round each flank, drawn on a plane over the foot and sunk along the pull.
+    let niches: Vec<Vec<P2>> = (0..24)
+        .map(|i| {
+            let a = (7.5 + 15.0 * i as f64).to_radians();
+            let (sa, ca) = a.sin_cos();
+            lancet(1.1, 10.0, 12.4).into_iter().map(|[x, y]| [y * ca - x * sa, y * sa + x * ca]).collect()
+        })
+        .collect();
+    let (n_cope, n_drag) = t.pocket("lancet niches round the flank", &niches, 2.6, 1.3);
+    cur = t.boolean("Sink the cope flank's niches", cur, n_cope, Boolean::Subtract);
+    t.boolean("Sink the drag flank's niches", cur, n_drag, Boolean::Subtract);
+    t.doc.features.last_mut().unwrap().component.role = ComponentRole::Shank;
+    Ok((cad_only("Ogiva spike — the keel", t.doc)?, json!({"section": info, "crockets": {"count": 13, "from_deg": 18, "to_deg": 162, "proud_mm": 1.25, "finial_proud_mm": 2.1, "half_mm": 0.8}, "niches": {"per_flank": 24, "width_mm": 1.1, "from_r_mm": 10.0, "to_r_mm": 12.4, "floor_z": 1.3}})))
+}
+
+/// A lancet `w` wide: a flat sill at `from`, straight jambs and an equilateral pointed head with its apex at `to`, in a frame with x across it and y up it.
+fn lancet(w: f64, from: f64, to: f64) -> Vec<P2> {
+    let h = w / 2.0;
+    let spring = to - w * 3f64.sqrt() / 2.0;
+    let mut pts = vec![[-h, from], [h, from], [h, spring]];
+    let steps = 6;
+    for i in 1..steps {
+        let a = PI / 3.0 * i as f64 / steps as f64;
+        pts.push([-h + w * a.cos(), spring + w * a.sin()]);
+    }
+    pts.push([0.0, to]);
+    for i in 1..steps {
+        let a = PI / 3.0 * (steps - i) as f64 / steps as f64;
+        pts.push([h - w * a.cos(), spring + w * a.sin()]);
+    }
+    pts.push([-h, spring]);
+    pts
 }
 
 // --- Option 3: the gargoyle ------------------------------------------------------------------------
@@ -474,7 +539,6 @@ fn strip(a: P2, b: P2, w: f64) -> Keys {
 
 impl Gargoyle {
     fn of(rev: bool) -> Self {
-        let _ = rev;
         // The body in four overlapping pieces, each drawn and raised on its own: the trunk on its folded haunch, the
         // neck and head, the foreleg, and the tail.
         let body = vec![
@@ -566,7 +630,20 @@ impl Gargoyle {
         let head = vec![(0.0, 8.6, false), (1.0, 9.6, false), (2.2, 9.6, false), (4.2, 9.2, false), (6.2, 8.7, false), (6.3, 7.6, false), (4.0, 7.3, false), (2.4, 7.1, false), (4.0, 6.2, false), (5.2, 5.4, false), (3.6, 5.1, false), (1.4, 5.8, false), (0.0, 7.0, false)];
         let brow = vec![(0.8, 9.6, false), (2.0, 10.0, true), (3.8, 9.5, false), (4.6, 8.8, false), (3.4, 8.5, false), (1.8, 8.6, false), (0.8, 9.0, false)];
         let eye = vec![(1.7, 9.1, false), (2.9, 9.45, false), (4.0, 9.0, false), (2.8, 8.6, false)];
-        Self { body, wing, ribs, thigh, foreleg, head, brow, eye }
+        let mut g = Self { body, wing, ribs, thigh, foreleg, head, brow, eye };
+        if rev {
+            // The revision thrusts the head out past the table's edge and down, like a spout, and drops the tail for the pinnacle behind.
+            let out = |k: &mut Keys| k.iter_mut().for_each(|p| {
+                p.0 += 2.0;
+                p.1 -= 0.8;
+            });
+            out(&mut g.body[1]);
+            out(&mut g.head);
+            out(&mut g.brow);
+            out(&mut g.eye);
+            g.body.truncate(3);
+        }
+        g
     }
 }
 
@@ -591,6 +668,13 @@ fn table_top(d: &RingDesign) -> Result<(f64, f64, Vec<(f64, f64)>)> {
     Ok((low, high, row))
 }
 
+/// Keys drawn `k` times their size about their own centre.
+fn shrunk(keys: &Keys, k: f64) -> Keys {
+    let n = keys.len() as f64;
+    let c = keys.iter().fold((0.0, 0.0), |a, p| (a.0 + p.0 / n, a.1 + p.1 / n));
+    keys.iter().map(|p| (c.0 + (p.0 - c.0) * k, c.1 + (p.1 - c.1) * k, p.2)).collect()
+}
+
 fn author_gargoyle(rev: bool) -> Result<(RingDesign, serde_json::Value)> {
     let mut d = probe::stock("015", true, None)?;
     d.name = "Ogiva spike — the gargoyle".into();
@@ -601,12 +685,22 @@ fn author_gargoyle(rev: bool) -> Result<(RingDesign, serde_json::Value)> {
     let place = |keys: &Keys| -> Vec<P2> { spline(&keys.iter().map(|(u, v, k)| (u * scale, v * scale, *k)).collect::<Vec<_>>()).into_iter().map(|[u, v]| [u + shift, v + lift]).collect() };
     let g = Gargoyle::of(rev);
     // Half-widths along the finger: the wing's membrane and ribs, the body, the head, the near limbs and brow standing proud, the eye sunk.
-    let (membrane, rib, body, head, limbs, brow, eye_floor) = (0.8, 1.2, 2.0, 2.6, 2.9, 3.0, 2.3);
+    let (membrane, rib, body, head, limbs, brow, eye_floor) = if rev { (1.1, 1.6, 2.0, 3.3, 3.5, 3.6, 2.9) } else { (0.8, 1.2, 2.0, 2.6, 2.9, 3.0, 2.3) };
     let mut t = Tree { doc: Document::default() };
     t.add_as("The factory 015 Octagon sand master", Operation::Band, Component { role: ComponentRole::Shank, ..Component::default() });
     let parting = t.plane("Lay the parting plane through the head", -PARTING_OVERLAP_MM);
+    // A part raised in nested layers along the pull, each smaller about its centre and standing further out, so it rounds toward its sides.
+    let layered = |t: &mut Tree, what: &str, keys: &Keys, layers: &[(f64, f64)]| -> Id {
+        let mut cur = t.both_halves(what, parting, &[place(&shrunk(keys, layers[0].0))], layers[0].1, DRAFT_DEG);
+        for (i, (k, half)) in layers.iter().enumerate().skip(1) {
+            let next = t.both_halves(&format!("{what}, rounded {i}"), parting, &[place(&shrunk(keys, *k))], *half, DRAFT_DEG);
+            cur = t.boolean(&format!("Round the {what} ({i})"), cur, next, Boolean::Union);
+        }
+        cur
+    };
     let pieces = ["trunk on its folded haunch", "neck and horned head", "foreleg", "tail laid along the table"];
-    let mut fig = t.both_halves(pieces[0], parting, &[place(&g.body[0])], body, DRAFT_DEG);
+    let trunk: Vec<(f64, f64)> = if rev { vec![(1.0, 1.3), (0.9, 2.1), (0.78, 2.8)] } else { vec![(1.0, body)] };
+    let mut fig = layered(&mut t, pieces[0], &g.body[0], &trunk);
     for (i, k) in g.body.iter().enumerate().skip(1) {
         let next = t.both_halves(pieces[i], parting, &[place(k)], body, DRAFT_DEG);
         fig = t.boolean(&format!("Join the {}", pieces[i]), fig, next, Boolean::Union);
@@ -618,9 +712,14 @@ fn author_gargoyle(rev: bool) -> Result<(RingDesign, serde_json::Value)> {
         let next = t.both_halves(&format!("wing's finger bone {}", i + 1), parting, &[place(r)], rib, DRAFT_DEG);
         ribs = t.boolean(&format!("Join finger bone {}", i + 1), ribs, next, Boolean::Union);
     }
-    let thigh = t.both_halves("near haunch", parting, &[place(&g.thigh)], limbs, DRAFT_DEG);
-    let fore = t.both_halves("near foreleg", parting, &[place(&g.foreleg)], limbs, DRAFT_DEG);
-    let head_id = t.both_halves("head's mass", parting, &[place(&g.head)], head, DRAFT_DEG);
+    let (thigh_l, fore_l, head_l): (Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>) = if rev {
+        (vec![(1.0, 2.3), (0.85, 3.0), (0.7, limbs)], vec![(1.0, 2.2), (0.85, limbs)], vec![(1.0, 2.2), (0.88, 2.8), (0.74, head)])
+    } else {
+        (vec![(1.0, limbs)], vec![(1.0, limbs)], vec![(1.0, head)])
+    };
+    let thigh = layered(&mut t, "near haunch", &g.thigh, &thigh_l);
+    let fore = layered(&mut t, "near foreleg", &g.foreleg, &fore_l);
+    let head_id = layered(&mut t, "head's mass", &g.head, &head_l);
     let brow_id = t.both_halves("brow over the eye", parting, &[place(&g.brow)], brow, DRAFT_DEG);
     let (eye_cope, eye_drag) = t.pocket("eye socket", &[place(&g.eye)], brow + 0.3, eye_floor);
     let mut cur = t.boolean("Raise the wing off the shoulders", fig, wing, Boolean::Union);
@@ -629,12 +728,35 @@ fn author_gargoyle(rev: bool) -> Result<(RingDesign, serde_json::Value)> {
     cur = t.boolean("Set the forelegs on the body", cur, fore, Boolean::Union);
     cur = t.boolean("Widen the head", cur, head_id, Boolean::Union);
     cur = t.boolean("Set the brows on the head", cur, brow_id, Boolean::Union);
+    let mut extra = json!(null);
+    if rev {
+        // A masonry pinnacle at the back of the table for the wing to fold against: a pier under a gabled top, a blind lancet in its face.
+        let (x0, x1) = (-8.9, -6.3);
+        let pier = vec![[x0, lift - 0.6], [x1, lift - 0.6], [x1, lift + 7.0], [(x0 + x1) / 2.0, lift + 9.6], [x0, lift + 7.0]];
+        let pin = t.both_halves("pinnacle behind the wing", parting, &[pier], 2.6, DRAFT_DEG);
+        let light: Vec<P2> = lancet(1.1, 1.4, 5.8).into_iter().map(|[x, y]| [(x0 + x1) / 2.0 + x, lift + y]).collect();
+        let (l_cope, l_drag) = t.pocket("pinnacle's blind lancet", &[light], 2.9, 2.0);
+        let pin = t.boolean("Sink the pinnacle's cope lancet", pin, l_cope, Boolean::Subtract);
+        let pin = t.boolean("Sink the pinnacle's drag lancet", pin, l_drag, Boolean::Subtract);
+        cur = t.boolean("Fold the wing against the pinnacle", cur, pin, Boolean::Union);
+        extra = json!({"pinnacle": {"x_mm": [x0, x1], "height_over_table_mm": 9.6, "half_mm": 2.6}, "head_thrust_mm": [2.0, -0.8], "arcade": {"lancets_per_wall": 7, "width_mm": 1.2, "y_mm": [9.9, 12.6], "wall_z_mm": 8.07, "floor_z_mm": 7.5}});
+    }
     cur = t.boolean("Sink the cope side's eye", cur, eye_cope, Boolean::Subtract);
     t.add_as(
         "Sink the drag side's eye and seat the gargoyle on the table",
         Operation::Boolean { a: cur, b: eye_drag, kind: Boolean::Subtract },
         Component { role: ComponentRole::Other, material: "Silver 925".into(), attach: Attach::Join, stage: Stage::Cast, blend_mm: 0.0, ..Component::default() },
     );
+    if rev {
+        // A blind lancet arcade along each head wall under the table, sunk along the pull into the stock.
+        let arcade: Vec<Vec<P2>> = (0..7).map(|i| lancet(1.2, 9.9, 12.6).into_iter().map(|[x, y]| [x - 6.0 + 2.0 * i as f64, y]).collect()).collect();
+        let (a_cope, a_drag) = t.pocket("lancet arcade on the head wall", &arcade, 8.4, 7.5);
+        t.add_as(
+            "Cut both head walls' arcades into the stock",
+            Operation::Boolean { a: a_cope, b: a_drag, kind: Boolean::Union },
+            Component { role: ComponentRole::Other, material: "Silver 925".into(), attach: Attach::Cut, stage: Stage::Cast, blend_mm: 0.0, ..Component::default() },
+        );
+    }
     d.cad = Some(t.doc);
     let info = json!({
         "stock": "015 Octagon, Delft sand master",
@@ -642,6 +764,7 @@ fn author_gargoyle(rev: bool) -> Result<(RingDesign, serde_json::Value)> {
         "figure_scale": scale,
         "figure_shift_mm": shift,
         "half_widths_mm": {"membrane": membrane, "ribs": rib, "body": body, "head": head, "limbs": limbs, "brow": brow, "eye_floor": eye_floor},
+        "revision": extra,
     });
     Ok((d, info))
 }
@@ -785,7 +908,7 @@ fn png(path: &Path, img: &[u8], edge: usize) -> Result<()> {
     Ok(())
 }
 
-fn renders(out: &Path, option: &str, fin: &render::Finished, edge: usize) -> Result<Vec<String>> {
+fn renders(out: &Path, option: &str, rev: bool, fin: &render::Finished, edge: usize) -> Result<Vec<String>> {
     // A CAD-only ring's csg faces shade flat at their creases; factory stock keeps the normals it was built with.
     let metal = if option == "gargoyle" { figure_creased(&fin.metal, 13.6) } else { creased(&fin.metal) };
     let mut parts: Vec<(&mesh::Mesh, bool, [f32; 3])> = vec![(&metal, false, render::GOLD)];
@@ -797,7 +920,12 @@ fn renders(out: &Path, option: &str, fin: &render::Finished, edge: usize) -> Res
         Ok(())
     };
     // The gargoyle faces round the ring, so its hero turns further along the finger to keep the figure in three-quarter profile.
-    let hero = if option == "gargoyle" { GARGOYLE_HERO } else { HERO };
+    let hero = match option {
+        "gargoyle" => GARGOYLE_HERO,
+        // The keel's revision turns the hero toward the side, so the near edge profiles as a lancet against the ground.
+        "keel-section" if rev => [0.85, 0.35, 0.4],
+        _ => HERO,
+    };
     save("hero.png", shot(&parts, hero, edge), edge)?;
     save("face.png", shot(&parts, FACE, edge), edge)?;
     save("hero-300.png", shot(&parts, hero, 300), 300)?;
@@ -887,7 +1015,7 @@ fn main() -> Result<()> {
         grams
     );
     let fin = render::Finished { metal: built.mesh.clone(), stones: ringdesign_core::gems::built_meshes(&d, &lib, &built) };
-    let written = renders(&out, &option, &fin, 900)?;
+    let written = renders(&out, &option, rev, &fin, 900)?;
     let name = if rev { "check-2.json" } else { "check.json" };
     std::fs::write(out.join(name), serde_json::to_vec_pretty(&json!({"check": check, "renders": written}))?)?;
     println!("  wrote {} in {:.1} s", out.display(), started.elapsed().as_secs_f64());

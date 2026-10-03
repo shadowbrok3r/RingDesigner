@@ -1,0 +1,18 @@
+{
+  "ring": "ogiva",
+  "mode": "read-test",
+  "reads": false,
+  "what_the_eye_sees": "A plain, smooth signet ring with a flat, slightly bevelled table. On the table sits a small, crude winged beast that could be a griffin, a dragon or a winged dog. In the face view it looks like a flat cut-out silhouette, with the wing, haunch and head drawn on as thin outlines. In the hero view it breaks into a jumble of blocky, low-poly slabs: the wing is a rectangular card, the head a stack of boxes, and the haunch a stubby cylinder. Seen edge-on in the side view it is a stack of thin plates. At 300 px a jeweller would call it a heraldic or novelty animal-topper signet. They would not see a pointed arch (the ogiva the name promises), and they would not see a Gothic cathedral. Even if the beast is meant as a gargoyle, nothing says cathedral: there is no masonry ledge, no spout, no crouch over a drop, and none of the band, shoulders or table carries architecture. The beast also sits on the table like a hood ornament rather than coming out of the ring, so the theme is not carried from face to palm.",
+  "changes": [
+    "Make the ring itself the pointed arch, as the Ogiva brief says. Replace the round-shanked signet with the revolved blunt-lancet section (5.6 mm wide, 3.6 mm thick, apex at r 12.9 on a 155-degree keel) so that the silhouette in the face and side views is a sharp ogival ridge running all the way round. Put the 13 crockets on the keel over the top 144 degrees and cut the 36 blind lancet niches into each foot. Acceptance: at 300 px the side view shows a pointed-arch cross-section and the hero shows a ridged keel with crockets and a row of lancet niches on the flank.",
+    "If a gargoyle stays at all, sculpt it and do not cut it out. Replace the extruded flat silhouette (about 1 mm of stacked plates seen edge-on) with a full-round figure at least 4 mm deep. It should crouch forward over the edge of the face with its head projecting past the table by at least 2 mm like a water spout, its wings folded against a carved masonry corbel or pinnacle that rises out of the shoulder. There should be no free-standing animal on a flat table. Acceptance: the hero shows rounded volume on the beast with no box facets or card-thin wings, and the beast reads as gripping architecture.",
+    "Carry the Gothic architecture down the shank. Put a lancet arcade or tracery stamps on both shoulders, from the face down to at least theta plus or minus 60 degrees, and remove the smooth, plain signet walls and the bare polished table. Acceptance: in the 300 px hero, pointed arches are visible on the shoulder below the face, and no plain flat face area larger than about 20 percent of the face remains."
+  ],
+  "viewed_images": [
+    "target/readtest/z2/hero-300.png",
+    "target/readtest/z2/face-300.png",
+    "target/readtest/z2/hero.png",
+    "target/readtest/z2/face.png",
+    "target/readtest/z2/side.png"
+  ]
+}
