@@ -1,0 +1,34 @@
+{
+  "ring": "sigillum",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Much better than attempt 1. The face now reads at once as a seal matrix: a mirrored legend runs round a fleur-de-lis inside a plain ring, with a scalloped outer border. A jeweller would say 'intaglio seal ring with a fleur-de-lis', and the smiley-face read is gone, because the fleur now has a proper band and three petals. It does not say Gothic cathedral, though. (1) The lettering at 300 px looks like plain sans or roman capitals ('SIGILLVM' is spaced thinly round the top), not blackletter, so the medieval cue is missing. (2) The border is about 16 round, soft scallops, which read as a rosette, a coin edge or a bottle cap, not as pointed Gothic cusping. (3) The quatrefoil field has almost gone: on the face the fleur sits in a plain circle, and in the oblique hero the field shows only as a vague knot-shaped lobe outline. Nothing on the table is architectural. (4) The cheek arcade still reads as four small rounded tick marks under the table edge in the hero and side views, not as pointed lancets, and the shoulders look bare. Asked to name it, a jeweller says 'heraldic fleur-de-lis seal' (French royal or Scout), with no prompt toward a cathedral chapter. The face density is now acceptable: border, legend band and device fill the table. The shank and shoulders are still far barer than Caiman or the Reptilia signets.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the frame and lettering unmistakably Gothic.",
+      "where": "Table rim: the outer border ring (r about 7.2) and the legend band (r about 5.6 to 7.0)",
+      "how_much": "Replace the 16 rounded scallops with 12 pointed cusps: arcs meeting at sharp inward points, about 0.6 mm deep and cut 0.40, so the edge reads as cusped tracery and not a coin edge. Recut the legend in true Textura blackletter (broken strokes and lozenge feet), with the cap raised from 1.2 to about 1.6 mm. Close the tracking so the letters fill the full circle with no gaps, at 0.45 deep. Enlarge the ✠ cross pattée to the full cap height so it marks the start of the legend. Acceptance: in the 300 px face, the border shows sharp points, and the letters read as black-letter strokes, not thin roman capitals."
+    },
+    {
+      "priority": 2,
+      "what": "Bring back the cusped quatrefoil field as a visible Gothic frame round the device, or swap the device for an architectural one.",
+      "where": "Table centre: the 'Seal field' sketch and its cut (inside the inner fillet ring, r under about 5.4)",
+      "how_much": "Cut the quatrefoil field so its four pointed lobes clearly break past the inner circle, at 10 to 10.5 mm across, with a 0.35 to 0.50 step down from the table, and with a sharp cusp between each pair of lobes. Remove or narrow the plain inner circle so the quatrefoil is the device's frame. Better still, swap the fleur for the iconography of a real chapter seal: a twin-towered west front, or a figure under a gabled lancet canopy, about 6 mm tall and cut 0.70. Acceptance: in the 300 px face, a pointed four-lobed Gothic frame (or a church front) is the first shape the eye names, before 'fleur-de-lis'."
+    },
+    {
+      "priority": 3,
+      "what": "Make the cheek arcade and shoulder roundels visible in the hero.",
+      "where": "The 'Chapter-house arcade' stamps on the ±z cheeks, and the 'Shoulder roundel' stamps on the shoulder side faces",
+      "how_much": "Enlarge the arcade to about 10 × 3.2 mm with equilateral pointed heads, mullions at least 0.5 mm, and a sink of 0.50 along the pull, so the heads are pointed and not rounded fingers. Raise the roundels to Ø 2.4 / 2.0 / 1.6, sunk 0.35, and add a cusped inner outline. Acceptance: in the 300 px hero, three pointed lancets can be counted on the near cheek, and at least two roundels show on the near shoulder."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/sigillum/hero-300.png",
+    "showcase/tenebrae/sigillum/face-300.png",
+    "showcase/tenebrae/sigillum/contact-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
