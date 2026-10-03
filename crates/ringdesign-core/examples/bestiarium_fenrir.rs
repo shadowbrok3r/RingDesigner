@@ -738,7 +738,10 @@ impl Wolf {
         let off_face = off_lips * smooth(1.8, 3.4, fs[0]) * smooth(1.3, 2.7, (fs[0] - Self::EYE.0).hypot(fs[1] - Self::EYE.1));
         let cheeks = 0.38 * cheek_fur(fs) * off_face * (1.0 - smooth(STOP_U - 1.9, STOP_U + 0.3, fs[1])) * smooth(MOON_U - 1.5, MOON_U + 1.0, fs[1]);
         let jaw = 0.12 * jaw_fur(fs) * off_lips * (1.0 - smooth(MOON_U - 0.5, MOON_U + 1.5, fs[1])) * smooth(-1.4, -0.6, fs[2]);
-        let crown = 0.26 * crown_fur(f) * smooth(STOP_U - 0.1, STOP_U + 1.3, fs[1]) * (1.0 - smooth(3.0, 4.6, fs[0])) * smooth(-0.4, 1.0, fs[2]) * smooth(0.1, 1.0, Self::ear(fs));
+        let crown = 0.26 * crown_fur(f) * smooth(STOP_U - 0.1, STOP_U + 1.3, fs[1]) * (1.0 - smooth(3.0, 4.6, fs[0])) * smooth(-0.4, 1.0, fs[2]) * smooth(0.1, 1.0, Self::ear(fs))
+            // Off the top only, and short of the skull's back: where it turns down behind the ears a lock's tip would stand
+            // off it as a ledge.
+            * smooth(0.3, 0.6, n[2]) * (1.0 - smooth(STOP_U + 1.6, STOP_U + 2.4, fs[1]));
         // The throat's locks run up over the jaw fur's lower edge by a millimetre, so no line parts them.
         let throat = 0.26 * throat_fur(f) * smooth(0.4, -0.5, fs[2]) * (1.0 - smooth(MOON_U - 5.0, MOON_U - 3.5, fs[1]));
         // No fur on undersides turned down toward the stock, where locks would overhang and leave slits.
