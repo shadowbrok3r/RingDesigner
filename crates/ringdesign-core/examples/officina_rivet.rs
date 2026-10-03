@@ -2,7 +2,7 @@
 //! band, a small one between each pair, each seated with a seam bead. Delft sand.
 //! cargo build --release -p ringdesign-core --example officina_rivet
 //! target/release/examples/officina_rivet [OUT_DIR] [--draft] [--verify]
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Result, bail, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign,
     cad::{self, Attach, Component, ComponentRole, Document, Feature, FeatureStatus, Operation, PatternKind, Placement, Stage},
@@ -10,6 +10,7 @@ use ringdesign_core::{
     csg, dfm, library,
     manufacturing::{self as mf, Setup},
     mesh, render,
+    profile::DropCurve,
     sketch::Id,
     stl,
 };
@@ -23,14 +24,37 @@ const BORE: f64 = 18.2;
 const THETA: f64 = 90.0;
 /// Large rivets round the ring, and a small one between each pair.
 const COUNT: u32 = 16;
-/// The large head: its sphere's radius and how far its centre sits inside the crest.
-const LARGE_RADIUS_MM: f64 = 0.9;
-const LARGE_SINK_MM: f64 = 0.35;
-const LARGE_BEAD_MM: f64 = 0.15;
+/// The strap drawn into the band's crown: across the finger and how far it steps proud of the dome.
+const STRAP_WIDE_MM: f64 = 3.0;
+const STRAP_PROUD_MM: f64 = 0.4;
+/// The crown's whole drop, crest to edge, with the strap's step in it.
+const CROWN_MM: f64 = 1.0;
+/// The drop from the crest (`x` from the crest to the edge, `d` of the crown, both 0..1): a strap
+/// top roofed at 5 degrees to its edge at x = 0.5, a rounded step, then the dome falling to the band's edge.
+const STRAPPED_CROWN: [[f64; 2]; 14] = [
+    [0.0, 0.0],
+    [0.15, 0.038],
+    [0.3, 0.077],
+    [0.42, 0.108],
+    [0.465, 0.122],
+    [0.485, 0.17],
+    [0.5, 0.33],
+    [0.515, 0.48],
+    [0.54, 0.53],
+    [0.6, 0.56],
+    [0.7, 0.62],
+    [0.8, 0.7],
+    [0.9, 0.81],
+    [1.0, 1.0],
+];
+/// The large head: its sphere's radius and how far its centre sits under the strap's top.
+const LARGE_RADIUS_MM: f64 = 1.3;
+const LARGE_SINK_MM: f64 = 0.8;
+const LARGE_BEAD_MM: f64 = 0.12;
 /// The small head, half a pitch on.
-const SMALL_RADIUS_MM: f64 = 0.5;
-const SMALL_SINK_MM: f64 = 0.2;
-const SMALL_BEAD_MM: f64 = 0.12;
+const SMALL_RADIUS_MM: f64 = 0.6;
+const SMALL_SINK_MM: f64 = 0.3;
+const SMALL_BEAD_MM: f64 = 0.10;
 const ALLOY: &str = "Gold 14k";
 
 fn draft_params() -> BuildParams {
@@ -78,7 +102,7 @@ fn setup() -> Setup {
     s
 }
 
-/// LowDome 6.0 x 2.1, bore 18.2 mm: the plain strap the rivets stand on.
+/// LowDome 6.0 x 2.1, bore 18.2 mm, its crown redrawn with a 3 mm strap stepped up along the crest.
 fn band() -> RingDesign {
     let mut d = RingDesign {
         name: "Rivet \u{2014} a riveted strap".into(),
@@ -88,6 +112,9 @@ fn band() -> RingDesign {
     d.profile.apply_style(ProfileStyle::LowDome);
     d.profile.width_mm = 6.0;
     d.profile.thickness_mm = 2.1;
+    d.profile.style = ProfileStyle::Custom;
+    d.profile.crown_mm = CROWN_MM;
+    d.profile.drop_curve = DropCurve::from_points(&STRAPPED_CROWN);
     SandProcess::DelftClay.apply(&mut d.draft);
     CastProcess::SandTwoPart.apply(&mut d.draft);
     d.manufacturing = Some(setup());
@@ -104,6 +131,12 @@ fn component(role: ComponentRole, attach: Attach, blend_mm: f64, placement: Plac
         placement,
         ..Component::default()
     }
+}
+
+/// A head seated on the crest line at `theta_deg`, `height_mm` out along the surface normal, turned a
+/// quarter about it so the sphere's facets split evenly across the parting plane.
+fn seat(theta_deg: f64, height_mm: f64) -> Placement {
+    Placement::Ring { theta_deg, across_mm: 0.0, height_mm, spin_deg: 90.0, tilt_deg: 0.0, cant_deg: 0.0 }
 }
 
 fn add(d: &mut RingDesign, name: &str, operation: Operation, component: Component) -> Result<Id> {
@@ -130,6 +163,8 @@ fn evaluated(d: &RingDesign, lib: &AlphaLibrary) -> Result<cad::Evaluated> {
 /// What the author set, for the report.
 #[derive(serde::Serialize, Default)]
 struct Authored {
+    strap_wide_mm: f64,
+    strap_proud_mm: f64,
     rivets: u32,
     pitch_deg: f64,
     large_proud_mm: f64,
@@ -139,7 +174,7 @@ struct Authored {
     gap_mm: f64,
 }
 
-/// The five-feature history: the band, one large head, its ring array, one small head, its ring array.
+/// The five-feature history: the strapped band, one large head, its ring array, one small head, its ring array.
 fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
     let mut d = band();
     add(&mut d, "Band", Operation::Band, component(ComponentRole::Shank, Attach::Separate, 0.0, Placement::Free))?;
@@ -149,7 +184,7 @@ fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
         &mut d,
         "Large rivet head",
         Operation::Sphere { radius_mm: LARGE_RADIUS_MM },
-        component(ComponentRole::Other, Attach::Join, LARGE_BEAD_MM, Placement::ring(THETA, -LARGE_SINK_MM)),
+        component(ComponentRole::Other, Attach::Join, LARGE_BEAD_MM, seat(THETA, -LARGE_SINK_MM)),
     )?;
     add(
         &mut d,
@@ -164,7 +199,7 @@ fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
         &mut d,
         "Small rivet head",
         Operation::Sphere { radius_mm: SMALL_RADIUS_MM },
-        component(ComponentRole::Other, Attach::Join, SMALL_BEAD_MM, Placement::ring(THETA + pitch / 2.0, -SMALL_SINK_MM)),
+        component(ComponentRole::Other, Attach::Join, SMALL_BEAD_MM, seat(THETA + pitch / 2.0, -SMALL_SINK_MM)),
     )?;
     add(
         &mut d,
@@ -179,6 +214,8 @@ fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
     let crest = d.inner_radius_mm() + d.profile.thickness_mm;
     let foot = |r: f64, s: f64| 2.0 * (r * r - s * s).sqrt();
     let notes = Authored {
+        strap_wide_mm: STRAP_WIDE_MM,
+        strap_proud_mm: STRAP_PROUD_MM,
         rivets: 2 * COUNT,
         pitch_deg: pitch,
         large_proud_mm: LARGE_RADIUS_MM - LARGE_SINK_MM,

@@ -1,0 +1,16 @@
+{
+  "ring": "rivet",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain, smooth low-domed gold band with one row of round gold beads down the middle, big and small in turn. A jeweller would call it a beaded or dotted band, maybe a studded one. Nothing in either view looks like a strap: the beads sit straight on the same unbroken dome, so nothing is being held on. The beads are full balls, not the low, wide domed heads of rivets. The small ones shrink to specks toward the sides of the hero and blur into the highlight. The idea that comes across is 'balls on a band', not 'a band riveted round the finger'.",
+  "changes": [
+    "Make the strap. Add a raised strap along the crest, about 3.0 mm wide and 0.35-0.45 mm proud of the LowDome, with a small step line on each side so it reads as a separate strip laid on the band. Keep the step edges broken (0.1-0.15 mm round) and drafted at 3 degrees or more for Delft, symmetric about the parting line, and keep the outer 1.5 mm of each side plain dome. Acceptance: in face-300 the strap's two edge lines show as continuous dark/light lines the whole way across, and the rivets sit inside them.",
+    "Turn the balls into rivet heads. Use a bigger sphere sunk deeper so each head is a low, wide dome: large heads about R 1.3 mm centred about 0.9 mm below the strap top (about 0.4 mm proud, about 2.0 mm footprint). Small heads about R 0.7 mm centred about 0.45 mm below (about 0.25 mm proud, about 1.0 mm footprint). Keep the seam blend tight (0.10-0.12 mm) so each head has a clean foot line. Acceptance: in hero-300 the large heads read as flat-topped domes with a visible shadow ring at the foot, not as spheres with a full round highlight.",
+    "Make the big/small hierarchy stronger, so the rhythm reads as structural pins at 300 px and not as an even bead row. The large-head footprint should be at least 2x the small one (about 2.0 vs 1.0 mm, as above), and the small heads must still be visible as discs at the hero's 30-60 degree flanks. Acceptance: in hero-300 a viewer can count the alternation for at least five pitches on each side of centre, without the small heads disappearing into specks."
+  ],
+  "viewed_images": [
+    "showcase/officina/rivet/hero-300.png",
+    "showcase/officina/rivet/face-300.png"
+  ]
+}
