@@ -719,6 +719,33 @@ fn spans(p: &[P3], closed: bool) -> Vec<Span> {
         .collect()
 }
 
+/// Points and directions along a path in space as a twisted sweep runs it, `per_span` steps to each run between two points: the
+/// polyline itself, or the centripetal Catmull-Rom curve through it when `smooth`. A closed path ends on its first point.
+pub fn path_points(points: &[P3], smooth: bool, closed: bool, per_span: usize) -> Result<Vec<(P3, P3)>> {
+    let p = prepared(points, closed)?;
+    let per = per_span.max(1);
+    let mut out = Vec::new();
+    if smooth {
+        for (k, span) in spans(&p, closed).iter().enumerate() {
+            for i in usize::from(k > 0)..=per {
+                let s = i as f64 / per as f64;
+                out.push((span.point(s), unit(span.velocity(s)).unwrap_or([0.0; 3])));
+            }
+        }
+        return Ok(out);
+    }
+    let n = p.len();
+    let runs = if closed { n } else { n - 1 };
+    for k in 0..runs {
+        let (a, b) = (p[k], p[(k + 1) % n]);
+        let d = unit(sub(b, a)).unwrap_or([0.0; 3]);
+        for i in usize::from(k > 0)..=per {
+            out.push((add(a, mul(sub(b, a), i as f64 / per as f64)), d));
+        }
+    }
+    Ok(out)
+}
+
 /// The parameter at arc length `d` along a span, read off its table of lengths at even parameters.
 fn param_at(lengths: &[f64], d: f64) -> f64 {
     let n = lengths.len() - 1;
