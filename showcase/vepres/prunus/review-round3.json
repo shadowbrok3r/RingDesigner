@@ -1,0 +1,61 @@
+{
+  "ring": "Prunus",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.7,
+  "summary": "Cut at 6.7. This is round 3 and the ship bar is 7.5; Caiman scores 7, and Corvus was cut at 6.6 and Kraken at 7.0. Every gate recorded in report.json is green at draft (768x320) and export (1536x448), and the template gate passes (1 patch, 997,600 bytes against the 1 MB stock budget). The gates do not decide this; the renders do. The round made one real gain. A second shoot now runs along each wall, so two strands of wood show on the shank (reverse.png, side.png), and the shoots end close to the Straif mark (palm.png). At 300 px, uncaptioned, the ring still reads at once as flowering blackthorn with a sloe. The two highest round-2 items are not fixed, though. (1) The calyx is worse, not better. The five sepals are now short, detached, grub-like lumps standing well apart from the onyx, with polished table showing between every sepal and the stone (face.png, stones.png). The upper sepals appear to float above the stone in hero.png and bare-vs-finished.png, and the one in shoulder.png still has a sliced flat top. It reads as a loose six-claw head, not a fruit held in its calyx. (2) The surface execution is still not clean. stones.png shows blocky gold stair-steps at the blossom and spur roots on the twig over the head, the stair-stepped spur root at far left, and a torn, ragged lip along the twig-to-band seam. The blossom hearts are still crumpled, and the spurs over the head are still straight machined cones. Density is still below Caiman and the Reptilia signets: the 013 table outside the stone, both cheeks of the head, and the outer crest of the shank are bare polish, and the palm crest is a plain band carrying a small mark. With no round left and the score 0.8 below the bar, the verdict is cut. If Logan wants Prunus back later, the punch list below says what a fresh attempt must solve first.",
+  "strengths": [
+    "Reads as its plant at 300 px without the caption: a dark thorned branch, gold five-petal blossoms and a blue-black round fruit say blackthorn or sloe (hero-300, face-300, contact-300).",
+    "Round-2 density item partly met: a second, thinner shoot now runs along each shank wall beside the main twig (reverse.png, side.png), and both shoots end within about 2 mm of the Straif mark (palm.png).",
+    "One theme from face to palm: twig, shoots, blossoms, spurs and the Straif mark, with nothing scattered.",
+    "The silhouette is distinct: a diagonal thorned branch with long spurs breaking the outline in every view.",
+    "The colour hierarchy holds: dark wood, bright gold blossoms, blue-black onyx.",
+    "Every gate is green, and the round-2 diagnostic item is answered with a stated cause."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "The twig crosses the head, two shoots run down each wall, and Straif sits on the palm with the shoots framing it (palm.png). Nothing off-theme is present."},
+    {"item": "Reads as its plant at 300 px without the caption", "result": "pass", "reason": "In hero-300 and face-300 it reads as a flowering thorny branch with a dark round fruit, which says blackthorn or sloe. The detached sepals argue for a claw-set stone, but they do not stop the read."},
+    {"item": "Figurative motifs have true outlines, crisp, no combing or stair-steps", "result": "fail", "reason": "stones.png shows blocky gold stair-steps at the blossom and spur roots on the twig over the head (around x550-850, y1000-1100, and the spur root at x200-330, y1050-1110), and a torn lip along the twig-to-band seam (y1080-1150). The blossom hearts are crumpled and creased. Straif in palm.png still renders with doubled, dashed outlines."},
+    {"item": "Stones in made settings, visible, coloured as fruit or buds", "result": "fail", "reason": "The onyx is visible and coloured right for a sloe, and a stalk reaches it. But the calyx fails round-2 item 1 outright. The sepals stand apart from the stone with table visible between each sepal and the onyx. The upper sepals look detached and floating in hero.png and bare-vs-finished.png. No cup wraps the fruit, and the shoulder.png sepal still has a sliced flat top. It reads as a claw head."},
+    {"item": "No flat, blocky or mechanical CAD; forms are sculpted", "result": "fail", "reason": "The spurs over the head are still straight machined cones with no curve (hero.png, face.png). The stepped root blocks seen in stones.png and the flat-topped sepal in shoulder.png remain. The shank wood is better sculpted, with knobbly nodes."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "The 013 table edge and walls are intact (bare-vs-finished.png). The slightly ragged table rim is present on the bare stock too."},
+    {"item": "Silhouette distinct from the other Vepres rings", "result": "pass", "reason": "The diagonal branch with outward spurs over a round signet is its own outline."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "Density improved with the second shoots, but the table outside the stone, both cheeks of the head, and the outer shank crest (hero.png, shoulder.png, reverse.png) are bare polish. The wall bark furrows asked for in round 2 are absent. Caiman and the Reptilia signets are worked over the whole head and shank."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces (draft and export)", "claimed": "watertight, 0 degenerate", "verified": "Draft and export: watertight true, degenerate_faces 0, boundary_edges 0, non_manifold_edges 0.", "pass": true},
+    {"gate": "0 self-crossings on the ring and every made part", "claimed": "0", "verified": "ring_self_crossings 0, made_part_crossings_worst 0, made_parts_crossing [] over 50 made parts, in both builds.", "pass": true},
+    {"gate": "Empty solids and parts notes", "claimed": "empty", "verified": "solids_notes [] and parts_notes [] in both builds. field_notes carry only the lost-wax 'cannot move to sand' advisories.", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "bore clear", "verified": "bore_clear true. The closest vertex is 8.568 mm against a bore radius of 8.578 mm, which is the bore surface itself.", "pass": true},
+    {"gate": "Field verdict Castable (lost wax)", "claimed": "Castable", "verified": "field_verdict is 'Castable', process 'Lost wax', in both builds.", "pass": true},
+    {"gate": "Lost wax thinnest wall >= 0.8 mm (replaces ray release and clamp)", "claimed": "thinnest_wall_mm 1.40; sections by construction >= 0.84 (calyx cup 2.52, sepals 0.86, stalk 0.96, twig 0.94, shoots 0.90-0.94, spurs 1.0, blossoms 0.84)", "verified": "thinnest_wall_mm 1.4046 and sections_ok true in both builds. The section_sampled_diagnostic (697 samples under the floor, least 0.120 mm) now gives a cause for the blossom opposite-wall clusters: rays crossing the V between two petals' rims at the notch roots, reproduced on a lone blossom with no band. That answers round-2 item 5 as a stated cause. It is not confirmed by a cross-section, and it remains diagnostic.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] and features_not_ok [] in both builds.", "pass": true},
+    {"gate": "Stone count equals preview; no metal in stones", "claimed": "1 = 1", "verified": "stones_reported 1, stones_previewed 1. metal_inside_stones is 0 for 'Round cabochon 5.6 mm', and crowding is []. stones.json lists one onyx.", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "cold_reload_identical true. Template: vertices_faces_normals_identical true, source_identical true.", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "1,061,614", "verified": "export.triangles 1061614 at 1536x448.", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "casting_pattern: watertight, 0 degenerate, 0 self-crossings, 1,061,614 triangles, pass true.", "pass": true},
+    {"gate": "Template gate (<= 4 design.set patches, class budget)", "claimed": "passed", "verified": "template_gate_passed true. 1 patch (/manufacturing), template_bytes 997,600 within the 1,000,000 stock budget (2.4 KB headroom), cold design and graph reload true, first build 1.43 s. Recorded in report.json and template-verification.json.", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Sloe mount: 'Calyx cup' and 'Calyx sepal 1-5' at sloe centre xz (-0.3, -2.2) (round-2 item 1, not met; regressed)", "change": "For any future attempt, build the calyx as one lofted cup that touches the stone. Five broad sepals, each 1.8-2.0 mm wide at the base, overlap their neighbours by 0.2-0.4 mm at the cup and lie against the onyx's lower curve with zero gap. Tips reflex 10-20 deg outward, and every top is rounded to at least 0.3 mm. Keep the 0.84 mm margin section.", "acceptance": "In face.png and stones.png no polished table shows between any sepal and the onyx, no sepal appears detached or floating, and none shows a flat top. In hero-300 an uncaptioned viewer sees a fruit in its calyx, not a stone in claws."},
+    {"number": 2, "priority": "high", "zone": "Twig over the head: blossom roots at nodes 2, 5, 8, 11, 13, spur roots 0-12, and the twig-to-band seam along its full length (round-2 item 2, not met)", "change": "Fair every blossom and spur root into the wood with a 0.3-0.5 mm blend so no stepped block remains. Replace the ragged contact lip with a continuous 0.3-0.4 mm fillet or seam bead.", "acceptance": "At 1600 px in stones.png, hero.png and face.png there is no stair-stepped or blocky gold facet at any root, and the twig-to-band seam is one smooth line."},
+    {"number": 3, "priority": "high", "zone": "Density: the table outside the stone, both cheeks of the head, and the outer shank crest from theta about +/-40 to 150 deg (round-2 item 3, partly met)", "change": "Cover the bare zones. Add 0.2-0.3 mm wall bark furrows between the two shoots, and carry small buds or twiglets (1.0-1.6 mm) onto the cheeks either side of the table.", "acceptance": "No bare polished patch larger than 8 mm x 4 mm remains outside the bore, the stone and the palm crest, in hero.png, shoulder.png and reverse.png."},
+    {"number": 4, "priority": "medium", "zone": "Blossoms, and spurs over the head (spurs 0-12 on 'Twig over the head') (round-2 item 4, not met)", "change": "Replace the crumpled blossom hearts with a clean domed boss ringed by 8-12 stamen beads 0.15-0.2 mm. Give the head spurs the shank spurs' root swell and a 0.15-0.3 mm sagitta.", "acceptance": "In stones.png every blossom heart is a clean round dome with no creases. In face.png no head spur reads as a straight cone."},
+    {"number": 5, "priority": "low", "zone": "Straif bench-cut on the palm crest (round-2 item 6, not met)", "change": "Cut Straif as one crisp 0.3 mm groove with single edges.", "acceptance": "palm.png shows Straif with single, crisp outlines and no doubled or dashed edges."}
+  ],
+  "viewed_images": [
+    "showcase/vepres/prunus/hero-300.png",
+    "showcase/vepres/prunus/face-300.png",
+    "showcase/vepres/prunus/contact-300.png",
+    "showcase/vepres/prunus/hero.png",
+    "showcase/vepres/prunus/face.png",
+    "showcase/vepres/prunus/stones.png",
+    "showcase/vepres/prunus/palm.png",
+    "showcase/vepres/prunus/side.png",
+    "showcase/vepres/prunus/reverse.png",
+    "showcase/vepres/prunus/shoulder.png",
+    "showcase/vepres/prunus/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

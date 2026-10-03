@@ -759,6 +759,7 @@ That is expected for most Vepres rings. Say so in each README line.
 - **Process decision (Logan, 2026-10-03):** lost wax, judged at a 0.8 mm minimum section with no pull rule (`CastProcess::LostWax.apply`, then `min_section_mm` 0.8). Logan chose "lost wax on a rounder head" over keeping sand as a twig band. The sand text below is superseded. If the wax pattern also happens to pull from sand, the report says so as a bonus.
 - **Rethink (2026-10-03):** of the three lost-wax block-outs (`wax-twig` on 012, `wax-calyx` and `wax-twig-calyx` on 013), only `wax-twig-calyx` passed its read test (read test 6). Prunus is now that design: a dark, knobbly blackthorn twig laid diagonally over the native factory 013 Round's table, with sharp graded spurs and paired five-petal blossoms. The onyx sloe sits on a five-sepal calyx cup and hangs from the twig on a short stalk. Example `ex/vepres_prunus.rs`, outputs in `showcase/vepres/prunus/`.
 - **Extra rounds:** none granted; the three-round cap applies.
+- **Outcome (2026-10-03):** cut at 6.7 after three full reviews (6.0, 6.6, 6.7). Every gate and the template gate are green; the calyx, root fairing and density did not reach the bar. See `cloud-report.md` on `claude/vepres-prunus-rethink`.
 
 - **Status:** Not started. **Buildable now at draft.**
   - The final sand verdict is gated on C-V1 `level`, or on a 012 row added to `prickle_probe` showing the raw normal is level on the mirrored master (the 017 result suggests it is).
