@@ -822,13 +822,33 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
         Operation::Chamfer { distance_mm, .. } => number(ui, "Distance mm", distance_mm),
         Operation::Shell { thickness_mm, .. } => number(ui, "Wall mm", thickness_mm),
         Operation::Twist {
-            degrees, end_scale, ..
+            degrees, end_scale, scale, closed, path, ..
         } => {
             number(ui, "Twist °", degrees);
-            number(ui, "End scale", end_scale);
+            if scale.is_empty() {
+                number(ui, "End scale", end_scale);
+            } else {
+                ui.weak(format!("Scale law of {} knots; edit it in Feature source.", scale.len()));
+            }
+            ui.checkbox(closed, "Closed round the path");
+            if let cad::TwistPath::Points { points, smooth } = path {
+                ui.checkbox(smooth, "Smooth through the points");
+                for (i,p) in points.iter_mut().enumerate() { xyz(ui,&format!("Point {i} mm"),p); }
+            }
         }
-        Operation::Sweep { path, .. } => {
-            for (i,p) in path.iter_mut().enumerate() { xyz(ui,&format!("Station {i} mm"),p); }
+        Operation::Sweep { path, closed, twist_deg, end_scale, .. } => {
+            match path {
+                cad::SweepPath::Points(points) => {
+                    for (i,p) in points.iter_mut().enumerate() { xyz(ui,&format!("Station {i} mm"),p); }
+                }
+                cad::SweepPath::Sketch { feature, entity, lift_mm } => {
+                    ui.weak(format!("Along entity #{entity} of sketch #{feature}; it follows every edit to it."));
+                    number(ui, "Lift mm", lift_mm);
+                }
+            }
+            ui.checkbox(closed, "Closed round the path");
+            number(ui, "Twist °", twist_deg);
+            number(ui, "End scale", end_scale);
         }
         Operation::Loft { sections } => {
             for (i,p) in sections.iter_mut().enumerate() { if let Some(s) = p.sketch_mut() { xyz(ui,&format!("Section {i} origin"),&mut s.plane.origin); } else { ui.weak(format!("Section {i}: sketch feature #{}", p.feature().unwrap_or(0))); } }
@@ -845,6 +865,20 @@ fn operation(ui: &mut egui::Ui, op: &mut Operation) {
                 number(ui, "Span °", span_deg);
             }
             cad::PatternKind::Mirror { .. } => { ui.weak("One reflected copy; change what it reflects across in Feature source."); }
+            cad::PatternKind::Line { count, pitch_mm, .. } => {
+                crate::controls::row(ui, "Instances", |ui| {
+                    ui.add(egui::DragValue::new(count).range(2..=cad::pattern::MAX_PATTERN_COUNT));
+                });
+                number(ui, "Pitch mm", pitch_mm);
+            }
+            cad::PatternKind::Along(a) => {
+                crate::controls::row(ui, "Instances", |ui| {
+                    ui.add(egui::DragValue::new(&mut a.count).range(0..=cad::pattern::MAX_PATTERN_COUNT));
+                });
+                number(ui, "Alternate °", &mut a.alternate_deg);
+                number(ui, "Roll °", &mut a.roll_deg);
+                ui.weak("The path, pitch, phase and scale are in Feature source.");
+            }
         },
         Operation::Plane { offset_mm, .. } => number(ui, "Offset mm", offset_mm),
         Operation::PressPull { distance_mm, .. } => number(ui, "Distance mm", distance_mm),

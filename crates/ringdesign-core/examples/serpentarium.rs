@@ -875,6 +875,7 @@ fn main() {
         profile: WireProfile::Flat,
         taper: 0.0,
         mirror_v: false,
+        ..Default::default()
     };
     d.layers.layers.push(LayerEntry::new("Ribs", Layer::Curve(ribs)));
     // Taller than the collars, so the spine reads through the gaps instead
@@ -1039,6 +1040,7 @@ fn main() {
             profile: WireProfile::Round,
             taper: 0.0,
             mirror_v: true,
+            ..Default::default()
         };
         let mut e = LayerEntry::new(name, Layer::Curve(wire));
         e.blend = Blend::SmoothMax;

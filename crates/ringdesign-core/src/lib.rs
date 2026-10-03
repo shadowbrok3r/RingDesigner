@@ -36,6 +36,7 @@ pub mod engine;
 pub mod field;
 pub mod gem;
 pub mod gems;
+pub mod girdle;
 pub mod history;
 pub mod gltf;
 pub mod library;

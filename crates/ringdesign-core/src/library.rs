@@ -45,25 +45,34 @@ pub const DESIGN_EXT: &str = "ring.json";
 // it also protects a revolution whose line is read in its sketch's plane, which an earlier build would turn about the world's line,
 // a pattern of several parts, which an earlier build cannot parse, a cut carved from a ring of parts alone, which an earlier
 // build pours as metal, and a stamp with a tier, a shaped top or an outline over 512 points, which an earlier build flattens
-// or refuses.
+// or refuses; a sweep that closes, twists, scales, follows a sketch entity or runs through points in space, which an
+// earlier build refuses or builds open, untwisted and unscaled; a part placed level, relative to another part or on a
+// side face, which an earlier build seats by the raw normal or cannot read; a ring of parts alone whose parts carry
+// a fillet, which an earlier build leaves unbeaded; and a line array or an array along a path, which an earlier build
+// cannot parse.
 // A design with none of these is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
 /// The version a design carrying none of the format-6 features is written at, so builds that read up to it still open the file.
 pub const PLAIN_FORMAT_VERSION: u32 = 5;
 
-/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a cut on a ring of parts alone or a stamp a format-5 build cannot strike.
+/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a line array or an array along a path, a cut or a fillet on a ring of parts alone, a part placed level, relative to a part or on a side face, or a stamp a format-5 build cannot strike.
 pub fn format_version_for(design: &RingDesign) -> u32 {
     if crate::cad::stored::carried_by(design)
         || crate::cad::turns_in_plane(design)
+        || crate::cad::sweeps_extended(design)
         || crate::cad::picks_regions(design)
         || crate::cad::pattern::several_sources(design)
+        || crate::cad::pattern::follows_line_or_path(design)
         || crate::parts::cuts_apart(design)
+        || crate::parts::beads_apart(design)
+        || crate::cad::placements_extended(design)
         || design.stamps.iter().any(|s| !s.is_plain())
         || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(&f.operation, crate::cad::Operation::Builder { key, params, .. } if crate::cad::builders::geometry_extended(key, params))))
         || station_gates_in_stack(&design.layers, design.gate_sections_are_reference())
         || fenced_runs_in_stack(&design.layers)
         || tiling_features_in_stack(&design.layers)
+        || crate::curve::profiled_in(&design.layers)
         || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
         || design.graph.as_ref().is_some_and(template_features_in_json)
         || design.shank.bypass_fair_deg != 0.0
@@ -111,12 +120,16 @@ fn tiling_features_in_stack(stack: &crate::LayerStack) -> bool {
 
 /// Source references and template controls whose geometry earlier readers cannot reproduce.
 pub fn template_features_in_json(value: &serde_json::Value) -> bool {
-    const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"];
+    const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg", "level", "part", "at", "rotation_deg", "radius_mm", "face"];
     let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && matches!(pin, "keys" | "bypass_fair_deg"))
         || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"))
         || (kind == "layer.seatrun" && pin == "bare") || (kind == "layer.group" && pin == "clamp")
-        || (kind == "layer.tiling" && matches!(pin, "grade" | "space"));
+        || (kind == "layer.tiling" && matches!(pin, "grade" | "space"))
+        || (kind == "layer.curve" && matches!(pin, "widths" | "heights" | "beads"));
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
+    // A line array or an array along a path, which an older reader cannot parse.
+    if value.get("Pattern").and_then(|p| p.get("kind")).is_some_and(|k| k.get("line").is_some() || k.get("along").is_some()) { return true; }
+    if crate::cad::extended_placement_json(value) { return true; }
     if value.get("Builder").is_some_and(|builder| builder.get("key").and_then(serde_json::Value::as_str)
         .is_some_and(|key| crate::cad::builders::geometry_extended(key, &builder["params"]))) { return true; }
     if value.get("v_gate").is_some_and(|gate| gate.get("Draft").is_some() || gate.get("SideFaces").is_some()) { return true; }
@@ -124,6 +137,7 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     if value.get("SeatRun").and_then(|run| run.get("bare")).and_then(serde_json::Value::as_bool) == Some(true) { return true; }
     if value.get("Group").and_then(|group| group.get("clamp")).is_some_and(|clamp| !clamp.is_null()) { return true; }
     if value.get("fine_cap").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
+    if value.get("fillet_into_band").and_then(serde_json::Value::as_f64).is_some_and(|r| r != 0.0) { return true; }
     if value.get("crisp_relief").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
     if value.get("Pillow").is_some() { return true; }
     if value.get("kind").and_then(serde_json::Value::as_str) == Some("design.set")
@@ -132,9 +146,11 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     if value.get("space").and_then(serde_json::Value::as_str) == Some("Hide") { return true; }
     if value.get("mask").and_then(serde_json::Value::as_str).is_some_and(|m| m.starts_with(crate::skin::REGION_PREFIX)) { return true; }
     if value.get("taper").is_some() && value.get("law").is_some_and(|law| law == "Cosine" || law.get("Spiral").is_some()) { return true; }
+    if value.get("Curve").is_some_and(crate::curve::profiled_json) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
-        if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
-            || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }
+        if kind == "layer.curve" && value.get("inputs").and_then(|i| i.get("profile")).and_then(serde_json::Value::as_str) == Some("Tube") { return true; }
+        if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps" | "cad.features")
+            || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") || kind.starts_with("path.") { return true; }
         if value.get("inputs").and_then(serde_json::Value::as_object).is_some_and(|inputs| inputs.iter().any(|(pin, v)| {
             new_pin(kind, pin) && !v.is_null() && v.as_bool() != Some(false) && (kind != "window" || pin != "v_gate" || matches!(v.as_str(), Some("side_faces" | "draft")))
                 && (kind != "layer.tiling" || pin != "space" || v.as_str() == Some("Hide"))
@@ -296,6 +312,38 @@ mod template_source_tests {
     }
 
     #[test]
+    fn profiled_wires_fence_the_design_nested_layers_and_graph_json_while_plain_wires_stay_plain() {
+        use crate::curve::{CurveBeads, CurveLayer};
+        use crate::field::GroupLayer;
+        let entry = |c: CurveLayer| crate::LayerEntry::new("Arm", crate::Layer::Curve(c));
+        let stack = |layers| crate::LayerStack { layers };
+        let patch = |c: &CurveLayer| serde_json::json!({"nodes":[{"kind":"design.set","params":{"json_value":[{"layer":{"Curve":serde_json::to_value(c).unwrap()}}]}}]});
+        let plain = CurveLayer::default();
+        assert_eq!(format_version_for(&RingDesign { layers: stack(vec![entry(plain.clone())]), ..RingDesign::default() }), PLAIN_FORMAT_VERSION);
+        assert_eq!(format_version_for(&RingDesign { graph: Some(patch(&plain)), ..RingDesign::default() }), PLAIN_FORMAT_VERSION);
+        let profiled = [
+            CurveLayer { widths: vec![1.0, 0.5], ..CurveLayer::default() },
+            CurveLayer { heights: vec![0.5], ..CurveLayer::default() },
+            CurveLayer { beads: Some(CurveBeads::default()), ..CurveLayer::default() },
+            CurveLayer { profile: crate::curve::WireProfile::Tube, ..CurveLayer::default() },
+        ];
+        for c in profiled {
+            let group = crate::LayerEntry::new("Group", crate::Layer::Group(GroupLayer { stack: stack(vec![entry(c.clone())]), ..Default::default() }));
+            for layers in [vec![entry(plain.clone()), entry(c.clone())], vec![group]] {
+                let d = RingDesign { layers: stack(layers), ..RingDesign::default() };
+                assert_eq!(format_version_for(&d), FORMAT_VERSION);
+                let text = design_json(&d).unwrap();
+                assert!(read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string().contains("format version 6"));
+                assert_eq!(serde_json::to_value(load_design_str(&text).unwrap()).unwrap(), serde_json::to_value(&d).unwrap());
+            }
+            assert_eq!(format_version_for(&RingDesign { graph: Some(patch(&c)), ..RingDesign::default() }), FORMAT_VERSION);
+        }
+        let node = |profile: &str| serde_json::json!({"nodes":[{"id":1,"kind":"layer.curve","inputs":{"profile":profile}}]});
+        assert_eq!(format_version_for(&RingDesign { graph: Some(node("Round")), ..RingDesign::default() }), PLAIN_FORMAT_VERSION);
+        assert_eq!(format_version_for(&RingDesign { graph: Some(node("Tube")), ..RingDesign::default() }), FORMAT_VERSION);
+    }
+
+    #[test]
     fn bundled_stock_references_reopen_exactly_and_inline_or_modified_stock_keeps_its_source() {
         for preset in PRESETS {
             for sand_master in [false, true].into_iter().filter(|sand| !sand || preset.sand_safe()) {
@@ -343,7 +391,7 @@ mod template_source_tests {
 
     #[test]
     fn new_template_controls_are_fenced_even_when_only_wired_exposed_or_nested() {
-        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "theta_deg"), ("cad.feature", "blend_mm")] {
+        for (kind, pin) in [("shank", "keys"), ("cad.feature", "placement"), ("cad.feature", "theta_deg"), ("cad.feature", "blend_mm"), ("layer.curve", "widths"), ("layer.curve", "heights"), ("layer.curve", "beads")] {
             let node = serde_json::json!({"id":7,"kind":kind,"inputs":{}});
             let plain = serde_json::json!({"nodes":[node],"wires":[],"exposed":[]});
             assert!(!template_features_in_json(&plain));
@@ -1363,6 +1411,48 @@ mod tests {
             let design = with(one);
             assert!(!crate::cad::picks_regions(&design));
             assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
+        }
+    }
+
+    /// Each new sweep form writes the design at 6, in the document or a graph; a plain sweep stays at 5.
+    #[test]
+    fn sweeps_that_close_twist_scale_or_follow_a_sketch_write_the_design_at_six() {
+        use crate::cad::{Component, Feature, Operation, SweepPath, TwistPath};
+        use crate::sketch::Sketch;
+        let feature = |operation: Operation| Feature { id: 2, name: "Swept".into(), enabled: true, operation, component: Component::default() };
+        let with = |operation: Operation| {
+            let mut doc = crate::cad::Document::default();
+            doc.append(feature(operation)).unwrap();
+            RingDesign { name: "Swept".into(), cad: Some(doc), ..RingDesign::default() }
+        };
+        let line = vec![[0.0; 3], [0.0, 0.0, 5.0]];
+        let sweep = |path: SweepPath, closed: bool, twist_deg: f64, end_scale: f64| Operation::Sweep { sketch: Sketch::circle(1.0).into(), path, closed, twist_deg, end_scale };
+        let twist = |path: TwistPath, scale: Vec<[f64; 2]>, closed: bool| Operation::Twist { sketch: Sketch::circle(1.0).into(), path, degrees: 360.0, end_scale: 0.5, scale, closed };
+        for plain in [Operation::sweep(Sketch::circle(1.0), line.clone()), Operation::twist(Sketch::circle(1.0), Sketch::default(), 90.0, 0.5)] {
+            let design = with(plain);
+            assert!(!crate::cad::sweeps_extended(&design));
+            assert_eq!(format_version_for(&design), PLAIN_FORMAT_VERSION);
+        }
+        let points = TwistPath::Points { points: line.clone(), smooth: true };
+        for (name, op) in [
+            ("a closed sweep", sweep(line.clone().into(), true, 0.0, 1.0)),
+            ("a twisted sweep", sweep(line.clone().into(), false, 90.0, 1.0)),
+            ("a scaled sweep", sweep(line.clone().into(), false, 0.0, 0.5)),
+            ("a sweep along a sketch entity", sweep(SweepPath::Sketch { feature: 1, entity: 4, lift_mm: 0.2 }, false, 0.0, 1.0)),
+            ("a twisted sweep through points", twist(points.clone(), vec![], false)),
+            ("a twisted sweep under a scale law", twist(Sketch::default().into(), vec![[0.0, 1.0], [1.0, 0.5]], false)),
+            ("a closed twisted sweep", twist(Sketch::default().into(), vec![], true)),
+        ] {
+            let design = with(op.clone());
+            assert!(crate::cad::sweeps_extended(&design), "{name}");
+            assert_eq!(format_version_for(&design), FORMAT_VERSION, "{name}");
+            let text = design_json(&design).unwrap();
+            let older = read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string();
+            assert!(older.contains("format version 6"), "{name}: {older}");
+            assert_eq!(serde_json::to_string(&load_design_str(&text).unwrap()).unwrap(), serde_json::to_string(&design).unwrap(), "{name}: read back bit for bit");
+            let node = serde_json::json!({ "id": 2, "kind": "cad.feature", "params": serde_json::to_value(feature(op)).unwrap() });
+            let in_graph = RingDesign { graph: Some(serde_json::json!({ "name": "g", "mode": "Free", "nodes": [node] })), ..RingDesign::default() };
+            assert_eq!(format_version_for(&in_graph), FORMAT_VERSION, "{name} in a graph");
         }
     }
 

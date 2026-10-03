@@ -45,9 +45,7 @@ pub fn stone_map_svg(design: &RingDesign, report: Option<&StonesReport>) -> Opti
         let (tangent, radial) = ([-sin_t, cos_t], [cos_t, sin_t]);
         let (rs, rc) = st.rot_deg().to_radians().sin_cos();
         s.push_str("<path class=\"stone\" fill=\"#dfe\" stroke=\"black\" stroke-width=\"0.2\" d=\"");
-        for k in 0..=48 {
-            let t = k as f64 / 48.0 * std::f64::consts::TAU;
-            let (a, b) = superellipse(t, f.semi.0, f.semi.1, f.plan_pow);
+        for (k, (a, b)) in plan_outline(f).into_iter().enumerate() {
             // The long axis lies along the ring at the seat's bearing.
             let (along, across) = (a * rc - b * rs, a * rs + b * rc);
             let p = [
@@ -80,9 +78,7 @@ pub fn stone_map_svg(design: &RingDesign, report: Option<&StonesReport>) -> Opti
         let (cxs, cys) = centre(st);
         let (rs, rc) = st.rot_deg().to_radians().sin_cos();
         s.push_str("<path class=\"stone\" fill=\"#dfe\" stroke=\"black\" stroke-width=\"0.2\" d=\"");
-        for k in 0..=48 {
-            let t = k as f64 / 48.0 * std::f64::consts::TAU;
-            let (a, b) = superellipse(t, f.semi.0, f.semi.1, f.plan_pow);
+        for (k, (a, b)) in plan_outline(f).into_iter().enumerate() {
             let (x, y) = (a * rc - b * rs, a * rs + b * rc);
             s.push_str(&format!("{}{:.2},{:.2} ", if k == 0 { 'M' } else { 'L' }, cxs + x * K, cys + y * K));
         }
@@ -143,6 +139,15 @@ pub fn stone_map_svg(design: &RingDesign, report: Option<&StonesReport>) -> Opti
     Some(s)
 }
 
+/// A stone's closed girdle in its own plan frame, mm: the true girdle's corners, else 49 superellipse points.
+fn plan_outline(f: &crate::stones::StoneFrame) -> Vec<(f64, f64)> {
+    if let Some(g) = f.table {
+        let pts = g.points();
+        return pts.iter().chain(pts.first()).map(|p| (p[0] * f.semi.0, p[1] * f.semi.1)).collect();
+    }
+    (0..=48).map(|k| superellipse(k as f64 / 48.0 * std::f64::consts::TAU, f.semi.0, f.semi.1, f.plan_pow)).collect()
+}
+
 /// A superellipse point at parameter `t`, semi-axes `a` (long) and `b`.
 fn superellipse(t: f64, a: f64, b: f64, n: f64) -> (f64, f64) {
     let (st, ct) = t.sin_cos();
@@ -162,6 +167,21 @@ mod tests {
     use super::*;
     use crate::field::{Layer, LayerEntry, SeatPadLayer, SeatRunLayer};
     use crate::gem::{Gem, GemCut};
+
+    /// The setter's map draws a true girdle corner for corner.
+    #[test]
+    fn the_map_draws_a_true_girdle() {
+        let mut d = RingDesign::default();
+        let mut s = SeatPadLayer { v_mm: d.field_context().crest_v_mm, ..Default::default() };
+        s.fit_stone(Gem::calibrated(GemCut::Pear, 3.0));
+        d.layers.layers.push(LayerEntry::new("Pear", Layer::SeatPad(s)));
+        let svg = stone_map_svg(&d, None).unwrap();
+        let corners = GemCut::Pear.girdle().unwrap().points().len();
+        for path in svg.split("<path class=\"stone\"").skip(1) {
+            let d = path.split(" d=\"").nth(1).unwrap().split('"').next().unwrap();
+            assert_eq!(d.matches(['M', 'L']).count(), corners + 1, "every corner and the closing one");
+        }
+    }
 
     #[test]
     fn the_map_draws_every_stone_and_the_tight_pairs() {

@@ -3,6 +3,7 @@ use crate::icons::Icon;
 use ringdesign_core::{
     RingDesign,
     cad::{Attach, Boolean, Component, EdgeRef, FaceRef, FaceSeat, MirrorPlane, Operation, PatternKind, Placement, PlaneBase, Stage},
+    field::SideFacePick,
     sketch::{Geometry, Sketch, Workplane},
 };
 pub use ringdesign_core::interaction::surface::PARTS_ONLY;
@@ -71,8 +72,8 @@ pub fn hint(op: &Operation) -> &'static str {
         Sketch { .. } => "A closed profile of its own, for other features to extrude, revolve, sweep or loft.",
         Extrude { .. } => "Give a closed sketch depth, optionally tapering the walls.",
         Revolve { .. } => "Rotate a closed sketch about an axis. Edit the profile in Sketch.",
-        Sweep { .. } => "Carry a closed section along a 3D path. Edit the stations in Properties.",
-        Twist { .. } => "Twist a closed section along a planar path, optionally scaling its end. The section stands square to the path at its start.",
+        Sweep { .. } => "Carry a closed section along a 3D path, or along an entity of a sketch so it follows the sketch's edits. Edit the stations in Properties.",
+        Twist { .. } => "Twist a closed section along a planar path or through points in space, scaling it straight or by a law, open or closed round a loop. On a planar path the section stands square to the path at its start.",
         Loft { .. } => "Join matching closed sections. Move each station to shape the transition.",
         Boolean { .. } => {
             "Combine two different earlier solids. Consumes the source components; Preview checks the intersection."
@@ -89,6 +90,8 @@ pub fn hint(op: &Operation) -> &'static str {
         Pattern { kind: PatternKind::Ring { .. }, .. } => "Copies of the part round the finger, each dropped onto the band at its own angle; the part stays beside them.",
         Pattern { kind: PatternKind::About { .. }, .. } => "Copies of the part round a stone's axis or another part's: six prongs from one.",
         Pattern { kind: PatternKind::Mirror { .. }, .. } => "The part reflected across the band, through the head, or across a work plane, as a part of its own.",
+        Pattern { kind: PatternKind::Line { .. }, .. } => "Copies of the part stepped along a straight line in its own frame: bays along a wall.",
+        Pattern { kind: PatternKind::Along(_), .. } => "Copies of the part along a path: the crest, a sweep, a sketch's curves or a drawn line, turned, alternated and graded as they go.",
         Plane { .. } => "A plane with no body: through the finger's axis, square to the band, the parting plane or a part's face. Sketches lie on it; mirrors reflect across it.",
         PressPull { .. } => "Push or pull a planar face of a part along its normal; its neighbours follow it.",
         Stored { .. } => "A mesh another kernel made, kept in the file so every build shows and judges it; run it again where that kernel is to change it.",
@@ -144,10 +147,7 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
             degrees: 360.0,
             in_plane: false,
         },
-        Operation::Sweep {
-            sketch: Sketch::circle(1.0).into(),
-            path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]],
-        },
+        Operation::sweep(Sketch::circle(1.0), vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]]),
         Operation::Loft {
             sections: vec![Sketch::rectangle(10.0, 8.0).into(), top.into()],
         },
@@ -166,12 +166,7 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
             b: second,
             kind: Boolean::Intersect,
         },
-        Operation::Twist {
-            sketch: Sketch::rectangle(2.0, 1.5).into(),
-            path: twist_path(),
-            degrees: 180.0,
-            end_scale: 1.0,
-        },
+        Operation::twist(Sketch::rectangle(2.0, 1.5), twist_path(), 180.0, 1.0),
         Operation::Fillet {
             source,
             edges: vec![EdgeRef::bare(0)],
@@ -394,13 +389,38 @@ pub fn placement(ui: &mut egui::Ui, p: &mut Placement) {
     if ui.checkbox(&mut seated, "Seat on the ring").on_hover_text("Stand the part on the ring's outer surface at an angle; it follows resizing").changed() {
         *p = if seated { Placement::ring(90.0, 0.0) } else { Placement::Free };
     }
-    if let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } = p {
-        crate::controls::named(ui, "Ring angle °", "Ring angle", |ui| ui.add(egui::DragValue::new(theta_deg).speed(0.5).max_decimals(2)));
-        crate::controls::named(ui, "Across the band mm", "Across the band", |ui| ui.add(egui::DragValue::new(across_mm).speed(0.05).max_decimals(3)));
-        crate::controls::named(ui, "Stand-off mm", "Stand-off", |ui| ui.add(egui::DragValue::new(height_mm).speed(0.05).max_decimals(3)));
-        crate::controls::named(ui, "Spin °", "Spin", |ui| ui.add(egui::DragValue::new(spin_deg).speed(0.5).max_decimals(2)));
-        crate::controls::named(ui, "Tilt along the ring °", "Tilt", |ui| ui.add(egui::DragValue::new(tilt_deg).speed(0.5).max_decimals(2)));
-        crate::controls::named(ui, "Cant across the band °", "Cant", |ui| ui.add(egui::DragValue::new(cant_deg).speed(0.5).max_decimals(2)));
+    match p {
+        Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level } => {
+            crate::controls::named(ui, "Ring angle °", "Ring angle", |ui| ui.add(egui::DragValue::new(theta_deg).speed(0.5).max_decimals(2)));
+            crate::controls::named(ui, "Across the band mm", "Across the band", |ui| ui.add(egui::DragValue::new(across_mm).speed(0.05).max_decimals(3)));
+            crate::controls::named(ui, "Stand-off mm", "Stand-off", |ui| ui.add(egui::DragValue::new(height_mm).speed(0.05).max_decimals(3)));
+            crate::controls::named(ui, "Spin °", "Spin", |ui| ui.add(egui::DragValue::new(spin_deg).speed(0.5).max_decimals(2)));
+            crate::controls::named(ui, "Tilt along the ring °", "Tilt", |ui| ui.add(egui::DragValue::new(tilt_deg).speed(0.5).max_decimals(2)));
+            crate::controls::named(ui, "Cant across the band °", "Cant", |ui| ui.add(egui::DragValue::new(cant_deg).speed(0.5).max_decimals(2)));
+            ui.checkbox(level, "Level").on_hover_text("Seat square to the finger: the part's x runs along it and its y and z lie across the band");
+        }
+        Placement::Relative { part, at, rotation_deg } => {
+            ui.label(format!("Stands in the frame of part #{part}"));
+            for (k, axis) in ["x", "y", "z"].into_iter().enumerate() {
+                crate::controls::named(ui, &format!("Offset {axis} mm"), "Offset", |ui| ui.add(egui::DragValue::new(&mut at[k]).speed(0.05).max_decimals(3)));
+            }
+            for (k, axis) in ["x", "y", "z"].into_iter().enumerate() {
+                crate::controls::named(ui, &format!("Turn about {axis} °"), "Turn", |ui| ui.add(egui::DragValue::new(&mut rotation_deg[k]).speed(0.5).max_decimals(2)));
+            }
+        }
+        Placement::Side { theta_deg, radius_mm, face, height_mm, spin_deg, tilt_deg } => {
+            crate::controls::named(ui, "Ring angle °", "Ring angle", |ui| ui.add(egui::DragValue::new(theta_deg).speed(0.5).max_decimals(2)));
+            crate::controls::named(ui, "Radius mm", "Radius", |ui| ui.add(egui::DragValue::new(radius_mm).speed(0.05).max_decimals(3)));
+            egui::ComboBox::from_label("Side face").selected_text(format!("{face:?}")).show_ui(ui, |ui| {
+                for pick in [SideFacePick::Low, SideFacePick::High, SideFacePick::Wider] {
+                    ui.selectable_value(face, pick, format!("{pick:?}"));
+                }
+            });
+            crate::controls::named(ui, "Stand-off mm", "Stand-off", |ui| ui.add(egui::DragValue::new(height_mm).speed(0.05).max_decimals(3)));
+            crate::controls::named(ui, "Spin °", "Spin", |ui| ui.add(egui::DragValue::new(spin_deg).speed(0.5).max_decimals(2)));
+            crate::controls::named(ui, "Tilt round the ring °", "Tilt", |ui| ui.add(egui::DragValue::new(tilt_deg).speed(0.5).max_decimals(2)));
+        }
+        Placement::Free => {}
     }
 }
 
