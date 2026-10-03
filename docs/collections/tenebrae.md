@@ -18,7 +18,8 @@ This file is self-contained. It was written on 2026-09-24 against `master` at `3
 
 | # | Ring | Epithet | Base | Process | Stones | Status |
 |---|---|---|---|---|---|---|
-| 1 | Oculus | the wheel | Procedural Flat 7.0 × 4.6, Uniform | Delft sand | 0 | Not started; buildable now |
+| 1 | Oculus | the wheel | Procedural Flat 7.0 × 4.6, Uniform | Delft sand | 0 | **Replaced by Gurgulio (2026-10-03)**: the wheel windows read as flowers in six read tests of six |
+| 1′ | Gurgulio | the waterspout | Procedural keyed band, the head sculpted | Lost wax | 0 | Started 2026-10-03 |
 | 2 | Ogiva | the keel | CAD-only revolved pointed-arch section | Delft sand | 0 | Not started; buildable now |
 | 3 | Rosa | the west rose | Factory 013 Round at a 16 mm face (fallback 001) | Lost wax | 9 | Not started; buildable now with oval lights; full form waits on C-B2, C-T1, C-T3 |
 | 4 | Sigillum | the chapter seal | Factory 005 Rosette, sand master | Delft sand + bench | 0 | Not started; blocked on C-T6 |
@@ -831,6 +832,22 @@ fn pinnacle_parts(doc: &mut Document, ids: &mut impl FnMut() -> Id, at: Placemen
 - **Risk:** 5/5, high. If the seven-source About pattern is refused or slow, pattern the pinnacle's metal parts and hand-place the 8 lamps (24 features). If the face budget bites, lower the spirelet's twist to 30°.
 
 ---
+
+## Gurgulio — *the waterspout*
+
+- **Status:** Started 2026-10-03. Logan chose it that day to take Oculus's place, after the Oculus spike's wheel windows read as flowers in six read tests out of six. Example `examples/tenebrae_gurgulio.rs`, outputs in `showcase/tenebrae/gurgulio/`.
+- **Concept:** A gargoyle, the cathedral's own beast: a grotesque crouched on the parapet with its jaws thrust out past the edge as the gutter's spout. The Ogiva spike's gargoyle came close and missed ("a winged dragon or griffin statuette"): it was a flat cut-out standing on a bare table. This one is sculpted in the round and is architecture's beast, gripping a moulded Gothic perch.
+- **The read it must give:** at 300 px, from the hero and the face cameras, a jeweller says "gargoyle" (Gothic, grotesque, a waterspout) before "dragon". What carries it, in order:
+  - **The face:** a snarling grotesque with a bulging brow over deep-set eyes, short horns and pointed ears, and the jaws gaping open as a spout, with a water channel running along the back and out through the mouth.
+  - **The posture:** hunched and crouched, the forelimbs gripping the parapet's front edge, the head thrust out past it.
+  - **Folded bat wings** close along the back.
+  - **The perch:** a moulded parapet block, a stepped cornice over a corbel, with blind quatrefoil tracery on its faces.
+- **Base:** a procedural keyed band, not a factory signet. The perch is the head, sculpted with the beast as one part, so the band only has to rise into its foot: a flat section swelling in width and thickness to the crown, where the parapet stands. A factory table under a figure is what read as "a hood ornament" in the spike.
+- **The figure:** one sculpted part (`sculpt.rs`: a distance field meshed, decimated and settled), the parapet and the gargoyle together, stored and grown out of the band with `fillet_into_band`. It faces along the finger toward the fingertip, so the hero camera meets its face and the face camera sees the crouch, the wings and the spout from above.
+- **Process:** lost wax, Silver 925, `CastProcess::LostWax` with `min_section_mm` raised to 0.8 (Logan, 2026-10-03: where the process is in question, judge it as lost wax, 0.8 mm minimum section, no pull rule). The figure is investment work: it cannot pull from two-part sand, and the report says so rather than claiming the bonus. Every horn, ear, claw and tooth is sized against the 0.8 mm floor first.
+- **Stones:** none. Gurgulio is the collection's beast, not a window.
+- **Gates:** lost wax's set: `cad::measure::thickness` at 0.8, `dfm::cut_lands` at 0.8, the part's own sections (`dfm::part_sections`) against 0.8, 0 DFM findings, the bore clear, the pattern closed, the cold reload identical.
+- **Extra rounds:** none granted.
 
 ## Packaging (the Reptilia format)
 
