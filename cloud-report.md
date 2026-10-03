@@ -1,53 +1,144 @@
-# Core: CAD operations that stop failing on Gothic geometry
+# Tenebrae — Rosa: final report
 
-Branch `claude/core-cad-robust`, off master `8e5a59a`, with master merged in up to `60b3881` (crisp edges, Gothic clusters, frame timing, relief sculpt, true stone plans). One code commit, three merges and this report. The last merge's conflicts were in `twist.rs`, where master's closed and scaled sweep keeps its form and the cap's `fill` takes the label that `cad::draft` and `cad::turn` share, and in CLAUDE.md, where master's twisted-sweep text comes first and the new doctrine bullet follows it.
+**Outcome: stopped at the block-out.** All three read tests came back `reads: false`, so under TASK.md the loop stopped before round 1. **Rounds used: 0 of 3.** No full review ran, so there is no review verdict or score. The subject needs rethinking, not detailing (see "What the reviewers kept saying").
 
-**The rule behind every fix:** each one is a fallback that runs only where the kernel failed. If the kernel already built a body, the core still uses that body, so no existing result moves. The core suite and golden test pass unchanged, and the graph and template tests are below. No new option, no serde field and no format change were needed, so nothing is fenced. `cadkernel` is not forked; every fix is in `cad.rs`, the new `cad/draft.rs` and `cad/turn.rs`, `cad/twist.rs` (two helpers made `pub(super)`) and `sketch/region.rs`.
+- Branch: `claude/tenebrae-rosa`. Master `2e11632` is merged in.
+- Example: `crates/ringdesign-core/examples/tenebrae_rosa.rs`.
+- Outputs: `showcase/tenebrae/rosa/`.
+- Collection doc: one line added to the Rosa section of `docs/collections/tenebrae.md`. It records the process decision, the base, the pears and the stop. No extra rounds were granted.
 
-## Per request
+## Read tests (independent reviewer, read-test mode)
 
-| # | Request | Status | What changed |
+| # | Build | reads | What the eye saw |
 |---|---|---|---|
-| 3 | Revolved arcs do not tessellate | **Fixed** | There were two separate defects. (a) "N nonmanifold edges": the kernel covers a revolved arc's torus seam with a zero-width strip, every triangle laid twice, once each way. `tessellate_traced` now removes opposite twin triangles wherever some edge has more than two faces (`cancel_twins`). The volume is unchanged and the body stays the kernel's. (b) "Kernel could not tessellate 1 faces": the kernel drops a torus face (on Ogiva's arch it is the comfort arc), and whether it does depends on the chord (on one arch it failed at 0.04 mm, passed at 0.015 and failed again at 0.012). Retrying cannot be relied on, so a revolve that has arcs and fails to tessellate becomes our own mesh (`cad::turn`). It is sampled at a quarter of the chord, with full and part turns, holes on full turns, and points on the axis shared. |
-| 4 | Drafted extrusion refuses Béziers and inset-dropping outlines | **Fixed** | When the kernel's tapered extrude refuses a region with no holes, `cad::draft` builds it. The outline is walked to the chord, and the far end is a mitred inset that removes each edge as the wavefront collapses it. Each side face is planar. A draft that would carry a notch's root across the outline (a split event) is refused by name: "the draft closes the outline across a neck or notch". |
-| 7 | Brep − Brep gives `NoClosedForm` (`CutRefused` here) | **Fixed** | When `brep::combine` fails, the Boolean goes through `csg` on the operands tessellated at the export chord, the same path a mesh operand already took. The 500-face refusal before the kernel stays as it was. |
-| 2 | Loft through non-parallel sections has open seams | **Fixed** | The kernel splits a ruled face's straight edge where its planar neighbour leaves it whole, so the seam has T-junctions. `split_t_junctions` fans each open edge's triangle through the open corners lying on it, within 1e-6 mm. No vertex moves. |
-| 6 | Loft only runs along the section normal | **Fixed, differently** | Measured: what decides success is the sections' winding relative to the direction the loft runs, not their order. On the probe's fanned planes, the order the report found working has (c1 − c0) · n0 **> 0**, so the literal rule ("reverse when > 0") would reverse the order that works. Instead, when the kernel refuses a polygon loft, `wound_sections` winds every section about the first-to-last centre line and lines each one up with the section before it. Either order now gives the same solid. |
-| 1 | Loft winding read off the first corner | **Fixed** | The same `wound_sections` pass also starts every section together where the first and last sections are convex at their second corner. The kernel's `polygon_normal` reads that corner through the first fan triangle, so it is the one that matters, not the first corner itself. |
-| 5 | Mirrored outlines in one sketch fail the drafted extrude | **Fixed** | Measured cause: the halves overlap or touch at the centre line, and the sketch refuses "loops may nest but not touch". The extrude itself does not fail. Now a **Sketch feature** whose loops meet extrudes each loop alone (straight, kernel-drafted or `cad::draft`) and joins the loops by `csg`. Inline profiles still refuse several loops, as their tests pin. Each loop is drafted on its own, so halves that only touch leave a draft groove along the line where they meet. Overlap them by at least the draft's inset (height × tan(draft)), as Ogiva's `FINIAL_OVERLAP_MM` did. |
+| 1 | Sunk-cell rose. Eight 1.8 × 3.0 oval sapphires in drawn collets round a 3.5 ruby. Sunk curved-triangle spandrels between the petal heads. | **false** | "a sapphire and ruby flower cluster on a square signet… nothing reads as Gothic cathedral" |
+| 2 | Raised tracery wheel: full mullions, an outer order and pointed heads. Lights are true pears pointed at the rim. Graded shoulder oculi. | **false** | "closer… still 'sapphire and ruby flower cluster'; the tracery is too thin to win; no arch on the walls" |
+| 3 | Tracery 0.9 mm proud, over the collets. Mullions 1.0 mm. Three-lancet gallery arcade cut into each cheek. Larger shoulder oculi. | **false** | "reads as a rose window on a second look, but the almond collets read as petals first; nothing outside the face says Gothic" |
 
-Every fallback part is a mesh value, as `cad::twist` is. Fillet, press-pull and sketch-on-face refuse it by name: "a drafted extrusion's mesh", "a revolution's mesh", "a mesh of loops extruded and joined".
+The full JSON is in `showcase/tenebrae/rosa/read-test-{1,2,3}.json`.
 
-## Tests
+### What the reviewers kept saying
 
-New tests in `cad::robust_tests` and `cad::draft::tests`, each built from the report's kind of geometry:
+- **The stones beat the tracery.** Each reviewer read eight bright stones round a red centre as a flower before they saw a window.
+- **The 0.8 mm floor makes it worse.** Every collet wall must be at least 0.8 mm. That makes each 1.8 × 3.0 light a 3.6 × 4.8 mm gold almond, which fills the lancet cell, so the petal outline wins over the mullions.
+- **Requests from attempt 3 not yet done:**
+  - collets trimmed to low bezels inside their cells;
+  - a cusped inner rim (16 cusps);
+  - pierced trefoils in the four cushion corners;
+  - an arcade deep enough to cast a shadow, on the end walls as well.
+- **What would fix it:** fewer, smaller or flush-set stones (or stones only in the oculus and the spandrels), so that the gold spokes, the cusped rim and pierced foils carry the read. The plan's stones and the 0.8 mm floor cannot both fit in a 16–19 mm face together with 0.8–1.0 mm tracery bars.
 
-- `a_revolved_sketch_arc_closes_and_holds_its_volume` (3a): a domed band section, closed at preview and export, volume within 0.4% / 0.15% of Pappus, and still the kernel's body.
-- `a_pointed_arch_revolves_whole_and_in_part` (3b): Ogiva's arch (comfort arc, jambs, two head arcs). It asserts the kernel's own tessellation still fails, then checks the full turn against a fine-walked Pappus within 0.5% / 0.2%, and the half turn either way within 0.5% of half.
-- `a_brep_cut_the_kernel_refuses_is_resolved_by_csg` (7): a revolved ring less a lancet niche. It asserts `brep::combine` still refuses, then checks the volume against the analytic ring less the niche's foot.
-- `a_loft_through_fanned_sections_closes_listed_either_way` (2, 6): five fanned sections, both orders, preview and export, all closed with identical volumes.
-- `a_loft_section_may_start_on_a_concave_corner` (1): asserts `brep::loft` still refuses, then checks the volume is exactly 10.
-- `mirrored_loops_that_meet_extrude_together` (5): straight volume exactly the union's 9.0, drafted below it, closed.
-- `a_bezier_outline_drafts`, `an_inset_that_drops_a_piece_drafts`, `a_draft_the_kernel_takes_is_still_its_body` (4): each asserts `brep::extrude_tapered` still refuses. Checked: the first-order draft volume, the mirrored run, the collapsed tip (5 far corners), the filled notch on the grown rectangle, the named refusal of a split, and that a draft the kernel accepts stays its body.
+## Base and process
 
-Reproduced on unmodified master first, with a scratch probe that was not committed: domed revolve "0 open and 16 nonmanifold edges"; arch "Kernel could not tessellate 1 faces"; ring − niche "CutRefused"; Bézier and notch drafts "unsupported or degenerate geometry"; fanned loft "68 open edges" in one order and "unsupported" in the other; overlapping halves "loops may nest but not touch". Tests that cannot fail on master by construction instead assert the kernel's own refusal in place.
+- **Base: 001 Cushion at 19 × 19, bore 18.6.**
+  - 013 Round tops out at 13 mm without baking (the 70–130% rule).
+  - The baked 130% source travels inline. The design alone measured 1,250,150 bytes, over the stock template budget of 1,000,000.
+  - So the brief's fallback, 001, was used. It went to 19 rather than 18 to make room for the 0.8 mm collet walls.
+  - The palm is raised its full half millimetre (1.5 → 2.0): the bare stock's shank edges measured 0.50 under `thickness(0.8)`.
+- **Process: lost wax, Gold 18k.** `CastProcess::LostWax.apply`, then `min_section_mm` 0.8 and `min_detail_mm` 0.15. This matches Logan's 2026-10-03 rule, so nothing changed. The sand field also reads Castable, but no two-part ray release was run, so I claim no sand bonus.
+- **Lights: Pear 1.8 × 3.0.**
+  - Master's C-B2 (#257) gives the pear a true girdle through `GemCut::has_true_girdle`, although `plan_pow` still returns 2.0.
+  - I took that as the enabler landing and switched the lights from ovals to pears, points aimed at the rim (`spin_deg` −90).
+- **Enablers used:**
+  - C-T1: `Sketch::tracery` on the rose net, and `Profile::Regions` for the spandrels.
+  - C-T3: the `cutter.pierce` builder and `cutters::outline(Shape::Lancet)` for the arcade.
+  - C-T4: `dfm::cut_lands` at 0.8.
+  - C-B2: pear plans.
+  - #248: framed close-ups with `write_png_framed`.
 
-Results:
-- `cargo test -p ringdesign-core`: 848 passed, 0 failed, 16 ignored; golden 1 passed. After merging master up to `60b3881`: 912 passed, 0 failed, 17 ignored; golden and the other integration test both pass.
-- `cargo test -p ringdesign-graph` (templates byte for byte, showcase, bestiarium, imported bases, cad edits): all passed before the merges (140) and after them (152, including the new `gothic_clusters`), 0 failed.
+## Gates (committed block-out 3)
 
-**Merge note.** Master (from `779a3d6`) brought its own seam repair, `zip_chord_seams`, which splits open edges at the other side's samples within the chord. The merged `tessellate_traced` runs master's `stitch_chord_gaps` and then `zip_chord_seams` exactly as master does. Only what those two leave open goes on to `cancel_twins` and `split_t_junctions`, followed by one more stitch. So whatever master's pass already closes is closed byte for byte as master closes it, and my passes see only what it cannot close: the doubled seams, and T-junctions it reverts.
+| Gate | Draft 768×320 | Export 1536×448 |
+|---|---|---|
+| Triangles (≤ 2 M) | 65,012 | 65,012 (the stock and CAD parts build at their own resolution) |
+| Watertight / degenerate faces | yes / 0 | yes / 0 |
+| `self_crossings`: ring / made parts | 0 / **20 in "Their eight collets"** | 0 / **20** |
+| Solids notes / parts notes | empty / empty | empty / empty |
+| CAD features `Ok` | all | all |
+| Finger hole | 0 vertices inside, min r 9.2995 vs bore 9.300 | same |
+| Field verdict (lost wax) | Castable, thinnest wall 1.88 | same |
+| `cad::measure::thickness(0.8)` at 384×160 | **382 rays, 44 below, min 0.025** | same |
+| `dfm::cut_lands(0.8)` | 0 findings | 0 |
+| `dfm::findings_in` | 0 | 0 |
+| Stones reported / previewed | 9 / 9 | 9 / 9 |
+| `--verify` cold reload, empty library | — | identical |
+| Casting pattern | watertight, 0 degenerate, 0 crossings | same |
 
-## For a ring author
+**Two gates are red: thickness and the made-part crossings.** Under TASK.md that does not block a block-out read test, but it would block a review round.
 
-Draw what you mean and stop working around the kernel:
+- **Thickness:** the thin samples sit where the drilled pilots, the bur relief and the collet bearings meet near the girdle and the bore.
+- **Crossings:** the pattern copies of the drawn collets meet the raised tracery degenerately, and the part is "joined one by one".
 
-- **Revolves:** use real sketch arcs, not chord-walked polylines.
-- **Drafted extrusions:** Béziers and sharp crocket tips are fine. A draft that would close a neck is refused by name; draft less or widen the neck.
-- **Mirrored outlines:** they may share one Sketch feature. Overlap the halves by at least height × tan(draft), or a groove stays where they meet.
-- **Lofts:** list fanned sections in either order, and start a section on any corner.
-- **Booleans:** a Brep minus a Brep the kernel cannot close now resolves through csg.
+What I learned getting part of the way:
+- Cut tools apply after join tools, so a pocket cut through a collet's footprint shaves the collet to a skin.
+- A seat bur on a stone standing over a joined collet takes the whole-bur route, and its clearance and girdle wall shave the collet's inner wall.
+- `head.bezel`'s leaning lip is 0.16 mm thick vertically. No lip share reaches 0.8, so I drew straight-walled collets instead.
+- Vertical through-cuts leave knife edges where they exit the bore at an angle, so the pilots are drilled toward the finger's axis.
 
-Each of these comes back as a mesh rather than a kernel body only where the kernel failed. So fillet before the step that falls back, not after it, and check `Value::mesh_words` in any refusal you see.
+**Template gate** (`collection_templates --verify-export`, class `stock` because the base is factory 001):
 
-What remains: a part turn of a section with holes that the kernel cannot tessellate is still refused. A revolve with arcs now pays one extra tessellation in `body_for`, about the cost of one tessellation, so up to about 0.6 s at export on a large arch.
+| | |
+|---|---|
+| Nodes | 62 |
+| `design.set` patches | 1 (`/manufacturing`), at most 4 allowed |
+| Graph size | 528,319 bytes, inside the 1 MB stock budget |
+| Cold source / cold graph reload / mesh parity | identical / yes / identical vertices, faces and normals |
+| `template_gate_passed` | true |
+| Open time | first build 1.31 s, evaluate 37 ms |
+
+`crisp_relief` is off, because the lift cannot carry it yet. The file is in `showcase/tenebrae/rosa/verification.json`.
+
+**Weight:** 36.4 g in Gold 18k. That is heavy, and comes from the 19 mm cushion and the 2.0 mm palm.
+
+## Feature tree, as sentences
+
+1. Cushion signet, factory 001 at a 19 mm face.
+2. Table, lifted clear of the metal (+1.2).
+3. The rose net traced into lights a bar apart (C-T1):
+   - hub circle r 3.0, outer circle r 8.5;
+   - 8 mullions from hub to rim, between the lights;
+   - 8 pointed heads, each two arcs struck at 1.0 of the span, apex on the rim;
+   - bar 1.0 mm.
+4. Tracery top (+0.9).
+5. The bars between the lights, inside the outer order (r 9.0).
+6. Raise the tracery: the oculus order, eight mullions, the heads and the outer order.
+7. Sink the sixteen spandrels deep (3.0 mm, `Profile::Regions`).
+8. The ruby stone, Round 3.5, girdle 0.4 over the table.
+9. Its seat bur.
+10. The oculus collet, drawn:
+    - lip height plane, lip ring and "raise the lip to the bearing";
+    - bearing height plane, bearing ring and "stand the bearing on the metal".
+11. The first light, Pear 3 × 1.8, 5.65 mm out, girdle 0.25: its seat bur and its drawn collet, as above.
+12. Eight sapphire lights round the oculus, eight seats and eight collets. These are `About` patterns round the ruby: P2 keeps a gem on every copy.
+13. Drill the oculus pilot, and each light's pilot, toward the finger's axis (nine cuts, each leaned to its own angle).
+14. Oculi of the nave 1–4: round piercings 2.0, 1.8, 1.5 and 1.2 at θ 90 − (44, 53, 62, 71).
+15. Mirror the oculi through the crown.
+16. Outside the near cheek: a parting-parallel plane at z 9.9.
+17. Gallery arcade: three lancets, 1.6 × 2.3, centred 2.5 apart.
+18. Cut the gallery arcade into the cheek.
+19. The same arcade in the far cheek (mirrored across the band).
+
+The four head-wall arcade stamps (`setting::Stamp`) are written but switched off (`WITH_ARCADES`). On the stock's cheeks at draft they struck torn, stair-stepped cuts, so the arcade became the CAD cut above.
+
+## What I could not do
+
+- **Make it read.** See the read tests. The plan's stone count and sizes, together with the 0.8 mm walls, turn the rose into a flower.
+- **013 at 16 mm** within the template budget, without the `pre_scale` the doc asks P7 for.
+- **A seam bead on the tracery or the collets.** The clustered join's fillet folds in every acute light corner, so `blend_mm` is 0 on the tracery and the collets. That breaks house rule 10.
+- **A drafted tracery extrude (12°).** The kernel refused it: "unsupported or degenerate geometry".
+- **Pierced-through spandrels.** They exit the shoulders at about 45° and fail thickness, so they are sunk 3.0 mm.
+- **Clean thickness and collet crossings** (above).
+
+## Core changes wanted
+
+1. **A `head.bezel` "cast straight" option**, a wall standing square above the girdle with no lean, so a cast collet holds the investment floor:
+```rust
+// cad/builders.rs, BEZEL params
+number("lean", "Lip lean", "", 0.0, 1.0, 1.0),
+// setting::collet_named: scale the lean
+let lean = lean_share * 0.8 * (1.0 - crown_scale(gem, top - g)) * plan.b;
+```
+2. **Seat bur against the band only.** `seat.surface_z` should be read from the band, not from the band plus joined collets, so the bur takes the relief route and never shaves a collet it sits in. Equivalently, exclude `ComponentRole::Setting` joins from the surface read in the BUR builder.
+3. **Per-part fillets in a join cluster**, laid only on each part's own seam with the band, with every acute corner skipped rather than failing the whole cluster.
+4. **`base.preset { pre_scale }`** (as the doc asks P7), so 013 can reach 16 mm without carrying the baked source inline.
+5. **`cad::measure::thickness` with a list of thin samples**, not just the minimum, so authors can find every thin spot.
