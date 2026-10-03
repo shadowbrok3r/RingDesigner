@@ -128,7 +128,8 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
         || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"))
         || (kind == "layer.seatrun" && pin == "bare") || (kind == "layer.group" && pin == "clamp")
         || (kind == "layer.tiling" && matches!(pin, "grade" | "space"))
-        || (kind == "layer.curve" && matches!(pin, "widths" | "heights" | "beads"));
+        || (kind == "layer.curve" && matches!(pin, "widths" | "heights" | "beads"))
+        || (kind == "design.settings" && pin == "crisp_relief");
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
     // A line array or an array along a path, which an older reader cannot parse.
     if value.get("Pattern").and_then(|p| p.get("kind")).is_some_and(|k| k.get("line").is_some() || k.get("along").is_some()) { return true; }
@@ -444,6 +445,32 @@ mod template_source_tests {
         for kind in ["base.preset", "shank.key", "stamp", "stamp.top", "stamp.row", "design.stamps", "stamp.outline.keel", "cad.op.head.claw"] {
             let d = RingDesign { graph: Some(serde_json::json!({"nodes":[{"kind":kind}]})), ..RingDesign::default() };
             assert_eq!(format_version_for(&d), FORMAT_VERSION, "{kind}");
+        }
+    }
+
+    /// Crisp relief on the settings node fences a graph as a literal, an expression, a wire or an exposure, nested or not;
+    /// off or unset it stays plain.
+    #[test]
+    fn crisp_relief_on_the_settings_node_is_fenced_in_every_form() {
+        let graph = |inputs: serde_json::Value, wires: serde_json::Value, exposed: serde_json::Value| {
+            serde_json::json!({"nodes":[{"id":7,"kind":"design.settings","inputs":inputs}],"wires":wires,"exposed":exposed})
+        };
+        let none = serde_json::json!([]);
+        let fenced = |g: &serde_json::Value| {
+            [g.clone(), serde_json::json!({"nested":[{"params":{"graph":g}}]})].into_iter()
+                .all(|value| format_version_for(&RingDesign { graph: Some(value), ..RingDesign::default() }) == FORMAT_VERSION)
+        };
+        for inputs in [serde_json::json!({}), serde_json::json!({"crisp_relief": false})] {
+            let g = graph(inputs, none.clone(), none.clone());
+            assert!(!template_features_in_json(&g), "{g}");
+        }
+        for (form, g) in [
+            ("literal", graph(serde_json::json!({"crisp_relief": true}), none.clone(), none.clone())),
+            ("expression", graph(serde_json::json!({"crisp_relief": {"expr": "i == 0"}}), none.clone(), none.clone())),
+            ("wire", graph(serde_json::json!({}), serde_json::json!([{"from":8,"out":"value","to":7,"input":"crisp_relief"}]), none.clone())),
+            ("exposure", graph(serde_json::json!({}), none.clone(), serde_json::json!([{"name":"Crisp","node":7,"input":"crisp_relief"}]))),
+        ] {
+            assert!(fenced(&g), "{form}");
         }
     }
 }
