@@ -521,7 +521,7 @@ mod tests {
         let mut doc = Document::default();
         let feature = |id, name: &str, operation, component| crate::cad::Feature { id, name: name.into(), enabled: true, operation, component };
         doc.append(feature(0, "Procedural shank", Operation::Band, Component::default())).unwrap();
-        let placement = Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.6, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let placement = Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.6, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         let post = Component { attach: Attach::Join, stage: Stage::Bench, placement, ..Default::default() };
         doc.append(feature(3, "Post", Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, post)).unwrap();
         d.cad = Some(doc);
@@ -626,7 +626,7 @@ mod tests {
         let mut doc = Document::default();
         let feature = |id, name: &str, operation, component| crate::cad::Feature { id, name: name.into(), enabled: true, operation, component };
         doc.append(feature(1, "Procedural shank", Operation::Band, Component::default())).unwrap();
-        let placement = Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.65, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let placement = Placement::Ring { theta_deg: 90.0, across_mm: across, height_mm: 0.65, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         doc.append(feature(2, "Plate", Operation::Box { size }, Component { attach: Attach::Join, stage: Stage::Cast, placement, ..Default::default() })).unwrap();
         d.cad = Some(doc.clone());
         let e = crate::cad::evaluate(&d, &lib, crate::BuildParams { theta_steps: 256, profile_steps: 128, ..Default::default() }).unwrap();
