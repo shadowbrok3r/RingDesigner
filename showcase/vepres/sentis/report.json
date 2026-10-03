@@ -1,0 +1,724 @@
+{
+  "alloy_for_weight": "Gold 18k",
+  "bore": {
+    "nearest_vertex_mm": 9.300287973645919,
+    "radius_mm": 9.3,
+    "vertices_inside": 0
+  },
+  "build": {
+    "author_s": 0.179209011,
+    "build_s": 4.995754277,
+    "profile_steps": 320,
+    "theta_steps": 768,
+    "triangles": 99518
+  },
+  "coarse": {
+    "degenerate_faces": 0,
+    "notes": [
+      [],
+      []
+    ],
+    "self_crossings": 0,
+    "watertight": true
+  },
+  "cold_reload_identical": null,
+  "design": {
+    "bytes": 472426,
+    "cad_features": 40,
+    "format_version": 6
+  },
+  "dfm_findings": [],
+  "draft": {
+    "auto_parting": false,
+    "min_detail_mm": 0.15,
+    "min_draft_deg": 0.0,
+    "min_section_mm": 0.8,
+    "parting_z_mm": 0.0,
+    "process": "LostWax",
+    "sand": null
+  },
+  "features": [
+    [
+      "#1",
+      "Ok"
+    ],
+    [
+      "#2",
+      "Ok"
+    ],
+    [
+      "#3",
+      "Ok"
+    ],
+    [
+      "#4",
+      "Ok"
+    ],
+    [
+      "#5",
+      "Ok"
+    ],
+    [
+      "#6",
+      "Ok"
+    ],
+    [
+      "#7",
+      "Ok"
+    ],
+    [
+      "#8",
+      "Ok"
+    ],
+    [
+      "#9",
+      "Ok"
+    ],
+    [
+      "#10",
+      "Ok"
+    ],
+    [
+      "#11",
+      "Ok"
+    ],
+    [
+      "#12",
+      "Ok"
+    ],
+    [
+      "#13",
+      "Ok"
+    ],
+    [
+      "#14",
+      "Ok"
+    ],
+    [
+      "#15",
+      "Ok"
+    ],
+    [
+      "#16",
+      "Ok"
+    ],
+    [
+      "#17",
+      "Ok"
+    ],
+    [
+      "#18",
+      "Ok"
+    ],
+    [
+      "#19",
+      "Ok"
+    ],
+    [
+      "#20",
+      "Ok"
+    ],
+    [
+      "#21",
+      "Ok"
+    ],
+    [
+      "#22",
+      "Ok"
+    ],
+    [
+      "#23",
+      "Ok"
+    ],
+    [
+      "#24",
+      "Ok"
+    ],
+    [
+      "#25",
+      "Ok"
+    ],
+    [
+      "#26",
+      "Ok"
+    ],
+    [
+      "#27",
+      "Ok"
+    ],
+    [
+      "#28",
+      "Ok"
+    ],
+    [
+      "#29",
+      "Ok"
+    ],
+    [
+      "#30",
+      "Ok"
+    ],
+    [
+      "#31",
+      "Ok"
+    ],
+    [
+      "#32",
+      "Ok"
+    ],
+    [
+      "#33",
+      "Ok"
+    ],
+    [
+      "#34",
+      "Ok"
+    ],
+    [
+      "#35",
+      "Ok"
+    ],
+    [
+      "#36",
+      "Ok"
+    ],
+    [
+      "#37",
+      "Ok"
+    ],
+    [
+      "#38",
+      "Ok"
+    ],
+    [
+      "#39",
+      "Ok"
+    ],
+    [
+      "#40",
+      "Ok"
+    ]
+  ],
+  "field": {
+    "min_detail_mm": 0.15,
+    "min_section_mm": 0.8,
+    "notes": [
+      "CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply"
+    ],
+    "thinnest_wall_mm": 0.0,
+    "thinnest_wall_theta_deg": 0.0,
+    "verdict": "Castable with care"
+  },
+  "gates": [
+    {
+      "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+      "pass": true
+    },
+    {
+      "gate": "every CAD part closed without crossings",
+      "pass": true
+    },
+    {
+      "gate": "solids and parts notes empty, every feature Ok",
+      "pass": true
+    },
+    {
+      "gate": "nothing enters the finger hole",
+      "pass": true
+    },
+    {
+      "gate": "every part's ray-sampled wall at the 0.8 mm section, its pointed details (thorns, shoots) at the 0.15 mm detail floor",
+      "pass": false
+    },
+    {
+      "gate": "lost-wax verdict Castable with the 0.8 mm section",
+      "pass": false
+    },
+    {
+      "gate": "zero DFM findings",
+      "pass": true
+    },
+    {
+      "gate": "stones reported equal the preview",
+      "pass": true
+    },
+    {
+      "gate": "no metal inside a stone",
+      "pass": true
+    },
+    {
+      "gate": "crowding census clean",
+      "pass": true
+    },
+    {
+      "gate": "metal-in-stone check ran on every stone",
+      "pass": true
+    },
+    {
+      "gate": "gates hold at 384 x 192",
+      "pass": true
+    },
+    {
+      "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+      "pass": true
+    },
+    {
+      "gate": "export build within the 2 million triangle budget",
+      "pass": true
+    },
+    {
+      "gate": "cold reload identical",
+      "pass": true
+    }
+  ],
+  "gates_passed": false,
+  "geometry": {
+    "degenerate_faces": 0,
+    "self_crossings": 0,
+    "watertight": true
+  },
+  "grams_18k": 8.78575848388423,
+  "made_parts": [
+    [
+      "Heartwood liner",
+      0
+    ],
+    [
+      "Briar cane 1",
+      0
+    ],
+    [
+      "Briar cane 2",
+      0
+    ],
+    [
+      "Briar cane 3",
+      0
+    ],
+    [
+      "Briar cane 4",
+      0
+    ],
+    [
+      "Thorn 1 on cane 1",
+      0
+    ],
+    [
+      "Thorn 2 on cane 1",
+      0
+    ],
+    [
+      "Thorn 3 on cane 1",
+      0
+    ],
+    [
+      "Thorn 4 on cane 1",
+      0
+    ],
+    [
+      "Thorn 5 on cane 2",
+      0
+    ],
+    [
+      "Thorn 6 on cane 2",
+      0
+    ],
+    [
+      "Thorn 7 on cane 2",
+      0
+    ],
+    [
+      "Thorn 8 on cane 2",
+      0
+    ],
+    [
+      "Thorn 9 on cane 3",
+      0
+    ],
+    [
+      "Thorn 10 on cane 3",
+      0
+    ],
+    [
+      "Thorn 11 on cane 3",
+      0
+    ],
+    [
+      "Thorn 12 on cane 3",
+      0
+    ],
+    [
+      "Thorn 13 on cane 4",
+      0
+    ],
+    [
+      "Thorn 14 on cane 4",
+      0
+    ],
+    [
+      "Thorn 15 on cane 4",
+      0
+    ],
+    [
+      "Cut shoot 1",
+      0
+    ],
+    [
+      "Cut shoot 1: pruning cut",
+      0
+    ],
+    [
+      "Cut shoot 2",
+      0
+    ],
+    [
+      "Cut shoot 2: pruning cut",
+      0
+    ],
+    [
+      "Cut shoot 3",
+      0
+    ],
+    [
+      "Cut shoot 3: pruning cut",
+      0
+    ],
+    [
+      "Hip receptacle",
+      0
+    ],
+    [
+      "Hip stalk",
+      0
+    ],
+    [
+      "Hip calyx",
+      0
+    ],
+    [
+      "Briar leaf 1, terminal leaflet",
+      0
+    ],
+    [
+      "Briar leaf 1, left leaflet",
+      0
+    ],
+    [
+      "Briar leaf 1, right leaflet",
+      0
+    ],
+    [
+      "Briar leaf 2, terminal leaflet",
+      0
+    ],
+    [
+      "Briar leaf 2, left leaflet",
+      0
+    ],
+    [
+      "Briar leaf 2, right leaflet",
+      0
+    ],
+    [
+      "Briar leaf 3, terminal leaflet",
+      0
+    ],
+    [
+      "Briar leaf 3, left leaflet",
+      0
+    ],
+    [
+      "Briar leaf 3, right leaflet",
+      0
+    ],
+    [
+      "Oval cabochon 6.5 × 5",
+      0
+    ],
+    [
+      "Thorn claws",
+      0
+    ]
+  ],
+  "name": "Sentis",
+  "notes": {
+    "parts": [],
+    "solids": []
+  },
+  "pattern": {
+    "degenerate_faces": 0,
+    "self_crossings": 0,
+    "triangles": 99518,
+    "watertight": true
+  },
+  "process": "Lost wax",
+  "ray_walls": [
+    {
+      "below_floor": 0,
+      "part": "Heartwood liner",
+      "rays": 377,
+      "sampled_min_mm": 1.0989419175019561,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Briar cane 1",
+      "rays": 377,
+      "sampled_min_mm": 1.3194699384092976,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Briar cane 2",
+      "rays": 377,
+      "sampled_min_mm": 1.3194792902502677,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Briar cane 3",
+      "rays": 377,
+      "sampled_min_mm": 1.3195330663448348,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Briar cane 4",
+      "rays": 377,
+      "sampled_min_mm": 1.3195042363674305,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 182,
+      "part": "Thorn 1 on cane 1",
+      "rays": 271,
+      "sampled_min_mm": 0.15178865422236737,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 209,
+      "part": "Thorn 2 on cane 1",
+      "rays": 271,
+      "sampled_min_mm": 0.14752095507465382,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 230,
+      "part": "Thorn 3 on cane 1",
+      "rays": 271,
+      "sampled_min_mm": 0.14670203634445575,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 235,
+      "part": "Thorn 4 on cane 1",
+      "rays": 271,
+      "sampled_min_mm": 0.147836024865447,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 205,
+      "part": "Thorn 5 on cane 2",
+      "rays": 271,
+      "sampled_min_mm": 0.14811161770561818,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 180,
+      "part": "Thorn 6 on cane 2",
+      "rays": 271,
+      "sampled_min_mm": 0.1523117351628413,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 197,
+      "part": "Thorn 7 on cane 2",
+      "rays": 271,
+      "sampled_min_mm": 0.1493521661520171,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 233,
+      "part": "Thorn 8 on cane 2",
+      "rays": 271,
+      "sampled_min_mm": 0.14763975109031074,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 193,
+      "part": "Thorn 9 on cane 3",
+      "rays": 271,
+      "sampled_min_mm": 0.14984704086772818,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 191,
+      "part": "Thorn 10 on cane 3",
+      "rays": 271,
+      "sampled_min_mm": 0.1503970150572851,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 235,
+      "part": "Thorn 11 on cane 3",
+      "rays": 271,
+      "sampled_min_mm": 0.14785252122136675,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 230,
+      "part": "Thorn 12 on cane 3",
+      "rays": 271,
+      "sampled_min_mm": 0.14665144940715233,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 231,
+      "part": "Thorn 13 on cane 4",
+      "rays": 271,
+      "sampled_min_mm": 0.14715493336409433,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 230,
+      "part": "Thorn 14 on cane 4",
+      "rays": 271,
+      "sampled_min_mm": 0.14676215072185242,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 225,
+      "part": "Thorn 15 on cane 4",
+      "rays": 271,
+      "sampled_min_mm": 0.14697475722044362,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 28,
+      "part": "Cut shoot 1",
+      "rays": 279,
+      "sampled_min_mm": 0.04743242751922268,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 28,
+      "part": "Cut shoot 2",
+      "rays": 279,
+      "sampled_min_mm": 0.04743471710780826,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 28,
+      "part": "Cut shoot 3",
+      "rays": 279,
+      "sampled_min_mm": 0.04751348337102291,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 4,
+      "part": "Hip receptacle",
+      "rays": 198,
+      "sampled_min_mm": 0.37020847188948464,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 12,
+      "part": "Hip stalk",
+      "rays": 370,
+      "sampled_min_mm": 0.36161132407551755,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 305,
+      "part": "Hip calyx",
+      "rays": 320,
+      "sampled_min_mm": 0.09033205958902536,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 321,
+      "part": "Briar leaf 1, terminal leaflet",
+      "rays": 383,
+      "sampled_min_mm": 0.16592270896586933,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 326,
+      "part": "Briar leaf 1, left leaflet",
+      "rays": 383,
+      "sampled_min_mm": 0.10203204961417797,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 327,
+      "part": "Briar leaf 1, right leaflet",
+      "rays": 383,
+      "sampled_min_mm": 0.1001434748015336,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 321,
+      "part": "Briar leaf 2, terminal leaflet",
+      "rays": 383,
+      "sampled_min_mm": 0.16595208484398158,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 326,
+      "part": "Briar leaf 2, left leaflet",
+      "rays": 383,
+      "sampled_min_mm": 0.10203657652426078,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 327,
+      "part": "Briar leaf 2, right leaflet",
+      "rays": 383,
+      "sampled_min_mm": 0.10014078220790316,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 321,
+      "part": "Briar leaf 3, terminal leaflet",
+      "rays": 383,
+      "sampled_min_mm": 0.16592343570183463,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 326,
+      "part": "Briar leaf 3, left leaflet",
+      "rays": 383,
+      "sampled_min_mm": 0.10204476462938915,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 327,
+      "part": "Briar leaf 3, right leaflet",
+      "rays": 383,
+      "sampled_min_mm": 0.10012945761900312,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 176,
+      "part": "Thorn claws",
+      "rays": 365,
+      "sampled_min_mm": 0.03324332483623316,
+      "unresolved": 0
+    }
+  ],
+  "size": "US 8.6",
+  "stage": "block-out",
+  "stone_feature": 39,
+  "stones": {
+    "crowding": [],
+    "metal_inside": [
+      [
+        "Oval cabochon 6.5 × 5",
+        0
+      ]
+    ],
+    "previewed": 1,
+    "reported": 1
+  },
+  "thorns": 15
+}

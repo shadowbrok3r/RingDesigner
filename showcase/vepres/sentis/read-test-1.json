@@ -1,0 +1,33 @@
+{
+  "ring": "sentis",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A crown of thorns or a coil of barbed wire bent into a hoop, with a red gumdrop cabochon sitting on top. The canes are smooth round wire of one even gauge, and the thorns are straight, thin, evenly spaced needles that stick out every way, so at 300 px they look like barbs on wire, not prickles on a plant. The red stone looks like a stone dropped onto the tangle, not a fruit growing out of it. It reads as no hip: it has no calyx, no stalk, and at this size you cannot see the claws. There are no leaves or nodes and no taper in the canes, and the three cut shoots at the crown do not show up. A jeweller would say 'thorn crown' or 'barbed-wire ring'. Nobody would say briar, wild rose or bramble without being told. The over-and-under weave is real and makes a strong, distinct silhouette for the collection, but what it shows is thorns in general, not this plant.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the ruby read as a rose hip. Change the round 4.0 cabochon look to an upright oval or urn hip, about 4.5 x 3.5 mm, its long axis radial. Crown its tip with five dried, curled sepals (each about 1.2-1.5 mm long, 0.4 mm wide at the root, curling outward) as a cast calyx, and run a 0.6 mm stalk from the hip's base down into the nearest cane.",
+      "where": "Crown, theta 90, the hip cup and ruby (build steps 5-7); the calyx is a new ring of 5 Twist features on the cup rim, or the P6 Thorn claws reshaped as sepals.",
+      "acceptance": "In face-300 the red form shows a visible star of sepals at its tip and a stalk joining it to a cane, and a viewer calls it a berry or hip, not a gem."
+    },
+    {
+      "priority": 2,
+      "what": "Change the needle thorns into briar prickles. Widen the base from circle 0.40 to about 0.75 (a flattened, broad, triangular root), shorten the length from 1.3 to about 1.0 mm, and hook every tip backward along its cane, all one way on each cane. Drop the alternating spin_deg 0/180. Cut the count from 36 to about 24, and make the crown prickles about 1.4x the palm ones.",
+      "where": "Thorn features (build step 3), all 3 pattern periods; size grades from theta 90 (largest) to theta 270 (smallest).",
+      "acceptance": "In hero-300 every thorn shows a wide triangular base and a hooked tip pointing one way along the cane, and none reads as a straight radial spike or a wire barb."
+    },
+    {
+      "priority": 3,
+      "what": "Make the canes plant stems, not wire. Give them the angled star section, tapered 1.0 to 0.85 between crossings (the C-V3 plan), with small node swellings (about +0.15 mm, every 40-50 degrees). Make the three cut shoots at the crown read: raise them to about 3.5 mm proud, with a flat angled cut at each tip. Add 2-3 small pinnate briar leaves (3 serrated leaflets, about 2.5 mm) clustered by the hip.",
+      "where": "Canes #2-#9 (section and taper); shoots at theta 72, 90 and 108; leaves at theta 60-120 on the outer canes beside the hip.",
+      "acceptance": "In hero-300 the canes visibly swell and thin, the three cut shoots stand above the tangle at the crown, and at least one leaf with serrated leaflets is visible next to the hip."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/sentis/hero-300.png",
+    "showcase/vepres/sentis/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
