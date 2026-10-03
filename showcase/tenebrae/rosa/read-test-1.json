@@ -1,0 +1,33 @@
+{
+  "ring": "rosa",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain gold cushion (square) signet with a flower cluster on the table: eight blue oval stones in rounded petal collets around a red round centre stone, like a daisy or a Victorian cluster ring. The petals are soft almond shapes with round ends, and the dark spandrel pockets between them read as background holes, not tracery. Nothing says window: there is no circular frame, no radiating mullions, no pointed or cusped heads, and the square face with its plain rim fights the round rose. The shank and shoulders are blank. A jeweller would say 'sapphire and ruby flower cluster signet'. They would not say 'rose window' and would not say 'Gothic cathedral'. Next to Caiman's density the face is sparse, and the 3/4 hero is mostly empty gold.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Give the rose a circular outer order and true tracery, so it reads as a window and not a flower.",
+      "where": "Table face, from r 6.6 out to the rim",
+      "how_much": "Add a raised roll-moulded ring (half-round about 0.5 mm, standing at least 0.4 mm proud) at r about 7.0 to 7.5 that closes the rose into a full circle on the table, plus 8 (or 16) straight radial mullions at least 0.8 mm wide running from the oculus moulding (r 2.75) to that ring between the lights. Pierce the spandrel cells right through to the bore instead of sinking them, so they show as dark open glass at 300 px. Acceptance: at face-300 a hard circular rim and spokes read as a wheel with no caption, and the four corners outside the circle stay as plain, separate spandrels."
+    },
+    {
+      "priority": 2,
+      "what": "Make the lights Gothic: pointed and cusped, not rounded almonds.",
+      "where": "The 8 light collets and the spandrel cells between them",
+      "how_much": "Bring each light collet to a pointed-arch (lancet) tip at its outer end, the point at least 0.6 mm long beyond the stone. Cut the spandrel cells as trefoils or quatrefoils (or cusped mouchettes, C-T3) about 1.6 to 2.0 mm across, at r 6.1 to 7.1. If C-B2 pears are not ready, shape the collet metal to a point around the oval stone. Acceptance: at 300 px every light shows a sharp point aimed at the rim, and the cells read as foils, not petals."
+    },
+    {
+      "priority": 3,
+      "what": "Carry the cathedral off the table so the 3/4 hero is not a plain band with a jewel on top.",
+      "where": "Head walls (both cheeks and both ends) and the shoulders from theta 90 minus 44 to 74 and its mirror",
+      "how_much": "Cut the planned blind three-lancet 'Wall arcade' stamps, 6.0 x 2.4 at 0.35 deep, on all four head walls. Add the 4 graded pierced oculi (1.6 to 0.9 mm), or quatrefoils, on each shoulder. Acceptance: in hero-300 pointed arches are visible on the side wall below the table and openings step down the shoulder, so a viewer says 'Gothic' before looking at the stones."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/rosa/hero-300.png",
+    "showcase/tenebrae/rosa/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
