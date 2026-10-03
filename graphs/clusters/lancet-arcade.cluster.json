@@ -1,0 +1,115 @@
+{
+  "format_version": 1,
+  "name": "Lancet arcade",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "sketch.gothic.arcade",
+      "inputs": {
+        "bar_mm": 0.6,
+        "bays": 3,
+        "head": "Pointed",
+        "height_mm": 2.4,
+        "name": "Lancet arcade",
+        "sill_mm": 0.4,
+        "width_mm": 6.0
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Arcade"
+    }
+  ],
+  "wires": [],
+  "exposed": [
+    {
+      "node": 1,
+      "input": "bays",
+      "name": "Bays",
+      "doc": "How many bays."
+    },
+    {
+      "node": 1,
+      "input": "width_mm",
+      "name": "Width",
+      "doc": "Across every bay and the posts between them, mm."
+    },
+    {
+      "node": 1,
+      "input": "height_mm",
+      "name": "Height",
+      "doc": "From the sill's foot to the apexes, mm."
+    },
+    {
+      "node": 1,
+      "input": "bar_mm",
+      "name": "Bar",
+      "doc": "Width of each post between two bays, mm."
+    },
+    {
+      "node": 1,
+      "input": "sill_mm",
+      "name": "Sill",
+      "doc": "Height of the sill the bays stand on, mm."
+    },
+    {
+      "node": 1,
+      "input": "head",
+      "name": "Head",
+      "doc": "Pointed, Round, or Trefoil cusped."
+    },
+    {
+      "node": 1,
+      "input": "x_mm",
+      "name": "X",
+      "doc": "Where the arcade's centre sits along the sketch's x, mm."
+    },
+    {
+      "node": 1,
+      "input": "y_mm",
+      "name": "Y",
+      "doc": "Where the arcade's centre sits along the sketch's y, mm."
+    },
+    {
+      "node": 1,
+      "input": "turn_deg",
+      "name": "Turn",
+      "doc": "Turn about the arcade's centre, degrees."
+    },
+    {
+      "node": 1,
+      "input": "plane",
+      "name": "Plane",
+      "doc": "The work plane or part the arcade lies on, by feature id."
+    },
+    {
+      "node": 1,
+      "input": "face",
+      "name": "Face",
+      "doc": "Which planar face of that feature; a work plane has one, 0."
+    }
+  ],
+  "outputs": [
+    {
+      "node": 1,
+      "out": "operation",
+      "name": "sketch_op",
+      "doc": "The bays as a Sketch feature's operation, a closed loop each."
+    },
+    {
+      "node": 1,
+      "out": "outline",
+      "name": "outline",
+      "doc": "The bays on their sill as one stamp outline about the origin, mm."
+    },
+    {
+      "node": 1,
+      "out": "bay_mm",
+      "name": "bay_mm",
+      "doc": "Width of one bay between its jambs, mm."
+    }
+  ],
+  "next_id": 2
+}
