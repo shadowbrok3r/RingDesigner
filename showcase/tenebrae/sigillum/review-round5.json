@@ -1,0 +1,66 @@
+{
+  "ring": "Sigillum",
+  "round": 5,
+  "verdict": "cut",
+  "score": 7.3,
+  "summary": "Cut at 7.3, up from 7.1. This was extension round 5, the last round Logan granted, and the ship bar is 7.5. Every recorded gate is green under the lost-wax rule: the casting is plain 017 stock (thickness at 0.8: 0 below, sampled minimum 3.06 mm), 0 DFM findings, 1 design.set patch at 969,140 B against the 1 MB stock budget, 1,375,026 triangles, and cold reload is identical. The round bought real gains. (1) The legend is now cut at 0.30, and at 300 px it reads as a dark lettered ring of mirrored Textura. (2) The cheek arcade is now five true pointed lancets with a sill bar (side.png). They are the first ornament below the table that reads as architecture. (3) The fleur is now a classic fleur-de-lis silhouette, and its band has rounded ends. At 300 px the face reads 'Gothic chapter seal' without a caption. But the punch items below the face were mostly half-done or missed. The band is still cut as two 1.0 mm hairline trenches, deeper than the 0.60 figure. It reads as an outlined pin laid across the fleur, not a solid band. The fleur floors are lumpy and smeared in the oblique light (cheek-close.png). The cheek lancets are 2.10-2.40 mm tall, against 2.8-3.2 asked, and fill about a third of the cheek. The shank lights are 6 per side, against 7-8 asked. In reverse.png and contact-300 they read as bracket- or C-shaped dashes, not closed arches. The roundels are back to 3 per side but at 1.70/1.30/0.87 (2.0/1.6/1.2 asked). They read as clover specks, and in shoulder-close.png the lowest is torn open by the bore edge. The shoulder window still has the apex spur, and its frame is open. Shank lancet 1 still runs into the window's foot. The bore lip under the head is still ragged (palm.png), asked four times now. Seen whole, it is a handsome, legible seal face on a plain factory signet, with ornament below the table that is small, sparse and sometimes broken. Its density is near Caiman's but not past it. It sits above Caiman (7.0) and Kraken, level with Basiliscus's cut, and short of Arachne and Manticora (7.5). With no rounds left, the rule is cut.",
+  "strengths": [
+    "Face reads at 300 px as a medieval chapter seal: a cusped ten-lobe border with sharp inward darts, a quatrefoil field, a classic fleur-de-lis and a dark Textura legend with a cross, mirrored as a matrix should be.",
+    "Legend depth fixed (0.16 to 0.30): every glyph shows a dark floor in hero.png and stones.png, with crisp letter walls.",
+    "Cheek arcade is now five pointed lancets graded 2.10/2.25/2.40 with a sill bar (side.png). This is the first ornament below the table that reads as architecture.",
+    "The casting is plain stock and all the theme is bench work, which is honest to the 'seal is cut at the bench' concept; the bare-vs-finished render tells that story well.",
+    "Every gate is green and recorded, and the template is within budget with a single patch."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "pass": true, "reason": "Seal on the table, lancets on the cheeks, windows and lights down the shank, roundels on the shoulder walls: one chapter-house theme. The palm is plain, as specified. The ornament below the table is thin and sparse, but it is not off-theme."},
+    {"item": "Reads as its Gothic subject at 300 px without caption", "pass": true, "reason": "face-300 and hero-300 read 'Gothic seal ring': a cusped border, a fleur and a blackletter legend. The cathedral reading rests almost entirely on the face; the shank still reads as dashes at 300 px."},
+    {"item": "Figurative motifs have true outlines, no combing, smearing or stair-steps", "pass": false, "reason": "Border, legend and cheek lancets are crisp. The fleur's floors are lumpy and smeared (cheek-close.png, centre petal and foot). The band is two hairline trenches cut at 1.0, not a solid band. The shoulder window frame has a spur and is open at the apex. The lowest roundel is torn by the bore edge (shoulder-close.png). The bore lip under the head is ragged (palm.png)."},
+    {"item": "Stones in made settings, à jour, coloured", "pass": true, "reason": "Not applicable: by design there are no stones (stones.json empty, previewed 0 = reported 0)."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "pass": true, "reason": "The factory signet body is sculpted. The cuts are drafted, and the lancets now have pointed heads and sills rather than box pockets. The shank lights still look mechanical (open bracket shapes)."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "pass": true, "reason": "017 Tonneau's table edge and cheek walls stay crisp (bare-vs-finished.png, side.png)."},
+    {"item": "Distinct silhouette; custom heads ≥ 13 mm; shoulder ornament not cut off before the face", "pass": true, "reason": "The face is 16 × 15.6 mm. The shoulder window and shank lights run up to the head. The silhouette is the plain factory signet, so the distinction among the four Tenebrae signets is carried by the face only."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "pass": false, "reason": "Large: the table. Medium: the seal field and cheek arcade. Small: the legend. Below the table the forms are undersized and widely spaced: roundels 0.87-1.70 mm, shank lights 0.95-1.20 mm wide, about 70% of the shank polished. The overall density is just about Caiman's and not past it; next to Caiman's hero it reads as a sparser ring."}
+  ],
+  "gates": [
+    {"gate": "Watertight", "claimed": "true (draft and export; casting pattern true)", "verified": "report.json draft.watertight, export.watertight, casting_pattern.watertight all true; boundary 0, non-manifold 0", "pass": true},
+    {"gate": "0 degenerate faces", "claimed": "0", "verified": "draft 0, export 0, casting pattern 0", "pass": true},
+    {"gate": "0 self-crossings, ring and every made part", "claimed": "0", "verified": "draft 0, export 0, casting pattern 0; no made parts (cad.made_parts empty, parts_notes empty)", "pass": true},
+    {"gate": "Solids notes empty", "claimed": "[]", "verified": "draft.solids_notes and export.solids_notes []", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "bore margin ≈ 0", "verified": "bore_margin_mm -4.7e-7 (draft) and -4.8e-7 (export): numerical zero, on the 18.6 bore surface, not inside it", "pass": true},
+    {"gate": "Lost wax: cad::measure::thickness at 0.8 mm", "claimed": "0 below limit", "verified": "thickness_0p8 below_limit 0, unresolved 0, sampled_min 3.06 mm on the casting pattern (draft and export); thinnest wall 1.46 mm", "pass": true},
+    {"gate": "Field verdict Castable (sand bonus)", "claimed": "Castable", "verified": "field_verdict 'Castable' in draft, export and sand_bonus; undercut 0.0%", "pass": true},
+    {"gate": "Ray release 0/0 at 0.100 and 0.075 (sand bonus)", "claimed": "0 obstructions, 0 unresolved", "verified": "release_0100 and release_0075: 0 obstructions, 0 unresolved, in both builds", "pass": true},
+    {"gate": "Draft-clamp bites ≤ 0.05 mm", "claimed": "none", "verified": "clamp_bites_mm [] (no painted relief)", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] in both builds; verification.json detail_findings 0", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "0 = 0", "verified": "stones_reported 0, stones_previewed 0, stones.json []", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "cold_reload_identical true; verification.json vertices_faces_normals_identical true, cold_design_reload and cold_graph_reload true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "1,375,026", "verified": "export.triangles 1,375,026; casting pattern 1,376,256", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "casting_pattern pass true, watertight, 0 degenerate, 0 self-crossings", "pass": true},
+    {"gate": "Template gate: ≤ 4 design.set patches within class budget", "claimed": "1 patch, 969,140 B, stock", "verified": "template_gate.design_set_patches 1 (/manufacturing), template_bytes 969,140 ≤ 1,000,000, source_identical true, template_gate_passed true", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Table centre: stamps 'Seal fleur, band line 1/2' (1.0) and 'Seal fleur' (0.6)", "change": "Replace the two 1.0 mm hairline band trenches with one solid band cut about 0.7 mm tall at the fleur's own 0.60 depth, its rounded ends stopping inside the side-petal curls. Flatten the fleur floor: raise the outline and floor resolution until the centre petal and foot show one flat, dark floor.", "acceptance": "stones.png and cheek-close.png: one continuous fleur silhouette with a solid band and flat, unwrinkled floors. face-300.png: no double line across the fleur."},
+    {"number": 2, "priority": "high", "zone": "Shank crown: 'Shank arcade / Shank sill, right 1-6 and left 1-6' (16.5 to 309.2 deg, 163.5 to 230.8 deg)", "change": "Draw each light as one closed pointed outline (a single stamp with head, jambs and sill), not an arch plus a separate sill. Use 8 per side with 0.5 mm piers, keeping at least 0.6 mm of polished crown on both sides.", "acceptance": "reverse.png: every light shows a closed pointed head, two jambs and a sill. contact-300: the shank reads 'row of arches', not brackets or dashes."},
+    {"number": 3, "priority": "high", "zone": "Cheeks ±z: 'Chapter-house arcade 1/2, 1-5' (69.1 to 110.9 deg)", "change": "Raise the lancets from 2.10-2.40 to 2.8-3.2 mm tall with level sills, keeping the pointed heads and the sill bar.", "acceptance": "side.png: the arcade fills 70-80% of the cheek height between the table and the bore lip."},
+    {"number": 4, "priority": "medium", "zone": "Shoulders ±z walls: 'Shoulder roundel 1/2, right/left 1-3' (31.8-47.5 and 132.0-148.2 deg)", "change": "Enlarge to Ø 2.0 / 1.6 / 1.2 and move each at least 0.4 mm off the bore edge and the shoulder fold. The lowest (now at 10.25 mm from the axis) is torn by the bore.", "acceptance": "shoulder-close.png: three whole quatrefoils per side, none opened by the bore or fold."},
+    {"number": 5, "priority": "medium", "zone": "Shoulders: 'Shoulder window, right/left, frame left/right' (37.1 and 143.3 deg), and shank light 1 at 16.5 / 163.5 deg", "change": "Close the frame into one pointed outline and trim the apex spur. Move shank light 1 at least 0.5 mm clear of the window's foot.", "acceptance": "shoulder-close.png: one clean closed lancet frame with a sharp apex, and nothing colliding with it."},
+    {"number": 6, "priority": "low", "zone": "Bore lip under the head, theta about 60-120 deg", "change": "Smooth the ragged inner edge where the bore meets the head's underside (asked in rounds 2, 3, 4 and 5).", "acceptance": "palm.png: the bore's inner edges under the head are single smooth lines."}
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/sigillum/hero-300.png",
+    "showcase/tenebrae/sigillum/face-300.png",
+    "showcase/tenebrae/sigillum/contact-300.png",
+    "showcase/tenebrae/sigillum/hero.png",
+    "showcase/tenebrae/sigillum/stones.png",
+    "showcase/tenebrae/sigillum/face.png",
+    "showcase/tenebrae/sigillum/side.png",
+    "showcase/tenebrae/sigillum/cheek-close.png",
+    "showcase/tenebrae/sigillum/reverse.png",
+    "showcase/tenebrae/sigillum/shoulder-close.png",
+    "showcase/tenebrae/sigillum/shoulder.png",
+    "showcase/tenebrae/sigillum/palm.png",
+    "showcase/tenebrae/sigillum/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
