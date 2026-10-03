@@ -135,8 +135,8 @@ pub fn reach(mesh: &Mesh, origin: [f64; 3]) -> f64 {
 impl Gizmo {
     /// A part seated on `surface` as the build seats it: arrows along its seat's tangent, across and normal, rings for spin, tilt and cant, and the dial.
     pub fn on_ring(design: &RingDesign, surface: Option<&BandSurface>, placement: &Placement, reach_mm: f64) -> Option<Self> {
-        let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, .. } = *placement else { return None };
-        let bare = Placement::Ring { theta_deg, across_mm, height_mm, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, level, .. } = *placement else { return None };
+        let bare = Placement::Ring { theta_deg, across_mm, height_mm, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level };
         let s = seat(design, surface, &bare)?;
         let placed = seat(design, surface, placement)?;
         let (x, y, z) = (s.axis(0), s.axis(1), s.axis(2));
@@ -640,7 +640,7 @@ mod tests {
     fn the_height_arrow_and_the_across_arrow_move_exactly_as_far_as_the_pointer_along_them() {
         let d = court();
         let b = band(&d);
-        let target = post(Placement::Ring { theta_deg: 90.0, across_mm: 0.4, height_mm: 0.25, spin_deg: 20.0, tilt_deg: 0.0, cant_deg: 0.0 });
+        let target = post(Placement::Ring { theta_deg: 90.0, across_mm: 0.4, height_mm: 0.25, spin_deg: 20.0, tilt_deg: 0.0, cant_deg: 0.0, level: false });
         let g = Gizmo::on_ring(&d, Some(&b), &target.component.placement, 1.95).unwrap();
         // Looking down the finger from +z: off the surface is up the screen.
         let cam = Camera::new([0.0, 0.0, -1.0], [0.0, 1.0, 0.0], g.origin);
@@ -687,7 +687,7 @@ mod tests {
     fn each_ring_turns_the_part_about_its_own_axis_by_the_angle_dragged_round_it() {
         let d = court();
         let b = band(&d);
-        let base = Placement::Ring { theta_deg: 100.0, across_mm: 0.3, height_mm: 0.1, spin_deg: 25.0, tilt_deg: -8.0, cant_deg: 12.0 };
+        let base = Placement::Ring { theta_deg: 100.0, across_mm: 0.3, height_mm: 0.1, spin_deg: 25.0, tilt_deg: -8.0, cant_deg: 12.0, level: false };
         let target = post(base.clone());
         let g = Gizmo::on_ring(&d, Some(&b), &base, 1.95).unwrap();
         for (k, axis) in [Axis::Spin, Axis::Tilt, Axis::Cant].into_iter().enumerate() {
@@ -746,7 +746,7 @@ mod tests {
     fn the_dial_slides_the_part_round_the_shank_on_the_five_degree_grid_and_keeps_the_rest() {
         let d = court();
         let b = band(&d);
-        let base = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 15.0, tilt_deg: 2.0, cant_deg: -3.0 };
+        let base = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 15.0, tilt_deg: 2.0, cant_deg: -3.0, level: false };
         let g = Gizmo::on_ring(&d, Some(&b), &base, 1.95).unwrap();
         let dial = g.dial.unwrap();
         let cam = Camera::new([0.0, 0.0, -1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0]);
@@ -766,7 +766,7 @@ mod tests {
         c.feed(&g.token(Handle::Dial, cam.ray(marker), Some(5.0)).unwrap());
         c.feed(&g.token(Handle::Dial, at(61.3), Some(5.0)).unwrap());
         let p = placement_of(c.feed(&StepInput::Confirm));
-        assert_eq!(p, Placement::Ring { theta_deg: 60.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 15.0, tilt_deg: 2.0, cant_deg: -3.0 });
+        assert_eq!(p, Placement::Ring { theta_deg: 60.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 15.0, tilt_deg: 2.0, cant_deg: -3.0, level: false });
         // Seen edge-on the dial has no angle to give and is not drawn.
         let edge = Camera::new([0.0, -1.0, 0.0], [0.0, 0.0, 1.0], g.origin);
         assert!(edge.layout(&g).dial.is_none() && edge.layout(&g).anchor(Handle::Dial).is_none());
@@ -780,7 +780,7 @@ mod tests {
         use ringdesign_core::interaction::pick::ViewScale;
         let d = court();
         let b = band(&d);
-        let base = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let base = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         let g = Gizmo::on_ring(&d, Some(&b), &base, 1.95).unwrap();
         assert_eq!([g.dofs(Handle::Dial), g.dofs(Handle::Move(Axis::Across)), g.dofs(Handle::Turn(Axis::Spin))], [Some(Dofs::THETA), Some(Dofs::ACROSS), None]);
         let mut features = RingFeatures::of(&d, 0.0);
@@ -805,7 +805,7 @@ mod tests {
         let free = s.preview().unwrap().placement.as_ref().and_then(Placement::theta_deg).unwrap();
         assert!((free - 46.7).abs() < 1e-3, "{free}");
         land(&mut s, g.token(Handle::Dial, at(52.9), None).unwrap(), &snap);
-        assert_eq!(placement_of(s.enter()), Placement::Ring { theta_deg: 55.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 }, "off every part the 5° grid");
+        assert_eq!(placement_of(s.enter()), Placement::Ring { theta_deg: 55.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false }, "off every part the 5° grid");
     }
 
     #[test]
