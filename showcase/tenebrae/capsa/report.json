@@ -1,5 +1,5 @@
 {
-  "chest": 34,
+  "chest": 37,
   "draft": {
     "bore": {
       "nearest_vertex_mm": 9.300017496595377,
@@ -7,8 +7,8 @@
       "vertices_inside": 0
     },
     "build": {
-      "author_s": 49.006241231,
-      "build_s": 33.317023571,
+      "author_s": 2.353590513,
+      "build_s": 3.369277922,
       "profile_steps": 320,
       "theta_steps": 768
     },
@@ -16,16 +16,16 @@
     "cut_lands": {
       "floor_mm": 0.8,
       "measured": [
-        "Cut #23 'Open the west window in tracery over the skull': 2.85 mm from light 1 to the edge",
-        "Cut #24 'Open back light 1 behind the skull to the dark': 3.50 mm from light 1 to the edge",
-        "Cut #25 'Open back light 2 behind the skull to the dark': 3.58 mm from light 1 to the edge"
+        "Cut #26 'Open the west window in tracery over the skull': 2.85 mm from light 1 to the edge",
+        "Cut #27 'Open back light 1 behind the skull to the dark': 3.50 mm from light 1 to the edge",
+        "Cut #28 'Open back light 2 behind the skull to the dark': 3.59 mm from light 1 to the edge"
       ],
       "note": "Every Attach::Cut extrusion's narrowest land, measured by dfm::cut_lands; the niches, bays, sockets and slope lights cut inside their own parts are judged by the thickness census instead",
       "under_floor": []
     },
     "design": {
-      "bytes": 421174,
-      "cad_features": 66,
+      "bytes": 264809,
+      "cad_features": 71,
       "format_version": 6
     },
     "dfm_findings": [],
@@ -84,8 +84,8 @@
     "geometry": {
       "degenerate_faces": 0,
       "self_crossings": 0,
-      "triangles": 477274,
-      "volume_mm3": 1450.2071027752625,
+      "triangles": 471576,
+      "volume_mm3": 1446.6084928051066,
       "watertight": true
     },
     "head_over_crest_mm": 6.757499084472656,
@@ -98,163 +98,175 @@
       },
       {
         "degenerate_faces": 0,
-        "part": "#13 Sink the eye sockets, the nasal cavity and the line of the teeth into the skull: the memento mori",
+        "part": "#16 Sink the eye sockets and the nasal aperture into the skull: the memento mori",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#14 Raise the north tower in three stages",
+        "part": "#17 Raise the north tower in three stages",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#15 Web the north tower to the chest",
+        "part": "#18 Web the north tower to the chest",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#16 Loft the north spire to its point",
+        "part": "#19 Loft the north spire to its point",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#17 Cut the north spire's crockets and fleur finial",
+        "part": "#20 Cut the north spire's crockets and fleur finial",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#18 Raise the south tower in three stages",
+        "part": "#21 Raise the south tower in three stages",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#19 Web the south tower to the chest",
+        "part": "#22 Web the south tower to the chest",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#20 Loft the south spire to its point",
+        "part": "#23 Loft the south spire to its point",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#21 Cut the south spire's crockets and fleur finial",
+        "part": "#24 Cut the south spire's crockets and fleur finial",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#23 Open the west window in tracery over the skull",
+        "part": "#26 Open the west window in tracery over the skull",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#24 Open back light 1 behind the skull to the dark",
+        "part": "#27 Open back light 1 behind the skull to the dark",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#25 Open back light 2 behind the skull to the dark",
+        "part": "#28 Open back light 2 behind the skull to the dark",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#26 Raise the front's archivolt, its sides weathered",
+        "part": "#29 Raise the front's archivolt, its sides weathered",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#28 Bezel round the Garnet, north wall cabochon",
+        "part": "#31 Bezel round the Garnet, north wall cabochon",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#32 Bezel round the Garnet, south wall cabochon",
+        "part": "#35 Bezel round the Garnet, south wall cabochon",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#34 Sink the south wall's bay: the chest",
+        "part": "#37 Sink the south wall's bay: the chest",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#36 Bezel round the Garnet, north plinth niche cabochon",
+        "part": "#39 Bezel round the Garnet, north plinth niche cabochon",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#38 Bezel round the Sapphire, middle plinth niche cabochon",
+        "part": "#41 Bezel round the Sapphire, middle plinth niche cabochon",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#40 Bezel round the Garnet, south plinth niche cabochon",
+        "part": "#43 Bezel round the Garnet, south plinth niche cabochon",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#43 Sink the niches into the plinth's front: the plinth",
+        "part": "#46 Sink the niches into the plinth's front: the plinth",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#44 Sink a 1.40 x 2.2 mm blind lancet into the east shoulder, 42 deg off the top",
+        "part": "#47 Sink a 1.70 x 2.0 mm blind lancet into the east shoulder, 37 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#45 Sink a 1.40 x 2.2 mm blind lancet into the west shoulder, 42 deg off the top",
+        "part": "#48 Sink a 1.70 x 2.0 mm blind lancet into the west shoulder, 37 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#46 Sink a 1.25 x 2.0 mm blind lancet into the east shoulder, 57 deg off the top",
+        "part": "#49 Sink a 1.60 x 1.9 mm blind lancet into the east shoulder, 51 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#47 Sink a 1.25 x 2.0 mm blind lancet into the west shoulder, 57 deg off the top",
+        "part": "#50 Sink a 1.60 x 1.9 mm blind lancet into the west shoulder, 51 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#48 Sink a 1.10 x 1.8 mm blind lancet into the east shoulder, 72 deg off the top",
+        "part": "#51 Sink a 1.50 x 1.8 mm blind lancet into the east shoulder, 65 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#49 Sink a 1.10 x 1.8 mm blind lancet into the west shoulder, 72 deg off the top",
+        "part": "#52 Sink a 1.50 x 1.8 mm blind lancet into the west shoulder, 65 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#66 Join the rose's collet to the lid: the lid, cast apart",
+        "part": "#53 Sink a 1.40 x 1.7 mm blind lancet into the east shoulder, 79 deg off the top",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#54 Sink a 1.40 x 1.7 mm blind lancet into the west shoulder, 79 deg off the top",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#71 Join the rose's collet to the lid: the lid, cast apart",
         "self_crossings": 0,
         "watertight": true
       }
@@ -262,16 +274,16 @@
     "parts_notes": [],
     "pattern": {
       "lid": {
-        "casting": "Part(66)",
+        "casting": "Part(71)",
         "degenerate_faces": 0,
         "self_crossings": 0,
-        "triangles": 6238,
+        "triangles": 5910,
         "watertight": true
       },
       "ring": {
         "degenerate_faces": 0,
         "self_crossings": 0,
-        "triangles": 477274,
+        "triangles": 471576,
         "watertight": true
       }
     },
@@ -286,15 +298,15 @@
     "thickness": {
       "clean": true,
       "finished": {
-        "area_mm2": 1895.4638906389655,
+        "area_mm2": 1900.8624996717967,
         "assessed": true,
         "below_limit": 0,
-        "edge_area_mm2": 10.91306093461334,
-        "edge_below_limit": 1810,
+        "edge_area_mm2": 11.405624625935504,
+        "edge_below_limit": 1909,
         "edge_reach_mm": 0.8,
         "edges": [
           {
-            "area_mm2": 1.44846206753351,
+            "area_mm2": 1.4484615360334776,
             "depth_mm": 0.4505938085409319,
             "kind": "edge",
             "point": [
@@ -303,86 +315,73 @@
               -0.38790614328657586
             ],
             "samples": 233,
-            "span_mm": 4.030330985883463,
-            "thinnest_mm": 0.2432068075868068
+            "span_mm": 4.030330906357725,
+            "thinnest_mm": 0.24320733375376621
           },
           {
-            "area_mm2": 1.0879182224464663,
-            "depth_mm": 0.6858567372999496,
+            "area_mm2": 1.088252366633156,
+            "depth_mm": 0.6927514832509244,
             "kind": "edge",
             "point": [
               -4.2583333651224775,
               18.026331901550293,
-              -0.02373220305889845
+              -0.023732196539640427
             ],
-            "samples": 118,
-            "span_mm": 5.622488256521333,
-            "thinnest_mm": 0.2956097358352744
+            "samples": 119,
+            "span_mm": 5.622494047174433,
+            "thinnest_mm": 0.2956105698581736
           },
           {
-            "area_mm2": 1.0877139615764007,
-            "depth_mm": 0.6858567372999496,
+            "area_mm2": 1.087112993360449,
+            "depth_mm": 0.6927516675536582,
             "kind": "edge",
             "point": [
               4.036862055460612,
               17.52750015258789,
               -0.6006458103656769
             ],
-            "samples": 119,
-            "span_mm": 5.604021732061089,
-            "thinnest_mm": 0.14730663919406398
+            "samples": 120,
+            "span_mm": 5.626027557055389,
+            "thinnest_mm": 0.14681659402462277
           },
           {
-            "area_mm2": 0.900837476407264,
-            "depth_mm": 0.5662900276156568,
+            "area_mm2": 0.9370309083240873,
+            "depth_mm": 0.59693044377638,
             "kind": "edge",
             "point": [
-              -3.6631250642240047,
-              16.951457689205807,
-              -2.374906737357378
+              3.690038651227951,
+              16.856666048367817,
+              -2.399483414987723
+            ],
+            "samples": 134,
+            "span_mm": 1.3812496680778388,
+            "thinnest_mm": 0.008390010588874964
+          },
+          {
+            "area_mm2": 0.915720526239442,
+            "depth_mm": 0.49524795073503597,
+            "kind": "edge",
+            "point": [
+              -3.6769573589166007,
+              16.856666048367817,
+              -2.3799001003305116
             ],
             "samples": 120,
-            "span_mm": 1.3854162891705855,
-            "thinnest_mm": 0.062061053149609614
+            "span_mm": 1.3760263224442824,
+            "thinnest_mm": 0.009610121562698876
           },
           {
-            "area_mm2": 0.8963120573164216,
-            "depth_mm": 0.5942217182870397,
+            "area_mm2": 0.46609437496817135,
+            "depth_mm": 0.29314312743415033,
             "kind": "edge",
             "point": [
-              3.6649461537599564,
-              17.0413183371226,
-              -2.3749060221016407
+              -0.5297111316273609,
+              15.464999973773956,
+              5.051108479499817
             ],
-            "samples": 120,
-            "span_mm": 1.3774571488950897,
-            "thinnest_mm": 0.05942914606623669
-          },
-          {
-            "area_mm2": 0.5316012738583855,
-            "depth_mm": 0.7815885310475161,
-            "kind": "edge",
-            "point": [
-              -0.9141013125578562,
-              15.452499945958456,
-              3.2549605071544647
-            ],
-            "samples": 100,
-            "span_mm": 0.9369934883158568,
-            "thinnest_mm": 0.3296215733682739
-          },
-          {
-            "area_mm2": 0.5316012738583854,
-            "depth_mm": 0.7815885310475161,
-            "kind": "edge",
-            "point": [
-              0.9141013125578562,
-              15.452499945958456,
-              3.2549605071544647
-            ],
-            "samples": 100,
-            "span_mm": 0.9369934883158568,
-            "thinnest_mm": 0.32962157336827386
+            "samples": 103,
+            "span_mm": 1.2881955890595882,
+            "thinnest_mm": 0.08540394366004288
           },
           {
             "area_mm2": 0.35854138488446907,
@@ -394,64 +393,77 @@
               -1.234885995586713
             ],
             "samples": 56,
-            "span_mm": 0.6924449748256594,
+            "span_mm": 0.6924449748256603,
             "thinnest_mm": 0.5208995382520814
           },
           {
-            "area_mm2": 0.3081069476100215,
-            "depth_mm": 0.22770219081600745,
+            "area_mm2": 0.3139121921982196,
+            "depth_mm": 0.627230522718163,
             "kind": "edge",
             "point": [
-              0.14565526569883028,
-              12.79716960589091,
-              7.340039889017741
+              -0.9127256174882253,
+              15.467499951521555,
+              3.3491714199384055
             ],
-            "samples": 82,
-            "span_mm": 2.4370758513084887,
-            "thinnest_mm": 0.3183670123258842
+            "samples": 60,
+            "span_mm": 0.9564950300342798,
+            "thinnest_mm": 0.3735415966874899
           },
           {
-            "area_mm2": 0.30782097679997183,
+            "area_mm2": 0.308119321920522,
             "depth_mm": 0.22770250124309632,
             "kind": "edge",
             "point": [
-              3.3444044391314187,
+              3.5457446773846946,
+              12.79718565940857,
+              7.339999715487163
+            ],
+            "samples": 82,
+            "span_mm": 2.4370756297734957,
+            "thinnest_mm": 0.3185947260789952
+          },
+          {
+            "area_mm2": 0.3077895865953834,
+            "depth_mm": 0.22770244541581486,
+            "kind": "edge",
+            "point": [
+              -3.455595552921295,
               12.784759918848673,
               7.33870546023051
             ],
             "samples": 82,
             "span_mm": 2.433576708407154,
-            "thinnest_mm": 0.3256612882648395
+            "thinnest_mm": 0.3256606138347728
           },
           {
-            "area_mm2": 0.3076223575285562,
-            "depth_mm": 0.22770244541581486,
+            "area_mm2": 0.30778942438228407,
+            "depth_mm": 0.22770219081600745,
             "kind": "edge",
             "point": [
-              -3.2549339731534324,
-              12.797061920166016,
-              7.340306043624878
+              -0.05559609077560405,
+              12.784759918848673,
+              7.33870546023051
             ],
             "samples": 82,
-            "span_mm": 2.4370725570074843,
-            "thinnest_mm": 0.31683575842488276
+            "span_mm": 2.433577513207007,
+            "thinnest_mm": 0.3256606375161181
           },
           {
-            "area_mm2": 0.27541794878196957,
-            "depth_mm": 0.45064354399374884,
+            "area_mm2": 0.3007079492631965,
+            "depth_mm": 0.6264045338442559,
             "kind": "edge",
             "point": [
-              3.9200000762939453,
-              13.148937433958054,
-              2.073713411887487
+              0.9082486641903719,
+              15.467499951521555,
+              3.2543206264575324
             ],
-            "samples": 38,
-            "span_mm": 1.3577515946732053,
-            "thinnest_mm": 0.26101004233617525
+            "samples": 58,
+            "span_mm": 0.9547589015377329,
+            "thinnest_mm": 0.3718243735270764
           },
           {
-            "area_mm2": 0.27246098799474366,
-            "depth_mm": 0.4506412799216524,
+            "area_mm2": 0.27446128743780224,
+            "depth_mm": 0.4506412801071213,
             "kind": "edge",
             "point": [
               -3.9200000762939453,
@@ -459,11 +471,50 @@
               2.079280068476995
             ],
             "samples": 37,
-            "span_mm": 1.3578840074334355,
-            "thinnest_mm": 0.26100997687353245
+            "span_mm": 1.3578840851163925,
+            "thinnest_mm": 0.26101005600829014
           },
           {
-            "area_mm2": 0.19242456841229552,
+            "area_mm2": 0.2719872677065286,
+            "depth_mm": 0.4506435451607131,
+            "kind": "edge",
+            "point": [
+              3.9200000762939453,
+              13.148937433958054,
+              2.073713411887487
+            ],
+            "samples": 36,
+            "span_mm": 1.2830792791829158,
+            "thinnest_mm": 0.26101059596225473
+          },
+          {
+            "area_mm2": 0.2646516351471049,
+            "depth_mm": 0.5086816175178818,
+            "kind": "edge",
+            "point": [
+              5.0694172730048495,
+              17.45562545458476,
+              -6.547399789094925
+            ],
+            "samples": 39,
+            "span_mm": 0.871876451936874,
+            "thinnest_mm": 0.6401082155294852
+          },
+          {
+            "area_mm2": 0.26433609910384326,
+            "depth_mm": 0.5086817483093384,
+            "kind": "edge",
+            "point": [
+              -5.130582625667254,
+              17.45562545458476,
+              -6.547399789094925
+            ],
+            "samples": 39,
+            "span_mm": 0.8718765608033969,
+            "thinnest_mm": 0.6401059984021045
+          },
+          {
+            "area_mm2": 0.19242066790050066,
             "depth_mm": 0.24007345454806447,
             "kind": "edge",
             "point": [
@@ -472,7 +523,7 @@
               3.747031331062317
             ],
             "samples": 39,
-            "span_mm": 2.4220428698324827,
+            "span_mm": 2.42204275194028,
             "thinnest_mm": 0.33133575502961476
           },
           {
@@ -485,7 +536,7 @@
               3.7469491958618164
             ],
             "samples": 37,
-            "span_mm": 2.413918134330725,
+            "span_mm": 2.4139181254808744,
             "thinnest_mm": 0.33338275331041883
           },
           {
@@ -502,20 +553,20 @@
             "thinnest_mm": 0.3360527905496974
           },
           {
-            "area_mm2": 0.17214425536215738,
+            "area_mm2": 0.17207925606019134,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              -3.447421807795763,
-              17.257707605759304,
-              -2.7386499606072903
+              -3.4594037483135858,
+              17.753540803988773,
+              -2.7373999369641147
             ],
             "samples": 15,
-            "span_mm": 1.370832959810894,
-            "thinnest_mm": 0.6248564075793219
+            "span_mm": 1.3635412951310464,
+            "thinnest_mm": 0.6967338130596475
           },
           {
-            "area_mm2": 0.17127448910266757,
+            "area_mm2": 0.17127448895346448,
             "depth_mm": 0.24007345188809853,
             "kind": "edge",
             "point": [
@@ -524,21 +575,21 @@
               3.418783406416575
             ],
             "samples": 37,
-            "span_mm": 2.4142172492490577,
+            "span_mm": 2.414217045708334,
             "thinnest_mm": 0.33715086609543043
           },
           {
-            "area_mm2": 0.17101565093910373,
+            "area_mm2": 0.16851254560693157,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              3.4506844244897366,
-              18.147290696700413,
-              -2.7333374731242657
+              3.456090599298477,
+              17.250415941079456,
+              -2.7386499419808388
             ],
-            "samples": 15,
-            "span_mm": 1.356249682924961,
-            "thinnest_mm": 0.6148307986882902
+            "samples": 17,
+            "span_mm": 1.3708330110939428,
+            "thinnest_mm": 0.6292507941656423
           },
           {
             "area_mm2": 0.13964731688971604,
@@ -567,134 +618,147 @@
             "thinnest_mm": 0.43815074247803704
           },
           {
-            "area_mm2": 0.13492866021155972,
-            "depth_mm": 0.6930077650865357,
+            "area_mm2": 0.122651892296548,
+            "depth_mm": 0.1617076097868327,
             "kind": "edge",
             "point": [
-              -0.19802283806105456,
-              15.46499995390574,
-              3.337188705801964
+              0.22698566317558355,
+              17.677499771118164,
+              0.5617198046917716
             ],
-            "samples": 20,
-            "span_mm": 0.626583521947536,
-            "thinnest_mm": 0.44001442847907757
+            "samples": 34,
+            "span_mm": 0.8921712919670569,
+            "thinnest_mm": 0.014504044481678061
           },
           {
-            "area_mm2": 0.12572344782215283,
-            "depth_mm": 0.1644329247753027,
+            "area_mm2": 0.11667449153627064,
+            "depth_mm": 0.5513741603062237,
             "kind": "edge",
             "point": [
-              -0.4654265195131302,
-              17.681666374206543,
-              0.6318413019180298
-            ],
-            "samples": 33,
-            "span_mm": 0.9195648757081383,
-            "thinnest_mm": 0.0160983296282985
-          },
-          {
-            "area_mm2": 0.11658989900860174,
-            "depth_mm": 0.41504764974200825,
-            "kind": "edge",
-            "point": [
-              2.972185136129459,
-              14.152610758940378,
-              -0.45501880363250774
+              2.9721616841852665,
+              14.152610128124556,
+              -0.4550022802626093
             ],
             "samples": 36,
-            "span_mm": 1.757265128452449,
-            "thinnest_mm": 0.05802543076527753
+            "span_mm": 1.7573341041366,
+            "thinnest_mm": 0.05802447413832016
           },
           {
-            "area_mm2": 0.1152564681282624,
-            "depth_mm": 0.41504768498001887,
+            "area_mm2": 0.11534097896237856,
+            "depth_mm": 0.4150449298937338,
             "kind": "edge",
             "point": [
-              -2.971523734430472,
-              14.140784909327826,
-              -0.45585885969921947
+              -2.9715003619591394,
+              14.140785227219263,
+              -0.45584229674811166
             ],
             "samples": 35,
-            "span_mm": 1.7572651527090493,
-            "thinnest_mm": 0.06661835360456071
+            "span_mm": 1.7573341203593174,
+            "thinnest_mm": 0.06667801285729831
           },
           {
-            "area_mm2": 0.07799215738403781,
-            "depth_mm": 0.41847991684321995,
+            "area_mm2": 0.07799224276907578,
+            "depth_mm": 0.4184766367007273,
             "kind": "edge",
             "point": [
-              1.4381810867538054,
+              1.4381734918182094,
               14.028580407301584,
-              -2.4033028432168067
+              -2.403297611667464
             ],
             "samples": 27,
-            "span_mm": 1.310182585491015,
-            "thinnest_mm": 0.20069095665782188
+            "span_mm": 1.3102355114408404,
+            "thinnest_mm": 0.20072184571320792
           },
           {
-            "area_mm2": 0.07792858183457298,
-            "depth_mm": 0.418479887911985,
+            "area_mm2": 0.07792872042652643,
+            "depth_mm": 0.41847663670072754,
             "kind": "edge",
             "point": [
-              -1.4398758852233489,
-              14.035675267378489,
-              -2.401150360548248
+              -1.4398682902877529,
+              14.035675585269928,
+              -2.4011451289989054
             ],
             "samples": 26,
-            "span_mm": 1.3130657231060798,
-            "thinnest_mm": 0.20069743073724508
+            "span_mm": 1.3131200576421413,
+            "thinnest_mm": 0.20072860158493563
           },
           {
-            "area_mm2": 0.06937908023111358,
-            "depth_mm": 0.6234770747758065,
+            "area_mm2": 0.05448577293295034,
+            "depth_mm": 0.4935288405249381,
             "kind": "edge",
             "point": [
-              -0.3213818793495496,
-              15.427499930063883,
-              3.5768133799235025
+              -0.03773584961891099,
+              15.457499941190084,
+              3.858653465906779
             ],
-            "samples": 12,
-            "span_mm": 0.32435380645510214,
-            "thinnest_mm": 0.46044200445363115
+            "samples": 11,
+            "span_mm": 0.17607931808255017,
+            "thinnest_mm": 0.4899175816683912
           },
           {
-            "area_mm2": 0.06937908023111325,
-            "depth_mm": 0.623477074780777,
+            "area_mm2": 0.05297675813383446,
+            "depth_mm": 0.4936279896055995,
             "kind": "edge",
             "point": [
-              0.3213818793495496,
-              15.427499930063883,
-              3.5768133799235025
+              0.0403182138009773,
+              15.457499941190084,
+              3.86149400472641
             ],
-            "samples": 12,
-            "span_mm": 0.32435380645510214,
-            "thinnest_mm": 0.4604420044536299
+            "samples": 10,
+            "span_mm": 0.17649734398560568,
+            "thinnest_mm": 0.49110692163978087
           },
           {
-            "area_mm2": 0.04958236395417848,
+            "area_mm2": 0.044056613708626235,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              -0.5403191447257996,
+              -0.5354533592859904,
               17.677499771118164,
-              0.6691718548536301
+              0.6709771112849315
             ],
-            "samples": 9,
-            "span_mm": 0.690426756901947,
-            "thinnest_mm": 0.02394564193524085
+            "samples": 8,
+            "span_mm": 0.7364862943816166,
+            "thinnest_mm": 0.014504044481678361
           },
           {
-            "area_mm2": 0.027184707218930203,
+            "area_mm2": 0.040115835619349616,
+            "depth_mm": 0.477830298979298,
+            "kind": "edge",
+            "point": [
+              -0.18994608925034603,
+              15.467499951521555,
+              3.357632259527842
+            ],
+            "samples": 6,
+            "span_mm": 0.15552015566009558,
+            "thinnest_mm": 0.4917249367782183
+          },
+          {
+            "area_mm2": 0.02710262409980073,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              3.749329408009847,
-              14.74057674407959,
-              5.41539986928304
+              3.7529818216959634,
+              14.73906977971395,
+              5.417026003201802
             ],
             "samples": 4,
-            "span_mm": 0.3231163758877891,
-            "thinnest_mm": 0.6954271040072203
+            "span_mm": 0.32330230320038744,
+            "thinnest_mm": 0.6805072763233478
+          },
+          {
+            "area_mm2": 0.025640633814973255,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              3.7535420854886374,
+              12.75874400138855,
+              5.345352311929067
+            ],
+            "samples": 4,
+            "span_mm": 0.3799069202678087,
+            "thinnest_mm": 0.6784114446881627
           },
           {
             "area_mm2": 0.02415817008987731,
@@ -710,30 +774,56 @@
             "thinnest_mm": 0.6856328125762613
           },
           {
-            "area_mm2": 0.02348795153799954,
+            "area_mm2": 0.02343082919679132,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              3.7535420854886374,
-              12.75874400138855,
-              5.345352311929067
-            ],
-            "samples": 4,
-            "span_mm": 0.37426526418038186,
-            "thinnest_mm": 0.6784114446881627
-          },
-          {
-            "area_mm2": 0.023431425779327282,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              0.5369530518849691,
-              18.470274448394775,
-              -0.3988385821382205
+              0.5369610227644444,
+              18.470277945200603,
+              -0.39883975436290103
             ],
             "samples": 3,
-            "span_mm": 0.19781721530773627,
-            "thinnest_mm": 0.7232305285130666
+            "span_mm": 0.19780119097928373,
+            "thinnest_mm": 0.7232175746468884
+          },
+          {
+            "area_mm2": 0.019134444146642865,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              -0.45382035958270234,
+              15.360833406448364,
+              5.011122703552246
+            ],
+            "samples": 2,
+            "span_mm": 0.25353540902438987,
+            "thinnest_mm": 0.48027694625113343
+          },
+          {
+            "area_mm2": 0.01878447272020087,
+            "depth_mm": 0.48147962047927995,
+            "kind": "edge",
+            "point": [
+              -0.5025207723180453,
+              15.394166707992554,
+              5.023918151855469
+            ],
+            "samples": 3,
+            "span_mm": 0.19915153714821976,
+            "thinnest_mm": 0.15371997013633187
+          },
+          {
+            "area_mm2": 0.01863921248226063,
+            "depth_mm": 0.2459443468844935,
+            "kind": "edge",
+            "point": [
+              0.5025207723180453,
+              15.394166707992554,
+              5.023918151855469
+            ],
+            "samples": 3,
+            "span_mm": 0.2037151957403074,
+            "thinnest_mm": 0.15371997013633187
           },
           {
             "area_mm2": 0.0176121845036244,
@@ -749,8 +839,8 @@
             "thinnest_mm": 0.2610138620205164
           },
           {
-            "area_mm2": 0.015153916097535913,
-            "depth_mm": 0.4217012974341363,
+            "area_mm2": 0.01657709526411416,
+            "depth_mm": 0.42674405101130036,
             "kind": "edge",
             "point": [
               4.2291454176108045,
@@ -758,86 +848,47 @@
               -0.6038364544510841
             ],
             "samples": 5,
-            "span_mm": 0.36240087307015045,
-            "thinnest_mm": 0.036826671851774184
+            "span_mm": 0.3641140791387336,
+            "thinnest_mm": 0.03670418740173585
           },
           {
-            "area_mm2": 0.014740026657311334,
-            "depth_mm": 0.42170129687569163,
+            "area_mm2": 0.014740557584776215,
+            "depth_mm": 0.4217318296151279,
             "kind": "edge",
             "point": [
-              -4.231243838866551,
+              -4.231243481238683,
               17.52750015258789,
-              -0.6009204760193825
+              -0.6009209776918093
             ],
             "samples": 4,
-            "span_mm": 0.3364298407819959,
-            "thinnest_mm": 0.1377960438704946
+            "span_mm": 0.3366145623570844,
+            "thinnest_mm": 0.13732062452535085
           },
           {
-            "area_mm2": 0.014711355281070312,
+            "area_mm2": 0.012730313283234165,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              -3.7515235046545663,
-              13.085163394610086,
-              2.069452395041784
+              -0.5243495653072993,
+              18.4781121412913,
+              -0.39496488372484845
             ],
             "samples": 2,
-            "span_mm": 0.07672983671619882,
-            "thinnest_mm": 0.6864565457628972
+            "span_mm": 0.2133465596454458,
+            "thinnest_mm": 0.691170132362665
           },
           {
-            "area_mm2": 0.01451469552307252,
-            "depth_mm": 0.3676830222679979,
-            "kind": "edge",
-            "point": [
-              -0.287894057109952,
-              15.427499930063883,
-              4.334848721822103
-            ],
-            "samples": 3,
-            "span_mm": 0.17552092456711854,
-            "thinnest_mm": 0.71272634585314
-          },
-          {
-            "area_mm2": 0.01451469552307252,
-            "depth_mm": 0.36768302226799826,
-            "kind": "edge",
-            "point": [
-              0.287894057109952,
-              15.427499930063883,
-              4.334848721822103
-            ],
-            "samples": 3,
-            "span_mm": 0.17552092456711854,
-            "thinnest_mm": 0.7127263458531401
-          },
-          {
-            "area_mm2": 0.013530181363303083,
+            "area_mm2": 0.010830195071260235,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              3.751599704225858,
-              13.141616503397623,
-              2.051427409052849
+              -3.744449734687805,
+              13.14818819363912,
+              2.05090261499087
             ],
-            "samples": 2,
-            "span_mm": 0.05438059376684379,
-            "thinnest_mm": 0.6861131783543868
-          },
-          {
-            "area_mm2": 0.012732466032178312,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              -0.5243460411826769,
-              18.478111902872723,
-              -0.3949635749061902
-            ],
-            "samples": 2,
-            "span_mm": 0.2133821676825669,
-            "thinnest_mm": 0.6911683170785292
+            "samples": 1,
+            "span_mm": 0.0,
+            "thinnest_mm": 0.7152756504230411
           },
           {
             "area_mm2": 0.01069697901106996,
@@ -892,6 +943,19 @@
             "thinnest_mm": 0.7530833214082525
           },
           {
+            "area_mm2": 0.010506728447009681,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              3.7495526472727456,
+              13.156380295753479,
+              2.047596365213394
+            ],
+            "samples": 1,
+            "span_mm": 0.0,
+            "thinnest_mm": 0.6944551819109819
+          },
+          {
             "area_mm2": 0.009329103270644623,
             "depth_mm": 0.253714380136787,
             "kind": "edge",
@@ -914,7 +978,7 @@
               5.3205079933007555
             ],
             "samples": 2,
-            "span_mm": 0.07845681265898286,
+            "span_mm": 0.07845684951464449,
             "thinnest_mm": 0.2610152044847069
           },
           {
@@ -957,19 +1021,6 @@
             "thinnest_mm": 0.7996332559266183
           },
           {
-            "area_mm2": 0.008971101228178577,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              3.7387847304344177,
-              14.545375227928162,
-              2.0649125377337136
-            ],
-            "samples": 1,
-            "span_mm": 0.0,
-            "thinnest_mm": 0.7383604769239251
-          },
-          {
             "area_mm2": 0.00872222094910276,
             "depth_mm": 0.0,
             "kind": "edge",
@@ -979,8 +1030,21 @@
               7.272724986076355
             ],
             "samples": 4,
-            "span_mm": 0.35420600880393494,
+            "span_mm": 0.35348095753522735,
             "thinnest_mm": 0.7206588418940716
+          },
+          {
+            "area_mm2": 0.008684621711321137,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              3.744449734687805,
+              14.541143337885538,
+              2.0620328883330026
+            ],
+            "samples": 1,
+            "span_mm": 0.0,
+            "thinnest_mm": 0.7152756504230411
           },
           {
             "area_mm2": 0.008457213090370903,
@@ -996,19 +1060,6 @@
             "thinnest_mm": 0.6996184504608349
           },
           {
-            "area_mm2": 0.008159233012463697,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              -3.7528992791970572,
-              14.5474241177241,
-              2.0611636141935983
-            ],
-            "samples": 1,
-            "span_mm": 0.0,
-            "thinnest_mm": 0.6808188692485696
-          },
-          {
             "area_mm2": 0.007742168256303691,
             "depth_mm": 0.0,
             "kind": "edge",
@@ -1020,6 +1071,32 @@
             "samples": 1,
             "span_mm": 0.0,
             "thinnest_mm": 0.6784114446881628
+          },
+          {
+            "area_mm2": 0.007490099959760806,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              -3.7495526472727456,
+              14.54664953549703,
+              2.061817854642868
+            ],
+            "samples": 1,
+            "span_mm": 0.0,
+            "thinnest_mm": 0.6944523984445441
+          },
+          {
+            "area_mm2": 0.007241587712519961,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              0.45083045835296315,
+              15.369166731834412,
+              5.014321565628052
+            ],
+            "samples": 1,
+            "span_mm": 0.0,
+            "thinnest_mm": 0.4667232702305132
           },
           {
             "area_mm2": 0.006968215061132446,
@@ -1059,71 +1136,6 @@
             "samples": 2,
             "span_mm": 0.24878886726067684,
             "thinnest_mm": 0.7232574421950457
-          },
-          {
-            "area_mm2": 0.005298039021489918,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              4.299234370390574,
-              14.083292484283447,
-              7.272724986076355
-            ],
-            "samples": 2,
-            "span_mm": 0.2062704775234554,
-            "thinnest_mm": 0.7232680884263926
-          },
-          {
-            "area_mm2": 0.00464742561477185,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              -0.7338693911830584,
-              14.93999962011973,
-              3.459756165742874
-            ],
-            "samples": 1,
-            "span_mm": 0.0,
-            "thinnest_mm": 0.7855841160062775
-          },
-          {
-            "area_mm2": 0.004647425614771847,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              0.7338693911830584,
-              14.93999962011973,
-              3.459756165742874
-            ],
-            "samples": 1,
-            "span_mm": 0.0,
-            "thinnest_mm": 0.7855841160062774
-          },
-          {
-            "area_mm2": 0.003424212979132542,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              -4.199902375539144,
-              14.473829865455627,
-              7.272725284099579
-            ],
-            "samples": 2,
-            "span_mm": 0.1665950808958261,
-            "thinnest_mm": 0.7206521108924507
-          },
-          {
-            "area_mm2": 0.003360331736615757,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              3.8960288763046265,
-              14.896479169527689,
-              7.272724986076355
-            ],
-            "samples": 2,
-            "span_mm": 0.03113878641992729,
-            "thinnest_mm": 0.7123213960048727
           }
         ],
         "internal": 0,
@@ -1131,26 +1143,26 @@
         "note": "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge, reaches the floor within the edge reach of it, and is everywhere on the way at least floor / reach of its distance from that edge; it is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.",
         "pitch_mm": 0.1,
         "point": [
-          -0.4654265195131302,
-          17.681666374206543,
-          0.6318413019180298
+          3.690038651227951,
+          16.856666048367817,
+          -2.399483414987723
         ],
-        "rays": 236970,
-        "sampled_min_mm": 0.0160983296282985,
+        "rays": 237239,
+        "sampled_min_mm": 0.008390010588874964,
         "unresolved": 0,
         "wall_area_mm2": 0.0,
         "walls": []
       },
       "lid_alone_for_the_record": {
-        "area_mm2": 276.336311220369,
+        "area_mm2": 276.0681473443433,
         "assessed": true,
         "below_limit": 0,
-        "edge_area_mm2": 6.853868838003179,
-        "edge_below_limit": 970,
+        "edge_area_mm2": 6.908225560559341,
+        "edge_below_limit": 988,
         "edge_reach_mm": 0.8,
         "edges": [
           {
-            "area_mm2": 1.44846206753351,
+            "area_mm2": 1.4484615360334776,
             "depth_mm": 0.4505938085409319,
             "kind": "edge",
             "point": [
@@ -1159,60 +1171,60 @@
               -0.38790614328657586
             ],
             "samples": 233,
-            "span_mm": 4.030330985883463,
-            "thinnest_mm": 0.2432068075868068
+            "span_mm": 4.030330906357725,
+            "thinnest_mm": 0.24320733375376621
           },
           {
-            "area_mm2": 1.0879182224464663,
-            "depth_mm": 0.6858567372999496,
+            "area_mm2": 1.088252366633156,
+            "depth_mm": 0.6927514832509244,
             "kind": "edge",
             "point": [
               -4.2583333651224775,
               18.026331901550293,
-              -0.02373220305889845
+              -0.023732196539640427
             ],
-            "samples": 118,
-            "span_mm": 5.622488256521333,
-            "thinnest_mm": 0.2956097358352744
+            "samples": 119,
+            "span_mm": 5.622494047174433,
+            "thinnest_mm": 0.2956105698581736
           },
           {
-            "area_mm2": 1.0877139615764007,
-            "depth_mm": 0.6858567372999496,
+            "area_mm2": 1.087112993360449,
+            "depth_mm": 0.6927516675536582,
             "kind": "edge",
             "point": [
               4.036862055460612,
               17.52750015258789,
               -0.6006458103656769
             ],
-            "samples": 119,
-            "span_mm": 5.604021732061089,
-            "thinnest_mm": 0.14730663919406398
+            "samples": 120,
+            "span_mm": 5.626027557055389,
+            "thinnest_mm": 0.14681659402462277
           },
           {
-            "area_mm2": 0.900837476407264,
-            "depth_mm": 0.5662900276156568,
+            "area_mm2": 0.9370309083240873,
+            "depth_mm": 0.59693044377638,
             "kind": "edge",
             "point": [
-              -3.6631250642240047,
-              16.951457689205807,
-              -2.374906737357378
+              3.690038651227951,
+              16.856666048367817,
+              -2.399483414987723
             ],
-            "samples": 120,
-            "span_mm": 1.3854162891705855,
-            "thinnest_mm": 0.062061053149609614
+            "samples": 134,
+            "span_mm": 1.3812496680778388,
+            "thinnest_mm": 0.008390010588874964
           },
           {
-            "area_mm2": 0.8963120573164216,
-            "depth_mm": 0.5942217182870397,
+            "area_mm2": 0.915720526239442,
+            "depth_mm": 0.49524795073503597,
             "kind": "edge",
             "point": [
-              3.6649461537599564,
-              17.0413183371226,
-              -2.3749060221016407
+              -3.6769573589166007,
+              16.856666048367817,
+              -2.3799001003305116
             ],
             "samples": 120,
-            "span_mm": 1.3774571488950897,
-            "thinnest_mm": 0.05942914606623669
+            "span_mm": 1.3760263224442824,
+            "thinnest_mm": 0.009610121562698876
           },
           {
             "area_mm2": 0.35854138488446907,
@@ -1224,34 +1236,34 @@
               -1.234885995586713
             ],
             "samples": 56,
-            "span_mm": 0.6924449748256594,
+            "span_mm": 0.6924449748256603,
             "thinnest_mm": 0.5208995382520814
           },
           {
-            "area_mm2": 0.17214425536215738,
+            "area_mm2": 0.17207925606019134,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              -3.447421807795763,
-              17.257707605759304,
-              -2.7386499606072903
+              -3.4594037483135858,
+              17.753540803988773,
+              -2.7373999369641147
             ],
             "samples": 15,
-            "span_mm": 1.370832959810894,
-            "thinnest_mm": 0.6248564075793219
+            "span_mm": 1.3635412951310464,
+            "thinnest_mm": 0.6967338130596475
           },
           {
-            "area_mm2": 0.17101565093910373,
+            "area_mm2": 0.16851254560693157,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              3.4506844244897366,
-              18.147290696700413,
-              -2.7333374731242657
+              3.456090599298477,
+              17.250415941079456,
+              -2.7386499419808388
             ],
-            "samples": 15,
-            "span_mm": 1.356249682924961,
-            "thinnest_mm": 0.6148307986882902
+            "samples": 17,
+            "span_mm": 1.3708330110939428,
+            "thinnest_mm": 0.6292507941656423
           },
           {
             "area_mm2": 0.13964731688971604,
@@ -1280,73 +1292,73 @@
             "thinnest_mm": 0.43815074247803704
           },
           {
-            "area_mm2": 0.11658989900860174,
-            "depth_mm": 0.41504764974200825,
+            "area_mm2": 0.11667449153627064,
+            "depth_mm": 0.5513741603062237,
             "kind": "edge",
             "point": [
-              2.972185136129459,
-              14.152610758940378,
-              -0.45501880363250774
+              2.9721616841852665,
+              14.152610128124556,
+              -0.4550022802626093
             ],
             "samples": 36,
-            "span_mm": 1.757265128452449,
-            "thinnest_mm": 0.05802543076527753
+            "span_mm": 1.7573341041366,
+            "thinnest_mm": 0.05802447413832016
           },
           {
-            "area_mm2": 0.1152564681282624,
-            "depth_mm": 0.41504768498001887,
+            "area_mm2": 0.11534097896237856,
+            "depth_mm": 0.4150449298937338,
             "kind": "edge",
             "point": [
-              -2.971523734430472,
-              14.140784909327826,
-              -0.45585885969921947
+              -2.9715003619591394,
+              14.140785227219263,
+              -0.45584229674811166
             ],
             "samples": 35,
-            "span_mm": 1.7572651527090493,
-            "thinnest_mm": 0.06661835360456071
+            "span_mm": 1.7573341203593174,
+            "thinnest_mm": 0.06667801285729831
           },
           {
-            "area_mm2": 0.07799216047385293,
-            "depth_mm": 0.41847991684321995,
+            "area_mm2": 0.07799224276907578,
+            "depth_mm": 0.4184766367007273,
             "kind": "edge",
             "point": [
-              1.4381810867538054,
+              1.4381734918182094,
               14.028580407301584,
-              -2.4033028432168067
+              -2.403297611667464
             ],
             "samples": 27,
-            "span_mm": 1.310182585491015,
-            "thinnest_mm": 0.20069095665782188
+            "span_mm": 1.3102355114408404,
+            "thinnest_mm": 0.20072184571320792
           },
           {
-            "area_mm2": 0.07792858496637811,
-            "depth_mm": 0.418479887911985,
+            "area_mm2": 0.07792872042652643,
+            "depth_mm": 0.41847663670072754,
             "kind": "edge",
             "point": [
-              -1.4398758852233489,
-              14.035675267378489,
-              -2.401150360548248
+              -1.4398682902877529,
+              14.035675585269928,
+              -2.4011451289989054
             ],
             "samples": 26,
-            "span_mm": 1.3130657231060798,
-            "thinnest_mm": 0.20069743073724508
+            "span_mm": 1.3131200576421413,
+            "thinnest_mm": 0.20072860158493563
           },
           {
-            "area_mm2": 0.023431425779327282,
+            "area_mm2": 0.02343082919679132,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              0.5369530518849691,
-              18.470274448394775,
-              -0.3988385821382205
+              0.5369610227644444,
+              18.470277945200603,
+              -0.39883975436290103
             ],
             "samples": 3,
-            "span_mm": 0.19781721530773627,
-            "thinnest_mm": 0.7232305285130666
+            "span_mm": 0.19780119097928373,
+            "thinnest_mm": 0.7232175746468884
           },
           {
-            "area_mm2": 0.015153916097535913,
-            "depth_mm": 0.4217012974341363,
+            "area_mm2": 0.01657709526411416,
+            "depth_mm": 0.42674405101130036,
             "kind": "edge",
             "point": [
               4.2291454176108045,
@@ -1354,34 +1366,34 @@
               -0.6038364544510841
             ],
             "samples": 5,
-            "span_mm": 0.36240087307015045,
-            "thinnest_mm": 0.036826671851774184
+            "span_mm": 0.3641140791387336,
+            "thinnest_mm": 0.03670418740173585
           },
           {
-            "area_mm2": 0.014740026657311334,
-            "depth_mm": 0.42170129687569163,
+            "area_mm2": 0.014740557584776215,
+            "depth_mm": 0.4217318296151279,
             "kind": "edge",
             "point": [
-              -4.231243838866551,
+              -4.231243481238683,
               17.52750015258789,
-              -0.6009204760193825
+              -0.6009209776918093
             ],
             "samples": 4,
-            "span_mm": 0.3364298407819959,
-            "thinnest_mm": 0.1377960438704946
+            "span_mm": 0.3366145623570844,
+            "thinnest_mm": 0.13732062452535085
           },
           {
-            "area_mm2": 0.012732466032178312,
+            "area_mm2": 0.012730313283234165,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              -0.5243460411826769,
-              18.478111902872723,
-              -0.3949635749061902
+              -0.5243495653072993,
+              18.4781121412913,
+              -0.39496488372484845
             ],
             "samples": 2,
-            "span_mm": 0.2133821676825669,
-            "thinnest_mm": 0.6911683170785292
+            "span_mm": 0.2133465596454458,
+            "thinnest_mm": 0.691170132362665
           }
         ],
         "internal": 0,
@@ -1389,12 +1401,12 @@
         "note": "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge, reaches the floor within the edge reach of it, and is everywhere on the way at least floor / reach of its distance from that edge; it is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.",
         "pitch_mm": 0.1,
         "point": [
-          4.2291454176108045,
-          17.52750015258789,
-          -0.6038364544510841
+          3.690038651227951,
+          16.856666048367817,
+          -2.399483414987723
         ],
-        "rays": 36762,
-        "sampled_min_mm": 0.036826671851774184,
+        "rays": 36421,
+        "sampled_min_mm": 0.008390010588874964,
         "unresolved": 0,
         "wall_area_mm2": 0.0,
         "walls": []
@@ -1409,8 +1421,8 @@
       "vertices_inside": 0
     },
     "build": {
-      "author_s": 49.006241231,
-      "build_s": 34.772131605,
+      "author_s": 2.353590513,
+      "build_s": 5.612662446,
       "profile_steps": 448,
       "theta_steps": 1536
     },
@@ -1418,16 +1430,16 @@
     "cut_lands": {
       "floor_mm": 0.8,
       "measured": [
-        "Cut #23 'Open the west window in tracery over the skull': 2.85 mm from light 1 to the edge",
-        "Cut #24 'Open back light 1 behind the skull to the dark': 3.50 mm from light 1 to the edge",
-        "Cut #25 'Open back light 2 behind the skull to the dark': 3.58 mm from light 1 to the edge"
+        "Cut #26 'Open the west window in tracery over the skull': 2.85 mm from light 1 to the edge",
+        "Cut #27 'Open back light 1 behind the skull to the dark': 3.50 mm from light 1 to the edge",
+        "Cut #28 'Open back light 2 behind the skull to the dark': 3.59 mm from light 1 to the edge"
       ],
       "note": "Every Attach::Cut extrusion's narrowest land, measured by dfm::cut_lands; the niches, bays, sockets and slope lights cut inside their own parts are judged by the thickness census instead",
       "under_floor": []
     },
     "design": {
-      "bytes": 421174,
-      "cad_features": 66,
+      "bytes": 264809,
+      "cad_features": 71,
       "format_version": 6
     },
     "dfm_findings": [],
@@ -1486,8 +1498,8 @@
     "geometry": {
       "degenerate_faces": 0,
       "self_crossings": 0,
-      "triangles": 1282074,
-      "volume_mm3": 1450.2237251712932,
+      "triangles": 1270824,
+      "volume_mm3": 1446.6247692213076,
       "watertight": true
     },
     "head_over_crest_mm": 6.757499084472656,
@@ -1500,163 +1512,175 @@
       },
       {
         "degenerate_faces": 0,
-        "part": "#13 Sink the eye sockets, the nasal cavity and the line of the teeth into the skull: the memento mori",
+        "part": "#16 Sink the eye sockets and the nasal aperture into the skull: the memento mori",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#14 Raise the north tower in three stages",
+        "part": "#17 Raise the north tower in three stages",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#15 Web the north tower to the chest",
+        "part": "#18 Web the north tower to the chest",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#16 Loft the north spire to its point",
+        "part": "#19 Loft the north spire to its point",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#17 Cut the north spire's crockets and fleur finial",
+        "part": "#20 Cut the north spire's crockets and fleur finial",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#18 Raise the south tower in three stages",
+        "part": "#21 Raise the south tower in three stages",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#19 Web the south tower to the chest",
+        "part": "#22 Web the south tower to the chest",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#20 Loft the south spire to its point",
+        "part": "#23 Loft the south spire to its point",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#21 Cut the south spire's crockets and fleur finial",
+        "part": "#24 Cut the south spire's crockets and fleur finial",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#23 Open the west window in tracery over the skull",
+        "part": "#26 Open the west window in tracery over the skull",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#24 Open back light 1 behind the skull to the dark",
+        "part": "#27 Open back light 1 behind the skull to the dark",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#25 Open back light 2 behind the skull to the dark",
+        "part": "#28 Open back light 2 behind the skull to the dark",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#26 Raise the front's archivolt, its sides weathered",
+        "part": "#29 Raise the front's archivolt, its sides weathered",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#28 Bezel round the Garnet, north wall cabochon",
+        "part": "#31 Bezel round the Garnet, north wall cabochon",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#32 Bezel round the Garnet, south wall cabochon",
+        "part": "#35 Bezel round the Garnet, south wall cabochon",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#34 Sink the south wall's bay: the chest",
+        "part": "#37 Sink the south wall's bay: the chest",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#36 Bezel round the Garnet, north plinth niche cabochon",
+        "part": "#39 Bezel round the Garnet, north plinth niche cabochon",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#38 Bezel round the Sapphire, middle plinth niche cabochon",
+        "part": "#41 Bezel round the Sapphire, middle plinth niche cabochon",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#40 Bezel round the Garnet, south plinth niche cabochon",
+        "part": "#43 Bezel round the Garnet, south plinth niche cabochon",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#43 Sink the niches into the plinth's front: the plinth",
+        "part": "#46 Sink the niches into the plinth's front: the plinth",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#44 Sink a 1.40 x 2.2 mm blind lancet into the east shoulder, 42 deg off the top",
+        "part": "#47 Sink a 1.70 x 2.0 mm blind lancet into the east shoulder, 37 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#45 Sink a 1.40 x 2.2 mm blind lancet into the west shoulder, 42 deg off the top",
+        "part": "#48 Sink a 1.70 x 2.0 mm blind lancet into the west shoulder, 37 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#46 Sink a 1.25 x 2.0 mm blind lancet into the east shoulder, 57 deg off the top",
+        "part": "#49 Sink a 1.60 x 1.9 mm blind lancet into the east shoulder, 51 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#47 Sink a 1.25 x 2.0 mm blind lancet into the west shoulder, 57 deg off the top",
+        "part": "#50 Sink a 1.60 x 1.9 mm blind lancet into the west shoulder, 51 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#48 Sink a 1.10 x 1.8 mm blind lancet into the east shoulder, 72 deg off the top",
+        "part": "#51 Sink a 1.50 x 1.8 mm blind lancet into the east shoulder, 65 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#49 Sink a 1.10 x 1.8 mm blind lancet into the west shoulder, 72 deg off the top",
+        "part": "#52 Sink a 1.50 x 1.8 mm blind lancet into the west shoulder, 65 deg off the top",
         "self_crossings": 0,
         "watertight": true
       },
       {
         "degenerate_faces": 0,
-        "part": "#66 Join the rose's collet to the lid: the lid, cast apart",
+        "part": "#53 Sink a 1.40 x 1.7 mm blind lancet into the east shoulder, 79 deg off the top",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#54 Sink a 1.40 x 1.7 mm blind lancet into the west shoulder, 79 deg off the top",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#71 Join the rose's collet to the lid: the lid, cast apart",
         "self_crossings": 0,
         "watertight": true
       }
@@ -1664,16 +1688,16 @@
     "parts_notes": [],
     "pattern": {
       "lid": {
-        "casting": "Part(66)",
+        "casting": "Part(71)",
         "degenerate_faces": 0,
         "self_crossings": 0,
-        "triangles": 6238,
+        "triangles": 5910,
         "watertight": true
       },
       "ring": {
         "degenerate_faces": 0,
         "self_crossings": 0,
-        "triangles": 1282074,
+        "triangles": 1270824,
         "watertight": true
       }
     },
@@ -1688,15 +1712,15 @@
     "thickness": {
       "clean": true,
       "finished": {
-        "area_mm2": 1895.483629398535,
+        "area_mm2": 1900.8826009422346,
         "assessed": true,
         "below_limit": 0,
-        "edge_area_mm2": 10.91306093461334,
-        "edge_below_limit": 1810,
+        "edge_area_mm2": 11.40559309733714,
+        "edge_below_limit": 1909,
         "edge_reach_mm": 0.8,
         "edges": [
           {
-            "area_mm2": 1.44846206753351,
+            "area_mm2": 1.4484300074351113,
             "depth_mm": 0.4505938085409319,
             "kind": "edge",
             "point": [
@@ -1705,86 +1729,73 @@
               -0.38790614328657586
             ],
             "samples": 233,
-            "span_mm": 4.030330985883463,
-            "thinnest_mm": 0.2432068075868068
+            "span_mm": 4.030330906357725,
+            "thinnest_mm": 0.24320733375376621
           },
           {
-            "area_mm2": 1.0879182224464663,
-            "depth_mm": 0.6858567372999496,
+            "area_mm2": 1.088252366633156,
+            "depth_mm": 0.6927514832509244,
             "kind": "edge",
             "point": [
               -4.2583333651224775,
               18.026331901550293,
-              -0.02373220305889845
+              -0.023732196539640427
             ],
-            "samples": 118,
-            "span_mm": 5.622488256521333,
-            "thinnest_mm": 0.2956097358352744
+            "samples": 119,
+            "span_mm": 5.622494047174433,
+            "thinnest_mm": 0.2956105698581736
           },
           {
-            "area_mm2": 1.0877139615764007,
-            "depth_mm": 0.6858567372999496,
+            "area_mm2": 1.087112993360449,
+            "depth_mm": 0.6927516675536582,
             "kind": "edge",
             "point": [
               4.036862055460612,
               17.52750015258789,
               -0.6006458103656769
             ],
-            "samples": 119,
-            "span_mm": 5.604021732061089,
-            "thinnest_mm": 0.14730663919406398
+            "samples": 120,
+            "span_mm": 5.626027557055389,
+            "thinnest_mm": 0.14681659402462277
           },
           {
-            "area_mm2": 0.900837476407264,
-            "depth_mm": 0.5662900276156568,
+            "area_mm2": 0.9370309083240873,
+            "depth_mm": 0.59693044377638,
             "kind": "edge",
             "point": [
-              -3.6631250642240047,
-              16.951457689205807,
-              -2.374906737357378
+              3.690038651227951,
+              16.856666048367817,
+              -2.399483414987723
+            ],
+            "samples": 134,
+            "span_mm": 1.3812496680778388,
+            "thinnest_mm": 0.008390010588874964
+          },
+          {
+            "area_mm2": 0.915720526239442,
+            "depth_mm": 0.49524795073503597,
+            "kind": "edge",
+            "point": [
+              -3.6769573589166007,
+              16.856666048367817,
+              -2.3799001003305116
             ],
             "samples": 120,
-            "span_mm": 1.3854162891705855,
-            "thinnest_mm": 0.062061053149609614
+            "span_mm": 1.3760263224442824,
+            "thinnest_mm": 0.009610121562698876
           },
           {
-            "area_mm2": 0.8963120573164216,
-            "depth_mm": 0.5942217182870397,
+            "area_mm2": 0.46609437496817135,
+            "depth_mm": 0.29314312743415033,
             "kind": "edge",
             "point": [
-              3.6649461537599564,
-              17.0413183371226,
-              -2.3749060221016407
+              -0.5297111316273609,
+              15.464999973773956,
+              5.051108479499817
             ],
-            "samples": 120,
-            "span_mm": 1.3774571488950897,
-            "thinnest_mm": 0.05942914606623669
-          },
-          {
-            "area_mm2": 0.5316012738583855,
-            "depth_mm": 0.7815885310475161,
-            "kind": "edge",
-            "point": [
-              -0.9141013125578562,
-              15.452499945958456,
-              3.2549605071544647
-            ],
-            "samples": 100,
-            "span_mm": 0.9369934883158568,
-            "thinnest_mm": 0.3296215733682739
-          },
-          {
-            "area_mm2": 0.5316012738583854,
-            "depth_mm": 0.7815885310475161,
-            "kind": "edge",
-            "point": [
-              0.9141013125578562,
-              15.452499945958456,
-              3.2549605071544647
-            ],
-            "samples": 100,
-            "span_mm": 0.9369934883158568,
-            "thinnest_mm": 0.32962157336827386
+            "samples": 103,
+            "span_mm": 1.2881955890595882,
+            "thinnest_mm": 0.08540394366004288
           },
           {
             "area_mm2": 0.35854138488446907,
@@ -1796,64 +1807,77 @@
               -1.234885995586713
             ],
             "samples": 56,
-            "span_mm": 0.6924449748256594,
+            "span_mm": 0.6924449748256603,
             "thinnest_mm": 0.5208995382520814
           },
           {
-            "area_mm2": 0.3081069476100215,
-            "depth_mm": 0.22770219081600745,
+            "area_mm2": 0.3139121921982196,
+            "depth_mm": 0.627230522718163,
             "kind": "edge",
             "point": [
-              0.14565526569883028,
-              12.79716960589091,
-              7.340039889017741
+              -0.9127256174882253,
+              15.467499951521555,
+              3.3491714199384055
             ],
-            "samples": 82,
-            "span_mm": 2.4370758513084887,
-            "thinnest_mm": 0.3183670123258842
+            "samples": 60,
+            "span_mm": 0.9564950300342798,
+            "thinnest_mm": 0.3735415966874899
           },
           {
-            "area_mm2": 0.30782097679997183,
+            "area_mm2": 0.308119321920522,
             "depth_mm": 0.22770250124309632,
             "kind": "edge",
             "point": [
-              3.3444044391314187,
+              3.5457446773846946,
+              12.79718565940857,
+              7.339999715487163
+            ],
+            "samples": 82,
+            "span_mm": 2.4370756297734957,
+            "thinnest_mm": 0.3185947260789952
+          },
+          {
+            "area_mm2": 0.3077895865953834,
+            "depth_mm": 0.22770244541581486,
+            "kind": "edge",
+            "point": [
+              -3.455595552921295,
               12.784759918848673,
               7.33870546023051
             ],
             "samples": 82,
             "span_mm": 2.433576708407154,
-            "thinnest_mm": 0.3256612882648395
+            "thinnest_mm": 0.3256606138347728
           },
           {
-            "area_mm2": 0.3076223575285562,
-            "depth_mm": 0.22770244541581486,
+            "area_mm2": 0.30778942438228407,
+            "depth_mm": 0.22770219081600745,
             "kind": "edge",
             "point": [
-              -3.2549339731534324,
-              12.797061920166016,
-              7.340306043624878
+              -0.05559609077560405,
+              12.784759918848673,
+              7.33870546023051
             ],
             "samples": 82,
-            "span_mm": 2.4370725570074843,
-            "thinnest_mm": 0.31683575842488276
+            "span_mm": 2.433577513207007,
+            "thinnest_mm": 0.3256606375161181
           },
           {
-            "area_mm2": 0.27541794878196957,
-            "depth_mm": 0.45064354399374884,
+            "area_mm2": 0.3007079492631965,
+            "depth_mm": 0.6264045338442559,
             "kind": "edge",
             "point": [
-              3.9200000762939453,
-              13.148937433958054,
-              2.073713411887487
+              0.9082486641903719,
+              15.467499951521555,
+              3.2543206264575324
             ],
-            "samples": 38,
-            "span_mm": 1.3577515946732053,
-            "thinnest_mm": 0.26101004233617525
+            "samples": 58,
+            "span_mm": 0.9547589015377329,
+            "thinnest_mm": 0.3718243735270764
           },
           {
-            "area_mm2": 0.27246098799474366,
-            "depth_mm": 0.4506412799216524,
+            "area_mm2": 0.27446128743780224,
+            "depth_mm": 0.4506412801071213,
             "kind": "edge",
             "point": [
               -3.9200000762939453,
@@ -1861,11 +1885,50 @@
               2.079280068476995
             ],
             "samples": 37,
-            "span_mm": 1.3578840074334355,
-            "thinnest_mm": 0.26100997687353245
+            "span_mm": 1.3578840851163925,
+            "thinnest_mm": 0.26101005600829014
           },
           {
-            "area_mm2": 0.19242456841229552,
+            "area_mm2": 0.2719872677065286,
+            "depth_mm": 0.4506435451607131,
+            "kind": "edge",
+            "point": [
+              3.9200000762939453,
+              13.148937433958054,
+              2.073713411887487
+            ],
+            "samples": 36,
+            "span_mm": 1.2830792791829158,
+            "thinnest_mm": 0.26101059596225473
+          },
+          {
+            "area_mm2": 0.2646516351471049,
+            "depth_mm": 0.5086816175178818,
+            "kind": "edge",
+            "point": [
+              5.0694172730048495,
+              17.45562545458476,
+              -6.547399789094925
+            ],
+            "samples": 39,
+            "span_mm": 0.871876451936874,
+            "thinnest_mm": 0.6401082155294852
+          },
+          {
+            "area_mm2": 0.26433609910384326,
+            "depth_mm": 0.5086817483093384,
+            "kind": "edge",
+            "point": [
+              -5.130582625667254,
+              17.45562545458476,
+              -6.547399789094925
+            ],
+            "samples": 39,
+            "span_mm": 0.8718765608033969,
+            "thinnest_mm": 0.6401059984021045
+          },
+          {
+            "area_mm2": 0.19242066790050066,
             "depth_mm": 0.24007345454806447,
             "kind": "edge",
             "point": [
@@ -1874,7 +1937,7 @@
               3.747031331062317
             ],
             "samples": 39,
-            "span_mm": 2.4220428698324827,
+            "span_mm": 2.42204275194028,
             "thinnest_mm": 0.33133575502961476
           },
           {
@@ -1887,7 +1950,7 @@
               3.7469491958618164
             ],
             "samples": 37,
-            "span_mm": 2.413918134330725,
+            "span_mm": 2.4139181254808744,
             "thinnest_mm": 0.33338275331041883
           },
           {
@@ -1904,20 +1967,20 @@
             "thinnest_mm": 0.3360527905496974
           },
           {
-            "area_mm2": 0.17214425536215738,
+            "area_mm2": 0.17207925606019134,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              -3.447421807795763,
-              17.257707605759304,
-              -2.7386499606072903
+              -3.4594037483135858,
+              17.753540803988773,
+              -2.7373999369641147
             ],
             "samples": 15,
-            "span_mm": 1.370832959810894,
-            "thinnest_mm": 0.6248564075793219
+            "span_mm": 1.3635412951310464,
+            "thinnest_mm": 0.6967338130596475
           },
           {
-            "area_mm2": 0.17127448910266757,
+            "area_mm2": 0.17127448895346448,
             "depth_mm": 0.24007345188809853,
             "kind": "edge",
             "point": [
@@ -1926,21 +1989,21 @@
               3.418783406416575
             ],
             "samples": 37,
-            "span_mm": 2.4142172492490577,
+            "span_mm": 2.414217045708334,
             "thinnest_mm": 0.33715086609543043
           },
           {
-            "area_mm2": 0.17101565093910373,
+            "area_mm2": 0.16851254560693157,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              3.4506844244897366,
-              18.147290696700413,
-              -2.7333374731242657
+              3.456090599298477,
+              17.250415941079456,
+              -2.7386499419808388
             ],
-            "samples": 15,
-            "span_mm": 1.356249682924961,
-            "thinnest_mm": 0.6148307986882902
+            "samples": 17,
+            "span_mm": 1.3708330110939428,
+            "thinnest_mm": 0.6292507941656423
           },
           {
             "area_mm2": 0.13964731688971604,
@@ -1969,134 +2032,147 @@
             "thinnest_mm": 0.43815074247803704
           },
           {
-            "area_mm2": 0.13492866021155972,
-            "depth_mm": 0.6930077650865357,
+            "area_mm2": 0.12265189229654798,
+            "depth_mm": 0.1617076097868327,
             "kind": "edge",
             "point": [
-              -0.19802283806105456,
-              15.46499995390574,
-              3.337188705801964
+              0.22698566317558355,
+              17.677499771118164,
+              0.5617198046917716
             ],
-            "samples": 20,
-            "span_mm": 0.626583521947536,
-            "thinnest_mm": 0.44001442847907757
+            "samples": 34,
+            "span_mm": 0.8921712919670569,
+            "thinnest_mm": 0.014504044481678061
           },
           {
-            "area_mm2": 0.12572344782215283,
-            "depth_mm": 0.16443292477530264,
+            "area_mm2": 0.11667449153627064,
+            "depth_mm": 0.5513741603062237,
             "kind": "edge",
             "point": [
-              -0.4654265195131302,
-              17.681666374206543,
-              0.6318413019180298
-            ],
-            "samples": 33,
-            "span_mm": 0.9195648757081383,
-            "thinnest_mm": 0.0160983296282985
-          },
-          {
-            "area_mm2": 0.11658989900860174,
-            "depth_mm": 0.41504764974200825,
-            "kind": "edge",
-            "point": [
-              2.972185136129459,
-              14.152610758940378,
-              -0.45501880363250774
+              2.9721616841852665,
+              14.152610128124556,
+              -0.4550022802626093
             ],
             "samples": 36,
-            "span_mm": 1.757265128452449,
-            "thinnest_mm": 0.05802543076527753
+            "span_mm": 1.7573341041366,
+            "thinnest_mm": 0.05802447413832016
           },
           {
-            "area_mm2": 0.1152564681282624,
-            "depth_mm": 0.41504768498001887,
+            "area_mm2": 0.11534097896237856,
+            "depth_mm": 0.4150449298937338,
             "kind": "edge",
             "point": [
-              -2.971523734430472,
-              14.140784909327826,
-              -0.45585885969921947
+              -2.9715003619591394,
+              14.140785227219263,
+              -0.45584229674811166
             ],
             "samples": 35,
-            "span_mm": 1.7572651527090493,
-            "thinnest_mm": 0.06661835360456071
+            "span_mm": 1.7573341203593174,
+            "thinnest_mm": 0.06667801285729831
           },
           {
-            "area_mm2": 0.07799215738403781,
-            "depth_mm": 0.41847991684321995,
+            "area_mm2": 0.07799224276907578,
+            "depth_mm": 0.4184766367007273,
             "kind": "edge",
             "point": [
-              1.4381810867538054,
+              1.4381734918182094,
               14.028580407301584,
-              -2.4033028432168067
+              -2.403297611667464
             ],
             "samples": 27,
-            "span_mm": 1.310182585491015,
-            "thinnest_mm": 0.20069095665782188
+            "span_mm": 1.3102355114408404,
+            "thinnest_mm": 0.20072184571320792
           },
           {
-            "area_mm2": 0.07792858183457298,
-            "depth_mm": 0.418479887911985,
+            "area_mm2": 0.07792872042652643,
+            "depth_mm": 0.41847663670072754,
             "kind": "edge",
             "point": [
-              -1.4398758852233489,
-              14.035675267378489,
-              -2.401150360548248
+              -1.4398682902877529,
+              14.035675585269928,
+              -2.4011451289989054
             ],
             "samples": 26,
-            "span_mm": 1.3130657231060798,
-            "thinnest_mm": 0.20069743073724508
+            "span_mm": 1.3131200576421413,
+            "thinnest_mm": 0.20072860158493563
           },
           {
-            "area_mm2": 0.06937908023111358,
-            "depth_mm": 0.6234770747758065,
+            "area_mm2": 0.054485772932950344,
+            "depth_mm": 0.4935288405249381,
             "kind": "edge",
             "point": [
-              -0.3213818793495496,
-              15.427499930063883,
-              3.5768133799235025
+              -0.03773584961891099,
+              15.457499941190084,
+              3.858653465906779
             ],
-            "samples": 12,
-            "span_mm": 0.32435380645510214,
-            "thinnest_mm": 0.46044200445363115
+            "samples": 11,
+            "span_mm": 0.17607931808255017,
+            "thinnest_mm": 0.4899175816683911
           },
           {
-            "area_mm2": 0.06937908023111325,
-            "depth_mm": 0.623477074780777,
+            "area_mm2": 0.05297675813383446,
+            "depth_mm": 0.4936279896055995,
             "kind": "edge",
             "point": [
-              0.3213818793495496,
-              15.427499930063883,
-              3.5768133799235025
+              0.0403182138009773,
+              15.457499941190084,
+              3.86149400472641
             ],
-            "samples": 12,
-            "span_mm": 0.32435380645510214,
-            "thinnest_mm": 0.4604420044536299
+            "samples": 10,
+            "span_mm": 0.17649734398560568,
+            "thinnest_mm": 0.49110692163978087
           },
           {
-            "area_mm2": 0.04958236395417848,
+            "area_mm2": 0.044056613708626235,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              -0.5403191447257996,
+              -0.5354533592859904,
               17.677499771118164,
-              0.6691718548536301
+              0.6709771112849315
             ],
-            "samples": 9,
-            "span_mm": 0.690426756901947,
-            "thinnest_mm": 0.02394564193524085
+            "samples": 8,
+            "span_mm": 0.7364862943816166,
+            "thinnest_mm": 0.014504044481678361
           },
           {
-            "area_mm2": 0.027184707218930203,
+            "area_mm2": 0.040115835619349616,
+            "depth_mm": 0.477830298979298,
+            "kind": "edge",
+            "point": [
+              -0.18994608925034603,
+              15.467499951521555,
+              3.357632259527842
+            ],
+            "samples": 6,
+            "span_mm": 0.15552015566009558,
+            "thinnest_mm": 0.4917249367782183
+          },
+          {
+            "area_mm2": 0.02710262409980073,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              3.749329408009847,
-              14.74057674407959,
-              5.41539986928304
+              3.7529818216959634,
+              14.73906977971395,
+              5.417026003201802
             ],
             "samples": 4,
-            "span_mm": 0.3231163758877891,
-            "thinnest_mm": 0.6954271040072203
+            "span_mm": 0.32330230320038744,
+            "thinnest_mm": 0.6805072763233478
+          },
+          {
+            "area_mm2": 0.025640633814973255,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              3.7535420854886374,
+              12.75874400138855,
+              5.345352311929067
+            ],
+            "samples": 4,
+            "span_mm": 0.3799069202678087,
+            "thinnest_mm": 0.6784114446881627
           },
           {
             "area_mm2": 0.02415817008987731,
@@ -2112,30 +2188,56 @@
             "thinnest_mm": 0.6856328125762613
           },
           {
-            "area_mm2": 0.02348795153799954,
+            "area_mm2": 0.02343082919679132,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              3.7535420854886374,
-              12.75874400138855,
-              5.345352311929067
-            ],
-            "samples": 4,
-            "span_mm": 0.37426526418038186,
-            "thinnest_mm": 0.6784114446881627
-          },
-          {
-            "area_mm2": 0.023431425779327282,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              0.5369530518849691,
-              18.470274448394775,
-              -0.3988385821382205
+              0.5369610227644444,
+              18.470277945200603,
+              -0.39883975436290103
             ],
             "samples": 3,
-            "span_mm": 0.19781721530773627,
-            "thinnest_mm": 0.7232305285130666
+            "span_mm": 0.19780119097928373,
+            "thinnest_mm": 0.7232175746468884
+          },
+          {
+            "area_mm2": 0.019134444146642865,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              -0.45382035958270234,
+              15.360833406448364,
+              5.011122703552246
+            ],
+            "samples": 2,
+            "span_mm": 0.25353540902438987,
+            "thinnest_mm": 0.48027694625113343
+          },
+          {
+            "area_mm2": 0.01878447272020087,
+            "depth_mm": 0.48147962047927995,
+            "kind": "edge",
+            "point": [
+              -0.5025207723180453,
+              15.394166707992554,
+              5.023918151855469
+            ],
+            "samples": 3,
+            "span_mm": 0.19915153714821976,
+            "thinnest_mm": 0.15371997013633187
+          },
+          {
+            "area_mm2": 0.01863921248226063,
+            "depth_mm": 0.2459443468844935,
+            "kind": "edge",
+            "point": [
+              0.5025207723180453,
+              15.394166707992554,
+              5.023918151855469
+            ],
+            "samples": 3,
+            "span_mm": 0.2037151957403074,
+            "thinnest_mm": 0.15371997013633187
           },
           {
             "area_mm2": 0.0176121845036244,
@@ -2151,8 +2253,8 @@
             "thinnest_mm": 0.2610138620205164
           },
           {
-            "area_mm2": 0.015153916097535913,
-            "depth_mm": 0.4217012974341363,
+            "area_mm2": 0.01657709526411416,
+            "depth_mm": 0.42674405101130036,
             "kind": "edge",
             "point": [
               4.2291454176108045,
@@ -2160,86 +2262,47 @@
               -0.6038364544510841
             ],
             "samples": 5,
-            "span_mm": 0.36240087307015045,
-            "thinnest_mm": 0.036826671851774184
+            "span_mm": 0.3641140791387336,
+            "thinnest_mm": 0.03670418740173585
           },
           {
-            "area_mm2": 0.014740026657311334,
-            "depth_mm": 0.42170129687569163,
+            "area_mm2": 0.014740557584776215,
+            "depth_mm": 0.4217318296151279,
             "kind": "edge",
             "point": [
-              -4.231243838866551,
+              -4.231243481238683,
               17.52750015258789,
-              -0.6009204760193825
+              -0.6009209776918093
             ],
             "samples": 4,
-            "span_mm": 0.3364298407819959,
-            "thinnest_mm": 0.1377960438704946
+            "span_mm": 0.3366145623570844,
+            "thinnest_mm": 0.13732062452535085
           },
           {
-            "area_mm2": 0.014711355281070312,
+            "area_mm2": 0.012730313283234165,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              -3.7515235046545663,
-              13.085163394610086,
-              2.069452395041784
+              -0.5243495653072993,
+              18.4781121412913,
+              -0.39496488372484845
             ],
             "samples": 2,
-            "span_mm": 0.07672983671619882,
-            "thinnest_mm": 0.6864565457628972
+            "span_mm": 0.2133465596454458,
+            "thinnest_mm": 0.691170132362665
           },
           {
-            "area_mm2": 0.01451469552307252,
-            "depth_mm": 0.3676830222679979,
-            "kind": "edge",
-            "point": [
-              -0.287894057109952,
-              15.427499930063883,
-              4.334848721822103
-            ],
-            "samples": 3,
-            "span_mm": 0.17552092456711854,
-            "thinnest_mm": 0.71272634585314
-          },
-          {
-            "area_mm2": 0.01451469552307252,
-            "depth_mm": 0.36768302226799826,
-            "kind": "edge",
-            "point": [
-              0.287894057109952,
-              15.427499930063883,
-              4.334848721822103
-            ],
-            "samples": 3,
-            "span_mm": 0.17552092456711854,
-            "thinnest_mm": 0.7127263458531401
-          },
-          {
-            "area_mm2": 0.013530181363303083,
+            "area_mm2": 0.010830195071260235,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              3.751599704225858,
-              13.141616503397623,
-              2.051427409052849
+              -3.744449734687805,
+              13.14818819363912,
+              2.05090261499087
             ],
-            "samples": 2,
-            "span_mm": 0.05438059376684379,
-            "thinnest_mm": 0.6861131783543868
-          },
-          {
-            "area_mm2": 0.012732466032178312,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              -0.5243460411826769,
-              18.478111902872723,
-              -0.3949635749061902
-            ],
-            "samples": 2,
-            "span_mm": 0.2133821676825669,
-            "thinnest_mm": 0.6911683170785292
+            "samples": 1,
+            "span_mm": 0.0,
+            "thinnest_mm": 0.7152756504230411
           },
           {
             "area_mm2": 0.01069697901106996,
@@ -2294,6 +2357,19 @@
             "thinnest_mm": 0.7530833214082525
           },
           {
+            "area_mm2": 0.010506728447009681,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              3.7495526472727456,
+              13.156380295753479,
+              2.047596365213394
+            ],
+            "samples": 1,
+            "span_mm": 0.0,
+            "thinnest_mm": 0.6944551819109819
+          },
+          {
             "area_mm2": 0.009329103270644623,
             "depth_mm": 0.253714380136787,
             "kind": "edge",
@@ -2316,7 +2392,7 @@
               5.3205079933007555
             ],
             "samples": 2,
-            "span_mm": 0.07845681265898286,
+            "span_mm": 0.07845684951464449,
             "thinnest_mm": 0.2610152044847069
           },
           {
@@ -2359,19 +2435,6 @@
             "thinnest_mm": 0.7996332559266183
           },
           {
-            "area_mm2": 0.008971101228178577,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              3.7387847304344177,
-              14.545375227928162,
-              2.0649125377337136
-            ],
-            "samples": 1,
-            "span_mm": 0.0,
-            "thinnest_mm": 0.7383604769239251
-          },
-          {
             "area_mm2": 0.00872222094910276,
             "depth_mm": 0.0,
             "kind": "edge",
@@ -2381,8 +2444,21 @@
               7.272724986076355
             ],
             "samples": 4,
-            "span_mm": 0.35420600880393494,
+            "span_mm": 0.35348095753522735,
             "thinnest_mm": 0.7206588418940716
+          },
+          {
+            "area_mm2": 0.008684621711321137,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              3.744449734687805,
+              14.541143337885538,
+              2.0620328883330026
+            ],
+            "samples": 1,
+            "span_mm": 0.0,
+            "thinnest_mm": 0.7152756504230411
           },
           {
             "area_mm2": 0.008457213090370903,
@@ -2398,19 +2474,6 @@
             "thinnest_mm": 0.6996184504608349
           },
           {
-            "area_mm2": 0.008159233012463697,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              -3.7528992791970572,
-              14.5474241177241,
-              2.0611636141935983
-            ],
-            "samples": 1,
-            "span_mm": 0.0,
-            "thinnest_mm": 0.6808188692485696
-          },
-          {
             "area_mm2": 0.007742168256303691,
             "depth_mm": 0.0,
             "kind": "edge",
@@ -2422,6 +2485,32 @@
             "samples": 1,
             "span_mm": 0.0,
             "thinnest_mm": 0.6784114446881628
+          },
+          {
+            "area_mm2": 0.007490099959760806,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              -3.7495526472727456,
+              14.54664953549703,
+              2.061817854642868
+            ],
+            "samples": 1,
+            "span_mm": 0.0,
+            "thinnest_mm": 0.6944523984445441
+          },
+          {
+            "area_mm2": 0.007241587712519961,
+            "depth_mm": 0.0,
+            "kind": "edge",
+            "point": [
+              0.45083045835296315,
+              15.369166731834412,
+              5.014321565628052
+            ],
+            "samples": 1,
+            "span_mm": 0.0,
+            "thinnest_mm": 0.4667232702305132
           },
           {
             "area_mm2": 0.006968215061132446,
@@ -2461,71 +2550,6 @@
             "samples": 2,
             "span_mm": 0.24878886726067684,
             "thinnest_mm": 0.7232574421950457
-          },
-          {
-            "area_mm2": 0.005298039021489918,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              4.299234370390574,
-              14.083292484283447,
-              7.272724986076355
-            ],
-            "samples": 2,
-            "span_mm": 0.2062704775234554,
-            "thinnest_mm": 0.7232680884263926
-          },
-          {
-            "area_mm2": 0.00464742561477185,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              -0.7338693911830584,
-              14.93999962011973,
-              3.459756165742874
-            ],
-            "samples": 1,
-            "span_mm": 0.0,
-            "thinnest_mm": 0.7855841160062775
-          },
-          {
-            "area_mm2": 0.004647425614771847,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              0.7338693911830584,
-              14.93999962011973,
-              3.459756165742874
-            ],
-            "samples": 1,
-            "span_mm": 0.0,
-            "thinnest_mm": 0.7855841160062774
-          },
-          {
-            "area_mm2": 0.003424212979132542,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              -4.199902375539144,
-              14.473829865455627,
-              7.272725284099579
-            ],
-            "samples": 2,
-            "span_mm": 0.1665950808958261,
-            "thinnest_mm": 0.7206521108924507
-          },
-          {
-            "area_mm2": 0.003360331736615757,
-            "depth_mm": 0.0,
-            "kind": "edge",
-            "point": [
-              3.8960288763046265,
-              14.896479169527689,
-              7.272724986076355
-            ],
-            "samples": 2,
-            "span_mm": 0.031147056726297695,
-            "thinnest_mm": 0.7123213960048727
           }
         ],
         "internal": 0,
@@ -2533,26 +2557,26 @@
         "note": "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge, reaches the floor within the edge reach of it, and is everywhere on the way at least floor / reach of its distance from that edge; it is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.",
         "pitch_mm": 0.1,
         "point": [
-          -0.4654265195131302,
-          17.681666374206543,
-          0.6318413019180298
+          3.690038651227951,
+          16.856666048367817,
+          -2.399483414987723
         ],
-        "rays": 237145,
-        "sampled_min_mm": 0.0160983296282985,
+        "rays": 237310,
+        "sampled_min_mm": 0.008390010588874964,
         "unresolved": 0,
         "wall_area_mm2": 0.0,
         "walls": []
       },
       "lid_alone_for_the_record": {
-        "area_mm2": 276.3363112233877,
+        "area_mm2": 276.06814735291357,
         "assessed": true,
         "below_limit": 0,
-        "edge_area_mm2": 6.853868838003179,
-        "edge_below_limit": 970,
+        "edge_area_mm2": 6.908194031960974,
+        "edge_below_limit": 988,
         "edge_reach_mm": 0.8,
         "edges": [
           {
-            "area_mm2": 1.44846206753351,
+            "area_mm2": 1.4484300074351113,
             "depth_mm": 0.4505938085409319,
             "kind": "edge",
             "point": [
@@ -2561,60 +2585,60 @@
               -0.38790614328657586
             ],
             "samples": 233,
-            "span_mm": 4.030330985883463,
-            "thinnest_mm": 0.2432068075868068
+            "span_mm": 4.030330906357725,
+            "thinnest_mm": 0.24320733375376621
           },
           {
-            "area_mm2": 1.0879182224464663,
-            "depth_mm": 0.6858567372999496,
+            "area_mm2": 1.088252366633156,
+            "depth_mm": 0.6927514832509244,
             "kind": "edge",
             "point": [
               -4.2583333651224775,
               18.026331901550293,
-              -0.02373220305889845
+              -0.023732196539640427
             ],
-            "samples": 118,
-            "span_mm": 5.622488256521333,
-            "thinnest_mm": 0.2956097358352744
+            "samples": 119,
+            "span_mm": 5.622494047174433,
+            "thinnest_mm": 0.2956105698581736
           },
           {
-            "area_mm2": 1.0877139615764007,
-            "depth_mm": 0.6858567372999496,
+            "area_mm2": 1.087112993360449,
+            "depth_mm": 0.6927516675536582,
             "kind": "edge",
             "point": [
               4.036862055460612,
               17.52750015258789,
               -0.6006458103656769
             ],
-            "samples": 119,
-            "span_mm": 5.604021732061089,
-            "thinnest_mm": 0.14730663919406398
+            "samples": 120,
+            "span_mm": 5.626027557055389,
+            "thinnest_mm": 0.14681659402462277
           },
           {
-            "area_mm2": 0.900837476407264,
-            "depth_mm": 0.5662900276156568,
+            "area_mm2": 0.9370309083240873,
+            "depth_mm": 0.59693044377638,
             "kind": "edge",
             "point": [
-              -3.6631250642240047,
-              16.951457689205807,
-              -2.374906737357378
+              3.690038651227951,
+              16.856666048367817,
+              -2.399483414987723
             ],
-            "samples": 120,
-            "span_mm": 1.3854162891705855,
-            "thinnest_mm": 0.062061053149609614
+            "samples": 134,
+            "span_mm": 1.3812496680778388,
+            "thinnest_mm": 0.008390010588874964
           },
           {
-            "area_mm2": 0.8963120573164216,
-            "depth_mm": 0.5942217182870397,
+            "area_mm2": 0.915720526239442,
+            "depth_mm": 0.49524795073503597,
             "kind": "edge",
             "point": [
-              3.6649461537599564,
-              17.0413183371226,
-              -2.3749060221016407
+              -3.6769573589166007,
+              16.856666048367817,
+              -2.3799001003305116
             ],
             "samples": 120,
-            "span_mm": 1.3774571488950897,
-            "thinnest_mm": 0.05942914606623669
+            "span_mm": 1.3760263224442824,
+            "thinnest_mm": 0.009610121562698876
           },
           {
             "area_mm2": 0.35854138488446907,
@@ -2626,34 +2650,34 @@
               -1.234885995586713
             ],
             "samples": 56,
-            "span_mm": 0.6924449748256594,
+            "span_mm": 0.6924449748256603,
             "thinnest_mm": 0.5208995382520814
           },
           {
-            "area_mm2": 0.17214425536215738,
+            "area_mm2": 0.17207925606019134,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              -3.447421807795763,
-              17.257707605759304,
-              -2.7386499606072903
+              -3.4594037483135858,
+              17.753540803988773,
+              -2.7373999369641147
             ],
             "samples": 15,
-            "span_mm": 1.370832959810894,
-            "thinnest_mm": 0.6248564075793219
+            "span_mm": 1.3635412951310464,
+            "thinnest_mm": 0.6967338130596475
           },
           {
-            "area_mm2": 0.17101565093910373,
+            "area_mm2": 0.16851254560693157,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              3.4506844244897366,
-              18.147290696700413,
-              -2.7333374731242657
+              3.456090599298477,
+              17.250415941079456,
+              -2.7386499419808388
             ],
-            "samples": 15,
-            "span_mm": 1.356249682924961,
-            "thinnest_mm": 0.6148307986882902
+            "samples": 17,
+            "span_mm": 1.3708330110939428,
+            "thinnest_mm": 0.6292507941656423
           },
           {
             "area_mm2": 0.13964731688971604,
@@ -2682,73 +2706,73 @@
             "thinnest_mm": 0.43815074247803704
           },
           {
-            "area_mm2": 0.11658989900860174,
-            "depth_mm": 0.41504764974200825,
+            "area_mm2": 0.11667449153627064,
+            "depth_mm": 0.5513741603062237,
             "kind": "edge",
             "point": [
-              2.972185136129459,
-              14.152610758940378,
-              -0.45501880363250774
+              2.9721616841852665,
+              14.152610128124556,
+              -0.4550022802626093
             ],
             "samples": 36,
-            "span_mm": 1.757265128452449,
-            "thinnest_mm": 0.05802543076527753
+            "span_mm": 1.7573341041366,
+            "thinnest_mm": 0.05802447413832016
           },
           {
-            "area_mm2": 0.1152564681282624,
-            "depth_mm": 0.41504768498001887,
+            "area_mm2": 0.11534097896237856,
+            "depth_mm": 0.4150449298937338,
             "kind": "edge",
             "point": [
-              -2.971523734430472,
-              14.140784909327826,
-              -0.45585885969921947
+              -2.9715003619591394,
+              14.140785227219263,
+              -0.45584229674811166
             ],
             "samples": 35,
-            "span_mm": 1.7572651527090493,
-            "thinnest_mm": 0.06661835360456071
+            "span_mm": 1.7573341203593174,
+            "thinnest_mm": 0.06667801285729831
           },
           {
-            "area_mm2": 0.07799216047385293,
-            "depth_mm": 0.41847991684321995,
+            "area_mm2": 0.07799224276907578,
+            "depth_mm": 0.4184766367007273,
             "kind": "edge",
             "point": [
-              1.4381810867538054,
+              1.4381734918182094,
               14.028580407301584,
-              -2.4033028432168067
+              -2.403297611667464
             ],
             "samples": 27,
-            "span_mm": 1.310182585491015,
-            "thinnest_mm": 0.20069095665782188
+            "span_mm": 1.3102355114408404,
+            "thinnest_mm": 0.20072184571320792
           },
           {
-            "area_mm2": 0.07792858496637811,
-            "depth_mm": 0.418479887911985,
+            "area_mm2": 0.07792872042652643,
+            "depth_mm": 0.41847663670072754,
             "kind": "edge",
             "point": [
-              -1.4398758852233489,
-              14.035675267378489,
-              -2.401150360548248
+              -1.4398682902877529,
+              14.035675585269928,
+              -2.4011451289989054
             ],
             "samples": 26,
-            "span_mm": 1.3130657231060798,
-            "thinnest_mm": 0.20069743073724508
+            "span_mm": 1.3131200576421413,
+            "thinnest_mm": 0.20072860158493563
           },
           {
-            "area_mm2": 0.023431425779327282,
+            "area_mm2": 0.02343082919679132,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              0.5369530518849691,
-              18.470274448394775,
-              -0.3988385821382205
+              0.5369610227644444,
+              18.470277945200603,
+              -0.39883975436290103
             ],
             "samples": 3,
-            "span_mm": 0.19781721530773627,
-            "thinnest_mm": 0.7232305285130666
+            "span_mm": 0.19780119097928373,
+            "thinnest_mm": 0.7232175746468884
           },
           {
-            "area_mm2": 0.015153916097535913,
-            "depth_mm": 0.4217012974341363,
+            "area_mm2": 0.01657709526411416,
+            "depth_mm": 0.42674405101130036,
             "kind": "edge",
             "point": [
               4.2291454176108045,
@@ -2756,34 +2780,34 @@
               -0.6038364544510841
             ],
             "samples": 5,
-            "span_mm": 0.36240087307015045,
-            "thinnest_mm": 0.036826671851774184
+            "span_mm": 0.3641140791387336,
+            "thinnest_mm": 0.03670418740173585
           },
           {
-            "area_mm2": 0.014740026657311334,
-            "depth_mm": 0.42170129687569163,
+            "area_mm2": 0.014740557584776215,
+            "depth_mm": 0.4217318296151279,
             "kind": "edge",
             "point": [
-              -4.231243838866551,
+              -4.231243481238683,
               17.52750015258789,
-              -0.6009204760193825
+              -0.6009209776918093
             ],
             "samples": 4,
-            "span_mm": 0.3364298407819959,
-            "thinnest_mm": 0.1377960438704946
+            "span_mm": 0.3366145623570844,
+            "thinnest_mm": 0.13732062452535085
           },
           {
-            "area_mm2": 0.012732466032178312,
+            "area_mm2": 0.012730313283234165,
             "depth_mm": 0.0,
             "kind": "edge",
             "point": [
-              -0.5243460411826769,
-              18.478111902872723,
-              -0.3949635749061902
+              -0.5243495653072993,
+              18.4781121412913,
+              -0.39496488372484845
             ],
             "samples": 2,
-            "span_mm": 0.2133821676825669,
-            "thinnest_mm": 0.6911683170785292
+            "span_mm": 0.2133465596454458,
+            "thinnest_mm": 0.691170132362665
           }
         ],
         "internal": 0,
@@ -2791,12 +2815,12 @@
         "note": "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge, reaches the floor within the edge reach of it, and is everywhere on the way at least floor / reach of its distance from that edge; it is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.",
         "pitch_mm": 0.1,
         "point": [
-          4.2291454176108045,
-          17.52750015258789,
-          -0.6038364544510841
+          3.690038651227951,
+          16.856666048367817,
+          -2.399483414987723
         ],
-        "rays": 36763,
-        "sampled_min_mm": 0.036826671851774184,
+        "rays": 36423,
+        "sampled_min_mm": 0.008390010588874964,
         "unresolved": 0,
         "wall_area_mm2": 0.0,
         "walls": []
@@ -2805,7 +2829,7 @@
     }
   },
   "gates_passed": true,
-  "lid": 66,
+  "lid": 71,
   "min_section_mm": 0.8,
   "name": "Capsa — the reliquary",
   "notes": [
@@ -2815,14 +2839,14 @@
   ],
   "option": "across-openwork",
   "process": "Lost wax",
-  "skull": 13,
+  "skull": 16,
   "stone_features": [
-    27,
-    31,
-    35,
-    37,
-    39,
-    52
+    30,
+    34,
+    38,
+    40,
+    42,
+    57
   ],
   "views": [
     {

@@ -67,7 +67,8 @@ const LID_CLEAR_MM: f64 = 0.05;
 /// The shoulder quatrefoils: offsets from the top and their sizes.
 const PIERCINGS: [(f64, f64); 3] = [(48.0, 2.0), (60.0, 1.6), (72.0, 1.3)];
 /// The shoulders' blind lancets: offset from the top, width, length.
-const SHOULDER_LANCETS: [(f64, f64, f64); 3] = [(42.0, 1.4, 2.2), (57.0, 1.25, 2.0), (72.0, 1.1, 1.8)];
+const SHOULDER_LANCETS: [(f64, f64, f64); 4] = [(37.0, 1.7, 2.0), (51.0, 1.6, 1.9), (65.0, 1.5, 1.8), (79.0, 1.4, 1.7)];
+const SHOULDER_TURN: f64 = 0.0;
 /// Wall zones thinner than this are listed as suspected census artifacts, not fixed (lead, 2026-10-03).
 const ARTIFACT_MM: f64 = 0.05;
 /// Tracery bars: the section floor.
@@ -235,7 +236,9 @@ fn sketch_on(name: &str, wp: Workplane) -> Sketch {
     Sketch { name: name.into(), plane: wp, ..Sketch::default() }
 }
 fn polygon(sk: &mut Sketch, pts: &[P2]) {
-    let ids: Vec<Id> = pts.iter().map(|p| sk.point(*p)).collect();
+    // Points to a ten-thousandth of a millimetre: the file keeps four decimals, not sixteen.
+    let r = |v: f64| (v * 1e4).round() / 1e4;
+    let ids: Vec<Id> = pts.iter().map(|p| sk.point([r(p[0]), r(p[1])])).collect();
     sk.entity(Geometry::Polyline { points: ids, closed: true });
 }
 /// A sketch on the across frame's plan at height `z`, drawn in (x, y), its normal up.
@@ -750,12 +753,12 @@ struct SkullSeat {
 }
 /// The memento mori: a skull lofted from its outline into a low dome, its sockets, nose and teeth sunk into its face; returns the skull's id.
 fn skull(doc: &mut Document, ids: &mut Ids, at: &SkullSeat) -> Result<Id> {
-    let sections: [(f64, f64); 7] = [(-0.2, 1.0), (0.0, 1.0), (0.35, 0.98), (0.6, 0.94), (0.8, 0.87), (0.93, 0.8), (1.0, 0.74)];
+    let sections: [(f64, f64); 5] = [(-0.2, 1.0), (0.4, 0.975), (0.75, 0.9), (0.92, 0.8), (1.0, 0.74)];
     let mut profiles = Vec::new();
     for (k, (h, s)) in sections.iter().enumerate() {
         let origin = add(at.base, at.n, h * at.height);
         let mut sk = sketch_on(&format!("Skull section {}", k + 1), plane(origin, at.a, at.b));
-        polygon(&mut sk, &skull_ring(64, at.scale * s));
+        polygon(&mut sk, &skull_ring(32, at.scale * s));
         profiles.push(Profile::Inline(sk));
     }
     let loft = ids.next();
@@ -767,27 +770,40 @@ fn skull(doc: &mut Document, ids: &mut Ids, at: &SkullSeat) -> Result<Id> {
     let face = |name: &str| sketch_on(name, plane(top, neg(at.a), at.b));
     let socket = |c: P2| -> Vec<P2> {
         let tip = 0.2 * c[0].signum();
-        (0..28)
+        (0..20)
             .map(|i| {
-                let t = 2.0 * PI * i as f64 / 28.0;
-                let (x, y) = (0.38 * t.cos(), 0.36 * t.sin());
+                let t = 2.0 * PI * i as f64 / 20.0;
+                let (x, y) = (0.39 * t.cos(), 0.4 * t.sin());
                 let (ct, st) = (tip.cos(), tip.sin());
                 [s * (c[0] + x * ct - y * st), s * (c[1] + x * st + y * ct)]
             })
             .collect()
     };
-    // One sketch for the whole face, its regions cut together with one draft: the analytic kernel takes a single cut of the lofted dome.
-    let mut sk = face("Skull, the face: eye sockets, nasal cavity, the line of the teeth");
-    for ax in [-0.56, 0.56] {
+    // The teeth first: V-cut grooves between six teeth and the line of the jaws, their walls meeting near the bottom.
+    let mut sk = face("Skull, the teeth");
+    for k in 0..5 {
+        let x = -0.5 + 0.25 * k as f64;
+        polygon(&mut sk, &[[s * (x - 0.1), s * -2.2], [s * (x + 0.1), s * -2.2], [s * (x + 0.1), s * -1.72], [s * (x - 0.1), s * -1.72]]);
+    }
+    polygon(&mut sk, &[[s * -0.56, s * -1.7], [s * 0.56, s * -1.7], [s * 0.56, s * -1.5], [s * -0.56, s * -1.5]]);
+    let drawn = ids.next();
+    doc.append(feature(drawn, "Draw the skull's teeth", Operation::Sketch { sketch: sk }, Component::default()))?;
+    let tool = ids.next();
+    doc.append(feature(tool, "The skull's teeth, cut in a V", Operation::Extrude { sketch: Profile::Feature { feature: drawn }, height_mm: 0.05 + 0.2, draft_deg: 21.0 }, placed(at.frame.clone())))?;
+    let toothed = ids.next();
+    doc.append(feature(toothed, "Cut the skull's teeth", boolean(loft, tool, Boolean::Subtract), placed(Placement::Free)))?;
+    // Then the face: two bowl orbits and the nasal aperture, its spine notched, cut together with one draft.
+    let mut sk = face("Skull, the face: eye sockets and nasal aperture");
+    for ax in [-0.55, 0.55] {
         polygon(&mut sk, &socket([ax, 0.05]));
     }
-    polygon(&mut sk, &[[0.0, -0.42], [-0.26, -0.78], [-0.32, -0.98], [-0.1, -1.06], [0.1, -1.06], [0.32, -0.98], [0.26, -0.78]].iter().map(|p| [s * p[0], s * p[1]]).collect::<Vec<_>>());
+    polygon(&mut sk, &[[0.0, -0.4], [-0.2, -0.62], [-0.33, -0.9], [-0.24, -1.08], [0.0, -1.12], [0.24, -1.08], [0.33, -0.9], [0.2, -0.62]].iter().map(|p| [s * p[0], s * p[1]]).collect::<Vec<_>>());
     let drawn = ids.next();
     doc.append(feature(drawn, "Draw the skull's face", Operation::Sketch { sketch: sk }, Component::default()))?;
     let tool = ids.next();
-    doc.append(feature(tool, "The skull's face, its walls sloped", Operation::Extrude { sketch: Profile::Feature { feature: drawn }, height_mm: 0.05 + 0.6, draft_deg: 14.0 }, placed(at.frame.clone())))?;
+    doc.append(feature(tool, "The skull's face, its walls sloped", Operation::Extrude { sketch: Profile::Feature { feature: drawn }, height_mm: 0.05 + 0.48, draft_deg: 22.0 }, placed(at.frame.clone())))?;
     let id = ids.next();
-    doc.append(feature(id, "Sink the eye sockets, the nasal cavity and the line of the teeth into the skull", boolean(loft, tool, Boolean::Subtract), placed(Placement::Free)))?;
+    doc.append(feature(id, "Sink the eye sockets and the nasal aperture into the skull", boolean(toothed, tool, Boolean::Subtract), placed(Placement::Free)))?;
     if let Some(f) = doc.features.iter_mut().find(|f| f.id == id) {
         f.name = format!("{}: the memento mori", f.name);
         f.component = joined(ComponentRole::Head, Placement::Free, 0.0);
@@ -896,8 +912,8 @@ fn shoulder_lancets(doc: &mut Document, ids: &mut Ids, d: &RingDesign) -> Result
                 m.insert("width_mm".into(), serde_json::json!(w));
                 m.insert("length_mm".into(), serde_json::json!(l));
                 m.insert("through".into(), serde_json::json!(false));
-                m.insert("depth_mm".into(), serde_json::json!(0.45));
-                m.insert("turn_deg".into(), serde_json::json!(if sign > 0.0 { 90.0 } else { -90.0 }));
+                m.insert("depth_mm".into(), serde_json::json!(0.5));
+                m.insert("turn_deg".into(), serde_json::json!(if sign > 0.0 { SHOULDER_TURN } else { SHOULDER_TURN + 180.0 }));
             }
             let mut f = builders::cutters::pierce_feature(ids.next(), builders::cutters::Shape::Lancet, &at);
             f.name = format!("Sink a {w:.2} x {l:.1} mm blind lancet into the {side} shoulder, {off:.0} deg off the top");
@@ -1273,7 +1289,7 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
                 }
             }
             sdf::smin(dd, fleur([y, x - (spire1 - 0.45)], [0.0, 0.0]), 0.1)
-        }, [spire0 - 0.5, sign * ym - 2.0], [spire1 + 2.6, sign * ym + 2.0], 0.02, 220)?;
+        }, [spire0 - 0.5, sign * ym - 2.0], [spire1 + 2.6, sign * ym + 2.0], 0.02, 72)?;
         let mut sk = plan(&format!("Crockets and finial, {side} spire"), zm - 0.45);
         polygon(&mut sk, &fin);
         let id = ids.next();
@@ -1314,7 +1330,7 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
             if wind { -dmin } else { dmin }
         };
         let back = move |q: P2| -> f64 { inside(q).max(light_sdf(q)).max(-skull_hole(q)) };
-        let loops = outlines(&back, [xa - 0.5, -3.0], [cut_x + 0.5, 3.0], 0.02, 0.006, 200);
+        let loops = outlines(&back, [xa - 0.5, -3.0], [cut_x + 0.5, 3.0], 0.02, 0.01, 70);
         ensure!(!loops.is_empty(), "no back lights");
         for (k, l) in loops.iter().enumerate() {
             let mut sk = plan(&format!("Back light {}", k + 1), -XBED_MM - 0.3);
@@ -1336,7 +1352,7 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
         }
     }
     let mut sk = plan_arch("Archivolt", XD - 0.05, true);
-    polygon(&mut sk, &arch_frame(pw, psill, papex, pshare, 1.05, 14));
+    polygon(&mut sk, &arch_frame(pw, psill, papex, pshare, 1.05, 8));
     let frame_id = ids.next();
     doc.append(feature(frame_id, "Raise the front's archivolt, its sides weathered", drafted(sk, 0.05 + 0.4, 15.0), joined(ComponentRole::Head, xseat(), 0.0)))?;
 
@@ -1353,7 +1369,7 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
         stones.push(s);
         // u runs along -sign z so the normal (u × x) points into the wall; one cut, its jambs splayed like two orders.
         let mut sk = sketch_on(&format!("Bay, {side} wall"), plane([0.0, sign * (XW / 2.0 + OVERSHOOT_MM), 0.0], [0.0, 0.0, -sign], [1.0, 0.0, 0.0]));
-        polygon(&mut sk, &lancet_poly(-sign * bay_z, 2.6, bay_sill, bay_apex, 0.72, 10));
+        polygon(&mut sk, &lancet_poly(-sign * bay_z, 2.6, bay_sill, bay_apex, 0.72, 6));
         let tool = ids.next();
         doc.append(feature(tool, &format!("The {side} wall's bay"), drafted(sk, OVERSHOOT_MM + NICHE_MM, 24.0), placed(xseat())))?;
         let next = ids.next();
@@ -1375,7 +1391,7 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
         let face = face_near(&d, &fr, &pl, [-1.0, 0.0, 0.0], p)?;
         let (s, _) = cabochon(&mut doc, &mut ids, &mut d, lib, &fr, &pl, face, p, *gem, 90.0, XBAY_MM, &format!("{}, {name} plinth niche", if gem.preview_tint == sapphire().preview_tint { "Sapphire" } else { "Garnet" }), true)?;
         stones.push(s);
-        polygon(&mut niche_sk, &lancet_poly(*cy, 2.75, 0.3, XD - 2.1, 0.75, 10));
+        polygon(&mut niche_sk, &lancet_poly(*cy, 2.75, 0.3, XD - 2.1, 0.75, 6));
     }
     if !niches.is_empty() {
         let drawn = ids.next();
@@ -1493,7 +1509,7 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
         notes.push(format!("{lights} tracery lights in the roof's slopes"));
     }
     // The coping round the gable (the eave moulding along its foot), the crockets and the finial: an outline and its hole, in one sketch.
-    let crest = outlines(&gable_crest_sdf, [xr - 1.0, -hw - 1.0], [xp + 3.2, hw + 1.0], 0.02, 0.006, 150);
+    let crest = outlines(&gable_crest_sdf, [xr - 1.0, -hw - 1.0], [xp + 3.2, hw + 1.0], 0.02, 0.01, 72);
     ensure!(!crest.is_empty() && crest.len() <= 2, "the gable's crest traced to {} loops", crest.len());
     let mut sk = plan("Coping, crockets and finial", ztop - 1.2);
     for l in &crest {
@@ -1752,6 +1768,11 @@ fn extra_renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, opt: Opt, metal
     let v = views(opt);
     let (_, _, y, p) = v[0];
     render::write_png_framed(out.join("hero-close.png"), &parts, y, p, render::Framing::new(centre, 9.0), edge)?;
+    // The north long wall square on, its garnet in its bay under the tower: the head turned a right angle about its axis.
+    let (wm, wg) = (turned(metal, -0.5 * PI), gems.iter().map(|(m, t)| (turned(m, -0.5 * PI), *t)).collect::<Vec<_>>());
+    let mut wp = vec![render::Part::metal(&wm, render::GOLD)];
+    wp.extend(wg.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
+    render::write_png_framed(out.join("walls.png"), &wp, 0.0, 0.35, render::Framing::new(centre, 9.0), edge)?;
     let side = |m: &mesh::Mesh, g: &[(mesh::Mesh, [f32; 3])]| -> Vec<u8> {
         let mut ps = vec![render::Part::metal(m, render::GOLD)];
         ps.extend(g.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
