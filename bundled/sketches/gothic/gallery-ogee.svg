@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="4.2mm" height="7mm" viewBox="-2.1 -6.5 4.2 7" data-area-mm2="13.568">
+  <title>gallery-ogee</title>
+  <desc>Stand-in drawn in place of Under Gallery Cut 001 (ogee) (assets/User/Profiles, git-ignored, not in this checkout); tools/harvest_gothic.py replaces it from the 3DM under this name. An ogee arch, finial up.</desc>
+  <path d="M 1.6 0 L 1.6 -2.48 A 2.336 2.336 0 0 0 0.8 -4.24 A 2.336 2.336 0 0 1 0 -6 A 2.336 2.336 0 0 1 -0.8 -4.24 A 2.336 2.336 0 0 0 -1.6 -2.48 L -1.6 0 L 1.6 0 Z"/>
+</svg>

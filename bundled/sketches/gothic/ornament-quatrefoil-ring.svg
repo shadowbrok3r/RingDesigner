@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="8.02mm" height="8.02mm" viewBox="-4.01 -4.01 8.02 8.02" data-area-mm2="7.611933982">
+  <title>ornament-quatrefoil-ring</title>
+  <desc>Stand-in drawn in place of Ornament 027 (quatrefoil ring) (assets/User/Profiles, git-ignored, not in this checkout); tools/harvest_gothic.py replaces it from the 3DM under this name. A quatrefoil less a quatrefoil 0.35 mm inside it.</desc>
+  <path d="M 2.414764185 0 A 1.71 1.71 0 0 0 2.481944802 -2.481944802 A 1.71 1.71 0 0 0 0 -2.414764185 A 1.71 1.71 0 0 0 -2.481944802 -2.481944802 A 1.71 1.71 0 0 0 -2.414764185 0 A 1.71 1.71 0 0 0 -2.481944802 2.481944802 A 1.71 1.71 0 0 0 0 2.414764185 A 1.71 1.71 0 0 0 2.481944802 2.481944802 A 1.71 1.71 0 0 0 2.414764185 0 Z M 1.751958148 0 A 1.36 1.36 0 0 0 2.234457429 -2.234457429 A 1.36 1.36 0 0 0 0 -1.751958148 A 1.36 1.36 0 0 0 -2.234457429 -2.234457429 A 1.36 1.36 0 0 0 -1.751958148 0 A 1.36 1.36 0 0 0 -2.234457429 2.234457429 A 1.36 1.36 0 0 0 0 1.751958148 A 1.36 1.36 0 0 0 2.234457429 2.234457429 A 1.36 1.36 0 0 0 1.751958148 0 Z"/>
+</svg>

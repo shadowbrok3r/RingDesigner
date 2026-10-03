@@ -2,6 +2,7 @@
 
 > **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
 > - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
+> - **Capsa (2026-09-28):** the relic is the memento-mori **skull**, since faces are allowed (crossed bones under an hourglass was only the no-faces substitute), and the lid is a Separate cast lid on a bench hinge (`Joint`), as this file already defaults. Open questions 1 and 2 are settled.
 > - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
 > - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
 

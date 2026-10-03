@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="8.2mm" height="5.649142682mm" viewBox="-0.5 -5.149142682 8.2 5.649142682" data-lights="10" data-bar-mm="0.25">
+  <title>jali-intersecting-arches</title>
+  <desc>Stand-in drawn in place of Jali 016 (assets/User/Profiles, git-ignored, not in this checkout); tools/harvest_gothic.py replaces it from the 3DM under this name. Intersecting tracery: segmental arches from every other mullion crossing into lancets: centre lines for Sketch::tracery.</desc>
+  <line x1="0" y1="0" x2="7.2" y2="0"/>
+  <line x1="7.2" y1="0" x2="7.2" y2="-4.649142682"/>
+  <line x1="7.2" y1="-4.649142682" x2="0" y2="-4.649142682"/>
+  <line x1="0" y1="-4.649142682" x2="0" y2="0"/>
+  <line x1="1.8" y1="0" x2="1.8" y2="-3"/>
+  <line x1="3.6" y1="0" x2="3.6" y2="-3"/>
+  <line x1="5.4" y1="0" x2="5.4" y2="-3"/>
+  <path d="M 1.8 -3 A 2.099142682 2.099142682 0 0 0 0 -4.019142682"/>
+  <path d="M 3.6 -3 A 2.099142682 2.099142682 0 0 0 0 -3"/>
+  <path d="M 5.4 -3 A 2.099142682 2.099142682 0 0 0 1.8 -3"/>
+  <path d="M 7.2 -3 A 2.099142682 2.099142682 0 0 0 3.6 -3"/>
+  <path d="M 7.2 -4.019142682 A 2.099142682 2.099142682 0 0 0 5.4 -3"/>
+</svg>

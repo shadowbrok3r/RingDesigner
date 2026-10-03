@@ -613,9 +613,15 @@ impl RingDesign {
     /// Capture every referenced alpha that cannot be regenerated — not a
     /// builtin, not drawn — as embedded PNG data. Call on a save-time clone.
     pub fn embed_alphas(&mut self, lib: &AlphaLibrary) {
+        let names: Vec<_> = self.layers.referenced_alphas().into_iter().map(str::to_owned).collect();
+        self.embed_named_alphas(lib, names.iter().map(String::as_str));
+    }
+
+    /// Capture named artwork too, such as references in a reusable graph's inactive branches.
+    pub fn embed_named_alphas<'a>(&mut self, lib: &AlphaLibrary, names: impl IntoIterator<Item = &'a str>) {
         use base64::Engine as _;
         self.embedded.clear();
-        for name in self.layers.referenced_alphas() {
+        for name in names {
             // A region mask is derived from the band, like a distance field.
             if name.starts_with(skin::REGION_PREFIX) {
                 continue;

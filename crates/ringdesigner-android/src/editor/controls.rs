@@ -736,6 +736,13 @@ pub fn stones(
 pub fn casting(ui: &mut egui::Ui, editor: &mut Editor, d: &mut RingDesign) -> Edit {
     let mut edit = Edit::default();
     use ringdesign_core::castability::CastProcess;
+    ui.strong("Prepare a casting pattern");
+    ui.label("Set up your material, check the mold, then export a pattern package.");
+    if ui.button("Open casting workshop").clicked() {
+        edit.action = Some(Action::Workshop);
+    }
+    ui.separator();
+    ui.strong("Quick surface checks");
     ui.horizontal(|ui| {
         let width = super::row_width(ui.available_width(), 2, ui.spacing().item_spacing.x);
         for (process, label) in [
@@ -773,14 +780,11 @@ pub fn casting(ui: &mut egui::Ui, editor: &mut Editor, d: &mut RingDesign) -> Ed
         }
     });
     ui.label(if d.draft.process == CastProcess::SandTwoPart {
-        "The pattern must withdraw without tearing the sand. Use the guides to understand the pull, then review the findings."
+        "The pattern must lift out without tearing the sand. Tap a surface to inspect it; use the workshop for the complete pattern check."
     } else { "Undercuts are allowed in investment casting; wall thickness and fine detail still need checking." });
     ui.horizontal_wrapped(|ui| {
-        if ui.button("Findings").clicked() {
+        if ui.button("Surface findings").clicked() {
             edit.action = Some(Action::Findings);
-        }
-        if ui.button("Mould setup & repairs").clicked() {
-            edit.action = Some(Action::Workshop);
         }
     });
     ui.label(

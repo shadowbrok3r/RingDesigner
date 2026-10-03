@@ -156,6 +156,7 @@ pub fn claw_geometry_extended(key: &str, params: &Json) -> bool {
 /// Builder geometry that released readers cannot reproduce.
 pub fn geometry_extended(key: &str, params: &Json) -> bool {
     matches!(key, SPLIT | WINDOW) || claw_geometry_extended(key, params)
+        || (key == PIERCE && params.get("shape").and_then(Json::as_str).is_some_and(|shape| cutters::GOTHIC_SHAPES.contains(&shape)))
 }
 
 fn number(key: &'static str, label: &'static str, unit: &'static str, min: f64, max: f64, default: f64) -> Param {

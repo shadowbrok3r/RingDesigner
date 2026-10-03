@@ -1,7 +1,7 @@
 //! Editing a sketch's drawn geometry: split at crossings, trim, offset, corner fillet and
 //! chamfer, mirror and pattern. Each works on a copy and keeps it only once it validates, so a
 //! refusal leaves the sketch as it was; constraints naming a point that goes go with it.
-use super::region::{self, Bounds};
+use super::region::{self, Bounds, RegionRef};
 use super::{Constraint, Entity, Geometry, Id, Sketch, distance};
 use anyhow::{Context, Result, bail, ensure};
 use cadkernel::geom2d::{self, Arc, Curve, Line, Tolerance};
@@ -48,6 +48,15 @@ pub enum Pattern {
     /// `count` copies about `centre`, the original first: evenly round a full turn when
     /// `|sweep_deg| >= 360`, otherwise spread so the last lands `sweep_deg` round.
     Polar { centre: [f64; 2], count: usize, sweep_deg: f64 },
+}
+
+/// What [`Sketch::tracery`] made of a net.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Tracery {
+    /// Each light's new closed loop, its holes after it, in the order the net's cells were found.
+    pub lights: Vec<Vec<Id>>,
+    /// Cells whose inward offset would fold, with the reason; left out, never half-made.
+    pub skipped: Vec<(RegionRef, String)>,
 }
 
 /// One straight curve leaving a corner.
@@ -580,6 +589,72 @@ impl Sketch {
         })
     }
 
+    /// Tracery from a net: the net's curves split where they cross, every closed cell they bound
+    /// drawn again `bar_mm / 2` inside itself as a light, holes grown by as much, and the net marked
+    /// construction, so neighbouring lights stand one bar apart. A cell whose offset would fold is
+    /// left out whole with the reason; the rest of the sketch is neither split nor moved.
+    pub fn tracery(&mut self, net: &[Id], bar_mm: f64) -> Result<Tracery> {
+        ensure!(bar_mm.is_finite() && bar_mm > 2.0 * SAME_MM && bar_mm < 100.0, "Tracery needs a bar between 2e-7 and 100 mm");
+        self.transact(|s| {
+            let wanted: BTreeSet<Id> = net.iter().copied().collect();
+            ensure!(!wanted.is_empty(), "Select the curves of the net to trace");
+            for id in &wanted {
+                ensure!(!s.entities[s.index_of(*id)?].construction, "Net curve #{id} is construction; tracery reads drawn curves");
+            }
+            // The net splits alone: every other drawn curve stands aside while it does.
+            let aside: Vec<usize> = (0..s.entities.len()).filter(|i| !s.entities[*i].construction && !wanted.contains(&s.entities[*i].id)).collect();
+            for i in &aside {
+                s.entities[*i].construction = true;
+            }
+            let added = s.split_at_intersections()?;
+            for i in &aside {
+                s.entities[*i].construction = false;
+            }
+            let net: BTreeSet<Id> = wanted.into_iter().chain(added).collect();
+            let mut drawn = s.clone();
+            drawn.entities.retain(|e| net.contains(&e.id));
+            let cells = drawn.profile_regions()?;
+            let mut out = Tracery { lights: Vec::with_capacity(cells.len()), skipped: Vec::new() };
+            for (i, cell) in cells.iter().enumerate() {
+                let name = cell
+                    .inside()
+                    .and_then(|at| RegionRef::among(&cells, i, at))
+                    .unwrap_or(RegionRef { entity: cell.entities[0], at: cell.outer[0].point_at(0.0) });
+                let mut lit = s.clone();
+                match lit.light(&drawn, cell, 0.5 * bar_mm) {
+                    Ok(ids) => {
+                        *s = lit;
+                        out.lights.push(ids);
+                    }
+                    Err(e) => out.skipped.push((name, format!("{e:#}"))),
+                }
+            }
+            if out.lights.is_empty() {
+                let why = out.skipped.first().map_or(String::new(), |(_, why)| format!(": {why}"));
+                bail!("A bar of {bar_mm} mm leaves no light in the net{why}");
+            }
+            for e in &mut s.entities {
+                if net.contains(&e.id) {
+                    e.construction = true;
+                }
+            }
+            Ok(out)
+        })
+    }
+    /// One cell of `drawn`'s net drawn again `half` inside itself: its rim offset in, each hole out. The new entities.
+    fn light(&mut self, drawn: &Sketch, cell: &region::Region, half: f64) -> Result<Vec<Id>> {
+        let mut ids = self.offset(&cell.entities[..cell.rim], -half)?;
+        if cell.holes.is_empty() {
+            return Ok(ids);
+        }
+        let mut holes = drawn.clone();
+        holes.entities.retain(|e| cell.entities[cell.rim..].contains(&e.id));
+        for hole in region::loops(&holes.solve()?.sketch)? {
+            ids.extend(self.offset(&region::distinct(hole.entities), half)?);
+        }
+        Ok(ids)
+    }
+
     /// The two straight curves ending at the point `corner`, or why it is not such a corner.
     fn arms(&self, corner: Id) -> Result<[Arm; 2]> {
         let p = self.at(corner)?;
@@ -1060,5 +1135,83 @@ mod tests {
         let too_many = s.pattern(&[cell], &Pattern::Rect { step: [[2.0, 0.0], [0.0, 2.0]], count: [600, 1] }).err().unwrap().to_string();
         assert!(too_many.contains("1 to 512"), "{too_many}");
         assert_eq!(s.loop_through(grid[4][0]).unwrap(), grid[4]);
+    }
+
+    /// The least distance between two lights' curves: every curve of one sampled finely against every curve of the other.
+    fn gap(s: &Sketch, a: &[Id], b: &[Id]) -> f64 {
+        let curves = |ids: &[Id]| -> Vec<Curve> { ids.iter().flat_map(|id| s.curves_of(s.entities.iter().find(|e| e.id == *id).unwrap()).unwrap()).collect() };
+        let (a, b) = (curves(a), curves(b));
+        let one_way = |a: &[Curve], b: &[Curve]| {
+            a.iter()
+                .flat_map(|c| (0..=256).map(move |k| c.point_at(k as f64 / 256.0)))
+                .map(|p| b.iter().map(|c| geom2d::distance_to(c, p)).fold(f64::INFINITY, f64::min))
+                .fold(f64::INFINITY, f64::min)
+        };
+        one_way(&a, &b).min(one_way(&b, &a))
+    }
+
+    #[test]
+    fn a_polar_net_traces_to_one_light_per_cell_each_a_bar_from_its_neighbours() {
+        // Twenty-four spokes from the centre to a rim of 12.4 mm, and one unrelated circle beside the net.
+        let mut s = Sketch::default();
+        let centre = s.point([0.0, 0.0]);
+        let rim = s.point([12.4, 0.0]);
+        let wheel = s.entity(Geometry::Circle { center: centre, rim });
+        let mut net = vec![wheel];
+        for k in 0..24 {
+            let end = s.point(polar([0.0; 2], 12.4, TAU * k as f64 / 24.0));
+            net.push(s.entity(Geometry::Line { a: centre, b: end }));
+        }
+        let (c, r) = (s.point([20.0, 0.0]), s.point([21.0, 0.0]));
+        let aside = s.entity(Geometry::Circle { center: c, rim: r });
+        let traced = s.tracery(&net, 0.9).unwrap();
+        assert_eq!(traced.lights.len(), 24, "{:?}", traced.skipped);
+        assert!(traced.skipped.is_empty());
+        // Every light is a closed loop of its own, drawn, and each stands 0.9 from the next round the wheel.
+        for (k, light) in traced.lights.iter().enumerate() {
+            assert!(light.iter().all(|id| !s.entities.iter().find(|e| e.id == *id).unwrap().construction));
+            assert_eq!(s.loop_through(light[0]).unwrap().len(), light.len(), "light {k}");
+        }
+        let centroid = |ids: &[Id]| {
+            let pts: Vec<V> = ids.iter().flat_map(|id| s.curves_of(s.entities.iter().find(|e| e.id == *id).unwrap()).unwrap()).map(|c| c.point_at(0.5)).collect();
+            angle([0.0; 2], scale(pts.iter().fold([0.0; 2], |a, p| add(a, *p)), 1.0 / pts.len() as f64)).rem_euclid(TAU)
+        };
+        let mut order: Vec<usize> = (0..24).collect();
+        order.sort_by(|a, b| centroid(&traced.lights[*a]).total_cmp(&centroid(&traced.lights[*b])));
+        for k in 0..24 {
+            let (a, b) = (&traced.lights[order[k]], &traced.lights[order[(k + 1) % 24]]);
+            let g = gap(&s, a, b);
+            assert!((g - 0.9).abs() < 1e-6, "lights {k} and {}: {g}", (k + 1) % 24);
+        }
+        // The net is construction now; the circle beside it is neither split nor marked.
+        let net_left: Vec<&Entity> = s.entities.iter().filter(|e| e.construction).collect();
+        assert_eq!(net_left.len(), 48, "24 spokes and the rim split into 24 arcs");
+        let beside = s.entities.iter().find(|e| e.id == aside).unwrap();
+        assert!(!beside.construction && matches!(beside.geometry, Geometry::Circle { .. }));
+        // The sketch now sweeps 24 lights and the circle beside them as separate regions.
+        assert_eq!(s.sweep_regions().unwrap().len(), 25);
+    }
+
+    #[test]
+    fn a_cell_too_narrow_for_the_bar_is_skipped_whole_and_a_bar_no_cell_takes_is_refused() {
+        // A 10 × 4 box split by a line at x = 1: a 1 mm cell and a 9 mm one.
+        let mut s = Sketch::rectangle(10.0, 4.0);
+        let (a, b) = (s.point([-4.0, -2.0]), s.point([-4.0, 2.0]));
+        let net = vec![s.entities[0].id, s.entity(Geometry::Line { a, b })];
+        let before = s.clone();
+        let traced = s.tracery(&net, 1.2).unwrap();
+        assert_eq!(traced.lights.len(), 1);
+        assert_eq!(traced.skipped.len(), 1);
+        let (name, why) = &traced.skipped[0];
+        assert!(name.at[0] < -4.0 && why.contains("round"), "{name:?}: {why}");
+        // The kept light is the wide cell shrunk by 0.6 all round: 7.8 × 2.8.
+        let light = s.entities.iter().filter(|e| traced.lights[0].contains(&e.id)).flat_map(|e| s.curves_of(e).unwrap()).collect::<Vec<_>>();
+        let area = region::loop_moments(&light, [0.0; 2]).unwrap()[0].abs();
+        assert!((area - 7.8 * 2.8).abs() < 1e-9, "{area}");
+        // A bar wider than every cell leaves nothing, and is refused with the sketch unchanged.
+        let mut t = before.clone();
+        let error = t.tracery(&net, 5.0).unwrap_err().to_string();
+        assert!(error.starts_with("A bar of 5 mm leaves no light"), "{error}");
+        assert_eq!(t, before);
     }
 }
