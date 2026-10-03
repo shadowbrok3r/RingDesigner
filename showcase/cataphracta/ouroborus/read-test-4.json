@@ -1,0 +1,27 @@
+{
+  "ring": "ouroborus",
+  "mode": "read-test",
+  "attempt": 4,
+  "reads": false,
+  "what_the_eye_sees": "Hero at 300 px: the coil closes on itself, with a head at about 1 o'clock showing a small eye. A jeweller would most likely say 'snake ring' from this view, as in attempt 3, but the guess comes from the ouroboros layout and the eye, not from the body. The body still reads as square-topped girdles of the same size all the way round, so the outer edge looks like crenellations or crocodile scutes rather than a serpent's hide. The head is boxy, and its front end is a squared stack of blocks, so at this size you cannot see the jaws close on a thin tail tip. Face at 300 px: this view still fails, and in one respect it has gone backward. The ruled grid on the head has been replaced with polygonal plates, but they sit on a rounded, symmetric dome, so the head reads as a tortoise or turtle carapace, not a snake's crown. No eyes break its outline, and there is no snout and no mouth line. Worse, the left third of the frame is a flat-ended, ruled cylinder, as wide as the head and taller than the band, butted against the front of the head. It reads as a pipe fitting, a piston or a bolt end, the opposite of a tail tapering into a mouth. The body on the right is a row of even ribs, like a spring or a zip. Shown both images with no caption, a jeweller says 'snake' from the hero, but the face view would make them say 'turtle' or 'hardware'. The ring does not read yet. (The bottom-middle contact view, a three-quarter view of the head with its eye, is the most snake-like image in the set. The hero and face views should be as clear.)",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Remove the squared, ruled cylinder at the bite. In its place, make a rounded snout with closed jaws, with a thin tail tip disappearing under the upper jaw.",
+      "where": "Bite zone, theta about 78-95 deg: the block in front of the head in face view, and the snout end of the 'Serpent head' part",
+      "by_how_much": "Remove all flat end faces and the transverse ruled grooves on that block. Taper the tail over theta 70-88 deg to 1.0 mm or less at the tip, at no more than 0.55x the band width (as the 82 deg shank key says), and let it pass at least 1.5 mm under the upper jaw. Round the snout in plan to about 0.55x the band, with the upper jaw overhanging the tail by about 0.3 mm. Cut a 0.3 mm mouth line along both flanks from the snout back to the jaw hinge at about 110 deg. Nothing beyond the snout may be wider or taller than the snout. Acceptance: in face-300 the left end of the frame narrows to a point into the jaws, with no flat-ended cylinder; in hero-300 the head visibly bites a thin tail."
+    },
+    {
+      "priority": 2,
+      "what": "Turn the domed carapace into a snake's head seen from above: a flat-topped wedge with eyes on its outline and large paired colubrid plates, not a field of small polygons.",
+      "where": "Head shield, theta about 93-125 deg, crown and side faces",
+      "by_how_much": "Flatten the crown dome by about 30%. Make the head about 1.4x as long as it is wide, widest at the jaw hinge (about 1.35x the band, at about 115 deg). Replace the voronoi tessellation with 7-9 large plates in the colubrid layout, cut in relief with edges 0.25-0.3 mm deep: paired parietals, paired supraoculars, one frontal, and prefrontals and internasals. Push each eye 0.3-0.4 mm proud of the side outline under a supraocular brow. Pinch the neck to about 0.8x the jaw width at 125-135 deg. Acceptance: face-300 shows a wedge head with two eye bumps on its outline and a neck, and nobody would call it a turtle shell, a helmet or a beetle."
+    },
+    {
+      "priority": 3,
+      "what": "Make the body a snake's scaled hide, not castellated blocks or a spring: round the girdles, split them into offset scales, and show the grade.",
+      "where": "'Whorls' and 'Whorl spines' layers, theta 125 deg through the palm to about 78 deg",
+      "by_how_much": "Round each girdle's square top into a loaf with a radius of at least half the girdle height, and cap the trailing drop at 0.4 mm. Split each girdle across the crown into 3-5 cast scales, with relief lines about 0.15 mm deep, offset by half a scale from one girdle to the next. Trim the side-face spines to 0.3 mm proud or less. Make the pitch fall visibly from 2.6 mm at the nape to 1.0 mm at the tail. Acceptance: in hero-300 the outer edge ripples rather than steps, the scales visibly shrink toward the mouth, and in face-300 the body no longer reads as a spring or a zip."
+    }
+  ]
+}
