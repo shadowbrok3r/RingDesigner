@@ -2,25 +2,25 @@
   "base": {
     "bore_mm": 18.6,
     "face_mm": [
-      17.0,
-      17.0
+      18.0,
+      18.0
     ],
     "mirrored": false,
     "sand_envelope": false,
-    "stock": "016 Star"
+    "stock": "004 Shield"
   },
   "bore": {
-    "nearest_vertex_mm": 9.229503156682187,
+    "nearest_vertex_mm": 9.300000190741194,
     "radius_mm": 9.3,
-    "vertices_inside": 80
+    "vertices_inside": 0
   },
-  "bore_mm": 18.600000381469727,
+  "bore_mm": 18.60000038148239,
   "build": {
-    "author_s": 484.172796384,
-    "build_s": 26.598314611,
+    "author_s": 564.996178622,
+    "build_s": 28.855400879,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 574796
+    "triangles": 597608
   },
   "coarse_384x192": {
     "degenerate_faces": 0,
@@ -41,7 +41,7 @@
     "notes": [],
     "parts_joined": 3,
     "self_crossings": 0,
-    "triangles": 574796,
+    "triangles": 597608,
     "watertight": true
   },
   "cold_reload_identical": null,
@@ -49,98 +49,97 @@
     "hide": [
       {
         "crest_tubercles": 0,
-        "enlarged_tubercles": 66,
+        "enlarged_tubercles": 42,
         "fringe_scales": 0,
-        "granules": 450,
+        "granules": 229,
         "part": "Head ground"
       },
       {
         "crest_tubercles": 12,
         "enlarged_tubercles": 0,
-        "fringe_scales": 43,
-        "granules": 168,
+        "fringe_scales": 45,
+        "granules": 197,
         "part": "Shoulder hide, crown side"
       },
       {
         "crest_tubercles": 12,
         "enlarged_tubercles": 0,
-        "fringe_scales": 42,
-        "granules": 175,
+        "fringe_scales": 45,
+        "granules": 193,
         "part": "Shoulder hide, snout side"
       }
     ],
     "horns": 6,
-    "plates": 57,
+    "plates": 92,
     "sculpts": [
       {
         "box_mm": [
           [
-            -10.933889811915092,
-            6.032963441117492,
-            -9.457546858474526
+            -10.957272474107818,
+            6.182615475606745,
+            -10.71130504591483
           ],
           [
-            11.022954025562024,
-            16.450874900817873,
-            9.55421399436963
+            10.878239813764074,
+            15.024640274047853,
+            10.8
           ]
         ],
-        "faces": 435698,
+        "faces": 428550,
         "notes": [
-          "relax undone within 0.3 mm of 13 crossings",
-          "relax undone within 0.6 mm of 7 crossings"
+          "relax undone within 0.3 mm of 3 crossings"
         ],
         "part": "Horned head",
-        "raw_faces": 2542728,
-        "seconds": 477.887533668,
-        "volume_mm3": 277.64897760543136
+        "raw_faces": 2456860,
+        "seconds": 558.596736486,
+        "volume_mm3": 434.83188478733774
       },
       {
         "box_mm": [
           [
-            -12.27063650275434,
-            -11.774926068446138,
-            -5.1241041111689505
+            -11.779759592967975,
+            -11.548098519741911,
+            -6.740772530408725
           ],
           [
-            0.6525852074956328,
-            9.857671109091655,
-            5.309080944179398
+            0.6551837829525204,
+            9.832275346222161,
+            4.386929425173454
           ]
         ],
-        "faces": 376398,
+        "faces": 376688,
         "notes": [],
         "part": "Shoulder hide, crown side",
-        "raw_faces": 1130448,
-        "seconds": 126.986322957,
-        "volume_mm3": 34.838706922382144
+        "raw_faces": 1255772,
+        "seconds": 131.838639649,
+        "volume_mm3": 38.46898327701054
       },
       {
         "box_mm": [
           [
-            -0.6799999013002513,
-            -11.763999508119515,
-            -5.359345210616994
+            -0.6229090846612862,
+            -11.539452167051182,
+            -6.440195616871277
           ],
           [
-            12.27151834656038,
-            9.6746681062187,
-            5.453951472263139
+            11.779660804317846,
+            9.858252995827721,
+            4.6150466731751525
           ]
         ],
-        "faces": 376570,
+        "faces": 376658,
         "notes": [],
         "part": "Shoulder hide, snout side",
-        "raw_faces": 1170152,
-        "seconds": 135.431518327,
-        "volume_mm3": 35.50100428544275
+        "raw_faces": 1250296,
+        "seconds": 142.030509579,
+        "volume_mm3": 37.94271502530255
       }
     ],
-    "table_dome_mm": 0.6379238734953105,
-    "table_top_mm": 14.850874900817871
+    "table_dome_mm": 0.011731505231001194,
+    "table_top_mm": 12.824640274047852
   },
   "design": {
-    "bytes": 12001390
+    "bytes": 11875821
   },
   "dfm_findings": [],
   "draft": {
@@ -152,16 +151,15 @@
   "field": {
     "band_verdict": "Castable",
     "notes": [
-      "Lost wax: 5.14% of the surface would undercut a two-part pull (worst 10.3 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 47–83° on the crest: 33.3 mm² leaning to 10° — no single layer explains it.",
-      "Undercut 97–128° on the crest: 33.2 mm² leaning to 10° — no single layer explains it.",
-      "Undercut 148–153° on the crest: 0.2 mm² leaning to 1° — no single layer explains it.",
-      "Measured with the ring as built: 3 CAD parts (3 joined, 0 cut), 661.9 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Horned head\" (#2) would undercut a two-part pull over 111.8 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder hide, crown side\" (#3) would undercut a two-part pull over 15.7 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder hide, snout side\" (#4) would undercut a two-part pull over 15.8 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: 4.13% of the surface would undercut a two-part pull (worst 14.8 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 14–56° on the crest: 27.8 mm² leaning to 15° — no single layer explains it.",
+      "Undercut 124–166° on the crest: 27.9 mm² leaning to 15° — no single layer explains it.",
+      "Measured with the ring as built: 3 CAD parts (3 joined, 0 cut), 783.7 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Horned head\" (#2) would undercut a two-part pull over 168.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder hide, crown side\" (#3) would undercut a two-part pull over 24.6 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder hide, snout side\" (#4) would undercut a two-part pull over 23.5 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
-    "thinnest_wall_mm": 1.5737574067894737,
+    "thinnest_wall_mm": 1.336227703584667,
     "verdict": "Castable"
   },
   "gates": [
@@ -179,7 +177,7 @@
     },
     {
       "gate": "nothing enters the finger hole",
-      "pass": false
+      "pass": true
     },
     {
       "gate": "lost-wax field verdict Castable with the 0.8 mm fill",
@@ -187,7 +185,7 @@
     },
     {
       "gate": "every section under 0.8 mm named with its bench treatment",
-      "pass": false
+      "pass": true
     },
     {
       "gate": "zero DFM findings",
@@ -214,142 +212,164 @@
       "pass": true
     }
   ],
-  "gates_passed": false,
+  "gates_passed": true,
   "gates_that_apply": "lost wax (Logan, Fallback B): geometry, bore, field fill verdict at 0.8 mm, land widths, DFM, stones, 384 x 192, pattern, triangles, cold reload. The sand gates (ray release, draft-clamp bites, two-part Castable) do not apply; the two-part undercut is reported as a number.",
   "land_widths": {
-    "band_thinnest_wall_mm": 1.5737574067894737,
+    "band_thinnest_wall_mm": 1.336227703584667,
     "by_kind": [
       {
-        "kind": "granules",
+        "kind": "occipital horns",
         "thinnest_at_xyz": [
-          -1.3097176648474864,
-          13.29172409249584,
-          5.285044610451424
+          1.8958969730367357,
+          13.286620221455571,
+          -8.044263807286285
         ],
-        "thinnest_mm": 0.00029768040343971895,
-        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.000 mm.",
-        "under_floor_mm2": 519.9991674840073
+        "thinnest_mm": 0.0007536563449178425,
+        "treatment": "horn point: the cone tapers under the fill floor over its outer part to a 0.28 mm rounded point; fed through its root (over the floor) from the table and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.001 mm.",
+        "under_floor_mm2": 6.619467657341515
       },
       {
-        "kind": "enlarged tubercles",
+        "kind": "cephalic plates",
         "thinnest_at_xyz": [
-          9.691156173013377,
-          9.817636367960151,
-          -0.8949575931916454
+          1.2997296206670774,
+          13.164287565094336,
+          -8.777583844881853
         ],
-        "thinnest_mm": 0.0002995531535833277,
-        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.000 mm.",
-        "under_floor_mm2": 3.3881949562116107
+        "thinnest_mm": 0.00010272230425844527,
+        "treatment": "cephalic plate: relief 0.06-0.6 mm proud of the factory table and fused to it over its whole base; the part-alone reading crosses the plate's own height and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.000 mm.",
+        "under_floor_mm2": 4.460553862170236
       },
       {
         "kind": "temporal horns",
         "thinnest_at_xyz": [
-          -7.532928811218459,
-          14.628054761929604,
-          -3.8037073026522625
+          -4.3739540253567295,
+          13.693631969849491,
+          -7.461341270764146
         ],
-        "thinnest_mm": 0.00296149025763267,
-        "treatment": "horn point: the cone tapers under the fill floor over its outer part to a 0.24 mm rounded point; fed through its root (over the floor) from the skull and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.003 mm.",
-        "under_floor_mm2": 10.656230383223438
+        "thinnest_mm": 0.0007551496145266606,
+        "treatment": "horn point: the cone tapers under the fill floor over its outer part to a 0.28 mm rounded point; fed through its root (over the floor) from the table and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.001 mm.",
+        "under_floor_mm2": 10.249772787844083
       },
       {
-        "kind": "skull plates",
+        "kind": "granules",
         "thinnest_at_xyz": [
-          -0.8385306410606224,
-          15.813552712533346,
-          -0.33331450416177755
+          7.095569646091709,
+          11.42332915670749,
+          3.2302475072886674
         ],
-        "thinnest_mm": 0.0001258811536579578,
-        "treatment": null,
-        "under_floor_mm2": 2.730059968038729
+        "thinnest_mm": 0.00036308667373773,
+        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.000 mm.",
+        "under_floor_mm2": 267.433346313078
+      },
+      {
+        "kind": "enlarged tubercles",
+        "thinnest_at_xyz": [
+          -8.907049184868628,
+          10.859052402876381,
+          -0.2239696948182144
+        ],
+        "thinnest_mm": 0.000446244688911052,
+        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.000 mm.",
+        "under_floor_mm2": 2.0051235422118308
+      },
+      {
+        "kind": "jaw fringe",
+        "thinnest_at_xyz": [
+          4.793390873641308,
+          12.933640172488126,
+          7.414449664578111
+        ],
+        "thinnest_mm": 0.0010480809035378596,
+        "treatment": "a fringe scale: a pointed blade of relief 0.25-0.32 mm thick, fused over its root; its free point is judged at the 0.15 mm detail floor; a short-filled point is dressed with a file. Measured thinnest section: 0.001 mm.",
+        "under_floor_mm2": 46.49765815407081
+      },
+      {
+        "kind": "brow ridges",
+        "thinnest_at_xyz": [
+          -6.423354684484195,
+          13.774214349166254,
+          2.128762601569323
+        ],
+        "thinnest_mm": 0.47399367202678305,
+        "treatment": "relief on the table's edge, fused along its base; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.474 mm.",
+        "under_floor_mm2": 8.738652981216536
       },
       {
         "kind": "eyes",
         "thinnest_at_xyz": [
-          1.2894659893010714,
-          15.358916798370334,
-          2.9716093065976468
+          6.653696494781039,
+          13.218323831449656,
+          0.8069483920428899
         ],
-        "thinnest_mm": 1.045602627495897,
-        "treatment": null,
-        "under_floor_mm2": 0.0
-      },
-      {
-        "kind": "occipital horns",
-        "thinnest_at_xyz": [
-          -9.339017224688616,
-          15.805848207553987,
-          1.7697576259441643
-        ],
-        "thinnest_mm": 0.2029230983207504,
-        "treatment": "horn point: the cone tapers under the fill floor over its outer part to a 0.24 mm rounded point; fed through its root (over the floor) from the skull and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.203 mm.",
-        "under_floor_mm2": 7.499436003254638
+        "thinnest_mm": 0.018248065042238255,
+        "treatment": "relief on the table's edge, fused along its base; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.018 mm.",
+        "under_floor_mm2": 0.04447283217350909
       },
       {
         "kind": "granules",
         "thinnest_at_xyz": [
-          -0.44119785979550374,
-          -10.665666461354643,
-          1.395621064873446
+          0.025674167940673148,
+          -10.073454816531182,
+          -2.151563243841419
         ],
-        "thinnest_mm": 0.42317808481522284,
-        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.423 mm.",
-        "under_floor_mm2": 201.55442795197825
+        "thinnest_mm": 0.10798630342807529,
+        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.108 mm.",
+        "under_floor_mm2": 236.41117836649698
       },
       {
         "kind": "lateral fringe",
         "thinnest_at_xyz": [
-          -8.541900914392025,
-          -4.671479467434475,
-          -2.5547128790080005
+          -9.269279431106408,
+          4.507395408184022,
+          2.803281616908122
         ],
-        "thinnest_mm": 0.005054390919088517,
-        "treatment": "a fringe scale: a pointed blade of relief 0.25-0.32 mm thick lying on the shoulder's rim, fused to the shank over its root; its free point is judged at the 0.15 mm detail floor; a short-filled point is dressed with a file. Measured thinnest section: 0.005 mm.",
-        "under_floor_mm2": 73.43204824596809
+        "thinnest_mm": 0.006750095373350707,
+        "treatment": "a fringe scale: a pointed blade of relief 0.25-0.32 mm thick, fused over its root; its free point is judged at the 0.15 mm detail floor; a short-filled point is dressed with a file. Measured thinnest section: 0.007 mm.",
+        "under_floor_mm2": 74.00132562293318
       },
       {
         "kind": "crest tubercles",
         "thinnest_at_xyz": [
-          -2.5594584013621944,
-          -10.619253541972139,
-          0.09666335478852817
+          -1.9928697271029814,
+          -10.911636073793368,
+          -0.00902089756044464
         ],
-        "thinnest_mm": 0.6920926367656213,
-        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.692 mm.",
-        "under_floor_mm2": 4.6248852019386835
+        "thinnest_mm": 0.6925160039945253,
+        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.693 mm.",
+        "under_floor_mm2": 4.622569283972755
       },
       {
         "kind": "granules",
         "thinnest_at_xyz": [
-          0.636141316647096,
-          -10.546502379819193,
-          1.5580414496393686
+          10.517509303595494,
+          3.788873917170138,
+          -2.5603978029999737
         ],
-        "thinnest_mm": 0.0004500793877476677,
-        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.000 mm.",
-        "under_floor_mm2": 209.47416863559832
+        "thinnest_mm": 0.0065254329092550335,
+        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.007 mm.",
+        "under_floor_mm2": 231.5292189867461
       },
       {
         "kind": "lateral fringe",
         "thinnest_at_xyz": [
-          8.181926049879886,
-          -5.911083791487581,
-          2.217645321400137
+          9.12363527078114,
+          -2.229931600623737,
+          2.8832003400445556
         ],
-        "thinnest_mm": 0.031516002884218554,
-        "treatment": "a fringe scale: a pointed blade of relief 0.25-0.32 mm thick lying on the shoulder's rim, fused to the shank over its root; its free point is judged at the 0.15 mm detail floor; a short-filled point is dressed with a file. Measured thinnest section: 0.032 mm.",
-        "under_floor_mm2": 72.33599883672412
+        "thinnest_mm": 0.005583245472862687,
+        "treatment": "a fringe scale: a pointed blade of relief 0.25-0.32 mm thick, fused over its root; its free point is judged at the 0.15 mm detail floor; a short-filled point is dressed with a file. Measured thinnest section: 0.006 mm.",
+        "under_floor_mm2": 73.42415470796803
       },
       {
         "kind": "crest tubercles",
         "thinnest_at_xyz": [
-          10.808697511963148,
-          6.964894823927864,
-          -0.37985775741444844
+          2.4520315522633633,
+          -10.996704690853749,
+          -0.14343352104470555
         ],
-        "thinnest_mm": 0.001111500098214845,
-        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.001 mm.",
-        "under_floor_mm2": 4.649816691592922
+        "thinnest_mm": 0.6300665794627359,
+        "treatment": "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.630 mm.",
+        "under_floor_mm2": 4.617993438513581
       }
     ],
     "detail_floor_mm": 0.15,
@@ -358,23 +378,21 @@
     "part_sections": [
       {
         "part": "Horned head",
-        "thinnest_mm": 0.00012588115365790568,
-        "under_floor_mm2": 562.0367657822388
+        "thinnest_mm": 0.00010272230426015954,
+        "under_floor_mm2": 351.14720153015264
       },
       {
         "part": "Shoulder hide, crown side",
-        "thinnest_mm": 0.005054390919087423,
-        "under_floor_mm2": 279.61136139989037
+        "thinnest_mm": 0.006750095373349316,
+        "under_floor_mm2": 315.0350732733997
       },
       {
         "part": "Shoulder hide, snout side",
-        "thinnest_mm": 0.0004500793877476677,
-        "under_floor_mm2": 286.459984163906
+        "thinnest_mm": 0.005583245472860941,
+        "under_floor_mm2": 309.57136713323064
       }
     ],
-    "unnamed_under_floor": [
-      "skull plates: 2.730 mm2 under, thinnest 0.00"
-    ]
+    "unnamed_under_floor": []
   },
   "main": {
     "degenerate_faces": 0,
@@ -395,14 +413,14 @@
     "notes": [],
     "parts_joined": 3,
     "self_crossings": 0,
-    "triangles": 574796,
+    "triangles": 597608,
     "watertight": true
   },
   "name": "Phrynosoma — the horned crown",
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 574796,
+    "triangles": 597608,
     "watertight": true
   },
   "process": "Lost wax",
@@ -418,8 +436,8 @@
     "reported": 0
   },
   "two_part_undercut": {
-    "band_percent": 5.142513912518408,
+    "band_percent": 4.129047913820164,
     "note": "reported only: lost wax judges fill and detail, never the pull",
-    "with_parts_percent": 10.704660020569493
+    "with_parts_percent": 12.748807709877974
   }
 }

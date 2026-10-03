@@ -1,11 +1,12 @@
-//! Cataphracta — Phrynosoma, the horned crown: a horned lizard's head on the factory 016 Star, poured in lost wax.
+//! Cataphracta — Phrynosoma, the horned crown: a horned lizard's skull as the table of the factory 004 Shield, poured in lost wax.
 //! cargo build --release -p ringdesign-core --example cataphracta_phrynosoma
 //! target/release/examples/cataphracta_phrynosoma [OUT_DIR] [--draft] [--verify]
 //!
-//! The head is one sculpted part lying on the star's table, snout toward one along-ring point and its crown of horns
-//! fanned over the points behind it: the two great occipital horns over the back point, three temporal horns a side
-//! over the diagonals and the across-band points. The sculpt is a distance field meshed by `sculpt` and joined to the
-//! unmirrored factory stock.
+//! The shield's table is the skull: a mirror-true mosaic of cephalic plates in three tiers, brows and eyes on its
+//! widest part, nostrils at the point, and a jaw fringe along the tapering sides. Its flat back edge carries the comb:
+//! two long occipital horns and two temporals a side, swept back over the back wall. The cheeks carry tubercles
+//! among granules, and each shoulder a crest of tubercles, a palm-tipped fringe along its rims and granules to the
+//! palm. Every part is a distance field meshed by `sculpt` and joined to the factory stock.
 use anyhow::{Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, RingDesign,
@@ -28,14 +29,13 @@ const NAME: &str = "Phrynosoma \u{2014} the horned crown";
 const SLUG: &str = "phrynosoma";
 /// Bore diameter, and the star's face (along the ring, across the band), mm.
 const BORE_MM: f64 = 18.6;
-const FACE_MM: (f64, f64) = (17.0, 17.0);
+const FACE_MM: (f64, f64) = (18.0, 18.0);
+/// The factory stock: 004 Shield, whose flat back edge and tapering sides are the horned lizard's skull plan.
+const STOCK: &str = "004";
 /// The investment's fill floor and detail floor, mm.
 const MIN_SECTION_MM: f64 = 0.8;
 const MIN_DETAIL_MM: f64 = 0.15;
 
-/// The head's frame: `u` along the ring (world X, the snout toward +X), `h` over the table (world Y), `w` across the
-/// band (world Z). The head's centre sits this far toward the snout of the table's centre, mm.
-const HEAD_U0: f64 = 0.0;
 /// The floor the part is cut at under the table, mm.
 const FLOOR_MM: f64 = -1.0;
 /// The meshing step, and the face budgets of the head's sculpt and of each shoulder's hide.
@@ -53,10 +53,10 @@ fn coarse_params() -> BuildParams {
     BuildParams { theta_steps: 384, profile_steps: 192, ..BuildParams::default() }
 }
 
-/// The factory 016 Star at 17 x 17 on an 18.6 mm bore, unmirrored, poured in lost wax.
+/// The factory 004 Shield at its own 18 x 18 face on an 18.6 mm bore, poured in lost wax.
 fn base() -> Result<RingDesign> {
     let mut d = RingDesign { name: NAME.into(), ..RingDesign::default() };
-    let source = PRESETS.iter().find(|p| p.id == "016").expect("016 is bundled").load()?;
+    let source = PRESETS.iter().find(|p| p.id == STOCK).expect("the stock is bundled").load()?;
     ImportedBase::attach(&mut d, source)?;
     d.profile.width_mm = FACE_MM.1;
     d.shank.head.length_mm = FACE_MM.0;
@@ -84,9 +84,10 @@ fn base() -> Result<RingDesign> {
         mf::Channel { kind: mf::ChannelKind::Gate, start: [0.0, -10.5, 0.0], end: [0.0, -21.0, 0.0], diameter_mm: 4.0 },
         mf::Channel { kind: mf::ChannelKind::Sprue, start: [0.0, -21.0, 0.0], end: [0.0, -33.0, 0.0], diameter_mm: 6.0 },
     ];
-    setup.bench_notes = "Factory 016 Star, unmirrored, poured in lost wax. A horned lizard's head lies on the table, its snout toward one \
-        along-ring point and its crown of horns fanned over the points behind it. Feed from the palm; invest horn tips up. At the bench: \
-        tack and file any short-filled horn tip; polish the horns and the skull's plates, leave the hollows satin."
+    setup.bench_notes = "Factory 004 Shield, poured in lost wax. The table is a horned lizard's skull: cephalic plates cut in three tiers, \
+        the comb of six horns on the flat back edge, a jaw fringe down the tapering sides to the snout at the shield's point. Feed from the \
+        palm; invest horn tips up. At the bench: tack and file any short-filled horn tip; polish the plates' tops and the horns, leave the \
+        joints, granules and fringe satin."
         .into();
     d.manufacturing = Some(setup);
     Ok(d)
@@ -118,6 +119,8 @@ struct Table {
     lo: [f64; 2],
     n: [usize; 2],
     h: Vec<f64>,
+    /// Signed distance in plan to the table's edge over the same grid, negative on the table, mm.
+    e: Vec<f64>,
 }
 
 /// The height map's cell, and how far under the crown it follows the stock before it levels off, mm.
@@ -181,7 +184,26 @@ impl Table {
                 }
             }
         }
-        Ok(Self { top, dome_mm: top - low, lo, n, h })
+        // The table is where the stock stands within a hair of the crown; its edge's distance by brute force over
+        // the edge cells.
+        let on = |i: usize, j: usize| h[j * n[0] + i] > top - 0.08;
+        let mut rim = Vec::new();
+        for j in 1..n[1] - 1 {
+            for i in 1..n[0] - 1 {
+                if on(i, j) != on(i + 1, j) || on(i, j) != on(i, j + 1) {
+                    rim.push([lo[0] + (i as f64 + 0.5) * TABLE_CELL_MM, lo[1] + (j as f64 + 0.5) * TABLE_CELL_MM]);
+                }
+            }
+        }
+        let e: Vec<f64> = (0..n[0] * n[1])
+            .map(|k| {
+                let (i, j) = (k % n[0], k / n[0]);
+                let (x, z) = (lo[0] + i as f64 * TABLE_CELL_MM, lo[1] + j as f64 * TABLE_CELL_MM);
+                let d = rim.iter().map(|r| (r[0] - x).hypot(r[1] - z)).fold(f64::MAX, f64::min);
+                if on(i, j) { -d } else { d }
+            })
+            .collect();
+        Ok(Self { top, dome_mm: top - low, lo, n, h, e })
     }
     /// The pillowed table's height at a world (x, z), read bilinear off the map.
     fn surface(&self, x: f64, z: f64) -> f64 {
@@ -194,19 +216,37 @@ impl Table {
         let b = g(0, 1) + (g(1, 1) - g(0, 1)) * tx;
         a + (b - a) * tz
     }
+    /// The table edge's signed distance at a world (x, z), bilinear.
+    fn edge(&self, x: f64, z: f64) -> f64 {
+        let fx = ((x - self.lo[0]) / TABLE_CELL_MM).clamp(0.0, (self.n[0] - 2) as f64);
+        let fz = ((z - self.lo[1]) / TABLE_CELL_MM).clamp(0.0, (self.n[1] - 2) as f64);
+        let (i, j) = (fx.floor() as usize, fz.floor() as usize);
+        let (tx, tz) = (fx - i as f64, fz - j as f64);
+        let g = |a: usize, b: usize| self.e[(j + b) * self.n[0] + i + a];
+        let a = g(0, 0) + (g(1, 0) - g(0, 0)) * tx;
+        let b = g(0, 1) + (g(1, 1) - g(0, 1)) * tx;
+        a + (b - a) * tz
+    }
     fn local(&self, p: P3) -> P3 {
-        [p[0] - HEAD_U0, p[1] - self.surface(p[0], p[2]), p[2]]
+        [p[0], p[1] - self.surface(p[0], p[2]), p[2]]
     }
 }
 
 // --- The head --------------------------------------------------------------------------------------------------------
+//
+// The shield's table is the skull. Its flat back edge (world -z) carries the comb of horns, its sides taper to the
+// snout at the shield's point (+z), and the whole table is cut into a bilaterally symmetric mosaic of cephalic plates.
+// The frame is the world's: x round the ring across the skull, z along the finger from the crown to the snout, and
+// `h` over the table.
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 enum Kind {
     Skull,
+    Brow,
     Eye,
     Occipital,
     Temporal,
+    JawFringe,
     Granule,
     Tubercle,
     CrestBead,
@@ -216,10 +256,12 @@ enum Kind {
 impl Kind {
     fn label(self) -> &'static str {
         match self {
-            Kind::Skull => "skull plates",
+            Kind::Skull => "cephalic plates",
+            Kind::Brow => "brow ridges",
             Kind::Eye => "eyes",
             Kind::Occipital => "occipital horns",
             Kind::Temporal => "temporal horns",
+            Kind::JawFringe => "jaw fringe",
             Kind::Granule => "granules",
             Kind::Tubercle => "enlarged tubercles",
             Kind::CrestBead => "crest tubercles",
@@ -229,25 +271,28 @@ impl Kind {
     fn treatment(self) -> Option<&'static str> {
         match self {
             Kind::Occipital | Kind::Temporal => Some(
-                "horn point: the cone tapers under the fill floor over its outer part to a 0.24 mm rounded point; fed through its root \
-                 (over the floor) from the skull and invested point up; a short-filled point is built back with a laser tack and filed to shape",
+                "horn point: the cone tapers under the fill floor over its outer part to a 0.28 mm rounded point; fed through its root \
+                 (over the floor) from the table and invested point up; a short-filled point is built back with a laser tack and filed to shape",
             ),
-            Kind::Eye => Some("the eye: a 1 mm dome of relief on the skull's edge, judged at the 0.15 mm detail floor and left as cast"),
+            Kind::Skull => Some(
+                "cephalic plate: relief 0.06-0.6 mm proud of the factory table and fused to it over its whole base; the part-alone reading \
+                 crosses the plate's own height and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast",
+            ),
+            Kind::Brow | Kind::Eye => Some("relief on the table's edge, fused along its base; judged at the 0.15 mm detail floor and left as cast"),
             Kind::Granule | Kind::Tubercle | Kind::CrestBead => Some(
                 "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank \
                  and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast",
             ),
-            Kind::Fringe => Some(
-                "a fringe scale: a pointed blade of relief 0.25-0.32 mm thick lying on the shoulder's rim, fused to the shank over its root; \
-                 its free point is judged at the 0.15 mm detail floor; a short-filled point is dressed with a file",
+            Kind::Fringe | Kind::JawFringe => Some(
+                "a fringe scale: a pointed blade of relief 0.25-0.32 mm thick, fused over its root; its free point is judged at the 0.15 mm \
+                 detail floor; a short-filled point is dressed with a file",
             ),
-            Kind::Skull => None,
         }
     }
 }
 
-/// One horn of the comb: its root on the skull's back edge (u, w in the head frame), its bearing outward from straight
-/// back (degrees, toward +w), its rise over level (degrees), its length and its root and tip radii, mm.
+/// One horn of the comb: its root on the table's back edge (x, z), its bearing outward from straight back (degrees),
+/// its rise over level (degrees), its length and its root and tip radii, mm.
 struct HornSpec {
     kind: Kind,
     root: [f64; 2],
@@ -258,59 +303,49 @@ struct HornSpec {
     rb: f64,
 }
 
-/// The crown, one side (w > 0), mirrored across the head's midline: six horns rooted along one straight back edge,
-/// each clear of the next, all swept back and out. The two occipitals beside the midline are the longest, at 1.7
-/// times the temporals, which step shorter outboard.
+/// The crown, one side (x > 0), mirrored across the skull's midline: six horns rooted along the shield's straight back
+/// edge, each clear of the next, all swept back and out over the back wall. The two occipitals beside the midline
+/// are the longest, 1.6 times the temporals, which step shorter outboard.
 const CROWN: [HornSpec; 3] = [
-    HornSpec { kind: Kind::Occipital, root: [-5.3, 0.95], splay_deg: 10.0, rise_deg: 14.0, len: 4.2, ra: 0.62, rb: 0.12 },
-    HornSpec { kind: Kind::Temporal, root: [-5.3, 2.65], splay_deg: 27.0, rise_deg: 11.0, len: 2.5, ra: 0.52, rb: 0.12 },
-    HornSpec { kind: Kind::Temporal, root: [-5.25, 4.25], splay_deg: 44.0, rise_deg: 9.0, len: 2.0, ra: 0.45, rb: 0.12 },
+    HornSpec { kind: Kind::Occipital, root: [1.15, -6.35], splay_deg: 7.0, rise_deg: 9.0, len: 4.0, ra: 0.66, rb: 0.14 },
+    HornSpec { kind: Kind::Temporal, root: [3.7, -6.35], splay_deg: 19.0, rise_deg: 7.0, len: 2.5, ra: 0.54, rb: 0.14 },
+    HornSpec { kind: Kind::Temporal, root: [6.3, -6.2], splay_deg: 33.0, rise_deg: 5.0, len: 2.1, ra: 0.48, rb: 0.14 },
 ];
-/// A horn's root stands this high over the table, and is blended into the skull over this radius, mm.
-const HORN_ROOT_H_MM: f64 = 0.62;
+/// A horn's root stands this high over the table, and is blended into the plates over this radius, mm.
+const HORN_ROOT_H_MM: f64 = 0.45;
 const HORN_BLEND_MM: f64 = 0.25;
 
-/// The skull's plan, one side (w >= 0), snout to back edge: a flat wedge as wide as it is long, its blunt rounded
-/// snout 40% of the back's width, the back edge straight across under the comb.
-const PLAN: [[f64; 2]; 10] = [[6.0, 0.0], [5.85, 0.9], [5.4, 1.65], [4.7, 2.2], [1.0, 4.35], [-3.0, 5.4], [-4.8, 5.55], [-5.4, 5.1], [-5.6, 3.0], [-5.6, 0.0]];
-/// The skull is a low plaque on the table: its ground under the plates, the round on its edge, and its flank's lean
-/// inward per mm of height, mm.
-const PLAQUE_BASE_MM: f64 = 0.45;
-const PLAQUE_ROUND_MM: f64 = 0.3;
-const FLANK_LEAN: f64 = 0.6;
-/// The cephalic plates: rows across the skull, (w, pitch along u, tier), one side and the midline; seeds staggered by
-/// half a pitch row to row and jittered. Each tier stands this high over the plaque's ground: the midline row
-/// highest, the flanking rows a step down, the outer rows lowest.
-const PLATE_ROWS: [(f64, f64, usize); 4] = [(0.0, 2.0, 0), (1.85, 1.75, 1), (3.45, 1.55, 2), (4.75, 1.4, 2)];
-const TIER_MM: [f64; 3] = [0.55, 0.35, 0.15];
-/// Seed jitter as a share of the row's pitch, along and across.
-const PLATE_JITTER: [f64; 2] = [0.3, 0.16];
-/// The V-joints between plates: half their width at the top, mm; their floor is the plaque's ground.
+/// The cephalic plates: rows along the skull, (x, pitch along z, tier), one side and the midline, staggered by half
+/// a pitch row to row; seeds are jittered the same on both sides, so the mosaic is mirror-true. The midline row
+/// carries the largest plates, and they shrink toward the edge. Each tier stands this high over the table; the
+/// joints' floor stays a skin over it, so the plates never meet the table face to face.
+const PLATE_ROWS: [(f64, f64, usize); 6] = [(0.0, 2.6, 0), (1.95, 1.7, 1), (3.55, 1.45, 1), (5.0, 1.25, 2), (6.35, 1.1, 2), (7.6, 1.0, 2)];
+const TIER_MM: [f64; 3] = [0.6, 0.42, 0.24];
+const JOINT_FLOOR_MM: f64 = 0.06;
+const PLATE_JITTER: [f64; 2] = [0.16, 0.26];
+/// The V-joints between plates: half their width at the top, mm.
 const JOINT_HALF_MM: f64 = 0.175;
-/// The eyes: centre (u, h, inset from the plan's edge) and semi-axes, mm.
-const EYE_U: f64 = 1.5;
-const EYE_H_MM: f64 = 0.55;
-const EYE_R: P3 = [0.62, 0.5, 0.5];
-/// The nostrils: two pits on the snout, (u, w) and radius, mm.
-const NOSTRIL: [f64; 3] = [5.15, 0.85, 0.2];
-
-/// Signed distance to the closed polygon `poly` in the plane.
-fn polygon_sdf(p: [f64; 2], poly: &[[f64; 2]]) -> f64 {
-    let n = poly.len();
-    let mut d = f64::MAX;
-    let mut inside = false;
-    for i in 0..n {
-        let (a, b) = (poly[i], poly[(i + 1) % n]);
-        let (e, w) = ([b[0] - a[0], b[1] - a[1]], [p[0] - a[0], p[1] - a[1]]);
-        let t = ((w[0] * e[0] + w[1] * e[1]) / (e[0] * e[0] + e[1] * e[1]).max(1e-12)).clamp(0.0, 1.0);
-        let q = [w[0] - e[0] * t, w[1] - e[1] * t];
-        d = d.min(q[0] * q[0] + q[1] * q[1]);
-        if (a[1] > p[1]) != (b[1] > p[1]) && p[0] < a[0] + (p[1] - a[1]) / (b[1] - a[1]) * (b[0] - a[0]) {
-            inside = !inside;
-        }
-    }
-    if inside { -d.sqrt() } else { d.sqrt() }
-}
+/// The plates stop this far inside the factory table's edge, so its hard wall-to-face angle stays.
+const PLATE_INSET_MM: f64 = 0.32;
+/// The eyes on the skull's sides and the brow ridge over each: centre (x, h, z) and semi-axes, mm.
+const EYE_AT: P3 = [7.35, 0.62, 1.2];
+const EYE_R: P3 = [0.78, 0.68, 0.9];
+const BROW_AT: P3 = [6.55, 1.05, 0.9];
+const BROW_R: P3 = [0.7, 0.38, 1.3];
+/// The skull is domed: its plates stand on a crown rising this high from the table's edge to the midline, mm.
+const SKULL_DOME_MM: f64 = 0.5;
+const SKULL_DOME_RUN_MM: f64 = 4.0;
+/// The nostrils: two pits near the snout, (x, z) and radius, mm.
+const NOSTRIL: [f64; 3] = [0.85, 8.3, 0.22];
+/// The jaw fringe along the tapering sides: how many a side, the span along z, and the scale's length, half-width
+/// and thickness at the back and at the snout, mm.
+const JAW_SCALES: usize = 9;
+const JAW_SPAN_Z: [f64; 2] = [-0.4, 8.0];
+const JAW_LEN_MM: [f64; 2] = [1.35, 0.7];
+const JAW_HALF_MM: [f64; 2] = [0.3, 0.2];
+const JAW_THICK_MM: f64 = 0.28;
+/// A jaw scale's point turns back from straight out by this angle, degrees.
+const JAW_SWEEP_DEG: f64 = 35.0;
 
 /// A repeatable number in 0..1 for a key and a salt.
 fn hash(k: u64, salt: u64) -> f64 {
@@ -344,55 +379,77 @@ struct Horn {
 }
 
 struct Head {
-    plan: Vec<[f64; 2]>,
     plates: Vec<([f64; 2], usize)>,
     horns: Vec<Horn>,
+    jaw: Vec<Stud>,
+    top: f64,
 }
 
 impl Head {
     fn new(table: &Table) -> Self {
-        let mut plan: Vec<[f64; 2]> = PLAN.to_vec();
-        plan.extend(PLAN.iter().rev().filter(|p| p[1] > 0.0).map(|p| [p[0], -p[1]]));
         let mut plates = Vec::new();
-        for (r, &(w, pitch, tier)) in PLATE_ROWS.iter().enumerate() {
-            let mut u = 6.2 - 0.5 * pitch * (r % 2) as f64;
+        for (r, &(x, pitch, tier)) in PLATE_ROWS.iter().enumerate() {
+            let mut z = 9.4 - 0.5 * pitch * (r % 2) as f64;
             let mut k = 0;
-            while u > -6.2 {
-                for s in if w > 0.0 { vec![-1.0, 1.0] } else { vec![1.0] } {
-                    let salt = (r * 97 + k * 13) as u64 + if s < 0.0 { 5000 } else { 0 };
-                    let ju = (hash(salt, 1) - 0.5) * 2.0 * PLATE_JITTER[0] * pitch;
-                    let jw = (hash(salt, 2) - 0.5) * 2.0 * PLATE_JITTER[1] * pitch;
-                    plates.push(([u + ju, s * w + jw], tier));
+            while z > -7.2 {
+                let salt = (r * 97 + k * 13) as u64;
+                let jx = (hash(salt, 1) - 0.5) * 2.0 * PLATE_JITTER[0] * pitch;
+                let jz = (hash(salt, 2) - 0.5) * 2.0 * PLATE_JITTER[1] * pitch;
+                for s in if x > 0.0 { vec![-1.0, 1.0] } else { vec![1.0] } {
+                    let c = [s * (x + jx), z + jz];
+                    if table.edge(c[0], c[1]) < -0.45 {
+                        plates.push((if x > 0.0 { c } else { [0.0, c[1]] }, tier));
+                    }
                 }
-                u -= pitch;
+                z -= pitch;
                 k += 1;
             }
         }
-        // The horns are straight in the world: each root stands on the table where the back edge crosses it.
         let mut horns = Vec::new();
         for h in &CROWN {
             for s in [-1.0, 1.0] {
-                let (x, z) = (h.root[0] + HEAD_U0, h.root[1] * s);
+                let (x, z) = (h.root[0] * s, h.root[1]);
                 let a = [x, table.surface(x, z) + HORN_ROOT_H_MM, z];
                 let (sp, cp) = h.splay_deg.to_radians().sin_cos();
                 let (sr, cr) = h.rise_deg.to_radians().sin_cos();
-                let dir = [-cp * cr, sr, sp * cr * s];
+                let dir = [sp * cr * s, sr, -cp * cr];
                 horns.push(Horn { kind: h.kind, a, b: add(a, mul(dir, h.len)), ra: h.ra, rb: h.rb });
             }
         }
-        Self { plan, plates, horns }
+        // The jaw fringe: on each tapering side, a row of blades lying on the table's edge, tipped out and back.
+        let mut jaw = Vec::new();
+        for s in [-1.0, 1.0] {
+            for k in 0..JAW_SCALES {
+                let g = k as f64 / (JAW_SCALES - 1) as f64;
+                let z = JAW_SPAN_Z[0] + (JAW_SPAN_Z[1] - JAW_SPAN_Z[0]) * g;
+                // The edge's x at this z, found by bisection inward from outside the table.
+                let (mut lo, mut hi) = (0.0, 12.0);
+                for _ in 0..40 {
+                    let m = 0.5 * (lo + hi);
+                    if table.edge(s * m, z) < 0.0 { lo = m } else { hi = m }
+                }
+                let xe = s * lo;
+                // The edge's outward normal in plan, turned back toward the crown.
+                let e = 0.05;
+                let grad = [table.edge(xe + e, z) - table.edge(xe - e, z), table.edge(xe, z + e) - table.edge(xe, z - e)];
+                let out = norm([grad[0], 0.0, grad[1]]);
+                let (sb, cb) = JAW_SWEEP_DEG.to_radians().sin_cos();
+                let t = norm([out[0] * cb, 0.0, out[2] * cb - sb]);
+                let n = [0.0, 1.0, 0.0];
+                let b = norm(cross(n, t));
+                let (len, half) = (JAW_LEN_MM[0] + (JAW_LEN_MM[1] - JAW_LEN_MM[0]) * g, JAW_HALF_MM[0] + (JAW_HALF_MM[1] - JAW_HALF_MM[0]) * g);
+                let root = [xe - out[0] * 0.2, table.surface(xe - out[0] * 0.4, z) + 0.1, z - out[2] * 0.2];
+                jaw.push(Stud { kind: Kind::JawFringe, c: root, t, n, b, size: [len, half, JAW_THICK_MM] });
+            }
+        }
+        Self { plates, horns, jaw, top: table.top }
     }
-    /// The skull's flank: the plan's distance, leaning in with height.
-    fn wall_at(&self, q: P3) -> f64 {
-        polygon_sdf([q[0], q[2]], &self.plan) + FLANK_LEAN * q[1].max(0.0)
-    }
-    /// The plates' height over the plaque's ground at a point of the plan: the nearest plate's tier, falling to the
-    /// ground in a V along its joint with the next. Two tiers meet at the joint's floor, so every step falls inside a
-    /// joint.
-    fn plates_at(&self, u: f64, w: f64) -> (f64, usize) {
+    /// The plates' height over the table at (x, z): the nearest plate's tier, falling in a V to the joint's floor along
+    /// its edge with the next, with a faint crown.
+    fn plates_at(&self, x: f64, z: f64) -> f64 {
         let (mut i1, mut i2, mut d1, mut d2) = (0, 0, f64::MAX, f64::MAX);
         for (i, (c, _)) in self.plates.iter().enumerate() {
-            let d = (u - c[0]).powi(2) + (w - c[1]).powi(2);
+            let d = (x - c[0]).powi(2) + (z - c[1]).powi(2);
             if d < d1 {
                 (i2, d2) = (i1, d1);
                 (i1, d1) = (i, d);
@@ -403,70 +460,82 @@ impl Head {
         let (a, b) = (self.plates[i1].0, self.plates[i2].0);
         let edge = (d2 - d1) / (2.0 * (a[0] - b[0]).hypot(a[1] - b[1]).max(1e-9));
         let t = TIER_MM[self.plates[i1].1];
-        (t * (edge / JOINT_HALF_MM).min(1.0) + 0.04 * smoothstep(0.25, 0.9, edge), i1)
+        JOINT_FLOOR_MM + (t - JOINT_FLOOR_MM) * (edge / JOINT_HALF_MM).min(1.0) + 0.05 * smoothstep(0.25, 0.9, edge)
     }
-    /// The skull in its frame over the table: the plaque's plan extruded under its plates' tops, its edge rounded,
-    /// then the eyes on its edge and the nostrils pitted into the snout.
-    fn skull_at(&self, q: P3) -> f64 {
-        let r = PLAQUE_ROUND_MM;
-        let wall = self.wall_at(q);
-        // Toward the edge the plates sink to the outer tier, so the rounded edge stays whole.
-        let (plates, _) = self.plates_at(q[0], q[2]);
-        let top = PLAQUE_BASE_MM + plates.min(TIER_MM[2] + (TIER_MM[0] - TIER_MM[2]) * smoothstep(0.1, 0.7, -polygon_sdf([q[0], q[2]], &self.plan)));
-        let e = [wall + r, q[1] - (top - r)];
-        let mut f = e[0].max(e[1]).min(0.0) + e[0].max(0.0).hypot(e[1].max(0.0)) - r;
+    /// The skull's crown under the plates at a point `edge` from the table's edge.
+    fn dome(&self, edge: f64) -> f64 {
+        SKULL_DOME_MM * smoothstep(0.0, SKULL_DOME_RUN_MM, -edge)
+    }
+    /// The skull's relief over the table at a world point: the plates inside the table's edge, the brows and eyes on
+    /// its sides, the nostrils pitted into the snout.
+    fn skull_at(&self, table: &Table, p: P3) -> f64 {
+        let h = p[1] - table.surface(p[0], p[2]);
+        let edge = table.edge(p[0], p[2]);
+        // Far off the table's relief the plates cannot be nearest: a bound is enough.
+        let far = (h - 2.0).max(FLOOR_MM - 0.3 - h).max(edge - 1.4);
+        if far > 0.0 {
+            return far;
+        }
+        let top = self.plates_at(p[0], p[2]) + self.dome(edge);
+        let mut f = (h - top).max(edge + PLATE_INSET_MM).max(FLOOR_MM - h);
         for s in [-1.0, 1.0] {
-            let half = -polygon_sdf([EYE_U, 0.0], &self.plan);
-            let c = [EYE_U, EYE_H_MM, s * (half - 0.12)];
-            f = smin(f, ellipsoid(sub(q, c), EYE_R), 0.15);
-            let n = [NOSTRIL[0], 0.62, s * NOSTRIL[1]];
+            let q = [p[0], h, p[2]];
+            let brow = [s * BROW_AT[0], BROW_AT[1], BROW_AT[2]];
+            f = smin(f, ellipsoid(sub(q, brow), BROW_R), 0.3);
+            let eye = [s * EYE_AT[0], EYE_AT[1], EYE_AT[2]];
+            f = smin(f, ellipsoid(sub(q, eye), EYE_R), 0.12);
+            let n = [s * NOSTRIL[0], top, NOSTRIL[1]];
             f = smax(f, -(dot(sub(q, n), sub(q, n)).sqrt() - NOSTRIL[2]), 0.05);
         }
         f
     }
-    /// The head's field at a world point: the skull over the table, the horns blended into it, cut at the floor.
+    /// The head's field at a world point: the skull's relief, the horns blended into it, the jaw fringe.
     fn field(&self, table: &Table, p: P3) -> f64 {
-        let q = table.local(p);
-        let mut f = self.skull_at(q);
+        let mut f = self.skull_at(table, p);
         for h in &self.horns {
             f = smin(f, round_cone(p, h.a, h.b, h.ra, h.rb), HORN_BLEND_MM);
         }
-        f.max(FLOOR_MM - q[1])
+        for j in &self.jaw {
+            f = f.min(j.eval(p));
+        }
+        f
     }
     fn kind_at(&self, table: &Table, p: P3) -> Kind {
-        let q = table.local(p);
-        let horn = self.horns.iter().map(|h| (round_cone(p, h.a, h.b, h.ra, h.rb), h.kind)).min_by(|a, b| a.0.total_cmp(&b.0));
-        if let Some((d, k)) = horn {
-            if d < 0.05 && d < self.skull_at(q) {
-                return k;
+        let mut best = (self.skull_at(table, p), Kind::Skull);
+        for h in &self.horns {
+            let d = round_cone(p, h.a, h.b, h.ra, h.rb);
+            if d < best.0 {
+                best = (d, h.kind);
             }
         }
-        let half = -polygon_sdf([EYE_U, 0.0], &self.plan);
-        let c = [EYE_U, EYE_H_MM, q[2].signum() * (half - 0.12)];
-        if ellipsoid(sub(q, c), EYE_R) < 0.05 {
-            return Kind::Eye;
+        for j in &self.jaw {
+            let d = j.eval(p);
+            if d < best.0 {
+                best = (d, Kind::JawFringe);
+            }
         }
-        Kind::Skull
+        if best.1 == Kind::Skull {
+            let h = p[1] - table.surface(p[0], p[2]);
+            let q = [p[0].abs(), h, p[2]];
+            if ellipsoid(sub(q, EYE_AT), EYE_R) < 0.05 {
+                return Kind::Eye;
+            }
+            if ellipsoid(sub(q, BROW_AT), BROW_R) < 0.05 {
+                return Kind::Brow;
+            }
+        }
+        best.1
     }
-    fn world_box(&self, table: &Table) -> (P3, P3) {
-        let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
-        for p in &self.plan {
-            lo[0] = lo[0].min(p[0] + HEAD_U0);
-            hi[0] = hi[0].max(p[0] + HEAD_U0);
-            lo[2] = lo[2].min(p[1]);
-            hi[2] = hi[2].max(p[1]);
-        }
+    fn world_box(&self, _table: &Table) -> (P3, P3) {
+        let (mut lo, mut hi) = ([-10.5, self.top + FLOOR_MM, -8.0], [10.5, self.top + TIER_MM[0] + SKULL_DOME_MM + 0.8, 10.5]);
         for h in &self.horns {
             for (c, r) in [(h.a, h.ra), (h.b, h.rb)] {
-                for k in [0, 2] {
+                for k in 0..3 {
                     lo[k] = lo[k].min(c[k] - r);
                     hi[k] = hi[k].max(c[k] + r);
                 }
-                hi[1] = hi[1].max(c[1] + r);
             }
         }
-        lo[1] = table.top - TABLE_FLOOR_MM + FLOOR_MM;
-        hi[1] = hi[1].max(table.top + PLAQUE_BASE_MM + TIER_MM[0] + 0.3);
         (sub(lo, [0.3, 0.3, 0.3]), add(hi, [0.3, 0.3, 0.3]))
     }
 }
@@ -690,11 +759,11 @@ fn scatter(surf: &Surface, taken: &mut Taken, salt: u64, keep: &dyn Fn(&Sample) 
 fn head_hide(surf: &Surface, head: &Head, table: &Table) -> Studs {
     let mut taken = Taken::new();
     let free = |s: &Sample| {
-        let q = table.local(s.p);
-        // Clear of the skull's foot by a granule, and of the horns' roots.
-        let skull = polygon_sdf([q[0], q[2]], &head.plan);
+        // The cheeks under the table's edge, clear of the table itself, the horns and the jaw fringe.
+        let below = s.p[1] < table.top - 0.9 || table.edge(s.p[0], s.p[2]) > 0.9;
         let horn = head.horns.iter().map(|h| round_cone(s.p, h.a, h.b, h.ra, h.rb)).fold(f64::MAX, f64::min);
-        Surface::off(s).abs() < HEAD_REGION_DEG && !(skull < 0.28 && q[1] > -0.9) && horn > 0.12
+        let jaw = head.jaw.iter().map(|j| j.eval(s.p)).fold(f64::MAX, f64::min);
+        Surface::off(s).abs() < HEAD_REGION_DEG && below && horn > 0.15 && jaw > 0.12
     };
     // The tubercles are spaced at their own pitch, then the granules keep a land clear of each.
     let studs = scatter(surf, &mut taken, 11, &|s| free(s).then_some(TUBERCLE_PITCH_MM), &|s, n, _| Stud::bead(Kind::Tubercle, s.p, n, TUBERCLE_R_MM, TUBERCLE_DOME_MM));
@@ -924,7 +993,7 @@ fn author() -> Result<Authored> {
         let recipe = stored::Recipe {
             kernel: "sculpt".into(),
             op: if m.name == "Horned head" { "horned lizard head and its ground".into() } else { "shoulder hide".into() },
-            params: json!({"head_u0_mm": HEAD_U0, "step_mm": STEP_MM, "horns": head.horns.len()}),
+            params: json!({"stock": STOCK, "step_mm": STEP_MM, "horns": head.horns.len()}),
             digest: String::new(),
         };
         doc.append(Feature { id: next, name: m.name.clone(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: sculpt::packed(&m.solid)? }, component: joined() })?;
@@ -1040,7 +1109,7 @@ fn renders(out: &Path, lib: &AlphaLibrary, built: &mesh::BuildResult, table: &Ta
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
     }
     // The stones view on a ring without stones: the head close from its snout's three-quarter, and from above.
-    let centre = [HEAD_U0 - 1.0, table.top, 0.0];
+    let centre = [0.0, table.top, 1.0];
     render::write_png_framed(out.join("stones.png"), &parts, render::yaw_facing(90.0) + 0.45, 0.8, render::Framing::new(centre, 9.5), edge)?;
     render::write_png_framed(out.join("head.png"), &parts, 0.0, PI * 0.5, render::Framing::new(centre, 9.0), edge)?;
     let bare = mesh::try_build(&base()?, lib, params)?;
@@ -1105,11 +1174,11 @@ fn main() -> Result<()> {
     if std::env::var("PHRYNO_TABLE").is_ok() {
         let d = base()?;
         let a = Atlas::of(&d, 1440, 320)?;
-        for z in [0.0, 3.0, 5.0, 7.0] {
+        for z in (-10..=10).map(|i| i as f64) {
             let mut row = String::new();
-            for x in (-9..=9).map(|i| i as f64) {
+            for x in (-10..=10).map(|i| i as f64) {
                 let y = a.samples.iter().filter(|s| (s.p[0] - x).abs() < 0.3 && (s.p[2] - z).abs() < 0.3 && s.n[1] > 0.2).map(|s| s.p[1]).fold(f64::NAN, f64::max);
-                row += &format!(" {y:6.2}");
+                row += &format!(" {:5.1}", y - 14.0);
             }
             println!("z {z}: {row}");
         }
@@ -1160,7 +1229,7 @@ fn main() -> Result<()> {
         Some((d, k)) if d < head.field(&table, c) => k,
         _ => head.kind_at(&table, c),
     };
-    let mut census = land_census(&made[0].solid, &head_kind, &|c| table.local(c)[1] < 0.05 && ground.nearest(c).is_none_or(|(d, _)| d > 0.05));
+    let mut census = land_census(&made[0].solid, &head_kind, &|c| table.local(c)[1] < 0.03 && table.edge(c[0], c[2]) < -0.1 && ground.nearest(c).is_none_or(|(d, _)| d > 0.05));
     for (m, s) in made[1..].iter().zip(&shoulders) {
         census.extend(land_census(&m.solid, &|c| s.nearest(c).map_or(Kind::Granule, |x| x.1), &|_| false));
     }
@@ -1205,7 +1274,7 @@ fn main() -> Result<()> {
         "slug": SLUG,
         "process": d.draft.process.label(),
         "draft": {"process": d.draft.process.label(), "min_draft_deg": d.draft.min_draft_deg, "min_section_mm": d.draft.min_section_mm, "min_detail_mm": d.draft.min_detail_mm},
-        "base": {"stock": "016 Star", "face_mm": [FACE_MM.0, FACE_MM.1], "bore_mm": BORE_MM, "mirrored": false, "sand_envelope": false},
+        "base": {"stock": "004 Shield", "face_mm": [FACE_MM.0, FACE_MM.1], "bore_mm": BORE_MM, "mirrored": false, "sand_envelope": false},
         "gates_that_apply": "lost wax (Logan, Fallback B): geometry, bore, field fill verdict at 0.8 mm, land widths, DFM, stones, 384 x 192, pattern, triangles, cold reload. The sand gates (ray release, draft-clamp bites, two-part Castable) do not apply; the two-part undercut is reported as a number.",
         "size": d.size.display(),
         "bore_mm": built.report.inner_diameter_mm,
