@@ -1,154 +1,184 @@
-# Tenebrae enablers C-T1, C-T3, C-T4: cloud report
+# Officina ring: Keystone (`keystone`): cloud report
 
-Branch `claude/tenebrae-enablers` from `master` at `a66879e`: `8246c5a` (C-T1), `67a3493` (C-T3),
-`0905b88` (C-T4), then this report. Pull request: https://github.com/shadowbrok3r/RingDesigner/pull/239
-Every enabler is opt-in: nothing existing changes shape, and every new saved form is fenced at design
-format 6 / graph format 2 without a new version.
+**Outcome: cut after round 3, at 6.8 (6.6, 6.9, 6.8). Every gate is green at draft and at export.**
+The cartouche reads at 300 px. Three rounds did not get the foot, the rim or the bright-cut to the Caiman bar.
 
-## C-T1: tracery from a net, and `Profile::Regions`
+- **Branch:** `claude/officina-keystone`, from `master` at `8e5a59a`. Master did not move during the session (fetched before every round), so no merge was needed.
+- **Enablers used:** none. C-B2, C-V1 to C-V5 and C-T5 to C-T7 never reached master while I worked.
+- **Rounds used:** 2 block-out attempts, then 3 review rounds.
+- **Checkout:** the work was done in `/home/user/RingDesigner`, the session's clone. `/home/user/repo` never existed in this environment. Same remote, same branch.
+- **Interruption:** the session stopped at the account limit at 03:15 UTC, while the round-3 reviewer was finishing. Its `review-round3.json` was complete on disk (verdict, score, all 13 images viewed). I committed it as it stood and did not re-run the review.
 
-**What landed**
-- `Sketch::tracery(net, bar_mm) -> Tracery { lights, skipped }` (`sketch/edit.rs`). It composes the
-  proven calls: `split_at_intersections` on the net alone (every other drawn curve stands aside as
-  construction while it splits, so the rest of the sketch is neither split nor moved), the cells from
-  `profile_regions`, each rim offset in by `bar/2` and each hole out by as much, then the net marked
-  construction. A cell whose offset folds is left out whole and named in `skipped` with the reason. A
-  bar no cell takes is refused, and the sketch is left unchanged.
-- `Profile::Regions { feature, regions }`, an untagged arm placed before `Feature`. `regions_of` takes
-  every picked region once (a pick named twice counts once), and an empty list is refused. A twisted
-  sweep, a loft and a sweep take one region and refuse several by name. Wired through every exhaustive
-  match (workbench grips, GUI sketch mode, and the GUI profile source, which shows "regions 1, 3 of 5").
-- Fence: `cad::picks_regions` / `picks_regions_json` (document and graph JSON, clusters included) join
-  `library::format_version_for` and the graph writers' `fenced_json`. An older build would read
-  `{feature, regions}` as `Feature` and sweep every region.
-- Exposure: a `sketch.tracery` graph node takes a Sketch operation or a bare sketch, the net's ids
-  (empty takes every drawn curve) and the bar. It returns the operation, how many lights, and each
-  skipped cell with its reason. MCP reaches it through its graph tools.
-- CLAUDE.md: the fence sentence, and a "Tracery is drawn from a net" bullet under the CAD rules.
+## Read tests and reviews
 
-**Tests**
-- `sketch::edit::tests::a_polar_net_traces_to_one_light_per_cell_each_a_bar_from_its_neighbours`:
-  a 24-cell polar net at bar 0.9 gives 24 loops, and each loop's gap to its neighbour round the wheel is
-  0.9 ± 1e-6. The test also checks that the net ends as construction and a circle beside it is untouched.
-- `sketch::edit::tests::a_cell_too_narrow_for_the_bar_is_skipped_whole_and_a_bar_no_cell_takes_is_refused`
-- `cad::tests::several_regions_of_one_branched_sketch_extrude_together_and_read_back_as_regions`:
-  the two outer cells of a three-cell box extrude as (12 + 16) × 2 mm³, the whole branched sketch is
-  refused, and each profile shape round-trips through untagged serde as itself.
-- `library::tests::several_picked_regions_write_the_design_at_six_and_one_stays_at_five` (document
-  and graph), and `nodes::cad::tests::a_tracery_node_draws_one_light_per_cell_of_a_sketch_operation`.
+| Step | Result | What the reviewer saw |
+| --- | --- | --- |
+| Read test 1 | **reads: false** | A plain band with a small octagonal tag stuck on. The single cut triangle read as an arrow. |
+| Read test 2 | **reads: true** | "A cartouche (or plaque) band". The tablet takes about 85% of the width, with round corners and a visible drafted skirt. |
+| Round 1 | **revise, 6.6** | Gates green. A washer at the foot, a hex-nut profile from the 0.45 mm chamfer on a 7° wall, combing at the corners, sharp band edges. |
+| Round 2 | **revise, 6.9** | Band edges, facet tone and verdict explanation fixed. Washer still there; fan shading on the table; the facet read as a pyramid stud. |
+| Round 3 | **cut, 6.8** | Fans gone, rim a fine line. Washer and pocket still there. The four-quarter facet reads as an arrow or envelope in the hero. 11 features is too long, and the timeline's facet frames are faint. |
 
-## C-T3: Gothic cutter shapes, the outline library and the artwork set
+The verdict stands. Files: `showcase/officina/keystone/read-test-{1,2}.json` and `review-round{1,2,3}.json`.
 
-**What landed**
-- `cutters::Shape` gains Lancet, Ogee, Trefoil, Quatrefoil and Mouchette, and `PIERCE_SHAPES` lists all
-  ten, which reaches the inspector's choice and the `cad.op.cutter.pierce` node. The workbench's
-  right-click "Cut here" list (`PIERCE_KEYS`) carries all ten on desktop and phone. `pierce_at` sizes
-  each one, and an arch's point and a trefoil's lobe stand away from the bore.
-- The bright cut insets concave cusps. Each Gothic plan is drawn dense, read on fixed rays from a centre
-  it is star-shaped about (each ray turned onto the nearest point or cusp), and grown along those rays by
-  the true Minkowski offset of the drawn plan. The point count never changes, the fan never folds, and a
-  cusp moves straight out along its own ray. The five older plans are untouched.
-- Fence: a piercing with a Gothic shape is `geometry_extended`, so it is written at 6 and graph 2. An
-  older reader would otherwise cut it as a Round.
-- Library: `bundled/sketches/gothic/*.svg`, 16 pieces, all in `import_svg`-clean form. The
-  `ringdesign-assets` `SKETCHES` family is swept through subfolders and named by path (for example
-  `gothic/fleur-de-lis`). `library::list_sketches()` / `list_sketches_in(dir)` / `sketch_dir()` lay the
-  user's `sketches/` folder over the bundled set by name, like `list_outlines`. A `sketch.library` graph
-  node serves any of them by name, with a scale.
-- Outlines and nets: gallery-ogee, gallery-quatrefoil, gallery-cusped-lozenge,
-  ornament-quatrefoil-ring, and the four jalis (lozenge, quatrefoil, honeycomb, intersecting arches) as
-  centre lines for `tracery`.
-- Artwork: fleur-de-lis, fleur-cresting, crocket-leaf, nave-arcade (three lancet bays),
-  gargoyle-silhouette, gargoyle-face (an eye, a brow, a nostril and a fang: Logan now allows faces),
-  memento-mori (crossed bones under an open hourglass) and cross-pattee.
-- Tools: `tools/author_gothic.py` draws the set, with exact lines and arcs for the geometric
-  pieces and shapely polygons for the figurative ones. `tools/harvest_gothic.py` (rhino3dm) is the
-  3DM harvester; it was smoke-tested here on synthetic 3DM files (a line+arc polycurve, a circle, a
-  B-rep box).
-- CLAUDE.md: a "Gothic piercing grows by a true offset" bullet, and the `SKETCHES` family in the assets
-  section.
+## Why Keystone stands at "castable with care" (its lesson)
 
-**Tests**
-- `cutters::tests::a_gothic_plan_grows_by_a_true_offset_so_its_cusps_inset_instead_of_folding`: every
-  grown point stands exactly `g` off the drawn plan (1e-6). The ray reading keeps the drawn area, so each
-  plan is star-shaped about its centre. A quatrefoil's cusp moves out along its ray, and each point or
-  tip lies at −x.
-- The existing outline, crown-piercing (volume to 3%), blind, side-face and edge tests now run all ten
-  shapes. The side-face test also pins which way the new points face.
-- `library::tests::every_bundled_gothic_sketch_sweeps_its_area_or_traces_its_lights`: every file
-  imports. Each outline sweeps the area recorded on its root (1e-5). Each net traces to the recorded light
-  count with none skipped. A user file overlays a bundled one and a new name joins the list.
-- `nodes::cad::tests::a_library_sketch_feeds_tracery_and_names_the_library_when_it_is_missing`, and the
-  assets crate's round-trip, length, name and SVG checks now cover `SKETCHES`.
+The verdict is the lesson, as the section says. The measurements show it has two sources, and the section's text names only one.
 
-**Could not do**
-- The nine harvested pieces (Under Gallery Cuts 001–003, Jalis 000/002/010/016, Ornaments 027/028)
-  are drawn stand-ins. `assets/User/Profiles/` is git-ignored (`.gitignore` line 3: `assets/`). It is not
-  on master or any branch, so the 3DM files were not in this checkout. Each stand-in says so in its
-  `<desc>`. Run `uv run --no-project --with rhino3dm==8.32.0 --with shapely python
-  tools/harvest_gothic.py assets/User/Profiles` on the workstation to replace them under the same
-  names, then rerun `every_bundled_gothic_sketch`. The file matching (folder keyword plus number) is a
-  guess at the folder names; `--dry-run` shows what it would take.
-- The gargoyle pieces are a serviceable first pass and have not been through a render review. Hold them
-  to that bar, and cut the face variant if it does not read at size.
+- **The band.** Pulled along the finger in two-part Delft sand, a flat band's broad crest stands square to the pull. The bare Flat 6.0 × 2.0 already reads "castable with care" at 30.2% drag, against the 12% that `castability::DRAG_FRACTION` allows. That is before any feature.
+- **The cartouche.** It adds its own zero-draft faces: the flat top, and the two end walls that face round the ring, like a signet's table. Its 12° draft only helps the two long walls that face across the finger. 27.4 of its 60.0 mm² stand vertical, taking the ring to 31.2% drag.
+- **Release.** It still releases: 0 obstructions and 0 unresolved rays at 0.100 and 0.075 mm, at draft and at export. It drags and wants a longer rap.
+- **The cartouche alone, on a domed band.** `report.json` `verdict_cause` computes this live: the same history on Rivet's LowDome 6.0 × 2.1 turns a Castable band (4.4% drag) into "castable with care" (7.0%). The part judgment flips it, not the drag.
+- **No draft angle fixes it.** Only draft on the top and end walls (a dome, or ends leaning round the ring), or another pull, would make it Castable.
+- **The residual undercut.** The cartouche carries 0.015 mm² judged undercut, worst −0.75°. That is tessellation on the faceted chamfer corners, below the 0.075 mm ray grid. It grows with the foot fillet: a 0.5 mm fillet reached −1.16°, 0.65 mm reached −7.5°, and 0.8 mm reached −75° where it ran off the band. That is why the fillet stayed at 0.45 mm.
 
-## C-T4: DFM land width for CAD cuts
+A lesson that wants the cartouche alone to carry the verdict should stand on a domed band. That is a decision for the lead.
 
-**What landed**
-- `dfm::cut_lands(design, built, floor_mm) -> Vec<DfmFinding>`, with `CUT_LAND` as the label and
-  `dfm::PART` as the layer sentinel. For every Cut extrusion it reports the narrowest land in three
-  places: between two of its regions, between it and each copy a Pattern makes, and to the band's or host
-  part's edge. Each kind is reported once when it falls under the floor, for example
-  `Cut #3 'Pierce the lights': 0.60 mm between lights 1 and 2 (floor 0.8)`.
-- How it measures:
-  - Region lands are measured between outlines in the sketch's plane (`cad::extruded_regions` gives the
-    plane as built, face-anchored sketches included), and carried to copies by their copy motions.
-  - The edge land is walked out from each outline in the plane until a line along the normal, within the
-    cut's reach, meets no metal in the built ring.
-  - Where that line runs through a copy's opening instead, the land is booked to the copy. A ring of
-    copies converges toward the bore, so its land at the metal is narrower than in the plane.
-- It only runs when asked, so nothing existing changes. It is reachable through `ringdesign export
-  --cut-land <mm>` and MCP `manufacturing_check { cut_land_mm }`, which adds `cut_lands` to the report.
-- CLAUDE.md: a "CAD cut's lands" paragraph beside the made-part lands.
+## Gates
 
-**Test**
-- `dfm::tests::a_cut_names_the_narrowest_land_between_its_lights_its_copies_and_the_edge` covers five
-  cases on a Court band:
-  - Two 1 mm lights 0.6 mm apart report exactly `0.60 mm between lights 1 and 2 (floor 0.8)`.
-  - A lower floor stays silent, and so does the design's own report.
-  - Lights a full floor apart pass.
-  - A light 0.5 mm in from the side reports 0.5 ± 0.06 mm to the edge.
-  - A ring of 48 copies reports a copy land.
+| Gate | Draft 768 × 320 | Export 1536 × 448 |
+| --- | --- | --- |
+| Triangles | 488,928 (1.7 s) | 1,344,544 (4.7 s), within 2 M |
+| Watertight; boundary / non-manifold edges | yes; 0 / 0 | yes; 0 / 0 |
+| Degenerate faces | 0 | 0 |
+| `csg::self_crossings`, ring and every made part | 0, all 0 | 0, all 0 |
+| `built.solids.notes` / `built.parts.notes` | empty / empty | empty / empty |
+| CAD features `Ok` | 11 of 11 | 11 of 11 |
+| Inside the finger hole (bore r 9.1, −0.01 tolerance) | 0 vertices, closest 9.1000 mm | 0 vertices, closest 9.1000 mm |
+| `judged_field_report` | Castable with care, 31.2% drag (explained above) | Castable with care, 31.2% drag |
+| Ray release at 0.100 / 0.075 mm (obstructions, unresolved) | 0, 0 / 0, 0 | 0, 0 / 0, 0 |
+| `dfm::findings_in` | 0 | 0 |
+| Stones reported / previewed | 0 / 0 (no stones) | 0 / 0 |
+| Casting pattern (`try_build_pattern`) | watertight, 0 degenerate, 0 crossings | watertight, 0 degenerate, 0 crossings |
+| `--verify` cold reload, empty library | not run at draft | identical vertices, faces and normals |
+| Lost-wax checks, recorded only (Keystone is sand) | thickness 0 below 0.8 mm; `cut_lands` 1 | thickness 0 below 0.8 mm; `cut_lands` 1 |
 
-**Could not do**
-- Revolve and sweep cuts are not measured; only extrusions have a plane to measure in.
+The one `cut_lands` entry is the bright-cut's four mirrored quarters meeting edge to edge: "0.00 mm between light 1 and copy 2's light 1". That is intended, since they are one pyramid. It is a bench cut, and `cut_lands` gates lost wax only.
 
-## Checks run
+**Template gate**
+- 1 `design.set` patch (`/manufacturing`), within the limit of 4.
+- 127,143 bytes against the 300 KB procedural budget.
+- Cold source parity, mesh parity and cold graph reload all true, with export geometry verified (1,344,544 identical triangles).
+- 18 graph nodes.
+- The 11 `cad.feature` nodes are in timeline order: Band, Work plane over the top, Cartouche sketch, Drafted boss, Press-pull the top, Chamfer the rim, Leaning quarter sketch on the top, Bright-cut quarter, Mirror across the band, Mirror round the ring, Mirror the mirror round the ring.
+- Recorded in `report.json` under `template_gate`.
 
-All on the final tree, with rustc 1.98.1. The workstation's `systemd-run` guard and `--offline` were
-not used here, as TASK.md says.
+## Feature tree
 
-- `cargo test -p ringdesign-core`: 839 passed, 0 failed, 16 ignored. `tests/golden.rs` passed.
-- `cargo test -p ringdesign-graph --no-fail-fast`: 109 lib tests passed, plus `bestiarium_templates`,
-  `cad_edits`, `imported_bases`, `showcase_templates`, `template_nodes` and the `collection_templates`
-  example (25 more), 0 failed. This includes the struct-coverage and table-consistency tests for the two
-  new nodes.
-- `cargo test -p ringdesign-assets`: 4 passed.
-- `cargo check --no-default-features --target wasm32-unknown-unknown -p ringdesign-core`: clean.
-- `cargo check --tests` of graph, workbench, gui, mcp, cli and the Android app: clean. The only warning
-  is the existing `COMFY_GATE_KEY` build note.
-- Spot suites for the touched exposure points:
-  - workbench `viewport::cutters`/`menu`/`grips`: 12 passed. Every one of the ten right-click keys plans
-    on a Court band.
-  - gui `cutter`/`sweep`: 13 passed.
-  - `ringdesign-mcp --lib`: 45 passed.
-- Commits `8246c5a` and `67a3493` were each checked on their own (core, graph, workbench and gui, plus
-  assets for C-T3), so the history bisects.
-- The full workspace test run was not done; I ran the suites TASK.md names plus the crates whose code I
-  touched.
+1. **Band.** The plain Flat 6.0 × 2.0 band with squared sides and 0.35 mm broken arrises, bore 18.2 mm, Delft clay set with `SandProcess::DelftClay.apply` and `CastProcess::SandTwoPart.apply`. The reader learns that the band is the anchor every part stands on.
+2. **Work plane over the top.** A plane tangent to the band at θ 90°, sunk 0.7 mm so the boss stays joined where the band curves away (sag 0.55 mm over the 3.5 mm half-length). The reader learns that a plane is placed on the ring, not in space.
+3. **Cartouche sketch.** A 7.0 × 4.8 mm rounded rectangle on that plane, each r 1.0 corner drawn as 24 straight lines. The reader learns to draw on a work plane.
+4. **Drafted boss.** The sketch extruded 1.6 mm with 12° draft, joined with a 0.45 mm seam fillet. The reader learns draft, and what draft cannot do for walls square to the pull.
+5. **Press-pull the top.** The boss's planar top moved out 0.8 mm (1.7 mm proud of the crest). The reader learns press-pull of a face picked by signature.
+6. **Chamfer the rim.** The native fillet is tried at 0.35, 0.30, 0.25, 0.20 and 0.15 mm and refused at each. The section's fallback, a 0.18 mm chamfer on the 100 rim edges picked by signature, builds instead. The reader learns edges named by signature, and the fallback when the kernel refuses.
+7. **Leaning quarter sketch on the top.** A triangle on a plane laid on the cartouche's top through the lozenge's outer edge and its centre, 0.45 mm under the top. The reader learns a sketch on a face, with its plane leaned.
+8. **Bright-cut quarter.** That triangle cut away above its plane, at the bench. The reader learns a cut whose floor is a sloped plane, and the Bench stage: the sand pattern leaves it out and keeps drill marks.
+9. **Mirror across the band.** The quarter reflected across the band's mid-plane. The reader learns mirroring a cut.
+10. **Mirror round the ring.** The quarter reflected across the section at 90°. The reader learns a section mirror.
+11. **Mirror the mirror round the ring.** The fourth quarter. It is two single-source mirrors, not one of two sources, so the file stays at format 5. The reader learns why a pattern of several parts is fenced.
 
-Housekeeping: the 30 GB disk allowance ran out once, mid-run, from the example binaries under
-`target/debug/examples` (20 GB). I deleted them and reran that step. `tools/harvest/` is git-ignored by
-design ("never tracked"), so the two new scripts live at `tools/author_gothic.py` and
-`tools/harvest_gothic.py`, beside `audit_3dm_profiles.py`. I stayed out of
-`crates/ringdesign-core/examples/tenebrae_*`.
+The section planned 8 features. The bright-cut grew to 5 (features 7 to 11) chasing the reviewers' facet read, and round 3 judged that too long. Round 3's own punch list returns to the section's single lozenge with one sloped cut.
+
+## Parts and stones
+
+- **Parts:**
+  - The band.
+  - One joined cartouche: features 4 to 6, the boss, its press-pull and its rim.
+  - Four bench cuts, which are the bright-cut. They are shown finished, and the sand pattern leaves them out with raised drill-start marks.
+- **Stones:** none, by design.
+- **Alloy:** Gold 14k, Delft clay recipe, gated at the palm in a 70 mm flask.
+
+## What I could not do
+
+- **Fillet the rim.** `Fillet` refuses the rim loop at every radius tried: `AdjacentSelections` on an 8-edge loop, and `RadiusTooLargeOrInteracting` on the 52- and 100-edge loops. The section's Chamfer fallback is in place.
+- **Draw the cartouche's corners as arcs.** A drafted lines-and-arcs loop refuses to extrude along its normal, though it builds against it. Once drafted, the arcs are cones, which press-pull, chamfer and fillet all refuse. The corners are 24-segment polylines.
+- **Get rid of the foot "washer".** All three reviews saw it: the 0.45 mm fillet catches light against the shaded 12° wall. A larger fillet that would read as a run-in brings the undercut back at the end-wall corners (0.5 mm: −1.16°, 0.65 mm: −7.5°, 0.8 mm: −75°). Raising the plane to −0.45 mm, as asked, floats the boss's ends over the band at 7.0 mm length (sag 0.55 mm). That needs a shorter cartouche, which I did not try in round 3.
+- **Make a bright-cut that no reviewer reads as an arrow, stud or envelope.** I tried four forms:
+  - one flat triangle (block-out 1): "arrow";
+  - two levels (block-out 2);
+  - a sunk roof (round 2): "pyramid stud";
+  - a four-plane inverted pyramid (round 3): "arrow / envelope" in the hero light.
+
+  A V-trough built from two planes notches the lozenge's tips, because one plane stays deep all along the diagonal. Round 3's punch list asks for one sloped triangle on the section's lozenge.
+
+## Core changes wanted (exact code; `src/` was not edited)
+### 1. A drafted loop of lines and arcs refuses to extrude along its normal (`sketch/solid.rs`)
+
+Probe (same sketch, a 6.0 x 4.8 rectangle with r 0.8 corner arcs drawn counter-clockwise):
+draft 0 extrudes both ways; draft 3 or 7 fails "Extrusion: unsupported or degenerate geometry"
+at +1.4 mm and builds at -1.4 mm. Drawn clockwise it fails both ways. Rectangles, polygons and
+circles taper both ways. `winding()` reverses the order of a loop's curves without reversing
+the curves, and the kernel's `extrude_tapered` takes the reversed-order loop but not the
+counter-clockwise one. Keystone works round it by drawing the sketch's y flipped and extruding
+against the normal (block-out attempt 1), then drops the arcs altogether (see 2).
+
+Wanted: retry the taper against a flipped plane before refusing, in `extrude`:
+
+```rust
+// crates/ringdesign-core/src/sketch/solid.rs, in `extrude`, the outer-only arm
+if r.holes.is_empty() {
+    brep::extrude_tapered(plane, &wound(&r.outer), direction, draft_rad).or_else(|| {
+        // The kernel tapers some loops of lines and arcs only when they run against the
+        // plane's normal: mirror the loop across the plane's x axis, flip the plane's y,
+        // and extrude the same solid the other way round.
+        let flipped = Plane::from_axes(plane.origin, plane.x_axis, plane.y_axis.map(|v| -v));
+        let mirrored: Vec<Curve> = r.outer.iter().map(|c| c.mirrored_y()).collect();
+        brep::extrude_tapered(flipped, &winding(&mirrored, -1.0), direction, draft_rad)
+    })
+}
+```
+
+with a new `Curve::mirrored_y` (y -> -y; an arc keeps its centre mirrored and swaps start and end
+so it still runs counter-clockwise), and a test: `rounded_rect(6.0, 4.8, 0.8)` drafted 7 deg
+extrudes at +1.4 and -1.4 to the same volume. Better still, fix the kernel's taper.
+
+### 2. Tapered arcs are cones the kernel cannot press-pull, chamfer or fillet
+
+With the taper built against the flipped plane, the rounded cartouche drafts, but feature 5
+fails "Press-pull cannot move face 0 by 0.400 mm", and a chamfer or fillet of its rim fails
+"UnsupportedBodySurface". Keystone draws each corner arc as 24 straight lines (100 rim edges),
+so every drafted wall is a plane. That is a kernel (cadkernel) limit: press-pull `Offset` mode
+and chamfer/fillet on faces bounded by cones. Ask upstream; until then, the CAD workspace's
+sketch tool could offer "arc as N segments" for drafted profiles.
+
+### 3. The native fillet refuses a closed loop of rim edges
+
+On the drafted, pressed cartouche, `Fillet` of the top's rim edges fails at every radius tried
+(0.35, 0.30, 0.25, 0.20, 0.15 mm): "AdjacentSelections(#0v0, #7v0)" on an 8-edge loop, and
+"RadiusTooLargeOrInteracting" on the 52- and 100-edge loops. Chamfer of the same edges builds. The section
+named this risk (`core/cad.rs` fillet); the fallback is in place and recorded in
+`report.json` `authored.fillet_refusals`.
+
+### 4. Crease-aware render normals and fine shading triangles (`render.rs`)
+
+`render::Part::metal` shades a CAD part's large flat triangles as wedges of their own tone and
+smooths across sharp edges (a facet's ridge, a chamfer), which reviewers read as smearing. The
+example fixes it in the pictures only, with two functions that belong in `render.rs`:
+
+```rust
+/// `m` with a vertex per face corner, each normal averaged over the faces round it that turn
+/// less than `crease_deg` from its own, and every face halved across its longest edge until
+/// no edge exceeds `max_edge_mm`. Rendering only: exports keep the built mesh.
+pub fn creased(m: &Mesh, crease_deg: f64, max_edge_mm: f64) -> Mesh { /* officina_keystone.rs `creased` + `split_long` */ }
+
+impl Finished {
+    pub fn creased(mut self, crease_deg: f64, max_edge_mm: f64) -> Self {
+        self.metal = creased(&self.metal, crease_deg, max_edge_mm);
+        self
+    }
+}
+```
+
+### 5. A timeline frame for a plane or a sketch
+
+`Document::through` at a `Plane` or `Sketch` builds the same metal as the step before, so a
+timeline sheet shows nothing new there. The example lays a 0.06 mm sheet on a plane and each
+region of a sketch (`Profile::Region`, one extrude per region, since a branched sketch's regions
+share edges and one extrude of them is non-manifold) and draws it blue. A core helper would let
+every Officina ring share it:
+
+```rust
+/// What feature `id` adds without metal: a sheet on a work plane, or each region of a sketch,
+/// `thick_mm` thick, as meshes in the world frame; empty for a feature that builds a body.
+pub fn construction_meshes(d: &RingDesign, lib: &AlphaLibrary, id: Id, thick_mm: f64, params: BuildParams) -> Result<Vec<Mesh>>
+```
