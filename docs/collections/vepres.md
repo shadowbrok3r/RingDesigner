@@ -607,6 +607,8 @@ That is expected for most Vepres rings. Say so in each README line.
 
 - **Process decision (Logan, 2026-10-03):** judged as **lost wax** from round 4: 0.8 mm minimum section, no pull rule. The sand gates were what held the ring back (the sand master's gabled table folded the face leaves, the parting-line rule forbade the 7.5 mm leaves and the garland's splay). The revival builds on the native factory 006 (no sand master, no envelope) at 19.2 × 17 mm, so the table is flat. Whether it would still pull from sand is reported in `report.json` (`sand_bonus`), never gated.
 
+- **Wall census (master `0c7c8c4`, round 5):** the bare native 006, with nothing added, reads 74 wall samples under 0.8 mm at its own palm bore edge (about 0.02 mm², at x ±2.5, y -9.2, z ±3.2). The finished ring reads 79; the 5 it adds are single samples of 0.50 to 0.80 mm. The census runs with `edge_reach_mm` 1.6 (two floors) so that the holly spines read as points. All of this is recorded in `report.json` (`resize_check[].wall_census`, `*.wall_census`).
+
 - **Concept:** The Holly King's standard. A holly leaf lies across the face along the parting line, between two garnet berries. Holly sprays with berries fill both cheeks. A garland of small holly leaves rides the parting line down both shoulders. The palm is bare, like holly's smooth bark.
 
 - **Theme face to palm:**
