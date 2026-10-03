@@ -1,0 +1,35 @@
+{
+  "ring": "capsa",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Hero-300: a plain band carrying a tall rectangular metal block seen from above and to one side. Its top is a flat slab edged with a row of small upright teeth with a knob at each end, so the whole head looks like a comb, a harmonica or a music-box movement, or a little machine housing. The long wall shows a red dot between a few tiny bracket-shaped nicks, and the near end shows a blue dot under a curved hood. Nothing in the outline is pointed: no gable triangle, no arch and no spire registers, because the camera looks down the roof and the low pitch flattens it. Face-300: a flat upright rectangle with a ladder or zipper running down its centre, a knob at each end, small chevron nicks in four columns and two red ovals either side of the ladder. It reads as a domino, a belt buckle or a circuit chip. A jeweller would say 'box ring', and maybe 'coffin ring' if pressed. Nobody would say 'reliquary' or 'Gothic cathedral'. It improves on attempt 1: the X-crease is gone, there is a ridge with cresting and finials, and the side view does read as a little gabled chapel. But that chapel only appears dead on along the finger, and the two 300 px views that are judged never show it.",
+  "changes": [
+    {
+      "priority": 1,
+      "zone": "Lid roof pitch and the hero camera",
+      "change": "Steepen the roof: raise the ridge from 2.0 to at least 3.8 mm above the eaves on the 9.8 mm span (pitch about 38 deg to 45-50 deg), keep the 0.5 eaves overhang and move the slope cabochons down so they sit mid-slope. Re-aim the hero to a 3/4 view from the gable end, about 30-35 deg off the finger axis and about 20-25 deg above the crest, so the triangular gable with its sapphire and the finial on top shows as an outline against black. Do not look down on the roof.",
+      "acceptance": "In hero-300 the head's outline shows a clear pointed gable triangle with a finial at its apex, on top of a wall-and-plinth body: a small house or chasse shape. In face-300 the two roof slopes show different shading either side of a single ridge line, and the roof no longer reads as one flat plate."
+    },
+    {
+      "priority": 2,
+      "zone": "Long walls (+y and -y), the three-bay arcade",
+      "change": "Replace the small bracket-shaped nicks with three full-height pointed lancet niches per wall, each at least 2.6 mm tall and about 2.8 mm wide, 0.5 mm deep (thicken the wall to 1.3 so 0.8 remains behind), with sharp pointed apexes. Separate them with 0.8 mm colonnettes standing 0.3 mm proud. Set the garnet inside the centre niche, not on the plain wall. Frame the gable sapphire in a pointed-arch moulding 0.4 mm proud, in place of the round hood.",
+      "acceptance": "In hero-300 the visible long wall shows three dark, shadowed pointed arches side by side with the red stone inside the middle one. The gable end shows a pointed arch around the blue stone. No bracket or comma-shaped marks remain."
+    },
+    {
+      "priority": 3,
+      "zone": "Ridge cresting and roof-slope ornament (the face view)",
+      "change": "Make the cresting read as fleurs-de-lis, not comb teeth: use 5 fleurs, each at least 1.6 mm tall with a three-petal head at least 1.4 mm across, spaced with open gaps of at least 0.8 mm. Raise the end finials to 2.5 mm with a crocketed head 1.4 mm across. On the slopes, replace the four columns of chevron nicks with a pattern that reads as roof, for example 3-4 courses of fish-scale or lozenge tiles 0.25 mm deep, or a pair of blind trefoil roundels. Otherwise leave the slopes plain around the cabochons.",
+      "acceptance": "In hero-300 the ridge outline is a row of distinct fleur shapes against black, not a row of uniform pins. In face-300 the centre stripe reads as a crested ridge, not a ladder or zipper, and the chevron nicks are gone."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/capsa/hero-300.png",
+    "showcase/tenebrae/capsa/face-300.png",
+    "showcase/tenebrae/capsa/hero.png",
+    "showcase/tenebrae/capsa/face.png",
+    "showcase/tenebrae/capsa/side.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}

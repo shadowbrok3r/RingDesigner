@@ -1,0 +1,33 @@
+{
+  "ring": "capsa",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Hero-300: a big step up. For the first time the head reads as a building: a little house or chapel sitting on a plain band, with a gable end facing the camera, a ridge roof with a row of teeth along it and a knob at each end, an arcaded wall with a red stone in the middle bay, a red stone on the roof slope and a blue stone in the gable under a rounded hood, all on a stepped base. A jeweller would say 'a house ring' or 'a little church/chapel ring', and one who knows medieval metalwork might say 'chasse' or 'reliquary'. But it does not say Gothic. The roof pitch is low, so the gable reads as a classical pediment or a cottage roof; the openings in the wall and the hood over the blue stone read round, not pointed; the uniform square teeth on the ridge read as castle battlements or a comb, not fleur-de-lis cresting; and the ridge-end knobs are balls, not pinnacles. The honest name is 'a little temple or cottage on a ring', not 'Gothic reliquary'. Face-300: unchanged in kind from attempt 2. Looking straight down, the head is a flat upright rectangle with a ladder or zipper of small squares down its centre, a ball at each end and two red ovals either side: a domino, a buckle or a chip. The two roof slopes carry no shading difference, nothing pointed shows, and the shoulders show only small diamond nicks. The face view names nothing, so the pair does not read.",
+  "changes": [
+    {
+      "priority": 1,
+      "zone": "Lid roof (pitch and ridge cresting); this carries both views",
+      "change": "Make the roof unmistakably a steep Gothic gable: raise the ridge to at least 5.0 mm above the eaves on the 9.8 mm span (pitch about 45 deg to 55-60 deg), keeping the 0.5 overhang; if total height is the worry, drop the plinth to 0.4 and the chest walls by 0.5 rather than flatten the roof. Replace the square ridge teeth with 5 open fleurs-de-lis, each at least 1.6 mm tall with a three-petal head at least 1.4 mm across and open gaps of at least 0.8 mm, so the outline against black is fleurs, not battlements. Replace the end balls with pinnacle finials 2.5-3.0 mm tall: a square shaft, a pointed spirelet and a 1.2 mm crocket or fleuron knop.",
+      "acceptance": "In hero-300 the gable end is a tall pointed triangle (taller than half its width) topped by a spired finial, and the ridge outline is a row of distinct fleurs. In face-300 the two roof slopes take clearly different shading either side of the ridge and the centre stripe reads as a crested ridge with fleur heads, not a ladder or zipper."
+    },
+    {
+      "priority": 2,
+      "zone": "Long walls (+y and -y) arcade and gable-end hood",
+      "change": "Make every opening pointed: three full-height lancet niches per long wall, at least 2.6 mm tall and 2.6-2.8 mm wide, 0.5 mm deep (wall 1.3 to keep 0.8 behind), with sharp apexes drawn as two arcs meeting at an angle, separated by 0.8 mm colonnettes 0.3 mm proud. Replace the round hood over the gable sapphire with a pointed-arch moulding 0.4 mm proud, and add a small pierced or blind trefoil or rose roundel (about 1.6 mm) in the gable apex above it.",
+      "acceptance": "In hero-300 the near long wall shows three dark pointed arches side by side with the garnet inside the middle one, and the gable end shows a pointed arch around the blue stone with a roundel above; no round-headed opening remains anywhere on the head."
+    },
+    {
+      "priority": 3,
+      "zone": "Corners of the chest and the shoulders (theta 90 +/- 48..72), for the face view",
+      "change": "Add four angle buttresses at the chest corners, 0.8 mm square, stepping out 0.4 mm with two chamfered weatherings and each topped by a 1.5 mm pinnacle that rises past the eaves, so the top-down view shows spikes at the four corners around the roof. On the shoulders, replace the diamond nicks with graded quatrefoils (1.6 / 1.3 / 1.0 mm), pierced or blind 0.4 deep, so the Gothic vocabulary shows on the band in both views.",
+      "acceptance": "In face-300 the rectangle has a pinnacle at each corner and quatrefoils, not diamonds, are legible on both shoulders; in hero-300 the corner buttresses break the box outline of the chest."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/capsa/hero-300.png",
+    "showcase/tenebrae/capsa/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

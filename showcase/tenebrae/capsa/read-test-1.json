@@ -1,0 +1,33 @@
+{
+  "ring": "capsa",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "Hero-300: a plain, smooth band carrying a squat metal cube perched on top, studded with thin pins at its corners like rivets or antennae, with one small round red stone and one small round blue stone in its walls. It reads as a little box, a die or a mechanical housing (a tiny safe, a watch module), not as a church building. No pointed arch, arcade, gable or cresting registers; the walls look flat. Face-300: a flat rectangular plate creased into an X of four triangles, like a folded envelope or a low pyramid lid, with a few specks and pin heads at the edges and the band running out plain either side. A jeweller would say 'box ring' or maybe 'casket ring' if pressed, but not 'reliquary' and certainly not 'Gothic cathedral'. The concept's gabled chasse, arcaded walls, fleur-de-lis cresting and finials do not survive at 300 px.",
+  "changes": [
+    {
+      "priority": 1,
+      "zone": "Lid (Separate) and its silhouette",
+      "change": "Make the roof a steep single-ridge gable running along the finger, not the current low X-creased hip/pyramid. Raise the ridge to at least 3.0 mm above the eaves (pitch about 55-60 deg), overhang the eaves 0.5-0.6 mm past the walls with the 0.2 chamfer, and put fleur-de-lis cresting on the ridge at least 1.2 mm tall (5-7 fleurs, open between). Replace the eight thin corner pins with two revolved finials only, at the ridge ends, 2.0-2.5 mm tall with a crocketed/fleuron head at least 1.2 mm across.",
+      "acceptance": "In hero-300 the head's outline shows a triangular gable end and a toothed crest along the ridge (a little church/chasse profile); in face-300 a single ridge line runs along the finger with cresting visible, and no X crease remains."
+    },
+    {
+      "priority": 2,
+      "zone": "Chest long walls (+y and -y) and gable ends",
+      "change": "Cut the three-bay blind arcade so it reads: pointed lancet niches at least 0.5 mm deep (thicken the wall to 1.3 to keep 0.8 behind), apexes clearly pointed, separated by projecting colonnettes/buttresses 0.8 wide standing 0.3 proud of the wall face with a stepped weathering top. Frame each gable sapphire in a pointed arch or trefoil moulding 0.4 proud. Enlarge the cabochons toward 2.4 x 3.0 if the bays allow, so the colour reads as glass in a window, not a dot.",
+      "acceptance": "In hero-300 the visible long wall shows three distinct pointed arches with dark shadowed niches and the stone sitting inside the centre arch; the gable end shows a pointed-arch frame around the blue stone."
+    },
+    {
+      "priority": 3,
+      "zone": "Plinth and shoulders, theta 90 +/- 48..72",
+      "change": "Give the plinth a visible moulded base (two chamfered steps, each projecting 0.4-0.5 mm) so the chest stands on a building base instead of sitting as a box on the band; and make the shoulder quatrefoil piercings (or blind quatrefoil tracery) actually appear, graded 1.6 / 1.3 / 1.0 mm, so the Gothic theme carries off the head onto the band.",
+      "acceptance": "In hero-300 a stepped base line shows under the chest and at least two quatrefoils are legible on the near shoulder; the band no longer reads plain from the head to the palm."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/capsa/hero-300.png",
+    "showcase/tenebrae/capsa/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
