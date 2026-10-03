@@ -1,0 +1,27 @@
+{
+  "ring": "viscum",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A big gold flower with a pearl-cluster centre: a cocktail-ring blossom like dogwood, orchid or hibiscus. The four swollen, smooth clover lobes are the loudest form at 300 px, and they read as fat petals, not leaves. They carry no visible engraving, so the intaglio leaves either are not there or do not survive at this size. The seven bezel-collared moonstones packed in a 2-2-1-2 block read as a pearl cluster or a bunch of grapes, so the hero leans toward 'grape vine'. The one true mistletoe cue is the pair of opposite narrow leaves on the straight east-west stalk, and it is too small and too flat against the lobes to register. No jeweller would say mistletoe without the caption.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Face, all four clover lobes (lobe axes at 45 + k*90 deg)",
+      "change": "Stop the lobes reading as petals. Cut each lobe's lanceolate strap leaf so it shows at 300 px: run it over about 75% of the lobe length (about 9 x 3 mm instead of 6 x 2.2), sink 0.6 mm instead of 0.25, with a darkened recess and a keeled midrib, and set the stalks so the two leaf pairs visibly meet at one node at the centre. Also flatten the lobe crowning by about 40%, so the face is a leaf-carved seal and not four inflated petals.",
+      "acceptance": "On face-300.png each lobe shows a dark leaf outline with a midrib, and the four leaves read as two crossed opposite pairs joined at one central node."
+    },
+    {
+      "priority": 2,
+      "where": "Face centre stones (the seven-stone cluster)",
+      "change": "Replace the 2-2-1-2 cluster of seven collared stones with the specified three berries, 2.5 mm, in a loose triangle set in the fork where the leaf stalks meet. Leave at least 0.8 mm of gold between them and use gypsy mounds, not raised bezel collars, so each berry stands as a lone milky sphere in the leaf axil. Shift the moonstone colour from grey toward a translucent milky white.",
+      "acceptance": "On face-300.png and hero-300.png the centre shows three separate white berries tucked between leaf bases, with no ringed cluster and no grape or pearl-flower-centre read."
+    },
+    {
+      "priority": 3,
+      "where": "East-west face stalks and cheeks (the twig with opposite leaves)",
+      "change": "Make the twig the signature of the ring. Turn the straight horizontal bar into a dichotomous Y-fork (forks at about 60 deg, twig 0.8 mm proud and 1.0 mm wide). Every tip ends in one opposite pair of narrow strap leaves, about 5 x 1.6 mm, and a berry sits in each crotch, so the repeated fork-pair-berry unit carries from the face down the cheeks into the shoulder berry runs.",
+      "acceptance": "On hero-300.png at least two Y-forks, each ending in a paired leaf with a berry in the crotch, are legible on the near cheek and shoulder."
+    }
+  ]
+}

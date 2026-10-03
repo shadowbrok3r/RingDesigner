@@ -1,0 +1,27 @@
+{
+  "ring": "viscum",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "It is closer than attempt 1, but it still reads as a gold blossom or a bow-shaped cocktail ring with pearls. On the face the four clover lobes are still the loudest form at 300 px. They are swollen, glossy and wide, about as broad as they are long, so they read as fat petals or butterfly wings, not narrow strap leaves. The engraved leaves now show as faint ridges and midribs, but they sit inside the inflated lobes like petal veins and don't outline the lobes as leaves. The three white stones at the centre are now separate and clean. They read as a pearl flower-centre, or berries, and they are the best mistletoe cue on the ring. The shoulders carry a long scatter of single white beads, around ten visible per side, each on its own mound. At 300 px they read as pearl studs or dewdrops along a stem, not as mistletoe berries clustered in twig forks. The cheek twigs and paired leaves don't register as Y-forks. Shown it without a caption, a jeweller says 'pearl flower ring' or 'dogwood/blossom with pearls'. A few might guess snowberry or mistletoe from the white berries, but nothing in the leaf form tells them.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Face, all four clover lobes (lobe axes at 45 + k*90 deg), the intaglio leaf stamps",
+      "change": "Make the leaves the silhouette instead of veins inside petals. Lengthen each strap leaf to run tip to stalk over about 85% of the lobe (about 10 x 3.2 mm), deepen the cut from about 0.25 to 0.6 mm with a dark recess, and keep the gold proud between the leaf edge and the lobe rim to no more than 1 mm. The lobe then reads as a leaf with a border, not a petal with a midrib. Reduce the lobe crowning by about 40% so the lobes stop reading as inflated petals. Orient the four leaves as two clearly opposite pairs, with one pair longer than the other by about 1.5 mm so the cross looks botanical rather than a symmetric four-petal flower.",
+      "acceptance": "On face-300.png each lobe shows a dark, narrow, round-tipped leaf outline that fills the lobe, and the four leaves read as two crossed opposite pairs from one node, not as a four-petal flower."
+    },
+    {
+      "priority": 2,
+      "where": "Shoulder berry runs (both sides, crest line) and cheek stones",
+      "change": "Stop the single-bead scatter. Cut the shoulder run from about ten single beads a side to two or three tight clusters a side, each of 2 to 3 berries with gaps of 0.4 mm or less so each cluster reads as one bunch. Set each cluster in the crotch of a visible Y-fork twig (twig 1.0 mm wide, 0.8 mm proud, fork angle about 60 deg), and put one opposite pair of strap leaves (about 5 x 1.6 mm) at each fork tip. Total stones may drop. The repeated fork-leafpair-berry-cluster unit is what says mistletoe.",
+      "acceptance": "On hero-300.png the near shoulder shows at least two Y-forked twigs, each with a paired-leaf tip and a small white-berry cluster in the fork, and no line of evenly spaced single pearls."
+    },
+    {
+      "priority": 3,
+      "where": "Face centre (the three 2.5 mm berries and the fork stamp beneath them)",
+      "change": "Tie the centre berries to the stalks so they read as fruit in a fork, not a flower's eye. Make the fork stamp visible: the stalks are 0.8 mm wide and 0.5 mm proud, they run from each leaf base into the node, and the berries sit just off-centre in the crotch. Shift the moonstone colour from flat pearl grey toward a translucent milky white with a faint inner glow (mistletoe berries are semi-translucent), so they stop reading as pearls.",
+      "acceptance": "On face-300.png the four leaf stalks are visible meeting at a node under the berries, and the berries read as translucent fruit rather than opaque pearls."
+    }
+  ]
+}
