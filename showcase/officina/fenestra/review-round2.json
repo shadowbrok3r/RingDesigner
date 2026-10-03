@@ -1,0 +1,66 @@
+{
+  "ring": "fenestra",
+  "round": 2,
+  "verdict": "revise",
+  "score": 6.2,
+  "summary": "Clearly better than round 1. The window chamfers are clean now, the lesson shows from the face (daylight under the band edge in face-300) and in three of the four contact panels, and the timeline has eight steps that each look different. The stone spin is explained. Every recorded gate is green. It is still not a piece Logan would sell. The swell is a step, not a taper: the band runs at constant width (keys 1.56 from theta 68 to 24) and then jumps to a raised collar at theta 80-90, so the head sits on a plinth. The claws and rails still stop on that collar's flat top with no bead, and small dark rectangular slots show under the basket at the collar line. The side faces are still large flat sheets. The claws are thin wire with faceted elbows. Next to Caiman (7) it is sparse, and the head junction is still unresolved. One more round can fix the craft, and one round remains. The template gate is still not recorded and must be run in round 3.",
+  "strengths": [
+    "The idea reads at 300 px. hero-300 shows a claw oval solitaire with three pierced drops down each shoulder, pointed at the head, evenly stepped and mirrored. side.png shows a clean symmetric 3 + 3 fan.",
+    "Round-1 item 3 is fixed. The drop chamfers are continuous, with no hatching at the tips in hero.png, side.png, shoulder.png, reverse.png or the stones.png close-up.",
+    "Round-1 item 5 has largely landed. face-300 shows the window daylight under both shoulder edges, so the face no longer reads as a plain solitaire. contact-300 shows the windows in the hero, face and side panels.",
+    "Round-1 item 4 is fixed. Each timeline tile adds one visible step: the collar in step 1, the bur pilot dot in step 4, and in step 7 a far window that is now large and clear.",
+    "Round-1 item 6 is fixed. report.json stone.spin_note states the spin convention, and face.png shows the oval laid along the band.",
+    "Every recorded gate is green: 8 features Ok, 1.33 M triangles, cold reload identical, thickness minimum 0.904 mm at 0.8."
+  ],
+  "checklist": [
+    {"item": "One idea face to palm, reads at 300 px without the caption", "result": "pass", "reason": "hero-300 and face-300 both show the pierced shoulders. The palm stays plain as the brief says."},
+    {"item": "A finished piece a jeweller would sell: proportion, weight, every part meeting the band", "result": "fail", "reason": "The swell keys hold a plateau (1.56 from theta 68 to 24) and then step to 1.88 at theta 90, so a raised collar plinth meets a constant band with a visible break (timeline tile 1, bare-vs-finished left, face.png at the head). In stones.png the claw feet and lower rail still stop square on the collar's flat top with no bead or fillet. Small dark rectangular slots under the basket show at the collar line in side.png and shoulder.png. The claws are thin, wiry and tall over a heavy 2.4 mm slab, so the head looks perched."},
+    {"item": "No flat, blocky or mechanical CAD", "result": "fail", "reason": "The outer edges now have a highlight roll, but the side faces are still one flat sheet from head to palm (hero.png, reverse.png, palm.png). The windows still look punched into a slab. The claw elbows and feet show faceted, polygonal corners in stones.png."},
+    {"item": "Outlines render crisp, no combing, smearing or stair-steps", "result": "pass", "reason": "The window chamfers are smooth at every tip. The only remaining roughness is the faceted claw elbows (stones.png, upper-left and lower-left claws), which are small at 300 px."},
+    {"item": "Stones sit in made settings and are visible", "result": "pass", "reason": "A made four-claw, two-rail basket holds the oval, visible from the face. The stone still renders as a flat grey disc with little facet life. head_thickness_informational sampled_min is 0.009 mm (25 rays below), which suggests the girdle notch cuts almost through some claw."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "result": "pass", "reason": "Not applicable: a procedural Flat band, not factory stock."},
+    {"item": "Lesson legible in timeline.png: each feature one visible step", "result": "pass", "reason": "8 tiles, each different from the one before: band with collar, stone, basket, bur dot, one window, array, mirror, mirror. Tile 3's caption is cut off ('set into t')."},
+    {"item": "Silhouette distinct from other Officina rings and the starter gallery", "result": "pass", "reason": "Marginal. From the side and the face, the 3 + 3 drop fan and the daylight under the shoulders tell it apart from the Cathedral/Bezel starters and Split gallery. In pure three-quarter outline it is still a generic claw solitaire."}
+  ],
+  "gates": [
+    {"gate": "watertight", "claimed": "true", "verified": "export.gates.watertight true; pattern.watertight true", "pass": true},
+    {"gate": "0 degenerate faces", "claimed": "0", "verified": "export.gates.degenerate_faces 0; pattern.degenerate_faces 0", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "0", "verified": "ring_self_crossings 0; all 7 made_part_self_crossings 0; pattern.self_crossings 0", "pass": true},
+    {"gate": "solids notes empty", "claimed": "empty", "verified": "solids_notes [] and parts_notes []", "pass": true},
+    {"gate": "every CAD feature Ok", "claimed": "8 Ok", "verified": "features 1-8 status Ok in draft and export", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "0", "verified": "vertices_inside_bore 0; min_vertex_radius 9.09999 vs bore radius 9.1", "pass": true},
+    {"gate": "field verdict (lost wax)", "claimed": "Castable", "verified": "field_verdict Castable; the basket and bur undercut notes are informational under wax", "pass": true},
+    {"gate": "sand ray release at 0.100 / 0.075 mm", "claimed": "n/a (lost wax)", "verified": "draft_settings.process LostWax, so this gate does not apply", "pass": true},
+    {"gate": "thickness clean at 0.8 mm", "claimed": "clean", "verified": "limit 0.8, below_limit 0, unresolved 0, sampled_min 0.904 mm (poured shank). Informational: finished-after-bur minimum 0.388 mm (2 rays), head alone minimum 0.009 mm (25 rays)", "pass": true},
+    {"gate": "dfm::cut_lands clean", "claimed": "clean", "verified": "cut_lands []", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings []", "pass": true},
+    {"gate": "stone count equals preview", "claimed": "1 = 1", "verified": "stones_reported 1, stones_previewed 1; stones.json stone_count 1", "pass": true},
+    {"gate": "cold reload identical", "claimed": "true", "verified": "export.gates.cold_reload_identical true (the draft records null, as expected)", "pass": true},
+    {"gate": "export within 2 M triangles", "claimed": "1,334,996", "verified": "export.gates.triangles 1,334,996", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "watertight", "verified": "pattern {watertight true, degenerate 0, self_crossings 0}", "pass": true},
+    {"gate": "template gate (<= 4 design.set patches)", "claimed": "not recorded", "verified": "Still absent from report.json after round 1 asked for it before round 2. Under review.md it applies only once run, so it does not fail this round. It must be run and recorded for round 3: a ship verdict is impossible without it.", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Band (#1) swell keys, theta 8-90 each side", "change": "Replace the plateau-plus-step profile with one monotonic curved taper. Width keys about 90:1.88, 80:1.80, 68:1.66, 53:1.48, 38:1.32, 24:1.16, 8:1.03, -30:1.0, with thickness falling in step (about 1.72 to 1.0). The collar then becomes the crest of the swell, not a plinth set on the band.", "acceptance": "In face.png and timeline tile 1 the band outline flares continuously from the frame edge to the head, with no step or ridge line across the top at theta 75-85. In bare-vs-finished (left) the head region shows no separate raised block."},
+    {"number": 2, "priority": "high", "zone": "Head-to-band junction, theta 78-102: Basket (#3) claw feet, lower rail, collar", "change": "Seat the basket. Add a 0.3-0.4 mm fillet or seam bead where each claw foot and the lower rail meet the band, so the claws grow out of the swell. Remove or fill the small rectangular slots visible under the basket at the collar line.", "acceptance": "In stones.png every claw foot meets the band through a radiused transition with no hard crease. In side.png and shoulder.png no dark rectangular slots show under the basket."},
+    {"number": 3, "priority": "high", "zone": "Side faces, theta 20-160 (the window field) and the side-to-top and side-to-inner edges", "change": "Break the flat sheets. Give the side faces a slight convex crown (about 0.15-0.2 mm at mid-face) or a 0.3-0.4 mm round on all four long edges, so the windows sit in a modelled surface. Keep each window web at MIN_EDGE + 0.2 or more.", "acceptance": "In hero.png and reverse.png the side faces show a graded highlight across their height rather than one uniform flat tone, and the side-to-top and side-to-inner edges each show a highlight roll."},
+    {"number": 4, "priority": "high", "zone": "report.json, template gate", "change": "Run the template gate (lift Fenestra, at most 4 design.set patches within the class budget, Document::through = Some(3)) and record the result in report.json.", "acceptance": "report.json carries a template-gate block showing a patch count of 4 or fewer, within budget, and pass true."},
+    {"number": 5, "priority": "medium", "zone": "Basket (#3) claws", "change": "Thicken the claws to about 0.9-1.0 mm at the foot, tapering to the tip, and raise the tessellation at the claw elbows so the bends render round. Check the girdle notch: head_thickness sampled_min 0.009 mm means some claw is cut almost through. Either keep at least 0.4 mm behind the notch or explain the figure in the report note.", "acceptance": "In stones.png the claw elbows and feet show smooth highlights with no polygon corners. report.json head_thickness_informational sampled_min is 0.4 mm or more, or its note names the notch and why it is safe."},
+    {"number": 6, "priority": "low", "zone": "Stone render and timeline caption", "change": "Give the oval facet contrast (Gem::preview_tint or the finished stone material) so it reads as a gem, not a grey disc. Shorten the caption of timeline tile 3 so it fits.", "acceptance": "In face.png the stone shows distinct table and facet tones. In timeline.png every caption is fully legible."}
+  ],
+  "viewed_images": [
+    "showcase/officina/fenestra/hero-300.png",
+    "showcase/officina/fenestra/face-300.png",
+    "showcase/officina/fenestra/contact-300.png",
+    "showcase/officina/fenestra/hero.png",
+    "showcase/officina/fenestra/face.png",
+    "showcase/officina/fenestra/side.png",
+    "showcase/officina/fenestra/shoulder.png",
+    "showcase/officina/fenestra/stones.png",
+    "showcase/officina/fenestra/palm.png",
+    "showcase/officina/fenestra/reverse.png",
+    "showcase/officina/fenestra/timeline.png",
+    "showcase/officina/fenestra/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}
