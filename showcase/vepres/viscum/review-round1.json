@@ -1,0 +1,64 @@
+{
+  "ring": "viscum",
+  "round": 1,
+  "verdict": "revise",
+  "score": 6.2,
+  "summary": "Revise at 6.2 (Caiman 7, ship bar 7.5; Corvus was cut at 6.6). Every recorded gate is green and matches the JSON. The template gate has not been run yet, so it is not counted against this round. The move to 001 Cushion fixed the petal read. At 300 px face-on, a jeweller says 'mistletoe' or 'a berried sprig' from the forked stalk and the white berry triplets. But none of read test 4's three changes made it into these renders. The face leaves are still thin, even paddles. The crossed four-leaf node at the left end still reads as a propeller or dragonfly in hero-300. The berries are still opaque flat grey with visible facets. The lower-left of the table is still bare. The workmanship is the bigger problem. Every stem joint ('Face joint', 'Shoulder joint') is a crimped, pinched knot with torn creases (stones.png, shoulder-close.png). The 'Face leaf N midrib' parts show as scratch-like slits on the leaves rather than a keel. On the cheek beside the face (reverse.png, shoulder-close.png left), leaf or midrib geometry sticks out of the wall as needle slivers. The junction of the head and the bore is torn and stair-stepped all the way round (hero, side, palm, bare-vs-finished). It is already present on the bare stock that comes through the sand master, and the finished ring keeps it. The oak bark the section specifies for the shank walls is missing, so about 60% of the ring is bare mirror gold. Density sits far below Caiman: one sprig on a large empty table, and four small sprays on the shoulders. The concept is sound and a round can lift it a long way, but the next render has to fix the joint and sliver artifacts, carry out read test 4's leaf, berry and coverage changes, and give the walls the host-oak bark.",
+  "strengths": [
+    "The cushion face killed the petal read. At 300 px it names mistletoe from the dichotomous Y fork and the white berry triplets in the crotches.",
+    "One unit, a forked twig with opposite leaves and a berry triplet, runs from the face over the cheeks onto both shoulders, so the theme is consistent.",
+    "The berries sit in real collets (21 made seats, matching the 21-stone preview) and are coloured white, which suits mistletoe.",
+    "The stalk breaks over the face rim and continues onto the shoulders. The best idea in the ring is that it reads as one bough wrapping the signet.",
+    "The factory 001 table keeps its crisp rim and corner faces on the top side (bare-vs-finished)."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "fail", "reason": "The face and shoulders share the sprig unit, but the shank walls are bare polished gold with no host-oak bark, though the ring's own section specifies bark on the walls. The shoulder sprays sit as four separate islands (reverse.png, palm.png). Below the shoulders the theme stops."},
+    {"item": "Reads as its plant at 300 px without caption", "result": "pass", "reason": "In face-300 the forked stalk and white triplets say mistletoe. It is a weak pass: in hero-300 the left crossed node reads as a propeller or dragonfly and the paddle leaves read as spoons, so some viewers would say 'pearl sprig'."},
+    {"item": "Figurative motifs have true outlines, crisp, no combing or smearing", "result": "fail", "reason": "The leaf outlines are clean, but every 'Face joint' and 'Shoulder joint' node is a pinched knot with torn creases (stones.png at the stalk, shoulder-close.png). The 'Face leaf N midrib' parts render as thin slits. Needle slivers stick out of the cheek wall left of the face (reverse.png, shoulder-close.png). The head-to-bore junction is torn and stair-stepped all round."},
+    {"item": "Stones in made settings, visible, coloured as fruit or buds", "result": "fail", "reason": "The settings are made collets and are visible. The colour reads as opaque flat grey with faceted tessellation (shoulder-close.png), not waxy translucent white fruit. Collets touch: B2.1 to B2.2 is 0.14 mm at the girdle, and in stones.png the face triplets' bezel rims run into one another."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "The stems are uniform tubes broken by mechanical crimp collars. The leaves are flat, even-width paddles with no turn or fleshy section. The berries are flat-walled cups that read as machined bezels."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "result": "pass", "reason": "The 001 table's rim and wall angles survive on the top side (bare-vs-finished.png, side.png). The torn edge where the head meets the bore is a separate defect, logged under outlines."},
+    {"item": "Silhouette distinct from other Vepres rings", "result": "pass", "reason": "A cushion signet with a bough breaking over its edge is unlike Ilex's 006 box, Prunus's 10 x 10 cushion with a sloe, and the vine rings."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "Large form: the table. Medium: the sprig and triplets. There is no small form at all: no bark, no leaf veining, no texture. About half the face table and all of the walls and palm are bare. It is well below Caiman's coverage."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces (draft 768x320)", "claimed": "watertight true, 0 degenerate, 0 boundary/non-manifold edges", "verified": "draft, coarse, export and casting_pattern all watertight with 0 degenerate faces", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "0", "verified": "self_crossings 0 at every build; all 109 made_parts entries have 0 self-crossings, 0 open edges, 0 non-manifold", "pass": true},
+    {"gate": "Solids and parts notes empty", "claimed": "empty", "verified": "solids_notes [] and parts_notes [] at draft, coarse and export", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "bore 18.6", "verified": "bore_margin_mm -4.7e-7 (floating-point zero), so nothing intrudes", "pass": true},
+    {"gate": "Field verdict Castable (lost wax)", "claimed": "Castable", "verified": "field_verdict 'Castable' at all three builds; the two-part undercut notes are informational under wax", "pass": true},
+    {"gate": "Lost wax thinnest wall >= 0.8 mm (replaces sand pull, ray release and clamp)", "claimed": "1.30 mm", "verified": "thinnest_wall_mm 1.296", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] at all builds", "pass": true},
+    {"gate": "Stone count equals preview; no metal in stones", "claimed": "21 = 21", "verified": "stones_reported 21, stones_previewed 21, metal_inside_stones [], stone_warnings []", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "cold_reload_identical true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "1,424,044", "verified": "export.triangles 1,424,044", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "casting_pattern watertight, 0 degenerate, 0 self-crossings, pass true", "pass": true},
+    {"gate": "Template gate (<= 4 design.set patches)", "claimed": "not recorded", "verified": "not yet run (no template block in report.json); required before ship, not counted this round", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P1", "zone": "All 'Face joint' (4) and 'Shoulder joint' (8) parts and the 'Shoulder node' A1-B2 parts, where they meet 'Face stem' and 'Shoulder twig' sweeps", "change": "Replace the crimped collar joints with smooth swollen nodes. Use one blended ellipsoid per node, about 1.3x the stem diameter and 1.6x the stem diameter long, joined to both stems with blend_mm >= 0.3. Remove the pinched waists and torn creases.", "acceptance": "In stones.png and shoulder-close.png every node reads as a smooth bulge on a continuous stalk, with no notches, pinches, crease tears or sharp-edged collars."},
+    {"number": 2, "priority": "P1", "zone": "Cheek wall left of the face (reverse.png left edge, shoulder-close.png left), and the 'Face leaf 1-6 midrib' parts", "change": "Remove the needle slivers sticking out of the cheek wall. Clip or re-seat the leaf and midrib geometry so that no part runs past the wall surface by more than 0.05 mm. Either drop the midrib parts or make each one a continuous keel 0.1 mm tall, ending 0.4 mm short of the leaf tip, instead of a slit.", "acceptance": "No spikes or slivers in reverse.png or shoulder-close.png. On face.png and stones.png the leaves show either a smooth keel or no midrib, with no scratch-like slits."},
+    {"number": 3, "priority": "P1", "zone": "Head-to-bore junction all round the underside of the table (hero, side, palm, bare-vs-finished)", "change": "Fix the torn, stair-stepped rim where the 001 head meets the bore. It is already present on the bare stock, so repair it at the stock: raise the atlas or field resolution across that band, or smooth the envelope join. Close it with a clean fillet of radius about 0.5 mm.", "acceptance": "In side.png, palm.png and the bare half of bare-vs-finished.png the inner edge under the table is one clean continuous curve, with no torn or jagged highlight."},
+    {"number": 4, "priority": "P1", "zone": "Face leaf stamps (6) and Shoulder leaf A1.1-B2.2 (8)", "change": "Read test 4 change 1, still not done. Change the outline from a 6:1 paddle to an obovate blade about 3:1, widest at 60% from the stalk, on a short petiole. Curve each blade 10-15 degrees away from its partner and raise the pillow crown by 0.1 mm. Break the crossed four-leaf node at the left end of the face stalk into two opposite pairs on successive forks.", "acceptance": "In face-300.png and hero-300.png no leaf reads as a spoon, a matchstick or a propeller blade, and no node shows four leaves in a cross."},
+    {"number": 5, "priority": "P1", "zone": "Shank walls and shoulders, theta about 40-150 both sides (the 'Oak bark' layer from the section)", "change": "Add the specified oak bark. Use furrows running round the ring, relief 0.35 mm, on the cheek and shoulder masks, stopping 1 mm short of the face rim and the bore edge, with the palm crest kept bare. The shoulder sprays should sit on the bark, so the host and the parasite read together.", "acceptance": "In reverse.png, shoulder.png and hero.png the walls carry crisp furrowed bark from shoulder to palm, with no smearing. No bare mirror wall is wider than about 3 mm, outside the palm crest."},
+    {"number": 6, "priority": "P2", "zone": "Face table composition", "change": "Read test 4 change 2. Scale the face sprig up about 15% and rotate it about 15 degrees so the main stalk runs corner to corner. Add one forked leaf pair into the empty lower-left quadrant. Bring the sprig to within 1.5 mm of the rim on all sides.", "acceptance": "In face.png and face-300.png no quadrant of the table has more than about 25% bare gold."},
+    {"number": 7, "priority": "P2", "zone": "All 21 moonstones ('Face berry 1-9', 'Shoulder berry A1.1-B2.3') and their collets", "change": "Read test 4 change 3. Use a warmer, translucent milky white with transmission of at least 0.6, a soft inner glow and a sharp small highlight. Smooth the stone tessellation, so no facets show at shoulder-close scale. Separate touching collets to a metal gap of at least 0.25 mm: B2.1 to B2.2 is now 0.14 mm, and the face triplets' rims merge. Give each collet a low rounded rim instead of a flat machined wall.", "acceptance": "In hero-300.png the berries read as waxy white fruit, not grey pearls. Every triplet shows three separate spheres. report.json's closest_stones is at least 0.25 mm."},
+    {"number": 8, "priority": "P3", "zone": "Face and shoulder stems ('Face stem 1-4', 'Shoulder bough A1-B2', 'Shoulder twig')", "change": "Taper each stem by about 30% from base to tip and add a slight 3-5 degree kink at each fork, so the bough looks grown, not tubed.", "acceptance": "In face.png and shoulder.png the stems visibly thin toward the berries and no segment reads as a straight uniform tube."}
+  ],
+  "viewed_images": [
+    "showcase/vepres/viscum/hero-300.png",
+    "showcase/vepres/viscum/face-300.png",
+    "showcase/vepres/viscum/hero.png",
+    "showcase/vepres/viscum/face.png",
+    "showcase/vepres/viscum/side.png",
+    "showcase/vepres/viscum/palm.png",
+    "showcase/vepres/viscum/shoulder.png",
+    "showcase/vepres/viscum/shoulder-close.png",
+    "showcase/vepres/viscum/reverse.png",
+    "showcase/vepres/viscum/stones.png",
+    "showcase/vepres/viscum/bare-vs-finished.png",
+    "showcase/vepres/viscum/contact-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
