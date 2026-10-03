@@ -614,7 +614,7 @@ impl Wolf {
     }
     /// The throat under the chin, hanging over the apex wall, its lowest point a millimetre and more over the finger.
     fn throat(s: P3) -> f64 {
-        ellipsoid(sub(s, [0.0, MOON_U - 4.85, -1.95]), [3.7, 1.6, 1.7])
+        ellipsoid(sub(s, [0.0, MOON_U - 4.85, -2.3]), [3.7, 1.6, 2.2])
     }
     /// A pricked ear: a leaf standing up from the crown's corner, its section a stadium rounded 0.5 mm at the edges and
     /// bowed so the back is convex and the front cupped, twisting outward toward its point, which curls back; a deeper
@@ -837,7 +837,9 @@ impl Wolf {
         let q = self.face(p);
         let d = self.head(q);
         let rho = q[0].hypot(q[1] - MOON_U);
-        let keep = KEEP_OUT_MM - rho;
+        // The keep-out stands over the table only: below it, under the chin, the stock is the floor, and a cylinder run
+        // on down would slit the throat where it meets the apex wall.
+        let keep = (KEEP_OUT_MM - rho).min(q[2] + 0.8);
         let mut d = smax(d, keep, 0.45);
         // The fangs' sheaths reach in over the stone past the keep-out, and are cut to the stone's own dome.
         if len(sub(q, self.stone.1)) < self.stone.2 + 2.5 {
@@ -848,10 +850,7 @@ impl Wolf {
         }
         let g = self.stock.at(p);
         // A skirt just under the stock's surface near the head, so the head meets the stock tangentially.
-        let d = smin(d, (g + 0.12).max(d - 1.2), 0.45);
-        // Where the head hangs a hair off the stock (the throat over the apex wall), a shell over the stock within
-        // 0.4 mm of the head closes the slit, which would cast as a fin.
-        let d = smin(d, (g - 0.15).max(d - 0.4), 0.3);
+        let d = smin(d, (g + 0.12).max(d - 0.9), 0.45);
         let d = smax(d, -(g + BURY_MM), 0.3);
         smax(d, self.bore + BORE_CLEAR_MM - p[0].hypot(p[1]), 0.2)
     }
