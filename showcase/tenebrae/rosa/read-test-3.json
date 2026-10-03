@@ -1,0 +1,33 @@
+{
+  "ring": "rosa",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Better than attempt 2, and close on the face, but it still fails. Face-300: a cushion signet with a round medallion set in a raised circular border. A ruby sits in a collet at the centre, with eight blue stones radiating round it. The lights now end in points at the rim, and small dark pierced triangles sit between and beyond them. But each blue stone is wrapped in its own almond-shaped gold collet, round at the inner end and pointed at the outer, and those eight almonds touching round a red centre are petals. The first read is still 'ruby and sapphire flower', a daisy or lotus medallion. 'Rose window' comes on the second look, from the circular frame and the piercings. The reason is that no straight radial mullion runs from the oculus to the rim. The gold between the lights is the curved sides of neighbouring petals, not bars, so the eye sees a flower and not a spoked wheel of framed lights. The dark spandrel cells are slivers and triangles, with no cusps or foils. The four corners of the cushion outside the circle are blank gold. Hero-300: a smooth cushion signet with the medallion on top. The visible cheek and end wall under the table are still blank: no arcade and no pointed arch, only a few small slots low on the front edge. The shoulder carries four small round holes that read as rivets or a hallmark, not graded windows. Nothing on the ring outside the face says Gothic. A jeweller would say 'flower cluster signet' or 'openwork rosette signet', and 'rose window' only if prompted. Nobody would say 'Gothic cathedral'.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Turn the petals into a spoked window. Replace the almond collet outlines with straight radial mullions, so each light sits in a framed lancet cell and not inside its own petal.",
+      "where": "Table face, r 2.75 (the oculus moulding) to the outer order at about r 7.2, on the 8 lines at 22.5 degrees between the lights",
+      "how_much": "Run 8 straight mullions, 0.8 to 1.0 mm wide, standing 0.3 to 0.4 mm proud of the collet tops and joining the oculus moulding to the outer order without a break. Trim each light's collet to a low bezel (0.3 mm proud at most) inside its cell, so the bright gold that shows is the mullion and not the curved collet wall. Close each cell's outer end in a pointed-arch head against the outer order. Add a ring of 16 small cusps (about 0.5 mm) inside the outer order, the classic cusped rim of a rose. Acceptance: in face-300 eight straight gold spokes and a cusped rim read before the blue stones, and no gold outline traces a petal round any stone."
+    },
+    {
+      "priority": 2,
+      "what": "Put pointed arches on the head walls. The planned 'Wall arcade' still does not show in the hero.",
+      "where": "Both cheeks and both ends of the head, below the table rim",
+      "how_much": "Cut the blind three-lancet-on-sill arcade, 6.0 x 2.4 mm, at least 0.5 mm deep (0.35 is lost at 300 px), with pointed heads and lancets at least 0.7 mm wide so each one throws a dark shadow. Acceptance: in hero-300 a row of three or more dark pointed lancets can be counted on the visible side wall under the table."
+    },
+    {
+      "priority": 3,
+      "what": "Fill the four blank cushion corners outside the rose with Gothic spandrel tracery, so the square plate reads as the west front around the window and not as an empty bezel round a flower.",
+      "where": "The four corner spandrels of the table, outside r 7.5 and inside the filleted rim",
+      "how_much": "Pierce or sink 0.5 mm one trefoil or a pair of mouchettes about 1.6 to 2.0 mm across in each corner, with lands of at least 0.8 mm. Acceptance: in face-300 every corner shows a dark cusped opening, and the circle reads as a window set in carved stone."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/rosa/hero-300.png",
+    "showcase/tenebrae/rosa/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
