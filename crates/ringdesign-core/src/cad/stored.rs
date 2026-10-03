@@ -395,7 +395,7 @@ pub fn digest(doc: &Document, sources: &[Id]) -> String {
             continue;
         }
         if let Some(f) = doc.feature(id) {
-            stack.extend(f.operation.sources());
+            stack.extend(f.sources());
         }
     }
     let mut text = String::new();
@@ -444,7 +444,7 @@ pub(super) fn build(
         }
         None => match &f.component.placement {
             Placement::Free => brep::Placement::IDENTITY,
-            p => p.frame_on(design, ctx.surface)?,
+            p => p.seat_with(design, ctx.surface, &|id| super::host_frame(id, values, frames))?,
         },
     };
     let made = mesh.made()?;

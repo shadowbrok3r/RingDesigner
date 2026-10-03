@@ -63,6 +63,8 @@ pub struct Seam {
     pub points: Vec<P3>,
     pub normals_a: Vec<P3>,
     pub normals_b: Vec<P3>,
+    /// The base's face behind each point.
+    pub a_faces: Vec<u32>,
     /// The tool's face behind each point.
     pub b_faces: Vec<u32>,
 }
@@ -382,7 +384,7 @@ impl Station {
 }
 
 /// The arc stands this much proud of the ball so it crosses each surface at 5–11°.
-fn proud(r: f64) -> f64 { (0.01 * r).clamp(2e-3, 4e-3) }
+pub(crate) fn proud(r: f64) -> f64 { (0.01 * r).clamp(2e-3, 4e-3) }
 
 fn arc_steps(st: &[Station]) -> usize {
     let psi = st.iter().map(|s| s.arc().0).fold(0.0, f64::max);
@@ -619,12 +621,13 @@ pub fn seams(traced: &Traced, a: &Solid, b: &Solid, concave: bool) -> Vec<Seam> 
     csg::seam_loops(traced)
         .into_iter()
         .filter_map(|lp| {
-            let mut seam = Seam { points: Vec::new(), normals_a: Vec::new(), normals_b: Vec::new(), b_faces: Vec::new() };
+            let mut seam = Seam { points: Vec::new(), normals_a: Vec::new(), normals_b: Vec::new(), a_faces: Vec::new(), b_faces: Vec::new() };
             for v in lp {
                 let &(fa, fb) = by_vertex.get(&v)?;
                 seam.points.push(traced.solid.v[v as usize]);
                 seam.normals_a.push(scale(face_normal(&a.v, *a.f.get(fa as usize)?), sa));
                 seam.normals_b.push(scale(face_normal(&b.v, *b.f.get(fb as usize)?), sb));
+                seam.a_faces.push(fa);
                 seam.b_faces.push(fb);
             }
             Some(seam)

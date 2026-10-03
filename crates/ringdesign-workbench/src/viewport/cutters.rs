@@ -201,7 +201,7 @@ mod tests {
         let (edits, _) = under_stone(&d, on.parts.evaluated.as_ref(), 2, CATHEDRAL).unwrap();
         assert_eq!(added(&edits)[0].component.stage, Stage::Cast, "the stone's girdle on the parting line: the arches pour clean");
         let mut off = d.clone();
-        let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.0, height_mm: builders::stand_off_mm("claw4", gem), spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.0, height_mm: builders::stand_off_mm("claw4", gem), spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         off.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == 2).unwrap().component.placement = placement;
         let (edits, _) = under_stone(&off, build(&off).parts.evaluated.as_ref(), 2, CATHEDRAL).unwrap();
         assert_eq!(added(&edits)[0].component.stage, Stage::Bench, "a millimetre along the finger the arches lock and go to the bench");
