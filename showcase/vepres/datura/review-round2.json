@@ -1,0 +1,64 @@
+{
+  "ring": "datura",
+  "round": 2,
+  "verdict": "revise",
+  "score": 6.2,
+  "summary": "Revise at 6.2, up from 5.8 (Caiman 7, ship 7.5). Every gate is now green and verified. The template is 943,798 bytes against the 1,000,000 stock budget, and verification.json (19:18:23) is newer than design.ring.json (19:17:34). The stem now runs round the palm, and the flower's overhang is cut to 4.9 mm and recorded. Those were round-1 items 1, 2 and 6. The art items that keep the score low were not done. (1) The leaves are worse. They now look like crumpled foil or paper: faceted, torn edges with no midrib, no paired veins and no sinuate lobes (face-zoom, stones). At 300 px they read as crumpled paper, not datura leaves. (2) The badge plate is still bare. The lower centre and lower left are about 8 x 6 mm of flat polish, and the four spilled seeds still run in a near-straight column down that empty plate. (3) The capsule is still a smooth upright cylinder with 33 sparse spines; round 1 asked for about 50. In hero.png two claw studs and a downward spine also make an accidental face: two eyes and a nose, a small hooded critter. (4) The new palm stem is a jointed cane with hard ring nodes, which reads as bamboo, not a datura stem. The two shank leaves are small crumpled lumps. (5) There are render-visible artefacts: vertical streaks on the plate below the capsule and frayed collars at the spine roots (stones.png). The flower is still the ring's best passage and names the plant. One more concrete round on the leaves, plate, capsule and stem can plausibly reach 7.5. This is the last revise.",
+  "strengths": [
+    "The trumpet flower is still excellent: a long, swelling tube and a five-pointed corolla with recurved tips. Its silhouette is clean in side, shoulder and reverse, it names datura, and its overhang is now held to 4.9 mm with 0.8 mm tooth sections recorded in report.json.",
+    "The theme now reaches the palm: a raised stem wraps the shank (palm.png, reverse.png), so the ring is no longer a decorated table on bare stock.",
+    "Every gate is green, including the template gate (943,798 bytes, 1 design.set patch), and the verification is newer than the design.",
+    "The face-300 still reads as flower plus spined fruit, the datura pairing, and the asymmetric horn silhouette is unique in Vepres.",
+    "The seeds sit in made settings (seat bur plus thorn claws) in true black spinel, and two show inside the split capsule from the face view."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "pass": true, "reason": "The stem now runs round the shank and palm with two small shank leaves, so the plant is continuous. This is a weak pass: the stem's ring nodes read as bamboo, and the shank leaves at bearings -30 and -95 are lumps too small to read."},
+    {"item": "Reads as its plant at 300 px without the caption", "pass": true, "reason": "In face-300 the trumpet and spined fruit read as datura. In hero-300 the capsule reads as a spiked mace or a little hooded creature, and the leaves read as crumpled foil. The read depends entirely on the flower."},
+    {"item": "Figurative motifs have true outlines, crisp, no combing or stair-steps", "pass": false, "reason": "Leaves 1-5 have torn, faceted, crumpled edges with no clean outline (face-zoom, stones). The spine roots on the capsule show frayed, smeared collars, and there are vertical streak artefacts on the plate below the capsule (stones.png, face-zoom centre)."},
+    {"item": "Stones in made settings, visible, coloured as fruit or buds", "pass": true, "reason": "8 black spinel 1.5 mm in seat burs with thorn claws, coloured as datura seed. The composition is weak: the spilled seeds 5-8 form a near-straight column on bare plate, and the spilled pairs crowd at 0.52-0.68 mm."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "pass": false, "reason": "The capsule is a straight-walled cylinder with evenly spaced studs. The badge plate is a large flat bare field. The stem has mechanical bamboo-like collars. The flower is properly sculpted."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "pass": true, "reason": "The 011 Badge wall-to-table edge and sinuate outline are intact (bare-vs-finished, hero)."},
+    {"item": "Silhouette distinct from the other Vepres rings", "pass": true, "reason": "The trumpet leaving the signet outline is unique in the collection, and with a 4.9 mm overhang it is now wearable."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "pass": false, "reason": "The large forms are there (flower, capsule). The medium tier (leaves) does not read, and about a third of the table is bare. The shank between stem nodes is plain. Density is well short of Caiman's all-over coverage."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 boundary/non-manifold", "claimed": "pass", "verified": "draft and export: watertight true, boundary 0, non-manifold 0, shells 1; casting pattern watertight", "pass": true},
+    {"gate": "0 degenerate faces", "claimed": "0", "verified": "degenerate_faces 0 at draft, export and casting pattern (min angle 0.0026 deg; 4 capsule slivers cleaned)", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "0", "verified": "self_crossings 0 at draft and export; all 42 made_parts entries 0; casting pattern 0", "pass": true},
+    {"gate": "Solids and parts notes empty", "claimed": "empty", "verified": "solids_notes [], parts_notes [], feature_status_not_ok [] at both resolutions", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "bore margin 0", "verified": "bore_margin_mm -8.9e-8 (floating-point zero)", "pass": true},
+    {"gate": "Field verdict Castable (lost wax)", "claimed": "Castable", "verified": "field_process Lost wax, field_verdict Castable at draft and export; undercuts reported only", "pass": true},
+    {"gate": "Thinnest wall >= 0.8 mm (replaces sand field, ray release and clamp for lost wax)", "claimed": "pass", "verified": "thinnest_wall_mm 1.580 at theta 246.1", "pass": true},
+    {"gate": "Parting-line stamps parting_monotone", "claimed": "n/a", "verified": "stamps 0, stamps_struck 0 (lost wax)", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] at draft and export", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "8", "verified": "stones_reported 8 = stones_previewed 8, metal_in_stones [], stone_warnings []; crowding census 7 pairs at 0.52-0.68 mm, explained as pod and spill seeds", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "report cold_reload_identical true; verification.json vertices_faces_normals_identical true, cold_design_reload and cold_graph_reload true, written 19:18:23 after design.ring.json 19:17:34", "pass": true},
+    {"gate": "Export within 2 M triangles", "claimed": "105,778", "verified": "export 105,778 triangles at 1536x448; verification 105,778", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "casting_pattern pass true, watertight, 0 degenerate, 0 self-crossings", "pass": true},
+    {"gate": "Template gate: <= 4 design.set patches within class budget", "claimed": "pass", "verified": "template_gate_passed true, template_bytes 943,798 <= 1,000,000 (stock), 1 design.set patch (/manufacturing), size_review_required false. The margin is thin: editable_design_bytes is 1,002,374.", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "leaves 1-3 (bearings 140-198, upper-left table and left shoulder), leaf 4 (300), leaf 5 (285), shank leaves 1-2", "change": "Carried over from round 1, item 3, and not done. Replace the crumpled-foil meshes with smooth, clean-outlined datura leaves. Each needs a sinuate outline with 3-4 broad, angular lobes per side, 1.0-1.5 mm deep. Add a raised rounded midrib 0.4 mm wide with 3-4 paired lateral veins as smooth ridges, 0.15 mm proud. The blade gets a single gentle cup or twist of 0.5-1.0 mm, with no crumpling or facet creases. Prefer outline::leaf stamps or a Loft over the stored mesh. Bring the shank leaves up to at least 6 mm long.", "acceptance": "In face-zoom.png and stones.png every leaf has a continuous, smooth edge with no torn or faceted segments, and a visible midrib with paired laterals. In face-300 and hero-300 the leaves read as lobed leaves, not crumpled paper. In palm.png the shank leaves read as leaves."},
+    {"number": 2, "priority": "high", "zone": "table plate: lower centre and lower left, below the capsule and right of the flower tube; seeds 5-8", "change": "Carried over from round 1, item 4, and not done. Fill the bare plate. Enlarge leaf 4 to about 9 mm and lay it across the lower centre, lobing over the badge edge. Re-place seeds 5-8 as an irregular, curving fall from the capsule's lowest split. Use lateral offsets of at least 0.8 mm between successive seeds, so no three are within 0.3 mm of one line, and tuck the last seed half under a leaf lobe. Space them 1.5-2.5 mm, with at least 0.8 mm between settings.", "acceptance": "In face.png no bare flat region of the table is wider than about 4 mm. The four spilled seeds do not form a column, and none of their triples is collinear within 0.3 mm. The crowding census shows no spilled pair under 0.8 mm."},
+    {"number": 3, "priority": "high", "zone": "thorn-apple capsule (table centre, theta 90)", "change": "Carried over from round 1, item 5, and not done. Swell the body to an ovoid with its maximum diameter at about 40% of its height, at a 1.3:1 ratio, with no straight cylindrical flank. Raise the spines from 33 to about 50, in 5 offset rows of varied length (1.0-1.8 mm). Remove the accidental face: the two claw studs and the downward spine below them read as eyes and a nose in hero.png. Move or hide those claws, or break the symmetry with spines. Clean the frayed collars at the spine roots and the valve-lip fray.", "acceptance": "report.json capsule.spines >= 48. In hero-300 and side.png the capsule outline is egg-shaped and spined on every side, with no smooth flank wider than 1.5 mm between spines. hero.png shows no eyes-and-nose arrangement. stones.png shows clean, fair spine roots and valve lips with no torn collar."},
+    {"number": 4, "priority": "medium", "zone": "Datura stem on the shank and palm (bearing -165, 54 mm run)", "change": "Make it a datura stem, not bamboo. Remove the hard ring collars, or reduce them to at most 2 soft swellings at the leaf nodes. Give the stem a slight taper (2.2 mm to 1.6 mm) and a gentle twist or sinuous wander of 0.5 mm. Fork a short side shoot carrying a 3-4 mm spined bud on the bare side of the shank, at about 300-340 deg.", "acceptance": "In palm.png and reverse.png the stem shows no evenly spaced ring joints and reads as a plant stem. No bare arc of shank exceeds 90 deg. side.png shows plant form on both shoulders."},
+    {"number": 5, "priority": "medium", "zone": "table plate around the capsule base", "change": "Remove the vertical streak or smear artefacts on the plate directly below and right of the capsule. These are probably blend-bead or projection combing from the capsule seat. Re-seat the capsule bead so it meets the plate as a clean fillet.", "acceptance": "In face-zoom.png and stones.png the plate around the capsule base shows no vertical streaks or comb lines, only a smooth fillet."},
+    {"number": 6, "priority": "low", "zone": "template / verification.json", "change": "Hold the template under budget while adding geometry. It is at 943,798 of 1,000,000 bytes, so moving leaves to stamps or lofts should free room. Rerun --verify after the final build.", "acceptance": "A fresh verification.json, newer than design.ring.json, shows template_gate_passed true, template_bytes <= 1,000,000 and vertices_faces_normals_identical true."}
+  ],
+  "viewed_images": [
+    "showcase/vepres/datura/hero-300.png",
+    "showcase/vepres/datura/face-300.png",
+    "showcase/vepres/datura/contact-300.png",
+    "showcase/vepres/datura/hero.png",
+    "showcase/vepres/datura/face.png",
+    "showcase/vepres/datura/face-zoom.png",
+    "showcase/vepres/datura/side.png",
+    "showcase/vepres/datura/shoulder.png",
+    "showcase/vepres/datura/palm.png",
+    "showcase/vepres/datura/reverse.png",
+    "showcase/vepres/datura/stones.png",
+    "showcase/vepres/datura/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
