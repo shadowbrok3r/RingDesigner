@@ -48,6 +48,9 @@ const HEAD_Y: f64 = 12.9;
 const SILL_CLEAR_MM: f64 = 0.2;
 /// Metal kept between the wall's foot and the bore: lost wax's 0.8 mm section and a little over.
 const LANCET_BORE_LAND_MM: f64 = 0.9;
+/// How squarely the wall must face the cheek's way for a light to stand on it: the lights run down over the
+/// wall's roll toward the bore, as only a bench cut can.
+const CHEEK_FACING: f64 = 0.6;
 /// Each light out from the centre stands this much lower at its head.
 const HEAD_STEP_MM: f64 = 0.15;
 /// Longest edge any outline keeps, mm.
@@ -103,7 +106,7 @@ fn stock(face: (f64, f64)) -> Result<RingDesign> {
     let id = std::env::var("SIG_STOCK").unwrap_or_else(|_| STOCK.into());
     let preset = PRESETS.iter().find(|p| p.id == id).context("no stock")?;
     let mut d = RingDesign::default();
-    ImportedBase::attach(&mut d, sand_master(preset.load()?)?)?;
+    ImportedBase::attach(&mut d, if std::env::var("SIG_RAW").is_ok() { preset.load()? } else { sand_master(preset.load()?)? })?;
     d.imported_base.as_mut().unwrap().sand_envelope = std::env::var("SIG_NOENV").is_err();
     d.name = "Sigillum \u{2014} the chapter seal".into();
     d.profile.apply_style(ProfileStyle::Flat);
@@ -307,10 +310,10 @@ fn fleur(height: f64, depth: f64) -> Vec<Part> {
     let part = |name: &str, outline: Vec<[f64; 2]>, top: StampTop| Part { name: format!("Seal fleur, {name}"), outline: fit(outline), depth: wall, top };
     let mut parts = vec![
         part("centre petal", blade([0.0, -0.75], [0.0, hi], 1.5, 0.42, 0.9), spine([0.0, -0.1], [0.0, 3.0])),
-        part("band", bar(-1.95, 1.95, -1.1, -0.3, 0.2), spine([-1.6, -0.7], [1.6, -0.7])),
+        part("band", bar(-1.8, 1.8, -1.05, -0.35, 0.34), spine([-1.6, -0.7], [1.6, -0.7])),
         // The foot stands clear of the band by a land, as the spikes do.
         // The foot hangs from the band's underside, one figure with it.
-        part("foot", blade_tip([0.0, -0.95], [0.0, lo], 1.0, 0.3, 0.8, false), spine([0.0, -1.5], [0.0, lo + 0.2])),
+        part("foot", blade_tip([0.0, -0.9], [0.0, lo + 0.25], 1.05, 0.4, 0.85, false), spine([0.0, -1.5], [0.0, lo + 0.2])),
     ];
     for (side, name) in [(1.0f64, "right"), (-1.0, "left")] {
         let flip = |q: [f64; 2]| [side * q[0], q[1]];
@@ -323,7 +326,7 @@ fn fleur(height: f64, depth: f64) -> Vec<Part> {
         };
         // The side petal springs from the band beside the centre petal's foot and curls out and down.
         parts.push(part(&format!("{name} petal"), m(curl([1.95, -0.15], 1.05, 188.0, 2.0, 0.8)), StampTop::Pillow { crown_mm: FLEUR_MODEL_MM }));
-        parts.push(part(&format!("{name} spike"), m(blade_tip([0.5, -0.95], [1.55, -2.3], 0.65, 0.3, 0.6, false)), spine(flip([0.7, -1.5]), flip([1.45, -2.2]))));
+        parts.push(part(&format!("{name} spike"), m(blade_tip([0.55, -0.95], [1.05, -2.0], 0.72, 0.35, 0.65, false)), spine(flip([0.7, -1.5]), flip([1.45, -2.2]))));
     }
     parts
 }
@@ -689,9 +692,9 @@ const LEGEND: &str = "\u{2720} sigillum capituli ecclesie cathedralis";
 /// The legend's band, from the quatrefoil's points out to the border's cusps.
 const LEGEND_IN_MM: f64 = 4.45;
 const LEGEND_OUT_MM: f64 = 5.55;
-const LEGEND_DEPTH_MM: f64 = 0.40;
+const LEGEND_DEPTH_MM: f64 = 0.42;
 /// How far each glyph's floor dishes below its walls, so a letter catches the light in any view.
-const LEGEND_PILLOW_MM: f64 = 0.24;
+const LEGEND_PILLOW_MM: f64 = 0.12;
 /// Chord to which the glyphs' curves are walked, mm.
 const LEGEND_CHORD_MM: f64 = 0.06;
 /// The cross's lead past the top, and the gap left before it at the legend's end, degrees.
@@ -724,9 +727,19 @@ fn seal_parts(with_legend: bool) -> Vec<Part> {
     }
     let outer = loops.remove(0);
     parts.push(Part { name: "Seal fleur".into(), outline: keyholed(outer, loops), depth: FLEUR_DEPTH_MM - FLEUR_MODEL_MM, top: StampTop::Pillow { crown_mm: FLEUR_MODEL_MM } });
-    // The band laid across it as its own flat strap, a little deeper, so the bar reads across the figure.
+    // The band drawn as an engraver draws it: a graved line along its top and one along its foot, cut below the
+    // figure's floor, so the bar reads across the fleur.
     if let Some(band) = band {
-        parts.push(Part { name: "Seal fleur, band".into(), outline: band, depth: FLEUR_DEPTH_MM + 0.08, top: StampTop::Flat });
+        let (mut lo, mut hi) = ([f64::MAX; 2], [f64::MIN; 2]);
+        for p in &band {
+            lo = [lo[0].min(p[0]), lo[1].min(p[1])];
+            hi = [hi[0].max(p[0]), hi[1].max(p[1])];
+        }
+        let inset = 0.5 * (hi[1] - lo[1]);
+        for (k, y) in [hi[1] - 0.06, lo[1] + 0.06].into_iter().enumerate() {
+            let (p0, p1) = ([lo[0] + inset, y], [hi[0] - inset, y]);
+            parts.push(Part { name: format!("Seal fleur, band line {}", k + 1), outline: path_band(&[p0, p1], 0.16), depth: FLEUR_DEPTH_MM + 0.05, top: StampTop::Flat });
+        }
     }
     parts.extend(frame(BORDER_RADIUS_MM, BORDER_BULGE_MM, BORDER_LOBES, RULE_MM, RULE_DEPTH_MM));
     if with_legend {
@@ -807,12 +820,13 @@ fn arcades(d: &mut RingDesign, a: &Atlas, rot: f64, placed: &mut Vec<String>) ->
         let foot_at = |x: f64| {
             a.samples
                 .iter()
-                .filter(|s| s.p[2] * side > 0.0 && s.n[2] * side > 0.9 && s.p[0].hypot(s.p[1]) > a.bore + LANCET_BORE_LAND_MM && (s.p[0] - x).abs() < 0.5 * LANCET_W + 0.1)
+                .filter(|s| s.p[2] * side > 0.0 && s.p[1] > a.bore + 0.4 && s.n[2] * side > CHEEK_FACING && s.p[0].hypot(s.p[1]) > a.bore + LANCET_BORE_LAND_MM && (s.p[0] - x).abs() < 0.5 * LANCET_W + 0.1)
                 .map(|s| s.p[1])
                 .fold(f64::MAX, f64::min)
         };
         let xs: Vec<f64> = (0..LANCETS).map(|k| (k as f64 - 0.5 * (LANCETS - 1) as f64) * LANCET_PITCH).collect();
-        let sill = xs.iter().map(|x| foot_at(*x)).fold(f64::MIN, f64::max) + SILL_CLEAR_MM;
+        // Bench work needs no square wall under it: the sill drops onto the wall's roll, a full land above the bore.
+        let sill = (xs.iter().map(|x| foot_at(*x)).fold(f64::MIN, f64::max) + SILL_CLEAR_MM).min(a.bore + LANCET_BORE_LAND_MM + 0.3);
         ensure!(sill < HEAD_Y - 1.2, "no wall under the arcade: sill {sill:.2}, feet {:?}", (0..LANCETS).map(|k| foot_at((k as f64 - 0.5 * (LANCETS - 1) as f64) * LANCET_PITCH)).collect::<Vec<_>>());
         for (k, x) in xs.into_iter().enumerate() {
             let step = (k as f64 - 0.5 * (LANCETS - 1) as f64).abs();
@@ -841,6 +855,18 @@ fn arcades(d: &mut RingDesign, a: &Atlas, rot: f64, placed: &mut Vec<String>) ->
             let f = s.frame(d, &ctx);
             s.rot_deg = (-f.x[1]).atan2(f.y[1]).to_degrees() + rot;
             placed.push(format!("{} at {:.2} deg, v {:.3}, {:.2} mm tall", s.name, at.0, at.1, h));
+            if 2 * k + 1 == LANCETS {
+                // The arcade's sill: one graved bar under all five lights, struck from the centre light's frame.
+                let reach = 0.5 * (LANCETS - 1) as f64 * LANCET_PITCH + 0.5 * LANCET_W + 0.25;
+                let yb = -0.5 * h - 0.25;
+                let mut bar = s.clone();
+                bar.name = format!("Chapter-house sill {}", side_k + 1);
+                bar.outline = densify(&path_band(&[[-reach, yb], [reach, yb]], 0.24), OUTLINE_STEP_MM);
+                bar.sink_mm = 0.3;
+                bar.fine_cap = false;
+                bar.top = StampTop::Flat;
+                d.stamps.push(bar);
+            }
             d.stamps.push(s);
         }
     }
@@ -864,10 +890,10 @@ fn roundel(d: f64) -> Vec<[f64; 2]> {
 
 /// The shoulders' side faces past each end of the head: ring angles and the roundel struck at each, graded down
 /// the shoulder.
-const ROUNDEL_MM: [f64; 3] = [1.8, 1.4, 1.0];
-const ROUNDEL_FIRST_DEG: f64 = 46.5;
+const ROUNDEL_MM: [f64; 3] = [1.7, 1.3, 0.95];
+const ROUNDEL_FIRST_DEG: f64 = 48.0;
 /// The pier of polished wall left between two roundels, mm.
-const ROUNDEL_PIER_MM: f64 = 0.35;
+const ROUNDEL_PIER_MM: f64 = 0.3;
 const ROUNDEL_SINK_MM: f64 = 0.35;
 
 /// Three graded roundels on each shoulder's side faces, struck along the pull at mid-wall, as wide as the wall allows.
@@ -906,11 +932,11 @@ fn shoulder_roundels(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) ->
                 let r = |s: &&ringdesign_core::skin::Sample| s.p[0].hypot(s.p[1]);
                 let (lo, hi) = (wall.iter().map(r).fold(f64::MAX, f64::min), wall.iter().map(r).fold(f64::MIN, f64::max));
                 // A full land on the bore side, where the comfort roll begins, and a lesser one under the crown.
-                let (lo, hi) = (lo + 0.4, hi - 0.35);
+                let (lo, hi) = (lo + 0.35, hi - 0.4);
                 let mid = 0.5 * (lo + hi);
                 let at = wall.iter().min_by(|p, q| ((r(p) - mid).abs() + (p.theta - theta).abs() * 0.1).total_cmp(&((r(q) - mid).abs() + (q.theta - theta).abs() * 0.1))).unwrap();
                 let dia = dia.min(hi - lo);
-                if dia < 0.7 {
+                if dia < 0.75 {
                     break;
                 }
                 d.stamps.push(Stamp {
@@ -971,16 +997,18 @@ fn path_band(pts: &[[f64; 2]], w: f64) -> Vec<[f64; 2]> {
 }
 
 
-/// Half a window's frame on the `side` (-1 left, +1 right): from just past the sill's middle out along the sill,
-/// up the jamb, and over the flank to just past the point.
+/// Half a window's frame on the `side` (-1 left, +1 right): up the jamb from the sill and over the flank to just
+/// past the point.
 fn frame_half(side: f64, width: f64, spring: f64, sill: f64) -> Vec<[f64; 2]> {
     let half = 0.5 * width;
     let top = (0.866 * width).atan2(half);
-    let mut pts = vec![[-side * 0.2, sill], [side * half, sill]];
+    let mut pts = vec![[side * half, sill]];
     // Up the flank, struck from the far springing, to a little past the point.
     let c = [-side * half, spring];
     let a0 = if side > 0.0 { 0.0 } else { PI };
-    let a1 = if side > 0.0 { top + 0.06 } else { PI - top - 0.06 };
+    // Each half runs a hair past the point, enough to lap the other without a spur.
+    let lap = 0.03;
+    let a1 = if side > 0.0 { top + lap } else { PI - top - lap };
     pts.extend(arc(c, width, a0, a1, 14));
     pts.dedup_by(|a, b| (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-6);
     pts
@@ -1016,6 +1044,7 @@ fn window(name: &str, width: f64, height: f64, w: f64, depth: f64) -> Vec<Part> 
         // and half the sill, lapping at the point and at the sill's middle at their own depths.
         Part { name: format!("{name}, frame left"), outline: path_band(&frame_half(-1.0, width, spring, sill + 0.1), w), depth, top: StampTop::Flat },
         Part { name: format!("{name}, frame right"), outline: path_band(&frame_half(1.0, width, spring, sill + 0.1), w), depth: depth + 0.04, top: StampTop::Flat },
+        Part { name: format!("{name}, sill"), outline: path_band(&[[-0.5 * width - 0.5 * w, sill + 0.1], [0.5 * width + 0.5 * w, sill + 0.1]], w), depth: depth + 0.08, top: StampTop::Flat },
     ]
 }
 
@@ -1056,13 +1085,15 @@ fn shoulder_windows(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) -> 
 
 /// The shank's blind arcade: pointed lancets sunk side by side down each shank's crown from the window toward the
 /// palm, graded smaller as the shank narrows, stopping short of the plain palm.
-const SHANK_ARCADE: (f64, f64, f64) = (22.0, -58.0, 1.0);
+const SHANK_ARCADE: (f64, f64, f64) = (22.0, -60.0, 1.0);
 const SHANK_ARCH_MM: (f64, f64) = (1.2, 2.2);
 /// The polished land kept between a light and the crown's edge, mm.
-const SHANK_EDGE_LAND_MM: f64 = 0.45;
+const SHANK_EDGE_LAND_MM: f64 = 0.6;
+/// Polished crown kept between the shoulder window's foot and the first shank light, mm.
+const SHANK_WINDOW_GAP_MM: f64 = 0.6;
 const SHANK_RULE_MM: f64 = 0.2;
 /// The bar left standing between two lights, mm.
-const SHANK_BAR_MM: f64 = 0.55;
+const SHANK_BAR_MM: f64 = 0.5;
 const SHANK_DEPTH_MM: f64 = 0.4;
 
 /// A stamp's turn that sends its outline's +x along `t`, read off its frame at no turn.
@@ -1098,37 +1129,43 @@ fn crown_half_width(a: &Atlas, theta: f64) -> f64 {
 }
 
 fn shank_arcade(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) -> Result<()> {
-    let (from, to, _) = SHANK_ARCADE;
+    let (_, to, _) = SHANK_ARCADE;
     for (sh, sign) in [("right", 1.0f64), ("left", -1.0)] {
-        let mut theta = from;
+        // The first light's head stands half a millimetre short of the shoulder window's foot.
+        let window_foot = WINDOW_THETA_DEG - (0.5 * WINDOW_MM.1 / 12.6).to_degrees();
+        let mut head = window_foot - (SHANK_WINDOW_GAP_MM / 12.0).to_degrees();
+        let from = head;
         let mut k = 0;
-        while theta > to {
-            // Graded: full size under the window, three quarters at the palm's edge.
-            let g = 1.0 - 0.25 * ((from - theta) / (from - to)).clamp(0.0, 1.0);
-            let th = if sign > 0.0 { theta } else { 180.0 - theta };
+        loop {
+            // Graded: full size under the window, three quarters toward the palm.
+            let g = 1.0 - 0.25 * ((from - head) / (from - to)).clamp(0.0, 1.0);
+            let (w0, h) = (SHANK_ARCH_MM.0 * g, SHANK_ARCH_MM.1 * g);
+            let r = 11.6;
+            let centre = head - (0.5 * h / r).to_degrees();
+            if centre - (0.5 * h / r).to_degrees() < to {
+                break;
+            }
+            let th = if sign > 0.0 { centre } else { 180.0 - centre };
             let at = crown_at(a, th).with_context(|| format!("no shank crown at {th}"))?;
-            // Every light closed inside the crown, a land clear of the edge where the crown rolls into the side face.
+            // Wholly inside the crown, with polished crown either side of it.
             let half = crown_half_width(a, th);
-            let h = (SHANK_ARCH_MM.1 * g).min(2.0 * (half - SHANK_EDGE_LAND_MM));
-            let w = h * SHANK_ARCH_MM.0 / SHANK_ARCH_MM.1;
-            // The arches stand across the shank, their points toward the +z side face.
-            let rot = turn_to(d, at, [0.0, 0.0, 1.0]);
+            let w = w0.min(2.0 * (half - SHANK_EDGE_LAND_MM));
+            // Each light lies along the shank, its point toward the table, as a window in the shank's wall would.
+            let thr = th.to_radians();
+            let t = if sign > 0.0 { [-thr.sin(), thr.cos(), 0.0] } else { [thr.sin(), -thr.cos(), 0.0] };
+            let rot = turn_to(d, at, t);
             let map = |p: [f64; 2]| [p[1], -p[0]];
             let outline: Vec<[f64; 2]> = lancet(w, h).into_iter().map(map).collect();
             k += 1;
-            let mut s = intaglio(&format!("Shank arcade, {sh} {k}"), at, rot, outline, SHANK_DEPTH_MM, StampTop::Pillow { crown_mm: 0.18 });
+            let mut s = intaglio(&format!("Shank arcade, {sh} {k}"), at, rot, outline, SHANK_DEPTH_MM, StampTop::Pillow { crown_mm: 0.15 });
             s.bench = true;
             d.stamps.push(s);
-            // The arcade's sill: one graved line under every light, each run lapping the next at its own depth.
-            let run = 0.5 * (w + SHANK_BAR_MM) + 0.12;
-            let y = -0.5 * h - 0.28;
-            let rail: Vec<[f64; 2]> = path_band(&[[-run, y], [run, y]], SHANK_RULE_MM).into_iter().map(map).collect();
-            d.stamps.push(intaglio(&format!("Shank sill, {sh} {k}"), at, rot, rail, if k % 2 == 0 { 0.26 } else { 0.3 }, StampTop::Flat));
-            placed.push(format!("Shank arcade, {sh} {k} at {:.2} deg, {:.2} x {:.2} mm, crown {:.2} mm across", at.0, w, h, 2.0 * half));
-            // The next arch a span and a land on, in degrees at this radius.
-            let r = a.point(at.0, at.1);
-            let r = r[0].hypot(r[1]);
-            theta -= ((w + SHANK_BAR_MM) / r).to_degrees();
+            // Its sill: a graved bar across the light's foot.
+            let y = -0.5 * h - 0.22;
+            let sill: Vec<[f64; 2]> = path_band(&[[-0.5 * w - 0.15, y], [0.5 * w + 0.15, y]], SHANK_RULE_MM).into_iter().map(map).collect();
+            d.stamps.push(intaglio(&format!("Shank sill, {sh} {k}"), at, rot, sill, 0.3, StampTop::Flat));
+            placed.push(format!("Shank arcade, {sh} {k} at {:.2} deg, {:.2} across x {:.2} along, crown {:.2} mm across", at.0, w, h, 2.0 * half));
+            head = centre - ((0.5 * h + 0.22 + SHANK_BAR_MM) / r).to_degrees();
         }
     }
     Ok(())
