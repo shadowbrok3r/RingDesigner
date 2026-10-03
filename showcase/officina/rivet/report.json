@@ -1,4 +1,16 @@
 {
+  "authored": {
+    "gap_mm": 0.4172641894554391,
+    "large_foot_mm": 2.135415650406262,
+    "large_proud_mm": 0.38,
+    "pitch_deg": 22.5,
+    "rivets": 32,
+    "small_foot_mm": 1.4282856857085704,
+    "small_proud_mm": 0.30000000000000004,
+    "strap_proud_mm": 0.48,
+    "strap_wide_mm": 3.0
+  },
+  "bore_mm": 18.2,
   "draft": {
     "authored": {
       "gap_mm": 0.4172641894554391,
@@ -121,5 +133,120 @@
     "sand": "Delft clay",
     "size": "US 8.11",
     "slug": "rivet"
-  }
+  },
+  "gates": {
+    "all_features_ok": true,
+    "bore_radius_mm": 9.1,
+    "boundary_edges": 0,
+    "build": [
+      1536,
+      448
+    ],
+    "build_s": 18.834461665,
+    "closest_to_axis_mm": 9.099999519792503,
+    "cold_reload_identical": true,
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "features": [
+      [
+        1,
+        "Band",
+        "Ok"
+      ],
+      [
+        2,
+        "Large rivet head",
+        "Ok"
+      ],
+      [
+        3,
+        "Sixteen round the ring",
+        "Ok"
+      ],
+      [
+        4,
+        "Small rivet head",
+        "Ok"
+      ],
+      [
+        5,
+        "Sixteen between them",
+        "Ok"
+      ]
+    ],
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Judged with the ring as built: 4 CAD parts (4 joined, 0 cut) at the parting plane z = +0.00 mm — 117.5 mm² of part surface, none of it locking."
+    ],
+    "field_verdict": "Castable",
+    "inside_finger_hole": 0,
+    "lost_wax_cut_lands": [],
+    "lost_wax_thickness_below": 0,
+    "made_parts": [
+      [
+        "Large rivet head",
+        0
+      ],
+      [
+        "Sixteen round the ring",
+        0
+      ],
+      [
+        "Small rivet head",
+        0
+      ],
+      [
+        "Sixteen between them",
+        0
+      ]
+    ],
+    "mesh_self_crossings": 0,
+    "non_manifold_edges": 0,
+    "parts_notes": [],
+    "passed": true,
+    "pattern": {
+      "degenerate_faces": 0,
+      "notes": [],
+      "self_crossings": 0,
+      "triangles": 1527972,
+      "watertight": true
+    },
+    "release": [
+      {
+        "fits_flask": true,
+        "low_draft_area_mm2": 128.52101499769054,
+        "obstructions": 0,
+        "pitch_mm": 0.1,
+        "status": "Review",
+        "unresolved_rays": 0,
+        "worst_draft_deg": -2.3427763321248216
+      },
+      {
+        "fits_flask": true,
+        "low_draft_area_mm2": 128.52101499769054,
+        "obstructions": 0,
+        "pitch_mm": 0.075,
+        "status": "Review",
+        "unresolved_rays": 0,
+        "worst_draft_deg": -2.3427763321248216
+      }
+    ],
+    "solids_notes": [],
+    "stones_previewed": 0,
+    "stones_reported": 0,
+    "thinnest_wall_mm": 1.264339288350179,
+    "triangles": 1527972,
+    "undercut_percent": 0.00005720473521782538,
+    "watertight": true,
+    "within_2m_triangles": true,
+    "worst_draft_deg": -1.9706269244526944
+  },
+  "min_detail_mm": 0.3,
+  "min_draft_deg": 3.0,
+  "min_section_mm": 0.8,
+  "process": "Sand (two-part)",
+  "ring": "Rivet",
+  "sand": "Delft clay",
+  "size": "US 8.11",
+  "slug": "rivet"
 }
