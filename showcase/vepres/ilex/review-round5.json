@@ -1,0 +1,65 @@
+{
+  "ring": "Ilex — the Holly King's standard (ilex)",
+  "round": 5,
+  "verdict": "cut",
+  "score": 6.8,
+  "summary": "Cut at 6.8. This is round 5, the last of the two extra rounds Logan granted. Earlier rounds scored 5.6, 6.2, 6.3 and 6.6. Caiman scores 7 and the ship bar is 7.5. Basiliscus was cut at 7.2 and Kraken at 7.0. Two things stop a ship. (A) A gate is red. report.json records gates_passed false, and draft.pass, coarse.pass and export.pass are all false because thinnest_wall_pass is false. The wall census reads 79 samples under 0.8 mm. 74 of them belong to the bare native 006 at its palm bore edge. The other 5 are added by the design: single samples of 0.50 to 0.80 mm at about [-6.64, 10.80, 8.44], [-2.95, 11.06, 8.46], [7.06, -8.65, 1.05] and [8.98, -6.71, -1.08]. Under the rules a red gate is an automatic revise, but no round remains. (B) The art is below the bar even with every gate green. The face is now good. The 7.5 mm face leaves stand 0.7 mm, are domed, carry crisp spines and inked veins, and the parting-line seam is gone. The face berries sit in a neat triangle, and the table matte is one field. The cheek berries are regrouped into a triangle (v 15.77 against 16.79), and the template gate is recorded again (1 patch, 828,279 bytes, cold reload identical). The rest of the ring has not caught up. (1) Each cheek still has two leaves, not three. They are 0.3 mm thin wafers, and the end wall under them is still swollen and lumpy (cheek.png, side.png). (2) The garland is still flat, vertical-walled bat plates on a straight bar of 26 struck capsule stamps. The bar ends in a rounded stub that runs past the last leaf (garland.png), and the leaves have no pillow. (3) The shoulder stipple still renders as large triangulated facets with a ragged edge (garland.png, reverse.png). In hero.png the table matte reads as scattered dashes, and it smears at the table's inset edge (leaf.png). (4) The palm and lower flanks are bare polish with the stock's banding. Density is well below Caiman and the Reptilia sheet. Holly reads clearly at 300 px. But the ring is a polished box with a fine badge on top and lesser ornaments elsewhere, short of Logan's 'most insane rings we've done'. No round remains, so the ring is cut. If Logan reopens it, the face sprig is worth keeping as a stamp set for a later ring.",
+  "strengths": [
+    "Face leaves at 7.5 mm and 0.7 mm high, pillowed, with crisp spine points and inked midrib and veins. There is no parting-line seam or notch now (leaf.png, stones.png, face.png). This is the best passage the ring has had in five rounds.",
+    "Face berries are a tidy triangle in made gypsy-mound seats, berry-red and fully visible. The sprig says holly at 300 px with no caption (hero-300.png, face-300.png).",
+    "Cheek berries are regrouped from a straight row into a triangle bunch, apex toward the table (placed.cheek v 15.772 against 16.789; cheek.png).",
+    "The table carries one continuous matte field with polished halos round the motifs. The two-panel box is gone for good.",
+    "The template gate is restored: verification.json gives 1 design.set patch, 828,279 bytes under the 1 MB stock budget, and cold design and graph reloads identical.",
+    "The native 006 keeps a flat table and the factory's hard wall-to-face angles (bare-vs-finished.png)."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "Holly on the face, both cheeks and both shoulders; the palm is bare by plan. The stipple is a field, not a stray motif."},
+    {"item": "Reads as its plant at 300 px without caption", "result": "pass", "reason": "hero-300 and face-300: two spined leaves flanking three red berries read as holly at once."},
+    {"item": "Figurative motifs have true, crisp outlines", "result": "fail", "reason": "The face leaves are crisp now. But the garland stem is a chain of struck capsules ending in a stub past the last leaf (garland.png). The shoulder stipple renders as triangulated facets with a ragged border. The table matte smears into streaks at its inset edge (leaf.png, left side)."},
+    {"item": "Stones in made settings, visible, coloured as fruit", "result": "pass", "reason": "Nine garnets in gypsy-mound seats, all visible and berry-red. The face and both cheeks now carry triangle bunches, not rows."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "The cheek leaves (0.3 mm) and garland leaves (0.34-0.45 mm) are flat plates with vertical walls and no pillow. The garland stem is a straight bar. The cheek end wall below the leaves is lumpy and swollen (cheek.png, side.png)."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "result": "pass", "reason": "Native 006, no sand master: the table edges are crisp in hero.png and bare-vs-finished.png."},
+    {"item": "Silhouette distinct from other Vepres rings", "result": "pass", "reason": "The square 19.2 x 17 signet with a parting-line garland is unique in the collection so far."},
+    {"item": "Large, medium, small forms; density and legibility at least Caiman's", "result": "fail", "reason": "Large (face leaves) and small (berries, veins, matte) are present, but the medium tier is thin: two wafer leaves a cheek and plate garland leaves. The lower flanks and palm are bare polish with stock banding (palm.png). That is well under Caiman's or Varanus's fully worked surfaces."}
+  ],
+  "gates": [
+    {"gate": "Process", "claimed": "Lost wax (Logan 2026-10-03), 0.8 mm minimum section", "verified": "process 'Lost wax'; draft.min_section_mm 0.8", "pass": true},
+    {"gate": "Watertight, 0 degenerate faces", "claimed": "pass", "verified": "watertight true, degenerate_faces 0, boundary and non-manifold edges 0 at coarse, draft and export", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "pass", "verified": "self_crossings 0 at all builds; made_parts []", "pass": true},
+    {"gate": "Solids and parts notes empty", "claimed": "pass", "verified": "solids_notes [] and parts_notes [] at all builds", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass (tolerance 0.01)", "verified": "bore_margin_mm -0.00209 at all builds, the same as round 4. Round 4's punch 7 asked for >= -0.0005 and was not done. It is within the author's tolerance.", "pass": true},
+    {"gate": "Field verdict Castable", "claimed": "Castable", "verified": "field_verdict 'Castable'; undercut 0.024% (worst 8.4 deg at face berries 2 and 3), fine for investment casting", "pass": true},
+    {"gate": "Lost wax thinnest wall >= 0.8 mm", "claimed": "Reported as failing; the author attributes 74 of 79 samples to the bare stock", "verified": "thinnest_wall_pass false and pass false at coarse, draft and export; gates_passed false. wall_census: 79 wall samples, 0.0427 mm2, clean false. The bare 006 alone reads 74 (resize_check), mostly at the palm bore edge at x +/-2.6, y -9.2. The 5 the design adds are 0.50-0.80 mm: 0.502 at [-6.64, 10.80, 8.44], 0.765 at [-2.95, 11.06, 8.46], 0.798 at [7.06, -8.65, 1.05], 0.797 at [8.98, -6.71, -1.08]. The gate is red as recorded, and the author added walls under the floor.", "pass": false},
+    {"gate": "Ray release / clamp / parting_monotone (sand only)", "claimed": "Not gated for lost wax; reported as sand_bonus", "verified": "Replaced by the wall gate. For the record: 123 / 166 obstructions, 0 unresolved, clamp_bites [], and face and cheek leaves not monotone. sand_bonus.pulls_from_sand_as_is false.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] at all builds", "pass": true},
+    {"gate": "Stone count equals preview; no metal in stones", "claimed": "9 = 9", "verified": "stones_reported 9, stones_previewed 9, seats_resolved 9, metal_inside_stones 0 for all, stone_warnings []", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "cold_reload_identical true; verification.json vertices_faces_normals_identical true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "1,554,548 triangles at 1536 x 448", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "watertight, 0 degenerate, 0 self-crossings, 408,124 triangles", "pass": true},
+    {"gate": "Template gate (<= 4 design.set patches, identical cold lift, within class budget)", "claimed": "pass", "verified": "template_gate_passed true; 1 design.set patch (/manufacturing); source_identical true; template_bytes 828,279 <= 1,000,000 (stock class); open time recorded (first_build 4.0 s)", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P0", "zone": "Wall gate: the 5 design-added wall samples at [-6.64, 10.80, 8.44], [-2.95, 11.06, 8.46], [7.06, -8.65, 1.05], [8.98, -6.71, -1.08]", "change": "Only if Logan reopens the ring. Find the stamp or seat edge at each point (the first two sit at the table's upper end near the face-leaf stem and cheek bunch; the last two sit on the lower shoulders near the garland stem ends) and thicken, round or trim it so its section is >= 0.8 mm. Then either get the stock's 74 palm-edge samples waived in writing as stock-inherent, or fill them.", "acceptance": "report.json: thinnest_wall_pass true and gates_passed true at all builds, or wall_samples equal to the bare stock's 74 with a recorded waiver."},
+    {"number": 2, "priority": "P0", "zone": "Cheek sprays, both end walls ('Cheek leaf 1/2, 1-2' at theta 67.85/112.15)", "change": "Add the third leaf per cheek, pointing toward the bore below the bunch. Raise all cheek leaves from 0.3 to 0.5 mm with the face leaves' pillow top, and grow them to 6.0 x 3.2 mm. Remove the swelling on the end wall beneath the leaves so the wall is flat polish between motifs.", "acceptance": "cheek.png and side.png: three domed leaves framing the triangle bunch and a smooth wall around them; report.json shows 3 cheek leaves per side at height_mm >= 0.5."},
+    {"number": 3, "priority": "P1", "zone": "Garland ('Garland stem, left/right 1-13', 'Garland leaf, left/right 1-7')", "change": "Replace the 26 struck capsules with one swept, round-sectioned stem 0.6 to 0.4 mm that curves with the shank and ends in a tendril before the palm, not in a stub past the last leaf. Pillow every garland leaf (0.2 mm rise).", "acceptance": "garland.png: no straight bar, no stub, no joints; the leaves read as domed blades."},
+    {"number": 4, "priority": "P1", "zone": "'Shoulder stipple, left/right' and the inset edge of 'Table stipple'", "change": "Resample the shoulder stipple at the export chart's resolution with 0.25-0.35 mm cells and a 0.3 mm feathered border. Feather the table inset edge.", "acceptance": "garland.png and reverse.png: no triangulated facets and no ragged edge; leaf.png: no streaks at the inset edge; hero.png: a uniform matte, not dashes."}
+  ],
+  "viewed_images": [
+    "showcase/vepres/ilex/hero-300.png",
+    "showcase/vepres/ilex/face-300.png",
+    "showcase/vepres/ilex/contact-300.png",
+    "showcase/vepres/ilex/hero.png",
+    "showcase/vepres/ilex/face.png",
+    "showcase/vepres/ilex/leaf.png",
+    "showcase/vepres/ilex/cheek.png",
+    "showcase/vepres/ilex/side.png",
+    "showcase/vepres/ilex/garland.png",
+    "showcase/vepres/ilex/shoulder.png",
+    "showcase/vepres/ilex/reverse.png",
+    "showcase/vepres/ilex/palm.png",
+    "showcase/vepres/ilex/stones.png",
+    "showcase/vepres/ilex/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

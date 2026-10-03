@@ -111,7 +111,7 @@ This file writes Viscum for route 1 and lists the deltas for route 2.
 | 2 | Sentis | *the briar thicket* | CAD only: four swept canes on a torus liner | Lost wax | 1 ruby round 4.0 | Not started; blocked on C-V4 and P6 (fallbacks exist); **build last** |
 | 3 | Rosa mortua | *the dead rose* | Procedural `ShankKind::Bypass`, HighDome 3.6 × 2.7 | Lost wax | Ruby pear 7 × 5 (bud); **garnet round cabochon 6.0** (hip) | Not started; blocked on P6 (Sepal), C-B2 (pear) and C-V1 (`Relative`) for full fidelity |
 | 4 | Hedera | *the strangling ivy* | Procedural `Uniform` DShape 5.5 × 2.0 host, plus a CAD vine | Lost wax | 7 black spinel round cabochons 2.2 | Not started; blocked on C-V2 for the rootlets (stamp fallback) |
-| 5 | Ilex | *the Holly King's standard* | Factory **006 Square**, native, 19.2 × 17 (revival; rounds 1 to 3 were 16 × 17 through the sand master) | Lost wax from round 4 (Logan, 2026-10-03); rounds 1 to 3 were Delft sand | 9 garnet round cabochons (3 × 2.0, 6 × 1.5) | Cut at 6.3 on 2026-10-02; revived 2026-10-03 with two extra rounds |
+| 5 | Ilex | *the Holly King's standard* | Factory **006 Square**, native, 19.2 × 17 (revival; rounds 1 to 3 were 16 × 17 through the sand master) | Lost wax from round 4 (Logan, 2026-10-03); rounds 1 to 3 were Delft sand | 9 garnet round cabochons (3 × 2.0, 6 × 1.5) | Cut at 6.3 on 2026-10-02; revived 2026-10-03; cut at 6.8 after round 5 |
 | 6 | Viscum | *the golden bough* | Factory **003 Clover** 18 × 18, native (route 1) | Lost wax (route 1) | 21 moonstone round cabochons | Not started; **blocked on Logan's process decision**, then buildable now |
 | 7 | Prunus | *Straif, the blackthorn* | Factory **012 Cushion** 10 × 10, sand master | Sand (Delft) | Onyx **round** cabochon 7.0 (the sloe); 4 diamonds 1.3 | Not started; buildable now at draft; final verdict gated on C-V1 `level` or a 012 prickle-probe row |
 | 8 | Datura | *the thorn-apple* | Factory **011 Badge** 18 × 20, native | Lost wax | 8 black spinel round 1.5 | Not started; blocked on C-V1 (`Relative`) for a template that survives resize |
@@ -601,7 +601,7 @@ That is expected for most Vepres rings. Say so in each README line.
 
 ## Ilex — *the Holly King's standard*
 
-- **Status:** Cut at 6.3 after three reviewed rounds on 2026-10-02 (5.6, 6.2, 6.3), then revived (below). Example `ex/vepres_ilex.rs`, outputs `showcase/vepres/ilex/`.
+- **Status:** Cut at 6.3 after three reviewed rounds on 2026-10-02 (5.6, 6.2, 6.3). Revived on 2026-10-03 (below) and **cut again at 6.8 after round 5** (round 4: 6.6, revise; round 5: 6.8, cut). The face sprig is worth keeping as a stamp set. Example `ex/vepres_ilex.rs`, outputs `showcase/vepres/ilex/`.
 
 - **Extension (Logan, 2026-10-03):** two more reviewed rounds granted, rounds 4 and 5, beyond the three-round cap.
 
