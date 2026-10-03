@@ -1,0 +1,93 @@
+{
+  "ring": "sigil",
+  "round": 2,
+  "verdict": "revise",
+  "score": 7.2,
+  "summary": "A big step from round 1. The BMW roundel is gone: the field is now a heater shield, quartered by a polished cross, with the first and fourth quarters sunk. Both face-300 and hero-300 read 'quartered shield on a signet' without a caption. The shank no longer shows stair-step highlights, the bore seam is gone, and the cut depths are even (quarters 0.436 to 0.468 mm; bordure 0.421 mm along the finger against 0.357 mm round the ring). Every recorded gate is green. Three things keep it below 7.5. (1) The outer wall of the bordure ring combs: a milled-coin serration runs round the table edge in hero.png, stones.png and timeline frame 8, and the right-hand arc of the bordure stair-steps in face.png (about x 1030 to 1050, y 780 to 950). That fails the crisp-outline rule on the one edge that frames the idea. (2) The lesson grew to 8 features, against the 7 Logan decided (section 0). The three crown features (5 to 7) are machinery for even depth. In timeline frames 5 to 7 the camera swings to the other side of the ring, and frame 7 hides the seal behind an opaque slab, so a student loses the thread. (3) The shank fix is in the shading only. The report says the polished metal's normals are diffused over 0.6 mm, and mesh.json min_angle is still 0.002 degrees, so round 1's numeric acceptance is unmet. The renders are now clean, so I accept that for the gallery, but the STL a customer downloads still carries the slivers. Smaller points: the shield's outline is open at the four cross ends and only grooved on the raised quarters, so at 1600 px it reads as four pieces rather than one escutcheon. The 4-micron 'Parting seam dressed' bead that turns a bare 'castable with care' into Castable sits in layers, outside the timeline and the feature count. That is honest in the notes, but the README must name it. Fix the bordure edge and the timeline, and this ships in round 3.",
+  "strengths": [
+    "One idea, face to palm: a quartered shield in a bordure on the table, with bare stock everywhere else. Nothing is scattered.",
+    "The heraldic read is now unmistakable at 300 px in both the hero and the face. The polished cross between two sunk quarters is a correct 'quarterly' field, not a logo.",
+    "The intaglio walls are square and clean, and the sunk floors show a satin tone against the polished table (stones.png). Depths are even across the crowned table, as round 1 asked.",
+    "The shoulders, reverse and palm now carry continuous highlights with no stair-steps or quilting, and the bore seam lines are gone (palm.png).",
+    "The stock's hard table-wall and shoulder-notch angles survive the smoothing (hero.png, side.png).",
+    "All bench cuts sit in the bench component, so the casting pattern is the bare stock and the Delft verdict judges the pour honestly."
+  ],
+  "checklist": [
+    {"item": "One idea face to palm, reads at 300 px without the caption", "result": "pass", "reason": "face-300 and hero-300 both read as a quartered shield signet. The shank and palm are bare stock and do not compete."},
+    {"item": "Finished piece a jeweller would sell (proportion, weight, every part meeting the band)", "result": "pass", "reason": "This is a saleable 10.98 g 18k signet with a seal sunk square into the table. It is held back only by the edge finish noted below."},
+    {"item": "No flat, blocky or mechanical CAD", "result": "pass", "reason": "The shank highlights are continuous now (shoulder.png, reverse.png). The reverse shoulder is a little soft and lumpy where the stock's table runs into the shank, but there are no slabs or cut sheet."},
+    {"item": "Outlines crisp, no combing, smearing or stair-steps", "result": "fail", "reason": "The outer wall of the bordure ring is serrated like a milled coin edge (hero.png lower left of the table, stones.png right and lower arcs, timeline frame 8). The right arc of the bordure stair-steps in face.png. The shield and quarter walls themselves are crisp."},
+    {"item": "Stones in made settings and visible", "result": "pass", "reason": "Not applicable: no stones; preview and report both count 0."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "Normal diffusion stops at edges sharper than 20 degrees. The table wall and shoulder notch stay hard in hero.png and side.png."},
+    {"item": "Lesson legible in timeline.png", "result": "fail", "reason": "There are 8 frames against Logan's 7-feature decision. Frames 5 to 7 swap to the opposite camera, and frame 7's opaque slab hides the seal entirely. Frames 5 and 6 add only overlays. A student can follow frames 1 to 4 and 8, but not the crown detour."},
+    {"item": "Silhouette distinct from the other Officina rings and the starter gallery", "result": "pass", "reason": "The outline is bare stock 013 by Logan's decision (section 0), so it shares the 013 starter's silhouette. The seal is what sets it apart, and it is now distinct from Rivet, Keystone, Aile, Torsade and Fenestra and from the stone starters."}
+  ],
+  "gates": [
+    {"gate": "watertight, 0 degenerate faces", "claimed": "watertight true, degenerate 0", "verified": "mesh.json: 0 boundary edges, 0 non-manifold edges, 0 degenerate faces. min_angle is still 0.002 degrees (slivers, not a gate)", "pass": true},
+    {"gate": "0 self-crossings on the ring and every made part", "claimed": "ring 0; 'Seal sunk' 0", "verified": "gates.ring_self_crossings 0; made_parts [['Seal sunk', 0]]", "pass": true},
+    {"gate": "solids notes and parts notes empty", "claimed": "[]", "verified": "solids_notes [] and parts_notes []", "pass": true},
+    {"gate": "every CAD feature Ok", "claimed": "features_ok true", "verified": "features #1 to #8 all Ok", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "bore_clear true", "verified": "min_vertex_radius 9.0999995 mm against a bore radius of 9.1 mm", "pass": true},
+    {"gate": "sand field verdict Castable", "claimed": "Castable at 192x128 and 256x128", "verified": "field_verdict Castable at both, undercut 0.0%. The process is SandTwoPart / DelftClay. Note: the bare master fields 'castable with care' (0.07% at -0.8 deg). The 0.5 x 0.004 mm 'Parting seam dressed' Border layer is what clears it, and the notes disclose this.", "pass": true},
+    {"gate": "ray release 0 obstructions, 0 unresolved at 0.100 and 0.075 mm", "claimed": "[0,0] at both", "verified": "release_0100 [0,0,'Review'] and release_0075 [0,0,'Review']. Both counts are 0.", "pass": true},
+    {"gate": "lost-wax thickness 0.8 and cut_lands", "claimed": "cut_lands_08 []", "verified": "cut_lands_08 is empty and the thinnest wall is 1.37 mm. Sand ring, so this is informational.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "[]", "verified": "dfm_findings []", "pass": true},
+    {"gate": "stone count equals preview", "claimed": "0 / 0", "verified": "stones.json has an empty stones list, and stones_previewed equals stones_reported at 0", "pass": true},
+    {"gate": "cold reload identical", "claimed": "true (gates; draft block null)", "verified": "gates.cold_reload_identical true", "pass": true},
+    {"gate": "export within 2 million triangles", "claimed": "within_two_million true", "verified": "1,364,220 triangles (mesh.json)", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "pattern watertight, 0 degenerate, 0 crossings", "verified": "gates.pattern_watertight true, 0 degenerate, 0 crossings, 1,376,256 triangles, casting-pattern.stl present", "pass": true},
+    {"gate": "template gate (at most 4 design.set patches)", "claimed": "null (not run)", "verified": "Not run yet: it waits on P7 base.preset (section 2). Not failing at this stage.", "pass": true}
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P0",
+      "zone": "Bordure ring outer wall and table edge, full 360 deg round the seal at theta 90 (features #4 'Seal cutter' and #8 'Seal sunk', where the cut wall meets the crowned table)",
+      "change": "Remove the milled-coin serration and the stair-step on the bordure's outer circle. Tessellate the bordure circles at a chord of 0.02 mm or less, or with at least 720 segments. Make the intersect slab and the stock share that resolution where they cross, so the wall's top edge is one clean curve. Do not round the edge: it stays a square intaglio wall.",
+      "acceptance": "In stones.png and hero.png the outer edge of the bordure is one smooth, continuous highlight with no teeth. In face.png the right arc of the bordure has no visible steps at 1600 px."
+    },
+    {
+      "number": 2,
+      "priority": "P1",
+      "zone": "Feature history #5 'Crown plane', #6 'Crown', #7 'Crown let down', #8 'Seal sunk', and timeline.png frames 5 to 7",
+      "change": "Bring the lesson back to Logan's 7 features. Preferred: fold the crown plane into the crown sketch by sketching the crown on a Plane Section at theta 90 that the sweep also uses, or reuse #2 if the API allows. Otherwise drop the separate #4 'Seal cutter' frame by feeding the seal regions straight into the intersect. If 8 truly cannot be avoided, record Logan's acceptance in the Sigil section. In every case render frames 5 to 7 from the same camera as frames 1 to 4 and 8, and draw the slab of #7 translucent (about 35% opacity) so the seal stays visible.",
+      "acceptance": "timeline.png shows 7 frames, or the doc records Logan's sign-off on 8. All frames use one camera, the seal is visible in every frame from #3 on, and each frame shows one new thing."
+    },
+    {
+      "number": 3,
+      "priority": "P1",
+      "zone": "Stock 013 shank mesh (shoulders theta 20 to 160 deg and the reverse), finished-metal.stl",
+      "change": "Round 1's numeric acceptance is still open: the fix is shading-only. Either remesh the slivers the CSG leaves along the seal cuts and stock seams (collapse triangles with an angle under 1 deg) so the exported metal matches the render, or state in the README that the facets are 0.55 mm and stand within microns, and that the shading is smoothed for the render only.",
+      "acceptance": "mesh.json quality.min_angle_deg is above 1 degree, or the README carries the disclosure sentence. The renders must not regress: shoulder.png and reverse.png still show continuous highlights."
+    },
+    {
+      "number": 4,
+      "priority": "P2",
+      "zone": "Sketch #3 'Seal': the shield outline at the chief centre, both fess ends and the base point",
+      "change": "Close the escutcheon. Run a continuous outline groove about 0.15 mm wide round the whole shield, including across the four cross ends, so the cross reads as a charge inside one shield rather than four separate pieces. Alternatively, end the cross arms 0.2 mm short of a continuous shield edge.",
+      "acceptance": "In stones.png and face.png the shield outline is one unbroken line from chief to point, and in hero-300 the shield reads as a single shape."
+    },
+    {
+      "number": 5,
+      "priority": "P2",
+      "zone": "Layer 'Parting seam dressed' (Border, 0.5 x 0.004 mm on the crest line, theta 0 to 55 deg) and the Officina README",
+      "change": "Name the dressed seam in the lesson text. It changes the verdict but sits outside the feature timeline a student drags through, so the README must say the bare 013 master fields 'castable with care' and that this 4-micron bead dresses it.",
+      "acceptance": "The README and catalog blurb for Sigil include one sentence naming the seam bead and why it is there."
+    }
+  ],
+  "viewed_images": [
+    "showcase/officina/sigil/hero-300.png",
+    "showcase/officina/sigil/face-300.png",
+    "showcase/officina/sigil/hero.png",
+    "showcase/officina/sigil/face.png",
+    "showcase/officina/sigil/side.png",
+    "showcase/officina/sigil/shoulder.png",
+    "showcase/officina/sigil/palm.png",
+    "showcase/officina/sigil/reverse.png",
+    "showcase/officina/sigil/timeline.png",
+    "showcase/officina/sigil/bare-vs-finished.png",
+    "showcase/officina/sigil/stones.png",
+    "showcase/officina/sigil/contact-300.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}
