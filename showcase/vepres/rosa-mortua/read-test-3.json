@@ -1,0 +1,31 @@
+{
+  "ring": "rosa-mortua",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "This is better than attempt 2, but it still does not name the rose. In the hero the lower-left band is now a plain smooth stem, and the even sawblade crown has gone. But thin, straight, needle-like spikes still run down the right arm to about 5 o'clock, and none of them shows a broad base or a hook. On the left shoulder sits a fan of five or six sharp, serrated blades of the same size as the spikes. It reads as a fern frond, a thistle leaf or a dragon's dorsal fin, not a three-leaflet rose leaf. On top are two red stones. The pear lies nearly flat in a low cup ringed by short spiky points, so it reads as a gem in a crown or star bezel, not a closed bud held in long sepals. The round stone sits in a tall plain collet with three or four thin wires curling up out of it. That is the strongest rose cue so far, a hint of a hip's dried crown, but at 300 px the wires look like insect legs, antennae or stray tendrils more than a ragged five-point crown. In the face view the two heads sit at the ends of a plain twin-rail bar, a cup on one end and a can on the other, so it looks like a toi et moi bar ring with thorny trim. A jeweller would say 'thorny band with a ruby and a garnet', maybe 'rose hip?' for the round stone if pushed. They would not name a rose from the bud, the leaf or the prickles.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Bud head on arm A (the pear), face and hero views",
+      "change": "This is the third round asking for this. Replace the low spiked cup with five long, narrow sepals, each about 0.7 mm thick, that rise about two thirds of the pear's height (about 4.5 mm) and close round it. Stand the pear up so it nods 30 to 45 degrees off the band surface, point up and out, with the tip about 1.5 mm clear of the sepal tips. Add a swollen receptacle about 1.5x the stem width where the sepals meet the arm. Cut the ring of short spiky points round the cup.",
+      "acceptance": "In face-300 and hero-300 the pear's point stands above its sepal tips, the sepals visibly wrap the stone's sides, and the head reads as a closed rosebud on a stalk, not a gem in a star bezel."
+    },
+    {
+      "priority": 2,
+      "where": "Prickles on both arms, especially the right arm from about 60 to 150 degrees in the hero",
+      "change": "Swap the needle spikes for true rose prickles. Make each about 2x wider at the root than it is now, a flat-sided triangle in profile, with the tip hooked 40 to 60 degrees down the stem toward the palm. Keep at most 7 per arm, between about 25 and 80 degrees from the top, graded 1.0 to 0.6, and alternating ±25 degrees round the stem. Remove the spikes below about 4 o'clock so the lower 120 degrees of the band is bare on both sides.",
+      "acceptance": "In hero-300 you can count no more than 14 prickles. Each shows a broad base and a visible downward hook, and the band's lower third is a plain smooth stem on both sides."
+    },
+    {
+      "priority": 3,
+      "where": "Leaf on the left shoulder below the bud, and the hip crown on arm B",
+      "change": "Replace the fan of serrated blades with one compound rose leaf: three oval leaflets 5 to 6 mm long and about 2.2 mm wide, rounded and cupped with a finely toothed edge, on a visible petiole, lying against the shoulder. They must be clearly broader and softer than any prickle. On the hip, bring the dried crown up to five wisps spaced evenly at 72 degrees, each about 0.7 mm thick and 1.5 mm proud of the cabochon's top, curling outward and over at the tip. Lower the collet by about a third so the stone's dome shows above it.",
+      "acceptance": "In face-300 a three-leaflet leaf with rounded leaflets shows beside the bud and cannot be mistaken for spikes or a frond. The round stone wears an even five-point curled crown above a visible red dome, reading as a rose hip, not a garnet in a can with wires."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/rosa-mortua/hero-300.png",
+    "showcase/vepres/rosa-mortua/face-300.png"
+  ]
+}
