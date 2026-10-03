@@ -528,6 +528,12 @@ That is expected for most Vepres rings. Say so in each README line.
 
 - **Process (2026-10-03, Logan's rule):** judged as lost wax, with a 0.8 mm minimum section and no pull rule. Body parts (stem, leaves, petioles, stalks) hold 0.8 mm. The collets, their receptacles and the rootlets are held at the 0.15 mm detail floor. No extra rounds have been granted.
 - **Status (2026-10-03):** stopped at the block-out. All three read tests failed (`showcase/vepres/hedera/read-test-{1,2,3}.json`): at 300 px the leaves read as maple or star leaves and the berries as bezel-set gems. The subject needs rethinking before any detailing; `cloud-report.md` on `claude/vepres-hedera` has the details.
+- **Rethink (approved by Logan, 2026-10-03):** this replaces the concept below.
+  - **The hero:** one large ivy leaf, about twice the old size, across the whole crown and seen square-on in the face view. It is three-lobed: a long terminal lobe, two short laterals, rounded basal ears and a heart notch.
+  - **The berries:** three black spinel cabochons of about 3 mm in thin collets, beside the leaf's base.
+  - **The host:** a thicker D-shape, 6.0 × 2.4, which the stem climbs from the leaf's petiole round the palm to a growing tip on the far shoulder, gripping with rootlets.
+  - **Process:** lost wax; a sand pass, if one happens, is a bonus.
+  - **Read tests:** numbered on from 3, at most three more (4 to 6). On a read, the three reviewed rounds follow as TASK.md says.
 - **Status (as planned):** Not started.
   - Blocked on **C-V2** for the rootlets; a stamp fallback is below.
   - C-V3 is an upgrade for the stem's growing tip and the edge leaves.

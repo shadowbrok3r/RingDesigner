@@ -1,0 +1,26 @@
+{
+  "ring": "hedera",
+  "attempt": 4,
+  "reads": false,
+  "what_the_eye_sees": "Closer than attempt 3, but still not a reliable ivy read. The rethink is only half done. The leaf is no longer a five-pointed star: in both 300 px images it has a pointed tip, side points and pale radiating veins. But it is not lying flat across the crown, square-on, as the approved rethink says. It stands up off the band like a fin or a folded paper dart. In the hero it reads as an arrowhead or a bird in profile. In the face it is foreshortened into a four- or five-point shape, so the eye says maple, grape or sweetgum before ivy. It is also small: it covers less than half the band's width, not 'twice the old size, across the whole crown'. The heart notch and rounded basal ears can't be seen. The three berries are still thick gold cups with a small black centre, so they read as three bezel-set gems or rivets, not black berries on a stem. The stem is now a clear round cable, which is a real gain. But in the face it leaves the band as a free wire arc on the right, which reads as a loose hoop or a second ring, not as ivy gripping the band. Shown both images with no caption, a jeweller would say 'a leaf-and-gem band, maybe a vine', and some might guess ivy from the pointed leaf. Most would not name it. That isn't a read.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "The hero leaf at the crown, theta about 80 to 110 (centre of the face view, right of the berries in the hero)",
+      "change": "Lay the leaf flat on the crown, conforming to the top surface, with its blade at most 0.5 mm proud and no upright fold. At present it stands like a fin. Scale it up so the blade spans about 9 mm along theta and the full 6.0 mm band width, with the tip running slightly past one edge. Orient it so the face camera sees it square-on: the long terminal lobe points along the band, the two short lateral lobes reach across it, and the rounded basal ears and heart notch (notch depth at least 0.15 of the length) sit toward the petiole. Keep the sunk palmate veins from the notch.",
+      "acceptance": "In face-300, the leaf is the largest form on the ring, fills the band's width and shows the full classic ivy silhouette: one long central point, two shorter side lobes, two rounded ears and a visible notch where the petiole meets it. In hero-300, it reads as a leaf lying on the band, not as an arrowhead, fin or bird."
+    },
+    {
+      "priority": 2,
+      "where": "The three berry collets beside the leaf base, theta about 60 to 80",
+      "change": "Thin the gold to the minimum: a 0.25 mm wall, a 0.15 mm lip, and a collet height cut so at least 60% of each 3 mm cabochon stands proud as a black dome. Cluster the three tightly, touching or nearly touching, at the end of short stalks about 0.7 mm across that run from the petiole. They should read as a bunch, not three separate cups.",
+      "acceptance": "In both 300 px images, each berry's visible black area is at least twice its visible gold rim, and the three read as one cluster of round black berries hanging from the leaf's stalk, not as gems or rivets in gold cups."
+    },
+    {
+      "priority": 3,
+      "where": "The climbing stem, theta about 120 to 200 (right side of the face view, where it lifts clear of the band)",
+      "change": "Bring the stem back down onto the band surface along its whole run, sunk about 40% as the plan says, so no part arcs free of the band. Keep the round cable and the visible rootlets under it.",
+      "acceptance": "In face-300, the stem is seen hugging the band everywhere, with no free wire loop and no visible gap between stem and band. The stem can be traced from the leaf's petiole off toward the shoulder."
+    }
+  ]
+}
