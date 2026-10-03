@@ -54,23 +54,22 @@ const CORBEL_TAPER: f64 = 0.9;
 /// The wall.
 const WALL_HX: f64 = 4.4;
 const WALL_Z: [f64; 2] = [-4.6, 3.6];
-const WALL_Y: [f64; 2] = [11.9, 14.3];
-/// The cornice's lower step, a roll moulding.
+const WALL_Y: [f64; 2] = [11.9, 14.0];
+/// The cornice's lower step: its reach across the ring and its run up the wall.
 const CORNICE_HX: f64 = 5.25;
-const CORNICE_Z: [f64; 2] = [-5.45, 4.45];
-const CORNICE_Y: [f64; 2] = [14.3, 15.15];
+const CORNICE_Y: [f64; 2] = [14.0, 15.3];
 /// The coping, the cornice's upper step, chamfered: the beast crouches on it.
 const COPING_HX: f64 = 6.05;
 const COPING_Z: [f64; 2] = [-6.25, 5.25];
-const COPING_Y: [f64; 2] = [15.15, 16.05];
+const COPING_Y: [f64; 2] = [15.3, 16.6];
 /// The blind arcade on the wall: equilateral pointed arches of this half-span, springing this high, sunk this deep.
-const ARCH_W: f64 = 0.72;
+const ARCH_W: f64 = 0.65;
 const ARCH_Y: [f64; 2] = [12.2, 12.8];
 const ARCH_DEPTH: f64 = 0.6;
 /// The quatrefoil roundels on the wall's sides: lobe radius, lobe offset, centre height.
-const QUATRE_R: f64 = 0.5;
-const QUATRE_O: f64 = 0.55;
-const QUATRE_Y: f64 = 13.2;
+const QUATRE_R: f64 = 0.45;
+const QUATRE_O: f64 = 0.5;
+const QUATRE_Y: f64 = 13.08;
 
 // --- The figure (frame: f forward along +z, u up from the coping, s across along x) ---------------------------------
 /// The figure's scale.
@@ -90,8 +89,8 @@ const SPOUT_LEN: f64 = 1.9;
 const TIP_R: f64 = 0.42;
 
 /// The meshing step and the face budget of the sculpt.
-const STEP_MM: f64 = 0.065;
-const FACES: usize = 245_000;
+const STEP_MM: f64 = 0.055;
+const FACES: usize = 300_000;
 /// The fillet the part grows out of the band with, mm.
 const FILLET_MM: f64 = 0.7;
 
@@ -127,51 +126,58 @@ const GUTTER_W: f64 = 0.9;
 const GUTTER_MM: f64 = 0.4;
 /// The blind arcade down both side walls: bays round the ring, and how far its ribs stand, mm.
 const ARCADE_BAYS: u32 = 33;
-const ARCADE_MM: f64 = 0.3;
+const ARCADE_MM: f64 = 0.4;
+/// The string course along the arcade's crown edge, mm; each bay's field, sunk this deep and inset this far inside its
+/// ribs, mm; the gutter's roll beads, their width and how far they stand, mm.
+const STRING_COURSE_MM: f64 = 0.85;
+const FIELD_MM: f64 = 0.25;
+const FIELD_INSET_MM: f64 = 0.2;
+const ROLL_W: f64 = 0.8;
+const ROLL_MM: f64 = 0.2;
 /// Every rib of the arcade is this wide as drawn, mm (the tile is laid at the crown's circumference, so on the side wall
 /// a rib narrows a little with the radius).
 const RIB_MM: f64 = 0.95;
 
-/// One bay of the arcade as an SVG tile `w` by `h` mm: the ribs stand (ink) and a pointed lancet opening is left
-/// between them. The mullion between two openings and the head over each are each at
-/// least `RIB_MM` wide.
-fn arcade_svg(w: f64, h: f64) -> String {
-    // The tile's top edge lies on the bore side of the wall, so each opening runs off it and its head points out
-    // toward the crown, with a rib of `RIB_MM` left over the apex.
-    let (cx, half) = (0.5 * w, 0.5 * (w - RIB_MM));
-    let apex = h - RIB_MM;
+/// The pointed opening of one bay as an SVG path in a tile `w` by `h` mm, inset `inset` mm all round. The tile's top
+/// edge lies on the bore side of the wall, so the opening runs off it and its head points out toward the crown.
+fn bay_path(w: f64, h: f64, inset: f64) -> String {
+    let (cx, half) = (0.5 * w, 0.5 * (w - RIB_MM) - inset);
+    let apex = h - RIB_MM - inset;
     // A lancet head: each side an arc of 1.5 times the half-span, centred inside the opposite half, over short jambs.
     let r = 1.5 * half;
     let spring = apex - (r * r - (r - half) * (r - half)).sqrt();
-    let path = format!(
+    format!(
         "M{:.4} -0.5 L{:.4} {spring:.4} A{r:.4} {r:.4} 0 0 0 {cx:.4} {apex:.4} A{r:.4} {r:.4} 0 0 0 {:.4} {spring:.4} L{:.4} -0.5 Z",
         cx - half, cx - half, cx + half, cx + half
-    );
-    format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}" height="{h:.4}" viewBox="0 0 {w:.4} {h:.4}"><rect x="0" y="0" width="{w:.4}" height="{h:.4}" fill="#000"/><path d="{path}" fill="#fff"/></svg>"##
     )
 }
 
-/// The band's own ornament: the lead gutter sunk along the crown's centre line all the way round, so the water the
-/// spout throws has its source, and the nave's blind arcade standing on both side walls from the parapet to the palm.
+/// One bay of the arcade as an SVG tile `w` by `h` mm: a string course along the crown edge at full height, the ribs
+/// (mullions and arch) a step lower under it, and the pointed opening left between them.
+fn arcade_svg(w: f64, h: f64) -> String {
+    let course = h - STRING_COURSE_MM;
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}" height="{h:.4}" viewBox="0 0 {w:.4} {h:.4}"><rect x="0" y="0" width="{w:.4}" height="{h:.4}" fill="#000" fill-opacity="0.6"/><rect x="-0.5" y="{course:.4}" width="{:.4}" height="{:.4}" fill="#000"/><path d="{}" fill="#fff"/></svg>"##,
+        w + 1.0,
+        STRING_COURSE_MM + 0.5,
+        bay_path(w, h, 0.0)
+    )
+}
+
+/// The band's own ornament: the nave's blind arcade standing on both side walls from the parapet to the palm, under a
+/// string course, each bay's field sunk; and the lead gutter sunk along the crown's centre line all the way round
+/// between two roll beads, so the water the spout throws has its source. Raised layers first and carved ones last, so
+/// a `Max` never fills a carving back in.
 fn band_ornament(d: &mut RingDesign, lib: &mut AlphaLibrary) -> Result<serde_json::Value> {
     let ctx = d.field_context();
     let faces = ctx.side_faces_std().ok_or_else(|| anyhow::anyhow!("the band has no side faces"))?;
     let (lo, hi) = (faces.low.ok_or_else(|| anyhow::anyhow!("no low side face"))?, faces.high.ok_or_else(|| anyhow::anyhow!("no high side face"))?);
-    // The gutter: a plain stripe sunk along the middle of the crown.
-    let mut g = TilingLayer::default_for("Lead gutter", &ctx);
-    g.v_center_mm = 0.5 * (lo.1 + hi.0);
-    g.v_span_mm = GUTTER_W;
-    g.repeats_around = 24;
-    g.rows = 1;
-    g.height_mm = GUTTER_MM;
-    g.feather_mm = 0.0;
-    let (gw, gh) = g.cell_size(&ctx);
-    let stripe = format!(r##"<svg xmlns="http://www.w3.org/2000/svg" width="{gw:.4}" height="{gh:.4}" viewBox="0 0 {gw:.4} {gh:.4}"><rect x="-1" y="0" width="{:.4}" height="{gh:.4}" fill="#000"/></svg>"##, gw + 2.0);
-    d.svgs.push(SvgAlpha { name: "Lead gutter".into(), svg: stripe, invert: false });
-    let mut e = LayerEntry::new("Lead gutter", Layer::Tiling(g));
-    e.blend = Blend::Subtract;
-    d.layers.layers.push(e);
+    let push = |d: &mut RingDesign, name: &str, t: TilingLayer, svg: String, blend: Blend| {
+        d.svgs.push(SvgAlpha { name: name.into(), svg, invert: false });
+        let mut e = LayerEntry::new(name, Layer::Tiling(t));
+        e.blend = blend;
+        d.layers.layers.push(e);
+    };
     // The arcade: one bay a tile on the low side wall, mirrored onto the high one.
     let mut t = TilingLayer::default_for("Nave arcade", &ctx);
     t.v_center_mm = 0.5 * (lo.0 + lo.1);
@@ -182,13 +188,45 @@ fn band_ornament(d: &mut RingDesign, lib: &mut AlphaLibrary) -> Result<serde_jso
     t.feather_mm = 0.0;
     t.mirror_v = true;
     let (cw, ch) = t.cell_size(&ctx);
-    d.svgs.push(SvgAlpha { name: "Nave arcade".into(), svg: arcade_svg(cw, ch), invert: false });
-    let mut e = LayerEntry::new("Nave arcade", Layer::Tiling(t));
-    e.blend = Blend::Max;
-    d.layers.layers.push(e);
+    let mut field = t.clone();
+    push(d, "Nave arcade", t, arcade_svg(cw, ch), Blend::Max);
+    // The gutter's roll beads, one along each lip.
+    let crown = 0.5 * (lo.1 + hi.0);
+    let mut r = TilingLayer::default_for("Gutter rolls", &ctx);
+    r.v_center_mm = crown;
+    r.v_span_mm = GUTTER_W + 2.0 * ROLL_W;
+    r.repeats_around = 24;
+    r.rows = 1;
+    r.height_mm = ROLL_MM;
+    r.feather_mm = 0.0;
+    let (rw, rh) = r.cell_size(&ctx);
+    let rolls = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{rw:.4}" height="{rh:.4}" viewBox="0 0 {rw:.4} {rh:.4}"><defs><linearGradient id="roll" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0.35"/><stop offset="0.5" stop-color="#000" stop-opacity="1"/><stop offset="1" stop-color="#000" stop-opacity="0.35"/></linearGradient></defs><rect x="-1" y="0" width="{w2:.4}" height="{ROLL_W:.4}" fill="url(#roll)"/><rect x="-1" y="{y2:.4}" width="{w2:.4}" height="{ROLL_W:.4}" fill="url(#roll)"/></svg>"##,
+        w2 = rw + 2.0,
+        y2 = rh - ROLL_W
+    );
+    push(d, "Gutter rolls", r, rolls, Blend::Max);
+    // Each bay's field, sunk inside its ribs.
+    field.height_mm = FIELD_MM;
+    let fields = format!(r##"<svg xmlns="http://www.w3.org/2000/svg" width="{cw:.4}" height="{ch:.4}" viewBox="0 0 {cw:.4} {ch:.4}"><path d="{}" fill="#000"/></svg>"##, bay_path(cw, ch, FIELD_INSET_MM));
+    push(d, "Arcade fields", field, fields, Blend::Subtract);
+    // The gutter: a plain stripe sunk along the middle of the crown, last.
+    let mut g = TilingLayer::default_for("Lead gutter", &ctx);
+    g.v_center_mm = crown;
+    g.v_span_mm = GUTTER_W;
+    g.repeats_around = 24;
+    g.rows = 1;
+    g.height_mm = GUTTER_MM;
+    g.feather_mm = 0.0;
+    let (gw, gh) = g.cell_size(&ctx);
+    let stripe = format!(r##"<svg xmlns="http://www.w3.org/2000/svg" width="{gw:.4}" height="{gh:.4}" viewBox="0 0 {gw:.4} {gh:.4}"><rect x="-1" y="0" width="{:.4}" height="{gh:.4}" fill="#000"/></svg>"##, gw + 2.0);
+    push(d, "Lead gutter", g, stripe, Blend::Subtract);
     d.crisp_relief = true;
     d.bake_all(lib);
-    Ok(json!({"gutter": {"width_mm": GUTTER_W, "depth_mm": GUTTER_MM, "crown_v_mm": [lo.1, hi.0]}, "arcade": {"bays": ARCADE_BAYS, "cell_mm": [cw, ch], "rib_mm": RIB_MM, "stands_mm": ARCADE_MM, "low_face_v_mm": [lo.0, lo.1]}}))
+    Ok(json!({
+        "gutter": {"width_mm": GUTTER_W, "depth_mm": GUTTER_MM, "crown_v_mm": [lo.1, hi.0], "rolls": {"width_mm": ROLL_W, "stand_mm": ROLL_MM}},
+        "arcade": {"bays": ARCADE_BAYS, "cell_mm": [cw, ch], "rib_mm": RIB_MM, "ribs_stand_mm": 0.6 * ARCADE_MM, "string_course_stands_mm": ARCADE_MM, "field_sunk_mm": FIELD_MM, "low_face_v_mm": [lo.0, lo.1]},
+    }))
 }
 
 // --- Distance helpers ------------------------------------------------------------------------------------------------
@@ -252,6 +290,30 @@ fn pointed_arch(a: f64, b: f64, w: f64, b0: f64, h0: f64) -> f64 {
     jambs.min(head)
 }
 
+/// The cornice: two steps round all four sides of the wall, each overhanging the one below through a cavetto (a hollow
+/// quarter round) under a flat fillet, the upper one the coping the beast crouches on, its top arris chamfered.
+fn cornice(p: P3) -> f64 {
+    // How far a point stands outside the wall's plan, rounded at the corners, mm (negative inside).
+    let qx = p[0].abs() - WALL_HX;
+    let qz = (p[2] - 0.5 * (WALL_Z[0] + WALL_Z[1])).abs() - 0.5 * (WALL_Z[1] - WALL_Z[0]);
+    let out = qx.max(0.0).hypot(qz.max(0.0)) + qx.max(qz).min(0.0);
+    // Each step: a cavetto from the face below out to the step's overhang, then a fillet up to the step's top.
+    let step = |base: f64, from: f64, over: f64, cove_top: f64, top: f64| {
+        let r = cove_top - from;
+        let y = p[1] - from;
+        // The hollow curves out from the face below to the full overhang, steepening as it goes (a parabola, so its slope
+        // stays finite where it meets the fillet).
+        let reach = base + over * (y / r).clamp(0.0, 1.0).powi(2);
+        (out - reach).max(from - p[1]).max(p[1] - top)
+    };
+    // Each step keeps 0.82 mm of stone over its hollow, so its overhang is no thin shelf.
+    let lower = step(0.0, CORNICE_Y[0], CORNICE_HX - WALL_HX, CORNICE_Y[1] - 0.82, CORNICE_Y[1]);
+    let upper = step(CORNICE_HX - WALL_HX, CORNICE_Y[1], COPING_HX - CORNICE_HX, COPING_Y[1] - 0.82, COPING_Y[1]);
+    // The coping's top arris, chamfered.
+    let arris = (out - (COPING_HX - WALL_HX) + (p[1] - COPING_Y[1]) + 0.25) * FRAC_1_SQRT_2;
+    lower.min(upper.max(arris))
+}
+
 fn parapet(p: P3) -> f64 {
     let mid = |r: [f64; 2]| 0.5 * (r[0] + r[1]);
     let half = |r: [f64; 2]| 0.5 * (r[1] - r[0]);
@@ -267,9 +329,7 @@ fn parapet(p: P3) -> f64 {
     // The wall's box runs on into the cornice and down into the corbel's straight top, so its horizontal edges'
     // chamfers are buried and leave no groove.
     let wall = chamfer_box(p, [0.0, mid(WALL_Y), mid(WALL_Z)], [WALL_HX, half(WALL_Y) + 0.5, half(WALL_Z)], 0.4);
-    let cornice = round_box(p, [0.0, mid(CORNICE_Y), mid(CORNICE_Z)], [CORNICE_HX, half(CORNICE_Y), half(CORNICE_Z)], 0.27);
-    let coping = chamfer_box(p, [0.0, mid(COPING_Y), mid(COPING_Z)], [COPING_HX, half(COPING_Y), half(COPING_Z)], 0.28);
-    let mut d = corbel.min(wall).min(cornice).min(coping);
+    let mut d = corbel.min(wall).min(cornice(p));
     // The blind arcade: three pointed lancets on the front and back of the wall, and on each side one large blind
     // quatrefoil, its lobes run together with a 0.16 round so no cusp is a knife wedge of wall.
     let mut recess = f64::MAX;
@@ -300,12 +360,12 @@ fn parapet(p: P3) -> f64 {
 }
 
 /// The pinnacles at the coping's back corners: a chamfered shaft, a gablet on each face, a spire and a knob finial.
-const PINNACLE_HALF: f64 = 0.95;
+const PINNACLE_HALF: f64 = 0.8;
 const PINNACLE_SHAFT: f64 = 1.5;
 const PINNACLE_SPIRE: f64 = 3.4;
 
 fn pinnacles(p: P3) -> f64 {
-    let at = [COPING_HX - PINNACLE_HALF - 0.15, COPING_Z[0] + PINNACLE_HALF + 0.15];
+    let at = [COPING_HX - PINNACLE_HALF - 0.1, COPING_Z[0] + PINNACLE_HALF + 0.1];
     // Both back corners: x folded.
     let (x, y, z) = (p[0].abs() - at[0], p[1] - COPING_Y[1], p[2] - at[1]);
     let shaft = chamfer_box([x, y, z], [0.0, 0.5 * PINNACLE_SHAFT - 0.2, 0.0], [PINNACLE_HALF, 0.5 * PINNACLE_SHAFT + 0.2, PINNACLE_HALF], 0.18);
@@ -345,61 +405,66 @@ fn chain(q: P3, pts: &[(P3, f64)], k: f64) -> f64 {
 /// over a bored lead spout, two fangs, short horns and pointed ears.
 fn head(q: P3) -> f64 {
     let at = |c: P3| sub(q, c);
+    // Planes the carver cuts: a point's height over a plane through `c` facing `n` (normalised here).
+    let plane = |c: P3, n: P3| dot(sub(q, c), mul(n, 1.0 / len(n)));
     let cranium = ellipsoid(at([0.5, 0.8, 0.0]), [1.1, 1.05, 1.2]);
-    // A broad, flat face under a heavy, hard brow ridge, wide at the jowls, with cheekbones.
-    let face = ellipsoid(at([1.35, 0.45, 0.0]), [0.75, 1.05, 1.3]);
-    let brow = ellipsoid(at([1.9, 1.4, 0.0]), [0.52, 0.36, 1.25]);
-    let brow_l = ellipsoid(at([2.08, 1.3, 0.6]), [0.55, 0.42, 0.6]);
-    let cheekbone = ellipsoid(at([1.75, 0.55, 0.95]), [0.5, 0.35, 0.4]);
+    // A broad, flat face, its cheeks cut back in two planes each side, the snout a chamfered block.
+    let face = ellipsoid(at([1.35, 0.45, 0.0]), [0.75, 1.05, 1.3]).max(plane([1.6, 0.4, 1.05], [0.45, 0.0, 1.0])).max(plane([1.3, -0.5, 1.1], [0.2, -0.5, 1.0]));
+    // The brow: a hard shelf standing 0.25 units (0.75 mm) out over the sockets, its arris chamfered.
+    let brow = round_box(at([2.05, 1.32, 0.0]), [0.0, 0.0, 0.0], [0.42, 0.2, 1.1], 0.13).max(ellipsoid(at([1.55, 1.0, 0.0]), [1.3, 1.0, 1.2]));
+    let brow_l = ellipsoid(at([1.9, 1.36, 0.5]), [0.5, 0.36, 0.5]);
+    let cheekbone = round_box(at([1.7, 0.36, 1.02]), [0.0, 0.0, 0.0], [0.42, 0.22, 0.26], 0.16);
     let jowl = ellipsoid(at([1.05, -0.35, 0.95]), [0.65, 0.7, 0.42]);
-    let nose = ellipsoid(at([2.18, 0.62, 0.0]), [0.42, 0.38, 0.6]);
-    let lip = ellipsoid(at([1.95, 0.12, 0.0]), [0.58, 0.36, 1.05]);
-    let jaw = ellipsoid(at([1.6, -1.02, 0.0]), [0.85, 0.48, 1.0]);
-    let chin = ellipsoid(at([2.15, -1.05, 0.0]), [0.4, 0.38, 0.6]);
-    let horn = chain(q, &[([0.8, 1.55, 0.6], 0.45), ([0.25, 2.1, 0.72], 0.32), ([-0.35, 2.05, 0.75], 0.22)], 0.08);
+    let snout = round_box(at([2.25, 0.62, 0.0]), [0.0, 0.0, 0.0], [0.42, 0.34, 0.58], 0.26);
+    let lip = round_box(at([1.98, 0.12, 0.0]), [0.0, 0.0, 0.0], [0.5, 0.28, 0.9], 0.26);
+    let jaw = round_box(at([1.62, -1.0, 0.0]), [0.0, 0.0, 0.0], [0.8, 0.36, 0.88], 0.32);
+    let chin = ellipsoid(at([2.2, -1.05, 0.0]), [0.4, 0.36, 0.6]);
+    // Short horns, cones swept back to points on a 0.22 unit (0.67 mm) ball.
+    let horn = chain(q, &[([0.8, 1.55, 0.6], 0.46), ([0.3, 2.05, 0.75], 0.34), ([-0.3, 2.2, 0.85], 0.22)], 0.04);
     let ear = round_cone(q, [0.35, 1.1, 1.05], [-0.05, 1.8, 1.6], 0.36, 0.22);
     let mut d = smin(cranium, face, 0.4);
-    d = smin(d, brow, 0.15);
+    d = smin(d, brow, 0.08);
     d = smin(d, brow_l, 0.12);
-    d = smin(d, cheekbone, 0.15);
+    d = smin(d, cheekbone, 0.12);
     d = smin(d, jowl, 0.3);
-    d = smin(d, nose, 0.2);
-    d = smin(d, lip, 0.2);
-    d = smin(d, jaw, 0.3);
+    d = smin(d, snout, 0.12);
+    d = smin(d, lip, 0.12);
+    d = smin(d, jaw, 0.2);
     d = smin(d, chin, 0.15);
-    d = smin(d, horn, 0.15);
+    d = smin(d, horn, 0.12);
     d = smin(d, ear, 0.15);
-    // Deep sockets under the brow, each centred on the face's surface so its rim stands square, and the eye set back in
-    // it.
-    let socket = len(sub(q, [2.2, 0.8, 0.58])) - 0.23;
+    // Deep sockets under the brow shelf, each centred on the face's surface so its rim stands square, and the eye set
+    // back in it.
+    let socket = len(sub(q, [2.22, 0.82, 0.47])) - 0.22;
     d = smax(d, -socket, 0.05);
-    // Furrows: a snarl crease across the bridge of the snout and two down each cheek, each a round groove sunk about
-    // 0.1 units (0.3 mm) with its centre on the surface.
+    // Furrows: a snarl crease across the bridge of the snout and two along each side of it, each a round groove sunk
+    // about 0.1 units (0.3 mm) with its centre on the snout's face.
     let furrows = [
-        round_cone(q, [2.62, 0.95, -0.15], [2.62, 0.95, 0.15], 0.08, 0.08),
-        round_cone(q, [1.95, 0.45, 1.2], [2.25, -0.1, 0.92], 0.1, 0.09),
-        round_cone(q, [1.7, 0.1, 1.28], [1.95, -0.45, 1.08], 0.1, 0.09),
+        round_cone(q, [2.67, 0.97, -0.15], [2.67, 0.97, 0.15], 0.08, 0.08),
+        round_cone(q, [2.0, 0.5, 0.6], [2.5, 0.46, 0.6], 0.09, 0.08),
+        round_cone(q, [2.0, 0.32, 0.6], [2.5, 0.3, 0.6], 0.08, 0.07),
     ];
     for g in furrows {
-        d = smax(d, -g, 0.04);
+        d = smax(d, -g, 0.05);
     }
-    // The gape: a wide oval mouth opening forward between the lip and the dropped jaw, running back into the throat.
-    let gape = ellipsoid(at([2.2, -0.4, 0.0]), [0.8, 0.3, 0.62]);
-    d = smax(d, -gape, 0.08);
-    // The spout: a lead pipe lying out of the jaws a little above the finger's line, its end cut square and bored.
+    // The gape: a wide mouth opening forward between the lip and the dropped jaw, running back into the throat.
+    let gape = round_box(at([2.25, -0.4, 0.0]), [0.0, 0.0, 0.0], [0.8, 0.26, 0.6], 0.2);
+    d = smax(d, -gape, 0.06);
+    // The spout: a lead pipe lying out of the jaws a little above the finger's line, its end cut square, its lip
+    // rounded and its bore drilled.
     let dir = [(SPOUT_DEG.to_radians()).cos(), (SPOUT_DEG.to_radians()).sin(), 0.0];
     let root = [1.55, -0.72, 0.0];
     let tip = add(root, mul(dir, SPOUT_LEN));
-    let pipe = round_cone(q, root, tip, 0.4, 0.4).max(dot(sub(q, tip), dir));
-    d = smin(d, pipe, 0.1);
     let into = dot(sub(q, tip), dir);
     let radial = len(sub(sub(q, tip), mul(dir, into)));
-    let bore = (radial - 0.12).max(-0.55 - into);
-    d = smax(d, -bore, 0.02);
-    // Two fangs down from the lip, tapering to points, standing clear in the gape over the pipe.
-    let fang = round_cone(q, [2.3, -0.05, 0.42], [2.42, -0.42, 0.4], 0.22, 0.14);
-    d = smin(d, fang, 0.06);
-    let eye = len(sub(q, [2.06, 0.78, 0.56])) - 0.18;
+    let pipe = smax(radial - 0.4, into, 0.05).max(dot(sub(root, q), dir));
+    d = smin(d, pipe, 0.1);
+    let bore = smax(radial - 0.12, -0.55 - into, 0.03);
+    d = smax(d, -bore, 0.04);
+    // Two fangs down from the lip, cones tapering to points, standing clear in the gape over the pipe.
+    let fang = round_cone(q, [2.35, -0.02, 0.4], [2.45, -0.46, 0.38], 0.24, 0.14);
+    d = smin(d, fang, 0.05);
+    let eye = len(sub(q, [2.08, 0.8, 0.45])) - 0.17;
     d.min(eye)
 }
 
@@ -425,9 +490,16 @@ const WING_LIFT: f64 = 0.05;
 /// A folded wing's outline on its slope: `f` along the body and `b` down the slope from the spine. The arm runs along
 /// the spine to the wrist at the shoulder; four fingers lie back from it to tips down the flank, and the trailing
 /// edge is scalloped between them.
-const WING_OUTLINE: [[f64; 2]; 11] = [[1.5, 0.0], [-3.1, 0.05], [-3.05, 0.85], [-2.45, 1.0], [-2.55, 1.7], [-1.75, 1.6], [-1.65, 2.25], [-0.8, 1.95], [-0.4, 2.35], [0.45, 1.55], [1.5, 0.75]];
+const WING_OUTLINE: [[f64; 2]; 19] = [
+    [1.5, 0.0], [-3.1, 0.05], [-3.05, 0.85],
+    [-2.85, 0.95], [-2.7, 1.05], [-2.5, 1.35],
+    [-2.15, 1.55], [-1.9, 1.85], [-1.65, 2.25],
+    [-1.3, 2.12], [-0.95, 2.1], [-0.65, 2.22], [-0.4, 2.35],
+    [-0.05, 2.08], [0.25, 1.85], [0.45, 1.55],
+    [0.8, 1.2], [1.2, 0.95], [1.5, 0.75],
+];
 const WING_WRIST: [f64; 2] = [1.3, 0.35];
-const WING_TIPS: [[f64; 2]; 4] = [[-3.05, 0.85], [-2.55, 1.7], [-1.65, 2.25], [-0.4, 2.35]];
+const WING_TIPS: [[f64; 2]; 4] = [[-3.05, 0.85], [-2.5, 1.35], [-1.65, 2.25], [-0.4, 2.35]];
 /// Half the membrane's thickness, and the bones' round: the membranes lie 0.17 units (0.32 mm) below the bones.
 const MEMBRANE_HALF: f64 = 0.36;
 const BONE_R: f64 = 0.53;
@@ -438,10 +510,14 @@ fn wing(q: P3) -> f64 {
     let (sn, cs) = WING_SLOPE_DEG.to_radians().sin_cos();
     let (f, u, s) = (q[0], q[1], q[2]);
     // The slope's height over (f, s), and a point's place on it and off it.
-    let plane_u = |f: f64, s: f64| back_top(f) + WING_LIFT - (s - WING_S0) * sn / cs;
+    // The wings ride over the back like a cape: the slope follows the back over the shoulders and holds up off it
+    // behind, where the haunches fall away, so from above the whole bat-wing outline shows.
+    let cape = |f: f64| 5.35 - 0.38 * (1.4 - f);
+    let ride = |f: f64| smax(back_top(f), cape(f), 0.4);
+    let plane_u = |f: f64, s: f64| ride(f) + WING_LIFT - (s - WING_S0) * sn / cs;
     let b = (s - WING_S0) / cs;
     // The slab's true normal distance: the slope falls along the body as well as across it.
-    let gf = (back_top(f + 0.01) - back_top(f - 0.01)) / 0.02;
+    let gf = (ride(f + 0.01) - ride(f - 0.01)) / 0.02;
     let off = (u - plane_u(f, s)) / (1.0 + gf * gf + (sn / cs).powi(2)).sqrt();
     let d2 = polygon([f, b], &WING_OUTLINE);
     let w = [d2 + 0.2, off.abs() - MEMBRANE_HALF + 0.2];
@@ -459,10 +535,14 @@ fn wing(q: P3) -> f64 {
     smin(d, chain(q, &[(wrist, BONE_R), (add(wrist, [0.25, 0.55, 0.05]), 0.32), (add(wrist, [0.5, 0.75, 0.0]), 0.24)], 0.06), 0.08)
 }
 
-/// The beast's skin on the back and shoulders: a shallow chiselled pebbling, figure units.
-fn chisel(q: P3) -> f64 {
-    let k = 8.5;
-    0.05 * (k * q[0]).sin() * (k * q[1] + 0.7).sin() * (k * q[2] + 1.3).sin()
+/// The knobs down the spine between the wings, figure units: seven, rising from the croup to the shoulders.
+fn dorsal_knobs(q: P3) -> f64 {
+    let mut d = f64::MAX;
+    for k in 0..7 {
+        let f = -2.3 + 0.55 * k as f64;
+        d = d.min(len(sub(q, [f, back_top(f) - 0.06, 0.0])) - 0.3);
+    }
+    d
 }
 
 /// The gargoyle's field in figure units: a heavy hunched lump crouched on its haunches, the forelegs braced down to
@@ -470,7 +550,8 @@ fn chisel(q: P3) -> f64 {
 fn figure(fr: P3) -> f64 {
     let (f, u, s) = (fr[0], fr[1], fr[2]);
     let q = [f, u, s.abs()];
-    // The body: one heavy crouched mass, the pelvis low behind rising to a hunched back and deep chest, chiselled.
+    // The body: one heavy crouched mass, the pelvis low behind rising to a hunched back and deep chest, knobbed down
+    // the spine.
     let torso = round_cone(q, [-1.4, 1.75, 0.0], [0.5, 3.0, 0.0], 1.9, 2.05);
     let hump = ellipsoid(sub(q, [0.1, 4.15, 0.0]), [1.75, 1.45, 1.9]);
     let chest = ellipsoid(sub(q, [1.35, 2.3, 0.0]), [1.25, 1.55, 1.55]);
@@ -478,7 +559,7 @@ fn figure(fr: P3) -> f64 {
     let mut body = smin(torso, hump, 0.6);
     body = smin(body, chest, 0.6);
     body = smin(body, neck, 0.5);
-    body += chisel(q);
+    body = smin(body, dorsal_knobs(q), 0.1);
     // The head, scaled about the neck's end and raised.
     let hq = sculpt::turn(mul(sub(q, NECK), 1.0 / HEAD_SCALE), 0, 1, -HEAD_LIFT_DEG);
     body = smin(body, head(hq) * HEAD_SCALE, 0.35);
@@ -488,11 +569,12 @@ fn figure(fr: P3) -> f64 {
     let mut limbs = ellipsoid(sub(q, [1.0, 2.9, 1.55]), [1.05, 1.25, 0.85]);
     limbs = smin(limbs, chain(q, &[([1.2, 2.8, 1.65], 0.95), ([2.0, 1.45, 1.95], 0.72), ([FRONT_F - 0.75, 0.8, 1.75], 0.5)], 0.2), 0.35);
     limbs = smin(limbs, ellipsoid(sub(q, [FRONT_F - 0.75, 0.82, 1.75]), [0.42, 0.42, 0.55]), 0.1);
-    limbs = smin(limbs, ellipsoid(sub(q, [FRONT_F - 0.3, 0.5, 1.7]), [0.55, 0.4, 0.75]), 0.15);
+    limbs = smin(limbs, ellipsoid(sub(q, [FRONT_F - 0.32, 0.52, 1.72]), [0.5, 0.4, 0.95]), 0.12);
     let mut claws = f64::MAX;
-    for sk in [1.15, 1.7, 2.25] {
+    // Spaced so a gap shows between every two claws from the knuckle down.
+    for sk in [0.97, 1.72, 2.47] {
         let knuckle = [FRONT_F + 0.02, 0.56, sk];
-        let claw = chain(q, &[([FRONT_F - 0.45, 0.5, 1.7 + 0.8 * (sk - 1.7)], 0.36), (knuckle, 0.36), ([FRONT_F + 0.06, -0.02, sk], 0.31), ([FRONT_F + 0.1, -0.4, sk], 0.27)], 0.05);
+        let claw = chain(q, &[([FRONT_F - 0.45, 0.5, 1.72 + 0.7 * (sk - 1.72)], 0.32), (knuckle, 0.3), ([FRONT_F + 0.06, -0.02, sk], 0.28), ([FRONT_F + 0.1, -0.4, sk], 0.25)], 0.05);
         claws = claws.min(claw);
     }
     limbs = smin(limbs, claws, 0.1);
@@ -631,7 +713,7 @@ fn sculpt_fresh(comp: &mut Composition) -> Result<csg::Solid> {
     // Decimated to the budget the template's graph can carry (the stored mesh is most of the design), backing off
     // the cost cap until the result does not cross itself.
     let mut nets = None;
-    for (target, cap) in [(FACES, 6e-3), (FACES, 4e-3), (FACES + 20_000, 3e-3), (FACES + 40_000, 2e-3)] {
+    for (target, cap) in [(FACES, 3e-3), (FACES, 2e-3), (FACES + 20_000, 1.5e-3), (FACES + 40_000, 1e-3)] {
         let d = sculpt::decimate(&raw, target, cap, 2.0, 18.0, 35.0);
         if csg::self_crossings(&d) == 0 {
             comp.decimation = (target, cap);
@@ -864,7 +946,8 @@ fn paste(sheet: &mut [u8], sheet_w: usize, img: &[u8], edge: usize, x0: usize, y
 /// The finished mesh as the renders shade it. The beast is a decimated distance field: its crease normals draw the
 /// meshing's sub-tenth folds as flecks. Faces of the figure itself, standing clear above the coping (the pinnacles
 /// aside), are shaded with the mesh's smooth vertex normals; the parapet, the pinnacles and the band keep their crease
-/// normals, so their arrises stay hard. Geometry is untouched: only the shading normals differ.
+/// normals, so their arrises stay hard; the figure's vertex normals are eased (below). Geometry is untouched: only the
+/// shading normals differ.
 fn shading_mesh(m: &mesh::Mesh) -> mesh::Mesh {
     let mut out = m.clone();
     let pinnacle_x = COPING_HX - 2.0 * PINNACLE_HALF - 0.4;
@@ -875,6 +958,44 @@ fn shading_mesh(m: &mesh::Mesh) -> mesh::Mesh {
         y > COPING_Y[1] + 0.05 && !(x.abs() > pinnacle_x && z < pinnacle_z)
     };
     out.corner_normals.retain(|(fi, _)| !m.faces[*fi as usize].iter().all(|&i| free(i)));
+    // The figure's vertex normals area-weighted from its faces and eased twice over each vertex's neighbours: a
+    // decimated sliver no longer throws its own highlight as a fleck.
+    let n = m.vertices.len();
+    let mut acc = vec![[0.0f64; 3]; n];
+    let mut ring: Vec<Vec<u32>> = vec![Vec::new(); n];
+    for f in &m.faces {
+        let Some((a, b, c)) = m.triangle(f) else { continue };
+        let w = {
+            let (e1, e2) = (sub(b, a), sub(c, a));
+            [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]]
+        };
+        for k in 0..3 {
+            let i = f[k] as usize;
+            acc[i] = add(acc[i], w);
+            if free(f[k]) {
+                ring[i].push(f[(k + 1) % 3]);
+            }
+        }
+    }
+    let unit = |v: P3| mul(v, 1.0 / len(v).max(1e-12));
+    let mut normal: Vec<P3> = acc.iter().map(|v| unit(*v)).collect();
+    for _ in 0..2 {
+        let prev = normal.clone();
+        for i in 0..n {
+            if ring[i].is_empty() {
+                continue;
+            }
+            let sum = ring[i].iter().fold(prev[i], |s, &j| add(s, prev[j as usize]));
+            normal[i] = unit(sum);
+        }
+    }
+    if out.normals.len() == n {
+        for i in 0..n {
+            if free(i as u32) {
+                out.normals[i] = mesh::Vec3(normal[i][0] as f32, normal[i][1] as f32, normal[i][2] as f32);
+            }
+        }
+    }
     out
 }
 
@@ -936,7 +1057,7 @@ fn main() -> Result<()> {
         let fr = frame(p);
         let q = [fr[0], fr[1], fr[2].abs()];
         let hq = sculpt::turn(mul(sub(q, NECK), 1.0 / HEAD_SCALE), 0, 1, -HEAD_LIFT_DEG);
-        println!("  field {:.3}, figure {:.3}, parapet {:.3}, wing {:.3}, head {:.3}, chisel {:.3}, frame {:?}", field(p), figure(fr), parapet(p), wing(q), head(hq) * HEAD_SCALE, chisel(q), fr);
+        println!("  field {:.3}, figure {:.3}, parapet {:.3}, wing {:.3}, head {:.3}, knobs {:.3}, frame {:?}", field(p), figure(fr), parapet(p), wing(q), head(hq) * HEAD_SCALE, dorsal_knobs(q), fr);
         return Ok(());
     }
     if let Ok(step) = std::env::var("GURGULIO_PREVIEW") {
