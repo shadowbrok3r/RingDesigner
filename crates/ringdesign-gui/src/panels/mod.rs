@@ -33,6 +33,7 @@ pub fn render(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ringdesign_graph_ui::alpha_picker::set_library(ui.ctx(), app.lib.clone());
     shortcuts(app, ui);
     workflow_window(app, ui.ctx());
+    crate::template_library::show(app, ui.ctx());
     egui::Panel::top(egui::Id::new("toolbar")).show(ui, |ui| toolbar(app, ui));
     egui::Panel::bottom(egui::Id::new("status")).show(ui, |ui| status_bar(app, ui));
 
@@ -571,6 +572,7 @@ fn shortcuts(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     }
     // Redo is checked first: its shortcut also matches undo's once the shift is
     // ignored, and consuming undo would swallow it.
+    let graph_keyboard = app.panes.get(app.active_pane).is_some_and(|p| p.kind == PaneKind::Graph);
     let (redo, redo_alt, undo, save, open, new, palette, delete) = ui.input_mut(|i| {
         (
             i.consume_shortcut(&REDO),
@@ -580,7 +582,7 @@ fn shortcuts(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             i.consume_shortcut(&OPEN),
             i.consume_shortcut(&NEW),
             i.consume_shortcut(&PALETTE),
-            i.consume_key(Modifiers::NONE, Key::Delete),
+            !graph_keyboard && i.consume_key(Modifiers::NONE, Key::Delete),
         )
     });
     if redo || redo_alt {
@@ -1144,6 +1146,14 @@ fn file_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     ui.close();
                 }
             });
+            if atelier_button(ui, Icon::Files, "My templates…").clicked() {
+                app.template_library.open(ui.ctx());
+                ui.close();
+            }
+            if ui.add_enabled(app.graph_ed.is_some(), egui::Button::new("Save as template…")).clicked() {
+                crate::template_library::publish(app);
+                ui.close();
+            }
             if atelier_button(ui, Icon::Files, "Open…").clicked() {
                 export::open_design(app);
                 ui.close();

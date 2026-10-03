@@ -1746,6 +1746,13 @@ fn profile_source(ui: &mut egui::Ui, label: &str, profile: &mut Profile, tree: &
             Some((i, n)) => format!("Sketch #{feature} · region {} of {n}", i + 1),
             None => format!("Sketch #{feature} · one region"),
         },
+        Profile::Regions { feature, regions } => match regions_of(*feature) {
+            Some(r) => {
+                let at: Vec<String> = regions.iter().filter_map(|p| p.position(&r)).map(|(i, _)| (i + 1).to_string()).collect();
+                format!("Sketch #{feature} · regions {} of {}", at.join(", "), r.len())
+            }
+            None => format!("Sketch #{feature} · {} regions", regions.len()),
+        },
     };
     ringdesign_workbench::controls::row(ui, label, |ui| {
         egui::ComboBox::from_id_salt(("profile-source", label))

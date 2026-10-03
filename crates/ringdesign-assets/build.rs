@@ -17,19 +17,22 @@ struct Family {
     ident: &'static str,
     dir: &'static str,
     suffix: &'static str,
+    /// Swept through its subdirectories too, each asset named by its path under `dir`.
+    nested: bool,
 }
 
 /// Every directory swept into the payload. `alphas` also takes `.jpg` and
 /// `.bmp`, handled below.
 const FAMILIES: &[Family] = &[
-    Family { ident: "ALPHAS", dir: "bundled/alphas", suffix: ".png" },
-    Family { ident: "PROFILES", dir: "bundled/profiles", suffix: ".profile.json" },
-    Family { ident: "OUTLINES", dir: "bundled/outlines", suffix: ".outline.json" },
-    Family { ident: "GEMS", dir: "bundled/gems", suffix: ".obj" },
-    Family { ident: "GRAPHS", dir: "graphs/templates", suffix: ".graph.json" },
-    Family { ident: "CLUSTERS", dir: "graphs/clusters", suffix: ".cluster.json" },
-    Family { ident: "GRAPH_PRESETS", dir: "graphs/presets", suffix: ".preset.json" },
-    Family { ident: "BASES", dir: "bases/signets", suffix: ".ringbase.json" },
+    Family { ident: "ALPHAS", dir: "bundled/alphas", suffix: ".png", nested: false },
+    Family { ident: "PROFILES", dir: "bundled/profiles", suffix: ".profile.json", nested: false },
+    Family { ident: "OUTLINES", dir: "bundled/outlines", suffix: ".outline.json", nested: false },
+    Family { ident: "GEMS", dir: "bundled/gems", suffix: ".obj", nested: false },
+    Family { ident: "GRAPHS", dir: "graphs/templates", suffix: ".graph.json", nested: false },
+    Family { ident: "CLUSTERS", dir: "graphs/clusters", suffix: ".cluster.json", nested: false },
+    Family { ident: "GRAPH_PRESETS", dir: "graphs/presets", suffix: ".preset.json", nested: false },
+    Family { ident: "BASES", dir: "bases/signets", suffix: ".ringbase.json", nested: false },
+    Family { ident: "SKETCHES", dir: "bundled/sketches", suffix: ".svg", nested: true },
 ];
 
 /// Assets that do not sit in a family's directory, as `(ident, name, path)`.
@@ -70,15 +73,15 @@ fn main() {
     for family in FAMILIES {
         let dir = root.join(family.dir);
         println!("cargo:rerun-if-changed={}", dir.display());
-        let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
-            .unwrap_or_else(|e| panic!("bundled asset directory {}: {e}", dir.display()))
-            .flatten()
-            .map(|e| e.path())
-            .filter(|p| p.is_file() && selects(p, family.suffix))
-            .collect();
+        let mut files = Vec::new();
+        sweep(&dir, family, &mut files);
         files.sort();
         for path in files {
-            let file = path.file_name().unwrap().to_str().unwrap().to_string();
+            let file = if family.nested {
+                path.strip_prefix(&dir).unwrap().to_str().unwrap().replace('\\', "/")
+            } else {
+                path.file_name().unwrap().to_str().unwrap().to_string()
+            };
             let name = file
                 .strip_suffix(family.suffix)
                 .map(str::to_string)
@@ -101,7 +104,7 @@ fn main() {
     index.push(("ICON", icon(&root, &out, payloads.entry("ICON").or_default())));
 
     let mut src = String::new();
-    for ident in ["ALPHAS", "PROFILES", "OUTLINES", "GEMS", "GRAPHS", "CLUSTERS", "GRAPH_PRESETS", "BASES", "SIMPLE_GRAPH", "DESIGNS", "ICON"] {
+    for ident in ["ALPHAS", "PROFILES", "OUTLINES", "GEMS", "GRAPHS", "CLUSTERS", "GRAPH_PRESETS", "BASES", "SKETCHES", "SIMPLE_GRAPH", "DESIGNS", "ICON"] {
         let blob = payloads.remove(ident).unwrap_or_default();
         let file = format!("{}.bin", ident.to_ascii_lowercase());
         std::fs::write(out.join(&file), &blob).unwrap();
@@ -180,6 +183,19 @@ fn icon(root: &Path, out: &Path, payload: &mut Vec<u8>) -> String {
 
 /// Whether a file belongs to a family. Alphas take the three image formats
 /// [`ringdesign_core::Alpha::load`] reads, not only the `.png` that names them.
+/// Every file of `family` in `dir`, and in its subdirectories when the family is nested.
+fn sweep(dir: &Path, family: &Family, out: &mut Vec<PathBuf>) {
+    let entries = std::fs::read_dir(dir).unwrap_or_else(|e| panic!("bundled asset directory {}: {e}", dir.display()));
+    for path in entries.flatten().map(|e| e.path()) {
+        if path.is_file() && selects(&path, family.suffix) {
+            out.push(path);
+        } else if family.nested && path.is_dir() {
+            println!("cargo:rerun-if-changed={}", path.display());
+            sweep(&path, family, out);
+        }
+    }
+}
+
 fn selects(path: &Path, suffix: &str) -> bool {
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();
     if suffix == ".png" {

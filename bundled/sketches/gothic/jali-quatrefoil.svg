@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="7mm" height="7mm" viewBox="-0.5 -6.5 7 7" data-lights="16" data-bar-mm="0.25">
+  <title>jali-quatrefoil</title>
+  <desc>Stand-in drawn in place of Jali 002 (assets/User/Profiles, git-ignored, not in this checkout); tools/harvest_gothic.py replaces it from the 3DM under this name. Circles on a square lattice tied to the frame: centre lines for Sketch::tracery.</desc>
+  <line x1="0" y1="0" x2="6" y2="0"/>
+  <line x1="6" y1="0" x2="6" y2="-6"/>
+  <line x1="6" y1="-6" x2="0" y2="-6"/>
+  <line x1="0" y1="-6" x2="0" y2="0"/>
+  <line x1="2.24246212" y1="-2.24246212" x2="3" y2="-3"/>
+  <line x1="2.24246212" y1="-0.75753788" x2="3" y2="0"/>
+  <line x1="0.75753788" y1="-2.24246212" x2="0" y2="-3"/>
+  <line x1="0.75753788" y1="-0.75753788" x2="0" y2="0"/>
+  <line x1="2.24246212" y1="-5.24246212" x2="3" y2="-6"/>
+  <line x1="2.24246212" y1="-3.75753788" x2="3" y2="-3"/>
+  <line x1="0.75753788" y1="-5.24246212" x2="0" y2="-6"/>
+  <line x1="0.75753788" y1="-3.75753788" x2="0" y2="-3"/>
+  <line x1="5.24246212" y1="-2.24246212" x2="6" y2="-3"/>
+  <line x1="5.24246212" y1="-0.75753788" x2="6" y2="0"/>
+  <line x1="3.75753788" y1="-2.24246212" x2="3" y2="-3"/>
+  <line x1="3.75753788" y1="-0.75753788" x2="3" y2="0"/>
+  <line x1="5.24246212" y1="-5.24246212" x2="6" y2="-6"/>
+  <line x1="5.24246212" y1="-3.75753788" x2="6" y2="-3"/>
+  <line x1="3.75753788" y1="-5.24246212" x2="3" y2="-6"/>
+  <line x1="3.75753788" y1="-3.75753788" x2="3" y2="-3"/>
+  <circle cx="1.5" cy="-1.5" r="1.05"/>
+  <circle cx="1.5" cy="-4.5" r="1.05"/>
+  <circle cx="4.5" cy="-1.5" r="1.05"/>
+  <circle cx="4.5" cy="-4.5" r="1.05"/>
+</svg>

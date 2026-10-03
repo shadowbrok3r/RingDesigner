@@ -20,6 +20,7 @@ mod occt;
 mod occt_embedded;
 mod pane;
 mod panels;
+mod template_library;
 mod patterns;
 mod theme;
 mod viewport;

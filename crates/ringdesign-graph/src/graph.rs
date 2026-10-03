@@ -83,6 +83,16 @@ pub struct Exposed {
     pub name: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub doc: String,
+    /// Optional author-selected numeric range for the reusable control.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range: Option<[f64; 2]>,
+}
+
+/// A visual group; evaluation does not depend on membership.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NodeGroup {
+    pub name: String,
+    pub nodes: Vec<NodeId>,
 }
 
 /// An output promoted to the graph's own — what a cluster hands out when
@@ -113,6 +123,8 @@ pub struct Graph {
     /// The next id to hand out; never decremented.
     #[serde(default)]
     pub next_id: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub groups: Vec<NodeGroup>,
 }
 
 impl Default for Graph {
@@ -181,7 +193,7 @@ pub trait PinLookup {
 
 impl Graph {
     pub fn new(name: impl Into<String>, mode: Mode) -> Self {
-        Self { name: name.into(), mode, nodes: Vec::new(), wires: Vec::new(), exposed: Vec::new(), outputs: Vec::new(), next_id: 1 }
+        Self { name: name.into(), mode, nodes: Vec::new(), wires: Vec::new(), exposed: Vec::new(), outputs: Vec::new(), next_id: 1, groups: Vec::new() }
     }
 
     pub fn node(&self, id: NodeId) -> Option<&Node> {
@@ -220,6 +232,8 @@ impl Graph {
     /// Remove a node and every wire and exposure that names it.
     pub fn remove(&mut self, id: NodeId) -> Result<Node, GraphError> {
         let i = self.nodes.iter().position(|n| n.id == id).ok_or_else(|| GraphError::at(id, "no such node"))?;
+        for group in &mut self.groups { group.nodes.retain(|n| *n != id); }
+        self.groups.retain(|group| !group.nodes.is_empty());
         let node = self.nodes.remove(i);
         self.wires.retain(|w| w.from != id && w.to != id);
         self.exposed.retain(|e| e.node != id);
@@ -326,7 +340,7 @@ impl Graph {
             return Ok(());
         }
         self.exposed.retain(|e| !(e.node == node && e.input == input));
-        self.exposed.push(Exposed { node, input, name, doc: String::new() });
+        self.exposed.push(Exposed { node, input, name, doc: String::new(), range: None });
         Ok(())
     }
 
@@ -455,7 +469,7 @@ impl Graph {
             }
         }
         // The parent's own exposures on folded nodes stay reachable.
-        let mut carried: Vec<(String, String)> = Vec::new();
+        let mut carried = Vec::new();
         for e in self.exposed.iter().filter(|e| set.contains(&e.node)) {
             let key = (e.node, e.input.clone());
             let pin = match in_names.get(&key) {
@@ -467,8 +481,17 @@ impl Graph {
                     n
                 }
             };
-            carried.push((pin, e.name.clone()));
+            if let Some(inner_e) = inner.exposed.iter_mut().find(|i| i.name == pin) {
+                inner_e.doc = e.doc.clone();
+                inner_e.range = e.range;
+            }
+            carried.push((pin, e.clone()));
         }
+        let parent_groups = self.groups.clone();
+        inner.groups = parent_groups.iter().filter_map(|g| {
+            let nodes: Vec<_> = g.nodes.iter().copied().filter(|id| set.contains(id)).collect();
+            (!nodes.is_empty()).then(|| NodeGroup { name: g.name.clone(), nodes })
+        }).collect();
         let centroid = {
             let pts: Vec<[f32; 2]> = self.nodes.iter().filter(|n| set.contains(&n.id)).map(|n| n.pos).collect();
             let k = pts.len().max(1) as f32;
@@ -487,9 +510,17 @@ impl Graph {
         for (w, pin) in out_of {
             self.connect(cid, pin, w.to, w.input)?;
         }
-        for (pin, name) in carried {
-            self.expose(cid, pin, name)?;
+        for (pin, mut e) in carried {
+            e.node = cid;
+            e.input = pin;
+            self.exposed.push(e);
         }
+        self.groups = parent_groups.into_iter().map(|mut group| {
+            let folded = group.nodes.iter().any(|id| set.contains(id));
+            group.nodes.retain(|id| !set.contains(id));
+            if folded { group.nodes.push(cid); }
+            group
+        }).collect();
         Ok(cid)
     }
 

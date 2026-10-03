@@ -57,6 +57,12 @@ fn pins(_: &NodeSpec, node: &Node, reg: &Registry) -> (Vec<PinSpec>, Vec<PinSpec
         if !e.doc.is_empty() {
             pin.doc = e.doc.clone();
         }
+        if let Some([min, max]) = e.range.filter(|r| r[0].is_finite() && r[1].is_finite() && r[0] < r[1]) {
+            pin.widget = match pin.widget {
+                crate::registry::Widget::Mm { .. } => crate::registry::Widget::Mm { min, max },
+                _ => crate::registry::Widget::Slider { min, max },
+            };
+        }
         pin.optional = true;
         ins.push(pin);
     }

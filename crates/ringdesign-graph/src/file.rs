@@ -37,9 +37,9 @@ fn migrate_v0_to_v1(_doc: &mut serde_json::Value) {}
 /// Version 2 only fences an in-plane revolution, a pattern of several parts and a cut on a ring of parts alone off from older readers; a version-1 document has the same shape.
 fn migrate_v1_to_v2(_doc: &mut serde_json::Value) {}
 
-/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, or a pattern of several parts.
+/// Whether JSON holds what only a version-2 reader builds: a revolution read in its sketch's plane, a profile of several regions, or a pattern of several parts.
 fn fenced_json(v: &serde_json::Value) -> bool {
-    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::pattern::several_sources_json(v) || library::template_features_in_json(v)
+    ringdesign_core::cad::turns_in_plane_json(v) || ringdesign_core::cad::picks_regions_json(v) || ringdesign_core::cad::pattern::several_sources_json(v) || library::template_features_in_json(v)
 }
 
 /// Whether a literal holds what an older reader must be fenced from: what [`fenced_json`] fences, or a cut on a ring of parts alone.
@@ -667,7 +667,7 @@ mod tests {
             g
         };
         let band_off = |g: &mut Graph| g.set_input(band, "enabled", Literal::Bool(false)).unwrap();
-        let expose = |g: &mut Graph| g.exposed.push(Exposed { node: band, input: "enabled".into(), name: "Band".into(), doc: String::new() });
+        let expose = |g: &mut Graph| g.exposed.push(Exposed { node: band, input: "enabled".into(), name: "Band".into(), doc: String::new(), range: None });
         let cases = [
             ("as converted", with(&|_| {}), false, false),
             ("band pinned off", with(&band_off), true, true),
