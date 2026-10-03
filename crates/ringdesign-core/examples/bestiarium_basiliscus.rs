@@ -22,7 +22,7 @@ use std::{f64::consts::PI, path::Path, time::Instant};
 
 const AW: usize = 2048;
 const HACKLE_HEIGHT: f64 = 0.75;
-const BELLY_HEIGHT: f64 = 0.30;
+const BELLY_HEIGHT: f64 = 0.34;
 /// Scale of the painted serpent layer, mm.
 const SERPENT_HEIGHT: f64 = 2.0;
 /// Depth of the punched pits, mm.
@@ -899,8 +899,8 @@ fn chart(a: &Atlas, p: P2) -> Result<(f64, f64)> {
 /// The outer surface's half-width the mantling's rows are laid in: every column's own rim maps onto it, mm.
 const PLUME_WIDTH: f64 = 3.0;
 
-/// How far a hackle's shaft bows away from the pale by its tip, as a share of its length: a 20 degree sickle.
-const SICKLE: f64 = 0.182;
+/// How far a hackle's shaft bows away from the pale by its tip, as a share of its length: a 10 degree sickle.
+const SICKLE: f64 = 0.1;
 
 /// The mantling's feathers: lanceolate hackles that shorten into keeled scales between two distances along the ring.
 /// A feather's place along its row is read from the integral of one over the row's step, so rows shorten smoothly
@@ -996,9 +996,9 @@ impl Hackles {
                 let y = cross - j as f64 * pitch - bow;
                 let spread = (PI * t.powf(0.62)).sin().max(0.0).powf(0.8);
                 let barb = t * length - 1.43 * y.abs();
-                let fray = 1.0 - 0.14 * (1.0 - morph) * (1.0 - (2.0 * (barb / 0.45).rem_euclid(1.0) - 1.0).abs()) * smooth(0.2, 0.6, t);
+                let fray = 1.0 - 0.06 * (1.0 - morph) * (1.0 - (2.0 * (barb / 0.45).rem_euclid(1.0) - 1.0).abs()) * smooth(0.2, 0.6, t);
                 let half = (0.09 + (0.5 * pitch - 0.09) * spread) * fray;
-                let edge = 1.0 - smooth((half - 0.2).max(0.0), half, y.abs());
+                let edge = 1.0 - smooth((half - 0.36).max(0.0), half, y.abs());
                 let tip = 1.0 - smooth(0.92, 1.0, t);
                 let root_in = smooth(0.0, 0.30 - 0.17 * morph, t);
                 let lift = 0.13 * smooth(0.55, 0.9, t) * (1.0 - morph);
@@ -1019,14 +1019,25 @@ impl Hackles {
 }
 
 /// A ventral scute, 0..1, `u` counting scutes from the palm toward the head and `across` over the band's half-width:
-/// domed across, its free edge toward the palm standing over the next, its ends rounded off.
+/// domed across, rising from its root tucked under the last scute to a free edge toward the palm that rolls over onto
+/// the next scute's root, with no step anywhere; the joints bow toward the head across the band.
 fn scute(u: f64, across: f64) -> f64 {
+    let c = across.clamp(-1.0, 1.0);
+    let u = u + 0.14 * c * c;
     let t = u - u.floor();
-    let shingle = 0.73 + 0.27 * (1.0 - smooth(0.05, 0.95, t));
-    let edge = 0.6 + 0.4 * smooth(0.0, 0.06, t);
-    let dome = 1.0 - 0.27 * across.clamp(-1.0, 1.0).powi(2);
-    shingle * edge * dome
+    let lip = smooth(0.0, 0.16, t).sqrt();
+    let rise = smooth(0.0, 0.84, 1.0 - t);
+    let dome = 1.0 - 0.4 * c * c;
+    (0.62 + 0.38 * rise * lip) * dome
 }
+
+/// How much of the palm's skin is ventral scutes rather than the mantling's keeled scales at ring angle `theta`: 1 over
+/// the palm, crossing over to the scales between 50 and 72 degrees from it, about 4 mm of the band.
+fn ventral_share(theta: f64) -> f64 {
+    let from_palm = ((theta - 270.0 + 180.0).rem_euclid(360.0) - 180.0).abs();
+    1.0 - smooth(50.0, 72.0, from_palm)
+}
+
 fn skin_masks(a: &Atlas, hide: &Hide, s: &Sample) -> (f64, f64, f64) {
     let h = hide.at(s);
     let over_bore = smooth(a.bore + 1.15, a.bore + 1.65, s.p[0].hypot(s.p[1]));
@@ -1174,12 +1185,6 @@ fn round_box2(p: P2, b: P2, r: f64) -> f64 {
     q[0].max(0.0).hypot(q[1].max(0.0)) + q[0].max(q[1]).min(0.0) - r
 }
 
-/// Distance in a plane to the segment `a`–`b` less a radius running from `ra` to `rb` along it.
-fn capsule2(p: P2, a: P2, b: P2, ra: f64, rb: f64) -> f64 {
-    let (d, t) = seg_dist(p, a, b);
-    d - (ra + (rb - ra) * t)
-}
-
 /// The head's frame on the face: where its axis stands (face `x`, `z` and height over the table, mm), the snout's
 /// heading from -x toward the stone, how far the crown rolls toward the viewer and how far the snout pitches to the table
 /// (degrees).
@@ -1206,9 +1211,10 @@ const FANG: (f64, f64, f64) = (2.85, 0.25, 0.165);
 const TONGUE_R: (f64, f64, f64) = (0.25, 0.21, 0.17);
 /// How far the head's skirt sits under the table, how deep the part is buried, and the fillet where it meets the table.
 const SKIRT_UNDER: (f64, f64, f64) = (0.12, 0.6, 0.45);
-/// The neck's stations: face `x`, `z`, axis height over the table and radius, from the head's back down into the coil.
+/// The neck's stations: face `x`, `z`, axis height over the table and radius, from the head's back to where it dives
+/// steeply under the painted coil, so the two meet along a crisp line rather than grazing.
 const NECK_RUN: [(f64, f64, f64, f64); 5] =
-    [(2.2, -1.75, 0.6, 1.45), (3.45, -1.3, 0.3, 1.35), (4.3, -0.7, 0.0, 1.28), (4.75, 0.3, -0.3, 1.22), (4.92, 1.5, -0.55, 1.2)];
+    [(2.2, -1.75, 0.6, 1.45), (3.45, -1.3, 0.5, 1.36), (4.3, -0.7, 0.5, 1.3), (4.75, 0.3, -0.9, 1.0), (4.85, 0.9, -1.6, 0.8)];
 /// Marching step and face budget of the sculpt.
 const SCULPT_STEP: f64 = 0.045;
 /// The head's size over the units its frame is drawn in.
@@ -1609,7 +1615,7 @@ impl Basilisk {
             return d;
         }
         let width = (0.36 * r).clamp(0.25, 0.55);
-        d - 0.1 * soft_scale(s / (1.37 * width), arc / width) * (1.0 - smooth(0.2, 0.5, d.abs()))
+        d - 0.16 * soft_scale(s / (1.37 * width), arc / width) * (1.0 - smooth(0.2, 0.5, d.abs()))
     }
 
     /// The whole part: head, tongue and neck, met to the table by a fillet over a skirt just under it, and buried
@@ -1759,7 +1765,15 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
         if !on_table(s) {
             return 0.0;
         }
-        let pad = seat.height(ringdesign_core::Uv { u: ctx.u_of_theta(s.theta), v: s.v }, &ctx);
+        // Where the coil laps the boss it rides the boss's wall as a 0.35 mm fillet, so no crease opens between them.
+        let at = |dt: f64, dv: f64| seat.height(ringdesign_core::Uv { u: ctx.u_of_theta(s.theta + dt), v: s.v + dv }, &ctx);
+        let r = s.p[0].hypot(s.p[1]).max(1.0);
+        let reach = 0.35;
+        let dt = (reach / r).to_degrees();
+        let pad = (0..8).map(|k| {
+            let (sn, cs) = (k as f64 * PI / 4.0).sin_cos();
+            at(dt * cs, reach * sn)
+        }).fold(at(0.0, 0.0), f64::max);
         arms.serpent([s.p[0], s.p[2]], pad) / SERPENT_HEIGHT
     });
     let painted_peak = alpha.data.iter().copied().fold(0.0f32, f32::max) as f64 * SERPENT_HEIGHT;
@@ -1800,31 +1814,31 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
     });
     portable(&mut d, &mut lib, alpha, wall_relief, window(90.0, 132.0), false, Some(REACH))?;
     let alpha = a.paint("Hackles into scales", |s| {
-        if !within(s.theta, 90.0, 126.0) {
+        if !within(s.theta, 90.0, 136.0) {
             return 0.0;
         }
         let (bore, _, _) = skin_masks(&a, &hide, s);
-        feather(s).0 * bore * off_table.data[s.i] as f64
+        feather(s).0 * bore * off_table.data[s.i] as f64 * (1.0 - ventral_share(s.theta))
     });
-    portable(&mut d, &mut lib, alpha, HACKLE_HEIGHT, window(90.0, 240.0), false, Some(REACH))?;
+    portable(&mut d, &mut lib, alpha, HACKLE_HEIGHT, window(90.0, 260.0), false, Some(REACH))?;
     let far = hide.reach();
     let alpha = a.paint("Belly scutes", |s| {
-        if !within(s.theta, 270.0, 61.0) {
+        if !within(s.theta, 270.0, 75.0) {
             return 0.0;
         }
         let h = hide.at(s);
         let (bore, _, _) = skin_masks(&a, &hide, s);
-        scute((far - h.along.abs()) / 2.2, h.across / h.rim.max(0.5)) * smooth(0.0, 0.8, h.rim - h.across.abs()) * bore
+        scute((far - h.along.abs()) / 2.2, h.across / h.rim.max(0.5)) * smooth(0.0, 0.8, h.rim - h.across.abs()) * bore * ventral_share(s.theta)
     });
-    portable(&mut d, &mut lib, alpha, BELLY_HEIGHT, window(270.0, 110.0), false, Some(REACH))?;
+    portable(&mut d, &mut lib, alpha, BELLY_HEIGHT, window(270.0, 150.0), false, Some(REACH))?;
     let alpha = a.paint("Graver's barbs and keels", |s| {
-        if !within(s.theta, 90.0, 126.0) {
+        if !within(s.theta, 90.0, 136.0) {
             return 0.0;
         }
         let (bore, _, along) = skin_masks(&a, &hide, s);
-        feather(s).1 * bore * off_table.data[s.i] as f64 * (1.0 - smooth(0.35, 0.9, smooth(l70, l110, along)))
+        feather(s).1 * bore * off_table.data[s.i] as f64 * (1.0 - smooth(0.35, 0.9, smooth(l70, l110, along))) * (1.0 - ventral_share(s.theta))
     });
-    portable(&mut d, &mut lib, alpha, 0.065, window(90.0, 240.0), true, Some(REACH))?;
+    portable(&mut d, &mut lib, alpha, 0.065, window(90.0, 260.0), true, Some(REACH))?;
     let lands = land_rows(&arms, &seat, gem);
     let mut e = LayerEntry::new("Tsavorite, flush", Layer::SeatPad(seat));
     e.blend = Blend::Max;
