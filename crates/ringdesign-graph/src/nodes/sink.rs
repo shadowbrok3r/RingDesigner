@@ -642,7 +642,7 @@ mod tests {
         use ringdesign_core::cad::{Attach, Component, Document, Feature, Operation, Placement, Stage};
         let mut doc = Document::default();
         doc.append(Feature { id: 0, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
-        let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.5, height_mm: 2.1, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.5, height_mm: 2.1, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         doc.append(Feature { id: 1, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.4, height_mm: 5.0 }, component: Component { attach: Attach::Join, stage: Stage::Cast, placement, ..Default::default() } }).unwrap();
         let mut g = Graph::default();
         let band = squared(&mut g);
