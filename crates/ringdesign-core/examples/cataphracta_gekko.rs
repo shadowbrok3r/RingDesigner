@@ -23,7 +23,6 @@ use ringdesign_core::{
     skin::{self, Atlas},
     stl,
     svg::SvgAlpha,
-    tiling::TilingLayer,
 };
 use serde_json::{Value, json};
 use std::{
@@ -80,6 +79,7 @@ fn band() -> RingDesign {
     d.profile.edge_round_mm = 0.3;
     d.profile.comfort_fit_mm = 0.1;
     d.imported_base.as_mut().unwrap().chart = Some(SurfaceChart { profile: d.profile.clone(), bore_radius_mm: d.inner_radius_mm() });
+    d.crisp_relief = std::env::var_os("GEKKO_CRISP").is_some();
     CastProcess::LostWax.apply(&mut d.draft);
     d.draft.min_section_mm = MIN_SECTION_MM;
     d.draft.min_draft_deg = 0.0;
@@ -238,16 +238,16 @@ struct Spot {
 
 /// The tokay's measurements, frame mm.
 const HEAD_X: f64 = 6.2;
-const EYE_X: f64 = 4.9;
-const EYE_W: f64 = 2.8;
-const EYE_R: f64 = 1.0;
+const EYE_X: f64 = 5.1;
+const EYE_W: f64 = 2.95;
+const EYE_R: f64 = 0.82;
 const VENT_X: f64 = -6.2;
 /// Front and hind limbs: where each leaves the body.
 const LEGS: [(f64, f64); 2] = [(2.2, 1.0), (-4.0, -1.0)];
 /// The skin's granules: lattice pitch and height; the spots' height.
 const GRANULE_PITCH_MM: f64 = 0.5;
 const GRANULE_MM: f64 = 0.0;
-const SPOT_MM: f64 = 0.26;
+const SPOT_MM: f64 = 0.22;
 
 struct Gekko<'a> {
     frame: Frame<'a>,
@@ -262,8 +262,8 @@ struct Gekko<'a> {
 /// The tail's centre line and radius at a share `t` of its length from the vent: off the face's end and down the
 /// shoulder, swinging to one side and curling its tip back.
 fn tail_at(g: &Ground, t: f64) -> (P3, f64) {
-    let r = 1.5 * (1.0 - t).powf(0.8) + 0.5 * t;
-    let pts: [(f64, f64); 7] = [(VENT_X, 0.0), (-7.5, -0.35), (-8.4, -1.2), (-8.8, -2.3), (-8.5, -3.2), (-7.8, -3.5), (-7.2, -3.1)];
+    let r = 1.45 * (1.0 - t).powf(0.9) + 0.4 * t;
+    let pts: [(f64, f64); 7] = [(VENT_X, 0.0), (-7.4, -0.6), (-8.3, -0.2), (-8.6, 0.8), (-8.3, 1.8), (-8.4, 2.8), (-8.8, 3.4)];
     let n = pts.len() - 1;
     let f = (t.clamp(0.0, 1.0) * n as f64).min(n as f64 - 1e-9);
     let i = f.floor() as usize;
@@ -367,22 +367,14 @@ fn limb_plans(crest: &Ground) -> Vec<LimbPlan> {
 
 /// The tokay's spots: rows down both flanks and on the head's and tail's sides, each a smooth raised disc.
 fn spots() -> Vec<Spot> {
-    let mut out: Vec<Spot> = Vec::new();
-    // The back and flanks: low rounded tubercles 1.5-2 mm apart, scattered over the whole torso, the spine included.
-    let mut tries = 0usize;
-    while tries < 6000 {
-        tries += 1;
-        let x = VENT_X + 0.6 + (2.8 - VENT_X - 0.6) * hash(tries, 31);
-        let w = 2.2 * (2.0 * hash(tries, 32) - 1.0);
-        let r = 0.36 + 0.14 * hash(tries, 34);
-        if out.iter().any(|o| (o.x - x).hypot(o.w - w) < 1.55) {
-            continue;
+    // Two loose rows of flat-topped spots down the back, 1.0-1.4 mm across, staggered, from the shoulders to the hips.
+    let mut out = Vec::new();
+    for k in 0..5 {
+        for (row, s) in [(0, 1.0), (1, -1.0)] {
+            let x = 2.4 - 1.95 * k as f64 - 0.95 * row as f64 + 0.3 * (hash(k * 2 + row, 31) - 0.5);
+            let w = s * (1.05 + 0.3 * (hash(k * 2 + row, 32) - 0.5));
+            out.push(Spot { x, w, r: 0.5 + 0.2 * hash(k * 2 + row, 34) });
         }
-        out.push(Spot { x, w, r });
-    }
-    // Behind the eyes on the head's back.
-    for (x, w, r) in [(3.8, 0.0, 0.42), (4.0, 1.35, 0.34), (4.0, -1.35, 0.34)] {
-        out.push(Spot { x, w, r });
     }
     out
 }
@@ -397,7 +389,7 @@ impl<'a> Gekko<'a> {
             let m = 0.5 * (lo + hi);
             if gek.body_at([EYE_X, m, EYE_W]) > 0.0 { hi = m } else { lo = m }
         }
-        gek.eye_h = lo + 0.75 - EYE_R;
+        gek.eye_h = lo + 0.7 - EYE_R;
         gek
     }
 
@@ -436,15 +428,14 @@ impl<'a> Gekko<'a> {
             let look = [0.0, 0.55, 0.835 * s];
             let up = [0.0, 0.835, -0.55 * s];
             let (fa, fv) = (dot(d, look), dot(d, up));
-            let half = 0.13 * (1.0 - (fv / (0.82 * EYE_R)).powi(2)).max(0.0).sqrt();
-            let slit = (d[0].abs() - half).max(0.25 * EYE_R - fa);
-            let eye = ball.max(-slit);
-            // The lid: a ring round the ball a little behind its equator.
-            let ring_c = sub(d, mul(look, -0.12 * EYE_R));
+            let half = 0.09 * (1.0 - (fv / (0.55 * EYE_R)).powi(2)).max(0.0).sqrt();
+            let slit = (d[0].abs() - half).max(0.55 * EYE_R - fa).max(fv.abs() - 0.55 * EYE_R);
+            // The lid: a fine groove round the ball a little behind its equator.
+            let ring_c = sub(d, mul(look, 0.1 * EYE_R));
             let along = dot(ring_c, look);
             let across = norm(sub(ring_c, mul(look, along)));
-            let lid = (across - 0.98 * EYE_R).hypot(along) - 0.17;
-            f = f.min(smin(eye, lid, 0.05));
+            let lid = (across - EYE_R).hypot(along) - 0.08;
+            f = f.min(ball.max(-slit).max(-lid));
         }
         f
     }
@@ -456,7 +447,7 @@ impl<'a> Gekko<'a> {
         for s in &self.spots {
             let d = (q[0] - s.x).hypot(q[2] - s.w);
             if d < s.r + 0.25 {
-                let v = (1.0 - (d / (s.r + 0.2)).powi(2)).max(0.0).sqrt();
+                let v = 1.0 - smoothstep(s.r - 0.3, s.r + 0.1, d);
                 spot = spot.max(v);
             }
         }
@@ -478,30 +469,29 @@ impl<'a> Gekko<'a> {
         f = smin(f, eyes, 0.1);
         // The face's ground: a pebbled plate over the face, inset from its rim, the gecko grown out of it.
         if q[1] < 0.5 {
-            f = smin(f, self.ground_plate(q), 0.12);
+            f = smin(f, self.ground_plate(q, f), 0.12);
         }
         f.max(-self.frame.crest.band_sd(p) - SINK_MM).max(self.bore_r + BORE_CLEAR_MM - p[0].hypot(p[1]))
     }
 
     /// The pebbled plate on the face: granules `CROWN_GRANULE_MM` high over the face, stopping `RIM_MM` short of its rim.
-    fn ground_plate(&self, q: P3) -> f64 {
-        const RIM_MM: f64 = 0.45;
-        let g = self.frame.crest;
-        let face = g.s(0.0, 0.0);
-        let inside = [(RIM_MM, 0.0), (-RIM_MM, 0.0), (0.0, RIM_MM), (0.0, -RIM_MM), (0.7 * RIM_MM, 0.7 * RIM_MM), (-0.7 * RIM_MM, 0.7 * RIM_MM), (0.7 * RIM_MM, -0.7 * RIM_MM), (-0.7 * RIM_MM, -0.7 * RIM_MM)]
-            .iter()
-            .all(|(dx, dz)| (g.s(q[0] + dx, q[2] + dz) - face).abs() < 0.02);
-        if !inside {
-            return 0.3;
+    fn ground_plate(&self, q: P3, figure: f64) -> f64 {
+        // The plate's rim: a superellipse 18.6 x 13.2 mm, half a millimetre inside the face's own outline all round.
+        let (a, b) = (9.3, 6.6);
+        let k = ((q[0].abs() / a).powi(4) + (q[2].abs() / b).powi(4)).powf(0.25);
+        let rim = (k - 1.0) * b;
+        if rim > 0.3 {
+            return rim;
         }
-        let top = 0.02 + CROWN_GRANULE_MM * crown_granules(q[0], q[2]);
-        (q[1] - top).max(-q[1] - SINK_MM)
+        // A quiet halo: the granules sink to nothing close to the figure, so its outline stays crisp.
+        let top = 0.02 + CROWN_GRANULE_MM * crown_granules(q[0], q[2]) * smoothstep(0.2, 0.7, figure);
+        (q[1] - top).max(-q[1] - SINK_MM).max(rim)
     }
 
     /// Which shape is nearest the surface at a frame point.
     fn kind_at(&self, q: P3) -> Kind {
         let mut best = (self.eyes_at(q).abs(), Kind::Eye);
-        let plate = self.ground_plate(q).abs();
+        let plate = self.ground_plate(q, self.body_at(q)).abs();
         if plate < best.0 {
             best = (plate, Kind::Hide);
         }
@@ -577,6 +567,7 @@ fn granules(p: P3) -> f64 {
 
 #[derive(Default, serde::Serialize)]
 struct Composition {
+    lamella_faces: usize,
     face_y_mm: f64,
     prims: usize,
     spots: usize,
@@ -655,10 +646,131 @@ fn crown_granules(along: f64, z: f64) -> f64 {
             }
         }
     }
-    let t = smoothstep(0.06, 0.46, f2 - f1);
-    t * (1.0 - 0.55 * (f1 / (0.7 * g)).min(1.0).powi(2))
+    let t = smoothstep(0.06, 0.4, f2 - f1);
+    t * (1.0 - (f1 / (0.75 * g)).min(1.0).powi(2)).sqrt()
 }
 
+
+/// The shank's outer surface seen from the finger's axis: its radius over a grid in ring angle and `z`, read by
+/// casting inward onto the built bare mesh, for the palm's lamellae.
+struct Shank {
+    t0: f64,
+    dt: f64,
+    z0: f64,
+    dz: f64,
+    nt: usize,
+    nz: usize,
+    r: Vec<f64>,
+}
+
+impl Shank {
+    fn of(d: &RingDesign, from_deg: f64, to_deg: f64) -> Result<Self> {
+        use ringdesign_core::interaction::bvh::Bvh;
+        let built = mesh::try_build(d, &AlphaLibrary::default(), BuildParams { theta_steps: 1536, profile_steps: 448, refine: None, ..BuildParams::default() })?;
+        let bvh = Bvh::build(&built.mesh);
+        let (dt, z0, dz) = (0.2, -6.0, 0.04);
+        let nt = ((to_deg - from_deg) / dt) as usize + 1;
+        let nz = (12.0 / dz) as usize + 1;
+        let mut r = vec![-1.0; nt * nz];
+        for i in 0..nt {
+            let th = (from_deg + i as f64 * dt).to_radians();
+            for j in 0..nz {
+                let z = z0 + j as f64 * dz;
+                let o = [30.0 * th.cos(), 30.0 * th.sin(), z];
+                if let Some((_, t)) = bvh.ray(&built.mesh, o, [-th.cos(), -th.sin(), 0.0]) {
+                    r[i * nz + j] = 30.0 - t;
+                }
+            }
+        }
+        Ok(Self { t0: from_deg, dt, z0, dz, nt, nz, r })
+    }
+    fn at(&self, theta: f64, z: f64) -> f64 {
+        let ft = ((theta - self.t0) / self.dt).clamp(0.0, (self.nt - 1) as f64 - 1e-9);
+        let fz = ((z - self.z0) / self.dz).clamp(0.0, (self.nz - 1) as f64 - 1e-9);
+        let (i, j) = (ft.floor() as usize, fz.floor() as usize);
+        let (a, b) = (ft - i as f64, fz - j as f64);
+        let g = |x: usize, y: usize| self.r[x * self.nz + y];
+        (g(i, j) * (1.0 - a) + g(i + 1, j) * a) * (1.0 - b) + (g(i, j + 1) * (1.0 - a) + g(i + 1, j + 1) * a) * b
+    }
+    /// Half the shank's width at `theta`: how far along the finger its outer surface still faces out.
+    fn half_w(&self, theta: f64) -> f64 {
+        let f = ((theta - self.t0) / self.dt).clamp(0.0, (self.nt - 1) as f64 - 1e-9);
+        let i = f.floor() as usize;
+        let t = f - i as f64;
+        self.half_w_at(i) * (1.0 - t) + self.half_w_at(i + 1) * t
+    }
+    fn half_w_at(&self, i: usize) -> f64 {
+        let rmax = (0..self.nz).map(|j| self.r[i * self.nz + j]).fold(0.0, f64::max);
+        (0..self.nz).filter(|&j| self.r[i * self.nz + j] > rmax - 0.9).map(|j| (self.z0 + j as f64 * self.dz).abs()).fold(0.0, f64::max)
+    }
+}
+
+/// The palm: the tokay's lamellae, plates across the shank that vary only along the ring, each a gentle loaf rising to
+/// a trailing drop that faces away from the palm's centre, their pitch graded from 0.9 mm at 270 degrees to 1.45 mm
+/// where they fade out on the shoulders; at the centre the split lamella, a chevron pointing round the ring.
+const LAMELLA_MM: f64 = 0.36;
+const LAMELLA_SPAN_DEG: f64 = 68.0;
+fn lamella_solid(sh: &Shank, bore_r: f64) -> csg::Solid {
+    let r_ref = sh.at(270.0, 0.0);
+    // The joints round the ring, out from the palm's centre either way.
+    let mut joints = vec![0.0f64];
+    let mut a = 0.0;
+    while a < LAMELLA_SPAN_DEG {
+        let pitch = 0.9 + 0.55 * smoothstep(0.0, LAMELLA_SPAN_DEG, a);
+        a += (pitch / r_ref).to_degrees();
+        joints.push(a);
+    }
+    let field = |p: P3| {
+        let theta = p[1].atan2(p[0]).to_degrees().rem_euclid(360.0);
+        let off = theta - 270.0;
+        let d = off.abs();
+        if d > LAMELLA_SPAN_DEG + 3.0 {
+            return 1.0;
+        }
+        let h = p[0].hypot(p[1]) - sh.at(theta, p[2]);
+        let hw = sh.half_w(theta) - 0.5;
+        // Which plate, and how far along it from its inner joint (toward the palm's centre) to its outer.
+        let k = joints.partition_point(|j| *j <= d).max(1) - 1;
+        let (j0, j1) = (joints[k], joints[(k + 1).min(joints.len() - 1)]);
+        let len = (j1 - j0).max(1e-6);
+        let u = ((d - j0) / len).clamp(0.0, 1.0);
+        // The chevron: the centre plate's joints bend back from the band's middle.
+        let bend = if k == 0 { 0.0 } else { 0.0 };
+        let _ = bend;
+        if d > LAMELLA_SPAN_DEG {
+            return 1.0;
+        }
+        let fade = 1.0 - 0.45 * smoothstep(LAMELLA_SPAN_DEG - 20.0, LAMELLA_SPAN_DEG, d);
+        let across = 1.0 - 0.35 * (p[2] / hw.max(0.5)).powi(4).min(1.0);
+        let loaf = LAMELLA_MM * fade * across * (0.45 + 0.55 * (u / 0.75 * PI * 0.5).min(PI * 0.5).sin());
+        let gap = (u - 0.9).max(0.0);
+        let _ = gap;
+        let top = h - loaf;
+        let edge = p[2].abs() - hw;
+        // Each plate takes three quarters of its pitch; the joint between is open to the shank.
+        let arcgap = ((u - 0.76) * len).to_radians() * r_ref;
+        top.max(-h - 0.3).max(edge).max(arcgap).max(bore_r + BORE_CLEAR_MM - p[0].hypot(p[1]))
+    };
+    let r_out = r_ref + 1.0;
+    let lo = [-r_out, -r_out - 0.5, -6.0];
+    let hi = [r_out, -(r_ref - 2.0) * (LAMELLA_SPAN_DEG + 4.0).to_radians().cos().max(0.0) + 0.5, 6.0];
+    let mut raw = sculpt::tetra_mesh(lo, [hi[0], hi[1].min(-1.0), hi[2]], 0.04, &field);
+    sculpt::relax(&mut raw, &field, 2);
+    for target in [160_000, 220_000, 300_000] {
+        let s = sculpt::settle(sculpt::clean_decimate(&raw, target), &field, &|_| false);
+        if stored_crossings(&s) == 0 {
+            return s;
+        }
+    }
+    raw
+}
+
+/// Crossings once the mesh is stored, its vertices rounded to the stored grid as a stored part keeps them.
+fn stored_crossings(s: &csg::Solid) -> usize {
+    let q = ringdesign_core::cad::stored::QUANTUM_MM;
+    let r = csg::Solid { v: s.v.iter().map(|p| p.map(|c| (c / q).round() * q)).collect(), f: s.f.clone() };
+    csg::self_crossings(&r)
+}
 
 fn joined() -> Component {
     Component { attach: Attach::Join, placement: Placement::Free, blend_mm: 0.0, ..Component::default() }
@@ -696,9 +808,19 @@ fn author() -> Result<Authored> {
     }
     comp.prims = gek.prims.len();
     comp.spots = gek.spots.len();
+    if std::env::var_os("GEKKO_NOSCULPT").is_some() {
+        let lam = lamella_solid(&Shank::of(&d, 195.0, 345.0)?, d.inner_radius_mm());
+        println!("  lamellae {} faces, stored crossings {}", lam.f.len(), stored_crossings(&lam));
+        d.bake_all(&mut lib);
+        return Ok(Authored { d, lib, comp, solid: csg::Solid { v: Vec::new(), f: Vec::new() }, census: Vec::new() });
+    }
     let solid = sculpt_solid(&gek, &mut comp);
     println!("  sculpt {} raw faces -> {}, {:.1} mm3, {:.1} s {:?}", comp.raw_faces, comp.faces, comp.volume_mm3, comp.sculpt_s, comp.notes);
     let packed = sculpt::packed(&solid)?;
+    let shank = Shank::of(&d, 195.0, 345.0)?;
+    let lam = lamella_solid(&shank, d.inner_radius_mm());
+    comp.lamella_faces = lam.f.len();
+    println!("  lamellae {} faces, crossings {}", lam.f.len(), csg::self_crossings(&lam));
     let doc = d.cad.get_or_insert_with(Document::default);
     if doc.band().is_none() {
         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
@@ -711,6 +833,8 @@ fn author() -> Result<Authored> {
         digest: String::new(),
     };
     doc.append(Feature { id: next, name: "Tokay".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: packed }, component: joined() })?;
+    let recipe = stored::Recipe { kernel: "sculpt".into(), op: "lamellae".into(), params: json!({"height_mm": LAMELLA_MM, "span_deg": LAMELLA_SPAN_DEG, "pitch_mm": [0.9, 1.45]}), digest: String::new() };
+    doc.append(Feature { id: next + 1, name: "Lamellae".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: sculpt::packed(&lam)? }, component: joined() })?;
     d.bake_all(&mut lib);
     let census = land_census(&gek, &solid);
     Ok(Authored { d, lib, comp, solid, census })
@@ -836,7 +960,7 @@ impl Pass {
         Self { triangles: built.mesh.faces.len(), watertight, degenerate, crossings, notes, parts: part_crossings(built), joined: built.parts.joined }
     }
     fn ok(&self) -> bool {
-        self.watertight && self.degenerate == 0 && self.crossings == 0 && self.notes.is_empty() && self.parts.iter().all(|p| p.1 == 0) && self.joined == 1
+        self.watertight && self.degenerate == 0 && self.crossings == 0 && self.notes.is_empty() && self.parts.iter().all(|p| p.1 == 0) && self.joined == 2
     }
     fn json(&self) -> Value {
         json!({"triangles": self.triangles, "watertight": self.watertight, "degenerate_faces": self.degenerate, "self_crossings": self.crossings, "notes": self.notes, "made_part_crossings": self.parts, "parts_joined": self.joined})
@@ -876,8 +1000,8 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, census
     let unnamed: Vec<String> = census.iter().filter(|c| c.2 > 0.0 && c.0.treatment().is_none()).map(|c| format!("{}: {:.3} mm2 under, thinnest {:.2}", c.0.label(), c.2, c.1)).collect();
     let list = [
         ("finished mesh watertight, 0 degenerate faces, 0 self-crossings", pass.watertight && pass.degenerate == 0 && pass.crossings == 0),
-        ("the sculpted part uncrossed as placed", pass.parts.iter().all(|p| p.1 == 0)),
-        ("solids and parts notes empty, the part joined", pass.notes.is_empty() && pass.joined == 1),
+        ("the sculpted parts uncrossed as placed", pass.parts.iter().all(|p| p.1 == 0)),
+        ("solids and parts notes empty, the tokay and the lamellae joined", pass.notes.is_empty() && pass.joined == 2),
         ("nothing enters the finger hole", inside == 0),
         ("lost-wax field verdict Castable with the 0.8 mm fill, band and with the part judged", field.process == CastProcess::LostWax && field.verdict == Verdict::Castable && band_field.verdict == Verdict::Castable && band_field.thinnest_wall_mm >= MIN_SECTION_MM),
         ("every section under 0.8 mm named with its treatment", unnamed.is_empty()),
