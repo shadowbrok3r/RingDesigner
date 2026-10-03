@@ -1,0 +1,12 @@
+{
+  "ring": "aile",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": true,
+  "what_the_eye_sees": "Face at 300 px: a blue oval in a plain collet with a pair of wings spread flat to either side, like a pilot's badge or a winged insignia. You name 'winged stone' in a second. The wings sit beside the collet rather than holding it, though. They spring straight out sideways from behind it and do not wrap its sides, so 'clasping' does not come through. Each wing reads as three stacked, parallel slats with flat tops and blunt rounded ends, more like layered bars than feathers. Hero at 300 px: the far wing reads as three long fingers or flames sweeping back over the band, and that reads well as a feathered spray lifting off the shank. The near wing is foreshortened into a lumpy clump to the right of the stone, so from this angle the piece looks lopsided. A small bulbous lobe where each wing root meets the collet reads as a knuckle, not a feather root. The plain shank is clean and stays quiet, as the brief asks.",
+  "changes": [
+    "Make the wings clasp the collet. Curve each wing root forward round the collet's side so the leading feather overlaps the collet wall by about 1 mm and its top sits about 0.3 mm above the collet's girdle line, instead of butting into the back of it. Do this in the 'Wing' sketch root at x 2.0 on the theta-58 plane: bring the root inboard about 1 mm and sweep the leading edge toward theta 90. Acceptance: in face-300, each wing visibly hooks round the oval's side, with no straight horizontal root line.",
+    "Fan the three feathers apart and taper them, so they stop reading as stacked slats. Spread the tip ends of the internal Beziers so the tips diverge by about 8 to 12 degrees each, leaving a visible dark gap of at least 0.6 mm between tips. Shape each tip to a point or a narrow 0.3 mm round, not the present full-width blunt end. Acceptance: in face-300, three separate pointed primaries per side with daylight between their tips.",
+    "Break the flat feather tops. Crown each extrusion, or raise the draft from 10 to about 18 to 20 degrees on the upper faces, or move to the lofted-feather fallback the section names, so each feather shows a highlight down its spine instead of a flat lit plane. At the same time, blend away the knuckle lobe at the wing root into the collet with a blend of at least 0.3 mm. Acceptance: in hero-300, every feather shows a single bright ridge line and the root runs smoothly into the collet with no separate bulge."
+  ]
+}

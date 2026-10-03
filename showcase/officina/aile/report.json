@@ -1,0 +1,451 @@
+{
+  "alloy_for_weight": "Gold 18k",
+  "author_s": 1.12176878,
+  "band": {
+    "amount": 0.4,
+    "shank": "ReverseTaper",
+    "style": "DShape",
+    "thickness_mm": 1.8,
+    "width_mm": 2.4
+  },
+  "bore_mm": 18.2,
+  "cold_reload_identical": null,
+  "composition": {
+    "crest_top_r_mm": 10.684,
+    "feathers": [
+      {
+        "name": "Coverts",
+        "spec": {
+          "camber": 0.4,
+          "h_root": 0.3,
+          "h_tip": 0.35,
+          "heading_deg": 20.0,
+          "length": 1.4,
+          "name": "Coverts",
+          "roll_deg": 0.0,
+          "root_z": 0.5,
+          "sweep_deg": 0.0,
+          "t_root": 1.4,
+          "t_tip": 1.3,
+          "w_root": 5.0,
+          "w_tip": 4.0
+        },
+        "triangles": 37056,
+        "volume_mm3": 35.52013656726955
+      },
+      {
+        "name": "Primary I",
+        "spec": {
+          "camber": 0.35,
+          "h_root": 0.25,
+          "h_tip": 1.6,
+          "heading_deg": 31.0,
+          "length": 7.8,
+          "name": "Primary I",
+          "roll_deg": 12.0,
+          "root_z": 1.7,
+          "sweep_deg": 14.0,
+          "t_root": 1.0,
+          "t_tip": 0.92,
+          "w_root": 3.4,
+          "w_tip": 2.3
+        },
+        "triangles": 37056,
+        "volume_mm3": 35.672176555330445
+      },
+      {
+        "name": "Primary II",
+        "spec": {
+          "camber": 0.33,
+          "h_root": 0.2,
+          "h_tip": 1.35,
+          "heading_deg": 16.0,
+          "length": 6.8,
+          "name": "Primary II",
+          "roll_deg": 12.0,
+          "root_z": 0.4,
+          "sweep_deg": 10.0,
+          "t_root": 1.0,
+          "t_tip": 0.92,
+          "w_root": 3.4,
+          "w_tip": 2.2
+        },
+        "triangles": 37056,
+        "volume_mm3": 30.790912000613837
+      },
+      {
+        "name": "Primary III",
+        "spec": {
+          "camber": 0.3,
+          "h_root": 0.15,
+          "h_tip": 1.1,
+          "heading_deg": 2.0,
+          "length": 5.6,
+          "name": "Primary III",
+          "roll_deg": 12.0,
+          "root_z": -0.9,
+          "sweep_deg": 6.0,
+          "t_root": 1.0,
+          "t_tip": 0.92,
+          "w_root": 3.0,
+          "w_tip": 2.0
+        },
+        "triangles": 37056,
+        "volume_mm3": 22.538960410279653
+      }
+    ],
+    "stand_off_mm": 1.27
+  },
+  "design": {
+    "bytes": 1520170,
+    "cad_features": 12
+  },
+  "draft": {
+    "bore": {
+      "nearest_vertex_mm": 9.099999560101274,
+      "radius_mm": 9.1,
+      "vertices_inside": 0
+    },
+    "boundary_edges": 0,
+    "build_s": 103.98181273,
+    "cut_lands": [],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "feature_status": [
+      {
+        "id": 1,
+        "name": "Band",
+        "status": "Ok"
+      },
+      {
+        "id": 2,
+        "name": "Oval 7 x 5",
+        "status": "Ok"
+      },
+      {
+        "id": 3,
+        "name": "Collet",
+        "status": "Ok"
+      },
+      {
+        "id": 4,
+        "name": "Seat bur",
+        "status": "Ok"
+      },
+      {
+        "id": 5,
+        "name": "Coverts",
+        "status": "Ok"
+      },
+      {
+        "id": 6,
+        "name": "Primary I",
+        "status": "Ok"
+      },
+      {
+        "id": 7,
+        "name": "Primary II",
+        "status": "Ok"
+      },
+      {
+        "id": 8,
+        "name": "Primary III",
+        "status": "Ok"
+      },
+      {
+        "id": 9,
+        "name": "Wing: coverts and I",
+        "status": "Ok"
+      },
+      {
+        "id": 10,
+        "name": "Wing: and II",
+        "status": "Ok"
+      },
+      {
+        "id": 11,
+        "name": "East wing",
+        "status": "Ok"
+      },
+      {
+        "id": 12,
+        "name": "West wing (mirror)",
+        "status": "Ok"
+      }
+    ],
+    "field": {
+      "min_detail_mm": 0.15,
+      "min_section_mm": 0.8,
+      "notes": [
+        "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
+        "Measured with the ring as built: 4 CAD parts (3 joined, 1 cut), 498.0 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Bezel \"Collet\" (#3) would undercut a two-part pull over 59.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Union \"East wing\" (#11) would undercut a two-part pull over 63.6 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"West wing (mirror)\" (#12) would undercut a two-part pull over 63.6 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is."
+      ],
+      "process": "Lost wax",
+      "thinnest_wall_mm": 1.1845505891540284,
+      "thinnest_wall_theta_deg": 90.0,
+      "verdict": "Castable"
+    },
+    "gates": [
+      {
+        "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+        "pass": true
+      },
+      {
+        "gate": "0 self-crossings on every made part",
+        "pass": true
+      },
+      {
+        "gate": "solids and parts notes empty",
+        "pass": false
+      },
+      {
+        "gate": "every CAD feature Ok",
+        "pass": true
+      },
+      {
+        "gate": "nothing enters the finger hole",
+        "pass": true
+      },
+      {
+        "gate": "lost wax: measure::thickness clean at 0.8 mm on every wing part, and on the whole ring but for the burnished lip",
+        "pass": false
+      },
+      {
+        "gate": "lost wax: dfm::cut_lands clean at 0.8 mm",
+        "pass": true
+      },
+      {
+        "gate": "lost wax: field verdict Castable",
+        "pass": true
+      },
+      {
+        "gate": "0 DFM findings",
+        "pass": true
+      },
+      {
+        "gate": "stone record equals the gem preview, no warnings, crowding clean",
+        "pass": true
+      },
+      {
+        "gate": "casting pattern watertight, 0 degenerate faces, 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "within the 2 million triangle budget",
+        "pass": true
+      }
+    ],
+    "gates_passed": false,
+    "grams_18k": 6.691132878355951,
+    "made_parts": [
+      [
+        "Oval 7 x 5",
+        0
+      ],
+      [
+        "Collet",
+        0
+      ],
+      [
+        "Seat bur",
+        0
+      ],
+      [
+        "East wing",
+        0
+      ],
+      [
+        "West wing (mirror)",
+        0
+      ]
+    ],
+    "mesh_self_crossings": 0,
+    "non_manifold_edges": 0,
+    "params": [
+      768,
+      320
+    ],
+    "parts_joined": 3,
+    "parts_notes": [
+      "East wing: its fillet pinches to 0.02 mm at 71 of 253 stations, smallest at 51.6° round the ring, r 10.61 z -0.43 mm in its section, point (6.60, 8.31, -0.43) mm",
+      "West wing (mirror): its fillet pinches to 0.02 mm at 71 of 253 stations, smallest at 128.4° round the ring, r 10.61 z -0.44 mm in its section, point (-6.58, 8.32, -0.44) mm"
+    ],
+    "pattern": {
+      "degenerate_faces": 0,
+      "self_crossings": 0,
+      "shells": 1,
+      "triangles": 667804,
+      "watertight": true
+    },
+    "shells": 1,
+    "solids_notes": [],
+    "stones": {
+      "carats": 0.651,
+      "crowding": [],
+      "previewed": 1,
+      "reported": 1,
+      "warnings": []
+    },
+    "thickness": [
+      {
+        "below_limit": 3,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "East wing",
+        "rays": 383,
+        "sampled_min_mm": 0.3724660849106066,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 3,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "West wing (mirror)",
+        "rays": 383,
+        "sampled_min_mm": 0.3724660849106068,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 0,
+        "census": {
+          "below_floor": 6,
+          "below_floor_elsewhere": 5,
+          "below_floor_on_the_burnished_lip": 1,
+          "below_floor_points": [
+            {
+              "lip": true,
+              "mm": 0.26063683132445714,
+              "r_mm": 13.33851231853386,
+              "theta_deg": 99.36528630839035,
+              "z_mm": 1.127858281135559
+            },
+            {
+              "lip": false,
+              "mm": 0.6706467664502352,
+              "r_mm": 12.184564202795361,
+              "theta_deg": 22.863630294546617,
+              "z_mm": -2.058430035909017
+            },
+            {
+              "lip": false,
+              "mm": 0.7345616238006099,
+              "r_mm": 11.885678499767355,
+              "theta_deg": 149.7784866864658,
+              "z_mm": 1.2937766710917156
+            },
+            {
+              "lip": false,
+              "mm": 0.019452291103481744,
+              "r_mm": 10.144950102870903,
+              "theta_deg": 78.36922420019208,
+              "z_mm": 1.2984063625335693
+            },
+            {
+              "lip": false,
+              "mm": 0.045691417907506256,
+              "r_mm": 10.494817290818478,
+              "theta_deg": 100.32745028680007,
+              "z_mm": 1.0606095592180889
+            },
+            {
+              "lip": false,
+              "mm": 0.044517444908364734,
+              "r_mm": 10.247381983482077,
+              "theta_deg": 99.78223270525584,
+              "z_mm": -1.230303963025411
+            }
+          ],
+          "girdle_r_mm": 12.854,
+          "samples": 384
+        },
+        "exception": "the collet's lip: a bezel thinned to its edge so it can be burnished over the crown; every other sample clears 0.8 mm",
+        "note": "Thickness not assessed: invalid mesh or sampling work limit exceeded",
+        "part": "whole ring at 320 x 112",
+        "point": null,
+        "rays": 0,
+        "sampled_min_mm": null,
+        "triangles": 273898,
+        "unresolved": 0
+      }
+    ],
+    "triangles": 667804,
+    "volume_mm3": 429.4693760177119,
+    "watertight": true
+  },
+  "export": null,
+  "features": [
+    {
+      "id": 1,
+      "name": "Band",
+      "op": "Procedural shank"
+    },
+    {
+      "id": 2,
+      "name": "Oval 7 x 5",
+      "op": "Stone"
+    },
+    {
+      "id": 3,
+      "name": "Collet",
+      "op": "Bezel"
+    },
+    {
+      "id": 4,
+      "name": "Seat bur",
+      "op": "Seat bur"
+    },
+    {
+      "id": 5,
+      "name": "Coverts",
+      "op": "Stored mesh"
+    },
+    {
+      "id": 6,
+      "name": "Primary I",
+      "op": "Stored mesh"
+    },
+    {
+      "id": 7,
+      "name": "Primary II",
+      "op": "Stored mesh"
+    },
+    {
+      "id": 8,
+      "name": "Primary III",
+      "op": "Stored mesh"
+    },
+    {
+      "id": 9,
+      "name": "Wing: coverts and I",
+      "op": "Union"
+    },
+    {
+      "id": 10,
+      "name": "Wing: and II",
+      "op": "Union"
+    },
+    {
+      "id": 11,
+      "name": "East wing",
+      "op": "Union"
+    },
+    {
+      "id": 12,
+      "name": "West wing (mirror)",
+      "op": "Mirror"
+    }
+  ],
+  "gates_passed": false,
+  "name": "Aile — wings clasping a bezel",
+  "process": "Lost wax",
+  "size": "US 8.11",
+  "slug": "aile",
+  "stone": {
+    "cut": "Oval",
+    "l_mm": 7.0,
+    "setting": "head.bezel collet",
+    "w_mm": 5.0,
+    "wall_mm": 0.8
+  }
+}
