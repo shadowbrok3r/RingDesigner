@@ -1,19 +1,19 @@
 {
   "authoring_ms": {
-    "graph_creation": 6.973408,
-    "source_read": 1.998993
+    "graph_creation": 7.540499,
+    "source_read": 1.685333
   },
   "cold_design_reload": true,
   "cold_graph_reload": true,
   "design_set_patches": [
     {
       "graph": "Sentis",
-      "node": 111,
+      "node": 142,
       "pointer": "/manufacturing"
     }
   ],
   "detail_findings": 0,
-  "editable_design_bytes": 498679,
+  "editable_design_bytes": 459710,
   "editable_graph_reload": true,
   "export_geometry_verified": true,
   "exposed_control_policy": "explicit_allowlist",
@@ -23,27 +23,27 @@
     "refine": null,
     "theta_steps": 1536
   },
-  "nodes": 60,
+  "nodes": 75,
   "open_ms": {
-    "bake": 0.00692,
-    "bake_again": 0.00045400000000000003,
-    "detail": 0.942914,
-    "detail_again": 0.9145530000000001,
-    "evaluate": 4.407011,
-    "first_build": 2633.811492,
-    "read": 1.073311,
-    "rebuild": 0.9998120000000001,
+    "bake": 0.010131,
+    "bake_again": 0.00047700000000000005,
+    "detail": 0.87334,
+    "detail_again": 0.84641,
+    "evaluate": 4.599595,
+    "first_build": 3031.882239,
+    "read": 0.791044,
+    "rebuild": 0.9791750000000001,
     "unpack": null,
-    "verdict": 0.485061
+    "verdict": 0.43023300000000003
   },
   "size_budget_bytes": 300000,
   "size_review_required": false,
   "source_identical": true,
   "source_method": "lift",
-  "template_bytes": 288469,
+  "template_bytes": 297607,
   "template_class": "procedural",
   "template_gate_passed": true,
   "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
-  "triangles": 178762,
+  "triangles": 209326,
   "vertices_faces_normals_identical": true
 }

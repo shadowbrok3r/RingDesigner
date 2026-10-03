@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 mod probe;
 
 /// The stage these outputs record.
-const STAGE: &str = "round 2";
+const STAGE: &str = "round 3";
 /// Bore diameter, mm.
 const BORE_MM: f64 = 18.6;
 /// The lost-wax section floor, and the investment's detail floor.
@@ -49,7 +49,7 @@ const CANE_CROWN_MM: f64 = 0.9;
 const CANE_LOBE: f64 = 0.06;
 const CANE_TURNS: f64 = 3.0;
 /// Path points round each closed cane.
-const STATIONS: usize = 80;
+const STATIONS: usize = 48;
 /// Prickles per cane before those facing the finger or under the crown's leaves and hip are dropped.
 const THORNS_PER_CANE: usize = 48;
 /// How deep each prickle's foot sinks into its cane, as a share of its size.
@@ -230,7 +230,8 @@ fn placed_as(d: &RingDesign, theta_deg: f64, origin: P3, x: P3, z: P3) -> Placem
     let tilt = m[2][1].atan2(m[2][2]);
     let spin = m[1][0].atan2(m[0][0]);
     let r = origin[0] * c + origin[1] * s;
-    Placement::Ring { theta_deg, across_mm: origin[2], height_mm: r - seat_r(d), spin_deg: spin.to_degrees(), tilt_deg: tilt.to_degrees(), cant_deg: cant.to_degrees(), level: false }
+    let q = |v: f64| (v * 1e4).round() / 1e4;
+    Placement::Ring { theta_deg: q(theta_deg), across_mm: q(origin[2]), height_mm: q(r - seat_r(d)), spin_deg: q(spin.to_degrees()), tilt_deg: q(tilt.to_degrees()), cant_deg: q(cant.to_degrees()), level: false }
 }
 
 /// A part standing on cane `i` at `theta_deg`: its foot sunk `sink` mm into the cane, its z along the cane's
@@ -438,62 +439,71 @@ fn lofted(loops: &[Vec<P3>], start: P3, end: P3) -> csg::Solid {
 /// and `wide` across; ovate, its finely serrate margin's teeth leaning forward, its top domed up from the margin to
 /// a sunk midrib, lifting `lift` radians as it runs out; its foot sunk `sink` mm.
 fn leaflet_solid(origin: [f64; 2], alpha: f64, len: f64, wide: f64, lift: f64, sink: f64) -> csg::Solid {
-    let (steps, across) = (30usize, 5usize);
-    let (edge, rib, keel) = (LEAF_EDGE_MM, LEAF_RIB_MM, 0.08);
+    let steps = 48usize;
     let d = [alpha.sin(), alpha.cos()];
     let perp = [d[1], -d[0]];
-    // A pointed oval in plan, never narrower than the 0.8 mm wall where it closes at base and tip.
-    let smooth = |u: f64| (0.5 * wide * (PI * u.powf(0.78)).sin().powf(0.8)).max(0.52);
+    // An ovate blade with an acuminate tip, never narrower than its rounded margin where it closes.
+    let smooth = |u: f64| (0.5 * wide * (PI * u.powf(0.72)).sin().powf(1.15)).max(0.55);
     let jitter = 0.35 * (hash((len * 1000.0 + wide * 37.0) as u64) - 0.5);
     let half = |u: f64| {
-        // Low forward-leaning teeth, a little uneven, fading out toward the base and the tip.
-        let t = (u * LEAF_TEETH as f64 + jitter * (u * 7.0).sin()).rem_euclid(1.0).powf(0.6);
-        let fade = ((u - 0.2) / 0.3).clamp(0.0, 1.0) * ((0.92 - u) / 0.1).clamp(0.0, 1.0);
+        // Forward-hooked teeth, a little uneven, fading out toward the base and the tip.
+        let t = (u * LEAF_TEETH as f64 + jitter * (u * 7.0).sin()).rem_euclid(1.0).powf(0.7);
+        let fade = ((u - 0.18) / 0.3).clamp(0.0, 1.0) * ((0.93 - u) / 0.1).clamp(0.0, 1.0);
         smooth(u) - LEAF_TOOTH_MM * fade * (PI * t).sin().powi(2)
     };
-    let (u0, u1) = (0.07, 0.9);
+    // Across the blade from the midvein (0) to where the rounded margin starts (1): close in at the vein.
+    const ACROSS: [f64; 5] = [0.0, 0.12, 0.4, 0.75, 1.0];
+    let (u0, u1) = (0.1, 0.86);
     let centre = |u: f64| -> P3 { [origin[0] + d[0] * u * len, origin[1] + d[1] * u * len, u * len * lift.tan()] };
+    let t = LEAF_EDGE_MM;
     let loops: Vec<Vec<P3>> = (0..=steps).map(|i| {
         let u = u0 + (u1 - u0) * i as f64 / steps as f64;
         let c = centre(u);
-        // The margin is a half-round bead of the leaf's own thickness; the dome spans what lies inside it.
-        let round = 0.5 * edge;
-        let (w, ws) = ((half(u) - round).max(0.1), (smooth(u) - round).max(0.1));
+        let round = 0.5 * (t - LEAF_BEVEL_MM);
+        let (w, ws) = ((half(u) - round).max(0.12), (smooth(u) - round).max(0.12));
         let under = sink * (1.0 - u / 0.25).max(0.0);
-        let at = |v: f64, out: f64, z: f64| -> P3 { [c[0] + perp[0] * (v * w + v.signum() * out), c[1] + perp[1] * (v * w + v.signum() * out), c[2] + z] };
+        // The blade cups: both faces rise toward the margin; the bottom follows the top, so it is a curved plate.
+        let cup = |x: f64| LEAF_CUP_MM * (x / ws.max(0.5)).min(1.0).powi(2);
+        let top = |x: f64| {
+            let rib = LEAF_RIB_MM * (1.0 - (x / 0.4).min(1.0)).powi(2) * (ws / 0.6).min(1.0);
+            let vein = LEAF_VEIN_MM * (1.0 - (x / 0.125).min(1.0).powi(2)) * (ws / 0.5).min(1.0) * (u < 0.92) as u8 as f64;
+            let bevel = LEAF_BEVEL_MM * ((x - (w - 0.3).max(0.0)) / 0.3).clamp(0.0, 1.0);
+            t + cup(x) + rib - vein - bevel
+        };
+        let at = |v: f64, x: f64, z: f64| -> P3 { [c[0] + perp[0] * v * x, c[1] + perp[1] * v * x, c[2] + z] };
+        // The margin, a half-round bead of the bevelled thickness.
+        let edge_top = top(w);
         let bead = |v: f64| -> Vec<P3> {
-            let mid = 0.5 * (edge - under);
-            let r = 0.5 * (edge + under);
-            let mut b: Vec<P3> = [68f64, 34.0, 0.0, -34.0, -68.0].iter().map(|deg| { let a = deg.to_radians(); at(v, r * a.cos(), mid + r * a.sin()) }).collect();
+            let (z0, z1) = (cup(w) - under * 0.0, edge_top);
+            let (mid, r) = (0.5 * (z0 + z1), 0.5 * (z1 - z0));
+            let mut b: Vec<P3> = [62f64, 31.0, 0.0, -31.0, -62.0].iter().map(|deg| { let a = deg.to_radians(); at(v, w + r * a.cos(), mid + r * a.sin()) }).collect();
             if v < 0.0 {
                 b.reverse();
             }
             b
         };
-        let mut l = Vec::with_capacity(2 * across + 8);
+        let mut l = Vec::with_capacity(4 * ACROSS.len() + 10);
         l.extend(bead(-1.0));
-        for j in 0..=across {
-            let v = -1.0 + 2.0 * j as f64 / across as f64;
-            let q = (v.abs() * w / ws).min(1.0);
-            // The sunk midvein: a shallow groove of its own width in millimetres, fading out where the leaflet narrows.
-            let off = v.abs() * w;
-            let groove = LEAF_GROOVE_MM * (1.0 - (off / 0.42).min(1.0)).powi(2) * (w / 0.6).min(1.0) * (u < 0.9) as u8 as f64;
-            let top = edge + (rib - edge) * (ws / 0.6).min(1.0) * (1.0 - q * q) - groove;
-            l.push(at(v, 0.0, top));
+        for &f in ACROSS.iter().rev() {
+            l.push(at(-1.0, f * w, top(f * w)));
+        }
+        for &f in ACROSS.iter().skip(1) {
+            l.push(at(1.0, f * w, top(f * w)));
         }
         l.extend(bead(1.0));
-        for j in (0..=across).rev() {
-            let v = -1.0 + 2.0 * j as f64 / across as f64;
-            let q = (v.abs() * w / ws).min(1.0);
-            l.push(at(v, 0.0, -under - keel * (1.0 - q * q)));
+        for &f in ACROSS.iter().rev() {
+            l.push(at(1.0, f * w, cup(f * w) - under));
+        }
+        for &f in ACROSS.iter().skip(1) {
+            l.push(at(-1.0, f * w, cup(f * w) - under));
         }
         l
     }).collect();
-    // Both ends rounded over: the last loop drawn in toward its centre in three steps, so no end is a knife cone.
+    // Both ends rounded over: the last loop drawn in toward its centre in steps, so no end is a knife cone.
     let centroid = |l: &Vec<P3>| mul(l.iter().fold([0.0; 3], |a, p| add3(a, *p)), 1.0 / l.len() as f64);
     let cap = |l: &Vec<P3>, ahead: P3| -> Vec<Vec<P3>> {
         let c = centroid(l);
-        [(0.94, 0.15), (0.77, 0.29), (0.5, 0.39), (0.2, 0.44)].iter().map(|&(k, f)| l.iter().map(|p| add3(add3(c, mul(sub(*p, c), k)), mul(ahead, f))).collect()).collect()
+        [(0.93, 0.2), (0.75, 0.38), (0.48, 0.5), (0.18, 0.56)].iter().map(|&(k, f)| l.iter().map(|p| add3(add3(c, mul(sub(*p, c), k)), mul(ahead, f))).collect()).collect()
     };
     let fwd = [d[0], d[1], 0.0];
     let mut all: Vec<Vec<P3>> = cap(&loops[0], mul(fwd, -1.0)).into_iter().rev().collect();
@@ -503,11 +513,14 @@ fn leaflet_solid(origin: [f64; 2], alpha: f64, len: f64, wide: f64, lift: f64, s
     lofted(&all, add3(a, mul(fwd, -0.05)), add3(b, mul(fwd, 0.05)))
 }
 
-const LEAF_EDGE_MM: f64 = 0.95;
-const LEAF_RIB_MM: f64 = 1.12;
-const LEAF_TEETH: usize = 10;
-const LEAF_TOOTH_MM: f64 = 0.1;
-const LEAF_GROOVE_MM: f64 = 0.07;
+/// The blade's thickness, its bevel at the margin, the rib's rise and the midvein's depth, the cup's rise at the margin.
+const LEAF_BEVEL_MM: f64 = 0.1;
+const LEAF_RIB_MM: f64 = 0.12;
+const LEAF_VEIN_MM: f64 = 0.15;
+const LEAF_CUP_MM: f64 = 0.2;
+const LEAF_EDGE_MM: f64 = 1.06;
+const LEAF_TEETH: usize = 8;
+const LEAF_TOOTH_MM: f64 = 0.08;
 
 /// A rose leaf: the rachis's foot at `theta_deg` on cane `cane`, its plan laid over the crown from `(theta0, z0)`
 /// heading round the ring by `dir` (+1 or -1) and leaning `skew` radians across the finger.
@@ -522,7 +535,7 @@ struct Leaf {
 
 /// The leaves either side of the hip, their terminal leaflets running away from it down the shoulders.
 const LEAVES: [Leaf; 2] = [
-    Leaf { cane: 0, foot_deg: CROWN_DEG - 9.0, theta0: CROWN_DEG - 15.0, z0: 0.9, dir: -1.0, skew: -0.12 },
+    Leaf { cane: 0, foot_deg: CROWN_DEG - 9.0, theta0: CROWN_DEG - 15.0, z0: 0.0, dir: -1.0, skew: 0.0 },
     Leaf { cane: 1, foot_deg: CROWN_DEG + 9.0, theta0: CROWN_DEG + 15.0, z0: -0.9, dir: 1.0, skew: 0.12 },
 ];
 /// The rachis: its length to the terminal leaflet, its radius; the leaflet pairs' stations, angles, sizes.
@@ -530,7 +543,7 @@ const RACHIS_MM: f64 = 5.6;
 const RACHIS_R_MM: f64 = 0.5;
 /// The rachis's height in the leaf's plan: low, so it crosses the leaflets' undersides instead of grazing them.
 const RACHIS_Z_MM: f64 = 0.05;
-const PAIRS: [(f64, f64, f64, f64); 2] = [(0.9, 74.0, 3.8, 2.6), (3.3, 62.0, 4.0, 2.7)];
+const PAIRS: [(f64, f64, f64, f64); 2] = [(0.9, 76.0, 3.8, 2.6), (3.2, 67.0, 4.0, 2.7)];
 const TERMINAL: (f64, f64) = (4.4, 3.0);
 /// How far the leaf's underside sits under the highest cane beneath it.
 const LEAF_SINK_MM: f64 = 0.5;
@@ -569,14 +582,17 @@ fn node_sites(prickles: &[ThornAt]) -> Vec<(usize, usize, f64)> {
     let mut out = Vec::new();
     for i in 0..CANES {
         let mut k = 0;
-        for j in 0..24 {
-            let theta = (CROWN_DEG + 180.0 + 15.0 * j as f64 + 4.0 * i as f64).rem_euclid(360.0);
+        for j in 0..48 {
+            // Shoulders first, then the palm: the nodes weight toward the crown's flanks.
+            let order = [35.0, -35.0, 55.0, -55.0, 75.0, -75.0, 100.0, -100.0, 130.0, -130.0, 160.0, -160.0];
+            let Some(&off) = order.get(j / 4) else { break };
+            let theta = (CROWN_DEG + off + 3.0 * (j % 4) as f64 + 5.0 * i as f64).rem_euclid(360.0);
             let from_crown = ((theta - CROWN_DEG + 540.0).rem_euclid(360.0) - 180.0).abs();
             let (me, other) = (cane_at(i, theta), cane_at(1 - i, theta));
             let apart = (me.0 - other.0).hypot(me.1 - other.1);
             let near = prickles.iter().any(|p| p.cane == i && ((p.theta - theta + 540.0).rem_euclid(360.0) - 180.0).abs() < 5.0);
-            let spaced = out.iter().all(|&(c, _, t): &(usize, usize, f64)| c != i || ((t - theta + 540.0).rem_euclid(360.0) - 180.0).abs() > 50.0);
-            if from_crown > 68.0 && from_crown < 170.0 && apart > 2.4 && !near && spaced && k < NODES_PER_CANE {
+            let spaced = out.iter().all(|&(c, _, t): &(usize, usize, f64)| c != i || ((t - theta + 540.0).rem_euclid(360.0) - 180.0).abs() > 34.0);
+            if from_crown > 26.0 && from_crown < 175.0 && apart > 2.4 && !near && spaced && k < NODES_PER_CANE {
                 out.push((i, k, theta));
                 k += 1;
             }
@@ -586,26 +602,73 @@ fn node_sites(prickles: &[ThornAt]) -> Vec<(usize, usize, f64)> {
 }
 const NODES_PER_CANE: usize = 4;
 
-/// A node: a spindle lofted square to cane `i` round its centreline, with a stipule collar at its middle.
-fn node_loft(i: usize, theta: f64) -> Operation {
-    let n = cane_normal(i, theta);
-    let t = cane_tangent(i, theta);
-    let b = cross(t, n);
+/// A node: a spindle round cane `i`'s centreline, swelling to a collar at its middle, as a stored solid.
+fn node_solid(i: usize, theta: f64) -> csg::Solid {
     let r_mid = cane_at(i, theta).0;
-    let sections = [(-1.2, 0.0), (-0.45, 0.6), (0.0, 1.0), (0.45, 0.55), (1.2, 0.0)]
+    let loops: Vec<Vec<P3>> = [(-1.2, 0.0), (-0.7, 0.35), (-0.3, 0.8), (0.0, 1.0), (0.3, 0.7), (0.75, 0.3), (1.2, 0.0)]
         .iter()
         .map(|&(f, swell)| {
             let at = theta + (f / r_mid).to_degrees();
-            let c = world(at, cane_at(i, at));
-            let plane = Workplane { origin: um(c), x: n, y: b, ..Default::default() };
+            let (n, t) = (cane_normal(i, at), cane_tangent(i, at));
+            let b = cross(t, n);
+            let c = cane_point(i, at);
             let r = cane_r(at) * (1.0 - CANE_LOBE) - 0.03 + (0.03 + CANE_LOBE * cane_r(at) + NODE_SWELL_MM) * swell;
-            let pts: Vec<[f64; 2]> = (0..10).map(|k| { let a = TAU * k as f64 / 10.0; [r * a.cos(), r * a.sin()] }).collect();
-            poly_on(plane, "Node", &pts).into()
+            (0..16).map(|k| { let a = TAU * k as f64 / 16.0; add3(c, add3(mul(n, r * a.cos()), mul(b, r * a.sin()))) }).collect()
         })
         .collect();
-    Operation::Loft { sections }
+    let (a, b) = (cane_point(i, theta - (1.3 / r_mid).to_degrees()), cane_point(i, theta + (1.3 / r_mid).to_degrees()));
+    lofted(&loops, a, b)
+}
+
+/// A stipule: a small wing out of the node's collar on `side` (+1 or -1 across the cane), leaning back along it.
+fn stipule_solid(i: usize, theta: f64, side: f64) -> csg::Solid {
+    let (n, t) = (cane_normal(i, theta), cane_tangent(i, theta));
+    let b = mul(cross(t, n), side);
+    let c = cane_point(i, theta);
+    let root = cane_r(theta) + NODE_SWELL_MM - 0.25;
+    // Out of the collar and back along the cane, broad and flat, rounded at its end.
+    let path: Vec<P3> = (0..=6).map(|k| { let f = k as f64 / 6.0; add3(c, add3(mul(b, root + 0.95 * f), add3(mul(t, -0.55 * f * f), mul(n, 0.25 * f)))) }).collect();
+    let m = path.len();
+    let loops: Vec<Vec<P3>> = (0..m)
+        .map(|k| {
+            let tan = unit(sub(path[(k + 1).min(m - 1)], path[k.saturating_sub(1)]));
+            let side_w = unit(cross(tan, n));
+            let up = unit(cross(side_w, tan));
+            let f = k as f64 / (m - 1) as f64;
+            let (hw, ht) = (0.56 * (1.0 - 0.22 * f * f), 0.54);
+            (0..12).map(|j| { let a = TAU * j as f64 / 12.0; add3(path[k], add3(mul(side_w, hw * a.cos()), mul(up, ht * a.sin()))) }).collect()
+        })
+        .collect();
+    let t0 = unit(sub(path[1], path[0]));
+    let t1 = unit(sub(path[m - 1], path[m - 2]));
+    lofted(&loops, sub(path[0], mul(t0, 0.1)), add3(path[m - 1], mul(t1, 0.35)))
 }
 const NODE_SWELL_MM: f64 = 0.22;
+
+/// The hip's receptacle and cup as one urn: swollen under the stone, tapering below into the stalk, its wall
+/// rising round the girdle, bellying out a little and turning in over the dome's foot with a rounded rim.
+fn urn_solid(h: &HipFrame) -> csg::Solid {
+    let gem = hip_gem();
+    // The stone lies long round the ring (the frame's v), its width along the finger (u).
+    let (a, b) = (0.5 * gem.w_mm, 0.5 * gem.l_mm);
+    let gap = 0.09;
+    let wall = URN_WALL_MM;
+    // (height off the girdle, half-length, half-width) up the outside, over the rim, down the inside to the seat.
+    let rim = 0.45;
+    let outside = [(-3.25, 0.45, 0.4), (-3.0, 1.15, 0.95), (-2.45, 2.2, 1.65), (-1.7, 3.15, 2.35), (-1.0, a + wall + 0.35, b + wall + 0.3), (-0.4, a + wall + 0.3, b + wall + 0.25), (0.05, a + wall + 0.15, b + wall + 0.12), (rim - 0.12, a + wall + 0.02, b + wall)];
+    let over = [(rim + 0.05, a + gap + 0.75 * wall, b + gap + 0.75 * wall), (rim + 0.12, a + gap + 0.45 * wall, b + gap + 0.45 * wall), (rim + 0.05, a + gap + 0.15 * wall, b + gap + 0.15 * wall)];
+    let inside = [(rim - 0.12, a + gap, b + gap), (0.15, a + gap + 0.02, b + gap + 0.02), (-0.14, a + gap + 0.02, b + gap + 0.02), (-0.14, 0.65 * a, 0.65 * b), (-0.14, 0.3 * a, 0.3 * b)];
+    let n = 32;
+    let loops: Vec<Vec<P3>> = outside.iter().chain(over.iter()).chain(inside.iter())
+        .map(|&(z, au, av)| (0..n).map(|k| { let t = TAU * k as f64 / n as f64; h.at([au * t.cos(), av * t.sin(), z]) }).collect())
+        .collect();
+    let mut sol = lofted(&loops, h.at([0.0, 0.0, -3.3]), h.at([0.0, 0.0, -0.14]));
+    // `lofted` turns it outward by volume; the cup's floor apex closes the inside.
+    sol = outward(sol);
+    sol
+}
+/// The cup's wall, mm.
+const URN_WALL_MM: f64 = 0.88;
 
 // --- The hip -----------------------------------------------------------------------------------------------
 
@@ -638,24 +701,14 @@ impl HipFrame {
     fn at(&self, p: P3) -> P3 {
         add3(self.g, add3(mul(self.u, p[0]), add3(mul(self.v, p[1]), mul(self.w, p[2]))))
     }
-    fn plane(&self, p: P3) -> Workplane {
-        Workplane { origin: um(self.at(p)), x: self.u, y: self.v, ..Default::default() }
-    }
 }
 
-/// The receptacle under the stone: an oval cup lofted down from just under the girdle into the canes.
-const HIP_CUP: [(f64, f64, f64); 5] = [(-3.1, 0.6, 0.45), (-2.55, 1.75, 1.3), (-1.6, 2.75, 2.05), (-0.75, 3.2, 2.4), (-0.3, 3.2, 2.4)];
 
-fn ellipse_on(plane: Workplane, name: &str, au: f64, av: f64) -> Sketch {
-    let pts: Vec<[f64; 2]> = (0..12).map(|k| {
-        let t = TAU * k as f64 / 12.0;
-        [au * t.cos(), av * t.sin()]
-    }).collect();
-    poly_on(plane, name, &pts)
-}
 
 /// The calyx: five sepal claws gripping the hip's dome.
 const SEPALS: usize = 5;
+/// The calyx's turn up off the hip's axis.
+const CALYX_LIFT_DEG: f64 = 22.0;
 const STALK_R_MM: f64 = 0.46;
 
 /// A sepal at angle `alpha` round the hip's long axis, springing from `hub`: out from the boss, then curling back
@@ -663,9 +716,8 @@ const STALK_R_MM: f64 = 0.46;
 fn sepal_solids(h: &HipFrame, hub: P3, alpha: f64) -> (csg::Solid, csg::Solid) {
     let e = add3(mul(h.v, alpha.cos()), mul(h.w, alpha.sin()));
     // Upward sepals arch higher to clear the dome.
-    let up = alpha.sin().max(0.0);
-    let reach = 2.0 + 0.45 * up;
-    let path: Vec<P3> = [(0.0, 0.0), (0.7, 0.25), (1.35, 0.15), (reach - 0.15, -0.35), (reach, -0.85), (reach - 0.05, -1.35), (reach - 0.25, -1.75)]
+    let reach = 2.0;
+    let path: Vec<P3> = [(0.0, 0.0), (0.7, 0.25), (1.35, 0.2), (reach - 0.1, -0.15), (reach + 0.05, -0.55), (reach, -0.9), (reach - 0.2, -1.15)]
         .iter()
         .map(|&(o, b)| add3(hub, add3(mul(e, o), mul(h.u, b))))
         .collect();
@@ -714,7 +766,6 @@ fn sepal_solids(h: &HipFrame, hub: P3, alpha: f64) -> (csg::Solid, csg::Solid) {
 /// A sepal's width and thickness along its body; the boss's diameter and how far past the stone's end it stands.
 const SEPAL_W_MM: f64 = 1.0;
 const SEPAL_T_MM: f64 = 0.88;
-const HUB_OFF_MM: f64 = 0.95;
 
 const BOSS_D_MM: f64 = 1.6;
 
@@ -747,6 +798,9 @@ fn author(bare: bool, unbeaded: &[String]) -> Result<Authored> {
     let foot = add(&mut doc, "Prickle foot".into(), Operation::Sketch { sketch: ellipse(THORN.along, THORN.across) }, Component::default())?;
     for (k, t) in sites.iter().enumerate() {
         let name = format!("Prickle {} on cane {}", k + 1, t.cane + 1);
+        if unbeaded.contains(&format!("omit:{name}")) {
+            continue;
+        }
         let mut at = on_cane_n(&d, t.cane, t.theta, THORN_SINK_MM * t.scale, t.flip, prickle_normal(t.cane, t.theta, t.side));
         if unbeaded.contains(&name) {
             at.blend_mm = 0.0;
@@ -755,32 +809,49 @@ fn author(bare: bool, unbeaded: &[String]) -> Result<Authored> {
     }
     // Leaf nodes along each cane, each a swelling with a stipule collar.
     for (i, k, theta) in node_sites(&sites) {
-        add(&mut doc, format!("Node {} on cane {}", k + 1, i + 1), node_loft(i, theta), free.clone())?;
+        add(&mut doc, format!("Node {} on cane {}", k + 1, i + 1), stored_op(&node_solid(i, theta), "node", json!({"cane": i + 1}))?, free.clone())?;
+        for side in [-1.0, 1.0] {
+            let st = stipule_solid(i, theta, side);
+            // A stipule that would reach into the finger hole is left off.
+            if st.v.iter().any(|p| p[0].hypot(p[1]) < d.inner_radius_mm() + 0.15) {
+                continue;
+            }
+            add(&mut doc, format!("Node {} on cane {}, stipule", k + 1, i + 1), stored_op(&st, "stipule", json!({"cane": i + 1}))?, free.clone())?;
+        }
     }
     // Two pruned side shoots at the shoulders, each ending in a square cut.
     for (k, &(theta, cane, flip)) in SHOOTS.iter().enumerate() {
         let (rise, bend_r, bend) = (SHOOT_RISE_MM, 3.0, 22f64.to_radians());
         let at = on_cane(&d, cane, theta, 0.4, flip);
         let at = Component { blend_mm: 0.0, ..at };
-        add(&mut doc, format!("Side shoot {}", k + 1), Operation::Twist { sketch: Sketch::circle(SHOOT_R_MM).into(), path: hook_path(rise, bend_r, bend.to_degrees()).into(), degrees: 0.0, end_scale: 0.85, scale: Vec::new(), closed: false }, at)?;
+        add(&mut doc, format!("Side shoot {}", k + 1), Operation::Twist { sketch: Sketch::circle(SHOOT_R_MM).into(), path: hook_path(rise, bend_r, bend.to_degrees()).into(), degrees: 0.0, end_scale: 0.85, scale: Vec::new(), closed: false }, at.clone())?;
+        // A live tip: the shoot swells into a bud and closes to a point, continuing from its end.
+        let (sb, cb) = bend.sin_cos();
+        let end = [0.0, bend_r * (1.0 - cb), rise + bend_r * sb];
+        let dir = [0.0, sb, cb];
+        let bud: Vec<[f64; 3]> = (0..=4).map(|j| { let f = 1.3 * j as f64 / 4.0; [0.0, end[1] + dir[1] * (f - 0.15), end[2] + dir[2] * (f - 0.15)] }).collect();
+        let scale = vec![[0.0, 0.85], [0.45, 1.05], [0.8, 0.7], [1.0, 0.3]];
+        add(&mut doc, format!("Side shoot {}, bud point", k + 1), Operation::Twist { sketch: Sketch::circle(SHOOT_R_MM).into(), path: TwistPath::Points { points: bud, smooth: true }, degrees: 0.0, end_scale: 0.3, scale, closed: false }, at)?;
     }
     // The hip: receptacle, stalk, calyx and stone, all in the hip's frame.
     let (stone_at, h) = hip_placement(&d);
-    let sections = HIP_CUP.iter().map(|&(w, au, av)| ellipse_on(h.plane([0.0, 0.0, w]), "Hip receptacle", au, av).into()).collect();
-    add(&mut doc, "Hip receptacle".into(), Operation::Loft { sections }, free.clone())?;
+    add(&mut doc, "Hip receptacle and cup".into(), stored_op(&urn_solid(&h), "hip urn", json!({"wall_mm": URN_WALL_MM}))?, free.clone())?;
     // The stalk: out of the receptacle's far end, down and round into the low cane.
-    let into = cane_point(1, CROWN_DEG - 12.0);
-    let p0 = h.at([-1.4, 0.0, -1.4]);
-    let p1 = h.at([-3.4, 0.0, -1.5]);
+    let into = cane_point(1, CROWN_DEG - 14.0);
+    let p0 = h.at([-0.6, 0.0, -2.6]);
+    let p1 = h.at([-2.4, 0.0, -2.8]);
     let stalk_pts: Vec<P3> = (0..=8).map(|k| { let t = k as f64 / 8.0; um(add3(add3(mul(p0, (1.0 - t) * (1.0 - t)), mul(p1, 2.0 * t * (1.0 - t))), mul(into, t * t))) }).collect();
     add(&mut doc, "Hip stalk".into(), Operation::Twist { sketch: Sketch::circle(STALK_R_MM).into(), path: TwistPath::Points { points: stalk_pts, smooth: true }, degrees: 0.0, end_scale: 1.0, scale: Vec::new(), closed: false }, free.clone())?;
     // The calyx at the hip's distal tip only: a boss past the stone's end and five sepals springing from it, curling
     // back over the end of the dome; each sepal a body at the 0.8 mm wall and a pointed tip.
-    let hub = h.at([0.5 * HIP_L_MM + HUB_OFF_MM, 0.0, 0.15]);
-    // The boss: a short drum on the hip's long axis, which the sepals' ring pattern turns about.
+    let hub = h.at([0.5 * HIP_W_MM + URN_WALL_MM + 0.75, 0.0, 0.45]);
+    // The calyx turned up off the hip's axis, so its sepal tips show past the cup's far rim from the face.
+    let lift = CALYX_LIFT_DEG.to_radians();
+    let h = HipFrame { g: h.g, u: unit(add3(mul(h.u, lift.cos()), mul(h.w, lift.sin()))), v: h.v, w: unit(add3(mul(h.w, lift.cos()), mul(h.u, -lift.sin()))) };
+    // The boss: a round knop on the hip's long axis, which the sepals' ring pattern turns about.
     let mut boss_at = free.clone();
-    boss_at.placement = placed_as(&d, CROWN_DEG, um(sub(hub, mul(h.u, 0.4))), h.v, h.u);
-    let boss = add(&mut doc, "Hip calyx, boss".into(), Operation::Cylinder { radius_mm: 0.5 * BOSS_D_MM, height_mm: 0.8 }, boss_at)?;
+    boss_at.placement = placed_as(&d, CROWN_DEG, um(hub), h.v, h.u);
+    let boss = add(&mut doc, "Hip calyx, boss".into(), Operation::Sphere { radius_mm: 0.5 * BOSS_D_MM }, boss_at)?;
     let alpha = 0.5 * PI;
     let (body, tip) = sepal_solids(&h, hub, alpha);
     let s1 = add(&mut doc, "Hip calyx, sepal".into(), stored_op(&body, "sepal", json!({"of": SEPALS}))?, free.clone())?;
@@ -790,10 +861,7 @@ fn author(bare: bool, unbeaded: &[String]) -> Result<Authored> {
     add(&mut doc, "Hip calyx, the sepal's tip turned with it: point".into(), Operation::Pattern { sources: cad::pattern::Sources(vec![s2]), kind: round }, free.clone())?;
     let stone = builders::stone_feature(0, hip_gem(), stone_at);
     let stone_id = add(&mut doc, stone.name, stone.operation, stone.component)?;
-    // The hip's skin: a plain bezel lip from the receptacle holds the stone; the calyx only crowns its tip.
-    let mut bezel = builders::feature_on(0, "Hip bezel", builders::BEZEL, stone_id, json!({"wall_mm": 0.85}));
-    bezel.component.stage = Stage::Cast;
-    add(&mut doc, bezel.name, bezel.operation, bezel.component)?;
+    let _ = stone_id;
     // The rose leaves: a rachis from the cane up over the crown, two pairs of leaflets and a terminal one.
     let mut leaf_parts = Vec::new();
     for (k, leaf) in LEAVES.iter().enumerate().take(1) {
@@ -815,19 +883,24 @@ fn author(bare: bool, unbeaded: &[String]) -> Result<Authored> {
         let along = |s: f64| [rachis_dir[0] * s, rachis_dir[1] * s];
         let mut leaflets = Vec::new();
         for (j, &(s, ang, len, wide)) in PAIRS.iter().enumerate() {
-            for side in [-1.0, 1.0] {
-                let a = head + side * ang.to_radians();
-                let lift = (15.0 + 3.0 * j as f64).to_radians();
-                let o = along(s);
-                let o = [o[0] + a.sin() * 0.5, o[1] + a.cos() * 0.5];
-                leaflets.push((format!("pair {} {}", j + 1, if side > 0.0 { "right" } else { "left" }), leaflet_solid(o, a, len, wide, lift, 0.25 + 0.03 * j as f64 + 0.01 * side)));
-            }
+            // One of each pair; its partner is its mirror across the band's mid-plane, where the rachis runs.
+            let a = head + ang.to_radians();
+            let lift = (15.0 + 3.0 * j as f64).to_radians();
+            let o = along(s);
+            let o = [o[0] + a.sin() * 0.5, o[1] + a.cos() * 0.5];
+            leaflets.push((format!("pair {}", j + 1), leaflet_solid(o, a, len, wide, lift, 0.25 + 0.03 * j as f64)));
         }
         leaflets.push(("terminal".into(), leaflet_solid(along(RACHIS_MM - 1.0), head, TERMINAL.0, TERMINAL.1, 6f64.to_radians(), 0.3)));
+        let mut pair_ids = Vec::new();
         for (name, solid) in leaflets {
             let placed = outward(csg::Solid { v: solid.v.iter().map(&to_world).collect(), f: solid.f });
-            leaf_parts.push(add(&mut doc, format!("Rose leaf {}, {name} leaflet", k + 1), stored_op(&placed, "leaflet", json!({"leaf": k + 1, "leaflet": name}))?, free.clone())?);
+            let id = add(&mut doc, format!("Rose leaf {}, {name} leaflet", k + 1), stored_op(&placed, "leaflet", json!({"leaf": k + 1, "leaflet": name}))?, free.clone())?;
+            if name.starts_with("pair") {
+                pair_ids.push(id);
+            }
+            leaf_parts.push(id);
         }
+        leaf_parts.push(add(&mut doc, format!("Rose leaf {}, the paired leaflets mirrored across the rachis", k + 1), Operation::Pattern { sources: cad::pattern::Sources(pair_ids), kind: cad::PatternKind::Mirror { plane: cad::pattern::MirrorPlane::Band } }, free.clone())?);
         // The rachis: from inside the cane, up and over into the leaf's plane, along it to the terminal leaflet.
         let foot = cane_point(leaf.cane, leaf.foot_deg);
         let start = to_world(&[0.0, 0.0, RACHIS_Z_MM]);
@@ -844,8 +917,9 @@ fn author(bare: bool, unbeaded: &[String]) -> Result<Authored> {
     }
     // The second leaf is the first turned half round the hip's own axis: the canes are twined with the same symmetry.
     add(&mut doc, "Rose leaf 2: the leaflets and rachis of leaf 1 turned round the hip".into(), Operation::Pattern { sources: cad::pattern::Sources(leaf_parts), kind: cad::PatternKind::About { part: stone_id, count: 2, span_deg: 360.0 } }, free.clone())?;
+    let thorns = doc.features.iter().filter(|f| f.name.starts_with("Prickle ") && f.name.contains(" on cane")).count();
     d.cad = Some(doc);
-    Ok(Authored { design: d, thorns: sites.len(), stone_id })
+    Ok(Authored { design: d, thorns, stone_id })
 }
 
 // --- Checks ---------------------------------------------------------------------------------------------
@@ -973,7 +1047,11 @@ fn stone_intruders(d: &RingDesign, built: &mesh::BuildResult, vertices: &[ringde
                     let (x, y, z) = (dot(q, f.long), dot(q, f.short), dot(q, f.normal));
                     let e = (x / a).powi(2) + (y / b).powi(2);
                     // Crown: a dome over the girdle; pavilion: a cone to the culet.
-                    if z >= 0.0 { z < crown && e < 1.0 - (z / crown).powi(2) } else { -z < pav && e.sqrt() < 1.0 + z / pav }
+                    let inside = if z >= 0.0 { z < crown && e < 1.0 - (z / crown).powi(2) } else { -z < pav && e.sqrt() < 1.0 + z / pav };
+                    if inside && std::env::var("SENTIS_DEBUG").is_ok() {
+                        println!("      inside the stone at long {x:.3} short {y:.3} up {z:.3}");
+                    }
+                    inside
                 })
                 .count();
             (st.label.clone(), inside)
@@ -991,83 +1069,113 @@ fn walls(d: &RingDesign, built: &mesh::BuildResult) -> Vec<serde_json::Value> {
         let j = o.checked_sub(mesh::SOLID_VERTEX + built.parts.first)?;
         built.parts.features.get(j as usize).copied()
     };
-    let tri = |f: &[u32; 3]| -> [P3; 3] { f.map(|i| { let p = m.vertices[i as usize]; [p.0 as f64, p.1 as f64, p.2 as f64] }) };
-    let tris: Vec<[P3; 3]> = m.faces.iter().map(tri).collect();
-    let bounds = |t: &[P3; 3]| -> (P3, P3) { (std::array::from_fn(|k| t.iter().map(|p| p[k]).fold(f64::MAX, f64::min)), std::array::from_fn(|k| t.iter().map(|p| p[k]).fold(f64::MIN, f64::max))) };
+    let tris: Vec<[P3; 3]> = m.faces.iter().map(|f| f.map(|i| { let p = m.vertices[i as usize]; [p.0 as f64, p.1 as f64, p.2 as f64] })).collect();
     let doc = d.cad.as_ref();
-    // Vertices on a hard edge (faces meeting at more than 50 degrees): a ray from beside a hard edge measures its
-    // distance to the edge, not a wall, so faces touching one are not sampled.
-    let normal = |t: &[P3; 3]| unit(cross(sub(t[1], t[0]), sub(t[2], t[0])));
-    let mut edges: std::collections::HashMap<(u32, u32), Vec<usize>> = Default::default();
-    for (i, f) in m.faces.iter().enumerate() {
-        for k in 0..3 {
-            let (a, b) = (f[k], f[(k + 1) % 3]);
-            edges.entry((a.min(b), a.max(b))).or_default().push(i);
-        }
-    }
-    let mut hard = vec![false; m.vertices.len()];
-    for ((a, b), fs) in &edges {
-        if fs.len() == 2 && dot(normal(&tris[fs[0]]), normal(&tris[fs[1]])) < 50f64.to_radians().cos() {
-            hard[*a as usize] = true;
-            hard[*b as usize] = true;
-        }
-    }
     let mut by: std::collections::BTreeMap<u64, Vec<usize>> = Default::default();
-    let mut by_edge: std::collections::BTreeMap<u64, usize> = Default::default();
     for (i, f) in m.faces.iter().enumerate() {
         if let (Some(a), Some(b), Some(c)) = (owner(f[0]), owner(f[1]), owner(f[2])) {
-            if a == b && b == c && f.iter().any(|v| hard[*v as usize]) {
-                *by_edge.entry(a).or_default() += 1;
-                continue;
-            }
             if a == b && b == c {
                 by.entry(a).or_default().push(i);
             }
         }
     }
-    by.into_iter()
-        .filter_map(|(id, faces)| {
-            let name = doc?.feature(id)?.name.clone();
-            let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
-            for &i in &faces {
-                let (a, b) = bounds(&tris[i]);
-                for k in 0..3 { lo[k] = lo[k].min(a[k] - 3.0); hi[k] = hi[k].max(b[k] + 3.0); }
+    let mut out = Vec::new();
+    for c in built.parts.evaluated.iter().flat_map(|e| e.components.iter()) {
+        if c.settings.reference || c.attach == Attach::Cut || c.name.contains("cabochon") || doc.and_then(|dd| dd.feature(c.id)).is_none() {
+            continue;
+        }
+        let floor = if pointed(&c.name) { MIN_DETAIL_MM } else { MIN_SECTION_MM };
+        let finished = by.get(&c.id).map(|faces| sample_walls(&tris, faces, floor, "finished"));
+        let mut row = match finished.filter(|r| r["rays"].as_u64().unwrap_or(0) >= 200) {
+            // Sampled where the part shows in the finished metal, through the whole finished mesh.
+            Some(r) => r,
+            // A part too little of which shows in the finished metal for 200 rays is sampled on its own solid.
+            None => {
+                let own: Vec<[P3; 3]> = c.mesh.faces.iter().map(|f| f.map(|i| { let p = c.mesh.vertices[i as usize]; [p.0 as f64, p.1 as f64, p.2 as f64] })).collect();
+                let all: Vec<usize> = (0..own.len()).collect();
+                sample_walls(&own, &all, floor, "own solid, before the union (too little of it shows in the finished metal for 200 rays)")
             }
-            let near: Vec<usize> = (0..tris.len()).filter(|&j| { let (a, b) = bounds(&tris[j]); (0..3).all(|k| b[k] >= lo[k] && a[k] <= hi[k]) }).collect();
-            let stride = faces.len().div_ceil(320).max(1);
-            let (mut least, mut at, mut rays, mut below, mut slivers) = (f64::MAX, [0.0; 3], 0usize, 0usize, 0usize);
-            let floor = if pointed(&name) { MIN_DETAIL_MM } else { MIN_SECTION_MM };
-            for &i in faces.iter().step_by(stride) {
-                let [a, b, c] = tris[i];
-                let n = cross(sub(b, a), sub(c, a));
-                if dot(n, n) < 1e-16 { continue; }
-                let dir = mul(unit(n), -1.0);
-                let o = mul(add3(add3(a, b), c), 1.0 / 3.0);
-                let hit = near.iter().filter(|&&j| j != i).filter_map(|&j| {
-                    let [p, q, r] = tris[j];
-                    let (e1, e2) = (sub(q, p), sub(r, p));
-                    let hv = cross(dir, e2);
-                    let det = dot(e1, hv);
-                    if det.abs() < 1e-14 { return None; }
-                    let sv = sub(o, p);
-                    let u = dot(sv, hv) / det;
-                    if !(0.0..=1.0).contains(&u) { return None; }
-                    let qv = cross(sv, e1);
-                    let v = dot(dir, qv) / det;
-                    if v < 0.0 || u + v > 1.0 { return None; }
-                    let t = dot(e2, qv) / det;
-                    (t > 1e-5).then_some(t)
-                }).fold(f64::MAX, f64::min);
-                if hit == f64::MAX { continue; }
-                // A ray stopped within 0.03 mm has met a fold where two surfaces of the union cross at a seam, not a wall.
-                if hit < SLIVER_MM { slivers += 1; continue; }
-                rays += 1;
-                below += usize::from(hit < floor);
-                if hit < least { least = hit; at = o; }
+        };
+        row["part"] = json!(c.name);
+        out.push(row);
+    }
+    out
+}
+
+/// Up to 320 inward rays from the faces `faces` of `tris`, at least 200 where the part has them, each ray cast
+/// through every triangle within 3 mm. A face touching a hard edge (neighbours turning over 50 degrees) is not a
+/// ray start: its ray would measure the distance to the edge, not a wall. Those skipped rays are counted.
+fn sample_walls(tris: &[[P3; 3]], faces: &[usize], floor: f64, on: &str) -> serde_json::Value {
+    let normal = |t: &[P3; 3]| unit(cross(sub(t[1], t[0]), sub(t[2], t[0])));
+    let bounds = |t: &[P3; 3]| -> (P3, P3) { (std::array::from_fn(|k| t.iter().map(|p| p[k]).fold(f64::MAX, f64::min)), std::array::from_fn(|k| t.iter().map(|p| p[k]).fold(f64::MIN, f64::max))) };
+    let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
+    for &i in faces {
+        let (a, b) = bounds(&tris[i]);
+        for k in 0..3 { lo[k] = lo[k].min(a[k] - 3.0); hi[k] = hi[k].max(b[k] + 3.0); }
+    }
+    let near: Vec<usize> = (0..tris.len()).filter(|&j| { let (a, b) = bounds(&tris[j]); (0..3).all(|k| b[k] >= lo[k] && a[k] <= hi[k]) }).collect();
+    // Hard edges among the nearby faces: shared edges by quantised position.
+    let key = |p: P3| p.map(|v| (v * 1e5).round() as i64);
+    let mut edges: std::collections::HashMap<([i64; 3], [i64; 3]), Vec<usize>> = Default::default();
+    for &j in &near {
+        for k in 0..3 {
+            let (a, b) = (key(tris[j][k]), key(tris[j][(k + 1) % 3]));
+            edges.entry(if a < b { (a, b) } else { (b, a) }).or_default().push(j);
+        }
+    }
+    let mut hard_face = std::collections::HashSet::new();
+    for fs in edges.values() {
+        if fs.len() == 2 && dot(normal(&tris[fs[0]]), normal(&tris[fs[1]])) < 50f64.to_radians().cos() {
+            hard_face.insert(fs[0]);
+            hard_face.insert(fs[1]);
+        }
+    }
+    let (mut least, mut at, mut rays, mut below, mut slivers, mut hard) = (f64::MAX, [0.0; 3], 0usize, 0usize, 0usize, 0usize);
+    let stride = (faces.len() / 640).max(1);
+    // Ray starts: each face's centroid on a first pass; a small part with fewer faces than rays wanted is sampled
+    // again from three more points inside each face.
+    let starts: [[f64; 3]; 4] = [[1.0 / 3.0; 3], [0.6, 0.2, 0.2], [0.2, 0.6, 0.2], [0.2, 0.2, 0.6]];
+    'passes: for (offset, bary) in (0..stride).map(|o| (o, starts[0])).chain((1..4).map(|k| (0, starts[k]))) {
+        for &i in faces.iter().skip(offset).step_by(stride) {
+            if rays >= 320 {
+                break 'passes;
             }
-            Some(json!({"part": name, "sampled_min_mm": least, "at": um(at), "rays": rays, "below_floor": below, "floor_mm": floor, "seam_folds_skipped": slivers, "hard_edge_faces_skipped": by_edge.get(&id).copied().unwrap_or(0)}))
-        })
-        .collect()
+            if hard_face.contains(&i) {
+                hard += 1;
+                continue;
+            }
+            let [a, b, c] = tris[i];
+            let n = cross(sub(b, a), sub(c, a));
+            if dot(n, n) < 1e-16 { continue; }
+            let dir = mul(unit(n), -1.0);
+            let o = add3(add3(mul(a, bary[0]), mul(b, bary[1])), mul(c, bary[2]));
+            let hit = near.iter().filter(|&&j| j != i).filter_map(|&j| {
+                let [p, q, r] = tris[j];
+                let (e1, e2) = (sub(q, p), sub(r, p));
+                let hv = cross(dir, e2);
+                let det = dot(e1, hv);
+                if det.abs() < 1e-14 { return None; }
+                let sv = sub(o, p);
+                let u = dot(sv, hv) / det;
+                if !(0.0..=1.0).contains(&u) { return None; }
+                let qv = cross(sv, e1);
+                let v = dot(dir, qv) / det;
+                if v < 0.0 || u + v > 1.0 { return None; }
+                let t = dot(e2, qv) / det;
+                (t > 1e-5).then_some(t)
+            }).fold(f64::MAX, f64::min);
+            if hit == f64::MAX { continue; }
+            // A ray stopped within 0.03 mm has met a fold where two surfaces of the union cross at a seam, not a wall.
+            if hit < SLIVER_MM { slivers += 1; continue; }
+            rays += 1;
+            below += usize::from(hit < floor);
+            if hit < least { least = hit; at = o; }
+        }
+        if rays >= 200 {
+            break;
+        }
+    }
+    json!({"sampled_min_mm": least, "at": um(at), "rays": rays, "below_floor": below, "floor_mm": floor, "seam_folds_skipped": slivers, "hard_edge_rays_skipped": hard, "sampled_on": on})
 }
 
 /// Rays stopped closer than this have met a seam fold of the union, not a wall.
@@ -1191,7 +1299,22 @@ fn main() -> Result<()> {
     let probe_build = mesh::try_build(&first.design, &AlphaLibrary::builtin(), draft_params())?;
     let unbeaded: Vec<String> = probe_build.parts.notes.iter().filter(|n| n.contains("fillet")).filter_map(|n| n.split(':').next().map(str::to_string)).filter(|n| n.starts_with("Prickle")).collect();
     println!("  prickles laid without a bead: {unbeaded:?}");
-    let Authored { design: d, thorns, stone_id } = author(false, &unbeaded)?;
+    // A prickle that fuses into the other cane or a node leaves a thin fin in the union: found on the first build
+    // and left out; leaving one out can bare a fin under its neighbour, so the probe repeats until none is left.
+    let mut skip = unbeaded.clone();
+    let mut fins: Vec<String> = Vec::new();
+    let mut probe = (first.design, probe_build);
+    for _ in 0..4 {
+        let found: Vec<String> = walls(&probe.0, &probe.1).iter().filter(|w| w["part"].as_str().is_some_and(|n| n.starts_with("Prickle")) && w["sampled_min_mm"].as_f64().is_some_and(|m| m < MIN_DETAIL_MM)).filter_map(|w| w["part"].as_str().map(str::to_string)).collect();
+        if found.is_empty() { break; }
+        skip.extend(found.iter().map(|f| format!("omit:{f}")));
+        fins.extend(found);
+        let next = author(false, &skip)?.design;
+        let next_build = mesh::try_build(&next, &AlphaLibrary::builtin(), draft_params())?;
+        probe = (next, next_build);
+    }
+    println!("  prickles left out for a fin: {fins:?}");
+    let Authored { design: d, thorns, stone_id } = author(false, &skip)?;
     let lib = AlphaLibrary::builtin();
     let author_s = started.elapsed().as_secs_f64();
     let params = if draft { draft_params() } else { export_params() };
@@ -1312,7 +1435,7 @@ fn main() -> Result<()> {
         ("one metal shell: nothing floats (sealed voids under 0.01 mm3 are reported, not counted)", shell_count == 1),
         ("solids and parts notes empty, every feature Ok", solids_notes.is_empty() && parts_notes.is_empty() && status.iter().all(|(_, s)| s == "Ok")),
         ("nothing enters the finger hole", inside == 0),
-        ("every part's ray-sampled wall at the 0.8 mm section, its pointed details (thorns, shoots) at the 0.15 mm detail floor", walls_ok(&wall)),
+        ("every metal part's ray-sampled wall recorded with at least 200 rays: canes, nodes, stipules, shoots, rachis, stalk, hip cup, calyx boss, sepal bodies and every leaflet at the 0.8 mm section; prickle, sepal and shoot-bud points at the 0.15 mm detail floor", walls_ok(&wall) && wall.iter().all(|w| w["rays"].as_u64().unwrap_or(0) >= 200)),
         ("zero DFM findings", findings.is_empty()),
         ("stones reported equal the preview", reported == previewed && reported == 1),
         ("no metal inside a stone", in_stones.iter().all(|(_, n)| *n == 0)),
@@ -1340,7 +1463,7 @@ fn main() -> Result<()> {
         "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
         "field": {"verdict": field.verdict.label(), "thinnest_wall_mm": field.thinnest_wall_mm, "thinnest_wall_theta_deg": field.thinnest_wall_theta_deg, "min_section_mm": d.draft.min_section_mm, "min_detail_mm": d.draft.min_detail_mm, "notes": field.notes},
         "ray_walls": wall,
-        "lost_wax_note": "Lost wax (Logan, 2026-10-03): 0.8 mm minimum section, no pull rule. The band-field verdict reads 'Castable with care' for every CAD-only design by construction (castability.rs: no procedural band to sample), so the lost-wax gate is the wall gate. Walls are sampled on the finished mesh: up to 320 inward rays per part from the faces it owns, through the whole finished metal; faces touching a hard edge (over 50 degrees) and rays stopped within 0.03 mm at a seam fold are not counted and are tallied per part. Bodies (canes, receptacle, stalk, petiole and rachis) are judged at 0.8 mm; pointed details (prickles, calyx, leaflets) at the 0.15 mm detail floor, as Manticora's aculeus was.",
+        "lost_wax_note": "Lost wax (Logan, 2026-10-03): 0.8 mm minimum section, no pull rule. The band-field verdict reads 'Castable with care' for every CAD-only design by construction (castability.rs: no procedural band to sample), so the lost-wax gate is the wall gate. Walls are sampled on the finished mesh: 200 to 320 inward rays per part from the faces it owns, cast through the whole finished metal; a part too little of which shows for 200 rays is sampled on its own solid and says so (sampled_on). Ray starts on a face touching a hard edge (over 50 degrees) are skipped and counted per part (hard_edge_rays_skipped), as are rays stopped within 0.03 mm at a seam fold. Every body and blade is judged at 0.8 mm: canes, nodes, stipules, shoots, rachis and petiole, stalk, hip cup, calyx boss, sepal bodies and all ten leaflets. Only tapering points are judged at the 0.15 mm detail floor, as Manticora's aculeus was: the prickles, the sepal points (the last millimetre of each sepal, a separate part) and the shoot-bud points.",
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "notes": {"solids": solids_notes, "parts": parts_notes},
         "stones": {"reported": reported, "previewed": previewed, "metal_inside": in_stones, "crowding": crowding},
