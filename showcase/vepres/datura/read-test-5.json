@@ -1,0 +1,31 @@
+{
+  "ring": "datura",
+  "mode": "read-test",
+  "attempt": 5,
+  "reads": true,
+  "what_the_eye_sees": "The pairing now works, though only just. In both views a long ribbed trumpet flares into a pointed, five-tipped mouth that stands free of the badge. In the hero it hangs off the left shoulder in clean silhouette against the black. Beside it, a spined fruit now breaks its outline with a dozen or more distinct spine tips. A white trumpet flower next to a spiny ball is the textbook thorn-apple pairing, and a jeweller who knows plants says 'datura' from the face view. A general jeweller says at least 'trumpet flower and a thorn burr', which is the right plant. The read is still fragile in three places. (1) In the hero the capsule is seen almost end-on, as a ring of spines around a dark open hole, so it reads as a spiked sunburst or a crown of thorns rather than a fruit. Only the face view shows it as a burr. (2) The eight black stones sit in a neat two-column grid on the bare plate, away from the capsule. They read as a pavé panel or a set of buttons, not as seeds spilling from a split pod, and that grid is the most mechanical thing on the ring. (3) The big leaf at the top is still a smooth oval with short spikes scattered over it. It reads as a feather or a prickly-pear pad, not a sinuate datura leaf. The lower right of the plate is still empty, flat badge. First guess: 'datura / thorn-apple signet', helped mostly by the trumpet.",
+  "changes": [
+    {
+      "priority": 1,
+      "zone": "head: the eight black spinel seeds (now a 2 x 4 grid on the plate centre, below the capsule)",
+      "change": "Break the grid and move the seeds into the capsule's split. Set 5-6 stones inside the gaping valve opening, facing the camera and staggered at different depths. Let 2-3 more spill out of the split and down onto the plate in a loose arc 3-5 mm long, at irregular 1.5-2.5 mm spacing, no two in a row or column. Seat each in a small raised bezel or between the valve lips, not flush in a flat plate.",
+      "acceptance": "In face-300 no three stones fall on one straight line, and at least five stones are visibly inside or touching the capsule's split. In hero-300 the dark seeds show in the capsule's open mouth, so the 'dark hole' reads as a seed-filled pod, not an empty ring."
+    },
+    {
+      "priority": 2,
+      "zone": "spined capsule: orientation and form (upper right of the face; top of the hero)",
+      "change": "Tilt the capsule about 35-45 degrees so the hero camera sees its side, an egg with spines all over, rather than looking straight down the open end. Lengthen the egg to about 1.3:1 (about 9 x 7 mm). Open only one or two valves, peeled back, so solid spined shell shows on at least two thirds of its outline in both views.",
+      "acceptance": "In hero-300 the capsule reads as a spiny egg or burr seen from the side, with spines on its flank as well as its rim, and no ring-shaped sunburst or halo outline. In face-300 it still shows at least 12 spine tips breaking its outline."
+    },
+    {
+      "priority": 3,
+      "zone": "leaves: the large top leaf, and the empty lower right of the badge plate",
+      "change": "Re-cut the top leaf's margin as a datura leaf: 3-4 broad, angular, irregular lobes per side, each 1-2 mm deep, with a raised midrib and 3-4 paired side veins in place of the scattered spikes. Add one more sinuate leaf, 8-10 mm long, across the bare lower right of the plate, tucked under the capsule, with one lobe curling over the plate's edge.",
+      "acceptance": "In face-300 the leaf outlines are visibly wavy and lobed, not oval and not toothed, the leaves carry no spikes, and no flat bare region of the plate is wider than about 4 mm."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/datura/hero-300.png",
+    "showcase/vepres/datura/face-300.png"
+  ]
+}
