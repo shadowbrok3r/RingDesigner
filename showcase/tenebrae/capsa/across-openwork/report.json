@@ -1,27 +1,27 @@
 {
   "bore": {
-    "nearest_vertex_mm": 9.299940243384274,
+    "nearest_vertex_mm": 9.299940891926026,
     "radius_mm": 9.3,
     "vertices_inside": 0
   },
   "build": {
-    "author_s": 0.594371292,
-    "build_s": 4.268184894,
+    "author_s": 0.572758803,
+    "build_s": 4.536220425,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 515956
+    "triangles": 512890
   },
-  "cad_features": 87,
+  "cad_features": 86,
   "chest": 8,
   "features_not_ok": [],
   "geometry": {
-    "degenerate_faces": 12,
+    "degenerate_faces": 10,
     "head_over_crest_mm": 6.757499084472656,
-    "self_crossings": 44,
-    "volume_mm3": 1339.1005272602831,
+    "self_crossings": 18,
+    "volume_mm3": 1329.8332069603373,
     "watertight": true
   },
-  "lid": 87,
+  "lid": 86,
   "name": "Capsa — the reliquary",
   "notes": [
     "1 tracery lights in the west window",
@@ -132,15 +132,6 @@
       "attach": "Join",
       "degenerate_faces": 0,
       "id": 19,
-      "name": "Stand the north tower on a buttress",
-      "self_crossings": 0,
-      "triangles": 12,
-      "watertight": true
-    },
-    {
-      "attach": "Join",
-      "degenerate_faces": 0,
-      "id": 20,
       "name": "Loft the north spire to its point",
       "self_crossings": 0,
       "triangles": 12,
@@ -149,7 +140,7 @@
     {
       "attach": "Join",
       "degenerate_faces": 0,
-      "id": 21,
+      "id": 20,
       "name": "Knop on the north spire",
       "self_crossings": 0,
       "triangles": 4348,
@@ -158,7 +149,7 @@
     {
       "attach": "Join",
       "degenerate_faces": 0,
-      "id": 23,
+      "id": 22,
       "name": "Chamfer the south tower's top as a moulding",
       "self_crossings": 0,
       "triangles": 20,
@@ -167,7 +158,7 @@
     {
       "attach": "Join",
       "degenerate_faces": 0,
-      "id": 24,
+      "id": 23,
       "name": "Web the south tower to the chest",
       "self_crossings": 0,
       "triangles": 12,
@@ -176,16 +167,7 @@
     {
       "attach": "Join",
       "degenerate_faces": 0,
-      "id": 25,
-      "name": "Stand the south tower on a buttress",
-      "self_crossings": 0,
-      "triangles": 12,
-      "watertight": true
-    },
-    {
-      "attach": "Join",
-      "degenerate_faces": 0,
-      "id": 26,
+      "id": 24,
       "name": "Loft the south spire to its point",
       "self_crossings": 0,
       "triangles": 12,
@@ -194,7 +176,7 @@
     {
       "attach": "Join",
       "degenerate_faces": 0,
-      "id": 27,
+      "id": 25,
       "name": "Knop on the south spire",
       "self_crossings": 0,
       "triangles": 4348,
@@ -203,7 +185,7 @@
     {
       "attach": "Cut",
       "degenerate_faces": 0,
-      "id": 29,
+      "id": 27,
       "name": "Open the west window in tracery over the skull",
       "self_crossings": 0,
       "triangles": 136,
@@ -212,7 +194,7 @@
     {
       "attach": "Join",
       "degenerate_faces": 0,
-      "id": 30,
+      "id": 28,
       "name": "Raise the front's archivolt, its sides weathered",
       "self_crossings": 0,
       "triangles": 244,
@@ -221,44 +203,44 @@
     {
       "attach": "Cut",
       "degenerate_faces": 0,
-      "id": 31,
-      "name": "Sink the north tower's bay, outer order",
+      "id": 29,
+      "name": "Sink the north wall's bay, outer order",
       "self_crossings": 0,
       "triangles": 136,
       "watertight": true
     },
     {
       "attach": "Cut",
+      "degenerate_faces": 0,
+      "id": 30,
+      "name": "Sink the north wall's bay, inner order",
+      "self_crossings": 0,
+      "triangles": 136,
+      "watertight": true
+    },
+    {
+      "attach": "Join",
       "degenerate_faces": 0,
       "id": 32,
-      "name": "Sink the north tower's bay, inner order",
+      "name": "Bezel round the Garnet, north wall cabochon",
+      "self_crossings": 0,
+      "triangles": 900,
+      "watertight": true
+    },
+    {
+      "attach": "Cut",
+      "degenerate_faces": 0,
+      "id": 33,
+      "name": "Sink the south wall's bay, outer order",
       "self_crossings": 0,
       "triangles": 136,
       "watertight": true
     },
     {
-      "attach": "Join",
+      "attach": "Cut",
       "degenerate_faces": 0,
       "id": 34,
-      "name": "Bezel round the Garnet, north tower cabochon",
-      "self_crossings": 0,
-      "triangles": 900,
-      "watertight": true
-    },
-    {
-      "attach": "Cut",
-      "degenerate_faces": 0,
-      "id": 35,
-      "name": "Sink the south tower's bay, outer order",
-      "self_crossings": 0,
-      "triangles": 136,
-      "watertight": true
-    },
-    {
-      "attach": "Cut",
-      "degenerate_faces": 0,
-      "id": 36,
-      "name": "Sink the south tower's bay, inner order",
+      "name": "Sink the south wall's bay, inner order",
       "self_crossings": 0,
       "triangles": 136,
       "watertight": true
@@ -266,8 +248,8 @@
     {
       "attach": "Join",
       "degenerate_faces": 0,
-      "id": 38,
-      "name": "Bezel round the Garnet, south tower cabochon",
+      "id": 36,
+      "name": "Bezel round the Garnet, south wall cabochon",
       "self_crossings": 0,
       "triangles": 900,
       "watertight": true
@@ -275,7 +257,16 @@
     {
       "attach": "Cut",
       "degenerate_faces": 0,
-      "id": 39,
+      "id": 37,
+      "name": "Groove the lid's seam across the front",
+      "self_crossings": 0,
+      "triangles": 12,
+      "watertight": true
+    },
+    {
+      "attach": "Cut",
+      "degenerate_faces": 0,
+      "id": 38,
       "name": "Sink the north niche in the plinth's front, outer order",
       "self_crossings": 0,
       "triangles": 136,
@@ -284,7 +275,7 @@
     {
       "attach": "Cut",
       "degenerate_faces": 0,
-      "id": 40,
+      "id": 39,
       "name": "Sink the north niche in the plinth's front, inner order",
       "self_crossings": 0,
       "triangles": 136,
@@ -293,7 +284,7 @@
     {
       "attach": "Join",
       "degenerate_faces": 0,
-      "id": 42,
+      "id": 41,
       "name": "Bezel round the Garnet, north plinth niche cabochon",
       "self_crossings": 0,
       "triangles": 900,
@@ -302,7 +293,7 @@
     {
       "attach": "Cut",
       "degenerate_faces": 0,
-      "id": 43,
+      "id": 42,
       "name": "Sink the middle niche in the plinth's front, outer order",
       "self_crossings": 0,
       "triangles": 136,
@@ -311,7 +302,7 @@
     {
       "attach": "Cut",
       "degenerate_faces": 0,
-      "id": 44,
+      "id": 43,
       "name": "Sink the middle niche in the plinth's front, inner order",
       "self_crossings": 0,
       "triangles": 136,
@@ -320,7 +311,7 @@
     {
       "attach": "Join",
       "degenerate_faces": 0,
-      "id": 46,
+      "id": 45,
       "name": "Bezel round the Sapphire, middle plinth niche cabochon",
       "self_crossings": 0,
       "triangles": 900,
@@ -329,7 +320,7 @@
     {
       "attach": "Cut",
       "degenerate_faces": 0,
-      "id": 47,
+      "id": 46,
       "name": "Sink the south niche in the plinth's front, outer order",
       "self_crossings": 0,
       "triangles": 136,
@@ -338,7 +329,7 @@
     {
       "attach": "Cut",
       "degenerate_faces": 0,
-      "id": 48,
+      "id": 47,
       "name": "Sink the south niche in the plinth's front, inner order",
       "self_crossings": 0,
       "triangles": 136,
@@ -347,7 +338,7 @@
     {
       "attach": "Join",
       "degenerate_faces": 0,
-      "id": 50,
+      "id": 49,
       "name": "Bezel round the Garnet, south plinth niche cabochon",
       "self_crossings": 0,
       "triangles": 900,
@@ -356,17 +347,26 @@
     {
       "attach": "Cut",
       "degenerate_faces": 0,
-      "id": 51,
-      "name": "Pierce a 1.6 mm quatrefoil through the east shoulder, 48 deg off the top",
+      "id": 50,
+      "name": "Pierce a 2.0 mm quatrefoil through the east shoulder, 48 deg off the top",
       "self_crossings": 0,
-      "triangles": 636,
+      "triangles": 798,
+      "watertight": true
+    },
+    {
+      "attach": "Cut",
+      "degenerate_faces": 0,
+      "id": 51,
+      "name": "Pierce a 2.0 mm quatrefoil through the west shoulder, 48 deg off the top",
+      "self_crossings": 0,
+      "triangles": 798,
       "watertight": true
     },
     {
       "attach": "Cut",
       "degenerate_faces": 0,
       "id": 52,
-      "name": "Pierce a 1.6 mm quatrefoil through the west shoulder, 48 deg off the top",
+      "name": "Pierce a 1.6 mm quatrefoil through the east shoulder, 60 deg off the top",
       "self_crossings": 0,
       "triangles": 636,
       "watertight": true
@@ -375,16 +375,16 @@
       "attach": "Cut",
       "degenerate_faces": 0,
       "id": 53,
-      "name": "Pierce a 1.3 mm quatrefoil through the east shoulder, 60 deg off the top",
+      "name": "Pierce a 1.6 mm quatrefoil through the west shoulder, 60 deg off the top",
       "self_crossings": 0,
-      "triangles": 576,
+      "triangles": 636,
       "watertight": true
     },
     {
       "attach": "Cut",
       "degenerate_faces": 0,
       "id": 54,
-      "name": "Pierce a 1.3 mm quatrefoil through the west shoulder, 60 deg off the top",
+      "name": "Pierce a 1.3 mm quatrefoil through the east shoulder, 72 deg off the top",
       "self_crossings": 0,
       "triangles": 576,
       "watertight": true
@@ -393,27 +393,18 @@
       "attach": "Cut",
       "degenerate_faces": 0,
       "id": 55,
-      "name": "Pierce a 1.0 mm quatrefoil through the east shoulder, 72 deg off the top",
-      "self_crossings": 0,
-      "triangles": 576,
-      "watertight": true
-    },
-    {
-      "attach": "Cut",
-      "degenerate_faces": 0,
-      "id": 56,
-      "name": "Pierce a 1.0 mm quatrefoil through the west shoulder, 72 deg off the top",
+      "name": "Pierce a 1.3 mm quatrefoil through the west shoulder, 72 deg off the top",
       "self_crossings": 0,
       "triangles": 576,
       "watertight": true
     },
     {
       "attach": "Separate",
-      "degenerate_faces": 8,
-      "id": 87,
+      "degenerate_faces": 6,
+      "id": 86,
       "name": "Crest the gable: the lid, cast apart",
       "self_crossings": 0,
-      "triangles": 9142,
+      "triangles": 8384,
       "watertight": true
     }
   ],
@@ -425,12 +416,12 @@
   "solids_notes": [],
   "stage": "rethink block-out",
   "stone_features": [
-    33,
-    37,
-    41,
-    45,
-    49,
-    59
+    31,
+    35,
+    40,
+    44,
+    48,
+    58
   ],
   "stones": {
     "previewed_groups": 2,

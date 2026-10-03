@@ -56,20 +56,20 @@ const BEZEL_WALL_MM: f64 = 0.35;
 const BEZEL_LIP: f64 = 0.3;
 const LID_CLEAR_MM: f64 = 0.05;
 /// The shoulder quatrefoils: offsets from the top and their sizes.
-const PIERCINGS: [(f64, f64); 3] = [(48.0, 1.6), (60.0, 1.3), (72.0, 1.0)];
+const PIERCINGS: [(f64, f64); 3] = [(48.0, 2.0), (60.0, 1.6), (72.0, 1.3)];
 /// Tracery bars: the section floor.
 const BAR_MM: f64 = 0.8;
 
 // ---- Along the finger (the `openwork` option): the chasse of the first block-out, its roof opened.
 /// The plinth's base course: along the finger, round the ring, tall; its top stands this far over the crest.
-const PLINTH: P3 = [14.4, 8.4, 2.0];
+const PLINTH: P3 = [14.4, 7.2, 2.0];
 const PLINTH_OVER_CREST_MM: f64 = 0.15;
 const PLINTH_CHAMFER_MM: f64 = 0.35;
 /// The plinth's upper step, sunk this far into the base course.
-const STEP: P3 = [13.8, 7.8, 0.6];
+const STEP: P3 = [13.8, 6.6, 0.4];
 const STEP_CHAMFER_MM: f64 = 0.25;
 /// The chest: along the finger, round the ring, tall, sunk this far into the step.
-const CHEST: P3 = [13.0, 6.8, 3.0];
+const CHEST: P3 = [13.0, 5.6, 2.9];
 const SINK_MM: f64 = 0.1;
 const WALL_MM: f64 = 1.35;
 const FLOOR_RAISE_MM: f64 = 0.3;
@@ -78,11 +78,11 @@ const POST_MM: f64 = 0.9;
 const BUTTRESS_W_MM: f64 = 0.8;
 const BAY_W_MM: [f64; 3] = [2.75, 3.9, 2.75];
 const BAY_SHARE: [f64; 3] = [0.75, 0.66, 0.75];
-const BAY_SILL_MM: f64 = -1.35;
-const BAY_APEX_MM: f64 = 1.2;
+const BAY_SILL_MM: f64 = -1.3;
+const BAY_APEX_MM: f64 = 1.3;
 const ORDER_MM: f64 = 0.2;
 const ORDER_INSET_MM: f64 = 0.4;
-const BAY_STONE_Z_MM: f64 = -0.2;
+const BAY_STONE_Z_MM: f64 = -0.15;
 const PORTAL_W_MM: f64 = 2.6;
 const PORTAL_SILL_MM: f64 = -1.3;
 const PORTAL_APEX_MM: f64 = 0.85;
@@ -97,8 +97,8 @@ const ARCHIVOLT_MM: f64 = 0.4;
 const BUTTRESS_FOOT_MM: f64 = 0.38;
 const BUTTRESS_UPPER_MM: f64 = 0.22;
 const EAVES_OVER_MM: f64 = 0.55;
-const EAVES_H_MM: f64 = 0.45;
-const RISE_MM: f64 = 3.6;
+const EAVES_H_MM: f64 = 0.35;
+const RISE_MM: f64 = 4.25;
 const ENDS_OVER_MM: f64 = 0.3;
 const EAVES_CHAMFER_MM: f64 = 0.2;
 /// The opened roof's skin, measured square to the slope.
@@ -109,16 +109,16 @@ const FLEUR_PITCH_MM: f64 = 2.3;
 // Frame: x along the finger toward the gable's apex, y across, z out of the plinth's top.
 /// The chest: across, along the finger, deep (out of the ring); walls.
 const XW: f64 = 7.6;
-const XLC: f64 = 5.2;
+const XLC: f64 = 6.0;
 const XD: f64 = 5.4;
 const XT: f64 = 1.35;
 /// The roof (the lid): eaves overhang across, eave band along, rise to the apex, and how far its gable stands proud of the chest's end wall.
 const XEO: f64 = 0.5;
 const XEH: f64 = 0.5;
-const XR: f64 = 6.4;
+const XR: f64 = 6.0;
 const XPROUD: f64 = 0.3;
 /// The chest's foot along the finger; the plinth runs past it and the finial past the apex.
-const XA: f64 = -6.425;
+const XA: f64 = -6.375;
 const XPLINTH_RUN: f64 = 1.0;
 /// The bed the shrine lies on, sunk into the crest, and its margin.
 const XBED_MM: f64 = 2.0;
@@ -616,10 +616,10 @@ fn cresting_sdf(ridge: f64) -> impl Fn(P2) -> f64 {
     move |p: P2| {
         let rail = sdf::rect(p, [-5.4, ridge - 0.7], [5.4, ridge + 0.2]);
         let mut d = rail;
-        // Fleurs at 0.6 scale, rising 1.25 over the ridge.
+        // Fleurs at 0.55 scale, rising 1.15 over the ridge, open between.
         for k in [-2.0f64, -1.0, 0.0, 1.0, 2.0] {
-            let q = [(p[0] - k * FLEUR_PITCH_MM) / 0.6, (p[1] - ridge) / 0.6];
-            d = d.min(0.6 * fleur(q, [0.0, 0.0]));
+            let q = [(p[0] - k * FLEUR_PITCH_MM) / 0.55, (p[1] - ridge) / 0.55];
+            d = d.min(0.55 * fleur(q, [0.0, 0.0]));
         }
         d
     }
@@ -897,7 +897,7 @@ fn author_along(lib: &AlphaLibrary) -> Result<Authored> {
 
     // The skull on the relic floor, face up, its crown toward the east end.
     let floor_z = -CHEST[2] / 2.0 + WALL_MM + FLOOR_RAISE_MM;
-    let skull_id = skull(&mut doc, &mut ids, &SkullSeat { frame: seat(), base: [0.0, 0.0, floor_z - 0.1], a: [0.0, -1.0, 0.0], b: [1.0, 0.0, 0.0], n: [0.0, 0.0, 1.0], scale: 1.1, height: 1.3 })?;
+    let skull_id = skull(&mut doc, &mut ids, &SkullSeat { frame: seat(), base: [0.0, 0.0, floor_z - 0.1], a: [0.0, -1.0, 0.0], b: [1.0, 0.0, 0.0], n: [0.0, 0.0, 1.0], scale: 0.82, height: 1.2 })?;
 
     // Blind arcades: three pointed bays on each long wall.
     let bays = || -> Vec<(f64, f64, f64)> {
@@ -1027,9 +1027,14 @@ fn author_along(lib: &AlphaLibrary) -> Result<Authored> {
         let origin = add(foot, out, OVERSHOOT_MM);
         let mut sk = sketch_on(&format!("Tracery, {name} slope"), plane(origin, [sign, 0.0, 0.0], up_slope));
         let mut net = Vec::new();
+        // Three lancets with a roundel over each, toward the ridge.
         for cx in [-2.7, 0.0, 2.7] {
             let before = sk.entities.len();
-            lancet(&mut sk, cx, 2.3, 0.3, slope_len - 0.55, 0.8);
+            lancet(&mut sk, cx, 2.3, 0.3, slope_len - 2.2, 0.8);
+            let (c, rc) = ([cx, slope_len - 1.15], 0.85);
+            let ci = sk.point(c);
+            let rim = sk.point([c[0] + rc, c[1]]);
+            sk.entity(Geometry::Circle { center: ci, rim });
             net.extend(sk.entities[before..].iter().map(|e| e.id));
         }
         lights += trace_net(&mut sk, &net)?;
@@ -1129,10 +1134,10 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
     doc.append(feature(chest, "Hollow the chest", boolean(block, cavity, Boolean::Subtract), joined(ComponentRole::Head, Placement::Free, 0.0)))?;
 
     // The skull on the chest's back wall, its face up to the front, its crown toward the roof.
-    let (skull_x, skull_s, skull_h) = if openwork { (xa + 2.75, 0.86, 1.9) } else { (0.5 * (xa + XT + xb) + 0.08, 0.82, 1.5) };
+    let (skull_x, skull_s, skull_h) = if openwork { (xa + 3.25, 1.05, 2.0) } else { (0.5 * (xa + XT + xb) + 0.08, 0.82, 1.5) };
     let skull_id = skull(&mut doc, &mut ids, &SkullSeat { frame: xseat(), base: [skull_x, 0.0, XT - 0.2], a: [0.0, -1.0, 0.0], b: [1.0, 0.0, 0.0], n: [0.0, 0.0, 1.0], scale: skull_s, height: skull_h })?;
 
-    // Towers flanking the front: a shaft on a buttress, webbed to the chest, and a crocketed spire lofted off its top past the eaves.
+    // Towers flanking the front: a shaft webbed to the chest's top, and a crocketed spire lofted off its top past the eaves.
     let (spire0, spire1) = (xr + XSPIRE_FROM, xr + XSPIRE_TO);
     let (zt0, zt1) = (XD - XTW_DEPTH, XD + XTW_PROUD);
     let ym = 0.5 * (XTW_IN + XTW_OUT);
@@ -1148,11 +1153,6 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
         polygon(&mut sk, &rect_pts(xa - 0.15, xb, w0, w1));
         let id = ids.next();
         doc.append(feature(id, &format!("Web the {side} tower to the chest"), extrude(sk, zt1 - 0.25 - zt0), joined(ComponentRole::Head, xseat(), 0.0)))?;
-        let (f0, f1) = span(XW / 2.0 - 0.2, XTW_OUT - 0.35);
-        let mut sk = plan(&format!("Buttress foot, {side} tower"), -0.1);
-        polygon(&mut sk, &rect_pts(xa - 0.15, xb - 0.6, f0, f1));
-        let id = ids.next();
-        doc.append(feature(id, &format!("Stand the {side} tower on a buttress"), drafted(sk, zt0 + 0.2, 6.0), joined(ComponentRole::Head, xseat(), 0.0)))?;
         // The spire: a rectangle off the shaft's top lofted to a point.
         let base = vec![[sign * XTW_IN, zs - 0.65], [sign * XTW_OUT, zs - 0.65], [sign * XTW_OUT, zt1 - 0.05], [sign * XTW_IN, zt1 - 0.05]];
         let base: Vec<P2> = if sign > 0.0 { base } else { base.into_iter().rev().collect() };
@@ -1168,7 +1168,7 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
     }
 
     // The front: a pointed portal sunk into the chest's end wall, its jambs splayed, flanked by blind lancets, or (opened) a traceried window over the skull.
-    let (pw, psill, papex, pshare) = if openwork { (3.9, xa + 0.3, xb - 0.2, 0.8) } else { (2.8, xa + 0.55, xb - 0.95, 0.85) };
+    let (pw, psill, papex, pshare) = if openwork { (4.6, xa + 0.3, xb - 0.6, 0.75) } else { (2.8, xa + 0.55, xb - 0.95, 0.85) };
     if openwork {
         // One great pointed light, traced inside its arch at the section floor, the skull filling it.
         let mut sk = plan_arch("West window", XD + OVERSHOOT_MM, false);
@@ -1198,26 +1198,29 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
     at(&doc, &mut d);
     let ch = part_at(&d, lib, chest)?;
     let mut stones = Vec::new();
-    // A pointed bay sunk in each tower's outer face, its head toward the spire, a garnet in it.
-    let (bay_sill, bay_apex, bay_z) = (xa + 0.35, xa + 4.6, 0.5 * (zt0 + zt1) - 0.1);
-    for (shaft, sign, side) in &towers {
+    // The chest's long walls under the towers: a pointed bay sunk in each, its head toward the roof, a garnet in it.
+    let (bay_sill, bay_apex, bay_z) = (xa + 0.4, xb - 0.45, 0.5 * (XD - XTW_DEPTH));
+    for (_, sign, side) in &towers {
         let sign = *sign;
-        for (order, inset, depth) in [("outer", 0.0, 0.25), ("inner", 0.3, XBAY_MM)] {
-            // u runs along -sign z so the normal (u × x) points into the tower.
-            let mut sk = sketch_on(&format!("Bay, {side} tower, {order} order"), plane([0.0, sign * (XTW_OUT + OVERSHOOT_MM), 0.0], [0.0, 0.0, -sign], [1.0, 0.0, 0.0]));
-            lancet_off(&mut sk, -sign * bay_z, 2.25, bay_sill, bay_apex, 0.75, -inset);
+        for (order, inset, depth) in [("outer", 0.0, 0.25), ("inner", 0.3, NICHE_MM)] {
+            // u runs along -sign z so the normal (u × x) points into the wall.
+            let mut sk = sketch_on(&format!("Bay, {side} wall, {order} order"), plane([0.0, sign * (XW / 2.0 + OVERSHOOT_MM), 0.0], [0.0, 0.0, -sign], [1.0, 0.0, 0.0]));
+            lancet_off(&mut sk, -sign * bay_z, 2.6, bay_sill, bay_apex, 0.72, -inset);
             let tool = ids.next();
-            doc.append(feature(tool, &format!("Sink the {side} tower's bay, {order} order"), extrude(sk, OVERSHOOT_MM + depth), cutter(xseat())))?;
+            doc.append(feature(tool, &format!("Sink the {side} wall's bay, {order} order"), extrude(sk, OVERSHOOT_MM + depth), cutter(xseat())))?;
         }
-        at(&doc, &mut d);
-        let tw = part_at(&d, lib, *shaft)?;
-        let p = [bay_sill + 1.75, sign * XTW_OUT, bay_z];
-        let face = face_near(&d, &fr, &tw, [0.0, sign, 0.0], p)?;
-        let (s, _) = cabochon(&mut doc, &mut ids, &d, &fr, &tw, face, p, garnet(), 0.0, builders::stand_off_mm(builders::BEZEL, garnet()) - XBAY_MM, &format!("Garnet, {side} tower"))?;
+        let p = [0.5 * (bay_sill + bay_apex) - 0.3, sign * XW / 2.0, bay_z];
+        let face = face_near(&d, &fr, &ch, [0.0, sign, 0.0], p)?;
+        let (s, _) = cabochon(&mut doc, &mut ids, &d, &fr, &ch, face, p, garnet(), 90.0, builders::stand_off_mm(builders::BEZEL, garnet()) - NICHE_MM, &format!("Garnet, {side} wall"))?;
         stones.push(s);
     }
-    // Two garnets in pointed niches on the plinth's front, under the portal's feet.
-    let niches: Vec<(&str, f64, Gem)> = if openwork { vec![("north", 3.4, garnet()), ("middle", 0.0, sapphire()), ("south", -3.4, garnet())] } else { vec![("north", 2.6, garnet()), ("south", -2.6, garnet())] };
+    // The lid's seam across the front: a weathered groove where the chest's end wall meets the roof.
+    let mut sk = plan("Lid seam", XD + 0.05);
+    polygon(&mut sk, &rect_pts(xb - 0.45, xb + 0.2, -(XW / 2.0 + 0.3), XW / 2.0 + 0.3));
+    let seam = ids.next();
+    doc.append(feature(seam, "Groove the lid's seam across the front", drafted(sk, -0.4, 25.0), cutter(xseat())))?;
+    // Opened, a jewelled band of three stones in pointed niches across the plinth's front.
+    let niches: Vec<(&str, f64, Gem)> = if openwork { vec![("north", 3.4, garnet()), ("middle", 0.0, sapphire()), ("south", -3.4, garnet())] } else { vec![] };
     for (name, cy, gem) in niches {
         for (order, inset, depth) in [("outer", 0.0, 0.25), ("inner", 0.3, XBAY_MM)] {
             // On the plinth's foot (x = xa - run), u across, v out of the ring; normal +x into the plinth.
@@ -1265,7 +1268,38 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
     let face = face_near(&d, &fr, &lb, [0.0, 0.0, 1.0], p)?;
     let (s, rose_bezel) = cabochon(&mut doc, &mut ids, &d, &fr, &lb, face, p, sapphire(), 0.0, builders::stand_off_mm(builders::BEZEL, sapphire()), "Sapphire, the rose's eye")?;
     stones.push(s);
+    // Closed, a garnet on each slope of the roof, sunk in a pointed bay.
+    let mut slope_bezels = Vec::new();
+    if !openwork {
+        for (name, sign) in [("north", 1.0f64), ("south", -1.0)] {
+            let n = [hw / l, sign * XR / l, 0.0];
+            let p = [xr + XR * 0.36, sign * hw * 0.64, 0.45 * XD];
+            let face = face_near(&d, &fr, &lb, n, p)?;
+            let (s, b) = cabochon(&mut doc, &mut ids, &d, &fr, &lb, face, p, garnet(), 90.0, builders::stand_off_mm(builders::BEZEL, garnet()) - XBAY_MM, &format!("Garnet, {name} slope"))?;
+            stones.push(s);
+            slope_bezels.push((b, name));
+        }
+    }
     let mut lid = lid_body;
+    for (name, sign) in [("north", 1.0f64), ("south", -1.0)].into_iter().filter(|_| !openwork) {
+        let e = [xr, sign * hw, 0.0];
+        let t = [XR / l, -sign * hw / l, 0.0];
+        let out = [hw / l, sign * XR / l, 0.0];
+        // u along the rake (reversed on the south so the normal u × z points in), v out of the ring.
+        let u = if sign > 0.0 { t } else { neg(t) };
+        let mut sk = sketch_on(&format!("Bay, {name} slope"), plane(add(e, out, OVERSHOOT_MM), u, [0.0, 0.0, 1.0]));
+        polygon(&mut sk, &lancet_poly(sign * 0.36 * l, 2.4, 0.4, XD - 0.6, 0.75, 10));
+        let tool = ids.next();
+        doc.append(feature(tool, &format!("The {name} slope's bay"), extrude(sk, OVERSHOOT_MM + XBAY_MM), placed(xseat())))?;
+        let cut = ids.next();
+        doc.append(feature(cut, &format!("Sink the {name} slope's bay"), boolean(lid, tool, Boolean::Subtract), placed(Placement::Free)))?;
+        lid = cut;
+    }
+    for (b, name) in slope_bezels {
+        let u = ids.next();
+        doc.append(feature(u, &format!("Join the {name} slope's bezel to the lid"), boolean(lid, b, Boolean::Union), placed(Placement::Free)))?;
+        lid = u;
+    }
     let u = ids.next();
     doc.append(feature(u, "Join the rose's eye bezel to the lid", boolean(lid, rose_bezel, Boolean::Union), placed(Placement::Free)))?;
     lid = u;

@@ -1,30 +1,30 @@
 {
   "bore": {
-    "nearest_vertex_mm": 9.299940243384274,
+    "nearest_vertex_mm": 9.299940891926026,
     "radius_mm": 9.3,
     "vertices_inside": 0
   },
   "build": {
-    "author_s": 0.421040675,
-    "build_s": 3.488990337,
+    "author_s": 0.460860928,
+    "build_s": 4.335675814,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 513676
+    "triangles": 527252
   },
   "cad_features": 77,
   "chest": 8,
   "features_not_ok": [],
   "geometry": {
     "degenerate_faces": 0,
-    "head_over_crest_mm": 9.107463226318359,
-    "self_crossings": 54,
-    "volume_mm3": 1281.4274461099378,
+    "head_over_crest_mm": 9.25996337890625,
+    "self_crossings": 51,
+    "volume_mm3": 1182.6681496099884,
     "watertight": true
   },
   "lid": 77,
   "name": "Capsa — the reliquary",
   "notes": [
-    "6 tracery lights in the two slopes"
+    "12 tracery lights in the two slopes"
   ],
   "option": "openwork",
   "parts": [
@@ -275,16 +275,25 @@
       "attach": "Cut",
       "degenerate_faces": 0,
       "id": 40,
-      "name": "Pierce a 1.6 mm quatrefoil through the east shoulder, 48 deg off the top",
+      "name": "Pierce a 2.0 mm quatrefoil through the east shoulder, 48 deg off the top",
       "self_crossings": 0,
-      "triangles": 636,
+      "triangles": 798,
       "watertight": true
     },
     {
       "attach": "Cut",
       "degenerate_faces": 0,
       "id": 41,
-      "name": "Pierce a 1.6 mm quatrefoil through the west shoulder, 48 deg off the top",
+      "name": "Pierce a 2.0 mm quatrefoil through the west shoulder, 48 deg off the top",
+      "self_crossings": 0,
+      "triangles": 798,
+      "watertight": true
+    },
+    {
+      "attach": "Cut",
+      "degenerate_faces": 0,
+      "id": 42,
+      "name": "Pierce a 1.6 mm quatrefoil through the east shoulder, 60 deg off the top",
       "self_crossings": 0,
       "triangles": 636,
       "watertight": true
@@ -292,26 +301,17 @@
     {
       "attach": "Cut",
       "degenerate_faces": 0,
-      "id": 42,
-      "name": "Pierce a 1.3 mm quatrefoil through the east shoulder, 60 deg off the top",
-      "self_crossings": 0,
-      "triangles": 576,
-      "watertight": true
-    },
-    {
-      "attach": "Cut",
-      "degenerate_faces": 0,
       "id": 43,
-      "name": "Pierce a 1.3 mm quatrefoil through the west shoulder, 60 deg off the top",
+      "name": "Pierce a 1.6 mm quatrefoil through the west shoulder, 60 deg off the top",
       "self_crossings": 0,
-      "triangles": 576,
+      "triangles": 636,
       "watertight": true
     },
     {
       "attach": "Cut",
       "degenerate_faces": 0,
       "id": 44,
-      "name": "Pierce a 1.0 mm quatrefoil through the east shoulder, 72 deg off the top",
+      "name": "Pierce a 1.3 mm quatrefoil through the east shoulder, 72 deg off the top",
       "self_crossings": 0,
       "triangles": 576,
       "watertight": true
@@ -320,18 +320,18 @@
       "attach": "Cut",
       "degenerate_faces": 0,
       "id": 45,
-      "name": "Pierce a 1.0 mm quatrefoil through the west shoulder, 72 deg off the top",
+      "name": "Pierce a 1.3 mm quatrefoil through the west shoulder, 72 deg off the top",
       "self_crossings": 0,
       "triangles": 576,
       "watertight": true
     },
     {
       "attach": "Separate",
-      "degenerate_faces": 8,
+      "degenerate_faces": 454,
       "id": 77,
       "name": "Set the west knop on the ridge: the lid, cast apart",
-      "self_crossings": 0,
-      "triangles": 18424,
+      "self_crossings": 3,
+      "triangles": 34830,
       "watertight": true
     }
   ],
