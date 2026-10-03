@@ -1,6 +1,6 @@
 {
   "alloy_for_weight": "Gold 18k",
-  "author_s": 1.15809162,
+  "author_s": 1.100117944,
   "band": {
     "amount": 0.4,
     "shank": "ReverseTaper",
@@ -14,11 +14,11 @@
     "crest_top_r_mm": 10.684,
     "stand_off_mm": 1.27,
     "wing": {
-      "east_wing_triangles": 22362,
+      "east_wing_triangles": 22546,
       "feathers": [
         {
           "barbs": {
-            "depth_mm": 0.07,
+            "depth_mm": 0.045,
             "lead_slope": 1.1,
             "pitch_mm": 0.42,
             "rows": 5,
@@ -27,7 +27,7 @@
           "name": "Clasp",
           "resolution": {
             "along": 44,
-            "around": 26,
+            "around": 22,
             "pointed_root": true,
             "reach": 0.6,
             "root": 12,
@@ -35,18 +35,18 @@
           },
           "spec": {
             "camber": 0.3,
-            "h_root": 0.4,
-            "h_tip": 0.9,
+            "h_root": 0.05,
+            "h_tip": 0.15,
             "heading_deg": 0.0,
             "length": 0.0,
             "name": "Clasp",
             "roll_deg": 0.0,
             "root_z": -2.3,
             "sweep_deg": 0.0,
-            "t_root": 1.3,
-            "t_tip": 1.12,
-            "w_root": 2.0,
-            "w_tip": 1.5
+            "t_root": 1.15,
+            "t_tip": 1.1,
+            "w_root": 1.7,
+            "w_tip": 1.4
           },
           "spine_s_z": [
             [
@@ -54,7 +54,7 @@
               -2.3
             ],
             [
-              5.453256464199966,
+              4.853256464199966,
               0.5
             ],
             [
@@ -62,8 +62,8 @@
               3.3
             ]
           ],
-          "triangles": 5356,
-          "volume_mm3": 19.4959865259516
+          "triangles": 4312,
+          "volume_mm3": 15.125619529063503
         },
         {
           "barbs": {
@@ -76,11 +76,11 @@
           "name": "Primary I",
           "resolution": {
             "along": 72,
-            "around": 33,
+            "around": 32,
             "pointed_root": false,
-            "reach": 2.0,
+            "reach": 2.2,
             "root": 5,
-            "tip": 16
+            "tip": 22
           },
           "spec": {
             "camber": 0.35,
@@ -89,13 +89,13 @@
             "heading_deg": 45.0,
             "length": 7.6,
             "name": "Primary I",
-            "roll_deg": 12.0,
+            "roll_deg": 16.0,
             "root_z": 1.6,
             "sweep_deg": 14.0,
-            "t_root": 1.1,
-            "t_tip": 1.1,
+            "t_root": 1.2,
+            "t_tip": 1.2,
             "w_root": 3.6,
-            "w_tip": 1.7
+            "w_tip": 1.0
           },
           "spine_s_z": [
             [
@@ -111,8 +111,8 @@
               6.2441504531670855
             ]
           ],
-          "triangles": 7260,
-          "volume_mm3": 36.62035895500321
+          "triangles": 7424,
+          "volume_mm3": 33.157924446883534
         },
         {
           "barbs": {
@@ -125,11 +125,11 @@
           "name": "Primary II",
           "resolution": {
             "along": 72,
-            "around": 33,
+            "around": 32,
             "pointed_root": false,
-            "reach": 2.0,
+            "reach": 2.2,
             "root": 5,
-            "tip": 16
+            "tip": 22
           },
           "spec": {
             "camber": 0.33,
@@ -138,13 +138,13 @@
             "heading_deg": 22.0,
             "length": 6.8,
             "name": "Primary II",
-            "roll_deg": 12.0,
+            "roll_deg": 16.0,
             "root_z": 0.3,
             "sweep_deg": 9.0,
-            "t_root": 1.1,
-            "t_tip": 1.1,
+            "t_root": 1.2,
+            "t_tip": 1.2,
             "w_root": 3.6,
-            "w_tip": 1.6
+            "w_tip": 1.0
           },
           "spine_s_z": [
             [
@@ -160,8 +160,8 @@
               2.338496002383242
             ]
           ],
-          "triangles": 6600,
-          "volume_mm3": 32.58062610428923
+          "triangles": 6784,
+          "volume_mm3": 30.206962272820828
         },
         {
           "barbs": {
@@ -174,11 +174,11 @@
           "name": "Primary III",
           "resolution": {
             "along": 72,
-            "around": 33,
+            "around": 32,
             "pointed_root": false,
-            "reach": 2.0,
+            "reach": 2.2,
             "root": 5,
-            "tip": 16
+            "tip": 22
           },
           "spec": {
             "camber": 0.3,
@@ -187,13 +187,13 @@
             "heading_deg": 0.0,
             "length": 5.6,
             "name": "Primary III",
-            "roll_deg": 12.0,
+            "roll_deg": 16.0,
             "root_z": -0.9,
             "sweep_deg": 4.0,
-            "t_root": 1.1,
-            "t_tip": 1.1,
+            "t_root": 1.2,
+            "t_tip": 1.2,
             "w_root": 3.2,
-            "w_tip": 1.5
+            "w_tip": 0.95
           },
           "spine_s_z": [
             [
@@ -209,67 +209,67 @@
               -1.095318126483551
             ]
           ],
-          "triangles": 5610,
-          "volume_mm3": 24.624504041991425
+          "triangles": 5824,
+          "volume_mm3": 22.652578375443333
         }
       ],
       "points": [
         [
-          1.1711876173058289,
-          11.565197779643668,
-          -4.0140766856173915
+          1.1720777486361365,
+          10.802232570138132,
+          -4.087843144401113
         ],
         [
-          -1.1711876173058289,
-          11.565197779643668,
-          -4.0140766856173915
+          -1.1720777486361365,
+          10.802232570138132,
+          -4.087843144401113
         ],
         [
-          1.659485717790036,
-          11.013169358068094,
-          3.338006458249349
+          1.8275790003775612,
+          10.6104108976618,
+          3.333298594165419
         ],
         [
-          -1.659485717790036,
-          11.013169358068094,
-          3.338006458249349
+          -1.8275790003775612,
+          10.6104108976618,
+          3.333298594165419
         ],
         [
-          11.47772480144758,
-          5.37932379067693,
-          -7.964630464794748
+          10.787967477996432,
+          6.187332496950455,
+          -7.406636947510101
         ],
         [
-          -11.47772480144758,
-          5.37932379067693,
-          -7.964630464794748
+          -10.787967477996432,
+          6.187332496950455,
+          -7.406636947510101
         ],
         [
-          11.762128218851402,
-          4.324760074207262,
-          -3.041595002906111
+          11.179555144053035,
+          5.112321917523475,
+          -2.8407095741852912
         ],
         [
-          -11.762128218851402,
-          4.324760074207262,
-          -3.041595002906111
+          -11.179555144053035,
+          5.112321917523475,
+          -2.8407095741852912
         ],
         [
-          11.04036664720309,
-          5.405607197648715,
-          1.3034634885866405
+          10.432334028861636,
+          6.080219563090307,
+          1.2460658281279098
         ],
         [
-          -11.04036664720309,
-          5.405607197648715,
-          1.3034634885866405
+          -10.432334028861636,
+          6.080219563090307,
+          1.2460658281279098
         ]
       ]
     },
     "wing_plane_theta_deg": 63.18617581753916
   },
   "design": {
-    "bytes": 293747,
+    "bytes": 294368,
     "cad_features": 11
   },
   "draft": {
@@ -279,7 +279,7 @@
       "vertices_inside": 0
     },
     "boundary_edges": 0,
-    "build_s": 1.9078262129999999,
+    "build_s": 13.284639628,
     "cut_lands": [],
     "degenerate_faces": 0,
     "dfm_findings": [],
@@ -345,11 +345,11 @@
       "min_section_mm": 0.8,
       "notes": [
         "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
-        "Measured with the ring as built: 4 CAD parts (4 joined, 0 cut), 538.8 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Bezel \"Collet\" (#3) would undercut a two-part pull over 53.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Collet foot\" (#11) would undercut a two-part pull over 12.7 mm² (worst -2°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Sculpt the east wing\" (#9) would undercut a two-part pull over 77.0 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Mirror \"West wing (mirror)\" (#10) would undercut a two-part pull over 77.0 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Measured with the ring as built: 4 CAD parts (4 joined, 0 cut), 496.0 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Bezel \"Collet\" (#3) would undercut a two-part pull over 52.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Collet foot\" (#11) would undercut a two-part pull over 9.0 mm² (worst -33°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Sculpt the east wing\" (#9) would undercut a two-part pull over 64.5 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"West wing (mirror)\" (#10) would undercut a two-part pull over 64.5 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "process": "Lost wax",
       "thinnest_wall_mm": 1.1845505891540284,
@@ -378,7 +378,7 @@
         "pass": true
       },
       {
-        "gate": "lost wax: thickness clean at 0.8 mm on the head and the whole ring, but for the burnished lip",
+        "gate": "lost wax: thickness clean at 0.8 mm on the whole ring, but for the burnished lip and the feather tips at 0.5",
         "pass": true
       },
       {
@@ -411,7 +411,7 @@
       }
     ],
     "gates_passed": true,
-    "grams_18k": 7.125829587306077,
+    "grams_18k": 6.713771456543345,
     "made_parts": [
       [
         "Oval 7 x 5",
@@ -446,7 +446,7 @@
       "degenerate_faces": 0,
       "self_crossings": 0,
       "shells": 1,
-      "triangles": 500446,
+      "triangles": 497842,
       "watertight": true
     },
     "shells": 1,
@@ -461,166 +461,446 @@
     },
     "thickness": [
       {
-        "below_limit": 7,
+        "below_limit": 21,
         "census_below_floor": [
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.773580842168609,
-            "r_mm": 12.900239081595345,
-            "theta_deg": 26.113022628373454,
-            "z_mm": -7.675766626993815
+            "mm": 0.7483051480237657,
+            "r_mm": 11.030515997141197,
+            "theta_deg": 79.86536313196409,
+            "z_mm": 3.1505266030629477
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.6761469272562357,
-            "r_mm": 12.778699469659108,
-            "theta_deg": 25.57287089567991,
-            "z_mm": -7.677069981892903
+            "mm": 0.6282371496859003,
+            "r_mm": 12.436689406943298,
+            "theta_deg": 31.898552428343486,
+            "z_mm": -7.5914866129557295
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.7535714006074342,
-            "r_mm": 12.478900387813873,
-            "theta_deg": 22.31459641816982,
-            "z_mm": -3.3426499366760254
+            "mm": 0.7233400418603648,
+            "r_mm": 12.10316219965376,
+            "theta_deg": 30.528102399841917,
+            "z_mm": -7.301569938659668
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.6637917404309519,
-            "r_mm": 12.72429415618817,
-            "theta_deg": 21.221474547328935,
-            "z_mm": -3.0843334197998047
+            "mm": 0.7355946370019422,
+            "r_mm": 12.559539040462786,
+            "theta_deg": 30.029488429881766,
+            "z_mm": -7.19830322265625
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.6205840109847021,
-            "r_mm": 12.314866336466167,
-            "theta_deg": 27.369598763763825,
-            "z_mm": 1.5299866994222004
+            "mm": 0.7713103051138268,
+            "r_mm": 11.962732385350249,
+            "theta_deg": 28.36712658576377,
+            "z_mm": -3.058546702067057
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.6767084909892918,
-            "r_mm": 12.079094993267894,
-            "theta_deg": 27.27908759939363,
-            "z_mm": 1.568856676419576
+            "mm": 0.7087001883237238,
+            "r_mm": 12.541210270776064,
+            "theta_deg": 26.691746022265935,
+            "z_mm": -2.564823309580485
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.7717070002108465,
-            "r_mm": 12.039208336949686,
-            "theta_deg": 26.51213254081473,
-            "z_mm": 1.448093334833781
+            "mm": 0.6510111620271212,
+            "r_mm": 12.12671928657894,
+            "theta_deg": 25.120398492303696,
+            "z_mm": -2.523176670074463
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7443905715633454,
+            "r_mm": 11.989922299609328,
+            "theta_deg": 33.661324774760274,
+            "z_mm": 0.7640533248583475
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.6663548210193141,
+            "r_mm": 12.26084679808157,
+            "theta_deg": 32.525298813945895,
+            "z_mm": 1.4291900396347046
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.730322835587084,
+            "r_mm": 11.715256439647085,
+            "theta_deg": 31.124313237363477,
+            "z_mm": 1.003356695175171
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7557720691443939,
+            "r_mm": 11.86885600522394,
+            "theta_deg": 31.090286154723607,
+            "z_mm": 1.5041266282399495
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.022532923628752456,
+            "r_mm": 9.941241906054517,
+            "theta_deg": 51.4356406732823,
+            "z_mm": -0.6826137701670328
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.42867248604764335,
+            "r_mm": 10.037747871027543,
+            "theta_deg": 49.74541647134566,
+            "z_mm": -0.5549416343371073
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.01032158401002723,
+            "r_mm": 11.153517280492279,
+            "theta_deg": 50.34890508748303,
+            "z_mm": -0.5009783506393433
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.4075278651602689,
+            "r_mm": 10.736521808397251,
+            "theta_deg": 53.080267801045345,
+            "z_mm": -0.3724976181983948
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.021516867533243524,
+            "r_mm": 11.202561542567912,
+            "theta_deg": 52.200366694174406,
+            "z_mm": -0.33637771010398865
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.6725324590438356,
+            "r_mm": 10.381822488008643,
+            "theta_deg": 45.44485991814922,
+            "z_mm": -0.12005320191383362
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.6332699595353738,
+            "r_mm": 10.690997108416722,
+            "theta_deg": 45.17204044899147,
+            "z_mm": 0.10858313739299774
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.7695992993514134,
+            "r_mm": 10.691277827067958,
+            "theta_deg": 46.43495614210703,
+            "z_mm": 0.2994797428448995
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.5263935395674437,
+            "r_mm": 10.610263549689565,
+            "theta_deg": 45.48023162220995,
+            "z_mm": 0.44336483875910443
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.7539047714036975,
+            "r_mm": 10.52931113712435,
+            "theta_deg": 43.875048195325505,
+            "z_mm": 0.48981039722760517
           }
         ],
-        "census_below_floor_off_lip": 0,
+        "census_below_floor_off_lip": 10,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
         "part": "Sculpt the east wing",
-        "rays": 380,
-        "sampled_min_mm": 0.6205840109847021,
+        "rays": 381,
+        "sampled_min_mm": 0.01032158401002723,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 21,
+        "census_below_floor": [
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7483051480237658,
+            "r_mm": 11.030515997141197,
+            "theta_deg": 100.13463686803591,
+            "z_mm": 3.1505266030629477
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.6282371496859004,
+            "r_mm": 12.436689406943298,
+            "theta_deg": 148.10144757165654,
+            "z_mm": -7.5914866129557295
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7233400418603649,
+            "r_mm": 12.10316219965376,
+            "theta_deg": 149.4718976001581,
+            "z_mm": -7.301569938659668
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7355946370019418,
+            "r_mm": 12.559539040462786,
+            "theta_deg": 149.97051157011825,
+            "z_mm": -7.19830322265625
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.771310305113827,
+            "r_mm": 11.962732385350249,
+            "theta_deg": 151.63287341423623,
+            "z_mm": -3.058546702067057
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7087001883237242,
+            "r_mm": 12.541210270776064,
+            "theta_deg": 153.30825397773407,
+            "z_mm": -2.564823309580485
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.6510111620271211,
+            "r_mm": 12.12671928657894,
+            "theta_deg": 154.8796015076963,
+            "z_mm": -2.523176670074463
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7443905715633453,
+            "r_mm": 11.989922299609328,
+            "theta_deg": 146.3386752252397,
+            "z_mm": 0.7640533248583475
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.6663548210193138,
+            "r_mm": 12.26084679808157,
+            "theta_deg": 147.4747011860541,
+            "z_mm": 1.4291900396347046
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7303228355870841,
+            "r_mm": 11.715256439647085,
+            "theta_deg": 148.87568676263652,
+            "z_mm": 1.003356695175171
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7557720691443934,
+            "r_mm": 11.86885600522394,
+            "theta_deg": 148.90971384527637,
+            "z_mm": 1.5041266282399495
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.022532923628752463,
+            "r_mm": 9.941241906054517,
+            "theta_deg": 128.5643593267177,
+            "z_mm": -0.6826137701670328
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.42867248604764335,
+            "r_mm": 10.037747871027543,
+            "theta_deg": 130.25458352865434,
+            "z_mm": -0.5549416343371073
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.01032158401002723,
+            "r_mm": 11.153517280492279,
+            "theta_deg": 129.65109491251695,
+            "z_mm": -0.5009783506393433
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.4075278651602689,
+            "r_mm": 10.736521808397251,
+            "theta_deg": 126.91973219895466,
+            "z_mm": -0.3724976181983948
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.021516867533243528,
+            "r_mm": 11.202561542567912,
+            "theta_deg": 127.79963330582561,
+            "z_mm": -0.33637771010398865
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.6725324590438357,
+            "r_mm": 10.381822488008643,
+            "theta_deg": 134.5551400818508,
+            "z_mm": -0.12005320191383362
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.633269959535374,
+            "r_mm": 10.690997108416722,
+            "theta_deg": 134.82795955100855,
+            "z_mm": 0.10858313739299774
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.7695992993514132,
+            "r_mm": 10.691277827067958,
+            "theta_deg": 133.565043857893,
+            "z_mm": 0.2994797428448995
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.5263935395674437,
+            "r_mm": 10.610263549689565,
+            "theta_deg": 134.51976837779006,
+            "z_mm": 0.44336483875910443
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.7539047714036977,
+            "r_mm": 10.52931113712435,
+            "theta_deg": 136.1249518046745,
+            "z_mm": 0.48981039722760517
+          }
+        ],
+        "census_below_floor_off_lip": 10,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "West wing (mirror)",
+        "rays": 381,
+        "sampled_min_mm": 0.01032158401002723,
         "unresolved": 0
       },
       {
         "below_limit": 7,
-        "census_below_floor": [
-          {
-            "lip": true,
-            "mm": 0.7735808421686091,
-            "r_mm": 12.900239081595345,
-            "theta_deg": 153.88697737162656,
-            "z_mm": -7.675766626993815
-          },
-          {
-            "lip": true,
-            "mm": 0.6761469272562358,
-            "r_mm": 12.778699469659108,
-            "theta_deg": 154.4271291043201,
-            "z_mm": -7.677069981892903
-          },
-          {
-            "lip": true,
-            "mm": 0.7535714006074343,
-            "r_mm": 12.478900387813873,
-            "theta_deg": 157.6854035818302,
-            "z_mm": -3.3426499366760254
-          },
-          {
-            "lip": true,
-            "mm": 0.6637917404309521,
-            "r_mm": 12.72429415618817,
-            "theta_deg": 158.77852545267106,
-            "z_mm": -3.0843334197998047
-          },
-          {
-            "lip": true,
-            "mm": 0.6205840109847021,
-            "r_mm": 12.314866336466167,
-            "theta_deg": 152.6304012362362,
-            "z_mm": 1.5299866994222004
-          },
-          {
-            "lip": true,
-            "mm": 0.6767084909892919,
-            "r_mm": 12.079094993267894,
-            "theta_deg": 152.72091240060638,
-            "z_mm": 1.568856676419576
-          },
-          {
-            "lip": true,
-            "mm": 0.7717070002108465,
-            "r_mm": 12.039208336949686,
-            "theta_deg": 153.48786745918528,
-            "z_mm": 1.448093334833781
-          }
-        ],
-        "census_below_floor_off_lip": 0,
-        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-        "part": "West wing (mirror)",
-        "rays": 380,
-        "sampled_min_mm": 0.6205840109847021,
-        "unresolved": 0
-      },
-      {
-        "below_limit": 2,
         "census": {
-          "below_floor": 2,
+          "below_floor": 7,
           "below_floor_elsewhere": 0,
-          "below_floor_on_the_burnished_lip": 2,
+          "below_floor_on_the_lip_or_a_point": 7,
           "below_floor_points": [
             {
+              "excepted_as": "lip",
               "lip": true,
-              "mm": 0.7827342779224797,
-              "r_mm": 13.002213040098294,
-              "theta_deg": 99.22910901689453,
-              "z_mm": -1.996787190437317
+              "mm": 0.7827259966143384,
+              "r_mm": 12.993388400873396,
+              "theta_deg": 81.01339681045141,
+              "z_mm": -2.105639616648356
             },
             {
+              "excepted_as": "lip",
               "lip": true,
-              "mm": 0.7346464320336408,
-              "r_mm": 12.447785371362261,
-              "theta_deg": 152.96135056945792,
-              "z_mm": 1.4648300011952717
+              "mm": 0.38923025817223444,
+              "r_mm": 13.037552058320102,
+              "theta_deg": 90.15730030225687,
+              "z_mm": 3.3824240366617837
+            },
+            {
+              "excepted_as": "tip",
+              "lip": true,
+              "mm": 0.798252630514589,
+              "r_mm": 12.114106373036119,
+              "theta_deg": 32.18873034403508,
+              "z_mm": -6.669396718343099
+            },
+            {
+              "excepted_as": "tip",
+              "lip": true,
+              "mm": 0.6942504345217806,
+              "r_mm": 12.54103512353127,
+              "theta_deg": 26.419747465912735,
+              "z_mm": -2.587559938430786
+            },
+            {
+              "excepted_as": "tip",
+              "lip": true,
+              "mm": 0.7812908736333232,
+              "r_mm": 12.33976653744655,
+              "theta_deg": 32.290241565225564,
+              "z_mm": 1.372796654701233
+            },
+            {
+              "excepted_as": "tip",
+              "lip": true,
+              "mm": 0.7794414316556045,
+              "r_mm": 12.620076788258173,
+              "theta_deg": 152.59219211102416,
+              "z_mm": -2.572413365046183
+            },
+            {
+              "excepted_as": "tip",
+              "lip": true,
+              "mm": 0.6783143961830084,
+              "r_mm": 12.482629214663987,
+              "theta_deg": 154.64073457493188,
+              "z_mm": -2.635603348414103
             }
           ],
           "girdle_r_mm": 12.854,
           "samples": 384
         },
-        "exception": "the collet's lip, a bezel thinned to its edge so it can be burnished over the crown, and the last 0.9 mm of each feather's point, judged at the 0.15 mm detail floor (its round is 0.6 mm across); every other sample clears 0.8 mm",
+        "exception": "the collet's lip, a bezel thinned to its edge so it can be burnished over the crown, and the last 2.6 mm of each feather (its ogive and round), judged at the section's 0.5 mm floor for feather tips; every other sample clears 0.8 mm",
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
         "part": "whole ring at 320 x 112",
         "point": [
-          -11.0872433980306,
-          5.658656597137451,
-          1.4648300011952717
+          -0.03579335721830527,
+          13.037502924601236,
+          3.3824240366617837
         ],
         "rays": 384,
-        "sampled_min_mm": 0.7346464320336408,
-        "triangles": 113594,
+        "sampled_min_mm": 0.38923025817223444,
+        "triangles": 121112,
         "unresolved": 0
       }
     ],
-    "triangles": 500446,
-    "volume_mm3": 457.3703201095043,
+    "triangles": 497842,
+    "volume_mm3": 430.922429816646,
     "watertight": true
   },
   "export": {
@@ -630,7 +910,7 @@
       "vertices_inside": 0
     },
     "boundary_edges": 0,
-    "build_s": 4.745067712,
+    "build_s": 17.491095215,
     "cut_lands": [],
     "degenerate_faces": 0,
     "dfm_findings": [],
@@ -696,11 +976,11 @@
       "min_section_mm": 0.8,
       "notes": [
         "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
-        "Measured with the ring as built: 4 CAD parts (4 joined, 0 cut), 538.7 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Bezel \"Collet\" (#3) would undercut a two-part pull over 53.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Collet foot\" (#11) would undercut a two-part pull over 12.7 mm² (worst -2°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Sculpt the east wing\" (#9) would undercut a two-part pull over 77.0 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Mirror \"West wing (mirror)\" (#10) would undercut a two-part pull over 77.0 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Measured with the ring as built: 4 CAD parts (4 joined, 0 cut), 496.0 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Bezel \"Collet\" (#3) would undercut a two-part pull over 52.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Collet foot\" (#11) would undercut a two-part pull over 9.0 mm² (worst -33°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Sculpt the east wing\" (#9) would undercut a two-part pull over 64.5 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"West wing (mirror)\" (#10) would undercut a two-part pull over 64.5 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "process": "Lost wax",
       "thinnest_wall_mm": 1.1845505891540284,
@@ -729,7 +1009,7 @@
         "pass": true
       },
       {
-        "gate": "lost wax: thickness clean at 0.8 mm on the head and the whole ring, but for the burnished lip",
+        "gate": "lost wax: thickness clean at 0.8 mm on the whole ring, but for the burnished lip and the feather tips at 0.5",
         "pass": true
       },
       {
@@ -762,7 +1042,7 @@
       }
     ],
     "gates_passed": true,
-    "grams_18k": 7.125873918831952,
+    "grams_18k": 6.713817476834605,
     "made_parts": [
       [
         "Oval 7 x 5",
@@ -797,7 +1077,7 @@
       "degenerate_faces": 0,
       "self_crossings": 0,
       "shells": 1,
-      "triangles": 1312990,
+      "triangles": 1290118,
       "watertight": true
     },
     "shells": 1,
@@ -812,223 +1092,514 @@
     },
     "thickness": [
       {
-        "below_limit": 7,
+        "below_limit": 18,
         "census_below_floor": [
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.773580842168609,
-            "r_mm": 12.900239081595345,
-            "theta_deg": 26.113022628373454,
-            "z_mm": -7.675766626993815
+            "mm": 0.7483051480237657,
+            "r_mm": 11.030515997141197,
+            "theta_deg": 79.86536313196409,
+            "z_mm": 3.1505266030629477
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.6761469272562357,
-            "r_mm": 12.778699469659108,
-            "theta_deg": 25.57287089567991,
-            "z_mm": -7.677069981892903
+            "mm": 0.6282371496859003,
+            "r_mm": 12.436689406943298,
+            "theta_deg": 31.898552428343486,
+            "z_mm": -7.5914866129557295
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.7535714006074342,
-            "r_mm": 12.478900387813873,
-            "theta_deg": 22.31459641816982,
-            "z_mm": -3.3426499366760254
+            "mm": 0.7233400418603648,
+            "r_mm": 12.10316219965376,
+            "theta_deg": 30.528102399841917,
+            "z_mm": -7.301569938659668
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.6637917404309519,
-            "r_mm": 12.72429415618817,
-            "theta_deg": 21.221474547328935,
-            "z_mm": -3.0843334197998047
+            "mm": 0.7355946370019422,
+            "r_mm": 12.559539040462786,
+            "theta_deg": 30.029488429881766,
+            "z_mm": -7.19830322265625
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.6205840109847021,
-            "r_mm": 12.314866336466167,
-            "theta_deg": 27.369598763763825,
-            "z_mm": 1.5299866994222004
+            "mm": 0.7713103051138268,
+            "r_mm": 11.962732385350249,
+            "theta_deg": 28.36712658576377,
+            "z_mm": -3.058546702067057
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.6767084909892918,
-            "r_mm": 12.079094993267894,
-            "theta_deg": 27.27908759939363,
-            "z_mm": 1.568856676419576
+            "mm": 0.7087001883237238,
+            "r_mm": 12.541210270776064,
+            "theta_deg": 26.691746022265935,
+            "z_mm": -2.564823309580485
           },
           {
+            "excepted_as": "tip",
             "lip": true,
-            "mm": 0.7717070002108465,
-            "r_mm": 12.039208336949686,
-            "theta_deg": 26.51213254081473,
-            "z_mm": 1.448093334833781
+            "mm": 0.6510111620271212,
+            "r_mm": 12.12671928657894,
+            "theta_deg": 25.120398492303696,
+            "z_mm": -2.523176670074463
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7443905715633454,
+            "r_mm": 11.989922299609328,
+            "theta_deg": 33.661324774760274,
+            "z_mm": 0.7640533248583475
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.6663548210193141,
+            "r_mm": 12.26084679808157,
+            "theta_deg": 32.525298813945895,
+            "z_mm": 1.4291900396347046
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.730322835587084,
+            "r_mm": 11.715256439647085,
+            "theta_deg": 31.124313237363477,
+            "z_mm": 1.003356695175171
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7557720691443939,
+            "r_mm": 11.86885600522394,
+            "theta_deg": 31.090286154723607,
+            "z_mm": 1.5041266282399495
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.1225946292883187,
+            "r_mm": 9.45682102885243,
+            "theta_deg": 69.3392456472649,
+            "z_mm": -0.7857502301534017
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.022586238283158092,
+            "r_mm": 9.941209836945228,
+            "theta_deg": 51.43564913603486,
+            "z_mm": -0.6826139887173971
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.7284169065759544,
+            "r_mm": 10.618366104721218,
+            "theta_deg": 48.39083833805702,
+            "z_mm": -0.37319942315419513
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.6489788791959692,
+            "r_mm": 10.44821264895479,
+            "theta_deg": 44.996102934995996,
+            "z_mm": -0.10380732764800389
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.7981192175439719,
+            "r_mm": 10.71651879751156,
+            "theta_deg": 46.86499342402989,
+            "z_mm": 0.2180851846933365
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.44387967395284045,
+            "r_mm": 10.573043538216771,
+            "theta_deg": 44.540946747007666,
+            "z_mm": 0.4945883552233378
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.5798454777293166,
+            "r_mm": 10.468017578121458,
+            "theta_deg": 46.216134023268395,
+            "z_mm": 0.6196657617886862
           }
         ],
-        "census_below_floor_off_lip": 0,
+        "census_below_floor_off_lip": 7,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
         "part": "Sculpt the east wing",
-        "rays": 380,
-        "sampled_min_mm": 0.6205840109847021,
+        "rays": 381,
+        "sampled_min_mm": 0.022586238283158092,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 18,
+        "census_below_floor": [
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7483051480237658,
+            "r_mm": 11.030515997141197,
+            "theta_deg": 100.13463686803591,
+            "z_mm": 3.1505266030629477
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.6282371496859004,
+            "r_mm": 12.436689406943298,
+            "theta_deg": 148.10144757165654,
+            "z_mm": -7.5914866129557295
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7233400418603649,
+            "r_mm": 12.10316219965376,
+            "theta_deg": 149.4718976001581,
+            "z_mm": -7.301569938659668
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7355946370019418,
+            "r_mm": 12.559539040462786,
+            "theta_deg": 149.97051157011825,
+            "z_mm": -7.19830322265625
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.771310305113827,
+            "r_mm": 11.962732385350249,
+            "theta_deg": 151.63287341423623,
+            "z_mm": -3.058546702067057
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7087001883237242,
+            "r_mm": 12.541210270776064,
+            "theta_deg": 153.30825397773407,
+            "z_mm": -2.564823309580485
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.6510111620271211,
+            "r_mm": 12.12671928657894,
+            "theta_deg": 154.8796015076963,
+            "z_mm": -2.523176670074463
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7443905715633453,
+            "r_mm": 11.989922299609328,
+            "theta_deg": 146.3386752252397,
+            "z_mm": 0.7640533248583475
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.6663548210193138,
+            "r_mm": 12.26084679808157,
+            "theta_deg": 147.4747011860541,
+            "z_mm": 1.4291900396347046
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7303228355870841,
+            "r_mm": 11.715256439647085,
+            "theta_deg": 148.87568676263652,
+            "z_mm": 1.003356695175171
+          },
+          {
+            "excepted_as": "tip",
+            "lip": true,
+            "mm": 0.7557720691443934,
+            "r_mm": 11.86885600522394,
+            "theta_deg": 148.90971384527637,
+            "z_mm": 1.5041266282399495
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.12259462928831871,
+            "r_mm": 9.45682102885243,
+            "theta_deg": 110.6607543527351,
+            "z_mm": -0.7857502301534017
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.02258623828315809,
+            "r_mm": 9.941209836945228,
+            "theta_deg": 128.56435086396513,
+            "z_mm": -0.6826139887173971
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.728416906575954,
+            "r_mm": 10.618366104721218,
+            "theta_deg": 131.609161661943,
+            "z_mm": -0.37319942315419513
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.6489788791959691,
+            "r_mm": 10.44821264895479,
+            "theta_deg": 135.00389706500403,
+            "z_mm": -0.10380732764800389
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.798119217543972,
+            "r_mm": 10.71651879751156,
+            "theta_deg": 133.13500657597012,
+            "z_mm": 0.2180851846933365
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.4438796739528406,
+            "r_mm": 10.573043538216771,
+            "theta_deg": 135.45905325299236,
+            "z_mm": 0.4945883552233378
+          },
+          {
+            "excepted_as": null,
+            "lip": false,
+            "mm": 0.5798454777293165,
+            "r_mm": 10.468017578121458,
+            "theta_deg": 133.78386597673162,
+            "z_mm": 0.6196657617886862
+          }
+        ],
+        "census_below_floor_off_lip": 7,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "West wing (mirror)",
+        "rays": 381,
+        "sampled_min_mm": 0.02258623828315809,
         "unresolved": 0
       },
       {
         "below_limit": 7,
-        "census_below_floor": [
-          {
-            "lip": true,
-            "mm": 0.7735808421686091,
-            "r_mm": 12.900239081595345,
-            "theta_deg": 153.88697737162656,
-            "z_mm": -7.675766626993815
-          },
-          {
-            "lip": true,
-            "mm": 0.6761469272562358,
-            "r_mm": 12.778699469659108,
-            "theta_deg": 154.4271291043201,
-            "z_mm": -7.677069981892903
-          },
-          {
-            "lip": true,
-            "mm": 0.7535714006074343,
-            "r_mm": 12.478900387813873,
-            "theta_deg": 157.6854035818302,
-            "z_mm": -3.3426499366760254
-          },
-          {
-            "lip": true,
-            "mm": 0.6637917404309521,
-            "r_mm": 12.72429415618817,
-            "theta_deg": 158.77852545267106,
-            "z_mm": -3.0843334197998047
-          },
-          {
-            "lip": true,
-            "mm": 0.6205840109847021,
-            "r_mm": 12.314866336466167,
-            "theta_deg": 152.6304012362362,
-            "z_mm": 1.5299866994222004
-          },
-          {
-            "lip": true,
-            "mm": 0.6767084909892919,
-            "r_mm": 12.079094993267894,
-            "theta_deg": 152.72091240060638,
-            "z_mm": 1.568856676419576
-          },
-          {
-            "lip": true,
-            "mm": 0.7717070002108465,
-            "r_mm": 12.039208336949686,
-            "theta_deg": 153.48786745918528,
-            "z_mm": 1.448093334833781
-          }
-        ],
-        "census_below_floor_off_lip": 0,
-        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-        "part": "West wing (mirror)",
-        "rays": 380,
-        "sampled_min_mm": 0.6205840109847021,
-        "unresolved": 0
-      },
-      {
-        "below_limit": 2,
         "census": {
-          "below_floor": 2,
+          "below_floor": 7,
           "below_floor_elsewhere": 0,
-          "below_floor_on_the_burnished_lip": 2,
+          "below_floor_on_the_lip_or_a_point": 7,
           "below_floor_points": [
             {
+              "excepted_as": "lip",
               "lip": true,
-              "mm": 0.7827342779224797,
-              "r_mm": 13.002213040098294,
-              "theta_deg": 99.22910901689453,
-              "z_mm": -1.996787190437317
+              "mm": 0.7827259966143384,
+              "r_mm": 12.993388400873396,
+              "theta_deg": 81.01339681045141,
+              "z_mm": -2.105639616648356
             },
             {
+              "excepted_as": "lip",
               "lip": true,
-              "mm": 0.7346464320336408,
-              "r_mm": 12.447785371362261,
-              "theta_deg": 152.96135056945792,
-              "z_mm": 1.4648300011952717
+              "mm": 0.38923025817223444,
+              "r_mm": 13.037552058320102,
+              "theta_deg": 90.15730030225687,
+              "z_mm": 3.3824240366617837
+            },
+            {
+              "excepted_as": "tip",
+              "lip": true,
+              "mm": 0.798252630514589,
+              "r_mm": 12.114106373036119,
+              "theta_deg": 32.18873034403508,
+              "z_mm": -6.669396718343099
+            },
+            {
+              "excepted_as": "tip",
+              "lip": true,
+              "mm": 0.6942504345217806,
+              "r_mm": 12.54103512353127,
+              "theta_deg": 26.419747465912735,
+              "z_mm": -2.587559938430786
+            },
+            {
+              "excepted_as": "tip",
+              "lip": true,
+              "mm": 0.7812908736333232,
+              "r_mm": 12.33976653744655,
+              "theta_deg": 32.290241565225564,
+              "z_mm": 1.372796654701233
+            },
+            {
+              "excepted_as": "tip",
+              "lip": true,
+              "mm": 0.7794414316556045,
+              "r_mm": 12.620076788258173,
+              "theta_deg": 152.59219211102416,
+              "z_mm": -2.572413365046183
+            },
+            {
+              "excepted_as": "tip",
+              "lip": true,
+              "mm": 0.6783143961830084,
+              "r_mm": 12.482629214663987,
+              "theta_deg": 154.64073457493188,
+              "z_mm": -2.635603348414103
             }
           ],
           "girdle_r_mm": 12.854,
           "samples": 384
         },
-        "exception": "the collet's lip, a bezel thinned to its edge so it can be burnished over the crown, and the last 0.9 mm of each feather's point, judged at the 0.15 mm detail floor (its round is 0.6 mm across); every other sample clears 0.8 mm",
+        "exception": "the collet's lip, a bezel thinned to its edge so it can be burnished over the crown, and the last 2.6 mm of each feather (its ogive and round), judged at the section's 0.5 mm floor for feather tips; every other sample clears 0.8 mm",
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
         "part": "whole ring at 320 x 112",
         "point": [
-          -11.0872433980306,
-          5.658656597137451,
-          1.4648300011952717
+          -0.03579335721830527,
+          13.037502924601236,
+          3.3824240366617837
         ],
         "rays": 384,
-        "sampled_min_mm": 0.7346464320336408,
-        "triangles": 113594,
+        "sampled_min_mm": 0.38923025817223444,
+        "triangles": 121112,
         "unresolved": 0
       }
     ],
-    "triangles": 1312990,
-    "volume_mm3": 457.3731655219481,
+    "triangles": 1290118,
+    "volume_mm3": 430.9253836222468,
     "watertight": true
   },
   "features": [
     {
+      "consumes": [],
+      "fillet_into_band_mm": 0.0,
       "id": 1,
       "name": "Band",
-      "op": "Procedural shank"
+      "op": "Procedural shank",
+      "reads": []
     },
     {
+      "consumes": [],
+      "fillet_into_band_mm": 0.0,
       "id": 2,
       "name": "Oval 7 x 5",
-      "op": "Stone"
+      "op": "Stone",
+      "reads": []
     },
     {
+      "consumes": [],
+      "fillet_into_band_mm": 0.0,
       "id": 3,
       "name": "Collet",
-      "op": "Bezel"
+      "op": "Bezel",
+      "reads": [
+        2
+      ]
     },
     {
+      "consumes": [],
+      "fillet_into_band_mm": 0.35,
       "id": 11,
       "name": "Collet foot",
-      "op": "Stored mesh"
+      "op": "Stored mesh",
+      "reads": []
     },
     {
+      "consumes": [],
+      "fillet_into_band_mm": 0.0,
       "id": 4,
       "name": "Wing plane",
-      "op": "Work plane"
+      "op": "Work plane",
+      "reads": []
     },
     {
+      "consumes": [],
+      "fillet_into_band_mm": 0.0,
       "id": 5,
       "name": "Wing",
-      "op": "Sketch"
+      "op": "Sketch",
+      "reads": [
+        4
+      ]
     },
     {
+      "consumes": [
+        5
+      ],
+      "fillet_into_band_mm": 0.35,
       "id": 6,
       "name": "Tier I",
-      "op": "Extrude"
+      "op": "Extrude",
+      "reads": [
+        5
+      ]
     },
     {
+      "consumes": [
+        5
+      ],
+      "fillet_into_band_mm": 0.35,
       "id": 7,
       "name": "Tier II",
-      "op": "Extrude"
+      "op": "Extrude",
+      "reads": [
+        5
+      ]
     },
     {
+      "consumes": [
+        5
+      ],
+      "fillet_into_band_mm": 0.35,
       "id": 8,
       "name": "Tier III",
-      "op": "Extrude"
+      "op": "Extrude",
+      "reads": [
+        5
+      ]
     },
     {
+      "consumes": [
+        6,
+        7,
+        8
+      ],
+      "fillet_into_band_mm": 0.35,
       "id": 9,
       "name": "Sculpt the east wing",
-      "op": "Stored mesh"
+      "op": "Stored mesh",
+      "reads": [
+        6,
+        7,
+        8
+      ]
     },
     {
+      "consumes": [],
+      "fillet_into_band_mm": 0.35,
       "id": 10,
       "name": "West wing (mirror)",
-      "op": "Mirror"
+      "op": "Mirror",
+      "reads": [
+        9
+      ]
     }
   ],
   "gates_passed": true,
