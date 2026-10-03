@@ -391,8 +391,10 @@ That is expected for most Vepres rings. Say so in each README line.
 > - **What it replaces:** the liner, the four-cane weave, the 36-thorn pattern, the shoots and the ruby round 4.0 in the text below.
 >
 > **Process, 2026-10-03 (Logan's rule):** lost wax, judged at the 0.8 mm minimum section with no pull rule. The ring was never a sand candidate, so there is no sand bonus to report.
+>
+> **Outcome, 2026-10-03: cut at 6.4 after round 3.** Read test 5 read ("wild rose with a hip"). Reviews: round 1 5.6, round 2 6.2, round 3 6.4, all with every gate green from round 1 on. No extension was granted, so the three-round cap applied. Open faults: pillowed leaflets with stepped margins, a banded cabochon preview, a plain collar bezel, bare canes. See `showcase/vepres/sentis/review-round3.json` and `cloud-report.md` on branch `claude/vepres-sentis`.
 
-- **Status:** Not started. **Build last.**
+- **Status:** Cut (2026-10-03), after the rethink above. The plan below is the original four-cane thicket.
   - Blocked on **C-V4** (seam beads in CAD-only assembly) and **P6** `style: Thorn`.
   - C-V3 (closed, tapered sweeps) and C-V5 (`path.wreath`) are upgrades.
   - Without C-V4 and P6 it can be built at reduced fidelity: crisp thorn roots and wire claws.
