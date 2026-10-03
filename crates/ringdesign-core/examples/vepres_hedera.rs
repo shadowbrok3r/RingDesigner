@@ -9,9 +9,9 @@ use ringdesign_core::{
     cad::{self, Attach, Component, ComponentRole, Document, Feature, FeatureStatus, Operation, Stage, SurfaceKind, builders, stored},
     castability, csg, dfm,
     gem::{Gem, GemCut},
-    library, mesh, outline,
+    library, mesh,
     profile::{MAX_PROFILE_STEPS, ProfileSample, ShankKind},
-    render, setting, stl,
+    render, stl,
 };
 use serde_json::json;
 use std::f64::consts::{PI, TAU};
@@ -53,29 +53,30 @@ const SPINEL_TINT: [f32; 3] = [0.03, 0.03, 0.04];
 /// The umbel's hub over the crown, where the peduncle from the stem ends and the seven stalks fan out, and the
 /// reach from it to each berry's girdle.
 const UMBEL_HUB_MM: f64 = 0.6;
-const UMBEL_R_MM: f64 = 3.85;
+const UMBEL_R_MM: f64 = 3.55;
 /// Each berry's direction from the hub: (angle from the crown's normal, turn from +theta toward +z), degrees.
-/// Spread so that no two collets come nearer than 0.5 mm and every one clears the band and the leaves.
-const BERRIES: [(f64, f64); 7] = [(29.6, 272.2), (38.8, 114.4), (59.1, 11.0), (75.6, 179.6), (85.8, 310.1), (91.1, 69.6), (92.0, 243.3)];
-/// The collet's wall and lip: a setting, held at the investment floor rather than the body's section.
-const COLLET_WALL_MM: f64 = 0.6;
+/// Spread so that no two collets come nearer than 0.5 mm, every one clears the band and the leaves, and the spray
+/// stays within 3 mm of the crown round the ring, leaving the crown leaves square to the face.
+const BERRIES: [(f64, f64); 7] = [(31.3, 92.8), (33.6, 268.1), (57.3, 356.6), (78.6, 147.3), (80.3, 211.6), (90.4, 60.2), (92.0, 296.9)];
+/// The collet's wall and lip: a setting, a thin rim round each berry, judged at the detail floor as settings are.
+const COLLET_WALL_MM: f64 = 0.45;
 const COLLET_LIP: f64 = 0.1;
-/// The receptacle each berry's collet stands on: its face's radius, depth back down the stalk, and wall draft.
-const RECEPTACLE_R_MM: f64 = 1.63;
-const RECEPTACLE_DEEP_MM: f64 = 0.86;
-/// The stalk's flare into the receptacle's foot.
-const PEDICEL_FLARE_MM: f64 = 1.25;
+/// The receptacle each berry's collet stands on: its face's radius (the collet's foot), the square band under the
+/// face, how deep it flares back down into the stalk, and its neck.
+const RECEPTACLE_R_MM: f64 = 1.52;
+const RECEPTACLE_BAND_MM: f64 = 0.2;
+const RECEPTACLE_DEEP_MM: f64 = 1.15;
+const RECEPTACLE_NECK_MM: f64 = 0.7;
 /// The stalks: each berry's pedicel and the peduncle from the stem to the hub.
 const PEDICEL_R_MM: f64 = 0.5;
 const PEDUNCLE_R_MM: f64 = 0.62;
-/// The rootlets: their reach out from the stem's centreline, length, width, height at the stem and at the tip,
-/// and spacing along the stem.
-const ROOTLET_FROM_MM: f64 = 0.45;
-const ROOTLET_LEN_MM: f64 = 1.0;
-const ROOTLET_W_MM: f64 = 0.32;
-const ROOTLET_HIGH_MM: f64 = 0.4;
-const ROOTLET_TIP_MM: f64 = 0.16;
-const ROOTLET_PITCH_MM: f64 = 0.95;
+/// The rootlets: where each starts out from the stem's centreline, its reach, its radius at the root and the tip,
+/// and the pitch of each of the four arrays along the stem (two each side, offset half a pitch).
+const ROOTLET_FROM_MM: f64 = 0.55;
+const ROOTLET_REACH_MM: f64 = 0.75;
+const ROOTLET_ROOT_R_MM: f64 = 0.2;
+const ROOTLET_TIP_R_MM: f64 = 0.11;
+const ROOTLET_PITCH_MM: f64 = 1.0;
 
 /// A leaf's sink under the band's surface, its height over it at the margin and at the hub, and the vein relief.
 const LEAF_SINK_MM: f64 = 0.45;
@@ -641,8 +642,8 @@ fn leaves(c: &Chart) -> Vec<LeafAt> {
         LeafAt { name: "Crown leaf, west", hub: (128.0, 0.7), axis_deg: -52.0, len: 6.4, curl: 1.1 },
         LeafAt { name: "Shoulder leaf, east", hub: (-14.0, -0.8), axis_deg: -158.0, len: 5.0, curl: 0.7 },
         LeafAt { name: "Shoulder leaf, west", hub: (194.0, 0.8), axis_deg: 22.0, len: 5.0, curl: 0.7 },
-        LeafAt { name: "Low leaf, west", hub: (214.0, -0.6), axis_deg: 62.0, len: 5.2, curl: 0.4 },
-        LeafAt { name: "Low leaf, east", hub: (326.0, 0.6), axis_deg: -118.0, len: 5.2, curl: 0.4 },
+        LeafAt { name: "Low leaf, west", hub: (214.0, -0.6), axis_deg: 62.0, len: 5.2, curl: 0.2 },
+        LeafAt { name: "Low leaf, east", hub: (326.0, 0.6), axis_deg: -118.0, len: 5.2, curl: 0.2 },
     ]
 }
 
@@ -687,33 +688,33 @@ fn receptacle_face(g: P3, a: P3) -> P3 {
     sub(g, scale(a, builders::stand_off_mm(builders::BEZEL, spinel())))
 }
 
-/// The receptacle: a disc as wide as the collet's foot and a section deep, whose face the berry's collet stands on.
+/// The receptacle: a disc as wide as the collet's foot, square for a fifth of a millimetre under its face, then
+/// flaring in like a calyx down to the stalk's neck; revolved about the berry's axis.
 fn receptacle(g: P3, a: P3) -> Operation {
-    let (x, y) = square_to(a);
-    let mut sketch = ringdesign_core::sketch::Sketch::circle(RECEPTACLE_R_MM);
-    sketch.name = "Receptacle".into();
-    sketch.plane = ringdesign_core::sketch::Workplane { origin: receptacle_face(g, a), x, y, ..Default::default() };
-    Operation::Extrude { sketch: sketch.into(), height_mm: -RECEPTACLE_DEEP_MM, draft_deg: 0.0 }
+    let (x, _) = square_to(a);
+    let mut s = ringdesign_core::sketch::Sketch { plane: ringdesign_core::sketch::Workplane { origin: receptacle_face(g, a), x, y: a, ..Default::default() }, ..Default::default() };
+    s.name = "Receptacle".into();
+    let (r, band, deep, neck) = (RECEPTACLE_R_MM, RECEPTACLE_BAND_MM, RECEPTACLE_DEEP_MM, RECEPTACLE_NECK_MM);
+    let mut pts = vec![[0.0, 0.0], [r, 0.0], [r, -band]];
+    // The flare: concave, leaving the band near level and meeting the neck near square.
+    let n = 10;
+    for i in 1..=n {
+        let t = i as f64 / n as f64;
+        pts.push([neck + (r - neck) * (1.0 - t).powi(2), -band - (deep - band) * t]);
+    }
+    pts.push([0.0, -deep]);
+    let ids: Vec<_> = pts.iter().map(|p| s.point(*p)).collect();
+    s.entity(ringdesign_core::sketch::Geometry::Polyline { points: ids, closed: true });
+    Operation::Revolve { sketch: s.into(), pivot: [0.0; 3], axis: [0.0, 1.0, 0.0], degrees: 360.0, in_plane: true }
 }
 
-/// A berry's stalk from just behind the hub out into its receptacle, flaring into the receptacle's foot so the
-/// two meet without a step.
+/// A berry's stalk from just behind the hub up into its receptacle's neck.
 fn pedicel_solid(c: &Chart, g: P3, a: P3) -> csg::Solid {
     let start = sub(umbel_hub(c), scale(a, 0.25));
-    let end = sub(receptacle_face(g, a), scale(a, 0.1));
-    let length = norm(sub(end, start));
-    let n = 40;
-    let line: Vec<(P3, f64)> = (0..=n)
-        .map(|i| {
-            let t = i as f64 / n as f64;
-            // Held wide through the receptacle's depth so no rim is thin, then narrowing over 0.75 mm.
-            let from_end = (1.0 - t) * length;
-            let u = (1.0 - (from_end - 0.9) / 0.75).clamp(0.0, 1.0);
-            let r = PEDICEL_R_MM + (PEDICEL_FLARE_MM - PEDICEL_R_MM) * u * u * (3.0 - 2.0 * u);
-            (add3(start, scale(sub(end, start), t)), r)
-        })
-        .collect();
-    tube(&line, 18, true, false)
+    let end = sub(receptacle_face(g, a), scale(a, 0.55 * RECEPTACLE_DEEP_MM));
+    let n = 24;
+    let line: Vec<(P3, f64)> = (0..=n).map(|i| (add3(start, scale(sub(end, start), i as f64 / n as f64)), PEDICEL_R_MM)).collect();
+    tube(&line, 18, true, true)
 }
 
 /// The peduncle: up from the stem's centre where it crosses the crown to a knob at the hub.
@@ -728,64 +729,40 @@ fn peduncle_solid(c: &Chart) -> csg::Solid {
     tube(&line, 18, true, true)
 }
 
-/// The rootlets: tufts of short tapering roots splayed from under the stem onto the band, as ivy grips its host.
-/// A tuft every `ROOTLET_PITCH_MM` along the stem, alternating sides, each of two to four roots fanned and of
-/// uneven length, a few tufts missing; none where the stem rides an edge's round, where a stamp would run off the
-/// crown, nor under the umbel.
-fn rootlets(d: &mut RingDesign, c: &Chart) {
-    let r = c.at(0.0).0;
-    let noise = |k: f64| ((k * 12.9898).sin() * 43758.5453).fract().abs();
-    let mut theta = STEM_FROM_DEG + 4.0;
-    let end = STEM_FROM_DEG + STEM_SPAN_DEG * 0.86;
-    let mut k = 0usize;
-    while theta < end {
-        let w = stem_w(c, theta);
-        let dw = (stem_w(c, theta + 0.01) - w) / 0.01;
-        let per_deg = r * PI / 180.0;
-        let len = per_deg.hypot(dw);
-        let (tx, ty) = (per_deg / len, dw / len);
-        let (nx, ny) = (-ty, tx);
-        let side = if k % 2 == 0 { 1.0 } else { -1.0 };
-        let h0 = noise(k as f64 + 0.5);
-        // One tuft in seven left out, so the fringe never runs as a regular row.
-        if h0 > 0.14 {
-            let roots = 2 + (noise(k as f64 + 3.1) * 2.99) as usize;
-            for j in 0..roots {
-                let hj = noise(k as f64 * 7.0 + j as f64 + 0.25);
-                let fan = (j as f64 - 0.5 * (roots - 1) as f64) * 24.0 + (hj - 0.5) * 16.0;
-                let long = ROOTLET_LEN_MM * (0.65 + 0.55 * noise(k as f64 * 3.0 + j as f64 + 0.75));
-                // Out from the stem's side, turned by the fan, leaning a little back along the stem.
-                let (ox, oy) = (side * nx, side * ny);
-                let (sn, cs) = (fan - 12.0 * side).to_radians().sin_cos();
-                let (ux, uy) = (ox * cs - oy * sn, ox * sn + oy * cs);
-                let slide = (j as f64 - 0.5 * (roots - 1) as f64) * 0.18;
-                let reach = ROOTLET_FROM_MM + 0.5 * long;
-                let at_w = w + reach * uy + slide * ty;
-                let at_theta = theta + ((reach * ux + slide * tx) / r).to_degrees();
-                if at_w.abs() > 1.9 || (at_theta - CROWN_DEG).abs() < 4.0 {
-                    continue;
-                }
-                d.stamps.push(setting::Stamp {
-                    name: "Rootlet".into(),
-                    theta_deg: at_theta.rem_euclid(360.0),
-                    v_mm: c.crest_v + c.sign * at_w,
-                    rot_deg: (c.sign * uy).atan2(ux).to_degrees(),
-                    outline: outline::lanceolate(long, ROOTLET_W_MM, 0.14),
-                    height_mm: ROOTLET_HIGH_MM,
-                    sink_mm: 0.1,
-                    draft_deg: 0.0,
-                    cut: false,
-                    bench: false,
-                    along_pull: false,
-                    tier: 0,
-                    top: setting::StampTop::Taper { axis_deg: 0.0, tip_mm: ROOTLET_TIP_MM },
-                    fine_cap: false,
-                });
-            }
-        }
-        k += 1;
-        theta += ROOTLET_PITCH_MM * (0.8 + 0.4 * noise(k as f64 + 9.7)) / (len * PI / 180.0 * 180.0 / PI);
+/// The stem's chart path for the rootlet arrays, `[theta, v]`, from `start` degrees on to short of the growing tip.
+fn rootlet_path(c: &Chart, start: f64) -> Vec<[f64; 2]> {
+    let end = STEM_FROM_DEG + STEM_SPAN_DEG * 0.88;
+    let mut out = Vec::new();
+    let mut t = start;
+    while t <= end {
+        out.push([t, c.crest_v + c.sign * stem_w(c, t)]);
+        t += 1.0;
     }
+    out
+}
+
+/// One rootlet standing at the first station of `path`: out from under the stem's side `side` (+1 right of the
+/// path, -1 left), leaning `lean` mm along the stem, tapering from the root to a rounded tip pressed into the band.
+fn rootlet_solid(c: &Chart, path: &[[f64; 2]], side: f64, lean: f64, reach: f64) -> csg::Solid {
+    let w_of = |p: [f64; 2]| c.sign * (p[1] - c.crest_v);
+    let (t0, w0) = (path[0][0], w_of(path[0]));
+    let o = c.world(t0, w0, 0.0);
+    let z = unit(sub(c.world(t0, w0, 1.0), o));
+    let y = unit(sub(c.world(path[1][0], w_of(path[1]), 0.0), o));
+    let y = unit(sub(y, scale(z, dot(y, z))));
+    let x = cross(y, z);
+    let n = 12;
+    let line: Vec<(P3, f64)> = (0..=n)
+        .map(|i| {
+            let t = i as f64 / n as f64;
+            let across = ROOTLET_FROM_MM + reach * t;
+            // Lying along the band, half sunk, following its fall across the crown, pressed in at the tip.
+            let h = -0.02 - 0.16 * t * t - across * across / 12.0;
+            let p = add3(add3(o, scale(x, side * across)), add3(scale(y, lean * t), scale(z, h)));
+            (p, ROOTLET_ROOT_R_MM + (ROOTLET_TIP_R_MM - ROOTLET_ROOT_R_MM) * t)
+        })
+        .collect();
+    tube(&line, 10, true, true)
 }
 
 fn spinel() -> Gem {
@@ -852,7 +829,19 @@ fn author() -> Result<(RingDesign, AlphaLibrary, serde_json::Value)> {
         doc.append(builders::feature_on(id + 1, &format!("Berry {}: collet", k + 1), builders::BEZEL, id, json!({"wall_mm": COLLET_WALL_MM, "lip": COLLET_LIP})))?;
         id += 2;
     }
-    rootlets(&mut d, &c);
+    // The rootlets: four arrays along the stem's chart path, two each side, the second pair half a pitch on and
+    // leaning the other way, so the fringe never runs as one regular row.
+    let per_deg = c.at(0.0).0 * PI / 180.0;
+    for (k, (start, lean, reach)) in [(STEM_FROM_DEG + 4.0, 0.25, ROOTLET_REACH_MM), (STEM_FROM_DEG + 4.0 + 0.5 * ROOTLET_PITCH_MM / per_deg, -0.2, 0.8 * ROOTLET_REACH_MM)].into_iter().enumerate() {
+        let path = rootlet_path(&c, start);
+        let mut sources = Vec::new();
+        for side in [1.0, -1.0] {
+            let solid = rootlet_solid(&c, &path, side, lean * side, reach);
+            sources.push(add(&mut doc, format!("Rootlet {}{}", k + 1, if side > 0.0 { "R" } else { "L" }), stored_op(&solid, "rootlet", json!({"reach_mm": reach, "lean_mm": lean}))?)?);
+        }
+        let along = cad::pattern::Along { path: cad::pattern::AlongPath::Chart(path.clone()), pitch_mm: Some(ROOTLET_PITCH_MM), ..Default::default() };
+        add(&mut doc, format!("Rootlets along the stem, set {}", k + 1), Operation::Pattern { sources: cad::pattern::Sources(sources), kind: cad::pattern::PatternKind::Along(along) })?;
+    }
     d.cad = Some(doc);
     let info = json!({"edge_w_mm": [c.edge_w(-1.0), c.edge_w(1.0)], "lip_w_mm": [c.lip_w(-1.0), c.lip_w(1.0)], "leaves": record});
     Ok((d, AlphaLibrary::builtin(), info))
@@ -1106,14 +1095,20 @@ fn main() -> Result<()> {
     };
     let triangles = built.mesh.faces.len();
     let grams = built.report.metals.iter().find(|m| m.metal == "Gold 18k").map_or(0.0, |m| m.grams);
-    let walls_ok = wall.iter().all(|w| w["sampled_min_mm"].as_f64().is_some_and(|m| m >= MIN_SECTION_MM));
+    // Body parts (stem, leaves, petioles, stalks) hold the 0.8 mm section; settings (collets and the receptacles
+    // under them) and the rootlets are details, held at the 0.15 mm detail floor as Rubus's prickles were.
+    let detail = |name: &str| name.contains("collet") || name.contains("receptacle") || name.starts_with("Rootlet");
+    let walls_ok = wall.iter().all(|w| {
+        let name = w["part"].as_str().unwrap_or("");
+        w["sampled_min_mm"].as_f64().is_some_and(|m| m >= if detail(name) { MIN_DETAIL_MM } else { MIN_SECTION_MM })
+    });
     let gates = [
         ("finished mesh watertight, 0 degenerate faces, 0 self-crossings", watertight && degenerate == 0 && crossings == 0),
         ("every CAD part closed without crossings", made.iter().all(|(_, n)| *n == 0)),
         ("solids and parts notes empty, every stamp resolved, every feature Ok", solids_notes.is_empty() && parts_notes.is_empty() && stamped == d.stamps.len() && status.iter().all(|(_, s)| s == "Ok")),
         ("nothing enters the finger hole", inside == 0),
         ("lost-wax verdict Castable with the 0.8 mm section", field.process == castability::CastProcess::LostWax && field.verdict == castability::Verdict::Castable && field.thinnest_wall_mm >= MIN_SECTION_MM),
-        ("every metal part's ray-sampled wall at least 0.8 mm", walls_ok),
+        ("every body part's ray-sampled wall at least 0.8 mm; settings and rootlets at least the 0.15 mm detail floor", walls_ok),
         ("zero DFM findings", findings.is_empty()),
         ("stones reported equal the preview, no metal inside a stone", reported == previewed && reported == 7 && in_stones.iter().all(|(_, n)| *n == 0)),
         ("gates hold at 384 x 192", coarse_ok),
@@ -1176,7 +1171,6 @@ fn main() -> Result<()> {
     for (g, pass) in &gates {
         println!("  {} {g}", if *pass { "pass" } else { "FAIL" });
     }
-    let _ = (setting::FOOT_SINK_MM, MIN_DETAIL_MM);
     ensure!(gates.iter().all(|(_, p)| *p), "Hedera failed a gate; see {}", out.join("report.json").display());
     Ok(())
 }

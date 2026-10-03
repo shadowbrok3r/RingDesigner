@@ -1,0 +1,31 @@
+{
+  "ring": "hedera",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "A little closer than attempt 2, but still not ivy. In the hero, the umbel has opened up: the berries now sit apart on short gold arms radiating from one centre. But each berry is a small black pip in a thick gold cup, so the cluster reads as a spray of bezel-set gems, a molecule model or a flower of rivets, not a bunch of black berries. The one clear leaf, on the right shoulder, is a creased five-pointed star with nearly equal points. It reads as a maple leaf, or as a starfish with a centre fold. In the face, both crown leaves are inflated, pillowy five-pointed stars, almost starfish, with no heart notch and no visible veins. The stem still cannot be traced as a round cable. Along the band edge there is a ladder of fine square ticks and a few blocky tabs on the lower edge, which read as tread or stitching, not rootlets. Uncaptioned, a jeweller would say 'a maple or star-leaf band with a black-gem cluster', maybe 'sweetgum'. Nobody says ivy.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "All leaf outlines: the three adult ivy_cordate crown leaves near theta 90 (both face leaves) and the juvenile ivy() shoulder leaf at about theta 30 to 60 (hero right)",
+      "change": "Stop drawing five equal points. Adult crown leaves should carry almost no lobes, as ivy's flowering growth does: a broad heart-to-spade blade about 5.0 x 4.6, with one tapered tip and a deep cordate notch at the petiole (notch depth at least 0.15 of the length). Juvenile leaves get three dominant lobes. The central lobe should be at least 1.6x the length of the laterals, the two basal lobes cut to small rounded ears, and every tip blunt at radius 0.3 mm or more. Remove the dome: blade height at most 0.4 mm and near-flat across 80% of the width, with no central crease ridge. Sink three to five palmate veins 0.15 mm from the notch so they read as pale lines.",
+      "acceptance": "In the 300 px face, both crown leaves show a heart or spade outline with a visible notch at the base and no star points. In the 300 px hero, the shoulder leaf has one clearly longer central lobe. No leaf reads as a star, a maple or a starfish."
+    },
+    {
+      "priority": 2,
+      "where": "The umbel at theta 90 (seven head.bezel collets and their stalks)",
+      "change": "Invert the black-to-gold ratio. Cut the bezel wall to 0.25 mm and its lip to 0.15 mm. Drop the collet height so the cabochon stands at least 60% proud, or replace the collets with a prong-free seat cup hidden below the stone's equator. Thin the stalks to about 0.7 mm and lengthen them 0.5 mm, so each berry hangs as a black sphere on a pin.",
+      "acceptance": "In both 300 px images, each berry's black area is at least 2x its visible gold rim area. The cluster reads as round black berries on stalks, not as gold cups with black centres."
+    },
+    {
+      "priority": 3,
+      "where": "Stem and band edges, theta 0 to 360 (most visible at theta 30 to 150 in the hero and on the lower edge near theta 200 to 260)",
+      "change": "Make the climbing stem the clearest line on the band. It should be a round cable, Ø 1.24, at least 60% exposed, crossing the top face diagonally at least once in the hero view. Delete the square tick ladder and the rectangular edge tabs. Put the rootlets only directly under the stem, as short cones 0.5 mm proud at 0.6 mm pitch, so they read as a fringe on the cable and not as a border on the band.",
+      "acceptance": "In the 300 px hero, a continuous round stem can be traced from the shoulder leaf to the umbel. Neither image shows square ticks, tread, stitching or blocky tabs on any edge."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/hedera/hero-300.png",
+    "showcase/vepres/hedera/face-300.png"
+  ]
+}
