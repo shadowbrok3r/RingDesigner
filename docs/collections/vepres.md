@@ -111,7 +111,7 @@ This file writes Viscum for route 1 and lists the deltas for route 2.
 | 2 | Sentis | *the briar thicket* | CAD only: four swept canes on a torus liner | Lost wax | 1 ruby round 4.0 | Not started; blocked on C-V4 and P6 (fallbacks exist); **build last** |
 | 3 | Rosa mortua | *the dead rose* | Procedural `ShankKind::Bypass`, HighDome 3.6 × 2.7 | Lost wax | Ruby pear 7 × 5 (bud); **garnet round cabochon 6.0** (hip) | Not started; blocked on P6 (Sepal), C-B2 (pear) and C-V1 (`Relative`) for full fidelity |
 | 4 | Hedera | *the strangling ivy* | Procedural `Uniform` DShape 5.5 × 2.0 host, plus a CAD vine | Lost wax | 7 black spinel round cabochons 2.2 | Not started; blocked on C-V2 for the rootlets (stamp fallback) |
-| 5 | Ilex | *the Holly King's standard* | Factory **006 Square**, resized to 16 × 17, sand master | Sand (Delft) | 8 garnet round cabochons (2 × 2.0, 6 × 1.8) | Not started; **buildable now** |
+| 5 | Ilex | *the Holly King's standard* | Factory **006 Square**, native, 19.2 × 17 (revival; rounds 1 to 3 were 16 × 17 through the sand master) | Lost wax from round 4 (Logan, 2026-10-03); rounds 1 to 3 were Delft sand | 9 garnet round cabochons (3 × 2.0, 6 × 1.5) | Cut at 6.3 on 2026-10-02; revived 2026-10-03 with two extra rounds |
 | 6 | Viscum | *the golden bough* | Factory **003 Clover** 18 × 18, native (route 1) | Lost wax (route 1) | 21 moonstone round cabochons | Not started; **blocked on Logan's process decision**, then buildable now |
 | 7 | Prunus | *Straif, the blackthorn* | Factory **012 Cushion** 10 × 10, sand master | Sand (Delft) | Onyx **round** cabochon 7.0 (the sloe); 4 diamonds 1.3 | Not started; buildable now at draft; final verdict gated on C-V1 `level` or a 012 prickle-probe row |
 | 8 | Datura | *the thorn-apple* | Factory **011 Badge** 18 × 20, native | Lost wax | 8 black spinel round 1.5 | Not started; blocked on C-V1 (`Relative`) for a template that survives resize |
@@ -601,7 +601,11 @@ That is expected for most Vepres rings. Say so in each README line.
 
 ## Ilex — *the Holly King's standard*
 
-- **Status:** Not started. **Buildable now.** P3, P4 and P2 have landed. The resize of 006 to 16 × 17 is untested (step 1).
+- **Status:** Cut at 6.3 after three reviewed rounds on 2026-10-02 (5.6, 6.2, 6.3), then revived (below). Example `ex/vepres_ilex.rs`, outputs `showcase/vepres/ilex/`.
+
+- **Extension (Logan, 2026-10-03):** two more reviewed rounds granted, rounds 4 and 5, beyond the three-round cap.
+
+- **Process decision (Logan, 2026-10-03):** judged as **lost wax** from round 4: 0.8 mm minimum section, no pull rule. The sand gates were what held the ring back (the sand master's gabled table folded the face leaves, the parting-line rule forbade the 7.5 mm leaves and the garland's splay). The revival builds on the native factory 006 (no sand master, no envelope) at 19.2 × 17 mm, so the table is flat. Whether it would still pull from sand is reported in `report.json` (`sand_bonus`), never gated.
 
 - **Concept:** The Holly King's standard. A holly leaf lies across the face along the parting line, between two garnet berries. Holly sprays with berries fill both cheeks. A garland of small holly leaves rides the parting line down both shoulders. The palm is bare, like holly's smooth bark.
 

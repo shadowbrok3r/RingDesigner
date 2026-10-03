@@ -7,10 +7,9 @@ use anyhow::{Context, Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign,
     alpha::{ProcRecipe, Procedural},
-    castability::{self, SandProcess},
+    castability::{self, CastProcess, SandProcess},
     csg, dfm,
-    curve::{CurveLayer, WireProfile},
-    field::{Blend, Layer, LayerEntry, SeatPadLayer, SeatStyle, Window},
+    field::{Blend, Layer, LayerEntry, SeatPadLayer, SeatStyle, VGate, Window},
     tiling::TilingLayer,
     gem::{Gem, GemCut},
     imported_base::{ImportedBase, PRESETS, SurfaceChart, sand_master},
@@ -27,10 +26,17 @@ use std::path::{Path, PathBuf};
 const AW: usize = 2048;
 const AH: usize = 768;
 
-/// The face asked for, length round the ring by width across it, and the stock's native fallback.
-const FACE: (f64, f64) = (16.0, 17.0);
+/// The face, length round the ring by width across it: the plan's 16 x 17, lengthened so a 7.5 mm leaf fits each
+/// side of the berries; and the stock's native face as the fallback.
+const FACE: (f64, f64) = (19.2, 17.0);
 const NATIVE: (f64, f64) = (16.0, 21.0);
 const BORE_MM: f64 = 18.6;
+/// The lost-wax floor Logan set for Vepres: thinnest section, mm.
+const MIN_SECTION_MM: f64 = 0.8;
+/// Height-field relief read through a one-cell tent (`RingDesign::crisp_relief`).
+const CRISP: bool = true;
+/// The native stock for lost wax; the sand master only for the sand measure the report keeps as a bonus.
+const SAND: bool = false;
 
 /// Holly's red, a little brighter than a garnet's own black-red so the berry reads at arm's length.
 const GARNET_TINT: [f32; 3] = [0.52, 0.03, 0.06];
@@ -49,7 +55,14 @@ fn export_params() -> BuildParams {
 fn setup() -> mf::Setup {
     let mut s = mf::Setup::default();
     s.recipe = mf::Recipe::sand(SandProcess::DelftClay);
-    s.recipe.name = "Ilex / Delft clay / Gold 18k".into();
+    s.recipe.name = "Ilex / investment / Gold 18k".into();
+    // Lost wax (Logan, 2026-10-03): the sand rules were what held the sprig back, so the ring is judged as an
+    // investment casting with a 0.8 mm minimum section and no pull rule.
+    s.recipe.process = CastProcess::LostWax;
+    s.recipe.sand = None;
+    s.recipe.min_draft_deg = 0.0;
+    s.recipe.min_detail_mm = 0.15;
+    s.recipe.min_section_mm = MIN_SECTION_MM;
     s.recipe.alloy = "Gold 18k".into();
     s.recipe.shrink_pct = ringdesign_core::metal::find("Gold 18k").map_or(s.recipe.shrink_pct, |m| m.shrink_pct);
     s.sample_pitch_mm = 0.1;
@@ -57,20 +70,22 @@ fn setup() -> mf::Setup {
     s.parting_mm = 0.0;
     s.flask.width_mm = 80.0;
     s.flask.length_mm = 80.0;
-    s.bench_notes = "Factory 006 through the sand master, z = 0 parting, opposed z withdrawal. Every leaf on the face and \
-        shoulders lies on the parting line with its midrib on it; the cheek leaves stand along the pull. After the pour: cut \
-        the vein combs, drill each garnet seat on its raised mark, cut it to the measured stone and burnish flush. Polish \
-        the field and the palm; leave the veins satin."
+    s.bench_notes = "Factory 006, native stock, lost wax: sprue from the palm. After the cast: cut the vein strokes, drill \
+        each garnet seat on its raised mark, cut it to the measured stone and burnish flush. Polish the leaves, the halos \
+        round them and the palm; leave the table's stipple and the flanks' grain as cast."
         .into();
     s
 }
 
-/// Factory 006 Square through the sand master at `face` (length, width), on its own Flat chart.
-fn stock(face: (f64, f64)) -> Result<RingDesign> {
+/// Factory 006 Square at `face` (length, width), on its own Flat chart: the native stock for lost wax, or the sand
+/// master, as rounds 1 to 3 had it.
+fn stock(face: (f64, f64), sand: bool) -> Result<RingDesign> {
     let preset = PRESETS.iter().find(|p| p.id == "006").context("no stock 006")?;
     let mut d = RingDesign::default();
-    ImportedBase::attach(&mut d, sand_master(preset.load()?)?)?;
-    d.imported_base.as_mut().unwrap().sand_envelope = true;
+    ImportedBase::attach(&mut d, if sand { sand_master(preset.load()?)? } else { preset.load()? })?;
+    // The sand envelope only for the sand master: lost wax needs no fill along the pull, and on the native stock the
+    // envelope would fill each seat's shadow along z into a groove.
+    d.imported_base.as_mut().unwrap().sand_envelope = sand;
     d.name = "Ilex \u{2014} the Holly King's standard".into();
     d.profile.apply_style(ProfileStyle::Flat);
     d.profile.width_mm = face.1;
@@ -88,6 +103,9 @@ fn stock(face: (f64, f64)) -> Result<RingDesign> {
     d.draft.min_section_mm = s.recipe.min_section_mm;
     d.draft.min_draft_deg = s.recipe.min_draft_deg;
     d.manufacturing = Some(s);
+    // Steep height-field relief (the stipple, the stem, the seat skirts) read through a one-cell tent, so a wall
+    // across the build grid lies straight instead of stepping a row at a time.
+    d.crisp_relief = CRISP;
     Ok(d)
 }
 
@@ -126,14 +144,14 @@ fn fill_mm(d: &RingDesign) -> (f64, f64) {
 }
 
 /// Step 1: can 006 go to 16 x 17 directly? Bare build, envelope fill, mesh health and the bare pull.
-fn resize_check(face: (f64, f64)) -> Result<Value> {
-    let d = stock(face)?;
+fn resize_check(face: (f64, f64), sand: bool) -> Result<Value> {
+    let d = stock(face, sand)?;
     let mut bare = d.clone();
     bare.imported_base.as_mut().unwrap().bare = true;
     let lib = AlphaLibrary::builtin();
     let built = mesh::try_build(&bare, &lib, draft_params());
     let (fill, fill_at) = fill_mm(&d);
-    let mut out = json!({ "face_mm": [face.0, face.1], "envelope_fill_mm": fill, "envelope_fill_theta_deg": fill_at });
+    let mut out = json!({ "face_mm": [face.0, face.1], "sand_master": sand, "envelope_fill_mm": fill, "envelope_fill_theta_deg": fill_at });
     match built {
         Ok(b) => {
             let q = b.mesh.quality();
@@ -238,8 +256,25 @@ fn holly(len: f64, wid: f64, spines: usize, bay: f64, with_stalk: bool) -> Vec<[
     out
 }
 
-/// A struck holly leaf: stalk at -x, tip at +x, midrib on y = 0, its gable ridge the midrib.
-fn holly_stamp(name: &str, at: (f64, f64), len: f64, wid: f64, spines: usize, spine_depth: f64, height: f64, rise: f64) -> Stamp {
+/// A leaf outline grown by `r` all round, from its upper margin wherever `x >= x_from`: the disc dilation of a
+/// region bounded by `y = ±m(x)`, so spines stay spines and bays stay bays, and the end at `x_from` is rounded.
+fn grown(outline: &[[f64; 2]], r: f64, x_from: f64) -> Vec<[f64; 2]> {
+    let upper: Vec<[f64; 2]> = outline.iter().copied().filter(|p| p[1] >= 0.0 && p[0] >= x_from).collect();
+    let (lo, hi) = upper.iter().fold((f64::MAX, f64::MIN), |(lo, hi), p| (lo.min(p[0]), hi.max(p[0])));
+    let margin = |x: f64| upper.iter().filter(|p| (p[0] - x).abs() <= r).map(|p| p[1] + (r * r - (p[0] - x).powi(2)).max(0.0).sqrt()).fold(0.0, f64::max);
+    let (x0, x1) = (lo - r, hi + r);
+    let count = ((x1 - x0) / 0.03).round() as usize;
+    let top: Vec<[f64; 2]> = (1..count).map(|i| x0 + (x1 - x0) * i as f64 / count as f64).map(|x| [x, margin(x)]).filter(|p| p[1] > 1e-3).collect();
+    let mut out = vec![[x0, 0.0]];
+    out.extend(top.iter().map(|p| [p[0], -p[1]]));
+    out.push([x1, 0.0]);
+    out.extend(top.iter().rev().copied());
+    out
+}
+
+/// A struck holly leaf: stalk at -x, tip at +x, midrib on y = 0, a wall `height` mm at the margin and a cushion
+/// rising `crown` mm over it to the midrib, creaseless over the spines.
+fn holly_stamp(name: &str, at: (f64, f64), len: f64, wid: f64, spines: usize, spine_depth: f64, height: f64, crown: f64) -> Stamp {
     Stamp {
         name: name.into(),
         theta_deg: at.0,
@@ -253,35 +288,10 @@ fn holly_stamp(name: &str, at: (f64, f64), len: f64, wid: f64, spines: usize, sp
         bench: false,
         along_pull: false,
         // The cap gridded at half the pitch: at the coarse pitch a spined margin stair-steps.
-        fine_cap: std::env::var("ILEX_COARSE_CAP").is_err(),
+        fine_cap: true,
         tier: 0,
-        top: StampTop::Gable { rise_mm: rise, axis_deg: 0.0 },
+        top: StampTop::Pillow { crown_mm: crown },
     }
-}
-
-/// A leaf's veins as one bench comb: a midrib `len` long and `pairs` laterals a side leaning to the tip, `w` wide.
-fn vein_comb(len: f64, pairs: usize, w: f64) -> Vec<[f64; 2]> {
-    let h = 0.5 * w;
-    let (x0, x1) = (-0.5 * len, 0.5 * len);
-    let lean = 38f64.to_radians();
-    let roots: Vec<f64> = (0..pairs).map(|i| x0 + len * (0.2 + 0.58 * i as f64 / (pairs.max(2) - 1) as f64)).collect();
-    // Laterals taper to a point and shorten toward the tip with the blade; the midrib narrows to the tip.
-    let reach = |x: f64| 0.24 * len * (1.0 - ((x - x0) / len - 0.35).abs() * 1.2).max(0.35);
-    let half = |x: f64| h * (1.0 - 0.6 * ((x - x0) / len).clamp(0.0, 1.0));
-    let (c, s) = (lean.cos(), lean.sin());
-    let mut lower = vec![[x0, -h * 0.8]];
-    for &x in &roots {
-        let r = reach(x);
-        let hx = half(x);
-        lower.push([x - 1.2 * hx / s, -hx]);
-        lower.push([x + r * c, -hx - r * s]);
-        lower.push([x + 0.6 * hx / s, -hx]);
-    }
-    lower.push([x1, -0.03]);
-    let mut out = lower.clone();
-    out.extend(lower.iter().rev().skip(1).take(lower.len() - 2).map(|p| [p[0], -p[1]]));
-    out.push([x0, h * 0.8]);
-    out
 }
 
 /// A tapered stroke from `p0` to `p1`, `w` wide at its widest, as a closed counter-clockwise outline.
@@ -301,7 +311,8 @@ fn stroke(p0: [f64; 2], p1: [f64; 2], w: f64, swell: f64) -> Vec<[f64; 2]> {
     out
 }
 
-/// A face leaf's veins cut at the bench as separate strokes: a rounded midrib and tapering laterals leaning to the tip.
+/// A leaf's veins cut at the bench as separate strokes: a midrib and tapering laterals leaning to the tip, each floor
+/// following the cushion at its depth.
 fn leaf_veins(leaf: &Stamp, len: f64, pairs: usize) -> Vec<Stamp> {
     let stalk = (0.12 * len).max(0.35);
     let (x0, x1) = (-0.5 * len + stalk * 0.6, 0.5 * len - 0.45);
@@ -319,9 +330,9 @@ fn leaf_veins(leaf: &Stamp, len: f64, pairs: usize) -> Vec<Stamp> {
         along_pull: leaf.along_pull,
         fine_cap: true,
         tier: 1,
-        top: StampTop::Dome { crown_mm: 0.5 * sink },
+        top: StampTop::Flat,
     };
-    let mut out = vec![cut(format!("{} midrib", leaf.name), stroke([x0, 0.0], [x1, 0.0], 0.24, 0.25), 0.25)];
+    let mut out = vec![cut(format!("{} midrib", leaf.name), stroke([x0, 0.0], [x1, 0.0], 0.24, 0.25), 0.22)];
     let lean = 42f64.to_radians();
     for i in 0..pairs {
         let t = 0.16 + 0.62 * i as f64 / (pairs.max(2) - 1) as f64;
@@ -336,34 +347,13 @@ fn leaf_veins(leaf: &Stamp, len: f64, pairs: usize) -> Vec<Stamp> {
     out
 }
 
-fn bench_veins(name: &str, leaf: &Stamp, len: f64, pairs: usize, depth: f64) -> Stamp {
-    Stamp {
-        name: name.into(),
-        theta_deg: leaf.theta_deg,
-        v_mm: leaf.v_mm,
-        rot_deg: leaf.rot_deg,
-        outline: vein_comb(len, pairs, 0.16),
-        height_mm: 0.1,
-        sink_mm: depth,
-        draft_deg: 0.0,
-        cut: true,
-        bench: true,
-        along_pull: leaf.along_pull,
-        fine_cap: false,
-        tier: 1,
-        top: StampTop::Flat,
-    }
-}
-
 /// How a berry is set: in a cast gypsy mound `mound` mm across, or flush in the surface with no mound.
 #[derive(Clone, Copy)]
 enum Set {
     /// A gypsy mound `diameter` across standing `height` proud.
     Mound(f64, f64),
-    /// Flush on the parting line, where a raised drill mark pulls.
+    /// Flush in the table, cast with a raised drill mark.
     FlushMarked,
-    /// Flush off the line, where any mark or mound faces its own mould half: wholly bench work.
-    FlushBench,
 }
 
 /// A garnet berry in a flush (gypsy) setting.
@@ -377,7 +367,7 @@ fn berry(d: &mut RingDesign, name: &str, at: (f64, f64), gem: Gem, set: Set) {
         metal_true: true,
         solid: SolidKind::Flush,
         through: true,
-        mark_mm: if matches!(set, Set::FlushBench) { 0.0 } else { 0.6 },
+        mark_mm: 0.6,
         ..Default::default()
     };
     seat.fit_stone(gem);
@@ -390,24 +380,7 @@ fn berry(d: &mut RingDesign, name: &str, at: (f64, f64), gem: Gem, set: Set) {
     }
     let mut e = LayerEntry::new(name, Layer::SeatPad(seat));
     e.blend = Blend::Max;
-    e.bench_only = matches!(set, Set::FlushBench);
     d.layers.layers.push(e);
-}
-
-/// Away from the head's centre the parting line runs a hair off the ring's tangent, so a long leaf struck square
-/// to the tangent lifts its tip off the line. Turn it, by the least that works, until it lies along the line.
-fn level_on_line(d: &RingDesign, s: &mut Stamp) -> bool {
-    let base = s.rot_deg;
-    for k in 0..=40 {
-        for sign in [1.0, -1.0] {
-            s.rot_deg = base + sign * 0.1 * k as f64;
-            if s.parting_monotone(d).is_ok() {
-                return true;
-            }
-        }
-    }
-    s.rot_deg = base;
-    false
 }
 
 /// What was struck and where, for the report.
@@ -421,6 +394,9 @@ struct Placed {
     reach_mm: f64,
     garland: Vec<String>,
     cheek: Vec<String>,
+    crest: [f64; 2],
+    table_half_mm: f64,
+    nudged: Vec<String>,
 }
 
 /// The nearest table sample to a point of it, `x` round the ring and `z` across, as the chart's `(theta, v)`.
@@ -445,228 +421,446 @@ fn on_cheek(a: &Atlas, x: f64, y: f64, side: f64) -> Option<(f64, f64)> {
         .map(|(_, s)| (s.theta, s.v))
 }
 
-/// Face berries: one on the parting line at the sprig's heart, and the cluster's other two just off it.
-const FACE_BERRIES: [(f64, f64, bool); 3] = [(0.0, 0.0, true), (-1.15, 2.05, false), (1.15, 2.05, false)];
-/// The face leaves: the stalk's distance from the head's centre and the leaf's length and width, mm.
-const FACE_LEAF: (f64, f64, f64) = (1.25, 7.0, 5.5);
-const FACE_LEAF_HEIGHT: f64 = 0.45;
+/// Face berries, x round the ring and z across it from the table's centre: one at the sprig's heart and the bunch's
+/// other two just below it.
+const FACE_BERRIES: [(f64, f64); 3] = [(0.0, 0.0), (-1.25, 2.3), (1.25, 2.3)];
+/// The face leaves: the stalk's distance from the head's centre and the longest leaf's length and width, mm.
+const FACE_LEAF: (f64, f64, f64) = (1.25, 7.5, 5.5);
+/// Each face leaf's wall at the margin, and the cushion rising over it to the midrib, mm: 0.8 mm at the crown.
+const FACE_LEAF_EAVES: f64 = 0.35;
+const FACE_LEAF_CROWN: f64 = 0.45;
+/// The leaf tip stays this far inside the table's end, mm.
+const TIP_CLEAR_MM: f64 = 0.45;
 /// Arc from the garland's first leaf to its last, mm.
 const GARLAND_SPAN_MM: f64 = 19.0;
 const GARLAND_COUNT: u32 = 7;
-/// Each garland leaf turns off the stem by this much, alternately.
-const GARLAND_SPLAY_DEG: f64 = 20.0;
+/// Each garland leaf turns off the stem by this much, alternately, about its stalk.
+const GARLAND_SPLAY_DEG: f64 = 25.0;
+/// Garland leaves: wall at the margin and the cushion over it, mm.
+const GARLAND_EAVES: f64 = 0.3;
+const GARLAND_CROWN: f64 = 0.35;
+/// The polished halo kept round each garland leaf and either side of the stem, mm.
+const GARLAND_HALO_MM: f64 = 0.3;
 /// The garland's stem wire, width and height, mm.
-const STEM_MM: (f64, f64) = (0.9, 0.42);
-/// The parting line's chart `v` on this stock.
-const CREST_V: f64 = 9.858;
-/// The table's matte: depth, chart span across, and span round the ring.
-const MATTE_DEPTH_MM: f64 = 0.04;
-/// Chart `v` off the parting line where the matte starts and ends.
-const MATTE_V: (f64, f64) = (2.3, 5.9);
-const MATTE_SPAN_DEG: f64 = 50.0;
-const FACE_LEAF_RISE: f64 = 0.55;
+const STEM_MM: (f64, f64) = (0.8, 0.4);
+/// The stem's capsules: their spacing along the line, how far each overlaps the next, and the cushion on top, mm.
+const STEM_PITCH_MM: f64 = 1.8;
+const STEM_OVERLAP_MM: f64 = 1.2;
+const STEM_CROWN_MM: f64 = 0.2;
+/// The table's stipple: depth, and its inset from the table's edge, mm.
+const MATTE_DEPTH_MM: f64 = 0.045;
+const MATTE_INSET_MM: f64 = 0.8;
+const STIPPLE_CELL_MM: f64 = 2.2;
+/// The shoulders' stipple: the band of chart v it covers (centre, span), how far past the table's end it starts,
+/// and how far round from the head it stops, leaving the palm bare.
+const SHANK_V: (f64, f64) = (9.45, 8.6);
+const SHOULDER_GAP_DEG: f64 = 7.0;
+/// Rows across the shank's stipple band: about 4.3 mm of metal, so two cells of about 2.2 mm.
+const SHANK_ROWS: u32 = 2;
+/// Chart v per millimetre across the shank's outer face (10.3 v over 5 mm, measured on the atlas).
+const SHANK_V_PER_MM: f64 = 2.07;
+const PALM_BARE_FROM_DEG: f64 = 135.0;
+/// The polished halo left round every leaf and berry on the table, mm.
+const HALO_MM: f64 = 0.4;
 
 /// A cheek spray, seen along the finger with x round the ring and y up from the axis: two leaves (centre, length,
-/// width, turn of the tip from +x in degrees) either side of an arc of three berries. The wall is a crescent over
-/// the bore, so the berries ride its widest band and the leaves its lower corners.
-const CHEEK_LEAVES: [([f64; 2], f64, f64, f64); 3] = [([-4.6, 11.9], 6.0, 3.2, 184.0), ([4.6, 11.9], 6.0, 3.2, -4.0), ([5.2, 10.2], 3.9, 2.4, -40.0)];
-const CHEEK_BERRIES: [[f64; 2]; 3] = [[-0.98, 12.85], [0.98, 12.85], [0.0, 11.15]];
-/// How proud the cheek berries' mounds stand, mm.
-const CHEEK_MOUND_MM: f64 = 0.45;
+/// width, turn of the tip from +x in degrees) either side of three berries, tips rising outward. The native wall is
+/// a crescent over the bore, only 2.15 mm tall at its middle, so the spray rides its upper band.
+const CHEEK_LEAVES: [([f64; 2], f64, f64, f64); 2] = [([-4.9, 11.35], 5.6, 2.8, 168.0), ([4.9, 11.35], 5.6, 2.8, 12.0)];
+/// The native wall is only 2.15 mm tall over the bore's crown, so the berries hang in a shallow row across it.
+const CHEEK_BERRIES: [[f64; 2]; 3] = [[-1.75, 11.85], [0.0, 11.8], [1.75, 11.85]];
+const CHEEK_BERRY_MM: f64 = 1.5;
+/// The cheek leaves' wall at the margin and cushion over it, mm: proud enough to ride the factory wall's swell.
+const CHEEK_LEAF_EAVES: f64 = 0.3;
+const CHEEK_LEAF_CROWN: f64 = 0.3;
+/// How proud the cheek berries' mounds stand, and their width, mm.
+const CHEEK_MOUND_MM: f64 = 0.4;
+const CHEEK_MOUND_DIA_MM: f64 = 1.9;
 const CHEEK_SIDES: [f64; 2] = [1.0, -1.0];
 
+/// The flat of the table in chart terms: its theta range at the centre line and its `v` range at the head's centre,
+/// from the atlas samples that face up within 0.1 mm of the top.
+fn table_extent(a: &Atlas) -> ((f64, f64), (f64, f64)) {
+    let flat: Vec<&ringdesign_core::skin::Sample> = a.samples.iter().filter(|s| s.p[1] > a.top - 0.1 && s.n[1] > 0.98).collect();
+    let thetas = flat.iter().filter(|s| s.p[2].abs() < 0.3).map(|s| s.theta);
+    let vs = flat.iter().filter(|s| s.p[0].abs() < 0.3).map(|s| s.v);
+    let range = |it: &mut dyn Iterator<Item = f64>| it.fold((f64::MAX, f64::MIN), |(lo, hi), x| (lo.min(x), hi.max(x)));
+    (range(&mut thetas.into_iter()), range(&mut vs.into_iter()))
+}
+
 fn author(face: (f64, f64), blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
-    let mut d = stock(face)?;
+    let mut d = stock(face, SAND)?;
     let lib = AlphaLibrary::builtin();
     let a = Atlas::of(&d, AW, AH)?;
     let hide = Hide::of(&a);
-    if std::env::var("ILEX_SECTIONS").is_ok() {
-        for theta in [0.0, 30.0, 90.0, 150.0, 270.0] {
-            let col: Vec<String> = (0..=20).map(|k| {
-                let v = k as f64;
-                let p = a.point(theta, v);
-                format!("v{v}:r{:.2},z{:.2}", p[0].hypot(p[1]), p[2])
-            }).collect();
-            eprintln!("theta {theta}: {}", col.join(" "));
-        }
-    }
     let mut placed = Placed { face_mm: [face.0, face.1], reach_mm: hide.reach(), folds_along_mm: hide.folds(&a, 12.0), ..Default::default() };
-    // The face: a sprig of two leaves end to end on the parting line, midribs on it, stalks meeting at the berries.
+    let crest = hide.crest_at(&a, 0.0);
+    placed.crest = [crest.0, crest.1];
+    // The table's half-length along the centre line: where the line turns down over the head's end walls (a crease
+    // in the native mesh well inside the table is not one).
+    let head = d.shank.head.length_mm;
+    let table_half = placed.folds_along_mm.iter().map(|f| f.abs()).filter(|f| *f > 0.4 * head).fold(0.5 * head, f64::min);
+    placed.table_half_mm = table_half;
+    // The face: a sprig of two leaves end to end along the table's centre line, stalks meeting at the berries.
     let (stalk, longest, wid) = FACE_LEAF;
-    // The longest leaf, in 0.1 mm steps, whose tip still lies on the line on both sides where the table turns
-    // down to its ends: one length for both, so the sprig stays symmetrical.
-    let leaf_on = |len: f64, k: usize, sign: f64| {
+    let mut halos: Vec<Vec<[f64; 3]>> = Vec::new();
+    let len = (longest.min(table_half - TIP_CLEAR_MM - stalk) * 10.0).floor() / 10.0;
+    ensure!(len > 4.4, "no room for a face leaf: table half-length {table_half:.2} mm");
+    for (k, sign) in [-1.0f64, 1.0].into_iter().enumerate() {
         let at = hide.crest_at(&a, sign * (stalk + 0.5 * len));
-        let mut leaf = holly_stamp(&format!("Face leaf, {}", k + 1), at, len, wid, 3, 0.6, FACE_LEAF_HEIGHT, FACE_LEAF_RISE);
-        // A cushioned blade, not a fold: the top swells from the margin to the midrib on both sides alike.
-        leaf.top = StampTop::Dome { crown_mm: FACE_LEAF_RISE };
+        let mut leaf = holly_stamp(&format!("Face leaf, {}", k + 1), at, len, wid, 3, 0.6, FACE_LEAF_EAVES, FACE_LEAF_CROWN);
         // The tip leads away from the heart; theta grows toward -x.
         leaf.rot_deg = if sign < 0.0 { 180.0 } else { 0.0 };
-        if std::env::var("ILEX_DEBUG").is_ok() {
-            if let Err(bad) = leaf.parting_monotone(&d) {
-                eprintln!("face {len:.1} {sign}: {:?}", bad.iter().map(|i| leaf.outline[*i]).map(|p| [(p[0] * 100.0).round() / 100.0, (p[1] * 100.0).round() / 100.0]).collect::<Vec<_>>());
-            }
-        }
-        level_on_line(&d, &mut leaf).then_some(leaf)
-    };
-    let mut len = longest;
-    let pair = loop {
-        let both: Vec<Stamp> = [-1.0f64, 1.0].into_iter().enumerate().filter_map(|(k, sign)| leaf_on(len, k, sign)).collect();
-        if both.len() == 2 {
-            break both;
-        }
-        len -= 0.1;
-        ensure!(len > 4.4, "no face leaf lies on the line");
-    };
-    for leaf in pair {
         placed.leaf_at.push([leaf.theta_deg, leaf.v_mm]);
         placed.face_leaf_mm.push(len);
+        // The halo: the leaf's margin grown by `HALO_MM`, stopping short of the stalk, masked out of the stipple.
+        let stalk_len = (0.12 * len).max(0.35);
+        halos.push(world_outline(&d, &leaf, &grown(&leaf.outline, HALO_MM, -0.5 * len + stalk_len)));
         d.stamps.push(leaf.clone());
         if !blockout {
             d.stamps.extend(leaf_veins(&leaf, len, 4));
         }
     }
-    for (k, (x, z, line)) in FACE_BERRIES.into_iter().enumerate().filter(|(_, b)| b.2 || std::env::var("ILEX_NO_OFFLINE").is_err()) {
-        let at = if line { hide.crest_at(&a, x) } else { on_face(&a, x, z) };
-        placed.berries_at.push([at.0, at.1]);
-        // On the line a gypsy mound casts and pulls; off it any mound's inner flank faces its own mould half, so
-        // those two are drilled flush into the table at the bench.
-        berry(&mut d, &format!("Face berry, {}", k + 1), at, garnet(2.0), if line { Set::FlushMarked } else { Set::FlushBench });
+    let berries: Vec<(f64, f64)> = FACE_BERRIES.into_iter().map(|(x, z)| if z == 0.0 { hide.crest_at(&a, x) } else { on_face(&a, x, z) }).collect();
+    for at in &berries {
+        // A disc `HALO_MM` beyond the stone's girdle.
+        let at = Stamp { theta_deg: at.0, v_mm: at.1, rot_deg: 0.0, ..d.stamps[0].clone() };
+        halos.push(world_outline(&d, &at, &ringdesign_core::outline::circle(2.0 + 2.0 * HALO_MM)));
     }
-    // The cheeks face the pull: a spray each side, leaves struck along it.
+    for (k, at) in berries.into_iter().enumerate() {
+        placed.berries_at.push([at.0, at.1]);
+        berry(&mut d, &format!("Face berry, {}", k + 1), at, garnet(2.0), Set::FlushMarked);
+    }
+    // The cheeks: a spray each side.
     for (side_k, side) in CHEEK_SIDES.into_iter().enumerate().filter(|_| std::env::var("ILEX_NO_CHEEK").is_err()) {
-        for (k, (c, len, wid, turn)) in CHEEK_LEAVES.into_iter().enumerate().filter(|_| std::env::var("ILEX_NO_CHEEK_LEAF").is_err()) {
+        for (k, (c, len, wid, turn)) in CHEEK_LEAVES.into_iter().enumerate() {
             let at = on_cheek(&a, c[0], c[1], side).with_context(|| format!("no cheek at {c:?}"))?;
-            let mut leaf = holly_stamp(&format!("Cheek leaf {}, {}", side_k + 1, k + 1), at, len, wid, 3, 0.45, 0.4, 0.45);
-            leaf.along_pull = true;
+            let mut leaf = holly_stamp(&format!("Cheek leaf {}, {}", side_k + 1, k + 1), at, len, wid, 3, 0.4, CHEEK_LEAF_EAVES, CHEEK_LEAF_CROWN);
             // Theta runs one way round on the cheek facing +z and the other on its mirror.
             leaf.rot_deg = if side > 0.0 { turn } else { 180.0 - turn };
             placed.cheek.push(format!("{} at {:.2} deg, v {:.3}", leaf.name, at.0, at.1));
             d.stamps.push(leaf.clone());
             if !blockout {
-                d.stamps.push(bench_veins(&format!("Cheek leaf veins {}, {}", side_k + 1, k + 1), &leaf, len * 0.86, 3, 0.2));
+                d.stamps.extend(leaf_veins(&leaf, len, 3));
             }
         }
-        for (k, c) in CHEEK_BERRIES.into_iter().enumerate().filter(|_| std::env::var("ILEX_NO_CHEEK_BERRY").is_err()) {
+        for (k, c) in CHEEK_BERRIES.into_iter().enumerate() {
             let at = on_cheek(&a, c[0], c[1], side).with_context(|| format!("no cheek at {c:?}"))?;
             placed.cheek.push(format!("Cheek berry {}, {} at {:.2} deg, v {:.3}", side_k + 1, k + 1, at.0, at.1));
-            berry(&mut d, &format!("Cheek berry {}, {}", side_k + 1, k + 1), at, garnet(1.8), Set::Mound(2.2, CHEEK_MOUND_MM));
+            berry(&mut d, &format!("Cheek berry {}, {}", side_k + 1, k + 1), at, garnet(CHEEK_BERRY_MM), Set::Mound(CHEEK_MOUND_DIA_MM, CHEEK_MOUND_MM));
         }
     }
-    if !blockout {
-        if std::env::var("ILEX_NO_MATTE").is_err() {
-            table_matte(&mut d);
-        }
-    }
-    if !blockout && std::env::var("ILEX_NO_GARLAND").is_err() {
-        garland(&mut d, &a, &hide, &mut placed)?;
+    let (stems, garland_halos) = if !blockout && std::env::var("ILEX_NO_GARLAND").is_err() { garland(&mut d, &a, &hide, &mut placed)? } else { (Vec::new(), Vec::new()) };
+    // The stipple last of the relief, after the seats and the stem, whose Max would flatten it.
+    if !blockout && std::env::var("ILEX_NO_MATTE").is_err() {
+        table_matte(&mut d, &a, &halos);
+        shoulder_stipple(&mut d, &a, &stems, &garland_halos);
     }
     // The textures travel in the design as recipes, baked here as a cold reload bakes them.
     let lib = mf::source_library(&d, &lib).into_owned();
     Ok((d, lib, placed))
 }
 
-/// The table's ground: a fine hammered stipple worked at the bench, inset from the table's edge, so the polished
-/// sprig stands off a matte field. The cast sprig covers it where they meet.
-fn table_matte(d: &mut RingDesign) {
+/// An outline in a stamp's own plane carried onto the ring, mm.
+fn world_outline(d: &RingDesign, at: &Stamp, outline: &[[f64; 2]]) -> Vec<[f64; 3]> {
+    let frame = at.frame(d, &d.field_context());
+    outline.iter().map(|p| frame.point([p[0], p[1], 0.0])).collect()
+}
+
+/// The table's chart `v` as a line in world `z` (the table is flat), fitted to the atlas: `(v at z = 0, v per mm)`.
+fn table_v_of_z(a: &Atlas) -> (f64, f64) {
+    let pts: Vec<(f64, f64)> = a.samples.iter().filter(|s| s.p[1] > a.top - 0.1 && s.n[1] > 0.98 && s.p[0].abs() < 0.3).map(|s| (s.p[2], s.v)).collect();
+    let n = pts.len() as f64;
+    let (mz, mv) = (pts.iter().map(|p| p.0).sum::<f64>() / n, pts.iter().map(|p| p.1).sum::<f64>() / n);
+    let k = pts.iter().map(|p| (p.0 - mz) * (p.1 - mv)).sum::<f64>() / pts.iter().map(|p| (p.0 - mz).powi(2)).sum::<f64>();
+    (mv - k * mz, k)
+}
+
+/// The table's ground: one fine hammered stipple over the whole flat of the table, inset `MATTE_INSET_MM` from its
+/// edge, worked at the bench with a matting punch. Its mask, carried in the design as SVG, is the inset table with a
+/// polished halo cut round every leaf and berry, so nothing stands on the stipple.
+fn table_matte(d: &mut RingDesign, a: &Atlas, halos: &[Vec<[f64; 3]>]) {
     let ctx = d.field_context();
     d.recipes.push(ProcRecipe { name: "Ilex matte".into(), kind: Procedural::Hammered, repeats: 1, quarter_turns: 0, gamma: 1.0, invert: false });
     let mut t = TilingLayer::default_for("Ilex matte", &ctx);
+    let ((t0, t1), (v0, v1)) = table_extent(a);
+    let (v_at, v_per_mm) = table_v_of_z(a);
+    // The chart, as the mask samples it: x the arc round the ring, y the chart v.
+    let (circ, band) = (ctx.circumference_mm, ctx.band_v_len_mm);
+    let to_svg = |p: [f64; 3]| [p[1].atan2(p[0]).to_degrees().rem_euclid(360.0) / 360.0 * circ, v_at + v_per_mm * p[2]];
+    let deg_per_mm = (1.0 / a.top).to_degrees();
+    let inset_deg = MATTE_INSET_MM * deg_per_mm;
+    let (x0, x1) = ((t0 + inset_deg) / 360.0 * circ, (t1 - inset_deg) / 360.0 * circ);
+    let (y0, y1) = (v0 + MATTE_INSET_MM * v_per_mm.abs(), v1 - MATTE_INSET_MM * v_per_mm.abs());
+    let path = |pts: &[[f64; 2]]| {
+        let mut d = format!("M{:.4} {:.4}", pts[0][0], pts[0][1]);
+        for p in &pts[1..] {
+            d.push_str(&format!(" L{:.4} {:.4}", p[0], p[1]));
+        }
+        d + " Z"
+    };
+    let mut svg = format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{circ:.4}\" height=\"{band:.4}\" viewBox=\"0 0 {circ:.4} {band:.4}\">");
+    svg.push_str(&format!("<rect x=\"{x0:.4}\" y=\"{y0:.4}\" width=\"{:.4}\" height=\"{:.4}\" rx=\"0.6\" fill=\"#000\"/>", x1 - x0, y1 - y0));
+    for h in halos {
+        let pts: Vec<[f64; 2]> = h.iter().map(|p| to_svg(*p)).collect();
+        svg.push_str(&format!("<path d=\"{}\" fill=\"#fff\"/>", path(&pts)));
+    }
+    svg.push_str("</svg>");
+    d.svgs.push(ringdesign_core::svg::SvgAlpha { name: "Ilex table mask".into(), svg, invert: false });
     t.height_mm = MATTE_DEPTH_MM;
-    t.repeats_around = 40;
-    t.rows = 2;
-    // Two bands, above and below the sprig, mirrored about the parting line: the leaves and berries stand on the
-    // cast table itself.
-    t.feather_mm = 0.25;
+    t.v_center_mm = 0.5 * (v0 + v1);
+    t.v_span_mm = v1 - v0;
+    // Square cells about STIPPLE_CELL_MM across in real millimetres both ways (chart v is not millimetres here), so
+    // the finest pit holds the 0.15 mm detail and no pit is drawn out into a dash.
+    t.repeats_around = (ctx.circumference_mm / STIPPLE_CELL_MM).round() as u32;
+    t.rows = ((v1 - v0) / v_per_mm.abs() / STIPPLE_CELL_MM).round().max(1.0) as u32;
+    t.feather_mm = 0.0;
     t.continuous = true;
-    // One field either side of the sprig, each struck the same way round, leaving a narrow polished halo along it.
-    for (name, sign) in [("Table matte, upper", 1.0), ("Table matte, lower", -1.0)] {
-        let mut t = t.clone();
-        t.v_center_mm = CREST_V + sign * 0.5 * (MATTE_V.0 + MATTE_V.1);
-        t.v_span_mm = MATTE_V.1 - MATTE_V.0;
-        let mut e = LayerEntry::new(name, Layer::Tiling(t));
+    let mut e = LayerEntry::new("Table stipple", Layer::Tiling(t));
+    e.blend = Blend::Subtract;
+    e.window = Window { enabled: true, theta_deg: 0.5 * (t0 + t1), span_deg: t1 - t0, fade_deg: 0.0, invert: false, v_gate: VGate::Off };
+    e.mask = Some("Ilex table mask".into());
+    // Worked at the bench with a matting punch.
+    e.bench_only = true;
+    d.layers.layers.push(e);
+}
+
+/// Every atlas sample hashed by position, so a point on the ring finds its chart `(theta, v)` fast.
+struct ChartGrid<'a> {
+    a: &'a Atlas,
+    cells: std::collections::HashMap<[i32; 3], Vec<usize>>,
+}
+
+impl<'a> ChartGrid<'a> {
+    const CELL: f64 = 0.3;
+    fn new(a: &'a Atlas) -> Self {
+        let mut cells: std::collections::HashMap<[i32; 3], Vec<usize>> = std::collections::HashMap::new();
+        for (i, s) in a.samples.iter().enumerate() {
+            cells.entry(s.p.map(|c| (c / Self::CELL).floor() as i32)).or_default().push(i);
+        }
+        Self { a, cells }
+    }
+    /// The nearest sample's `(theta, v)`.
+    fn chart(&self, p: [f64; 3]) -> (f64, f64) {
+        let k = p.map(|c| (c / Self::CELL).floor() as i32);
+        let mut best = (f64::MAX, (0.0, 0.0));
+        for dx in -1..=1 {
+            for dy in -1..=1 {
+                for dz in -1..=1 {
+                    for &i in self.cells.get(&[k[0] + dx, k[1] + dy, k[2] + dz]).into_iter().flatten() {
+                        let s = &self.a.samples[i];
+                        let d = (s.p[0] - p[0]).powi(2) + (s.p[1] - p[1]).powi(2) + (s.p[2] - p[2]).powi(2);
+                        if d < best.0 {
+                            best = (d, (s.theta, s.v));
+                        }
+                    }
+                }
+            }
+        }
+        best.1
+    }
+}
+
+/// An SVG path through chart points `[x, y]`, closed or open.
+fn svg_path(pts: &[[f64; 2]], closed: bool) -> String {
+    let mut d = format!("M{:.4} {:.4}", pts[0][0], pts[0][1]);
+    for p in &pts[1..] {
+        d.push_str(&format!(" L{:.4} {:.4}", p[0], p[1]));
+    }
+    if closed { d + " Z" } else { d }
+}
+
+/// The same stipple down both shoulders, from just past the head's end walls to where the shank turns under toward
+/// the palm, which stays bare. The table's polished frame and the head's end walls part the two. Its SVG mask keeps
+/// a polished halo round each garland leaf and along the stem, so the stem and leaves stand on polish.
+fn shoulder_stipple(d: &mut RingDesign, a: &Atlas, stems: &[Vec<[f64; 2]>], halos: &[Vec<[f64; 3]>]) {
+    let ctx = d.field_context();
+    let ((t0, t1), _) = table_extent(a);
+    let (circ, band) = (ctx.circumference_mm, ctx.band_v_len_mm);
+    let x_of = |theta_deg: f64| theta_deg / 360.0 * circ;
+    let grid = ChartGrid::new(a);
+    let spans = [(t0 - SHOULDER_GAP_DEG, 90.0 - PALM_BARE_FROM_DEG), (t1 + SHOULDER_GAP_DEG, 90.0 + PALM_BARE_FROM_DEG)];
+    let (v0, v1) = (SHANK_V.0 - 0.5 * SHANK_V.1, SHANK_V.0 + 0.5 * SHANK_V.1);
+    let mut svg = format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{circ:.4}\" height=\"{band:.4}\" viewBox=\"0 0 {circ:.4} {band:.4}\">");
+    // Each shape drawn three times, a turn apart, so whatever crosses theta 0 lands whole.
+    let copies = [-circ, 0.0, circ];
+    for (from, to) in spans {
+        let (lo, hi) = (x_of(from.min(to)), x_of(from.max(to)));
+        for c in copies {
+            svg.push_str(&format!("<rect x=\"{:.4}\" y=\"{v0:.4}\" width=\"{:.4}\" height=\"{:.4}\" fill=\"#000\"/>", lo + c, hi - lo, v1 - v0));
+        }
+    }
+    // The stem's halo: a stroke as wide as the stem and its halo, in chart v (about 2.07 v per mm on the shank).
+    let width_v = (STEM_MM.0 + 2.0 * GARLAND_HALO_MM) * SHANK_V_PER_MM;
+    for stem in stems {
+        let pts: Vec<[f64; 2]> = stem.iter().map(|p| [x_of(p[0]), p[1]]).collect();
+        for c in copies {
+            let moved: Vec<[f64; 2]> = pts.iter().map(|p| [p[0] + c, p[1]]).collect();
+            svg.push_str(&format!("<path d=\"{}\" fill=\"none\" stroke=\"#fff\" stroke-width=\"{width_v:.4}\" stroke-linecap=\"round\"/>", svg_path(&moved, false)));
+        }
+    }
+    for h in halos {
+        let mut last: Option<f64> = None;
+        let pts: Vec<[f64; 2]> = h
+            .iter()
+            .map(|p| {
+                let (theta, v) = grid.chart(*p);
+                let theta = last.map_or(theta, |prev| prev + crate_wrap(theta - prev));
+                last = Some(theta);
+                [x_of(theta), v]
+            })
+            .collect();
+        for c in copies {
+            let moved: Vec<[f64; 2]> = pts.iter().map(|p| [p[0] + c, p[1]]).collect();
+            svg.push_str(&format!("<path d=\"{}\" fill=\"#fff\"/>", svg_path(&moved, true)));
+        }
+    }
+    svg.push_str("</svg>");
+    d.svgs.push(ringdesign_core::svg::SvgAlpha { name: "Ilex shoulder mask".into(), svg, invert: false });
+    let mut t = TilingLayer::default_for("Ilex matte", &ctx);
+    t.height_mm = MATTE_DEPTH_MM;
+    t.v_center_mm = SHANK_V.0;
+    t.v_span_mm = SHANK_V.1;
+    t.repeats_around = (ctx.circumference_mm / STIPPLE_CELL_MM).round() as u32;
+    t.rows = SHANK_ROWS;
+    t.feather_mm = 0.0;
+    t.continuous = true;
+    for (name, (from, to)) in ["Shoulder stipple, left", "Shoulder stipple, right"].into_iter().zip(spans) {
+        let mut e = LayerEntry::new(name, Layer::Tiling(t.clone()));
         e.blend = Blend::Subtract;
         e.bench_only = true;
-        e.window = Window { enabled: true, theta_deg: 90.0, span_deg: MATTE_SPAN_DEG, fade_deg: 1.0, invert: false, v_gate: Default::default() };
+        e.mask = Some("Ilex shoulder mask".into());
+        e.window = Window { enabled: true, theta_deg: 0.5 * (from + to), span_deg: (to - from).abs() + 2.0, fade_deg: 1.0, invert: false, v_gate: VGate::Off };
         d.layers.layers.push(e);
     }
 }
 
-/// The garland's stem: a round wire on the parting line from the head's end wall down each shoulder, under the
-/// leaves, falling away from the line on both sides as the sand needs.
-fn garland_stem(d: &mut RingDesign, a: &Atlas, hide: &Hide, from_along: f64, to_along: f64) {
-    for (name, sign) in [("Garland stem, left", -1.0f64), ("Garland stem, right", 1.0)] {
-        let mut pts: Vec<[f64; 2]> = Vec::new();
-        let mut last = None;
-        let steps = 24;
-        for k in 0..=steps {
-            let along = sign * (from_along + (to_along - from_along) * k as f64 / steps as f64);
-            let (theta, v) = hide.crest_at(a, along);
-            // Unwrap theta so the path runs on through 0 without a jump.
-            let theta = match last {
-                None => theta,
-                Some(prev) => prev + crate_wrap(theta - prev),
-            };
+/// The garland's stem down each shoulder: short overlapping capsules struck along the band's centre line, each a
+/// cushioned stamp, so its edges are true geometry. Returns each side's path in chart degrees and `v`, for the
+/// stipple's mask.
+fn garland_stem(d: &mut RingDesign, a: &Atlas, hide: &Hide, from_along: f64, to_along: f64) -> Vec<Vec<[f64; 2]>> {
+    let mut paths = Vec::new();
+    let count = ((to_along - from_along) / STEM_PITCH_MM).ceil() as usize;
+    let pitch = (to_along - from_along) / count as f64;
+    // A capsule a pitch and an overlap long.
+    let (len, w) = (pitch + STEM_OVERLAP_MM, STEM_MM.0);
+    let capsule: Vec<[f64; 2]> = (0..48)
+        .map(|i| {
+            let t = std::f64::consts::TAU * i as f64 / 48.0;
+            let (c, sn) = (t.cos(), t.sin());
+            // A stadium: straight sides, round ends.
+            let x = 0.5 * (len - w) * c.signum() * (c.abs() > 1e-9) as u8 as f64 + 0.5 * w * c;
+            [x, 0.5 * w * sn]
+        })
+        .collect();
+    for (side, sign) in [("left", -1.0f64), ("right", 1.0)] {
+        let mut pts = Vec::new();
+        for k in 0..count {
+            let along = sign * (from_along + pitch * (k as f64 + 0.5));
+            let at = hide.crest_at(a, along);
+            d.stamps.push(Stamp {
+                name: format!("Garland stem, {side} {}", k + 1),
+                theta_deg: at.0,
+                v_mm: at.1,
+                rot_deg: 0.0,
+                outline: capsule.clone(),
+                height_mm: STEM_MM.1 - STEM_CROWN_MM,
+                sink_mm: 0.3,
+                draft_deg: 0.0,
+                cut: false,
+                bench: false,
+                along_pull: false,
+                fine_cap: true,
+                tier: 0,
+                top: StampTop::Pillow { crown_mm: STEM_CROWN_MM },
+            });
+        }
+        let mut last: Option<f64> = None;
+        for k in 0..=count {
+            let (theta, v) = hide.crest_at(a, sign * (from_along + pitch * k as f64));
+            let theta = last.map_or(theta, |prev| prev + crate_wrap(theta - prev));
             last = Some(theta);
-            pts.push([theta / 360.0, v]);
+            pts.push([theta, v]);
         }
-        if sign < 0.0 {
-            pts.reverse();
-        }
-        let c = CurveLayer { points: pts, repeats_around: 1, closed: false, width_mm: STEM_MM.0, height_mm: STEM_MM.1, profile: WireProfile::Round, taper: 0.06, mirror_v: false };
-        let mut e = LayerEntry::new(name, Layer::Curve(c));
-        e.blend = Blend::Max;
-        d.layers.layers.push(e);
+        paths.push(pts);
     }
+    paths
 }
 
 fn crate_wrap(d: f64) -> f64 {
     (d + 180.0).rem_euclid(360.0) - 180.0
 }
 
-/// Four graded leaves a side on the parting line down both shoulders, clear of the folds where the line turns
-/// over the head's end walls.
-fn garland(d: &mut RingDesign, a: &Atlas, hide: &Hide, placed: &mut Placed) -> Result<()> {
+/// Seven graded leaves a side down both shoulders on the band's centre line, each turned off the stem by turns and
+/// pivoted on its stalk so the stalk stays on the stem while the blade leans off it.
+fn garland(d: &mut RingDesign, a: &Atlas, hide: &Hide, placed: &mut Placed) -> Result<(Vec<Vec<[f64; 2]>>, Vec<Vec<[f64; 3]>>)> {
     let past_folds = placed.folds_along_mm.iter().map(|f| f.abs()).fold(0.0, f64::max) + 1.0;
     let first = past_folds + 2.8;
-    garland_stem(d, a, hide, 0.5 * d.shank.head.length_mm - 0.3, first + GARLAND_SPAN_MM + 2.6);
+    // The stem starts a millimetre past the fold, where the line has turned down the head's end wall.
+    let stems = garland_stem(d, a, hide, past_folds, first + GARLAND_SPAN_MM + 2.6);
+    let mut halos = Vec::new();
     let from = hide.crest_at(a, -first);
     // The line runs on through theta 0: unwrap the far end below the near one.
     let to = from.0 - (from.0 - hide.crest_at(a, -(first + GARLAND_SPAN_MM)).0).rem_euclid(360.0);
-    let mut leaf = holly_stamp("Garland leaf", (0.0, 0.0), 4.2, 2.4, 3, 0.35, 0.45, 0.18);
+    let mut leaf = holly_stamp("Garland leaf", (0.0, 0.0), 4.2, 2.4, 3, 0.35, GARLAND_EAVES, GARLAND_CROWN);
     // Stations run down the shoulder toward theta 0: the tip leads away from the head.
     leaf.rot_deg = 180.0;
     let row = StampRow { stamp: leaf, path: RowPath::PartingLine, from_deg: from.0, to_deg: to, count: GARLAND_COUNT, taper: 0.24, fold_clear_mm: 1.0, mirror_shoulders: true };
     let struck = stamp_row(d, &row);
-    if std::env::var("ILEX_DEBUG").is_ok() {
-        eprintln!("garland from {from:?} to {to:?}: {:?}", struck.iter().map(|s| (s.name.clone(), s.theta_deg, s.rot_deg)).collect::<Vec<_>>());
-        for along in [8.0, 10.0, 12.0, 14.0, 16.0, 20.0, 25.0, 30.0, 35.0, 40.0] {
-            eprintln!("  along -{along}: {:?} {:?}", hide.crest_at(a, -along), hide.crest_point(a, -along));
-        }
-    }
+    let ctx = d.field_context();
     for s in struck {
-        // Leaves splay off the stem by turns; a station the line will not take as struck moves along it, a little
-        // at a time, and gives up its splay before it gives up its place.
         let k: usize = s.name.rsplit(' ').next().and_then(|n| n.parse().ok()).unwrap_or(1);
         let splay = if k % 2 == 0 { GARLAND_SPLAY_DEG } else { -GARLAND_SPLAY_DEG };
-        let nudged = [splay, 0.0].into_iter().find_map(|turn| {
-            [0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.0, -2.0].into_iter().find_map(|dt| {
-                let one = StampRow { stamp: Stamp { name: s.name.clone(), ..s.clone() }, from_deg: s.theta_deg + dt, to_deg: s.theta_deg + dt, count: 1, mirror_shoulders: false, fold_clear_mm: 0.0, ..row.clone() };
-                let mut m = stamp_row(d, &one).into_iter().next()?;
-                m.name = s.name.clone();
-                m.rot_deg += turn;
-                level_on_line(d, &mut m).then_some((m, dt))
+        let len = s.outline.iter().map(|p| p[0]).fold(f64::MIN, f64::max) - s.outline.iter().map(|p| p[0]).fold(f64::MAX, f64::min);
+        // Turn the leaf, then slide it across the line by the half-leaf's swing, whichever way keeps its stalk on
+        // the stem (the band's mid-plane, z = 0).
+        let shift = 0.5 * len * splay.to_radians().sin().abs();
+        let m = [1.0, -1.0]
+            .into_iter()
+            .map(|sign| {
+                let mut m = s.clone();
+                m.rot_deg += splay;
+                m.v_mm += sign * shift;
+                let stalk = m.frame(d, &ctx).point([-0.5 * len, 0.0, 0.0]);
+                (stalk[2].abs(), m)
             })
-        });
-        match nudged {
-            Some((m, dt)) => {
-                placed.garland.push(format!("{} at {:.2} deg (moved {dt:+.1}), v {:.3}, turned {:.2} deg", m.name, m.theta_deg, m.v_mm, m.rot_deg));
-                d.stamps.push(m);
+            .min_by(|p, q| p.0.total_cmp(&q.0))
+            .map(|(_, m)| m)
+            .expect("two candidates");
+        placed.garland.push(format!("{} at {:.2} deg, v {:.3}, turned {:.2} deg", m.name, m.theta_deg, m.v_mm, m.rot_deg));
+        let lo = m.outline.iter().map(|p| p[0]).fold(f64::MAX, f64::min);
+        halos.push(world_outline(d, &m, &grown(&m.outline, GARLAND_HALO_MM, lo)));
+        d.stamps.push(m);
+    }
+    Ok((stems, halos))
+}
+
+/// The kernel refuses a few otherwise sound placements ("two cuts cross inside a face"), and which depends on the
+/// build size. Nudge each refused stamp, with its veins, by a hair (a third of a degree, a hundredth of a millimetre)
+/// until every build size joins them all.
+fn settle(d: &mut RingDesign, lib: &AlphaLibrary, sizes: &[BuildParams], log: &mut Vec<String>) -> Result<()> {
+    for attempt in 1..=12 {
+        let mut refused = std::collections::BTreeSet::new();
+        for p in sizes {
+            let b = mesh::try_build(d, lib, p.clone())?;
+            refused.extend(b.solids.notes.iter().filter_map(|n| n.split_once(": could not be").map(|(name, _)| name.to_string())));
+            if !refused.is_empty() {
+                break;
             }
-            None => placed.garland.push(format!("{} at {:.2} deg dropped: it would not lie on the line", s.name, s.theta_deg)),
+        }
+        if refused.is_empty() {
+            return Ok(());
+        }
+        let sign = if attempt % 2 == 0 { -1.0 } else { 1.0 };
+        for s in d.stamps.iter_mut().filter(|s| refused.iter().any(|r| s.name == *r || s.name.starts_with(&format!("{r} ")))) {
+            s.rot_deg += sign * 0.35 * attempt as f64;
+            s.v_mm += sign * 0.011 * attempt as f64;
+            if refused.contains(&s.name) {
+                log.push(format!("{}: nudged to rot {:.2} deg, v {:.3} (attempt {attempt})", s.name, s.rot_deg, s.v_mm));
+            }
         }
     }
-    Ok(())
+    anyhow::bail!("stamps still refused after 12 nudges: {log:?}")
 }
 
 // --- Gates -------------------------------------------------------------------------------------------------------
@@ -777,6 +971,15 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
     warnings.dedup();
     let reported = stones.as_ref().map_or(0, |s| s.stone_count as usize);
     let castable = field.verdict == castability::Verdict::Castable;
+    let lost_wax = d.draft.process == CastProcess::LostWax;
+    // Lost wax: the field's thinnest fill, and a ray-cast wall measure on a mesh small enough to sample.
+    let measured = (built.mesh.faces.len() <= 250_000).then(|| ringdesign_core::cad::measure::thickness(&built.mesh, MIN_SECTION_MM));
+    let walls_ok = field.thinnest_wall_mm >= MIN_SECTION_MM - 1e-9;
+    let sand_ok = coarse_release.obstructions.is_empty()
+        && coarse_release.unresolved_rays == 0
+        && fine.obstructions.is_empty()
+        && fine.unresolved_rays == 0
+        && monotone.iter().all(|(_, ok)| *ok);
     let pass = v.watertight
         && q.degenerate_faces == 0
         && crossings == 0
@@ -784,11 +987,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         && built.parts.notes.is_empty()
         && margin >= -0.01
         && castable
-        && coarse_release.obstructions.is_empty()
-        && coarse_release.unresolved_rays == 0
-        && fine.obstructions.is_empty()
-        && fine.unresolved_rays == 0
-        && monotone.iter().all(|(_, ok)| *ok)
+        && (if lost_wax { walls_ok } else { sand_ok })
         && findings.is_empty()
         && reported == previewed
         && closest_gap >= 0.1
@@ -810,6 +1009,12 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         "stamps_struck": built.solids.stamped,
         "seats_resolved": built.solids.resolved,
         "bore_margin_mm": margin,
+        "process": d.draft.process.label(),
+        "min_section_mm": d.draft.min_section_mm,
+        "thinnest_wall_mm_floor": MIN_SECTION_MM,
+        "thinnest_wall_pass": walls_ok,
+        "wall_rays": measured.as_ref().map(|t| json!({ "sampled_min_mm": t.sampled_min_mm, "rays": t.rays, "unresolved": t.unresolved, "below_limit": t.below_limit, "limit_mm": t.limit_mm })),
+        "sand_bonus": json!({ "pulls_from_sand_as_is": sand_ok, "why": "Lost wax ring: the pull, the ray release and the parting-line rule are measured and reported here, never gated." }),
         "field_verdict": field.verdict.label(),
         "field_notes": field.notes,
         "undercut_percent": field.undercut_fraction() * 100.0,
@@ -817,7 +1022,6 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         "thinnest_wall_mm": field.thinnest_wall_mm,
         "release_0100": release_line(coarse_release),
         "release_0100_obstructions": coarse_release.obstructions.len(),
-        "release_0100_status_why": "Review, not Clear, with 0 obstructions: the factory table and bore walls carry under the sand's 3 deg draft (the bare stock reports the same). See the notes.",
         "release_0100_low_draft_area_mm2": coarse_release.low_draft_area_mm2,
         "release_0100_sand_findings": coarse_release.sand_findings.iter().map(|f| format!("{} at [{:.2}, {:.2}, {:.2}]", f.message, f.point[0], f.point[1], f.point[2])).collect::<Vec<_>>(),
         "release_0100_notes": coarse_release.notes,
@@ -827,7 +1031,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         "release_0075_obstruction_at": fine.obstructions.iter().map(|o| format!("[{:.2}, {:.2}, {:.2}] {:.3} mm deep", o.world[0], o.world[1], o.world[2], o.depth_mm)).collect::<Vec<_>>(),
         "release_0075_unresolved": fine.unresolved_rays,
         "clamp_bites_mm": [],
-        "clamp_note": "No painted relief: nothing passes through skin::draft_clamp.",
+        "clamp_note": "No painted relief: nothing passes through skin::draft_clamp (and lost wax has no clamp gate).",
         "parting_monotone": monotone,
         "dfm_findings": findings,
         "stones_reported": reported,
@@ -852,26 +1056,6 @@ const VIEWS: [(&str, f64, f64); 6] = [
     ("shoulder", -0.9, 0.62),
     ("reverse", 1.6, 0.8),
 ];
-
-fn crop(m: &mesh::Mesh, centre: [f64; 3], radius: f64) -> mesh::Mesh {
-    let near = |i: u32| {
-        let p = m.vertices[i as usize];
-        (p.0 as f64 - centre[0]).hypot(p.1 as f64 - centre[1]).hypot(p.2 as f64 - centre[2]) < radius
-    };
-    let mut index = std::collections::HashMap::new();
-    let mut out = mesh::Mesh::default();
-    for f in m.faces.iter().filter(|f| f.iter().all(|&i| near(i))) {
-        let g = f.map(|i| {
-            *index.entry(i).or_insert_with(|| {
-                out.vertices.push(m.vertices[i as usize]);
-                out.normals.push(m.normals.get(i as usize).copied().unwrap_or(mesh::Vec3(0.0, 0.0, 1.0)));
-                (out.vertices.len() - 1) as u32
-            })
-        });
-        out.faces.push(g);
-    }
-    out
-}
 
 fn save_rgb(path: &Path, rgb: &[u8], w: usize, h: usize) -> Result<()> {
     image::save_buffer(path, rgb, w as u32, h as u32, image::ColorType::Rgb8)?;
@@ -902,10 +1086,17 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: mesh::BuildRes
     let frames = ringdesign_core::stones::stone_frames(d);
     let top = fin.metal.vertices.iter().map(|v| v.1 as f64).fold(0.0, f64::max);
     let centre = if frames.is_empty() { [0.0, top, 0.0] } else { [0.0, top - 1.0, 0.0] };
-    let close_metal = crop(&fin.metal, centre, 11.0);
-    let mut close = vec![render::Part::metal(&close_metal, render::GOLD)];
-    close.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    render::write_png_parts(out.join("stones.png"), &close, 0.3, 1.15, edge)?;
+    render::write_png_framed(out.join("stones.png"), &parts, 0.3, 1.15, render::Framing::new(centre, 11.0), edge)?;
+    // Close-ups, framed on the whole ring, never a cropped mesh: one face leaf from above, a cheek spray square on,
+    // and the garland down a shoulder.
+    let leaf_centre = [-4.7, top, 0.0];
+    render::write_png_framed(out.join("leaf.png"), &parts, render::yaw_facing(90.0), 1.35, render::Framing::new(leaf_centre, 5.5), edge)?;
+    let cheek_y = top - 4.0;
+    render::write_png_framed(out.join("cheek.png"), &parts, 0.0, 0.1, render::Framing::new([0.0, cheek_y, 8.5], 7.0), edge)?;
+    // The garland seen square on, down the right shoulder: the camera faces ring angle 150 deg.
+    let (sin, cos) = 150f64.to_radians().sin_cos();
+    let r = 11.6;
+    render::write_png_framed(out.join("garland.png"), &parts, render::yaw_facing(150.0), 1.3, render::Framing::new([r * cos, r * sin, 0.0], 7.0), edge)?;
     // Bare stock against the finished ring, at the hero's angle.
     let mut bare = d.clone();
     bare.imported_base.as_mut().unwrap().bare = true;
@@ -937,7 +1128,7 @@ fn main() -> Result<()> {
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../showcase/vepres/ilex"));
     std::fs::create_dir_all(&out)?;
     println!("Ilex");
-    let step1 = vec![resize_check(FACE)?, resize_check(NATIVE)?];
+    let step1 = vec![resize_check(FACE, SAND)?, resize_check(NATIVE, SAND)?];
     for s in &step1 {
         println!("  resize {s}");
     }
@@ -953,15 +1144,22 @@ fn main() -> Result<()> {
         NATIVE
     };
     println!("  face {} x {} mm", face.0, face.1);
-    let (d, lib, placed) = author(face, blockout)?;
+    let (mut d, lib, mut placed) = author(face, blockout)?;
+    let sizes = if draft { vec![coarse_params(), draft_params()] } else { vec![coarse_params(), draft_params(), export_params()] };
+    settle(&mut d, &lib, &sizes, &mut placed.nudged)?;
     let params = if draft { draft_params() } else { export_params() };
     let (draft_gates, draft_pass, draft_built) = gates(&d, &lib, draft_params())?;
-    println!("  draft: {draft_gates}");
+    println!("  draft: pass {draft_pass}");
+    if std::env::var("ILEX_QUICK").is_ok() {
+        std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&json!({ "placed": placed, "draft": draft_gates }))?)?;
+        let b = if draft { draft_built } else { mesh::try_build(&d, &lib, export_params())? };
+        return renders(&out, &d, &lib, b, if draft { 800 } else { 1600 });
+    }
     let (coarse_gates, coarse_pass, _) = gates(&d, &lib, coarse_params())?;
     println!("  384 x 192: pass {coarse_pass}");
     let (export_gates, export_pass, built) = if draft { (Value::Null, true, draft_built) } else {
         let (g, p, b) = gates(&d, &lib, params)?;
-        println!("  export: {g}");
+        println!("  export: pass {p}");
         (g, p, b)
     };
     library::save_design(out.join("design.ring.json"), &d)?;
@@ -1002,7 +1200,8 @@ fn main() -> Result<()> {
         "slug": "ilex",
         "stage": if blockout { "block-out" } else { "full" },
         "process": d.draft.process.label(),
-        "sand": "Delft clay, 3.0 deg draft, 0.8 mm section, 0.30 mm detail",
+        "process_decision": "Lost wax (Logan, 2026-10-03): the sand gates were what held the sprig back. 0.8 mm minimum section, no pull rule; the sand numbers are kept in each gate block as a bonus.",
+        "crisp_relief": d.crisp_relief,
         "size": d.size.display(),
         "bore_mm": BORE_MM,
         "resize_check": step1,
