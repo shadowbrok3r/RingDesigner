@@ -31,22 +31,19 @@ const PLANE_SINK_MM: f64 = 0.7;
 const CARTOUCHE_LONG_MM: f64 = 7.0;
 const CARTOUCHE_WIDE_MM: f64 = 4.8;
 const CARTOUCHE_CORNER_MM: f64 = 1.0;
-const CORNER_SEGMENTS: usize = 12;
+const CORNER_SEGMENTS: usize = 24;
 const BOSS_MM: f64 = 1.6;
 const BOSS_DRAFT_DEG: f64 = 12.0;
 const BOSS_BLEND_MM: f64 = 0.45;
 const PULL_MM: f64 = 0.8;
 /// The rim radii the native fillet is tried at, largest first.
-const RIM_ROUNDS_MM: [f64; 4] = [0.35, 0.3, 0.25, 0.2];
-const RIM_CHAMFER_MM: f64 = 0.25;
-/// The bright-cut lozenge on the top, round the ring and across. Each half is one sloped plane,
-/// level with the top on the long diagonal and `FACET_DEPTH_MM` deep at its apex, so the two
-/// halves meet on a ridge and catch the light in two tones.
+const RIM_ROUNDS_MM: [f64; 5] = [0.35, 0.3, 0.25, 0.2, 0.15];
+const RIM_CHAMFER_MM: f64 = 0.18;
+/// The bright-cut lozenge on the top, round the ring and across: an inverted pyramid of four
+/// planes, level with the top on the lozenge's edges and `FACET_DEPTH_MM` deep at its centre.
 const FACET_LONG_MM: f64 = 4.6;
 const FACET_WIDE_MM: f64 = 2.6;
 const FACET_DEPTH_MM: f64 = 0.45;
-/// The graver's walls open out above the facet's floor.
-const FACET_WALL_DEG: f64 = -20.0;
 /// How far the cutter stands above the facet's plane: clear of the top everywhere.
 const FACET_CLEAR_MM: f64 = 1.0;
 /// The band's outer arrises are rounded this much.
@@ -172,25 +169,6 @@ fn cartouche(name: &str, long: f64, wide: f64, r: f64, segments: usize) -> Sketc
         });
     }
     s
-}
-
-/// A lozenge `long` along x by `wide` along y, split by its long diagonal into two triangles;
-/// returns the sketch and an entity on each triangle's rim, upper first.
-fn lozenge(name: &str, long: f64, wide: f64) -> (Sketch, Id, Id) {
-    let mut s = Sketch {
-        name: name.into(),
-        ..Sketch::default()
-    };
-    let w = s.point([-long / 2.0, 0.0]);
-    let e = s.point([long / 2.0, 0.0]);
-    let n = s.point([0.0, wide / 2.0]);
-    let so = s.point([0.0, -wide / 2.0]);
-    let upper = s.entity(Geometry::Line { a: e, b: n });
-    s.entity(Geometry::Line { a: n, b: w });
-    let lower = s.entity(Geometry::Line { a: w, b: so });
-    s.entity(Geometry::Line { a: so, b: e });
-    s.entity(Geometry::Line { a: w, b: e });
-    (s, upper, lower)
 }
 
 fn dot(a: P3, b: P3) -> f64 {
@@ -343,36 +321,66 @@ fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
     let (top, height) = top_face(&e, rim, normal)?;
     // The sketch plane leans about the lozenge's long diagonal, falling into the top toward
     // the far apex; the lozenge is drawn stretched across so it lands on the top at its size.
-    let lean = (FACET_DEPTH_MM / (FACET_WIDE_MM / 2.0)).atan();
-    let (mut facet, upper, _lower) = lozenge("Bright-cut lozenge", FACET_LONG_MM, FACET_WIDE_MM / lean.cos());
-    facet.plane.on_face = Some(FaceAnchor { feature: rim, face: face_ref(&e, rim, top) });
-    // Turned half a turn on the top, so the first facet cut is the far half, which faces away
-    // from the hero camera and reads dark against the table.
-    facet.plane.x = [-1.0, 0.0, 0.0];
-    facet.plane.y = [0.0, -lean.cos(), -lean.sin()];
-    let facet_sketch = add(&mut d, "Leaning facet sketch on the top", Operation::Sketch { sketch: facet }, bare())?;
+    // One quarter of the lozenge, drawn on a plane that leans through the quarter's outer edge
+    // (level with the top, from the tip round the ring to the apex across it) and the lozenge's
+    // centre, FACET_DEPTH_MM under the top. Cut and mirrored twice, the four quarters make an
+    // inverted pyramid: the graver's bright-cut, four planes catching light in two tones.
+    let (half_long, half_wide) = (FACET_LONG_MM / 2.0, FACET_WIDE_MM / 2.0);
+    let unit = |v: P3| {
+        let l = dot(v, v).sqrt();
+        v.map(|c| c / l)
+    };
+    let tip = [half_long, 0.0, FACET_DEPTH_MM];
+    let apex = [0.0, half_wide, FACET_DEPTH_MM];
+    let u = unit(tip);
+    let along = dot(apex, u);
+    let v = unit([apex[0] - u[0] * along, apex[1] - u[1] * along, apex[2] - u[2] * along]);
+    let mut quarter = Sketch {
+        name: "Bright-cut quarter".into(),
+        ..Sketch::default()
+    };
+    let corners = [[0.0, 0.0], [dot(tip, u), 0.0], [along, dot(apex, v)]];
+    let ids: Vec<Id> = corners.iter().map(|p| quarter.point(*p)).collect();
+    for k in 0..3 {
+        quarter.entity(Geometry::Line { a: ids[k], b: ids[(k + 1) % 3] });
+    }
+    quarter.plane.on_face = Some(FaceAnchor { feature: rim, face: face_ref(&e, rim, top) });
+    quarter.plane.origin = [0.0, 0.0, -FACET_DEPTH_MM];
+    quarter.plane.x = u;
+    quarter.plane.y = v;
+    let facet_sketch = add(&mut d, "Leaning quarter sketch on the top", Operation::Sketch { sketch: quarter }, bare())?;
+    let bench = || component(ComponentRole::Other, Attach::Cut, Stage::Bench, 0.0);
     let cut = add(
         &mut d,
-        "Bright-cut facet",
+        "Bright-cut quarter",
         Operation::Extrude {
-            sketch: Profile::Region {
-                feature: facet_sketch,
-                region: RegionRef { entity: upper, at: [0.0, FACET_WIDE_MM / 6.0] },
-            },
+            sketch: Profile::Feature { feature: facet_sketch },
             height_mm: FACET_CLEAR_MM,
-            draft_deg: FACET_WALL_DEG,
+            draft_deg: 0.0,
         },
-        component(ComponentRole::Other, Attach::Cut, Stage::Bench, 0.0),
+        bench(),
     )?;
-    add(
+    let across = add(
         &mut d,
-        "Mirror the facet",
+        "Mirror across the band",
         Operation::Pattern {
             sources: cut.into(),
             kind: PatternKind::Mirror { plane: MirrorPlane::Band },
         },
-        component(ComponentRole::Other, Attach::Cut, Stage::Bench, 0.0),
+        bench(),
     )?;
+    // Two single-source mirrors, not one of both: a pattern of several parts is a newer format.
+    for (name, source) in [("Mirror round the ring", cut), ("Mirror the mirror round the ring", across)] {
+        add(
+            &mut d,
+            name,
+            Operation::Pattern {
+                sources: source.into(),
+                kind: PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg: THETA } },
+            },
+            bench(),
+        )?;
+    }
     evaluated(&d, lib)?;
     let crest = d.inner_radius_mm() + d.profile.thickness_mm;
     notes.proud_of_crest_mm = height - crest;
@@ -604,7 +612,7 @@ fn gates(
 // --- Pictures --------------------------------------------------------------------------------
 
 /// The hero looks down on the cartouche from in front and a little to one side.
-const HERO: (f64, f64) = (0.15, 1.15);
+const HERO: (f64, f64) = (0.0, 1.1);
 const VIEWS: [(&str, f64, f64); 6] = [
     ("hero", HERO.0, HERO.1),
     ("face", 0.0, PI * 0.5),
@@ -718,10 +726,12 @@ fn split_long(m: &mut mesh::Mesh, limit: f64) {
 /// Longest triangle edge the renders shade across.
 const RENDER_EDGE_MM: f64 = 0.25;
 
+/// The timeline looks lower than the hero, so a wall's height reads from frame to frame.
+const TIMELINE_VIEW: (f64, f64) = (0.0, 0.95);
 /// The timeline frames each step on the metal this close to the cartouche.
-const TIMELINE_FRAME_MM: f64 = 8.0;
+const TIMELINE_FRAME_MM: f64 = 6.0;
 /// Faces sharper than this read as an edge in the renders.
-const CREASE_DEG: f64 = 25.0;
+const CREASE_DEG: f64 = 10.0;
 
 struct Canvas {
     w: usize,
@@ -887,7 +897,7 @@ fn timeline(out: &Path, d: &RingDesign, lib: &AlphaLibrary) -> Result<()> {
         for m in &extra {
             parts.push(render::Part::tinted_stone(m, [0.25, 0.5, 0.95]));
         }
-        let img = render::render_parts_ss(&parts, HERO.0, HERO.1, cell, cell, 2);
+        let img = render::render_parts_ss(&parts, TIMELINE_VIEW.0, TIMELINE_VIEW.1, cell, cell, 2);
         let (x, y) = ((k % cols) * cell, (k / cols) * (cell + label));
         sheet.blit(&img, cell, cell, x, y + label);
         sheet.text(&format!("{}. {}", k + 1, f.name), 22.0, x + 10, y + 4);

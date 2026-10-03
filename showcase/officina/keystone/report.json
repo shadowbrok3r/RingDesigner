@@ -4,12 +4,13 @@
       "0.35 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting",
       "0.3 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting",
       "0.25 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting",
-      "0.2 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting"
+      "0.2 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting",
+      "0.15 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting"
     ],
-    "proud_of_crest_mm": 1.699999999999994,
-    "rim_edges": 52,
-    "rim_finish": "Chamfer 0.25 mm",
-    "top_height_mm": 12.799999999999994
+    "proud_of_crest_mm": 1.6999999999999762,
+    "rim_edges": 100,
+    "rim_finish": "Chamfer 0.18 mm",
+    "top_height_mm": 12.799999999999976
   },
   "bore_mm": 18.2,
   "draft": {
@@ -18,12 +19,13 @@
         "0.35 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting",
         "0.3 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting",
         "0.25 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting",
-        "0.2 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting"
+        "0.2 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting",
+        "0.15 mm: feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting"
       ],
-      "proud_of_crest_mm": 1.699999999999994,
-      "rim_edges": 52,
-      "rim_finish": "Chamfer 0.25 mm",
-      "top_height_mm": 12.799999999999994
+      "proud_of_crest_mm": 1.6999999999999762,
+      "rim_edges": 100,
+      "rim_finish": "Chamfer 0.18 mm",
+      "top_height_mm": 12.799999999999976
     },
     "bore_mm": 18.2,
     "gates": {
@@ -34,12 +36,12 @@
         768,
         320
       ],
-      "build_s": 1.708739221,
+      "build_s": 1.710445439,
       "closest_to_axis_mm": 9.100014718110659,
       "cold_reload_identical": null,
       "degenerate_faces": 0,
       "dfm_findings": [],
-      "drag_percent": 30.92005209681971,
+      "drag_percent": 31.1523103610996,
       "features": [
         [
           1,
@@ -73,31 +75,45 @@
         ],
         [
           7,
-          "Leaning facet sketch on the top",
+          "Leaning quarter sketch on the top",
           "Ok"
         ],
         [
           8,
-          "Bright-cut facet",
+          "Bright-cut quarter",
           "Ok"
         ],
         [
           9,
-          "Mirror the facet",
+          "Mirror across the band",
+          "Ok"
+        ],
+        [
+          10,
+          "Mirror round the ring",
+          "Ok"
+        ],
+        [
+          11,
+          "Mirror the mirror round the ring",
           "Ok"
         ]
       ],
       "field_notes": [
         "Field-sampled: the surface itself carries no undercut at this parting.",
-        "30.2% of the surface carries less than 3.0 deg of draft or stands parallel to the pull (6.9% marginal, 23.3% vertical). It releases, but it drags on the sand and will want a longer rap. Raise the crown or square the sides to steepen it.",
-        "Extrude \"Bright-cut facet\" (#8) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.5 mm toward the low edge (a dot there leaned to -38° over 0.31 mm²).",
-        "Mirror \"Mirror the facet\" (#9) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.5 mm toward the high edge (a dot there leaned to -38° over 0.31 mm²).",
-        "Judged with the ring as built: 1 CAD part (1 joined, 0 cut) at the parting plane z = +0.00 mm — 57.5 mm² of part surface, 0.0 mm² of it undercut.",
+        "30.2% of the surface carries less than 3.0 deg of draft or stands parallel to the pull (6.9% marginal, 23.2% vertical). It releases, but it drags on the sand and will want a longer rap. Raise the crown or square the sides to steepen it.",
+        "Extrude \"Bright-cut quarter\" (#8) is drilled at the bench: drill mark on the parting line at 93°; the hole's centre is 0.3 mm toward the high edge (a dot there leaned to -38° over 0.18 mm²).",
+        "Mirror \"Mirror across the band\" (#9) is drilled at the bench: drill mark on the parting line at 93°; the hole's centre is 0.3 mm toward the low edge (a dot there leaned to -38° over 0.17 mm²).",
+        "Mirror \"Mirror round the ring\" (#10) is drilled at the bench: drill mark on the parting line at 87°; the hole's centre is 0.3 mm toward the high edge (a dot there leaned to -38° over 0.18 mm²).",
+        "Mirror \"Mirror the mirror round the ring\" (#11) is drilled at the bench: drill mark on the parting line at 87°; the hole's centre is 0.3 mm toward the low edge (a dot there leaned to -38° over 0.17 mm²).",
+        "Judged with the ring as built: 1 CAD part (1 joined, 0 cut) at the parting plane z = +0.00 mm — 60.0 mm² of part surface, 0.0 mm² of it undercut.",
         "Press-pull \"Chamfer the rim\" (#6): 0.0 mm² of undercut leaning to -1° on flanks facing back across the parting plane, 72–108°, 1.4 mm toward the low edge to 1.4 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line."
       ],
       "field_verdict": "Castable with care",
       "inside_finger_hole": 0,
-      "lost_wax_cut_lands": [],
+      "lost_wax_cut_lands": [
+        "cut land: Cut #8 'Bright-cut quarter': 0.00 mm between light 1 and copy 2's light 1 (floor 0.8)"
+      ],
       "lost_wax_thickness_below": 0,
       "made_parts": [
         [
@@ -105,28 +121,36 @@
           0
         ],
         [
-          "Bright-cut facet",
+          "Bright-cut quarter",
           0
         ],
         [
-          "Mirror the facet",
+          "Mirror across the band",
+          0
+        ],
+        [
+          "Mirror round the ring",
+          0
+        ],
+        [
+          "Mirror the mirror round the ring",
           0
         ]
       ],
-      "marginal_area_mm2": 65.56931287111344,
+      "marginal_area_mm2": 65.93850565781126,
       "mesh_self_crossings": 0,
       "non_manifold_edges": 0,
       "parts_judged": [
         [
           "Chamfer the rim",
-          0.028750190755702502,
-          0.3366420858160807,
-          24.46507687475275,
-          57.46569960592112,
-          -1.0113364559933298
+          0.028670774405252956,
+          0.6420796416987695,
+          27.377837845954907,
+          59.97443618213215,
+          -0.9730644171086268
         ],
         [
-          "Bright-cut facet",
+          "Bright-cut quarter",
           0.0,
           0.0,
           0.0,
@@ -134,7 +158,23 @@
           0.0
         ],
         [
-          "Mirror the facet",
+          "Mirror across the band",
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          "Mirror round the ring",
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          "Mirror the mirror round the ring",
           0.0,
           0.0,
           0.0,
@@ -148,42 +188,42 @@
         "degenerate_faces": 0,
         "notes": [],
         "self_crossings": 0,
-        "triangles": 488356,
+        "triangles": 488842,
         "watertight": true
       },
       "release": [
         {
           "fits_flask": true,
-          "low_draft_area_mm2": 400.8100067014861,
+          "low_draft_area_mm2": 402.23255216382375,
           "obstructions": 0,
           "obstructions_at": [],
           "pitch_mm": 0.1,
           "status": "Review",
           "unresolved_rays": 0,
-          "worst_draft_deg": -1.011790651569271
+          "worst_draft_deg": -0.969118778811286
         },
         {
           "fits_flask": true,
-          "low_draft_area_mm2": 400.8100067014861,
+          "low_draft_area_mm2": 402.23255216382375,
           "obstructions": 0,
           "obstructions_at": [],
           "pitch_mm": 0.075,
           "status": "Review",
           "unresolved_rays": 0,
-          "worst_draft_deg": -1.011790651569271
+          "worst_draft_deg": -0.969118778811286
         }
       ],
       "solids_notes": [],
       "stones_previewed": 0,
       "stones_reported": 0,
       "thinnest_wall_mm": 1.8619381350365636,
-      "total_area_mm2": 1001.5639273622368,
-      "triangles": 488416,
-      "undercut_percent": 0.0028705297755102143,
-      "vertical_area_mm2": 244.1147752522437,
+      "total_area_mm2": 1004.072186095762,
+      "triangles": 488928,
+      "undercut_percent": 0.0028554495186981026,
+      "vertical_area_mm2": 246.8531780042181,
       "watertight": true,
       "within_2m_triangles": true,
-      "worst_draft_deg": -1.0113364559933298
+      "worst_draft_deg": -0.9730644171086268
     },
     "min_detail_mm": 0.3,
     "min_draft_deg": 3.0,
@@ -196,16 +236,16 @@
     "verdict_cause": {
       "bare_band_drag_percent": 30.247073932001506,
       "bare_band_verdict": "Castable with care",
-      "cartouche_area_mm2": 57.46569960592112,
-      "cartouche_undercut_mm2": 0.028750190755702502,
-      "cartouche_vertical_mm2": 24.46507687475275,
-      "cartouche_worst_draft_deg": -1.0113364559933298,
+      "cartouche_area_mm2": 59.97443618213215,
+      "cartouche_undercut_mm2": 0.028670774405252956,
+      "cartouche_vertical_mm2": 27.377837845954907,
+      "cartouche_worst_draft_deg": -0.9730644171086268,
       "domed_bare_drag_percent": 4.356598068172454,
       "domed_bare_verdict": "Castable",
-      "domed_with_cartouche_drag_percent": 6.715498791815694,
+      "domed_with_cartouche_drag_percent": 7.030141125544709,
       "domed_with_cartouche_verdict": "Castable with care",
-      "lesson": "The verdict is the lesson, and it has two sources. Pulled along the finger in two-part Delft sand, a flat band's broad crest stands square to the pull: the bare Flat 6.0 x 2.0 already reads 'Castable with care' at 30.2% drag, past the 12% the verdict allows. The cartouche adds its own zero-draft faces: its flat top and its two end walls face round the ring, square to the pull like a signet's table, and its 12 deg draft helps only the two long walls that face across the finger. That is 24.5 of its 57.5 mm2 standing vertical, taking the ring to 30.9% drag and 'Castable with care', with 0 obstructions and 0 unresolved rays at 0.100 and 0.075 mm: it releases, but drags and wants a longer rap. Its 0.029 mm2 judged undercut (worst -1.0 deg) is tessellation on the faceted chamfer corners, below the 0.075 mm ray grid. The cartouche alone carries the verdict on a domed band: the same history on Rivet's LowDome 6.0 x 2.1 turns a 'Castable' band (4.4% drag) into 'Castable with care' (6.7%). No draft angle on the boss can make it Castable; only a draft on the top and the end walls, or another pull, would.",
-      "ring_drag_percent": 30.92005209681971,
+      "lesson": "The verdict is the lesson, and it has two sources. Pulled along the finger in two-part Delft sand, a flat band's broad crest stands square to the pull: the bare Flat 6.0 x 2.0 already reads 'Castable with care' at 30.2% drag, past the 12% the verdict allows. The cartouche adds its own zero-draft faces: its flat top and its two end walls face round the ring, square to the pull like a signet's table, and its 12 deg draft helps only the two long walls that face across the finger. That is 27.4 of its 60.0 mm2 standing vertical, taking the ring to 31.2% drag and 'Castable with care', with 0 obstructions and 0 unresolved rays at 0.100 and 0.075 mm: it releases, but drags and wants a longer rap. Its 0.029 mm2 judged undercut (worst -1.0 deg) is tessellation on the faceted chamfer corners, below the 0.075 mm ray grid. The cartouche alone carries the verdict on a domed band: the same history on Rivet's LowDome 6.0 x 2.1 turns a 'Castable' band (4.4% drag) into 'Castable with care' (7.0%). No draft angle on the boss can make it Castable; only a draft on the top and the end walls, or another pull, would.",
+      "ring_drag_percent": 31.1523103610996,
       "ring_verdict": "Castable with care"
     }
   },
@@ -217,12 +257,12 @@
       1536,
       448
     ],
-    "build_s": 4.318772745,
+    "build_s": 4.740159771,
     "closest_to_axis_mm": 9.100007231490379,
     "cold_reload_identical": true,
     "degenerate_faces": 0,
     "dfm_findings": [],
-    "drag_percent": 30.920919935290588,
+    "drag_percent": 31.151753047677445,
     "features": [
       [
         1,
@@ -256,31 +296,45 @@
       ],
       [
         7,
-        "Leaning facet sketch on the top",
+        "Leaning quarter sketch on the top",
         "Ok"
       ],
       [
         8,
-        "Bright-cut facet",
+        "Bright-cut quarter",
         "Ok"
       ],
       [
         9,
-        "Mirror the facet",
+        "Mirror across the band",
+        "Ok"
+      ],
+      [
+        10,
+        "Mirror round the ring",
+        "Ok"
+      ],
+      [
+        11,
+        "Mirror the mirror round the ring",
         "Ok"
       ]
     ],
     "field_notes": [
       "Field-sampled: the surface itself carries no undercut at this parting.",
-      "30.2% of the surface carries less than 3.0 deg of draft or stands parallel to the pull (6.9% marginal, 23.3% vertical). It releases, but it drags on the sand and will want a longer rap. Raise the crown or square the sides to steepen it.",
-      "Extrude \"Bright-cut facet\" (#8) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.5 mm toward the low edge (a dot there leaned to -38° over 0.31 mm²).",
-      "Mirror \"Mirror the facet\" (#9) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.5 mm toward the high edge (a dot there leaned to -38° over 0.31 mm²).",
-      "Judged with the ring as built: 1 CAD part (1 joined, 0 cut) at the parting plane z = +0.00 mm — 57.5 mm² of part surface, 0.0 mm² of it undercut.",
-      "Press-pull \"Chamfer the rim\" (#6): 0.0 mm² of undercut leaning to -1° on flanks facing back across the parting plane, 72–108°, 1.4 mm toward the low edge to 1.4 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line."
+      "30.2% of the surface carries less than 3.0 deg of draft or stands parallel to the pull (6.9% marginal, 23.2% vertical). It releases, but it drags on the sand and will want a longer rap. Raise the crown or square the sides to steepen it.",
+      "Extrude \"Bright-cut quarter\" (#8) is drilled at the bench: drill mark on the parting line at 93°; the hole's centre is 0.3 mm toward the high edge (a dot there leaned to -38° over 0.18 mm²).",
+      "Mirror \"Mirror across the band\" (#9) is drilled at the bench: drill mark on the parting line at 93°; the hole's centre is 0.3 mm toward the low edge (a dot there leaned to -38° over 0.17 mm²).",
+      "Mirror \"Mirror round the ring\" (#10) is drilled at the bench: drill mark on the parting line at 87°; the hole's centre is 0.3 mm toward the high edge (a dot there leaned to -38° over 0.18 mm²).",
+      "Mirror \"Mirror the mirror round the ring\" (#11) is drilled at the bench: drill mark on the parting line at 87°; the hole's centre is 0.3 mm toward the low edge (a dot there leaned to -38° over 0.17 mm²).",
+      "Judged with the ring as built: 1 CAD part (1 joined, 0 cut) at the parting plane z = +0.00 mm — 60.0 mm² of part surface, 0.0 mm² of it undercut.",
+      "Press-pull \"Chamfer the rim\" (#6): 0.0 mm² of undercut leaning to -1° on flanks facing back across the parting plane, 72–108°, 1.3 mm toward the low edge to 1.3 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line."
     ],
     "field_verdict": "Castable with care",
     "inside_finger_hole": 0,
-    "lost_wax_cut_lands": [],
+    "lost_wax_cut_lands": [
+      "cut land: Cut #8 'Bright-cut quarter': 0.00 mm between light 1 and copy 2's light 1 (floor 0.8)"
+    ],
     "lost_wax_thickness_below": 0,
     "made_parts": [
       [
@@ -288,28 +342,36 @@
         0
       ],
       [
-        "Bright-cut facet",
+        "Bright-cut quarter",
         0
       ],
       [
-        "Mirror the facet",
+        "Mirror across the band",
+        0
+      ],
+      [
+        "Mirror round the ring",
+        0
+      ],
+      [
+        "Mirror the mirror round the ring",
         0
       ]
     ],
-    "marginal_area_mm2": 65.55779028534035,
+    "marginal_area_mm2": 65.88835493278133,
     "mesh_self_crossings": 0,
     "non_manifold_edges": 0,
     "parts_judged": [
       [
         "Chamfer the rim",
-        0.013291375506845272,
-        0.3251195000429894,
-        24.48598427032184,
-        57.46794033072942,
-        -0.7792141131548396
+        0.015269322869921498,
+        0.5919289166688378,
+        27.421963828603342,
+        59.973059330821236,
+        -0.7492569527136874
       ],
       [
-        "Bright-cut facet",
+        "Bright-cut quarter",
         0.0,
         0.0,
         0.0,
@@ -317,7 +379,23 @@
         0.0
       ],
       [
-        "Mirror the facet",
+        "Mirror across the band",
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        "Mirror round the ring",
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        "Mirror the mirror round the ring",
         0.0,
         0.0,
         0.0,
@@ -331,42 +409,42 @@
       "degenerate_faces": 0,
       "notes": [],
       "self_crossings": 0,
-      "triangles": 1344036,
+      "triangles": 1344484,
       "watertight": true
     },
     "release": [
       {
         "fits_flask": true,
-        "low_draft_area_mm2": 402.36868602483054,
+        "low_draft_area_mm2": 403.7564994347417,
         "obstructions": 0,
         "obstructions_at": [],
         "pitch_mm": 0.1,
         "status": "Review",
         "unresolved_rays": 0,
-        "worst_draft_deg": -0.7761214313253977
+        "worst_draft_deg": -0.7487056768087521
       },
       {
         "fits_flask": true,
-        "low_draft_area_mm2": 402.36868602483054,
+        "low_draft_area_mm2": 403.7564994347417,
         "obstructions": 0,
         "obstructions_at": [],
         "pitch_mm": 0.075,
         "status": "Review",
         "unresolved_rays": 0,
-        "worst_draft_deg": -0.7761214313253977
+        "worst_draft_deg": -0.7487056768087521
       }
     ],
     "solids_notes": [],
     "stones_previewed": 0,
     "stones_reported": 0,
     "thinnest_wall_mm": 1.8619381350365636,
-    "total_area_mm2": 1001.5661680870451,
-    "triangles": 1344106,
-    "undercut_percent": 0.001327059152989494,
-    "vertical_area_mm2": 244.13568264781279,
+    "total_area_mm2": 1004.0708092444511,
+    "triangles": 1344544,
+    "undercut_percent": 0.0015207416378742694,
+    "vertical_area_mm2": 246.89730398686655,
     "watertight": true,
     "within_2m_triangles": true,
-    "worst_draft_deg": -0.7792141131548396
+    "worst_draft_deg": -0.7492569527136874
   },
   "min_detail_mm": 0.3,
   "min_draft_deg": 3.0,
@@ -379,16 +457,16 @@
   "verdict_cause": {
     "bare_band_drag_percent": 30.247073932001506,
     "bare_band_verdict": "Castable with care",
-    "cartouche_area_mm2": 57.46794033072942,
-    "cartouche_undercut_mm2": 0.013291375506845272,
-    "cartouche_vertical_mm2": 24.48598427032184,
-    "cartouche_worst_draft_deg": -0.7792141131548396,
+    "cartouche_area_mm2": 59.973059330821236,
+    "cartouche_undercut_mm2": 0.015269322869921498,
+    "cartouche_vertical_mm2": 27.421963828603342,
+    "cartouche_worst_draft_deg": -0.7492569527136874,
     "domed_bare_drag_percent": 4.356598068172454,
     "domed_bare_verdict": "Castable",
-    "domed_with_cartouche_drag_percent": 6.715498791815694,
+    "domed_with_cartouche_drag_percent": 7.030141125544709,
     "domed_with_cartouche_verdict": "Castable with care",
-    "lesson": "The verdict is the lesson, and it has two sources. Pulled along the finger in two-part Delft sand, a flat band's broad crest stands square to the pull: the bare Flat 6.0 x 2.0 already reads 'Castable with care' at 30.2% drag, past the 12% the verdict allows. The cartouche adds its own zero-draft faces: its flat top and its two end walls face round the ring, square to the pull like a signet's table, and its 12 deg draft helps only the two long walls that face across the finger. That is 24.5 of its 57.5 mm2 standing vertical, taking the ring to 30.9% drag and 'Castable with care', with 0 obstructions and 0 unresolved rays at 0.100 and 0.075 mm: it releases, but drags and wants a longer rap. Its 0.013 mm2 judged undercut (worst -0.8 deg) is tessellation on the faceted chamfer corners, below the 0.075 mm ray grid. The cartouche alone carries the verdict on a domed band: the same history on Rivet's LowDome 6.0 x 2.1 turns a 'Castable' band (4.4% drag) into 'Castable with care' (6.7%). No draft angle on the boss can make it Castable; only a draft on the top and the end walls, or another pull, would.",
-    "ring_drag_percent": 30.920919935290588,
+    "lesson": "The verdict is the lesson, and it has two sources. Pulled along the finger in two-part Delft sand, a flat band's broad crest stands square to the pull: the bare Flat 6.0 x 2.0 already reads 'Castable with care' at 30.2% drag, past the 12% the verdict allows. The cartouche adds its own zero-draft faces: its flat top and its two end walls face round the ring, square to the pull like a signet's table, and its 12 deg draft helps only the two long walls that face across the finger. That is 27.4 of its 60.0 mm2 standing vertical, taking the ring to 31.2% drag and 'Castable with care', with 0 obstructions and 0 unresolved rays at 0.100 and 0.075 mm: it releases, but drags and wants a longer rap. Its 0.015 mm2 judged undercut (worst -0.7 deg) is tessellation on the faceted chamfer corners, below the 0.075 mm ray grid. The cartouche alone carries the verdict on a domed band: the same history on Rivet's LowDome 6.0 x 2.1 turns a 'Castable' band (4.4% drag) into 'Castable with care' (7.0%). No draft angle on the boss can make it Castable; only a draft on the top and the end walls, or another pull, would.",
+    "ring_drag_percent": 31.151753047677445,
     "ring_verdict": "Castable with care"
   },
   "template_gate": {
@@ -396,11 +474,11 @@
     "patches": [
       {
         "graph": "Keystone — a drafted cartouche",
-        "node": 24,
+        "node": 28,
         "pointer": "/manufacturing"
       }
     ],
-    "template_bytes": 74557,
+    "template_bytes": 127143,
     "class": "procedural",
     "budget_bytes": 300000,
     "within_budget": true,
@@ -408,8 +486,8 @@
     "mesh_parity": true,
     "cold_graph_reload": true,
     "export_geometry_verified": true,
-    "nodes": 16,
-    "triangles": 1344106,
+    "nodes": 18,
+    "triangles": 1344544,
     "cad_feature_nodes": [
       "Band",
       "Work plane over the top",
@@ -417,9 +495,11 @@
       "Drafted boss",
       "Press-pull the top",
       "Chamfer the rim",
-      "Leaning facet sketch on the top",
-      "Bright-cut facet",
-      "Mirror the facet"
+      "Leaning quarter sketch on the top",
+      "Bright-cut quarter",
+      "Mirror across the band",
+      "Mirror round the ring",
+      "Mirror the mirror round the ring"
     ],
     "passed": true
   }
