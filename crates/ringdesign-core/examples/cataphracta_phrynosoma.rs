@@ -307,10 +307,15 @@ struct HornSpec {
 /// edge, each clear of the next, all swept back and out over the back wall. The two occipitals beside the midline
 /// are the longest, 1.6 times the temporals, which step shorter outboard.
 const CROWN: [HornSpec; 3] = [
-    HornSpec { kind: Kind::Occipital, root: [1.15, -6.35], splay_deg: 7.0, rise_deg: 9.0, len: 4.0, ra: 0.66, rb: 0.14 },
-    HornSpec { kind: Kind::Temporal, root: [3.7, -6.35], splay_deg: 19.0, rise_deg: 7.0, len: 2.5, ra: 0.54, rb: 0.14 },
-    HornSpec { kind: Kind::Temporal, root: [6.3, -6.2], splay_deg: 33.0, rise_deg: 5.0, len: 2.1, ra: 0.48, rb: 0.14 },
+    HornSpec { kind: Kind::Occipital, root: [1.6, -6.3], splay_deg: 12.0, rise_deg: 26.0, len: 2.75, ra: 0.78, rb: 0.2 },
+    HornSpec { kind: Kind::Temporal, root: [4.05, -6.3], splay_deg: 20.0, rise_deg: 22.0, len: 1.72, ra: 0.56, rb: 0.2 },
+    HornSpec { kind: Kind::Temporal, root: [6.3, -6.2], splay_deg: 28.0, rise_deg: 20.0, len: 1.5, ra: 0.52, rb: 0.2 },
 ];
+/// The snout: the skull's outline leaves the shield's tapering sides at `SNOUT_FROM_Z` and closes in a half-ellipse,
+/// so the nose is blunt and rounded, about 39% of the back's width, overhanging the factory point as the snout's lip.
+const SNOUT_FROM_Z: f64 = 4.0;
+const SNOUT_HALF_MM: f64 = 7.9;
+const SNOUT_REACH_MM: f64 = 6.3;
 /// A horn's root stands this high over the table, and is blended into the plates over this radius, mm.
 const HORN_ROOT_H_MM: f64 = 0.45;
 const HORN_BLEND_MM: f64 = 0.25;
@@ -327,25 +332,25 @@ const PLATE_JITTER: [f64; 2] = [0.16, 0.26];
 const JOINT_HALF_MM: f64 = 0.175;
 /// The plates stop this far inside the factory table's edge, so its hard wall-to-face angle stays.
 const PLATE_INSET_MM: f64 = 0.32;
-/// The eyes on the skull's sides and the brow ridge over each: centre (x, h, z) and semi-axes, mm.
-const EYE_AT: P3 = [7.35, 0.62, 1.2];
-const EYE_R: P3 = [0.78, 0.68, 0.9];
-const BROW_AT: P3 = [6.55, 1.05, 0.9];
-const BROW_R: P3 = [0.7, 0.38, 1.3];
+/// The eyes on the skull's widest part, each a dome sunk in a socket: centre (x, h, z) and semi-axes, mm.
+const EYE_AT: P3 = [6.35, 0.72, 0.6];
+const EYE_R: P3 = [0.78, 0.55, 0.92];
+/// The socket the eye sits in: a recess cut into the plates round it, its radius past the eye's and its depth, mm.
+const SOCKET_GROW_MM: f64 = 0.38;
+
 /// The skull is domed: its plates stand on a crown rising this high from the table's edge to the midline, mm.
 const SKULL_DOME_MM: f64 = 0.5;
 const SKULL_DOME_RUN_MM: f64 = 4.0;
 /// The nostrils: two pits near the snout, (x, z) and radius, mm.
-const NOSTRIL: [f64; 3] = [0.85, 8.3, 0.22];
+const NOSTRIL: [f64; 3] = [0.95, 9.0, 0.22];
 /// The jaw fringe along the tapering sides: how many a side, the span along z, and the scale's length, half-width
 /// and thickness at the back and at the snout, mm.
 const JAW_SCALES: usize = 9;
-const JAW_SPAN_Z: [f64; 2] = [-0.4, 8.0];
-const JAW_LEN_MM: [f64; 2] = [1.35, 0.7];
-const JAW_HALF_MM: [f64; 2] = [0.3, 0.2];
-const JAW_THICK_MM: f64 = 0.28;
+const JAW_SPAN_Z: [f64; 2] = [-4.8, 6.6];
+const JAW_LEN_MM: [f64; 2] = [1.55, 0.9];
+const JAW_HALF_MM: [f64; 2] = [0.32, 0.24];
 /// A jaw scale's point turns back from straight out by this angle, degrees.
-const JAW_SWEEP_DEG: f64 = 35.0;
+const JAW_SWEEP_DEG: f64 = 28.0;
 
 /// A repeatable number in 0..1 for a key and a salt.
 fn hash(k: u64, salt: u64) -> f64 {
@@ -385,6 +390,16 @@ struct Head {
     top: f64,
 }
 
+/// The skull's outline in plan: the table's own edge back of the snout, then the snout's half-ellipse.
+fn skull_edge(table: &Table, x: f64, z: f64) -> f64 {
+    // The two overlap by 1.5 mm, so their union has no seam where they meet.
+    let back = table.edge(x, z).max(z - SNOUT_FROM_Z - 1.5);
+    let (a, b) = (SNOUT_HALF_MM, SNOUT_REACH_MM);
+    let k = ((x / a).powi(2) + ((z - SNOUT_FROM_Z) / b).powi(2)).sqrt();
+    let cap = ((k - 1.0) * a.min(b)).max(SNOUT_FROM_Z - 1.5 - z);
+    back.min(cap)
+}
+
 impl Head {
     fn new(table: &Table) -> Self {
         let mut plates = Vec::new();
@@ -397,7 +412,7 @@ impl Head {
                 let jz = (hash(salt, 2) - 0.5) * 2.0 * PLATE_JITTER[1] * pitch;
                 for s in if x > 0.0 { vec![-1.0, 1.0] } else { vec![1.0] } {
                     let c = [s * (x + jx), z + jz];
-                    if table.edge(c[0], c[1]) < -0.45 {
+                    if skull_edge(table, c[0], c[1]) < -0.45 {
                         plates.push((if x > 0.0 { c } else { [0.0, c[1]] }, tier));
                     }
                 }
@@ -426,20 +441,20 @@ impl Head {
                 let (mut lo, mut hi) = (0.0, 12.0);
                 for _ in 0..40 {
                     let m = 0.5 * (lo + hi);
-                    if table.edge(s * m, z) < 0.0 { lo = m } else { hi = m }
+                    if skull_edge(table, s * m, z) < 0.0 { lo = m } else { hi = m }
                 }
                 let xe = s * lo;
                 // The edge's outward normal in plan, turned back toward the crown.
                 let e = 0.05;
-                let grad = [table.edge(xe + e, z) - table.edge(xe - e, z), table.edge(xe, z + e) - table.edge(xe, z - e)];
+                let grad = [skull_edge(table, xe + e, z) - skull_edge(table, xe - e, z), skull_edge(table, xe, z + e) - skull_edge(table, xe, z - e)];
                 let out = norm([grad[0], 0.0, grad[1]]);
                 let (sb, cb) = JAW_SWEEP_DEG.to_radians().sin_cos();
                 let t = norm([out[0] * cb, 0.0, out[2] * cb - sb]);
                 let n = [0.0, 1.0, 0.0];
                 let b = norm(cross(n, t));
                 let (len, half) = (JAW_LEN_MM[0] + (JAW_LEN_MM[1] - JAW_LEN_MM[0]) * g, JAW_HALF_MM[0] + (JAW_HALF_MM[1] - JAW_HALF_MM[0]) * g);
-                let root = [xe - out[0] * 0.2, table.surface(xe - out[0] * 0.4, z) + 0.1, z - out[2] * 0.2];
-                jaw.push(Stud { kind: Kind::JawFringe, c: root, t, n, b, size: [len, half, JAW_THICK_MM] });
+                let root = [xe - out[0] * 0.12, table.top + 0.12, z - out[2] * 0.12];
+                jaw.push(Stud { kind: Kind::JawFringe, c: root, t, n, b, size: [len, half, half] });
             }
         }
         Self { plates, horns, jaw, top: table.top }
@@ -460,7 +475,7 @@ impl Head {
         let (a, b) = (self.plates[i1].0, self.plates[i2].0);
         let edge = (d2 - d1) / (2.0 * (a[0] - b[0]).hypot(a[1] - b[1]).max(1e-9));
         let t = TIER_MM[self.plates[i1].1];
-        JOINT_FLOOR_MM + (t - JOINT_FLOOR_MM) * (edge / JOINT_HALF_MM).min(1.0) + 0.05 * smoothstep(0.25, 0.9, edge)
+        JOINT_FLOOR_MM + (t - JOINT_FLOOR_MM) * (edge / JOINT_HALF_MM).min(1.0)
     }
     /// The skull's crown under the plates at a point `edge` from the table's edge.
     fn dome(&self, edge: f64) -> f64 {
@@ -469,8 +484,9 @@ impl Head {
     /// The skull's relief over the table at a world point: the plates inside the table's edge, the brows and eyes on
     /// its sides, the nostrils pitted into the snout.
     fn skull_at(&self, table: &Table, p: P3) -> f64 {
-        let h = p[1] - table.surface(p[0], p[2]);
-        let edge = table.edge(p[0], p[2]);
+        // The table is flat (it falls 0.01 mm), so the skull stands on its plane; the snout's lip runs on over the point.
+        let h = p[1] - table.top;
+        let edge = skull_edge(table, p[0], p[2]);
         // Far off the table's relief the plates cannot be nearest: a bound is enough.
         let far = (h - 2.0).max(FLOOR_MM - 0.3 - h).max(edge - 1.4);
         if far > 0.0 {
@@ -480,10 +496,10 @@ impl Head {
         let mut f = (h - top).max(edge + PLATE_INSET_MM).max(FLOOR_MM - h);
         for s in [-1.0, 1.0] {
             let q = [p[0], h, p[2]];
-            let brow = [s * BROW_AT[0], BROW_AT[1], BROW_AT[2]];
-            f = smin(f, ellipsoid(sub(q, brow), BROW_R), 0.3);
             let eye = [s * EYE_AT[0], EYE_AT[1], EYE_AT[2]];
-            f = smin(f, ellipsoid(sub(q, eye), EYE_R), 0.12);
+            let socket = ellipsoid(sub(q, [eye[0], top, eye[2]]), [EYE_R[0] + SOCKET_GROW_MM, 0.45, EYE_R[2] + SOCKET_GROW_MM]);
+            f = smax(f, -socket, 0.12);
+            f = f.min(ellipsoid(sub(q, eye), EYE_R));
             let n = [s * NOSTRIL[0], top, NOSTRIL[1]];
             f = smax(f, -(dot(sub(q, n), sub(q, n)).sqrt() - NOSTRIL[2]), 0.05);
         }
@@ -515,14 +531,12 @@ impl Head {
             }
         }
         if best.1 == Kind::Skull {
-            let h = p[1] - table.surface(p[0], p[2]);
+            let h = p[1] - table.top;
             let q = [p[0].abs(), h, p[2]];
             if ellipsoid(sub(q, EYE_AT), EYE_R) < 0.05 {
                 return Kind::Eye;
             }
-            if ellipsoid(sub(q, BROW_AT), BROW_R) < 0.05 {
-                return Kind::Brow;
-            }
+
         }
         best.1
     }
@@ -563,9 +577,8 @@ const CREST_DOME_MM: [f64; 2] = [0.45, 0.28];
 /// The fringe: pitch along the rim, scale length, half-width and thickness, at the head's end and at the palm's, mm.
 const FRINGE_FROM_DEG: f64 = 64.0;
 const FRINGE_PITCH_MM: [f64; 2] = [1.25, 0.8];
-const FRINGE_LEN_MM: [f64; 2] = [1.35, 0.7];
-const FRINGE_HALF_MM: [f64; 2] = [0.45, 0.26];
-const FRINGE_THICK_MM: [f64; 2] = [0.32, 0.25];
+const FRINGE_LEN_MM: [f64; 2] = [1.25, 0.7];
+const FRINGE_HALF_MM: [f64; 2] = [0.42, 0.28];
 /// A fringe scale's point leans off the rim, out past the wall, by this angle from the ring's direction, degrees.
 const FRINGE_LEAN_DEG: f64 = 58.0;
 /// The fringe's rim: where the shank's outward normal leans this far from radial toward the finger axis.
@@ -588,18 +601,18 @@ impl Stud {
         let d = sub(p, self.c);
         let l = [dot(d, self.t), dot(d, self.n), dot(d, self.b)];
         match self.kind {
-            Kind::Fringe => {
+            Kind::Fringe | Kind::JawFringe => {
                 // A flattened cone from a broad round root to a fine point.
                 let (len, half, thick) = (self.size[0], self.size[1], self.size[2]);
                 let k = half / thick;
-                round_cone([l[0], l[1] * k, l[2]], [-0.25 * len, 0.0, 0.0], [0.75 * len, 0.0, 0.0], half, 0.05) / k
+                round_cone([l[0], l[1] * k, l[2]], [-0.25 * len, 0.0, 0.0], [0.75 * len, 0.0, 0.0], half, 0.12) / k
             }
             _ => ellipsoid(l, [self.size[0], self.size[1], self.size[0]]),
         }
     }
     fn reach(&self) -> f64 {
         match self.kind {
-            Kind::Fringe => 0.75 * self.size[0] + self.size[1],
+            Kind::Fringe | Kind::JawFringe => 0.75 * self.size[0] + self.size[1],
             _ => self.size[0].max(self.size[1]),
         }
     }
@@ -760,7 +773,7 @@ fn head_hide(surf: &Surface, head: &Head, table: &Table) -> Studs {
     let mut taken = Taken::new();
     let free = |s: &Sample| {
         // The cheeks under the table's edge, clear of the table itself, the horns and the jaw fringe.
-        let below = s.p[1] < table.top - 0.9 || table.edge(s.p[0], s.p[2]) > 0.9;
+        let below = (s.p[1] < table.top - 1.8 || table.edge(s.p[0], s.p[2]) > 0.9) && skull_edge(table, s.p[0], s.p[2]) > 0.25;
         let horn = head.horns.iter().map(|h| round_cone(s.p, h.a, h.b, h.ra, h.rb)).fold(f64::MAX, f64::min);
         let jaw = head.jaw.iter().map(|j| j.eval(s.p)).fold(f64::MAX, f64::min);
         Surface::off(s).abs() < HEAD_REGION_DEG && below && horn > 0.15 && jaw > 0.12
@@ -848,7 +861,7 @@ fn shoulder_hides(surf: &Surface) -> Vec<Studs> {
                 }
                 // The fringe grows in over its first scales where the shoulder leaves the star.
                 let grow = smoothstep(FRINGE_FROM_DEG - 1.0, FRINGE_FROM_DEG + 12.0, o).max(0.5);
-                let (len, half, thick) = (lerp2(FRINGE_LEN_MM, g) * grow, lerp2(FRINGE_HALF_MM, g) * grow.sqrt(), lerp2(FRINGE_THICK_MM, g));
+                let (len, half, thick) = (lerp2(FRINGE_LEN_MM, g) * grow, lerp2(FRINGE_HALF_MM, g) * grow.sqrt(), lerp2(FRINGE_HALF_MM, g) * grow.sqrt());
                 let c = add(sub(p, mul(n, 0.4 * thick)), mul(b, 0.1));
                 // The point runs palmward and out past the wall, so the rim's silhouette is serrated.
                 let (sl, cl) = FRINGE_LEAN_DEG.to_radians().sin_cos();
@@ -909,10 +922,12 @@ fn sculpt_solid(name: &str, lo: P3, hi: P3, faces: usize, field: &(dyn Fn(P3) ->
     let mut nets = None;
     for (k, cap) in [2e-3, 1e-3, 5e-4].into_iter().enumerate() {
         let d = sculpt::decimate(&raw, faces, cap, 2.0 + k as f64, 18.0, 35.0);
-        if sculpt::crossing_sites(&d).is_empty() {
+        let sites = sculpt::crossing_sites(&d);
+        if sites.is_empty() {
             nets = Some(d);
             break;
         }
+        notes.push(format!("decimation at cap {cap} crossed at {:?}", sites.iter().take(4).map(|p| p.map(|x| (x * 100.0).round() / 100.0)).collect::<Vec<_>>()));
     }
     let nets = nets.unwrap_or_else(|| {
         notes.push("decimated by the clean fallback".into());
@@ -1039,53 +1054,6 @@ fn bore_intrusion(d: &RingDesign, m: &mesh::Mesh) -> (f64, usize) {
     (least, inside)
 }
 
-/// A sculpt's sections face by face, gathered by the shape nearest each face: the thinnest, and the area under the
-/// fill floor. Faces `skip` holds (buried in the stock) are left out.
-fn land_census(solid: &csg::Solid, kind: &dyn Fn(P3) -> Kind, skip: &dyn Fn(P3) -> bool) -> Vec<(Kind, f64, f64, P3)> {
-    use ringdesign_core::interaction::bvh::Bvh;
-    let m = mesh::Mesh {
-        vertices: solid.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(),
-        faces: solid.f.clone(),
-        ..Default::default()
-    };
-    let bvh = Bvh::build(&m);
-    const IN: f64 = 1e-4;
-    let mut out: Vec<(Kind, f64, f64, P3)> = Vec::new();
-    for f in &solid.f {
-        let [a, b, c] = f.map(|i| solid.v[i as usize]);
-        let (e1, e2) = (sub(b, a), sub(c, a));
-        let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
-        let twice = dot(n, n).sqrt();
-        if !(twice > 1e-14) {
-            continue;
-        }
-        let centre = mul(add(add(a, b), c), 1.0 / 3.0);
-        if skip(centre) {
-            continue;
-        }
-        let inward = mul(n, -1.0 / twice);
-        let o = add(centre, mul(inward, IN));
-        let Some((_, t)) = bvh.ray(&m, o, inward) else { continue };
-        let section = t + IN;
-        let kind = kind(centre);
-        let i = match out.iter().position(|e| e.0 == kind) {
-            Some(i) => i,
-            None => {
-                out.push((kind, f64::MAX, 0.0, [0.0; 3]));
-                out.len() - 1
-            }
-        };
-        if section < out[i].1 {
-            out[i].1 = section;
-            out[i].3 = centre;
-        }
-        if section < MIN_SECTION_MM {
-            out[i].2 += 0.5 * twice;
-        }
-    }
-    out
-}
-
 const VIEWS: [(&str, f64, f64); 6] = [
     ("hero", 0.15, 0.85),
     ("face", 0.0, PI * 0.5),
@@ -1174,6 +1142,12 @@ fn main() -> Result<()> {
     if std::env::var("PHRYNO_TABLE").is_ok() {
         let d = base()?;
         let a = Atlas::of(&d, 1440, 320)?;
+        for z in [5.0, 6.0, 7.0, 8.0, 9.0, 9.8] {
+            let ys: Vec<f64> = a.samples.iter().filter(|s| s.p[0].abs() < 0.4 && (s.p[2] - z).abs() < 0.25).map(|s| s.p[1]).collect();
+            let lo = ys.iter().copied().fold(f64::MAX, f64::min);
+            let hi = ys.iter().copied().fold(f64::MIN, f64::max);
+            println!("x=0 z {z}: y from {lo:.2} to {hi:.2} ({} samples)", ys.len());
+        }
         for z in (-10..=10).map(|i| i as f64) {
             let mut row = String::new();
             for x in (-10..=10).map(|i| i as f64) {
@@ -1184,7 +1158,7 @@ fn main() -> Result<()> {
         }
         return Ok(());
     }
-    let Authored { d, lib, comp, made, head, table, ground, shoulders } = author()?;
+    let Authored { d, lib, comp, made, table, .. } = author()?;
     let author_s = started.elapsed().as_secs_f64();
     println!("  table top {:.2} (dome {:.2}); {} horns, {} plates", comp.table_top_mm, comp.table_dome_mm, comp.horns, comp.plates);
     for h in &comp.hide {
@@ -1218,30 +1192,19 @@ fn main() -> Result<()> {
     let previewed = ringdesign_core::gems::built_meshes(&d, &lib, &built).len();
     let pattern = mesh::try_build_pattern(&d, &lib, params)?;
     let (pw, pd, px) = geometry(&pattern.mesh);
-    let sections: Vec<(String, f64, f64)> = made.iter().map(|m| {
-        let (a, b) = dfm::part_sections(&m.solid, None, MIN_SECTION_MM);
-        (m.name.clone(), a, b)
-    }).collect();
-    let (part_min, part_under) = (sections.iter().map(|s| s.1).fold(f64::MAX, f64::min), sections.iter().map(|s| s.2).sum::<f64>());
-    // On the head's part, a face nearer a bead of the ground than the skull is the ground's; the skull's faces buried
-    // under the table are left out.
-    let head_kind = |c: P3| match ground.nearest(c) {
-        Some((d, k)) if d < head.field(&table, c) => k,
-        _ => head.kind_at(&table, c),
-    };
-    let mut census = land_census(&made[0].solid, &head_kind, &|c| table.local(c)[1] < 0.03 && table.edge(c[0], c[2]) < -0.1 && ground.nearest(c).is_none_or(|(d, _)| d > 0.05));
-    for (m, s) in made[1..].iter().zip(&shoulders) {
-        census.extend(land_census(&m.solid, &|c| s.nearest(c).map_or(Kind::Granule, |x| x.1), &|_| false));
-    }
-    let unnamed: Vec<String> = census.iter().filter(|c| c.2 > 0.0 && c.0.treatment().is_none()).map(|c| format!("{}: {:.3} mm2 under, thinnest {:.2}", c.0.label(), c.2, c.1)).collect();
-    let lands = json!({
-        "floor_mm": MIN_SECTION_MM,
-        "detail_floor_mm": MIN_DETAIL_MM,
-        "method": "one ray per face of the sculpted part along its inward normal (the buried floor skipped), gathered by the shape nearest each face; dfm::part_sections on the whole part for comparison",
-        "part_sections": sections.iter().map(|s| json!({"part": s.0, "thinnest_mm": s.1, "under_floor_mm2": s.2})).collect::<Vec<_>>(),
-        "by_kind": census.iter().map(|c| json!({"kind": c.0.label(), "thinnest_mm": c.1, "thinnest_at_xyz": c.3, "under_floor_mm2": c.2, "treatment": if c.2 > 0.0 { c.0.treatment().map(|t| format!("{t}. Measured thinnest section: {:.3} mm.", c.1)) } else { None }})).collect::<Vec<_>>(),
-        "unnamed_under_floor": unnamed,
-        "band_thinnest_wall_mm": band_field.thinnest_wall_mm,
+    // The lost-wax wall gate: the whole-mesh census of the finished ring at the 0.8 mm floor. Every sub-floor reading
+    // is classed edge (a tip or lip closing within a floor of its free edge) or wall; the gate reads walls. The horns'
+    // and thorns' points are also read with a 2 mm edge reach, named here, for the record.
+    let walls = ringdesign_core::cad::measure::thickness(&built.mesh, MIN_SECTION_MM);
+    let walls_reach = ringdesign_core::cad::measure::census(&built.mesh, &ringdesign_core::cad::measure::CensusOptions { floor_mm: MIN_SECTION_MM, pitch_mm: None, edge_reach_mm: Some(2.0) });
+    // The lead's interim gate (2026-10-03): wall zones with a real section, 0.05 to 0.8 mm, are fixed; zones under
+    // 0.05 mm are listed as suspected census artifacts and never reshape the ring.
+    let real_walls: Vec<&ringdesign_core::cad::measure::ThinZone> = walls.walls.iter().filter(|z| z.thinnest_mm >= 0.05).collect();
+    let artifacts: Vec<serde_json::Value> = walls.walls.iter().filter(|z| z.thinnest_mm < 0.05).map(|z| json!({"point": z.point, "area_mm2": z.area_mm2, "thinnest_mm": z.thinnest_mm})).collect();
+    let wall_json = |t: &ringdesign_core::cad::measure::Thickness| json!({
+        "clean": t.clean(), "assessed": t.assessed, "unresolved": t.unresolved, "wall_samples": t.below_limit, "wall_area_mm2": t.wall_area_mm2,
+        "edge_samples": t.edge_below_limit, "edge_area_mm2": t.edge_area_mm2, "sampled_min_mm": t.sampled_min_mm, "rays": t.rays,
+        "pitch_mm": t.pitch_mm, "edge_reach_mm": t.edge_reach_mm, "walls": t.walls, "edges": t.edges,
     });
     library::save_design_embedded(out.join("design.ring.json"), &d, &lib)?;
     let text = std::fs::read_to_string(out.join("design.ring.json"))?;
@@ -1261,7 +1224,7 @@ fn main() -> Result<()> {
         ("solids and parts notes empty, every part joined", main_pass.notes.is_empty() && main_pass.joined == made.len()),
         ("nothing enters the finger hole", inside == 0),
         ("lost-wax field verdict Castable with the 0.8 mm fill", field.process == CastProcess::LostWax && field.verdict == Verdict::Castable && band_field.verdict == Verdict::Castable),
-        ("every section under 0.8 mm named with its bench treatment", unnamed.is_empty()),
+        ("lost-wax wall census: assessed, 0 unresolved, no wall zone with a real section of 0.05-0.8 mm", walls.assessed && walls.unresolved == 0 && real_walls.is_empty()),
         ("zero DFM findings", findings.is_empty()),
         ("stones reported equal the preview", reported == previewed),
         ("gates hold at 384 x 192", coarse_pass.ok(made.len())),
@@ -1284,7 +1247,10 @@ fn main() -> Result<()> {
         "sculpt": {"open_edges": open_edges, "self_crossings": sculpt_crossings, "parts": made.len()},
         "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
         "field": {"verdict": field.verdict.label(), "band_verdict": band_field.verdict.label(), "thinnest_wall_mm": band_field.thinnest_wall_mm, "notes": field.notes},
-        "land_widths": lands,
+        "wall_census": wall_json(&walls),
+        "wall_census_real_walls": real_walls.iter().map(|z| json!({"point": z.point, "area_mm2": z.area_mm2, "thinnest_mm": z.thinnest_mm, "span_mm": z.span_mm})).collect::<Vec<_>>(),
+        "wall_census_suspected_artifacts": artifacts,
+        "wall_census_edge_reach_2mm": wall_json(&walls_reach),
         "two_part_undercut": {
             "band_percent": band_field.undercut_fraction() * 100.0,
             "with_parts_percent": field.undercut_fraction() * 100.0,
@@ -1307,16 +1273,22 @@ fn main() -> Result<()> {
     }
     renders(&out, &lib, &built, &table, if draft { 1000 } else { 1600 }, params)?;
     println!(
-        "  field {} (band {}, thinnest {:.2} mm); dfm {}; pattern {pw}/{pd}/{px}; bore nearest {least_r:.3} of {:.3}; part sections min {part_min:.3}, {part_under:.2} mm2 under",
+        "  field {} (band {}, thinnest {:.2} mm); dfm {}; pattern {pw}/{pd}/{px}; bore nearest {least_r:.3} of {:.3}; walls clean {} ({} wall, {} edge samples, {} unresolved; reach 2 mm: {} wall)",
         field.verdict.label(),
         band_field.verdict.label(),
         band_field.thinnest_wall_mm,
         findings.len(),
-        d.inner_radius_mm()
+        d.inner_radius_mm(),
+        walls.clean(),
+        walls.below_limit,
+        walls.edge_below_limit,
+        walls.unresolved,
+        walls_reach.below_limit
     );
-    for c in &census {
-        println!("    lands {}: thinnest {:.3}, {:.3} mm2 under", c.0.label(), c.1, c.2);
+    for w in &real_walls {
+        println!("    real wall: {:.3} mm2, thinnest {:.3} at {:?}", w.area_mm2, w.thinnest_mm, w.point.map(|x| (x * 100.0).round() / 100.0));
     }
+    println!("    suspected census artifacts (< 0.05 mm): {}", artifacts.len());
     for f in &findings {
         println!("    dfm: {}: {}", f.label, f.message);
     }
