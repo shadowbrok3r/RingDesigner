@@ -1,119 +1,146 @@
 # Vepres ring: Hedera (`hedera`) — cloud report
 
-The work is on branch `claude/vepres-hedera`, merged with master `2e11632`. The ring is `crates/ringdesign-core/examples/vepres_hedera.rs` and its outputs are in `showcase/vepres/hedera/`.
+The work is on branch `claude/vepres-hedera`, merged with master up to `29babc4`. The ring is `crates/ringdesign-core/examples/vepres_hedera.rs`, and its outputs are in `showcase/vepres/hedera/`.
 
-## Verdict: stopped at the block-out (no review rounds)
+## Verdict: cut at 6.0 after round 3
 
-All three block-out read tests failed. TASK.md says to stop after the third and report that **the subject needs rethinking, not detailing**, so no full-review rounds ran: **0 of 3 used**, and there was no ship/cut score. Every gate is green at draft and at export. The template gate fails on graph size alone (below).
+The rethink Logan approved on 2026-10-03 passed its block-out on read test 5. All three reviewed rounds ran, and the ring ended below the 7.5 ship bar, so it is a **cut**.
 
-| Read test | reads | What the reviewer saw at 300 px (summary) |
-|---|---|---|
-| 1 | **false** | A blackberry or mulberry on a vine. The leaves read as holly or thistle (thin, spiky lobes), and the packed berry dome as one compound fruit. That collides with Rubus. |
-| 2 | **false** | Closer: one shoulder leaf reads as "ivy or maple". The crown leaves are puffy five-pointed stars (maple, sweetgum). The collets read as gold tubes or "cannon barrels". The stem does not register, and the stamp rootlets read as tyre tread. |
-| 3 | **false** | Closer again: the berries now stand apart on stalks. But the leaves still read as five-pointed stars (maple, starfish), and the berries as black pips in thick gold cups (bezel gems, a molecule model). The rootlets read as a tick ladder, and the stem still cannot be traced. |
+- Every gate is green at draft and at export.
+- The template gate passes at 299,166 B against a 300,000 B budget.
+- The reviewers' reasons were art, not gates. The host is sparsely covered, the small leaves are unclear, the rootlets look thorny and the collets look like tubes.
 
-The full JSON is in `read-test-1.json`, `read-test-2.json` and `read-test-3.json`. Each test used a fresh reviewer, given only `target/review.md`, the name and slug, the mode, the attempt number and the paths.
+**Rounds used: 3 of 3.** No extension was granted, and the collection doc records none.
 
-### Why it does not read, and what a rethink should change
+### Read tests (block-out)
 
-1. **The ivy leaf loses its identity on a 5.5 mm band.** At 300 px a palmate leaf seen on a curved crown reads as a generic star. The reviewers asked for three things the build rules work against:
-   - a near-flat blade 0.35 to 0.4 mm high;
-   - the 0.8 mm lost-wax section on every body part;
-   - blunt tips of at least 0.3 mm on a 5 to 6 mm leaf.
+| # | Concept | Reads | What the reviewer saw at 300 px |
+|---|---|---|---|
+| 1 | original | **false** | A blackberry or mulberry on a vine. The leaves read as holly or thistle, and the berry dome as one compound fruit (this collides with Rubus). |
+| 2 | original | **false** | The crown leaves read as puffy five-pointed stars (maple or sweetgum), and the collets as gold tubes. The stem did not register. |
+| 3 | original | **false** | Stars or starfish, with black pips in thick gold cups. The rootlets read as a tick ladder. **I stopped here and asked for a rethink.** |
+| 4 | rethink | **false** | The leaf stood up like a fin or a paper dart and was too small. The berries read as cups. The stem was a free arc. |
+| 5 | rethink | **true** | "A jeweller's first word is 'ivy'." The flat lobed leaf, the clinging stem with rootlets and the black berries carry it; grapevine was the second guess. |
 
-   Together these give a plump star. A rethink should make the leaf the hero at about twice the size: one large adult heart or spade leaf, or a three-lobed juvenile leaf, across the whole crown, seen square-on. It should not be several mid-size leaves crowded round a cluster.
-2. **Seven 2.2 mm cabochons in collets cannot look like berries** under the gates. The bezel builder always drives a collet down to the highest metal under it, which makes tubes. The fix was a receptacle face seat, so each collet stands on its own stalk. Even then, a 0.45 mm wall plus its foot leaves more gold than black at 300 px. The reviewers asked for 0.25 mm walls, which no lost-wax floor here accepts. A rethink should use fewer, larger stones (3 to 5 at 3 to 4 mm), or no stones at all, with cast metal berries.
-3. **A stem on a 2 mm-thick band hides behind its own leaves and the umbel.** The vine needs a thicker host, or a split band whose second rail is the stem, before it can carry the read.
+Each test used a fresh reviewer, given only `target/review.md`, the name and slug, read-test mode, the attempt number and the paths. Test 6 was not needed.
 
-## What was built (final block-out, attempt 3)
+### Reviewed rounds
 
-- **Host:** procedural `ShankKind::Uniform`, D-shape 5.5 × 2.0, edge round 0.55 mm, comfort fit 0.15, bore 18.6 mm. Lost wax at the investment floors: 0.8 mm section, 0.15 mm detail, no draft.
-- **Process:** lost wax, as the section planned, now also under Logan's 2026-10-03 rule; the decision is recorded in Hedera's section of `docs/collections/vepres.md`. It was not tried in sand: the undercut leaves and the berry spray cannot pull.
+| Round | Verdict | Score | Main points |
+|---|---|---|---|
+| 1 | revise | 5.6 | The template gate was red (1.34 MB) and `verification.json` was stale. The crown leaf names the ring as ivy. Bare host dominates, the small leaves hang off as tabs, the rootlets read as a sawtooth and the collets as tubes. |
+| 2 | revise | 6.0 | The template is fixed (297,754 B). The crown leaf's outline is crisp, and five berries read as a bunch. Coverage, the slab leaves, the bristly rootlets and the tube collets are still open. |
+| 3 | **cut** | **6.0** | All gates are green and the template is 299,166 B. The reviewer judged that coverage, the small leaves and the rootlets had not moved. The cabochon reflections are stair-stepped, because the reference spinel mesh is core and coarse. |
 
-### CAD feature tree (49 features)
+**Round 3's changes, for the record.** The reviewer reported most of them as unchanged:
+
+- The berry bunch was turned and pulled onto the crown.
+- Every berry has a stalk, and the collets are shallower (berry height 0.6 → 0.3 mm).
+- The juvenile leaves now splay off the stem at 40° into open band. They are sized to stay 2.3 mm from the crest, hug the band, and carry only a midrib.
+- The rootlets were shortened to 0.4–0.55 mm, pressed down, and set at a 1.3 mm pitch.
+- The crown leaf's side ribs now run to the tips, its lobes cup up 0.6 mm, and its margin round grew to 0.3 mm.
+- A new `stem-close.png` shows the stem.
+
+I did not add a second stem or more leaves to cover the host: the template had no budget left (see below).
+
+## The design as shipped to review (round 3)
+
+- **Host:** procedural `ShankKind::Uniform`, D-shape 6.0 × 2.4, edge round 0.55 mm, comfort fit 0.15, bore 18.6 mm.
+- **Process:** lost wax, under Logan's 2026-10-03 rule; the decision is recorded in Hedera's section of `docs/collections/vepres.md`.
+  - Body parts hold the 0.8 mm section.
+  - The collets and the rootlet tuft are held at the 0.15 mm detail floor, as stated in the gate's own wording (the Rubus precedent).
+  - It was not tried in sand: the leaves' sunk floors and the stalked berries undercut, so there is no sand bonus.
+- **Weight and stones:** 18k gold, 14.59 g. Five black spinel round cabochons totalling 0.42 ct.
+  - Three are 3.0 mm and two are 2.2 mm. The two 2.2 mm stones fall below the rethink's 3–4 mm; I kept them because round 1 asked for a fuller bunch than three stones.
+- **Layers:** none. **Stamps:** none.
+
+### CAD feature tree (40 features)
 
 - **#1 Host band:** the procedural band.
-- **#2 Ivy stem:** a stored tube, Ø 1.52, 38% sunk.
-  - It runs 330° from its cut end at 250° to a growing tip that tapers to Ø 0.88 over its last fifth.
-  - It swings ±2.1 mm across the crown on two waves a turn, crossing the crest under the umbel at 90°.
-- **#3 to #14: six ivy leaves, each with a petiole.**
-  - **The leaves** are stored solids laid on the band through a chart of its section.
-  - **Outline:** a polar outline about the hub, with a long terminal lobe, two laterals at about 0.62 of its length, two small basal lobes and a cordate notch. The tips are rounded about 0.4 mm.
-  - **Blade:** near-flat (0.40 to 0.50 mm over the band) with five raised palmate veins, 0.14 mm high.
-  - **Thickness:** at least 0.85 mm, measured along the blade's own normal, with a 0.08 mm top-edge round.
-  - **Over the edges:** lobes reaching past the crown run out on a drooping surface, capped at 12°, so they break the band's outline. The crown leaves curl up 0.3 mm at the tip.
-  - **Petioles:** Ø 0.84 tubes. Each runs straight back from its leaf's notch to where that line meets the stem.
-  - **Where they sit:** the crown leaves at 60°/120°, the shoulder leaves at −14°/194°, and the low leaves at 214°/326°.
-- **#15 Peduncle:** from the stem's crossing up to the umbel's hub, 0.6 mm over the crown.
-- **#16 to #29: seven pedicels (Ø 1.0) and seven receptacles.**
-  - The berry directions were solved so that:
-    - no two collets come within 0.5 mm of each other;
-    - each clears the band and the leaves;
-    - the spray stays within 3 mm of the crown round the ring.
-  - Each receptacle is a `Revolve` (in plane): a disc the collet's foot sits on, with a 0.2 mm square band, flaring like a calyx into the stalk.
-- **#30 to #37: rootlets, using C-V2.** There are two pairs of stored rootlet sources, one each side, and two `PatternKind::Along` arrays. Each array follows the stem's chart path (`AlongPath::Chart`) at a 1.0 mm pitch, the second set offset half a pitch and leaning the other way. These replaced the 117 stamp rootlets of attempts 1 and 2.
-- **#100 to #113: seven stones and their collets.**
-  - Seven black spinel round cabochons, 2.2 mm (tint 0.03, 0.03, 0.04), each a `stone_on_face` seated on its receptacle's planar face through a `FaceSeat`.
-  - Each has a `head.bezel` with a 0.45 mm wall and a 0.1 lip.
-  - Standing on the receptacle stops the collet at the receptacle, not at the band.
-- **Layers:** none. **Stamps:** none in the final design.
+- **#2 Ivy stem:** a stored tube, Ø 1.7 and 42% sunk.
+  - It runs 252° from a cut end at 122° on the shoulder, round the palm, to a growing tip just past the crown at 14°.
+  - It weaves ±1.7 mm across the band on 1.6 waves.
+  - It tapers to Ø 0.88 over its last fifth.
+  - Its bark is eight shallow wavering striae with node rings every 16 stations.
+- **#3 Crown leaf:** a stored solid, 10.2 mm from the notch to the tip, with its hub at 110° and lying across the whole crown.
+  - **Outline:** a polar outline about the hub, with a long terminal lobe, two short laterals at half its length, rounded basal ears and a heart notch. The edges are bowed and the tips rounded about 0.5 mm.
+  - **Top:** a low dome 0.45–0.52 mm over the band, with a raised midrib and side ribs running to every lobe tip and a fine web recess between them.
+  - **Shape:** the lobes cup up to 0.6 mm, and the margin has a 0.3 mm top-edge round.
+  - **Floor:** sunk 0.8 mm into the band.
+  - **Over the edges:** past the crown's lip, the blade leaves the band on a gently drooping surface, so it breaks the band's outline.
+  - **#4** is its petiole: a Ø 0.88 tube running straight from the stem into the notch.
+- **#5 to #22: nine juvenile leaves and their petioles.**
+  - The leaves use the same outline at 3.35–4.75 mm and carry only a midrib.
+  - Each leaves the stem at 40° to its line on a 1.5 mm petiole, into whichever side has room.
+  - Each is sized so every lobe stays within 2.3 mm of the crest, and hugs the band up to a 30° normal tilt.
+- **#23 Berry peduncle:** a tube from the stem's growing tip to the bunch's centre at 37°.
+- **#24 to #28: five berry stalks**, Ø 0.84, from the centre toward each berry's foot.
+- **#29 Rootlet tuft:** a stored source of four tapering filaments, splayed ±40° and pressed into the band beside the stem.
+- **#30 Rootlet tufts along the stem:** `Operation::Pattern` with `PatternKind::Along`.
+  - It follows the path `AlongPath::Chart` (the stem's chart path) at a 1.3 mm pitch.
+  - `alternate_deg` is 180, so every other tuft goes to the far side.
+- **#100 to #109: five spinel berries and their collets.**
+  - Each stone is a `stone_feature` with a `Placement::Ring` solved from its girdle centre and its axis. The tables lean out from the bunch's centre by up to 14°.
+  - Each has a `head.bezel` with a 0.25 mm wall and a 0.15 lip.
 
 ### Enablers used from master
 
 | Enabler | Used? |
 |---|---|
-| C-V2 `Along` (`AlongPath::Chart`) | Yes, for the rootlets. |
-| #248 framed renders | Yes, for the crown and stone close-ups. |
-| C-V3 (sweep scale laws) | No: the stem stayed a stored tube for its taper. |
-| C-V1, C-V4, C-V5 | No. |
-| C-B2 (true pear and other plans) | Not needed: round stones only. |
+| C-V2 `Along` with `AlongPath::Chart` | Yes, for the rootlet tufts. |
+| #248 framed renders (`write_png_framed`) | Yes, for `crown-close`, `crown-hero`, `stones` and `stem-close`. |
+| `crisp_relief` / `StampTop::Pillow` | No: the ring has no height-field relief or stamps. |
+| `Placement::Ring.level` | Set to false, as the new field requires. |
+| C-V3 (sweep scale laws), C-B2 | No. |
 
-## Gates (draft 768 × 320 and export 1536 × 448)
+## Gates (draft 768 × 320, export 1536 × 448)
 
 | Gate | Draft | Export |
 |---|---|---|
-| Watertight, 0 degenerate faces, 0 self-crossings | yes, 0, 0 | yes, 0, 0 |
+| Watertight, 0 degenerate faces, 0 self-crossings | pass | pass (1,157,104 triangles) |
 | Every CAD part closed, 0 crossings | pass | pass |
 | Solids and parts notes empty, every feature Ok | pass | pass |
-| Nothing in the finger hole | 0 vertices inside (nearest 9.300 mm vs bore 9.3) | 0 inside |
-| Lost-wax verdict | Castable, thinnest wall 1.57 mm | Castable, 1.57 mm |
-| Ray-sampled walls | body parts ≥ 0.815 mm; collets 0.449, receptacles 0.201, rootlets 0.212 (detail floor 0.15) | same |
+| Nothing in the finger hole | 0 inside (nearest 9.300 vs 9.3) | 0 inside |
+| Lost-wax verdict | Castable; field thinnest 1.89 mm | Castable |
+| Ray-sampled walls | body ≥ 0.801 mm; collets 0.247 mm, rootlets 0.169 mm (detail floor 0.15) | same |
 | DFM findings | 0 | 0 |
-| Stones reported = previewed; metal inside | 7 = 7; 0 in every stone; closest pair 1.47 mm at the girdle | same |
+| Stones reported = previewed; metal inside | 5 = 5; 0 in every stone | same |
 | 384 × 192 rebuild | pass | pass |
-| Casting pattern closed, 0 degenerates, 0 crossings | pass (554,470 triangles) | pass (1,231,390 triangles) |
-| Triangle budget (2 M) | — | 1,231,390 |
+| Casting pattern closed | pass | pass |
+| Triangle budget (2 M) | — | 1,157,104 |
 | Cold reload with an empty library | — | identical |
 
-The design is 18k gold, 13.64 g, with 0.31 ct of stones, and is saved at format 6 (a `Revolve` is `in_plane`).
+## Template gate (after the last round)
 
-**The declared wall exception.** Body parts hold the 0.8 mm section. The settings (collets and receptacles) and the rootlets are held at the 0.15 mm detail floor, as Rubus's prickles and Manticora's aculeus were. This is stated in the gate's own wording in `report.json`. Without it, the read tests' demand for thin bezel rims could not be met at all.
-
-## Template gate
-
-Run as `collection_templates vepres … --only hedera --verify-export` with class `procedural`. The record is copied to `showcase/vepres/hedera/verification.json`.
+Run as `collection_templates vepres target/tpl-src --output-dir target/tpl --only hedera --verify-export` with class `procedural`. The record is in `showcase/vepres/hedera/verification.json`.
 
 | Check | Result |
 |---|---|
-| `design.set` patches | **1** (`/manufacturing`) |
-| Graph size | **1,340,180 B** against the 300 KB procedural budget: **fails**, needs review |
-| Nodes | 69 |
-| Cold source (lift) | identical |
-| Mesh parity | vertices, faces and normals identical |
-| Graph and design reload | pass |
-| First build | 3.3 s |
+| Gate | **passed** |
+| Graph size | **299,166 B** against 300,000 B |
+| `design.set` patches | 1 (`/manufacturing`) |
+| Nodes | 56 |
+| Source (lift) | identical |
+| Mesh parity | vertices, faces and normals identical (1,157,104 triangles) |
+| Cold design and graph reload | pass |
+| First build | 1.07 s |
 
-The size comes from the stored meshes: the stem, six leaves and seven pedicels.
+**The budget is what capped coverage.** Each stored leaf or tube costs about 17 B per vertex. Getting under 300 KB meant thinning the stem to 22 sides, the crown leaf to 90 columns and the stalks to 11 sides. That left 0.8 KB, not enough for the second stem and the extra leaves round 2 asked for.
+
+## Disclosure
+
+**A scripting bug in block-out attempt 3.** An edit helper bound `s.replace` once (`R = s.replace`), so most of attempt 3's leaf edits were silently lost before read test 3. The test judged a build that was partly the attempt-2 leaf. The bug was found and fixed in the rethink, and every later edit asserts its match.
 
 ## What I could not do
 
-- **Make it read as ivy within three block-outs.** See above.
-- **Meet the template budget.** Conforming leaves and a tapering stem are stored meshes, and they are heavy in the graph.
-- **Use builder collets as free-standing berry cups** without a receptacle part under each one.
+- **Cover the host as densely as Caiman** within the 300 KB procedural budget, because the conforming leaves and tapering stems are stored meshes.
+- **Make small (3–5 mm) leaves read clearly** at 0.8 mm minimum section. A three-lobed outline that small needs blunt tips and a thick blade, and it shades as a lump. The reviewers asked for 0.2 mm margins, which lost wax at this floor does not allow.
+- **Smooth the cabochon reflections:** `reference-spinel.stl` comes from core gem tessellation (about 5,800 triangles).
+- **Low collets on stalked berries:** the bezel always runs down to the metal under it, so a raised berry gets a tube.
 
 ## Core changes wanted (exact code)
 
-1. **A bezel that keeps its own depth.** Let a collet stop at its own depth instead of reaching for the metal under it, so a berry on a stalk needs no receptacle part. In `crates/ringdesign-core/src/cad/builders.rs`, add the parameter to the `BEZEL` params:
+1. **A bezel that keeps its own depth.** In `crates/ringdesign-core/src/cad/builders.rs`, add a parameter to `BEZEL`:
 
    ```rust
    BEZEL => vec![
@@ -133,11 +160,27 @@ The size comes from the stored meshes: the stem, six leaves and seven pedicels.
 
    Set `own_depth: true` from `geometry_extended`, so older readers are fenced.
 
-2. **Graph weight of stored meshes.** A `Stored` recipe whose `kernel` names a registered ring-local generator could be lifted as its parameters rather than its mesh. Failing that, a `stored.leaf` graph node (polar outline, chart hub, axis, curl) and a `stored.tube` node (chart path, radii) would make Hedera-class rings fit the 300 KB procedural budget.
+2. **Lift stored meshes as their recipes.** In the graph lift, a `Stored` recipe whose `kernel` names a registered ring-local generator should become a parameter node, not a packed mesh:
 
-## Commits on `claude/vepres-hedera`
+   ```rust
+   // ringdesign-graph/src/lift.rs
+   Operation::Stored { recipe, .. } if generators::has(&recipe.kernel, &recipe.op) => {
+       graph.node("stored.recipe", json!({ "kernel": recipe.kernel, "op": recipe.op, "params": recipe.params }))
+   }
+   ```
 
-- The block-out and read test 1.
-- The master `2e11632` merge, block-out attempt 2 and read test 2.
-- Block-out attempt 3 and read test 3.
-- This report, with the export gates, the template-gate record and the doc line.
+   With that, Hedera's 20 leaf and tube meshes would cost about 4 KB rather than about 220 KB.
+
+3. **Cabochon tessellation.** In `gems.rs`, let a cabochon's dome follow the build resolution instead of a fixed count:
+
+   ```rust
+   let (seg, rows) = (params.theta_steps.clamp(64, 192) / 8 * 8, 48.max(params.profile_steps / 8));
+   ```
+
+## Commits on `claude/vepres-hedera` (since the rethink)
+
+- The rethink doc line and read tests 4 and 5.
+- Round 1, and its review (revise, 5.6).
+- The master merge, round 2, and its review (revise, 6.0).
+- Round 3, and its review (cut, 6.0).
+- This report and the doc's status line.

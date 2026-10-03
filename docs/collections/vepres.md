@@ -110,7 +110,7 @@ This file writes Viscum for route 1 and lists the deltas for route 2.
 | 1 | Rubus | *the bramble cane* | Procedural LowDome 7.0 × 3.4, `flatten_sides`, 14 keyframes | Sand (Delft) | 0 | Not started; **buildable now** (keys held to the no-spill rule until P5) |
 | 2 | Sentis | *the briar thicket* | CAD only: four swept canes on a torus liner | Lost wax | 1 ruby round 4.0 | Not started; blocked on C-V4 and P6 (fallbacks exist); **build last** |
 | 3 | Rosa mortua | *the dead rose* | Procedural `ShankKind::Bypass`, HighDome 3.6 × 2.7 | Lost wax | Ruby pear 7 × 5 (bud); **garnet round cabochon 6.0** (hip) | Not started; blocked on P6 (Sepal), C-B2 (pear) and C-V1 (`Relative`) for full fidelity |
-| 4 | Hedera | *the strangling ivy* | Procedural `Uniform` DShape 5.5 × 2.0 host, plus a CAD vine | Lost wax | 7 black spinel round cabochons 2.2 | Not started; blocked on C-V2 for the rootlets (stamp fallback) |
+| 4 | Hedera | *the strangling ivy* | Procedural `Uniform` DShape 6.0 × 2.4 host, plus a CAD vine (rethink) | Lost wax | 5 black spinel round cabochons (3 × 3.0, 2 × 2.2) | Cut at 6.0 after round 3 (2026-10-03) |
 | 5 | Ilex | *the Holly King's standard* | Factory **006 Square**, resized to 16 × 17, sand master | Sand (Delft) | 8 garnet round cabochons (2 × 2.0, 6 × 1.8) | Not started; **buildable now** |
 | 6 | Viscum | *the golden bough* | Factory **003 Clover** 18 × 18, native (route 1) | Lost wax (route 1) | 21 moonstone round cabochons | Not started; **blocked on Logan's process decision**, then buildable now |
 | 7 | Prunus | *Straif, the blackthorn* | Factory **012 Cushion** 10 × 10, sand master | Sand (Delft) | Onyx **round** cabochon 7.0 (the sloe); 4 diamonds 1.3 | Not started; buildable now at draft; final verdict gated on C-V1 `level` or a 012 prickle-probe row |
@@ -534,7 +534,8 @@ That is expected for most Vepres rings. Say so in each README line.
   - **The host:** a thicker D-shape, 6.0 × 2.4, which the stem climbs from the leaf's petiole round the palm to a growing tip on the far shoulder, gripping with rootlets.
   - **Process:** lost wax; a sand pass, if one happens, is a bonus.
   - **Read tests:** numbered on from 3, at most three more (4 to 6). On a read, the three reviewed rounds follow as TASK.md says.
-- **Status (as planned):** Not started.
+- **Status (2026-10-03, after the rethink):** **cut.** Read test 4 failed and read test 5 read. The three reviewed rounds scored revise 5.6, revise 6.0 and cut 6.0, against a ship bar of 7.5. Every gate is green at draft and export, and the template is 299,166 B of 300,000. The reviewers held to sparse coverage of the host, unclear small leaves, thorny rootlets and tube collets. `cloud-report.md` on `claude/vepres-hedera` has the details.
+- **Status (as first planned, superseded):** Not started.
   - Blocked on **C-V2** for the rootlets; a stamp fallback is below.
   - C-V3 is an upgrade for the stem's growing tip and the edge leaves.
   - Ivy outlines are ring-local and need nothing new.
