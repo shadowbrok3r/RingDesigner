@@ -129,6 +129,24 @@ on a side face automatically when the profile has one, and `WireProfile::Round`
 is a cosine dome rather than a circle because a circular section carries a
 vertical wall at its own edge.
 
+A wire can taper and carry beads (C-B1): `CurveLayer::widths` and `heights`
+are per-control-point multipliers on `width_mm` and `height_mm` (empty is
+uniform, a short list repeats its last value), and `beads` is a `CurveBeads`
+row laid by arc length — `offset` across the wire, `phase` along one pitch,
+`graded` with the local width, plus `span`, `stagger` and a `cup` dimple —
+capped at `MAX_CURVE_BEADS`. A wire carrying any of them is the union of its
+sections swept along the path; a plain one keeps the nearest-point
+construction and samples bit for bit as before. Its footprint is its thinnest
+point and its smallest bead. Any of them, or `WireProfile::Tube` (a
+`(1 − x²)^1.25` section, for lost wax), writes the design at 6. A graph goes to
+2 when `widths`, `heights` or `beads` reaches `layer.curve` as a literal, a
+wire or an exposure, or when a wire serialized whole (a `design.set` patch's
+value) carries any of the four; the tube is fenced only as the literal
+`"Tube"` on that node's `profile` pin, so a `profile` fed by a wire or an
+expression leaves the graph at 1. They are `layer.curve`'s own pins, so a lift
+carries a profiled wire with no patch. A wire has no phase of its own: shift
+every control point's `x`, an exact move round the ring because `x` wraps.
+
 ### Pipeline
 
 ```
@@ -1170,6 +1188,66 @@ pins both directions. On top of that:
   normals averaged over a radius, so pebbled hide over a thick body no
   longer reads 0.000 mm while a thin fin on it still reads its 0.3.
 
+  A **whole ring's wall** is `cad::measure::thickness(mesh, floor)`, the
+  census (`measure::census` with `CensusOptions` for the pitch and the
+  edge reach). It samples by area — every face bisected along its longest
+  edge to half the pitch (a floor's eighth, held to 0.02–0.1 mm), one
+  sample per pitch cell and facing — and reads each along its inward
+  normal through `interaction::bvh`, with no face cap: the 1.57 M-face
+  band in 0.47 s, Aile's 1.29 M-face export in 0.56 s. The pitch widens
+  past a million samples, by √3 because a plane turned to a cube diagonal
+  crosses √3 cells per pitch² of its area; edges add a few percent, so
+  the million is a target, not a ceiling. `census_until` and
+  `thickness_until` read a cancel flag between stages, every 65,536
+  pieces binned and every 2,048 samples read or gathered into zones, and
+  the CAD panel passes its job's flag. What still runs unbroken is the
+  watertight check and the BVH build, 0.25 and 0.33 s on the 1.57 M-face
+  band at the test profile; everything after reads the flag every few
+  milliseconds. A reading under the
+  floor is then classed by marching the section's mid-surface from its
+  midpoint, in four opposite pairs of directions square to it and
+  re-centred on every new section, until the march leaves the metal,
+  meets a section at the floor, or has run the reach (one floor). It is an
+  **edge** when some line leaves the metal one way and reaches the floor
+  the other within the reach, *and* the section at every station on the
+  way is at least `floor / reach` of its distance from that free edge
+  (half a step of slack, the floor's crossing bisected to an eighth of a
+  step) — a knife, a point, a lip, fed from the body behind it. Anything
+  else is a **wall**: a web never meets a free edge, a long taper stays
+  thin past the reach, and a fin, pin or lip taller than it is thick
+  starves before the body feeds it however short it is — reach alone
+  passed a 0.05 mm fin 0.7 mm tall. Sections are read square to the
+  mid-surface, so at one floor a wedge or a cone passes from a 53°
+  included angle and a parallel-faced lip only as tall as it is thick; a
+  sharper point is a wall, and a brief that wants feather points widens
+  `edge_reach_mm` and says so. The march sets off toward where the
+  section's two faces converge, or, where they are parallel, toward the
+  nearest straight way out of the metal (sixteen probes round the section,
+  refined by a parabola to a third of a degree), so a lip's verdict does
+  not turn with the part: with the bound in place, a world-axis start read
+  a 0.6 × 0.62 lip clean at 0° and as wall at 7°.
+  `below_limit` counts wall samples only and `Thickness::clean()` is the
+  gate; thin samples gather into zones, each with its point, area,
+  thinnest section and depth. At most 64 zones of each kind are listed
+  (`MAX_ZONES`), largest first; the counts and areas cover every sample.
+  A mesh of several shells is read by winding, so a face inside another
+  shell is skipped rather than read as the 0.01 mm a face-by-face ray
+  gives at a 0.01 mm overlap; crossings at one point merge only within one
+  shell, because merged across shells two coplanar faces count once — a
+  block flush inside another left 400 samples unresolved, and a 0.3 mm
+  plate between two flush pairs read 4 mm. Its rays start on the sample's
+  own face, which the BVH's 1e-6 mm floor keeps them from crossing, as a
+  single shell's do: started 1e-4 mm off it, a face just over the trusted
+  height at a 20° ridge read unresolved, its true section being
+  4.7e-5 mm. Aile's round-3 0.01 mm readings were none of that: all 63
+  faces under 0.05 mm leave through a neighbour sharing a vertex or an edge,
+  across a 20–70° convex crease at the wing-root seam, and the census files
+  them as edges of 0.0003–0.003 mm² — while the hand-made lip exception had
+  been covering a collet body the census reads as a 0.779 mm wall over
+  5.6 mm², and the bezel's two 40° knife rims are walls of 1.31 mm² each,
+  0.024 mm at the tip: sharper than 53°, they starve before the body behind
+  them reaches the floor.
+
   A **CAD cut's lands** are asked for, never volunteered:
   `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
   `manufacturing_check { cut_land_mm }`) reports, per Cut extrusion, the
@@ -1517,7 +1595,9 @@ the pour, all hand-rolled in core with tests:
   which reads the height field through a one-cell tent where it is not
   linear across the cell, so a wall crossing the grid lies straight
   instead of stepping a row at a time. `docs/crisp/` has the measured
-  before and after.
+  before and after. In a graph crisp relief is the `design.settings`
+  node's `crisp_relief` pin, which writes the graph at 2, so a lift
+  carries it with no patch.
 
 The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply,step`.
 
@@ -2148,15 +2228,17 @@ superellipse exponent), and `fit_stone` fills all three from the gem. A
 marquise used to get a round boss sized off its *width*, so the stone
 overhung its own stock by 0.6 mm at each end.
 
-- The rim is `field::superellipse_radius_mm` along the sample's own ray, and
-  every drop law then reads `d / r` exactly as it did. The skirt stays a
+- The rim is `field::superellipse_radius_mm` along the sample's own ray (the
+  girdle's stock outline on the four cuts below), and every drop law then
+  reads `d / r` exactly as it did. The skirt stays a
   **millimetre width** in every direction, because it is measured from the
   rim outward rather than as a fraction of the radius — normalizing instead
   would thin an authored 0.5 mm blend to 0.25 mm at a marquise's point,
   straight through `MIN_EDGE_MM`.
 - Prong bumps stand on the plan outline, on its axes for a round plan and
   at its **corners** once `plan_pow` passes 2.5 — a princess is claw-set at
-  its corners, and the claws land where the girdle is.
+  its corners, and the claws land where the girdle is. The four cuts below
+  stand theirs at the girdle's own claw angles.
 - `plan_pow` is floored at 1, which keeps the plan **convex**. Convex is
   star-shaped about the centre, so a mound on it is still a monotone drop
   from a single crest and releases wherever a round one does — measured
@@ -2168,13 +2250,46 @@ overhung its own stock by 0.6 mm at each end.
   with `1/p + 1/q = 1`. `p = 2` gives the ellipse formula; `p → ∞` gives the
   rotated rectangle's, which is what a step cut wants. The band edge, the
   run pitch, the pavé packer, the refiner's footprints, the section view and
-  the unrolled outline all read it, so nothing measures a diameter any more.
-- One plan table, `GemCut::plan_pow()`, is read by both the stock and the
-  viewport preview — the exponents used to live privately in `gems.rs`, so
-  the drawn stone and the metal cut for it were two different shapes.
-- The halo follows suit: its ring is the centre's own outline grown by the
-  gap, with accents placed at **equal arc length** round it, so an oval
-  centre gets an oval halo instead of a circle drawn round its length.
+  the unrolled outline all read it through `SeatPadLayer::half_extents_mm`,
+  which hands the four cuts below to their girdle's stock, so nothing
+  measures a diameter any more.
+- `GemCut::plan_pow()` is the superellipse table of the ten cuts without a
+  true girdle: their seat stock reads it, and so does the preview of a
+  cabochon in one of them, so that dome and its stock are one shape. A
+  faceted stone is drawn from its cut's bundled mesh (a user's own
+  `<cut>.obj` wins), which the superellipse only approximates — the corner a
+  princess's stock leaves out is measured below. The four cuts below take
+  stock and cabochon alike from their girdle, and the table is never read
+  for them.
+- The halo follows the centre's proportions, not its plan: its ring is an
+  ellipse on the centre seat's own semi-axes grown by the gap
+  (`pave::HaloRing`), with accents placed at **equal arc length** round it,
+  so an oval centre gets an oval halo instead of a circle drawn round its
+  length. A princess's halo is that ellipse and not its rounded square, and
+  a pear's, trillion's, heart's or half moon's is the ellipse on its seat's
+  semi-axes, not its girdle.
+
+**Pear, Trillion, Heart and HalfMoon sit on their true girdles** (C-B2,
+`girdle.rs`, `GemCut::girdle`): the exact silhouette of the bundled mesh the
+preview draws — read from the bundled mesh only, never a user's override, so a
+design builds the same metal on every machine — and grown by Minkowski sum
+along the ray, so a heart's cleft fills instead of folding. On the superellipse
+a 5 mm half moon stood 0.96 mm outside its own seat. The pad's stock is
+`Girdle::stock`, the girdle's hull mirrored across both axes: convex so no two
+skirts face each other, mirrored so it still peaks on the crest line (a half
+moon's own outline fielded 0.23% at −4.2°, the stock 0.0000%). The made
+settings, the claws, the census, the clearance envelopes and the stone map
+all read the girdle. There is no opt-in and no fence, because the file carries
+nothing new: **a saved design carrying one of these four stones is re-seated
+on its true girdle when it is reopened**, and an older build still reads it as
+it always did. No bundled template or design carries one, but the kiosk
+makes them: its `SOLITAIRE_CUTS` offer a pear, and that solitaire's gypsy
+mound is cut to the pear's girdle. The other ten cuts keep the
+superellipse, pinned byte for byte by `tests/superellipse_cuts.rs`, so a
+princess's corner still stands 0.39 mm out of its own seat and a baguette's
+0.60; moving a cut over is one line in `GemCut::has_true_girdle` and a
+regeneration of the templates that carry it. The crowding table's trillion
+row below was measured on the superellipse.
 
 ### Cabochons are flat-backed, and refusing them was a bug
 
@@ -2475,9 +2590,12 @@ What the runtime settled while being built, each pinned by a test:
 - **The lift is exact by construction** (`lift.rs`, `Graph::from_design`):
   it wires the nodes a person would, evaluates them, diffs the result
   against the design field by field, and carries whatever the nodes cannot
-  express (a flange, a tiling warp, the draft settings) as `design.set`
-  patches — so "Convert to graph" never loses a field, and the test that
-  every template lifts back byte-for-byte also caps the patches at four.
+  express (a flange, a custom outline registry, a CAD document's own output
+  order, joints and `through`) as `design.set` patches — so "Convert to
+  graph" never loses a field, and the test that every template lifts back
+  byte-for-byte also caps the patches at four. A tiling's warp rides its
+  own `layer.tiling` pin, and the build and draft settings, crisp relief
+  included, a `design.settings` node; none of them is a patch.
 - **The list idioms follow Grasshopper where it was measured**
   (`batch6-8/from-rhino/brief02-lists/`, Rhino 8.34): longest-list
   matching repeats the last item; a negative Series count generates
