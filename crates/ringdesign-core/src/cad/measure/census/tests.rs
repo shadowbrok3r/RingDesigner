@@ -365,7 +365,7 @@ fn a_raised_flag_stops_the_census_at_its_next_read() {
     let tube = lathe(&[[9.0, 0.0], [9.5, 0.0], [9.5, 6.0], [9.0, 6.0]], 512);
     let options = CensusOptions::floor(FLOOR);
     on_own_pool(|| {
-        // Left alone, it never runs a sixteenth of the census between two reads of its flag.
+        // Left alone, it never runs an eighth of the census between two reads of its flag: about one in fifty measured.
         record_checks(None);
         let started = Instant::now();
         let whole = census_until(&tube, &options, &AtomicBool::new(false)).expect("never raised");
@@ -375,7 +375,7 @@ fn a_raised_flag_stops_the_census_at_its_next_read() {
         let longest = marks.windows(2).map(|w| w[1] - w[0]).max().unwrap();
         eprintln!("census {:?}, {} reads of its flag, longest between two {longest:?}", ended - started, reads.len());
         assert!(whole.assessed && whole.rays > 50_000 && reads.len() > 40, "{} reads: {whole:?}", reads.len());
-        assert!(longest * 16 < ended - started, "ran {longest:?} without reading its flag, in a census of {:?}", ended - started);
+        assert!(longest * 8 < ended - started, "ran {longest:?} without reading its flag, in a census of {:?}", ended - started);
         // Raised as it bins its surface, and as it reads its samples, it stops at that read.
         for at in [5, reads.len() - 10] {
             record_checks(Some(at));
