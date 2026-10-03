@@ -1,0 +1,17 @@
+{
+  "stones": [
+    {
+      "dispersion": 0.02,
+      "ior": 1.72,
+      "mesh": "reference-spinel.stl",
+      "name": "Black spinel",
+      "roughness": 0.065,
+      "tint": [
+        0.029999999329447746,
+        0.029999999329447746,
+        0.03999999910593033
+      ],
+      "transmission": 0.0
+    }
+  ]
+}
