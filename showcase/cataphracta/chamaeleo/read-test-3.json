@@ -1,0 +1,27 @@
+{
+  "ring": "chamaeleo",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "A heavy gold signet with a teal cushion stone. The face is a carved cartouche, like a Maya glyph or a robot mask: a smooth pill or thumb-shaped boss lies flat beside the stone, with a straight bracket bar above and below it, and two rows of oval beads sitting in sunken pockets with wavy, dripping edges. Face-on, the stone reads as one eye, the pill as a snout or visor, and the spike sticking out of the left end as a horn, so a viewer might reach for 'some creature head', perhaps a beetle, a fish or a dinosaur toy, but not a chameleon. The table's top outline in the hero is still flat. The casque does not rise or break the silhouette, and nothing reads as a helmet. The tail spiral is a small curl, about 12 to 15 px, tucked at the cheek's corner under the table edge, so it reads as a scroll ornament, not a tail. The dorsal spikes show only as a few nubs at the left edge in hero-300. No pebbled skin shows: the table texture reads as pits and drips, and the far end of the table is a smeared, combed band. Since attempt 2 the ring has improved: the stud frame is gone, the stone sits well, and the cones now show as a graded spike row in the side views. But a jeweller shown only these two images would call it a tribal or glyph signet with a green stone, not a chameleon.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Turn the flat pill into a helmet casque that lifts the table's outline, and run the temporal crests up into it",
+      "where": "Stamp 'Casque' (theta 108.8, now a Dome of 0.35 mm plus a 1.65 mm crown, a uniform-width lozenge with rounded ends lying flat beside the stone) together with layers 'Keel, snout side' and 'Keel, occiput side'. Also stamps 'Temporal crest, left/right outer/inner'.",
+      "by_how_much": "Taper it in plan: about 2 mm wide at the stone's back edge, widening to about 4.5 mm at the occiput (along +5 mm). Give it a gabled knife ridge on the centre line, not a dome. Its height should climb from about 0.3 mm at the stone to 1.8 to 2.0 mm at the occiput, then fall in a steep, near-vertical back edge at the table's end, so the head's far end lifts above the table like a helmet. Replace the straight bracket bars with crests that start at the stone and curve up and back to meet the casque's peak, about 0.4 mm high, so the casque and crests form one swept-back V or helmet shape, not three parallel bars. Acceptance: in hero-300, the table's top outline shows a hump at least 6 px high at the far end of the head. In face-300, a wedge-shaped shield widens away from the stone, with no rounded pill end and no parallel bracket bars."
+    },
+    {
+      "priority": 2,
+      "what": "Replace the sunken bead-in-pocket rows with raised, packed granules, and clean the smeared far end of the table",
+      "where": "Layer 'Granules, table' (now blend Subtract, bench_only, 19 around x 3 rows, which renders as pits with wavy drip edges) on the 'Chamaeleo flanks' mask either side of the casque. Also the far (occiput-end) band of the table and the right side of the stone's seat, where the hero and face show vertical combed streaks.",
+      "by_how_much": "Change it to a raised Max hide tiling, cast and not bench-only: round granules of three sizes, largest radius about 0.6 to 0.7 mm, height 0.35 to 0.45 mm, at roughly 3x today's count (about 55 or more per flank), with lands of at least 0.4 mm and no outline wall around the field. Leave only the casque and the stone seat smooth. Find and remove whatever writes the streaks at the table's end (the clamp edge or the keel layer's end). Acceptance: face-300 shows an even field of round raised pebbles on both flanks, with no wavy pocket edges and no oval beads in slots. Neither 300 px view shows vertical combing at the table's end."
+    },
+    {
+      "priority": 3,
+      "what": "Make the coiled tail a dominant curl on the cheek that faces the hero camera",
+      "where": "Stamps 'Tail, fingertip' (v 14.8) and 'Tail, knuckle' (v 2.4), theta 90. Today they sit low at the cheek's corner, partly hidden under the table's overhang.",
+      "by_how_much": "This is the third request, and the size has still not changed: the spiral covers about 1.5 to 2 mm. Scale its outer radius to about 4 to 5 mm so it fills about 80% of the cheek height. Use 2 to 2.5 turns with a thick outer stroke of at least 0.9 mm that tapers inward, and gaps of at least 0.5 mm. Move it to the centre of the cheek's open wall so the table's overhang no longer hides it. If the spiral stamp cannot grow without self-crossing, use 2 turns. Acceptance: hero-300 shows a closed spiral at least 25 px across on the near cheek, below and clear of the table edge."
+    }
+  ]
+}
