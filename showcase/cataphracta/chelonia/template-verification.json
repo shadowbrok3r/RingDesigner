@@ -1,7 +1,7 @@
 {
   "authoring_ms": {
-    "graph_creation": 48.077155000000005,
-    "source_read": 20.076327000000003
+    "graph_creation": 50.948289,
+    "source_read": 31.766065000000005
   },
   "cold_design_reload": true,
   "cold_graph_reload": true,
@@ -13,7 +13,7 @@
     }
   ],
   "detail_findings": 0,
-  "editable_design_bytes": 2428224,
+  "editable_design_bytes": 3006511,
   "editable_graph_reload": true,
   "export_geometry_verified": true,
   "exposed_control_policy": "explicit_allowlist",
@@ -25,25 +25,25 @@
   },
   "nodes": 19,
   "open_ms": {
-    "bake": 0.009118,
-    "bake_again": 0.0006889999999999999,
-    "detail": 1.6911980000000002,
-    "detail_again": 1.0016289999999999,
-    "evaluate": 45.920229,
-    "first_build": 2038.2400710000002,
-    "read": 0.84606,
-    "rebuild": 4.63873,
+    "bake": 0.008109,
+    "bake_again": 0.0005139999999999999,
+    "detail": 1.069754,
+    "detail_again": 1.0099390000000001,
+    "evaluate": 39.584685,
+    "first_build": 2573.375511,
+    "read": 1.064883,
+    "rebuild": 3.5221430000000002,
     "unpack": null,
-    "verdict": 27.395892
+    "verdict": 19.715880000000002
   },
   "size_budget_bytes": 3000000,
   "size_review_required": false,
   "source_identical": true,
   "source_method": "lift",
-  "template_bytes": 2412245,
+  "template_bytes": 2990532,
   "template_class": "painted",
   "template_gate_passed": true,
   "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
-  "triangles": 197080,
+  "triangles": 206640,
   "vertices_faces_normals_identical": true
 }

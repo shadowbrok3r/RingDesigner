@@ -458,34 +458,37 @@ fn rolled(body: f64, edge: f64, roll: f64) -> f64 {
 
 /// The carapace's outline: half-width by the share of its length from the rear, widest a third back from the nuchal.
 /// It reaches the four waists of the quatrefoil and bridges the two across-ring cusps, as a shell overhangs its bridge.
-const SHELL_FROM: f64 = -6.6;
-const SHELL_TO: f64 = 6.2;
-const SHELL_W: [(f64, f64); 8] = [(0.0, 1.9), (0.08, 3.0), (0.22, 4.15), (0.42, 4.85), (0.6, 5.0), (0.78, 4.7), (0.9, 3.9), (1.0, 3.0)];
+const SHELL_FROM: f64 = -7.0;
+const SHELL_TO: f64 = 6.6;
+const SHELL_W: [(f64, f64); 8] = [(0.0, 2.1), (0.08, 3.3), (0.22, 4.55), (0.42, 5.3), (0.6, 5.5), (0.78, 5.15), (0.9, 4.3), (1.0, 3.3)];
 /// The shell's rim stands at this radius from the finger axis, its crown this far over the rim.
 const SHELL_RIM_R: f64 = 14.55;
 const SHELL_CROWN_MM: f64 = 2.35;
 
 /// The scutes: five vertebrals down the midline and four costals a side, as Voronoi seeds; the marginals are a ring
 /// of their own inside the outline.
-const VERTEBRALS: [f64; 5] = [4.15, 1.95, -0.3, -2.6, -4.8];
-const COSTALS: [(f64, f64); 4] = [(3.0, 2.45), (0.85, 2.7), (-1.45, 2.65), (-3.75, 2.25)];
+const VERTEBRALS: [f64; 5] = [4.45, 2.1, -0.3, -2.8, -5.15];
+const COSTALS: [(f64, f64); 4] = [(3.25, 2.7), (0.9, 3.0), (-1.55, 2.95), (-4.0, 2.5)];
 /// The vertebrals' power-diagram weight, mm²: with the costals drawn in close beside them, each vertebral meets two
 /// costals a side on slanted seams, a hexagon about as long as it is wide.
 const VERTEBRAL_WEIGHT: f64 = 0.0;
 /// The corner rounding of every scute's seams and annuli, mm: a soft minimum over the cell's sides.
-const SCUTE_ROUND_MM: f64 = 0.08;
+const SCUTE_ROUND_MM: f64 = 0.2;
 const MARGINAL_MM: f64 = 1.05;
 const MARGINAL_PITCH_MM: f64 = 1.6;
 const SEAM_DEPTH_MM: f64 = 0.2;
 const SEAM_HALF_MM: f64 = 0.22;
 /// The growth annuli: a terrace this far in from each scute's seams, each rising this much.
-const ANNULI_MM: [f64; 2] = [0.45, 0.9];
+/// The growth annuli as shares of each scute's own inradius: three concentric terraces, the areola inside the last.
+const ANNULI: [f64; 3] = [0.3, 0.55, 0.8];
 const ANNULUS_RISE_MM: f64 = 0.05;
 /// How much each plate's rear edge stands proud of its front, the hawksbill's shingled scutes.
 const IMBRICATE_MM: f64 = 0.09;
 
 struct Shell {
     seeds: Vec<P2>,
+    /// Each inner scute's inradius: half the distance to its nearest neighbour's seed.
+    inradius: Vec<f64>,
     weights: Vec<f64>,
     marginal_seeds: Vec<P2>,
     block_out: bool,
@@ -515,7 +518,17 @@ impl Shell {
             marginal_seeds.push((a.0 + inward.0 * k, a.1 + inward.1 * k));
         }
         let weights = (0..seeds.len()).map(|i| if i < VERTEBRALS.len() { VERTEBRAL_WEIGHT } else { 0.0 }).collect();
-        Self { seeds, weights, marginal_seeds, block_out }
+        // Bounded too by the marginal ring where it clips the scute, so a costal's rings close inside what is left.
+        let inradius = seeds
+            .iter()
+            .enumerate()
+            .map(|(i, a)| {
+                let nb = seeds.iter().enumerate().filter(|(j, _)| *j != i).map(|(_, b)| 0.5 * (a.0 - b.0).hypot(a.1 - b.1)).fold(f64::MAX, f64::min);
+                let to_ring = outline.windows(2).map(|w| seg_dist(*a, w[0], w[1])).fold(f64::MAX, f64::min) - MARGINAL_MM;
+                nb.min(to_ring.max(0.3))
+            })
+            .collect();
+        Self { seeds, inradius, weights, marginal_seeds, block_out }
     }
     /// The nearest of `seeds` to `p`, and the distance to its Voronoi seam.
     fn cell(seeds: &[P2], p: P2) -> (usize, f64) {
@@ -565,10 +578,12 @@ impl Shell {
         let groove = groove(seam, SEAM_HALF_MM, SEAM_DEPTH_MM);
         let mut relief = pillow - groove;
         if !self.block_out {
-            // The growth annuli: terraces stepping up toward each scute's areola, parallel to its seams.
-            // A vertebral carries one annulus round its areola; a costal, wider, two.
-            let rings: &[f64] = if marginal || cell < VERTEBRALS.len() { &ANNULI_MM[..1] } else { &ANNULI_MM };
-            relief += rings.iter().map(|&r| ANNULUS_RISE_MM * smoothstep(r - 0.06, r + 0.06, seam)).sum::<f64>();
+            // The growth annuli: three terraces stepping up toward each scute's areola, each a share of the scute's own
+            // inradius, so every scute's rings are concentric copies of its outline and none is cut into a letter by the
+            // marginal ring; a marginal carries one.
+            let (inr, own) = if marginal { (0.5 * MARGINAL_MM, seam) } else { (self.inradius[cell], seam) };
+            let rings: &[f64] = if marginal { &ANNULI[1..2] } else { &ANNULI };
+            relief += rings.iter().map(|&r| ANNULUS_RISE_MM * smoothstep(r * inr - 0.06, r * inr + 0.06, own)).sum::<f64>();
             // Shingled: every inner plate tips up toward its rear edge, so it steps down onto the plate behind it.
             if !marginal {
                 let c = self.seeds[cell];
@@ -593,7 +608,7 @@ fn shell_part(surface: &Surface, block_out: bool) -> Result<Sculpted> {
     let outline = probe.build(surface)?.outline;
     let shell = Shell::new(&outline, block_out);
     let top = |h: Here| shell.top(h);
-    Strip { name: "Carapace", spine, width: &width, ends: (1.6, 3.0), height: &top, rows: 420, cols: 360, under: 6, right: None, lens: Some(&Shell::floor) }.build(surface)
+    Strip { name: "Carapace", spine, width: &width, ends: (1.6, 3.0), height: &top, rows: 760, cols: 640, under: 8, right: None, lens: Some(&Shell::floor) }.build(surface)
 }
 
 // --- Sculpted blobs: closed solids star-shaped about a centre, read off a distance field ---------------------------
@@ -702,7 +717,7 @@ impl Blob<'_> {
 }
 
 /// Where the skull's centre sits along the ring, plan mm, and how far its axis tips down the shank, degrees.
-const HEAD_U: f64 = 7.7;
+const HEAD_U: f64 = 8.3;
 const HEAD_TILT_DEG: f64 = 10.0;
 /// The crown of the head stands no higher than the marginal tier of the shell.
 const HEAD_CROWN_R: f64 = SHELL_RIM_R + 0.35;
@@ -722,12 +737,13 @@ fn head_field(p: P3) -> f64 {
     d = smin(d, jaw, 0.45);
     d = smin(d, neck, 0.6);
     d = smin(d, collar, 0.25);
-    // The head plates: a frontal behind, a pair of prefrontals before it, seams cut on the crown only.
+    // The head scales: a frontal behind, a pair of prefrontals before it, each a low pillow off a soft wide seam on
+    // the crown only (no scored line).
     let seg = |a: P2, b: P2| seg_dist((p[0], p[2]), a, b);
     let crown = [((0.35, -0.72), (0.35, 0.72)), ((0.35, 0.0), (1.3, 0.0)), ((-0.75, 0.72), (0.35, 0.72)), ((-0.75, -0.72), (0.35, -0.72)), ((0.35, 0.72), (1.25, 0.5)), ((0.35, -0.72), (1.25, -0.5))];
     let seam = crown.iter().map(|&(a, b)| seg(a, b)).fold(f64::MAX, f64::min);
     let on_crown = smoothstep(0.3, 0.7, p[1]);
-    d += groove(seam, 0.12, 0.06) * on_crown;
+    d += groove(seam, 0.28, 0.045) * on_crown;
     // The mouth line from the snout back to the jaw's corner, each side.
     let mouth = seg_dist((p[0], p[1]), (1.7, -0.32), (-0.2, -0.38));
     d + groove(mouth, 0.1, 0.06) * smoothstep(0.35, 0.6, p[2].abs())
@@ -742,14 +758,14 @@ fn head_part(surface: &Surface) -> Result<Sculpted> {
     // The head's centre stands where its crown meets the marginal tier's height.
     let origin = surface.point(HEAD_U, 0.0, HEAD_CROWN_R - HEAD_CROWN_Y);
     ensure!(surface.radius(HEAD_U, 0.0).is_some_and(|g| g < HEAD_CROWN_R - HEAD_CROWN_Y), "the head's centre is inside the stock");
-    Blob { name: "Head and neck", origin, axes: [fwd, up2, [0.0, 0.0, 1.0]], field: &head_field, around: 200, rings: 100 }.build()
+    Blob { name: "Head and neck", origin, axes: [fwd, up2, [0.0, 0.0, 1.0]], field: &head_field, around: 160, rings: 80 }.build()
 }
 
 /// The tail: a short pointed cone from under the supracaudals down the other cusp.
 fn tail_part(surface: &Surface) -> Result<Sculpted> {
     // The tail's root stands up into the shell's rear rim, so it leaves from under the supracaudals with no crevice.
-    const FROM: f64 = -5.6;
-    const TO: f64 = -9.6;
+    const FROM: f64 = -6.0;
+    const TO: f64 = -10.0;
     let width = |s: f64| 0.9 * (1.0 - 0.5 * s);
     let height = |h: Here| rolled((1.55 - 0.9 * h.s.sqrt()) * (1.0 - 0.5 * h.t * h.t), h.edge, 0.3);
     Strip { name: "Tail", spine: vec![(FROM, 0.0), (TO, 0.0)], width: &width, ends: (0.7, 0.45), height: &height, rows: 60, cols: 40, under: 8, right: None, lens: None }.build(surface)
@@ -870,7 +886,7 @@ fn flipper_part(surface: &Surface, front: bool, side: f64) -> Result<Sculpted> {
         (false, true) => "Hind flipper, +Z",
         (false, false) => "Hind flipper, -Z",
     };
-    Strip { name, spine, width: &width, ends: (1.2, if front { 0.6 } else { 1.6 }), height: &height, rows: 260, cols: 140, under: 10, right: Some(&rightw), lens: None }.build(surface)
+    Strip { name, spine, width: &width, ends: (0.4, if front { 0.6 } else { 1.6 }), height: &height, rows: 340, cols: 180, under: 10, right: Some(&rightw), lens: None }.build(surface)
 }
 
 // --- The shank: hawksbill plates on the shoulders, the plastron on the palm -------------------------------------------
@@ -891,9 +907,9 @@ fn sleeve_half(u: f64) -> f64 {
 }
 
 /// The shoulder scales' radius and their rows' pitch along the ring, mm, at the table end and at the plastron.
-const SCALE_R: (f64, f64) = (1.55, 1.05);
+const SCALE_R: (f64, f64) = (2.1, 1.3);
 /// How far each scale rises toward its free edge and steps down onto the scale beneath it, mm.
-const SCALE_STEP_MM: f64 = 0.24;
+const SCALE_STEP_MM: f64 = 0.3;
 
 /// A shoulder's height at `x` mm from the table end of its run (palmward positive) and `v` across: hawksbill scales
 /// overlapping like roof tiles, rows staggered by half a scale, each a disc whose palmward arc is its free edge and lies
@@ -918,8 +934,9 @@ fn shoulder_scale(x: f64, v: f64, run: f64) -> f64 {
                 let rise = SCALE_STEP_MM * (1.0 - (to_edge / (0.9 * r)).min(1.0)).powf(0.8);
                 let lip = smoothstep(0.0, 0.2, to_edge);
                 let dome = 0.06 * (1.0 - (dv / r).powi(2)).max(0.0);
-                let ridge = 0.03 * smoothstep(0.3, 0.4, to_edge) * (1.0 - smoothstep(0.4, 0.5, to_edge));
-                return 0.08 + rise * lip + dome + ridge - 0.04 * (1.0 - lip);
+                // A short keel down the plate's middle toward its free edge, as on a hawksbill's plates.
+                let keel = 0.07 * (1.0 - smoothstep(0.0, 0.35, dv.abs())) * smoothstep(-0.2 * r, 0.4 * r, dx);
+                return 0.08 + (rise + keel) * lip + dome - 0.04 * (1.0 - lip);
             }
         }
         x0 += pitch;
@@ -928,26 +945,18 @@ fn shoulder_scale(x: f64, v: f64, run: f64) -> f64 {
     0.08
 }
 
-/// The plastron's plates as power-cell seeds, mm from the palm's middle and across: three broad pairs, the left
-/// and right offset so the midline seam steps.
-const PLASTRON_PLATES: [f64; 3] = [-7.4, 0.0, 7.4];
+/// The plastron's transverse seams, mm from the palm's middle: three broad pairs of plates between them.
+const PLASTRON_SEAMS: [f64; 2] = [-3.7, 3.7];
 
-/// The plastron's height at `x` mm along from the palm's middle and `v` across: broad domed plates with rounded corners,
-/// their seams cut, the long midline seam among them.
+/// The plastron's height at `x` mm along from the palm's middle and `v` across: three broad pairs of domed plates,
+/// straight transverse seams, the long central seam shallow and left for the bench to cut.
 fn plastron(x: f64, v: f64, edge: f64) -> f64 {
-    let mut seeds = Vec::with_capacity(6);
-    for (i, &c) in PLASTRON_PLATES.iter().enumerate() {
-        let shift = if i % 2 == 0 { 0.3 } else { -0.3 };
-        seeds.push((c + shift, 1.1));
-        seeds.push((c - shift, -1.1));
-    }
-    let zero = [0.0; 6];
-    let (_, seam) = Shell::power_cell(&seeds, &zero, (x, v), 0.2);
-    let seam = seam.min(edge);
-    let dome = 0.26 * (seam / 1.1).min(1.0).sqrt();
-    // Two growth lines parallel to each plate's seams, as on the shell.
-    let ring = 0.03 * smoothstep(0.9, 1.0, seam) * (1.0 - smoothstep(1.0, 1.1, seam)) + 0.03 * smoothstep(0.4, 0.5, seam) * (1.0 - smoothstep(0.5, 0.6, seam));
-    0.06 + dome + ring - groove(seam, 0.24, 0.17)
+    let across = PLASTRON_SEAMS.iter().map(|&e| (x - e).abs()).fold(f64::MAX, f64::min);
+    let seam = across.min(edge);
+    let mid = v.abs();
+    let dome = 0.26 * (seam.min(mid + 0.4) / 1.1).min(1.0).sqrt();
+    let ring = 0.03 * smoothstep(0.85, 0.95, seam.min(mid + 0.4)) * (1.0 - smoothstep(0.95, 1.05, seam.min(mid + 0.4)));
+    0.06 + dome + ring - groove(seam, 0.24, 0.17) - groove(mid, 0.18, 0.06)
 }
 
 fn sleeve_part(surface: &Surface) -> Result<Sculpted> {
@@ -964,11 +973,9 @@ fn sleeve_part(surface: &Surface) -> Result<Sculpted> {
             let v = if h.u > PALM_U { -h.v } else { h.v };
             shoulder_scale(x, v, run)
         };
-        // The sleeve grows out of the lobe roots over its first 2 mm instead of starting on a step.
-        let from_end = (h.u - SLEEVE_FROM).min(SLEEVE_TO - h.u);
-        rolled(0.08 + relief, h.edge, 0.3) * smoothstep(0.0, 2.0, from_end) - EDGE_DIP_MM * (1.0 - smoothstep(0.0, 2.0, from_end))
+        rolled(0.08 + relief, h.edge, 0.3)
     };
-    Strip { name: "Hawksbill plates and plastron", spine: vec![(SLEEVE_FROM, 0.0), (SLEEVE_TO, 0.0)], width: &width, ends: (2.0, 2.0), height: &height, rows: 1800, cols: 128, under: 8, right: None, lens: None }.build(surface)
+    Strip { name: "Hawksbill plates and plastron", spine: vec![(SLEEVE_FROM, 0.0), (SLEEVE_TO, 0.0)], width: &width, ends: (2.0, 2.0), height: &height, rows: 2200, cols: 144, under: 8, right: None, lens: None }.build(surface)
 }
 
 /// Where a lobe's table turns down into its wall, radius mm.
@@ -992,18 +999,24 @@ fn turtle(surface: &Surface, block_out: bool) -> Result<Vec<Sculpted>> {
 }
 
 /// The quadric error a part's decimation may spend, mm²: about a hundredth of a millimetre off the sculpted surface.
-const DECIMATE_COST: f64 = 1e-4;
+const DECIMATE_COST: f64 = 1.5e-4;
 
 /// A sculpted part decimated where it is flat, held to `DECIMATE_COST`, kept only if it stays closed and uncrossed.
 fn decimated(p: Sculpted) -> Sculpted {
-    let nets = ringdesign_core::sculpt::decimate(&p.solid, p.solid.f.len() / 8, DECIMATE_COST, 2.0, 12.0, 25.0);
-    if nets.open_edges() == (0, 0) && csg::self_crossings(&nets) == 0 && (nets.volume() - p.solid.volume()).abs() < 0.01 * p.solid.volume().abs() {
-        println!("  {}: {} triangles decimated to {}", p.name, p.solid.f.len(), nets.f.len());
-        Sculpted { solid: nets, ..p }
-    } else {
-        println!("  {}: decimation refused, {} triangles kept", p.name, p.solid.f.len());
-        p
+    // Backing off to gentler collapses until the result stays closed, uncrossed and of the same volume.
+    for (cost, turn) in [(DECIMATE_COST, 12.0), (0.5 * DECIMATE_COST, 8.0), (0.25 * DECIMATE_COST, 5.0)] {
+        let nets = ringdesign_core::sculpt::decimate(&p.solid, p.solid.f.len() / 40, cost, 2.0, turn, 25.0);
+        let (open, crossings, dv) = (nets.open_edges(), csg::self_crossings(&nets), (nets.volume() - p.solid.volume()).abs() / p.solid.volume().abs());
+        if std::env::var_os("CHELONIA_DIAG").is_some() {
+            eprintln!("  {} at {cost:.1e}: open {open:?}, crossings {crossings}, volume off {dv:.4}", p.name);
+        }
+        if open == (0, 0) && crossings == 0 && dv < 0.01 {
+            println!("  {}: {} triangles decimated to {} (cost {cost:.1e})", p.name, p.solid.f.len(), nets.f.len());
+            return Sculpted { solid: nets, ..p };
+        }
     }
+    println!("  {}: decimation refused, {} triangles kept", p.name, p.solid.f.len());
+    p
 }
 
 fn stored_part(p: &Sculpted) -> Result<Operation> {
@@ -1027,7 +1040,8 @@ fn design(block_out: bool) -> Result<(RingDesign, AlphaLibrary, Made)> {
     let mut d = band()?;
     let surface = Surface::of(&d)?;
     let t = Instant::now();
-    let parts: Vec<Sculpted> = turtle(&surface, block_out)?.into_iter().map(decimated).collect();
+    // The head's distance-field mesh is left as meshed: decimating it crumpled the neck's root.
+    let parts: Vec<Sculpted> = turtle(&surface, block_out)?.into_iter().map(|p| if p.name == "Head and neck" { p } else { decimated(p) }).collect();
     println!("  sculpted {} parts in {:.0} ms", parts.len(), ms(t));
     let doc = d.cad.get_or_insert_with(Document::default);
     doc.append(Feature { id: 1, name: "Factory 007 stock".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
@@ -1171,6 +1185,11 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, made: 
     let v = &built.report.validation;
     let degenerate = built.report.quality.degenerate_faces;
     let crossings = csg::self_crossings(&solid_of(&built.mesh));
+    if crossings > 0 {
+        for c in ringdesign_core::sculpt::crossing_sites(&solid_of(&built.mesh)) {
+            println!("  crossing at {c:.3?}, plan u {:.2}, r {:.2}", Surface::u_of(c), c[0].hypot(c[1]));
+        }
+    }
     let part_crossings: usize = made.parts.iter().map(|p| p["self_crossings"].as_u64().unwrap_or(1) as usize).sum();
     let bore = d.inner_radius_mm();
     let inside = built.mesh.vertices.iter().filter(|q| (q.0 as f64).hypot(q.1 as f64) < bore - 0.01).count();
@@ -1375,7 +1394,16 @@ fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
             "recorded": "docs/collections/cataphracta.md header (2026-09-24: 'Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock, not procedural heads') and the lane's TASK.md ('Logan chose lost wax on the real factory 007 Quatrefoil stock (Fallback B), unmirrored, not a procedural head')",
             "route": "Fallback B: the real 007 stock, unmirrored, lost wax",
         },
-        "release_gate": "Waived by the process Logan chose: the ray release measures a two-part sand pull, and a lost-wax ring with a raised turtle, a shell overhanging its cusps and a head on a neck cannot part on a plane. The counts are reported in each block's release field, never gated; the lost-wax gates are fill (land widths named) and detail (DFM).",
+        "release_gate": {
+            "status": "not applicable under lost wax, by the doctrine's own rule; reported, never gated",
+            "rule": "CLAUDE.md, 'Manufacturing analysis speaks in the sand's numbers': under lost wax the pull statistics are still measured and reported (with an explicit 'cannot move to sand as-is' note when undercut exists) but never gate; only fill and detail do, at investment floors",
+            "process_decision": "Logan, docs/collections/cataphracta.md header (2026-09-24): \"Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock\"",
+            "note": "No explicit per-gate waiver from Logan is quoted: none exists in the repository. The counts sit in each block's release field.",
+        },
+        "template_class": {
+            "class": "painted",
+            "why": "brief.md, Template gate: 'template_class: procedural for an unpainted node-built ring, stock for bare factory stock, painted otherwise'. Chelonia is factory stock carrying eight made parts, not bare stock, so it is 'painted' by that rule (3 MB budget); it carries no painted layer.",
+        },
         "stage": if block_out { "block-out" } else { "full" },
         "size": d.size.display(),
         "bore_mm": BORE_MM,
