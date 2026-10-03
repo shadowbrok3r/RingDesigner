@@ -13,7 +13,18 @@ use ringdesign_core::{
 };
 
 /// The piercings by the keys their items carry, and the shape each cuts.
-pub const PIERCE_KEYS: [(&str, Shape); 5] = [("round", Shape::Round), ("oval", Shape::Oval), ("marquise", Shape::Marquise), ("heart", Shape::Heart), ("drop", Shape::Drop)];
+pub const PIERCE_KEYS: [(&str, Shape); 10] = [
+    ("round", Shape::Round),
+    ("oval", Shape::Oval),
+    ("marquise", Shape::Marquise),
+    ("heart", Shape::Heart),
+    ("drop", Shape::Drop),
+    ("lancet", Shape::Lancet),
+    ("ogee", Shape::Ogee),
+    ("trefoil", Shape::Trefoil),
+    ("quatrefoil", Shape::Quatrefoil),
+    ("mouchette", Shape::Mouchette),
+];
 /// The submenu the piercings fold into.
 pub const CUT_HERE: &str = "Cut here";
 /// Azures by the keys their items carry, and how many windows each cuts.
@@ -133,7 +144,7 @@ mod tests {
     #[test]
     fn the_band_offers_every_piercing_under_cut_here_and_a_stone_its_azures_and_shoulders() {
         let items = band_items(90.0, 0.25);
-        assert_eq!(items.iter().map(|i| i.label.as_str()).collect::<Vec<_>>(), ["Round", "Oval", "Marquise", "Heart", "Drop"]);
+        assert_eq!(items.iter().map(|i| i.label.as_str()).collect::<Vec<_>>(), ["Round", "Oval", "Marquise", "Heart", "Drop", "Lancet", "Ogee", "Trefoil", "Quatrefoil", "Mouchette"]);
         assert!(items.iter().all(|i| i.submenu == Some(CUT_HERE) && i.enabled && i.icon == Icon::Cutters));
         assert_eq!(items[3].action, MenuAction::CutHere { theta_deg: 90.0, across_mm: 0.25, key: "heart" });
         let items = stone_items(4);

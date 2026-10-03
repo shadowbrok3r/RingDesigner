@@ -173,6 +173,12 @@ fn layer_node(g: &mut Graph, reg: &Registry, layer: &Layer) -> Result<NodeId, Gr
             if let Some(st) = stack_nodes(g, reg, &grp.stack.layers)? {
                 g.connect(st, "stack", id, "stack")?;
             }
+            if let Some(clamp) = grp.clamp {
+                g.set_input(id, "clamp", Literal::Bool(true))?;
+                g.set_input(id, "clamp_columns", Literal::Int(clamp.resolution[0].into()))?;
+                g.set_input(id, "clamp_rows", Literal::Int(clamp.resolution[1].into()))?;
+                g.set_input(id, "clamp_slack", Literal::Number(clamp.slack))?;
+            }
             id
         }
     };
@@ -656,5 +662,20 @@ mod tests {
         assert!(g.nodes.iter().any(|n| n.kind == "build.settings" && n.inputs.get("theta_steps") == Some(&Literal::Int(321))));
         assert_eq!(g.nodes.iter().filter(|n| n.kind == "alpha.text").count(), 1);
         assert_eq!(g.nodes.iter().filter(|n| n.kind == "remap.terrace").count(), 1);
+    }
+
+    /// C-R1 and C-R3 travel with their layers: a clamped group and a bare seat run lift and evaluate back exactly.
+    #[test]
+    fn a_clamped_group_and_a_bare_run_lift_exactly() {
+        use ringdesign_core::field::{GroupLayer, SandClamp, SeatRunLayer};
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign::default();
+        let run = LayerEntry::new("Beads", Layer::SeatRun(SeatRunLayer { bare: true, count: 40, ..SeatRunLayer::default() }));
+        let clamp = Some(SandClamp { resolution: [512, 192], slack: 1.25 });
+        d.layers.layers.push(LayerEntry::new("Beadwork", Layer::Group(GroupLayer { stack: ringdesign_core::LayerStack { layers: vec![run] }, recipe: None, clamp })));
+        let (_, got, want) = round_trip(&d, &reg, &lib).unwrap();
+        assert_eq!(got, want);
+        assert!(got.contains("\"clamp\"") && got.contains("\"bare\""), "both fields travel");
     }
 }

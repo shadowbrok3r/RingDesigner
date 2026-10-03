@@ -48,20 +48,29 @@ impl Workshop {
             self.worker = None;
         }
         ui.horizontal_wrapped(|ui| {
-            ui.heading("Workshop");
+            ui.heading("Casting workshop");
             ui.weak(if self.session.draft.is_some() {
-                "Candidate"
+                "Unapplied changes"
             } else {
-                "Saved design"
+                "Current design"
             });
             if self.session.busy {
                 ui.spinner();
-                ui.label("Evaluating…");
+                ui.label("Checking the pattern…");
             }
+        });
+        ui.weak("Choose how you cast, check the pattern, then export the workshop files.");
+        ui.horizontal_wrapped(|ui| {
+            for (i, label) in ["1 Setup", "2 Check & fix", "3 Export"].into_iter().enumerate() {
+                ui.selectable_value(&mut self.tab, i, label);
+            }
+            ui.menu_button("More", |ui| {
+                if ui.button("Advanced CAD tools").clicked() { self.tab = 3; self.stage = Stage::Nominal; ui.close(); }
+            });
         });
         ui.horizontal_wrapped(|ui| {
             if ui
-                .add_enabled(!self.session.busy, egui::Button::new("Preview"))
+                .add_enabled(!self.session.busy, egui::Button::new("Check pattern"))
                 .clicked()
             {
                 self.send(ui, source, lib, Action::Inspect);
@@ -71,7 +80,7 @@ impl Workshop {
                     self.session.draft.is_some()
                         && self.session.is_current(source)
                         && !self.session.busy,
-                    egui::Button::new("Apply"),
+                    egui::Button::new("Apply changes"),
                 )
                 .clicked()
             {
@@ -80,7 +89,7 @@ impl Workshop {
             if ui
                 .add_enabled(
                     self.session.draft.is_some() || self.session.busy,
-                    egui::Button::new("Cancel"),
+                    egui::Button::new("Discard changes"),
                 )
                 .clicked()
             {
@@ -88,18 +97,14 @@ impl Workshop {
                 self.worker = None;
                 self.feature_text_id = None;
             }
-            if ui
-                .add_enabled(!self.session.undo.is_empty(), egui::Button::new("Undo"))
-                .clicked()
-            {
-                events.changed |= self.session.undo(source);
-            }
-            if ui
-                .add_enabled(!self.session.redo.is_empty(), egui::Button::new("Redo"))
-                .clicked()
-            {
-                events.changed |= self.session.redo(source);
-            }
+            ui.menu_button("History", |ui| {
+                if ui.add_enabled(!self.session.undo.is_empty(), egui::Button::new("Undo")).clicked() {
+                    events.changed |= self.session.undo(source);
+                }
+                if ui.add_enabled(!self.session.redo.is_empty(), egui::Button::new("Redo")).clicked() {
+                    events.changed |= self.session.redo(source);
+                }
+            });
         });
         if let Some(e) = &self.session.error {
             ui.colored_label(Color32::from_rgb(255, 120, 135), e);
@@ -110,22 +115,27 @@ impl Workshop {
         let current = self.session.is_current(source);
         let before = key(self.session.current(source));
         let mut draft = self.session.current(source).clone();
+        let mut inspect = false;
         egui::ScrollArea::vertical()
+            .id_salt(("workshop-step", self.tab))
             .auto_shrink([false, false])
             .show(ui, |ui| {
                 if ui.available_width() >= 720.0 {
                     ui.columns(2, |cols| {
                         self.preview(&mut cols[0], current);
-                        self.controls(&mut cols[1], &mut draft, source, lib);
+                        inspect |= self.controls(&mut cols[1], &mut draft, source, lib);
                     });
                 } else {
-                    self.preview(ui, current);
+                    inspect |= self.controls(ui, &mut draft, source, lib);
                     ui.separator();
-                    self.controls(ui, &mut draft, source, lib);
+                    self.preview(ui, current);
                 }
             });
         if key(&draft) != before {
             self.session.draft = Some(draft);
+        }
+        if inspect {
+            self.send(ui, source, lib, Action::Inspect);
         }
         events
     }
@@ -136,17 +146,47 @@ impl Workshop {
         d: &mut RingDesign,
         source: &RingDesign,
         lib: &AlphaLibrary,
-    ) {
-        ui.horizontal_wrapped(|ui| {
-            for (i, label) in ["Casting", "CAD", "Files"].into_iter().enumerate() {
-                ui.selectable_value(&mut self.tab, i, label);
-            }
-        });
+    ) -> bool {
+        let mut inspect = false;
         match self.tab {
-            0 => self.casting(ui, d),
-            1 => self.cad(ui, d),
-            _ => self.files(ui, d, source, lib),
+            0 => {
+                ui.strong("Choose your material and process");
+                ui.label("Start with a recipe and your alloy. The defaults are ready for a first check.");
+                self.casting(ui, d);
+                if ui.add_enabled(!self.session.busy, egui::Button::new("Continue to check & fix")).clicked() {
+                    self.tab = 1;
+                    self.stage = Stage::Pattern;
+                    inspect = true;
+                }
+            }
+            1 => {
+                ui.strong("Can the pattern leave the mold?");
+                ui.label("Select a problem to locate it. Try a correction, check it, then apply the result when ready.");
+                if self.session.view_key != Some(key(d)) && self.session.view.is_some() {
+                    ui.colored_label(Color32::from_rgb(240, 190, 100), "Previous findings — use Check pattern to update them.");
+                }
+                self.findings(ui);
+                self.repairs(ui, d);
+                if ui.button("Continue to export").clicked() { self.tab = 2; }
+            }
+            2 => {
+                self.channels(ui, d);
+                self.files(ui, d, source, lib);
+            }
+            _ => self.cad(ui, d),
         }
+        ui.collapsing("What do these terms mean?", |ui| {
+            for (term, meaning) in [
+                ("Pattern", "The master used to make the mold cavity. It includes shrink allowance and finishing stock."),
+                ("Release / obstruction", "Whether the pattern lifts out without catching or breaking the sand."),
+                ("Parting plane", "Where the two mold halves meet."),
+                ("Draft", "A slight slope that helps a wall slide out of the mold."),
+                ("Shrink allowance", "Extra size to compensate for metal contracting as it cools."),
+                ("Finishing stock", "Extra metal left for polishing, filing, or reaming."),
+                ("Gate / vent", "A passage for metal to enter, or air to escape."),
+            ] { ui.strong(term); ui.label(meaning); }
+        });
+        inspect
     }
 
     fn casting(&mut self, ui: &mut egui::Ui, d: &mut RingDesign) {
@@ -155,7 +195,8 @@ impl Workshop {
             .clone()
             .unwrap_or_else(|| Setup::from_design(d));
         let old = serde_json::to_vec(&setup).unwrap();
-        ui.strong("Process and pattern");
+        let old_process = setup.recipe.process;
+        ui.strong("Casting process");
         ui.horizontal_wrapped(|ui| {
             ui.selectable_value(
                 &mut setup.recipe.process,
@@ -164,6 +205,16 @@ impl Workshop {
             );
             ui.selectable_value(&mut setup.recipe.process, CastProcess::LostWax, "Lost wax");
         });
+        if setup.recipe.process != old_process {
+            let mut limits = d.draft.clone();
+            setup.recipe.process.apply(&mut limits);
+            if setup.recipe.process == CastProcess::SandTwoPart {
+                setup.recipe.sand.unwrap_or(SandProcess::DelftClay).apply(&mut limits);
+            }
+            setup.recipe.min_section_mm = limits.min_section_mm;
+            setup.recipe.min_detail_mm = limits.min_detail_mm;
+            setup.recipe.min_draft_deg = limits.min_draft_deg;
+        }
         ui.horizontal_wrapped(|ui| {
             if ui.button("Delft starting recipe").clicked() {
                 setup.recipe = Recipe::sand(SandProcess::DelftClay);
@@ -179,7 +230,7 @@ impl Workshop {
                     ui.selectable_value(&mut setup.recipe.alloy, m.name.into(), m.name);
                 }
             });
-        number(ui, "Shrink %", &mut setup.recipe.shrink_pct);
+        number(ui, "Shrink allowance %", &mut setup.recipe.shrink_pct);
         if let Some(doc) = &d.cad {
             let band = doc.band().is_some();
             let apart: Vec<u64> = doc
@@ -202,7 +253,8 @@ impl Workshop {
                     }
                 });
         }
-        ui.collapsing("Pull and parting", |ui| {
+        ui.collapsing("Advanced: mold opening direction", |ui| {
+            ui.weak("Choose the direction the pattern lifts out and where the mold halves meet.");
             xyz(ui, "Pull direction", &mut setup.pull);
             ui.horizontal_wrapped(|ui| {
                 for (label, v) in [
@@ -227,7 +279,8 @@ impl Workshop {
                     }
                 });
         });
-        ui.collapsing("Stock, flask, and shop limits", |ui| {
+        ui.collapsing("Advanced: finishing stock, mold size & limits", |ui| {
+            ui.weak("Finishing stock adds metal for later polishing or reaming. The flask is the box holding the sand.");
             for (label, v) in [
                 ("Radial stock mm", &mut setup.radial_stock_mm),
                 ("Side stock mm", &mut setup.axial_stock_mm),
@@ -248,7 +301,16 @@ impl Workshop {
             ui.label("Bench instructions");
             ui.text_edit_multiline(&mut setup.bench_notes);
         });
-        ui.collapsing("Channels cut into the mold", |ui| {
+        if old != serde_json::to_vec(&setup).unwrap() {
+            d.manufacturing = Some(setup);
+        }
+    }
+
+    fn channels(&mut self, ui: &mut egui::Ui, d: &mut RingDesign) {
+        let mut setup = d.manufacturing.clone().unwrap_or_else(|| Setup::from_design(d));
+        let old = serde_json::to_vec(&setup).unwrap();
+        ui.collapsing("Optional: metal and air channels", |ui| {
+            ui.weak("A gate feeds the cavity; a vent lets air escape. These channels are cut into the sand.");
             let mut remove = None;
             for (i, channel) in setup.channels.iter_mut().enumerate() {
                 ui.push_id(i, |ui| {
@@ -280,14 +342,28 @@ impl Workshop {
             }
         });
         if old != serde_json::to_vec(&setup).unwrap() {
-            d.manufacturing = Some(setup.clone());
+            d.manufacturing = Some(setup);
         }
-        ui.collapsing("Repair candidate", |ui| {
+    }
+
+    fn repairs(&mut self, ui: &mut egui::Ui, d: &mut RingDesign) {
+        let setup = d.manufacturing.clone().unwrap_or_else(|| Setup::from_design(d));
+        ui.collapsing("Try a correction", |ui| {
+            ui.weak("Changes stay in this preview until you choose Apply changes. Discard changes returns to your design.");
+            if d.graph.is_some() {
+                ui.weak("This design is controlled by its graph. Edit the graph or bake it in the Graph workspace before changing its geometry.");
+            }
+            ui.strong("Layer to adjust");
             for (i, layer) in d.layers.layers.iter().enumerate() {
                 ui.selectable_value(&mut self.layer, i, &layer.name);
             }
             for repair in mf::repair::Repair::ALL {
-                if ui.button(repair.label()).clicked() {
+                let needs_layer = matches!(repair, mf::repair::Repair::ReduceRelief | mf::repair::Repair::MoveToSide | mf::repair::Repair::DeferToBench);
+                let enabled = !self.session.busy
+                    && (d.graph.is_none() || repair == mf::repair::Repair::SuggestedParting)
+                    && (!needs_layer || self.layer < d.layers.layers.len())
+                    && (repair != mf::repair::Repair::SuggestedParting || self.session.view_key == Some(key(d)));
+                if ui.add_enabled(enabled, egui::Button::new(repair.label())).clicked() {
                     let suggested = self
                         .session
                         .view
@@ -301,18 +377,11 @@ impl Workshop {
                 }
             }
         });
-        if self.session.view_key != Some(key(d)) && self.session.view.is_some() {
-            ui.colored_label(
-                Color32::from_rgb(240, 190, 100),
-                "Previous findings — Preview the changed design",
-            );
-        }
-        self.findings(ui);
     }
 
     fn findings(&mut self, ui: &mut egui::Ui) {
         let Some(view) = &self.session.view else {
-            ui.weak("Preview to inspect the actual compensated pattern.");
+            ui.weak("Choose Check pattern to inspect the pattern at its casting size.");
             return;
         };
         ui.separator();
@@ -321,10 +390,20 @@ impl Workshop {
             return;
         }
         let r = &view.report["release"];
-        ui.strong(format!(
-            "Release: {}",
-            r["status"].as_str().unwrap_or("unassessed")
-        ));
+        ui.strong(match r["status"].as_str().unwrap_or("") {
+            "Clear" => "No sampled obstruction",
+            "Blocked" => "Pattern is obstructed",
+            "Review" => "Review needed",
+            "NotApplicable" => "Mold pull not required",
+            _ => "Pattern needs checking",
+        });
+        ui.label(match r["status"].as_str().unwrap_or("") {
+            "Clear" => "The sampled pattern can withdraw. Review wall thickness and fine detail before exporting.",
+            "Blocked" => "Some surfaces catch in the sand. Select a problem below and try a correction.",
+            "Review" => "Some areas need a closer look. Review the findings before exporting.",
+            "NotApplicable" => "Two-part mold release does not apply to this process. Check thickness and detail before export.",
+            _ => "The pattern could not be checked. Review the error and setup, then check again.",
+        });
         ui.label(format!(
             "Ring {:.2} g · charge {:.2} g",
             view.report["cast_ring_grams"].as_f64().unwrap_or(0.0),
@@ -332,19 +411,20 @@ impl Workshop {
                 .as_f64()
                 .unwrap_or(0.0)
         ));
-        ui.label(format!(
-            "Flask fit: {} · unresolved rays: {}",
-            r["fits_flask"], r["unresolved_rays"]
-        ));
+        ui.label(if r["fits_flask"].as_bool() == Some(true) { "Pattern fits inside the mold box." } else { "Pattern does not fit the mold box. Increase its size in Setup." });
         if let Some(obs) = r["obstructions"].as_array() {
-            ui.label(format!("{} obstruction regions", obs.len()));
+            ui.label(if obs.is_empty() { "No surfaces caught in the sampled release check.".into() } else { format!("{} areas may catch in the mold", obs.len()) });
             for (i, o) in obs.iter().enumerate() {
                 if ui
                     .selectable_label(
                         self.selected_finding == Some(i),
                         format!(
                             "{} · {:.3} mm trapped",
-                            o["half"].as_str().unwrap_or("Mold"),
+                            match o["half"].as_str().unwrap_or("") {
+                                "Cope" => "Upper mold",
+                                "Drag" => "Lower mold",
+                                _ => "Mold",
+                            },
                             o["depth_mm"].as_f64().unwrap_or(0.0)
                         ),
                     )
@@ -358,22 +438,30 @@ impl Workshop {
                 }
             }
         }
-        for key in ["notes", "sand_findings"] {
-            if let Some(notes) = r[key].as_array() {
-                for note in notes {
-                    ui.label(
-                        note.as_str()
-                            .unwrap_or_else(|| note["message"].as_str().unwrap_or("")),
-                    );
-                }
+        if let Some(area) = r["low_draft_area_mm2"].as_f64().filter(|area| *area > 0.0) {
+            ui.label(format!("Some walls have less slope than the recipe recommends ({area:.2} mm²). Review the pattern finish and opening direction."));
+        }
+        if let Some(notes) = r["sand_findings"].as_array() {
+            for note in notes {
+                ui.label(note.as_str().unwrap_or_else(|| note["message"].as_str().unwrap_or("")));
             }
         }
-        if !view.report["sampled_local_wall"].is_null() {
-            ui.collapsing("Sampled local wall", |ui| {
-                ui.label(serde_json::to_string_pretty(&view.report["sampled_local_wall"]).unwrap());
-            });
+        if let Some(wall) = view.report["radial_wall_mm"].as_f64() {
+            ui.label(format!("Radial wall: {wall:.2} mm · target {:.2} mm", view.report["radial_wall_limit_mm"].as_f64().unwrap_or(0.0)));
         }
-        ui.weak("Sampled release can miss features between rays. Shop trials are still required. Export recomputes at the export mesh resolution.");
+        if let Some(notes) = view.report["detail_findings"].as_array() {
+            for note in notes.iter().filter_map(|n| n.as_str()) { ui.label(note); }
+        }
+        ui.collapsing("Technical inspection details", |ui| {
+            if let Some(notes) = r["notes"].as_array() {
+                for note in notes.iter().filter_map(|n| n.as_str()) { ui.label(note); }
+            }
+            ui.label(format!("Unresolved samples: {}", r["unresolved_rays"]));
+            if !view.report["sampled_local_wall"].is_null() {
+                ui.label(serde_json::to_string_pretty(&view.report["sampled_local_wall"]).unwrap());
+            }
+        });
+        ui.weak("Export runs a fresh check at the export resolution.");
     }
 
     fn cad(&mut self, ui: &mut egui::Ui, d: &mut RingDesign) {
@@ -533,43 +621,50 @@ impl Workshop {
         source: &RingDesign,
         lib: &AlphaLibrary,
     ) {
-        ui.strong("Save and manufacture");
-        ui.weak("Apply the candidate before exporting. Pattern packages contain the compensated mesh, source, report, and molding sheet. Assembly packages contain nominal STEP/3MF and component review files.");
-        ui.add_enabled_ui(self.session.draft.is_none() && !self.session.busy, |ui| {
+        ui.strong("Take the pattern to the workshop");
+        ui.label("The pattern package includes the mesh at casting size, your source design, the check report, and a printable molding sheet.");
+        if self.session.draft.is_some() || key(d) != key(source) {
+            ui.colored_label(Color32::from_rgb(240, 190, 100), "Check pattern, then Apply changes before exporting.");
+        }
+        ui.add_enabled_ui(self.session.draft.is_none() && key(d) == key(source) && !self.session.busy, |ui| {
             for (label, action) in [
-                ("Save editable project", Action::Project),
                 (
                     "Export pattern package",
                     Action::Pattern { diagnostic: false },
                 ),
-                (
-                    "Export diagnostic pattern",
-                    Action::Pattern { diagnostic: true },
-                ),
-                ("Export CAD assembly", Action::Assembly),
+                ("Save editable project", Action::Project),
             ] {
                 if ui.button(label).clicked() {
                     self.send(ui, source, lib, action);
                 }
             }
-        });
-        ui.separator();
-        ui.strong("Import project JSON");
-        ui.label("Paste a .ring.json project below, or drop a file onto the browser window.");
-        ui.add(
-            egui::TextEdit::multiline(&mut self.project_text)
-                .desired_width(f32::INFINITY)
-                .desired_rows(8),
-        );
-        if ui.button("Load project candidate").clicked() {
-            match ringdesign_core::library::load_design_str(&self.project_text) {
-                Ok(next) => {
-                    *d = next;
-                    self.feature_text_id = None;
+            ui.collapsing("Advanced exports", |ui| {
+                ui.weak("Diagnostic export includes blocked results for investigation. CAD assembly contains nominal STEP/3MF and component review files.");
+                for (label, action) in [
+                    ("Export diagnostic pattern", Action::Pattern { diagnostic: true }),
+                    ("Export CAD assembly", Action::Assembly),
+                ] {
+                    if ui.button(label).clicked() { self.send(ui, source, lib, action); }
                 }
-                Err(e) => self.session.error = Some(e.to_string()),
+            });
+        });
+        ui.collapsing("Advanced: import project JSON", |ui| {
+            ui.label("Paste a .ring.json project below to preview it before applying.");
+            ui.add(
+                egui::TextEdit::multiline(&mut self.project_text)
+                    .desired_width(f32::INFINITY)
+                    .desired_rows(8),
+            );
+            if ui.button("Load project candidate").clicked() {
+                match ringdesign_core::library::load_design_str(&self.project_text) {
+                    Ok(next) => {
+                        *d = next;
+                        self.feature_text_id = None;
+                    }
+                    Err(e) => self.session.error = Some(e.to_string()),
+                }
             }
-        }
+        });
     }
 
     fn preview(&mut self, ui: &mut egui::Ui, current: bool) {
@@ -581,7 +676,7 @@ impl Workshop {
         });
         let Some(view) = &self.session.view else {
             ui.allocate_space(vec2(ui.available_width(), 160.));
-            ui.weak("Choose Preview to build the ring.");
+            ui.weak("Choose Check pattern to build this preview.");
             return;
         };
         let stage_current = self.stage == view.stage;
@@ -592,7 +687,7 @@ impl Workshop {
                 if current && stage_current {
                     ""
                 } else {
-                    " · previous preview; press Preview"
+                    " · previous preview; choose Check pattern"
                 }
             ))
             .color(if current && stage_current {

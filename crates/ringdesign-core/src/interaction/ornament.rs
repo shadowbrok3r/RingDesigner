@@ -192,6 +192,7 @@ mod tests {
             Layer::Group(crate::field::GroupLayer {
                 stack: LayerStack { layers: vec![e] },
                 recipe: None,
+                clamp: None,
             }),
         ));
         (

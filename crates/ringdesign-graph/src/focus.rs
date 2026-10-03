@@ -473,7 +473,7 @@ mod tests {
     fn a_pointer_names_its_layer_and_a_group_child_keeps_its_depth() {
         let mut d = RingDesign::default();
         let inner = LayerEntry::new("bead", Layer::Milgrain(Default::default()));
-        let group = LayerEntry::new("cluster", Layer::Group(ringdesign_core::field::GroupLayer { stack: LayerStack { layers: vec![inner] }, recipe: None }));
+        let group = LayerEntry::new("cluster", Layer::Group(ringdesign_core::field::GroupLayer { stack: LayerStack { layers: vec![inner] }, recipe: None, clamp: None }));
         d.layers.layers = vec![LayerEntry::new("rail", Layer::Border(Default::default())), group];
         let mut all = Vec::new();
         walk(&d.layers, &mut LayerPath::new(), &mut all);

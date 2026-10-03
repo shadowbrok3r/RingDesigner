@@ -59,7 +59,7 @@ fn extruded<'a>(design: &'a RingDesign, op: &'a Operation) -> Option<&'a Sketch>
     let Operation::Extrude { sketch, .. } = op else { return None };
     match sketch {
         Profile::Inline(s) => Some(s),
-        Profile::Feature { feature } | Profile::Region { feature, .. } => match &design.cad.as_ref()?.feature(*feature)?.operation {
+        Profile::Feature { feature } | Profile::Region { feature, .. } | Profile::Regions { feature, .. } => match &design.cad.as_ref()?.feature(*feature)?.operation {
             Operation::Sketch { sketch } => Some(sketch),
             _ => None,
         },
@@ -125,7 +125,7 @@ pub fn grips_on(op: &Operation, rise: Option<Rise>) -> Vec<Grip> {
         Operation::Extrude { sketch, height_mm, .. } => {
             let found = match sketch {
                 Profile::Inline(s) => own(s).or(rise),
-                Profile::Feature { .. } | Profile::Region { .. } => rise,
+                Profile::Feature { .. } | Profile::Region { .. } | Profile::Regions { .. } => rise,
             };
             let Some(Rise { origin: base, normal }) = found else { return Vec::new() };
             let at = std::array::from_fn(|k| base[k] + normal[k] * height_mm);

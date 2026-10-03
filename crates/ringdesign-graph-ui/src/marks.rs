@@ -53,7 +53,7 @@ pub fn node(key: &str) -> Option<Icon> {
 
         // --- the band ----------------------------------------------------
         "band.profile" => Icon::NodeProfile,
-        "band.profile.library" | "outline.library" | "alpha.library" => Icon::Files,
+        "band.profile.library" | "outline.library" | "alpha.library" | "sketch.library" => Icon::Files,
         "band.size" => Icon::NodeSize,
         "band.size.fit" => Icon::NodeFit,
         "design.new" => Icon::Add,
@@ -112,7 +112,7 @@ pub fn node(key: &str) -> Option<Icon> {
         "design.info" => Icon::NodeInfo,
         "design.resize" => Icon::Scale,
         "cad.source" => Icon::CadBand,
-        "cad.feature" => Icon::CadSketch,
+        "cad.feature" | "sketch.tracery" => Icon::CadSketch,
 
         // --- sinks --------------------------------------------------------
         "gate.castable" => Icon::NodeGate,
@@ -220,9 +220,12 @@ pub fn button(ui: &mut egui::Ui, icon: Icon, label: &str) -> egui::Response {
 /// The same row for a whole category, which opens a submenu.
 pub fn submenu<R>(ui: &mut egui::Ui, cat: Category, add: impl FnOnce(&mut egui::Ui) -> R) -> egui::Response {
     let icon = category(cat);
-    egui::containers::menu::MenuButton::from_button(
+    // Register with the parent menu so clicking a category keeps the menu
+    // chain open until a node is chosen.
+    egui::containers::menu::SubMenuButton::from_button(
         egui::Button::image_and_text(icon.image(ui, 16.0), cat.label())
             .image_tint_follows_text_color(false)
+            .right_text(egui::containers::menu::SubMenuButton::RIGHT_ARROW)
             .min_size(egui::vec2(ui.available_width().min(210.0), 0.0)),
     )
     .ui(ui, add)

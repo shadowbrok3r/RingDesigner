@@ -785,7 +785,7 @@ fn stones_section(ui: &mut egui::Ui, stones: &ringdesign_core::stones::StonesRep
         let stone = seat
             .gem
             .map(|g| g.display())
-            .unwrap_or_else(|| "no stone assigned".into());
+            .unwrap_or_else(|| seat.made.clone().unwrap_or_else(|| "no stone assigned".into()));
         let count = if seat.count > 1 {
             format!(" ×{}", seat.count)
         } else {

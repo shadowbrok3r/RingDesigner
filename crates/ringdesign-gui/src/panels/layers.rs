@@ -1127,6 +1127,55 @@ fn tiling(
         });
         ui.end_row();
 
+        ui.label("Space");
+        ui.horizontal(|ui| {
+            use ringdesign_core::tiling::ChartSpace;
+            for space in ChartSpace::ALL {
+                if ui.selectable_label(t.space == *space, space.label()).on_hover_text(match space {
+                    ChartSpace::Chart => "Lay the lattice in the chart.",
+                    ChartSpace::Hide => "Lay the lattice in true mm along the parting line and across from it; v is measured from the line.",
+                }).clicked() && t.space != *space {
+                    // Keep the band where it was: hide v is measured from the parting line.
+                    let shift = if *space == ChartSpace::Hide { -fctx.crest_v_mm } else { fctx.crest_v_mm };
+                    t.v_center_mm += shift;
+                    t.space = *space;
+                    c = true;
+                }
+            }
+        });
+        ui.end_row();
+
+        ui.label("Grade");
+        ui.horizontal(|ui| {
+            use ringdesign_core::tiling::{GradeLaw, MAX_GRADE_TAPER, TileGrade};
+            let mut on = t.grade.is_some();
+            if ui.checkbox(&mut on, "").on_hover_text("Grade the cells round the ring; the count still closes.").changed() {
+                t.grade = on.then_some(TileGrade { taper: 0.4, theta_deg: 90.0, law: GradeLaw::Cosine, isotropic: false });
+                c = true;
+            }
+            if let Some(g) = &mut t.grade {
+                c |= ui
+                    .add(egui::DragValue::new(&mut g.taper).speed(0.01).range(0.0..=MAX_GRADE_TAPER).prefix("taper "))
+                    .on_hover_text("The smallest pitch is 1 - taper of the largest.")
+                    .changed();
+                let mut spiral = matches!(g.law, GradeLaw::Spiral { .. });
+                if ui.checkbox(&mut spiral, "spiral").on_hover_text("Shrink all the way round from a seam, instead of a cosine about a pole.").changed() {
+                    g.law = if spiral { GradeLaw::Spiral { seam_deg: g.theta_deg + 180.0 } } else { GradeLaw::Cosine };
+                    c = true;
+                }
+                match &mut g.law {
+                    GradeLaw::Cosine => {
+                        c |= ui.add(egui::DragValue::new(&mut g.theta_deg).speed(1.0).suffix("°")).on_hover_text("Where the largest cells stand.").changed();
+                    }
+                    GradeLaw::Spiral { seam_deg } => {
+                        c |= ui.add(egui::DragValue::new(seam_deg).speed(1.0).prefix("seam ").suffix("°")).on_hover_text("Where the smallest cell meets the largest.").changed();
+                    }
+                }
+                c |= ui.checkbox(&mut g.isotropic, "rows too").on_hover_text("Narrow the band with the pitch, so rows converge.").changed();
+            }
+        });
+        ui.end_row();
+
         ui.label("Crisp edge");
         c |= ui
             .add(
@@ -1596,6 +1645,27 @@ fn group(
 ) -> bool {
     use ringdesign_core::pave::{GenRecipe, PinnedSeat};
     let mut c = false;
+    let mut clamped = g.clamp.is_some();
+    if ui
+        .checkbox(&mut clamped, "Sand clamp")
+        .on_hover_text(
+            "Hold the group's composite to a two-part pull: wherever it rises faster than \
+             the surface's own draft allows, it is cut back. Never filled.",
+        )
+        .changed()
+    {
+        g.clamp = clamped.then(ringdesign_core::field::SandClamp::default);
+        c = true;
+    }
+    if let Some(clamp) = &mut g.clamp {
+        ui.horizontal(|ui| {
+            ui.label("Slack");
+            c |= ui
+                .add(egui::DragValue::new(&mut clamp.slack).speed(0.01).range(0.1..=4.0))
+                .on_hover_text("1 is the rule; more lets relief rise steeper than the surface's draft.")
+                .changed();
+        });
+    }
     if let Some(r) = &mut g.recipe {
         let mut bake = false;
         ui.horizontal(|ui| {
@@ -2338,6 +2408,20 @@ fn seat_run(ui: &mut egui::Ui, r: &mut SeatRunLayer, fctx: &FieldContext) -> boo
 
         ui.label("Stone");
         if gem_picker(ui, "run_gem", &mut r.gem) {
+            r.solve_spacing(fctx);
+            c = true;
+        }
+        ui.end_row();
+
+        ui.label("Bare");
+        if ui
+            .checkbox(&mut r.bare, "stock only")
+            .on_hover_text(
+                "Beads cast in the stock: the seats keep their own plan, the row \
+                 spaces by it, and no stone is set. The stone above is ignored.",
+            )
+            .changed()
+        {
             r.solve_spacing(fctx);
             c = true;
         }

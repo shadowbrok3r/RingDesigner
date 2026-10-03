@@ -37,6 +37,8 @@
 
 pub mod eval;
 pub mod file;
+pub mod fragment;
+pub mod personal;
 pub mod focus;
 pub mod graph;
 pub mod lift;

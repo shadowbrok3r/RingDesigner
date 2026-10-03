@@ -179,7 +179,7 @@ fn palisade() -> RingDesign {
         let mut seat = SeatPadLayer { v_mm: crest, style: SeatStyle::GypsyMound, height_mm: 0.36, crown: 1.0, blend_mm: 0.45, solid: SolidKind::Flush, through: true, ..Default::default() };
         let gem = Gem::calibrated(GemCut::Round, 1.75);
         seat.fit_stone(gem);
-        let run = SeatRunLayer { seat, count: 17, gem, bridge_mm: 0.85, taper: 0.45, taper_theta_deg: TOP_DEG, shared_prong_mm: 0.0, tilt_deg: 0.0, centre_phase: None };
+        let run = SeatRunLayer { seat, count: 17, gem, bridge_mm: 0.85, taper: 0.45, taper_theta_deg: TOP_DEG, shared_prong_mm: 0.0, tilt_deg: 0.0, centre_phase: None, bare: false };
         let mut e = LayerEntry::new(name, Layer::SeatRun(run));
         e.window = Window { fade_deg: 0.5, ..Window::around(TOP_DEG + side * 70.0, 64.0) };
         d.layers.layers.push(e);
@@ -372,7 +372,7 @@ fn oriel() -> RingDesign {
         seats.push(LayerEntry::new(format!("Halo melee {:02}", k + 1), Layer::SeatPad(seat)));
     }
     println!("  halo: {count} melee round a {:.1} x {:.1} mm cabochon", cab.l_mm, cab.w_mm);
-    let mut halo = LayerEntry::new("Cabochon and halo", Layer::Group(ringdesign_core::field::GroupLayer { stack: ringdesign_core::field::LayerStack { layers: seats }, recipe: None }));
+    let mut halo = LayerEntry::new("Cabochon and halo", Layer::Group(ringdesign_core::field::GroupLayer { stack: ringdesign_core::field::LayerStack { layers: seats }, recipe: None, clamp: None }));
     halo.blend = Blend::Max;
     d.layers.layers.push(halo);
 

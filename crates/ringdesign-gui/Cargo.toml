@@ -1,7 +1,7 @@
 [package]
 name = "ringdesign-gui"
 edition.workspace = true
-version = "0.6.0"
+version = "0.7.0"
 license.workspace = true
 
 [[bin]]
@@ -26,6 +26,7 @@ ringdesign-mcp.workspace = true
 tokio.workspace = true
 eframe = { workspace = true, features = ["links"] }
 egui.workspace = true
+image.workspace = true
 egui_glow.workspace = true
 egui-phosphor.workspace = true
 egui_tiles.workspace = true
