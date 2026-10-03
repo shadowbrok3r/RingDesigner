@@ -6,12 +6,12 @@
     "style": "Flat",
     "width_mm": 4.4,
     "thickness_mm": 1.8,
-    "crown_mm": 0.22,
-    "shape_a": 8.0,
+    "crown_mm": 0.2,
+    "shape_a": 2.0,
     "shape_b": 1.0,
     "crest_bias": 0.0,
     "edge_round_mm": 0.05,
-    "comfort_fit_mm": 0.25,
+    "comfort_fit_mm": 0.3,
     "side_draft_deg": 0.0,
     "flange": {
       "enabled": false,
@@ -723,12 +723,12 @@
       },
       {
         "id": 8,
-        "name": "Collet foot",
+        "name": "Collet",
         "enabled": true,
         "operation": {
           "Revolve": {
             "sketch": {
-              "name": "Collet foot section",
+              "name": "Collet section",
               "plane": {
                 "origin": [
                   0.0,
@@ -759,15 +759,15 @@
                   "id": 2,
                   "xy": [
                     9.95,
-                    3.460372929956682
+                    3.4905468467255067
                   ],
                   "fixed": false
                 },
                 {
                   "id": 3,
                   "xy": [
-                    10.016895756920723,
-                    3.609648716587645
+                    10.042189260715325,
+                    3.659001126857809
                   ],
                   "fixed": false
                 },
@@ -775,46 +775,78 @@
                   "id": 4,
                   "xy": [
                     10.149999999999999,
-                    3.460372929956682
+                    3.4905468467255067
                   ],
                   "fixed": false
                 },
                 {
                   "id": 6,
                   "xy": [
-                    11.149999999999999,
-                    4.62
+                    11.2,
+                    4.4
                   ],
                   "fixed": false
                 },
                 {
                   "id": 7,
                   "xy": [
-                    11.35,
-                    4.62
+                    11.55,
+                    4.4
                   ],
                   "fixed": false
                 },
                 {
                   "id": 8,
                   "xy": [
-                    11.7,
-                    4.2700000000000005
+                    11.950000000000001,
+                    4.0
                   ],
                   "fixed": false
                 },
                 {
                   "id": 9,
                   "xy": [
-                    11.35,
-                    4.2700000000000005
+                    11.55,
+                    4.0
                   ],
                   "fixed": false
                 },
                 {
                   "id": 11,
                   "xy": [
-                    11.7,
+                    11.950000000000001,
+                    3.9499999999999997
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 12,
+                  "xy": [
+                    11.55,
+                    3.55
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 13,
+                  "xy": [
+                    11.55,
+                    3.9499999999999997
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 15,
+                  "xy": [
+                    11.530000000000001,
+                    3.55
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 16,
+                  "xy": [
+                    11.530000000000001,
                     0.0
                   ],
                   "fixed": false
@@ -844,7 +876,18 @@
                   }
                 },
                 {
-                  "id": 12,
+                  "id": 14,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 13,
+                      "start": 12,
+                      "end": 11
+                    }
+                  }
+                },
+                {
+                  "id": 17,
                   "construction": false,
                   "geometry": {
                     "Line": {
@@ -854,7 +897,7 @@
                   }
                 },
                 {
-                  "id": 13,
+                  "id": 18,
                   "construction": false,
                   "geometry": {
                     "Line": {
@@ -864,7 +907,7 @@
                   }
                 },
                 {
-                  "id": 14,
+                  "id": 19,
                   "construction": false,
                   "geometry": {
                     "Line": {
@@ -874,7 +917,7 @@
                   }
                 },
                 {
-                  "id": 15,
+                  "id": 20,
                   "construction": false,
                   "geometry": {
                     "Line": {
@@ -884,18 +927,38 @@
                   }
                 },
                 {
-                  "id": 16,
+                  "id": 21,
                   "construction": false,
                   "geometry": {
                     "Line": {
-                      "a": 11,
+                      "a": 12,
+                      "b": 15
+                    }
+                  }
+                },
+                {
+                  "id": 22,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 15,
+                      "b": 16
+                    }
+                  }
+                },
+                {
+                  "id": 23,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 16,
                       "b": 1
                     }
                   }
                 }
               ],
               "constraints": [],
-              "next_id": 17,
+              "next_id": 24,
               "grid_mm": 0.5
             },
             "pivot": [
@@ -960,42 +1023,12 @@
             "kind": "ring",
             "theta_deg": 90.0,
             "across_mm": 0.0,
-            "height_mm": 1.149999999999999,
+            "height_mm": 0.6500000000000004,
             "spin_deg": 0.0,
             "tilt_deg": 0.0,
             "cant_deg": 0.0
           },
           "attach": "separate",
-          "stage": "cast",
-          "blend_mm": 0.0
-        }
-      },
-      {
-        "id": 10,
-        "name": "Collet",
-        "enabled": true,
-        "operation": {
-          "Builder": {
-            "key": "head.bezel",
-            "on": 9,
-            "params": {
-              "lip": 0.3,
-              "wall_mm": 0.9
-            }
-          }
-        },
-        "component": {
-          "role": "Setting",
-          "material": "Gold 18k",
-          "manufacturing": null,
-          "visible": true,
-          "reference": false,
-          "stone_id": null,
-          "bench_notes": "",
-          "placement": {
-            "kind": "free"
-          },
-          "attach": "join",
           "stage": "cast",
           "blend_mm": 0.0
         }
@@ -1006,8 +1039,7 @@
       6,
       7,
       8,
-      9,
-      10
+      9
     ],
     "joints": [],
     "through": null

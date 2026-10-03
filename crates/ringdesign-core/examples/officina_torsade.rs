@@ -51,27 +51,27 @@ fn rope_blend_mm() -> f64 {
     std::env::var("ROPE_BLEND").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0)
 }
 const MIN_SECTION_MM: f64 = 0.8;
-/// The collet's foot: a solid drum round the stone's axis that the ropes run into and the collet stands on.
-fn foot_r_mm() -> f64 {
-    env_f("FOOT_R", 4.62)
+/// The collet, turned in one piece: its base on the band, the girdle's height, the lip's height over it, the wall's radii.
+const COLLET_BASE_MM: f64 = 9.95;
+const GIRDLE_MM: f64 = 11.55;
+const LIP_RISE_MM: f64 = 0.4;
+/// The wall's outer radius where it meets the band, and where it stands upright under the lip.
+const COLLET_FOOT_R_MM: f64 = 3.6;
+fn collet_r_mm() -> f64 {
+    env_f("COLLET_R", 4.4)
 }
-const FOOT_TOP_MM: f64 = 11.7;
-/// The round on the foot's shoulder under the collet and on its lower rim.
-fn foot_shoulder_mm() -> f64 {
-    env_f("SHOULDER", 0.35)
-}
-const FOOT_RIM_MM: f64 = 0.2;
-/// The upright collar at the top of the foot, under its shoulder.
-const FOOT_COLLAR_MM: f64 = 0.55;
-/// The foot's radius where it meets the band, narrower than its shoulder.
-const FOOT_BASE_R_MM: f64 = 3.55;
-/// The crest's gentle crown: the drop from the middle of the crest to each arris.
-const CROWN_MM: f64 = 0.22;
-/// The collet's wall and its lip's share of the dome.
-const COLLET_WALL_MM: f64 = 0.9;
-const COLLET_LIP: f64 = 0.3;
-const FOOT_BOTTOM_MM: f64 = 9.95;
+/// The wall's bore, a hair over the stone's girdle.
+const COLLET_BORE_R_MM: f64 = 3.55;
+/// Where the flared lower wall turns upright, below the girdle.
+const COLLET_KNEE_MM: f64 = 11.2;
+const COLLET_RIM_MM: f64 = 0.2;
+/// The lip's two rounds, together nearly a half-round across the wall.
+const LIP_ROUND_MM: f64 = 0.4;
+/// The seat under the stone stands this far below its flat back.
+const SEAT_GAP_MM: f64 = 0.02;
 const CREST_MM: f64 = BORE_MM / 2.0 + THICKNESS_MM;
+/// The crest's barrel crown: the drop from the middle of the crest to each arris.
+const CROWN_MM: f64 = 0.2;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -81,7 +81,7 @@ fn export_params() -> BuildParams {
 }
 
 fn screen_params() -> BuildParams {
-    BuildParams { theta_steps: 192, profile_steps: 64, ..BuildParams::default() }
+    BuildParams { theta_steps: 128, profile_steps: 48, ..BuildParams::default() }
 }
 
 fn gem() -> Gem {
@@ -121,6 +121,8 @@ fn band() -> RingDesign {
     d.profile.width_mm = WIDTH_MM;
     d.profile.thickness_mm = THICKNESS_MM;
     d.profile.crown_mm = CROWN_MM;
+    d.profile.shape_a = 2.0;
+    d.profile.comfort_fit_mm = 0.3;
     d.profile.flatten_sides();
     CastProcess::LostWax.apply(&mut d.draft);
     d.draft.min_section_mm = MIN_SECTION_MM;
@@ -231,16 +233,25 @@ fn rounded(s: &mut Sketch, corners: &[([f64; 2], f64)]) {
     }
 }
 
-/// The foot's half-section in the plane through the finger's axis and the stone's: radius out from the finger along x, distance from the stone's axis along y. A cone flaring up from the band to a rounded shoulder a step wider than the collet.
-fn foot_sketch() -> Sketch {
+/// The collet's half-section in the plane through the finger's axis and the stone's: radius out from the finger along x, distance from the stone's axis along y. A wall flaring up from the band, standing upright under a rounded lip, round a solid seat under the stone.
+fn collet_sketch() -> Sketch {
     let mut s = Sketch::default();
-    s.name = "Collet foot section".into();
+    s.name = "Collet section".into();
     s.plane.x = [0.0, 1.0, 0.0];
     s.plane.y = [0.0, 0.0, 1.0];
-    let (lo, hi) = (FOOT_BOTTOM_MM, FOOT_TOP_MM);
+    let (lo, top, seat) = (COLLET_BASE_MM, GIRDLE_MM + LIP_RISE_MM, GIRDLE_MM - SEAT_GAP_MM);
+    let (ro, ri) = (collet_r_mm(), COLLET_BORE_R_MM);
     rounded(
         &mut s,
-        &[([lo, 0.0], 0.0), ([lo, FOOT_BASE_R_MM], FOOT_RIM_MM), ([hi - FOOT_COLLAR_MM, foot_r_mm()], 0.0), ([hi, foot_r_mm()], foot_shoulder_mm()), ([hi, 0.0], 0.0)],
+        &[
+            ([lo, 0.0], 0.0),
+            ([lo, COLLET_FOOT_R_MM], COLLET_RIM_MM),
+            ([COLLET_KNEE_MM, ro], 0.0),
+            ([top, ro], LIP_ROUND_MM),
+            ([top, ri], LIP_ROUND_MM),
+            ([seat, ri], 0.0),
+            ([seat, 0.0], 0.0),
+        ],
     );
     s
 }
@@ -267,22 +278,17 @@ fn author() -> Result<RingDesign> {
     mirror.component.attach = Attach::Join;
     mirror.component.blend_mm = rope_blend_mm();
     doc.append(mirror)?;
-    let mut foot = feature(
+    let mut collet = feature(
         8,
-        "Collet foot",
-        Operation::Revolve { sketch: foot_sketch().into(), pivot: [0.0; 3], axis: [0.0, 1.0, 0.0], degrees: 360.0, in_plane: false },
+        "Collet",
+        Operation::Revolve { sketch: collet_sketch().into(), pivot: [0.0; 3], axis: [0.0, 1.0, 0.0], degrees: 360.0, in_plane: false },
         ComponentRole::Setting,
     );
-    foot.component.attach = Attach::Join;
-    doc.append(foot)?;
-    let lift = FOOT_TOP_MM - CREST_MM;
-    let mut stone = builders::stone_feature(9, g, Placement::ring(90.0, builders::stand_off_mm(builders::BEZEL, g) + lift));
+    collet.component.attach = Attach::Join;
+    doc.append(collet)?;
+    let mut stone = builders::stone_feature(9, g, Placement::ring(90.0, GIRDLE_MM - CREST_MM));
     stone.name = "Garnet cabochon 7.0".into();
     doc.append(stone)?;
-    let mut collet = builders::feature_on(10, "Collet", builders::BEZEL, 9, json!({ "wall_mm": COLLET_WALL_MM, "lip": COLLET_LIP }));
-    collet.component.material = "Gold 18k".into();
-    collet.component.blend_mm = env_f("COLLET_BLEND", 0.0);
-    doc.append(collet)?;
     d.cad = Some(doc);
     Ok(d)
 }
@@ -375,8 +381,8 @@ struct Gates {
     stones_previewed: usize,
     stone_warnings: Vec<String>,
     crowding_tight_pairs: usize,
-    /// The stone's lowest point over the collet foot's top, mm: the stone sits clear of the solid foot.
-    stone_over_foot_mm: f64,
+    /// The stone's lowest point over the collet's seat, mm: the stone sits clear of the metal under it.
+    stone_over_seat_mm: f64,
     pattern: Option<MeshGate>,
     cold_reload_identical: Option<bool>,
     within_2m_triangles: bool,
@@ -470,11 +476,11 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, verify: Option
         stones_previewed: previewed,
         stone_warnings: warnings,
         crowding_tight_pairs: stones.as_ref().map_or(0, |s| s.tight_pairs),
-        stone_over_foot_mm: ringdesign_core::gems::built_meshes(d, lib, &built)
+        stone_over_seat_mm: ringdesign_core::gems::built_meshes(d, lib, &built)
             .iter()
             .flat_map(|(m, _)| m.vertices.iter().map(|v| v.1 as f64))
             .fold(f64::MAX, f64::min)
-            - FOOT_TOP_MM,
+            - (GIRDLE_MM - SEAT_GAP_MM),
         pattern,
         cold_reload_identical: cold,
         passed: false,
@@ -493,7 +499,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, verify: Option
         && g.dfm_findings.is_empty()
         && g.stones_reported as usize == g.stones_previewed
         && g.crowding_tight_pairs == 0
-        && g.stone_over_foot_mm >= 0.0
+        && g.stone_over_seat_mm >= 0.0
         && p.watertight
         && p.degenerate_faces == 0
         && p.self_crossings == 0
@@ -777,7 +783,7 @@ fn rope_timing(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Resul
     let (band_s, _) = time(5)?;
     let (one_s, one) = time(6)?;
     let (two_s, _) = time(7)?;
-    let (all_s, _) = time(10)?;
+    let (all_s, _) = time(9)?;
     let rope_triangles = one
         .parts
         .evaluated
@@ -896,7 +902,7 @@ fn main() -> Result<()> {
 
 fn print_gates(label: &str, g: &Gates) {
     println!(
-        "  {label} {}x{}: {} tris in {:.1} s; watertight {}; degenerate {}; crossings {}; parts with crossings {}; features ok {}; nearest axis {:.3} (bore {:.3}); field {}; thickness min {:?} clean {}; lands {}; dfm {}; stones {}/{} ({:.2} over foot); pattern {:?}; cold {:?}; passed {}",
+        "  {label} {}x{}: {} tris in {:.1} s; watertight {}; degenerate {}; crossings {}; parts with crossings {}; features ok {}; nearest axis {:.3} (bore {:.3}); field {}; thickness min {:?} clean {}; lands {}; dfm {}; stones {}/{} ({:.2} over seat); pattern {:?}; cold {:?}; passed {}",
         g.build[0],
         g.build[1],
         g.metal.triangles,
@@ -915,7 +921,7 @@ fn print_gates(label: &str, g: &Gates) {
         g.dfm_findings.len(),
         g.stones_reported,
         g.stones_previewed,
-        g.stone_over_foot_mm,
+        g.stone_over_seat_mm,
         g.pattern.as_ref().map(|p| (p.watertight, p.degenerate_faces, p.self_crossings)),
         g.cold_reload_identical,
         g.passed
