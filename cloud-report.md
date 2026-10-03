@@ -1,11 +1,11 @@
 # Sphenodon, the parietal (`sphenodon`): revival report, lost wax
 
-**Outcome: cut at 7.4 after round 5.** The ring was revived from its round-3 cut (7.1) for two more reviewed rounds. Round 4 scored **7.3** (revise) and round 5 **7.4** (cut), against a ship bar of 7.5. Every gate is green at draft and at export, the cold reload is identical, and the template gate passes. The ring is cut on its read, not on manufacture. Both new reviewers call it the best Sphenodon so far. At 300 px it still reads as "a lizard ring with a green stone", or an iguana, rather than a tuatara.
+**Outcome: cut for good at 7.4 after round 6.** The ring was revived from its round-3 cut (7.1). Round 4 scored **7.3** (revise) and round 5 **7.4** (cut). The lead then granted one more round, round 6, which also scored **7.4** (cut). The ship bar is 7.5. Every gate is green at draft and at export, the cold reload is identical, and the template gate passes. The ring is cut on its read, not on manufacture. The round-6 reviewer called the bladed crest and the domed, browed eyes the most tuatara-like the ring has been. But in every three-quarter view the green stone still lands where a lizard's eye sits, so at 300 px it reads as "a lizard with a green eye".
 
 - Branch: `claude/cataphracta-sphenodon-revival`, from `claude/cataphracta-sphenodon` with `origin/master` merged in (at `8e5a59a`). The only conflict was `cloud-report.md`; I kept this lane's version. `src/` was not touched.
-- Master did not move between rounds. The round-5 `git fetch origin master && git merge origin/master` was a no-op, so the "crisper stamp and relief edges" platform work was not available to this ring.
+- Master did not move during the revival. The merges at the start of rounds 5 and 6 were both no-ops, so the "crisper stamp and relief edges" platform work never reached this ring.
 - Author file: `crates/ringdesign-core/examples/cataphracta_sphenodon.rs`. Outputs: `showcase/cataphracta/sphenodon/`.
-- Reviews: `review-round4.json` and `review-round5.json`. Each came from a fresh reviewer agent given only `target/review.md`, the ring's name and slug, "full-review mode" and the round number.
+- Reviews: `review-round4.json`, `review-round5.json` and `review-round6.json`. Each came from a fresh reviewer agent given only `target/review.md`, the ring's name and slug, "full-review mode" and the round number. Round 6's reviewer was also told it was the revival's last round.
 - Process: lost wax (Logan, 2026-09-27), with `min_section_mm` 0.8 and `min_draft_deg` 0. Silver 925, investment recipe.
 
 ## Verdicts, all rounds (verbatim in the JSON files)
@@ -17,41 +17,48 @@
 | 2 | `review-round2.json` | revise | 6.9 | The tail was fixed. A slab head with screw-head eyes, knob feet, and square crest spines. |
 | 3 | `review-round3.json` | cut | 7.1 | A crowned skull and toed feet. The eyes still read as screw heads, the snout was 6.5 mm (monitor-like), a bald oval surrounded the stone, and the dorsal rows read as tread. |
 | **4** | `review-round4.json` | **revise** | **7.3** | Four of the five round-3 items passed: lidded dome eyes with no ring or cross, a 4 mm snout, skin up to a 0.4 mm rim, and the collection copy fixed. New faults: the 3 mm stone read as the lizard's eye from three-quarter views, there was no beak overhang in profile, the keeled scales formed straight osteoderm files, the head skin had crocodile tiles, and the tail was a corn cob. |
-| **5** | `review-round5.json` | **cut** | **7.4** | Round 4's items were mostly done. The eyes are larger than the stone, the 2.5 mm stone sits back on the crown, the beak is squared and notched, the head is finely granular, and the tail is staggered. It still misses on three counts: in the profile view (`stones.png`) the stone still sits where an eye sits; the lid and slit read as a "coffee bean"; and the crest from the nape reads as square pyramids, with a stud grid at the tail's rim edge. |
+| 5 | `review-round5.json` | cut | 7.4 | Round 4's items were mostly done. The eyes are larger than the stone, the 2.5 mm stone sits back on the crown, the beak is squared and notched, the head is finely granular, and the tail is staggered. It still misses on three counts: in the profile view (`stones.png`) the stone still sits where an eye sits; the lid and slit read as a "coffee bean"; and the crest from the nape reads as square pyramids, with a stud grid at the tail's rim edge. |
 
-Round 5's punch list is recorded in its JSON for a further revival: a flush table or a 2.0 mm stone at stone_t 12; eyes raised 0.3 mm, with the lid on the top third only and a shorter pupil; a crest of about 1.5× more thin blades; and a staggered, lower tail edge at the rim.
+| **6** | `review-round6.json` | **cut** | **7.4** | Two items passed. The eyes are smooth 2.0 mm domes, each with a brow over its top third and a short slit pupil, and nothing reads as a bean. The crest is a comb of thin, separate, tall spines, the best tuatara cue yet. Two failed. The flush 2.0 mm stone, now 5 mm behind the eyes on the midline, still lands on the head's visible flank in three-quarter view, where an eye sits; with the eyes forward, they read as nostrils. The tail's rim edge is still a stud grid, and from above the crest still shows square pyramids. |
+Round 6's punch list is recorded in its JSON, in case the ring is ever revived again:
+1. Move the stone about 3 mm further back onto the nape, or countersink it 0.3 mm with a granulated collar, and bring the eyes back about 1 mm.
+2. Use jittered tail scales lowered 60% at the rim edge.
+3. Make the crest blades 0.35 mm across, leaning 15° tailward.
+4. Give the seat a 0.15 mm bearing shoulder, to shrink its knife-edge lip.
 
-## Gates (`report.json`: `draft` block 768 × 320, `export` block 1536 × 448 with `--verify`)
+## Gates, final build (round 6; `report.json`: `draft` block 768 × 320, `export` block 1536 × 448 with `--verify`)
 
 | Gate | Draft | Export |
 |---|---|---|
-| Triangles | 491,182 | 1,373,452 (limit 2 M) |
+| Triangles | 491,438 | 1,374,112 (limit 2 M) |
 | Watertight, degenerate faces | yes, 0 | yes, 0 |
 | Self-crossings (ring; no made parts) | 0 | 0 |
 | Solids and parts notes, stamps | empty, empty, 0 of 0 | empty, empty, 0 of 0 |
-| Finger hole: vertices inside, nearest margin | 0, −0.000025 mm | 0, −0.000009 mm |
+| Finger hole: vertices inside, nearest margin | 0, −0.000044 mm | 0, −0.000015 mm |
 | Field under lost wax at the 0.8 mm fill | **Castable**, thinnest wall 2.13 mm | **Castable**, 2.13 mm |
-| `land_widths`: all named | yes (6.07 mm² under 0.8 mm, thinnest 0.034) | yes (7.24 mm², thinnest 0.0004) |
+| `land_widths`: all named | yes (20.89 mm² under 0.8 mm) | yes (23.24 mm²) |
 | DFM findings | 0 | 0 |
-| Stones: report vs preview | 1 = 1 (174 preview faces) | 1 = 1 |
+| Stones: report vs preview | 1 = 1 | 1 = 1 |
 | Casting pattern | watertight, 0 degenerate, 0 crossings | same |
-| Cold reload, empty library | — | identical vertices, faces and normals (686,724 / 1,373,452) |
-| *Two-part numbers (not gated under lost wax)* | undercut 55.6 of 1344.5 mm², worst −59.4°; release 398 / 558 obstructions at 0.100 / 0.075, 0 unresolved | same areas; release 443 / 608, 0 unresolved |
+| Cold reload, empty library | — | identical vertices, faces and normals (687,054 / 1,374,112) |
+| *Two-part numbers (not gated under lost wax)* | undercut 59.6 mm² (4.46%), worst −67.4°; release 405 / 521 obstructions at 0.100 / 0.075, 0 unresolved | same areas; release 384 / 518, 0 unresolved |
 | Draft clamp | none (lost wax, no clamp layer) | none |
 
-The ring carries no stamps, so no 384 × 192 run was needed.
+The ring carries no stamps, so no 384 × 192 run was needed. Every gate was also green at draft and at export in rounds 4 and 5; see those commits' `report.json`.
 
-Export `land_widths` by feature. Each is read by one ray along a face's inward normal; each feature carries its bench treatment in the JSON.
+Export `land_widths` by feature, one ray along each face's inward normal. Each feature carries its bench treatment in the JSON.
 
 | Feature | Area under 0.8 mm | Thinnest |
 |---|---|---|
-| The tail's tip | 2.46 mm² | 0.107 mm |
-| The crest's spines | 2.46 mm² | 0.314 mm |
-| Legs and toes | 1.45 mm² | 0.039 mm |
-| Tail scale rings and saw | 0.62 mm² | 0.190 mm |
-| Head: beak, eyes, lids, nostrils | 0.18 mm² | 0.174 mm |
-| Body granules and tubercles | 0.07 mm² | 0.534 mm |
-| The parietal seat (lip and bore vent) | 0.006 mm² | 0.0004 mm, a grazing ray on the vent wall. It did not change when I widened the seat from 3.3 to 3.4 mm. |
+| The crest's spines (thin blades, 1.5× as many as round 5) | 12.71 mm² | 0.111 mm |
+| Tail scale rings and saw | 3.54 mm² | 0.207 mm |
+| The parietal seat (flush lip, burnished over the girdle) | 2.92 mm² | 0.0002 mm |
+| The tail's tip | 2.19 mm² | 0.095 mm |
+| Legs and toes | 1.64 mm² | 0.031 mm |
+| Body granules and tubercles | 0.14 mm² | 0.546 mm |
+| Head: beak, eyes, lids, nostrils | 0.09 mm² | 0.126 mm |
+
+The land-width area grew from 7.24 mm² in round 5 to 23.24 mm². The thin crest blades the punch list asked for account for most of the rise, and sinking the stone flush left a knife-edge lip at the seat. All of it is named, so the gate is green, but the reviewer flagged the seat lip as a burnishing cost.
 
 ## Template gate (run after the last round; `collection_templates … --only sphenodon --verify-export`, class `painted`)
 
@@ -59,9 +66,9 @@ Export `land_widths` by feature. Each is read by one ray along a face's inward n
 |---|---|
 | Source | lift, 26 nodes, 0 exposed controls |
 | `design.set` patches | **1** (`/manufacturing`), limit 4 |
-| Graph size | **995,177 bytes**, against the painted budget of 3 MB (no size review) |
+| Graph size | **994,836 bytes**, against the painted budget of 3 MB (no size review) |
 | Cold source parity | identical (cold design and graph reload true) |
-| Mesh parity | 1,373,452 triangles; vertices, faces and normals identical |
+| Mesh parity | 1,374,112 triangles; vertices, faces and normals identical |
 | Result | `template_gate_passed: true` (`template-verification.json`) |
 
 ## What changed in the revival, and why
@@ -81,13 +88,20 @@ Export `land_widths` by feature. Each is read by one ray along a face's inward n
 4. **Head skin.** It is round 0.3 mm beads, with 0.42 mm plates between the eyes.
 5. **Tail.** It is overlapping keeled scales, each rising from the front and dropping at a rounded back edge, staggered ring to ring.
 
-I zoomed every render to 2x before each review. The pupil and lid stair-steps, the head-grain combing, the snout's boxy front wall and the tail scales' hard back edges were found that way and softened.
+**Round 6** (the round-5 punch list):
+1. **Stone.** The peridot went from 2.5 to **2.0 mm** and moved back to `STONE_T` 12.0, 5 mm behind the eyes. The head's back knots (jaw joint, neck and crest start) moved 1 mm aft to match. The seat is 2.8 mm across and 1.75 mm high, with the girdle 0.45 mm down (`set_depth_mm`), so the table sits flush with the skull's skin in `side.png`.
+2. **Eyes.** Each is a full 2.0 mm dome, 0.6 mm proud, moved up the side slope (`EYE_X` 1.75). The brow crescent covers only the top third and stands 0.4 mm proud. The pupil runs 60% of the eye's height and is 0.12 mm deep.
+3. **Crest.** The back has 1.5× as many spines (0.95 mm apart). Each is a steep-flanked blade 0.56 mm across at its foot and about 0.75 mm long, with a gap before the next and a near-zero web. Heights vary about 15% from spine to spine. The tail keeps its old, sparser saw.
+4. **Tail.** Scales are 40% lower at the rim edge, with softer, rounder overlaps and a lighter keel.
+
+I zoomed every render to 2x before each review. The pupil and lid stair-steps, the head-grain combing, the snout's boxy front wall, the tail scales' hard back edges and, in round 6, the crest's square-pyramid spines were found that way and fixed.
 
 ## What I could not do
 
-- **Name the animal at 300 px.** Two rounds moved the score from 7.1 to 7.4. The two remaining reads are both about the concept: a green stone on a lizard's head reads as an eye from the side, and the crest reads as osteoderms rather than a tuatara's soft comb. A flush or 2.0 mm stone set further back, and a crest of thin blades, are the next moves.
-- **Use the platform's crisper relief edges.** Master did not move tonight, so the round-5 merge brought nothing.
-- **Keep every single-ray section at 0.3 mm or more.** Rays near the foot of low relief, and the vent wall at the bore, read near-zero sections where nothing free-standing is thin (see core change 2 below).
+- **Take the stone out of the eye's place.** Three rounds attacked it: 3.0 mm, then 2.5 mm, then a flush 2.0 mm stone, moved from 2.8 to 4 to 5 mm behind the eyes. From above it now reads as a parietal jewel. In three-quarter view the skull's flank still presents it where an eye sits. Moving the eyes forward and up to clear it made them read as nostrils. The concept itself (a stone on a lizard's head, seen from the hero camera) fights the read. The next move would be the round-6 punch list: put the stone on the nape, behind the skull's widest point, or countersink it under a granulated collar.
+- **Make the tail's rim edge irregular enough.** The tail scales sit on a ring and column lattice. Lowering and rounding them helped from above (`palm.png`), but over the rim fillet (`reverse.png`) the lattice still reads as studs. Jittered cells, like the dorsal scales use, would be the fix.
+- **Use the platform's crisper relief edges.** Master did not move during the revival.
+- **Keep the land-width area low with thin crest blades and a flush seat.** Both were punch-list asks, and both trade section for read. Everything thin is named, but the area grew to 23 mm².
 
 ## Core changes wanted (not made; lanes may not edit `src/`)
 
