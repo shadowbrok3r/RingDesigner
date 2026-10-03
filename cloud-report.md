@@ -1,144 +1,112 @@
 # Tenebrae — Rosa: final report
 
-**Outcome: stopped at the block-out.** All three read tests came back `reads: false`, so under TASK.md the loop stopped before round 1. **Rounds used: 0 of 3.** No full review ran, so there is no review verdict or score. The subject needs rethinking, not detailing (see "What the reviewers kept saying").
+**Outcome: cut at 5.7 after three reviewed rounds.** The rethink Logan approved passed its first read test (read test 4). The rounds then scored 5.4, 5.8 and 5.7 (revise, revise, cut). Every gate and the template gate were green in rounds 2 and 3; the ring lost on art alone.
 
-- Branch: `claude/tenebrae-rosa`. Master `2e11632` is merged in.
-- Example: `crates/ringdesign-core/examples/tenebrae_rosa.rs`.
-- Outputs: `showcase/tenebrae/rosa/`.
-- Collection doc: one line added to the Rosa section of `docs/collections/tenebrae.md`. It records the process decision, the base, the pears and the stop. No extra rounds were granted.
+- **Rounds used:** 3 of 3, after 4 read tests.
+- **Branch:** `claude/tenebrae-rosa`, with master `2e11632` merged in.
+- **Example:** `crates/ringdesign-core/examples/tenebrae_rosa.rs`.
+- **Outputs:** `showcase/tenebrae/rosa/`.
+- **Collection doc:** three lines in the Rosa section of `docs/collections/tenebrae.md` record the base and process, the rethink, and this outcome. No extra rounds were granted, so none is recorded.
 
-## Read tests (independent reviewer, read-test mode)
+## Read tests and reviews
 
-| # | Build | reads | What the eye saw |
+| Step | Build | Verdict | What the reviewer said |
 |---|---|---|---|
-| 1 | Sunk-cell rose. Eight 1.8 × 3.0 oval sapphires in drawn collets round a 3.5 ruby. Sunk curved-triangle spandrels between the petal heads. | **false** | "a sapphire and ruby flower cluster on a square signet… nothing reads as Gothic cathedral" |
-| 2 | Raised tracery wheel: full mullions, an outer order and pointed heads. Lights are true pears pointed at the rim. Graded shoulder oculi. | **false** | "closer… still 'sapphire and ruby flower cluster'; the tracery is too thin to win; no arch on the walls" |
-| 3 | Tracery 0.9 mm proud, over the collets. Mullions 1.0 mm. Three-lancet gallery arcade cut into each cheek. Larger shoulder oculi. | **false** | "reads as a rose window on a second look, but the almond collets read as petals first; nothing outside the face says Gothic" |
+| Read test 1 | 8 oval sapphires in collets round a ruby; sunk petals | does not read | "a sapphire and ruby flower cluster" |
+| Read test 2 | Raised tracery wheel, pear lights | does not read | "still a flower cluster; tracery too thin" |
+| Read test 3 | Tracery 0.9 mm proud, cheek arcade | does not read | "a rose window on a second look; the almond collets read as petals" |
+| Read test 4 (rethink) | Ruby oculus only; dark lancets; 16-cusp rim; two-lobed spandrels; corner trefoils | **reads** | "rose window… removing the sapphires was right"; weak off the face |
+| Round 1 | + raised spokes, cheek gallery panel, shoulder discs | **revise, 5.4** | the ruby collet's land 0.70 mm failed; spokes are floating sticks, the panel a glued plate, the discs rivets, the table a stacked slab |
+| Round 2 | Land 0.90; stock enveloped; shoulder discs removed | **revise, 5.8** | all gates green; spokes, slab, plate and missing density each about half a point |
+| Round 3 | Rose cut into the face, spokes gone, graded oculi sunk on the shoulders | **cut, 5.7** | all gates green; the face now reads as a lotus or mandala first; plate arcade, serrated oculus rims, no small scale off the face |
 
-The full JSON is in `showcase/tenebrae/rosa/read-test-{1,2,3}.json`.
+The full JSON is in `showcase/tenebrae/rosa/read-test-{1..4}.json` and `review-round{1,2,3}.json`.
 
-### What the reviewers kept saying
+### Why it was cut
 
-- **The stones beat the tracery.** Each reviewer read eight bright stones round a red centre as a flower before they saw a window.
-- **The 0.8 mm floor makes it worse.** Every collet wall must be at least 0.8 mm. That makes each 1.8 × 3.0 light a 3.6 × 4.8 mm gold almond, which fills the lancet cell, so the petal outline wins over the mullions.
-- **Requests from attempt 3 not yet done:**
-  - collets trimmed to low bezels inside their cells;
-  - a cusped inner rim (16 cusps);
-  - pierced trefoils in the four cushion corners;
-  - an arcade deep enough to cast a shadow, on the end walls as well.
-- **What would fix it:** fewer, smaller or flush-set stones (or stones only in the oculus and the spandrels), so that the gold spokes, the cusped rim and pierced foils carry the read. The plan's stones and the 0.8 mm floor cannot both fit in a 16–19 mm face together with 0.8–1.0 mm tracery bars.
+- **On the face:** without the spokes, the eight pointed lancets and the two-lobed spandrels above them read as interlaced petals, so the face says "lotus" before "rose window".
+- **Off the face:** the cheek arcade sits on a proud plate. The end walls carry only that plate's edge, the trefoil bosses are flat cylinders, and the shank has no frieze.
+- **Density:** there is no medium or small scale to stand beside Caiman.
+- **Two fixes I could not land as asked:**
+  - A three-lancet arcade cut straight into the stock cheek leaves knife edges under 0.8 mm (65 to 375 thin faces, depending on height). The plate is what made it castable.
+  - Shoulder piercing through the stock's hollowed head failed the 0.8 mm section.
 
 ## Base and process
 
-- **Base: 001 Cushion at 19 × 19, bore 18.6.**
-  - 013 Round tops out at 13 mm without baking (the 70–130% rule).
-  - The baked 130% source travels inline. The design alone measured 1,250,150 bytes, over the stock template budget of 1,000,000.
-  - So the brief's fallback, 001, was used. It went to 19 rather than 18 to make room for the 0.8 mm collet walls.
-  - The palm is raised its full half millimetre (1.5 → 2.0): the bare stock's shank edges measured 0.50 under `thickness(0.8)`.
-- **Process: lost wax, Gold 18k.** `CastProcess::LostWax.apply`, then `min_section_mm` 0.8 and `min_detail_mm` 0.15. This matches Logan's 2026-10-03 rule, so nothing changed. The sand field also reads Castable, but no two-part ray release was run, so I claim no sand bonus.
-- **Lights: Pear 1.8 × 3.0.**
-  - Master's C-B2 (#257) gives the pear a true girdle through `GemCut::has_true_girdle`, although `plan_pow` still returns 2.0.
-  - I took that as the enabler landing and switched the lights from ovals to pears, points aimed at the rim (`spin_deg` −90).
+- **Base:** 001 Cushion at 19 × 19 mm, bore 18.6, palm raised its full 0.5 mm. The 16 mm 013 needs a baked source that travels inline (1.25 MB, over the 1 MB template budget).
+- **Process:** lost wax, Gold 18k, 0.8 mm section and 0.15 mm detail. This matches Logan's 2026-10-03 rule.
+- **Envelope:** the stock is built with its sand envelope on (`sand_envelope = true`, the undercuts filled toward the parting line). This squares the bare 001 shank's knife edges, which are under 0.8 mm (58 faces on the bare stock), and fills its hollowed head.
+- **No sand bonus:** the field also reads Castable, but no two-part ray release was run, so I claim none.
+- **Stones:** one Round 3.5 mm ruby in a drawn collet. The seat bur placed itself at the bore and left a 0.2 mm skin, so it was removed; the drawn bearing and a pilot drilled toward the finger's axis do its job.
 - **Enablers used:**
-  - C-T1: `Sketch::tracery` on the rose net, and `Profile::Regions` for the spandrels.
-  - C-T3: the `cutter.pierce` builder and `cutters::outline(Shape::Lancet)` for the arcade.
-  - C-T4: `dfm::cut_lands` at 0.8.
-  - C-B2: pear plans.
-  - #248: framed close-ups with `write_png_framed`.
+  - C-T1: `Sketch::tracery` and `Profile::Regions`.
+  - C-T3: `cutters::outline` for the lancets and trefoils, and `cutter.pierce` for the oculi.
+  - C-T4: `dfm::cut_lands`.
+  - #248: `write_png_framed` close-ups.
+  - C-B2's pears were used in read tests 2 and 3 only; the rethink sets no sapphires.
 
-## Gates (committed block-out 3)
+## Gates (round 3, as committed)
 
 | Gate | Draft 768×320 | Export 1536×448 |
 |---|---|---|
-| Triangles (≤ 2 M) | 65,012 | 65,012 (the stock and CAD parts build at their own resolution) |
+| Triangles (≤ 2 M) | 500,254 | 1,345,930 |
 | Watertight / degenerate faces | yes / 0 | yes / 0 |
-| `self_crossings`: ring / made parts | 0 / **20 in "Their eight collets"** | 0 / **20** |
-| Solids notes / parts notes | empty / empty | empty / empty |
-| CAD features `Ok` | all | all |
-| Finger hole | 0 vertices inside, min r 9.2995 vs bore 9.300 | same |
-| Field verdict (lost wax) | Castable, thinnest wall 1.88 | same |
-| `cad::measure::thickness(0.8)` at 384×160 | **382 rays, 44 below, min 0.025** | same |
-| `dfm::cut_lands(0.8)` | 0 findings | 0 |
-| `dfm::findings_in` | 0 | 0 |
-| Stones reported / previewed | 9 / 9 | 9 / 9 |
-| `--verify` cold reload, empty library | — | identical |
+| Self-crossings: ring / 16 made parts / pattern | 0 / 0 / 0 | 0 / 0 / 0 |
+| Solids and parts notes; CAD features Ok | empty; 29 of 29 | same |
+| Finger hole | 0 inside, min r 9.29997 against bore 9.3 | 0 inside, min r 9.29999 |
+| Field (lost wax) | Castable, thinnest wall 1.88 | same |
+| `thickness(0.8)` on a 384×160 build | 384 rays, 0 below, min 0.850 | same |
+| Lands | bar 1.00, oculus collet to lights 0.90, spandrel to table edge 2.01 | same |
+| `cut_lands(0.8)` / `findings_in` | 0 / 0 | 0 / 0 |
+| Stones reported / previewed | 1 / 1 | 1 / 1 |
+| `--verify` cold reload | — | identical |
 | Casting pattern | watertight, 0 degenerate, 0 crossings | same |
 
-**Two gates are red: thickness and the made-part crossings.** Under TASK.md that does not block a block-out read test, but it would block a review round.
+The 0.8 mm thickness check only samples 384 faces, so I also cast a ray from every face of the 384×160 build (143,796 faces). None was under 0.79 mm.
 
-- **Thickness:** the thin samples sit where the drilled pilots, the bur relief and the collet bearings meet near the girdle and the bore.
-- **Crossings:** the pattern copies of the drawn collets meet the raised tracery degenerately, and the part is "joined one by one".
+**Template gate** (class `stock`): 44 nodes, 1 `design.set` patch (`/manufacturing`), 546,160 bytes against the 1 MB budget. Cold source identical, cold graph reload true, mesh parity identical at 1,345,930 triangles, `template_gate_passed: true`. `crisp_relief` is off, as the lift requires. The file is `showcase/tenebrae/rosa/verification.json`.
 
-What I learned getting part of the way:
-- Cut tools apply after join tools, so a pocket cut through a collet's footprint shaves the collet to a skin.
-- A seat bur on a stone standing over a joined collet takes the whole-bur route, and its clearance and girdle wall shave the collet's inner wall.
-- `head.bezel`'s leaning lip is 0.16 mm thick vertically. No lip share reaches 0.8, so I drew straight-walled collets instead.
-- Vertical through-cuts leave knife edges where they exit the bore at an angle, so the pilots are drilled toward the finger's axis.
-
-**Template gate** (`collection_templates --verify-export`, class `stock` because the base is factory 001):
-
-| | |
-|---|---|
-| Nodes | 62 |
-| `design.set` patches | 1 (`/manufacturing`), at most 4 allowed |
-| Graph size | 528,319 bytes, inside the 1 MB stock budget |
-| Cold source / cold graph reload / mesh parity | identical / yes / identical vertices, faces and normals |
-| `template_gate_passed` | true |
-| Open time | first build 1.31 s, evaluate 37 ms |
-
-`crisp_relief` is off, because the lift cannot carry it yet. The file is in `showcase/tenebrae/rosa/verification.json`.
-
-**Weight:** 36.4 g in Gold 18k. That is heavy, and comes from the 19 mm cushion and the 2.0 mm palm.
+**Weight:** 35.0 g in Gold 18k.
 
 ## Feature tree, as sentences
 
-1. Cushion signet, factory 001 at a 19 mm face.
-2. Table, lifted clear of the metal (+1.2).
-3. The rose net traced into lights a bar apart (C-T1):
-   - hub circle r 3.0, outer circle r 8.5;
-   - 8 mullions from hub to rim, between the lights;
-   - 8 pointed heads, each two arcs struck at 1.0 of the span, apex on the rim;
-   - bar 1.0 mm.
-4. Tracery top (+0.9).
-5. The bars between the lights, inside the outer order (r 9.0).
-6. Raise the tracery: the oculus order, eight mullions, the heads and the outer order.
-7. Sink the sixteen spandrels deep (3.0 mm, `Profile::Regions`).
-8. The ruby stone, Round 3.5, girdle 0.4 over the table.
-9. Its seat bur.
+1. Cushion signet, factory 001 at a 19 mm face, the stock enveloped.
+2. A work plane over the table.
+3. The rose net, traced into lights a bar (1.0 mm) apart:
+   - a hub circle at r 3.2;
+   - eight mullions from hub to rim;
+   - eight pointed heads, each struck at a full span, apex at r 6.3;
+   - a 16-lobe cusped rim at r 7.7, with 0.55 mm sag.
+4. Sink the eight cusped spandrels deep (2.2 mm).
+5. Sink the eight lancet lights deep (2.2 mm).
+6. Corner boss height plane.
+7. Four corner trefoils.
+8. Raise the corner trefoils as carved bosses (0.6 mm).
+9. The ruby, Round 3.5, girdle 0.4 mm over the table.
 10. The oculus collet, drawn:
-    - lip height plane, lip ring and "raise the lip to the bearing";
-    - bearing height plane, bearing ring and "stand the bearing on the metal".
-11. The first light, Pear 3 × 1.8, 5.65 mm out, girdle 0.25: its seat bur and its drawn collet, as above.
-12. Eight sapphire lights round the oculus, eight seats and eight collets. These are `About` patterns round the ruby: P2 keeps a gem on every copy.
-13. Drill the oculus pilot, and each light's pilot, toward the finger's axis (nine cuts, each leaned to its own angle).
-14. Oculi of the nave 1–4: round piercings 2.0, 1.8, 1.5 and 1.2 at θ 90 − (44, 53, 62, 71).
-15. Mirror the oculi through the crown.
-16. Outside the near cheek: a parting-parallel plane at z 9.9.
-17. Gallery arcade: three lancets, 1.6 × 2.3, centred 2.5 apart.
-18. Cut the gallery arcade into the cheek.
-19. The same arcade in the far cheek (mirrored across the band).
+    - a lip-height plane, a lip ring, and "raise the lip to the bearing";
+    - a bearing-height plane, a bearing ring, and "stand the bearing on the metal".
+11. Drill the oculus pilot to the finger.
+12. Sink oculi of the nave 1–4: round, 1.6, 1.4, 1.2 and 0.9 mm, 0.6 mm deep, chamfered 0.15, at θ 90 − (46, 55, 64, 73). Then mirror them through the crown.
+13. The near cheek's panel face plane.
+14. A gallery panel on a sill, stood on the cheek and mirrored to the far cheek.
+15. Outside the near cheek, leaned 6.2° with the wall, the gallery arcade (three lancets, 1.1 × 2.0 mm, 2.0 mm apart): cut into the cheek and mirrored.
 
-The four head-wall arcade stamps (`setting::Stamp`) are written but switched off (`WITH_ARCADES`). On the stock's cheeks at draft they struck torn, stair-stepped cuts, so the arcade became the CAD cut above.
+The raised-tracery, spoke and moulded-ring variants are still in the example behind `RAISED_TRACERY` (false).
 
 ## What I could not do
 
-- **Make it read.** See the read tests. The plan's stone count and sizes, together with the 0.8 mm walls, turn the rose into a flower.
-- **013 at 16 mm** within the template budget, without the `pre_scale` the doc asks P7 for.
-- **A seam bead on the tracery or the collets.** The clustered join's fillet folds in every acute light corner, so `blend_mm` is 0 on the tracery and the collets. That breaks house rule 10.
-- **A drafted tracery extrude (12°).** The kernel refused it: "unsupported or degenerate geometry".
-- **Pierced-through spandrels.** They exit the shoulders at about 45° and fail thickness, so they are sunk 3.0 mm.
-- **Clean thickness and collet crossings** (above).
+- **A face that reads as a rose window before a flower,** once both the stones and the spokes were gone.
+- **Arcades cut straight into the stock walls without knife edges,** or on the end walls.
+- **Pierced shoulder oculi:** they would cut into the head's hollow, and the shoulders are too thin.
+- **Rounded or chamfered bar tops, and a beaded collet.** Edge fillets need hand-picked edge references, and a drafted tracery extrude was refused as degenerate.
+- **Seam beads:** none on the joined parts. The clustered join's fillet folds in acute light corners, which breaks house rule 10.
 
 ## Core changes wanted
 
-1. **A `head.bezel` "cast straight" option**, a wall standing square above the girdle with no lean, so a cast collet holds the investment floor:
-```rust
-// cad/builders.rs, BEZEL params
-number("lean", "Lip lean", "", 0.0, 1.0, 1.0),
-// setting::collet_named: scale the lean
-let lean = lean_share * 0.8 * (1.0 - crown_scale(gem, top - g)) * plan.b;
-```
-2. **Seat bur against the band only.** `seat.surface_z` should be read from the band, not from the band plus joined collets, so the bur takes the relief route and never shaves a collet it sits in. Equivalently, exclude `ComponentRole::Setting` joins from the surface read in the BUR builder.
-3. **Per-part fillets in a join cluster**, laid only on each part's own seam with the band, with every acute corner skipped rather than failing the whole cluster.
-4. **`base.preset { pre_scale }`** (as the doc asks P7), so 013 can reach 16 mm without carrying the baked source inline.
-5. **`cad::measure::thickness` with a list of thin samples**, not just the minimum, so authors can find every thin spot.
+1. **The seat bur should read only the band's surface,** with no joined parts and no stock interior. Here it sat at the bore and left a 0.2 mm skin; elsewhere it shaved collets.
+2. **A `head.bezel` cast-straight lip option,** so a cast collet meets a 0.8 mm section without the leaning lip.
+3. **Per-part seam fillets** that skip acute corners, instead of failing the whole cluster.
+4. **`cad::measure::thickness` should return every thin sample,** not just the minimum. The example carries a full-face map behind `ROSA_MAP` for this.
+5. **`base.preset { pre_scale }`,** so 013 can reach 16 mm within the template budget.
+6. **A wall-normal cut** (a `Placement::Side`-style plane for head walls), so arcades can be cut square to a leaning, curved stock wall without slivers.
