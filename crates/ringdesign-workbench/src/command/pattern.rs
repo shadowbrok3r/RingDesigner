@@ -22,6 +22,8 @@ pub fn pattern_name(kind: &PatternKind, source: &Feature) -> String {
         PatternKind::Ring { .. } => format!("Ring array of {}", source.name),
         PatternKind::About { .. } => format!("Array of {}", source.name),
         PatternKind::Mirror { .. } => format!("Mirror of {}", source.name),
+        PatternKind::Line { .. } => format!("Line of {}", source.name),
+        PatternKind::Along(_) => format!("{} along a path", source.name),
     }
 }
 
@@ -173,10 +175,13 @@ pub fn pull_on(f: &Feature, face: &FaceRef, rise: Option<Rise>) -> Option<Pull> 
 /// A seat moved `by` along its normal.
 fn lifted(p: &Placement, by: f64) -> Placement {
     match p.clone() {
-        Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } => {
-            Placement::Ring { theta_deg, across_mm, height_mm: height_mm + by, spin_deg, tilt_deg, cant_deg }
+        Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level } => {
+            Placement::Ring { theta_deg, across_mm, height_mm: height_mm + by, spin_deg, tilt_deg, cant_deg, level }
         }
-        Placement::Free => Placement::Free,
+        Placement::Side { theta_deg, radius_mm, face, height_mm, spin_deg, tilt_deg } => {
+            Placement::Side { theta_deg, radius_mm, face, height_mm: height_mm + by, spin_deg, tilt_deg }
+        }
+        other @ (Placement::Free | Placement::Relative { .. }) => other,
     }
 }
 
@@ -429,7 +434,7 @@ mod tests {
         let committed = effects(s.enter());
         let [Effect::Operation { feature: 2, operation: Operation::Box { size } }, Effect::Placement { feature: 2, placement }] = committed.as_slice() else { panic!("{committed:?}") };
         let height = |p: &Placement| match p {
-            Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 } => *height_mm,
+            Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false } => *height_mm,
             other => panic!("{other:?}"),
         };
         assert!(*size == [2.0, 1.5, 1.5] && (height(placement) - 1.05).abs() < 1e-12, "the top rises 0.5 and the bottom stays: {size:?} {placement:?}");
@@ -447,7 +452,7 @@ mod tests {
         let feature = added(c.feed(&StepInput::Confirm));
         assert_eq!((feature.id, feature.name.as_str(), feature.component.placement.clone(), feature.component.attach), (7, "Press-pull of Block", Placement::Free, Attach::Join));
         assert!(matches!(&feature.operation, Operation::PressPull { source: 2, face, distance_mm } if face.ordinal == side_ordinal && *distance_mm == 0.3));
-        let tilted = Feature { component: Component { placement: Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.8, spin_deg: 0.0, tilt_deg: 10.0, cant_deg: 0.0 }, ..block.component.clone() }, ..block.clone() };
+        let tilted = Feature { component: Component { placement: Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.8, spin_deg: 0.0, tilt_deg: 10.0, cant_deg: 0.0, level: false }, ..block.component.clone() }, ..block.clone() };
         assert_eq!(pull_of(&tilted, &face(&tilted, [0.0, 0.0, 1.0]).1), None);
         let free = Feature { component: Component::default(), ..block.clone() };
         assert_eq!(pull_of(&free, &face(&free, [0.0, 0.0, 1.0]).1), None);

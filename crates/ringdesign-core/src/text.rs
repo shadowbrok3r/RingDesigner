@@ -3,8 +3,9 @@
 //! The text travels in the design as a string and a font choice, like
 //! [`crate::drawn`] travels as strokes: the raster is derived on load at
 //! whatever resolution is wanted, so the inscription survives moving machines
-//! and re-renders clean at export. Both bundled fonts are SIL OFL
-//! (`assets/fonts/OFL.txt`).
+//! and re-renders clean at export. All three bundled fonts are SIL OFL
+//! (`assets/fonts/OFL.txt`, and the notices under Tools > Licences); the same
+//! faces set text as sketch outlines in [`crate::sketch::text`].
 
 use std::sync::OnceLock;
 
@@ -27,32 +28,40 @@ pub enum TextFont {
     Serif,
     /// Great Vibes — a flowing script.
     Script,
+    /// UnifrakturMaguntia — a blackletter for legends and seals. A design that sets it is written at
+    /// format 6, since an older build cannot read the face's name.
+    Textura,
 }
 
 impl TextFont {
-    pub const ALL: &'static [TextFont] = &[TextFont::Serif, TextFont::Script];
+    pub const ALL: &'static [TextFont] = &[TextFont::Serif, TextFont::Script, TextFont::Textura];
 
     pub fn label(self) -> &'static str {
         match self {
             TextFont::Serif => "Serif (EB Garamond)",
             TextFont::Script => "Script (Great Vibes)",
+            TextFont::Textura => "Textura (UnifrakturMaguntia)",
+        }
+    }
+
+    /// The font file the face is drawn from.
+    pub fn bytes(self) -> &'static [u8] {
+        match self {
+            TextFont::Serif => include_bytes!("../../../assets/fonts/EBGaramond.ttf"),
+            TextFont::Script => include_bytes!("../../../assets/fonts/GreatVibes-Regular.ttf"),
+            TextFont::Textura => include_bytes!("../../../assets/fonts/UnifrakturMaguntia-Book.ttf"),
         }
     }
 
     fn font(self) -> &'static fontdue::Font {
-        static SERIF: OnceLock<fontdue::Font> = OnceLock::new();
-        static SCRIPT: OnceLock<fontdue::Font> = OnceLock::new();
-        let (cell, bytes): (&OnceLock<fontdue::Font>, &[u8]) = match self {
-            TextFont::Serif => {
-                (&SERIF, include_bytes!("../../../assets/fonts/EBGaramond.ttf").as_slice())
-            }
-            TextFont::Script => (
-                &SCRIPT,
-                include_bytes!("../../../assets/fonts/GreatVibes-Regular.ttf").as_slice(),
-            ),
+        static FONTS: [OnceLock<fontdue::Font>; 3] = [OnceLock::new(), OnceLock::new(), OnceLock::new()];
+        let cell = match self {
+            TextFont::Serif => &FONTS[0],
+            TextFont::Script => &FONTS[1],
+            TextFont::Textura => &FONTS[2],
         };
         cell.get_or_init(|| {
-            fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default())
+            fontdue::Font::from_bytes(self.bytes(), fontdue::FontSettings::default())
                 .expect("bundled font parses")
         })
     }
