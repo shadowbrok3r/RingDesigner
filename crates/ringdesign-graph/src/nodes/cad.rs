@@ -45,6 +45,72 @@ fn feature(_: &mut EvalCtx<'_>, n: &Node, i: &Inputs) -> Result<Outputs, NodeErr
         .map_err(|e| NodeError::new(e.to_string()))?;
     Ok(Outputs::one("design", d))
 }
+/// What a `cad.features` node's settings hold: the name, component and operation every feature it appends starts from.
+#[derive(serde::Deserialize, Default)]
+struct FeaturesBase {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    operation: Option<Operation>,
+    #[serde(default)]
+    component: ringdesign_core::cad::Component,
+}
+/// The id of feature `k` a `cad.features` node appends: the node's id in the high bits, so no node's own id and no other such
+/// node's features can take it.
+pub fn features_id(node: NodeId, k: usize) -> Option<Id> {
+    (node.0 < 1 << 43 && k + 1 < 1 << 20).then(|| node.0 << 20 | (k as u64 + 1))
+}
+fn features(_: &mut EvalCtx<'_>, n: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
+    let mut d = match i.get("design") {
+        Value::Design(d) => (**d).clone(),
+        _ => return Err(NodeError::input("design", "Connect a source design")),
+    };
+    let base: FeaturesBase = match &n.params {
+        serde_json::Value::Null => FeaturesBase::default(),
+        params => serde_json::from_value(params.clone()).map_err(|e| NodeError::new(format!("CAD features: {e}")))?,
+    };
+    let parse = |pin: &str, v: &Value| v.to_json_any().ok_or_else(|| NodeError::input(pin, "expected JSON"));
+    let operations = i.list("operation");
+    let placements = i.list("placement");
+    let count = operations.len().max(placements.len());
+    if count == 0 && base.operation.is_none() {
+        return Err(NodeError::input("operation", "Wire a list of operations, or of placements for the operation in the settings"));
+    }
+    let count = count.max(1);
+    let item = |list: &[Value], k: usize| list.get(k.min(list.len().saturating_sub(1))).cloned();
+    let name = match i.get("name") {
+        Value::Null => base.name.clone().unwrap_or_else(|| "Part".into()),
+        v => v.as_text().ok_or_else(|| NodeError::input("name", "expected text"))?.to_string(),
+    };
+    let attach = match i.get("attach") {
+        Value::Null => None,
+        v => Some(serde_json::from_value::<ringdesign_core::cad::Attach>(serde_json::json!(v.as_text().unwrap_or_default().to_lowercase())).map_err(|_| NodeError::input("attach", "separate, join or cut"))?),
+    };
+    let enabled = i.bool("enabled")?;
+    let doc = d.cad.get_or_insert_with(Document::default);
+    let mut ids = Vec::with_capacity(count);
+    for k in 0..count {
+        let id = features_id(n.id, k).ok_or_else(|| NodeError::new("CAD features: too many features for one node"))?;
+        let operation = match item(&operations, k) {
+            Some(v) => serde_json::from_value(parse("operation", &v)?).map_err(|e| NodeError::input("operation", format!("item {k}: {e}")))?,
+            None => base.operation.clone().expect("checked"),
+        };
+        let mut component = base.component.clone();
+        if let Some(v) = item(&placements, k) {
+            component.placement = serde_json::from_value(parse("placement", &v)?).map_err(|e| NodeError::input("placement", format!("item {k}: {e}")))?;
+        }
+        if let Some(attach) = attach {
+            component.attach = attach;
+        }
+        if let Some(blend) = i.get("blend_mm").as_number() {
+            component.blend_mm = blend;
+        }
+        let f = Feature { id, name: if count > 1 { format!("{name}, {}", k + 1) } else { name.clone() }, enabled, operation, component };
+        doc.append(f).map_err(|e| NodeError::new(e.to_string()))?;
+        ids.push(Value::Int(id as i64));
+    }
+    Ok(Outputs::one("design", d).with("ids", ids))
+}
 /// The numeric placement pins, each patching the coordinate of that name.
 const PLACEMENT_NUMBERS: [&str; 7] = ["theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg", "radius_mm"];
 /// Every placement pin beside `placement` and `blend_mm`, with the kind it reads.
@@ -125,6 +191,53 @@ fn library_sketch(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, 
     let op = serde_json::to_value(Operation::Sketch { sketch }).map_err(|e| NodeError::new(e.to_string()))?;
     Ok(Outputs::one("operation", op))
 }
+/// Text in a bundled font as a Sketch feature's operation: every glyph's outline as closed loops of lines and
+/// Béziers, straight or round a circle, mirrored for a seal, the whole text or one part of it.
+fn text_sketch(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
+    use ringdesign_core::sketch::text::{TextAlign, TextArc, TextLayout};
+    use ringdesign_core::text::TextFont;
+    let refused = |pin: &'static str| move |e: anyhow::Error| NodeError::input(pin, format!("{e:#}"));
+    let font_name = i.text("font")?;
+    let font: TextFont = serde_json::from_value(serde_json::Value::String(font_name.to_string()))
+        .map_err(|_| NodeError::input("font", format!("{font_name:?} is not a bundled font")))?;
+    let align = i.text("align")?;
+    let align = TextAlign::from_name(align).ok_or_else(|| NodeError::input("align", format!("{align:?} is not Start, Centre or End")))?;
+    let radius = i.number("radius_mm")?;
+    let arc = if radius == 0.0 { None } else { Some(TextArc { radius_mm: radius, start_deg: i.number("start_deg")?, clockwise: i.bool("clockwise")? }) };
+    let mut layout = TextLayout { tracking: i.number("tracking")?, arc, align, mirror: i.bool("mirror")?, ..TextLayout::new(font, i.text("text")?, i.number("cap_mm")?) };
+    let (span, width) = (i.number("span_deg")?, i.number("width_mm")?);
+    if span > 0.0 {
+        let arc = layout.arc.ok_or_else(|| NodeError::input("span_deg", "a span runs round a circle; give the text a radius"))?;
+        layout.tracking = layout.tracking_for(arc.radius_mm * span.to_radians()).map_err(refused("span_deg"))?;
+    } else if width > 0.0 {
+        if layout.arc.is_some() {
+            return Err(NodeError::input("width_mm", "a width sets straight text; round a circle, give a span"));
+        }
+        layout.tracking = layout.tracking_for(width).map_err(refused("width_mm"))?;
+    }
+    let part = i.int("part")?;
+    let mut sketch = match usize::try_from(part) {
+        Ok(k) => layout.part(k).map_err(refused("part"))?,
+        Err(_) => layout.sketch().map_err(refused("text"))?,
+    };
+    if !i.get("plane").is_null() {
+        let plane = i.get("plane").to_json_any().ok_or_else(|| NodeError::input("plane", "expected a workplane"))?;
+        sketch.plane = serde_json::from_value(plane).map_err(|e| NodeError::input("plane", e.to_string()))?;
+    }
+    let name = i.text("name")?.trim();
+    if !name.is_empty() {
+        sketch.name = name.to_string();
+    }
+    let parts = layout.part_count().map_err(refused("text"))?;
+    let length = layout.length_mm().map_err(refused("text"))?;
+    let points = sketch.points.len();
+    let op = serde_json::to_value(Operation::Sketch { sketch }).map_err(|e| NodeError::new(e.to_string()))?;
+    Ok(Outputs::one("operation", op)
+        .with("parts", Value::Int(parts as i64))
+        .with("points", Value::Int(points as i64))
+        .with("length_mm", Value::Number(length))
+        .with("tracking", Value::Number(layout.tracking)))
+}
 fn resize(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
     let d = match i.get("design") {
         Value::Design(d) => d,
@@ -190,6 +303,21 @@ pub fn register(reg: &mut Registry) {
         .input(PinSpec::select("face", ["Low", "High", "Wider"].map(String::from).to_vec()).optional().doc("The side face a side placement stands on."));
     reg.register(feature_spec.output(PinSpec::item("design", ValueKind::Design).doc("Design with appended feature.")).eval(feature)).expect("unique");
     reg.register(
+        NodeSpec::new("cad.features", "CAD features", Category::Assembly)
+            .doc("Append one CAD feature per list item to one design, where a list on a CAD feature's operation makes one design per item: the operations and placements wired in, matched longest-list, the rest from the node's settings. Feature k's id is this node's id times 2^20 plus k + 1.")
+            .input(PinSpec::item("design", ValueKind::Design).doc("Previous feature or nominal design."))
+            .input(PinSpec::list("operation", ValueKind::Json).doc("One operation per feature; empty takes the settings' operation for every placement."))
+            .input(PinSpec::list("placement", ValueKind::Json).doc("One placement per feature, such as a crest path's; empty keeps the settings' placement."))
+            .input(PinSpec::item("name", ValueKind::Text).optional().doc("What the features are called, each numbered after it."))
+            .input(PinSpec::select("attach", vec!["separate".into(), "join".into(), "cut".into()]).optional().doc("How every feature meets the band; the settings' when unset."))
+            .input(PinSpec::item("blend_mm", ValueKind::Number).optional().doc("Junction blend radius, mm."))
+            .input(PinSpec::item("enabled", ValueKind::Bool).default(true).doc("Suppress the features without deleting them."))
+            .output(PinSpec::item("design", ValueKind::Design).doc("Design with the features appended."))
+            .output(PinSpec::list("ids", ValueKind::Int).doc("The appended features' ids, in order."))
+            .eval(features),
+    )
+    .expect("unique");
+    reg.register(
         NodeSpec::new("sketch.library", "Library sketch", Category::Assembly)
             .doc("A sketch from the library by name, as a Sketch feature's operation: the bundled Gothic outlines, tracery nets and artwork (gothic/...), or the user's own. Wire it into a CAD feature, or through Tracery first for a net.")
             .input(PinSpec::item("name", ValueKind::Text).default("gothic/fleur-de-lis").doc("The sketch's library name, its path without .svg."))
@@ -198,6 +326,36 @@ pub fn register(reg: &mut Registry) {
             .eval(library_sketch),
     )
     .expect("unique");
+    {
+        use crate::registry::Widget;
+        use ringdesign_core::{sketch::text::TextAlign, text::TextFont};
+        let aligns = TextAlign::ALL.iter().map(|a| a.name().to_string()).collect();
+        reg.register(
+            NodeSpec::new("sketch.text", "Text sketch", Category::Assembly)
+                .doc("Text in a bundled font as a Sketch feature's operation: each letter's outline as closed loops of lines and Béziers, counters as holes, straight or round a circle about the sketch's origin, mirrored for a seal. A text holding more points than one sketch takes is set a part at a time. Wire it into a CAD feature and cut it with an Extrude.")
+                .input(PinSpec::item("text", ValueKind::Text).default("SIGILLVM").widget(Widget::TextLine).doc("The words; \u{2720} draws the bundled cross pattée where a font has none."))
+                .input(PinSpec::select("font", super::structs::enum_names(TextFont::ALL)).default("Textura").doc("The face."))
+                .input(PinSpec::item("cap_mm", ValueKind::Number).default(1.2).widget(Widget::Mm { min: 0.3, max: 10.0 }).doc("Height of a capital, mm."))
+                .input(PinSpec::item("tracking", ValueKind::Number).default(0.0).widget(Widget::Slider { min: -0.2, max: 2.0 }).doc("Space added after every character but the last, em."))
+                .input(PinSpec::item("radius_mm", ValueKind::Number).default(0.0).widget(Widget::Mm { min: 0.0, max: 20.0 }).doc("Radius of the baseline round the sketch's origin, mm; 0 sets the text straight along x."))
+                .input(PinSpec::item("start_deg", ValueKind::Number).default(90.0).widget(Widget::Angle).doc("Where the text is anchored round its circle, degrees counter-clockwise from x."))
+                .input(PinSpec::item("clockwise", ValueKind::Bool).default(true).doc("Reads clockwise with the letters standing outward, as a seal's legend; off, counter-clockwise with them standing inward."))
+                .input(PinSpec::select("align", aligns).default("Centre").doc("Which point of the text sits at its anchor: its start, its middle or its end."))
+                .input(PinSpec::item("span_deg", ValueKind::Number).default(0.0).widget(Widget::Angle).doc("Above 0, the tracking that runs the text this far round its circle, degrees."))
+                .input(PinSpec::item("width_mm", ValueKind::Number).default(0.0).doc("Above 0, the tracking that runs straight text this long, mm."))
+                .input(PinSpec::item("mirror", ValueKind::Bool).default(false).widget(Widget::Checkbox).doc("Reflected in the sketch's y axis, as a seal is cut so its impression reads true."))
+                .input(PinSpec::item("part", ValueKind::Int).default(-1i64).doc("-1 sets the whole text in one sketch; 0 and up sets only that part (a word, or a run of a long word's letters), where it falls in the whole."))
+                .input(PinSpec::item("plane", ValueKind::Json).optional().doc("The workplane the sketch lies on; the default plane when unset."))
+                .input(PinSpec::item("name", ValueKind::Text).default("").widget(Widget::TextLine).doc("The sketch's name; empty names it after the characters it sets."))
+                .output(PinSpec::item("operation", ValueKind::Json).doc("The Sketch feature's operation."))
+                .output(PinSpec::item("parts", ValueKind::Int).doc("How many parts the text sets in."))
+                .output(PinSpec::item("points", ValueKind::Int).doc("How many points this sketch holds, of the 1024 one takes."))
+                .output(PinSpec::item("length_mm", ValueKind::Number).doc("How long the whole text runs along its baseline, mm."))
+                .output(PinSpec::item("tracking", ValueKind::Number).doc("The tracking used, as given or as a span or width solved it, em."))
+                .eval(text_sketch),
+        )
+        .expect("unique");
+    }
     reg.register(NodeSpec::new("manufacturing.inspect","Inspect pattern",Category::Util).doc("Shared arbitrary-pull release, stock, flask and wall inspection on the prepared pattern.").input(PinSpec::item("design",ValueKind::Design).doc("Evaluated source design and manufacturing setup.")).output(PinSpec::item("report",ValueKind::Json).doc("Identified sampled manufacturing report.")).eval(inspect_pattern)).expect("unique");
     reg.register(
         NodeSpec::new("cad.inspect", "Inspect assembly", Category::Util)
@@ -1443,6 +1601,52 @@ mod tests {
         let doc = out.design.cad.as_ref().unwrap();
         assert_eq!((doc.features.len(), doc.outputs.clone()), (1, vec![id]));
     }
+    #[test]
+    fn a_text_sketch_node_sets_the_core_layout_a_part_at_a_time_and_fences_its_graph() {
+        use ringdesign_core::sketch::text::{TextAlign, TextArc, TextLayout};
+        use ringdesign_core::text::TextFont;
+        let sketch_of = |v: Option<&Value>| {
+            let Some(Value::Json(op)) = v else { panic!("{v:?}") };
+            let Operation::Sketch { sketch } = serde_json::from_value::<Operation>((**op).clone()).unwrap() else { panic!() };
+            sketch
+        };
+        let mut g = Graph::default();
+        let plain = g.add("sketch.text").unwrap();
+        let legend = g.add("sketch.text").unwrap();
+        g.set_input(legend, "text", Literal::Text("SIGILLVM CAPITVLI".into())).unwrap();
+        g.set_input(legend, "radius_mm", Literal::Number(6.2)).unwrap();
+        g.set_input(legend, "span_deg", Literal::Number(300.0)).unwrap();
+        g.set_input(legend, "mirror", Literal::Bool(true)).unwrap();
+        g.set_input(legend, "part", Literal::Int(1)).unwrap();
+        g.set_input(legend, "name", Literal::Text("Legend, 2".into())).unwrap();
+        let plane = serde_json::json!({"origin": [0.0, 0.0, -0.05], "x": [1.0, 0.0, 0.0], "y": [0.0, 1.0, 0.0], "on_face": {"feature": 2, "face": {"ordinal": 0}}});
+        g.set_input(legend, "plane", Literal::Json(plane.clone().into())).unwrap();
+        let whole = g.add("sketch.text").unwrap();
+        g.set_input(whole, "text", Literal::Text("SIGILLVM CAPITVLI".into())).unwrap();
+        let r = crate::eval::Evaluator::new().evaluate(&g, &Registry::builtin(), &ringdesign_core::AlphaLibrary::default(), 0, crate::eval::Targets::AllPure);
+        // The defaults: SIGILLVM in Textura, capitals 1.2 mm, centred on the origin, exactly the core's sketch.
+        let core = TextLayout { align: TextAlign::Centre, ..TextLayout::new(TextFont::Textura, "SIGILLVM", 1.2) }.sketch().unwrap();
+        assert_eq!(serde_json::to_value(sketch_of(r.value(plain, "operation"))).unwrap(), serde_json::to_value(&core).unwrap());
+        assert!(matches!(r.value(plain, "parts"), Some(Value::Int(1))) && matches!(r.value(plain, "points"), Some(Value::Int(p)) if *p as usize == core.points.len()));
+        // The legend's second word round its circle, its tracking solved for the span, mirrored, named, on the given plane.
+        let mut layout = TextLayout { arc: Some(TextArc { radius_mm: 6.2, start_deg: 90.0, clockwise: true }), align: TextAlign::Centre, mirror: true, ..TextLayout::new(TextFont::Textura, "SIGILLVM CAPITVLI", 1.2) };
+        layout.tracking = layout.tracking_for(6.2 * 300f64.to_radians()).unwrap();
+        let mut want = layout.part(1).unwrap();
+        want.name = "Legend, 2".into();
+        want.plane = serde_json::from_value(plane).unwrap();
+        let got = sketch_of(r.value(legend, "operation"));
+        assert_eq!(serde_json::to_value(&got).unwrap(), serde_json::to_value(&want).unwrap());
+        assert!(got.sweep_regions().is_ok());
+        assert!(matches!(r.value(legend, "parts"), Some(Value::Int(2))));
+        assert!(matches!(r.value(legend, "tracking"), Some(Value::Number(t)) if (*t - layout.tracking).abs() < 1e-12));
+        assert!(matches!(r.value(legend, "length_mm"), Some(Value::Number(l)) if (*l - 6.2 * 300f64.to_radians()).abs() < 1e-9));
+        // The whole legend holds more points than one sketch takes, and says to set it a part at a time.
+        let why = &r.status[&whole].errors[0].1;
+        assert!(why.contains("over the 1024 one sketch takes") && why.contains("2 parts"), "{why}");
+        // An older build has no such node: a graph carrying one is written at the newer graph format.
+        assert_eq!(crate::file::graph_version_for(&g), crate::file::GRAPH_FORMAT_VERSION);
+    }
+
     #[test]
     fn a_library_sketch_feeds_tracery_and_names_the_library_when_it_is_missing() {
         let mut g = Graph::default();

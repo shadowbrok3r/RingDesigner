@@ -90,6 +90,8 @@ pub fn hint(op: &Operation) -> &'static str {
         Pattern { kind: PatternKind::Ring { .. }, .. } => "Copies of the part round the finger, each dropped onto the band at its own angle; the part stays beside them.",
         Pattern { kind: PatternKind::About { .. }, .. } => "Copies of the part round a stone's axis or another part's: six prongs from one.",
         Pattern { kind: PatternKind::Mirror { .. }, .. } => "The part reflected across the band, through the head, or across a work plane, as a part of its own.",
+        Pattern { kind: PatternKind::Line { .. }, .. } => "Copies of the part stepped along a straight line in its own frame: bays along a wall.",
+        Pattern { kind: PatternKind::Along(_), .. } => "Copies of the part along a path: the crest, a sweep, a sketch's curves or a drawn line, turned, alternated and graded as they go.",
         Plane { .. } => "A plane with no body: through the finger's axis, square to the band, the parting plane or a part's face. Sketches lie on it; mirrors reflect across it.",
         PressPull { .. } => "Push or pull a planar face of a part along its normal; its neighbours follow it.",
         Stored { .. } => "A mesh another kernel made, kept in the file so every build shows and judges it; run it again where that kernel is to change it.",
@@ -513,6 +515,10 @@ pub fn attachment(ui: &mut egui::Ui, c: &mut Component) {
                 ui.selectable_value(&mut c.stage, stage, label).on_hover_text(hint).on_disabled_hover_text(STONE);
             }
         });
+        if c.attaches() && c.stage == Stage::Bench {
+            ui.checkbox(&mut c.mark, "Mark in the pattern")
+                .on_hover_text("A sand pattern stands a raised locating or drill mark where this part meets the band; an engraving laid out from the drawing needs none");
+        }
         if c.attaches() {
             crate::controls::named(ui, "Seam blend mm", "Seam blend", |ui| {
                 ui.add(egui::DragValue::new(&mut c.blend_mm).range(0.0..=1.5).speed(0.01).max_decimals(2).suffix(" mm"))

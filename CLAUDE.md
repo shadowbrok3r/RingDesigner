@@ -2719,6 +2719,83 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   0.9: every gap 0.9 ± 1e-6). A branched sketch that carries several depths
   sweeps its cells by `Profile::Regions`; one Sketch feature per depth is
   still the plainer way. The graph reaches it as `sketch.tracery`.
+- **Text is a sketch like any other** (C-T6, `sketch::text`). `TextLayout`
+  reads each glyph's outline through ttf-parser and draws it as closed loops
+  of lines and cubic Béziers, counters holes by even-odd nesting, straight or
+  round a circle (`TextArc`: clockwise stands the letters outward, as a
+  seal's legend; each glyph is placed rigid at its advance centre), aligned
+  Start/Centre/End and optionally mirrored for a seal. A TrueType quadratic
+  costs three of a sketch's 1024 points, so smooth runs of them are refitted
+  as fewer cubics held to `FIT_TOLERANCE_EM` (1/1000 em, under two microns at
+  a 1.2 mm capital; corners and lines kept exactly): SIGILLVM went from 1112
+  points to 764. A text still over the cap is set `parts()` at a time, a word
+  each (a long word split between letters), every part laid where it falls in
+  the whole; `tracking_for(length)` solves the tracking that closes an arc.
+  `✠` draws the bundled cross pattée where a font has none (`SYMBOLS`).
+  `TextFont::Textura` is UnifrakturMaguntia, SIL OFL, carried unmodified;
+  all three faces' notices are in `assets/fonts/OFL.txt` and under Tools >
+  Licences. Touching letters are refused by name ("open the tracking"); EB
+  Garamond's `g` crosses itself and is refused, every Textura letter sweeps.
+  A design whose inscription is Textura is written at 6, and the graph node
+  `sketch.text` (whole text, or `part` k) fences its graph at 2. Two things
+  the text found in the kernel, both fixed as retries so a solid that built
+  before builds byte for byte: a Bézier wall's edges are sampled more finely
+  than the flat cap beside it, and the cracks the stitch and the zip leave
+  open are redrawn through the cap's own triangles (`split_t_junctions`, run
+  after both and kept only if the part closes: a cap triangle carrying
+  samples is ear-clipped as the polygon through them, which a needle of the
+  cap along a concave arc needs, an ear never puts an edge on a third
+  triangle, and a three-edge gap still open is closed by its own triangle
+  only under `SEAM_SLIVER_MM`, a micron; Textura's B, b and g and the seal's
+  CAPITVLI cut open behind the zip alone); and an SVG's arcs drawn to nine places miss
+  their neighbours by a nanometre once scaled up (the quatrefoil at 2x),
+  which the kernel refuses, so a refused region is retried with its pieces
+  meeting exactly (`sketch::solid::healed`). **A drafted extrusion of any
+  outline with a curve or an inward corner is refused by the kernel**
+  (`extrude_tapered` takes lines and arcs whose offset keeps every edge): the
+  fleur, the quatrefoil and every word cut with no draft today.
+- **A bench part may stand no mark** (C-T5). `Component::mark` (default on,
+  written only when off, then at format 6) leaves a part staged Bench out of
+  the sand pattern's locating and drill marks; the pattern then is the bare
+  stock, and the report names it under "Left to the bench with no mark".
+  Measured on the 017 sand master with a seal's four bench cuts: every 1 mm
+  drill dot on the zero-draft table leaned 22–28° over 0.12–0.29 mm², the
+  one at the table's middle on the parting line too (its note now says it
+  has nowhere better to go), a legend cut a word at a time is marked at each
+  word's own middle, and the marks took the verdict from 0.0000 to 0.0666
+  mm²; with the opt-out it is the bare stock's exactly. An engraving is laid
+  out from the drawing, so it takes the opt-out.
+- **An array along a path carries its source from the path's first
+  station** (C-V2, `PatternKind::Along`, `cad/pattern/along.rs`). The path
+  is the crest (where the outer surface crosses the parting plane, solved
+  per station as `stamp_row`'s parting line is), chart points, a sweep's
+  path or a twisted sweep's centreline, curves of a sketch on its own plane
+  or a work plane, or world points. A station's frame is `y` along the
+  path, `z` out of the band or the sketch's plane, `x = y × z` — on the
+  crest, the frame a ring placement seats by — and the source, wherever it
+  stands, keeps its pose to the first station at every other, turned
+  (`alternate_deg`, `roll_deg`), scaled (`scale`) and laid square to the
+  parting plane (`level`) as asked. `count` counts the source, as every
+  pattern does; a pitch with no count fits as many as the path holds, under
+  `MAX_PATTERN_COUNT`. A chart path reads its direction a hair either side
+  of each station and a sketch curve its own derivative: the one-sided chord
+  at a sampled path's end leaned the first frame half a sample and put every
+  crest copy 0.014° short. A scaled copy is a similarity, not a rigid
+  motion: `inverse` divides by the square of the scale, and the stone
+  record (`setstone::carried_by`) keeps each copied girdle frame square and
+  scales its gem, so a graded head still holds a stone its own size and
+  the 480-stone cap still counts every copy. `PatternKind::Line` steps
+  copies along a direction in the source's seated frame. Either writes the
+  design at 6 and a graph at 2.
+- **Paths are graph values** (C-V5, `graph/nodes/path.rs`): `path.arc`,
+  `path.helix`, `path.wreath`, `path.climb` and `path.crest` make
+  `[[x, y, z], …]` JSON in world millimetres (one per strand for a wreath),
+  `path.sweep` turns one into a sweep's operation and `path.along` into an
+  array along it, and `cad.features` appends one feature per list item to
+  one design, where a list on `cad.feature`'s operation makes one design per
+  item; feature `k` of a `cad.features` node is that node's id times 2²⁰
+  plus `k + 1`, out of reach of any node's own id. A wreath's opposite
+  strands pass at two canes less the overlap, never a tangency.
 - **A drafted arc's seams are zipped closed.** The kernel tapers an
   extrusion by lofting to an offset profile, and the lofted wall samples a
   shared arc at other points than the planar cap does. Where the old
