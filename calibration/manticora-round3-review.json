@@ -1,0 +1,240 @@
+{
+  "ring": "Manticora — the tail that throws",
+  "round": 3,
+  "candidate_head": "9a4252fd8cbfbf605bff3990c8379ef75a1ba5c8",
+  "verdict": "ship",
+  "score": 7.5,
+  "summary": "Ship at 7.5, narrowly. Every gate is green, and this round fixes what held round 2 at 6.8. The telson now reads as a scorpion's sting at 300 px, not a bird's head: a 3.0 mm vesicle (aspect 1.58) tapers without a pinch into a 9.6 mm hooked aculeus. Its point is 0.20 mm off the ruby's centre and 1.60 mm above the table. From the face its curl shows (sagitta 1.50 mm) where round 2 showed a straight stroke. The root is now broad and strong: an elliptical knob, 1.64 x 1.97 mm at the solder groove, with 7.8-9.3x round 2's bending capacity, flared into the bulb. The calyx seam is one smooth 0.3 mm fillet with no keels left. The palm wall is back to 1.43 mm. The secondary ornament keeps it at the threshold rather than above it. The flank quills sit on flattened pads and read as leaves or shards, and the hero's lower flank still reads as rough texture at 300 px. The palm plates read as pillowed tiles with stitched rows of 0.9 mm beads. The first west tergite ends against the bulb in a stepped, blocky cliff beside the sting. The knob still shows as a short collar under the vesicle from the hero and reverse angles, and its seam is a butt line rather than a rolled ring. None of these fails a gate or breaks the theme, so they are listed as optional polish. The author's self-score of 7.6 is 0.1 generous.",
+  "strengths": [
+    "The signature now reads. In side.png, stones.png and hero-300 the telson is an unmistakable scorpion sting: a smooth vesicle peaking at 3.00 mm a quarter along, then a monotone taper into a hook that ends 1.60 mm over the ruby's table, 0.20 mm off its centre. Venom poised over the stone is the concept, and it lands. The r2 read of a ball on a stalk with a short beak is gone.",
+    "side.png is the ring's best view: seven humped plates per shoulder (5.53 to 3.69 mm) rise to the telson, and the curled sting stands above them. It is the iconic scorpion-tail silhouette and unlike any other Bestiarium ring.",
+    "The root is an engineering fix, not only a cosmetic one. The elliptical knob (2.0 x 2.4 mm) leaves 1.64 x 1.97 mm at the groove: section moduli of 0.52 and 0.62 mm3, against 0.067 for round 2's 0.88 mm round, so about 40 N at 4 mm to yield instead of about 5 N. It clears the collet by 0.95 mm and the neck by 0.81 mm, flares into the bulb, and leaves the first west tergite whole.",
+    "The calyx is clean: blend 0.3 mm, keels dropped, 30 beads of 0.4 mm on the collet wall under the lip. At 3x in side, stones and reverse, one smooth fillet runs round the foot, with no stair steps or fins. The collet reads as a finished beaded bezel.",
+    "From the face, turning the hook plane 30 degrees gives a visible curl onto the stone (sagitta 1.50 mm, coverage 7.7%). Moving the ruby to 86 degrees balances the collet and sting as one centred mass.",
+    "Wearability is recovered. The palm wall is 1.43 mm (0.98 in round 2), and every joint dip is 0.73-1.06 mm, so the humps survive through the palm in side.png.",
+    "The record is complete and honest. All 14 gates run at 768 x 320, 1536 x 448 and 384 x 192. The block is keyed land_widths and includes the knob and foot sections. East and west dips are listed. vesicle_aspect, width_monotone_after_peak and face_sagitta_mm are in report.aculeus. A knob section at 108 degrees joins the stinger sections. The template shrank to 1.24 MB with 1 patch and full parity."
+  ],
+  "round2_items": [
+    {
+      "number": 1,
+      "item": "Telson joint: a broad, strong elliptical knob with flared sides and a rolled top, and a matching foot",
+      "status": "partly",
+      "evidence": "Every numeric acceptance is met. report.knob.min_section_mm 1.64 and min_section_across_mm 1.968; land_widths.aculeus_foot_mm and knob_groove_mm are [1.64, 1.968] (1.6 or more asked). collet_clear_mm 0.953 (0.5 asked), neck_clear_mm 0.808 (0.3 asked), footprint 2.44 mm (2.8 or less asked). The first west tergite is whole in hero.png. Visually, the thin stalk is gone. In side.png at 2.5x (telson-joint-r2-vs-r3) the knob is a broad, short truncated cone about 0.64 of the vesicle's width, flaring into the bulb, and the vesicle's foot now matches it; in round 2 a narrow peg sat under a V-seam. Not met: the seam is still a flat butt line with only a small edge round, not a rolled articulation ring (knob-section.svg shows square-shouldered faces with small corner radii). From the reverse and hero angles the knob still reads as a short collar or column, 1.20-2.11 mm over the bulb, which the author concedes. The optional alignment peg was not built."
+    },
+    {
+      "number": 2,
+      "item": "Telson shape: a sting rather than a head with a beak; vesicle aspect 1.3 or more, monotone taper, hook plane turned 25-35 degrees",
+      "status": "met",
+      "evidence": "report.aculeus: vesicle_aspect 1.577 (4.73 mm long, 3.00 wide); width_monotone_after_peak true; width_ratio_25_to_60 2.90 (1.8 or more asked; the taper runs 3.00 to 1.03 mm over 3.4 mm of length, where round 2 ran 3.38 to 0.95 over 2.7); length 9.6 mm (9.5-11 asked). widest_over_ruby 0.845 mm (0.9 or less asked); point diameter 0.4 mm; point_from_ruby_centre 0.199 mm (1.2 or less asked); point_over_table 1.602 mm (1.2-1.7 asked); lean -30 degrees. to_collet 1.172 mm and to_ruby 1.635 mm (1.0 or more asked); face_coverage_of_ruby 0.0772 (0.08 or less asked); face_sagitta_mm 1.50 (0.8 or more asked). Visual test: in thumbs-r2-vs-r3, r3 hero-300 reads as a curved sting rising from the bulb; the continuous taper removed the head-plus-beak break that made round 2 a bird. r3 face-300 reads as a hooked sting curling onto the stone, not a straight tadpole stroke. Residual: a literal viewer could still see a teardrop tadpole in the face thumbnail, but the hooked tip breaks that read."
+    },
+    {
+      "number": 3,
+      "item": "Calyx: seat it into the bulb with a blend, fade or drop the keels",
+      "status": "met",
+      "evidence": "composition.calyx: blend_mm 0.3, keels dropped, 30 beads of 0.4 mm with 0.207 mm gaps, plain wall 0.35 mm, flare 23.3 degrees, 0 slivers cleaned. root-and-calyx-crops at 3x: side.png (front), stones.png (7 o'clock) and reverse.png (foot) each show one smooth fillet round the calyx foot, with no stair steps, fins or slot lines. Cosmetic only: behind the collar beads, stones.png at 3x shows small angular notches, which are the bead sockets (see optional polish)."
+    },
+    {
+      "number": 4,
+      "item": "Quills on smooth ground: smooth edges, one unbroken ridge, clean face-view spikes, no rubble in hero-300",
+      "status": "partly",
+      "evidence": "Better: in quills-crops, side.png at 2x has lost most of round 2's staircase lower edges, and the upper quills carry one continuous ridge highlight from root to point. The comma-bead rope at the bore edge is gone. Not met: flattening the ground left straight cliff edges along the pads beside the quills. Some quills have irregular margins and blunt cut ends, and together they read as leaves, almost a laurel wreath, in side.png rather than as spines. In face.png the band-edge quills are mixed: a few clean cones, others flat flame-shaped blades, less crisp than round 1's cones. hero-300's lower flank still reads as rough, rubbly texture rather than rows of spines. Head quills are 4.70, 4.53 and 4.13 mm, worst drift 0.0075."
+    },
+    {
+      "number": 5,
+      "item": "Small-scale hierarchy: dorsal keels at 0.8-1.0 mm pitch, smooth or dropped lateral keel, soft pleural folds, barrel-plan plates",
+      "status": "partly",
+      "evidence": "Done: dorsal teeth at 0.9 mm pitch; lateral keel dropped; the bore-edge bead rope replaced by 2-3 soft folds per plate; plates narrowing 14% toward their anterior joints; dfm_findings [] at 0.15 mm. In hero-300 the west-shoulder plates read as segments carrying their spinels. Not met: palm.png (and at 2x in hero-flank-palm-crops) still reads as a row of rectangular, pillowed tiles, and the 14% narrowing does not read. The 0.9 mm teeth read as stitched seams or rivet rows on the palm and in face.png, not as granular carinae. Next to Arachne's ordered web palm it reads close to Lorica's tile grid. The new pleural folds show as a dotted row of lozenges along the bore edge in hero.png."
+    },
+    {
+      "number": 6,
+      "item": "Stop notching the palm: thinnest wall 1.2 mm or more, dips 0.5 mm or more",
+      "status": "met",
+      "evidence": "report.field.thinnest_wall_mm 1.431 at 270 degrees (0.976 in round 2). crests: west dips 1.056, 0.734, 0.874, 0.847, 0.831, 0.814, 0.849, 0.940 (270 deg); east dips 0.801, 0.749, 0.832, 0.853, 0.877, 0.736, 1.001; least 0.734 mm. side.png still shows distinct humps through the palm."
+    },
+    {
+      "number": 7,
+      "item": "Gate record: all gates at three resolutions, land_widths with the knob and foot, east dips, aculeus metrics, template gate",
+      "status": "met",
+      "evidence": "draft.log (768 x 320 per bestiarium_manticora.rs lines 171-172; 563,258 triangles) and export.log (1536 x 448; 1,372,332) both print 14 passes, each with a 384 x 192 block (watertight, 0 degenerate, 0 crossings, 24/24 stamps). report.json now keys land_widths (fixing round 2's nit) with knob_groove_mm and aculeus_foot_mm [1.64, 1.968]. crests.east_dips_mm is listed beside west. report.aculeus carries vesicle_aspect, width_monotone_after_peak and face_sagitta_mm, and a knob section at 108 degrees joins the 103.8 and 90 degree sections. Template gate: 1 patch (/cad/joints), 114 nodes, 1,244,173 of 3,000,000 B, cold and export parity. Nit: the draft run's cold-reload pass is vacuous (no --verify); only the export run proves it, as in round 2."
+    }
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm",
+      "result": "pass",
+      "reason": "Every zone is scorpion-tail anatomy: the sting over the ruby's collet on the venom bulb, graded tergites with dorsal keels and bead-set spinels, quills on the flanks, pleural folds at the bore edge, and the smallest segments at the palm."
+    },
+    {
+      "item": "Figurative motifs with true outlines (painted relief with crisp outlines passes)",
+      "result": "pass",
+      "reason": "The aculeus, knob, collet and calyx are CAD parts with true silhouettes, the 24 quills are stamps, and the tergites are crisp painted relief. Caveat: some quill margins are irregular and their pads end in straight cliffs."
+    },
+    {
+      "item": "Stones in visible made settings",
+      "result": "pass",
+      "reason": "The 7 x 5 ruby sits in a cast bezel collet with a beaded collar, clearly visible in hero, face and stones; the barb covers 7.7% of it. Ten graded 2 mm black spinel princesses at 45 degrees are bead-set in gypsy mounds. 11 stones reported and 11 previewed."
+    },
+    {
+      "item": "Shoulder ornament not cut off toward the face",
+      "result": "pass",
+      "reason": "Both first tergites are whole (neck at 27.13 degrees off the top), the spinel runs stop at 142 degrees on plate joints, and the quills start at 125 degrees. The first west tergite ends in a blocky, stepped front wall against the bulb; that is a finish issue, not a cut-off."
+    },
+    {
+      "item": "No flat, blocky or mechanical forms",
+      "result": "partial",
+      "reason": "The sting, knob, collet and plates are sculpted. Three things remain. The palm plates read as pillowed tiles with stitched bead rows. The first west tergite's anterior wall is a stepped cliff at the neck (hero and stones at 3x). The bulb is a large plain mass whose flat side face shows hard edges from the reverse."
+    },
+    {
+      "item": "Silhouette distinct from the other Bestiarium rings",
+      "result": "pass",
+      "reason": "It is the only ring with a hooked sting standing above its head. The side view is a scorpion tail and nothing else in the collection."
+    },
+    {
+      "item": "Reads as the manticore's scorpion tail and venom sting at a glance at 300 px, not a bird's head or a tadpole",
+      "result": "pass",
+      "reason": "hero-300 reads as a curved scorpion sting rising from the bulb over a red stone, and face-300 as a hooked sting curling onto the stone. The segmented tail itself reads best from the side; at 300 px in the hero the shoulders read as armoured texture rather than segments."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "partial",
+      "reason": "The hierarchy is clear and stronger than Caiman's: large (sting, collet, bulb), medium (seven humped plates per shoulder, spinels, quills) and small (teeth, collar beads, folds). Shoulder density matches Caiman's. But the head is deliberately plain, and the lower flank reads as rough texture where Caiman's rows stay legible."
+    },
+    {
+      "item": "Wearability",
+      "result": "pass",
+      "reason": "The solder root is now about 8x round 2's bending capacity; the palm wall is 1.43 mm; the dips never go under 0.73 mm; and nothing enters the finger hole. The ring weighs 17.1 g in 18k. The sting is the tallest point, about 4 mm above the ruby's table (estimated from side.png), and its 1.17-1.64 mm clearance over the collet will catch knitwear and hair. That is inherent to a sting curled over the stone and acceptable for a statement ring."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Finished mesh watertight, 0 degenerate faces, 0 self-crossings (draft 768 x 320, export 1536 x 448)",
+      "claimed": "Watertight, 0 degenerate, 0 crossings at both",
+      "verified": "report.json (export): 1,372,332 triangles; boundary 0; non-manifold 0; degenerate 0; self-crossings 0; 2 shells (ring and the separate aculeus). draft.log: 563,258 triangles, watertight, 0 degenerate, 0 crossings, at 768 x 320 per the example's source. Not gated: min angle 0.004 degrees, worst aspect 14,246 (51,923 in round 2).",
+      "pass": true
+    },
+    {
+      "gate": "Every CAD part, seat solid and stamp closed without crossings",
+      "claimed": "Clean",
+      "verified": "made_parts 0 for all six (Oval 7 x 5, Venom collet, Seat bur, Venom calyx, Aculeus knob, Aculeus); made_solids 34 (24 quills, 10 spinel seats) all clean.",
+      "pass": true
+    },
+    {
+      "gate": "Solids and parts notes empty; every stamp and seat resolved",
+      "claimed": "Notes empty, 24/24 stamps, 10 seats",
+      "verified": "solids.notes [] and parts_notes []; 24 of 24 stamped; 10 resolved; parts 3 joined, 1 cut, 1 separate.",
+      "pass": true
+    },
+    {
+      "gate": "Nothing enters the finger hole",
+      "claimed": "Pass",
+      "verified": "Nearest vertex 9.2999995 mm against a 9.3 mm bore radius; 0 vertices inside.",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax verdict Castable with the 0.8 mm fill",
+      "claimed": "Castable, thinnest wall 1.43 mm at 270 degrees",
+      "verified": "Castable; lost wax; min_section_mm 0.8; thinnest wall 1.431 mm at 270 degrees.",
+      "pass": true
+    },
+    {
+      "gate": "CAD lands at or above the floor, or excepted",
+      "claimed": "land_widths with named exceptions",
+      "verified": "Collet wall 0.8 mm (0.64 mm where its foot is buried in the bulb); lip 0.3675 mm, excepted as the burnished bezel lip; knob groove and aculeus foot 1.64 x 1.968 mm; aculeus 2 mm from the point 0.833 x 0.824 mm; 5 mm from the point 1.859 x 1.827 mm; point 0.4 mm, excepted; quill roots 0.71-1.00 mm and collar beads 0.4 mm named as relief at the detail floor.",
+      "pass": true
+    },
+    {
+      "gate": "Zero DFM findings",
+      "claimed": "0",
+      "verified": "dfm_findings [] at the 0.15 mm lost-wax detail floor; verification.json detail_findings 0.",
+      "pass": true
+    },
+    {
+      "gate": "Stones reported equal the preview, no warnings",
+      "claimed": "11 and 11",
+      "verified": "11 reported, 11 previewed; warnings [], crowding [], tight_pairs 0; 0.877 ct; closest pair 2.75 mm at the girdle, 2.56 mm deep.",
+      "pass": true
+    },
+    {
+      "gate": "Aculeus clears the collet and the ruby by 1.0 mm or more",
+      "claimed": "1.172 and 1.635 mm",
+      "verified": "to_collet 1.172 mm, to_ruby 1.635 mm, to_ring beyond the joint 1.626 mm; foot gap and groove clearance 0.050 mm. stinger-section.svg (103.8 degrees) and stinger-section-90.svg draw both leaders.",
+      "pass": true
+    },
+    {
+      "gate": "Ruby seats: metal reaches at most 0.05 mm into the stone",
+      "claimed": "0.021 mm",
+      "verified": "metal_depth_mm 0.0214 at the collet's bearing edge; 96 vertices; 0.060 mm3 shared.",
+      "pass": true
+    },
+    {
+      "gate": "Investment pattern watertight, 0 degenerates, 0 crossings",
+      "claimed": "Clean",
+      "verified": "1 shell; 1,340,378 triangles; watertight; 0 degenerate; 0 crossings; 18k shrink scale 1.0132. The aculeus is named as its own casting.",
+      "pass": true
+    },
+    {
+      "gate": "Gates hold at 384 x 192",
+      "claimed": "Pass",
+      "verified": "Coarse block in report.json and both logs: watertight, 0 degenerate, 0 crossings, 24 of 24 stamped, notes empty.",
+      "pass": true
+    },
+    {
+      "gate": "Export within the 2 million triangle budget",
+      "claimed": "1,372,332",
+      "verified": "1,372,332 of 2,000,000.",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical (--verify at export)",
+      "claimed": "Identical",
+      "verified": "export.log: 'cold reload with an empty library: identical'; cold_reload_identical true. The draft run's pass is vacuous (no --verify), as in round 2.",
+      "pass": true
+    },
+    {
+      "gate": "Undercut (reported only; not gating in lost wax)",
+      "claimed": "Band and with-parts figures reported",
+      "verified": "Band 7.727% at -36.5 degrees (from 'Tergites' 58.1 mm2 and 'Seat' 25.8 mm2); with parts 10.571% at -88.0 degrees (collet 24.4 mm2, seat bur 14.7, calyx 5.4, knob 0.1). Up from 6.647% and 9.697% in round 2; reported as asked, not gating in wax.",
+      "pass": true
+    },
+    {
+      "gate": "Template gate (lift, 4 or fewer design.set patches, size budget, cold and export parity)",
+      "claimed": "1 patch, 114 nodes, 1,244,173 B, parity passes",
+      "verified": "verification.json is byte-identical to target/tpl/manticora/verification.json. Source-identical lift with 1 patch (/cad/joints, node 82) and 114 nodes; 1,244,173 of 3,000,000 B (painted class); cold design, graph and editable reloads true; export mesh parity at 1536 x 448, 1,372,332 triangles, vertices, faces and normals identical; exposed_controls empty under the explicit allowlist.",
+      "pass": true
+    },
+    {
+      "gate": "Evidence integrity",
+      "claimed": "Candidate 9a4252f",
+      "verified": "HEAD is 9a4252f and the worktree is clean. Every reviewed PNG, JSON and SVG hash-matches its blob at 9a4252f. The export run wrote the renders, report and STLs (11:35:00-11:35:23) and the template gate ran at 11:35:51.",
+      "pass": true
+    }
+  ],
+  "optional_polish": [
+    "Quills: they read as leaves or shards and stand on flattened pads whose straight edges show as cliffs. Narrow them into keeled spines with a conical point, and feather the pad margins over about 0.3 mm so the hide flows under them. Aim for rows of spines on the hero's lower flank at 300 px.",
+    "Palm and keels: the 0.9 mm beads-on-a-line read as stitching or rivets and the palm as pillowed tiles. Make the teeth pointed denticles leaning toward the palm, or drop them on the three palm plates, and double the anterior narrowing (25-30%) so the segments nest.",
+    "First west tergite at the neck (hero.png and stones.png, about 108-117 degrees): its anterior margin is a stepped vertical cliff against the smooth bulb. Roll it like the other condyles, or fade the plate into the bulb over about 1 mm.",
+    "Knob seam: roll the knob's top edge 0.2-0.3 mm so the solder line reads as an articulation ring, not a butt cut. The 0.7 x 1.0 mm alignment peg with 0.05 mm clearance is still worth building for the bench.",
+    "Collar beads: small angular notches show behind the beads at 3x in stones.png. Seat each bead in a round socket.",
+    "Pleural folds: at the bore edge in hero.png they read as a dotted row of lozenges. Lengthen them or lower their relief so they read as folds.",
+    "Bulb: a large plain polished mass against a busy hide. Run the two dorsal keels 1-2 mm onto it as fading ridges, or add a few faint growth lines, to tie the head to the tail without busying it.",
+    "Care card: the hook's 1.17-1.64 mm clearance over the collet will catch knitwear and hair."
+  ],
+  "viewed_images": [
+    ".claude/collection-review/manticora-round3/hero.png",
+    ".claude/collection-review/manticora-round3/face.png",
+    ".claude/collection-review/manticora-round3/side.png",
+    ".claude/collection-review/manticora-round3/shoulder.png",
+    ".claude/collection-review/manticora-round3/palm.png",
+    ".claude/collection-review/manticora-round3/reverse.png",
+    ".claude/collection-review/manticora-round3/stones.png",
+    ".claude/collection-review/manticora-round3/bare-vs-finished.png",
+    ".claude/collection-review/manticora-round3/thumbs-r2-vs-r3.png (round 2 and round 3 hero-300 and face-300 at native size)",
+    ".claude/collection-review/manticora-round3/telson-joint-r2-vs-r3.png (side, shoulder, reverse telson joint at 2.5x, rounds 2 and 3)",
+    ".claude/collection-review/manticora-round3/root-and-calyx-crops.png (hero root 2x, shoulder root 3x, calyx in stones, reverse and side at 3x)",
+    ".claude/collection-review/manticora-round3/quills-crops.png (side flank 2x rounds 2 and 3; face band edge 1.5x rounds 1 and 3)",
+    ".claude/collection-review/manticora-round3/hero-flank-palm-crops.png (hero neck and first west tergite 3x, hero lower flank 1.4x, palm plates 2x)",
+    ".claude/collection-review/manticora-round3/sections-sheet.png (knob-section.svg, stinger-section.svg, stinger-section-90.svg rasterised)",
+    ".claude/collection-review/manticora-round3/refs-sheet-a.png (showcase/stock-masterworks/caiman/hero.png, refs/arachne hero, side and face, beside round 3 hero and side, at 600 px)",
+    ".claude/collection-review/manticora-round3/refs-sheet-b.png (refs/arachne/palm.png, round 3 palm, zbrush_top.png, zbrush_sheet.png, showcase/reptilia/renders/Reptilia-collection.png, reduced)"
+  ]
+}
