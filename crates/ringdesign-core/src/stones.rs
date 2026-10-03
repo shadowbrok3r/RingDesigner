@@ -585,12 +585,21 @@ pub struct StoneFrame {
     pub short: [f64; 3],
     pub semi: (f64, f64),
     pub plan_pow: f64,
+    /// The stone's true girdle ([`crate::gem::GemCut::girdle`]); `None` reads the superellipse of `plan_pow`.
+    pub table: Option<&'static crate::girdle::Girdle>,
     /// The furthest the girdle reaches from its centre, mm.
     pub reach: f64,
     pub pavilion: f64,
 }
 
 impl StoneFrame {
+    /// The girdle's own radius toward the direction `(x, y)` in its plane, along the long axis and across it, mm.
+    pub fn radius_toward(&self, x: f64, y: f64) -> f64 {
+        match self.table {
+            Some(g) => g.radius_mm(x, y, self.semi.0, self.semi.1),
+            None => crate::field::superellipse_radius_mm(x, y, self.semi.0, self.semi.1, self.plan_pow),
+        }
+    }
     /// The same girdle/depth approximation used by the report and viewport.
     pub fn clearance_to(&self, other: &Self) -> [f64; 2] {
         let d = sub(other.girdle, self.girdle);
@@ -601,13 +610,7 @@ impl StoneFrame {
     }
     /// The girdle's own radius toward `d`, mm.
     fn plan_r(&self, d: [f64; 3]) -> f64 {
-        crate::field::superellipse_radius_mm(
-            dot(d, self.long),
-            dot(d, self.short),
-            self.semi.0,
-            self.semi.1,
-            self.plan_pow,
-        )
+        self.radius_toward(dot(d, self.long), dot(d, self.short))
     }
 }
 
@@ -643,9 +646,14 @@ fn frame_at(
 ) -> StoneFrame {
     let semi = (st.gem.l_mm * 0.5, st.gem.w_mm * 0.5);
     let n = st.gem.cut.plan_pow();
-    let reach = if n <= 2.0 { semi.0 } else { (semi.0 * semi.0 + semi.1 * semi.1).sqrt() };
+    let table = st.gem.cut.girdle();
+    let reach = match table {
+        Some(g) => g.reach_mm(semi.0, semi.1),
+        None if n <= 2.0 => semi.0,
+        None => (semi.0 * semi.0 + semi.1 * semi.1).sqrt(),
+    };
     if let Some(f) = st.frame {
-        return StoneFrame { girdle: f.origin, normal: f.z_axis, long: f.x_axis, short: f.y_axis, semi, plan_pow: n, reach, pavilion: st.gem.pavilion_mm() };
+        return StoneFrame { girdle: f.origin, normal: f.z_axis, long: f.x_axis, short: f.y_axis, semi, plan_pow: n, table, reach, pavilion: st.gem.pavilion_mm() };
     }
     let b = base_at(design, inner_r, crest_r, ctx, st.theta_deg, st.v_mm);
     let (sin, cos) = st.theta_deg.to_radians().sin_cos();
@@ -683,6 +691,7 @@ fn frame_at(
         short,
         semi,
         plan_pow: n,
+        table,
         reach,
         pavilion: st.gem.pavilion_mm(),
     }
@@ -933,6 +942,52 @@ fn base_at(
 
 #[cfg(test)]
 mod tests {
+    /// The census, the frames and the clearance envelopes read a true girdle.
+    #[test]
+    fn the_census_measures_a_true_girdle() {
+        use crate::gem::{Gem, GemCut};
+        let gem = Gem::calibrated(GemCut::Trillion, 4.0);
+        let girdle = gem.cut.girdle().unwrap();
+        let semi = (gem.l_mm * 0.5, gem.w_mm * 0.5);
+        let frame = |at: [f64; 3], table| super::StoneFrame {
+            girdle: at,
+            normal: [0.0, 0.0, 1.0],
+            long: [1.0, 0.0, 0.0],
+            short: [0.0, 1.0, 0.0],
+            semi,
+            plan_pow: gem.cut.plan_pow(),
+            table,
+            reach: girdle.reach_mm(semi.0, semi.1),
+            pavilion: gem.pavilion_mm(),
+        };
+        // Neighbour toward a trillion corner.
+        let k = (0..girdle.points().len()).max_by(|i, j| girdle.turns()[*i].total_cmp(&girdle.turns()[*j])).unwrap();
+        let c = girdle.points()[k];
+        let dir = [c[0] * semi.0, c[1] * semi.1];
+        let l = dir[0].hypot(dir[1]);
+        let (u, v) = (dir[0] / l, dir[1] / l);
+        let far = [6.0 * u, 6.0 * v, 0.0];
+        let [gap, _] = frame([0.0; 3], Some(girdle)).clearance_to(&frame(far, Some(girdle)));
+        let own = 6.0 - girdle.radius_mm(u, v, semi.0, semi.1) - girdle.radius_mm(-u, -v, semi.0, semi.1);
+        assert!((gap - own).abs() < 1e-12, "{gap} against {own}");
+        let [old, _] = frame([0.0; 3], None).clearance_to(&frame(far, None));
+        assert!((gap - old).abs() > 0.1, "the true girdle reads {gap:.3} mm where the superellipse read {old:.3}");
+        // A seat's frame carries the girdle and its envelope follows it.
+        let mut d = crate::RingDesign::default();
+        let mut pad = crate::field::SeatPadLayer { v_mm: d.field_context().crest_v_mm, ..Default::default() };
+        pad.fit_stone(gem);
+        d.layers.layers.push(crate::field::LayerEntry::new("Trillion", crate::field::Layer::SeatPad(pad)));
+        let frames = super::stone_frames(&d);
+        assert!(frames[0].1.table.is_some_and(|t| std::ptr::eq(t, girdle)));
+        let env = &crate::interaction::clearance::envelopes(&d, 0.0)[0];
+        let f = &frames[0].1;
+        for p in &env.girdle {
+            let q: [f64; 3] = std::array::from_fn(|k| p[k] - f.girdle[k]);
+            let (x, y) = (super::dot(q, f.long), super::dot(q, f.short));
+            assert!((x.hypot(y) - f.radius_toward(x, y)).abs() < 1e-9);
+        }
+    }
+
     /// The chart's `v` is arc normalized, so a pad on a keyframed lobe casts
     /// the station's stretch times its drawn size, and the report used to
     /// read its foot in chart mm — measured on a lofted head, a 1.5 mm boss

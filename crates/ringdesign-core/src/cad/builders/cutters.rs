@@ -179,7 +179,7 @@ pub fn outline(shape: Shape, l: f64, w: f64, g: f64) -> Vec<[f64; 2]> {
     match shape {
         Shape::Round | Shape::Oval | Shape::Marquise => {
             let pow = if shape == Shape::Marquise { GemCut::Marquise.plan_pow() } else { GemCut::Oval.plan_pow() };
-            let plan = Plan { a: 0.5 * l, b: 0.5 * w, pow };
+            let plan = Plan::superellipse(0.5 * l, 0.5 * w, pow);
             let n = ((plan.perimeter() / SAMPLE_MM).round() as usize).clamp(48, 192);
             (0..n)
                 .map(|i| {
