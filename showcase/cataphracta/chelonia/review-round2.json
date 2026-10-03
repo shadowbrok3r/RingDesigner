@@ -1,0 +1,71 @@
+{
+  "ring": "Chelonia",
+  "round": 2,
+  "verdict": "revise",
+  "score": 6.6,
+  "summary": "Revise at 6.6, up from 6.4 (Caiman 7, ship 7.5). Round 2 resolved the paperwork. Logan's lost-wax choice on the real 007 stock is in the doc header and in report.json. The template gate ran: 1 design.set patch, source identical, 2.4 MB. The design shrank from 12.3 MB to 2.4 MB. The snake-head eyes are gone, and the shoulders now carry overlapping scales instead of bricks. The art, though, is mostly where round 1 left it. Face-on at 300 px it still reads 'turtle'. The turtle is still a charm laid on a quatrefoil, not the quatrefoil itself. (1) The shell still covers only about 40% of the face width, against the 65% asked for. (2) The four flippers are still scaled ovals floating on polished bulbs. They are not rooted under the marginals, the fore and hind pairs are the same length, and none is swept back. In the hero they still read as pine cones on pillows. (3) The vertebrals and costals are still rounded rectangles. The new areola marks are U, D, L and O shaped notches, so the costal rows now read as lettering ('UUD', 'LOD') rather than growth rings. (4) The head is a polished paddle on a thin neck with a scored '+' on its crown. It stands proud of the shell with a polished gap. (5) The close-ups show sawtooth serration along every scute seam, flipper tile and palm seam, and crumpled facets at the neck root. These are outline artefacts that the round 1 renders did not show this clearly. The shoulder scallops are thin crescent rims that read as fish or koi scale, not hawksbill plates. The palm reads as a chevron tread. The cuff step where the shoulder scales meet the lobes is still a hard collar. On engineering, the mesh hygiene, field and template gates are green. The release gate rests on a waiver the author inferred from Logan's process decision. No explicit waiver from Logan is recorded, and the 0.100 mm pass now carries 1 unresolved ray. Land widths still show near-zero sections on the flippers (0.009 mm) and the tail (0.0004 mm), which round 1's item 6 asked to bring to 0.40 mm. One round remains. Reaching 7.5 needs the shell and flippers rebuilt as one animal, not more texture.",
+  "strengths": [
+    "Reads 'turtle' face-on at 300 px without a caption: shell, four limbs, head east and tail west.",
+    "The base decision is now recorded: Logan chose lost wax on the real 007 Quatrefoil stock (cataphracta.md header, 2026-09-24). The stock keeps its exact wall-to-face angles.",
+    "The template gate is green: 1 design.set patch (/manufacturing), source identical, cold design and graph reload, and 2.41 MB against 12.3 MB in round 1.",
+    "The shoulders now carry imbricate scales graded toward the head instead of square bricks, so the band reads as one reptile from shell to shank.",
+    "The flipper tiles are irregular, crisp polygons and are the most convincing reptile skin on the ring.",
+    "Mesh hygiene is clean on the ring and all 8 made parts: watertight, 0 degenerate faces, 0 self-crossings, no notes, and an identical cold reload."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "fail", "reason": "Better than round 1: shell, scaled shoulders and a plated palm are all one creature. But the shoulders' thin crescent scallops (scales-close.png) read as fish or koi scale, the palm's chevron plates (palm.png, plastron-close.png) read as a tyre tread or arrows rather than a plastron, and a hard collar step still separates the shoulder scale band from the polished lobes (shoulder.png, hero.png)."},
+    {"item": "Hide reads as this specific animal at 300 px without caption", "result": "pass", "reason": "face-300 and contact-300 name a turtle at once. In hero-300 the shell is legible, but the polished lobe bulbs still compete for the silhouette."},
+    {"item": "Figurative motifs have true outlines, no combing/smearing/stair-steps", "result": "fail", "reason": "shell-close.png, flipper-close.png and plastron-close.png show sawtooth serration along every scute seam, flipper-tile seam and palm seam. head-close.png shows crumpled, spiky facets where the neck meets the shell, and a jagged scored '+' on the head. The outlines are not crisp at close range."},
+    {"item": "Stones in made settings and visible", "result": "pass", "reason": "No stone by design. stones.json is empty, and the preview and report both count 0."},
+    {"item": "No flat, blocky or mechanical CAD; forms are sculpted", "result": "fail", "reason": "The vertebrals and costals are still rounded rectangles in a grid. The areola notches read as letters (U, D, L, O), not grown annuli. The shell is only gently crowned. The head is a smooth paddle, and the palm is a mechanical chevron."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "The 007 stock is unmirrored and unmodified (bare-vs-finished.png), and its butterfly face and rim show on the palm."},
+    {"item": "Silhouette distinct from other Cataphracta rings and Reptilia tiles", "result": "pass", "reason": "A four-lobed seal with a figurative turtle is unlike any Reptilia tile or other Cataphracta plan."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "Polished lobe crowns 2-3 mm wide still show around every flipper, and the valleys between the lobes and the lobe flanks are bare (face.png, side.png, hero.png). Caiman is dense to the edge. Here the density is in patches."}
+  ],
+  "gates": [
+    {"gate": "process recorded (ring's own, from draft block)", "claimed": "lost wax, Fallback B, decided by Logan", "verified": "draft.field.process LostWax. base_decision cites the cataphracta.md header (2026-09-24), and the header says Chelonia goes lost wax on the real 007 stock.", "pass": true},
+    {"gate": "watertight, 0 degenerate faces", "claimed": "pass", "verified": "draft and export: watertight, 0 boundary, 0 non-manifold, 0 degenerate", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "pass", "verified": "ring 0. All 8 made parts self_crossings 0, open_edges [0,0].", "pass": true},
+    {"gate": "solids notes empty", "claimed": "pass", "verified": "made.notes []. 8 joined, 0 cut, 0 separate.", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "pass", "verified": "vertices_inside 0, nearest margin -7.6e-8 mm (numerical zero)", "pass": true},
+    {"gate": "field verdict Castable", "claimed": "Castable under lost wax", "verified": "verdict Castable, LostWax, thinnest wall 0.997 mm. The notes record 15.83% two-part undercut at 61.4 deg, which is acceptable only under wax.", "pass": true},
+    {"gate": "ray release 0 obstructions, 0 unresolved at 0.100 and 0.075 mm", "claimed": "waived by the process Logan chose", "verified": "0.100 mm: 104 obstructions and 1 unresolved ray. 0.075 mm: 112 obstructions and 0 unresolved. Status NotApplicable. The waiver is the author's inference from the process decision. No explicit waiver from Logan of this gate is quoted, and the unresolved ray is new.", "pass": false},
+    {"gate": "draft-clamp bite <= 0.05 mm", "claimed": "0.0", "verified": "max_bite_mm 0.0 (no clamp runs under wax)", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings [] in draft and export", "pass": true},
+    {"gate": "stone count equals preview", "claimed": "pass", "verified": "0 = 0", "pass": true},
+    {"gate": "cold reload identical", "claimed": "identical", "verified": "cold_reload.identical true, 98,540 vertices, 197,080 faces", "pass": true},
+    {"gate": "export within 2 million triangles", "claimed": "pass", "verified": "197,080 at 1536x448, the same as the draft. That is consistent with a stock mesh carrying stored parts.", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "pass", "verified": "watertight, 0 degenerate, 0 crossings", "pass": true},
+    {"gate": "template gate (<= 4 design.set patches, within class budget)", "claimed": "passed", "verified": "1 patch (/manufacturing), source identical, cold reloads true, 2,412,245 bytes. The class is declared 'painted' (3 MB budget), but draft_clamp says there is no painted layer. Under the stock class the budget is 1 MB. The gate passes as recorded, but the class should be justified.", "pass": true},
+    {"gate": "land widths (author's own gate; round-1 item 6)", "claimed": "pass: every section under 0.8 mm named with bench treatment", "verified": "all_named true. Thinnest sections: flippers 0.009 mm, tail 0.0004 mm, scute seams 0.122 mm, head 0.367 mm. Round 1's >= 0.40 mm for made parts is not met.", "pass": false}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P0", "zone": "Gates: release waiver", "change": "Either quote Logan's explicit waiver of the two-part ray-release gate for Chelonia, with date and source, beside report.json release_gate, or drop the 'waived' claim and report the gate as not applicable by a cited rule in the Shared construction section. Resolve the 1 unresolved ray at 0.100 mm whichever you choose.", "acceptance": "report.json release_gate quotes Logan or a doc rule verbatim with a path, and release_0100.unresolved_rays is 0."},
+    {"number": 2, "priority": "P0", "zone": "Flipper parts (all four) and the polished lobe crowns", "change": "Root each flipper under the shell's marginal edge so it grows out from beneath the carapace, with no polished gap. Extend each to within 0.5 mm of its lobe rim, tapering to a rounded point. Make the fore pair (toward the head) 25% longer than the hind pair, and sweep all four back 30 deg toward the tail. Cut the lobe crowns so no polished area wider than 1.0 mm shows outside any flipper.", "acceptance": "face.png: every flipper meets the marginal ring with no bright gap, and the fore flippers are visibly longer and swept back. hero-300.png reads shell plus four flippers, not four textured ovals on four bulbs."},
+    {"number": 3, "priority": "P0", "zone": "Carapace part: outline, vertebrals and costals", "change": "Grow the shell to about 65% of the 17 mm face width (about 11 mm across) and to the matching length along the ring, with the marginals reaching the lobe waists. Redraw the 5 vertebrals as rounded hexagons (corner r >= 0.3 mm) and the costals as 4 rounded trapezoids per side. Replace the U/D/L/O areola notches with 3 concentric annuli that follow each scute's outline (treads >= 0.40 mm), the areola offset toward the vertebral line. Crown the shell so the vertebral line is highest, falling about 0.6 mm to the marginals.", "acceptance": "face-300.png: no rectangle grid and no letter-like marks on the shell, with the shell spanning about two thirds of the face width. side.png shows a crowned shell profile."},
+    {"number": 4, "priority": "P1", "zone": "Outline crispness: scute seams, flipper tiles, palm seams, neck root", "change": "Remove the sawtooth serration along every seam. Either raise the stamped outlines' point density, or stop the seams being resolved against the stock's facets (fine cap, or seam grooves as their own smooth swept parts). Re-mesh the neck root so no spiky facets show where the head part meets the shell.", "acceptance": "shell-close.png, flipper-close.png, plastron-close.png and head-close.png show smooth seam edges with no visible teeth, and the neck root has no crumpled facets."},
+    {"number": 5, "priority": "P1", "zone": "Head and neck part, and tail", "change": "Remove the scored '+' on the head. Model a blunt sea-turtle head about 3.0 x 2.6 mm with 3 low head scales (relief <= 0.15 mm) and a short skin-fold neck (1.2 mm) running under the nuchal marginal, so no polished stalk shows. Set the head's crown no higher than the marginal tier. Faces are allowed (Logan, 2026-09-24): an eye may return only as a sculpted lidded eye, not a bulge.", "acceptance": "head-close.png shows head scales and no cross mark. In shoulder.png the head reads as a turtle's, joined to the shell with no gap. The land-widths head feature no longer names a beak point."},
+    {"number": 6, "priority": "P2", "zone": "Shoulder scales (outside theta 90 +/- 55) and palm (around 270)", "change": "Turn the thin crescent scallops into full overlapping hawksbill plates: filled plates with a raised free edge and a short keel, graded 2.4 to 1.4 mm. Blend the shoulder band into the lobe root over 2 mm in place of the collar step. On the palm, replace the chevrons with 3 to 4 broad plastron plates with straight transverse seams, the central seam left to the bench.", "acceptance": "scales-close.png shows plates, not rings. shoulder.png has no collar step. palm.png reads as a plastron, not a chevron tread."},
+    {"number": 7, "priority": "P2", "zone": "Land widths on made parts", "change": "Bring every made-part section to >= 0.40 mm: fillet the flipper trailing edges onto the lobe (0.4 mm) and blunt the tail tip to r 0.4 mm. Justify the template class 'painted' against draft_clamp's 'no painted layer', or meet the 1 MB stock budget.", "acceptance": "report.json land_widths: thinnest_mm >= 0.40 for every feature except 'the shank'. template-verification.json carries a class consistent with the build."}
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/chelonia/hero-300.png",
+    "showcase/cataphracta/chelonia/face-300.png",
+    "showcase/cataphracta/chelonia/contact-300.png",
+    "showcase/cataphracta/chelonia/hero.png",
+    "showcase/cataphracta/chelonia/face.png",
+    "showcase/cataphracta/chelonia/palm.png",
+    "showcase/cataphracta/chelonia/side.png",
+    "showcase/cataphracta/chelonia/shoulder.png",
+    "showcase/cataphracta/chelonia/head-close.png",
+    "showcase/cataphracta/chelonia/shell-close.png",
+    "showcase/cataphracta/chelonia/flipper-close.png",
+    "showcase/cataphracta/chelonia/plastron-close.png",
+    "showcase/cataphracta/chelonia/scales-close.png",
+    "showcase/cataphracta/chelonia/reverse.png",
+    "showcase/cataphracta/chelonia/bare-vs-finished.png",
+    "showcase/cataphracta/chelonia/stones.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
