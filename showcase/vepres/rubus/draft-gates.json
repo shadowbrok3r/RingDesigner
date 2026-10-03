@@ -6,11 +6,11 @@
     "vertices_inside": 0
   },
   "build": {
-    "author_s": 0.945853109,
-    "build_s": 4.947123383,
+    "author_s": 0.90317698,
+    "build_s": 8.83376826,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 579116
+    "triangles": 613382
   },
   "coarse": {
     "degenerate_faces": 0,
@@ -20,12 +20,12 @@
     ],
     "parts_crossing": [],
     "self_crossings": 0,
-    "stamped": 19,
+    "stamped": 21,
     "watertight": true
   },
   "cold_reload_identical": null,
   "design": {
-    "bytes": 403101,
+    "bytes": 396455,
     "cad_features": 9,
     "format_version": 6
   },
@@ -81,22 +81,22 @@
     "min_detail_mm": 0.15,
     "min_section_mm": 0.8,
     "notes": [
-      "Lost wax: 1.68% of the surface would undercut a two-part pull (worst 9.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: 1.70% of the surface would undercut a two-part pull (worst 9.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
       "Undercut 326–214° on the crest: 20.1 mm² leaning to 8° — caused by \"Cane bark\"; muting it clears it.",
       "Undercut 320–320° on the crest: 0.1 mm² leaning to 1° — caused by \"Cane bark\"; muting it clears it.",
-      "Measured with the ring as built: 8 CAD parts (8 joined, 0 cut), 633.5 mm² of part surface; under lost wax they are reported, never gating.",
+      "Measured with the ring as built: 8 CAD parts (8 joined, 0 cut), 629.1 mm² of part surface; under lost wax they are reported, never gating.",
       "Lost wax: Twisted sweep \"Large prickle\" (#2) would undercut a two-part pull over 0.9 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Ring array \"Large prickles on the upper nodes\" (#3) would undercut a two-part pull over 1.4 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Small prickle, high shoulder\" (#4) would undercut a two-part pull over 3.9 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Small prickle, low shoulder\" (#5) would undercut a two-part pull over 3.8 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Ring array \"Small prickles between the upper nodes\" (#6) would undercut a two-part pull over 23.3 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Blackberry with its calyx and stalk, high shoulder\" (#7) would undercut a two-part pull over 23.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Mirror \"Blackberry with its calyx and stalk, low shoulder\" (#8) would undercut a two-part pull over 23.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Ring array \"Blackberries on the upper nodes\" (#9) would undercut a two-part pull over 187.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: Twisted sweep \"Small prickle, high shoulder\" (#4) would undercut a two-part pull over 4.6 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Small prickle, low shoulder\" (#5) would undercut a two-part pull over 4.6 mm² (worst -53°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Ring array \"Small prickles between the upper nodes\" (#6) would undercut a two-part pull over 27.4 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blackberry with its calyx and stalk, high shoulder\" (#7) would undercut a two-part pull over 21.4 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Mirror \"Blackberry with its calyx and stalk, low shoulder\" (#8) would undercut a two-part pull over 21.4 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Ring array \"Blackberries on the upper nodes\" (#9) would undercut a two-part pull over 171.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "thinnest_wall_mm": 2.872182711199189,
     "thinnest_wall_theta_deg": 220.78125,
-    "undercut_percent_reported_only": 13.909631069310308,
+    "undercut_percent_reported_only": 13.325610414480618,
     "verdict": "Castable"
   },
   "gates": [
@@ -159,37 +159,36 @@
     "self_crossings": 0,
     "watertight": true
   },
-  "grams_18k": 32.42043173862115,
+  "grams_18k": 32.03001046757911,
   "layers": [
     "Runner",
-    "Cane bark"
+    "Cane bark",
+    "Cane bark, side faces"
   ],
   "leaf_lands": {
-    "crown_mm": 0.52,
+    "crown_mm": 0.46,
     "fruit_piece_walls": [
       {
         "floor_mm": 0.8,
         "part": "stalk, high shoulder",
         "rays": 288,
-        "sampled_min_mm": 0.9062064839863219,
+        "sampled_min_mm": 0.9066588591044112,
         "unresolved": 0
       },
       {
         "floor_mm": 0.8,
         "part": "berry, high shoulder",
         "rays": 360,
-        "sampled_min_mm": 1.5867149562499252,
-        "unresolved": 0
-      },
-      {
-        "floor_mm": 0.15,
-        "part": "calyx, high shoulder",
-        "rays": 360,
-        "sampled_min_mm": 0.42108460899613015,
+        "sampled_min_mm": 2.176893556952889,
         "unresolved": 0
       }
     ],
-    "leaf_finest_mm": 0.365625,
+    "leaf_finest_mm": 0.43046874999999996,
+    "leaf_size_mm": [
+      4.2,
+      1.8
+    ],
+    "least_scale": 1.0,
     "leaves": [
       {
         "face": "low",
@@ -197,23 +196,25 @@
           0.09646726433591468,
           2.3634479762299097
         ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0849142473827351,
-        "theta_deg": 115.71428571428572,
-        "turn_deg": -6.0,
-        "v_mm": 1.5687786409165345
-      },
-      {
-        "face": "high",
-        "face_v_mm": [
-          10.032595490935126,
-          12.34780983499708
-        ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0771644829304596,
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.687,
         "theta_deg": 115.71428571428572,
         "turn_deg": 6.0,
-        "v_mm": 10.825089647398553
+        "v_mm": 1.2299576202829121
+      },
+      {
+        "face": "high",
+        "face_v_mm": [
+          10.032595490935126,
+          12.34780983499708
+        ],
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.687,
+        "theta_deg": 115.71428571428572,
+        "turn_deg": 6.0,
+        "v_mm": 11.190202662966103
       },
       {
         "face": "low",
@@ -221,11 +222,12 @@
           0.09646726433591468,
           2.3634479762299097
         ],
-        "finest_mm": 0.3859375,
-        "span_v_mm": 1.0771644829304599,
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.693,
         "theta_deg": 167.14285714285717,
-        "turn_deg": 186.0,
-        "v_mm": 1.570953819766483
+        "turn_deg": 174.0,
+        "v_mm": 1.2299576202829121
       },
       {
         "face": "high",
@@ -233,11 +235,12 @@
           10.032595490935126,
           12.34780983499708
         ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0849142473827353,
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.693,
         "theta_deg": 167.14285714285717,
         "turn_deg": 174.0,
-        "v_mm": 10.827264826248502
+        "v_mm": 11.190202662966103
       },
       {
         "face": "low",
@@ -245,35 +248,12 @@
           0.09646726433591468,
           2.3634479762299097
         ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0849142473827351,
-        "theta_deg": 218.57142857142858,
-        "turn_deg": -6.0,
-        "v_mm": 1.5687786409165345
-      },
-      {
-        "face": "high",
-        "face_v_mm": [
-          10.032595490935126,
-          12.34780983499708
-        ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0771644829304596,
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.687,
         "theta_deg": 218.57142857142858,
         "turn_deg": 6.0,
-        "v_mm": 10.825089647398553
-      },
-      {
-        "face": "low",
-        "face_v_mm": [
-          0.09646726433591468,
-          2.3634479762299097
-        ],
-        "finest_mm": 0.3859375,
-        "span_v_mm": 1.0771644829304599,
-        "theta_deg": 270.0,
-        "turn_deg": 186.0,
-        "v_mm": 1.570953819766483
+        "v_mm": 1.2299576202829121
       },
       {
         "face": "high",
@@ -281,23 +261,25 @@
           10.032595490935126,
           12.34780983499708
         ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0849142473827353,
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.687,
+        "theta_deg": 218.57142857142858,
+        "turn_deg": 6.0,
+        "v_mm": 11.190202662966103
+      },
+      {
+        "face": "low",
+        "face_v_mm": [
+          0.09646726433591468,
+          2.3634479762299097
+        ],
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.693,
         "theta_deg": 270.0,
         "turn_deg": 174.0,
-        "v_mm": 10.827264826248502
-      },
-      {
-        "face": "low",
-        "face_v_mm": [
-          0.09646726433591468,
-          2.3634479762299097
-        ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0849142473827351,
-        "theta_deg": 321.42857142857144,
-        "turn_deg": -6.0,
-        "v_mm": 1.5687786409165345
+        "v_mm": 1.2299576202829121
       },
       {
         "face": "high",
@@ -305,23 +287,25 @@
           10.032595490935126,
           12.34780983499708
         ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0771644829304596,
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.693,
+        "theta_deg": 270.0,
+        "turn_deg": 174.0,
+        "v_mm": 11.190202662966103
+      },
+      {
+        "face": "low",
+        "face_v_mm": [
+          0.09646726433591468,
+          2.3634479762299097
+        ],
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.687,
         "theta_deg": 321.42857142857144,
         "turn_deg": 6.0,
-        "v_mm": 10.825089647398553
-      },
-      {
-        "face": "low",
-        "face_v_mm": [
-          0.09646726433591468,
-          2.3634479762299097
-        ],
-        "finest_mm": 0.3859375,
-        "span_v_mm": 1.0771644829304599,
-        "theta_deg": 12.85714285714289,
-        "turn_deg": 186.0,
-        "v_mm": 1.570953819766483
+        "v_mm": 1.2299576202829121
       },
       {
         "face": "high",
@@ -329,23 +313,25 @@
           10.032595490935126,
           12.34780983499708
         ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0849142473827353,
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.687,
+        "theta_deg": 321.42857142857144,
+        "turn_deg": 6.0,
+        "v_mm": 11.190202662966103
+      },
+      {
+        "face": "low",
+        "face_v_mm": [
+          0.09646726433591468,
+          2.3634479762299097
+        ],
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.693,
         "theta_deg": 12.85714285714289,
         "turn_deg": 174.0,
-        "v_mm": 10.827264826248502
-      },
-      {
-        "face": "low",
-        "face_v_mm": [
-          0.09646726433591468,
-          2.3634479762299097
-        ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0849142473827351,
-        "theta_deg": 64.28571428571428,
-        "turn_deg": -6.0,
-        "v_mm": 1.5687786409165345
+        "v_mm": 1.2299576202829121
       },
       {
         "face": "high",
@@ -353,15 +339,42 @@
           10.032595490935126,
           12.34780983499708
         ],
-        "finest_mm": 0.365625,
-        "span_v_mm": 1.0771644829304596,
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.693,
+        "theta_deg": 12.85714285714289,
+        "turn_deg": 174.0,
+        "v_mm": 11.190202662966103
+      },
+      {
+        "face": "low",
+        "face_v_mm": [
+          0.09646726433591468,
+          2.3634479762299097
+        ],
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.687,
         "theta_deg": 64.28571428571428,
         "turn_deg": 6.0,
-        "v_mm": 10.825089647398553
+        "v_mm": 1.2299576202829121
+      },
+      {
+        "face": "high",
+        "face_v_mm": [
+          10.032595490935126,
+          12.34780983499708
+        ],
+        "finest_mm": 0.43046874999999996,
+        "scale": 1.0,
+        "span_v_mm": 1.687,
+        "theta_deg": 64.28571428571428,
+        "turn_deg": 6.0,
+        "v_mm": 11.190202662966103
       }
     ],
-    "margin_mm": 0.18,
-    "outline_points": 89,
+    "margin_mm": 0.26,
+    "outline_points": 119,
     "stamps": 14,
     "sunk_mm": 0.25
   },
@@ -404,11 +417,11 @@
       "name": "Bramble leaf 1, low face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        -6.0676695505778,
-        8.991366068522135,
-        -3.659100373586019
+        -4.345758120218913,
+        8.8023894627889,
+        -3.7744956811269126
       ],
-      "ray_diagnostic_mm": 0.2533717463090188,
+      "ray_diagnostic_non_gating_mm": 0.03667583987651748,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -417,11 +430,11 @@
       "name": "Bramble leaf 1, high face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        -6.058627923329671,
-        8.949618975321451,
-        3.7121481895446777
+        -2.7904813289642334,
+        10.322856585184732,
+        4.272861162821452
       ],
-      "ray_diagnostic_mm": 0.04121084273764017,
+      "ray_diagnostic_non_gating_mm": 0.026772991460408152,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -430,11 +443,11 @@
       "name": "Bramble leaf 2, low face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        -11.145593643188477,
-        0.562064528465271,
-        -4.90877119700114
+        -9.744170506795248,
+        3.440390666325887,
+        -3.8419743378957114
       ],
-      "ray_diagnostic_mm": 0.01609750696374338,
+      "ray_diagnostic_non_gating_mm": 0.06598925475721502,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -443,11 +456,11 @@
       "name": "Bramble leaf 2, high face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        -11.06594975789388,
-        0.5396042068799337,
-        4.401961882909139
+        -9.580240249633789,
+        2.8920913537343345,
+        3.896428426106771
       ],
-      "ray_diagnostic_mm": 0.013922937899899228,
+      "ray_diagnostic_non_gating_mm": 0.030782294695079537,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -456,11 +469,11 @@
       "name": "Bramble leaf 3, low face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        -7.388932387034099,
-        -7.776727358500163,
-        -3.4840948581695557
+        -7.614673137664795,
+        -6.195516745249431,
+        -3.772834539413452
       ],
-      "ray_diagnostic_mm": 0.25510103486010544,
+      "ray_diagnostic_non_gating_mm": 0.03729439431195154,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -469,11 +482,11 @@
       "name": "Bramble leaf 3, high face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        -7.37706200281779,
-        -7.898203055063884,
-        3.659167687098185
+        -9.443100293477377,
+        -5.017569859822591,
+        4.2870965003967285
       ],
-      "ray_diagnostic_mm": 0.05819532060946224,
+      "ray_diagnostic_non_gating_mm": 0.026753156826778177,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -482,11 +495,11 @@
       "name": "Bramble leaf 4, low face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        -1.497092882792155,
-        -10.855330467224121,
-        -3.478484551111857
+        0.3013459841410319,
+        -9.78601360321045,
+        -3.813044230143229
       ],
-      "ray_diagnostic_mm": 0.2551013240234714,
+      "ray_diagnostic_non_gating_mm": 0.07856012673965682,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -495,11 +508,11 @@
       "name": "Bramble leaf 4, high face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        -1.4285064538319905,
-        -10.632972717285156,
-        3.6570292313893638
+        -0.6877766052881876,
+        -9.98359457651774,
+        3.8900864124298096
       ],
-      "ray_diagnostic_mm": 0.13393292614477484,
+      "ray_diagnostic_non_gating_mm": 0.030118875556744185,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -508,11 +521,11 @@
       "name": "Bramble leaf 5, low face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        9.36798890431722,
-        -5.46827761332194,
-        -3.66668709119161
+        7.734606583913167,
+        -6.045125325520833,
+        -3.7753252188364663
       ],
-      "ray_diagnostic_mm": 0.20447955781601956,
+      "ray_diagnostic_non_gating_mm": 0.03657597190225672,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -521,11 +534,11 @@
       "name": "Bramble leaf 5, high face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        9.341729482014975,
-        -5.434588114420573,
-        3.7254913647969565
+        6.818249225616455,
+        -8.522693951924643,
+        4.205846468607585
       ],
-      "ray_diagnostic_mm": 0.038135534802607174,
+      "ray_diagnostic_non_gating_mm": 0.026658914488440648,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -534,11 +547,11 @@
       "name": "Bramble leaf 6, low face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        10.285703659057617,
-        4.329489231109619,
-        -4.908708651860555
+        10.271923700968424,
+        1.1281521320343018,
+        -3.8423970540364585
       ],
-      "ray_diagnostic_mm": 0.01609801528331113,
+      "ray_diagnostic_non_gating_mm": 0.06626436066322039,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -547,11 +560,11 @@
       "name": "Bramble leaf 6, high face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        10.204201380411783,
-        4.315169175465901,
-        4.402669032414754
+        9.886329650878906,
+        1.5510261456171672,
+        3.8964986006418862
       ],
-      "ray_diagnostic_mm": 0.01393006593891519,
+      "ray_diagnostic_non_gating_mm": 0.030665224517158682,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -560,11 +573,11 @@
       "name": "Bramble leaf 7, low face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        3.2830023765563965,
-        10.212526321411133,
-        -3.5277677377065024
+        4.172449429829915,
+        8.885850588480631,
+        -3.7742597262064614
       ],
-      "ray_diagnostic_mm": 0.25510217060753826,
+      "ray_diagnostic_non_gating_mm": 0.03721976576661423,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -573,76 +586,102 @@
       "name": "Bramble leaf 7, high face",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        3.2196011543273926,
-        10.316822369893393,
-        3.713041623433431
+        6.330897490183513,
+        8.617881774902344,
+        4.273602485656738
       ],
-      "ray_diagnostic_mm": 0.04000909322780637,
+      "ray_diagnostic_non_gating_mm": 0.02653051432509065,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Leaf scar 1",
+      "name": "Node ring 1",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        1.6979793310165405,
-        13.754603703816732,
-        0.0883097046923164
+        -0.06670987233519554,
+        15.346720059712728,
+        0.43890238801638287
       ],
-      "ray_diagnostic_mm": 0.046421421475555266,
+      "ray_diagnostic_non_gating_mm": 0.06539934664472363,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Leaf scar 2",
+      "name": "Node ring 2",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        -9.696708043416342,
-        9.905048052469889,
-        0.0883097046923164
+        -12.257173856099447,
+        10.094532012939453,
+        -0.13333324545613343
       ],
-      "ray_diagnostic_mm": 0.046224513894038595,
+      "ray_diagnostic_non_gating_mm": 0.056455880007833144,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Leaf scar 3",
+      "name": "Node ring 3",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        -13.783395767211914,
-        -1.4048872391382854,
-        0.0883097046923164
+        -15.539566993713379,
+        -3.290375550587972,
+        -0.13333324545613343
       ],
-      "ray_diagnostic_mm": 0.04616274141719991,
+      "ray_diagnostic_non_gating_mm": 0.05749961349517747,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Leaf scar 6",
+      "name": "Node ring 4",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        13.000770886739096,
-        -4.704540093739827,
-        0.08830971462642385
+        -5.471484343210856,
+        -11.218758583068848,
+        -3.0666666825612388
       ],
-      "ray_diagnostic_mm": 0.04644430105670708,
+      "ray_diagnostic_non_gating_mm": 0.2470787626790011,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
     },
     {
-      "name": "Leaf scar 7",
+      "name": "Node ring 5",
       "open_edges": 0,
       "ray_diagnostic_at": [
-        11.797416051228842,
-        7.2392598787943525,
-        0.0883097046923164
+        5.471484343210856,
+        -11.218758583068848,
+        3.0666666825612388
       ],
-      "ray_diagnostic_mm": 0.04648714825499152,
+      "ray_diagnostic_non_gating_mm": 0.2470787626790011,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Node ring 6",
+      "open_edges": 0,
+      "ray_diagnostic_at": [
+        15.121155738830566,
+        -3.3828797340393066,
+        0.43890238801638287
+      ],
+      "ray_diagnostic_non_gating_mm": 0.06052221696494673,
+      "repeated_edges": 0,
+      "self_crossings": 0,
+      "zero_area_faces": 0
+    },
+    {
+      "name": "Node ring 7",
+      "open_edges": 0,
+      "ray_diagnostic_at": [
+        11.994641304016113,
+        9.650732358296713,
+        0.43890238801638287
+      ],
+      "ray_diagnostic_non_gating_mm": 0.06300981279793912,
       "repeated_edges": 0,
       "self_crossings": 0,
       "zero_area_faces": 0
@@ -656,7 +695,7 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 579116,
+    "triangles": 613382,
     "watertight": true
   },
   "process": "Lost wax",
@@ -666,47 +705,47 @@
       "part": "Large prickle",
       "point": [
         16.729201634724934,
-        -2.686619599660238,
+        -2.6866191228230796,
         0.22756419579188028
       ],
       "rays": 383,
-      "sampled_min_mm": 0.20292135523117186,
+      "sampled_min_mm": 0.20292135111310902,
       "unresolved": 0
     },
     {
       "below_floor": 127,
       "part": "Small prickle, high shoulder",
       "point": [
-        12.389659563700357,
-        3.840669314066569,
-        4.611459573109944
+        13.137227376302084,
+        4.011133193969727,
+        4.111970742543538
       ],
       "rays": 303,
-      "sampled_min_mm": 0.17913475466896706,
+      "sampled_min_mm": 0.17913567913377268,
       "unresolved": 0
     },
     {
       "below_floor": 127,
       "part": "Small prickle, low shoulder",
       "point": [
-        12.372875531514486,
-        3.8373359044392905,
-        -4.616888364156087
+        13.004353205362955,
+        3.981797695159912,
+        -4.229996681213379
       ],
       "rays": 303,
-      "sampled_min_mm": 0.179135718379107,
+      "sampled_min_mm": 0.17913604014632162,
       "unresolved": 0
     },
     {
-      "below_floor": 37,
+      "below_floor": 42,
       "part": "Blackberry with its calyx and stalk, high shoulder",
       "point": [
-        12.53598403930664,
-        -3.3281655311584473,
-        5.227559248606364
+        12.034595171610514,
+        -3.824335972468058,
+        4.721072832743327
       ],
-      "rays": 382,
-      "sampled_min_mm": 0.3000815286481817,
+      "rays": 372,
+      "sampled_min_mm": 0.26788608327972174,
       "unresolved": 0
     }
   ],
@@ -732,12 +771,12 @@
   "size": "US 8.6",
   "stage": "full",
   "stamps": {
-    "count": 19,
-    "resolved": 19
+    "count": 21,
+    "resolved": 21
   },
   "stones": {
     "previewed": 0,
     "reported": 0
   },
-  "wall_exceptions": "Pointed details are judged at the 0.15 mm detail floor, not the 0.8 mm section, as Manticora's aculeus point was. Sampled minimums (ray_walls): Large prickle 0.203 mm, Small prickle, high shoulder 0.179 mm, Small prickle, low shoulder 0.179 mm, Blackberry with its calyx and stalk, high shoulder 0.300 mm. The leaves and leaf scars are stamps, relief struck off the band rather than parts, so they are not walls: each leaf's margin stands 0.18 mm proud of its face and 0.25 mm into it, rising to 0.52 mm along its middle, and the outlines' finest strokes are in leaf_lands. made_solids carries a ray sample of each stamp's prism as a diagnostic only; it reads 0.02 to 0.05 mm even at the leaf scar's 0.36 mm-deep middle, so it does not measure a stamp's section. Ring arrays are rigid copies of their sources and are measured on the sources; each blackberry is one body with its calyx and stalk, judged at the detail floor for its sepals, and its stalk and fruit sample at or above 0.8 mm piece by piece (leaf_lands.fruit_piece_walls)."
+  "wall_exceptions": "Pointed details are judged at the 0.15 mm detail floor, not the 0.8 mm section, as Manticora's aculeus point was. Sampled minimums (ray_walls): Large prickle 0.203 mm, Small prickle, high shoulder 0.179 mm, Small prickle, low shoulder 0.179 mm, Blackberry with its calyx and stalk, high shoulder 0.268 mm. The leaves, their grooves and veins, and the node rings are stamps, relief struck on and cut into the band rather than parts, so they are not walls: each leaf's margin stands 0.26 mm proud of its face and 0.25 mm into it, rising to 0.46 mm along its middle; a ridge 0.20 mm high runs down its midrib, and the outlines' finest strokes are in leaf_lands. made_solids carries a ray sample of each stamp's prism as a non-gating diagnostic only; it reads hundredths of a millimetre even across a 0.36 mm-deep stamp, so it does not measure a stamp's section. Ring arrays are rigid copies of their sources and are measured on the sources; each blackberry is one body with its calyx and stalk, judged at the detail floor for its sepals, and its stalk and fruit sample at or above 0.8 mm piece by piece (leaf_lands.fruit_piece_walls)."
 }

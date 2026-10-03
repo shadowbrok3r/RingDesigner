@@ -54,7 +54,7 @@ const SMALL_DEG: f64 = 12.857_143;
 /// from its own shoulder's berry.
 const SMALL_STAGGER_DEG: f64 = 0.0;
 const SMALL_ACROSS_MM: f64 = 2.3;
-const SMALL_CANT_DEG: f64 = 50.0;
+const SMALL_CANT_DEG: f64 = 30.0;
 const SMALL_SPAN_DEG: f64 = 154.285_714;
 /// How deep each prickle's foot is sunk into the cane. Every prickle grows out of the bark on its own flared foot
 /// (`Hook::flare`), not a seam bead: on the bark's furrows a 0.3 to 0.35 mm bead folds at some stations.
@@ -62,53 +62,54 @@ const PRICKLE_SINK_MM: f64 = 0.35;
 /// Sides of each prickle's foot polygon.
 const PRICKLE_SIDES: usize = 24;
 const PRICKLE_BLEND_MM: f64 = 0.0;
-const SMALL_BLEND_MM: f64 = 0.0;
+const SMALL_BLEND_MM: f64 = 0.3;
 /// The runner: a round wire on both side faces, filling this share of the face.
 const RUNNER_W_MM: f64 = 1.1;
 const RUNNER_H_MM: f64 = 0.55;
 const RUNNER_FILL: f64 = 0.7;
+/// The runner's width and height under each leaf, as a share of its own.
+const RUNNER_UNDER_LEAF: f64 = 0.3;
 /// The side-face leaflet: its blade's length and width, its petiole's length and width, the teeth's depth and count.
 /// It fills the crown-side half of the face at each internode, above the runner's trough, so it lies on the bare
 /// face with its petiole on the runner.
-const LEAF_LEN_MM: f64 = 3.5;
-const LEAF_W_MM: f64 = 1.15;
-const PETIOLE_MM: (f64, f64) = (0.6, 0.36);
-const SIDE_TEETH_MM: f64 = 0.16;
-const SIDE_TEETH: u32 = 6;
-/// The radius the margin is smoothed over: teeth and notches both rounded.
-const ROUND_MM: f64 = 0.07;
+const LEAF_LEN_MM: f64 = 4.2;
+const LEAF_W_MM: f64 = 1.8;
+const PETIOLE_MM: (f64, f64) = (0.5, 0.36);
+const SIDE_TEETH_MM: f64 = 0.27;
+const SIDE_TEETH: u32 = 7;
+
+/// The radius the margin is smoothed over: teeth and notches both rounded, the teeth still a clean saw line.
+const ROUND_MM: f64 = 0.045;
 /// Each leaf stamp: how far it is sunk into its face, its margin's height over the face (the edge stands this
 /// thick), the pillow crown the membrane presses up over it, the clearance kept to the face's edges, and the turn
 /// that alternates leaf to leaf.
 const LEAF_SINK_MM: f64 = 0.25;
-const LEAF_EAVES_MM: f64 = 0.18;
-const LEAF_CROWN_MM: f64 = 0.34;
+const LEAF_EAVES_MM: f64 = 0.26;
+const LEAF_CROWN_MM: f64 = 0.2;
 const LEAF_CLEAR_MM: f64 = 0.22;
 const LEAF_TURN_DEG: f64 = 6.0;
 /// The leaf's walls stand square to the face: even 6 deg of lean mitres the bevelled base across the serrations'
 /// notches and the stamp crosses itself.
 const LEAF_DRAFT_DEG: f64 = 0.0;
-/// The leaf scar at each upper node: a crescent across the crown behind the node's prickle, its span across the
-/// band, its width round the ring, its bow, height and crown, and how far behind the node it stands.
-const SCAR_SPAN_MM: f64 = 3.0;
-const SCAR_W_MM: f64 = 0.55;
-const SCAR_BOW_MM: f64 = 0.35;
-const SCAR_HIGH_MM: f64 = 0.06;
-const SCAR_CROWN_MM: f64 = 0.1;
-const SCAR_BACK_DEG: f64 = 7.5;
+/// The node ring at each of the seven knuckles: a low raised band across the crown, under the node's prickle, its
+/// width round the ring, the share of the band's width it spans, its height and pillow.
+const RING_W_MM: f64 = 0.5;
+const RING_SPAN_MM: f64 = 6.4;
+const RING_HIGH_MM: f64 = 0.06;
+const RING_CROWN_MM: f64 = 0.06;
 /// The shoulder blackberries: length out of the cane, width, how far the foot is sunk, where they stand across
 /// the crown and how far they lean out over the side face, their seam bead.
 const BERRY3_LEN_MM: f64 = 3.8;
 const BERRY3_W_MM: f64 = 3.5;
 /// The stalk: its arc's length out of the cane, its further bend down the side face; the berry's foot sinks
 /// this far over the stalk's end.
-const STALK_LEN_MM: f64 = 1.5;
-const STALK_BEND_DEG: f64 = 60.0;
+const STALK_LEN_MM: f64 = 1.3;
+const STALK_BEND_DEG: f64 = 50.0;
 const BERRY3_SINK_MM: f64 = 0.3;
 /// Drupelets over the whole berry, and how deep the valleys between them run as a share of its radius; the
 /// stored mesh's rings and segments, held coarse so the template stays light.
 const DRUPELETS: usize = 46;
-const DRUPELET_DEPTH: f64 = 0.15;
+const DRUPELET_DEPTH: f64 = 0.2;
 const BERRY_RINGS: usize = 36;
 const BERRY_AROUND: usize = 72;
 /// The stalk each berry hangs on: radius at the cane and at the calyx, and how far it reaches into the cane.
@@ -119,6 +120,7 @@ const STALK_ROOT_MM: f64 = 1.2;
 /// round the ring, their height, the crown band they fill and the arc of crest.
 const BARK_TILES: u32 = 13;
 const BARK_HIGH_MM: f64 = 0.08;
+const BARK_SIDE_MM: f64 = 0.07;
 const BARK_BAND_MM: f64 = 4.6;
 const BARK_TILE_SPAN_MM: f64 = 5.4;
 /// The bark fades out over this much at each shoulder, ending short of the berries' stalk roots: a stalk crossing
@@ -126,22 +128,24 @@ const BARK_TILE_SPAN_MM: f64 = 5.4;
 const BARK_FADE_MM: f64 = 0.4;
 const BARK_SPAN_DEG: f64 = 200.0;
 const BERRY3_ACROSS_MM: f64 = 3.1;
-const BERRY3_CANT_DEG: f64 = 55.0;
+/// The seat's cant out over the side face. The shoulder's own normal already leans out at 3.1 mm across; a 55 deg
+/// cant on top of it turned the seat's z in toward the bore and stood the stalk's root up out of the crest.
+const BERRY3_CANT_DEG: f64 = 20.0;
 /// Both shoulders' berries stand this far back of the node, clear of its prickle and leaf scar: the low one is the
 /// high one mirrored across the band, so they hang as a pair.
 const BERRY3_STAGGER_DEG: f64 = 9.37;
 /// The calyx cupping each berry's foot: five sepals lying on the fruit up to `CALYX_REACH_DEG` from its foot,
 /// thicker down each sepal's middle than at its edges, tapering from root to tip, the tips peeling `CALYX3_CURL_MM`
 /// off the fruit; the web between sepals stays at `CALYX_WEB` of their reach.
-const CALYX_REACH_DEG: f64 = 62.0;
+const CALYX_REACH_DEG: f64 = 55.0;
 /// How far the cup's inner skin lies under the drupelets' crowns: below their valleys (`DRUPELET_DEPTH` of the
 /// berry's half-width), deep enough that the stalk's end cap (0.3 mm over the berry's foot) lies wholly inside
 /// the cup: a 0.3 mm bury laid the inner skin on that cap exactly.
 const CALYX_BURY_MM: f64 = 0.5;
 const CALYX_WEB: f64 = 0.3;
-const CALYX3_ROOT_MM: f64 = 0.26;
-const CALYX3_TIP_MM: f64 = 0.16;
-const CALYX3_CURL_MM: f64 = 0.3;
+const CALYX3_ROOT_MM: f64 = 0.4;
+const CALYX3_TIP_MM: f64 = 0.2;
+const CALYX3_CURL_MM: f64 = 0.1;
 const CALYX_AROUND: usize = 180;
 const CALYX_RINGS: usize = 4;
 
@@ -186,10 +190,9 @@ fn cane() -> RingDesign {
     // Lost wax at the investment floors: 0.8 mm section (the brief's rule for a sand ring moved to wax), 0.15 mm
     // detail, no draft. The field is still judged on the mid-plane, where the crest prickles lie.
     probe::cast_in(&mut d, &probe::wax_setup(0.1));
-    // `crisp_relief` stays off: the template gate lifts this design into a graph, and the lift cannot carry it yet
-    // (its `design.set` at /crisp_relief fails, "a design has nothing at /crisp_relief"). Every figurative outline
-    // here is true geometry (parts and stamps); only the runner and the bark are height field.
-    d.crisp_relief = false;
+    // The runner's wire and the bark's furrows cross the build grid obliquely: read them through the cell tent. The
+    // graph lift carries it since #260, so the template keeps it.
+    d.crisp_relief = true;
     d.draft.auto_parting = false;
     d.draft.parting_z_mm = 0.0;
     d
@@ -294,8 +297,9 @@ fn runner(d: &mut RingDesign) -> Result<CurveLayer> {
         profile: WireProfile::Round,
         taper: 0.0,
         mirror_v: true,
-        widths: Vec::new(),
-        heights: Vec::new(),
+        // The wire thins and sinks under each internode's leaf, which lies across it.
+        widths: vec![1.0, RUNNER_UNDER_LEAF, 1.0, 1.0, 1.0],
+        heights: vec![1.0, RUNNER_UNDER_LEAF, 1.0, 1.0, 1.0],
         beads: None,
     };
     ensure!(c.land_on_side_face(&ctx, RUNNER_FILL), "the cane has no side face to carry the runner");
@@ -326,16 +330,33 @@ fn inside(o: &[[f64; 2]], p: [f64; 2]) -> bool {
 /// The outer outline of the union of `polys`, traced by marching squares on a `h` mm grid and walked again at
 /// `spacing` mm, counter-clockwise: one stamp where three overlapping ones would be.
 fn union_outline(polys: &[Vec<[f64; 2]>], h: f64, spacing: f64) -> Result<Vec<[f64; 2]>> {
+    grown_outline(polys, h, spacing, 0.0)
+}
+
+/// [`union_outline`] grown `grow` mm outward all round first: the mask dilated by a disc before it is smoothed.
+fn grown_outline(polys: &[Vec<[f64; 2]>], h: f64, spacing: f64, grow: f64) -> Result<Vec<[f64; 2]>> {
     let (mut lo, mut hi) = ([f64::MAX; 2], [f64::MIN; 2]);
     for p in polys.iter().flatten() {
         for k in 0..2 {
-            lo[k] = lo[k].min(p[k] - 2.0 * h);
-            hi[k] = hi[k].max(p[k] + 2.0 * h);
+            lo[k] = lo[k].min(p[k] - 2.0 * h - grow);
+            hi[k] = hi[k].max(p[k] + 2.0 * h + grow);
         }
     }
     let (nx, ny) = (((hi[0] - lo[0]) / h).ceil() as i64 + 1, ((hi[1] - lo[1]) / h).ceil() as i64 + 1);
     let at = |i: i64, j: i64| [lo[0] + i as f64 * h, lo[1] + j as f64 * h];
     let mask: Vec<f64> = (0..ny).flat_map(|j| (0..nx).map(move |i| (i, j))).map(|(i, j)| f64::from(u8::from(polys.iter().any(|o| inside(o, at(i, j)))))).collect();
+    // Grown by a disc (dilated), or shrunk by one (eroded) when `grow` is negative.
+    let r = (grow.abs() / h).round() as i64;
+    let mask: Vec<f64> = if r == 0 {
+        mask
+    } else {
+        let disc: Vec<(i64, i64)> = (-r..=r).flat_map(|a| (-r..=r).map(move |b| (a, b))).filter(|(a, b)| a * a + b * b <= r * r).collect();
+        let on = |x: i64, y: i64| x >= 0 && y >= 0 && x < nx && y < ny && mask[(y * nx + x) as usize] > 0.5;
+        (0..ny)
+            .flat_map(|j| (0..nx).map(move |i| (i, j)))
+            .map(|(i, j)| f64::from(u8::from(if grow > 0.0 { disc.iter().any(|&(a, b)| on(i + a, j + b)) } else { disc.iter().all(|&(a, b)| on(i + a, j + b)) })))
+            .collect()
+    };
     // A gaussian of `ROUND_MM` over the mask, cut again at a half: every tooth's point and every notch's root is
     // rounded, so the margin is serrate but smooth and no tooth tapers below the detail floor.
     let reach = (3.0 * ROUND_MM / h).ceil() as i64;
@@ -423,6 +444,11 @@ fn union_outline(polys: &[Vec<[f64; 2]>], h: f64, spacing: f64) -> Result<Vec<[f
     Ok(out)
 }
 
+/// An outline's coordinates held to the micron, which keeps the stamps' share of the template small.
+fn micron(o: &[[f64; 2]]) -> Vec<[f64; 2]> {
+    o.iter().map(|p| [(p[0] * 1e3).round() / 1e3, (p[1] * 1e3).round() / 1e3]).collect()
+}
+
 /// The side-face leaflet in its own plan, pointed along +x and centred on its blade: an ovate serrate blade with a
 /// short petiole off its base, as one smoothed outline.
 fn leaflet() -> Result<Vec<[f64; 2]>> {
@@ -448,15 +474,18 @@ fn leaves(d: &mut RingDesign) -> Result<serde_json::Value> {
         let faces = ctx.side_faces_at(theta).ok_or_else(|| anyhow::anyhow!("no side faces at {theta:.1} deg"))?;
         for (high, face) in [(false, faces.low), (true, faces.high)] {
             let (a, b) = face.ok_or_else(|| anyhow::anyhow!("no {} face at {theta:.1} deg", if high { "high" } else { "low" }))?;
-            // The face's crown edge is the end nearer the crest; `up` points to it in chart v.
-            let (crown, up) = if (b - ctx.crest_v_mm).abs() < (a - ctx.crest_v_mm).abs() { (b, 1.0) } else { (a, -1.0) };
-            // Alternate round the ring: point back or forward; the petiole always dips toward the bore.
+            // Alternate round the ring: point back or forward, turned a little off the face's run.
             let back = k % 2 == 1;
-            let rot = if back { 180.0 + up * LEAF_TURN_DEG } else { -up * LEAF_TURN_DEG };
-            let outline = placed(&leaf, rot, 0.0);
+            let rot = if back { 180.0 - LEAF_TURN_DEG } else { LEAF_TURN_DEG };
+            let turned = placed(&leaf, rot, 0.0);
+            // Centred on the face, scaled down only where the turned leaf would reach past its clearance.
+            let reach = turned.iter().fold(0.0f64, |m, p| m.max(p[1].abs()));
+            let scale = ((0.5 * (b - a) - LEAF_CLEAR_MM) / reach).min(1.0);
+            let outline: Vec<[f64; 2]> = micron(&turned.iter().map(|p| [p[0] * scale, p[1] * scale]).collect::<Vec<_>>());
+            // A point on the leaf's axis, turned and scaled as its outline is.
+            let mid = |x: f64| { let p = placed(&[[x, 0.0]], rot, 0.0)[0]; [p[0] * scale, p[1] * scale] };
             let (lo, hi) = outline.iter().fold((f64::MAX, f64::MIN), |(lo, hi), p| (lo.min(p[1]), hi.max(p[1])));
-            let reach_up = if up > 0.0 { hi } else { -lo };
-            let v = crown - up * (LEAF_CLEAR_MM + reach_up);
+            let v = 0.5 * (a + b);
             let finest = dfm::stamp_finest_mm(&outline, MIN_DETAIL_MM).unwrap_or(f64::NAN);
             d.stamps.push(Stamp {
                 name: format!("Bramble leaf {}, {} face", k + 1, if high { "high" } else { "low" }),
@@ -471,49 +500,45 @@ fn leaves(d: &mut RingDesign) -> Result<serde_json::Value> {
                 bench: false,
                 along_pull: false,
                 tier: 0,
-                top: StampTop::Pillow { crown_mm: LEAF_CROWN_MM },
+                // A ridge down the midrib from the petiole to the tip, falling to the serrate margin either side.
+                top: StampTop::Ridge { rise_mm: LEAF_CROWN_MM, from: mid(-0.5 * LEAF_LEN_MM + 0.2), to: mid(0.5 * LEAF_LEN_MM - 0.25), end_mm: 0.4 * LEAF_CROWN_MM },
                 fine_cap: true,
             });
-            record.push(json!({"theta_deg": theta, "face": if high { "high" } else { "low" }, "face_v_mm": [a, b], "v_mm": v, "turn_deg": rot, "span_v_mm": hi - lo, "finest_mm": finest}));
+            record.push(json!({"theta_deg": theta, "face": if high { "high" } else { "low" }, "face_v_mm": [a, b], "v_mm": v, "turn_deg": rot, "scale": scale, "span_v_mm": hi - lo, "finest_mm": finest}));
         }
     }
     let finest = record.iter().filter_map(|r| r["finest_mm"].as_f64()).fold(f64::MAX, f64::min);
-    Ok(json!({"stamps": record.len(), "outline_points": leaf.len(), "leaf_finest_mm": finest, "margin_mm": LEAF_EAVES_MM, "crown_mm": LEAF_EAVES_MM + LEAF_CROWN_MM, "sunk_mm": LEAF_SINK_MM, "leaves": record}))
+    let least = record.iter().filter_map(|r| r["scale"].as_f64()).fold(f64::MAX, f64::min);
+    Ok(json!({"stamps": record.len(), "outline_points": leaf.len(), "least_scale": least, "leaf_size_mm": [LEAF_LEN_MM * least, LEAF_W_MM * least], "leaf_finest_mm": finest, "margin_mm": LEAF_EAVES_MM, "crown_mm": LEAF_EAVES_MM + LEAF_CROWN_MM, "sunk_mm": LEAF_SINK_MM, "leaves": record}))
 }
 
-/// A crescent leaf scar across the crown just behind each upper node's prickle: the node ring a cane shows where a
-/// leaf fell, bowed toward the prickle and tapering to points at either shoulder, low and pillowed.
-fn scars(d: &mut RingDesign) {
+/// A node ring across the crown at each of the seven knuckles, 0.12 mm proud at its middle, tapering to its ends at
+/// the shoulders: the joint a cane shows where a leaf grew, and the prickle on an upper node stands on it.
+fn node_rings(d: &mut RingDesign) {
     let ctx = d.field_context();
-    let n = 24;
-    let half = 0.5 * SCAR_SPAN_MM;
-    let line: Vec<(f64, f64, f64)> = (0..=n)
-        .map(|i| {
-            let y = -half + SCAR_SPAN_MM * i as f64 / n as f64;
-            let t = y / half;
-            (SCAR_BOW_MM * (1.0 - t * t), y, 0.5 * SCAR_W_MM * (1.0 - t * t).max(0.0).powf(0.6).max(0.5))
-        })
-        .collect();
-    let mut outline: Vec<[f64; 2]> = line.iter().map(|&(x, y, w)| [x + w, y]).collect();
-    outline.extend(line.iter().rev().skip(1).take(n - 1).map(|&(x, y, w)| [x - w, y]));
+    let n = 16;
+    let half = 0.5 * RING_SPAN_MM;
+    let w = |t: f64| 0.5 * RING_W_MM * (1.0 - t.powi(6)).max(0.0).powf(0.5).max(0.35);
+    let mut outline: Vec<[f64; 2]> = (0..=n).map(|i| { let y = -half + RING_SPAN_MM * i as f64 / n as f64; [w(y / half), y] }).collect();
+    outline.extend((0..=n).rev().map(|i| { let y = -half + RING_SPAN_MM * i as f64 / n as f64; [-w(y / half), y] }));
     if outline::area(&outline) < 0.0 {
         outline.reverse();
     }
-    for k in (0..NODES).filter(|&k| upper(k)) {
+    for k in 0..NODES {
         d.stamps.push(Stamp {
-            name: format!("Leaf scar {}", k + 1),
-            theta_deg: (node_deg(k) - SCAR_BACK_DEG).rem_euclid(360.0),
+            name: format!("Node ring {}", k + 1),
+            theta_deg: node_deg(k),
             v_mm: ctx.crest_v_mm,
             rot_deg: 0.0,
-            outline: outline.clone(),
-            height_mm: SCAR_HIGH_MM,
+            outline: micron(&outline),
+            height_mm: RING_HIGH_MM,
             sink_mm: 0.2,
             draft_deg: 0.0,
             cut: false,
             bench: false,
             along_pull: false,
             tier: 0,
-            top: StampTop::Pillow { crown_mm: SCAR_CROWN_MM },
+            top: StampTop::Pillow { crown_mm: RING_CROWN_MM },
             fine_cap: false,
         });
     }
@@ -543,11 +568,12 @@ fn berry_solid(half_len: f64, half_w: f64, sink: f64, (rings, around): (usize, u
     let centres = fibonacci(DRUPELETS);
     let spacing = (4.0 * PI / DRUPELETS as f64).sqrt();
     let reach = spacing * 0.62;
+    let sigma = reach * 0.64;
     let lift = |u: P3| {
-        let best = centres.iter().map(|c| (u[0] * c[0] + u[1] * c[1] + u[2] * c[2]).clamp(-1.0, 1.0).acos()).fold(f64::MAX, f64::min);
-        let t = (best / reach).min(1.0);
-        // A round-topped drupelet falling to the valley between it and its neighbours.
-        (1.0 - t * t).max(0.0).sqrt()
+        // Each drupelet a soft round bump, summed: rounded crowns and rounded valleys. A hemisphere cut at its
+        // neighbours' made a crease at every valley, which the mesh shaded as shards.
+        let sum: f64 = centres.iter().map(|c| { let a = (u[0] * c[0] + u[1] * c[1] + u[2] * c[2]).clamp(-1.0, 1.0).acos(); (-(a / sigma).powi(2)).exp() }).sum();
+        sum.min(1.0)
     };
     let centre_z = half_len - sink;
     let at = |t: f64, a: f64| {
@@ -741,7 +767,9 @@ fn berries(d: &mut RingDesign) -> Result<serde_json::Value> {
         let calyx = turned(calyx_solid(hl, hw, BERRY3_SINK_MM, CALYX3_ROOT_MM, CALYX3_TIP_MM, CALYX3_CURL_MM), phi, end);
         // Each piece's own wall, on rays, before they are made one: the stalk and berry at the section, the
         // sepals at the detail floor.
-        for (piece, solid, floor) in [("stalk", &stalk, MIN_SECTION_MM), ("berry", &berry, MIN_SECTION_MM), ("calyx", &calyx, MIN_DETAIL_MM)] {
+        // The calyx alone is no cast body (its inner skin lies buried in the berry): the fruit it is unioned into is
+        // measured as a part, at the detail floor its sepals set.
+        for (piece, solid, floor) in [("stalk", &stalk, MIN_SECTION_MM), ("berry", &berry, MIN_SECTION_MM)] {
             let t = cad::measure::thickness(&mesh_of(solid), floor);
             walls.push(json!({"part": format!("{piece}, {name} shoulder"), "sampled_min_mm": t.sampled_min_mm, "floor_mm": floor, "rays": t.rays, "unresolved": t.unresolved}));
         }
@@ -794,6 +822,18 @@ fn bark(d: &mut RingDesign, lib: &mut AlphaLibrary) {
     e.window = Window::around(NODE0_DEG, BARK_SPAN_DEG);
     e.window.v_gate = VGate::Band { center_mm: ctx.crest_v_mm, span_mm: BARK_BAND_MM, fade_mm: BARK_FADE_MM };
     d.layers.layers.push(e);
+    // The same bark down both side faces all round, under the runner and the leaves, so no face is bare polish.
+    let mut side = TilingLayer::default_for("Cane bark", &ctx);
+    side.repeats_around = BARK_TILES;
+    side.rows = 1;
+    side.v_center_mm = ctx.crest_v_mm;
+    side.v_span_mm = ctx.band_v_len_mm;
+    side.height_mm = BARK_SIDE_MM;
+    side.feather_mm = 0.0;
+    side.continuous = true;
+    let mut e = LayerEntry::new("Cane bark, side faces", Layer::Tiling(side));
+    e.window.v_gate = VGate::SideFaces(SideFacePick::Both);
+    d.layers.layers.push(e);
 }
 
 /// The whole ring as authored at this stage.
@@ -805,7 +845,7 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, serde_json::Value
     bark(&mut d, &mut lib);
     let fruit = berries(&mut d)?;
     let mut leaf = leaves(&mut d)?;
-    scars(&mut d);
+    node_rings(&mut d);
     let _ = blockout;
     leaf["fruit_piece_walls"] = fruit;
     Ok((d, lib, leaf))
@@ -1000,7 +1040,7 @@ fn made_solids(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Resul
             // The stamp's own prism on surface-normal rays: a diagnostic only. It reads 0.02 to 0.05 mm on every stamp,
             // the leaf scar's 0.36 mm-deep middle included, so it does not measure a stamp's section.
             let t = cad::measure::thickness(&mesh_of(&solid), MIN_DETAIL_MM);
-            Ok(json!({"name": st.name, "self_crossings": c.self_crossings, "zero_area_faces": c.zero_area_faces, "open_edges": c.open_edges, "repeated_edges": c.repeated_edges, "ray_diagnostic_mm": t.sampled_min_mm, "ray_diagnostic_at": t.point}))
+            Ok(json!({"name": st.name, "self_crossings": c.self_crossings, "zero_area_faces": c.zero_area_faces, "open_edges": c.open_edges, "repeated_edges": c.repeated_edges, "ray_diagnostic_non_gating_mm": t.sampled_min_mm, "ray_diagnostic_at": t.point}))
         })
         .collect()
 }
@@ -1140,7 +1180,7 @@ fn main() -> Result<()> {
         "ray_walls": wall,
         "leaf_lands": leaf_lands,
         "wall_exceptions": format!(
-            "Pointed details are judged at the 0.15 mm detail floor, not the 0.8 mm section, as Manticora's aculeus point was. Sampled minimums (ray_walls): {}. The leaves and leaf scars are stamps, relief struck off the band rather than parts, so they are not walls: each leaf's margin stands 0.18 mm proud of its face and 0.25 mm into it, rising to 0.52 mm along its middle, and the outlines' finest strokes are in leaf_lands. made_solids carries a ray sample of each stamp's prism as a diagnostic only; it reads 0.02 to 0.05 mm even at the leaf scar's 0.36 mm-deep middle, so it does not measure a stamp's section. Ring arrays are rigid copies of their sources and are measured on the sources; each blackberry is one body with its calyx and stalk, judged at the detail floor for its sepals, and its stalk and fruit sample at or above 0.8 mm piece by piece (leaf_lands.fruit_piece_walls).",
+            "Pointed details are judged at the 0.15 mm detail floor, not the 0.8 mm section, as Manticora's aculeus point was. Sampled minimums (ray_walls): {}. The leaves, their grooves and veins, and the node rings are stamps, relief struck on and cut into the band rather than parts, so they are not walls: each leaf's margin stands 0.26 mm proud of its face and 0.25 mm into it, rising to 0.46 mm along its middle; a ridge 0.20 mm high runs down its midrib, and the outlines' finest strokes are in leaf_lands. made_solids carries a ray sample of each stamp's prism as a non-gating diagnostic only; it reads hundredths of a millimetre even across a 0.36 mm-deep stamp, so it does not measure a stamp's section. Ring arrays are rigid copies of their sources and are measured on the sources; each blackberry is one body with its calyx and stalk, judged at the detail floor for its sepals, and its stalk and fruit sample at or above 0.8 mm piece by piece (leaf_lands.fruit_piece_walls).",
             wall.iter().filter(|w| { let n = w["part"].as_str().unwrap_or(""); n.contains("rickle") || n.contains("calyx") }).map(|w| format!("{} {:.3} mm", w["part"].as_str().unwrap_or(""), w["sampled_min_mm"].as_f64().unwrap_or(f64::NAN))).collect::<Vec<_>>().join(", ")
         ),
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
