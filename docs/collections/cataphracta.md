@@ -411,7 +411,15 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 
 ## Heloderma — *the beaded one*
 
-- **Status:** not started.
+- **Status:** revived for extra rounds. Rounds 1 to 3 scored 5.8, 6.4 and 6.3 (cut on 2026-10-02, branch `claude/cataphracta-heloderma`); the revival is on `claude/cataphracta-heloderma-revival`.
+- **Extension:** 2026-10-03, Logan granted two extra reviewed rounds (rounds 4 and 5) beyond the three-round cap.
+- **Process decision (Logan, 2026-10-03):** lost wax (decided 2026-09-27). Judge it as lost wax: 0.8 mm minimum section, no pull rule. The ray-release counts and the two-part undercut are reported, not gated.
+- **As built (revival, round 4):**
+  - Base: `HalfRound` 8.0 × 3.2, `edge_round_mm` 0.3, comfort fit 0.2, bore 18.6, `Keyframes` (width / thickness): 1.42 / 1.00 at 90°, 1.20 / 1.00 at 35°, 1.32 / 1.00 at 145°, 1.26 / 0.98 at 200°, 0.92 / 0.90 at 270°, 1.05 / 0.95 at 330°. `crisp_relief` off: the template gate needs the graph lift, which cannot carry it yet.
+  - The Gila: one sculpted stored part (`Attach::Join`). A flat head 6.0 × 5.2 mm (length 1.15 × width) with a square snout, polished eyes under brows, nostrils and a mouth line, covered in 0.78 mm domed beads; a fat trunk in three black crossbands; a short fat tail (at least 70% of the trunk's width at mid-length) in four black rings that sweeps back across the crown, never over the shoulder. Salmon bands carry 0.76 mm domed beads at full height; black bands sink 0.36 mm on 0.42 mm beads. The hide is explicit bead rows on each part's own lattice, never noise. Four splayed legs with thin, tapering, clawed toes, each leaving the flank inside a black band.
+  - The ground: one continuous bead field over the whole band, with no plateaus and no polished halo, carried in eight overlapping sector decals blended by plain `Max`, so a bead in an overlap is the same bead in both. Fine 0.41 mm beads at the face; round the shank the tail's rings carried on by bead size (0.75 mm salmon beads, fine beads in the black bands). Every dome grades to nothing over the last 0.45 mm before the rims.
+  - Spessartite 3.0 mm round at θ 36.5° in a collet on a gypsy mound, its lip a ring of 22 round domes 0.4 mm across sitting on the mound.
+- **Original plan (2026-09-27, superseded by "As built"):**
   - Blocked on **C-R1** (the group clamp), **C-R2**, **C-R3**, **P5** (`VGate::Draft`) and **C-R7**.
   - A fallback path exists today: the painted atlas plus `MilgrainLayer`. Its template would be heavy (atlas PNGs).
 - **Concept:** The one venomous lizard wears beadwork: domed osteoderms in two heights over a tail swollen with stored fat. The Gila's black and salmon banding becomes high beads and low beads under a reticulation mask. One bead on the spine is a spessartite.
@@ -432,7 +440,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
     | 210, 330 | 0.96 | 0.96 | 1.0 |
     | 270 | 0.90 | 0.92 | 1.0 |
 
-- **Process:** Delft. The palm beads need the 0.30 mm floor's margin.
+- **Process:** Delft in the original plan; lost wax as built (see the process decision above).
 - **Stones:**
   - Spessartite, `Gem { preview_tint: Some([0.95, 0.38, 0.06]), ..Gem::calibrated(GemCut::Round, 3.0) }`.
   - Seated on a `SeatPadLayer` at (90°, `crest_v`) with `GypsyMound`, `crown` 1.0, `height_mm` 0.55 (after `fit_stone`), `blend_mm` 0.45, `solid: Flush`, `through: true`, `Blend::Max`.

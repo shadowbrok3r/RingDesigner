@@ -1,19 +1,19 @@
 {
   "authoring_ms": {
-    "graph_creation": 16.846926000000003,
-    "source_read": 39.225679
+    "graph_creation": 24.545259,
+    "source_read": 9.226967
   },
   "cold_design_reload": true,
   "cold_graph_reload": true,
   "design_set_patches": [
     {
       "graph": "Heloderma — the beaded one",
-      "node": 67,
+      "node": 71,
       "pointer": "/manufacturing"
     }
   ],
   "detail_findings": 0,
-  "editable_design_bytes": 3473292,
+  "editable_design_bytes": 2973950,
   "editable_graph_reload": true,
   "export_geometry_verified": true,
   "exposed_control_policy": "explicit_allowlist",
@@ -23,27 +23,27 @@
     "refine": null,
     "theta_steps": 1536
   },
-  "nodes": 67,
+  "nodes": 71,
   "open_ms": {
-    "bake": 0.723845,
-    "bake_again": 0.733288,
-    "detail": 10847.078362999999,
-    "detail_again": 79.556343,
-    "evaluate": 10.613443,
-    "first_build": 2229.448536,
-    "read": 7.990044,
-    "rebuild": 4.648537,
+    "bake": 0.93771,
+    "bake_again": 0.949733,
+    "detail": 17.945679,
+    "detail_again": 17.520007,
+    "evaluate": 11.748428,
+    "first_build": 3066.6099889999996,
+    "read": 10.799635,
+    "rebuild": 3.819627,
     "unpack": null,
-    "verdict": 104.79015899999999
+    "verdict": 58.626951
   },
   "size_budget_bytes": 3000000,
   "size_review_required": false,
   "source_identical": true,
   "source_method": "lift",
-  "template_bytes": 2848705,
+  "template_bytes": 2452203,
   "template_class": "painted",
   "template_gate_passed": true,
   "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
-  "triangles": 1512536,
+  "triangles": 1477682,
   "vertices_faces_normals_identical": true
 }
