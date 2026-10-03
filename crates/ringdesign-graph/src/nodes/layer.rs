@@ -289,6 +289,10 @@ fn curve_node() -> NodeSpec {
     .field(PinSpec::select("profile", enum_names(WireProfile::ALL)).doc("The wire's section."))
     .field(PinSpec::item("taper", ValueKind::Number).doc("Thinning toward the ends, 0..1."))
     .field(PinSpec::item("mirror_v", ValueKind::Bool).doc("Mirror onto the other side face."))
+    .list_field(PinSpec::list("widths", ValueKind::Number).doc("Per control point, times the width; a short list repeats its last value, and an empty one leaves the wire's own."))
+    .list_field(PinSpec::list("heights", ValueKind::Number).doc("Per control point, times the height; a short list repeats its last value, and an empty one leaves the wire's own."))
+    .field(PinSpec::item("beads", ValueKind::Json).doc("A bead row along the wire: pitch_mm, diameter_mm, height_mm, offset (-1..1 across), graded, phase (0..1 of a pitch), span, stagger and cup; a field left out takes its default."))
+    .sparse(&["widths", "heights", "beads"])
     .build()
 }
 
@@ -602,6 +606,45 @@ mod tests {
         let Some(Value::Window(window)) = r.value(id, "window") else { panic!("{:?}", r.notes(&edited)); };
         let ctx = ringdesign_core::RingDesign::default().field_context();
         assert_eq!(window.mask(ringdesign_core::field::Uv { u: 0.0, v: ctx.crest_v_mm }, &ctx), 0.0);
+    }
+
+    #[test]
+    fn a_profiled_wire_lifts_to_its_own_pins_and_a_modifier_keeps_its_profile() {
+        use ringdesign_core::curve::CurveBeads;
+        let mut d = ringdesign_core::RingDesign::default();
+        let arm = CurveLayer {
+            points: vec![[0.1, 3.0], [0.5, 4.5], [0.9, 3.5]],
+            repeats_around: 1,
+            widths: vec![1.0, 0.5, 0.2],
+            heights: vec![1.0, 0.4],
+            beads: Some(CurveBeads { offset: -0.6, stagger: 0.2, span: [0.1, 0.8], cup: 0.6, ..CurveBeads::default() }),
+            ..CurveLayer::default()
+        };
+        d.layers.layers.push(ringdesign_core::field::LayerEntry::new("Arm", Layer::Curve(arm.clone())));
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::builtin();
+        let (g, got, want) = crate::lift::round_trip(&d, &reg, &lib).unwrap();
+        assert_eq!(got, want);
+        assert!(!g.nodes.iter().any(|n| n.kind == "design.set"), "the wire's profile rides its own pins");
+        assert_eq!(crate::file::graph_version_for(&g), crate::file::GRAPH_FORMAT_VERSION);
+        let cold: Graph = serde_json::from_str(&serde_json::to_string(&g).unwrap()).unwrap();
+        let out = crate::eval::evaluate_design(&mut Evaluator::new(), &cold, &reg, &lib, 0).unwrap();
+        assert_eq!(serde_json::to_value(&*out.design).unwrap(), serde_json::to_value(&d).unwrap());
+        let wire = cold.nodes.iter().find(|n| n.kind == "layer.curve").unwrap().id;
+        let mut edited = cold;
+        let modifier = edited.add("layer.curve").unwrap();
+        edited.connect(wire, "layer", modifier, "layer").unwrap();
+        edited.set_input(modifier, "width_mm", Literal::Number(1.5)).unwrap();
+        let Layer::Curve(kept) = layer_of(&run(&edited), modifier) else { panic!() };
+        assert_eq!((kept.width_mm, &kept.widths, &kept.heights, kept.beads), (1.5, &arm.widths, &arm.heights, arm.beads), "unset profile pins leave the base's alone");
+        edited.set_input(modifier, "widths", Literal::List(Vec::new())).unwrap();
+        let Layer::Curve(empty) = layer_of(&run(&edited), modifier) else { panic!() };
+        assert_eq!(empty.widths, arm.widths, "an empty list leaves the base's too");
+        edited.set_input(modifier, "widths", Literal::List(vec![Literal::Number(0.8)])).unwrap();
+        edited.set_input(modifier, "beads", Literal::Json(serde_json::json!({"offset": 0.5, "phase": 0.25}))).unwrap();
+        let Layer::Curve(set) = layer_of(&run(&edited), modifier) else { panic!() };
+        assert_eq!(set.widths, vec![0.8]);
+        assert_eq!(set.beads, Some(CurveBeads { offset: 0.5, phase: 0.25, ..CurveBeads::default() }), "a bead row's unnamed fields take their defaults");
     }
 
     fn layer_of(r: &crate::eval::EvalReport, id: NodeId) -> Layer {

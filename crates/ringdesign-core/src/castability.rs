@@ -1431,6 +1431,9 @@ pub fn attributed_field_report(
         f.notes.push(format!("Cut at the bench after casting, and so not judged here: {}.", pattern.layers.join(", ")));
     }
     f.notes.extend(pattern.marks.iter().map(LocatingMark::note));
+    if !pattern.unmarked.is_empty() {
+        f.notes.push(format!("Left to the bench with no mark in the pattern, as an engraving is laid out from the drawing: {}.", pattern.unmarked.join(", ")));
+    }
     // A clamped group says what the rule took, or that it was never baked and stands as composed.
     for (name, _) in crate::clamped_groups(&design.layers) {
         f.notes.push(match lib.clamp_of(name) {
@@ -1471,6 +1474,9 @@ pub struct CastingPattern<'a> {
     pub parts: Vec<String>,
     /// The raised marks the pattern carries in the bench parts' place.
     pub marks: Vec<LocatingMark>,
+    /// Parts left to the bench whose component asks for no mark, as the report names them: an
+    /// engraving is laid out from the drawing, not started from a drill dot.
+    pub unmarked: Vec<String>,
 }
 
 /// [`casting_pattern`] with the seats and parts left to the bench named, and the marks standing in for the parts.
@@ -1518,7 +1524,7 @@ pub fn pattern_parts<'a>(design: &'a RingDesign, lib: &AlphaLibrary) -> CastingP
             doc.attachments().iter().any(|(_, _, stage)| *stage == crate::cad::Stage::Bench)
         });
     if !any(&design.layers, sand) && !design.stamps.iter().any(|s| s.bench) && !bench_parts {
-        return CastingPattern { design: std::borrow::Cow::Borrowed(design), layers: Vec::new(), seats: Vec::new(), parts: Vec::new(), marks: Vec::new() };
+        return CastingPattern { design: std::borrow::Cow::Borrowed(design), layers: Vec::new(), seats: Vec::new(), parts: Vec::new(), marks: Vec::new(), unmarked: Vec::new() };
     }
     let mut pattern = design.clone();
     let (mut layers, mut seats) = (Vec::new(), Vec::new());
@@ -1530,7 +1536,8 @@ pub fn pattern_parts<'a>(design: &'a RingDesign, lib: &AlphaLibrary) -> CastingP
     });
     let parts = pattern.cad.as_mut().map(|doc| doc.leave_bench_parts_out(sand)).unwrap_or_default();
     let marks = if parts.is_empty() { Vec::new() } else { marks::place(design, &mut pattern, lib) };
-    CastingPattern { design: std::borrow::Cow::Owned(pattern), layers, seats, parts, marks }
+    let unmarked = if parts.is_empty() { Vec::new() } else { marks::unmarked(design) };
+    CastingPattern { design: std::borrow::Cow::Owned(pattern), layers, seats, parts, marks, unmarked }
 }
 
 // --- Undercut localization and attribution ----------------------------------

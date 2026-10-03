@@ -149,12 +149,64 @@ pub fn revolve(plane: Plane, regions: &[Region], pivot: [f64; 3], axis: [f64; 3]
     })
 }
 
-/// Each region's body, gathered into one; a failure names its region when there is more than one.
+/// `r` with every loop's pieces meeting exactly: each joint the mean of the two ends the region builder
+/// joined within its own reach, a line's ends moved onto its joints and an arc's centre onto its two
+/// joints' bisector, so both lie on its circle. The kernel meets ends within a nanometre, and an arc
+/// read from an SVG drawn to nine places misses its next piece by about that much once scaled up.
+fn healed(r: &Region) -> Region {
+    use cadkernel::geom2d::{Arc, Line};
+    let heal = |curves: &Vec<Curve>| -> Vec<Curve> {
+        let Some(forward) = region::senses(curves) else { return curves.clone() };
+        let n = curves.len();
+        if n < 2 || !curves.iter().all(|c| matches!(c, Curve::Line(_) | Curve::Arc(_))) {
+            return curves.clone();
+        }
+        let end = |i: usize| curves[i].point_at(if forward[i] { 1.0 } else { 0.0 });
+        let start = |i: usize| curves[i].point_at(if forward[i] { 0.0 } else { 1.0 });
+        let joint: Vec<[f64; 2]> = (0..n).map(|i| {
+            let (a, b) = (end(i), start((i + 1) % n));
+            [0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1])]
+        }).collect();
+        (0..n)
+            .map(|i| {
+                // The piece's own two ends, in its own direction.
+                let (from, to) = (joint[(i + n - 1) % n], joint[i]);
+                let (p0, p1) = if forward[i] { (from, to) } else { (to, from) };
+                match &curves[i] {
+                    Curve::Line(_) => Curve::Line(Line { start: p0, end: p1 }),
+                    Curve::Arc(a) => {
+                        let m = [0.5 * (p0[0] + p1[0]), 0.5 * (p0[1] + p1[1])];
+                        let (dx, dy) = (p1[0] - p0[0], p1[1] - p0[1]);
+                        let l = dx.hypot(dy);
+                        if !(l > 1e-12) {
+                            return curves[i].clone();
+                        }
+                        let nrm = [-dy / l, dx / l];
+                        let k = (a.centre[0] - m[0]) * nrm[0] + (a.centre[1] - m[1]) * nrm[1];
+                        let centre = [m[0] + nrm[0] * k, m[1] + nrm[1] * k];
+                        Curve::Arc(Arc {
+                            centre,
+                            radius: (p0[0] - centre[0]).hypot(p0[1] - centre[1]),
+                            start_angle: (p0[1] - centre[1]).atan2(p0[0] - centre[0]),
+                            end_angle: (p1[1] - centre[1]).atan2(p1[0] - centre[0]),
+                        })
+                    }
+                    other => other.clone(),
+                }
+            })
+            .collect()
+    };
+    Region { outer: heal(&r.outer), holes: r.holes.iter().map(heal).collect(), entities: r.entities.clone(), rim: r.rim }
+}
+
+/// Each region's body, gathered into one; a failure names its region when there is more than one. A
+/// region the kernel refuses is tried once more with its pieces meeting exactly ([`healed`]), so a
+/// region it takes as drawn is built as drawn.
 fn swept(regions: &[Region], label: &str, build: impl Fn(&Region) -> Option<Body>) -> Result<Body> {
     ensure!(!regions.is_empty(), "Sketch has no profile geometry");
     let mut out: Option<Body> = None;
     for (i, r) in regions.iter().enumerate() {
-        let body = build(r).with_context(|| {
+        let body = build(r).or_else(|| build(&healed(r))).with_context(|| {
             if regions.len() == 1 {
                 format!("{label}: unsupported or degenerate geometry")
             } else {
@@ -255,4 +307,32 @@ pub fn append(target: &mut Body, source: &Body) -> Option<()> {
         target.roots.push(*lumps.get(root)?);
     }
     Some(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A quatrefoil read from its nine-place SVG and drawn twice the size misses where its arcs meet by about a
+    /// nanometre, which the kernel refuses; healed, the same region extrudes, its area times its height.
+    #[test]
+    fn a_scaled_arc_outline_extrudes_once_its_pieces_meet_exactly() {
+        let mut q = crate::library::list_sketches().into_iter().find(|(n, _)| n == "gothic/gallery-quatrefoil").unwrap().1;
+        q.points.iter_mut().for_each(|p| p.xy = p.xy.map(|v| v * 2.0));
+        let regions = q.sweep_regions().unwrap();
+        let plane = q.plane.plane().unwrap();
+        assert!(brep::extrude(plane, &regions[0].outer, [0.0, 0.0, 0.3]).is_none(), "the kernel takes it as drawn now");
+        let fixed = healed(&regions[0]);
+        let senses = region::senses(&fixed.outer).unwrap();
+        let n = fixed.outer.len();
+        for i in 0..n {
+            let a = fixed.outer[i].point_at(if senses[i] { 1.0 } else { 0.0 });
+            let b = fixed.outer[(i + 1) % n].point_at(if senses[(i + 1) % n] { 0.0 } else { 1.0 });
+            assert!((a[0] - b[0]).hypot(a[1] - b[1]) < 1e-12, "joint {i}: {a:?} {b:?}");
+        }
+        assert!((fixed.area() - regions[0].area()).abs() < 1e-9 * regions[0].area());
+        let body = extrude(plane, &regions, [0.0, 0.0, 0.3], 0.0).unwrap();
+        let mesh = crate::cad::tessellate(&body, 0.005).unwrap();
+        assert!((mesh.volume_mm3() / (regions[0].area() * 0.3) - 1.0).abs() < 0.01, "{} against {}", mesh.volume_mm3(), regions[0].area() * 0.3);
+    }
 }

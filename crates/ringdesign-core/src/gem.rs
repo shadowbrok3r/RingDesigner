@@ -145,12 +145,10 @@ impl GemCut {
     /// Superellipse exponent of the girdle in plan: 2 is an ellipse, higher
     /// squares the corners toward a rectangle, lower points the ends.
     ///
-    /// One table, read by both the seat stock in [`crate::field::SeatPadLayer`]
-    /// and the viewport's faceted preview, so the drawn stone and the metal
-    /// cut for it are the same outline. Every value is at least 1, which
-    /// keeps the plan convex — and a convex plan is star-shaped about the
-    /// seat centre, which is what lets a mound built on it stay a monotone
-    /// drop from a single crest.
+    /// Read for every cut without a [`girdle`](Self::girdle). Every value
+    /// is at least 1, which keeps the plan convex — and a convex plan is
+    /// star-shaped about the seat centre, which is what lets a mound built
+    /// on it stay a monotone drop from a single crest.
     pub fn plan_pow(self) -> f64 {
         match self {
             GemCut::Round | GemCut::Oval | GemCut::Pear | GemCut::Heart => 2.0,
@@ -162,6 +160,16 @@ impl GemCut {
             | GemCut::Asscher => 6.0,
             GemCut::Marquise => 1.5,
         }
+    }
+
+    /// Whether seats for this cut follow its true girdle instead of the superellipse of [`plan_pow`](Self::plan_pow).
+    pub fn has_true_girdle(self) -> bool {
+        matches!(self, GemCut::Pear | GemCut::Trillion | GemCut::Heart | GemCut::HalfMoon)
+    }
+
+    /// The silhouette of this cut's bundled mesh when [`has_true_girdle`](Self::has_true_girdle), else `None`.
+    pub fn girdle(self) -> Option<&'static crate::girdle::Girdle> {
+        if self.has_true_girdle() { crate::girdle::of(self) } else { None }
     }
 
     /// Calibrated stock widths, mm — the sizes a supplier actually stocks.
