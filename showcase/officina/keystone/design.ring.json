@@ -1,0 +1,1497 @@
+{
+  "format_version": 5,
+  "name": "Keystone — a drafted cartouche",
+  "size": 8.10862207660166,
+  "profile": {
+    "style": "Flat",
+    "width_mm": 6.0,
+    "thickness_mm": 2.0,
+    "crown_mm": 0.3,
+    "shape_a": 8.0,
+    "shape_b": 1.0,
+    "crest_bias": 0.0,
+    "edge_round_mm": 0.05,
+    "comfort_fit_mm": 0.25,
+    "side_draft_deg": 0.0,
+    "flange": {
+      "enabled": false,
+      "v_pos": 0.0,
+      "extent_mm": 1.2,
+      "thickness_mm": 0.8,
+      "edge_round_mm": 0.15
+    },
+    "drop_curve": {
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "len": 0,
+      "monotone": true
+    },
+    "morph": null
+  },
+  "shank": {
+    "kind": "Uniform",
+    "amount": 0.5,
+    "waves": 1,
+    "head": {
+      "outline": "Oval",
+      "theta_deg": 90.0,
+      "length_mm": 12.0,
+      "rise_mm": 0.3,
+      "shoulder_deg": 43.0,
+      "swell_deg": null,
+      "body_fair": 1.0,
+      "table_flat": 1.0,
+      "table_dome_mm": 0.0,
+      "hollow_mm": 0.0,
+      "rim_round_mm": 0.6,
+      "dome": 0.0,
+      "loft": 0.0,
+      "loft_frontal_mm": 2.0,
+      "loft_lateral_mm": 2.0,
+      "crest_round_mm": 0.0
+    },
+    "extra_heads": [],
+    "keys": [],
+    "custom_outlines": []
+  },
+  "layers": {
+    "layers": []
+  },
+  "build": {
+    "theta_steps": 768,
+    "profile_steps": 320,
+    "min_wall_mm": 0.5,
+    "adaptive": false,
+    "refine": null,
+    "soften_mm": 0.0
+  },
+  "draft": {
+    "parting_z_mm": 0.0,
+    "min_draft_deg": 3.0,
+    "auto_parting": true,
+    "min_section_mm": 0.8,
+    "min_detail_mm": 0.3,
+    "process": "SandTwoPart",
+    "sand": "DelftClay"
+  },
+  "manufacturing": {
+    "component": null,
+    "recipe": {
+      "name": "Delft clay starting recipe / Gold 14k",
+      "process": "SandTwoPart",
+      "sand": "DelftClay",
+      "alloy": "Gold 14k",
+      "shrink_pct": 1.3,
+      "min_draft_deg": 3.0,
+      "min_section_mm": 0.8,
+      "min_detail_mm": 0.3,
+      "min_sand_web_mm": 0.6,
+      "sand_margin_mm": 5.0,
+      "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mould and measured trials."
+    },
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "parting_mm": 0.0,
+    "auto_parting": true,
+    "bore": "Molded",
+    "flask": {
+      "width_mm": 70.0,
+      "length_mm": 70.0,
+      "cope_mm": 20.0,
+      "drag_mm": 20.0
+    },
+    "radial_stock_mm": 0.0,
+    "axial_stock_mm": 0.0,
+    "bore_stock_mm": 0.0,
+    "sample_pitch_mm": 0.1,
+    "tolerance_mm": 0.02,
+    "channels": [
+      {
+        "kind": "Gate",
+        "start": [
+          0.0,
+          -11.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          -22.0,
+          0.0
+        ],
+        "diameter_mm": 3.2
+      },
+      {
+        "kind": "Sprue",
+        "start": [
+          0.0,
+          -22.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          -30.0,
+          0.0
+        ],
+        "diameter_mm": 5.0
+      }
+    ],
+    "bench_notes": "Pour the band and the drafted cartouche as one solid in Delft clay, parted on the band's mid-plane and pulled along the finger. The cartouche's end walls and its flat top stand square to the pull: ram the sand firmly over the top and draw the pattern slowly. Cut the bright-cut facet at the bench after the pour with a graver, then polish the top."
+  },
+  "cad": {
+    "features": [
+      {
+        "id": 1,
+        "name": "Band",
+        "enabled": true,
+        "operation": "Band",
+        "component": {
+          "role": "Shank",
+          "material": "Gold 14k",
+          "manufacturing": {
+            "component": null,
+            "recipe": {
+              "name": "Delft clay starting recipe / Gold 14k",
+              "process": "SandTwoPart",
+              "sand": "DelftClay",
+              "alloy": "Gold 14k",
+              "shrink_pct": 1.3,
+              "min_draft_deg": 3.0,
+              "min_section_mm": 0.8,
+              "min_detail_mm": 0.3,
+              "min_sand_web_mm": 0.6,
+              "sand_margin_mm": 5.0,
+              "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mould and measured trials."
+            },
+            "pull": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "parting_mm": 0.0,
+            "auto_parting": true,
+            "bore": "Molded",
+            "flask": {
+              "width_mm": 70.0,
+              "length_mm": 70.0,
+              "cope_mm": 20.0,
+              "drag_mm": 20.0
+            },
+            "radial_stock_mm": 0.0,
+            "axial_stock_mm": 0.0,
+            "bore_stock_mm": 0.0,
+            "sample_pitch_mm": 0.1,
+            "tolerance_mm": 0.02,
+            "channels": [
+              {
+                "kind": "Gate",
+                "start": [
+                  0.0,
+                  -11.0,
+                  0.0
+                ],
+                "end": [
+                  0.0,
+                  -22.0,
+                  0.0
+                ],
+                "diameter_mm": 3.2
+              },
+              {
+                "kind": "Sprue",
+                "start": [
+                  0.0,
+                  -22.0,
+                  0.0
+                ],
+                "end": [
+                  0.0,
+                  -30.0,
+                  0.0
+                ],
+                "diameter_mm": 5.0
+              }
+            ],
+            "bench_notes": "Pour the band and the drafted cartouche as one solid in Delft clay, parted on the band's mid-plane and pulled along the finger. The cartouche's end walls and its flat top stand square to the pull: ram the sand firmly over the top and draw the pattern slowly. Cut the bright-cut facet at the bench after the pour with a graver, then polish the top."
+          },
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 2,
+        "name": "Work plane over the top",
+        "enabled": true,
+        "operation": {
+          "Plane": {
+            "base": {
+              "tangent": {
+                "theta_deg": 90.0,
+                "across_mm": 0.0
+              }
+            },
+            "offset_mm": -0.7
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 3,
+        "name": "Cartouche sketch",
+        "enabled": true,
+        "operation": {
+          "Sketch": {
+            "sketch": {
+              "name": "Cartouche",
+              "plane": {
+                "origin": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "x": [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                "y": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "on_face": {
+                  "feature": 2,
+                  "face": {
+                    "ordinal": 0
+                  }
+                }
+              },
+              "points": [
+                {
+                  "id": 1,
+                  "xy": [
+                    2.5,
+                    -2.4
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 2,
+                  "xy": [
+                    2.8826834323650896,
+                    -2.3238795325112864
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 3,
+                  "xy": [
+                    3.2071067811865475,
+                    -2.1071067811865474
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 4,
+                  "xy": [
+                    3.423879532511287,
+                    -1.7826834323650897
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 5,
+                  "xy": [
+                    3.5,
+                    -1.4
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 6,
+                  "xy": [
+                    3.5,
+                    1.4
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 7,
+                  "xy": [
+                    3.423879532511287,
+                    1.7826834323650897
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 8,
+                  "xy": [
+                    3.2071067811865475,
+                    2.1071067811865474
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 9,
+                  "xy": [
+                    2.8826834323650896,
+                    2.3238795325112864
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 10,
+                  "xy": [
+                    2.5,
+                    2.4
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 11,
+                  "xy": [
+                    -2.5,
+                    2.4
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 12,
+                  "xy": [
+                    -2.8826834323650896,
+                    2.3238795325112864
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 13,
+                  "xy": [
+                    -3.2071067811865475,
+                    2.1071067811865474
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 14,
+                  "xy": [
+                    -3.423879532511287,
+                    1.7826834323650897
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 15,
+                  "xy": [
+                    -3.5,
+                    1.4000000000000001
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 16,
+                  "xy": [
+                    -3.5,
+                    -1.3999999999999997
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 17,
+                  "xy": [
+                    -3.423879532511287,
+                    -1.7826834323650895
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 18,
+                  "xy": [
+                    -3.207106781186548,
+                    -2.1071067811865474
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 19,
+                  "xy": [
+                    -2.8826834323650896,
+                    -2.323879532511287
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 20,
+                  "xy": [
+                    -2.5,
+                    -2.4
+                  ],
+                  "fixed": false
+                }
+              ],
+              "entities": [
+                {
+                  "id": 21,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 1,
+                      "b": 2
+                    }
+                  }
+                },
+                {
+                  "id": 22,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 2,
+                      "b": 3
+                    }
+                  }
+                },
+                {
+                  "id": 23,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 3,
+                      "b": 4
+                    }
+                  }
+                },
+                {
+                  "id": 24,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 4,
+                      "b": 5
+                    }
+                  }
+                },
+                {
+                  "id": 25,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 5,
+                      "b": 6
+                    }
+                  }
+                },
+                {
+                  "id": 26,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 6,
+                      "b": 7
+                    }
+                  }
+                },
+                {
+                  "id": 27,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 7,
+                      "b": 8
+                    }
+                  }
+                },
+                {
+                  "id": 28,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 8,
+                      "b": 9
+                    }
+                  }
+                },
+                {
+                  "id": 29,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 9,
+                      "b": 10
+                    }
+                  }
+                },
+                {
+                  "id": 30,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 10,
+                      "b": 11
+                    }
+                  }
+                },
+                {
+                  "id": 31,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 11,
+                      "b": 12
+                    }
+                  }
+                },
+                {
+                  "id": 32,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 12,
+                      "b": 13
+                    }
+                  }
+                },
+                {
+                  "id": 33,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 13,
+                      "b": 14
+                    }
+                  }
+                },
+                {
+                  "id": 34,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 14,
+                      "b": 15
+                    }
+                  }
+                },
+                {
+                  "id": 35,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 15,
+                      "b": 16
+                    }
+                  }
+                },
+                {
+                  "id": 36,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 16,
+                      "b": 17
+                    }
+                  }
+                },
+                {
+                  "id": 37,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 17,
+                      "b": 18
+                    }
+                  }
+                },
+                {
+                  "id": 38,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 18,
+                      "b": 19
+                    }
+                  }
+                },
+                {
+                  "id": 39,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 19,
+                      "b": 20
+                    }
+                  }
+                },
+                {
+                  "id": 40,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 20,
+                      "b": 1
+                    }
+                  }
+                }
+              ],
+              "constraints": [],
+              "next_id": 41,
+              "grid_mm": 0.5
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 4,
+        "name": "Drafted boss",
+        "enabled": true,
+        "operation": {
+          "Extrude": {
+            "sketch": {
+              "feature": 3
+            },
+            "height_mm": 1.6,
+            "draft_deg": 7.0
+          }
+        },
+        "component": {
+          "role": "Head",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.5
+        }
+      },
+      {
+        "id": 5,
+        "name": "Press-pull the top",
+        "enabled": true,
+        "operation": {
+          "PressPull": {
+            "source": 4,
+            "face": {
+              "ordinal": 1,
+              "signature": {
+                "kind": "plane",
+                "normal": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "centre": [
+                  7.105427357601002e-16,
+                  12.0,
+                  -1.9984014443252818e-16
+                ]
+              }
+            },
+            "distance_mm": 0.8
+          }
+        },
+        "component": {
+          "role": "Head",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.5
+        }
+      },
+      {
+        "id": 6,
+        "name": "Chamfer the rim",
+        "enabled": true,
+        "operation": {
+          "Chamfer": {
+            "source": 5,
+            "edges": [
+              {
+                "ordinal": 20,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    -0.9807852804032303,
+                    0.0,
+                    0.19509032201612905
+                  ],
+                  "midpoint": [
+                    -2.6193400568654632,
+                    12.8,
+                    -2.0758056603790456
+                  ]
+                }
+              },
+              {
+                "ordinal": 21,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    -0.8314696123025456,
+                    0.0,
+                    0.5555702330196018
+                  ],
+                  "midpoint": [
+                    -2.881178033706931,
+                    12.8,
+                    -1.970473241847294
+                  ]
+                }
+              },
+              {
+                "ordinal": 22,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    -0.555570233019603,
+                    0.0,
+                    0.8314696123025448
+                  ],
+                  "midpoint": [
+                    -3.0704732418472926,
+                    12.8,
+                    -1.7811780337069312
+                  ]
+                }
+              },
+              {
+                "ordinal": 23,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    -0.19509032201612678,
+                    0.0,
+                    0.9807852804032307
+                  ],
+                  "midpoint": [
+                    -3.175805660379045,
+                    12.8,
+                    -1.5193400568654645
+                  ]
+                }
+              },
+              {
+                "ordinal": 24,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    0.0,
+                    0.0,
+                    1.0
+                  ],
+                  "midpoint": [
+                    -3.205317053833028,
+                    12.8,
+                    -1.1102230246251565e-16
+                  ]
+                }
+              },
+              {
+                "ordinal": 25,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    0.19509032201612792,
+                    0.0,
+                    0.9807852804032304
+                  ],
+                  "midpoint": [
+                    -3.175805660379045,
+                    12.8,
+                    1.5193400568654643
+                  ]
+                }
+              },
+              {
+                "ordinal": 26,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    0.5555702330196018,
+                    0.0,
+                    0.8314696123025456
+                  ],
+                  "midpoint": [
+                    -3.070473241847293,
+                    12.8,
+                    1.7811780337069303
+                  ]
+                }
+              },
+              {
+                "ordinal": 27,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    0.8314696123025457,
+                    0.0,
+                    0.5555702330196016
+                  ],
+                  "midpoint": [
+                    -2.88117803370693,
+                    12.8,
+                    1.9704732418472921
+                  ]
+                }
+              },
+              {
+                "ordinal": 28,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    0.9807852804032302,
+                    0.0,
+                    0.19509032201612964
+                  ],
+                  "midpoint": [
+                    -2.6193400568654637,
+                    12.8,
+                    2.075805660379046
+                  ]
+                }
+              },
+              {
+                "ordinal": 29,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "midpoint": [
+                    1.3322676295501878e-15,
+                    12.8,
+                    2.105317053833028
+                  ]
+                }
+              },
+              {
+                "ordinal": 30,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    0.9807852804032302,
+                    0.0,
+                    -0.19509032201612933
+                  ],
+                  "midpoint": [
+                    2.6193400568654654,
+                    12.8,
+                    2.0758056603790447
+                  ]
+                }
+              },
+              {
+                "ordinal": 31,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    0.8314696123025449,
+                    0.0,
+                    -0.5555702330196027
+                  ],
+                  "midpoint": [
+                    2.881178033706934,
+                    12.8,
+                    1.9704732418472943
+                  ]
+                }
+              },
+              {
+                "ordinal": 32,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    0.5555702330196026,
+                    0.0,
+                    -0.8314696123025451
+                  ],
+                  "midpoint": [
+                    3.0704732418472944,
+                    12.8,
+                    1.781178033706932
+                  ]
+                }
+              },
+              {
+                "ordinal": 33,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    0.19509032201612822,
+                    0.0,
+                    -0.9807852804032305
+                  ],
+                  "midpoint": [
+                    3.1758056603790474,
+                    12.8,
+                    1.519340056865465
+                  ]
+                }
+              },
+              {
+                "ordinal": 34,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    0.0,
+                    0.0,
+                    -1.0
+                  ],
+                  "midpoint": [
+                    3.2053170538330313,
+                    12.8,
+                    5.551115123125783e-16
+                  ]
+                }
+              },
+              {
+                "ordinal": 35,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    -0.1950903220161274,
+                    0.0,
+                    -0.9807852804032307
+                  ],
+                  "midpoint": [
+                    3.1758056603790483,
+                    12.8,
+                    -1.519340056865464
+                  ]
+                }
+              },
+              {
+                "ordinal": 36,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    -0.5555702330196015,
+                    0.0,
+                    -0.8314696123025459
+                  ],
+                  "midpoint": [
+                    3.070473241847292,
+                    12.8,
+                    -1.781178033706932
+                  ]
+                }
+              },
+              {
+                "ordinal": 37,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    -0.831469612302545,
+                    0.0,
+                    -0.5555702330196025
+                  ],
+                  "midpoint": [
+                    2.8811780337069326,
+                    12.8,
+                    -1.9704732418472937
+                  ]
+                }
+              },
+              {
+                "ordinal": 38,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    -0.9807852804032303,
+                    0.0,
+                    -0.19509032201612847
+                  ],
+                  "midpoint": [
+                    2.619340056865467,
+                    12.8,
+                    -2.0758056603790456
+                  ]
+                }
+              },
+              {
+                "ordinal": 39,
+                "signature": {
+                  "faces": [
+                    "plane",
+                    "plane"
+                  ],
+                  "curve": "line",
+                  "direction": [
+                    -1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "midpoint": [
+                    1.3322676295501878e-15,
+                    12.8,
+                    -2.1053170538330286
+                  ]
+                }
+              }
+            ],
+            "base_face": {
+              "ordinal": 1,
+              "signature": {
+                "kind": "plane",
+                "normal": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "centre": [
+                  1.1990408665951691e-15,
+                  12.800000000000002,
+                  -1.9984014443252818e-16
+                ]
+              }
+            },
+            "distance_mm": 0.3
+          }
+        },
+        "component": {
+          "role": "Head",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.5
+        }
+      },
+      {
+        "id": 7,
+        "name": "Facet sketch on the top",
+        "enabled": true,
+        "operation": {
+          "Sketch": {
+            "sketch": {
+              "name": "Bright-cut lozenge",
+              "plane": {
+                "origin": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "x": [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                "y": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "on_face": {
+                  "feature": 6,
+                  "face": {
+                    "ordinal": 1,
+                    "signature": {
+                      "kind": "plane",
+                      "normal": [
+                        0.0,
+                        1.0,
+                        0.0
+                      ],
+                      "centre": [
+                        0.0,
+                        12.800000000000002,
+                        1.609823385706477e-15
+                      ]
+                    }
+                  }
+                }
+              },
+              "points": [
+                {
+                  "id": 1,
+                  "xy": [
+                    -2.5,
+                    0.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 2,
+                  "xy": [
+                    2.5,
+                    0.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 3,
+                  "xy": [
+                    0.0,
+                    1.4
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 4,
+                  "xy": [
+                    0.0,
+                    -1.4
+                  ],
+                  "fixed": false
+                }
+              ],
+              "entities": [
+                {
+                  "id": 5,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 2,
+                      "b": 3
+                    }
+                  }
+                },
+                {
+                  "id": 6,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 3,
+                      "b": 1
+                    }
+                  }
+                },
+                {
+                  "id": 7,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 1,
+                      "b": 4
+                    }
+                  }
+                },
+                {
+                  "id": 8,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 4,
+                      "b": 2
+                    }
+                  }
+                },
+                {
+                  "id": 9,
+                  "construction": false,
+                  "geometry": {
+                    "Line": {
+                      "a": 1,
+                      "b": 2
+                    }
+                  }
+                }
+              ],
+              "constraints": [],
+              "next_id": 10,
+              "grid_mm": 0.5
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 8,
+        "name": "Bright-cut facet",
+        "enabled": true,
+        "operation": {
+          "Extrude": {
+            "sketch": {
+              "feature": 7,
+              "region": {
+                "entity": 5,
+                "at": [
+                  0.0,
+                  0.4666666666666666
+                ]
+              }
+            },
+            "height_mm": -0.35,
+            "draft_deg": 30.0
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "cut",
+          "stage": "bench",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 9,
+        "name": "Shallow facet",
+        "enabled": true,
+        "operation": {
+          "Extrude": {
+            "sketch": {
+              "feature": 7,
+              "region": {
+                "entity": 7,
+                "at": [
+                  0.0,
+                  -0.4666666666666666
+                ]
+              }
+            },
+            "height_mm": -0.15,
+            "draft_deg": 30.0
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 14k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "cut",
+          "stage": "bench",
+          "blend_mm": 0.0
+        }
+      }
+    ],
+    "outputs": [
+      1,
+      6,
+      8,
+      9
+    ],
+    "joints": [],
+    "through": null
+  },
+  "drawn": [],
+  "embedded": [],
+  "texts": [],
+  "svgs": [],
+  "recipes": []
+}

@@ -1,0 +1,27 @@
+{
+  "ring": "Keystone",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain flat wedding-style band with a small raised octagonal tablet at the top. The tablet looks like a stuck-on ID plate or badge. A jeweller would say 'a raised plaque', which is close to a cartouche, but would not see the cartouche as the main idea: it covers only about half the band's width in the face view and stands low in the hero, and its foot meets the band in a hard line with no visible blend. The 'bright-cut facet' is a thin dark triangle in the lower half of the top, pointing down. At 300 px it looks like an engraved arrowhead or a 'play' symbol, not a faceted table catching light, and Logan has already rejected motifs that 'look like arrows'. The tablet's corners are clipped at 45 degrees, not rounded, so it reads as an octagonal tag more than a cartouche. The draft does show as a narrow sloping skirt, which is the best-reading part.",
+  "changes": [
+    {
+      "what": "Make the bright-cut facet a facet, not an arrow mark. Build the full lozenge from the spec (4.0 round the ring × 2.8 across), centred on the top, with its diagonal running round the ring. Cut one triangle to 0.35 mm and either leave the other at table height or cut it shallower (about 0.15 mm), so two flat planes meet on a sharp ridge. No small isolated triangle with its apex pointing down.",
+      "where": "Feature 7 'Facet sketch on the top' and feature 8 'Bright-cut facet', centred on the cartouche top (theta 90°).",
+      "how_much": "The facet should cover at least 50% of the cartouche's top face (it covers about 15% now) and touch neither rim by less than 0.4 mm.",
+      "acceptance": "In face-300 the top shows two tonally distinct planes split by one straight diagonal, and a viewer shown it without a caption does not call it an arrow or a triangle mark."
+    },
+    {
+      "what": "Make the cartouche own the top. Widen and lengthen it, and stand it taller, so it reads as the ring's feature rather than a badge stuck on a band.",
+      "where": "Feature 3 'Cartouche sketch' and features 4 and 5 (boss height and press-pull).",
+      "how_much": "Across the band: from about half the 6.0 mm width to about 80% (4.8 mm at the foot, as specified). Round the ring: 6.0 to about 7.0 mm. Proud of the crest: from 1.3 mm to 1.8–2.0 mm (press-pull 0.4 → 0.8 mm).",
+      "acceptance": "In face-300 the tablet's foot comes within about 0.6 mm of each band edge. In hero-300 the drafted wall shows as a clear sloping band on the near side, at least as tall as the band's visible side wall."
+    },
+    {
+      "what": "Give it cartouche corners and a made seam. Replace the 45° clipped corners with the specified corner arcs, and blend the boss's foot into the band so it does not look glued on.",
+      "where": "Corners of feature 3 'Cartouche sketch', and the Join blend on feature 4 at the boss foot all round.",
+      "how_much": "Corner arcs from r 0.8 to 1.0 mm instead of straight chamfer lines. Foot blend_mm from 0.25 to about 0.5 mm.",
+      "acceptance": "In face-300 the outline's four corners are visibly round, not octagonal. In hero-300 a soft highlight runs into the band at the boss's foot instead of a hard dark line."
+    }
+  ]
+}

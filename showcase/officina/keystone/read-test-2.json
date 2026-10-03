@@ -1,0 +1,27 @@
+{
+  "ring": "Keystone",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": true,
+  "what_the_eye_sees": "A plain flat band with a raised rectangular tablet at the top, its corners rounded, standing on a narrow sloping skirt, with a lozenge engraved in its top. A jeweller would say 'a cartouche (or plaque) band', so the one idea now reads. It is much better than attempt 1. The tablet covers about 85% of the band's width in the face view, the corners are round rather than octagonal, and the drafted skirt shows as a light frame round the top in face-300 and as a sloping band on the near side in hero-300. Two things are still weak. First, the 'bright-cut facet' reads as a line drawing, not a cut: a thin outlined diamond split by a horizontal midline, with both halves almost the same tone. At 300 px it looks like an envelope or a closed almond eye more than a faceted table catching light. Second, in hero-300 the tablet's foot still meets the band in a thin dark line on the near side, so it looks a little like a badge set on the band rather than grown from it.",
+  "changes": [
+    {
+      "what": "Make the facet read as one cut plane, not an outline. The cut triangle should be clearly darker or brighter than the uncut one, and the uncut half should carry no outline of its own. Best: cut a sloped floor, 0 mm at the diagonal and about 0.45 mm at the far apex, so it is a true bright-cut. If the CAD can only cut a flat floor, cut deeper and make sure only the chosen region is cut. Remove any imprinted sketch edges round the uncut triangle.",
+      "where": "Feature 8 'Bright-cut facet' (and the region pick from feature 7 'Facet'), centred on the cartouche top at theta 90°.",
+      "how_much": "Cut depth 0.35 → about 0.5 mm at the deepest point. Keep the lozenge at 4.0 × 2.8.",
+      "acceptance": "In face-300 the lozenge shows as one solid dark (or bright) triangle beside a plain table-coloured triangle, split by one straight ridge. There is no thin outline round the uncut half, and a viewer with no caption does not call it an envelope, an eye or an arrow."
+    },
+    {
+      "what": "Blend the tablet's foot into the band so it does not look set on.",
+      "where": "The Join blend on feature 4 (Cartouche extrude), at the boss foot all round, most visible on the near long side.",
+      "how_much": "blend_mm 0.25 → 0.5.",
+      "acceptance": "In hero-300 the near-side foot shows a soft highlight running down into the band, not a continuous thin dark line."
+    },
+    {
+      "what": "Let the top rim's fillet catch light as a frame, so the drafted, pressed-up tablet reads as made, not as a cut slab.",
+      "where": "Feature 6 (top-rim Fillet, or its Chamfer fallback) on the 8 top-rim edges.",
+      "how_much": "Radius 0.35 → about 0.5 mm, if the 1.8 mm boss height allows it.",
+      "acceptance": "In face-300 a continuous bright rim line runs round all four sides of the top, unbroken at the rounded corners."
+    }
+  ]
+}
