@@ -39,29 +39,29 @@ const CROWN_DEG: f64 = 90.0;
 
 /// The stem: from its cut end at `STEM_FROM_DEG` round `STEM_SPAN_DEG`, crossing the band `STEM_WAVES` times a
 /// turn, its centreline swinging `STEM_REACH_MM` either side of the crest.
-const STEM_FROM_DEG: f64 = 155.0;
-const STEM_SPAN_DEG: f64 = 296.0;
+const STEM_FROM_DEG: f64 = 122.0;
+const STEM_SPAN_DEG: f64 = 260.0;
 const STEM_WAVES: f64 = 1.6;
 /// How far either side of the crest the stem's centreline swings: over the crown, short of the edges' rounds.
 const STEM_REACH_MM: f64 = 1.7;
-/// Where on its wave the stem starts, so that it ends at its growing tip under the crown leaf's notch, on the low side.
-const STEM_PHASE_DEG: f64 = 174.0;
+/// Where on its wave the stem starts at the crown leaf's petiole: rising toward the high edge, leaving the low half free for the berries.
+const STEM_PHASE_DEG: f64 = 30.0;
 /// The stem's radius, the share of its diameter sunk into the band, and its growing tip's radius.
 const STEM_R_MM: f64 = 0.85;
-const STEM_SUNK: f64 = 0.38;
+const STEM_SUNK: f64 = 0.42;
 const STEM_TIP_R_MM: f64 = 0.44;
 
 /// The berries: three black spinel round cabochons in a cluster beside the leaf's base.
 const BERRY_MM: f64 = 3.0;
 const SPINEL_TINT: [f32; 3] = [0.03, 0.03, 0.04];
 /// The cluster's centre `(theta, w)`, each berry's reach from it, the first's turn, their lean out and girdle height.
-const BERRY_CENTRE: (f64, f64) = (121.0, 0.0);
-const BERRY_SPREAD_MM: f64 = 2.05;
-const BERRY_TURN_DEG: f64 = 250.0;
+const BERRY_CENTRE: (f64, f64) = (42.0, 0.0);
+const BERRY_SPREAD_MM: f64 = 1.85;
+const BERRY_TURN_DEG: f64 = 0.0;
 const BERRY_TILT_DEG: f64 = 22.0;
 const BERRY_HEIGHT_MM: f64 = 0.9;
 /// The collet's wall and lip: a setting, a thin rim round each berry, judged at the detail floor as settings are.
-const COLLET_WALL_MM: f64 = 0.4;
+const COLLET_WALL_MM: f64 = 0.25;
 const COLLET_LIP: f64 = 0.15;
 /// The rootlets: where each starts out from the stem's centreline, its reach, its radius at the root and the tip,
 /// and the pitch of each of the four arrays along the stem (two each side, offset half a pitch).
@@ -72,21 +72,21 @@ const ROOTLET_TIP_R_MM: f64 = 0.11;
 const ROOTLET_PITCH_MM: f64 = 1.2;
 
 /// A leaf's sink under the band's surface, its height over it at the margin and at the hub, and the vein relief.
-const LEAF_SINK_MM: f64 = 0.45;
+const LEAF_SINK_MM: f64 = 0.7;
 /// Where a leaf leaves the band toward an edge (the surface's tilt), and the radius it droops at past there.
 const LEAF_LIP_DEG: f64 = 14.0;
 const LEAF_DROOP_MM: f64 = 6.0;
 const LEAF_DROOP_MAX_DEG: f64 = 6.0;
-const LEAF_RIM_SINK_MM: f64 = 0.45;
-const LEAF_EDGE_MM: f64 = 0.42;
-const LEAF_HUB_MM: f64 = 0.55;
+const LEAF_RIM_SINK_MM: f64 = 0.7;
+const LEAF_EDGE_MM: f64 = 0.45;
+const LEAF_HUB_MM: f64 = 0.52;
 /// The round on the blade's top edge.
 const LEAF_EDGE_ROUND_MM: f64 = 0.1;
 /// The plate's least thickness, top to floor: the lost-wax section with a little to spare.
-const LEAF_PLATE_MM: f64 = 0.87;
-/// The veins: raised from the notch out along each lobe, this high and this wide.
-const VEIN_HIGH_MM: f64 = 0.14;
-const VEIN_W_MM: f64 = 0.4;
+const LEAF_PLATE_MM: f64 = 1.15;
+/// The veins: sunk from the notch out along each lobe, this deep and this wide.
+const VEIN_DEEP_MM: f64 = 0.13;
+const VEIN_W_MM: f64 = 0.3;
 /// The petiole's radius.
 const PETIOLE_R_MM: f64 = 0.42;
 /// The petiole's centre over the band: sunk a little, standing 0.4 mm proud.
@@ -378,8 +378,8 @@ impl Ivy {
     /// sinuses and blunt tips, every edge between a tip and a sinus bowed a little out.
     fn three(len: f64) -> Ivy {
         // Round the blade from the notch: (angle, reach) of every tip and sinus; the basal tips are rounded ears.
-        let tips = [(0.0, 1.0), (1.35, 0.56), (2.45, 0.4)];
-        let sinuses = [(0.72, 0.46), (1.95, 0.36), (PI, 0.1)];
+        let tips = [(0.0, 1.0), (1.1, 0.62), (2.55, 0.36)];
+        let sinuses = [(0.58, 0.46), (1.85, 0.36), (PI, 0.17)];
         let mut corners: Vec<(f64, f64, bool)> = Vec::new();
         for side in [1.0, -1.0] {
             for k in 0..3 {
@@ -453,7 +453,7 @@ impl Ivy {
         for &(a, l, _) in &self.lobes {
             let d = (phi - a + PI).rem_euclid(TAU) - PI;
             let dist = if d.abs() < PI * 0.5 { r * d.sin().abs() } else { r };
-            // The midrib stands full height; the side veins at half, so the leaf reads by its midrib, not as a star.
+            // The midrib is cut full depth; the side veins at half, so the leaf reads by its midrib, not as a star.
             let weight = if a == 0.0 { 1.0 } else { 0.45 };
             if dist / weight < best.0 {
                 best = (dist / weight, l);
@@ -476,13 +476,13 @@ impl Ivy {
         let s = (r / rho).clamp(0.0, 1.0);
         let dome = LEAF_EDGE_MM + (LEAF_HUB_MM - LEAF_EDGE_MM) * (1.0 - s * s);
         let (dist, reach) = self.vein(r, phi);
-        // Each vein a rounded ridge from the notch to four fifths of its lobe, fading out before the margin.
-        let along = (r / (0.85 * reach)).clamp(0.0, 1.0);
-        // Faded in clear of the notch, where five ridges would crowd into thin metal.
+        // Each vein a rounded groove from the notch to seven tenths of its lobe, fading out well clear of the margin.
+        let along = (r / (0.7 * reach)).clamp(0.0, 1.0);
+        // Faded in clear of the notch, where five grooves would crowd together.
         let fade = (1.0 - along * along).max(0.0) * ((r - 0.4) / 0.8).clamp(0.0, 1.0);
-        // `dist` is scaled up for the side veins, which lowers and narrows their ridges.
-        let ridge = VEIN_HIGH_MM * (-(dist / (0.5 * VEIN_W_MM)).powi(2)).exp() * fade;
-        dome.max(self.floor(r, phi) + LEAF_PLATE_MM) + ridge
+        // `dist` is scaled up for the side veins, which makes their grooves shallower and finer.
+        let groove = VEIN_DEEP_MM * (-(dist / (0.5 * VEIN_W_MM)).powi(2)).exp() * fade;
+        dome.max(self.floor(r, phi) + LEAF_PLATE_MM) - groove
     }
 }
 
@@ -636,8 +636,8 @@ fn leaves(c: &Chart) -> Vec<LeafAt> {
     };
     vec![
         // The hero: one large three-lobed leaf across the crown, its notch toward the stem, its tip round the ring.
-        LeafAt { name: "Crown leaf", hub: (88.0, 0.7), axis_deg: aim((88.0, 0.7), 85.0), len: 7.2, curl: 0.15 },
-        LeafAt { name: "Shoulder leaf", hub: (33.0, -0.6), axis_deg: aim((33.0, -0.6), 39.0), len: 4.6, curl: 0.25 },
+        LeafAt { name: "Crown leaf", hub: (104.0, 0.85), axis_deg: aim((104.0, 0.85), 126.0), len: 9.0, curl: 0.0 },
+        LeafAt { name: "Shoulder leaf", hub: (8.0, -1.2), axis_deg: aim((8.0, -1.2), 14.0), len: 4.6, curl: 0.25 },
         LeafAt { name: "Palm leaf", hub: (236.0, -1.6), axis_deg: aim((236.0, -1.6), 240.0), len: 4.4, curl: 0.15 },
     ]
 }

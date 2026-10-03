@@ -1,0 +1,27 @@
+{
+  "ring": "hedera",
+  "mode": "read-test",
+  "attempt": 5,
+  "reads": true,
+  "what_the_eye_sees": "This is the first attempt that names itself, though only just. In both 300 px images there is a pale-gold band, and across the crown lies one lobed leaf, flat on the band, with pale veins fanning out from its base. A round stem trails off the leaf down the left shoulder. It hugs the band, and a fine fringe of rootlet ticks runs along it. Near the right shoulder, a small cluster of three or four round black stones sits beside the leaf. Taken together (a lobed leaf with palmate veins, a clinging stem with hairy rootlets, and a few black berries), a jeweller's first word is 'ivy'. The rootlet stem is the cue that settles it. Grapevine is the second guess, because a lobed leaf beside dark round fruit could be a vine. The read is not yet robust, for three reasons. First, the hero leaf is still a stubby, nearly symmetric five-point shape. The terminal lobe is no longer than the side lobes, so taken alone it reads as a star or a maple. Second, in the face the leaf sits twisted about 35 to 40 degrees off the band axis, so its silhouette is foreshortened, and the heart notch at the petiole barely shows. Third, each berry is still a black dot in a visible gold cup, more gem cluster than berries, though better than before. The stem fix (item 3 of attempt 4) has landed. The flat leaf (item 1) has mostly landed. The berry gold-to-black ratio (item 2) has only partly landed.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "The crown leaf, theta about 80 to 110 (centre of face-300, centre of hero-300)",
+      "change": "Lengthen the terminal lobe to about 1.6x the side lobes, roughly +1.2 mm on the tip. Shorten the two lateral points by about 20% and round them to a tip radius of at least 0.3 mm. Cut the two basal points back to small rounded ears. Rotate the leaf about 30 degrees, so its midrib runs along the band and the face camera sees the blade square-on. Open the cordate notch at the petiole to a depth of at least 0.15 of the leaf length.",
+      "acceptance": "In face-300, the leaf shows one clearly longest central point, two shorter side lobes, rounded ears and a visible notch where the stem joins it. In hero-300, the leaf no longer reads as a five-pointed star or a maple."
+    },
+    {
+      "priority": 2,
+      "where": "The berry cluster beside the leaf base, theta about 60 to 80 (right of the leaf in hero-300 and face-300)",
+      "change": "Finish the item 2 from attempt 4 that only partly landed. Cut the collet walls to 0.25 mm and the lips to 0.15 mm. Drop the collets so at least 60% of each cabochon stands proud. Pull the three or four berries into one tight bunch on short stalks from a common point at the petiole, rather than leaving them spread along the band edge.",
+      "acceptance": "In both 300 px images, each berry's black area is at least twice its visible gold rim, and the group reads as one bunch of black berries, not as a row of set gems or rivets."
+    },
+    {
+      "priority": 3,
+      "where": "The left-shoulder stem and rootlets, theta about 120 to 200 (left half of hero-300)",
+      "change": "Keep the stem as it is. Run it on 10 to 15 mm further, and add one small juvenile three-lobed leaf on a short petiole partway along, so the ivy cue repeats on the shoulder. Size the leaf at about 3.5 mm, with the same long-central-lobe outline.",
+      "acceptance": "In hero-300, a second, smaller ivy-shaped leaf is visible on the stem on the left shoulder, and its outline matches the crown leaf."
+    }
+  ]
+}

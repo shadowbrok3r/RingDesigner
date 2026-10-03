@@ -7,25 +7,25 @@
     ],
     "leaves": [
       {
-        "axis_deg": -52.653654115301975,
+        "axis_deg": -177.9679636475857,
         "hub": [
-          88.0,
-          0.7
+          104.0,
+          0.85
         ],
         "leaf": "Crown leaf",
-        "len_mm": 7.2
+        "len_mm": 9.0
       },
       {
-        "axis_deg": -168.08349232225984,
+        "axis_deg": -171.93132757207653,
         "hub": [
-          33.0,
-          -0.6
+          8.0,
+          -1.2
         ],
         "leaf": "Shoulder leaf",
         "len_mm": 4.6
       },
       {
-        "axis_deg": -159.63860858548244,
+        "axis_deg": -146.31160688132485,
         "hub": [
           236.0,
           -1.6
@@ -45,10 +45,10 @@
     "vertices_inside": 0
   },
   "build": {
-    "build_s": 2.981113293,
+    "build_s": 2.9921717660000002,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 486322
+    "triangles": 485004
   },
   "coarse": {
     "degenerate_faces": 0,
@@ -58,7 +58,7 @@
   },
   "cold_reload_identical": null,
   "design": {
-    "bytes": 657056,
+    "bytes": 641008,
     "cad_features": 20,
     "format_version": 6
   },
@@ -159,17 +159,20 @@
     "min_section_mm": 0.8,
     "notes": [
       "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
-      "Measured with the ring as built: 16 CAD parts (16 joined, 0 cut), 387.0 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Ivy stem\" (#2) would undercut a two-part pull over 68.2 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Crown leaf\" (#3) would undercut a two-part pull over 11.1 mm² (worst -31°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Crown leaf: petiole\" (#4) would undercut a two-part pull over 0.2 mm² (worst -30°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf\" (#5) would undercut a two-part pull over 1.9 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Palm leaf\" (#7) would undercut a two-part pull over 4.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Berry 1: collet\" (#101) would undercut a two-part pull over 12.6 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Berry 2: collet\" (#103) would undercut a two-part pull over 13.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Berry 3: collet\" (#105) would undercut a two-part pull over 11.3 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array along a path \"Rootlets along the stem, set 1\" (#11) would undercut a two-part pull over 2.1 mm² (worst -46°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array along a path \"Rootlets along the stem, set 2\" (#14) would undercut a two-part pull over 1.4 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Measured with the ring as built: 16 CAD parts (16 joined, 0 cut), 403.0 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Ivy stem\" (#2) would undercut a two-part pull over 56.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Crown leaf\" (#3) would undercut a two-part pull over 12.4 mm² (worst -61°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Crown leaf: petiole\" (#4) would undercut a two-part pull over 1.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder leaf\" (#5) would undercut a two-part pull over 3.9 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder leaf: petiole\" (#6) would undercut a two-part pull over 0.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Palm leaf\" (#7) would undercut a two-part pull over 5.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Berry 1: collet\" (#101) would undercut a two-part pull over 9.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Berry 2: collet\" (#103) would undercut a two-part pull over 11.6 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Berry 3: collet\" (#105) would undercut a two-part pull over 11.4 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Rootlet 1R\" (#9) would undercut a two-part pull over 0.1 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array along a path \"Rootlets along the stem, set 1\" (#11) would undercut a two-part pull over 2.1 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Rootlet 2R\" (#12) would undercut a two-part pull over 0.0 mm² (worst -36°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array along a path \"Rootlets along the stem, set 2\" (#14) would undercut a two-part pull over 1.2 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "thinnest_wall_mm": 1.8891712349802638,
     "thinnest_wall_theta_deg": 0.0,
@@ -231,7 +234,7 @@
     "self_crossings": 0,
     "watertight": true
   },
-  "grams_18k": 14.43110213465962,
+  "grams_18k": 14.416525344876185,
   "made_parts": [
     [
       "Ivy stem",
@@ -318,177 +321,177 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 486322,
+    "triangles": 485004,
     "watertight": true
   },
   "process": "Lost wax",
   "ray_walls": [
     {
       "at": [
-        -0.2999199976523717,
-        11.986636797587076,
-        -1.7384833097457886
+        10.279276847839355,
+        4.199596722920735,
+        1.6146766344706218
       ],
       "below_floor": 0,
       "part": "Ivy stem",
-      "rays": 378,
-      "sampled_min_mm": 0.8657365155935892,
+      "rays": 384,
+      "sampled_min_mm": 0.8767506255041791,
       "unresolved": 0
     },
     {
       "at": [
-        0.7697133421897888,
-        11.548609733581543,
-        -2.636566638946533
+        -3.4680533409118652,
+        10.274273236592611,
+        1.3163533210754395
       ],
       "below_floor": 0,
       "part": "Crown leaf",
       "rays": 382,
-      "sampled_min_mm": 0.8869139075420149,
+      "sampled_min_mm": 1.1221238900650319,
       "unresolved": 0
     },
     {
       "at": [
-        1.2209700345993042,
-        11.349623680114746,
-        1.3957899808883667
+        -7.115600109100342,
+        9.623813311258951,
+        0.6878599921862284
       ],
       "below_floor": 0,
       "part": "Crown leaf: petiole",
       "rays": 343,
-      "sampled_min_mm": 0.8150745865378328,
+      "sampled_min_mm": 0.8151190848958368,
       "unresolved": 0
     },
     {
       "at": [
-        8.7640167872111,
-        6.461793263753255,
-        -1.9600433111190796
+        11.90092658996582,
+        2.4874134063720703,
+        -0.5871966481208801
       ],
       "below_floor": 0,
       "part": "Shoulder leaf",
       "rays": 382,
-      "sampled_min_mm": 0.8883724191098462,
+      "sampled_min_mm": 1.0109588567409737,
       "unresolved": 0
     },
     {
       "at": [
-        9.308643341064453,
-        7.734646638234456,
-        -0.6662333210309347
+        11.778339703877768,
+        3.025766690572103,
+        -1.0927900473276775
       ],
       "below_floor": 0,
       "part": "Shoulder leaf: petiole",
       "rays": 343,
-      "sampled_min_mm": 0.8151162614114195,
+      "sampled_min_mm": 0.8151212327340577,
       "unresolved": 0
     },
     {
       "at": [
-        -5.745073318481445,
-        -9.608569780985514,
-        -0.9010999997456869
+        -8.80976676940918,
+        -7.070753415425618,
+        -3.745689948399862
       ],
       "below_floor": 0,
       "part": "Palm leaf",
       "rays": 382,
-      "sampled_min_mm": 0.8861124880156431,
+      "sampled_min_mm": 0.974312347735623,
       "unresolved": 0
     },
     {
       "at": [
-        -5.686743259429932,
-        -9.933880170186361,
-        -1.1024566491444905
+        -5.7241166432698565,
+        -9.88839308420817,
+        -0.8511466582616171
       ],
       "below_floor": 0,
       "part": "Palm leaf: petiole",
       "rays": 343,
-      "sampled_min_mm": 0.8149846561511178,
+      "sampled_min_mm": 0.8150783215586528,
       "unresolved": 0
     },
     {
       "at": [
-        -5.055567105611165,
-        11.89474105834961,
-        -1.376575509707133
+        9.213528315226236,
+        9.404848416646322,
+        0.7112742265065511
       ],
       "below_floor": 216,
       "part": "Berry 1: collet",
       "rays": 324,
-      "sampled_min_mm": 0.3956105386194513,
+      "sampled_min_mm": 0.24811871749111455,
       "unresolved": 0
     },
     {
       "at": [
-        -8.891715049743652,
-        8.535746892293295,
-        -0.5856408675511678
+        10.767752329508463,
+        6.495940367380778,
+        1.2700458765029907
       ],
       "below_floor": 216,
       "part": "Berry 2: collet",
       "rays": 324,
-      "sampled_min_mm": 0.39707672029057284,
+      "sampled_min_mm": 0.24781744325243832,
       "unresolved": 0
     },
     {
       "at": [
-        -4.978677908579509,
-        10.42808469136556,
-        3.125227371851603
+        8.852660179138184,
+        7.501087029774983,
+        -3.0797093709309897
       ],
       "below_floor": 216,
       "part": "Berry 3: collet",
       "rays": 324,
-      "sampled_min_mm": 0.3963779830040118,
+      "sampled_min_mm": 0.2478188133657414,
       "unresolved": 0
     },
     {
       "at": [
-        -10.600716590881348,
-        4.034889856974284,
-        -1.0375133355458577
+        -7.093486626942952,
+        8.985336621602377,
+        0.04024000031252702
       ],
       "below_floor": 208,
       "part": "Rootlet 1R",
       "rays": 210,
-      "sampled_min_mm": 0.21233673359418198,
+      "sampled_min_mm": 0.21233687238257473,
       "unresolved": 0
     },
     {
       "at": [
-        -10.577993075052897,
-        4.104280153910319,
-        1.0140833059946697
+        -6.204436779022217,
+        9.23922348022461,
+        1.8776500225067139
       ],
-      "below_floor": 208,
+      "below_floor": 206,
       "part": "Rootlet 1L",
       "rays": 210,
-      "sampled_min_mm": 0.21233659034812977,
+      "sampled_min_mm": 0.21234777140639044,
       "unresolved": 0
     },
     {
       "at": [
-        -10.697383244832357,
-        3.8421967029571533,
-        -1.0280400117238362
+        -7.225076675415039,
+        8.902050018310547,
+        0.13129666447639465
       ],
       "below_floor": 210,
       "part": "Rootlet 2R",
       "rays": 210,
-      "sampled_min_mm": 0.21277034896865676,
+      "sampled_min_mm": 0.21275200416617107,
       "unresolved": 0
     },
     {
       "at": [
-        -10.920896530151367,
-        3.206389904022217,
-        0.7295500040054321
+        -6.965766588846843,
+        8.650803248087565,
+        1.9616099993387859
       ],
       "below_floor": 210,
       "part": "Rootlet 2L",
       "rays": 210,
-      "sampled_min_mm": 0.21277130161616364,
+      "sampled_min_mm": 0.21275888137188334,
       "unresolved": 0
     }
   ],
@@ -499,7 +502,7 @@
   },
   "stones": {
     "carats": 0.3358990865218207,
-    "closest": "Berry 2 to Berry 3: 0.84 mm at the girdle, 0.74 mm deep",
+    "closest": "Berry 1 to Berry 2: 0.51 mm at the girdle, 0.41 mm deep",
     "metal_inside": [
       [
         "Berry 1",
