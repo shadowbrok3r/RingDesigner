@@ -1,5 +1,5 @@
 {
-  "format_version": 5,
+  "format_version": 6,
   "name": "Fenestra",
   "size": 8.10862207660166,
   "profile": {
@@ -10,7 +10,7 @@
     "shape_a": 8.0,
     "shape_b": 1.0,
     "crest_bias": 0.0,
-    "edge_round_mm": 0.3,
+    "edge_round_mm": 0.45,
     "comfort_fit_mm": 0.1,
     "side_draft_deg": 0.0,
     "flange": {
@@ -118,80 +118,80 @@
     "keys": [
       {
         "theta_deg": 90.0,
-        "width_scale": 1.66,
+        "width_scale": 1.88,
+        "thickness_scale": 1.72,
+        "crown_scale": 1.0
+      },
+      {
+        "theta_deg": 80.0,
+        "width_scale": 1.6,
+        "thickness_scale": 1.64,
+        "crown_scale": 1.0
+      },
+      {
+        "theta_deg": 100.0,
+        "width_scale": 1.6,
+        "thickness_scale": 1.64,
+        "crown_scale": 1.0
+      },
+      {
+        "theta_deg": 68.0,
+        "width_scale": 1.56,
+        "thickness_scale": 1.52,
+        "crown_scale": 1.0
+      },
+      {
+        "theta_deg": 112.0,
+        "width_scale": 1.56,
+        "thickness_scale": 1.52,
+        "crown_scale": 1.0
+      },
+      {
+        "theta_deg": 53.0,
+        "width_scale": 1.56,
         "thickness_scale": 1.5,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 82.0,
+        "theta_deg": 127.0,
         "width_scale": 1.56,
-        "thickness_scale": 1.49,
+        "thickness_scale": 1.5,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 98.0,
+        "theta_deg": 38.0,
         "width_scale": 1.56,
-        "thickness_scale": 1.49,
+        "thickness_scale": 1.46,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 70.0,
-        "width_scale": 1.38,
-        "thickness_scale": 1.47,
+        "theta_deg": 142.0,
+        "width_scale": 1.56,
+        "thickness_scale": 1.46,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 110.0,
-        "width_scale": 1.38,
-        "thickness_scale": 1.47,
+        "theta_deg": 24.0,
+        "width_scale": 1.54,
+        "thickness_scale": 1.38,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 55.0,
-        "width_scale": 1.38,
-        "thickness_scale": 1.45,
+        "theta_deg": 156.0,
+        "width_scale": 1.54,
+        "thickness_scale": 1.38,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 125.0,
-        "width_scale": 1.38,
-        "thickness_scale": 1.45,
+        "theta_deg": 8.0,
+        "width_scale": 1.2,
+        "thickness_scale": 1.14,
         "crown_scale": 1.0
       },
       {
-        "theta_deg": 40.0,
-        "width_scale": 1.38,
-        "thickness_scale": 1.42,
-        "crown_scale": 1.0
-      },
-      {
-        "theta_deg": 140.0,
-        "width_scale": 1.38,
-        "thickness_scale": 1.42,
-        "crown_scale": 1.0
-      },
-      {
-        "theta_deg": 25.0,
-        "width_scale": 1.38,
-        "thickness_scale": 1.36,
-        "crown_scale": 1.0
-      },
-      {
-        "theta_deg": 155.0,
-        "width_scale": 1.38,
-        "thickness_scale": 1.36,
-        "crown_scale": 1.0
-      },
-      {
-        "theta_deg": 10.0,
-        "width_scale": 1.25,
-        "thickness_scale": 1.18,
-        "crown_scale": 1.0
-      },
-      {
-        "theta_deg": 170.0,
-        "width_scale": 1.25,
-        "thickness_scale": 1.18,
+        "theta_deg": 172.0,
+        "width_scale": 1.2,
+        "thickness_scale": 1.14,
         "crown_scale": 1.0
       },
       {
@@ -346,7 +346,7 @@
             "kind": "ring",
             "theta_deg": 90.0,
             "across_mm": 0.0,
-            "height_mm": 1.5500000000000003,
+            "height_mm": 1.2500000000000004,
             "spin_deg": 0.0,
             "tilt_deg": 0.0,
             "cant_deg": 0.0
@@ -358,16 +358,17 @@
       },
       {
         "id": 3,
-        "name": "Basket: four claws tied by two rails",
+        "name": "Basket head: four claws paired at the ends, two rails, set into the collar",
         "enabled": true,
         "operation": {
           "Builder": {
             "key": "head.basket",
             "on": 2,
             "params": {
+              "grouping": "Jaws",
               "prongs": 4,
               "rails": 2,
-              "wire_mm": 1.3
+              "wire_mm": 1.4
             }
           }
         },
@@ -383,7 +384,7 @@
             "kind": "free"
           },
           "attach": "join",
-          "stage": "cast",
+          "stage": "bench",
           "blend_mm": 0.0
         }
       },
@@ -445,9 +446,9 @@
           "bench_notes": "",
           "placement": {
             "kind": "ring",
-            "theta_deg": 68.0,
+            "theta_deg": 63.0,
             "across_mm": 0.0,
-            "height_mm": -1.76,
+            "height_mm": -1.81,
             "spin_deg": 0.0,
             "tilt_deg": 0.0,
             "cant_deg": -90.0

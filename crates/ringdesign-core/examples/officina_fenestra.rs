@@ -21,7 +21,7 @@ use ringdesign_core::{
     stl,
 };
 use serde_json::json;
-use std::f64::consts::{FRAC_PI_2, PI};
+use std::f64::consts::PI;
 use std::path::{Path, PathBuf};
 
 const BORE_MM: f64 = 18.2;
@@ -31,13 +31,13 @@ const THICKNESS_MM: f64 = 2.4;
 /// under the basket, then one steady width down the shoulders, so every window in the array meets square side faces at the
 /// same height as the first, and narrowing to the band's own at the sides; the thickness stands tall down the shoulders, where
 /// the windows go, and falls back to the palm.
-const SWELL: &[(f64, f64, f64)] = &[(90.0, 1.66, 1.50), (82.0, 1.56, 1.49), (70.0, 1.38, 1.47), (55.0, 1.38, 1.45), (40.0, 1.38, 1.42), (25.0, 1.38, 1.36), (10.0, 1.25, 1.18), (-30.0, 1.0, 1.0)];
+const SWELL: &[(f64, f64, f64)] = &[(90.0, 1.88, 1.72), (80.0, 1.6, 1.64), (68.0, 1.56, 1.52), (53.0, 1.56, 1.50), (38.0, 1.56, 1.46), (24.0, 1.54, 1.38), (8.0, 1.2, 1.14), (-30.0, 1.0, 1.0)];
 const ALLOY: &str = "Gold 18k";
 /// The stone: an oval 7 × 5 laid along the ring.
 const STONE_L_MM: f64 = 7.0;
 const STONE_W_MM: f64 = 5.0;
 /// The first window's centre, degrees round the ring (90 is the head); the array steps down the shoulder from it.
-const FIRST_WINDOW_DEG: f64 = 68.0;
+const FIRST_WINDOW_DEG: f64 = 63.0;
 /// Windows down each shoulder and the angle they step by.
 const WINDOWS: u32 = 3;
 const WINDOW_STEP_DEG: f64 = 15.0;
@@ -47,10 +47,13 @@ const WINDOW_W_MM: f64 = 1.4;
 const WINDOW_CHAMFER_MM: f64 = 0.15;
 /// Which way the drop's point turns in the window's plane, degrees: 180 points it up the shoulder at the head.
 const WINDOW_TURN_DEG: f64 = 180.0;
-/// How far the stone sits below the basket's own stand-off, its pavilion down in the seat the bur cuts, mm.
-const STONE_SINK_MM: f64 = 0.6;
+/// How far the stone sits below the basket's own stand-off, so the base rail is sunk into the collar and the claws rise out of
+/// metal, mm.
+const STONE_SINK_MM: f64 = 0.9;
+/// The band's edge round, which rolls the light off every arris, mm.
+const EDGE_ROUND_MM: f64 = 0.45;
 /// The basket's claw and rail wire, mm.
-const WIRE_MM: f64 = 1.3;
+const WIRE_MM: f64 = 1.4;
 /// Least metal the investment fills, mm.
 const MIN_SECTION_MM: f64 = 0.8;
 
@@ -95,7 +98,7 @@ fn band() -> RingDesign {
     d.profile.width_mm = WIDTH_MM;
     d.profile.thickness_mm = THICKNESS_MM;
     d.profile.flatten_sides();
-    d.profile.edge_round_mm = 0.3;
+    d.profile.edge_round_mm = EDGE_ROUND_MM;
     d.profile.comfort_fit_mm = 0.1;
     d.shank.kind = ShankKind::Keyframes;
     d.shank.amount = 1.0;
@@ -133,7 +136,11 @@ fn author() -> Result<RingDesign> {
     let g = gem();
     let at = Placement::ring(90.0, builders::stand_off_mm("basket", g) - STONE_SINK_MM);
     doc.append(named(builders::stone_feature(2, g, at), "Oval 7 × 5, laid along the ring"))?;
-    doc.append(builders::feature_on(3, "Basket: four claws tied by two rails", builders::BASKET, 2, json!({"prongs": 4, "rails": 2, "wire_mm": WIRE_MM})))?;
+    let mut basket = builders::feature_on(3, "Basket head: four claws paired at the ends, two rails, set into the collar", builders::BASKET, 2, json!({"prongs": 4, "rails": 2, "wire_mm": WIRE_MM, "grouping": "Jaws"}));
+    // A made basket head, soldered to the cast shank at the bench and set there: its claws are notched for the girdle, finer
+    // than the investment's section, so it is not poured with the shank.
+    basket.component.stage = cad::Stage::Bench;
+    doc.append(basket)?;
     // The seat is cut with a bur at the bench once the ring is cast, as it is when the stone is set: it notches the claws and
     // opens the pilot to the finger, so the pour fills the claws whole.
     let mut bur = builders::feature_on(4, "Seat bur, through to the finger, cut at the bench", builders::BUR, 2, json!({"through": true}));
@@ -202,12 +209,18 @@ fn solid_of(m: &mesh::Mesh) -> csg::Solid {
 /// Views: yaw about the finger axis, pitch from looking along the finger (0) to down onto the head (pi/2).
 const VIEWS: &[(&str, f64, f64)] = &[
     ("hero", -0.7, 0.5),
-    ("face", 0.0, FRAC_PI_2),
+    ("face", 0.0, FACE_PITCH),
     ("palm", PI, 1.05),
     ("side", 0.0, 0.0),
     ("shoulder", 0.0, 0.35),
     ("reverse", PI - 0.5, 0.35),
 ];
+
+/// The face view, tipped a little off square so the near side face's windows show beside the head.
+const FACE_PITCH: f64 = 1.25;
+/// The timeline's camera: three-quarters from a little under the band, so it sees the seat bur's pilot in the bore as well as
+/// the windows in the side face.
+const TIMELINE_VIEW: (f64, f64) = (-0.75, -0.32);
 
 /// The stones close-up: the head and the top windows from a three-quarter view.
 const STONES_VIEW: (f64, f64) = (-0.45, 0.7);
@@ -227,46 +240,22 @@ fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<(
     Ok(())
 }
 
-/// `m` with every corner whose smooth normal leans more than 35° off its face shaded by the face's own normal instead, so
-/// a cut's edge renders as the crisp arris it is rather than a saw of blended normals.
-fn crisp(m: &mesh::Mesh) -> mesh::Mesh {
-    let mut out = m.clone();
-    let have: std::collections::HashMap<u32, [mesh::Vec3; 3]> = m.corner_normals.iter().copied().collect();
-    let mut corners = Vec::new();
-    for (i, f) in m.faces.iter().enumerate() {
-        let Some((a, b, c)) = m.triangle(f) else { continue };
-        let (u, v) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
-        let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-        let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
-        if l < 1e-12 {
-            continue;
-        }
-        let fn_ = mesh::Vec3((n[0] / l) as f32, (n[1] / l) as f32, (n[2] / l) as f32);
-        let mut cn = have.get(&(i as u32)).copied().unwrap_or_else(|| f.map(|k| m.normals[k as usize]));
-        let mut changed = false;
-        for c in cn.iter_mut() {
-            let d = c.0 * fn_.0 + c.1 * fn_.1 + c.2 * fn_.2;
-            if d < 0.819 {
-                *c = fn_;
-                changed = true;
-            }
-        }
-        if changed || have.contains_key(&(i as u32)) {
-            corners.push((i as u32, cn));
-        }
-    }
-    out.corner_normals = corners;
-    out
-}
-
 /// The renderer's empty background, which [`shot`] replaces with the studio's daylight backdrop.
 const VOID: u8 = 18;
 
 /// A supersampled frame on a light backdrop, so the windows show daylight through them: the parts drawn at `ss` times the
 /// size, every untouched pixel given the backdrop's soft top-to-bottom fall, then box-filtered down.
 fn shot(parts: &[render::Part], yaw: f64, pitch: f64, w: usize, h: usize, ss: usize) -> Vec<u8> {
+    shot_framed(parts, yaw, pitch, None, w, h, ss)
+}
+
+/// [`shot`] framed on a point, the whole ring drawn.
+fn shot_framed(parts: &[render::Part], yaw: f64, pitch: f64, framing: Option<render::Framing>, w: usize, h: usize, ss: usize) -> Vec<u8> {
     let (bw, bh) = (w * ss, h * ss);
-    let mut big = render::render_parts_ss(parts, yaw, pitch, bw, bh, 1);
+    let mut big = match framing {
+        Some(f) => render::render_parts_framed(parts, yaw, pitch, f, bw, bh, 1),
+        None => render::render_parts_ss(parts, yaw, pitch, bw, bh, 1),
+    };
     for y in 0..bh {
         let t = y as f64 / (bh - 1).max(1) as f64;
         let grey = [206.0 - 30.0 * t, 204.0 - 30.0 * t, 200.0 - 30.0 * t];
@@ -335,12 +324,12 @@ fn timeline(out: &Path, d: &RingDesign, lib: &AlphaLibrary) -> Result<()> {
     let rows = doc.features.len().div_ceil(cols);
     let (w, h) = (tile * cols, tile * rows);
     let mut sheet = vec![200u8; w * h * 3];
-    let (yaw, pitch) = view("hero");
+    let (yaw, pitch) = TIMELINE_VIEW;
     for (k, f) in doc.features.iter().enumerate() {
         let mut step = d.clone();
         step.cad.as_mut().unwrap().through = Some(f.id);
         let fin = render::finished(&step, lib, draft_params())?;
-        let (bright, dark) = window_walls(&crisp(&fin.metal));
+        let (bright, dark) = window_walls(&fin.metal);
         let img = shot(&dressed(&bright, &dark, &fin), yaw, pitch, tile, tile, 2);
         let (cx, cy) = (k % cols * tile, k / cols * tile);
         for y in 0..tile {
@@ -394,7 +383,7 @@ fn dressed<'a>(bright: &'a mesh::Mesh, dark: &'a mesh::Mesh, fin: &'a render::Fi
 }
 
 fn renders(out: &Path, lib: &AlphaLibrary, fin: &render::Finished, edge: usize) -> Result<()> {
-    let (bright, dark) = window_walls(&crisp(&fin.metal));
+    let (bright, dark) = window_walls(&fin.metal);
     if std::env::var("FENESTRA_DEBUG").is_ok() {
         let parted = fin.metal.origin.iter().filter(|&&o| o >= mesh::SOLID_VERTEX).count();
         println!("    window walls: {} faces of {}; {} of {} vertices from parts", dark.faces.len(), fin.metal.faces.len(), parted, fin.metal.origin.len());
@@ -414,27 +403,16 @@ fn renders(out: &Path, lib: &AlphaLibrary, fin: &render::Finished, edge: usize) 
         save(&out.join(format!("{name}-300.png")), &parts, yaw, pitch, 300)?;
     }
     // Stones: the head and the first windows, framed on the metal within 35° of the top.
-    // Stones: the whole ring drawn at 2.4 times the size, then cut to the frame round the stone, which a red stand-in finds.
-    let big = (edge as f64 * 2.4) as usize;
-    let img = shot(&parts, STONES_VIEW.0, STONES_VIEW.1, big, big, 2);
-    let mut marked = vec![render::Part::metal(&bright, render::GOLD), backlit(&dark)];
-    marked.extend(fin.stones.iter().map(|(m, _)| render::Part::tinted_stone(m, [1.0, 0.0, 0.0])));
-    let mask = render::render_parts_ss(&marked, STONES_VIEW.0, STONES_VIEW.1, big, big, 1);
-    let (mut sx, mut sy, mut n) = (0usize, 0usize, 0usize);
-    for y in 0..big {
-        for x in 0..big {
-            let k = (y * big + x) * 3;
-            if mask[k] > 120 && mask[k + 1] < 60 && mask[k + 2] < 60 {
-                (sx, sy, n) = (sx + x, sy + y, n + 1);
-            }
+    // Stones: the whole ring framed on the stone, so the head and the top windows fill the picture.
+    let (mut c, mut n) = ([0.0f64; 3], 0usize);
+    for (m, _) in &fin.stones {
+        for v in &m.vertices {
+            c = [c[0] + v.0 as f64, c[1] + v.1 as f64, c[2] + v.2 as f64];
+            n += 1;
         }
     }
-    let (cx, cy) = if n > 0 { (sx / n, sy / n) } else { (big / 2, big / 2) };
-    let (x0, y0) = (cx.saturating_sub(edge / 2).min(big - edge), (cy + edge / 10).saturating_sub(edge / 2).min(big - edge));
-    let mut close = vec![0u8; edge * edge * 3];
-    for y in 0..edge {
-        close[y * edge * 3..(y + 1) * edge * 3].copy_from_slice(&img[((y0 + y) * big + x0) * 3..((y0 + y) * big + x0 + edge) * 3]);
-    }
+    let centre = if n > 0 { c.map(|x| x / n as f64) } else { [0.0, 13.0, 0.0] };
+    let close = shot_framed(&parts, STONES_VIEW.0, STONES_VIEW.1, Some(render::Framing::new([centre[0], centre[1] - 1.5, centre[2]], 6.5)), edge, edge, 3);
     image::save_buffer(out.join("stones.png"), &close, edge as u32, edge as u32, image::ColorType::Rgb8)?;
     let bare = mesh::try_build(&band(), lib, draft_params())?;
     let (yaw, pitch) = view("hero");
@@ -553,8 +531,22 @@ fn main() -> Result<()> {
     let previewed = ringdesign_core::gems::built_meshes(&d, &lib, &built).len();
     // Wall thickness is screened on a build light enough for the measure.
     let coarse = BuildParams { theta_steps: 384, profile_steps: 160, ..params };
-    // The section floor is the investment's: it is measured on the cast pattern, the bench's seat cut left out.
-    let thin_mesh = mesh::try_build_pattern(&d, &lib, coarse)?.mesh;
+    // The section floor is the investment's: it is measured on what is poured, the shank with its windows. The basket head and
+    // the seat are the bench's, soldered and cut after the pour, so they are suppressed here and their own sections recorded.
+    let mut poured = d.clone();
+    for f in poured.cad.as_mut().unwrap().features.iter_mut() {
+        if f.component.stage == cad::Stage::Bench {
+            f.enabled = false;
+        }
+    }
+    let thin_mesh = mesh::try_build_pattern(&poured, &lib, coarse)?.mesh;
+    let head_thin = built
+        .parts
+        .evaluated
+        .iter()
+        .flat_map(|e| e.components.iter())
+        .find(|c| c.id == 3)
+        .map(|c| cad::measure::thickness(&c.mesh, MIN_SECTION_MM));
     let finished_thin = cad::measure::thickness(&mesh::try_build(&d, &lib, coarse)?.mesh, MIN_SECTION_MM);
     let thickness = cad::measure::thickness(&thin_mesh, MIN_SECTION_MM);
     println!(
@@ -635,7 +627,8 @@ fn main() -> Result<()> {
         "field_notes": field.notes,
         "investment_min_section_mm": d.draft.min_section_mm,
         "thickness_finished_informational": {"rays": finished_thin.rays, "sampled_min_mm": finished_thin.sampled_min_mm, "below_limit": finished_thin.below_limit, "note": "The finished ring after the bench's seat bur, which notches the claws for the girdle and opens the pilot; not the pour."},
-        "thickness": {"mesh": "casting pattern", "build": [coarse.theta_steps, coarse.profile_steps], "faces": thin_mesh.faces.len(), "limit_mm": thickness.limit_mm, "rays": thickness.rays, "sampled_min_mm": thickness.sampled_min_mm, "below_limit": thickness.below_limit, "unresolved": thickness.unresolved, "note": thickness.note},
+        "head_thickness_informational": head_thin.as_ref().map(|t| json!({"rays": t.rays, "sampled_min_mm": t.sampled_min_mm, "below_limit": t.below_limit, "note": "The made basket head alone: each claw notched by the stone's envelope for the girdle, set at the bench."})),
+        "thickness": {"mesh": "the poured shank: the casting pattern with the bench's basket head and seat bur suppressed", "build": [coarse.theta_steps, coarse.profile_steps], "faces": thin_mesh.faces.len(), "limit_mm": thickness.limit_mm, "rays": thickness.rays, "sampled_min_mm": thickness.sampled_min_mm, "below_limit": thickness.below_limit, "unresolved": thickness.unresolved, "note": thickness.note},
         "cut_lands": lands.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "stones_reported": stone_count,
@@ -671,7 +664,7 @@ fn main() -> Result<()> {
     report["size"] = json!(d.size.display());
     report["bore_mm"] = json!(built.report.inner_diameter_mm);
     report["band"] = json!({"style": "Flat", "width_mm": WIDTH_MM, "thickness_mm": THICKNESS_MM, "shank": "Keyframes", "swell_keys": SWELL});
-    report["stone"] = json!({"cut": "Oval", "l_mm": STONE_L_MM, "w_mm": STONE_W_MM, "spin_deg": 0.0});
+    report["stone"] = json!({"cut": "Oval", "l_mm": STONE_L_MM, "w_mm": STONE_W_MM, "spin_deg": 0.0, "spin_note": "spin 0 lays a stone's length round the ring (cad.rs stone_frame turns the seat frame a quarter); the section's spin 90 would lay the oval across the finger."});
     report["windows"] = json!({"per_shoulder": WINDOWS, "first_deg": FIRST_WINDOW_DEG, "step_deg": WINDOW_STEP_DEG, "length_mm": WINDOW_L_MM, "width_mm": WINDOW_W_MM, "chamfer_mm": WINDOW_CHAMFER_MM});
     report["grams_gold_18k"] = json!(grams);
     report["design_bytes"] = json!(design_bytes);
