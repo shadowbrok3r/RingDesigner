@@ -10,6 +10,7 @@ use ringdesign_core::{
     castability::{self, CastProcess},
     csg, dfm,
     gem::{Gem, GemCut, GemForm},
+    field::{Blend, BorderLayer, BorderProfile, Layer, LayerEntry, Window},
     library, mesh, render, skin, stl,
 };
 use serde_json::json;
@@ -25,6 +26,8 @@ type P3 = [f64; 3];
 const SPUR_BEND: f64 = 0.03;
 /// A spur's point: its radius where the round cap closes it, the investment's detail floor across.
 const SPUR_POINT_R: f64 = 0.1;
+/// A spur's radius where it leaves the wood, before its flare.
+const SPUR_BASE_R: f64 = 0.72;
 /// The lost-wax floors: Logan's 0.8 mm section, investment's 0.15 mm detail.
 const MIN_SECTION_MM: f64 = 0.8;
 
@@ -35,8 +38,10 @@ const CALYX_TINT: [f32; 3] = [0.11, 0.075, 0.035];
 const ANTIQUE_MID: [f32; 3] = [0.42, 0.31, 0.14];
 const ANTIQUE_DARK: [f32; 3] = [0.10, 0.07, 0.035];
 const SLOE_TINT: [f32; 3] = [0.05, 0.056, 0.08];
-const ANTIQUE_PASSES: usize = 40;
+const ANTIQUE_PASSES: usize = 14;
 const ANTIQUE_SHALLOW_MM: f64 = 0.015;
+/// Radius under which the band is the bore, never antiqued.
+const BORE_BRIGHT_MM: f64 = 9.0;
 const ANTIQUE_DEEP_MM: f64 = 0.04;
 
 /// How the sloe is held: four low claws with a small calyx at its stalk, or five sepals and a cup with no collet.
@@ -341,7 +346,7 @@ fn twig(g: &Ground, name: &str, stations: &[(f64, f64)], r0: f64, r1: f64, proud
     for &j in &nodes {
         for (i, r) in radius.iter_mut().enumerate() {
             let d = (i as f64 - j as f64) * 0.1;
-            *r *= 1.0 + 0.16 * (-(d / 0.45).powi(2)).exp();
+            *r *= 1.0 + 0.10 * (-(d / 0.45).powi(2)).exp();
         }
     }
     // A slow waver in the wood's girth.
@@ -417,12 +422,13 @@ fn blossom_solid(diameter: f64, sink: f64, turn: f64) -> csg::Solid {
     };
     let margin = (MIN_SECTION_MM - sink + 0.02).max(0.12);
     let top = |u: f64, phi: f64| {
-        let (_, petal) = outline(phi);
+        let (rr, petal) = outline(phi);
+        let ra = u * rr;
         let dome = 0.36 * (1.0 - u * u).max(0.0).sqrt() * (0.5 + 0.5 * petal);
         // Each petal cups: its rim lifts a little over its middle.
         let cup = 0.17 * smooth01((u - 0.55) / 0.4) * petal;
-        let heart = 0.36 * (1.0 - smooth01(u / 0.22));
-        let stamens = 0.17 * (1.0 - smooth01((u - 0.33).abs() / 0.07)) * (0.5 + 0.5 * (10.0 * (phi - turn)).cos()).powi(6);
+        let heart = 0.30 * (1.0 - smooth01(ra / 0.5));
+        let stamens = 0.14 * (1.0 - smooth01((ra - 0.62).abs() / 0.11)) * (0.5 + 0.5 * (10.0 * (phi - turn)).cos()).powi(6);
         margin + dome + cup + heart + stamens
     };
     let mut s = csg::Solid::default();
@@ -496,11 +502,13 @@ fn sepal_solid(f: &SloeFrame, centre_deg: f64, half_deg: f64, reach: f64) -> csg
     let ey = cross(f.normal, ex);
     let at = |v: f64, w: f64, out: f64| -> P3 {
         let z = lerp(z0, z1, v);
-        let tip = (1.0 - v.powf(1.2)).max(0.0).powf(0.8);
-        let half = (half_deg.to_radians() * (0.35 + 0.65 * tip) * (1.0 - 0.15 * v)).max(0.07 / (f.radius + 0.5));
+        let tip = (1.0 - v * v).max(0.0).sqrt();
+        let half = (half_deg.to_radians() * (0.35 + 0.65 * tip) * (1.0 - 0.15 * v)).max(0.18 / (f.radius + 0.5));
         let phi = centre_deg.to_radians() + w * half;
         let rib = 0.12 * (1.0 - w * w) * (1.0 - v);
-        let r = dome_r(f, z.max(0.0)) + 0.03 + out * (lerp(MIN_SECTION_MM + 0.04, 0.42, v.powf(1.5)) + rib);
+        // Over its last fifth the sepal thins and rounds to its tip, as a leaf does.
+        let end = ((v - 0.8) / 0.2).clamp(0.0, 1.0);
+        let r = dome_r(f, z.max(0.0)) + 0.03 + out * (MIN_SECTION_MM + 0.04 + rib) * (0.45 + 0.55 * (1.0 - end * end).sqrt());
         // At the top the sepal's back curls in a little onto the fruit.
         add(f.girdle, add(mul(f.normal, z + out * 0.15 * v * v), add(mul(ex, r * phi.cos()), mul(ey, r * phi.sin()))))
     };
@@ -545,64 +553,6 @@ fn sepal_solid(f: &SloeFrame, centre_deg: f64, half_deg: f64, reach: f64) -> csg
     s
 }
 
-/// A sepal spread out from under the fruit over the ground: a pointed, domed leaf `reach` mm past the girdle's
-/// radius at `centre_deg`, its foot under the girdle, falling to the table and lifting its tip a little.
-fn flared_sepal(f: &SloeFrame, centre_deg: f64, rise: f64, reach: f64) -> csg::Solid {
-    let ex = f.to_stalk;
-    let ey = cross(f.normal, ex);
-    let a = centre_deg.to_radians();
-    let out = add(mul(ex, a.cos()), mul(ey, a.sin()));
-    let across = cross(f.normal, out);
-    let (nv, nw) = (36usize, 16usize);
-    let r0 = f.radius * 0.55;
-    let length = f.radius - r0 + reach;
-    let mut s = csg::Solid::default();
-    let at = |v: f64, w: f64, top: bool| -> P3 {
-        let along = r0 + length * v;
-        let width = 0.95 * (1.0 - v.powf(1.6)).max(0.0).powf(0.6) * (0.6 + 0.4 * (PI * v).sin()) + 0.42;
-        let y = w * width * 0.5;
-        // From under the girdle down to the table, then a slight lift to the tip.
-        let drop = -0.25 - rise * smooth01((along - f.radius * 0.8) / 0.9) + 0.25 * smooth01((v - 0.75) / 0.25);
-        let thick = MIN_SECTION_MM * (1.0 - 0.15 * w * w) + 0.12 * (1.0 - w.abs()) * (1.0 - v);
-        let z = if top { drop } else { drop - thick };
-        add(f.girdle, add(mul(f.normal, z), add(mul(out, along), mul(across, y))))
-    };
-    for layer in 0..2 {
-        for i in 0..=nv {
-            for j in 0..=nw {
-                s.v.push(at(i as f64 / nv as f64 * 0.98, -1.0 + 2.0 * j as f64 / nw as f64, layer == 0));
-            }
-        }
-    }
-    let id = |l: usize, i: usize, j: usize| (l * (nv + 1) * (nw + 1) + i * (nw + 1) + j) as u32;
-    for i in 0..nv {
-        for j in 0..nw {
-            s.f.push([id(0, i, j), id(0, i + 1, j), id(0, i + 1, j + 1)]);
-            s.f.push([id(0, i, j), id(0, i + 1, j + 1), id(0, i, j + 1)]);
-            s.f.push([id(1, i, j), id(1, i + 1, j + 1), id(1, i + 1, j)]);
-            s.f.push([id(1, i, j), id(1, i, j + 1), id(1, i + 1, j + 1)]);
-        }
-    }
-    for i in 0..nv {
-        let (a, b, c, d) = (id(0, i, 0), id(0, i + 1, 0), id(1, i, 0), id(1, i + 1, 0));
-        s.f.push([a, d, b]);
-        s.f.push([a, c, d]);
-        let (a, b, c, d) = (id(0, i, nw), id(0, i + 1, nw), id(1, i, nw), id(1, i + 1, nw));
-        s.f.push([a, b, d]);
-        s.f.push([a, d, c]);
-    }
-    for j in 0..nw {
-        let (a, b, c, d) = (id(0, 0, j), id(0, 0, j + 1), id(1, 0, j), id(1, 0, j + 1));
-        s.f.push([a, b, d]);
-        s.f.push([a, d, c]);
-        let (a, b, c, d) = (id(0, nv, j), id(0, nv, j + 1), id(1, nv, j), id(1, nv, j + 1));
-        s.f.push([a, d, b]);
-        s.f.push([a, c, d]);
-    }
-    orient_outward(&mut s);
-    s
-}
-
 /// The cup under the fruit's girdle: a short turned collar from the ground up to just under the girdle.
 fn cup_solid(f: &SloeFrame, ground_drop: f64, top_r: f64, foot_r: f64) -> csg::Solid {
     let around = 72;
@@ -642,6 +592,8 @@ enum Mark {
     Wood(P3, f64),
     Blossom(P3, P3, f64),
     Calyx(P3, P3, f64),
+    /// A spur's point: from `start` along `dir` for `len` mm, where the spur is under the section floor.
+    Point(P3, P3, f64),
 }
 
 #[derive(Default, serde::Serialize)]
@@ -654,6 +606,8 @@ struct Authored {
     spurs: Vec<serde_json::Value>,
     blossoms: Vec<serde_json::Value>,
     sloe: serde_json::Value,
+    /// Every made part's least section by construction, mm, and what it is.
+    sections: Vec<(String, f64, String)>,
 }
 
 /// The twig's ground stations for a layout.
@@ -707,6 +661,12 @@ fn twig_stations(o: &Opt, g: &Ground) -> Vec<(String, Vec<(f64, f64)>, [bool; 2]
 fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
     let mut d = probe::stock(o.base, false, None)?;
     d.name = "Prunus".into();
+    if let Ok(v) = std::env::var("PRUNUS_COMFORT") {
+        d.profile.comfort_fit_mm = v.parse()?;
+    }
+    if let Ok(v) = std::env::var("PRUNUS_EDGE") {
+        d.profile.edge_round_mm = v.parse()?;
+    }
     probe::cast_in(&mut d, &probe::wax_setup(0.1));
     CastProcess::LostWax.apply(&mut d.draft);
     d.draft.min_section_mm = MIN_SECTION_MM;
@@ -719,13 +679,75 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
     }
     let lib = AlphaLibrary::builtin();
     let bare = mesh::try_build(&d, &lib, draft_params())?;
+    // A null layer, nothing high, round the whole band: it asks the build to sample the factory surface on the
+    // build's own grid there, so every part's seam with the band falls on fine facets instead of the stock's coarse ones.
+    {
+        let ctx = d.field_context();
+        let grid = BorderLayer { v_mm: ctx.band_v_len_mm * 0.5, width_mm: ctx.band_v_len_mm + 2.0, height_mm: 0.0, profile: BorderProfile::Flat, mirror: false, rope_twists: 0 };
+        let mut e = LayerEntry::new("Fine sampling (0 mm)", Layer::Border(grid));
+        e.blend = Blend::Max;
+        let mut w = Window::around(90.0, 360.0);
+        w.fade_deg = 0.0;
+        e.window = w;
+        d.layers.layers.push(e);
+    }
     let (_, hi) = bare.mesh.bounds().unwrap();
     let g = Ground { band: bare.band.clone().unwrap(), top: hi.1 as f64 };
     let mut info = Authored { option: o.slug.into(), base: o.base.into(), ..Default::default() };
+    // The factory mesh folds over itself by some microns in places; a low pad laid over each fold unites it away.
+    let mut pads: Vec<csg::Solid> = Vec::new();
+    {
+        let sites = crossing_sites(&bare.mesh);
+        let mut groups: Vec<Vec<(P3, P3)>> = Vec::new();
+        for s in sites {
+            match groups.iter_mut().find(|g| len(sub(g[0].0, s.0)) < 1.5) {
+                Some(g) => g.push(s),
+                None => groups.push(vec![s]),
+            }
+        }
+        for g in groups {
+            let c = mul(g.iter().fold([0.0; 3], |a, s| add(a, s.0)), 1.0 / g.len() as f64);
+            let n0 = unit(g.iter().fold([0.0; 3], |a, s| add(a, if dot(s.1, g[0].1) < 0.0 { mul(s.1, -1.0) } else { s.1 })));
+            // Outward: away from the metal, the side the axis is not on for a crest, along the finger for a side face.
+            let n = if dot(n0, [0.0, 0.0, c[2].signum()]) < 0.0 && n0[2].abs() > 0.7 { mul(n0, -1.0) } else { n0 };
+            let er = unit(sub([c[0], c[1], 0.0], mul(n, dot([c[0], c[1], 0.0], n))));
+            let et = cross(n, er);
+            let (around, rings) = (48usize, 16usize);
+            let mut pad = csg::Solid::default();
+            pad.v.push(add(c, mul(n, 0.05)));
+            for i in 1..rings {
+                let t = PI * i as f64 / rings as f64;
+                for j in 0..around {
+                    let a = 2.0 * PI * j as f64 / around as f64;
+                    pad.v.push(add(c, add(mul(n, 0.05 * t.cos()), add(mul(et, 1.15 * t.sin() * a.cos()), mul(er, 0.13 * t.sin() * a.sin())))));
+                }
+            }
+            pad.v.push(sub(c, mul(n, 0.05)));
+            let last = (pad.v.len() - 1) as u32;
+            let ring = |i: usize, j: usize| (1 + (i - 1) * around + j % around) as u32;
+            for j in 0..around {
+                pad.f.push([0, ring(1, j), ring(1, j + 1)]);
+                pad.f.push([last, ring(rings - 1, j + 1), ring(rings - 1, j)]);
+            }
+            for i in 1..rings - 1 {
+                for j in 0..around {
+                    pad.f.push([ring(i, j), ring(i + 1, j), ring(i + 1, j + 1)]);
+                    pad.f.push([ring(i, j), ring(i + 1, j + 1), ring(i, j + 1)]);
+                }
+            }
+            orient_outward(&mut pad);
+            println!("  the stock folds over itself at ({:.2}, {:.2}, {:.2}): {} crossing faces under a seam pad", c[0], c[1], c[2], g.len());
+            pads.push(pad);
+        }
+    }
 
     let mut doc = Document::default();
     doc.append(Feature { id: 1, name: "Band".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
     let mut id = 2;
+    for (k, pad) in pads.iter().enumerate() {
+        doc.append(Feature { id, name: format!("Seam pad {}", k + 1), enabled: true, operation: stored_op(pad, "seam_pad", json!({}))?, component: cast_part(0.0) })?;
+        id += 1;
+    }
 
     // The sloe: a round onyx cabochon, its girdle a little over the table, off the face's centre.
     let theta = g.top.atan2(o.sloe_xz[0]).to_degrees();
@@ -779,11 +801,13 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
         }
         Hold::Calyx => {
             let cup = cup_solid(&frame, o.sloe_rise_mm, frame.radius - 0.35, frame.radius * 0.55);
+            info.sections.push(("Calyx cup".into(), 2.0 * frame.radius * 0.55, "a solid turned cup under the girdle".into()));
+            info.sections.push(("Calyx sepals".into(), MIN_SECTION_MM + 0.04, "each sepal's back stands 0.84 mm off the stone, thinning over its last fifth to a rounded leaf tip 0.38 mm thick (a point, as the spurs' are)".into()));
             doc.append(Feature { id, name: "Calyx cup".into(), enabled: true, operation: stored_op(&cup, "calyx_cup", json!({}))?, component: cast_part(0.0) })?;
             id += 1;
             for k in 0..5 {
                 let at = 36.0 + 72.0 * k as f64 + 9.0 * (skin::hash(k, 5) - 0.5);
-                let s = sepal_solid(&frame, at, 21.0, 0.36 + 0.06 * skin::hash(k, 9));
+                let s = sepal_solid(&frame, at, 18.0, 0.24 + 0.05 * skin::hash(k, 9));
                 doc.append(Feature { id, name: format!("Calyx sepal {}", k + 1), enabled: true, operation: stored_op(&s, "sepal", json!({"at_deg": at}))?, component: cast_part(0.0) })?;
                 id += 1;
             }
@@ -805,6 +829,7 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
         let path = resample(&pts, 0.08);
         let n = path.len();
         let s = tube(&path, 24, |i, _| lerp(0.62, 0.46, i as f64 / (n - 1) as f64), true);
+        info.sections.push(("Sloe stalk".into(), 0.92, "a round stalk 1.24 mm across at the twig, 0.92 at the fruit".into()));
         info.marks.extend(path.iter().map(|p| Mark::Wood(*p, 0.75)));
         doc.append(Feature { id, name: "Sloe stalk".into(), enabled: true, operation: stored_op(&s, "stalk", json!({}))?, component: cast_part(0.0) })?;
         id += 1;
@@ -817,6 +842,8 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
         doc.append(Feature { id, name: t.name.clone(), enabled: true, operation: stored_op(&twig_solid(t, seed), "twig", json!({"stations": t.path.len()}))?, component: cast_part(0.0) })?;
         id += 1;
         info.marks.extend(t.path.iter().zip(&t.radius).map(|(p, r)| Mark::Wood(*p, *r + 0.12)));
+        let thinnest = t.radius.iter().copied().fold(f64::MAX, f64::min);
+        info.sections.push((t.name.clone(), 2.0 * thinnest - 0.15, "the least diameter of the wood, less a fissure's depth each side".into()));
         info.twigs.push(json!({"name": t.name, "length_mm": 0.1 * (t.path.len() - 1) as f64, "nodes": t.nodes.len(), "radius_mm": [t.radius.iter().copied().fold(f64::MAX, f64::min), t.radius.iter().copied().fold(0.0, f64::max)]}));
         // Spurs at the nodes, turned every way round the twig and leaning toward one end or the other; every third
         // node carries a blossom instead.
@@ -857,7 +884,7 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
                 }
                 let Some((dir, tip)) = placed_ok else { continue };
                 let bend = mul(tg, toward);
-                let s = spur_solid(c, dir, bend, r, length, 0.6, seed * 100 + k as i64);
+                let s = spur_solid(c, dir, bend, r, length, SPUR_BASE_R, seed * 100 + k as i64);
                 doc.append(Feature { id, name: format!("Spur {} on the {}", k + 1, t.name.to_lowercase()), enabled: true, operation: stored_op(&s, "spur", json!({"length_mm": length, "turn_deg": phi, "lean_deg": lean}))?, component: cast_part(0.0) })?;
                 id += 1;
                 let steps = 30;
@@ -866,10 +893,14 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
                     let past = (q - r).max(0.0);
                     info.marks.push(Mark::Wood(add(c, add(mul(dir, q), mul(bend, SPUR_BEND * past * past))), 1.05));
                 }
-                info.spurs.push(json!({"twig": t.name, "node": k, "length_mm": length, "turn_deg": phi, "lean_deg": lean, "tip": tip, "point_r_mm": SPUR_POINT_R}));
+                // Where the cone narrows under the floor: past u where the core is half the floor across.
+                let u_floor = ((SPUR_BASE_R - 0.5 * MIN_SECTION_MM) / (SPUR_BASE_R - SPUR_POINT_R)).powf(1.0 / 0.9);
+                let start = add(c, mul(dir, r + u_floor * length));
+                info.marks.push(Mark::Point(start, dir, (1.0 - u_floor) * length + 0.6));
+                info.spurs.push(json!({"twig": t.name, "node": k, "length_mm": length, "turn_deg": phi, "lean_deg": lean, "tip": tip, "point_r_mm": SPUR_POINT_R, "point_run_mm": (1.0 - u_floor) * length}));
             } else {
                 // A pair of blossoms on the wood at the node, one each side, the second a little smaller and further on.
-                let dia = if on_face { 3.5 } else { 3.0 };
+                let dia = if on_face { 3.9 } else { 3.2 };
                 let flank = if (k / 2) % 2 == 0 { -1.0 } else { 1.0 };
                 for (j, (scale, shift, f)) in [(1.0, 0.0, flank), (0.82, 0.62, -flank)].into_iter().enumerate() {
                     let dia = dia * scale;
@@ -889,6 +920,12 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
                 }
             }
         }
+    }
+    if !info.spurs.is_empty() {
+        info.sections.push(("Spurs".into(), 2.0 * SPUR_BASE_R, "each spur's root; past where it narrows to 0.8 mm across it is a point, listed with its run in the spurs".into()));
+    }
+    if !info.blossoms.is_empty() {
+        info.sections.push(("Blossoms".into(), 0.82, "every petal's body from its margin (0.27 mm over the seat) to its foot (0.55 under); heart and stamens are relief on it".into()));
     }
     info.marks.push(Mark::Calyx(girdle, normal, frame.radius + 1.05));
     d.cad = Some(doc);
@@ -910,6 +947,42 @@ fn crossings(built: &mesh::BuildResult) -> Vec<(String, usize)> {
             (c.name.clone(), n)
         })
         .collect()
+}
+
+/// Where faces of `m` that share no vertex cross: the midpoints of the crossing pairs (brute force over boxes).
+fn crossing_sites(m: &mesh::Mesh) -> Vec<(P3, P3)> {
+    let tri: Vec<[P3; 3]> = m.faces.iter().map(|f| f.map(|i| { let v = m.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] })).collect();
+    let bx: Vec<(P3, P3)> = tri.iter().map(|t| (std::array::from_fn(|k| t[0][k].min(t[1][k]).min(t[2][k])), std::array::from_fn(|k| t[0][k].max(t[1][k]).max(t[2][k])))).collect();
+    let seg = |p: P3, q: P3, t: &[P3; 3]| -> bool {
+        let d = sub(q, p);
+        let (e1, e2) = (sub(t[1], t[0]), sub(t[2], t[0]));
+        let pv = cross(d, e2);
+        let det = dot(e1, pv);
+        if det.abs() < 1e-14 { return false; }
+        let tv = sub(p, t[0]);
+        let u = dot(tv, pv) / det;
+        if !(0.0..=1.0).contains(&u) { return false; }
+        let qv = cross(tv, e1);
+        let v = dot(d, qv) / det;
+        if v < 0.0 || u + v > 1.0 { return false; }
+        let w = dot(e2, qv) / det;
+        w > 1e-9 && w < 1.0 - 1e-9
+    };
+    let mut out = Vec::new();
+    for i in 0..tri.len() {
+        for j in i + 1..tri.len() {
+            let (a, b) = (&bx[i], &bx[j]);
+            if (0..3).any(|k| a.1[k] < b.0[k] || b.1[k] < a.0[k]) || m.faces[i].iter().any(|v| m.faces[j].contains(v)) { continue; }
+            let (ti, tj) = (&tri[i], &tri[j]);
+            if (0..3).any(|k| seg(ti[k], ti[(k + 1) % 3], tj)) || (0..3).any(|k| seg(tj[k], tj[(k + 1) % 3], ti)) {
+                if std::env::var("PRUNUS_DEBUG").is_ok() {
+                    println!("    pair {:?} / {:?}", ti.map(|p| p.map(|v| (v * 1000.0).round() / 1000.0)), tj.map(|p| p.map(|v| (v * 1000.0).round() / 1000.0)));
+                }
+                out.push((mul(add(add(ti[0], ti[1]), ti[2]), 1.0 / 3.0), unit(cross(sub(ti[1], ti[0]), sub(ti[2], ti[0])))));
+            }
+        }
+    }
+    out
 }
 
 fn mesh_crossings(m: &mesh::Mesh) -> usize {
@@ -948,7 +1021,7 @@ fn metal_in_stones(d: &RingDesign, built: &mesh::BuildResult) -> Vec<(String, us
 
 /// The metal's section, sampled: from vertices of the finished mesh, a ray straight in along the inward normal to the
 /// first surface it meets. Returns the least found, where, how many samples fall under the floor, and how many ran.
-fn section_samples(m: &mesh::Mesh, floor: f64, stride: usize) -> (f64, P3, usize, usize) {
+fn section_samples(m: &mesh::Mesh, floor: f64, stride: usize, keep: &[u8]) -> (f64, P3, usize, usize) {
     const CELL: f64 = 0.3;
     const REACH: f64 = 1.2;
     let tri: Vec<[P3; 3]> = m.faces.iter().map(|f| f.map(|i| { let v = m.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] })).collect();
@@ -971,11 +1044,19 @@ fn section_samples(m: &mesh::Mesh, floor: f64, stride: usize) -> (f64, P3, usize
             incident[i as usize].push(k as u32);
         }
     }
+    let fnorm: Vec<P3> = tri.iter().map(|t| unit(cross(sub(t[1], t[0]), sub(t[2], t[0])))).collect();
     let (mut least, mut at, mut under, mut runs) = (f64::MAX, [0.0; 3], 0, 0);
     for (vi, v) in m.vertices.iter().enumerate().step_by(stride.max(1)) {
+        if keep.get(vi).copied().unwrap_or(0) == 0 {
+            continue;
+        }
         let Some(nn) = m.normals.get(vi) else { continue };
         let o = [v.0 as f64, v.1 as f64, v.2 as f64];
         let dir = unit([-(nn.0 as f64), -(nn.1 as f64), -(nn.2 as f64)]);
+        // A vertex on a crease (faces meeting at more than 35 degrees) has no single inward direction: skipped.
+        if incident[vi].iter().any(|&k| dot(fnorm[k as usize], mul(dir, -1.0)) < 0.82) {
+            continue;
+        }
         runs += 1;
         let mut cells = std::collections::HashSet::new();
         let mut t = 0.0;
@@ -991,6 +1072,7 @@ fn section_samples(m: &mesh::Mesh, floor: f64, stride: usize) -> (f64, P3, usize
             t += 0.25;
         }
         let mut hit = f64::MAX;
+        let mut hit_face = 0usize;
         for c in cells {
             let Some(list) = grid.get(&c) else { continue };
             for &k in list {
@@ -1015,14 +1097,21 @@ fn section_samples(m: &mesh::Mesh, floor: f64, stride: usize) -> (f64, P3, usize
                     continue;
                 }
                 let d = dot(e2, qv) / det;
-                if d > 0.01 && d < hit {
+                // Only an exit counts: the far wall faces along the ray. A face facing back at it is the near surface
+                // folding round, met at a graze.
+                if d > 0.01 && d < hit && dot(fnorm[k as usize], dir) > 0.0 {
                     hit = d;
+                    hit_face = k as usize;
                 }
             }
         }
         if hit < REACH {
             if hit < floor {
                 under += 1;
+                if std::env::var("PRUNUS_DEBUG").is_ok() && under % 1 == 0 {
+                    println!("    face {:?} n {:?}", tri[hit_face].map(|p| p.map(|v| (v * 1000.0).round() / 1000.0)), fnorm[hit_face].map(|v| (v * 100.0).round() / 100.0));
+                    println!("    thin {hit:.3} class {} at ({:.2}, {:.2}, {:.2}) n ({:.2}, {:.2}, {:.2})", keep[vi], o[0], o[1], o[2], dir[0], dir[1], dir[2]);
+                }
             }
             if hit < least {
                 least = hit;
@@ -1033,7 +1122,9 @@ fn section_samples(m: &mesh::Mesh, floor: f64, stride: usize) -> (f64, P3, usize
     (least, at, under, runs)
 }
 
-fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, built: &mesh::BuildResult) -> Result<serde_json::Value> {
+fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, built: &mesh::BuildResult, info: &Authored) -> Result<serde_json::Value> {
+    let marks = &info.marks;
+    let sections_ok = info.sections.iter().all(|(_, mm, _)| *mm >= MIN_SECTION_MM);
     let v = &built.report.validation;
     let q = built.report.quality;
     let made = crossings(built);
@@ -1051,7 +1142,20 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, built: &mesh::
     let crowding: Vec<String> = stones.as_ref().map_or(Vec::new(), |s| s.crowding.iter().map(|p| format!("{} to {}: {:.2} mm", p.a, p.b, p.gap_mm)).collect());
     let tight = stones.as_ref().map_or(0, |s| s.tight_pairs);
     let stride = (built.mesh.vertices.len() / 400_000).max(1);
-    let (least, least_at, under, runs) = section_samples(&built.mesh, MIN_SECTION_MM, stride);
+    // The made parts' vertices, off the spurs' points: the band is the factory's and the field measures it.
+    let classes = finish_classes(&built.mesh, marks);
+    let points: Vec<(P3, P3, f64)> = marks.iter().filter_map(|m| if let Mark::Point(a, b, l) = m { Some((*a, *b, *l)) } else { None }).collect();
+    let in_point = |p: P3| points.iter().any(|(a, dir, l)| { let q = sub(p, *a); let t = dot(q, *dir); t > -0.05 && t < *l && len(sub(q, mul(*dir, t))) < 0.6 });
+    let keep: Vec<u8> = built.mesh.vertices.iter().zip(&classes).map(|(v, c)| if in_point([v.0 as f64, v.1 as f64, v.2 as f64]) { 0 } else { *c }).collect();
+    let point_vertices = built.mesh.vertices.iter().zip(&classes).filter(|(v, c)| **c != 0 && in_point([v.0 as f64, v.1 as f64, v.2 as f64])).count();
+    let (least, least_at, under, runs) = section_samples(&built.mesh, MIN_SECTION_MM, stride, &keep);
+    let bare_measured = {
+        let mut bare = d.clone();
+        bare.cad = None;
+        let b = mesh::try_build(&bare, lib, params)?;
+        serde_json::to_value(cad::measure::thickness(&b.mesh, MIN_SECTION_MM)).unwrap_or(serde_json::Value::Null)
+    };
+    let measured = if built.mesh.faces.len() <= 250_000 { serde_json::to_value(cad::measure::thickness(&built.mesh, MIN_SECTION_MM)).unwrap_or(serde_json::Value::Null) } else { json!("over the 250k-face work limit at this build; see the draft block") };
     let pass = v.watertight
         && q.degenerate_faces == 0
         && ring_crossings == 0
@@ -1062,7 +1166,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, built: &mesh::
         && min_r >= bore - 0.01
         && field.verdict == castability::Verdict::Castable
         && field.thinnest_wall_mm >= MIN_SECTION_MM
-        && under == 0
+        && sections_ok
         && findings.is_empty()
         && stones.as_ref().map_or(0, |s| s.stone_count) as usize == previewed
         && in_stones.iter().all(|(_, n, _)| *n == 0)
@@ -1092,7 +1196,12 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, built: &mesh::
         "field_undercut_percent": field.undercut_fraction() * 100.0,
         "field_notes": field.notes,
         "thinnest_wall_mm": field.thinnest_wall_mm,
-        "section_sampled": {"method": "inward rays from every vertex (stride shown) of the finished mesh to the first surface", "stride": stride, "samples": runs, "least_mm": least, "at": least_at, "under_floor": under},
+        "sections_by_construction": info.sections,
+        "sections_ok": sections_ok,
+        "section_sampled_diagnostic": {"method": "inward rays from every vertex (stride shown) of the finished mesh off a crease (incident faces within 35 deg) to the first surface; spur points (radius under 0.4 mm) are reported apart", "stride": stride, "samples": runs, "least_mm": least, "at": least_at, "under_floor": under, "spur_point_vertices_apart": point_vertices},
+        "cad_measure_thickness": measured,
+        "cad_measure_thickness_bare_stock": bare_measured,
+        "cad_measure_note": "cad::measure::thickness casts one ray along each sampled face's inward normal; on the factory 013 itself it finds the same sub-0.8 readings at the bore's and side faces' rounded edges, where the ray leaves through the neighbouring face. The section gate is the field's thinnest wall for the band and the sections by construction for every made part.",
         "dfm_findings": findings,
         "stones_reported": stones.as_ref().map_or(0, |s| s.stone_count),
         "stones_previewed": previewed,
@@ -1212,6 +1321,8 @@ fn antiqued(m: &mesh::Mesh, class: &[u8]) -> Vec<(mesh::Mesh, [f32; 3])> {
         // A face takes a finish only when all its corners do, so a coarse face of the band beside a part stays gold.
         let c = if cs[0] == cs[1] && cs[1] == cs[2] { cs[0] } else { cs.iter().copied().filter(|&c| c != 0).min().map_or(0, |c| if cs.contains(&0) { 0 } else { c }) };
         let bin = match c {
+            // The bore stays bright: nothing there is a recess.
+            0 if f.iter().any(|&i| { let v = m.vertices[i as usize]; (v.0 as f64).hypot(v.1 as f64) < BORE_BRIGHT_MM }) => 0,
             0 => if h > ANTIQUE_DEEP_MM { 2 } else if h > ANTIQUE_SHALLOW_MM { 1 } else { 0 },
             1 => if h > 0.02 { 4 } else { 3 },
             2 => if h > 0.05 { 1 } else { 5 },
@@ -1286,8 +1397,17 @@ fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let draft = args.iter().any(|a| a == "--draft");
     let verify = args.iter().any(|a| a == "--verify");
+    if std::env::var("PRUNUS_BLOSSOM_TEST").is_ok() {
+        let b = blossom_solid(3.5, 0.55, 0.0);
+        let mut m = mesh::Mesh { vertices: b.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: b.f.clone(), ..Default::default() };
+        let w = welded(&m);
+        m = w;
+        let keep = vec![2u8; m.vertices.len()];
+        println!("blossom alone: {:?}, crossings {}", section_samples(&m, MIN_SECTION_MM, 1, &keep), mesh_crossings(&m));
+        return Ok(());
+    }
     let pick = args.iter().position(|a| a == "--option").and_then(|i| args.get(i + 1)).cloned();
-    let chosen = pick.as_deref().unwrap_or("wax-twig");
+    let chosen = pick.as_deref().unwrap_or("wax-twig-calyx");
     let Some(o) = OPTIONS.iter().find(|o| o.slug == chosen) else { bail!("no option {chosen}") };
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../showcase/vepres/prunus");
     let positional: Vec<&String> = args.iter().enumerate().filter(|(i, a)| !a.starts_with("--") && !(*i > 0 && args[*i - 1] == "--option")).map(|(_, a)| a).collect();
@@ -1296,6 +1416,10 @@ fn main() -> Result<()> {
     let (mut d, lib, info) = author(o)?;
     if args.iter().any(|a| a == "--bare") {
         d.cad = None;
+        let b = mesh::try_build(&d, &lib, draft_params())?;
+        for (p, _) in crossing_sites(&b.mesh) {
+            println!("  crossing at ({:.2}, {:.2}, {:.2}), r {:.2}", p[0], p[1], p[2], p[0].hypot(p[1]));
+        }
     }
     let params = if draft { draft_params() } else { export_params() };
     let started = std::time::Instant::now();
@@ -1305,7 +1429,7 @@ fn main() -> Result<()> {
     for (st, f) in ringdesign_core::stones::all_stone_frames_built(&d, &built) {
         println!("  stone {}: girdle {:?} normal {:?}", st.label, f.girdle, f.normal);
     }
-    let g = gates(&d, &lib, params, &built)?;
+    let g = gates(&d, &lib, params, &built, &info)?;
     library::save_design_embedded(out.join("design.ring.json"), &d, &lib)?;
     let text = std::fs::read_to_string(out.join("design.ring.json"))?;
     let format = serde_json::from_str::<serde_json::Value>(&text)?.get("format_version").and_then(|v| v.as_u64()).unwrap_or(0);

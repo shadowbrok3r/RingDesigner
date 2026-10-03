@@ -1,0 +1,24 @@
+{
+  "ring": "prunus",
+  "option": "wax-twig-calyx",
+  "test": 6,
+  "reads": true,
+  "what_the_eye_sees": "A knobbly dark twig laid diagonally across the top of a plain gold band, studded with small five-petal blossoms and with sharp spines jutting off both ends, and a round matte blue-black stone held up in a cup of pointed blades at the centre. The bare thorny branch with five-petal flowers and a dusky dark fruit says blackthorn or sloe, a plum-type Prunus, within a second or two. Read cold, 'plum or cherry blossom branch' is what comes first. The weak point is the stone mount: the tall pointed blades behind the stone look like a flame crown or claw setting, not a calyx or fruit stalk. The blossoms are small and the same brass tone as the twig, so at 300 px they partly merge into the lumpy bark.",
+  "changes": [
+    {
+      "what": "Replace the tall blade cup behind the stone with a short five-lobed calyx and a stubby stalk rising from the twig, so the stone hangs as a sloe off the branch instead of sitting in a crown",
+      "where": "centre stone mount, the pointed blades behind and above the stone (face view, top centre)",
+      "by_how_much": "cut blade height by about 60% so no lobe rises above the stone's equator; 5 rounded-tip lobes; visible stalk about 1.5 mm long joining the twig"
+    },
+    {
+      "what": "Enlarge the blossoms and separate them from the bark so the five petals and the centre read clearly",
+      "where": "the 6 to 8 flower stamps along the twig on both sides of the stone",
+      "by_how_much": "petal span up 30 to 40%; add a raised stamen boss or a 0.2 mm recessed petal gap; drop one or two of the smallest flowers so the rest sit clear of the knots"
+    },
+    {
+      "what": "Smooth the twig into one continuous tapering branch with fewer knots and keep the thorns as the clear end accents",
+      "where": "the twig across the face, from the left spine to the right spine",
+      "by_how_much": "about half the current knobs; taper about 1.5:1 from the stone outward; lengthen each end spine about 20% and add one short side spine per side"
+    }
+  ]
+}

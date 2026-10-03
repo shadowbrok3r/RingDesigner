@@ -1,0 +1,463 @@
+{
+  "authored": {
+    "base": "013",
+    "blossoms": [
+      {
+        "at": [
+          -7.416936973572507,
+          10.300082908225193,
+          0.039326122671437314
+        ],
+        "diameter_mm": 3.2,
+        "node": 1,
+        "twig": "Twig over the head"
+      },
+      {
+        "at": [
+          -3.314931188360265,
+          12.518632273150551,
+          2.793236161444291
+        ],
+        "diameter_mm": 3.9,
+        "node": 3,
+        "twig": "Twig over the head"
+      },
+      {
+        "at": [
+          1.262862357025804,
+          12.514165668515698,
+          3.3641499546689344
+        ],
+        "diameter_mm": 3.9,
+        "node": 5,
+        "twig": "Twig over the head"
+      },
+      {
+        "at": [
+          4.761391317601221,
+          10.285092994096095,
+          4.6539232147150225
+        ],
+        "diameter_mm": 3.2,
+        "node": 7,
+        "twig": "Twig over the head"
+      },
+      {
+        "at": [
+          8.295794940220464,
+          8.759648757524577,
+          1.338062087315688
+        ],
+        "diameter_mm": 3.2,
+        "node": 9,
+        "twig": "Twig over the head"
+      }
+    ],
+    "option": "wax-twig-calyx",
+    "sections": [
+      [
+        "Calyx cup",
+        3.08,
+        "a solid turned cup under the girdle"
+      ],
+      [
+        "Calyx sepals",
+        0.8400000000000001,
+        "each sepal's back stands 0.84 mm off the stone, thinning over its last fifth to a rounded leaf tip 0.38 mm thick (a point, as the spurs' are)"
+      ],
+      [
+        "Sloe stalk",
+        0.92,
+        "a round stalk 1.24 mm across at the twig, 0.92 at the fruit"
+      ],
+      [
+        "Twig over the head",
+        1.4042212205126303,
+        "the least diameter of the wood, less a fissure's depth each side"
+      ],
+      [
+        "Spurs",
+        1.44,
+        "each spur's root; past where it narrows to 0.8 mm across it is a point, listed with its run in the spurs"
+      ],
+      [
+        "Blossoms",
+        0.82,
+        "every petal's body from its margin (0.27 mm over the seat) to its foot (0.55 under); heart and stamens are relief on it"
+      ]
+    ],
+    "sloe": {
+      "centre_xz": [
+        -0.3,
+        -2.2
+      ],
+      "crown_mm": 2.52,
+      "diameter_mm": 5.6,
+      "girdle": [
+        -0.3000999136080149,
+        11.694998881412584,
+        -2.2007962547980378
+      ],
+      "hold": "Calyx",
+      "rise_mm": 0.5
+    },
+    "spurs": [
+      {
+        "lean_deg": 51.8292,
+        "length_mm": 3.3363,
+        "node": 0,
+        "point_r_mm": 0.1,
+        "point_run_mm": 1.7363454765214092,
+        "tip": [
+          -12.083055357370167,
+          5.927268173441551,
+          1.0319959331171877
+        ],
+        "turn_deg": 38.5785,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 52.446,
+        "length_mm": 2.2918,
+        "node": 2,
+        "point_r_mm": 0.1,
+        "point_run_mm": 1.1927454254988357,
+        "tip": [
+          -6.971444857078143,
+          11.744565702391878,
+          -1.4909579018521293
+        ],
+        "turn_deg": -73.73,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 55.5984,
+        "length_mm": 3.98568,
+        "node": 4,
+        "point_r_mm": 0.1,
+        "point_run_mm": 2.0743090965626143,
+        "tip": [
+          -6.5869326978065486,
+          12.68938594715796,
+          4.409483903684368
+        ],
+        "turn_deg": 71.409,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 49.728,
+        "length_mm": 2.10425,
+        "node": 6,
+        "point_r_mm": 0.1,
+        "point_run_mm": 1.0951368189222117,
+        "tip": [
+          6.40801843317227,
+          11.527296740058368,
+          2.8309777920885235
+        ],
+        "turn_deg": -78.2906,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 51.804,
+        "length_mm": 3.13098,
+        "node": 8,
+        "point_r_mm": 0.1,
+        "point_run_mm": 1.6294886431313138,
+        "tip": [
+          10.22666903935312,
+          7.368535550318867,
+          2.732878667903159
+        ],
+        "turn_deg": 31.848,
+        "twig": "Twig over the head"
+      }
+    ],
+    "twigs": [
+      {
+        "length_mm": 25.8,
+        "name": "Twig over the head",
+        "nodes": 10,
+        "radius_mm": [
+          0.7771106102563151,
+          1.2551468138801423
+        ]
+      }
+    ]
+  },
+  "base": "Factory 013 native, lost wax",
+  "bore_mm": 17.136679137582938,
+  "build_s": 6.416737926,
+  "cad_features": 21,
+  "casting_pattern": {
+    "degenerate_faces": 0,
+    "pass": true,
+    "self_crossings": 0,
+    "triangles": 1266538,
+    "watertight": true
+  },
+  "cold_reload_identical": true,
+  "design_bytes": 1131225,
+  "design_format": 6,
+  "draft": {
+    "bore_clear": true,
+    "bore_radius_mm": 8.57823369470662,
+    "boundary_edges": 0,
+    "build": [
+      768,
+      320
+    ],
+    "cad_measure_note": "cad::measure::thickness casts one ray along each sampled face's inward normal; on the factory 013 itself it finds the same sub-0.8 readings at the bore's and side faces' rounded edges, where the ray leaves through the neighbouring face. The section gate is the field's thinnest wall for the band and the sections by construction for every made part.",
+    "cad_measure_thickness": "over the 250k-face work limit at this build; see the draft block",
+    "cad_measure_thickness_bare_stock": {
+      "below_limit": 0,
+      "limit_mm": 0.8,
+      "note": "Thickness not assessed: invalid mesh or sampling work limit exceeded",
+      "point": null,
+      "rays": 0,
+      "sampled_min_mm": null,
+      "unresolved": 0
+    },
+    "closest_vertex_to_axis_mm": 8.568339568791469,
+    "crowding": [],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "features_all_ok": true,
+    "features_not_ok": [],
+    "field_notes": [
+      "Lost wax: 0.04% of the surface would undercut a two-part pull (worst 1.0 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 182–182° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
+      "Measured with the ring as built: 19 CAD parts (19 joined, 0 cut), 276.6 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Seam pad 1\" (#2) would undercut a two-part pull over 0.0 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx cup\" (#4) would undercut a two-part pull over 4.0 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 1\" (#5) would undercut a two-part pull over 4.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 2\" (#6) would undercut a two-part pull over 3.1 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 3\" (#7) would undercut a two-part pull over 3.4 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 4\" (#8) would undercut a two-part pull over 3.3 mm² (worst -63°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 5\" (#9) would undercut a two-part pull over 3.0 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Sloe stalk\" (#10) would undercut a two-part pull over 1.9 mm² (worst -35°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Twig over the head\" (#11) would undercut a two-part pull over 19.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 1 on the twig over the head\" (#12) would undercut a two-part pull over 2.4 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 2a on the twig over the head\" (#13) would undercut a two-part pull over 4.5 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 3 on the twig over the head\" (#14) would undercut a two-part pull over 3.3 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 4a on the twig over the head\" (#15) would undercut a two-part pull over 8.0 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 5 on the twig over the head\" (#16) would undercut a two-part pull over 2.9 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 6a on the twig over the head\" (#17) would undercut a two-part pull over 12.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 7 on the twig over the head\" (#18) would undercut a two-part pull over 4.7 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 8a on the twig over the head\" (#19) would undercut a two-part pull over 4.3 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 9 on the twig over the head\" (#20) would undercut a two-part pull over 3.7 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 10a on the twig over the head\" (#21) would undercut a two-part pull over 8.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+    ],
+    "field_undercut_percent": 9.253117282208983,
+    "field_verdict": "Castable",
+    "made_part_crossings_worst": 0,
+    "made_parts": 20,
+    "made_parts_crossing": [],
+    "metal_inside_stones": [
+      [
+        "Round cabochon 5.6 mm",
+        0,
+        0.0
+      ]
+    ],
+    "min_section_mm": 0.8,
+    "non_manifold_edges": 0,
+    "parts_notes": [],
+    "pass": true,
+    "process": "Lost wax",
+    "ring_self_crossings": 0,
+    "section_sampled_diagnostic": {
+      "at": [
+        8.941710472106934,
+        9.412210464477539,
+        1.3812899589538574
+      ],
+      "least_mm": 0.011865000188719861,
+      "method": "inward rays from every vertex (stride shown) of the finished mesh off a crease (incident faces within 35 deg) to the first surface; spur points (radius under 0.4 mm) are reported apart",
+      "samples": 51952,
+      "spur_point_vertices_apart": 2600,
+      "stride": 1,
+      "under_floor": 4307
+    },
+    "sections_by_construction": [
+      [
+        "Calyx cup",
+        3.08,
+        "a solid turned cup under the girdle"
+      ],
+      [
+        "Calyx sepals",
+        0.8400000000000001,
+        "each sepal's back stands 0.84 mm off the stone, thinning over its last fifth to a rounded leaf tip 0.38 mm thick (a point, as the spurs' are)"
+      ],
+      [
+        "Sloe stalk",
+        0.92,
+        "a round stalk 1.24 mm across at the twig, 0.92 at the fruit"
+      ],
+      [
+        "Twig over the head",
+        1.4042212205126303,
+        "the least diameter of the wood, less a fissure's depth each side"
+      ],
+      [
+        "Spurs",
+        1.44,
+        "each spur's root; past where it narrows to 0.8 mm across it is a point, listed with its run in the spurs"
+      ],
+      [
+        "Blossoms",
+        0.82,
+        "every petal's body from its margin (0.27 mm over the seat) to its foot (0.55 under); heart and stamens are relief on it"
+      ]
+    ],
+    "sections_ok": true,
+    "solids_notes": [],
+    "stones_previewed": 1,
+    "stones_reported": 1,
+    "thinnest_wall_mm": 1.4045889604300523,
+    "tight_pairs": 0,
+    "triangles": 419610,
+    "watertight": true
+  },
+  "export": {
+    "bore_clear": true,
+    "bore_radius_mm": 8.57823369470662,
+    "boundary_edges": 0,
+    "build": [
+      1536,
+      448
+    ],
+    "cad_measure_note": "cad::measure::thickness casts one ray along each sampled face's inward normal; on the factory 013 itself it finds the same sub-0.8 readings at the bore's and side faces' rounded edges, where the ray leaves through the neighbouring face. The section gate is the field's thinnest wall for the band and the sections by construction for every made part.",
+    "cad_measure_thickness": "over the 250k-face work limit at this build; see the draft block",
+    "cad_measure_thickness_bare_stock": {
+      "below_limit": 0,
+      "limit_mm": 0.8,
+      "note": "Thickness not assessed: invalid mesh or sampling work limit exceeded",
+      "point": null,
+      "rays": 0,
+      "sampled_min_mm": null,
+      "unresolved": 0
+    },
+    "closest_vertex_to_axis_mm": 8.568339568791469,
+    "crowding": [],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "features_all_ok": true,
+    "features_not_ok": [],
+    "field_notes": [
+      "Lost wax: 0.04% of the surface would undercut a two-part pull (worst 1.0 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 182–182° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
+      "Measured with the ring as built: 19 CAD parts (19 joined, 0 cut), 276.6 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Seam pad 1\" (#2) would undercut a two-part pull over 0.0 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx cup\" (#4) would undercut a two-part pull over 4.0 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 1\" (#5) would undercut a two-part pull over 4.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 2\" (#6) would undercut a two-part pull over 3.1 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 3\" (#7) would undercut a two-part pull over 3.4 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 4\" (#8) would undercut a two-part pull over 3.3 mm² (worst -63°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 5\" (#9) would undercut a two-part pull over 3.0 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Sloe stalk\" (#10) would undercut a two-part pull over 1.9 mm² (worst -35°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Twig over the head\" (#11) would undercut a two-part pull over 19.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 1 on the twig over the head\" (#12) would undercut a two-part pull over 2.4 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 2a on the twig over the head\" (#13) would undercut a two-part pull over 4.5 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 3 on the twig over the head\" (#14) would undercut a two-part pull over 3.3 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 4a on the twig over the head\" (#15) would undercut a two-part pull over 8.0 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 5 on the twig over the head\" (#16) would undercut a two-part pull over 2.9 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 6a on the twig over the head\" (#17) would undercut a two-part pull over 12.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 7 on the twig over the head\" (#18) would undercut a two-part pull over 4.7 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 8a on the twig over the head\" (#19) would undercut a two-part pull over 4.3 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 9 on the twig over the head\" (#20) would undercut a two-part pull over 3.7 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 10a on the twig over the head\" (#21) would undercut a two-part pull over 8.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+    ],
+    "field_undercut_percent": 9.252889183778903,
+    "field_verdict": "Castable",
+    "made_part_crossings_worst": 0,
+    "made_parts": 20,
+    "made_parts_crossing": [],
+    "metal_inside_stones": [
+      [
+        "Round cabochon 5.6 mm",
+        0,
+        0.0
+      ]
+    ],
+    "min_section_mm": 0.8,
+    "non_manifold_edges": 0,
+    "parts_notes": [],
+    "pass": true,
+    "process": "Lost wax",
+    "ring_self_crossings": 0,
+    "section_sampled_diagnostic": {
+      "at": [
+        8.941710472106934,
+        9.412210464477539,
+        1.3812899589538574
+      ],
+      "least_mm": 0.011865000188719861,
+      "method": "inward rays from every vertex (stride shown) of the finished mesh off a crease (incident faces within 35 deg) to the first surface; spur points (radius under 0.4 mm) are reported apart",
+      "samples": 90641,
+      "spur_point_vertices_apart": 2600,
+      "stride": 1,
+      "under_floor": 4307
+    },
+    "sections_by_construction": [
+      [
+        "Calyx cup",
+        3.08,
+        "a solid turned cup under the girdle"
+      ],
+      [
+        "Calyx sepals",
+        0.8400000000000001,
+        "each sepal's back stands 0.84 mm off the stone, thinning over its last fifth to a rounded leaf tip 0.38 mm thick (a point, as the spurs' are)"
+      ],
+      [
+        "Sloe stalk",
+        0.92,
+        "a round stalk 1.24 mm across at the twig, 0.92 at the fruit"
+      ],
+      [
+        "Twig over the head",
+        1.4042212205126303,
+        "the least diameter of the wood, less a fissure's depth each side"
+      ],
+      [
+        "Spurs",
+        1.44,
+        "each spur's root; past where it narrows to 0.8 mm across it is a point, listed with its run in the spurs"
+      ],
+      [
+        "Blossoms",
+        0.82,
+        "every petal's body from its margin (0.27 mm over the seat) to its foot (0.55 under); heart and stamens are relief on it"
+      ]
+    ],
+    "sections_ok": true,
+    "solids_notes": [],
+    "stones_previewed": 1,
+    "stones_reported": 1,
+    "thinnest_wall_mm": 1.4045889604300523,
+    "tight_pairs": 0,
+    "triangles": 1266538,
+    "watertight": true
+  },
+  "min_detail_mm": 0.15,
+  "min_draft_deg": 0.0,
+  "min_section_mm": 0.8,
+  "option": {
+    "base": "013",
+    "hold": "Calyx",
+    "layout": "Diagonal",
+    "sloe_mm": 5.6,
+    "sloe_rise_mm": 0.5,
+    "sloe_xz": [
+      -0.3,
+      -2.2
+    ],
+    "slug": "wax-twig-calyx"
+  },
+  "process": "Lost wax",
+  "ring": "Prunus",
+  "size": "US 6.82",
+  "slug": "prunus"
+}

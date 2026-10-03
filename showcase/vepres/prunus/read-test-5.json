@@ -1,0 +1,27 @@
+{
+  "ring": "prunus",
+  "option": "wax-calyx",
+  "test": 5,
+  "reads": false,
+  "what_the_eye_sees": "A gothic black-pearl solitaire. A round dark cabochon sits high in a crown of sharp sawtooth claws, and a long thin needle runs straight out from each shoulder like a pin through the ring. On the right shoulder there is one tiny five-petal flower, and the left has a small dark knot of buds. At 300 px the claws read as a spiky bezel, not as a calyx holding a fruit. The stone reads as a black pearl, not a sloe. The single blossom is too small and too alone to name the plant. A jeweller would say 'thorn ring with a black pearl', maybe 'a thorny rose' or 'hawthorn'. They would not say blackthorn or sloe without being told. The idea (spine, blossom, dark fruit) is there in the parts, but no one part is big or repeated enough to carry the read.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the blossom-on-thorn signature carry the read: grow a cluster of 3 to 5 five-petal blossoms on each shoulder, packed along the base of each spine, not one flower on one side",
+      "where": "Both shoulders, about 25 to 60 degrees each side of the face centre, along the spine roots",
+      "by_how_much": "Each blossom 2.5 to 3.0 mm across (now about 1.5 mm), with petals as separate rounded lobes whose outlines show at 300 px. Put the 4 diamonds (1.3 mm) in as blossom centres, two per side, so the clusters flash white against the dark twig. Acceptance: in face-300, at least 3 distinct flowers can be counted on each side."
+    },
+    {
+      "priority": 2,
+      "what": "Turn the crown of claws into a sloe on its stalk: a low, soft five-lobed sepal cup under the stone, plus a short visible stem that joins the stone to the twig",
+      "where": "Stone setting at the face centre",
+      "by_how_much": "Cut the claws from about 10 tall sawtooth points to 5 broad rounded sepals that reach no more than a third of the way up the stone. Hold the stone with 4 low beads or a bezel lip, not points. Add a stalk 1.0 to 1.5 mm thick running 2 to 3 mm from the cup toward one shoulder twig. Acceptance: in hero-300 the stone reads as a fruit hanging off the twig, not as a gem in a crown."
+    },
+    {
+      "priority": 3,
+      "what": "Replace the straight needle on a smooth band with a gnarled blackthorn twig: a knobbly branch with short side-spurs that end in spines at about 45 to 70 degrees to the twig",
+      "where": "Both shoulders, running from the setting down to about 90 degrees each side",
+      "by_how_much": "Twig relief 1.0 to 1.5 mm with knuckles every 3 to 4 mm. Add 2 to 3 spurs per side, 2.5 to 4 mm long, that taper to a point, in place of the one 6 mm horizontal pin. Darken the twig with a recess patina so it reads black against the gold band. Acceptance: in face-300 the shoulders show a branching thorny twig, not a single line passing through."
+    }
+  ]
+}

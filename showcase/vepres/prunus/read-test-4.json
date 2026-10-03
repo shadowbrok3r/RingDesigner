@@ -1,0 +1,27 @@
+{
+  "ring": "prunus",
+  "option": "wax-twig",
+  "test": 4,
+  "reads": false,
+  "what_the_eye_sees": "A gold cushion signet with a big blue-black round cabochon held up in four claws, and below it a smile-shaped garland of small gold five-petal flowers on a dark twig, with a few long needle spikes poking out at the ends and sides. At 300 px the first words are 'solitaire signet with a blossom garland' or 'thorny cherry/plum blossom branch'. Nobody says blackthorn or sloe: the stone reads as a set gem, not a fruit growing on the branch; the flowers are an evenly spaced daisy-chain that hides the twig; and the thorns look like stray pins added to the ends rather than spur-tips growing out of a black twig. Thorns plus blossom does get a jeweller to 'some Prunus', but not to the plant by name.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "centre face, the onyx 7.0 round cabochon and its four claws",
+      "change": "Make the stone a sloe on the twig, not a solitaire above it: drop it about 1.5-2 mm so its lower third sits on/behind the twig line, replace the four tall claws with a low bezel or short claws dressed as a 5-lobed calyx, and give it a 1.5-2 mm stalk joining the twig. Optionally add one or two smaller onyx/black sloes (3-4 mm) on short stalks along the twig so the fruit reads as a cluster.",
+      "test": "In the face-300 view the stone visibly hangs from or sits on the twig, with a stalk/calyx, and no claw tips stand above the twig line."
+    },
+    {
+      "priority": 2,
+      "where": "the twig across the lower face, theta roughly -40 to +40 deg",
+      "change": "Thin the blossom from ~8 evenly spaced flowers to 3-4 tight clusters of 2-3 flowers sitting at nodes, so at least 60% of the twig length is bare, black and knuckled. Thicken the twig ~30% and give it an angular, zig-zag growth with node bumps. Grow the thorns out of the twig as 3-5 straight spur-shoots (graded 2-5 mm) at the nodes, angled forward along the growth, instead of the long needles at the two ends.",
+      "test": "At 300 px the dark twig reads as a continuous black zig-zag branch, and each thorn visibly roots on the twig at a node, with flower clusters at the bases of the spurs."
+    },
+    {
+      "priority": 3,
+      "where": "flowers and twig finish (plating/patina layers)",
+      "change": "Push the contrast blackthorn is known by: blossom bright-polished or white (rhodium/silver) with a raised stamen boss, twig fully blackened; the flowers are currently the same gold as the shank and merge into it.",
+      "test": "In both renders the flowers are the brightest value on the face and the twig is the darkest, with the blossom clearly sitting on bare black wood."
+    }
+  ]
+}
