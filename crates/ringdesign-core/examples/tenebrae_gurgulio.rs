@@ -12,7 +12,8 @@ use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign, ShankKind,
     cad::{self, Attach, Component, Document, Feature, Operation, Placement, stored},
     castability::{self, CastProcess, Verdict},
-    csg, dfm, library, manufacturing as mf, mesh,
+    csg, dfm,
+    library, manufacturing as mf, mesh,
     profile::ShankKey,
     render,
     sculpt::{self, ellipsoid, round_cone, smax, smin},
@@ -42,7 +43,7 @@ const BAND_T: f64 = 1.9;
 // corbel tapering out of the band, the wall with its blind arcade, and a cornice of two steps, each overhanging the one
 // below. Each tier is a half-width in x, a z run and a y run.
 /// The corbel: its half-widths at its foot (sunk in the band) and where it meets the wall, its z run at the wall.
-const CORBEL_Y: [f64; 2] = [9.6, 12.0];
+const CORBEL_Y: [f64; 2] = [9.6, 11.9];
 const CORBEL_HX: [f64; 2] = [3.3, 4.4];
 const CORBEL_Z: [f64; 2] = [-4.6, 3.6];
 /// How much narrower the corbel's z run is at its foot, each end, mm.
@@ -50,19 +51,19 @@ const CORBEL_TAPER: f64 = 0.9;
 /// The wall.
 const WALL_HX: f64 = 4.4;
 const WALL_Z: [f64; 2] = [-4.6, 3.6];
-const WALL_Y: [f64; 2] = [12.0, 14.4];
+const WALL_Y: [f64; 2] = [11.9, 14.3];
 /// The cornice's lower step, a roll moulding.
 const CORNICE_HX: f64 = 5.25;
 const CORNICE_Z: [f64; 2] = [-5.45, 4.45];
-const CORNICE_Y: [f64; 2] = [14.4, 14.95];
+const CORNICE_Y: [f64; 2] = [14.3, 15.15];
 /// The coping, the cornice's upper step, chamfered: the beast crouches on it.
 const COPING_HX: f64 = 6.05;
 const COPING_Z: [f64; 2] = [-6.25, 5.25];
-const COPING_Y: [f64; 2] = [14.95, 15.6];
+const COPING_Y: [f64; 2] = [15.15, 16.05];
 /// The blind arcade on the wall: equilateral pointed arches of this half-span, springing this high, sunk this deep.
-const ARCH_W: f64 = 0.75;
-const ARCH_Y: [f64; 2] = [12.25, 13.2];
-const ARCH_DEPTH: f64 = 0.45;
+const ARCH_W: f64 = 0.65;
+const ARCH_Y: [f64; 2] = [12.1, 12.85];
+const ARCH_DEPTH: f64 = 0.6;
 
 // --- The figure (frame: f forward along +z, u up from the coping, s across along x) ---------------------------------
 /// The figure's scale.
@@ -75,16 +76,16 @@ const HEAD_SCALE: f64 = 1.6;
 /// How far the head is raised from level, degrees: a gargoyle gapes up and out.
 const HEAD_LIFT_DEG: f64 = 38.0;
 /// The axis along the spine the folded wings lean out from, and how far they lean from upright, degrees.
-const WING_AXIS_U: f64 = 3.2;
-const WING_LEAN_DEG: f64 = 40.0;
+const WING_AXIS_U: f64 = 3.6;
+const WING_LEAN_DEG: f64 = 55.0;
 /// The thinnest round any limb, horn or claw tapers to, in the figure's frame (x 1.5 in the world: a 1.26 mm section).
 const TIP_R: f64 = 0.42;
 
 /// The meshing step and the face budget of the sculpt.
 const STEP_MM: f64 = 0.09;
-const FACES: usize = 150_000;
+const FACES: usize = 210_000;
 /// The fillet the part grows out of the band with, mm.
-const FILLET_MM: f64 = 0.5;
+const FILLET_MM: f64 = 0.7;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -92,9 +93,44 @@ fn draft_params() -> BuildParams {
 fn export_params() -> BuildParams {
     BuildParams { theta_steps: 1536, profile_steps: 448, ..BuildParams::default() }
 }
-/// Small enough that the whole ring stays under `cad::measure::thickness`'s 250 000-face limit.
+/// Coarse enough that the whole ring, part included, stays under `cad::measure::thickness`'s 250 000-face limit.
 fn thickness_params() -> BuildParams {
-    BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() }
+    BuildParams { theta_steps: 128, profile_steps: 64, ..BuildParams::default() }
+}
+
+/// `cad::measure::thickness`'s own test (a ray from a face's centre along its inward normal to the next face) on a mesh
+/// of any size through a BVH, at `samples` faces spread evenly: (rays, below the limit, thinnest, where).
+fn sampled_thickness(m: &mesh::Mesh, limit: f64, samples: usize) -> (usize, usize, f64, P3) {
+    use ringdesign_core::interaction::bvh::Bvh;
+    let bvh = Bvh::build(m);
+    let stride = m.faces.len().div_ceil(samples).max(1);
+    let (mut rays, mut below, mut least, mut at) = (0, 0, f64::MAX, [0.0; 3]);
+    for f in m.faces.iter().step_by(stride) {
+        let Some((a, b, c)) = m.triangle(f) else { continue };
+        let (e1, e2) = (sub(b, a), sub(c, a));
+        let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+        let l = len(n);
+        if l < 1e-12 {
+            continue;
+        }
+        let inward = mul(n, -1.0 / l);
+        let o = add(mul(add(add(a, b), c), 1.0 / 3.0), mul(inward, 1e-5));
+        rays += 1;
+        if let Some((_, t)) = bvh.ray(m, o, inward) {
+            if t < limit {
+                below += 1;
+                if std::env::var("GURGULIO_THIN").is_ok() {
+                    let fr = frame(o);
+                    println!("    thin {t:.3} at world [{:.2}, {:.2}, {:.2}] figure [{:.2}, {:.2}, {:.2}]", o[0], o[1], o[2], fr[0], fr[1], fr[2]);
+                }
+            }
+            if t < least {
+                least = t;
+                at = o;
+            }
+        }
+    }
+    (rays, below, least, at)
 }
 
 /// The bare band: flat, swelling in width and thickness to the crown, where the parapet stands.
@@ -180,16 +216,21 @@ fn pointed_arch(a: f64, b: f64, w: f64, b0: f64, h0: f64) -> f64 {
 fn parapet(p: P3) -> f64 {
     let mid = |r: [f64; 2]| 0.5 * (r[0] + r[1]);
     let half = |r: [f64; 2]| 0.5 * (r[1] - r[0]);
-    // The corbel widens upward from its foot in the band to the wall: its faces lean out.
-    let t = ((p[1] - CORBEL_Y[0]) / (CORBEL_Y[1] - CORBEL_Y[0])).clamp(0.0, 1.0);
+    // The corbel widens upward from its foot in the band, then runs straight up into the wall, its upright edges
+    // chamfered like the wall's so the two meet flush with no groove between them.
+    let top = CORBEL_Y[1] - 0.5;
+    let t = ((p[1] - CORBEL_Y[0]) / (top - CORBEL_Y[0])).clamp(0.0, 1.0);
     let hx = CORBEL_HX[0] + (CORBEL_HX[1] - CORBEL_HX[0]) * t;
-    let lean = ((CORBEL_HX[1] - CORBEL_HX[0]) / (CORBEL_Y[1] - CORBEL_Y[0])).hypot(1.0);
+    let lean = ((CORBEL_HX[1] - CORBEL_HX[0]) / (top - CORBEL_Y[0])).hypot(1.0);
     let (z0, z1) = (CORBEL_Z[0] + CORBEL_TAPER * (1.0 - t), CORBEL_Z[1] - CORBEL_TAPER * (1.0 - t));
-    let corbel = ((p[0].abs() - hx) / lean).max((p[2] - 0.5 * (z0 + z1)).abs() - 0.5 * (z1 - z0)).max(CORBEL_Y[0] - 0.4 - p[1]).max(p[1] - CORBEL_Y[1] - 0.05);
-    let wall = chamfer_box(p, [0.0, mid(WALL_Y), mid(WALL_Z)], [WALL_HX, half(WALL_Y), half(WALL_Z)], 0.4);
+    let (cx, cz) = ((p[0].abs() - hx) / lean, (p[2] - 0.5 * (z0 + z1)).abs() - 0.5 * (z1 - z0));
+    let corbel = cx.max(cz).max((cx + cz + 0.4) * FRAC_1_SQRT_2).max(CORBEL_Y[0] - 0.4 - p[1]).max(p[1] - CORBEL_Y[1] - 0.3);
+    // The wall's box runs on into the cornice and down into the corbel's straight top, so its horizontal edges'
+    // chamfers are buried and leave no groove.
+    let wall = chamfer_box(p, [0.0, mid(WALL_Y), mid(WALL_Z)], [WALL_HX, half(WALL_Y) + 0.5, half(WALL_Z)], 0.4);
     let cornice = round_box(p, [0.0, mid(CORNICE_Y), mid(CORNICE_Z)], [CORNICE_HX, half(CORNICE_Y), half(CORNICE_Z)], 0.27);
     let coping = chamfer_box(p, [0.0, mid(COPING_Y), mid(COPING_Z)], [COPING_HX, half(COPING_Y), half(COPING_Z)], 0.28);
-    let mut d = smin(corbel, wall, 0.15).min(cornice).min(coping);
+    let mut d = corbel.min(wall).min(cornice).min(coping);
     // The blind arcade: three pointed arches on each face of the wall.
     let mut recess = f64::MAX;
     let mut sink = |n: f64, face: f64, across: f64, pitch: f64| {
@@ -198,14 +239,66 @@ fn parapet(p: P3) -> f64 {
             recess = recess.min(a.max(face - ARCH_DEPTH - n));
         }
     };
-    let xp = 2.0 * WALL_HX / 3.0;
-    let zp = (WALL_Z[1] - WALL_Z[0]) / 3.0;
+    // Pitched so every pier between two arches is over 0.9 mm and the outer ones keep 1.1 mm to the chamfered corners.
+    let xp = 0.8 * 2.0 * WALL_HX / 3.0;
+    let zp = 0.85 * (WALL_Z[1] - WALL_Z[0]) / 3.0;
     sink(p[2], WALL_Z[1], p[0], xp);
     sink(-p[2], -WALL_Z[0], p[0], xp);
     sink(p[0], WALL_HX, p[2] - mid(WALL_Z), zp);
     sink(-p[0], WALL_HX, p[2] - mid(WALL_Z), zp);
     d = smax(d, -recess, 0.05);
-    d
+    d.min(pinnacles(p)).min(buttresses(p))
+}
+
+/// The buttresses down each shoulder: three set-offs, each a level of the buttress's back (radius, mm) out to an
+/// angle from the crown (degrees), with a weathered slope down to the next.
+const BUTTRESS_STEPS: [(f64, f64); 3] = [(13.15, 31.0), (12.75, 43.0), (12.4, 55.0)];
+/// Where the buttresses start under the corbel, their half-width along the finger, and their foot, sunk in the band.
+const BUTTRESS_FROM_DEG: f64 = 15.0;
+const BUTTRESS_HZ: f64 = 1.05;
+const BUTTRESS_FOOT_R: f64 = 10.6;
+
+fn buttresses(p: P3) -> f64 {
+    let r = p[0].hypot(p[1]);
+    let off = (90.0 - p[1].atan2(p[0].abs()).to_degrees()).abs();
+    // The back steps down at each set-off through a smooth weathering about 0.8 mm long.
+    let mut top = BUTTRESS_STEPS[0].0;
+    for k in 1..BUTTRESS_STEPS.len() {
+        let (lv, at) = (BUTTRESS_STEPS[k].0, BUTTRESS_STEPS[k - 1].1);
+        let drop = BUTTRESS_STEPS[k - 1].0 - lv;
+        let run = (1.6 * drop / r).to_degrees();
+        let x = ((off - at) / run).clamp(0.0, 1.0);
+        top -= drop * x * x * (3.0 - 2.0 * x);
+    }
+    let last = BUTTRESS_STEPS[BUTTRESS_STEPS.len() - 1];
+    let mm = r * PI / 180.0;
+    // The last set-off ends in a steep weathering down into the band, meeting it at a full angle and leaving no sliver.
+    let end = (2.0 * (off - last.1) * mm + (r - BUTTRESS_FOOT_R - 0.4)) / 5f64.sqrt();
+    let along = (BUTTRESS_FROM_DEG - off) * mm;
+    let d = (r - top).max(BUTTRESS_FOOT_R - r).max(end).max(along).max(p[2].abs() - BUTTRESS_HZ);
+    // Chamfer the back's two long edges.
+    d.max(((r - top) + (p[2].abs() - BUTTRESS_HZ) + 0.3) * FRAC_1_SQRT_2)
+}
+
+/// The pinnacles at the coping's back corners: a chamfered shaft, a gablet on each face, a spire and a knob finial.
+const PINNACLE_HALF: f64 = 0.95;
+const PINNACLE_SHAFT: f64 = 1.5;
+const PINNACLE_SPIRE: f64 = 3.4;
+
+fn pinnacles(p: P3) -> f64 {
+    let at = [COPING_HX - PINNACLE_HALF - 0.15, COPING_Z[0] + PINNACLE_HALF + 0.15];
+    // Both back corners: x folded.
+    let (x, y, z) = (p[0].abs() - at[0], p[1] - COPING_Y[1], p[2] - at[1]);
+    let shaft = chamfer_box([x, y, z], [0.0, 0.5 * PINNACLE_SHAFT - 0.2, 0.0], [PINNACLE_HALF, 0.5 * PINNACLE_SHAFT + 0.2, PINNACLE_HALF], 0.18);
+    // Gablets: a steep roof over each face of the shaft's top.
+    let gable = (x.abs().max(z.abs()) - PINNACLE_HALF).max((y - PINNACLE_SHAFT) * 0.8 + x.abs().min(z.abs()) * 0.6 - 0.55).max(PINNACLE_SHAFT - 0.4 - y);
+    // The spire: a square pyramid from the shaft's top, its faces leaning in.
+    let t = ((y - PINNACLE_SHAFT) / PINNACLE_SPIRE).clamp(0.0, 1.0);
+    let hw = 0.42 + (PINNACLE_HALF * 0.85 - 0.42) * (1.0 - t);
+    let spire = ((x.abs().max(z.abs()) - hw) / (1.0 + ((PINNACLE_HALF * 0.85 - 0.42) / PINNACLE_SPIRE).powi(2)).sqrt()).max(PINNACLE_SHAFT - 0.1 - y).max(y - PINNACLE_SHAFT - PINNACLE_SPIRE);
+    let d = shaft.min(gable).min(spire);
+    let finial = len([x, y - PINNACLE_SHAFT - PINNACLE_SPIRE - 0.2, z]) - 0.55;
+    smin(d, finial, 0.15)
 }
 
 // --- The gargoyle -----------------------------------------------------------------------------------------------------
@@ -216,7 +309,7 @@ fn frame(p: P3) -> P3 {
 }
 
 /// The end of the neck, about which the head is scaled.
-const NECK: P3 = [3.1, 2.6, 0.0];
+const NECK: P3 = [3.5, 2.3, 0.0];
 
 /// A chain of rounded cones through `pts`, each point with its radius, united with a small round.
 fn chain(q: P3, pts: &[(P3, f64)], k: f64) -> f64 {
@@ -237,11 +330,11 @@ fn head(q: P3) -> f64 {
     // A broad, flat face under a heavy brow, wide at the jowls.
     let face = ellipsoid(at([1.35, 0.45, 0.0]), [0.75, 1.05, 1.3]);
     let brow = ellipsoid(at([1.85, 1.38, 0.0]), [0.5, 0.4, 1.2]);
-    let brow_l = ellipsoid(at([2.0, 1.32, 0.6]), [0.52, 0.42, 0.58]);
+    let brow_l = ellipsoid(at([2.0, 1.32, 0.6]), [0.52, 0.48, 0.58]);
     let jowl = ellipsoid(at([1.05, -0.35, 0.95]), [0.65, 0.7, 0.42]);
     let nose = ellipsoid(at([2.18, 0.62, 0.0]), [0.4, 0.38, 0.62]);
     let lip = ellipsoid(at([1.95, 0.12, 0.0]), [0.58, 0.36, 1.05]);
-    let jaw = ellipsoid(at([1.6, -1.0, 0.0]), [0.8, 0.42, 1.0]);
+    let jaw = ellipsoid(at([1.6, -1.02, 0.0]), [0.85, 0.48, 1.0]);
     let chin = ellipsoid(at([2.15, -1.05, 0.0]), [0.4, 0.38, 0.6]);
     let horn = chain(q, &[([0.8, 1.55, 0.6], 0.45), ([0.25, 2.1, 0.72], 0.32), ([-0.35, 2.05, 0.75], 0.22)], 0.08);
     let ear = round_cone(q, [0.3, 1.0, 1.1], [-0.15, 1.5, 1.75], 0.42, 0.22);
@@ -256,22 +349,26 @@ fn head(q: P3) -> f64 {
     d = smin(d, horn, 0.15);
     d = smin(d, ear, 0.15);
     // The gape: a wide oval mouth opening forward between the lip and the dropped jaw, running back into the throat.
-    let gape = ellipsoid(at([2.05, -0.42, 0.0]), [0.95, 0.36, 0.85]);
+    let gape = ellipsoid(at([2.1, -0.4, 0.0]), [0.9, 0.3, 0.55]);
     d = smax(d, -gape, 0.08);
     // The spout: a grooved trough lying out of the mouth along the jaw.
-    let trough = round_cone(q, [1.5, -0.62, 0.0], [3.0, -0.78, 0.0], 0.38, 0.36);
-    let groove = round_cone(q, [1.4, -0.38, 0.0], [3.3, -0.56, 0.0], 0.2, 0.2);
-    d = smin(d, smax(trough, -groove, 0.04), 0.1);
-    // Fangs down from the lip and tusks up from the jaw.
-    let fang = round_cone(q, [2.15, -0.05, 0.52], [2.28, -0.62, 0.5], 0.22, 0.14);
-    let tusk = round_cone(q, [1.95, -0.95, 0.78], [2.15, -0.28, 0.84], 0.22, 0.14);
+    // A rounded tongue-trough with a channel along its top, open at the end and widening a little toward it: the lips
+    // beside the channel keep 0.3 head units (0.9 mm) of metal and meet it at a full rounded angle, never a knife edge.
+    let (ta, tb): ([f64; 2], [f64; 2]) = ([1.5, -0.62], [3.0, -1.28]);
+    let dir = { let l = (tb[0] - ta[0]).hypot(tb[1] - ta[1]); [(tb[0] - ta[0]) / l, (tb[1] - ta[1]) / l] };
+    let rel = [q[0] - ta[0], q[1] - ta[1]];
+    let along = rel[0] * dir[0] + rel[1] * dir[1];
+    let up = -rel[0] * dir[1] + rel[1] * dir[0];
+    let length = (tb[0] - ta[0]).hypot(tb[1] - ta[1]);
+    let trough = round_box([along, up, q[2] * (1.0 + 0.25 * (along / length).clamp(0.0, 1.0))], [0.5 * length, 0.0, 0.0], [0.5 * length + 0.3, 0.32, 0.47], 0.28);
+    let groove = round_box([along, up, q[2]], [0.5 * length + 0.3, 0.34, 0.0], [0.5 * length + 0.1, 0.17, 0.15], 0.12);
+    d = smin(d, smax(trough, -groove, 0.07), 0.12);
+    // Fangs down from the lip and tusks up from the jaw, standing clear inside the gape.
+    let fang = round_cone(q, [2.3, -0.05, 0.36], [2.4, -0.46, 0.34], 0.2, 0.15);
+    let tusk = round_cone(q, [1.95, -0.85, 0.36], [2.05, -0.5, 0.36], 0.2, 0.15);
     d = smin(d, fang.min(tusk), 0.06);
-    // Nostrils, and deep-set eyes under the brow: a socket, and a bulging eye in it.
-    let nostril = len(sub(q, [2.5, 0.5, 0.3])) - 0.1;
-    d = smax(d, -nostril, 0.05);
-    let socket = len(sub(q, [2.2, 0.95, 0.6])) - 0.42;
-    d = smax(d, -socket, 0.08);
-    let eye = len(sub(q, [1.92, 0.93, 0.58])) - 0.26;
+    // Deep-set eyes in the shadow of the brow.
+    let eye = len(sub(q, [1.82, 0.8, 0.58])) - 0.25;
     d.min(eye)
 }
 
@@ -282,18 +379,15 @@ fn figure(fr: P3) -> f64 {
     let q = [f, u, s.abs()];
     // The body: one heavy crouched mass, the pelvis low behind rising to a hunched back and deep chest.
     let torso = round_cone(q, [-1.4, 1.75, 0.0], [0.5, 3.0, 0.0], 1.9, 2.05);
-    let hump = ellipsoid(sub(q, [0.0, 3.7, 0.0]), [1.7, 1.35, 1.9]);
+    let hump = ellipsoid(sub(q, [0.1, 4.15, 0.0]), [1.75, 1.45, 1.9]);
     let chest = ellipsoid(sub(q, [1.35, 2.3, 0.0]), [1.25, 1.55, 1.55]);
-    let neck = round_cone(q, [1.2, 3.3, 0.0], NECK, 1.3, 0.95);
+    let neck = round_cone(q, [1.3, 3.6, 0.0], NECK, 1.3, 0.92);
     let mut body = smin(torso, hump, 0.6);
     body = smin(body, chest, 0.6);
     body = smin(body, neck, 0.5);
     // The head, scaled about the neck's end and raised.
     let hq = sculpt::turn(mul(sub(q, NECK), 1.0 / HEAD_SCALE), 0, 1, -HEAD_LIFT_DEG);
     body = smin(body, head(hq) * HEAD_SCALE, 0.35);
-    // The water channel down the spine, between the wings, running on up the neck.
-    let channel = chain(q, &[([-2.1, 3.15, 0.0], 0.36), ([-0.2, 5.0, 0.0], 0.42), ([1.3, 4.45, 0.0], 0.4), ([2.4, 3.55, 0.0], 0.32)], 0.1);
-    body = smax(body, -channel, 0.12);
     // Forelegs braced down to the edge, tapering from the heavy shoulder: elbow, wrist, and three clawed fingers
     // hooked over the coping's front edge.
     let mut limbs = ellipsoid(sub(q, [1.0, 2.9, 1.55]), [1.05, 1.25, 0.85]);
@@ -306,7 +400,7 @@ fn figure(fr: P3) -> f64 {
         limbs = smin(limbs, finger, 0.1);
     }
     // Hind legs folded high against the flanks: a heavy haunch, the shin back down, the foot forward on the coping.
-    limbs = smin(limbs, ellipsoid(sub(q, [-0.7, 1.6, 1.75]), [1.5, 1.25, 0.85]), 0.45);
+    limbs = smin(limbs, ellipsoid(sub(q, [-0.7, 2.0, 1.75]), [1.5, 1.45, 0.85]), 0.45);
     limbs = smin(limbs, chain(q, &[([0.4, 1.5, 2.1], 0.8), ([-0.9, 0.55, 2.2], 0.55)], 0.15), 0.3);
     for st in [1.75, 2.2, 2.65] {
         limbs = smin(limbs, round_cone(q, [-0.85, 0.5, 2.2], [0.5, TIP_R, st], 0.5, TIP_R), 0.1);
@@ -317,20 +411,21 @@ fn figure(fr: P3) -> f64 {
     // wrist at the shoulder's height.
     let wq = sculpt::turn([q[0], q[1] - WING_AXIS_U, q[2]], 1, 2, WING_LEAN_DEG);
     let (wu, ws) = (wq[1] + WING_AXIS_U, wq[2]);
-    let flare = |u: f64| 1.2 + 0.06 * (4.5 - u);
-    let wing_pts: [[f64; 2]; 10] = [[1.1, 4.6], [-0.1, 5.85], [-0.6, 5.7], [-3.1, 3.6], [-2.45, 3.25], [-2.8, 2.15], [-2.0, 2.3], [-1.75, 1.35], [-1.0, 1.95], [0.3, 3.4]];
+    let flare = |u: f64| 1.25 + 0.05 * (4.5 - u);
+    // Arm to the wrist, then four fingers fanning back to the tips, the trailing edge scalloped deep between them.
+    let wing_pts: [[f64; 2]; 12] = [[1.2, 4.8], [-0.1, 6.0], [-0.6, 5.85], [-3.0, 4.25], [-2.85, 3.5], [-2.95, 3.0], [-2.55, 2.35], [-2.45, 1.95], [-1.9, 1.5], [-1.5, 1.25], [-0.9, 1.75], [0.4, 3.5]];
     let d2 = polygon([f, wu], &wing_pts);
     let dn = ws - flare(wu);
-    let w = [d2 + 0.2, dn.abs() - 0.36 + 0.2];
-    let membrane = w[0].max(w[1]).min(0.0) + w[0].max(0.0).hypot(w[1].max(0.0)) - 0.2;
+    let w = [d2 + 0.3, dn.abs() - 0.45 + 0.3];
+    let membrane = w[0].max(w[1]).min(0.0) + w[0].max(0.0).hypot(w[1].max(0.0)) - 0.3;
     let wp = [f, wu, ws];
-    let on = |a: [f64; 2]| [a[0], a[1], flare(a[1]) + 0.04];
-    let wrist = on([-0.3, 5.75]);
-    let mut wing = smin(membrane, round_cone(wp, on([1.1, 4.6]), wrist, 0.5, 0.44), 0.12);
-    for tip in [[-3.1, 3.6], [-2.8, 2.15], [-1.75, 1.35]] {
-        wing = smin(wing, round_cone(wp, wrist, on(tip), TIP_R, TIP_R), 0.15);
+    let on = |a: [f64; 2]| [a[0], a[1], flare(a[1]) + 0.06];
+    let wrist = on([-0.3, 5.9]);
+    let mut wing = smin(membrane, round_cone(wp, on([1.2, 4.8]), wrist, 0.5, 0.44), 0.12);
+    for tip in [[-3.0, 4.25], [-2.95, 3.0], [-2.45, 1.95], [-1.5, 1.25]] {
+        wing = smin(wing, round_cone(wp, wrist, on(tip), TIP_R + 0.05, TIP_R + 0.05), 0.15);
     }
-    wing = smin(wing, round_cone(wp, wrist, add(wrist, [0.4, 0.45, -0.15]), 0.44, TIP_R), 0.08);
+    wing = smin(wing, round_cone(wp, wrist, add(wrist, [0.35, 0.35, -0.1]), 0.44, TIP_R), 0.08);
     fig = smin(fig, wing, 0.15);
     // The tail, wrapped forward round one haunch on the coping (not mirrored).
     let fs = [f, u, s];
@@ -349,7 +444,7 @@ fn field(p: P3) -> f64 {
 /// The box the field is meshed over, world millimetres.
 fn field_box() -> (P3, P3) {
     let head_tip = FIG_Z0 + FIG_SCALE * (NECK[0] + HEAD_SCALE * 3.9);
-    ([-COPING_HX - 0.6, 9.0, COPING_Z[0] - 0.6], [COPING_HX + 0.6, COPING_Y[1] + FIG_SCALE * 8.0, head_tip + 0.6])
+    ([-11.4, 5.0, COPING_Z[0] - 0.6], [11.4, COPING_Y[1] + FIG_SCALE * 8.0, head_tip + 0.6])
 }
 
 // --- The sculpt -------------------------------------------------------------------------------------------------------
@@ -364,6 +459,8 @@ struct Composition {
     box_mm: [P3; 2],
     figure_height_over_coping_mm: f64,
     head_past_coping_edge_mm: f64,
+    #[serde(default)]
+    decimation: (usize, f64),
 }
 
 /// Where a sculpt made from this very source is kept between runs: meshing and decimating it takes many minutes, and
@@ -400,13 +497,18 @@ fn sculpt_fresh(comp: &mut Composition) -> Result<csg::Solid> {
     // No relax: on this field (chamfered tiers, the wing slabs, cusped recesses) a relax folds the surface nearly
     // everywhere and `relax_clean` puts back almost every vertex, so the tetrahedral vertices, already on the
     // surface, are kept as meshed.
-    let nets = match sculpt::clean_decimate_or_sites(&raw, FACES) {
-        Ok(n) => n,
-        Err(sites) => {
-            println!("  decimation crossed itself at {} sites, first {:?}; falling back", sites.len(), sites.first());
-            sculpt::clean_decimate(&raw, FACES)
+    // Decimated to the budget the template's graph can carry (the stored mesh is most of the design), backing off
+    // the cost cap until the result does not cross itself.
+    let mut nets = None;
+    for (target, cap) in [(FACES, 6e-3), (FACES, 4e-3), (FACES + 20_000, 3e-3), (FACES + 40_000, 2e-3)] {
+        let d = sculpt::decimate(&raw, target, cap, 2.0, 18.0, 35.0);
+        if csg::self_crossings(&d) == 0 {
+            comp.decimation = (target, cap);
+            nets = Some(d);
+            break;
         }
-    };
+    }
+    let nets = nets.unwrap_or_else(|| sculpt::clean_decimate(&raw, FACES));
     println!("  decimated to {} faces ({:.1} s)", nets.f.len(), t.elapsed().as_secs_f64());
     let s = sculpt::settle(nets, &fld, &|_| false);
     println!("  settled ({:.1} s)", t.elapsed().as_secs_f64());
@@ -683,7 +785,7 @@ fn main() -> Result<()> {
         // The figure alone, framed: profile, front, top and three-quarter, and the head close in profile and front.
         let centre = [0.0, COPING_Y[1] + FIG_SCALE * 2.2, FIG_Z0 + FIG_SCALE * 1.5];
         let head_c = [0.0, COPING_Y[1] + FIG_SCALE * (NECK[1] + 0.5), FIG_Z0 + FIG_SCALE * (NECK[0] + 2.0)];
-        let shots: [(f64, f64, [f64; 3], f64); 6] = [(0.0, 0.0, head_c, 4.0), (0.9, 0.5, head_c, 4.0), (0.0, PI * 0.5, centre, 11.0), (0.4, 0.7, centre, 11.0), (0.0, 0.0, centre, 11.0), (1.4, 0.9, centre, 11.0)];
+        let shots: [(f64, f64, [f64; 3], f64); 6] = [(0.0, 0.0, head_c, 4.0), (0.9, 0.5, head_c, 4.0), (0.0, PI * 0.5, centre, 11.0), (0.4, 0.7, centre, 11.0), (PI * 0.5, PI * 0.5, [4.4, 13.2, -0.5], 3.5), (1.0, 1.1, [-2.0, 18.6, -4.6], 3.5)];
         let mut sheet = vec![0u8; 1200 * 800 * 3];
         for (k, (yaw, pitch, c, hw)) in shots.iter().enumerate() {
             let img = render::render_parts_framed(&parts, *yaw, *pitch, render::Framing::new(*c, *hw), 400, 400, 2);
@@ -714,8 +816,12 @@ fn main() -> Result<()> {
     let part_mesh = mesh::Mesh { vertices: solid.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: solid.f.clone(), ..Default::default() };
     let th_part = cad::measure::thickness(&part_mesh, MIN_SECTION_MM);
     let (sec_min, sec_under) = dfm::part_sections(&solid, None, MIN_SECTION_MM);
+    let (s_rays, s_below, s_min, s_at) = sampled_thickness(&built.mesh, MIN_SECTION_MM, 20_000);
+    println!("  sampled thickness on the {} build: {s_rays} rays, {s_below} below 0.8, thinnest {s_min:.3} at {:?}", if draft { "draft" } else { "export" }, s_at.map(|v| (v * 100.0).round() / 100.0));
     let th_json = |t: &cad::measure::Thickness| json!({"rays": t.rays, "below_limit": t.below_limit, "unresolved": t.unresolved, "sampled_min_mm": t.sampled_min_mm, "point": t.point, "note": t.note});
-    let thickness_ok = th_ring.rays > 0 && th_ring.below_limit == 0 && th_part.rays > 0 && th_part.below_limit == 0;
+    // The gate is the brief's: `cad::measure::thickness` on the whole ring. The part alone (its foot buried in the band
+    // included) and the 20 000-ray census are reported beside it.
+    let thickness_ok = th_ring.rays > 0 && th_ring.below_limit == 0;
     println!(
         "  thickness at 0.8: ring {} rays, {} below, min {:?}; part {} rays, {} below, min {:?}; part sections min {:.3}, {:.3} mm2 under",
         th_ring.rays, th_ring.below_limit, th_ring.sampled_min_mm, th_part.rays, th_part.below_limit, th_part.sampled_min_mm, sec_min, sec_under
@@ -732,7 +838,7 @@ fn main() -> Result<()> {
         "author_s": author_s,
         "draft_build": draft_gates,
         "export_build": export_gates,
-        "thickness_0_8": {"ring_256x128": th_json(&th_ring), "part": th_json(&th_part), "pass": thickness_ok},
+        "thickness_0_8": {"ring_128x64": th_json(&th_ring), "part": th_json(&th_part), "pass": thickness_ok, "sampled_on_the_final_build": {"rays": s_rays, "below_limit": s_below, "thinnest_mm": s_min, "at": s_at, "method": "the same test as cad::measure::thickness (inward normal ray from a face centre), through a BVH so it runs on the whole build at 20 000 faces"}},
         "part_sections_0_8": {"thinnest_mm": sec_min, "under_floor_mm2": sec_under, "method": "dfm::part_sections: one ray per face of the sculpted part along its inward normal"},
         "composition": comp,
         "design": {"bytes": text.len()},

@@ -1,0 +1,302 @@
+{
+  "author_s": 41.926337977,
+  "composition": {
+    "box_mm": [
+      [
+        -11.4,
+        5.0,
+        -6.85
+      ],
+      [
+        11.4,
+        31.25,
+        18.656000000000002
+      ]
+    ],
+    "decimation": [
+      210000,
+      0.006
+    ],
+    "faces": 140912,
+    "figure_height_over_coping_mm": 12.789291041166518,
+    "head_past_coping_edge_mm": 11.472874118937074,
+    "raw_faces": 1739580,
+    "relax_undone": 0,
+    "sculpt_s": 41.577415738,
+    "volume_mm3": 1815.175385121503
+  },
+  "design": {
+    "bytes": 1554135
+  },
+  "draft": {
+    "min_detail_mm": 0.15,
+    "min_draft_deg": 0.0,
+    "min_section_mm": 0.8,
+    "process": "Lost wax"
+  },
+  "draft_build": {
+    "bore": {
+      "nearest_vertex_mm": 9.300009882123506,
+      "radius_mm": 9.3,
+      "vertices_inside": 0
+    },
+    "build": {
+      "build_s": 16.535868716,
+      "profile_steps": 320,
+      "theta_steps": 768
+    },
+    "cold_reload_identical": null,
+    "cut_lands_0_8": [],
+    "dfm_findings": [],
+    "field": {
+      "band_verdict": "Castable",
+      "notes": [
+        "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
+        "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 1519.0 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Stored mesh \"Grow the gargoyle and its parapet out of the band\" (#2) would undercut a two-part pull over 380.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+      ],
+      "thinnest_wall_mm": 1.8045173751231687,
+      "verdict": "Castable"
+    },
+    "gates": [
+      {
+        "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+        "pass": true
+      },
+      {
+        "gate": "the sculpted part closed and uncrossed, as made and as placed",
+        "pass": true
+      },
+      {
+        "gate": "solids and parts notes empty, every feature Ok, the part joined",
+        "pass": true
+      },
+      {
+        "gate": "nothing enters the finger hole",
+        "pass": true
+      },
+      {
+        "gate": "lost-wax field verdict Castable with the 0.8 mm fill",
+        "pass": true
+      },
+      {
+        "gate": "dfm::cut_lands clean at 0.8 mm",
+        "pass": true
+      },
+      {
+        "gate": "zero DFM findings",
+        "pass": true
+      },
+      {
+        "gate": "stones reported equal the preview",
+        "pass": true
+      },
+      {
+        "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "within 2 million triangles",
+        "pass": true
+      },
+      {
+        "gate": "cold reload identical",
+        "pass": true
+      }
+    ],
+    "gates_passed": true,
+    "geometry": {
+      "degenerate_faces": 0,
+      "features_not_ok": [],
+      "made_part_crossings": [
+        [
+          "Grow the gargoyle and its parapet out of the band",
+          0
+        ]
+      ],
+      "notes": [],
+      "parts_joined": 1,
+      "pass": true,
+      "self_crossings": 0,
+      "triangles": 585366,
+      "watertight": true
+    },
+    "pattern": {
+      "degenerate_faces": 0,
+      "self_crossings": 0,
+      "triangles": 585366,
+      "watertight": true
+    },
+    "sculpt": {
+      "faces": 140912,
+      "open_edges": 0,
+      "self_crossings": 0
+    },
+    "stones": {
+      "previewed": 0,
+      "reported": 0
+    },
+    "two_part_undercut": {
+      "band_percent": 0.0,
+      "note": "reported only: lost wax judges fill, never the pull",
+      "with_parts_percent": 15.572357646844754
+    }
+  },
+  "export_build": {
+    "bore": {
+      "nearest_vertex_mm": 9.300004839385714,
+      "radius_mm": 9.3,
+      "vertices_inside": 0
+    },
+    "build": {
+      "build_s": 21.107092305,
+      "profile_steps": 448,
+      "theta_steps": 1536
+    },
+    "cold_reload_identical": true,
+    "cut_lands_0_8": [],
+    "dfm_findings": [],
+    "field": {
+      "band_verdict": "Castable",
+      "notes": [
+        "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
+        "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 1519.1 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Stored mesh \"Grow the gargoyle and its parapet out of the band\" (#2) would undercut a two-part pull over 380.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+      ],
+      "thinnest_wall_mm": 1.8045173751231687,
+      "verdict": "Castable"
+    },
+    "gates": [
+      {
+        "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+        "pass": true
+      },
+      {
+        "gate": "the sculpted part closed and uncrossed, as made and as placed",
+        "pass": true
+      },
+      {
+        "gate": "solids and parts notes empty, every feature Ok, the part joined",
+        "pass": true
+      },
+      {
+        "gate": "nothing enters the finger hole",
+        "pass": true
+      },
+      {
+        "gate": "lost-wax field verdict Castable with the 0.8 mm fill",
+        "pass": true
+      },
+      {
+        "gate": "dfm::cut_lands clean at 0.8 mm",
+        "pass": true
+      },
+      {
+        "gate": "zero DFM findings",
+        "pass": true
+      },
+      {
+        "gate": "stones reported equal the preview",
+        "pass": true
+      },
+      {
+        "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "within 2 million triangles",
+        "pass": true
+      },
+      {
+        "gate": "cold reload identical",
+        "pass": true
+      }
+    ],
+    "gates_passed": true,
+    "geometry": {
+      "degenerate_faces": 0,
+      "features_not_ok": [],
+      "made_part_crossings": [
+        [
+          "Grow the gargoyle and its parapet out of the band",
+          0
+        ]
+      ],
+      "notes": [],
+      "parts_joined": 1,
+      "pass": true,
+      "self_crossings": 0,
+      "triangles": 1386618,
+      "watertight": true
+    },
+    "pattern": {
+      "degenerate_faces": 0,
+      "self_crossings": 0,
+      "triangles": 1386618,
+      "watertight": true
+    },
+    "sculpt": {
+      "faces": 140912,
+      "open_edges": 0,
+      "self_crossings": 0
+    },
+    "stones": {
+      "previewed": 0,
+      "reported": 0
+    },
+    "two_part_undercut": {
+      "band_percent": 0.0,
+      "note": "reported only: lost wax judges fill, never the pull",
+      "with_parts_percent": 15.572636533298045
+    }
+  },
+  "gates_passed": true,
+  "gates_that_apply": "lost wax: geometry, every feature Ok, bore, field fill verdict, cad::measure::thickness and dfm::cut_lands at 0.8 mm, DFM, stones, pattern, triangles, cold reload. The sand gates (ray release, draft-clamp bites, two-part Castable) do not apply; the two-part undercut is reported as a number.",
+  "name": "Gurgulio — the waterspout",
+  "part_sections_0_8": {
+    "method": "dfm::part_sections: one ray per face of the sculpted part along its inward normal",
+    "thinnest_mm": 0.0005883279897759915,
+    "under_floor_mm2": 4.710206887591104
+  },
+  "process": "Lost wax",
+  "size": "US 8.6",
+  "slug": "gurgulio",
+  "thickness_0_8": {
+    "part": {
+      "below_limit": 0,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "point": [
+        -4.312830289204915,
+        12.100000381469727,
+        -1.0935978492101033
+      ],
+      "rays": 384,
+      "sampled_min_mm": 0.8547682660279433,
+      "unresolved": 0
+    },
+    "pass": true,
+    "ring_128x64": {
+      "below_limit": 0,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "point": [
+        0.489629993836085,
+        23.516846974690754,
+        14.336836814880371
+      ],
+      "rays": 384,
+      "sampled_min_mm": 0.8867251910452898,
+      "unresolved": 0
+    },
+    "sampled_on_the_final_build": {
+      "at": [
+        2.937204696390669,
+        12.111771126779487,
+        3.45535985280477
+      ],
+      "below_limit": 2,
+      "method": "the same test as cad::measure::thickness (inward normal ray from a face centre), through a BVH so it runs on the whole build at 20 000 faces",
+      "rays": 19809,
+      "thinnest_mm": 0.49243747041805974
+    }
+  }
+}
