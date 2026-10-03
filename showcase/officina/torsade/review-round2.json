@@ -1,0 +1,65 @@
+{
+  "ring": "torsade",
+  "round": 2,
+  "verdict": "revise",
+  "score": 6.6,
+  "summary": "Revise at 6.6, up from 6.1 (Caiman is 7, ship is 7.5). The read is stronger. The new six-lobe rope section at 2880 degrees gives a clean, countable two-ply lay on both arrises. With no caption, hero-300 and face-300 read at once as a rope-edged cabochon solitaire. Round 1 asked for five things, and about half of that work is done. The flange on the collet foot is gone, so the collet is now one revolve with a rounded lip, and stones.png shows a soft rolled lip highlight. The crest now has crown_mm 0.2 and the bore has comfort_fit_mm 0.3. The timeline is down to 9 clean steps. Three things still keep this from being a finished piece. (1) The collet is about 8.8 mm across on a 4.4 mm band, with a flat back. In side.png and reverse.png the lip rim steps out over a straight cup wall, and the cup stands on the crest like a coin on edge, with a dark contact line under it and no seam bead. (2) All nine features still carry blend_mm 0.0. The ropes stop at theta 80 and 100 and run under the collet wall with no fillet. palm.png shows both rope ends meeting the collet underside at a hard line, and the cup overhangs the band edges. (3) report.json warns 'no setting holds this stone': the hand-drawn revolve is not a made setting to the stone report, the brief asked for head.bezel, and the warning is not explained. Two smaller points. The cabochon apex is still faceted in side.png and reverse.png. The doc section still describes 7200 degrees and a head.bezel collet. A third round can fix all of this.",
+  "strengths": [
+    "The rope is the subject now: a six-lobe section at 2880 degrees, 8 turns, lay angle about 32 degrees. The ply crests are crisp and countable at 300 px, with opposite lays on the two arrises and no combing anywhere, even beside the collet.",
+    "One idea from face to palm. The ropes run the full circumference on both arrises, and the side faces and bore stay plain.",
+    "The collet is no longer three stacked cylinders. It is one revolve with a rounded lip: stones.png shows a soft rolled highlight on the lip and a thin, clean bearing line round the garnet.",
+    "Band finish improved: crown_mm 0.2 and comfort_fit_mm 0.3 are set in design.ring.json, and the crest highlight now rolls a little across the width.",
+    "timeline.png is a model lesson: 9 features, and each one adds a visible step (band, plane, path, plane, section, rope, mirror, collet, stone).",
+    "Geometry gates are clean, and the export holds 1.38 M triangles."
+  ],
+  "checklist": [
+    {"item": "One idea face to palm, reads at 300 px without caption", "result": "pass", "reason": "hero-300, face-300 and contact-300 read uncaptioned as a cabochon solitaire with rope-twist edges. The rope is now the subject, not trim."},
+    {"item": "Finished piece a jeweller would sell (proportion, weight, every part meets the band with seam beads)", "result": "fail", "reason": "The collet is about 2x the band width. Its lip flange overhangs a straight cup wall, and the cup sits on the crest with a hard dark contact line (side.png, reverse.png) and a flat sliced back. Every join has blend_mm 0.0. The rope ends dive under the collet with no bead, and palm.png shows them meeting the cup underside at a hard line with the cup overhanging both band edges."},
+    {"item": "No flat, blocky or mechanical CAD", "result": "fail", "reason": "Better than round 1: the lip is rounded and the crest is crowned. But the band's own arrises carry only edge_round_mm 0.05, so the side faces still meet the crest and bore at knife lines (hero.png, palm.png). The collet reads as a turned washer from the side and reverse views, and the crest still throws large rectangular highlight blocks in hero.png and palm.png. A 0.2 mm crown is too faint at this width."},
+    {"item": "Outlines crisp, no combing, smearing or stair-steps", "result": "pass", "reason": "Rope and collet outlines are clean at 1600 px and at 300 px. The one defect is the faceted cabochon apex in side.png and reverse.png (low tessellation of reference-cabochon.stl, 86 KB)."},
+    {"item": "Stones, where carried, sit in made settings and are visible", "result": "fail", "reason": "The garnet is visible and looks held by a lip. But the stone report says 'no setting holds this stone; add claws, a basket or a bezel round it'. The collet is a free Revolve, not the head.bezel the brief specifies, so to the platform it is not a made setting, and the warning is not explained."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "result": "pass", "reason": "Not applicable: a procedural Flat band, not factory stock."},
+    {"item": "Lesson legible in timeline.png", "result": "pass", "reason": "Nine features in a short, sensible order, each one visible. The doc section is out of step with it (7200 degrees, a diamond section, head.bezel, rope ends at +/-22 degrees)."},
+    {"item": "Silhouette distinct from other Officina rings and the starters", "result": "pass", "reason": "No other entry carries twisted rope arrises on a flat band with a cabochon collet."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces", "claimed": "watertight, 0 degenerate", "verified": "draft 739,238 and export 1,376,320 triangles: watertight, 0 boundary, 0 non-manifold, 0 degenerate", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "0", "verified": "metal 0; Rope, Mirror across the band, Collet and Garnet cabochon all 0, in draft and export", "pass": true},
+    {"gate": "Solids notes empty", "claimed": "empty", "verified": "solids_notes [] and parts_notes [] in draft and export", "pass": true},
+    {"gate": "Every CAD feature Ok", "claimed": "features_ok true", "verified": "All 9 features Ok in draft and export", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "0", "verified": "inside_finger_hole 0; nearest_to_axis 9.0999995 mm against bore radius 9.1", "pass": true},
+    {"gate": "Field verdict for own process (lost wax)", "claimed": "Castable", "verified": "field_verdict Castable in draft and export. The notes are inconsistent: the first line says 'no undercut anywhere' while the next ones list undercuts on Rope, Mirror and Collet. Under wax this does not gate, but the note text should be fixed.", "pass": true},
+    {"gate": "Sand ray release 0.100 / 0.075 mm", "claimed": "n/a", "verified": "Lost wax, so the sand ray gate does not apply", "pass": true},
+    {"gate": "cad::measure::thickness clean at 0.8 mm", "claimed": "thickness_clean true", "verified": "sampled_min 0.979 mm, below_limit 0, unresolved 0, over 384 rays", "pass": true},
+    {"gate": "dfm::cut_lands clean", "claimed": "clean", "verified": "cut_lands [] in draft and export", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] in draft and export", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "1 = 1", "verified": "stones_reported 1, stones_previewed 1, crowding_tight_pairs 0", "pass": true},
+    {"gate": "Stone report clean or explained (made setting)", "claimed": "passed true", "verified": "stone_warnings: 'no setting holds this stone; add claws, a basket or a bezel round it' in draft and export, and neither the report nor the doc explains it. The collet is a free Revolve, not head.bezel.", "pass": false},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "export.cold_reload_identical true (draft records null, which is acceptable because export is the gate)", "pass": true},
+    {"gate": "Export within 2M triangles", "claimed": "true", "verified": "1,376,320 triangles", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "watertight", "verified": "pattern watertight, 0 boundary, 0 non-manifold, 0 degenerate, 0 self-crossings in draft and export", "pass": true},
+    {"gate": "Template gate (at most 4 design.set patches)", "claimed": "not recorded", "verified": "Not in report.json for the second round running. It must be run and recorded before ship.", "pass": false}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Collet (feature 8, theta 90) and stone (feature 9)", "change": "Make the setting a made bezel. Either build it with head.bezel on the stone feature as the brief says (order: stone, then head.bezel Cast), or, if the revolve stays, register it so the stone report recognises it as the holding setting. Then stone_warnings must be empty. Keep the rounded lip from this round.", "acceptance": "report.json draft and export show stone_warnings []. stones.png still shows a rounded lip and a thin bearing line round the cab."},
+    {"number": 2, "priority": "high", "zone": "Collet profile (feature 8 'Collet section', theta 70-110)", "change": "Remove the lip step. Run one wall from the band crest to the lip, with no outward flange (today the lip runs out to r 11.95 over a 11.53 wall, a 0.4 mm overhang). Taper the wall 6 to 8 degrees, narrower at the band. Then flare the base into the band with a 0.4 to 0.6 mm cove where it meets the crest, so the cup grows out of the band instead of standing on it. Trim the cup's bottom so it does not overhang the band side faces by more than 1.0 mm on each side, and round the overhang underside with a radius of at least 0.5 mm, so there is no flat back.", "acceptance": "side.png shows one continuous collet silhouette from the band to the lip, with no step under the lip and no dark contact line at the crest. reverse.png shows no flat coin-like back face. palm.png shows the cup underside as a rounded form, not a disc wider than the band."},
+    {"number": 3, "priority": "high", "zone": "Joins: Rope (6), Mirror (7) and Collet (8); rope ends at theta 80 and 100 on both arrises", "change": "Set blend_mm about 0.10 on the Rope, Mirror and Collet joins, so a seam bead runs along each rope-to-band contact and round the collet foot. Stop the rope path so each end enters the collet wall about 0.3 mm deep at mid-height of the rope, not under the cup. That is roughly theta 72-74 and 106-108 if the collet radius stays; check against the new wall.", "acceptance": "shoulder.png and hero.png show each of the four rope ends meeting the collet wall with a visible fillet bead. palm.png shows no hard line where the ropes meet the cup. side.png shows a soft bead, not a dark gap, between rope and band."},
+    {"number": 4, "priority": "medium", "zone": "Band (feature 1, all theta)", "change": "Raise the band's edge_round_mm from 0.05 to 0.2 to 0.25, so the side-face-to-bore and side-face-to-crest arrises are broken; the ropes sit on the top arris, so check that they stay seated. Raise crown_mm from 0.2 to about 0.35 so the strip between the ropes reads as one rolling highlight.", "acceptance": "hero.png and palm.png show a soft rounded bore edge, not a knife line. The crest between the ropes shows one long rolling highlight, not rectangular blocks."},
+    {"number": 5, "priority": "low", "zone": "Cabochon render mesh (reference-cabochon.stl); report field notes; doc section Torsade", "change": "Tessellate the cabochon finer (at least 4x the current triangles) so the apex is smooth. Fix the contradictory first field note ('no undercut anywhere'). Rewrite the Torsade build steps to match the timeline: 9 features, the six-lobe section, 2880 degrees, the rope ends at theta 80/100 (or the new angles), and the collet as actually built. Run the template gate and record it in report.json.", "acceptance": "side.png and reverse.png show a smooth dome apex. The doc's step list matches timeline.png. report.json carries a template-gate entry with at most 4 design.set patches."}
+  ],
+  "viewed_images": [
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/officina/torsade/hero-300.png",
+    "showcase/officina/torsade/face-300.png",
+    "showcase/officina/torsade/contact-300.png",
+    "showcase/officina/torsade/hero.png",
+    "showcase/officina/torsade/face.png",
+    "showcase/officina/torsade/shoulder.png",
+    "showcase/officina/torsade/side.png",
+    "showcase/officina/torsade/palm.png",
+    "showcase/officina/torsade/reverse.png",
+    "showcase/officina/torsade/stones.png",
+    "showcase/officina/torsade/timeline.png",
+    "showcase/officina/torsade/bare-vs-finished.png"
+  ]
+}
