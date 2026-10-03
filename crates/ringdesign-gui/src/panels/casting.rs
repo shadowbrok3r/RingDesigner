@@ -261,6 +261,13 @@ fn spawn(
 }
 
 pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    egui::Frame::NONE.inner_margin(12).show(ui, |ui| {
+        let bottom = ui.max_rect().bottom();
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| workspace(app, ui, bottom));
+    });
+}
+
+fn workspace(app: &mut RingDesignerApp, ui: &mut egui::Ui, bottom: f32) {
     let mut state = std::mem::take(&mut app.casting);
     let mut setup = app
         .design
@@ -268,21 +275,42 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         .clone()
         .unwrap_or_else(|| Setup::from_design(&app.design));
     let mut changed = false;
+    ui.heading("Prepare a casting pattern");
+    ui.weak("Choose how you cast, check whether the pattern comes out of the mold, then export the workshop files.");
+    ui.add_space(8.0);
     ui.horizontal_wrapped(|ui| {
-        for (n, label) in [
-            "Recipe & pattern",
-            "Release & repairs",
-            "Channels & export",
-            "Debug",
-            "Shop data",
-        ]
-        .iter()
-        .enumerate()
-        {
+        for (n, label) in ["1  Setup", "2  Check & fix", "3  Export"].iter().enumerate() {
             ui.selectable_value(&mut state.tab, n, *label);
         }
+        ui.separator();
+        ui.menu_button("Advanced tools", |ui| {
+            if ui.button("Inspection diagnostics").clicked() { state.tab = 3; ui.close(); }
+            if ui.button("Casting trials & calibration").clicked() { state.tab = 4; ui.close(); }
+        });
+        ui.menu_button("What do these terms mean?", |ui| {
+            ui.set_max_width(380.0);
+            for (term, meaning) in [
+                ("Pattern", "The physical master you press into sand to form the ring cavity."),
+                ("Release / obstruction", "Whether the pattern can be lifted out without catching or breaking the sand."),
+                ("Parting plane", "Where the upper and lower halves of the mold meet."),
+                ("Draft", "A slight slope on a wall that helps it slide out of the mold."),
+                ("Shrink allowance", "Extra pattern size to compensate for metal contracting as it cools."),
+                ("Finishing stock", "Extra metal left for polishing, filing, or reaming after casting."),
+                ("Gate / vent", "A passage for metal to enter, or air to escape. Channels are optional here."),
+            ] { ui.strong(term); ui.label(meaning); ui.add_space(5.0); }
+        });
     });
     ui.separator();
+    let (title, help) = match state.tab {
+        0 => ("Choose your material and process", "Start with a sand recipe and your alloy. The defaults handle the first check; adjust technical limits only when you need to."),
+        1 => ("Can the pattern leave the mold?", "Select a problem to locate it. Compare fixes, preview one, then apply it only if you like the result."),
+        2 => ("Take the pattern to the workshop", "Export the pattern, mold plan, and printable instructions together. Add metal and air channels only if you need them."),
+        3 => ("Inspection diagnostics", "Sampling controls and test geometry for investigating a result. These are not needed for a normal casting workflow."),
+        _ => ("Casting trials & calibration", "Optional: record real workshop results and use measured shrink to improve your recipe."),
+    };
+    ui.strong(title);
+    ui.label(help);
+    ui.add_space(8.0);
     match state.tab {
         0 => {
             if let Some(doc) = &app.design.cad {
@@ -319,8 +347,16 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     });
             }
             changed |= settings(ui, &mut setup, &mut state);
+            ui.add_space(6.0);
+            if ui.button("Continue to check & fix").clicked() { state.tab = 1; }
+
         }
-        2 => changed |= channels(ui, &mut setup),
+        2 => {
+            egui::CollapsingHeader::new("Optional: metal and air channels").show(ui, |ui| {
+                ui.weak("A gate feeds metal into the cavity; vents let air escape. These are cut into the sand, not added to your ring.");
+                changed |= channels(ui, &mut setup);
+            });
+        },
         3 => {
             ui.horizontal_wrapped(|ui| {
                 if ui.button("Recheck geometry").clicked() {
@@ -474,10 +510,20 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             app.casting = state;
             return;
         }
+        match i.release.status {
+            Status::Clear => { ui.label("The sampled pattern can withdraw. Review fine detail and wall checks before exporting."); }
+            Status::Blocked => { ui.colored_label(theme::WARN, "Some surfaces catch in the sand. Open Check & fix and select a highlighted problem."); }
+            Status::Review => { ui.colored_label(theme::WARN, "Some areas need a closer look. Review the findings in Check & fix before exporting."); }
+            Status::Invalid => { ui.colored_label(theme::BAD, "The geometry could not be checked. Review the error and rebuild the design."); }
+            Status::NotApplicable => { ui.label("Two-part mold release does not apply to this process. Check thickness and detail before export."); }
+        }
         if state.tab == 1 {
             repairs(app, ui, &setup, &i, &mut state, current);
+            if ui.button("Continue to export").clicked() { state.tab = 2; }
+
         }
         if state.tab == 2 {
+            egui::CollapsingHeader::new("Optional: choose where metal enters").show(ui, |ui| {
             if let Some((theta, modulus)) = i.hot_spot {
                 ui.horizontal_wrapped(|ui| {
                     ui.label(format!(
@@ -516,6 +562,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     }
                 });
             }
+            });
             export_controls(app, ui, &setup, &mut state, current);
         }
         if state.tab == 3 {
@@ -529,34 +576,38 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 i.release.cell_mm[1]
             ));
         }
+        ui.add_space(8.0);
+        ui.strong("Preview the mold");
         ui.horizontal_wrapped(|ui| {
-            ui.selectable_value(&mut state.view, 0, "Mold opening");
-            ui.selectable_value(&mut state.view, 1, "Mold plan");
-            ui.selectable_value(&mut state.view, 2, "Pull section");
-            if ui.small_button("Closed").clicked() {
+            ui.selectable_value(&mut state.view, 0, "Opening preview");
+            ui.selectable_value(&mut state.view, 1, "Top-down plan");
+            ui.selectable_value(&mut state.view, 2, "Cross-section");
+            if ui.small_button("Close mold").clicked() {
                 state.opening = 0.0;
                 state.withdrawal = 0.0;
             }
-            if ui.small_button("Open upper mold").clicked() {
+            if ui.small_button("Open mold").clicked() {
                 state.opening = 1.0;
                 state.withdrawal = 0.0;
             }
-            if ui.small_button("Withdraw pattern").clicked() {
+            if ui.small_button("Take pattern out").clicked() {
                 state.opening = 1.0;
                 state.withdrawal = 1.0;
             }
         });
         if state.view == 0 {
+            egui::CollapsingHeader::new("Adjust opening preview").show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ringdesign_workbench::controls::slider(ui, "Upper mold", egui::Slider::new(&mut state.opening, 0.0..=1.0));
                 ringdesign_workbench::controls::slider(ui, "Pattern withdrawal", egui::Slider::new(&mut state.withdrawal, 0.0..=1.0));
                 ui.checkbox(&mut state.show_cope, "Upper");
                 ui.checkbox(&mut state.show_drag, "Lower");
             });
+            });
         }
         let space = ui.available_size();
         let (rect, resp) = ui.allocate_exact_size(
-            vec2(space.x.max(100.0), (space.y - 52.0).max(200.0)),
+            vec2(space.x.max(100.0), (bottom - ui.cursor().top() - 52.0).clamp(220.0, 700.0)),
             egui::Sense::click(),
         );
         ui.painter().rect_filled(rect, 4.0, theme::VIEWPORT_BG);
@@ -584,7 +635,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         ui.weak("Red: blocked withdrawal. Amber: review. Mold surfaces show sampled cavities; inspect fine details in the ring view too.");
     } else if state.error.is_none() {
         ui.weak(
-            "The current recipe and design need a new inspection. Previous results are hidden.",
+            "The check runs automatically after the ring finishes rebuilding. Choose Setup to change the material or process.",
         );
     }
     app.casting = state;
@@ -705,7 +756,7 @@ fn settings(ui: &mut egui::Ui, s: &mut Setup, state: &mut CastingState) -> bool 
         }
     });
     ui.horizontal_wrapped(|ui| {
-        ui.label("Shrink");
+        ui.label("Shrink allowance");
         c |= ui
             .add(
                 egui::DragValue::new(&mut s.recipe.shrink_pct)
@@ -714,7 +765,12 @@ fn settings(ui: &mut egui::Ui, s: &mut Setup, state: &mut CastingState) -> bool 
                     .suffix("%"),
             )
             .changed();
-        ui.label("Min draft");
+        ui.weak("Extra size to allow for cooling metal.");
+    });
+    egui::CollapsingHeader::new("Advanced: wall, detail & draft limits").show(ui, |ui| {
+      ui.weak("These are inspection thresholds from your recipe, not measurements of this ring.");
+      ui.horizontal_wrapped(|ui| {
+        ui.label("Minimum draft");
         c |= ui
             .add(
                 egui::DragValue::new(&mut s.recipe.min_draft_deg)
@@ -729,11 +785,13 @@ fn settings(ui: &mut egui::Ui, s: &mut Setup, state: &mut CastingState) -> bool 
             &mut s.recipe.min_section_mm,
             0.05..=10.0,
         );
-        c |= number(ui, "Detail", &mut s.recipe.min_detail_mm, 0.01..=5.0);
+        c |= number(ui, "Smallest detail", &mut s.recipe.min_detail_mm, 0.01..=5.0);
+      });
     });
-    egui::CollapsingHeader::new("Pull, flask, and finishing stock").show(ui,|ui|{
+    egui::CollapsingHeader::new("Advanced: mold size, opening direction & finishing allowance").show(ui,|ui|{
+        ui.weak("The opening direction is the direction the mold halves separate. Automatic parting finds where they should meet.");
         ui.horizontal_wrapped(|ui|{
-            ui.label("Pull");for v in &mut s.pull {c|=ui.add(egui::DragValue::new(v).range(-1.0..=1.0).speed(0.05)).changed();}
+            ui.label("Opening direction");for v in &mut s.pull {c|=ui.add(egui::DragValue::new(v).range(-1.0..=1.0).speed(0.05)).changed();}
             for (name,pull) in [("Z",[0.0,0.0,1.0]),("X",[1.0,0.0,0.0]),("Y",[0.0,1.0,0.0])] {if ui.small_button(name).clicked() {s.pull=pull;c=true;}}
             c|=ui.checkbox(&mut s.auto_parting,"Find parting plane").changed();
             ui.add_enabled_ui(!s.auto_parting,|ui|{c|=number(ui,"Plane",&mut s.parting_mm,-100.0..=100.0);});
@@ -849,7 +907,7 @@ fn repairs(
     }
 
     let r = &i.release;
-    egui::CollapsingHeader::new("Compare pull orientations").show(ui, |ui| {
+    egui::CollapsingHeader::new("Compare mold opening directions").show(ui, |ui| {
         if ui
             .add_enabled(
                 state.task.is_none(),
@@ -944,16 +1002,21 @@ fn repairs(
                     );
                 }
             }
-            for note in &r.notes {
-                ui.weak(note);
+            if r.obstructions.is_empty() { ui.label("No release obstructions found."); }
+            if r.low_draft_area_mm2 > 0.0 {
+                ui.colored_label(theme::WARN, format!("{:.1} mm² of surface has too little draft. Inspect these walls for drag during removal.", r.low_draft_area_mm2));
             }
+            egui::CollapsingHeader::new("Check notes and limitations").show(ui, |ui| {
+                for note in &r.notes { ui.weak(note); }
+            });
         });
     if app.graph_driven() {
         ui.horizontal_wrapped(|ui| {
-            ui.weak("The graph owns geometry edits.");
+            ui.weak("This design is controlled by nodes. Adjust those nodes, or make an editable copy to use automatic geometry fixes.");
             if ui.button("Make an editable copy").clicked() {
                 app.history.commit(&app.design);
                 app.design.name = format!("{} (editable)", app.design.name);
+                app.document_path = None;
                 app.bake_graph();
                 app.history.commit(&app.design);
             }
@@ -985,7 +1048,9 @@ fn repairs(
             });
         if ui
             .add_enabled(
-                state.task.is_none(),
+                state.task.is_none()
+                    && (!app.graph_driven() || state.repair == Repair::SuggestedParting)
+                    && (matches!(state.repair, Repair::SquareSides | Repair::SuggestedParting) || state.layer.is_some()),
                 egui::Button::new("Preview correction"),
             )
             .clicked()
@@ -1049,8 +1114,10 @@ fn export_controls(
     current: u64,
 ) {
     ui.horizontal_wrapped(|ui| {
-        ui.checkbox(&mut state.diagnostic, "Diagnostic package")
+        egui::CollapsingHeader::new("Advanced export options").show(ui, |ui| {
+        ui.checkbox(&mut state.diagnostic, "Export for inspection even if checks fail")
             .on_hover_text("Explicitly labels obstructed or unresolved patterns for inspection");
+        });
         if ui
             .add_enabled(
                 state.task.is_none() && state.preview.is_none(),

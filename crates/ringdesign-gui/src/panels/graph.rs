@@ -25,6 +25,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                         ed.fit();
                     }
                 }
+                if ui.button("Save as template…").clicked() { crate::template_library::publish(app); }
+                if ui.button("My templates…").clicked() { app.template_library.open(ui.ctx()); }
                 let selection = app.graph_ed.as_ref().map(|ed| ed.selected_nodes(ui.ctx())).unwrap_or_default();
                 if ui.add_enabled(!selection.is_empty(), egui::Button::new(format!("{} Collapse {}", icon::PACKAGE, selection.len()))).on_hover_text("Fold the selected nodes into one cluster node").clicked() {
                     app.collapse_nodes(&selection);
@@ -117,6 +119,7 @@ fn empty_state(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             app.open_graph(ringdesign_graph::templates::simple());
         }
         ui.add_space(6.0);
+        if ui.button("My templates…").clicked() { app.template_library.open(ui.ctx()); }
         ui.menu_button(format!("{} Open a template graph", icon::FOLDER_OPEN), |ui| {
             if let Some(template) = ringdesign_workbench::templates::menu(ui) {
                 app.open_template(template, true);

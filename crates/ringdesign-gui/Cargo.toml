@@ -26,6 +26,7 @@ ringdesign-mcp.workspace = true
 tokio.workspace = true
 eframe = { workspace = true, features = ["links"] }
 egui.workspace = true
+image.workspace = true
 egui_glow.workspace = true
 egui-phosphor.workspace = true
 egui_tiles.workspace = true

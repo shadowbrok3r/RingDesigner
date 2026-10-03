@@ -9,13 +9,15 @@
 use std::collections::{BTreeMap, HashMap};
 
 use egui::{Color32, RichText, Ui};
-use egui_snarl::ui::{BackgroundPattern, PinInfo, SnarlStyle, SnarlViewer};
+use egui_snarl::ui::{AnyPins, BackgroundPattern, PinInfo, SnarlStyle, SnarlViewer};
 use egui_snarl::{InPin, InPinId, NodeId as SnarlId, OutPin, OutPinId, Snarl};
-use ringdesign_graph::graph::{Access, Graph, GraphError, Node, NodeId, Wire};
+use ringdesign_graph::graph::{Access, Graph, GraphError, Node, NodeGroup, NodeId, Wire};
 use ringdesign_graph::registry::{Category, NodeSpec, PinSpec, Registry};
 use ringdesign_graph::value::{Literal, ValueKind};
 
 use crate::widgets::pin_widget;
+mod commands;
+mod palette;
 
 /// A node as the view holds it: the graph's data plus the pins resolved
 /// from the registry, so drawing needs no registry at all.
@@ -149,6 +151,9 @@ pub fn extract_graph(snarl: &Snarl<NodeCard>, template: &Graph) -> Graph {
     let live: std::collections::BTreeSet<NodeId> = g.nodes.iter().map(|n| n.id).collect();
     g.exposed = template.exposed.iter().filter(|e| live.contains(&e.node)).cloned().collect();
     g.outputs = template.outputs.iter().filter(|e| live.contains(&e.node)).cloned().collect();
+    g.groups = template.groups.clone();
+    for group in &mut g.groups { group.nodes.retain(|id| live.contains(id)); }
+    g.groups.retain(|group| !group.nodes.is_empty());
     g
 }
 
@@ -175,6 +180,10 @@ pub struct Editor {
     /// Hosts with a dedicated inspector can keep node cards compact.
     pub inline_inputs: bool,
     style: SnarlStyle,
+    /// Keep the add-node query while the per-frame viewer is rebuilt.
+    menu_search: String,
+    group_name: String,
+    command_error: Option<String>,
     /// A node to centre the view on at the next frame.
     pending_focus: Option<NodeId>,
     /// Fit every node into the view at the next frame.
@@ -271,6 +280,9 @@ impl Editor {
             revision: 0,
             selected: None,
             editable: true,
+            menu_search: String::new(),
+            group_name: "New group".into(),
+            command_error: None,
             inline_inputs: true,
             style: crate::style::snarl_style(),
             pending_focus: None,
@@ -497,6 +509,7 @@ impl Editor {
 
     /// Draw the editor and extract any change.
     pub fn show(&mut self, reg: &Registry, ui: &mut Ui, id_salt: &str) -> EditorResponse {
+        let tools_changed = self.tools_ui(reg, ui);
         let focus = self.pending_focus.take().and_then(|id| self.ids.to_snarl.get(&id).copied());
         let viewport = ui.available_rect_before_wrap();
         let fit = std::mem::take(&mut self.pending_fit).then_some(viewport);
@@ -514,8 +527,9 @@ impl Editor {
             inline_inputs: self.inline_inputs,
             clicked: None,
             refused: None,
-            search: String::new(),
+            search: std::mem::take(&mut self.menu_search),
             ids: &self.ids,
+            groups: &self.graph.groups,
             focus,
             fit,
             viewport,
@@ -545,6 +559,7 @@ impl Editor {
         let clicked = viewer.clicked;
         let refused = viewer.refused.take();
         let collapse_request = viewer.collapse_request.take();
+        self.menu_search = std::mem::take(&mut viewer.search);
         self.transform = viewer.seen_transform.or(self.transform);
         // The first arrange ran on nominal sizes; once every node has been
         // drawn once, lay them out again from what they really measure.
@@ -584,7 +599,7 @@ impl Editor {
                 return EditorResponse { changed: true, selected: self.selected, refused: None };
             }
         }
-        let mut resp = EditorResponse { refused, changed: std::mem::take(&mut self.layout_changed), ..Default::default() };
+        let mut resp = EditorResponse { refused, changed: tools_changed | std::mem::take(&mut self.layout_changed), ..Default::default() };
         if let Some(sid) = clicked {
             self.selected = self.ids.to_graph.get(&sid).copied();
         }
@@ -697,7 +712,13 @@ impl Editor {
                 for e in exposed {
                     let Some(node) = self.graph.node(e.node) else { continue };
                     let Some((pins, _)) = reg.node_pins(node) else { continue };
-                    let Some(pin) = pins.into_iter().find(|p| p.name == e.input) else { continue };
+                    let Some(mut pin) = pins.into_iter().find(|p| p.name == e.input) else { continue };
+                    if let Some([min, max]) = e.range.filter(|r| r[0].is_finite() && r[1].is_finite() && r[0] < r[1]) {
+                        pin.widget = match pin.widget {
+                            ringdesign_graph::registry::Widget::Mm { .. } => ringdesign_graph::registry::Widget::Mm { min, max },
+                            _ => ringdesign_graph::registry::Widget::Slider { min, max },
+                        };
+                    }
                     let wired = self.graph.wire_into(e.node, &e.input).is_some();
                     let mut literal = node.inputs.get(&e.input).cloned();
                     ui.add(egui::Label::new(&e.name).wrap_mode(egui::TextWrapMode::Extend)).on_hover_text(if e.doc.is_empty() { &pin.doc } else { &e.doc });
@@ -885,6 +906,7 @@ struct Viewer<'a> {
     refused: Option<String>,
     search: String,
     ids: &'a IdMap,
+    groups: &'a [NodeGroup],
     focus: Option<SnarlId>,
     fit: Option<egui::Rect>,
     viewport: egui::Rect,
@@ -993,9 +1015,23 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         crate::style::node_frame(default, self.selected == Some(node), trouble)
     }
 
-    fn draw_background(&mut self, _background: Option<&BackgroundPattern>, viewport: &egui::Rect, _snarl_style: &SnarlStyle, _style: &egui::Style, painter: &egui::Painter, _snarl: &Snarl<NodeCard>) {
+    fn draw_background(&mut self, _background: Option<&BackgroundPattern>, viewport: &egui::Rect, _snarl_style: &SnarlStyle, _style: &egui::Style, painter: &egui::Painter, snarl: &Snarl<NodeCard>) {
         let scale = self.seen_transform.map(|t| t.scaling).unwrap_or(1.0);
         crate::style::paint_canvas(painter, *viewport, scale);
+        for group in self.groups {
+            let mut bounds: Option<egui::Rect> = None;
+            for id in &group.nodes {
+                let Some(info) = self.ids.to_snarl.get(id).and_then(|sid| snarl.get_node_info(*sid)) else { continue };
+                let rect = egui::Rect::from_min_size(info.pos, self.sizes.get(id).copied().unwrap_or(NODE_SIZE));
+                bounds = Some(bounds.map_or(rect, |r| r.union(rect)));
+            }
+            if let Some(mut rect) = bounds.map(|r| r.expand(16.0)) {
+                rect.min.y -= 26.0;
+                painter.rect_filled(rect, 6.0, Color32::from_rgba_unmultiplied(80, 145, 160, 18));
+                painter.rect_stroke(rect, 6.0, egui::Stroke::new(1.0, crate::style::AQUA.gamma_multiply(0.5)), egui::StrokeKind::Inside);
+                painter.text(rect.min + egui::vec2(10.0, 6.0), egui::Align2::LEFT_TOP, &group.name, egui::FontId::proportional(14.0), crate::style::AQUA);
+            }
+        }
     }
 
     fn inputs(&mut self, node: &NodeCard) -> usize {
@@ -1163,39 +1199,15 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn show_graph_menu(&mut self, pos: egui::Pos2, ui: &mut Ui, snarl: &mut Snarl<NodeCard>) {
-        ui.set_min_width(220.0);
-        ui.label(RichText::new("Add node").small().weak());
-        ui.add(egui::TextEdit::singleline(&mut self.search).hint_text("search…"));
-        let specs = self.reg.list(self.mode);
-        let needle = self.search.trim().to_lowercase();
-        if !needle.is_empty() {
-            egui::ScrollArea::vertical().max_height(260.0).show(ui, |ui| {
-                for spec in specs.iter().filter(|s| s.key.to_lowercase().contains(&needle) || s.label.to_lowercase().contains(&needle)) {
-                    let mark = crate::marks::of(spec);
-                    if crate::marks::button(ui, mark, &format!("{}  ({})", spec.label, spec.key)).on_hover_text(&spec.doc).clicked() {
-                        snarl.insert_node(pos, NodeCard::new_of(spec, self.reg));
-                        self.search.clear();
-                        ui.close();
-                    }
-                }
-            });
-            return;
-        }
-        for cat in Category::ALL {
-            let in_cat: Vec<&&NodeSpec> = specs.iter().filter(|s| s.category == *cat).collect();
-            if in_cat.is_empty() {
-                continue;
-            }
-            crate::marks::submenu(ui, *cat, |ui| {
-                for spec in in_cat {
-                    let mark = crate::marks::of(spec);
-                    if crate::marks::button(ui, mark, &spec.label).on_hover_text(format!("{}\n{}", spec.key, spec.doc)).clicked() {
-                        snarl.insert_node(pos, NodeCard::new_of(spec, self.reg));
-                        ui.close();
-                    }
-                }
-            });
-        }
+        self.palette(pos, ui, snarl, None);
+    }
+
+    fn has_dropped_wire_menu(&mut self, pins: AnyPins<'_>, _: &mut Snarl<NodeCard>) -> bool {
+        self.editable && match pins { AnyPins::In(p) => p.len() == 1, AnyPins::Out(p) => p.len() == 1 }
+    }
+
+    fn show_dropped_wire_menu(&mut self, pos: egui::Pos2, ui: &mut Ui, pins: AnyPins<'_>, snarl: &mut Snarl<NodeCard>) {
+        self.palette(pos, ui, snarl, Some(&pins));
     }
 
     fn has_node_menu(&mut self, _node: &NodeCard) -> bool {
@@ -1272,7 +1284,7 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
-        let mut viewer = Viewer { reg: &reg, editable: true, inline_inputs: true, clicked: None, refused: None, search: String::new(), ids: &ids, focus: None, fit: None, viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)), seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), rows: HashMap::new(), zoom: None, pan: egui::Vec2::ZERO , pinched: false };
+        let mut viewer = Viewer { reg: &reg, editable: true, inline_inputs: true, clicked: None, refused: None, search: String::new(), ids: &ids, groups: &[], focus: None, fit: None, viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)), seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), rows: HashMap::new(), zoom: None, pan: egui::Vec2::ZERO , pinched: false };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);

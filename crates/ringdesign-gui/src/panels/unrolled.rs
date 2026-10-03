@@ -961,13 +961,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     .map(|k| {
                         let t = k as f64 / 64.0 * std::f64::consts::TAU;
                         let (sn, cs) = t.sin_cos();
-                        let r = ringdesign_core::field::superellipse_radius_mm(
-                            cs,
-                            sn,
-                            sp.diameter_mm * 0.5 * sp.elong.max(1.0),
-                            sp.diameter_mm * 0.5,
-                            sp.plan_pow,
-                        );
+                        let r = sp.rim_radius_mm(cs, sn);
                         let (a, b) = (r * cs, r * sn);
                         let (s2, c2) = sp.rot_deg.to_radians().sin_cos();
                         let (uo, vo) = ((a * c2 - b * s2) / ku.max(1e-6), (a * s2 + b * c2) / kv.max(1e-6));

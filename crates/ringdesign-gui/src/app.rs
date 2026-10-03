@@ -296,6 +296,7 @@ pub struct RingDesignerApp {
     /// Slowest-freezing slice, from the settled build's Chvorinov scan.
     pub hot_spot: Option<(f64, f64)>,
     pub casting: crate::panels::casting::CastingState,
+    pub template_library: crate::template_library::State,
     pub cad: crate::panels::cad::CadState,
 
     /// Resolution used for the interactive viewport.
@@ -501,6 +502,7 @@ impl RingDesignerApp {
             dfm_generation: 0,
             hot_spot: None,
             casting: Default::default(),
+            template_library: Default::default(),
             cad: Default::default(),
             preview_params: ws.preview_params,
             export_params: ws.export_params,
@@ -676,7 +678,10 @@ impl RingDesignerApp {
     pub fn open_file(&mut self, path: std::path::PathBuf) {
         let wake = self.egui_ctx.clone();
         let opening = ringdesign_workbench::templates::open_file(path.clone(), self.lib.clone(), false, move || wake.request_repaint());
-        self.start_opening(opening, Lands::File(path));
+        let lands = if path.to_string_lossy().ends_with(ringdesign_graph::personal::EXT) {
+            Lands::Template { graph_pane: true }
+        } else { Lands::File(path) };
+        self.start_opening(opening, lands);
     }
 
     pub(crate) fn start_opening(&mut self, opening: ringdesign_workbench::templates::Opening, lands: Lands) {

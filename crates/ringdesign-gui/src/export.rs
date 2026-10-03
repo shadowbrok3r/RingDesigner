@@ -518,6 +518,10 @@ pub fn open_design(app: &mut RingDesignerApp) {
 
 /// Load a design file on the UI thread — the Recent menu's and the command line's entry point; the dialog's opens off it.
 pub fn open_design_path(app: &mut RingDesignerApp, path: &std::path::Path) {
+    if path.to_string_lossy().ends_with(ringdesign_graph::personal::EXT) {
+        app.open_file(path.to_path_buf());
+        return;
+    }
     match library::load_design(path) {
         Ok(d) => {
             let mut lib = app.lib.clone();
