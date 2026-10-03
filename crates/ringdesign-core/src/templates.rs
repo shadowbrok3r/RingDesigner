@@ -210,7 +210,7 @@ pub fn stock(preset: &'static crate::imported_base::Preset) -> anyhow::Result<Ri
 }
 
 /// A factory blank as a Delft sand master with its envelope, or as native stock in lost wax.
-fn stock_as(preset: &'static crate::imported_base::Preset, sand: bool) -> anyhow::Result<RingDesign> {
+pub(crate) fn stock_as(preset: &'static crate::imported_base::Preset, sand: bool) -> anyhow::Result<RingDesign> {
     use crate::imported_base::{ImportedBase, SurfaceChart, sand_master};
     use crate::castability::{CastProcess, SandProcess};
     let source = preset.load()?;

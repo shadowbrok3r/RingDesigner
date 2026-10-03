@@ -114,6 +114,7 @@ pub fn node(key: &str) -> Option<Icon> {
         "design.resize" => Icon::Scale,
         "cad.source" => Icon::CadBand,
         "cad.feature" | "cad.features" | "sketch.tracery" => Icon::CadSketch,
+        "sketch.text" => Icon::Engrave,
 
         // --- sinks --------------------------------------------------------
         "gate.castable" => Icon::NodeGate,

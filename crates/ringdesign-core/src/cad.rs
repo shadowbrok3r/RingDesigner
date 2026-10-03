@@ -15,12 +15,14 @@ use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 pub mod assembly;
 pub mod builders;
+pub mod draft;
 pub mod edit;
 pub mod examples;
 pub mod measure;
 pub mod pattern;
 pub mod step;
 pub mod stored;
+pub mod turn;
 pub mod twist;
 pub use pattern::{Along, AlongPath, MirrorPlane, PatternKind, PlaneBase, WorkPlane};
 
@@ -448,9 +450,18 @@ pub struct Component {
     /// ([`crate::sculpt::fillet_into`]); 0 grows none and is not written.
     #[serde(skip_serializing_if = "is_zero_mm")]
     pub fillet_into_band: f64,
+    /// Whether a sand pattern stands a raised locating or drill mark where this part, left to the
+    /// bench, meets the band. An engraving cut from the drawing needs none. Written only when off,
+    /// and then at format 6, since an older build would stand the mark.
+    #[serde(skip_serializing_if = "marked")]
+    pub mark: bool,
 }
 fn is_zero_mm(v: &f64) -> bool {
     *v == 0.0
+}
+/// Whether a component keeps its bench mark: the default, which a file leaves unwritten.
+fn marked(mark: &bool) -> bool {
+    *mark
 }
 /// How a component's solid meets the band once both are built.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -496,6 +507,7 @@ struct ComponentWire {
     stage: Stage,
     blend_mm: f64,
     fillet_into_band: f64,
+    mark: bool,
     ring_anchor_deg: Option<f64>,
     anchor_height_mm: f64,
 }
@@ -515,6 +527,7 @@ impl Default for ComponentWire {
             stage: c.stage,
             blend_mm: c.blend_mm,
             fillet_into_band: c.fillet_into_band,
+            mark: c.mark,
             ring_anchor_deg: None,
             anchor_height_mm: 0.0,
         }
@@ -539,6 +552,7 @@ impl From<ComponentWire> for Component {
             stage: w.stage,
             blend_mm: w.blend_mm,
             fillet_into_band: w.fillet_into_band,
+            mark: w.mark,
         }
     }
 }
@@ -1618,6 +1632,7 @@ impl Default for Component {
             stage: Stage::Cast,
             blend_mm: 0.0,
             fillet_into_band: 0.0,
+            mark: true,
         }
     }
 }
@@ -1744,6 +1759,9 @@ impl Value {
             pattern::PATTERN => "a mesh of placed copies",
             stored::STORED => "a mesh another kernel made",
             twist::TWIST => "a twisted sweep's mesh",
+            draft::DRAFT => "a drafted extrusion's mesh",
+            draft::LOOPS => "a mesh of loops extruded and joined",
+            turn::TURN => "a revolution's mesh",
             _ => "a mesh a builder made",
         }
     }
@@ -2237,12 +2255,37 @@ fn body_for(
             let n = p.normal().context("Sketch plane has no normal")?;
             let lift = if cut && h < 0.0 { CUT_CLEAR_MM } else { 0.0 };
             let base = cadkernel::space::Plane::from_axes(std::array::from_fn(|k| p.origin[k] + n[k] * lift), p.x_axis, p.y_axis);
-            crate::sketch::solid::extrude(
-                base,
-                &regions_of(from, sketch, notes)?,
-                n.map(|v| v * (h - lift)),
-                draft_deg.to_radians(),
-            )
+            let (direction, draft) = (n.map(|v| v * (h - lift)), draft_deg.to_radians());
+            let regions = match regions_of(from, sketch, notes) {
+                Ok(regions) => regions,
+                // Loops that meet, an outline and its mirror drawn past the line between them, are each extruded alone and joined.
+                Err(refused) => match (from, sketch.loop_regions()) {
+                    (Profile::Feature { .. }, Ok(loops)) if loops.len() > 1 => {
+                        let one = |r: &crate::sketch::Region| -> Result<crate::setting::Named> {
+                            match crate::sketch::solid::extrude(base, std::slice::from_ref(r), direction, draft) {
+                                Ok(body) => named_of(&Value::Brep(body)),
+                                Err(_) if draft != 0.0 => Ok(draft::extrude(base, &r.outer, direction, draft, part_chord(params))?.named),
+                                Err(e) => Err(e),
+                            }
+                        };
+                        let joined = loops.iter().map(one).collect::<Result<Vec<_>>>().and_then(draft::joined).with_context(|| format!("{refused:#}"))?;
+                        return Ok(Value::Mesh(Arc::new(joined)));
+                    }
+                    _ => return Err(refused),
+                },
+            };
+            match crate::sketch::solid::extrude(base, &regions, direction, draft) {
+                // A draft the kernel refuses, Béziers or an inset that drops a piece, is our own mesh.
+                Err(refused) if draft != 0.0 && regions.iter().all(|r| r.holes.is_empty()) => {
+                    let made = regions
+                        .iter()
+                        .map(|r| draft::extrude(base, &r.outer, direction, draft, part_chord(params)))
+                        .collect::<Result<Vec<_>>>()
+                        .with_context(|| format!("{refused:#}"))?;
+                    return Ok(Value::Mesh(Arc::new(draft::gathered(made)?)));
+                }
+                built => built,
+            }
         }
         Operation::Revolve {
             sketch: from,
@@ -2262,7 +2305,14 @@ fn body_for(
             let (pivot, axis) = if *in_plane { in_plane_line(&plane, *pivot, *axis)? } else { (*pivot, *axis) };
             let regions = regions_of(from, sketch, notes)?;
             let (plane, angle) = if cut && *degrees < 360.0 { cleared_turn(plane, &regions, pivot, axis, *degrees) } else { (plane, degrees.to_radians()) };
-            crate::sketch::solid::revolve(plane, &regions, pivot, axis, angle)
+            let body = crate::sketch::solid::revolve(plane, &regions, pivot, axis, angle)?;
+            // The kernel leaves some revolved arcs' tori untessellated, at one chord and not the next; such a revolve is our own mesh.
+            let arcs = regions.iter().flat_map(|r| r.loops()).flatten().any(|c| !matches!(c, cadkernel::geom2d::Curve::Line(_)));
+            if arcs && let Err(refused) = tessellate_traced(&body, part_chord(params)) {
+                let made = turn::revolve(plane, &regions, pivot, axis, angle, part_chord(params)).with_context(|| format!("{refused:#}"))?;
+                return Ok(Value::Mesh(Arc::new(made)));
+            }
+            Ok(body)
         }
         Operation::Sweep { sketch: from, path, closed, twist_deg, end_scale } => {
             let (stations, round) = match path {
@@ -2376,7 +2426,7 @@ fn body_for(
                 profiles.iter().all(|(_, p)| p.len() == profiles[0].1.len()),
                 "Loft sections need matching curve counts and winding"
             );
-            maybe(brep::loft(&profiles), "Loft")
+            maybe(brep::loft(&profiles).or_else(|| brep::loft(&wound_sections(&profiles)?)), "Loft")
         }
         Operation::Boolean { a, b, kind } => {
             ensure!(a != b, "Boolean sources must be different");
@@ -2399,13 +2449,25 @@ fn body_for(
                     "Feature #{id} is a faceted solid of {faces} faces; the analytic kernel cannot combine it in usable time. Keep it as a separate component"
                 );
             }
-            let kind = match kind {
+            let analytic = match kind {
                 Boolean::Union => brep::Operation::Union,
                 Boolean::Subtract => brep::Operation::Difference,
                 Boolean::Intersect => brep::Operation::Intersection,
             };
-            brep::combine(source(a)?.clone(), source(b)?.clone(), kind, 1e-6)
-                .map_err(|e| anyhow::anyhow!("Boolean cannot resolve this intersection: {e:?}"))
+            match brep::combine(source(a)?.clone(), source(b)?.clone(), analytic, 1e-6) {
+                Ok(body) => Ok(body),
+                // What the kernel cannot close, csg resolves on the tessellated operands, as the parts resolve does.
+                Err(refused) => {
+                    let op = match kind {
+                        Boolean::Union => crate::csg::Op::Union,
+                        Boolean::Subtract => crate::csg::Op::Subtract,
+                        Boolean::Intersect => crate::csg::Op::Intersect,
+                    };
+                    let named = builders::combined(&named_of(va)?, &named_of(vb)?, op)
+                        .with_context(|| format!("Boolean cannot resolve this intersection: {refused:?}"))?;
+                    return Ok(Value::Mesh(Arc::new(builders::Made::of(op_label(*kind), named, None)?)));
+                }
+            }
         }
         Operation::Fillet {
             source: id,
@@ -2465,6 +2527,67 @@ fn body_for(
         Operation::Stored { .. } => anyhow::bail!("A stored mesh is read from the file, not built by the kernel"),
     };
     body.map(Value::Brep)
+}
+/// Polygon loft sections as the kernel can loft them, for a loft it refused as drawn: each wound
+/// the way the loft runs (its corners' turn about the line from the first section's centre to the
+/// last's), lined up with the one before it, and all started together where the first and the last
+/// turn convex at their second corner, since the kernel reads an end's winding off its first
+/// triangle. So a section may start on a concave corner, and fanned planes may come in either order.
+/// `None` when a section is not a polygon or has fewer than three corners.
+fn wound_sections(profiles: &[(cadkernel::space::Plane, Vec<cadkernel::geom2d::Curve>)]) -> Option<Vec<(cadkernel::space::Plane, Vec<cadkernel::geom2d::Curve>)>> {
+    use cadkernel::geom2d::{Curve, Line};
+    use crate::mesh::{cross, sub};
+    let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    let mut rings: Vec<Vec<[f64; 2]>> = Vec::with_capacity(profiles.len());
+    for (_, profile) in profiles {
+        if profile.len() < 3 || profile.iter().any(|c| !matches!(c, Curve::Line(_))) {
+            return None;
+        }
+        let senses = crate::sketch::region::senses(profile)?;
+        rings.push(profile.iter().zip(senses).map(|(c, forward)| c.point_at(if forward { 0.0 } else { 1.0 })).collect());
+    }
+    let world = |k: usize, ring: &[[f64; 2]]| -> Vec<[f64; 3]> { ring.iter().map(|p| profiles[k].0.point_at(*p)).collect() };
+    let centre = |ring: &[[f64; 3]]| -> [f64; 3] { std::array::from_fn(|i| ring.iter().map(|p| p[i]).sum::<f64>() / ring.len() as f64) };
+    let winding = |ring: &[[f64; 3]]| -> [f64; 3] {
+        (0..ring.len()).fold([0.0; 3], |n, i| {
+            let c = cross(ring[i], ring[(i + 1) % ring.len()]);
+            std::array::from_fn(|k| n[k] + c[k])
+        })
+    };
+    let run = sub(centre(&world(rings.len() - 1, rings.last()?)), centre(&world(0, &rings[0])));
+    for k in 0..rings.len() {
+        if dot(winding(&world(k, &rings[k])), run) < 0.0 {
+            rings[k].reverse();
+        }
+    }
+    // Each section turned to start where it lies nearest the one before it, corner by corner.
+    for k in 1..rings.len() {
+        let (before, here) = (world(k - 1, &rings[k - 1]), world(k, &rings[k]));
+        let n = here.len();
+        let cost = |shift: usize| -> f64 { (0..n).map(|i| sub(before[i], here[(shift + i) % n])).map(|d| dot(d, d)).sum() };
+        let best = (0..n).min_by(|a, b| cost(*a).total_cmp(&cost(*b)))?;
+        rings[k].rotate_left(best);
+    }
+    let convex = |k: usize, i: usize| -> bool {
+        let ring = world(k, &rings[k]);
+        let n = ring.len();
+        let (a, b, c) = (ring[(i + n - 1) % n], ring[i % n], ring[(i + 1) % n]);
+        dot(cross(sub(b, a), sub(c, b)), winding(&ring)) > 1e-12
+    };
+    let last = rings.len() - 1;
+    let n = rings[0].len();
+    if let Some(shift) = (0..n).find(|s| convex(0, s + 1) && convex(last, s + 1)).or_else(|| (0..n).find(|s| convex(0, s + 1))) {
+        for ring in &mut rings {
+            ring.rotate_left(shift);
+        }
+    }
+    Some(
+        profiles
+            .iter()
+            .zip(rings)
+            .map(|((plane, _), ring)| (*plane, (0..ring.len()).map(|i| Curve::Line(Line { start: ring[i], end: ring[(i + 1) % ring.len()] })).collect()))
+            .collect(),
+    )
 }
 fn op_label(kind: Boolean) -> &'static str {
     match kind {
@@ -3485,6 +3608,19 @@ pub fn tessellate_traced(body: &Body, chord_mm: f64) -> Result<(Mesh, PartTrace)
     if !mesh.validate().watertight {
         zip_chord_seams(&mut mesh, &mut tri_face, &precise, body, chord_mm);
     }
+    // Cracks the earlier passes left open; after them, so every mesh they close is unchanged.
+    if !mesh.validate().watertight {
+        split_t_junctions(&mut mesh, &mut tri_face, &precise, chord_mm);
+    }
+    // Only what the three above leave open, so whatever they closed stays as they closed it.
+    if !mesh.validate().watertight {
+        cancel_twins(&mut mesh, &mut tri_face);
+        fan_loft_t_junctions(&mut mesh, &precise, &mut tri_face);
+        if !mesh.validate().watertight {
+            stitch_chord_gaps(&mut mesh, body, chord_mm);
+            tri_face.resize(mesh.faces.len(), u32::MAX);
+        }
+    }
     let validation = mesh.validate();
     ensure!(
         validation.watertight,
@@ -3500,6 +3636,300 @@ pub fn tessellate_traced(body: &Body, chord_mm: f64) -> Result<(Mesh, PartTrace)
         .collect();
     Ok((mesh, PartTrace { tri_face, positions: precise, face_kind, vertices, patches: Vec::new() }))
 }
+/// The kernel closes a revolved arc's periodic face with a strip of no width along its seam,
+/// every triangle of it laid twice, once each way, which leaves the seam's edges four faces
+/// apiece. Where some edge has more than two faces, every pair of triangles on the same three
+/// vertices facing opposite ways is taken out: a pair encloses nothing, so the solid keeps its
+/// volume, and each of its edges loses one face each way.
+fn cancel_twins(mesh: &mut Mesh, tri_face: &mut Vec<u32>) {
+    let mut uses: BTreeMap<(u32, u32), u32> = BTreeMap::new();
+    for f in &mesh.faces {
+        for k in 0..3 {
+            let (a, b) = (f[k], f[(k + 1) % 3]);
+            *uses.entry((a.min(b), a.max(b))).or_default() += 1;
+        }
+    }
+    if uses.values().all(|n| *n <= 2) {
+        return;
+    }
+    // A triangle by its corners in canonical order, and which way round it runs.
+    let key = |f: &[u32; 3]| {
+        let mut s = *f;
+        s.sort_unstable();
+        let r = f.iter().position(|v| *v == s[0]).unwrap_or(0);
+        (s, f[(r + 1) % 3] == s[1])
+    };
+    let mut open: BTreeMap<([u32; 3], bool), Vec<usize>> = BTreeMap::new();
+    let mut gone = vec![false; mesh.faces.len()];
+    for (t, f) in mesh.faces.iter().enumerate() {
+        let (corners, way) = key(f);
+        if let Some(twin) = open.get_mut(&(corners, !way)).and_then(Vec::pop) {
+            gone[twin] = true;
+            gone[t] = true;
+        } else {
+            open.entry((corners, way)).or_default().push(t);
+        }
+    }
+    if !gone.iter().any(|g| *g) {
+        return;
+    }
+    let mut k = 0;
+    mesh.faces.retain(|_| {
+        k += 1;
+        !gone[k - 1]
+    });
+    let mut k = 0;
+    tri_face.retain(|_| {
+        k += 1;
+        !gone[k - 1]
+    });
+}
+/// A loft through sections in planes that are not parallel meets a planar face along a straight
+/// edge the face leaves whole and its ruled neighbour halves, or two ruled faces halve it
+/// differently: an open seam whose corners lie on the other side's edges. Each open edge with
+/// open corners lying on it, within [`T_JUNCTION_MM`], has its triangle fanned through them; no
+/// vertex moves, so where the seam closes it closes on the corners both sides already had.
+fn fan_loft_t_junctions(mesh: &mut Mesh, precise: &[[f64; 3]], tri_face: &mut Vec<u32>) {
+    for _ in 0..8 {
+        let mut uses: BTreeMap<(u32, u32), Vec<(usize, usize)>> = BTreeMap::new();
+        for (t, f) in mesh.faces.iter().enumerate() {
+            for k in 0..3 {
+                let (a, b) = (f[k], f[(k + 1) % 3]);
+                uses.entry((a.min(b), a.max(b))).or_default().push((t, k));
+            }
+        }
+        if uses.values().any(|u| u.len() > 2) {
+            return;
+        }
+        let open: Vec<(usize, usize)> = uses.values().filter(|u| u.len() == 1).map(|u| u[0]).collect();
+        if open.is_empty() || open.len() > 12_000 {
+            return;
+        }
+        let corners: BTreeSet<u32> = open.iter().flat_map(|(t, k)| [mesh.faces[*t][*k], mesh.faces[*t][(*k + 1) % 3]]).collect();
+        let cell = |p: [f64; 3]| p.map(|v| (v / 0.05).floor() as i64);
+        let mut grid: BTreeMap<[i64; 3], Vec<u32>> = BTreeMap::new();
+        for c in &corners {
+            grid.entry(cell(precise[*c as usize])).or_default().push(*c);
+        }
+        let mut split: BTreeMap<usize, (usize, Vec<u32>)> = BTreeMap::new();
+        for (t, k) in open {
+            if split.contains_key(&t) {
+                continue;
+            }
+            let (a, b) = (mesh.faces[t][k], mesh.faces[t][(k + 1) % 3]);
+            let (pa, pb) = (precise[a as usize], precise[b as usize]);
+            let d = crate::mesh::sub(pb, pa);
+            let length2: f64 = d.iter().map(|v| v * v).sum();
+            if length2 <= 1e-18 {
+                continue;
+            }
+            let (lo, hi) = (cell(std::array::from_fn(|i| pa[i].min(pb[i]))), cell(std::array::from_fn(|i| pa[i].max(pb[i]))));
+            if (0..3).map(|i| (hi[i] - lo[i] + 1) as u64).product::<u64>() > 4096 {
+                continue;
+            }
+            let mut on: Vec<(f64, u32)> = Vec::new();
+            for x in lo[0]..=hi[0] {
+                for y in lo[1]..=hi[1] {
+                    for z in lo[2]..=hi[2] {
+                        for &c in grid.get(&[x, y, z]).into_iter().flatten() {
+                            if c == a || c == b {
+                                continue;
+                            }
+                            let e = crate::mesh::sub(precise[c as usize], pa);
+                            let s = e.iter().zip(&d).map(|(e, d)| e * d).sum::<f64>() / length2;
+                            let off: f64 = (0..3).map(|i| (e[i] - d[i] * s).powi(2)).sum::<f64>().sqrt();
+                            if s > 1e-9 && s < 1.0 - 1e-9 && off <= T_JUNCTION_MM {
+                                on.push((s, c));
+                            }
+                        }
+                    }
+                }
+            }
+            if !on.is_empty() {
+                on.sort_by(|p, q| p.0.total_cmp(&q.0));
+                split.insert(t, (k, on.into_iter().map(|(_, c)| c).collect()));
+            }
+        }
+        if split.is_empty() {
+            return;
+        }
+        for (t, (k, on)) in split {
+            let f = mesh.faces[t];
+            let (a, b, x) = (f[k], f[(k + 1) % 3], f[(k + 2) % 3]);
+            let chain: Vec<u32> = std::iter::once(a).chain(on).chain(std::iter::once(b)).collect();
+            mesh.faces[t] = [chain[0], chain[1], x];
+            for w in chain[1..].windows(2) {
+                mesh.faces.push([w[0], w[1], x]);
+                tri_face.push(tri_face[t]);
+            }
+        }
+    }
+}
+/// How far off an open edge an open corner may lie and still be taken for a corner on it, mm.
+const T_JUNCTION_MM: f64 = 1e-6;
+/// Where one face samples a shared spline edge more finely than its neighbour, the neighbour's open
+/// edges have the finer side's open vertices lying along them: each open vertex joins the one open edge
+/// it lies nearest (within twice the chord tolerance and a quarter of that edge's length, strictly
+/// between its ends), and a triangle with vertices on its open edges is drawn again as the polygon
+/// through all of them, ear by ear in its own plane, so no point moves and none is added. A triangle
+/// whose polygon will not clip without folding, or whose ears would put an edge on a third triangle,
+/// is left as it is; a three-edge gap still open is closed by its own triangle under [`SEAM_SLIVER_MM`]
+/// tall, and the mesh is kept only if it closes. It runs after [`zip_chord_seams`] and reaches further.
+fn split_t_junctions(mesh: &mut Mesh, tri_face: &mut Vec<u32>, at: &[[f64; 3]], chord_mm: f64) {
+    use crate::mesh::{cross, norm, sub};
+    if at.len() != mesh.vertices.len() {
+        return;
+    }
+    let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    let (faces, owners) = (mesh.faces.clone(), tri_face.clone());
+    for _ in 0..8 {
+        let mut count: HashMap<(u32, u32), usize> = HashMap::new();
+        for f in &mesh.faces {
+            for k in 0..3 {
+                let (a, b) = (f[k], f[(k + 1) % 3]);
+                *count.entry((a.min(b), a.max(b))).or_default() += 1;
+            }
+        }
+        if count.values().any(|n| *n > 2) {
+            break;
+        }
+        let open: Vec<(usize, usize)> = mesh
+            .faces
+            .iter()
+            .enumerate()
+            .flat_map(|(i, f)| (0..3).map(move |k| (i, k, f)))
+            .filter(|(_, k, f)| count[&(f[*k].min(f[(*k + 1) % 3]), f[*k].max(f[(*k + 1) % 3]))] == 1)
+            .map(|(i, k, _)| (i, k))
+            .collect();
+        if open.is_empty() || open.len() > 12_000 {
+            break;
+        }
+        let ends: BTreeSet<u32> = open.iter().flat_map(|&(i, k)| [mesh.faces[i][k], mesh.faces[i][(k + 1) % 3]]).collect();
+        // Each open vertex on the open edge it lies nearest: the face, which of its edges, and where along it.
+        let mut along: BTreeMap<usize, [Vec<(f64, u32)>; 3]> = BTreeMap::new();
+        for &m in &ends {
+            let pm = at[m as usize];
+            let mut best: Option<(f64, usize, usize, f64)> = None;
+            for &(i, k) in &open {
+                let f = mesh.faces[i];
+                let (a, b) = (f[k], f[(k + 1) % 3]);
+                if m == a || m == b {
+                    continue;
+                }
+                let (pa, d) = (at[a as usize], sub(at[b as usize], at[a as usize]));
+                let l2 = dot(d, d);
+                if !(l2 > 1e-24) {
+                    continue;
+                }
+                let t = dot(sub(pm, pa), d) / l2;
+                let off = norm(sub(pm, std::array::from_fn(|j| pa[j] + d[j] * t)));
+                if t > 1e-6 && t < 1.0 - 1e-6 && off <= (2.0 * chord_mm).min(0.25 * l2.sqrt()) && best.is_none_or(|x| off < x.0) {
+                    best = Some((off, i, k, t));
+                }
+            }
+            if let Some((_, i, k, t)) = best {
+                along.entry(i).or_insert_with(|| [Vec::new(), Vec::new(), Vec::new()])[k].push((t, m));
+            }
+        }
+        let mut made = false;
+        for (i, mut sides) in along {
+            let f = mesh.faces[i];
+            let mut ring: Vec<u32> = Vec::new();
+            for (k, side) in sides.iter_mut().enumerate() {
+                ring.push(f[k]);
+                side.sort_by(|x, y| x.0.total_cmp(&y.0));
+                ring.extend(side.iter().map(|s| s.1));
+            }
+            // The triangle's own facing, which every ear must keep.
+            let n0 = cross(sub(at[f[1] as usize], at[f[0] as usize]), sub(at[f[2] as usize], at[f[0] as usize]));
+            if !(norm(n0) > 0.0) {
+                continue;
+            }
+            let p = |v: u32| at[v as usize];
+            let inside = |q: [f64; 3], t: [u32; 3]| {
+                (0..3).all(|j| dot(cross(sub(p(t[(j + 1) % 3]), p(t[j])), sub(q, p(t[j]))), n0) > 0.0)
+            };
+            let mut left = ring.clone();
+            let mut ears: Vec<[u32; 3]> = Vec::new();
+            while left.len() > 3 {
+                let n = left.len();
+                let ear = (0..n).find(|&j| {
+                    let t = [left[(j + n - 1) % n], left[j], left[(j + 1) % n]];
+                    dot(cross(sub(p(t[1]), p(t[0])), sub(p(t[2]), p(t[0]))), n0) > 0.0
+                        && left.iter().all(|&v| t.contains(&v) || !inside(p(v), t))
+                });
+                let Some(j) = ear else { break };
+                ears.push([left[(j + n - 1) % n], left[j], left[(j + 1) % n]]);
+                left.remove(j);
+            }
+            if left.len() != 3 || dot(cross(sub(p(left[1]), p(left[0])), sub(p(left[2]), p(left[0]))), n0) <= 0.0 {
+                continue;
+            }
+            ears.push([left[0], left[1], left[2]]);
+            // No edge may end up on three triangles: an ear across the crack can rebuild one already there.
+            let key = |a: u32, b: u32| (a.min(b), a.max(b));
+            let mut delta: HashMap<(u32, u32), i64> = HashMap::new();
+            for k in 0..3 {
+                *delta.entry(key(f[k], f[(k + 1) % 3])).or_default() -= 1;
+            }
+            for t in &ears {
+                for k in 0..3 {
+                    *delta.entry(key(t[k], t[(k + 1) % 3])).or_default() += 1;
+                }
+            }
+            if delta.iter().any(|(e, d)| count.get(e).copied().unwrap_or(0) as i64 + d > 2) {
+                continue;
+            }
+            for (e, d) in delta {
+                let n = count.entry(e).or_default();
+                *n = (*n as i64 + d).max(0) as usize;
+            }
+            let face = tri_face[i];
+            mesh.faces[i] = ears[0];
+            for t in &ears[1..] {
+                mesh.faces.push(*t);
+                tri_face.push(face);
+            }
+            made = true;
+        }
+        if !made || mesh.validate().watertight {
+            break;
+        }
+    }
+    // What is left is a three-edge gap no split closes without folding, where a needle of the cap runs
+    // along a concave arc or a sample zigzags across its chord: closed by its own triangle when it is
+    // under a micron tall, a fold of a few square microns at most where the part would otherwise fail.
+    if !mesh.validate().watertight {
+        let mut half: BTreeMap<(u32, u32), usize> = BTreeMap::new();
+        for f in &mesh.faces {
+            for k in 0..3 {
+                *half.entry((f[k], f[(k + 1) % 3])).or_default() += 1;
+            }
+        }
+        let open: BTreeSet<(u32, u32)> = half.keys().filter(|(a, b)| !half.contains_key(&(*b, *a))).copied().collect();
+        let mut taken: BTreeSet<(u32, u32)> = BTreeSet::new();
+        for &(a, b) in &open {
+            if taken.contains(&(a, b)) {
+                continue;
+            }
+            let Some(&(_, c)) = open.range((b, 0)..=(b, u32::MAX)).find(|&&(_, c)| c != a && open.contains(&(c, a)) && !taken.contains(&(b, c)) && !taken.contains(&(c, a))) else { continue };
+            let (pa, pb, pc) = (at[a as usize], at[b as usize], at[c as usize]);
+            let longest = norm(sub(pa, pb)).max(norm(sub(pb, pc))).max(norm(sub(pc, pa)));
+            if !(longest > 0.0) || norm(cross(sub(pb, pa), sub(pc, pa))) / longest > SEAM_SLIVER_MM {
+                continue;
+            }
+            mesh.faces.push([a, c, b]);
+            tri_face.push(u32::MAX);
+            taken.extend([(a, b), (b, c), (c, a)]);
+        }
+    }
+    if !mesh.validate().watertight {
+        mesh.faces = faces;
+        *tri_face = owners;
+    }
+}
+/// Height under which a three-edge gap every other seam pass left is closed by its own triangle, mm.
+const SEAM_SLIVER_MM: f64 = 1e-3;
 /// Splits each open edge at the other side's samples within the chord tolerance of it; no vertex moves, and the mesh is kept only if it closes.
 fn zip_chord_seams(mesh: &mut Mesh, tri_face: &mut Vec<u32>, precise: &[[f64; 3]], body: &Body, chord_mm: f64) {
     if !body.validate().is_empty() || precise.len() != mesh.vertices.len() {
@@ -5482,5 +5912,182 @@ mod placement_kind_tests {
         }
         let unset = serde_json::json!({"nodes":[{"id":5,"kind":"cad.feature","inputs":{"level": false}}]});
         assert!(!library::template_features_in_json(&unset), "a level pin left off stays plain");
+    }
+}
+
+/// The CAD failures the Tenebrae rings measured, each built from the report's own kind of geometry.
+#[cfg(test)]
+mod robust_tests {
+    use super::*;
+    use crate::sketch::{Geometry, Workplane};
+    const PREVIEW: BuildParams = BuildParams { theta_steps: 128, profile_steps: 64, min_wall_mm: crate::mesh::MIN_WALL_MM, adaptive: false, refine: None, soften_mm: 0.0 };
+    const EXPORT: BuildParams = BuildParams { theta_steps: 512, ..PREVIEW };
+    fn design(ops: Vec<Operation>) -> RingDesign {
+        let mut d = RingDesign::default();
+        let mut doc = Document::default();
+        for (i, op) in ops.into_iter().enumerate() {
+            doc.append(Feature { id: i as u64 + 1, name: op.label().into(), enabled: true, operation: op, component: Component::default() }).unwrap();
+        }
+        d.cad = Some(doc);
+        d
+    }
+    /// The last part `ops` builds, closed, as its mesh and whether the kernel's body survived.
+    fn last(ops: Vec<Operation>, params: BuildParams) -> (Mesh, bool) {
+        let e = evaluate(&design(ops), &AlphaLibrary::builtin(), params).unwrap();
+        assert!(e.first_error().is_none(), "{:?}", e.first_error());
+        let c = e.components.last().unwrap();
+        let v = c.mesh.validate();
+        assert!(v.watertight && v.boundary_edges == 0 && v.non_manifold_edges == 0, "{v:?}");
+        (c.mesh.clone(), c.brep().is_some())
+    }
+    fn poly(pts: &[[f64; 2]], plane: Workplane) -> Sketch {
+        let mut s = Sketch { plane, ..Sketch::default() };
+        let ids = pts.iter().map(|p| s.point(*p)).collect();
+        s.entity(Geometry::Polyline { points: ids, closed: true });
+        s
+    }
+    fn revolve(s: Sketch) -> Operation {
+        Operation::Revolve { sketch: s.into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 360.0, in_plane: false }
+    }
+
+    /// Ogiva's section is arcs revolved round the finger: the kernel laid each arc's torus seam twice,
+    /// "Solid tessellation has 0 open and 16 nonmanifold edges", so every arc was walked in chords.
+    #[test]
+    fn a_revolved_sketch_arc_closes_and_holds_its_volume() {
+        // A band section from r 9.3 to 11, 4 wide, domed by an arc about (8, 0) through its outer corners.
+        let mut s = Sketch { plane: Workplane::section(), ..Sketch::default() };
+        let [a, b, c, d, centre] = [[9.3, -2.0], [11.0, -2.0], [11.0, 2.0], [9.3, 2.0], [8.0, 0.0]].map(|p| s.point(p));
+        s.entity(Geometry::Line { a, b });
+        s.entity(Geometry::Arc { center: centre, start: b, end: c });
+        s.entity(Geometry::Line { a: c, b: d });
+        s.entity(Geometry::Line { a: d, b: a });
+        // Pappus: the rectangle and the circular segment, each by its centroid's circle.
+        let (r, half) = (13.0_f64.sqrt(), (2.0_f64 / 3.0).atan());
+        let segment = r * r / 2.0 * (2.0 * half - (2.0 * half).sin());
+        let segment_at = 8.0 + 4.0 * r * half.sin().powi(3) / (3.0 * (2.0 * half - (2.0 * half).sin()));
+        let exact = std::f64::consts::TAU * (6.8 * 10.15 + segment * segment_at);
+        for (params, within) in [(PREVIEW, 0.004), (EXPORT, 0.0015)] {
+            let (mesh, brep) = last(vec![revolve(s.clone())], params);
+            assert!(brep, "the revolve stays the kernel's body");
+            let v = mesh.volume_mm3();
+            assert!((v - exact).abs() / exact < within && v < exact, "{v} against {exact}");
+        }
+    }
+
+    /// Ogiva's pointed arch: a comfort arc across the bore, straight jambs, two head arcs meeting at the
+    /// keel. The kernel builds it and leaves the comfort arc's torus untessellated ("Kernel could not
+    /// tessellate 1 faces"), at one chord and not the next; such a revolve is our own mesh.
+    #[test]
+    fn a_pointed_arch_revolves_whole_and_in_part() {
+        let (h, rj, radius, sag) = (2.1_f64, 9.8_f64, 6.3_f64, 0.12_f64);
+        let mut s = Sketch { plane: Workplane::section(), ..Sketch::default() };
+        let keel = [rj + (radius * radius - (radius - h).powi(2)).sqrt(), 0.0];
+        let bore = (sag * sag + h * h) / (2.0 * sag);
+        let [upper, lower, k, top, bottom, a, b, comfort] =
+            [[rj, h - radius], [rj, radius - h], keel, [rj, h], [rj, -h], [9.3 + sag, h], [9.3 + sag, -h], [9.3 + bore, 0.0]].map(|p| s.point(p));
+        s.entity(Geometry::Arc { center: upper, start: k, end: top });
+        s.entity(Geometry::Line { a: top, b: a });
+        s.entity(Geometry::Arc { center: comfort, start: a, end: b });
+        s.entity(Geometry::Line { a: b, b: bottom });
+        s.entity(Geometry::Arc { center: lower, start: bottom, end: k });
+        let raw = crate::sketch::solid::revolve(s.plane.plane().unwrap(), &[s.profile_region().unwrap()], [0.0; 3], [0.0, 0.0, 1.0], std::f64::consts::TAU).unwrap();
+        assert!(tessellate(&raw, PREVIEW_CHORD_MM).is_err(), "the kernel now tessellates this arch itself");
+        // Pappus on the section walked fine: 2π times its first moment about the axis.
+        let walked: Vec<[f64; 2]> = s.profile_curves().unwrap().iter().flat_map(|c| (0..4000).map(move |k| c.point_at(k as f64 / 4000.0))).collect();
+        let moment: f64 = (0..walked.len())
+            .map(|i| {
+                let (p, q) = (walked[i], walked[(i + 1) % walked.len()]);
+                (p[0] + q[0]) * (p[0] * q[1] - q[0] * p[1]) / 6.0
+            })
+            .sum();
+        let exact = std::f64::consts::TAU * moment.abs();
+        for (params, within) in [(PREVIEW, 0.005), (EXPORT, 0.002)] {
+            let (mesh, _) = last(vec![revolve(s.clone())], params);
+            let v = mesh.volume_mm3();
+            assert!((v - exact).abs() / exact < within, "{v} against {exact}");
+        }
+        let region = || s.profile_region().unwrap();
+        let half = Operation::Revolve { sketch: s.clone().into(), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: 180.0, in_plane: false };
+        let (mesh, _) = last(vec![half], PREVIEW);
+        assert!((mesh.volume_mm3() - exact / 2.0).abs() / exact < 0.005, "{}", mesh.volume_mm3());
+        let back = turn::revolve(Workplane::section().plane().unwrap(), &[region()], [0.0; 3], [0.0, 0.0, 1.0], -std::f64::consts::PI, PREVIEW_CHORD_MM).unwrap();
+        assert!((back.named.solid.volume() - exact / 2.0).abs() / exact < 0.005, "turned the other way: {}", back.named.solid.volume());
+    }
+
+    /// Ogiva cut niches into its revolved ring: Brep minus Brep came back refused, so every boolean
+    /// was reordered to put a mesh first. What the kernel cannot close now goes through csg.
+    #[test]
+    fn a_brep_cut_the_kernel_refuses_is_resolved_by_csg() {
+        let ring = poly(&[[9.3, -2.0], [11.0, -2.0], [11.0, 2.0], [9.3, 2.0]], Workplane::section());
+        let mut niche = poly(&[[-0.7, 10.5], [0.7, 10.5], [0.7, 12.0], [0.0, 12.6], [-0.7, 12.0]], Workplane::default());
+        niche.plane.origin[2] = 2.5;
+        let niche = Operation::Extrude { sketch: niche.into(), height_mm: -1.0, draft_deg: 0.0 };
+        // The kernel's own answer, as the report measured it.
+        let lib = AlphaLibrary::builtin();
+        let e = evaluate(&design(vec![revolve(ring.clone()), niche.clone()]), &lib, PREVIEW).unwrap();
+        let refused = brep::combine(e.components[0].brep().unwrap().clone(), e.components[1].brep().unwrap().clone(), brep::Operation::Difference, 1e-6);
+        assert!(refused.is_err(), "the kernel now cuts this itself; pick a niche it refuses");
+        // The ring less the niche's foot inside it: 0.5 deep, between y 10.5 and the r 11 circle across 1.4.
+        let foot = 0.7 * (121.0_f64 - 0.49).sqrt() + 121.0 * (0.7_f64 / 11.0).asin() - 1.4 * 10.5;
+        let exact = std::f64::consts::TAU * 10.15 * 6.8 - 0.5 * foot;
+        let (mesh, brep) = last(vec![revolve(ring), niche, Operation::Boolean { a: 1, b: 2, kind: Boolean::Subtract }], PREVIEW);
+        assert!(!brep, "csg answers with a mesh");
+        let v = mesh.volume_mm3();
+        assert!((v - exact).abs() < 0.6, "{v} against {exact}");
+    }
+
+    /// Oculus and Ogiva lofted through sections on planes fanned round the finger: the ruled faces
+    /// halved edges their planar neighbours kept whole (open seams), and the sections had to be
+    /// listed one way round, from 150° down to 30°.
+    #[test]
+    fn a_loft_through_fanned_sections_closes_listed_either_way() {
+        let section = |deg: f64, k: f64| {
+            let (st, ct) = deg.to_radians().sin_cos();
+            poly(&[[10.0, -1.0], [11.0 + k, -0.6], [11.5 + k, 0.0], [11.0 + k, 0.6], [10.0, 1.0]], Workplane { origin: [0.0; 3], x: [ct, st, 0.0], y: [0.0, 0.0, 1.0], on_face: None })
+        };
+        let down: Vec<Profile> = (0..5).map(|i| section(110.0 - 10.0 * i as f64, (i as f64 - 2.0).abs() * -0.3).into()).collect();
+        let up: Vec<Profile> = down.iter().rev().cloned().collect();
+        let mut volumes = Vec::new();
+        for (sections, params) in [(down.clone(), PREVIEW), (down, EXPORT), (up.clone(), PREVIEW), (up, EXPORT)] {
+            let (mesh, brep) = last(vec![Operation::Loft { sections }], params);
+            assert!(brep, "the loft stays the kernel's body");
+            volumes.push(mesh.volume_mm3());
+        }
+        // Ruled between straight-edged sections, the loft is the same solid at every chord and either way round.
+        assert!(volumes.iter().all(|v| (v - volumes[0]).abs() < 1e-6 && *v > 9.0), "{volumes:?}");
+    }
+
+    /// The kernel reads a polygon loft's end winding off its first fan triangle, so a section whose
+    /// second corner is concave lofted inside out; the Oculus example started every section on a convex corner.
+    #[test]
+    fn a_loft_section_may_start_on_a_concave_corner() {
+        let l = [[3.0, 1.0], [1.0, 1.0], [1.0, 3.0], [0.0, 3.0], [0.0, 0.0], [3.0, 0.0]];
+        let mut top = poly(&l, Workplane::default());
+        top.plane.origin[2] = 2.0;
+        let bottom = poly(&l, Workplane::default());
+        let raw = [&bottom, &top].map(|s| (s.plane.plane().unwrap(), s.profile_curves().unwrap()));
+        assert!(brep::loft(&raw).is_none(), "the kernel now lofts this itself; pick a start it refuses");
+        let (mesh, _) = last(vec![Operation::Loft { sections: vec![bottom.into(), top.into()] }], PREVIEW);
+        assert!((mesh.volume_mm3() - 10.0).abs() < 1e-9, "{}", mesh.volume_mm3());
+    }
+
+    /// Ogiva drew the crockets' right halves and mirrored them; drawn in one sketch, the halves
+    /// meet on the centre line and the sketch refused the extrusion. Each loop is now extruded alone and joined.
+    #[test]
+    fn mirrored_loops_that_meet_extrude_together() {
+        let mut s = Sketch::default();
+        for side in [1.0, -1.0] {
+            let ids: Vec<Id> = [[0.0, 0.0], [2.0, 0.0], [2.5, 1.5], [1.0, 2.0], [0.0, 2.5]].iter().map(|p| s.point([p[0] * side, p[1]])).collect();
+            s.entity(Geometry::Polyline { points: ids, closed: true });
+        }
+        assert!(s.sweep_regions().is_err(), "the sketch now sweeps meeting loops itself");
+        let extrude = |draft_deg: f64| vec![Operation::Sketch { sketch: s.clone() }, Operation::Extrude { sketch: Profile::Feature { feature: 1 }, height_mm: 1.0, draft_deg }];
+        let (straight, _) = last(extrude(0.0), PREVIEW);
+        assert!((straight.volume_mm3() - 9.0).abs() < 1e-5, "{}", straight.volume_mm3());
+        let (drafted, _) = last(extrude(3.0), PREVIEW);
+        assert!(drafted.volume_mm3() < 9.0 && drafted.volume_mm3() > 8.0, "{}", drafted.volume_mm3());
+        // Loops apart, or one round another, sweep as they always did.
+        let apart = poly(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]], Workplane::default());
+        assert!(last(vec![Operation::Extrude { sketch: apart.into(), height_mm: 1.0, draft_deg: 3.0 }], PREVIEW).1);
     }
 }

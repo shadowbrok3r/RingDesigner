@@ -2679,6 +2679,23 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   `SweepPath::Sketch` follows a sketch entity every 0.3 mm (≤128
   stations), so a moulding follows edits to its arch. Each writes the
   design at 6 and a graph at 2.
+- **What the kernel refuses or cannot tessellate, the core finishes**, and
+  only then, so whatever the kernel already built stays bit for bit. A
+  tessellation with an edge used four times has its opposite twin triangles
+  taken out (a revolved arc's torus seam is laid twice), and open corners
+  lying on an open edge are fanned through (a loft through fanned planes
+  halves its ruled edges where its planar faces do not). A revolved arc the
+  kernel still cannot tessellate is our own mesh (`cad::turn`, a quarter of
+  the chord off the surface); a drafted extrusion it refuses — Béziers, an
+  inset that drops a piece — is our own mesh (`cad::draft`, the inset taking
+  out each edge the wavefront passes, refusing by name a draft that closes a
+  neck); a Sketch feature whose loops meet extrudes each loop alone and joins
+  them by csg, so overlap mirrored halves by the draft's inset or a groove
+  stays where they meet; a polygon loft it refuses is re-wound along the
+  loft and started on convex corners, so sections may start anywhere and
+  fanned planes come in either order; a Brep boolean it refuses goes through
+  `csg` on the tessellated operands. Each such part is a mesh and refuses
+  fillet and press-pull by name.
 - **A head moves by its stone.** G, R and the gizmo on a builder part act on
   the stone it is built round — its ring placement, or its `FaceSeat` on a
   part's face — and the head follows. A Transform wrapped round a head would
@@ -2702,6 +2719,52 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   0.9: every gap 0.9 ± 1e-6). A branched sketch that carries several depths
   sweeps its cells by `Profile::Regions`; one Sketch feature per depth is
   still the plainer way. The graph reaches it as `sketch.tracery`.
+- **Text is a sketch like any other** (C-T6, `sketch::text`). `TextLayout`
+  reads each glyph's outline through ttf-parser and draws it as closed loops
+  of lines and cubic Béziers, counters holes by even-odd nesting, straight or
+  round a circle (`TextArc`: clockwise stands the letters outward, as a
+  seal's legend; each glyph is placed rigid at its advance centre), aligned
+  Start/Centre/End and optionally mirrored for a seal. A TrueType quadratic
+  costs three of a sketch's 1024 points, so smooth runs of them are refitted
+  as fewer cubics held to `FIT_TOLERANCE_EM` (1/1000 em, under two microns at
+  a 1.2 mm capital; corners and lines kept exactly): SIGILLVM went from 1112
+  points to 764. A text still over the cap is set `parts()` at a time, a word
+  each (a long word split between letters), every part laid where it falls in
+  the whole; `tracking_for(length)` solves the tracking that closes an arc.
+  `✠` draws the bundled cross pattée where a font has none (`SYMBOLS`).
+  `TextFont::Textura` is UnifrakturMaguntia, SIL OFL, carried unmodified;
+  all three faces' notices are in `assets/fonts/OFL.txt` and under Tools >
+  Licences. Touching letters are refused by name ("open the tracking"); EB
+  Garamond's `g` crosses itself and is refused, every Textura letter sweeps.
+  A design whose inscription is Textura is written at 6, and the graph node
+  `sketch.text` (whole text, or `part` k) fences its graph at 2. Two things
+  the text found in the kernel, both fixed as retries so a solid that built
+  before builds byte for byte: a Bézier wall's edges are sampled more finely
+  than the flat cap beside it, and the cracks the stitch and the zip leave
+  open are redrawn through the cap's own triangles (`split_t_junctions`, run
+  after both and kept only if the part closes: a cap triangle carrying
+  samples is ear-clipped as the polygon through them, which a needle of the
+  cap along a concave arc needs, an ear never puts an edge on a third
+  triangle, and a three-edge gap still open is closed by its own triangle
+  only under `SEAM_SLIVER_MM`, a micron; Textura's B, b and g and the seal's
+  CAPITVLI cut open behind the zip alone); and an SVG's arcs drawn to nine places miss
+  their neighbours by a nanometre once scaled up (the quatrefoil at 2x),
+  which the kernel refuses, so a refused region is retried with its pieces
+  meeting exactly (`sketch::solid::healed`). **A drafted extrusion of any
+  outline with a curve or an inward corner is refused by the kernel**
+  (`extrude_tapered` takes lines and arcs whose offset keeps every edge): the
+  fleur, the quatrefoil and every word cut with no draft today.
+- **A bench part may stand no mark** (C-T5). `Component::mark` (default on,
+  written only when off, then at format 6) leaves a part staged Bench out of
+  the sand pattern's locating and drill marks; the pattern then is the bare
+  stock, and the report names it under "Left to the bench with no mark".
+  Measured on the 017 sand master with a seal's four bench cuts: every 1 mm
+  drill dot on the zero-draft table leaned 22–28° over 0.12–0.29 mm², the
+  one at the table's middle on the parting line too (its note now says it
+  has nowhere better to go), a legend cut a word at a time is marked at each
+  word's own middle, and the marks took the verdict from 0.0000 to 0.0666
+  mm²; with the opt-out it is the bare stock's exactly. An engraving is laid
+  out from the drawing, so it takes the opt-out.
 - **An array along a path carries its source from the path's first
   station** (C-V2, `PatternKind::Along`, `cad/pattern/along.rs`). The path
   is the crest (where the outer surface crosses the parting plane, solved
