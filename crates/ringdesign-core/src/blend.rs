@@ -405,7 +405,73 @@ pub fn bead_against(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: 
 }
 
 fn cancelled(flag: Option<&AtomicBool>) -> Result<(), String> {
+    #[cfg(test)]
+    note(|p| {
+        let now = thread_cpu();
+        if p.raise_at == Some(p.polls)
+            && let Some(f) = flag
+        {
+            f.store(true, Ordering::Relaxed);
+            p.raised = true;
+        }
+        p.polls += 1;
+        if let Some(bead) = p.beads.last_mut() {
+            bead.push(now);
+        }
+    });
     if flag.is_some_and(|f| f.load(Ordering::Relaxed)) { Err(Snag::Cancelled.to_string()) } else { Ok(()) }
+}
+
+/// This thread's run time, from the scheduler on Linux and the wall clock elsewhere.
+#[cfg(test)]
+pub(crate) fn thread_cpu() -> std::time::Duration {
+    static EPOCH: std::sync::OnceLock<Option<std::time::Instant>> = std::sync::OnceLock::new();
+    let read = || std::fs::read_to_string("/proc/thread-self/schedstat").ok()?.split_whitespace().next()?.parse::<u64>().ok();
+    match EPOCH.get_or_init(|| read().is_none().then(std::time::Instant::now)) {
+        Some(epoch) => epoch.elapsed(),
+        None => std::time::Duration::from_nanos(read().unwrap_or(0)),
+    }
+}
+
+/// What the beads on one thread did while recorded.
+#[cfg(test)]
+#[derive(Default)]
+pub(crate) struct Polls {
+    /// Per bead, on this thread's run-time clock, when it began, each time it read its flag, and when it ended.
+    pub beads: Vec<Vec<std::time::Duration>>,
+    /// Flag reads made.
+    pub polls: usize,
+    /// Whether a bead raised its own flag.
+    pub raised: bool,
+    /// The read, counted over every bead, at which a bead raises its own flag.
+    raise_at: Option<usize>,
+}
+
+#[cfg(test)]
+thread_local! {
+    static POLLS: std::cell::RefCell<Option<Polls>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Records this thread's beads until [`polled`], a bead raising its own flag as it makes read `raise_at`.
+#[cfg(test)]
+pub(crate) fn record_polls(raise_at: Option<usize>) {
+    POLLS.with(|p| *p.borrow_mut() = Some(Polls { raise_at, ..Polls::default() }));
+}
+
+/// What this thread's beads did since [`record_polls`]; ends the record.
+#[cfg(test)]
+pub(crate) fn polled() -> Polls {
+    POLLS.with(|p| p.borrow_mut().take().unwrap_or_default())
+}
+
+/// Applies `f` to this thread's record while one is kept.
+#[cfg(test)]
+fn note(f: impl FnOnce(&mut Polls)) {
+    POLLS.with(|p| {
+        if let Some(p) = p.borrow_mut().as_mut() {
+            f(p);
+        }
+    });
 }
 
 /// [`bead_against`] that stops soon after `cancel` is raised: read between the settling rounds and the fold rounds.
@@ -650,8 +716,13 @@ pub fn bead_seam(traced: &Traced, seam: &Seam, radius_mm: f64, cancel: Option<&A
     if n < 3 || length < 3.0 * STATION_MM.min(radius_mm / 3.0) {
         return None;
     }
+    #[cfg(test)]
+    note(|p| p.beads.push(vec![thread_cpu()]));
     let surfaces = Surfaces::near(traced, &seam.points, (REACH_MAX + 1.5) * radius_mm + 0.05);
-    Some(bead_polled(&seam.points, &seam.normals_a, &seam.normals_b, radius_mm, Some(&surfaces), cancel))
+    let bead = bead_polled(&seam.points, &seam.normals_a, &seam.normals_b, radius_mm, Some(&surfaces), cancel);
+    #[cfg(test)]
+    note(|p| p.beads.last_mut().into_iter().for_each(|b| b.push(thread_cpu())));
+    Some(bead)
 }
 
 /// [`fillet_junction`] with what every bead did.
