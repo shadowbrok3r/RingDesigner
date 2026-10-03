@@ -1,16 +1,16 @@
 //! Officina — Sigil, a quartered seal on the round: factory stock 013 poured bare in Delft, the seal cut at the bench.
 //! cargo build --release -p ringdesign-core --example officina_sigil
-//! target/release/examples/officina_sigil [OUT_DIR] [--draft] [--verify] [--spike]
+//! target/release/examples/officina_sigil [OUT_DIR] [--draft] [--verify]
 use anyhow::{Context, Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, Layer, LayerEntry, ProfileStyle, RingDesign,
-    cad::{Attach, Component, ComponentRole, Document, FaceRef, Feature, Operation, PlaneBase, Profile, Stage},
+    cad::{Attach, Boolean, Component, ComponentRole, Document, FaceRef, Feature, Operation, PlaneBase, Profile, Stage},
     castability::{self, CastProcess, SandProcess},
     csg, dfm,
     field::BorderLayer,
     imported_base::{ImportedBase, PRESETS, SurfaceChart, sand_master},
     library, manufacturing as mf, mesh, render,
-    sketch::{FaceAnchor, Geometry, RegionRef, Sketch},
+    sketch::{FaceAnchor, Geometry, RegionRef, Sketch, Workplane},
     stl,
 };
 use serde::Serialize;
@@ -18,36 +18,49 @@ use std::f64::consts::PI;
 use std::path::{Path, PathBuf};
 
 const BORE_MM: f64 = 18.2;
-const PLANE: u64 = 2;
-const FIELD_SKETCH: u64 = 3;
-const BORDURE_SKETCH: u64 = 6;
-/// The field's radius on the table, and the bordure's inner and outer rims.
-const FIELD_R_MM: f64 = 3.9;
-/// Half the raised cross that parts the quarters.
+const TABLE_PLANE: u64 = 2;
+const SEAL_SKETCH: u64 = 3;
+const SEAL_PRISM: u64 = 4;
+const CROWN_PLANE: u64 = 5;
+const CROWN_SKETCH: u64 = 6;
+const CROWN_SLAB: u64 = 7;
+const SEAL_SUNK: u64 = 8;
+/// The heater shield on the table, in the sketch's millimetres (x round the ring, y along the finger):
+/// half its width, its chief line, where its straight flanks turn into the two arcs that meet at the
+/// point (each struck from the opposite flank, radius the shield's width), and the outline groove's width.
+const SHIELD_HALF_MM: f64 = 2.7;
+const SHIELD_CHIEF_MM: f64 = 2.75;
+const SHIELD_FLANK_MM: f64 = 0.9;
+const OUTLINE_MM: f64 = 0.35;
+/// Half the raised cross that quarters the shield, and the height of its arm across.
 const CROSS_HALF_MM: f64 = 0.15;
+const FESS_MM: f64 = -0.3;
 const BORDURE_IN_MM: f64 = 4.15;
 const BORDURE_OUT_MM: f64 = 4.65;
-/// How far below the table plane each cut's flat floor stands. The table is flat round the ring and
-/// crowned across the finger (0.68 mm down at 4 mm), so a floor this deep still sinks the quarters'
-/// tips 0.27 mm and the bordure's ends 0.2 mm.
-const QUARTER_FLOOR_MM: f64 = 0.95;
-const BORDURE_FLOOR_MM: f64 = 1.0;
+/// How deep the seal is sunk, measured square into the table's crown wherever it falls.
+const SEAL_DEPTH_MM: f64 = 0.42;
+/// The cutter's walls: their draft (square, as a graver cuts them; a drafted prism of these regions does
+/// not tessellate closed), and how far below the table plane its prism reaches.
+const WALL_DRAFT_DEG: f64 = 0.0;
+const PRISM_MM: f64 = 2.0;
+/// The crown plane stands this far to one side of the table's middle, and the slab runs twice it round the ring.
+const SLAB_HALF_MM: f64 = 5.5;
 /// The sand master's own mirror seam on the crest line (about 1 micron deep between 0 and 55 degrees)
 /// reads as undercut; a bead this size fills it, and nothing a render can see.
 const SEAM_WIDTH_MM: f64 = 0.5;
 const SEAM_HEIGHT_MM: f64 = 0.004;
-/// Wall draft on every bench cut, so the walls catch the light, and the bead that breaks each cut's top edge.
-const WALL_DRAFT_DEG: f64 = 8.0;
-const EDGE_BREAK_MM: f64 = 0.08;
+/// No bead on the seal's edges: an intaglio strikes its impression from crisp walls, and the shield's
+/// 58-degree feet, where the cross meets the base arcs, are too sharp for a rolling ball (it folds there).
+const EDGE_BREAK_MM: f64 = 0.0;
 /// The satin the cuts are left in, against the polished table.
 const SATIN: f64 = 0.66;
-/// The matting punch on the sunk quarters' floors: Petra Sancta's dots for Or. Pitch, punch radius,
-/// how far the punch bites below the floor, and how far the dots keep from the walls.
-const MAT_PITCH_MM: f64 = 0.38;
-const MAT_R_MM: f64 = 0.11;
-const MAT_BITE_MM: f64 = 0.07;
-const MAT_INSET_MM: f64 = 0.3;
-const MATTING_SKETCH: u64 = 8;
+/// The sunk seal is left oxidised as well as satin, as Logan's own signets keep their recesses: yellow
+/// gold's reflectance darkened, so the struck quarters read as a tincture against the bright metal.
+const OXIDISED: [f32; 3] = [0.40, 0.29, 0.12];
+/// The stock's source mesh is refined to 0.55 mm facets, which a polished render shows as stepped
+/// highlights though they stand within microns of the true surface; its shading normals are diffused
+/// over this reach, never across an edge sharper than 20 degrees.
+const DIFFUSE_MM: f64 = 0.6;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -113,99 +126,192 @@ fn feature(id: u64, name: &str, operation: Operation, attach: Attach, stage: Sta
     Feature { id, name: name.into(), enabled: true, operation, component: Component { role: ComponentRole::Other, attach, stage, ..Default::default() } }
 }
 
-fn on_plane(name: &str) -> Sketch {
+fn on_plane(name: &str, plane: u64) -> Sketch {
     let mut s = Sketch { name: name.into(), ..Sketch::default() };
-    s.plane.on_face = Some(FaceAnchor { feature: PLANE, face: FaceRef::bare(0) });
+    s.plane.on_face = Some(FaceAnchor { feature: plane, face: FaceRef::bare(0) });
     s
 }
 
-/// The field: four quarter arcs (NE, NW, SW, SE) of radius `r`, parted by a cross `2 * half` wide whose
-/// arms run out to the rim; each quarter closes on its arc and two lines meeting at its inner corner.
-fn field(r: f64, half: f64) -> (Sketch, [u64; 4]) {
-    let mut s = on_plane("Field");
-    let c = s.point([0.0, 0.0]);
-    let reach = (r * r - half * half).sqrt();
-    let arcs = [(1.0, 1.0), (-1.0, 1.0), (-1.0, -1.0), (1.0, -1.0)].map(|(sx, sy): (f64, f64)| {
-        let corner = s.point([sx * half, sy * half]);
-        // Counterclockwise from the arm on x to the arm on y in the first quarter, and on round.
-        let (from, to) = if sx * sy > 0.0 { ([sx * reach, sy * half], [sx * half, sy * reach]) } else { ([sx * half, sy * reach], [sx * reach, sy * half]) };
-        let (a, b) = (s.point(from), s.point(to));
-        let arc = s.entity(Geometry::Arc { center: c, start: a, end: b });
-        s.entity(Geometry::Line { a: b, b: corner });
-        s.entity(Geometry::Line { a: corner, b: a });
-        arc
-    });
-    (s, arcs)
+/// A sketch whose points are shared wherever two curves meet, so every junction is an endpoint.
+struct Drawn {
+    s: Sketch,
+    at: Vec<([f64; 2], u64)>,
+    /// Drawn turned half round, so the shield's chief stands toward the top of the face view and its first
+    /// quarter to the viewer's left (the sketch's x runs round the ring toward world -x, its y along the finger).
+    flip: bool,
 }
 
-/// The matting: punch dots on a hex grid filling the two sunk quarters (first and fourth), each its own region.
-fn matting() -> Sketch {
-    let mut s = on_plane("Matting");
-    let row = MAT_PITCH_MM * 3f64.sqrt() / 2.0;
-    let lo = CROSS_HALF_MM + MAT_INSET_MM;
-    let reach = FIELD_R_MM - MAT_INSET_MM;
-    for (sx, sy) in [(1.0, 1.0), (-1.0, -1.0)] {
-        let mut j = 0;
-        loop {
-            let y = lo + j as f64 * row;
-            if y > reach {
-                break;
-            }
-            let mut x = lo + if j % 2 == 1 { MAT_PITCH_MM / 2.0 } else { 0.0 };
-            while x.hypot(y) <= reach {
-                let c = s.point([sx * x, sy * y]);
-                let rim = s.point([sx * x + MAT_R_MM, sy * y]);
-                s.entity(Geometry::Circle { center: c, rim });
-                x += MAT_PITCH_MM;
-            }
-            j += 1;
+impl Drawn {
+    fn new(s: Sketch) -> Self {
+        Self { s, at: Vec::new(), flip: false }
+    }
+    fn f(&self, xy: [f64; 2]) -> [f64; 2] {
+        if self.flip { [-xy[0], -xy[1]] } else { xy }
+    }
+    fn p(&mut self, xy: [f64; 2]) -> u64 {
+        let xy = self.f(xy);
+        if let Some((_, id)) = self.at.iter().find(|(q, _)| (q[0] - xy[0]).hypot(q[1] - xy[1]) < 1e-9) {
+            return *id;
         }
+        let id = self.s.point(xy);
+        self.at.push((xy, id));
+        id
     }
+    fn line(&mut self, a: [f64; 2], b: [f64; 2]) -> u64 {
+        let (a, b) = (self.p(a), self.p(b));
+        self.s.entity(Geometry::Line { a, b })
+    }
+    /// Counterclockwise about `c` from `a` to `b`.
+    fn arc(&mut self, c: [f64; 2], a: [f64; 2], b: [f64; 2]) -> u64 {
+        let center = self.s.point(self.f(c));
+        let (start, end) = (self.p(a), self.p(b));
+        self.s.entity(Geometry::Arc { center, start, end })
+    }
+    fn circle(&mut self, r: f64) -> u64 {
+        let center = self.s.point([0.0, 0.0]);
+        let rim = self.s.point([r, 0.0]);
+        self.s.entity(Geometry::Circle { center, rim })
+    }
+}
+
+/// The seal: a round bordure (two circles, one region with a hole), and inside it a heater shield quartered
+/// by a raised cross that runs to its edge. The first and fourth quarters are sunk to the shield's edge; the
+/// second and third stand bright, each ringed by a groove, so the shield's outline runs unbroken round
+/// all four. Every junction is an endpoint, and no two sunk regions share a curve. The sunk regions are named.
+struct Seal {
+    sketch: Sketch,
+    sunk: Vec<RegionRef>,
+}
+
+fn seal() -> Seal {
+    let mut d = Drawn::new(on_plane("Seal", TABLE_PLANE));
+    d.flip = true;
+    let (a, ch, y1, w, yh) = (SHIELD_HALF_MM, SHIELD_CHIEF_MM, SHIELD_FLANK_MM, CROSS_HALF_MM, FESS_MM);
+    let (up, down) = (yh + w, yh - w);
+    let (cr, cl) = ([-a, y1], [a, y1]);
+    let (r, ri) = (2.0 * a, 2.0 * a - OUTLINE_MM);
+    let (ai, chi) = (a - OUTLINE_MM, ch - OUTLINE_MM);
+    // Each flank arc is struck from the opposite flank: x on the right arc, and on the left, at height y.
+    let on_right = |r: f64, y: f64| -a + (r * r - (y - y1).powi(2)).sqrt();
+    let on_left = |r: f64, y: f64| a - (r * r - (y - y1).powi(2)).sqrt();
+    let foot = |r: f64| y1 - (r * r - (a + w).powi(2)).sqrt();
+    let point = y1 - a * 3f64.sqrt();
+    // The shield's edge, broken where the cross's arms meet it.
+    let first_chief = d.line([-a, ch], [-w, ch]);
+    d.line([-w, ch], [w, ch]);
+    let second_chief = d.line([w, ch], [a, ch]);
+    d.line([a, ch], [a, y1]);
+    d.line([-a, y1], [-a, ch]);
+    d.arc(cr, [0.0, point], [w, foot(r)]);
+    d.arc(cr, [w, foot(r)], [on_right(r, down), down]);
+    d.arc(cr, [on_right(r, down), down], [on_right(r, up), up]);
+    d.arc(cr, [on_right(r, up), up], [a, y1]);
+    d.arc(cl, [-a, y1], [on_left(r, up), up]);
+    d.arc(cl, [on_left(r, up), up], [on_left(r, down), down]);
+    let third_base = d.arc(cl, [on_left(r, down), down], [-w, foot(r)]);
+    d.arc(cl, [-w, foot(r)], [0.0, point]);
+    // The cross, edge to edge; its arms break where the grooves round the bright quarters meet them.
+    d.line([-w, ch], [-w, up]);
+    d.line([w, ch], [w, chi]);
+    d.line([w, chi], [w, up]);
+    d.line([-w, down], [-w, foot(ri)]);
+    d.line([-w, foot(ri)], [-w, foot(r)]);
+    d.line([w, down], [w, foot(r)]);
+    d.line([on_left(r, up), up], [-w, up]);
+    d.line([w, up], [on_right(ri, up), up]);
+    d.line([on_right(ri, up), up], [on_right(r, up), up]);
+    d.line([on_left(r, down), down], [on_left(ri, down), down]);
+    d.line([on_left(ri, down), down], [-w, down]);
+    let fourth_fess = d.line([w, down], [on_right(r, down), down]);
+    // The grooves' inner edges round the second (chief, right) and third (base, left) quarters.
+    d.line([w, chi], [ai, chi]);
+    d.line([ai, chi], [ai, y1]);
+    d.arc(cr, [on_right(ri, up), up], [ai, y1]);
+    d.arc(cl, [on_left(ri, down), down], [-w, foot(ri)]);
+    let outer = d.circle(BORDURE_OUT_MM);
+    d.circle(BORDURE_IN_MM);
+    let mid = 0.5 * (BORDURE_IN_MM + BORDURE_OUT_MM);
+    let ym = -1.5;
+    let sunk = [
+        (outer, [0.0, mid]),
+        (first_chief, [-0.5 * a, 0.5 * (ch + up)]),
+        (second_chief, [0.5 * a, ch - 0.5 * OUTLINE_MM]),
+        (third_base, [0.5 * (on_left(r, ym) + on_left(ri, ym)), ym]),
+        (fourth_fess, [0.5 * on_right(r, down), 0.5 * (down + foot(r))]),
+    ]
+    .map(|(entity, at)| RegionRef { entity, at: d.f(at) })
+    .to_vec();
+    Seal { sketch: d.s, sunk }
+}
+
+/// The table's crown across the finger, read off the bare stock: its height over each station along
+/// the finger, averaged round the ring across the seal's own width there.
+fn crown(bare: &mesh::Mesh) -> Vec<[f64; 2]> {
+    let reach = BORDURE_OUT_MM + 0.2;
+    (0..=48)
+        .map(|k| {
+            let z = -reach + 2.0 * reach * k as f64 / 48.0;
+            let half = (BORDURE_OUT_MM * BORDURE_OUT_MM - z * z).max(0.0).sqrt();
+            let tops: Vec<f64> = (-4..=4).filter_map(|i| top_at(bare, half * i as f64 / 4.0, z)).collect();
+            let y = tops.iter().sum::<f64>() / tops.len().max(1) as f64;
+            [(y * 1e4).round() / 1e4, (z * 1e4).round() / 1e4]
+        })
+        .collect()
+}
+
+/// The slab the seal is sunk to: on the crown plane (x out from the finger's axis, y along the finger),
+/// everything above the crown let down by the seal's depth.
+fn crown_sketch(crown: &[[f64; 2]]) -> Sketch {
+    let mut s = on_plane("Crown", CROWN_PLANE);
+    let roof = crown.iter().map(|p| p[0]).fold(f64::MIN, f64::max) + 1.5;
+    let mut ids: Vec<u64> = crown.iter().map(|&[y, z]| s.point([y - SEAL_DEPTH_MM, z])).collect();
+    let (first, last) = (crown[0][1], crown[crown.len() - 1][1]);
+    ids.push(s.point([roof, last]));
+    ids.push(s.point([roof, first]));
+    s.entity(Geometry::Polyline { points: ids, closed: true });
     s
 }
 
-/// Two circles about the centre: one region with a hole.
-fn bordure(inner: f64, outer: f64) -> Sketch {
-    let mut s = on_plane("Bordure");
-    for r in [inner, outer] {
-        let c = s.point([0.0, 0.0]);
-        let rim = s.point([r, 0.0]);
-        s.entity(Geometry::Circle { center: c, rim });
-    }
-    s
-}
-
-fn document() -> Result<Document> {
+fn document(crown: &[[f64; 2]]) -> Result<Document> {
     let mut doc = Document::default();
     doc.append(feature(1, "Stock 013", Operation::Band, Attach::Separate, Stage::Cast))?;
-    doc.append(feature(PLANE, "Table plane", Operation::Plane { base: PlaneBase::Tangent { theta_deg: 90.0, across_mm: 0.0 }, offset_mm: 0.0 }, Attach::Separate, Stage::Cast))?;
-    let (sketch, [ne, _, sw, _]) = field(FIELD_R_MM, CROSS_HALF_MM);
-    doc.append(feature(FIELD_SKETCH, "Field quartered", Operation::Sketch { sketch }, Attach::Separate, Stage::Cast))?;
-    let cut = |id, name: &str, sketch: Profile, depth: f64| {
-        let mut f = feature(id, name, Operation::Extrude { sketch, height_mm: -depth, draft_deg: WALL_DRAFT_DEG }, Attach::Cut, Stage::Bench);
-        f.component.blend_mm = EDGE_BREAK_MM;
-        f.component.bench_notes = "Cut at the bench after the pour, its top edge broken and its floor and walls left satin; the pattern is the bare stock.".into();
-        f
-    };
-    let q = 0.45 * FIELD_R_MM;
-    doc.append(cut(4, "First quarter sunk", Profile::Region { feature: FIELD_SKETCH, region: RegionRef { entity: ne, at: [q, q] } }, QUARTER_FLOOR_MM))?;
-    doc.append(cut(5, "Fourth quarter sunk", Profile::Region { feature: FIELD_SKETCH, region: RegionRef { entity: sw, at: [-q, -q] } }, QUARTER_FLOOR_MM))?;
-    doc.append(feature(BORDURE_SKETCH, "Bordure", Operation::Sketch { sketch: bordure(BORDURE_IN_MM, BORDURE_OUT_MM) }, Attach::Separate, Stage::Cast))?;
-    doc.append(cut(7, "Bordure sunk", Profile::Feature { feature: BORDURE_SKETCH }, BORDURE_FLOOR_MM))?;
-    doc.append(feature(MATTING_SKETCH, "Matting", Operation::Sketch { sketch: matting() }, Attach::Separate, Stage::Cast))?;
-    let mut punch = cut(9, "Quarters matted", Profile::Feature { feature: MATTING_SKETCH }, QUARTER_FLOOR_MM + MAT_BITE_MM);
-    if let Operation::Extrude { draft_deg, .. } = &mut punch.operation {
-        *draft_deg = 0.0;
-    }
-    punch.component.blend_mm = 0.0;
-    punch.component.bench_notes = "Matted at the bench with a round punch after the quarters are sunk: Or, in Petra Sancta's dots.".into();
-    doc.append(punch)?;
+    doc.append(feature(TABLE_PLANE, "Table plane", Operation::Plane { base: PlaneBase::Tangent { theta_deg: 90.0, across_mm: 0.0 }, offset_mm: 0.0 }, Attach::Separate, Stage::Cast))?;
+    let seal = seal();
+    doc.append(feature(SEAL_SKETCH, "Seal", Operation::Sketch { sketch: seal.sketch }, Attach::Separate, Stage::Cast))?;
+    let regions = seal.sunk;
+    doc.append(feature(
+        SEAL_PRISM,
+        "Seal cutter",
+        Operation::Extrude { sketch: Profile::Regions { feature: SEAL_SKETCH, regions }, height_mm: -PRISM_MM, draft_deg: WALL_DRAFT_DEG },
+        Attach::Separate,
+        Stage::Bench,
+    ))?;
+    doc.append(feature(CROWN_PLANE, "Crown plane", Operation::Plane { base: PlaneBase::Section { theta_deg: 90.0 }, offset_mm: -SLAB_HALF_MM }, Attach::Separate, Stage::Cast))?;
+    doc.append(feature(CROWN_SKETCH, "Crown", Operation::Sketch { sketch: crown_sketch(crown) }, Attach::Separate, Stage::Cast))?;
+    // The slab is our own sweep, a mesh, so the intersection runs through csg: the crown carried round
+    // the ring along a straight path from the crown plane, square to it, the slab's whole width.
+    let mut path = Sketch { name: "Round the ring".into(), ..Sketch::default() };
+    path.plane = Workplane { origin: [0.0, 12.0, 0.0], x: [1.0, 0.0, 0.0], y: [0.0, 0.0, 1.0], on_face: None };
+    let (a, b) = (path.point([-SLAB_HALF_MM, 0.0]), path.point([SLAB_HALF_MM, 0.0]));
+    path.entity(Geometry::Line { a, b });
+    doc.append(feature(
+        CROWN_SLAB,
+        "Crown let down",
+        Operation::Twist { sketch: Profile::Feature { feature: CROWN_SKETCH }, path, degrees: 0.0, end_scale: 1.0 },
+        Attach::Separate,
+        Stage::Bench,
+    ))?;
+    let mut sunk = feature(SEAL_SUNK, "Seal sunk", Operation::Boolean { a: SEAL_PRISM, b: CROWN_SLAB, kind: Boolean::Intersect }, Attach::Cut, Stage::Bench);
+    sunk.component.blend_mm = EDGE_BREAK_MM;
+    sunk.component.bench_notes = "Cut at the bench after the pour, square into the table's crown, its walls crisp for a clean impression and its floor and walls left satin; the pattern is the bare stock.".into();
+    doc.append(sunk)?;
     Ok(doc)
 }
 
 fn design() -> Result<RingDesign> {
     let mut d = dressed()?;
-    d.cad = Some(document()?);
+    let bare = mesh::try_build(&d, &AlphaLibrary::default(), draft_params())?;
+    d.cad = Some(document(&crown(&bare.mesh))?);
     Ok(d)
 }
 
@@ -263,6 +369,19 @@ struct Report {
     design_bytes: u64,
     grams_18k: f64,
     cad_features: Vec<String>,
+    notes: Vec<String>,
+}
+
+/// What the report's reader should know that the numbers do not say.
+fn notes() -> Vec<String> {
+    vec![
+        format!("Process: Delft sand on the drafted sand master of stock 013 at its native face, bore {BORE_MM} mm. Bare, that master fields Castable with care (0.07% at -0.8 deg at 192 x 128): a mirror seam about 1 micron deep on the crest line between 0 and 55 deg. A {SEAM_WIDTH_MM} x {SEAM_HEIGHT_MM} mm round bead on the crest line ('Parting seam dressed') fills it; it is invisible in every render and the field reads Castable."),
+        "Every cut is Stage::Bench, so the casting pattern is the bare stock; the seal is in the finished ring and the renders, not in the pour.".into(),
+        format!("The table is crowned across the finger (0.29 mm down at 2 mm, 0.68 mm at 4 mm) and flat round the ring, so the seal is sunk square into the crown: its cutter is the seal's regions extruded ({SEAL_PRISM}) and intersected with a slab whose underside is the crown let down {SEAL_DEPTH_MM} mm ({CROWN_SLAB}, a sweep of the crown sketch round the ring). Depths are in `seal`."),
+        "Finish: the sunk seal (floors and walls) is left oxidised satin, as Logan's own signets keep their recesses; the table, cross and raised quarters are polished. The renders split the faces by geometry: on the let-down floor, or a wall standing on it inside the bordure.".into(),
+        format!("Render shading: the stock's source mesh is refined to 0.55 mm facets, which stand within microns of the true surface but read as stepped highlights on a polished shank; the polished metal's shading normals are diffused over {DIFFUSE_MM} mm, never across an edge sharper than 20 deg, so the hard wall-to-face angles stay. Geometry, STL and gates are untouched by it."),
+        "Edges: the seal's walls are square and crisp, as a graver leaves an intaglio for a clean impression; a rolling-ball bead folds at the shield's 58-degree feet, and the kernel cannot tessellate a drafted prism of these regions closed.".into(),
+    ]
 }
 
 fn gates(d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, params: BuildParams, verify: Option<&Path>, pattern: bool) -> Result<Gates> {
@@ -412,32 +531,58 @@ fn frame(parts: &[render::Part], yaw: f64, pitch: f64, edge: usize) -> Vec<u8> {
     render::render_parts_ss(parts, yaw, pitch, edge, edge, 3)
 }
 
-/// The built ring split by finish: the polished metal, and what the bench cuts made, left satin. A face
-/// is a cut's when it lies on a cut's flat floor, or is a drafted wall standing on one inside the bordure;
-/// the edge-break bead above each wall stays polished, so the finish changes on the geometry's own line.
-fn finishes(built: &mesh::BuildResult) -> (mesh::Mesh, mesh::Mesh) {
+/// The crown polyline the seal's slab was drawn from, as (height, along the finger) pairs.
+fn crown_of(d: &RingDesign) -> Vec<[f64; 2]> {
+    let doc = d.cad.as_ref().unwrap();
+    let Some(Operation::Sketch { sketch }) = doc.features.iter().find(|f| f.id == CROWN_SKETCH).map(|f| &f.operation) else { return Vec::new() };
+    let mut pts: Vec<[f64; 2]> = sketch.points.iter().map(|p| [p.xy[0] + SEAL_DEPTH_MM, p.xy[1]]).collect();
+    pts.truncate(pts.len().saturating_sub(2));
+    pts
+}
+
+/// The table's height at `z` along the finger, read off the crown polyline.
+fn crown_at(crown: &[[f64; 2]], z: f64) -> f64 {
+    for w in crown.windows(2) {
+        if (w[0][1]..=w[1][1]).contains(&z) {
+            let t = (z - w[0][1]) / (w[1][1] - w[0][1]).max(1e-12);
+            return w[0][0] + (w[1][0] - w[0][0]) * t;
+        }
+    }
+    f64::NAN
+}
+
+/// The built ring split by finish: the polished metal, what the bench cut (left satin), and the tools a
+/// rolled-back step still shows. A face is the cut's when it lies on the floor the crown let down, or is a
+/// wall standing on it inside the bordure; the edge-break bead above each wall stays polished, so the finish
+/// changes on the geometry's own line.
+fn finishes(d: &RingDesign, built: &mesh::BuildResult) -> (mesh::Mesh, mesh::Mesh, mesh::Mesh) {
     let m = &built.mesh;
-    let top = built.parts.evaluated.as_ref().and_then(|e| e.plane(PLANE)).map_or(0.0, |p| p.origin[1]);
-    let floors = [top - QUARTER_FLOOR_MM, top - BORDURE_FLOOR_MM, top - QUARTER_FLOOR_MM - MAT_BITE_MM];
+    let crown = crown_of(d);
+    let tool = |f: &[u32; 3]| f.iter().all(|&v| m.origin.get(v as usize).and_then(|o| built.parts.feature_of(*o)).is_some_and(|id| id == SEAL_PRISM || id == CROWN_SLAB));
     let cut = |f: &[u32; 3]| {
         let [a, b, c] = f.map(|i| m.vertices[i as usize]);
         let centre = [(a.0 + b.0 + c.0) as f64 / 3.0, (a.1 + b.1 + c.1) as f64 / 3.0, (a.2 + b.2 + c.2) as f64 / 3.0];
-        if centre[0].hypot(centre[2]) > BORDURE_OUT_MM + 0.05 || centre[1] < floors[2] - 0.02 {
+        if centre[0].hypot(centre[2]) > BORDURE_OUT_MM + 0.05 || centre[1] < 5.0 {
+            return false;
+        }
+        let floor = crown_at(&crown, centre[2]) - SEAL_DEPTH_MM;
+        if !floor.is_finite() || centre[1] < floor - 0.02 {
             return false;
         }
         let (u, v) = ([b.0 - a.0, b.1 - a.1, b.2 - a.2], [c.0 - a.0, c.1 - a.1, c.2 - a.2]);
         let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
         let l = ((n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) as f64).sqrt().max(1e-30);
         let ny = n[1] as f64 / l;
-        let on_floor = ny > 0.9995 && floors.iter().any(|y| (centre[1] - y).abs() < 0.005);
-        let wall = ny.abs() < 0.5;
+        let on_floor = ny > 0.95 && (centre[1] - floor).abs() < 0.008;
+        let wall = ny.abs() < 0.5 && centre[1] < floor + SEAL_DEPTH_MM + 0.3;
         on_floor || wall
     };
-    let split = |keep: bool| {
+    let split = |which: u8| {
         let mut out = mesh::Mesh { vertices: m.vertices.clone(), normals: m.normals.clone(), ..Default::default() };
         let mut cursor = 0usize;
         for (i, f) in m.faces.iter().enumerate() {
-            if cut(f) == keep {
+            let class = if tool(f) { 2 } else if cut(f) { 1 } else { 0 };
+            if class == which {
                 while m.corner_normals.get(cursor).is_some_and(|c| (c.0 as usize) < i) {
                     cursor += 1;
                 }
@@ -451,9 +596,10 @@ fn finishes(built: &mesh::BuildResult) -> (mesh::Mesh, mesh::Mesh) {
         }
         out
     };
-    let (a, mut b) = (split(false), split(true));
-    creased(&mut b, 30.0);
-    (a, b)
+    let (mut polished, mut satin, tools) = (split(0), split(1), split(2));
+    creased(&mut satin, 30.0);
+    polished.normals = diffused(&polished, 20.0, DIFFUSE_MM, (2.0 * PI * BORE_MM / 2.0) / 1536.0);
+    (polished, satin, tools)
 }
 
 /// Corner normals for every face of `m` from its own geometry: each corner averages the faces round
@@ -508,11 +654,53 @@ fn creased(m: &mut mesh::Mesh, deg: f64) {
         .collect();
 }
 
+/// Vertex normals of `m` diffused over about `reach_mm` (the mesh's vertices stand about `step_mm` apart):
+/// each pass averages a vertex's normal with its neighbours', never across an edge turning more than `deg`.
+fn diffused(m: &mesh::Mesh, deg: f64, reach_mm: f64, step_mm: f64) -> Vec<mesh::Vec3> {
+    let n = m.vertices.len();
+    let mut normals: Vec<[f32; 3]> = m.normals.iter().map(|v| [v.0, v.1, v.2]).collect();
+    if normals.len() != n {
+        return m.normals.clone();
+    }
+    let cos = deg.to_radians().cos() as f32;
+    let mut edges: Vec<(u32, u32)> = Vec::with_capacity(m.faces.len() * 3);
+    for f in &m.faces {
+        for (a, b) in [(f[0], f[1]), (f[1], f[2]), (f[2], f[0])] {
+            let (a, b) = (a.min(b), a.max(b));
+            let (p, q) = (normals[a as usize], normals[b as usize]);
+            if p[0] * q[0] + p[1] * q[1] + p[2] * q[2] >= cos {
+                edges.push((a, b));
+            }
+        }
+    }
+    edges.sort_unstable();
+    edges.dedup();
+    let passes = ((reach_mm / step_mm).powi(2)).ceil().clamp(1.0, 400.0) as usize;
+    let mut next = normals.clone();
+    for _ in 0..passes {
+        next.copy_from_slice(&normals);
+        for &(a, b) in &edges {
+            let (p, q) = (normals[a as usize], normals[b as usize]);
+            for k in 0..3 {
+                next[a as usize][k] += q[k];
+                next[b as usize][k] += p[k];
+            }
+        }
+        for v in &mut next {
+            let l = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt().max(1e-20);
+            *v = v.map(|x| x / l);
+        }
+        std::mem::swap(&mut normals, &mut next);
+    }
+    normals.into_iter().map(|v| mesh::Vec3(v[0], v[1], v[2])).collect()
+}
+
 /// The ring's parts as the bench finishes them: polished metal, satin cuts, and any stones.
 fn dressed_parts<'a>(polished: &'a mesh::Mesh, satin: &'a mesh::Mesh, stones: &'a [(mesh::Mesh, [f32; 3])]) -> Vec<render::Part<'a>> {
     let mut parts = vec![render::Part::metal(polished, render::GOLD)];
+
     if !satin.faces.is_empty() {
-        let mut s = render::Part::metal(satin, render::GOLD);
+        let mut s = render::Part::metal(satin, OXIDISED);
         s.roughness = SATIN;
         parts.push(s);
     }
@@ -558,6 +746,7 @@ fn sketch_lines(s: &Sketch, plane: &ringdesign_core::cad::WorkPlane) -> Vec<Vec<
         .iter()
         .map(|e| match &e.geometry {
             Geometry::Line { a, b } => vec![at(p(*a)), at(p(*b))],
+            Geometry::Polyline { points, closed } => points.iter().chain(points.first().filter(|_| *closed)).map(|id| at(p(*id))).collect(),
             Geometry::Circle { center, rim } => {
                 let (c, r) = (p(*center), p(*rim));
                 arc(c, 0.0, 2.0 * PI, (r[0] - c[0]).hypot(r[1] - c[1]))
@@ -605,14 +794,21 @@ fn top_at(m: &mesh::Mesh, x: f64, z: f64) -> Option<f64> {
 
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, edge: usize, draft: bool) -> Result<()> {
     let stones = ringdesign_core::gems::built_meshes(d, lib, built);
-    let (polished, satin) = finishes(built);
+    let (polished, satin, _) = finishes(d, built);
     let parts = dressed_parts(&polished, &satin, &stones);
     for (name, yaw, pitch) in VIEWS {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
     }
     // No stones: the close-up is the seal itself, straight on and raking.
-    let (seal_p, seal_s) = (crop(&polished, [0.0, 12.0, 0.0], 7.5), crop(&satin, [0.0, 12.0, 0.0], 7.5));
-    let close = dressed_parts(&seal_p, &seal_s, &[]);
+    // Framed on a box round the table, drawing the whole ring, so no cropped edge shows.
+    let mut framing = mesh::Mesh::default();
+    for k in 0..8 {
+        let (x, y, z) = (if k & 1 == 0 { -6.5 } else { 6.5 }, if k & 2 == 0 { 9.0 } else { 13.0 }, if k & 4 == 0 { -6.5 } else { 6.5 });
+        framing.vertices.push(mesh::Vec3(x, y, z));
+        framing.normals.push(mesh::Vec3(0.0, 1.0, 0.0));
+    }
+    let mut close = vec![render::Part::metal(&framing, render::GOLD)];
+    close.extend(dressed_parts(&polished, &satin, &[]));
     render::write_png_parts(out.join("stones.png"), &close, 0.25, 1.25, edge)?;
     // The 300 px read and its contact sheet.
     let mut sheet = Canvas::new(300 * 3, 300 * 2 + 0, [255, 255, 255]);
@@ -628,7 +824,9 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
     let mut bare = d.clone();
     bare.cad = None;
     let b = mesh::try_build(&bare, lib, if draft { draft_params() } else { BuildParams { theta_steps: 1024, profile_steps: 384, ..Default::default() } })?;
-    let left = frame(&[render::Part::metal(&b.mesh, render::GOLD)], 0.55, 0.95, edge);
+    let mut bare_mesh = b.mesh;
+    bare_mesh.normals = diffused(&bare_mesh, 20.0, DIFFUSE_MM, (2.0 * PI * BORE_MM / 2.0) / 1536.0);
+    let left = frame(&[render::Part::metal(&bare_mesh, render::GOLD)], 0.55, 0.95, edge);
     let right = frame(&parts, 0.55, 0.95, edge);
     let mut pair = Canvas::new(edge * 2, edge, [255, 255, 255]);
     pair.blit(&left, edge, edge, 0, 0);
@@ -641,36 +839,42 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
 fn timeline(out: &Path, d: &RingDesign, lib: &AlphaLibrary) -> Result<()> {
     let doc = d.cad.as_ref().unwrap();
     let ids: Vec<(u64, String)> = doc.features.iter().map(|f| (f.id, f.name.clone())).collect();
-    let cell = 360;
+    let sketch_of = |id: u64| doc.features.iter().find(|f| f.id == id).and_then(|f| match &f.operation {
+        Operation::Sketch { sketch } => Some(sketch.clone()),
+        _ => None,
+    });
+    let cell = 400;
     let label = 54;
-    let cols = 3;
+    let cols = 4;
     let rows = ids.len().div_ceil(cols);
     let mut sheet = Canvas::new(cols * cell, rows * (cell + label), [255, 255, 255]);
     for (k, (id, name)) in ids.iter().enumerate() {
         let mut step = d.clone();
         step.cad.as_mut().unwrap().through = Some(*id);
         let built = mesh::try_build(&step, lib, BuildParams { theta_steps: 512, profile_steps: 256, ..Default::default() })?;
-        let (polished, satin) = finishes(&built);
+        let (polished, satin, tools) = finishes(d, &built);
         let mut guide = mesh::Mesh::default();
-        if let Some(plane) = built.parts.evaluated.as_ref().and_then(|e| e.plane(PLANE)) {
+        let planes = built.parts.evaluated.as_ref().map(|e| e.planes.clone()).unwrap_or_default();
+        // What each step draws over the ring: the plane it lays down, the sketch it draws on it.
+        let (plane_shown, sketch_shown): (Option<(u64, [f64; 4])>, Option<(u64, u64)>) = match *id {
+            TABLE_PLANE => (Some((TABLE_PLANE, [-5.4, 5.4, -5.4, 5.4])), None),
+            SEAL_SKETCH | SEAL_PRISM => (Some((TABLE_PLANE, [-5.4, 5.4, -5.4, 5.4])), Some((SEAL_SKETCH, TABLE_PLANE))),
+            CROWN_PLANE => (Some((CROWN_PLANE, [10.8, 14.6, -5.4, 5.4])), None),
+            CROWN_SKETCH => (Some((CROWN_PLANE, [10.8, 14.6, -5.4, 5.4])), Some((CROWN_SKETCH, CROWN_PLANE))),
+            _ => (None, None),
+        };
+        if let Some((pid, [u0, u1, v0, v1])) = plane_shown
+            && let Some(plane) = planes.iter().find(|p| p.id == pid)
+        {
             let n = plane.normal;
-            if matches!(*id, 2 | 3 | 6 | 8) {
-                let h = 6.2;
-                let at = |u: f64, v: f64| -> [f64; 3] { std::array::from_fn(|k| plane.origin[k] + plane.x[k] * u + plane.y[k] * v + n[k] * 0.03) };
-                tube(&[at(-h, -h), at(h, -h), at(h, h), at(-h, h), at(-h, -h)], n, 0.05, &mut guide);
-            }
-            for f in doc.features.iter().filter(|f| f.id <= *id) {
-                let shown = match f.id {
-                    FIELD_SKETCH => matches!(*id, 3..=5),
-                    BORDURE_SKETCH => *id == 6,
-                    MATTING_SKETCH => *id == 8,
-                    _ => false,
-                };
-                if let (true, Operation::Sketch { sketch }) = (shown, &f.operation) {
-                    for line in sketch_lines(sketch, plane) {
-                        tube(&line, n, 0.045, &mut guide);
-                    }
-                }
+            let at = |u: f64, v: f64| -> [f64; 3] { std::array::from_fn(|k| plane.origin[k] + plane.x[k] * u + plane.y[k] * v + n[k] * 0.03) };
+            tube(&[at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1), at(u0, v0)], n, 0.05, &mut guide);
+        }
+        if let Some((sid, pid)) = sketch_shown
+            && let (Some(sketch), Some(plane)) = (sketch_of(sid), planes.iter().find(|p| p.id == pid))
+        {
+            for line in sketch_lines(&sketch, plane) {
+                tube(&line, plane.normal, 0.045, &mut guide);
             }
         }
         let mut parts = dressed_parts(&polished, &satin, &[]);
@@ -679,7 +883,14 @@ fn timeline(out: &Path, d: &RingDesign, lib: &AlphaLibrary) -> Result<()> {
         if !guide.faces.is_empty() {
             parts.push(g);
         }
-        let img = frame(&parts, 0.3, 1.2, cell);
+        let mut t = render::Part::metal(&tools, [0.55, 0.68, 0.92]);
+        t.studio = false;
+        if !tools.faces.is_empty() {
+            parts.push(t);
+        }
+        // The crown is drawn across the finger, so its three steps are seen from round the ring.
+        let (yaw, pitch) = if matches!(*id, CROWN_PLANE | CROWN_SKETCH | CROWN_SLAB) { (-0.75, 1.15) } else { (0.3, 1.2) };
+        let img = frame(&parts, yaw, pitch, cell);
         let (x, y) = ((k % cols) * cell, (k / cols) * (cell + label));
         sheet.blit(&img, cell, cell, x, y + label);
         sheet.text(&format!("{} \u{00b7} {name}", k + 1), x + 14, y + 38, 30.0, [40, 34, 26]);
@@ -688,43 +899,24 @@ fn timeline(out: &Path, d: &RingDesign, lib: &AlphaLibrary) -> Result<()> {
     Ok(())
 }
 
-fn crop(m: &mesh::Mesh, centre: [f64; 3], radius: f64) -> mesh::Mesh {
-    let near = |i: u32| {
-        let p = m.vertices[i as usize];
-        (p.0 as f64 - centre[0]).hypot(p.1 as f64 - centre[1]).hypot(p.2 as f64 - centre[2]) < radius
-    };
-    let mut index = std::collections::HashMap::new();
-    let mut out = mesh::Mesh::default();
-    let corners: std::collections::HashMap<u32, [mesh::Vec3; 3]> = m.corner_normals.iter().copied().collect();
-    for (fi, f) in m.faces.iter().enumerate().filter(|(_, f)| f.iter().all(|&i| near(i))) {
-        if let Some(c) = corners.get(&(fi as u32)) {
-            out.corner_normals.push((out.faces.len() as u32, *c));
-        }
-        let g = f.map(|i| {
-            *index.entry(i).or_insert_with(|| {
-                out.vertices.push(m.vertices[i as usize]);
-                out.normals.push(m.normals.get(i as usize).copied().unwrap_or(mesh::Vec3(0.0, 0.0, 1.0)));
-                (out.vertices.len() - 1) as u32
-            })
-        });
-        out.faces.push(g);
-    }
-    out
-}
-
-/// Depth of each cut where it is shallowest and deepest, read off the built mesh along the seal's two axes.
+/// Depth of the seal at named points, read off the built mesh straight down from the bare stock. Points
+/// are named as the shield is drawn (x to the viewer's right, y to its chief); the sketch is drawn turned
+/// half round, and its x runs round the ring toward world -x at the table.
 fn seal_depths(bare: &mesh::Mesh, built: &mesh::Mesh) -> serde_json::Value {
-    let depth = |x: f64, z: f64| match (top_at(bare, x, z), top_at(built, x, z)) {
-        (Some(a), Some(b)) => a - b,
+    let depth = |dx: f64, dy: f64| match (top_at(bare, dx, -dy), top_at(built, dx, -dy)) {
+        (Some(a), Some(b)) => ((a - b) * 1e3).round() / 1e3,
         _ => f64::NAN,
     };
-    // The sketch's x runs round the ring toward world -x at the table, its y along the finger.
-    let q = 0.45 * FIELD_R_MM;
-    let b = 0.5 * (BORDURE_IN_MM + BORDURE_OUT_MM);
+    let mid = 0.5 * (BORDURE_IN_MM + BORDURE_OUT_MM);
+    let groove = SHIELD_CHIEF_MM - 0.5 * OUTLINE_MM;
+    let flank = SHIELD_HALF_MM - 0.5 * OUTLINE_MM;
     serde_json::json!({
-        "first_quarter_mm": { "centre": depth(-0.3, 0.3), "mid": depth(-q, q), "tip_along_finger": depth(-0.35, FIELD_R_MM - 0.35), "tip_round_ring": depth(-(FIELD_R_MM - 0.35), 0.35) },
-        "second_quarter_raised_mm": depth(q, q),
-        "bordure_mm": { "round_ring": depth(b, 0.0), "along_finger": depth(0.0, b) },
+        "first_quarter_mm": [depth(-1.2, 1.2), depth(-0.8, 2.4), depth(-2.3, 0.4), depth(-0.5, 0.3)],
+        "fourth_quarter_mm": [depth(1.2, -1.2), depth(0.4, -3.0), depth(1.9, -0.8), depth(0.4, -0.7)],
+        "raised_quarters_mm": [depth(1.2, 1.2), depth(-1.2, -1.2)],
+        "grooves_mm": { "second_chief": depth(1.5, groove), "second_flank": depth(flank, 1.6), "third_flank": depth(-2.0, -1.5) },
+        "bordure_mm": { "along_finger": [depth(0.0, mid), depth(0.0, -mid)], "round_ring": [depth(mid, 0.0), depth(-mid, 0.0)], "diagonal": depth(mid * 0.7071, mid * 0.7071) },
+        "background_mm": depth(0.0, 3.55),
         "rim_mm": depth(BORDURE_OUT_MM + 0.15, 0.0),
     })
 }
@@ -766,6 +958,7 @@ fn main() -> Result<()> {
         design_bytes,
         grams_18k: grams,
         cad_features: d.cad.as_ref().unwrap().features.iter().map(|f| format!("#{} {} ({})", f.id, f.name, f.operation.label())).collect(),
+        notes: notes(),
     };
     // The export run keeps the draft run's gates in its `draft` block.
     if draft {

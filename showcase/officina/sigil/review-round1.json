@@ -1,0 +1,92 @@
+{
+  "ring": "sigil",
+  "round": 1,
+  "verdict": "revise",
+  "score": 5.8,
+  "summary": "The lesson works: the face reads as a quartered seal at 300 px, the timeline is clean, and every recorded gate is green for a Delft pour. It is not yet a gallery piece, for two reasons. First, the bare stock 013 shank shows heavy stair-step faceting on both shoulders and across the top of the reverse. The banding is the same in the bare half of bare-vs-finished, so it comes from the stock or sand master, not the cuts. Every view except the face shows it, and it is exactly the 'mechanical CAD' Logan rejected. Second, a round disc split into four, with two opposite quarters set apart, inside a sunk ring is the BMW roundel. Face-on, a buyer names the car badge before the heraldry. Smaller faults: the matting dots read as a perforated golf-ball pattern at 1600 px and are almost invisible at 300 px. The sunk quarters are shallower along the finger (0.34 mm at the tips) than at the centre (0.93 mm), and the bordure runs 0.22 mm along the finger against 0.89 mm round the ring, so the groove looks uneven in side view. The ring has 9 features where the brief asks for a 7-feature lesson. Fix the shank surface and make the seal unmistakably heraldic, and it can ship in round 2.",
+  "strengths": [
+    "One idea, face to palm: the seal sits on the table, and the shoulders, walls and palm are untouched stock. Nothing is scattered.",
+    "face-300 reads 'quartered seal in a bordure' without a caption, and the 0.15 mm land between field and bordure shows as a bright ring.",
+    "The bench cuts are crisp: the quarter walls are clean and vertical with sharp floor corners (stones.png), and the cuts never touch the bordure.",
+    "timeline.png is a model lesson: each frame adds one visible step, and the sketch and plane overlays show what each feature consumes.",
+    "The two-stage model is honest: the pattern is the bare stock, and the field notes explain each bench cut."
+  ],
+  "checklist": [
+    {"item": "One idea face to palm, reads at 300 px without the caption", "result": "pass", "reason": "face-300 reads as a quartered seal at once. hero-300 carries it through the matting, but only just."},
+    {"item": "Finished piece a jeweller would sell (proportion, weight, every part meeting the band)", "result": "fail", "reason": "Proportion and weight (10.9 g in 18k) are right for a signet, but the faceted shoulders and the logo-like face keep it from being sellable. The seal's meeting with the table is clean."},
+    {"item": "No flat, blocky or mechanical CAD", "result": "fail", "reason": "The shoulders and the top of the reverse show stepped, quilted facet bands (shoulder.png, reverse.png, hero.png right shoulder). The matted floors look like a punched dot grid, not a mat."},
+    {"item": "Outlines crisp, no combing, smearing or stair-steps", "result": "fail", "reason": "There are stair-steps in the highlights on both shoulders, and the right-hand silhouette of the table wall is jagged in stones.png. mesh.json shows a minimum angle of 0.0004 degrees and a worst aspect ratio of 127,633. The seal outlines themselves are crisp."},
+    {"item": "Stones in made settings and visible", "result": "pass", "reason": "Not applicable: no stones, and the preview and report both count 0."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "The table wall-to-face edge and the shoulder notch stay hard in hero and side."},
+    {"item": "Lesson legible in timeline.png", "result": "pass", "reason": "There are 9 frames, each adding one visible step in a sensible order. The two matting features go past the brief's 7-feature lesson and add the least, so they should earn their place or go."},
+    {"item": "Silhouette distinct from the other Officina rings and the starter gallery", "result": "fail", "reason": "The silhouette is bare stock 013, which also appears in the starter gallery. Only the face makes it different, and the face currently reads as a car badge."}
+  ],
+  "gates": [
+    {"gate": "watertight, 0 degenerate faces", "claimed": "watertight true, degenerate 0 (draft and gates)", "verified": "mesh.json: 0 boundary edges, 0 non-manifold edges, 0 degenerate faces", "pass": true},
+    {"gate": "0 self-crossings on the ring and every made part", "claimed": "ring 0; all four cut parts 0", "verified": "report.json gates.ring_self_crossings 0; made_parts all 0", "pass": true},
+    {"gate": "solids notes empty, parts notes empty", "claimed": "[]", "verified": "solids_notes [] and parts_notes []", "pass": true},
+    {"gate": "every CAD feature Ok", "claimed": "features_ok true", "verified": "features #1 to #9 all Ok", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "bore_clear true", "verified": "min_vertex_radius 9.0999 mm against a bore radius of 9.1 mm", "pass": true},
+    {"gate": "sand field verdict Castable", "claimed": "Castable at 192x128 and 256x128", "verified": "field_verdict Castable, undercut 0.0%. The process from the draft block is 'Sand (two-part)', judged as Delft.", "pass": true},
+    {"gate": "ray release 0 obstructions, 0 unresolved at 0.100 and 0.075 mm", "claimed": "[0,0] at both", "verified": "release_0100 [0,0,'Review'] and release_0075 [0,0,'Review']. Counts are 0. The 'Review' label is the release tool's status, not a finding.", "pass": true},
+    {"gate": "lost-wax thickness 0.8 and cut_lands", "claimed": "cut_lands_08 lists 2 lands below 0.8 (#7 0.44 mm, #9 0.16 mm)", "verified": "Not applicable: Sigil is a sand ring, and these are Stage::Bench cuts that are not in the pattern. Thinnest wall 1.37 mm.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "[]", "verified": "dfm_findings []", "pass": true},
+    {"gate": "stone count equals preview", "claimed": "0 / 0", "verified": "stones.json is empty, and stones_previewed equals stones_reported at 0", "pass": true},
+    {"gate": "cold reload identical", "claimed": "gates true (draft block null)", "verified": "gates.cold_reload_identical true", "pass": true},
+    {"gate": "export within 2 million triangles", "claimed": "within_two_million true", "verified": "1,552,000 triangles (mesh.json)", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "pattern watertight, 0 degenerate, 0 crossings", "verified": "gates.pattern_watertight true, 1,376,256 triangles, casting-pattern.stl present", "pass": true},
+    {"gate": "template gate (at most 4 design.set patches)", "claimed": "null (not run)", "verified": "Not run yet: P7 base.preset is still pending (section 2). Not failing at this stage.", "pass": true}
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P0",
+      "zone": "Shank: both shoulders theta 20 to 160 deg away from the table, and the reverse crown at theta 270 +/- 60 deg (stock 013 surface from templates::stock / sand_master)",
+      "change": "Remove the stepped faceting from the stock surface. Rebuild or re-tessellate the 013 sand-master shank at the finer import or skin resolution, or apply the P3 skin smoothing pass to the cast stack. Do not touch the hard table-wall angle. The bare half of bare-vs-finished shows the same banding, so fix it at the stock, not in the CAD features.",
+      "acceptance": "In hero.png, shoulder.png and reverse.png the shoulder highlight is one continuous smooth streak with no staircase or quilted grid. The table's silhouette in stones.png is a clean curve. mesh.json quality.min_angle_deg is above 1 degree."
+    },
+    {
+      "number": 2,
+      "priority": "P0",
+      "zone": "Seal field, sketch #3 'Field quartered' and its cuts #4 and #5 (table at theta 90 deg)",
+      "change": "Break the BMW-roundel likeness and make the seal plainly heraldic. Preferred: draw the field as a heater-shield outline about 7.6 mm tall by 6.4 mm wide inside the round bordure, made of two arcs for the flanks and a flat chief line, quartered by the same N-S and E-W lines. The T-junction and RegionRef lesson stays intact. The background between shield and bordure stays polished. Alternative if the round field must stay: leave a raised cross land 0.5 mm wide between the quarters, so they are sunk as four separate pockets, and alternate matted and bright quarters. That gives a 'cross between four quarters', not a two-tone pie.",
+      "acceptance": "Shown face-300 alone, a viewer names a quartered shield or coat of arms, not a car badge. In face.png the quartering shows inside a shield or with a visible raised cross."
+    },
+    {
+      "number": 3,
+      "priority": "P1",
+      "zone": "Cuts #4, #5 and #7 (sunk quarters and bordure), along the finger axis",
+      "change": "Make the cut depth even across the curved table. Either cut from a plane offset so the floor follows the table (depth 0.45 mm +/- 0.08 everywhere), or use a curved or offset-to-surface extrude. The quarter tips currently run 0.34 mm along the finger against 0.93 mm at the centre, and the bordure 0.22 mm against 0.89 mm.",
+      "acceptance": "report.json seal.first_quarter_mm values all lie within 0.35 to 0.55, and seal.bordure_mm along_finger and round_ring differ by no more than 0.1 mm. In side.png the bordure groove has an even lip all the way round."
+    },
+    {
+      "number": 4,
+      "priority": "P1",
+      "zone": "Features #8 'Matting' and #9 'Quarters matted'",
+      "change": "Either replace the grid of separate 0.13 mm2 dots, which reads as perforated sheet, with a denser, finer bench mat (pitch at most 0.25 mm, dots staggered and touching), or drop #8 and #9 and get the two-tone from depth alone, bringing the lesson back to the brief's 7 features. If the mat stays, it must read at 300 px.",
+      "acceptance": "In hero-300 the matted quarters are visibly duller than the bright ones as a tone, not as a dot pattern. In stones.png the mat reads as an even frosted surface with no countable dot rows. Otherwise timeline.png shows 7 frames."
+    },
+    {
+      "number": 5,
+      "priority": "P2",
+      "zone": "Palm inner bore at theta 270 deg (palm.png)",
+      "change": "Check the two vertical bright seam lines inside the bore under the palm, and weld or smooth them if they are a stock seam.",
+      "acceptance": "palm.png shows one continuous bore reflection with no vertical line breaks."
+    }
+  ],
+  "viewed_images": [
+    "showcase/officina/sigil/hero-300.png",
+    "showcase/officina/sigil/face-300.png",
+    "showcase/officina/sigil/hero.png",
+    "showcase/officina/sigil/face.png",
+    "showcase/officina/sigil/side.png",
+    "showcase/officina/sigil/shoulder.png",
+    "showcase/officina/sigil/palm.png",
+    "showcase/officina/sigil/reverse.png",
+    "showcase/officina/sigil/timeline.png",
+    "showcase/officina/sigil/bare-vs-finished.png",
+    "showcase/officina/sigil/contact-300.png",
+    "showcase/officina/sigil/stones.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}
