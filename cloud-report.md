@@ -1,103 +1,142 @@
 # Vepres ring: Viscum (`viscum`), cloud report
 
-**Outcome: stopped at the block-out after three failed read tests.** No review round was run (0 of 3 used). Under TASK.md, a third block-out that does not read means the subject needs rethinking, not detailing. Every draft gate was green on the last attempt. The ring fails on its read, not on manufacture.
+**Outcome: cut at 6.8 after round 3 of 3.** The rethink read at the first try (read test 4). The three reviewed rounds scored 6.2, 6.6 and 6.8, all under the 7.5 ship bar. Every gate was green at draft, 384 × 192 and export in every round. The template gate, run after the last round, is also green.
 
-- Branch: `claude/vepres-viscum` from `master` at `8e5a59a`, with master `2e11632` merged in (`edb4fda`).
-- Commits: `1563d45` (attempts 1 and 2), `5fe3c4e` (attempt 3, and the process line in the collection doc), `133e677` (read test 3), then this report.
-- Example: `crates/ringdesign-core/examples/vepres_viscum.rs`.
-- Run: `target/release/examples/vepres_viscum [OUT_DIR] [--draft] [--verify] [--blockout]`.
-- Outputs: `showcase/vepres/viscum/`. The folder holds the renders, `hero-300.png`, `face-300.png`, `contact-300.png`, `report.json`, `design.ring.json` and `read-test-{1,2,3}.json`.
-- Process: lost wax on native factory 003 Clover, 18 × 18, unmirrored, no sand envelope; 0.8 mm section, 0.15 mm detail, no draft; 18k yellow gold. Per Logan's rule of 2026-10-03, I recorded this in Viscum's section of `docs/collections/vepres.md`, with no extra rounds granted.
+- **Branch:** `claude/vepres-viscum`. It started from `master` at `8e5a59a`. Master `2e11632` was merged in at `edb4fda`, and master `29babc4` (#260) at `8414dd4`.
+- **Example:** `crates/ringdesign-core/examples/vepres_viscum.rs`.
+- **Run:** `target/release/examples/vepres_viscum [OUT_DIR] [--draft] [--verify]`. The default output is `showcase/vepres/viscum/`.
+- **Process:** lost wax, per Logan's rule of 2026-10-03: 0.8 mm minimum section, 0.15 mm detail, no draft, no pull rule, 18k yellow gold. No extra rounds were granted. The decision is recorded in Viscum's section of `docs/collections/vepres.md`, together with the rethink and the stock.
+- **Stock:** factory **017 Tonneau** at its native 16 × 12, through its sand master with the envelope on (the reasons are below).
+- **Stones:** 21 moonstone round cabochons, 1.07 to 1.95 mm. That is 9 on the face and 12 on the shoulders.
+- **Rounds used:** 3 of 3, plus 4 read tests (3 on 003, then 1 on the rethink).
 
-## Read tests
+## Read tests and reviews
 
-| Attempt | Reads | What the eye saw | What it asked for |
+| Step | Stock | Verdict | Score | What it said |
+|---|---|---|---|---|
+| Read test 1 | 003 Clover | does not read | — | "A big gold flower with a pearl-cluster centre." The lobes read as petals. |
+| Read test 2 | 003 Clover | does not read | — | "Gold blossom or bow-shaped cocktail ring with pearls." |
+| Read test 3 | 003 Clover | does not read | — | "Gold flower ring with pearls": a double flower or pinwheel. Only the three-berry triangles worked. That stopped the first block-out, and I reported back. |
+| *Rethink (a), chosen by Logan* | | | | |
+| Read test 4 | 001 Cushion | **reads** | — | "Mistletoe, at first glance": dichotomous forking, opposite strap leaves, white berries in the crotches. It asked for fleshier 3:1 leaves, a fuller face with no crossed "propeller" node, and translucent berries. |
+| Round 1 | 001 Cushion | revise | **6.2** | It asked for clean joints instead of pinched collars, and noted that the head-to-bore junction was torn all round (that tear is in factory 001's own mesh). It also asked for leaves with body, oak bark down the shank, and a fuller face. |
+| Round 2 | 017 Tonneau | revise | **6.6** | The torn underside was gone. Still open: pinched nodes, the crossed four-leaf node, the upturned "Face berry 5", grey opaque berries, and smeared bark that stops at the head. |
+| Round 3 | 017 Tonneau | **cut** | **6.8** | Fixed: the crossed node (it is now two opposite pairs on successive forks), and Face berry 5, which now sits upright. It still reads as mistletoe at 300 px. Still open: the nodes are collars with eyelets, the right-hand triplets float with no stalk, the right arm ends in a hooked cap, the berries render opaque grey, the bark is smeared and absent on the shank, the shoulder leaves are crumpled, and the stems are untapered. |
+
+The round-3 reviewer marked the template gate "not recorded", because it was run after the review as TASK.md orders. It is recorded below and in `showcase/vepres/viscum/verification.json`.
+
+## Gates (round 3, final design)
+
+| Gate | Draft 768 × 320 | 384 × 192 | Export 1536 × 448 |
 |---|---|---|---|
-| 1 | **false** | "A big gold flower with a pearl-cluster centre." The four swollen clover lobes read as petals, and the seven collared stones read as a pearl cluster or grapes. | Leaves cut along each lobe; three separate berries in the fork, not collars; repeated Y-fork / leaf pair / berry units. |
-| 2 | **false** | "Gold blossom or bow-shaped cocktail ring with pearls." The lobes are still the loudest form. The shoulder singles read as pearl studs. | A leaf outline filling each lobe with a dark recess, and the lobes 40% flatter; tight 2–3 berry bunches in Y-forks on the shoulders; visible stalks to the node; translucent berries. |
-| 3 | **false** | "Gold flower ring with pearls", now read as a double flower or pinwheel of eight or more petals. The three-berry shoulder triangles and the right-hand face triangle "work" and are "the most mistletoe-like detail". | Exactly four narrow 3:1 leaves cut out of the lobes; all berries on the central node or in axils, none on blades; Y-forks with leaf pairs on the cheeks and shoulders. |
+| Watertight / boundary / non-manifold | yes / 0 / 0 | yes / 0 / 0 | yes / 0 / 0 |
+| Degenerate faces | 0 | 0 | 0 |
+| Self-crossings, ring | 0 | 0 | 0 |
+| Self-crossings, each of 65 made parts | 0 (all closed, manifold) | 0 | 0 |
+| `solids.notes` / `parts.notes` | empty / empty | empty / empty | empty / empty |
+| Bore margin | −5e-7 mm (zero) | −5e-7 mm | −5e-7 mm |
+| Field verdict (lost wax) | Castable | Castable | Castable |
+| Thinnest wall (floor 0.8) | 1.10 mm | 1.10 mm | 1.10 mm |
+| DFM findings | 0 | 0 | 0 |
+| Stones reported = previewed | 21 = 21 | 21 = 21 | 21 = 21 |
+| Metal inside stones | 0 | 0 | 0 |
+| Triangles | 533,080 | 228,338 | **1,307,036** (≤ 2M) |
 
-**Why it failed: the stock is the problem.** Factory 003 is four swollen, heart-shaped lobes meeting at a sharp central crossing. At 300 px the lobes are the face's loudest form, and every reviewer named them petals. Here is what each attempt tried:
+The closest stone pair is B2.1 to B2.2, 0.34 mm at the girdle. The ring is 25.0 g of 18k.
 
-- **Raised leaves on the lobes** (attempts 1 and 2) read as veins on petals.
-- **Large free blades running past the lobe edges** (attempt 3, with engraved trenches and midribs) changed the outline. The reviewer then counted the blades together with the lobe edges, and saw an eight-petal flower.
-- **Taking the lobes' shine off.** I tried an oak-bark tiling and a hammered stipple, both in hide space (C-R4), as Subtract and as bench-only layers. Neither cut the imported stock. As Add, the bark folded the field into self-crossings and read as combing, so I dropped it.
-- **Flattening the crowns.** Every reviewer asked to flatten them by about 40%. That would mean rebuilding the factory stock, which the brief keeps "with its lobes".
+- `--verify`: a cold reload with an empty library is **identical**.
+- Casting pattern: watertight, 0 degenerate faces, 0 self-crossings, **pass**.
 
-What did work is the berry bunches: tight triangles of three moonstones in the crotch of a forked twig.
+Rounds 1 and 2 also passed every gate at draft, 384 × 192 and export before their reviews (commits `f59fda5`, `c2199a9`).
 
-### Suggested rethink
+## Template gate (after the last round)
 
-- **(a)** Keep the forked twig and berry-bunch unit, which the reviewers praised. Put it on a stock whose face is not four petals, such as a flat or cushion signet.
-- **(b)** If 003 must stay, fill the lobes' crowns and creases with one sculpted ground plate so the face becomes a flat seal. The clover would survive only as the plan, and the sprig would sit on top. That needs Logan's consent, because it hides the factory lobes.
+`collection_templates vepres … --only viscum --verify-export`. The class is **stock**.
 
-## Gates (block-out attempt 3, draft 768 × 320)
-
-| Gate | Result |
+| Measure | Value |
 |---|---|
-| Watertight, degenerate faces | yes, 0 |
-| Self-crossings: ring, and each of the made parts | 0, and 0 on every part (all closed and manifold) |
-| `solids.notes` / `parts.notes` | empty / empty; 91 parts joined, 12 graver cuts |
-| Bore margin | −0.0009 mm (the stock's own bore) |
-| Field verdict (lost wax) | **Castable**; thinnest wall 1.37 mm (floor 0.8) |
-| DFM findings | 0 |
-| Stones reported / previewed | 21 / 21 (CAD moonstones counted by `built_vertices`); metal inside stones 0 |
-| Closest pair | Shoulder B2.1 to B2.2, 0.22 mm at the girdle |
-| Metal | 29.8 g of 18k |
+| Gate | **passed** |
+| Source method | lift |
+| Template bytes | **961,517** (budget 1,000,000; no size review required) |
+| Nodes / exposed controls | 246 / 0 |
+| `design.set` patches | 1 (`/manufacturing`) |
+| Source identical / cold graph reload / cold design reload | true / true / true |
+| Export geometry | verified; 1,307,036 triangles, with vertices, faces and normals identical |
+| Open times | first build 2.69 s, detail 0.49 s, rebuild 3 ms, verdict 39 ms |
 
-These gates were not run, because no round was reached:
+At the end of round 2 the graph was 1.80 MB. Two changes brought it under budget:
 
-- the export build at 1536 × 448 and `--verify`;
-- the casting pattern;
-- the template gate.
+- dropping the pillow ring counts, to 11 top and 4 bottom rings;
+- trimming each part's ring segments: stems and joints 40 → 32, mounds 52 → 40, leaves 88 → 72.
 
-The example runs all of them: an export run gates, verifies, writes the STLs and `stones.json`.
+`crisp_relief` is on, and #260 lets the lift carry it.
+
+## Why the stock moved twice
+
+1. **003 Clover → rethink.** In three read tests, 003's four swollen lobes read as petals, whatever was laid on them. Logan chose route (a): keep the forked twig and berry-bunch unit on a flat or cushion signet. That ruled out the lobed plans (003, 005, 007, 016).
+2. **001 Cushion, 17 × 14.5.** I chose it for its quiet crowned table. The brief's 17 × 13 is refused, because 13 mm is below 70% of the 20 mm master. Round 1 found the head-to-bore junction torn all round, and the tear is in **factory 001's own mesh** at every size. 006's mesh is torn the same way.
+3. **017 Tonneau, native 16 × 12.** This was the one candidate with a clean underside; upsized, it saw-tooths. Its face is still one quiet barrel table.
+
+The stock always comes through **its sand master with the envelope on**. On every non-sand imported stock I tried (001 at two sizes, and 006), struck stamps collapse the build to about 20k triangles and break into the bore. The ring is still judged as lost wax.
 
 ## The construction, as sentences
 
-Nothing goes through the height field except the stock. Every element is a sculpted CAD part (`Operation::Stored`, `Attach::Join`) generated in the example.
+The height field carries only the stock, the bark and the struck stamps. Everything else is a sculpted part made in the example: an `Operation::Stored` mesh joined with `Attach::Join` and `Placement::Free`, each sinking to its own unique depth so that no two part bottoms are coplanar. A `Band` feature named "Factory 017 Tonneau" heads the CAD document.
 
-- **Depth maps.** The bare 003 surface is rasterised from its `Atlas` into three kinds of depth map:
+- **Depth maps.** The bare 017 surface is rasterised from its `Atlas` into:
   - a plane map looking down on the table;
-  - one plane map for each cheek;
   - a cylinder map round the crest.
-- **Pillows.** Each part is a pillow: rings shrunk from its margin to its spine, closed by ladders top and bottom.
-  - Leaves have an obovate strap plan, a 0.2 mm wall, a 0.1 mm top round, and a cushion crown of 0.95 mm.
-  - Stems are half-round, 0.12 mm proud, with round ends.
-  - "Bridge" stems ride the highest stock within reach, so the bough crosses the crease instead of lying in it.
-  - "Free" blades lie on a quadric fitted to the stock, and run on past a lobe's edge on their own underside.
-- **Unique sinks.** Every part sinks to its own depth, so no two part bottoms are coplanar.
-- **Face.**
-  - One node.
-  - Four strap leaves along the lobe axes: 9.4 and 9.0 mm on one pair, 7.9 and 7.5 mm on the other, about 3.2 mm wide.
-  - Stalks running into the node.
-  - Twelve graver cuts (`Attach::Cut` tubes): a 0.24 mm half-round trench round each leaf, and a tapering midrib.
-  - A bunch of three berries (2.4, 2.1 and 2.1 mm) beside the node, and a pair of 1.9 mm berries astride the bough.
-- **Berries.**
-  - The face and shoulder berries are CAD moonstones placed by a Transform. Each sits on its own fitted mound part, in a thin flush bezel (wall 0.3, lip 0.1), with the builder's seat bur.
-  - Field gypsy mounds folded over the clover's central crease and could not cut their seats there. A seat straddling the chart's 0°/360° seam failed the same way.
-  - The four cheek berries (1.5 mm) are flush gypsy-mound field seats on the lobe walls.
-- **Shoulders.** The bough runs from the face notch down each crest. Two Y-fork units sit on each side:
-  - twigs at ±27°, with a joint knob at each tip carrying one leaf of the pair;
-  - a tight bunch of three in the crotch: 1.95, 1.8 and 1.7 mm, then 1.8, 1.65 and 1.6 mm.
-- **Cheeks.** Each lobe wall carries a twig hanging from the face's edge to a joint, with a downward leaf pair and one berry in its V.
-- **Stone count.** 5 (face) + 12 (shoulders) + 4 (cheeks) = 21 moonstones.
+- **Pillows.** Every part is a closed "pillow": rings shrunk from its margin to its spine, capped by ladders top and bottom.
+  - **Stems** are half-round. Each runs 0.9 r past both of its ends, tapers 25%, and rides the highest stock within reach (Bridge ground).
+  - **Joints** are ellipsoid swellings, 1.25 × the stem radius long.
+  - **Berry mounds** sit on a quadric fitted under them (Free ground).
+- **Face sprig.**
+  - The main stalk comes in from the left end and forks at three nodes.
+  - Two short side twigs at the first node carry the left-hand opposite leaf pair (3.3 × 1.5 mm).
+  - At the main node a wide Y opens into two arms. Each arm ends in a node with an outward-splayed opposite pair (3.4 × 1.5 mm).
+  - Every leaf is a struck `StampTop::Pillow` stamp (crown 0.7 mm, wall 0.35 mm) cut clear of the field, curved 12° away from its partner, and trimmed until it lies on the table.
+- **Face berries.** There are three triangles of three:
+  - 1.65, 1.5 and 1.45 mm in the main fork's crotch;
+  - 1.18, 1.12 and 1.07 mm beyond each arm's tip.
+  - The placer searches distance and a ±45° swing for the first spot that clears every leaf, stem and berry (gap 0.45 mm), and keeps each mound off the table's bevel. It tests the bevel as a 0.25 mm step within 0.8 mm, rather than the cushion's gentle fall.
+- **Berries (all 21).** Each is a CAD moonstone placed by a Transform, tilted to its mound's normal. It sits in a thin flush bezel (wall 0.3, lip 0.1) with the builder's seat bur, on its own fitted mound part. The crown heights carry a few microns of jitter, so no two boolean seams meet edge on.
+- **Shoulders.** On each side, the bough runs from the face's end down the crest, with two Y-fork units. Each unit has:
+  - twigs at ±27°;
+  - a joint at each tip carrying one draped leaf;
+  - a tight triangle in the crotch: 1.95, 1.8 and 1.7 mm, then 1.8, 1.65 and 1.6 mm.
+- **Oak bark.** `Procedural::Bark`, a hide-space `TilingLayer` subtracted 0.3 mm. It is masked to the head walls (θ 270°, span 140°) and the cheeks (θ 90°, span 76°), with 5° fades and windows that keep it out from under the shoulder units.
+- **Stone count.** 9 (face) + 12 (shoulders) = 21.
 
-## Enablers from master
+## Enablers from master used
 
-The new close-up renders use #248's `render::write_png_framed` with `yaw_facing` (`stones.png`, `shoulder-close.png`), in place of a cropped mesh. No other enabler was used:
+- **#248:** `render::write_png_framed` with `yaw_facing` for the close-ups (`stones.png`, `shoulder-close.png`), instead of a cropped mesh.
+- **#248:** `StampTop::Pillow` for every face leaf.
+- **#248 and #260:** `crisp_relief` on, now carried through the graph lift.
 
-- `crisp_relief` and `StampTop::Pillow` do not apply, since nothing on the ring is height-field relief or a stamp;
-- the C-B2 plans are not needed, since every stone is round;
-- the C-V and C-T enablers, and #255, #258 and #259, were not reached before the stop.
+The C-B2 plans were not needed, because every stone is round. I reached none of the C-V or C-T enablers, nor #255, #258 or #259.
 
 ## What I could not do
 
-- **Make the 003 lobes stop reading as petals.** None of the three approaches above worked. See the rethink.
-- **Cut texture into imported stock.** A `Subtract` tiling, with or without `bench_only`, showed no relief on native 003. Its heights evaluate to between 0.02 and 0.18 mm, but the mesh does not change.
-- **Lay seam beads on these parts.** `blend_mm` beads on the stored pillows folded or pinched ("the bead folds at N stations"). I set every part's blend to 0, so the lessons' 0.3–0.4 mm fillet is not met.
+- **Reach 7.5.** The open items are listed in round 3's punch list (`review-round3.json`):
+  - the nodes still read as collars with eyelets, because separate stem and joint pillows meet at their caps;
+  - the right-hand triplets have no stalk;
+  - the bark smears and stops at the head;
+  - the shoulder leaves are crumpled;
+  - the stems are untapered tubes.
+- **Translucent berries in the renders.** `stones.json` carries transmission 0.62, subsurface 0.5 and a warm tint. The renders still show opaque grey cabochons, so the material does not reach the render path as I write it.
+- **Use non-sand imported stock with stamps.** See core change 1.
+- **Seam beads.** `blend_mm` beads on the stored pillows fold or pinch, so every part's blend is 0. The lessons' 0.3–0.4 mm fillet is not met.
 
 ## Core changes wanted
 
-1. **Negative field relief on imported stock.** A `Blend::Subtract` layer should cut the stock, as it does on a procedural band, so that matte grounds and bark can be laid on factory signets. I have not located the clamp in `imported_base`'s field evaluation, so I cannot give exact code. The repro is `VISCUM_BARK=1 VISCUM_BARK_BENCH=1 VISCUM_HAMMER=1 target/release/examples/vepres_viscum OUT --draft`: the layer evaluates to non-zero heights, but the finished mesh is unchanged.
-2. **Seat pads that do not fold over a concave crease.** Clamp a pad's normal offset by the local valley radius, or blend the pad's normals over its footprint before displacing. The repro is a `SeatPadLayer` gypsy mound at the 003 centre, `(θ 87°, v 8.1)`: it gives 114 self-crossings and "its seat could not be cut".
+I have not located the faulting code for any of these, so I cannot give exact code. Each item gives the repro instead.
+
+1. **Struck stamps on non-sand imported stock.**
+   - Repro: `VISCUM_SAND` unset with `STOCK_SAND_MASTER = false`, on 001 at 17 × 14.5, or on 006.
+   - Result: the build collapses to about 20k triangles and intrudes into the bore. Through `sand_master` with the envelope on, the same stamps build correctly.
+2. **Factory 001 Cushion and 006 Square meshes.** Their head-to-bore junction is torn all round at every size: hero, side and palm views, and `bare-vs-finished.png` on the bare stock. The factory meshes need re-baking.
+3. **Moonstone material in renders.** `stones.json` transmission and subsurface should reach `render::write_png*`. If the render reads the material from somewhere else, the stock-ring docs should say where.
+4. **Negative field relief on non-sand imported stock** (from the 003 attempts). A `Blend::Subtract` layer evaluates to non-zero heights but does not cut native 003.
+   - Repro: `VISCUM_BARK=1 VISCUM_BARK_BENCH=1` on native 003.
+5. **Seat pads that fold over a concave crease** (from the 003 attempts). A `SeatPadLayer` gypsy mound at the 003 centre (θ 87°, v 8.1) gives 114 self-crossings, and "its seat could not be cut".
+   - Wanted: clamp the pad's normal offset by the local valley radius.
