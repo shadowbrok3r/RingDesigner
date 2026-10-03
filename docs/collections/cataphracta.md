@@ -33,7 +33,7 @@ Listed in build order.
 
 | # | Ring | Epithet | Base | Process | Stone | Status |
 |---|---|---|---|---|---|---|
-| 1 | **Sphenodon** | *the parietal* | Procedural Flat 7.5 × 2.5, thickness-only keys | Lost wax | Peridot 2.5 round, flush on the skull | Lost wax; cut at 7.4 after revival rounds 4 and 5 (see the section below) |
+| 1 | **Sphenodon** | *the parietal* | Procedural Flat 7.5 × 2.5, thickness-only keys | Lost wax | Peridot 2.0 round, flush on the skull | Lost wax; cut at 7.4 after revival rounds 4 and 5 (see the section below) |
 | 2 | **Heloderma** | *the beaded one* | Procedural HalfRound 8.0 × 3.2, keyframed fat-tail swell | Delft | Spessartite 3.0 round, flush on a gypsy mound | Not started. Needs C-R1, C-R2, C-R3, P5 and C-R7. A painted fallback exists |
 | 3 | **Moloch** | *the thorn idol* | Procedural Flat 7.0 × 3.6, thickness-only hump | Petrobond | — | Not started. Can be built now ungraded (P4 has landed); grading needs C-R2 |
 | 4 | **Gekko** | *the tokay* | Procedural Flat 7.0 × 3.4, thickness-only keys | Delft | — | Not started. Needs C-R1, C-R2 and C-R7. A painted fallback exists |
@@ -344,8 +344,8 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
   - **P5** is needed only for the fillet granules' Draft gate.
 - **Concept (as built, lost wax):** The last of the beak-heads, older than the dinosaurs' fall. A tuatara lies round the band. Its short, blunt, beaked skull is on the face, with the parietal stone, a peridot, set in the crown of the skull behind the two eyes. The copy must never call the stone an eye. The crest is a comb of separate spines from the nape to the tail's tip. The sail plan below is the sand version this replaced.
 - **Theme face to palm (as built):**
-  - **Face (90°):** the head. It is a short wedge with about 4 mm of snout ahead of the eyes, and a beak lip with the notch between its two points. The eyes are large smooth domes on the head's side slopes, under crescent lids, each with a vertical pupil. The peridot (2.5 mm) is flush on the crown of the skull 4 mm behind the eyes, ringed by a 0.4 mm burnished rim, and the head's fine granules run up to that rim.
-  - **Shoulders (crest):** the nape, the neck and the barrel. The crest's spines are tallest over the shoulders, and the front legs grip the rim, their toes on the side faces. Either side of the crest is a band of domed, keeled scales on jittered cells, graded into the body's granules, with tubercles down the flanks.
+  - **Face (90°):** the head. It is a short wedge with about 4 mm of snout ahead of the eyes, and a beak lip with the notch between its two points. The eyes are large smooth domes (2.0 mm) high on the head's side slopes, each under a brow crescent over its top third, with a short vertical pupil. The peridot (2.0 mm) is set with its table flush with the skin on the crown of the skull, 5 mm behind the eyes, ringed by a 0.4 mm burnished rim, and the head's fine granules run up to that rim.
+  - **Shoulders (crest):** the nape, the neck and the barrel. The crest is a comb of thin separate blades about 0.95 mm apart, tallest over the shoulders, and the front legs grip the rim, their toes on the side faces. Either side of the crest is a band of domed, keeled scales on jittered cells, graded into the body's granules, with tubercles down the flanks.
   - **Side faces:** the toed feet, and the tail's tip curled down onto one face.
   - **Palm:** the hind legs, then the tail in staggered rings of overlapping keeled scales with a low saw on its crest, tapering to a point.
   - **Bore:** a plain comfort fit.
