@@ -1,82 +1,53 @@
-# Core: relief-aware sections, sturdier sculpts, figures grown out of the band
+# Core: CAD operations that stop failing on Gothic geometry
 
-Branch `claude/core-relief-sculpt` (from `master` at `8e5a59a`; master has not moved since). Three commits before this
-report: `9831909` (requests 2 and 1), `3d35ac4` (5, 3 and 4), `7732a21` (5 reworked as a collar). Core only;
-no graph-crate change. Every existing design, template and example builds as before: the golden and template tests pass.
+Branch `claude/core-cad-robust`, off master `8e5a59a`, with master merged in up to `60b3881` (crisp edges, Gothic clusters, frame timing, relief sculpt, true stone plans). One code commit, three merges and this report. The last merge's conflicts were in `twist.rs`, where master's closed and scaled sweep keeps its form and the cap's `fill` takes the label that `cad::draft` and `cad::turn` share, and in CLAUDE.md, where master's twisted-sweep text comes first and the new doctrine bullet follows it.
+
+**The rule behind every fix:** each one is a fallback that runs only where the kernel failed. If the kernel already built a body, the core still uses that body, so no existing result moves. The core suite and golden test pass unchanged, and the graph and template tests are below. No new option, no serde field and no format change were needed, so nothing is fenced. `cadkernel` is not forked; every fix is in `cad.rs`, the new `cad/draft.rs` and `cad/turn.rs`, `cad/twist.rs` (two helpers made `pub(super)`) and `sketch/region.rs`.
 
 ## Per request
 
-1. **`dfm::face_sections` — fixed.** Each face's single-ray section, in face order (`None` for a degenerate face, one
-   turned toward `up`, or one no ray leaves by). `part_sections` is now a fold over the same per-face reads with the
-   same arithmetic, bit for bit (the existing claw/collet/cone test passes unchanged).
-2. **Relief-aware census — fixed, as a new function.** `dfm::part_sections_relief(solid, up, floor_mm, &Relief)`
-   returns `ReliefSections { thinnest_mm, under_mm2, relief_mm2, relief_thinnest_mm }`. A face under the floor is a
-   relief chord when its ray runs within `max_deg` of the base surface's tangent plane **and** leaves the metal
-   within `height_mm` of the base. The base is either a skin field (`Relief::skin`, the part without its relief —
-   Moloch's `land_census` rule, `skin(exit) > -height`, with the angle test added so a thin toe or fin read across
-   stays a section) or, with no skin, the mesh's own normals averaged over `radius_mm` (Sphenodon's tangent-plane
-   option, for painted relief). `part_sections` is untouched. Limitation, documented: without a skin, a feature
-   narrower than `radius_mm` standing on the hide can read as relief; pass a skin there.
-3. **Decimation that reports where it crossed — fixed.** `sculpt::clean_decimate_or_sites(raw, target)` is
-   `clean_decimate`'s four tries, returning `Err(sites)` (where the first try crossed) instead of the raw mesh.
-   `clean_decimate` is unchanged.
-4. **Relax that repairs its own folds — fixed.** `sculpt::relax_clean(mesh, field, rounds)` is Moloch's round-4 fix:
-   `relax`, then the unrelaxed positions put back within 0.3 / 0.6 / 1.2 mm / everywhere of each crossing until none
-   is left; returns how many vertices were put back. Where nothing folds it equals `relax` bit for bit.
-5. **Band-blended join for stored sculpts — fixed, as a collar.** `Component::fillet_into_band` (mm; 0 = off, not
-   serialized, so every existing file is byte for byte) on a joined `Operation::Stored` part. At build the part is
-   grown out of the band as built (`ctx.surface`) by `sculpt::fillet_into`:
-   - a **collar** is meshed round the foot from `smin(part + tuck, band + sink + dive, r)`, clipped to the part's
-     footprint, ending inside the part above the fillet; it is relaxed (`relax_clean`), decimated
-     (`clean_decimate_or_sites`) and united with the **unchanged stored mesh** by `csg`; the result must be closed
-     with `self_crossings == 0`;
-   - the band is sunk 2% of the radius and the part tucked the same, so the fillet crosses both at a few degrees
-     rather than lying on either (coincident sheets are what `csg` cannot take); past the foot the band curves down
-     0.2 mm before the clip, so the collar's rim is buried deeper than decimation moves a crease (found when a
-     0.02 mm-sunk rim surfaced through the band);
-   - the first version remeshed the whole part in the field domain as Moloch proposed; on Moloch's 230 k-face sculpt
-     it worked but softened the tubercle hide to the fillet's step, so it was replaced by the collar, which keeps
-     every vertex clear of the band bit for bit;
-   - the band is read as the exact signed distance to the built band mesh (`sculpt::MeshField`: BVH nearest point,
-     side by three skew rays), not `Stock::of` — that needs atlas samples dense enough for nearest-sample distance,
-     and works for any band, factory stock included;
-   - not joined, no band, or a collar that will not come clean or unite: the part stands as stored with a note on
-     its feature; a radius outside (0, 2] mm fails the feature by name;
-   - fenced: a design carrying a stored part is already format 6; `fillet_into_band` ≠ 0 anywhere in a graph's JSON
-     fences graph format 2 (`template_features_in_json`). The cache signature hashes the band's epoch and the radius
-     only when it is set.
+| # | Request | Status | What changed |
+|---|---|---|---|
+| 3 | Revolved arcs do not tessellate | **Fixed** | There were two separate defects. (a) "N nonmanifold edges": the kernel covers a revolved arc's torus seam with a zero-width strip, every triangle laid twice, once each way. `tessellate_traced` now removes opposite twin triangles wherever some edge has more than two faces (`cancel_twins`). The volume is unchanged and the body stays the kernel's. (b) "Kernel could not tessellate 1 faces": the kernel drops a torus face (on Ogiva's arch it is the comfort arc), and whether it does depends on the chord (on one arch it failed at 0.04 mm, passed at 0.015 and failed again at 0.012). Retrying cannot be relied on, so a revolve that has arcs and fails to tessellate becomes our own mesh (`cad::turn`). It is sampled at a quarter of the chord, with full and part turns, holes on full turns, and points on the axis shared. |
+| 4 | Drafted extrusion refuses Béziers and inset-dropping outlines | **Fixed** | When the kernel's tapered extrude refuses a region with no holes, `cad::draft` builds it. The outline is walked to the chord, and the far end is a mitred inset that removes each edge as the wavefront collapses it. Each side face is planar. A draft that would carry a notch's root across the outline (a split event) is refused by name: "the draft closes the outline across a neck or notch". |
+| 7 | Brep − Brep gives `NoClosedForm` (`CutRefused` here) | **Fixed** | When `brep::combine` fails, the Boolean goes through `csg` on the operands tessellated at the export chord, the same path a mesh operand already took. The 500-face refusal before the kernel stays as it was. |
+| 2 | Loft through non-parallel sections has open seams | **Fixed** | The kernel splits a ruled face's straight edge where its planar neighbour leaves it whole, so the seam has T-junctions. `split_t_junctions` fans each open edge's triangle through the open corners lying on it, within 1e-6 mm. No vertex moves. |
+| 6 | Loft only runs along the section normal | **Fixed, differently** | Measured: what decides success is the sections' winding relative to the direction the loft runs, not their order. On the probe's fanned planes, the order the report found working has (c1 − c0) · n0 **> 0**, so the literal rule ("reverse when > 0") would reverse the order that works. Instead, when the kernel refuses a polygon loft, `wound_sections` winds every section about the first-to-last centre line and lines each one up with the section before it. Either order now gives the same solid. |
+| 1 | Loft winding read off the first corner | **Fixed** | The same `wound_sections` pass also starts every section together where the first and last sections are convex at their second corner. The kernel's `polygon_normal` reads that corner through the first fan triangle, so it is the one that matters, not the first corner itself. |
+| 5 | Mirrored outlines in one sketch fail the drafted extrude | **Fixed** | Measured cause: the halves overlap or touch at the centre line, and the sketch refuses "loops may nest but not touch". The extrude itself does not fail. Now a **Sketch feature** whose loops meet extrudes each loop alone (straight, kernel-drafted or `cad::draft`) and joins the loops by `csg`. Inline profiles still refuse several loops, as their tests pin. Each loop is drafted on its own, so halves that only touch leave a draft groove along the line where they meet. Overlap them by at least the draft's inset (height × tan(draft)), as Ogiva's `FINIAL_OVERLAP_MM` did. |
 
-## Tests (all pass)
+Every fallback part is a mesh value, as `cad::twist` is. Fillet, press-pull and sketch-on-face refuse it by name: "a drafted extrusion's mesh", "a revolution's mesh", "a mesh of loops extruded and joined".
 
-- `cargo test -p ringdesign-core -- --test-threads=4`: **845 passed, 16 ignored; golden 1 passed** (twice: after the
-  first two commits and after the collar).
-- `cargo check -p ringdesign-graph -p ringdesign-cli -p ringdesign-mcp`: clean.
-- New, each failing without its fix:
-  - `dfm::measured_tests::relief_is_told_from_a_section` — granules on a rounded slab: plain census reads < 0.1 mm
-    and > 0.5 mm² under (the reported failure); relief census sets them apart, keeps a 0.3 mm fin as the thinnest
-    section, `under + relief == plain under`, and the no-skin mode also catches the granules.
-  - `sculpt::tests::a_clean_relax_undoes_only_its_own_folds` — plain `relax` folds a ball's skin through a bead just
-    under it; `relax_clean` leaves no crossing, restores under a quarter of what moved, nothing far from the bead.
-  - `sculpt::tests::a_decimation_that_crosses_says_where` — `clean_decimate` hands back a crossing mesh; the new one
-    returns sites on the two balls' meeting circle.
-  - `sculpt::tests::a_part_grows_out_of_the_stock_with_a_fillet` — closed, uncrossed, post vertices above the
-    collar kept bit for bit, metal at the foot where the plain post has none, nothing grows out of reach.
-  - `cad::stored::tests::a_stored_part_grows_out_of_the_band_with_a_fillet` — a sculpted dome on the **Court band's
-    procedural band** and on a **factory stock** (`PRESETS[0]`): joined with no note, ring closed, part closed and
-    uncrossed, 0.05–1.0 mm³ of fillet added, within reach of the stored part, stored vertices clear of the band kept.
-  - `cad::stored::tests::growing_into_the_band_is_opt_in_and_bounded` — a separate part notes and stands, 5 mm
-    fails by name, key absent when 0, round-trips, fences design 6 and graph 2.
-- Probe (not committed): Moloch's `design.ring.json` with `fillet_into_band = 0.4` at 768 steps: joined, closed,
-  +3.2 mm³, **88 s** against 3.4 s plain; renders show the feet and tail grown into the band and the hide unchanged.
+## Tests
+
+New tests in `cad::robust_tests` and `cad::draft::tests`, each built from the report's kind of geometry:
+
+- `a_revolved_sketch_arc_closes_and_holds_its_volume` (3a): a domed band section, closed at preview and export, volume within 0.4% / 0.15% of Pappus, and still the kernel's body.
+- `a_pointed_arch_revolves_whole_and_in_part` (3b): Ogiva's arch (comfort arc, jambs, two head arcs). It asserts the kernel's own tessellation still fails, then checks the full turn against a fine-walked Pappus within 0.5% / 0.2%, and the half turn either way within 0.5% of half.
+- `a_brep_cut_the_kernel_refuses_is_resolved_by_csg` (7): a revolved ring less a lancet niche. It asserts `brep::combine` still refuses, then checks the volume against the analytic ring less the niche's foot.
+- `a_loft_through_fanned_sections_closes_listed_either_way` (2, 6): five fanned sections, both orders, preview and export, all closed with identical volumes.
+- `a_loft_section_may_start_on_a_concave_corner` (1): asserts `brep::loft` still refuses, then checks the volume is exactly 10.
+- `mirrored_loops_that_meet_extrude_together` (5): straight volume exactly the union's 9.0, drafted below it, closed.
+- `a_bezier_outline_drafts`, `an_inset_that_drops_a_piece_drafts`, `a_draft_the_kernel_takes_is_still_its_body` (4): each asserts `brep::extrude_tapered` still refuses. Checked: the first-order draft volume, the mirrored run, the collapsed tip (5 far corners), the filled notch on the grown rectangle, the named refusal of a split, and that a draft the kernel accepts stays its body.
+
+Reproduced on unmodified master first, with a scratch probe that was not committed: domed revolve "0 open and 16 nonmanifold edges"; arch "Kernel could not tessellate 1 faces"; ring − niche "CutRefused"; Bézier and notch drafts "unsupported or degenerate geometry"; fanned loft "68 open edges" in one order and "unsupported" in the other; overlapping halves "loops may nest but not touch". Tests that cannot fail on master by construction instead assert the kernel's own refusal in place.
+
+Results:
+- `cargo test -p ringdesign-core`: 848 passed, 0 failed, 16 ignored; golden 1 passed. After merging master up to `60b3881`: 912 passed, 0 failed, 17 ignored; golden and the other integration test both pass.
+- `cargo test -p ringdesign-graph` (templates byte for byte, showcase, bestiarium, imported bases, cad edits): all passed before the merges (140) and after them (152, including the new `gothic_clusters`), 0 failed.
+
+**Merge note.** Master (from `779a3d6`) brought its own seam repair, `zip_chord_seams`, which splits open edges at the other side's samples within the chord. The merged `tessellate_traced` runs master's `stitch_chord_gaps` and then `zip_chord_seams` exactly as master does. Only what those two leave open goes on to `cancel_twins` and `split_t_junctions`, followed by one more stitch. So whatever master's pass already closes is closed byte for byte as master closes it, and my passes see only what it cannot close: the doubled seams, and T-junctions it reverts.
 
 ## For a ring author
 
-Set `component.fillet_into_band = 0.4` (say) on your joined stored sculpt and build as usual: the part grows a real
-fillet into whatever band it stands on, its own mesh untouched above the fillet; leave `blend_mm` at 0 (the seam bead
-is the other mechanism). Expect a minute or two per uncached build of a large sculpt (the collar's distance queries),
-and read the feature's notes — a fillet that will not come clean says so and the part stands as stored. For lands,
-replace hand-rolled censuses with `dfm::face_sections` (fold by your own face kinds) and
-`dfm::part_sections_relief(&solid, None, floor, &Relief { skin: Some(&body_without_relief), radius_mm: 0.0,
-max_deg: 45.0, height_mm: relief + 0.05 })`, quoting `thinnest_mm`/`under_mm2` as sections and `relief_mm2` as relief;
-without a skin, `radius_mm` about one relief cell. In your sculpt chain, `relax_clean` replaces relax-then-undo, and
-`clean_decimate_or_sites` gives you the crossing sites to mend the field at instead of a raw-mesh fallback.
+Draw what you mean and stop working around the kernel:
+
+- **Revolves:** use real sketch arcs, not chord-walked polylines.
+- **Drafted extrusions:** Béziers and sharp crocket tips are fine. A draft that would close a neck is refused by name; draft less or widen the neck.
+- **Mirrored outlines:** they may share one Sketch feature. Overlap the halves by at least height × tan(draft), or a groove stays where they meet.
+- **Lofts:** list fanned sections in either order, and start a section on any corner.
+- **Booleans:** a Brep minus a Brep the kernel cannot close now resolves through csg.
+
+Each of these comes back as a mesh rather than a kernel body only where the kernel failed. So fillet before the step that falls back, not after it, and check `Value::mesh_words` in any refusal you see.
+
+What remains: a part turn of a section with holes that the kernel cannot tessellate is still refused. A revolve with arcs now pays one extra tessellation in `body_for`, about the cost of one tessellation, so up to about 0.6 s at export on a large arch.

@@ -2679,6 +2679,23 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   `SweepPath::Sketch` follows a sketch entity every 0.3 mm (≤128
   stations), so a moulding follows edits to its arch. Each writes the
   design at 6 and a graph at 2.
+- **What the kernel refuses or cannot tessellate, the core finishes**, and
+  only then, so whatever the kernel already built stays bit for bit. A
+  tessellation with an edge used four times has its opposite twin triangles
+  taken out (a revolved arc's torus seam is laid twice), and open corners
+  lying on an open edge are fanned through (a loft through fanned planes
+  halves its ruled edges where its planar faces do not). A revolved arc the
+  kernel still cannot tessellate is our own mesh (`cad::turn`, a quarter of
+  the chord off the surface); a drafted extrusion it refuses — Béziers, an
+  inset that drops a piece — is our own mesh (`cad::draft`, the inset taking
+  out each edge the wavefront passes, refusing by name a draft that closes a
+  neck); a Sketch feature whose loops meet extrudes each loop alone and joins
+  them by csg, so overlap mirrored halves by the draft's inset or a groove
+  stays where they meet; a polygon loft it refuses is re-wound along the
+  loft and started on convex corners, so sections may start anywhere and
+  fanned planes come in either order; a Brep boolean it refuses goes through
+  `csg` on the tessellated operands. Each such part is a mesh and refuses
+  fillet and press-pull by name.
 - **A head moves by its stone.** G, R and the gizmo on a builder part act on
   the stone it is built round — its ring placement, or its `FaceSeat` on a
   part's face — and the head follows. A Transform wrapped round a head would
