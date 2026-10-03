@@ -1041,6 +1041,52 @@ mod measured_tests {
         assert_eq!(findings_in(&on, &lib).len(), 1);
     }
 
+    /// A pebbled hide over a thick slab: the plain census reads the granules'
+    /// chords as sections near nothing, the relief-aware one sets them apart,
+    /// and a thin fin standing on the slab is still read as the section it is.
+    #[test]
+    fn relief_is_told_from_a_section() {
+        use crate::sculpt::{smin, tetra_mesh};
+        // Rounded boxes, so no sharp edge reads a chord of its own.
+        let rounded = |p: [f64; 3], c: [f64; 3], half: [f64; 3], r: f64| {
+            let q: [f64; 3] = std::array::from_fn(|k| (p[k] - c[k]).abs() - half[k] + r);
+            (q[0].max(0.0).powi(2) + q[1].max(0.0).powi(2) + q[2].max(0.0).powi(2)).sqrt() + q[0].max(q[1]).max(q[2]).min(0.0) - r
+        };
+        let slab = move |p: [f64; 3]| rounded(p, [0.0; 3], [1.6, 1.6, 0.8], 0.3);
+        // A 0.3 mm fin standing 1.2 mm off the slab along x = 0, y > 0.6, its top and ends rounded right through.
+        let fin = move |p: [f64; 3]| rounded(p, [0.0, 1.1, 1.0], [0.15, 0.5, 0.6], 0.149);
+        let skin = move |p: [f64; 3]| smin(slab(p), fin(p), 0.05);
+        let granules = |p: [f64; 3]| {
+            let mut d = f64::MAX;
+            for i in -3..=3 {
+                for j in -3..=0 {
+                    let c = [0.45 * i as f64, 0.45 * j as f64 + 0.2, 0.85];
+                    d = d.min(((p[0] - c[0]).powi(2) + (p[1] - c[1]).powi(2) + (p[2] - c[2]).powi(2)).sqrt() - 0.2);
+                }
+            }
+            d
+        };
+        let part = move |p: [f64; 3]| smin(skin(p), granules(p), 0.03);
+        let solid = tetra_mesh([-2.0, -2.0, -1.2], [2.0, 2.0, 2.0], 0.04, &part);
+        let (plain, under) = part_sections(&solid, None, 0.8);
+        assert!(plain < 0.1 && under > 0.5, "plain census: {plain} mm, {under} mm² under");
+        // The fin's faces, and its wall well clear of its root.
+        let on = |z: f64| -> Vec<bool> { solid.f.iter().map(|f| f.iter().all(|i| solid.v[*i as usize][0].abs() < 0.2 && solid.v[*i as usize][1] > 0.55 && solid.v[*i as usize][2] > z)).collect() };
+        let (on_fin, wall) = (on(0.8), on(1.0));
+        let fin_least = face_sections(&solid, None).iter().zip(&wall).filter(|(_, f)| **f).filter_map(|(s, _)| *s).fold(f64::MAX, f64::min);
+        assert!((fin_least - 0.3).abs() < 0.02, "the fin reads {fin_least} mm");
+        let read = part_sections_relief(&solid, None, 0.8, &Relief { skin: Some(&skin), radius_mm: 0.0, max_deg: 45.0, height_mm: 0.25 });
+        assert!(read.relief_mm2 > 0.5 && read.relief_thinnest_mm < 0.1, "{read:?}");
+        assert!((read.thinnest_mm - 0.3).abs() < 0.02, "the fin is the thinnest section: {read:?}");
+        let fin_area: f64 = solid.f.iter().zip(&on_fin).filter(|(_, f)| **f).map(|(f, _)| 0.5 * face_normal(&solid, f).1).sum();
+        assert!(read.under_mm2 <= fin_area, "{read:?} against the fin's {fin_area} mm²");
+        // The plain read is the fold of the per-face reads, and the relief read splits it without losing any.
+        assert!((read.under_mm2 + read.relief_mm2 - under).abs() < 1e-9);
+        // Without the skin the base is read off the mesh; the granules still go to relief.
+        let bare = part_sections_relief(&solid, None, 0.8, &Relief { skin: None, radius_mm: 0.6, max_deg: 45.0, height_mm: 0.25 });
+        assert!(bare.relief_mm2 > 0.5 * read.relief_mm2, "{bare:?} against {read:?}");
+    }
+
     /// A made part's sections by rays: a claw's diameter and a collet's wall
     /// read as the Bestiarium writes them, and a point shows as area under the
     /// floor rather than as the part's section.
@@ -1141,8 +1187,50 @@ mod measured_tests {
 /// name. With `up`, the part's own axis, faces turned more toward either end
 /// of it than across it are not read: a short claw's foot or a collet's table
 /// measure its height, not a section. `(f64::MAX, 0.0)` for a solid with no
-/// face a ray leaves by.
+/// face a ray leaves by. A fold over [`face_sections`].
 pub fn part_sections(solid: &crate::csg::Solid, up: Option<crate::csg::P3>, floor_mm: f64) -> (f64, f64) {
+    let (mut min, mut under) = (f64::MAX, 0.0);
+    for (read, twice) in face_reads(solid, up).into_iter().zip(face_twice_areas(solid)) {
+        let Some(read) = read else { continue };
+        min = min.min(read.section);
+        if read.section < floor_mm {
+            under += 0.5 * twice;
+        }
+    }
+    (min, under)
+}
+
+/// Each face's single-ray section as [`part_sections`] reads it, in face
+/// order: `None` for a degenerate face, one turned toward `up`, or one no ray
+/// leaves by. A caller that names its faces (a toe, a spine, a hide) folds
+/// these by name.
+pub fn face_sections(solid: &crate::csg::Solid, up: Option<crate::csg::P3>) -> Vec<Option<f64>> {
+    face_reads(solid, up).into_iter().map(|r| r.map(|r| r.section)).collect()
+}
+
+/// One face's ray: where it starts, which way it runs, and how far it goes in the metal.
+#[derive(Clone, Copy, Debug)]
+struct FaceRead {
+    origin: crate::csg::P3,
+    inward: crate::csg::P3,
+    section: f64,
+}
+
+/// Twice each face's area, in face order.
+fn face_twice_areas(solid: &crate::csg::Solid) -> Vec<f64> {
+    solid.f.iter().map(|f| face_normal(solid, f).1).collect()
+}
+
+/// A face's unnormalised normal and its length, twice the face's area.
+fn face_normal(solid: &crate::csg::Solid, f: &[u32; 3]) -> (crate::csg::P3, f64) {
+    let [a, b, c] = f.map(|i| solid.v[i as usize]);
+    let (e1, e2) = (std::array::from_fn::<f64, 3, _>(|k| b[k] - a[k]), std::array::from_fn::<f64, 3, _>(|k| c[k] - a[k]));
+    let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    (n, (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt())
+}
+
+/// Each face's ray, in face order, as [`face_sections`] reads it.
+fn face_reads(solid: &crate::csg::Solid, up: Option<crate::csg::P3>) -> Vec<Option<FaceRead>> {
     use crate::interaction::bvh::Bvh;
     let mesh = crate::mesh::Mesh {
         vertices: solid.v.iter().map(|p| crate::mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(),
@@ -1156,28 +1244,146 @@ pub fn part_sections(solid: &crate::csg::Solid, up: Option<crate::csg::P3>, floo
     });
     // Far enough in that the face's own f32 plane is behind the ray.
     const IN: f64 = 1e-4;
-    let (mut min, mut under) = (f64::MAX, 0.0);
-    for f in &solid.f {
-        let [a, b, c] = f.map(|i| solid.v[i as usize]);
-        let (e1, e2) = (std::array::from_fn::<f64, 3, _>(|k| b[k] - a[k]), std::array::from_fn::<f64, 3, _>(|k| c[k] - a[k]));
-        let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
-        let twice = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
-        if !(twice > 1e-14) {
+    solid
+        .f
+        .iter()
+        .map(|f| {
+            let [a, b, c] = f.map(|i| solid.v[i as usize]);
+            let (n, twice) = face_normal(solid, f);
+            if !(twice > 1e-14) {
+                return None;
+            }
+            let inward = n.map(|x| -x / twice);
+            if up.is_some_and(|u| (inward[0] * u[0] + inward[1] * u[1] + inward[2] * u[2]).abs() > std::f64::consts::FRAC_1_SQRT_2) {
+                return None;
+            }
+            let o: [f64; 3] = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0 + IN * inward[k]);
+            let (_, t) = bvh.ray(&mesh, o, inward)?;
+            Some(FaceRead { origin: o, inward, section: t + IN })
+        })
+        .collect()
+}
+
+/// How [`part_sections_relief`] tells a relief's own flank from a section the
+/// metal must fill.
+///
+/// A ray from the flank of a tubercle, a scale or a bead runs nearly along the
+/// surface the relief stands on and leaves through the next flank a little
+/// way off: a short chord, not a thin wall. A face is read as relief when its
+/// ray runs within `max_deg` of the base surface's tangent plane and leaves
+/// the metal within `height_mm` of that surface. A thin toe or a wire is read
+/// across, along the base's normal, so it stays a section.
+#[derive(Clone, Copy)]
+pub struct Relief<'a> {
+    /// The base surface as a field, negative inside: the part without its
+    /// relief. Its gradient is the base's normal, and a ray leaves within
+    /// `height_mm` of the base where the field there is above `-height_mm`.
+    /// `None` reads the base off the mesh: each face's normal averaged over
+    /// `radius_mm` round it, and the height as how far the ray sinks below
+    /// the plane through its start.
+    pub skin: Option<&'a (dyn Fn(crate::csg::P3) -> f64 + Sync)>,
+    /// Radius the mesh's normals are averaged over when there is no skin, mm:
+    /// about a relief cell, so one bump's flanks cancel.
+    pub radius_mm: f64,
+    /// Steepest angle between a relief ray and the base's tangent plane,
+    /// degrees; 90 takes every ray the height lets through.
+    pub max_deg: f64,
+    /// How far below the base a relief ray may leave the metal, mm: the
+    /// relief's height and a little.
+    pub height_mm: f64,
+}
+
+/// A part's sections with its relief told apart: see [`Relief`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ReliefSections {
+    /// The thinnest section that is not relief, mm; `f64::MAX` when none is read.
+    pub thinnest_mm: f64,
+    /// Area under the floor that is not relief, mm².
+    pub under_mm2: f64,
+    /// Area under the floor read as relief, mm².
+    pub relief_mm2: f64,
+    /// The thinnest chord read as relief, mm; `f64::MAX` when none is.
+    pub relief_thinnest_mm: f64,
+}
+
+/// [`part_sections`] with relief told apart from sections, so a pebbled or
+/// scaled hide over a thick body does not read as a 0 mm wall. A face whose
+/// ray reads at or over `floor_mm` counts as it does in [`part_sections`];
+/// under it, a face [`Relief`] calls a relief chord goes to `relief_mm2`
+/// instead of the thinnest section and the area under the floor.
+pub fn part_sections_relief(solid: &crate::csg::Solid, up: Option<crate::csg::P3>, floor_mm: f64, relief: &Relief) -> ReliefSections {
+    let reads = face_reads(solid, up);
+    let normals: Vec<(crate::csg::P3, f64)> = solid.f.iter().map(|f| face_normal(solid, f)).collect();
+    // Without a skin, the base's normal is the mesh's own averaged over the radius: face centroids on a grid that wide.
+    let cell = relief.radius_mm.max(1e-3);
+    let centroid = |f: &[u32; 3]| -> crate::csg::P3 { std::array::from_fn(|k| f.iter().map(|i| solid.v[*i as usize][k]).sum::<f64>() / 3.0) };
+    let key = |p: crate::csg::P3| -> [i64; 3] { p.map(|x| (x / cell).floor() as i64) };
+    let mut cells: std::collections::HashMap<[i64; 3], Vec<u32>> = std::collections::HashMap::new();
+    let centroids: Vec<crate::csg::P3> = if relief.skin.is_none() { solid.f.iter().map(centroid).collect() } else { Vec::new() };
+    for (i, c) in centroids.iter().enumerate() {
+        cells.entry(key(*c)).or_default().push(i as u32);
+    }
+    let base = |i: usize, p: crate::csg::P3| -> Option<crate::csg::P3> {
+        let n = match relief.skin {
+            Some(skin) => {
+                let e = 1e-3;
+                std::array::from_fn(|k| {
+                    let (mut a, mut b) = (p, p);
+                    a[k] += e;
+                    b[k] -= e;
+                    (skin(a) - skin(b)) / (2.0 * e)
+                })
+            }
+            None => {
+                let (c, at) = (centroids[i], key(centroids[i]));
+                let mut sum = [0.0; 3];
+                for dx in -1..=1 {
+                    for dy in -1..=1 {
+                        for dz in -1..=1 {
+                            for &j in cells.get(&[at[0] + dx, at[1] + dy, at[2] + dz]).map_or(&[][..], Vec::as_slice) {
+                                let q = centroids[j as usize];
+                                if (0..3).map(|k| (q[k] - c[k]).powi(2)).sum::<f64>() <= relief.radius_mm * relief.radius_mm {
+                                    // The unnormalised normal is already weighted by the face's area.
+                                    sum = std::array::from_fn(|k| sum[k] + normals[j as usize].0[k]);
+                                }
+                            }
+                        }
+                    }
+                }
+                sum
+            }
+        };
+        let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+        (l > 1e-12).then(|| n.map(|x| x / l))
+    };
+    let sin_max = relief.max_deg.clamp(0.0, 90.0).to_radians().sin();
+    let mut out = ReliefSections { thinnest_mm: f64::MAX, under_mm2: 0.0, relief_mm2: 0.0, relief_thinnest_mm: f64::MAX };
+    for (i, read) in reads.into_iter().enumerate() {
+        let Some(r) = read else { continue };
+        let area = 0.5 * normals[i].1;
+        if r.section >= floor_mm {
+            out.thinnest_mm = out.thinnest_mm.min(r.section);
             continue;
         }
-        let inward = n.map(|x| -x / twice);
-        if up.is_some_and(|u| (inward[0] * u[0] + inward[1] * u[1] + inward[2] * u[2]).abs() > std::f64::consts::FRAC_1_SQRT_2) {
-            continue;
-        }
-        let o: [f64; 3] = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0 + IN * inward[k]);
-        let Some((_, t)) = bvh.ray(&mesh, o, inward) else { continue };
-        let section = t + IN;
-        min = min.min(section);
-        if section < floor_mm {
-            under += 0.5 * twice;
+        let exit: crate::csg::P3 = std::array::from_fn(|k| r.origin[k] + (r.section - 1e-4) * r.inward[k]);
+        let is_relief = base(i, r.origin).is_some_and(|n| {
+            let along = (r.inward[0] * n[0] + r.inward[1] * n[1] + r.inward[2] * n[2]).abs();
+            let shallow = along <= sin_max + 1e-12;
+            let near = match relief.skin {
+                Some(skin) => skin(exit) > -relief.height_mm,
+                None => (0..3).map(|k| (r.origin[k] - exit[k]) * n[k]).sum::<f64>() < relief.height_mm,
+            };
+            shallow && near
+        });
+        if is_relief {
+            out.relief_mm2 += area;
+            out.relief_thinnest_mm = out.relief_thinnest_mm.min(r.section);
+        } else {
+            out.thinnest_mm = out.thinnest_mm.min(r.section);
+            out.under_mm2 += area;
         }
     }
-    (min, under)
+    out
 }
 
 /// A tiling's finest measured feature in millimetres of metal, and whether it
