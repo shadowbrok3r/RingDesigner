@@ -3251,6 +3251,9 @@ pub fn tessellate_traced(body: &Body, chord_mm: f64) -> Result<(Mesh, PartTrace)
         stitch_chord_gaps(&mut mesh, body, chord_mm);
         tri_face.resize(mesh.faces.len(), u32::MAX);
     }
+    if !mesh.validate().watertight {
+        zip_chord_seams(&mut mesh, &mut tri_face, &precise, body, chord_mm);
+    }
     let validation = mesh.validate();
     ensure!(
         validation.watertight,
@@ -3265,6 +3268,106 @@ pub fn tessellate_traced(body: &Body, chord_mm: f64) -> Result<(Mesh, PartTrace)
         .map(|(_, v)| v.point)
         .collect();
     Ok((mesh, PartTrace { tri_face, positions: precise, face_kind, vertices, patches: Vec::new() }))
+}
+/// Splits each open edge at the other side's samples within the chord tolerance of it; no vertex moves, and the mesh is kept only if it closes.
+fn zip_chord_seams(mesh: &mut Mesh, tri_face: &mut Vec<u32>, precise: &[[f64; 3]], body: &Body, chord_mm: f64) {
+    if !body.validate().is_empty() || precise.len() != mesh.vertices.len() {
+        return;
+    }
+    let (faces, owners) = (mesh.faces.clone(), tri_face.clone());
+    let at = |v: u32| precise[v as usize];
+    let sub = |a: [f64; 3], b: [f64; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    let cross = |a: [f64; 3], b: [f64; 3]| [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    for _ in 0..8 {
+        let mut uses: BTreeMap<(u32, u32), Vec<(usize, u32, u32)>> = BTreeMap::new();
+        for (i, f) in mesh.faces.iter().enumerate() {
+            for k in 0..3 {
+                let (a, b) = (f[k], f[(k + 1) % 3]);
+                uses.entry((a.min(b), a.max(b))).or_default().push((i, a, b));
+            }
+        }
+        if uses.values().any(|u| u.len() > 2) {
+            break;
+        }
+        let open: Vec<(usize, u32, u32)> = uses.values().filter(|u| u.len() == 1).map(|u| u[0]).collect();
+        if open.is_empty() || open.len() > 4_000 {
+            break;
+        }
+        let rim: BTreeSet<u32> = open.iter().flat_map(|&(_, a, b)| [a, b]).collect();
+        // Each sample joins the nearest open edge it lies along, by its place along that edge.
+        let mut along: BTreeMap<usize, Vec<(f64, u32)>> = BTreeMap::new();
+        for &v in &rim {
+            let mut best: Option<(f64, usize, f64)> = None;
+            for (k, &(_, a, b)) in open.iter().enumerate() {
+                if v == a || v == b {
+                    continue;
+                }
+                let (pa, d) = (at(a), sub(at(b), at(a)));
+                let l2 = dot(d, d);
+                if l2 <= 1e-24 {
+                    continue;
+                }
+                let q = sub(at(v), pa);
+                let t = dot(q, d) / l2;
+                let off = sub(q, [d[0] * t, d[1] * t, d[2] * t]);
+                let gap = dot(off, off).sqrt();
+                if t > 1e-6 && t < 1.0 - 1e-6 && gap <= chord_mm && best.is_none_or(|b| gap < b.0) {
+                    best = Some((gap, k, t));
+                }
+            }
+            if let Some((_, k, t)) = best {
+                along.entry(k).or_default().push((t, v));
+            }
+        }
+        // One open edge per face per pass.
+        let mut splits: BTreeMap<usize, (u32, u32, Vec<(f64, u32)>)> = BTreeMap::new();
+        for (k, mut on) in along {
+            let (i, a, b) = open[k];
+            if splits.contains_key(&i) {
+                continue;
+            }
+            let (pa, d) = (at(a), sub(at(b), at(a)));
+            on.sort_by(|x, y| x.0.total_cmp(&y.0));
+            let f = mesh.faces[i];
+            let c = f.into_iter().find(|&v| v != a && v != b).unwrap_or(a);
+            let n0 = cross(d, sub(at(c), pa));
+            let chain: Vec<u32> = std::iter::once(a).chain(on.iter().map(|o| o.1)).chain(std::iter::once(b)).collect();
+            if chain.windows(2).all(|w| dot(cross(sub(at(w[1]), at(w[0])), sub(at(c), at(w[0]))), n0) > 0.0) {
+                splits.insert(i, (a, b, on));
+            }
+        }
+        if splits.is_empty() {
+            break;
+        }
+        let (mut faces_next, mut owners_next) = (Vec::with_capacity(mesh.faces.len() + 4 * splits.len()), Vec::with_capacity(mesh.faces.len()));
+        for (i, f) in mesh.faces.iter().enumerate() {
+            let owner = tri_face.get(i).copied().unwrap_or(u32::MAX);
+            match splits.get(&i) {
+                None => {
+                    faces_next.push(*f);
+                    owners_next.push(owner);
+                }
+                Some(&(a, b, ref on)) => {
+                    let c = f.iter().copied().find(|&v| v != a && v != b).unwrap_or(a);
+                    let chain: Vec<u32> = std::iter::once(a).chain(on.iter().map(|o| o.1)).chain(std::iter::once(b)).collect();
+                    for w in chain.windows(2) {
+                        faces_next.push([w[0], w[1], c]);
+                        owners_next.push(owner);
+                    }
+                }
+            }
+        }
+        mesh.faces = faces_next;
+        *tri_face = owners_next;
+        if mesh.validate().watertight {
+            return;
+        }
+    }
+    if !mesh.validate().watertight {
+        mesh.faces = faces;
+        *tri_face = owners;
+    }
 }
 /// The kernel can refine one side of a shared spline boundary more than the
 /// planar cap, leaving triangular slivers between two chord approximations.
@@ -3286,10 +3389,12 @@ fn stitch_chord_gaps(mesh: &mut Mesh, body: &Body, chord_mm: f64) {
         })
         .collect();
     let mut edges: BTreeMap<(u32, u32), Vec<(u32, u32)>> = BTreeMap::new();
+    let mut apex: BTreeMap<(u32, u32), u32> = BTreeMap::new();
     for f in &mesh.faces {
         for k in 0..3 {
             let (a, b) = (f[k], f[(k + 1) % 3]);
             edges.entry((a.min(b), a.max(b))).or_default().push((a, b));
+            apex.insert((a, b), f[(k + 2) % 3]);
         }
     }
     if edges.values().any(|e| e.len() > 2) {
@@ -3348,7 +3453,14 @@ fn stitch_chord_gaps(mesh: &mut Mesh, body: &Body, chord_mm: f64) {
                 crate::mesh::sub(pb, pa),
                 crate::mesh::sub(pc, pa),
             ));
-            if twice_area > 1e-12 && twice_area / longest.max(1e-12) <= chord_mm {
+            // A gap lying inside a face beside it is left to the zip.
+            let gap = crate::mesh::cross(crate::mesh::sub(pc, pa), crate::mesh::sub(pb, pa));
+            let folds = [(a, b), (b, c), (c, a)].iter().any(|edge| {
+                let Some((p, q, w)) = apex.get(edge).and_then(|w| mesh.triangle(&[edge.0, edge.1, *w])) else { return false };
+                let side = crate::mesh::cross(crate::mesh::sub(q, p), crate::mesh::sub(w, p));
+                gap.iter().zip(side).map(|(x, y)| x * y).sum::<f64>() <= 0.0
+            });
+            if twice_area > 1e-12 && twice_area / longest.max(1e-12) <= chord_mm && !folds {
                 mesh.faces.push([a, c, b]);
                 boundary.remove(&(a, b));
                 boundary.remove(&(b, c));

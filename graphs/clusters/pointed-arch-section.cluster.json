@@ -1,0 +1,91 @@
+{
+  "format_version": 1,
+  "name": "Pointed-arch section",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.size",
+      "inputs": {
+        "size": 8.601420924223591
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Bore"
+    },
+    {
+      "id": 2,
+      "kind": "sketch.gothic.arch",
+      "inputs": {
+        "comfort_mm": 0.12,
+        "fillet_mm": 0.3,
+        "keel": 1.0,
+        "name": "Pointed-arch section",
+        "thickness_mm": 3.6,
+        "width_mm": 5.6
+      },
+      "pos": [
+        240.0,
+        0.0
+      ],
+      "label": "Section"
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "bore_radius_mm",
+      "to": 2,
+      "input": "bore_r_mm"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 1,
+      "input": "size",
+      "name": "Size",
+      "doc": "US ring size; the section stands on its bore."
+    },
+    {
+      "node": 2,
+      "input": "width_mm",
+      "name": "Width",
+      "doc": "Across the band, mm."
+    },
+    {
+      "node": 2,
+      "input": "thickness_mm",
+      "name": "Thickness",
+      "doc": "From the bore's tightest point to the keel, mm."
+    },
+    {
+      "node": 2,
+      "input": "keel",
+      "name": "Keel",
+      "doc": "1 springs the flanks from the bore corners into a sharp keel; 0 rounds the head on straight feet."
+    },
+    {
+      "node": 2,
+      "input": "fillet_mm",
+      "name": "Fillet",
+      "doc": "Radius rounding each bore corner, mm."
+    },
+    {
+      "node": 2,
+      "input": "comfort_mm",
+      "name": "Comfort",
+      "doc": "How much wider the bore is at the band's edges than at its middle, mm."
+    }
+  ],
+  "outputs": [
+    {
+      "node": 2,
+      "out": "operation",
+      "name": "sketch_op",
+      "doc": "The section as a Sketch feature's operation on the plane through the finger's axis; revolve it about the finger."
+    }
+  ],
+  "next_id": 3
+}

@@ -1,0 +1,179 @@
+{
+  "format_version": 1,
+  "name": "Wheel window",
+  "mode": "SandRing",
+  "nodes": [
+    {
+      "id": 1,
+      "kind": "band.size",
+      "inputs": {
+        "size": 8.601420924223591
+      },
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "label": "Bore"
+    },
+    {
+      "id": 2,
+      "kind": "math.add",
+      "inputs": {
+        "b": 1.0
+      },
+      "pos": [
+        240.0,
+        0.0
+      ],
+      "label": "Sill circle"
+    },
+    {
+      "id": 3,
+      "kind": "math.add",
+      "inputs": {
+        "b": 3.1
+      },
+      "pos": [
+        240.0,
+        150.0
+      ],
+      "label": "Outer circle"
+    },
+    {
+      "id": 4,
+      "kind": "math.sub",
+      "inputs": {
+        "b": 0.35
+      },
+      "pos": [
+        480.0,
+        0.0
+      ],
+      "label": "Apex circle"
+    },
+    {
+      "id": 5,
+      "kind": "sketch.gothic.lights",
+      "inputs": {
+        "bar_mm": 0.9,
+        "count": 24,
+        "head": "Pointed",
+        "name": "Wheel window"
+      },
+      "pos": [
+        720.0,
+        0.0
+      ],
+      "label": "Wheel"
+    }
+  ],
+  "wires": [
+    {
+      "from": 1,
+      "out": "bore_radius_mm",
+      "to": 2,
+      "input": "a"
+    },
+    {
+      "from": 1,
+      "out": "bore_radius_mm",
+      "to": 3,
+      "input": "a"
+    },
+    {
+      "from": 3,
+      "out": "out",
+      "to": 4,
+      "input": "a"
+    },
+    {
+      "from": 2,
+      "out": "out",
+      "to": 5,
+      "input": "sill_r_mm"
+    },
+    {
+      "from": 4,
+      "out": "out",
+      "to": 5,
+      "input": "apex_r_mm"
+    }
+  ],
+  "exposed": [
+    {
+      "node": 1,
+      "input": "size",
+      "name": "Size",
+      "doc": "US ring size; the wheel is drawn about its bore."
+    },
+    {
+      "node": 5,
+      "input": "count",
+      "name": "Lights",
+      "doc": "How many lancet lights round the wheel."
+    },
+    {
+      "node": 5,
+      "input": "bar_mm",
+      "name": "Bar",
+      "doc": "Metal between neighbouring lights, mm."
+    },
+    {
+      "node": 2,
+      "input": "b",
+      "name": "Rail",
+      "doc": "Metal between the bore and the lights' sills, mm."
+    },
+    {
+      "node": 3,
+      "input": "b",
+      "name": "Reach",
+      "doc": "How far outside the bore the wheel's outer circle stands, mm."
+    },
+    {
+      "node": 4,
+      "input": "b",
+      "name": "Drop",
+      "doc": "How far inside the outer circle each light's apex stands, mm."
+    },
+    {
+      "node": 5,
+      "input": "head",
+      "name": "Head",
+      "doc": "How each light's head closes."
+    },
+    {
+      "node": 5,
+      "input": "phase_deg",
+      "name": "Phase",
+      "doc": "The first light's axis, degrees from the sketch's x; 90 is the crown."
+    },
+    {
+      "node": 5,
+      "input": "plane",
+      "name": "Plane",
+      "doc": "The work plane the wheel lies on, by feature id: a parting plane offset to a side face."
+    }
+  ],
+  "outputs": [
+    {
+      "node": 5,
+      "out": "operation",
+      "name": "sketch_op",
+      "doc": "The wheel as a Sketch feature's operation, a closed loop per light."
+    },
+    {
+      "node": 5,
+      "out": "lights",
+      "name": "lights",
+      "doc": "How many lights the wheel drew."
+    },
+    {
+      "node": 5,
+      "out": "land_mm",
+      "name": "land_mm",
+      "doc": "The narrowest metal between neighbouring lights, mm."
+    }
+  ],
+  "next_id": 6
+}
