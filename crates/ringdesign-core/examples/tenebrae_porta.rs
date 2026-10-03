@@ -57,6 +57,8 @@ const BASE_R: f64 = 0.34;
 /// Every round moulding's centre stands this far under the surface it rises from, so less than half of it shows and
 /// every ray in from its face meets buried metal past its centre.
 const BED: f64 = 0.06;
+/// How far the archivolts' rolls sit under their floors.
+const ROLL_BED: f64 = 0.064;
 /// The doorway: the trumeau between the leaves and its column, the jambs either side, the sill under the leaves,
 /// and the lintel bar over them.
 const TRUMEAU_W: f64 = 1.1;
@@ -73,6 +75,9 @@ const LINTEL_PROUD: f64 = 0.45;
 const RUBY_MM: f64 = 3.0;
 const COLLET_WALL_MM: f64 = 0.3;
 const GIRDLE_OVER_FLOOR: f64 = -0.12;
+/// The ruby's collar: a roll round its girdle, its centre this far out, standing on the floor.
+const COLLAR_RC: f64 = 1.72;
+const COLLAR_R: f64 = 0.36;
 const RUBY_TINT: [f32; 3] = [0.45, 0.01, 0.04];
 /// The ruby's light under its culet: a pilot this radius, straight to the finger.
 const PILOT_R: f64 = 1.15;
@@ -85,38 +90,57 @@ const LABEL_STOP_R: f64 = 0.62;
 const LABEL_STOP_LIFT: f64 = 0.1;
 const OGEE_U: f64 = 7.7;
 /// The hood's sides meet the point this far off the axis, degrees.
-const OGEE_TIP_DEG: f64 = 28.0;
+const OGEE_TIP_DEG: f64 = 12.0;
+/// The least clearance the hood keeps from the arch.
+const HOOD_MIN_CLEAR: f64 = 0.22;
 /// Crockets up each side of the hood, as fractions of its length from the springer: each a tapering leaf of this
 /// radius at its root, curling round a circle of `CROCKET_CURL`.
 const CROCKETS: [f64; 3] = [0.46, 0.64, 0.82];
-const CROCKET_R: f64 = 0.46;
-const CROCKET_RZ: f64 = 0.48;
-const CROCKET_END: f64 = 0.88;
-const CROCKET_CURL: f64 = 0.8;
+const CROCKET_R: f64 = 0.44;
+const CROCKET_RZ: f64 = 0.5;
+const CROCKET_CURL: f64 = 0.85;
+const CROCKET_TURN_DEG: f64 = 95.0;
+const CROCKET_BUD_R: f64 = 0.52;
+/// A crocket's swell along its length: a leaf, fullest a third of the way out, never under 0.9 of its section.
+const CROCKET_LAW: [[f64; 2]; 3] = [[0.0, 0.92], [0.4, 1.25], [1.0, 0.92]];
+/// A fleur petal's swell.
+const PETAL_LAW: [[f64; 2]; 3] = [[0.0, 0.92], [0.45, 1.3], [1.0, 0.92]];
 /// The fleur-de-lis finial: three tapering petals and a band, standing on the ogee's point.
 const FLEUR_BASE: f64 = 0.15;
 const FLEUR_PETAL_R: f64 = 0.5;
-const FLEUR_PETAL_LEN: f64 = 1.65;
+const FLEUR_PETAL_LEN: f64 = 1.55;
 const FLEUR_SIDE_R: f64 = 0.45;
 const FLEUR_BAND_R: f64 = 0.42;
 const FLEUR_RZ: f64 = 0.55;
-const FLEUR_END: f64 = 1.0;
+const FLEUR_BUD_R: f64 = 0.6;
 const FLEUR_CURL: f64 = 0.8;
 /// The crypt trefoil at the round end.
-const CRYPT_U: f64 = -7.02;
-const CRYPT_MM: f64 = 2.4;
+const CRYPT_U: f64 = -6.9;
+const CRYPT_MM: f64 = 1.2;
+/// Its sunk round frame: radius, depth, and the roll round its foot.
+const CRYPT_FRAME: f64 = 1.1;
+const CRYPT_FRAME_DEPTH: f64 = 0.3;
+const CRYPT_ROLL_R: f64 = 0.2;
 /// The palm's comfort bevel: from θ and through how many degrees, and its line z = r − this.
-const PALM_BEVEL_DEG: (f64, f64) = (215.0, 110.0);
+const PALM_BEVEL_DEG: (f64, f64) = (200.0, 140.0);
 const PALM_BEVEL_OFF: f64 = 7.05;
+/// How the bevel swells in and dies away along its run.
+const PALM_BEVEL_LAW: [[f64; 2]; 4] = [[0.0, 0.02], [0.22, 1.0], [0.78, 1.0], [1.0, 0.02]];
 /// The head's long walls: a blind arcade of lancets at these u, this wide and tall, centred this high over the axis.
-const WALL_ARCADE: [f64; 8] = [-5.1, -3.65, -2.2, -0.75, 0.75, 2.2, 3.65, 5.1];
-const WALL_LANCET: (f64, f64) = (0.95, 2.0);
-const WALL_MID_Y: f64 = 11.5;
+const WALL_ARCADE: [f64; 5] = [-4.3, -2.15, 0.0, 2.15, 4.1];
+const WALL_LANCET: (f64, f64) = (1.2, 2.0);
+/// The arcade's rolls, and how deep its pockets are sunk.
+const ARCADE_ROLL_R: f64 = 0.17;
+const ARCADE_POCKET: f64 = 0.3;
+const WALL_MID_Y: f64 = 11.3;
 /// The shoulder lancets: θ off the crown and length, each side.
-/// The shoulder arcade's rolls: radius, and how deep their centres sit under the seat's plane.
-const SHOULDER_ROLL_R: f64 = 0.3;
-const SHOULDER_BED: f64 = 0.12;
-const LANCETS: [(f64, f64); 5] = [(40.0, 2.8), (48.5, 2.6), (57.0, 2.4), (65.5, 2.2), (74.0, 2.0)];
+const LANCETS: [(f64, f64); 4] = [(47.0, 2.1), (56.0, 1.9), (65.0, 1.7), (74.0, 1.45)];
+/// How deep the shoulder lancets are sunk.
+const LANCET_DEPTH: f64 = 0.2;
+/// Sunk lancets' walls lean out this much, so no rim is acute where the wall curves away under them, and more on
+/// the shoulders, whose section rounds over faster (less on the smallest, whose point the lean would close).
+const LANCET_DRAFT: f64 = 10.0;
+const SHOULDER_DRAFT: f64 = 15.0;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, refine: None, ..BuildParams::default() }
@@ -249,7 +273,7 @@ fn inner() -> Inner {
     let inset = ORDERS as f64 * STEP_W;
     let floor = (ORDERS + 1) as f64 * STEP_DEPTH;
     let ut = sill_u(inset);
-    let collet_r = RUBY_MM / 2.0 + COLLET_WALL_MM;
+    let collet_r = COLLAR_RC + COLLAR_R + 0.02;
     // The ruby stands as high in the tympanum as its collet clears the opening's walls by 0.1 mm; the lintel bar sits under it.
     let clearance = |u: f64| {
         (0..=72)
@@ -305,30 +329,6 @@ fn hood_clearance(c: &[P2]) -> f64 {
     c.iter().map(|p| arch.iter().map(|q| (p[0] - q[0]).hypot(p[1] - q[1])).fold(f64::MAX, f64::min)).fold(f64::MAX, f64::min) - HOOD_W / 2.0
 }
 
-/// The hood's right centreline: up from the springer, round the arch, reversing into the ogee point on the axis,
-/// its turn and arms chosen to keep the strip clearest of the arch.
-fn hood_centre() -> Vec<P2> {
-    let mut best = (f64::MIN, (0.5, 0.45, 0.55));
-    for i in 0..=12 {
-        for j in 0..=6 {
-            for k in 0..=6 {
-                let (phi, a, b) = (0.25 + 0.05 * i as f64, 0.2 + 0.1 * j as f64, 0.2 + 0.1 * k as f64);
-                let c = hood_path(phi, a, b);
-                // The hood climbs all the way to its point.
-                if c.windows(2).any(|w| w[1][0] < w[0][0] - 1e-9) {
-                    continue;
-                }
-                let clear = hood_clearance(&c);
-                if clear > best.0 + 1e-6 {
-                    best = (clear, (phi, a, b));
-                }
-            }
-        }
-    }
-    let (phi, a, b) = best.1;
-    hood_path(phi, a, b)
-}
-
 fn unit(v: P2) -> P2 {
     let l = v[0].hypot(v[1]).max(1e-12);
     [v[0] / l, v[1] / l]
@@ -378,33 +378,6 @@ fn lancet(w: f64, from: f64, to: f64) -> Vec<P2> {
     }
     pts.push([-h, spring]);
     pts
-}
-
-/// A lancet's outline open at its sill: up the left jamb, over the pointed head, down the right jamb.
-fn lancet_arch(w: f64, from: f64, to: f64) -> Vec<P2> {
-    let closed = lancet(w, from, to);
-    // `lancet` runs sill-left, sill-right, up the right jamb, over to the left springer: start at the right sill instead.
-    let mut open: Vec<P2> = closed[1..].to_vec();
-    open.push(closed[0]);
-    open
-}
-
-/// A lancet arch `arch` (open at its sill, as [`lancet_arch`] draws it) as rolls on the surface `placement` seats it on:
-/// each side a smooth roll from its sill to the point, and a boss over the point where they meet.
-fn lancet_roll(t: &mut Tree, what: &str, arch: &[P2], placement: Placement) -> Result<()> {
-    let apex = arch.len() / 2;
-    let right = arch[..=apex].to_vec();
-    let left: Vec<P2> = arch[apex..].iter().rev().copied().collect();
-    let (r, bed) = (SHOULDER_ROLL_R, SHOULDER_BED);
-    let first = oval_tube_at(t, &format!("Roll the right side of {what}"), &right, -bed, r, r, Attach::Join, placement.clone())?;
-    oval_tube_at(t, &format!("Roll the left side of {what}"), &left, -bed, r, r, Attach::Join, placement)?;
-    let p = arch[apex];
-    t.add(
-        &format!("Boss the point of {what}"),
-        Operation::Sphere { radius_mm: r + 0.06 },
-        part(Attach::Join, Placement::Relative { part: first, at: [p[0], p[1], -bed - 0.04], rotation_deg: [0.0; 3] }, 0.0),
-    )?;
-    Ok(())
 }
 
 /// The table's half-width round the ring at `u`, off factory 009's measured plan at 14.5 x 19.
@@ -482,107 +455,90 @@ fn cut(t: &mut Tree, name: &str, loops: &[Vec<P2>], lift: f64, to: f64) -> Resul
     )
 }
 
-/// A round moulding of radius `r` swept along `path` (the table's frame, u and w) at height `z`: a twisted sweep
-/// with no twist, so it is a mesh, mitred at every joint. Its section stands square to the path where it starts.
-fn tube(t: &mut Tree, name: &str, path: &[P2], z: f64, r: f64, attach: Attach) -> Result<Id> {
-    oval_tube(t, name, path, z, r, r, attach)
+/// A piece of a sweep's path in the table's frame (u, w): a line, an arc about `c` turning counter-clockwise when
+/// `ccw`, a cubic Bézier, or a whole circle.
+#[derive(Clone, Copy, Debug)]
+enum Seg {
+    Line(P2, P2),
+    Arc { c: P2, from: P2, to: P2, ccw: bool },
+    Bez([P2; 4]),
+    Circle { c: P2, r: f64 },
 }
 
-/// [`tube`] with a section `rx` across the path and `rz` up out of the table: a half-ellipse where they differ.
-fn oval_tube(t: &mut Tree, name: &str, path: &[P2], z: f64, r: f64, rz: f64, attach: Attach) -> Result<Id> {
-    oval_tube_at(t, name, path, z, r, rz, attach, seat(0.0))
-}
-
-/// [`oval_tube`] in the frame `placement` gives: x and y in the seat's plane, z out of it.
-#[allow(clippy::too_many_arguments)]
-fn oval_tube_at(t: &mut Tree, name: &str, path: &[P2], z: f64, r: f64, rz: f64, attach: Attach, placement: Placement) -> Result<Id> {
-    ensure!(path.len() >= 2, "{name}: a path needs two points");
-    let length: f64 = path.windows(2).map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1])).sum();
-    let path = &eased(path, r.max(rz), if length > 6.0 { 0.3 } else { 0.25 }, 1.15);
-    if std::env::var("PORTA_JOINTS").map_or(false, |v| name.contains(&v)) {
-        for i in 1..path.len() - 1 {
-            let (a, b, c) = (path[i - 1], path[i], path[i + 1]);
-            let (u, v) = (unit([b[0] - a[0], b[1] - a[1]]), unit([c[0] - b[0], c[1] - b[1]]));
-            let turn = (u[0] * v[0] + u[1] * v[1]).clamp(-1.0, 1.0).acos().to_degrees();
-            if turn > 3.0 {
-                eprintln!("  joint {i} at {:?}: turn {turn:.1}, runs {:.3} {:.3}", b, (b[0] - a[0]).hypot(b[1] - a[1]), (c[0] - b[0]).hypot(c[1] - b[1]));
+impl Seg {
+    /// Where the piece starts, and its direction there.
+    fn start(&self) -> (P2, P2) {
+        match *self {
+            Seg::Line(a, b) => (a, unit([b[0] - a[0], b[1] - a[1]])),
+            Seg::Arc { c, from, ccw, .. } => {
+                let r = [from[0] - c[0], from[1] - c[1]];
+                let t = if ccw { [-r[1], r[0]] } else { [r[1], -r[0]] };
+                (from, unit(t))
             }
+            Seg::Bez(p) => (p[0], unit([p[1][0] - p[0][0], p[1][1] - p[0][1]])),
+            Seg::Circle { c, r } => ([c[0] + r, c[1]], [0.0, 1.0]),
         }
     }
-    let (p0, p1) = (path[0], path[1]);
-    let d = unit([p1[0] - p0[0], p1[1] - p0[1]]);
-    // Across the path in the table's plane, and up out of it: their cross is along the path.
-    let across = [-d[1], d[0], 0.0];
-    let mut section = Sketch::default();
-    section.name = format!("{name}: section");
-    section.plane = ringdesign_core::sketch::Workplane { origin: [p0[0], p0[1], z], x: across, y: [0.0, 0.0, 1.0], on_face: None };
-    let ring: Vec<Id> = (0..12).map(|i| 2.0 * PI * i as f64 / 12.0).map(|a| section.point([r * a.cos(), rz * a.sin()])).collect();
-    section.entity(Geometry::Polyline { points: ring, closed: true });
-    let mut line = Sketch::default();
-    line.name = format!("{name}: path");
-    line.plane = ringdesign_core::sketch::Workplane { origin: [0.0, 0.0, z], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], on_face: None };
-    let ids: Vec<Id> = path.iter().map(|p| line.point(*p)).collect();
-    line.entity(Geometry::Polyline { points: ids, closed: false });
-    t.add(name, Operation::Twist { sketch: Profile::Inline(section), path: line, degrees: 0.0, end_scale: 1.0 }, part(attach, placement, 0.0))
-}
-
-/// `path` walked again at about `pitch`, every corner (a turn past 25°) kept and given a straight run either side
-/// long enough for a section of radius `r` to mitre round it.
-fn eased(path: &[P2], r: f64, pitch: f64, mitre: f64) -> Vec<P2> {
-    let turn = |a: P2, b: P2, c: P2| {
-        let (u, v) = (unit([b[0] - a[0], b[1] - a[1]]), unit([c[0] - b[0], c[1] - b[1]]));
-        (u[0] * v[0] + u[1] * v[1]).clamp(-1.0, 1.0).acos()
-    };
-    let mut corners = vec![0];
-    for i in 1..path.len() - 1 {
-        if turn(path[i - 1], path[i], path[i + 1]) > 25f64.to_radians() {
-            corners.push(i);
+    /// The piece reversed.
+    fn rev(self) -> Seg {
+        match self {
+            Seg::Line(a, b) => Seg::Line(b, a),
+            Seg::Arc { c, from, to, ccw } => Seg::Arc { c, from: to, to: from, ccw: !ccw },
+            Seg::Bez(p) => Seg::Bez([p[3], p[2], p[1], p[0]]),
+            s => s,
         }
     }
-    corners.push(path.len() - 1);
-    let need = |i: usize| -> f64 {
-        if i == 0 || i == path.len() - 1 {
-            return 0.0;
-        }
-        r * (0.5 * turn(path[i - 1], path[i], path[i + 1])).tan() * mitre + 0.03
-    };
-    let mut out: Vec<P2> = vec![path[0]];
-    for w in corners.windows(2) {
-        let run = &path[w[0]..=w[1]];
-        let mut acc = vec![0.0];
-        for s in run.windows(2) {
-            acc.push(acc.last().unwrap() + (s[1][0] - s[0][0]).hypot(s[1][1] - s[0][1]));
-        }
-        let total = *acc.last().unwrap();
-        let (from, to) = (need(w[0]), total - need(w[1]));
-        let at = |d: f64| -> P2 {
-            let k = acc.partition_point(|a| *a < d).clamp(1, run.len() - 1);
-            let t = ((d - acc[k - 1]) / (acc[k] - acc[k - 1]).max(1e-12)).clamp(0.0, 1.0);
-            [run[k - 1][0] + (run[k][0] - run[k - 1][0]) * t, run[k - 1][1] + (run[k][1] - run[k - 1][1]) * t]
+    /// The piece mirrored across the axis (w to −w).
+    fn mirror(self) -> Seg {
+        self.flip(1)
+    }
+    /// The piece with its coordinate `k` negated.
+    fn flip(self, k: usize) -> Seg {
+        let m = |mut p: P2| {
+            p[k] = -p[k];
+            p
         };
-        if to > from {
-            let n = ((to - from) / pitch).ceil().max(1.0) as usize;
-            for i in 0..=n {
-                let d = from + (to - from) * i as f64 / n as f64;
-                if d > 1e-9 && d < total - 1e-9 {
-                    out.push(at(d));
-                }
-            }
+        match self {
+            Seg::Line(a, b) => Seg::Line(m(a), m(b)),
+            Seg::Arc { c, from, to, ccw } => Seg::Arc { c: m(c), from: m(from), to: m(to), ccw: !ccw },
+            Seg::Bez(p) => Seg::Bez(p.map(m)),
+            Seg::Circle { c, r } => Seg::Circle { c: m(c), r },
         }
-        out.push(run[run.len() - 1]);
     }
-    out.dedup_by(|a, b| (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-6);
-    out
 }
 
-/// A section given as points (across the path, up out of the table) swept along `path` at height `z`, scaled to
-/// `end` by its far end: a twisted sweep with no twist, so a mesh, mitred at every joint.
-fn swept(t: &mut Tree, name: &str, path: &[P2], z: f64, section: &[P2], attach: Attach, end: f64) -> Result<Id> {
-    ensure!(path.len() >= 2, "{name}: a path needs two points");
-    let reach = section.iter().map(|p| p[0].hypot(p[1])).fold(0.0, f64::max);
-    let path = &eased(path, reach, 0.3, 1.4);
-    let (p0, p1) = (path[0], path[1]);
-    let d = unit([p1[0] - p0[0], p1[1] - p0[1]]);
+/// An arc that ends on the axis where coordinate `k` is naught, finished instead by a straight run along its own
+/// tangent into the point, long enough that the mitre of a section reaching `reach` meets straight sides there: a
+/// curve bending the corner's way inside the mitre's keep folds the sweep.
+fn pointed(arc: Seg, k: usize, reach: f64) -> [Seg; 2] {
+    let Seg::Arc { c, from, to, ccw } = arc else { unreachable!("pointed takes an arc") };
+    let r = [to[0] - c[0], to[1] - c[1]];
+    let mut delta: f64 = 0.0;
+    loop {
+        delta += 0.004;
+        let a = if ccw { -delta } else { delta };
+        let q = [c[0] + r[0] * a.cos() - r[1] * a.sin(), c[1] + r[0] * a.sin() + r[1] * a.cos()];
+        let rq = [q[0] - c[0], q[1] - c[1]];
+        let t = unit(if ccw { [-rq[1], rq[0]] } else { [rq[1], -rq[0]] });
+        let run = -q[k] / t[k];
+        // The point turns the path through twice the tangent's slant off the axis.
+        let half_turn = t[k].abs().acos().min(1.5);
+        let need = 1.45 * reach * half_turn.tan() + 0.05;
+        if run >= need || delta > 0.6 {
+            let mut tip = [q[0] + t[0] * run, q[1] + t[1] * run];
+            tip[k] = 0.0;
+            return [Seg::Arc { c, from, to: q, ccw }, Seg::Line(q, tip)];
+        }
+    }
+}
+
+/// `section` (points across the path and up out of the plane) swept along the chained pieces `segs`, laid at height
+/// `z` in the frame `placement` gives, its scale following `law` (empty for none), round and joined when `closed`:
+/// a twisted sweep with no twist, its curves sampled by the sweep itself, mitred where two pieces meet at an angle.
+#[allow(clippy::too_many_arguments)]
+fn sweep_segs(t: &mut Tree, name: &str, segs: &[Seg], z: f64, section: &[P2], attach: Attach, placement: Placement, law: &[[f64; 2]]) -> Result<Id> {
+    ensure!(!segs.is_empty(), "{name}: no path");
+    let (p0, d) = segs[0].start();
     let across = [-d[1], d[0], 0.0];
     let mut sec = Sketch::default();
     sec.name = format!("{name}: section");
@@ -592,20 +548,126 @@ fn swept(t: &mut Tree, name: &str, path: &[P2], z: f64, section: &[P2], attach: 
     let mut line = Sketch::default();
     line.name = format!("{name}: path");
     line.plane = ringdesign_core::sketch::Workplane { origin: [0.0, 0.0, z], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], on_face: None };
-    let ids: Vec<Id> = path.iter().map(|p| line.point(*p)).collect();
-    line.entity(Geometry::Polyline { points: ids, closed: false });
-    t.add(name, Operation::Twist { sketch: Profile::Inline(sec), path: line, degrees: 0.0, end_scale: end }, part(attach, seat(0.0), 0.0))
+    let mut closed = false;
+    for sg in segs {
+        let g = match *sg {
+            Seg::Line(a, b) => Geometry::Line { a: line.point(a), b: line.point(b) },
+            Seg::Arc { c, from, to, ccw } => {
+                let (s0, s1) = if ccw { (from, to) } else { (to, from) };
+                Geometry::Arc { center: line.point(c), start: line.point(s0), end: line.point(s1) }
+            }
+            Seg::Bez(p) => Geometry::Bezier { points: p.map(|q| line.point(q)) },
+            Seg::Circle { c, r } => {
+                closed = true;
+                Geometry::Circle { center: line.point(c), rim: line.point([c[0] + r, c[1]]) }
+            }
+        };
+        line.entity(g);
+    }
+    t.add(
+        name,
+        Operation::Twist { sketch: Profile::Inline(sec), path: ringdesign_core::cad::TwistPath::Sketch(line), degrees: 0.0, end_scale: 1.0, scale: law.to_vec(), closed },
+        part(attach, placement, 0.0),
+    )
 }
 
-/// [`taper`] with a half-ellipse section, `rz` tall.
-fn oval_taper(t: &mut Tree, name: &str, path: &[P2], r: f64, rz: f64, end: f64) -> Result<Id> {
-    let id = oval_tube(t, name, path, -BED, r, rz + BED, Attach::Join)?;
-    if let Some(f) = t.doc.features.iter_mut().find(|f| f.id == id) {
-        if let Operation::Twist { end_scale, .. } = &mut f.operation {
-            *end_scale = end;
+/// The centreline `n` in from the outer arch, as pieces: up the right jamb from `from_u`, round the right head arc
+/// to the apex, down the left one and the left jamb.
+fn arch_segs(n: f64, from_u: f64, reach: f64) -> Vec<Seg> {
+    let r = ARCH_R - n;
+    let (sp, apex) = (arc_pt(r, 0.0), arc_pt(r, apex_phi(r)));
+    let [head, tip] = pointed(Seg::Arc { c: [springing_u(), -centre_off()], from: sp, to: apex, ccw: false }, 1, reach);
+    let right = [Seg::Line([from_u, sp[1]], sp), head, tip];
+    let mut segs = right.to_vec();
+    segs.extend(right.iter().rev().map(|s| s.mirror().rev()));
+    segs
+}
+
+/// A lancet `w` wide from `from` to `to` (x across, y along), open at its sill, as pieces: up the right jamb, round
+/// both equilateral head arcs to the point, and down the left jamb; `flip` mirrors it in y.
+fn lancet_segs(w: f64, from: f64, to: f64, flip: bool, reach: f64) -> Vec<Seg> {
+    let h = w / 2.0;
+    let spring = to - w * 3f64.sqrt() / 2.0;
+    let [head, tip] = pointed(Seg::Arc { c: [-h, spring], from: [h, spring], to: [0.0, to], ccw: true }, 0, reach);
+    let right = [Seg::Line([h, from], [h, spring]), head, tip];
+    let mut segs = right.to_vec();
+    segs.extend(right.iter().rev().map(|s| s.flip(0).rev()));
+    if flip { segs.into_iter().map(|s| s.flip(1)).collect() } else { segs }
+}
+
+/// A blind lancet arch sunk into the surface `placement` seats: a pocket with a half-round roll lying in the foot
+/// of its wall all round, spared as the pocket is cut so it stays the stock's own metal, a boss over its point and a
+/// capital at each springing spared the same way; `side` turns it up the wall it stands on.
+fn blind_arch(t: &mut Tree, what: &str, w: f64, len: f64, side: f64, placement: Placement) -> Result<()> {
+    let flip = side < 0.0;
+    let fy = |v: f64| if flip { -v } else { v };
+    let (r, d, lift) = (ARCADE_ROLL_R, ARCADE_POCKET, 0.113);
+    let sunk = |name: &str, w: f64, from: f64, to: f64| -> Sketch {
+        let outline: Vec<P2> = lancet(w, from, to).into_iter().map(|[x, y]| [x, fy(y)]).collect();
+        let mut sk = sketch_of(name, &[outline]);
+        sk.plane.origin[2] = lift;
+        sk
+    };
+    let pocket = t.add(
+        &format!("Draw the pocket of {what}"),
+        Operation::Extrude { sketch: Profile::Inline(sunk("Arcade pocket", w, -len / 2.0, len / 2.0)), height_mm: -(d + lift), draft_deg: LANCET_DRAFT },
+        part(Attach::Cut, placement.clone(), 0.0),
+    )?;
+    let (inset, bed) = (r + 0.03, 0.05);
+    let path = lancet_segs(w - 2.0 * inset, -len / 2.0 - 0.15, len / 2.0 - 2.0 * inset, flip, r);
+    let roll = sweep_segs(t, &format!("Run the roll round {what}"), &path, -d - bed, &oval(r, r), Attach::Cut, placement.clone(), &[])?;
+    let mut tool = spare(t, &format!("Sink {what}, sparing its roll"), pocket, roll)?;
+    let wc = w / 2.0 - inset;
+    let spring = len / 2.0 - 2.0 * inset - (w - 2.0 * inset) * 3f64.sqrt() / 2.0 + 0.02;
+    for (at, which, rr) in [([0.0, fy(len / 2.0 - 2.0 * inset)], "point", r + 0.04), ([wc, fy(spring)], "right capital", r + 0.035), ([-wc, fy(spring)], "left capital", r + 0.035)] {
+        let boss = t.add(
+            &format!("Draw the {which} of {what}"),
+            Operation::Sphere { radius_mm: rr },
+            part(Attach::Cut, Placement::Relative { part: roll, at: [at[0], at[1], -d - bed], rotation_deg: [0.0; 3] }, 0.0),
+        )?;
+        tool = spare(t, &format!("Sink {what}, sparing its {which}"), tool, boss)?;
+    }
+    let _ = tool;
+    Ok(())
+}
+
+/// The hood's turn round the arch and its Bézier arms: the most strongly reversing ogee that still clears the arch.
+fn hood_params() -> (f64, f64, f64) {
+    let mut best: Option<(f64, (f64, f64, f64))> = None;
+    for i in 0..=12 {
+        for j in 0..=6 {
+            for k in 0..=6 {
+                let (phi, a, b) = (0.25 + 0.05 * i as f64, 0.2 + 0.1 * j as f64, 0.2 + 0.1 * k as f64);
+                let c = hood_path(phi, a, b);
+                if c.windows(2).any(|w| w[1][0] < w[0][0] - 1e-9) || hood_clearance(&c) < HOOD_MIN_CLEAR {
+                    continue;
+                }
+                // The reverse curve: how far the S-curve's concave half bows in from its chord, as a share of the rise.
+                let score = b - 0.3 * phi;
+                if best.is_none_or(|(s, _)| score > s) {
+                    best = Some((score, (phi, a, b)));
+                }
+            }
         }
     }
-    Ok(id)
+    best.map_or((0.5, 0.45, 0.55), |(_, p)| p)
+}
+
+/// The hood's right S-curve: where it leaves the arc, and its four Bézier points.
+fn hood_bezier(phi_end: f64, a: f64, b: f64) -> (P2, [P2; 4]) {
+    let r = ARCH_R + HOOD_GAP;
+    let p0 = arc_pt(r, phi_end);
+    let tan = [phi_end.cos(), -phi_end.sin()];
+    let reach = (OGEE_U - p0[0]).max(0.5);
+    let p1 = [p0[0] + tan[0] * reach * a, p0[1] + tan[1] * reach * a];
+    let tip = OGEE_TIP_DEG.to_radians();
+    let p2 = [OGEE_U - reach * b * tip.cos(), reach * b * tip.sin()];
+    (p0, [p0, p1, p2, [OGEE_U, 0.0]])
+}
+
+/// A half-ellipse-or-round section: `rx` across, `rz` up, `n` points round.
+fn oval(rx: f64, rz: f64) -> Vec<P2> {
+    (0..16).map(|i| 2.0 * PI * i as f64 / 16.0).map(|a| [rx * a.cos(), rz * a.sin()]).collect()
 }
 
 /// A ball of radius `r` centred `z` under the table at `(u, w)`.
@@ -641,20 +703,6 @@ fn spare(t: &mut Tree, name: &str, pocket: Id, keep: Id) -> Result<Id> {
     t.add(name, Operation::Boolean { a: pocket, b: keep, kind: ringdesign_core::cad::Boolean::Subtract }, part(Attach::Cut, Placement::Free, 0.0))
 }
 
-/// The centreline `n` in from the outer arch: up the right jamb from `from_u`, over the apex, down the left jamb.
-fn arch_path(n: f64, from_u: f64) -> Vec<P2> {
-    let r = ARCH_R - n;
-    let phi_top = apex_phi(r);
-    let steps = ((r * phi_top) / 0.3).ceil() as usize;
-    let mut right: Vec<P2> = vec![[from_u, ARCH_W / 2.0 - n]];
-    for i in 0..=steps {
-        right.push(arc_pt(r, phi_top * i as f64 / steps as f64));
-    }
-    let mut path = right.clone();
-    path.extend(right.iter().rev().skip(1).map(|p| [p[0], -p[1]]));
-    path
-}
-
 #[derive(serde::Serialize)]
 struct Placed {
     springing_u: f64,
@@ -677,48 +725,44 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
     let inn = inner();
     let inset = ORDERS as f64 * STEP_W;
     let ut = sill_u(inset);
-    // A half-round roll in the foot of each order's riser, from sill to sill over the apex, and a hollow run beside it.
-    // The roll is no part of its own: its order's cut is taken round it, so it stands out of the stock's own metal.
-    let roll_path = |m: usize| -> (Vec<P2>, f64) {
-        let n = m as f64 * STEP_W + ROLL_R * ROLL_IN;
-        (arch_path(n, sill_u(m as f64 * STEP_W) - 0.05), -((m + 1) as f64) * STEP_DEPTH - BED)
-    };
     let table = table_height(&d)?;
+    // The archivolts. Each order is a nested pointed arch sunk one step deeper than the one outside it, its floor
+    // splayed toward the next riser, with a half-round roll in the foot of its riser from sill to sill over the apex.
+    // The roll is no part of its own: the order's cut is taken round it, so it stands out of the stock's own metal,
+    // and so are a capital where it springs and a base where it stands on the sill.
     for k in 0..ORDERS {
         let depth = (k + 1) as f64 * STEP_DEPTH;
-        let what = format!("archivolt {}", k + 1);
-        let pocket = cut(&mut t, &format!("Draw {what}'s order, {depth:.2} mm deep"), &[arch_loop(k as f64 * STEP_W)], 0.03 * (k + 1) as f64, depth)?;
-        // The splay: the order's floor falls `SPLAY` toward the next riser, swept round the arch past the roll's toe.
         let n0 = k as f64 * STEP_W;
+        let what = format!("archivolt {}", k + 1);
+        let pocket = cut(&mut t, &format!("Draw {what}'s order, {depth:.2} mm deep"), &[arch_loop(n0)], 0.033 * (k + 1) as f64, depth)?;
         let wedge = [[-SPLAY_FROM, -0.01], [-(STEP_W + 0.02), -SPLAY], [-(STEP_W + 0.02), 0.05], [-SPLAY_FROM, 0.05]];
-        let full = arch_path(n0, sill_u(n0 + STEP_W) + 0.06);
-        let wedge = swept(&mut t, &format!("Draw {what}'s splay"), &full, -depth, &wedge, Attach::Cut, 1.0)?;
+        let wedge = sweep_segs(&mut t, &format!("Draw {what}'s splay"), &arch_segs(n0, sill_u(n0 + STEP_W) + 0.075, STEP_W + 0.02), -depth, &wedge, Attach::Cut, seat(0.0), &[])?;
         let splayed = t.add(&format!("Splay {what}'s floor"), Operation::Boolean { a: pocket, b: wedge, kind: ringdesign_core::cad::Boolean::Union }, part(Attach::Cut, Placement::Free, 0.0))?;
-        let (path, z) = roll_path(k);
-        let roll = tube(&mut t, &format!("Run the roll up the foot of {what}"), &path, z, ROLL_R, Attach::Cut)?;
+        let n = n0 + ROLL_R * ROLL_IN;
+        let roll = sweep_segs(&mut t, &format!("Run the roll up the foot of {what}"), &arch_segs(n, sill_u(n0) - 0.07, ROLL_R), -depth - ROLL_BED, &oval(ROLL_R, ROLL_R), Attach::Cut, seat(0.0), &[])?;
         let mut tool = spare(&mut t, &format!("Sink {what}, sparing its roll"), splayed, roll)?;
-        // A capital where the roll springs, and a base where it stands on the sill, each side.
-        let w = ARCH_W / 2.0 - (n0 + ROLL_R * ROLL_IN);
-        for (u, r, which) in [(SPRING_U, CAPITAL_R, "capital"), (sill_u(n0) + BASE_R * 0.6, BASE_R, "base")] {
+        let w = ARCH_W / 2.0 - n;
+        for (u, r, which) in [(SPRING_U, CAPITAL_R, "capital"), (sill_u(n0) + BASE_R * 0.63, BASE_R, "base")] {
             for side in [1.0, -1.0] {
                 let hand = if side > 0.0 { "right" } else { "left" };
-                let ball = knob(&mut t, &format!("Draw the {which} of {what}'s {hand} roll"), [u, side * w], r, -depth - BED, table, Attach::Cut)?;
+                let ball = knob(&mut t, &format!("Draw the {which} of {what}'s {hand} roll"), [u, side * w], r, -depth - ROLL_BED, table, Attach::Cut)?;
                 tool = spare(&mut t, &format!("Sink {what}, sparing its {hand} {which}"), tool, ball)?;
             }
         }
     }
-    // The tympanum and the door opening, sparing the lintel bar and the trumeau's column.
+    // The tympanum and the door opening, sparing the lintel beam, the trumeau's column and the ruby's collar.
     let tympanum = cut(&mut t, "Draw the tympanum and the door opening", &[arch_loop(inset)], 0.03 * (ORDERS + 1) as f64, inn.floor)?;
-    // The lintel: a beam across the opening, its ends buried in the jambs, standing proud of the tympanum floor.
     let lintel_w = half_width(inset, inn.lintel_lo) + 0.4;
-    // Its section: a flat face with both upper edges chamfered, so the beam catches the light face-on.
+    // The lintel's section: a flat face with both upper edges chamfered, so the beam catches the light face-on.
     let (hw, top, ch) = (LINTEL_R, LINTEL_PROUD, 0.2);
     let section = [[-hw, -0.1], [hw, -0.1], [hw, top - ch], [hw - ch, top], [-(hw - ch), top], [-hw, top - ch]];
     let mid = 0.5 * (inn.lintel_lo + inn.lintel_hi);
-    let lintel = swept(&mut t, "Draw the lintel beam across the doorway", &[[mid, lintel_w], [mid, -lintel_w]], -inn.floor, &section, Attach::Cut, 1.0)?;
-    let column = tube(&mut t, "Stand the trumeau's column between the doors", &[[ut - 0.05, 0.0], [inn.lintel_lo + 0.05, 0.0]], -inn.floor - BED, TRUMEAU_R, Attach::Cut)?;
+    let lintel = sweep_segs(&mut t, "Draw the lintel beam across the doorway", &[Seg::Line([mid, lintel_w], [mid, -lintel_w])], -inn.floor, &section, Attach::Cut, seat(0.0), &[])?;
+    let column = sweep_segs(&mut t, "Stand the trumeau's column between the doors", &[Seg::Line([ut - 0.05, 0.0], [inn.lintel_lo + 0.05, 0.0])], -inn.floor - BED, &oval(TRUMEAU_R, TRUMEAU_R), Attach::Cut, seat(0.0), &[])?;
+    let collar = sweep_segs(&mut t, "Ring the ruby with its collar", &[Seg::Circle { c: [inn.ruby_u, 0.0], r: COLLAR_RC }], -inn.floor - BED, &oval(COLLAR_R, COLLAR_R), Attach::Cut, seat(0.0), &[])?;
     let mut tool = spare(&mut t, "Sink the tympanum, sparing the lintel beam", tympanum, lintel)?;
     tool = spare(&mut t, "Sink the door opening, sparing the trumeau", tool, column)?;
+    tool = spare(&mut t, "Sink the tympanum, sparing the ruby's collar", tool, collar)?;
     for (u, which) in [(inn.lintel_lo, "capital"), (ut + SILL_H + 0.2, "base")] {
         let ball = knob(&mut t, &format!("Draw the trumeau's {which}"), [u, 0.0], TRUMEAU_CAP_R, -inn.floor - BED, table, Attach::Cut)?;
         tool = spare(&mut t, &format!("Sink the door opening, sparing the trumeau's {which}"), tool, ball)?;
@@ -733,7 +777,8 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
         let leaf: Vec<P2> = lancet(leaf_w, lo, hi).into_iter().map(|[x, y]| [y, centre + x]).collect();
         cut(&mut t, &format!("Open the {which} door leaf through to the finger"), &[leaf], 0.03 * (ORDERS + 2) as f64, 7.0)?;
     }
-    // The ruby in the tympanum, its collet and its seat bur through to the bore.
+    // The ruby in the tympanum: its girdle just under the floor, held by the collar's lip over it, the seat burred
+    // into the floor's own metal, and a straight light under the culet to the finger, so it is set à jour.
     let mut gem = Gem::calibrated(GemCut::Round, RUBY_MM);
     gem.preview_tint = Some(RUBY_TINT);
     let stone = t.push(builders::stone_feature(
@@ -741,99 +786,98 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
         gem,
         Placement::Ring { theta_deg: CROWN_DEG, across_mm: inn.ruby_u, height_mm: -inn.floor + GIRDLE_OVER_FLOOR, spin_deg: SPIN_DEG, tilt_deg: 0.0, cant_deg: 0.0, level: false },
     ))?;
-    // Set flush (gypsy): its girdle just under the tympanum's floor, the seat burred into the floor's own metal and its rim
-    // burnished over the girdle at the bench, so no thin collet wall stands in the cut.
     let mut collet = builders::feature_on(0, "Collet the ruby in the tympanum floor", builders::BEZEL, stone, json!({ "wall_mm": COLLET_WALL_MM }));
     collet.component.stage = Stage::Cast;
     t.push(collet)?;
-    let mut bur = builders::feature_on(0, "Bur the ruby's flush seat into the tympanum floor", builders::BUR, stone, json!({ "through": false }));
+    let mut bur = builders::feature_on(0, "Bur the ruby's seat into the floor and its collar", builders::BUR, stone, json!({ "through": false }));
     bur.component.stage = Stage::Cast;
     t.push(bur)?;
-    // Its light: a straight pilot under the culet to the finger, so the ruby is set à jour.
     let light: Vec<P2> = (0..32).map(|i| 2.0 * PI * i as f64 / 32.0).map(|a| [inn.ruby_u + PILOT_R * a.cos(), PILOT_R * a.sin()]).collect();
     cut(&mut t, "Open the ruby's light through to the finger, à jour", &[light], 0.03 * (ORDERS + 3) as f64, 7.0)?;
-    // The ogee hood-mould: one half-round roll from springer to springer, mitred into the ogee's point.
-    let right = hood_centre();
-    let mut hood: Vec<P2> = right.iter().map(|p| [p[0], p[1]]).collect();
-    hood.extend(right.iter().rev().skip(1).map(|p| [p[0], -p[1]]));
-    oval_tube(&mut t, "Roll the ogee hood-mould over the arch", &hood, -BED, HOOD_W / 2.0, HOOD_RISE + BED, Attach::Join)?;
-    // Its label stops: a boss over each end, where the hood comes down beside the springing.
-    for (end, which) in [(hood[0], "right"), (hood[hood.len() - 1], "left")] {
-        t.add(
-            &format!("Stop the hood's {which} end on a boss"),
-            Operation::Sphere { radius_mm: LABEL_STOP_R },
-            part(Attach::Join, Placement::Ring { theta_deg: table.atan2(end[1]).to_degrees(), across_mm: end[0], height_mm: LABEL_STOP_LIFT, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false }, 0.0),
-        )?;
+    // The ogee hood-mould: one roll from springer to springer, convex round the arch, then reversing into a mitred point.
+    let (phi, a, b) = hood_params();
+    let rh = ARCH_R + HOOD_GAP;
+    let (p0, bz) = hood_bezier(phi, a, b);
+    let right = [Seg::Arc { c: [springing_u(), -centre_off()], from: arc_pt(rh, 0.0), to: p0, ccw: false }, Seg::Bez(bz)];
+    let hood = [right[0], right[1], right[1].mirror().rev(), right[0].mirror().rev()];
+    sweep_segs(&mut t, "Roll the ogee hood-mould over the arch", &hood, -BED, &oval(HOOD_W / 2.0, HOOD_RISE + BED), Attach::Join, seat(0.0), &[])?;
+    for (end, which) in [(arc_pt(rh, 0.0), "right"), ([arc_pt(rh, 0.0)[0], -arc_pt(rh, 0.0)[1]], "left")] {
+        knob(&mut t, &format!("Stop the hood's {which} end on a boss"), end, LABEL_STOP_R, LABEL_STOP_LIFT, table, Attach::Join)?;
     }
-    // Crockets: tapering leaves up each side of the hood, each springing out of its back and curling over toward the point.
-    let (along, normals) = hood_frame(&right);
+    // Crockets: solid leaves springing from the hood's back, swelling and bending up toward the point, each with a bud.
+    let centre_line = hood_path(phi, a, b);
+    let (along, normals) = hood_frame(&centre_line);
     for (i, f) in CROCKETS.iter().enumerate() {
-        let k = ((right.len() - 1) as f64 * f).round() as usize;
-        let (root, n, tg) = (right[k], normals[k], along[k]);
-        let root = [root[0] + n[0] * (HOOD_W / 2.0 - 0.36), root[1] + n[1] * (HOOD_W / 2.0 - 0.36)];
+        let k = ((centre_line.len() - 1) as f64 * f).round() as usize;
+        let (root, n, tg) = (centre_line[k], normals[k], along[k]);
+        let root = [root[0] + n[0] * 0.1, root[1] + n[1] * 0.1];
+        // An arc leaving along the hood's outward normal and bending toward the point.
         let c = [root[0] + tg[0] * CROCKET_CURL, root[1] + tg[1] * CROCKET_CURL];
-        let curl: Vec<P2> = (0..=14)
-            .map(|j| (150.0 * j as f64 / 14.0f64).to_radians())
-            .map(|phi| [c[0] + CROCKET_CURL * (-tg[0] * phi.cos() + n[0] * phi.sin()), c[1] + CROCKET_CURL * (-tg[1] * phi.cos() + n[1] * phi.sin())])
-            .collect();
+        let r0 = [root[0] - c[0], root[1] - c[1]];
+        let ccw = (-r0[1]) * n[0] + r0[0] * n[1] > 0.0;
+        let turn = CROCKET_TURN_DEG.to_radians() * if ccw { 1.0 } else { -1.0 };
+        let tip = [c[0] + r0[0] * turn.cos() - r0[1] * turn.sin(), c[1] + r0[0] * turn.sin() + r0[1] * turn.cos()];
+        let leaf = Seg::Arc { c, from: root, to: tip, ccw };
         for side in [1.0, -1.0] {
             let which = if side > 0.0 { "right" } else { "left" };
-            let path: Vec<P2> = curl.iter().map(|p| [p[0], side * p[1]]).collect();
-            oval_taper(&mut t, &format!("Curl crocket {} up the hood's {which}", i + 1), &path, CROCKET_R, CROCKET_RZ, CROCKET_END)?;
-            let tip = path[path.len() - 1];
-            knob(&mut t, &format!("Bud crocket {} on the hood's {which}", i + 1), tip, (CROCKET_RZ + BED) * CROCKET_END + 0.05, -BED, table, Attach::Join)?;
+            let sg = if side > 0.0 { leaf } else { leaf.mirror() };
+            sweep_segs(&mut t, &format!("Grow crocket {} up the hood's {which}", i + 1), &[sg], -BED, &oval(CROCKET_R, CROCKET_RZ + BED), Attach::Join, seat(0.0), &CROCKET_LAW)?;
+            knob(&mut t, &format!("Bud crocket {} on the hood's {which}", i + 1), [tip[0], side * tip[1]], CROCKET_BUD_R, -BED, table, Attach::Join)?;
         }
     }
-    // The fleur-de-lis finial on the ogee's point: a tapering centre petal, two curling side petals, and the band.
+    // The fleur-de-lis finial on the ogee's point: a swelling centre petal, two curling side petals, and the band.
     let base = OGEE_U + FLEUR_BASE;
-    oval_taper(&mut t, "Rise the fleur's centre petal", &[[base, 0.0], [base + FLEUR_PETAL_LEN, 0.0]], FLEUR_PETAL_R, FLEUR_RZ, FLEUR_END)?;
-    knob(&mut t, "Point the fleur's centre petal", [base + FLEUR_PETAL_LEN, 0.0], (FLEUR_RZ + BED) * FLEUR_END + 0.05, -BED, table, Attach::Join)?;
+    sweep_segs(&mut t, "Rise the fleur's centre petal", &[Seg::Line([base, 0.0], [base + FLEUR_PETAL_LEN, 0.0])], -BED, &oval(FLEUR_PETAL_R, FLEUR_RZ + BED), Attach::Join, seat(0.0), &PETAL_LAW)?;
+    knob(&mut t, "Point the fleur's centre petal", [base + FLEUR_PETAL_LEN, 0.0], FLEUR_BUD_R, -BED, table, Attach::Join)?;
     for side in [1.0, -1.0] {
         let which = if side > 0.0 { "right" } else { "left" };
-        // Up and out from the band, over, and down the outside: an arc of `FLEUR_CURL` round its centre.
+        // Up and out from the band, over, and down the outside: an arc round its centre.
         let c = [base + 0.45, 0.2 + FLEUR_CURL];
-        let curl: Vec<P2> = (0..=16).map(|i| (270.0 + 150.0 * i as f64 / 16.0f64).to_radians()).map(|a| [c[0] + FLEUR_CURL * a.cos(), side * (c[1] + FLEUR_CURL * a.sin())]).collect();
-        oval_taper(&mut t, &format!("Curl the fleur's {which} petal"), &curl, FLEUR_SIDE_R, FLEUR_RZ * 0.9, FLEUR_END)?;
-        knob(&mut t, &format!("Bud the fleur's {which} petal"), curl[curl.len() - 1], (FLEUR_RZ * 0.9 + BED) * FLEUR_END + 0.05, -BED, table, Attach::Join)?;
+        let at = |deg: f64| [c[0] + FLEUR_CURL * deg.to_radians().cos(), c[1] + FLEUR_CURL * deg.to_radians().sin()];
+        let curl = Seg::Arc { c, from: at(270.0), to: at(40.0), ccw: true };
+        let sg = if side > 0.0 { curl } else { curl.mirror() };
+        sweep_segs(&mut t, &format!("Curl the fleur's {which} petal"), &[sg], -BED, &oval(FLEUR_SIDE_R, FLEUR_RZ * 0.9 + BED), Attach::Join, seat(0.0), &PETAL_LAW)?;
+        let tip = at(40.0);
+        knob(&mut t, &format!("Bud the fleur's {which} petal"), [tip[0], side * tip[1]], FLEUR_BUD_R * 0.9, -BED, table, Attach::Join)?;
     }
-    oval_tube(&mut t, "Bind the fleur's petals with its band", &[[base + 0.45, 1.0], [base + 0.45, -1.0]], -BED, FLEUR_BAND_R, FLEUR_RZ * 0.8, Attach::Join)?;
-    // The crypt trefoil pierced through the round end.
-    let head = d.inner_radius_mm();
-    let _ = head;
+    sweep_segs(&mut t, "Bind the fleur's petals with its band", &[Seg::Line([base + 0.45, 1.0], [base + 0.45, -1.0])], -BED, &oval(FLEUR_BAND_R, FLEUR_RZ * 0.8 + BED), Attach::Join, seat(0.0), &[])?;
+    // The crypt window: a sunk round frame with a roll round its foot, and a quatrefoil pierced through its floor.
+    let frame: Vec<P2> = (0..48).map(|i| 2.0 * PI * i as f64 / 48.0).map(|a| [CRYPT_U + CRYPT_FRAME * a.cos(), CRYPT_FRAME * a.sin()]).collect();
+    let sunk = cut(&mut t, "Draw the crypt window's round frame", &[frame], 0.05, CRYPT_FRAME_DEPTH)?;
+    let ring = sweep_segs(&mut t, "Ring the crypt window's frame with a roll", &[Seg::Circle { c: [CRYPT_U, 0.0], r: CRYPT_FRAME - CRYPT_ROLL_R * ROLL_IN }], -CRYPT_FRAME_DEPTH - BED, &oval(CRYPT_ROLL_R, CRYPT_ROLL_R), Attach::Cut, seat(0.0), &[])?;
+    spare(&mut t, "Sink the crypt window's frame, sparing its roll", sunk, ring)?;
     cut(&mut t, "Pierce the crypt quatrefoil through the round end", &[foil([CRYPT_U, 0.0], CRYPT_MM, 4)], 0.03, 6.0)?;
-    // A blind arcade down each long wall of the head: lancet arches drawn as rolls, standing up the wall.
+    // A blind arcade down each long wall of the head: lancet pockets sunk into the wall, each with a roll round its
+    // foot, a boss at its point and capitals where it springs.
     for (k, u) in WALL_ARCADE.iter().enumerate() {
         for side in [1.0, -1.0] {
             let theta = WALL_MID_Y.atan2(side * (drop_half(*u) + 0.3)).to_degrees();
-            let arch: Vec<P2> = lancet_arch(WALL_LANCET.0, -WALL_LANCET.1 / 2.0, WALL_LANCET.1 / 2.0).into_iter().map(|[x, y]| [x, side * y]).collect();
             let which = if side > 0.0 { "left" } else { "right" };
-            lancet_roll(&mut t, &format!("arch {} of the {which} wall's arcade", k + 1), &arch, Placement::ring(theta, 0.0).with_across(*u))?;
+            blind_arch(&mut t, &format!("arch {} of the {which} wall's arcade", k + 1), WALL_LANCET.0, WALL_LANCET.1, side, Placement::ring(theta, 0.0).with_across(*u))?;
         }
     }
-    // The palm's inner edges eased with a comfort bevel, which also takes away the stock's own folded facets there.
+    // The palm's inner edges eased with a comfort bevel, which also takes away the stock's own folded facets there:
+    // a 45° wedge swept round the bore's edge, swelling in from nothing and dying away again so it leaves no step.
+    let (r0, r1) = (d.inner_radius_mm() - 0.4, d.inner_radius_mm() + 1.6);
+    let (a0, a1) = (PALM_BEVEL_DEG.0.to_radians(), (PALM_BEVEL_DEG.0 + PALM_BEVEL_DEG.1).to_radians());
+    let rim = Seg::Arc { c: [0.0, 0.0], from: [r0 * a0.cos(), r0 * a0.sin()], to: [r0 * a1.cos(), r0 * a1.sin()], ccw: true };
     for side in [1.0, -1.0] {
-        let a = PALM_BEVEL_DEG.0.to_radians();
-        let mut sk = Sketch::default();
-        sk.name = "Palm bevel".into();
-        sk.plane = ringdesign_core::sketch::Workplane { origin: [0.0; 3], x: [a.cos(), a.sin(), 0.0], y: [0.0, 0.0, 1.0], on_face: None };
-        let (r0, r1) = (d.inner_radius_mm() - 0.4, d.inner_radius_mm() + 1.6);
-        let tri: Vec<Id> = [[r0, side * (r0 - PALM_BEVEL_OFF)], [r1, side * (r1 - PALM_BEVEL_OFF)], [r0, side * (r1 - PALM_BEVEL_OFF)]].iter().map(|p| sk.point(*p)).collect();
-        sk.entity(Geometry::Polyline { points: tri, closed: true });
         let which = if side > 0.0 { "front" } else { "back" };
-        t.add(
-            &format!("Bevel the palm's {which} inner edge for comfort"),
-            Operation::Revolve { sketch: Profile::Inline(sk), pivot: [0.0; 3], axis: [0.0, 0.0, 1.0], degrees: PALM_BEVEL_DEG.1, in_plane: false },
-            part(Attach::Cut, Placement::Free, 0.0),
-        )?;
+        // About the wedge's corner out in the air past the bore and the band's side: across is in toward the axis.
+        let wedge = [[0.0, 0.0], [-(r1 - r0), 0.0], [0.0, -side * (r1 - r0)]];
+        sweep_segs(&mut t, &format!("Bevel the palm's {which} inner edge for comfort"), &[rim], side * (r1 - PALM_BEVEL_OFF), &wedge, Attach::Cut, Placement::Free, &PALM_BEVEL_LAW)?;
     }
-    // A blind arcade down each shoulder: lancet arches drawn as half-round rolls on the band, diminishing away from
-    // the head, each pointing to it, bedded deep enough to stay in the metal where the section curves away.
+    // Lancets sunk down each shoulder, diminishing away from the head, each pointing to it.
     for (off, len) in LANCETS {
         for side in [1.0, -1.0] {
             let theta = CROWN_DEG + side * off;
-            let arch: Vec<P2> = lancet_arch(len * 0.45, -len / 2.0, len / 2.0).into_iter().map(|[x, y]| [x, -side * y]).collect();
+            let light: Vec<P2> = lancet(len * 0.45, -len / 2.0, len / 2.0).into_iter().map(|[x, y]| [x, -side * y]).collect();
             let which = if side > 0.0 { "left" } else { "right" };
-            lancet_roll(&mut t, &format!("the {which} shoulder's lancet at {off:.0} degrees"), &arch, Placement::ring(theta, 0.0))?;
+            t.add(
+                &format!("Sink the {which} shoulder's lancet at {off:.0} degrees"),
+                Operation::Extrude { sketch: Profile::Inline(sketch_of("Shoulder lancet", &[light])), height_mm: -(LANCET_DEPTH + 0.03), draft_deg: SHOULDER_DRAFT.min(8.0 * len) },
+                part(Attach::Cut, Placement::ring(theta, 0.03), 0.0),
+            )?;
         }
     }
     let _ = blockout;
@@ -842,8 +886,8 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
     d.cad = Some(t.doc);
     d.manufacturing = Some(s);
     // Where everything fell.
-    let clear = hood_clearance(&hood_centre());
-    let (fl, fh) = (OGEE_U + FLEUR_BASE, OGEE_U + FLEUR_BASE + 1.95);
+    let clear = hood_clearance(&centre_line);
+    let (fl, fh) = (OGEE_U + FLEUR_BASE, OGEE_U + FLEUR_BASE + FLEUR_PETAL_LEN + FLEUR_BUD_R);
     let placed = Placed {
         springing_u: springing_u(),
         inner_threshold_u: ut,
@@ -1297,7 +1341,30 @@ fn main() -> Result<()> {
         let mut bare = stock()?;
         bare.cad = None;
         let bb = mesh::try_build(&bare, &AlphaLibrary::builtin(), draft_params())?;
-        let mut pts: Vec<(f32, f32)> = bb.mesh.vertices.iter().filter(|v| (v.2 - su).abs() < 0.06 && v.1 > 4.0 && v.0 < 0.0).map(|v| (v.0, v.1)).collect();
+        if std::env::var("PORTA_PROBE_SLICE").is_ok() {
+            // Exact slice of the bare stock by the plane u = su: every triangle edge crossing it, as (w, y).
+            let m = &bb.mesh;
+            let mut out: Vec<(f32, f32)> = Vec::new();
+            for f in &m.faces {
+                let p: Vec<[f32; 3]> = f.iter().map(|&i| { let v = m.vertices[i as usize]; [v.0, v.1, v.2] }).collect();
+                for k in 0..3 {
+                    let (a, b) = (p[k], p[(k + 1) % 3]);
+                    if (a[2] - su) * (b[2] - su) < 0.0 {
+                        let t = (su - a[2]) / (b[2] - a[2]);
+                        out.push((a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])));
+                    }
+                }
+            }
+            println!("{:?}", out.iter().filter(|(_, y)| *y > 8.0).map(|(w, y)| format!("({w:.2},{y:.2})")).collect::<Vec<_>>());
+            return Ok(());
+        }
+        let along = std::env::var("PORTA_PROBE_ALONG").is_ok();
+        let mut pts: Vec<(f32, f32)> = if along {
+            // The section along the axis at w = su instead: (u, y).
+            bb.mesh.vertices.iter().filter(|v| (v.0 - su).abs() < 0.06 && v.1 > 4.0).map(|v| (v.2, v.1)).collect()
+        } else {
+            bb.mesh.vertices.iter().filter(|v| (v.2 - su).abs() < 0.06 && v.1 > 4.0 && v.0 < 0.0).map(|v| (v.0, v.1)).collect()
+        };
         pts.sort_by(|a, b| a.0.total_cmp(&b.0));
         println!("{:?}", pts.iter().map(|(w, y)| format!("({w:.2},{y:.2})")).collect::<Vec<_>>());
         return Ok(());
@@ -1309,7 +1376,7 @@ fn main() -> Result<()> {
         let mut bare = d.clone();
         bare.cad = None;
         let bb = mesh::try_build(&bare, &lib, draft_params())?;
-        for f in d.cad.as_ref().unwrap().features.iter().filter(|f| f.name.contains("niche")) {
+        for f in d.cad.as_ref().unwrap().features.iter().filter(|f| f.name.contains("pocket")) {
             let fr = f.component.placement.frame_on(&d, Some(&bb.mesh))?;
             println!("  {}: origin {:?} z {:?}", f.name, fr.origin.map(|v| (v * 100.0).round() / 100.0), fr.z_axis.map(|v| (v * 100.0).round() / 100.0));
         }

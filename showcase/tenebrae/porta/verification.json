@@ -1,19 +1,19 @@
 {
   "authoring_ms": {
-    "graph_creation": 77.499548,
-    "source_read": 17.367041999999998
+    "graph_creation": 80.307328,
+    "source_read": 14.765307
   },
   "cold_design_reload": true,
   "cold_graph_reload": true,
   "design_set_patches": [
     {
       "graph": "Porta — the portal",
-      "node": 354,
+      "node": 404,
       "pointer": "/manufacturing"
     }
   ],
   "detail_findings": 0,
-  "editable_design_bytes": 2029964,
+  "editable_design_bytes": 1593495,
   "editable_graph_reload": true,
   "export_geometry_verified": true,
   "exposed_control_policy": "explicit_allowlist",
@@ -23,27 +23,27 @@
     "refine": null,
     "theta_steps": 1536
   },
-  "nodes": 184,
+  "nodes": 209,
   "open_ms": {
-    "bake": 0.006712,
-    "bake_again": 0.000561,
-    "detail": 1.080556,
-    "detail_again": 0.958333,
-    "evaluate": 53.756724,
-    "first_build": 3689.668161,
-    "read": 4.637243,
-    "rebuild": 3.404178,
+    "bake": 0.015481,
+    "bake_again": 0.000668,
+    "detail": 1.046615,
+    "detail_again": 0.9579340000000001,
+    "evaluate": 60.941544,
+    "first_build": 3973.4423429999997,
+    "read": 3.733321,
+    "rebuild": 3.691373,
     "unpack": null,
-    "verdict": 13.50538
+    "verdict": 15.176693
   },
   "size_budget_bytes": 1000000,
   "size_review_required": false,
   "source_identical": true,
   "source_method": "lift",
-  "template_bytes": 995989,
+  "template_bytes": 788269,
   "template_class": "stock",
   "template_gate_passed": true,
   "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
-  "triangles": 228764,
+  "triangles": 219230,
   "vertices_faces_normals_identical": true
 }

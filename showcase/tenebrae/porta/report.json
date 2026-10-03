@@ -9,17 +9,17 @@
       },
       {
         "land": "ruby's light to the door leaves' points",
-        "mm": 1.6600000000000004,
+        "mm": 1.96,
         "pass": true
       },
       {
         "land": "crypt quatrefoil to the portal's threshold",
-        "mm": 0.8199999999999994,
+        "mm": 1.3000000000000007,
         "pass": true
       },
       {
         "land": "crypt quatrefoil to the drop's round end on the axis",
-        "mm": 1.0200000000000014,
+        "mm": 1.7400000000000002,
         "pass": true
       }
     ],
@@ -32,11 +32,11 @@
     "degenerate_faces": 0,
     "pass": true,
     "self_crossings": 0,
-    "triangles": 228764,
+    "triangles": 219230,
     "watertight": true
   },
   "cold_reload_identical": true,
-  "design_bytes": 957509,
+  "design_bytes": 743722,
   "design_format": 6,
   "draft": {
     "bore_margin_mm": -2.7614460051950118E-8,
@@ -45,7 +45,7 @@
       768,
       320
     ],
-    "build_s": 5.562872994,
+    "build_s": 4.445330049,
     "cut_lands_0_8": [],
     "degenerate_faces": 0,
     "dfm_findings": [],
@@ -276,11 +276,19 @@
         "Ok"
       ],
       [
+        "Ring the ruby with its collar",
+        "Ok"
+      ],
+      [
         "Sink the tympanum, sparing the lintel beam",
         "Ok"
       ],
       [
         "Sink the door opening, sparing the trumeau",
+        "Ok"
+      ],
+      [
+        "Sink the tympanum, sparing the ruby's collar",
         "Ok"
       ],
       [
@@ -316,7 +324,7 @@
         "Ok"
       ],
       [
-        "Bur the ruby's flush seat into the tympanum floor",
+        "Bur the ruby's seat into the floor and its collar",
         "Ok"
       ],
       [
@@ -336,7 +344,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 1 up the hood's right",
+        "Grow crocket 1 up the hood's right",
         "Ok"
       ],
       [
@@ -344,7 +352,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 1 up the hood's left",
+        "Grow crocket 1 up the hood's left",
         "Ok"
       ],
       [
@@ -352,7 +360,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 2 up the hood's right",
+        "Grow crocket 2 up the hood's right",
         "Ok"
       ],
       [
@@ -360,7 +368,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 2 up the hood's left",
+        "Grow crocket 2 up the hood's left",
         "Ok"
       ],
       [
@@ -368,7 +376,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 3 up the hood's right",
+        "Grow crocket 3 up the hood's right",
         "Ok"
       ],
       [
@@ -376,7 +384,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 3 up the hood's left",
+        "Grow crocket 3 up the hood's left",
         "Ok"
       ],
       [
@@ -412,199 +420,379 @@
         "Ok"
       ],
       [
+        "Draw the crypt window's round frame",
+        "Ok"
+      ],
+      [
+        "Ring the crypt window's frame with a roll",
+        "Ok"
+      ],
+      [
+        "Sink the crypt window's frame, sparing its roll",
+        "Ok"
+      ],
+      [
         "Pierce the crypt quatrefoil through the round end",
         "Ok"
       ],
       [
-        "Roll the right side of arch 1 of the left wall's arcade",
+        "Draw the pocket of arch 1 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 1 of the left wall's arcade",
+        "Run the roll round arch 1 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 1 of the left wall's arcade",
+        "Sink arch 1 of the left wall's arcade, sparing its roll",
         "Ok"
       ],
       [
-        "Roll the right side of arch 1 of the right wall's arcade",
+        "Draw the point of arch 1 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 1 of the right wall's arcade",
+        "Sink arch 1 of the left wall's arcade, sparing its point",
         "Ok"
       ],
       [
-        "Boss the point of arch 1 of the right wall's arcade",
+        "Draw the right capital of arch 1 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the right side of arch 2 of the left wall's arcade",
+        "Sink arch 1 of the left wall's arcade, sparing its right capital",
         "Ok"
       ],
       [
-        "Roll the left side of arch 2 of the left wall's arcade",
+        "Draw the left capital of arch 1 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 2 of the left wall's arcade",
+        "Sink arch 1 of the left wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
-        "Roll the right side of arch 2 of the right wall's arcade",
+        "Draw the pocket of arch 1 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 2 of the right wall's arcade",
+        "Run the roll round arch 1 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 2 of the right wall's arcade",
+        "Sink arch 1 of the right wall's arcade, sparing its roll",
         "Ok"
       ],
       [
-        "Roll the right side of arch 3 of the left wall's arcade",
+        "Draw the point of arch 1 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 3 of the left wall's arcade",
+        "Sink arch 1 of the right wall's arcade, sparing its point",
         "Ok"
       ],
       [
-        "Boss the point of arch 3 of the left wall's arcade",
+        "Draw the right capital of arch 1 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the right side of arch 3 of the right wall's arcade",
+        "Sink arch 1 of the right wall's arcade, sparing its right capital",
         "Ok"
       ],
       [
-        "Roll the left side of arch 3 of the right wall's arcade",
+        "Draw the left capital of arch 1 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 3 of the right wall's arcade",
+        "Sink arch 1 of the right wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
-        "Roll the right side of arch 4 of the left wall's arcade",
+        "Draw the pocket of arch 2 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 4 of the left wall's arcade",
+        "Run the roll round arch 2 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 4 of the left wall's arcade",
+        "Sink arch 2 of the left wall's arcade, sparing its roll",
         "Ok"
       ],
       [
-        "Roll the right side of arch 4 of the right wall's arcade",
+        "Draw the point of arch 2 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 4 of the right wall's arcade",
+        "Sink arch 2 of the left wall's arcade, sparing its point",
         "Ok"
       ],
       [
-        "Boss the point of arch 4 of the right wall's arcade",
+        "Draw the right capital of arch 2 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the right side of arch 5 of the left wall's arcade",
+        "Sink arch 2 of the left wall's arcade, sparing its right capital",
         "Ok"
       ],
       [
-        "Roll the left side of arch 5 of the left wall's arcade",
+        "Draw the left capital of arch 2 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 5 of the left wall's arcade",
+        "Sink arch 2 of the left wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
-        "Roll the right side of arch 5 of the right wall's arcade",
+        "Draw the pocket of arch 2 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 5 of the right wall's arcade",
+        "Run the roll round arch 2 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 5 of the right wall's arcade",
+        "Sink arch 2 of the right wall's arcade, sparing its roll",
         "Ok"
       ],
       [
-        "Roll the right side of arch 6 of the left wall's arcade",
+        "Draw the point of arch 2 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 6 of the left wall's arcade",
+        "Sink arch 2 of the right wall's arcade, sparing its point",
         "Ok"
       ],
       [
-        "Boss the point of arch 6 of the left wall's arcade",
+        "Draw the right capital of arch 2 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the right side of arch 6 of the right wall's arcade",
+        "Sink arch 2 of the right wall's arcade, sparing its right capital",
         "Ok"
       ],
       [
-        "Roll the left side of arch 6 of the right wall's arcade",
+        "Draw the left capital of arch 2 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 6 of the right wall's arcade",
+        "Sink arch 2 of the right wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
-        "Roll the right side of arch 7 of the left wall's arcade",
+        "Draw the pocket of arch 3 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 7 of the left wall's arcade",
+        "Run the roll round arch 3 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 7 of the left wall's arcade",
+        "Sink arch 3 of the left wall's arcade, sparing its roll",
         "Ok"
       ],
       [
-        "Roll the right side of arch 7 of the right wall's arcade",
+        "Draw the point of arch 3 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 7 of the right wall's arcade",
+        "Sink arch 3 of the left wall's arcade, sparing its point",
         "Ok"
       ],
       [
-        "Boss the point of arch 7 of the right wall's arcade",
+        "Draw the right capital of arch 3 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the right side of arch 8 of the left wall's arcade",
+        "Sink arch 3 of the left wall's arcade, sparing its right capital",
         "Ok"
       ],
       [
-        "Roll the left side of arch 8 of the left wall's arcade",
+        "Draw the left capital of arch 3 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 8 of the left wall's arcade",
+        "Sink arch 3 of the left wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
-        "Roll the right side of arch 8 of the right wall's arcade",
+        "Draw the pocket of arch 3 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 8 of the right wall's arcade",
+        "Run the roll round arch 3 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 8 of the right wall's arcade",
+        "Sink arch 3 of the right wall's arcade, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the point of arch 3 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 3 of the right wall's arcade, sparing its point",
+        "Ok"
+      ],
+      [
+        "Draw the right capital of arch 3 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 3 of the right wall's arcade, sparing its right capital",
+        "Ok"
+      ],
+      [
+        "Draw the left capital of arch 3 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 3 of the right wall's arcade, sparing its left capital",
+        "Ok"
+      ],
+      [
+        "Draw the pocket of arch 4 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Run the roll round arch 4 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the left wall's arcade, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the point of arch 4 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the left wall's arcade, sparing its point",
+        "Ok"
+      ],
+      [
+        "Draw the right capital of arch 4 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the left wall's arcade, sparing its right capital",
+        "Ok"
+      ],
+      [
+        "Draw the left capital of arch 4 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the left wall's arcade, sparing its left capital",
+        "Ok"
+      ],
+      [
+        "Draw the pocket of arch 4 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Run the roll round arch 4 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the right wall's arcade, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the point of arch 4 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the right wall's arcade, sparing its point",
+        "Ok"
+      ],
+      [
+        "Draw the right capital of arch 4 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the right wall's arcade, sparing its right capital",
+        "Ok"
+      ],
+      [
+        "Draw the left capital of arch 4 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the right wall's arcade, sparing its left capital",
+        "Ok"
+      ],
+      [
+        "Draw the pocket of arch 5 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Run the roll round arch 5 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the left wall's arcade, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the point of arch 5 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the left wall's arcade, sparing its point",
+        "Ok"
+      ],
+      [
+        "Draw the right capital of arch 5 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the left wall's arcade, sparing its right capital",
+        "Ok"
+      ],
+      [
+        "Draw the left capital of arch 5 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the left wall's arcade, sparing its left capital",
+        "Ok"
+      ],
+      [
+        "Draw the pocket of arch 5 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Run the roll round arch 5 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the right wall's arcade, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the point of arch 5 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the right wall's arcade, sparing its point",
+        "Ok"
+      ],
+      [
+        "Draw the right capital of arch 5 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the right wall's arcade, sparing its right capital",
+        "Ok"
+      ],
+      [
+        "Draw the left capital of arch 5 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the right wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
@@ -616,129 +804,41 @@
         "Ok"
       ],
       [
-        "Roll the right side of the left shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 47 degrees",
         "Ok"
       ],
       [
-        "Roll the left side of the left shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 47 degrees",
         "Ok"
       ],
       [
-        "Boss the point of the left shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 56 degrees",
         "Ok"
       ],
       [
-        "Roll the right side of the right shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 56 degrees",
         "Ok"
       ],
       [
-        "Roll the left side of the right shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 65 degrees",
         "Ok"
       ],
       [
-        "Boss the point of the right shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 65 degrees",
         "Ok"
       ],
       [
-        "Roll the right side of the left shoulder's lancet at 48 degrees",
+        "Sink the left shoulder's lancet at 74 degrees",
         "Ok"
       ],
       [
-        "Roll the left side of the left shoulder's lancet at 48 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 48 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 48 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 48 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 48 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 74 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 74 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 74 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 74 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 74 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 74 degrees",
+        "Sink the right shoulder's lancet at 74 degrees",
         "Ok"
       ]
     ],
     "field_notes": [
       "Lost wax: 0.56% of the surface would undercut a two-part pull (worst 4.3 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "113 CAD parts stand on the band (101 joined, 12 cut, 0 separate), not judged here: the built ring judges them.",
+      "54 CAD parts stand on the band (23 joined, 31 cut, 0 separate), not judged here: the built ring judges them.",
       "Undercut 290–9° on the crest: 1.4 mm² leaning to 2° — no single layer explains it.",
       "Undercut 38–61° on the crest: 2.2 mm² leaning to 3° — no single layer explains it.",
       "Undercut 119–144° on the crest: 2.2 mm² leaning to 3° — no single layer explains it.",
@@ -746,7 +846,7 @@
       "Undercut 173–212° on the crest: 0.7 mm² leaning to 3° — no single layer explains it."
     ],
     "field_verdict_informational": "Castable",
-    "grams_18k": 19.925772297705397,
+    "grams_18k": 20.01692113041416,
     "made_parts": [
       [
         "Sink archivolt 1, sparing its left base",
@@ -785,7 +885,7 @@
         0
       ],
       [
-        "Bur the ruby's flush seat into the tympanum floor",
+        "Bur the ruby's seat into the floor and its collar",
         0
       ],
       [
@@ -805,7 +905,7 @@
         0
       ],
       [
-        "Curl crocket 1 up the hood's right",
+        "Grow crocket 1 up the hood's right",
         0
       ],
       [
@@ -813,7 +913,7 @@
         0
       ],
       [
-        "Curl crocket 1 up the hood's left",
+        "Grow crocket 1 up the hood's left",
         0
       ],
       [
@@ -821,7 +921,7 @@
         0
       ],
       [
-        "Curl crocket 2 up the hood's right",
+        "Grow crocket 2 up the hood's right",
         0
       ],
       [
@@ -829,7 +929,7 @@
         0
       ],
       [
-        "Curl crocket 2 up the hood's left",
+        "Grow crocket 2 up the hood's left",
         0
       ],
       [
@@ -837,7 +937,7 @@
         0
       ],
       [
-        "Curl crocket 3 up the hood's right",
+        "Grow crocket 3 up the hood's right",
         0
       ],
       [
@@ -845,7 +945,7 @@
         0
       ],
       [
-        "Curl crocket 3 up the hood's left",
+        "Grow crocket 3 up the hood's left",
         0
       ],
       [
@@ -881,199 +981,51 @@
         0
       ],
       [
+        "Sink the crypt window's frame, sparing its roll",
+        0
+      ],
+      [
         "Pierce the crypt quatrefoil through the round end",
         0
       ],
       [
-        "Roll the right side of arch 1 of the left wall's arcade",
+        "Sink arch 1 of the left wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the left side of arch 1 of the left wall's arcade",
+        "Sink arch 1 of the right wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Boss the point of arch 1 of the left wall's arcade",
+        "Sink arch 2 of the left wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the right side of arch 1 of the right wall's arcade",
+        "Sink arch 2 of the right wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the left side of arch 1 of the right wall's arcade",
+        "Sink arch 3 of the left wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Boss the point of arch 1 of the right wall's arcade",
+        "Sink arch 3 of the right wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the right side of arch 2 of the left wall's arcade",
+        "Sink arch 4 of the left wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the left side of arch 2 of the left wall's arcade",
+        "Sink arch 4 of the right wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Boss the point of arch 2 of the left wall's arcade",
+        "Sink arch 5 of the left wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the right side of arch 2 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 2 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 2 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 3 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 3 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 3 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 3 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 3 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 3 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 4 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 4 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 4 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 4 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 4 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 4 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 5 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 5 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 5 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 5 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 5 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 5 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 6 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 6 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 6 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 6 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 6 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 6 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 7 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 7 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 7 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 7 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 7 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 7 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 8 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 8 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 8 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 8 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 8 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 8 of the right wall's arcade",
+        "Sink arch 5 of the right wall's arcade, sparing its left capital",
         0
       ],
       [
@@ -1085,123 +1037,35 @@
         0
       ],
       [
-        "Roll the right side of the left shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 47 degrees",
         0
       ],
       [
-        "Roll the left side of the left shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 47 degrees",
         0
       ],
       [
-        "Boss the point of the left shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 56 degrees",
         0
       ],
       [
-        "Roll the right side of the right shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 56 degrees",
         0
       ],
       [
-        "Roll the left side of the right shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 65 degrees",
         0
       ],
       [
-        "Boss the point of the right shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 65 degrees",
         0
       ],
       [
-        "Roll the right side of the left shoulder's lancet at 48 degrees",
+        "Sink the left shoulder's lancet at 74 degrees",
         0
       ],
       [
-        "Roll the left side of the left shoulder's lancet at 48 degrees",
-        0
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 48 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 48 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 48 degrees",
-        0
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 48 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 74 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 74 degrees",
-        0
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 74 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 74 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 74 degrees",
-        0
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 74 degrees",
+        "Sink the right shoulder's lancet at 74 degrees",
         0
       ]
     ],
@@ -1213,7 +1077,7 @@
       "rule": "every vertex at least the bore radius minus 0.01 mm from the finger's axis"
     },
     "parts_notes": [],
-    "pass": false,
+    "pass": true,
     "self_crossings": 0,
     "solids_notes": [],
     "stone_carats": 0.102114,
@@ -1222,27 +1086,25 @@
     "stones_reported": 1,
     "thickness_0_8": {
       "at": [
-        2.1719233989715576,
-        9.24146556854248,
-        -8.362736066182455
+        -6.5518167813618975,
+        13.476370493570963,
+        0.22675012052059174
       ],
       "bare_stock_same_screen": {
         "below_limit": 13,
         "rays": 374,
         "sampled_min_mm": 0.00016110918476703272
       },
-      "below_limit": 1,
-      "mesh_triangles": 228764,
+      "below_limit": 0,
+      "mesh_triangles": 219230,
       "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-      "pass": false,
+      "pass": true,
       "rays": 384,
-      "sampled_min_mm": 0.6498476532903715,
-      "samples_below": [
-        "0.650 mm at u -8.36 w 2.17, 4.08 under the table: band (exits at u -8.31 w 2.30 h -3.45, dir 0.09 0.20 0.98)"
-      ],
+      "sampled_min_mm": 0.8868940905823833,
+      "samples_below": [],
       "unresolved": 0
     },
-    "triangles": 228764,
+    "triangles": 219230,
     "watertight": true
   },
   "export": {
@@ -1252,7 +1114,7 @@
       1536,
       448
     ],
-    "build_s": 5.52103992,
+    "build_s": 4.433204668,
     "cut_lands_0_8": [],
     "degenerate_faces": 0,
     "dfm_findings": [],
@@ -1483,11 +1345,19 @@
         "Ok"
       ],
       [
+        "Ring the ruby with its collar",
+        "Ok"
+      ],
+      [
         "Sink the tympanum, sparing the lintel beam",
         "Ok"
       ],
       [
         "Sink the door opening, sparing the trumeau",
+        "Ok"
+      ],
+      [
+        "Sink the tympanum, sparing the ruby's collar",
         "Ok"
       ],
       [
@@ -1523,7 +1393,7 @@
         "Ok"
       ],
       [
-        "Bur the ruby's flush seat into the tympanum floor",
+        "Bur the ruby's seat into the floor and its collar",
         "Ok"
       ],
       [
@@ -1543,7 +1413,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 1 up the hood's right",
+        "Grow crocket 1 up the hood's right",
         "Ok"
       ],
       [
@@ -1551,7 +1421,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 1 up the hood's left",
+        "Grow crocket 1 up the hood's left",
         "Ok"
       ],
       [
@@ -1559,7 +1429,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 2 up the hood's right",
+        "Grow crocket 2 up the hood's right",
         "Ok"
       ],
       [
@@ -1567,7 +1437,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 2 up the hood's left",
+        "Grow crocket 2 up the hood's left",
         "Ok"
       ],
       [
@@ -1575,7 +1445,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 3 up the hood's right",
+        "Grow crocket 3 up the hood's right",
         "Ok"
       ],
       [
@@ -1583,7 +1453,7 @@
         "Ok"
       ],
       [
-        "Curl crocket 3 up the hood's left",
+        "Grow crocket 3 up the hood's left",
         "Ok"
       ],
       [
@@ -1619,199 +1489,379 @@
         "Ok"
       ],
       [
+        "Draw the crypt window's round frame",
+        "Ok"
+      ],
+      [
+        "Ring the crypt window's frame with a roll",
+        "Ok"
+      ],
+      [
+        "Sink the crypt window's frame, sparing its roll",
+        "Ok"
+      ],
+      [
         "Pierce the crypt quatrefoil through the round end",
         "Ok"
       ],
       [
-        "Roll the right side of arch 1 of the left wall's arcade",
+        "Draw the pocket of arch 1 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 1 of the left wall's arcade",
+        "Run the roll round arch 1 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 1 of the left wall's arcade",
+        "Sink arch 1 of the left wall's arcade, sparing its roll",
         "Ok"
       ],
       [
-        "Roll the right side of arch 1 of the right wall's arcade",
+        "Draw the point of arch 1 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 1 of the right wall's arcade",
+        "Sink arch 1 of the left wall's arcade, sparing its point",
         "Ok"
       ],
       [
-        "Boss the point of arch 1 of the right wall's arcade",
+        "Draw the right capital of arch 1 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the right side of arch 2 of the left wall's arcade",
+        "Sink arch 1 of the left wall's arcade, sparing its right capital",
         "Ok"
       ],
       [
-        "Roll the left side of arch 2 of the left wall's arcade",
+        "Draw the left capital of arch 1 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 2 of the left wall's arcade",
+        "Sink arch 1 of the left wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
-        "Roll the right side of arch 2 of the right wall's arcade",
+        "Draw the pocket of arch 1 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 2 of the right wall's arcade",
+        "Run the roll round arch 1 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 2 of the right wall's arcade",
+        "Sink arch 1 of the right wall's arcade, sparing its roll",
         "Ok"
       ],
       [
-        "Roll the right side of arch 3 of the left wall's arcade",
+        "Draw the point of arch 1 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 3 of the left wall's arcade",
+        "Sink arch 1 of the right wall's arcade, sparing its point",
         "Ok"
       ],
       [
-        "Boss the point of arch 3 of the left wall's arcade",
+        "Draw the right capital of arch 1 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the right side of arch 3 of the right wall's arcade",
+        "Sink arch 1 of the right wall's arcade, sparing its right capital",
         "Ok"
       ],
       [
-        "Roll the left side of arch 3 of the right wall's arcade",
+        "Draw the left capital of arch 1 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 3 of the right wall's arcade",
+        "Sink arch 1 of the right wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
-        "Roll the right side of arch 4 of the left wall's arcade",
+        "Draw the pocket of arch 2 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 4 of the left wall's arcade",
+        "Run the roll round arch 2 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 4 of the left wall's arcade",
+        "Sink arch 2 of the left wall's arcade, sparing its roll",
         "Ok"
       ],
       [
-        "Roll the right side of arch 4 of the right wall's arcade",
+        "Draw the point of arch 2 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 4 of the right wall's arcade",
+        "Sink arch 2 of the left wall's arcade, sparing its point",
         "Ok"
       ],
       [
-        "Boss the point of arch 4 of the right wall's arcade",
+        "Draw the right capital of arch 2 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the right side of arch 5 of the left wall's arcade",
+        "Sink arch 2 of the left wall's arcade, sparing its right capital",
         "Ok"
       ],
       [
-        "Roll the left side of arch 5 of the left wall's arcade",
+        "Draw the left capital of arch 2 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 5 of the left wall's arcade",
+        "Sink arch 2 of the left wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
-        "Roll the right side of arch 5 of the right wall's arcade",
+        "Draw the pocket of arch 2 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 5 of the right wall's arcade",
+        "Run the roll round arch 2 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 5 of the right wall's arcade",
+        "Sink arch 2 of the right wall's arcade, sparing its roll",
         "Ok"
       ],
       [
-        "Roll the right side of arch 6 of the left wall's arcade",
+        "Draw the point of arch 2 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 6 of the left wall's arcade",
+        "Sink arch 2 of the right wall's arcade, sparing its point",
         "Ok"
       ],
       [
-        "Boss the point of arch 6 of the left wall's arcade",
+        "Draw the right capital of arch 2 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the right side of arch 6 of the right wall's arcade",
+        "Sink arch 2 of the right wall's arcade, sparing its right capital",
         "Ok"
       ],
       [
-        "Roll the left side of arch 6 of the right wall's arcade",
+        "Draw the left capital of arch 2 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 6 of the right wall's arcade",
+        "Sink arch 2 of the right wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
-        "Roll the right side of arch 7 of the left wall's arcade",
+        "Draw the pocket of arch 3 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 7 of the left wall's arcade",
+        "Run the roll round arch 3 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 7 of the left wall's arcade",
+        "Sink arch 3 of the left wall's arcade, sparing its roll",
         "Ok"
       ],
       [
-        "Roll the right side of arch 7 of the right wall's arcade",
+        "Draw the point of arch 3 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 7 of the right wall's arcade",
+        "Sink arch 3 of the left wall's arcade, sparing its point",
         "Ok"
       ],
       [
-        "Boss the point of arch 7 of the right wall's arcade",
+        "Draw the right capital of arch 3 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Roll the right side of arch 8 of the left wall's arcade",
+        "Sink arch 3 of the left wall's arcade, sparing its right capital",
         "Ok"
       ],
       [
-        "Roll the left side of arch 8 of the left wall's arcade",
+        "Draw the left capital of arch 3 of the left wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 8 of the left wall's arcade",
+        "Sink arch 3 of the left wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
-        "Roll the right side of arch 8 of the right wall's arcade",
+        "Draw the pocket of arch 3 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Roll the left side of arch 8 of the right wall's arcade",
+        "Run the roll round arch 3 of the right wall's arcade",
         "Ok"
       ],
       [
-        "Boss the point of arch 8 of the right wall's arcade",
+        "Sink arch 3 of the right wall's arcade, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the point of arch 3 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 3 of the right wall's arcade, sparing its point",
+        "Ok"
+      ],
+      [
+        "Draw the right capital of arch 3 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 3 of the right wall's arcade, sparing its right capital",
+        "Ok"
+      ],
+      [
+        "Draw the left capital of arch 3 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 3 of the right wall's arcade, sparing its left capital",
+        "Ok"
+      ],
+      [
+        "Draw the pocket of arch 4 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Run the roll round arch 4 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the left wall's arcade, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the point of arch 4 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the left wall's arcade, sparing its point",
+        "Ok"
+      ],
+      [
+        "Draw the right capital of arch 4 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the left wall's arcade, sparing its right capital",
+        "Ok"
+      ],
+      [
+        "Draw the left capital of arch 4 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the left wall's arcade, sparing its left capital",
+        "Ok"
+      ],
+      [
+        "Draw the pocket of arch 4 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Run the roll round arch 4 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the right wall's arcade, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the point of arch 4 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the right wall's arcade, sparing its point",
+        "Ok"
+      ],
+      [
+        "Draw the right capital of arch 4 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the right wall's arcade, sparing its right capital",
+        "Ok"
+      ],
+      [
+        "Draw the left capital of arch 4 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 4 of the right wall's arcade, sparing its left capital",
+        "Ok"
+      ],
+      [
+        "Draw the pocket of arch 5 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Run the roll round arch 5 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the left wall's arcade, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the point of arch 5 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the left wall's arcade, sparing its point",
+        "Ok"
+      ],
+      [
+        "Draw the right capital of arch 5 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the left wall's arcade, sparing its right capital",
+        "Ok"
+      ],
+      [
+        "Draw the left capital of arch 5 of the left wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the left wall's arcade, sparing its left capital",
+        "Ok"
+      ],
+      [
+        "Draw the pocket of arch 5 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Run the roll round arch 5 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the right wall's arcade, sparing its roll",
+        "Ok"
+      ],
+      [
+        "Draw the point of arch 5 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the right wall's arcade, sparing its point",
+        "Ok"
+      ],
+      [
+        "Draw the right capital of arch 5 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the right wall's arcade, sparing its right capital",
+        "Ok"
+      ],
+      [
+        "Draw the left capital of arch 5 of the right wall's arcade",
+        "Ok"
+      ],
+      [
+        "Sink arch 5 of the right wall's arcade, sparing its left capital",
         "Ok"
       ],
       [
@@ -1823,129 +1873,41 @@
         "Ok"
       ],
       [
-        "Roll the right side of the left shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 47 degrees",
         "Ok"
       ],
       [
-        "Roll the left side of the left shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 47 degrees",
         "Ok"
       ],
       [
-        "Boss the point of the left shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 56 degrees",
         "Ok"
       ],
       [
-        "Roll the right side of the right shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 56 degrees",
         "Ok"
       ],
       [
-        "Roll the left side of the right shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 65 degrees",
         "Ok"
       ],
       [
-        "Boss the point of the right shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 65 degrees",
         "Ok"
       ],
       [
-        "Roll the right side of the left shoulder's lancet at 48 degrees",
+        "Sink the left shoulder's lancet at 74 degrees",
         "Ok"
       ],
       [
-        "Roll the left side of the left shoulder's lancet at 48 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 48 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 48 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 48 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 48 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 57 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 66 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 74 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 74 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 74 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 74 degrees",
-        "Ok"
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 74 degrees",
-        "Ok"
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 74 degrees",
+        "Sink the right shoulder's lancet at 74 degrees",
         "Ok"
       ]
     ],
     "field_notes": [
       "Lost wax: 0.56% of the surface would undercut a two-part pull (worst 4.3 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "113 CAD parts stand on the band (101 joined, 12 cut, 0 separate), not judged here: the built ring judges them.",
+      "54 CAD parts stand on the band (23 joined, 31 cut, 0 separate), not judged here: the built ring judges them.",
       "Undercut 290–9° on the crest: 1.4 mm² leaning to 2° — no single layer explains it.",
       "Undercut 38–61° on the crest: 2.2 mm² leaning to 3° — no single layer explains it.",
       "Undercut 119–144° on the crest: 2.2 mm² leaning to 3° — no single layer explains it.",
@@ -1953,7 +1915,7 @@
       "Undercut 173–212° on the crest: 0.7 mm² leaning to 3° — no single layer explains it."
     ],
     "field_verdict_informational": "Castable",
-    "grams_18k": 19.925772297705397,
+    "grams_18k": 20.01692113041416,
     "made_parts": [
       [
         "Sink archivolt 1, sparing its left base",
@@ -1992,7 +1954,7 @@
         0
       ],
       [
-        "Bur the ruby's flush seat into the tympanum floor",
+        "Bur the ruby's seat into the floor and its collar",
         0
       ],
       [
@@ -2012,7 +1974,7 @@
         0
       ],
       [
-        "Curl crocket 1 up the hood's right",
+        "Grow crocket 1 up the hood's right",
         0
       ],
       [
@@ -2020,7 +1982,7 @@
         0
       ],
       [
-        "Curl crocket 1 up the hood's left",
+        "Grow crocket 1 up the hood's left",
         0
       ],
       [
@@ -2028,7 +1990,7 @@
         0
       ],
       [
-        "Curl crocket 2 up the hood's right",
+        "Grow crocket 2 up the hood's right",
         0
       ],
       [
@@ -2036,7 +1998,7 @@
         0
       ],
       [
-        "Curl crocket 2 up the hood's left",
+        "Grow crocket 2 up the hood's left",
         0
       ],
       [
@@ -2044,7 +2006,7 @@
         0
       ],
       [
-        "Curl crocket 3 up the hood's right",
+        "Grow crocket 3 up the hood's right",
         0
       ],
       [
@@ -2052,7 +2014,7 @@
         0
       ],
       [
-        "Curl crocket 3 up the hood's left",
+        "Grow crocket 3 up the hood's left",
         0
       ],
       [
@@ -2088,199 +2050,51 @@
         0
       ],
       [
+        "Sink the crypt window's frame, sparing its roll",
+        0
+      ],
+      [
         "Pierce the crypt quatrefoil through the round end",
         0
       ],
       [
-        "Roll the right side of arch 1 of the left wall's arcade",
+        "Sink arch 1 of the left wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the left side of arch 1 of the left wall's arcade",
+        "Sink arch 1 of the right wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Boss the point of arch 1 of the left wall's arcade",
+        "Sink arch 2 of the left wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the right side of arch 1 of the right wall's arcade",
+        "Sink arch 2 of the right wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the left side of arch 1 of the right wall's arcade",
+        "Sink arch 3 of the left wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Boss the point of arch 1 of the right wall's arcade",
+        "Sink arch 3 of the right wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the right side of arch 2 of the left wall's arcade",
+        "Sink arch 4 of the left wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the left side of arch 2 of the left wall's arcade",
+        "Sink arch 4 of the right wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Boss the point of arch 2 of the left wall's arcade",
+        "Sink arch 5 of the left wall's arcade, sparing its left capital",
         0
       ],
       [
-        "Roll the right side of arch 2 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 2 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 2 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 3 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 3 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 3 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 3 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 3 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 3 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 4 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 4 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 4 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 4 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 4 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 4 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 5 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 5 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 5 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 5 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 5 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 5 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 6 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 6 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 6 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 6 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 6 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 6 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 7 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 7 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 7 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 7 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 7 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 7 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 8 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 8 of the left wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 8 of the left wall's arcade",
-        0
-      ],
-      [
-        "Roll the right side of arch 8 of the right wall's arcade",
-        0
-      ],
-      [
-        "Roll the left side of arch 8 of the right wall's arcade",
-        0
-      ],
-      [
-        "Boss the point of arch 8 of the right wall's arcade",
+        "Sink arch 5 of the right wall's arcade, sparing its left capital",
         0
       ],
       [
@@ -2292,123 +2106,35 @@
         0
       ],
       [
-        "Roll the right side of the left shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 47 degrees",
         0
       ],
       [
-        "Roll the left side of the left shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 47 degrees",
         0
       ],
       [
-        "Boss the point of the left shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 56 degrees",
         0
       ],
       [
-        "Roll the right side of the right shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 56 degrees",
         0
       ],
       [
-        "Roll the left side of the right shoulder's lancet at 40 degrees",
+        "Sink the left shoulder's lancet at 65 degrees",
         0
       ],
       [
-        "Boss the point of the right shoulder's lancet at 40 degrees",
+        "Sink the right shoulder's lancet at 65 degrees",
         0
       ],
       [
-        "Roll the right side of the left shoulder's lancet at 48 degrees",
+        "Sink the left shoulder's lancet at 74 degrees",
         0
       ],
       [
-        "Roll the left side of the left shoulder's lancet at 48 degrees",
-        0
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 48 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 48 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 48 degrees",
-        0
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 48 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 57 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 66 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the left shoulder's lancet at 74 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the left shoulder's lancet at 74 degrees",
-        0
-      ],
-      [
-        "Boss the point of the left shoulder's lancet at 74 degrees",
-        0
-      ],
-      [
-        "Roll the right side of the right shoulder's lancet at 74 degrees",
-        0
-      ],
-      [
-        "Roll the left side of the right shoulder's lancet at 74 degrees",
-        0
-      ],
-      [
-        "Boss the point of the right shoulder's lancet at 74 degrees",
+        "Sink the right shoulder's lancet at 74 degrees",
         0
       ]
     ],
@@ -2420,7 +2146,7 @@
       "rule": "every vertex at least the bore radius minus 0.01 mm from the finger's axis"
     },
     "parts_notes": [],
-    "pass": false,
+    "pass": true,
     "self_crossings": 0,
     "solids_notes": [],
     "stone_carats": 0.102114,
@@ -2429,27 +2155,25 @@
     "stones_reported": 1,
     "thickness_0_8": {
       "at": [
-        2.1719233989715576,
-        9.24146556854248,
-        -8.362736066182455
+        -6.5518167813618975,
+        13.476370493570963,
+        0.22675012052059174
       ],
       "bare_stock_same_screen": {
         "below_limit": 13,
         "rays": 374,
         "sampled_min_mm": 0.00016110918476703272
       },
-      "below_limit": 1,
-      "mesh_triangles": 228764,
+      "below_limit": 0,
+      "mesh_triangles": 219230,
       "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-      "pass": false,
+      "pass": true,
       "rays": 384,
-      "sampled_min_mm": 0.6498476532903715,
-      "samples_below": [
-        "0.650 mm at u -8.36 w 2.17, 4.08 under the table: band (exits at u -8.31 w 2.30 h -3.45, dir 0.09 0.20 0.98)"
-      ],
+      "sampled_min_mm": 0.8868940905823833,
+      "samples_below": [],
       "unresolved": 0
     },
-    "triangles": 228764,
+    "triangles": 219230,
     "watertight": true
   },
   "features": [
@@ -2509,8 +2233,10 @@
     "Draw the tympanum and the door opening",
     "Draw the lintel beam across the doorway",
     "Stand the trumeau's column between the doors",
+    "Ring the ruby with its collar",
     "Sink the tympanum, sparing the lintel beam",
     "Sink the door opening, sparing the trumeau",
+    "Sink the tympanum, sparing the ruby's collar",
     "Draw the trumeau's capital",
     "Sink the door opening, sparing the trumeau's capital",
     "Draw the trumeau's base",
@@ -2519,22 +2245,22 @@
     "Open the left door leaf through to the finger",
     "Round 3 mm",
     "Collet the ruby in the tympanum floor",
-    "Bur the ruby's flush seat into the tympanum floor",
+    "Bur the ruby's seat into the floor and its collar",
     "Open the ruby's light through to the finger, à jour",
     "Roll the ogee hood-mould over the arch",
     "Stop the hood's right end on a boss",
     "Stop the hood's left end on a boss",
-    "Curl crocket 1 up the hood's right",
+    "Grow crocket 1 up the hood's right",
     "Bud crocket 1 on the hood's right",
-    "Curl crocket 1 up the hood's left",
+    "Grow crocket 1 up the hood's left",
     "Bud crocket 1 on the hood's left",
-    "Curl crocket 2 up the hood's right",
+    "Grow crocket 2 up the hood's right",
     "Bud crocket 2 on the hood's right",
-    "Curl crocket 2 up the hood's left",
+    "Grow crocket 2 up the hood's left",
     "Bud crocket 2 on the hood's left",
-    "Curl crocket 3 up the hood's right",
+    "Grow crocket 3 up the hood's right",
     "Bud crocket 3 on the hood's right",
-    "Curl crocket 3 up the hood's left",
+    "Grow crocket 3 up the hood's left",
     "Bud crocket 3 on the hood's left",
     "Rise the fleur's centre petal",
     "Point the fleur's centre petal",
@@ -2543,98 +2269,121 @@
     "Curl the fleur's left petal",
     "Bud the fleur's left petal",
     "Bind the fleur's petals with its band",
+    "Draw the crypt window's round frame",
+    "Ring the crypt window's frame with a roll",
+    "Sink the crypt window's frame, sparing its roll",
     "Pierce the crypt quatrefoil through the round end",
-    "Roll the right side of arch 1 of the left wall's arcade",
-    "Roll the left side of arch 1 of the left wall's arcade",
-    "Boss the point of arch 1 of the left wall's arcade",
-    "Roll the right side of arch 1 of the right wall's arcade",
-    "Roll the left side of arch 1 of the right wall's arcade",
-    "Boss the point of arch 1 of the right wall's arcade",
-    "Roll the right side of arch 2 of the left wall's arcade",
-    "Roll the left side of arch 2 of the left wall's arcade",
-    "Boss the point of arch 2 of the left wall's arcade",
-    "Roll the right side of arch 2 of the right wall's arcade",
-    "Roll the left side of arch 2 of the right wall's arcade",
-    "Boss the point of arch 2 of the right wall's arcade",
-    "Roll the right side of arch 3 of the left wall's arcade",
-    "Roll the left side of arch 3 of the left wall's arcade",
-    "Boss the point of arch 3 of the left wall's arcade",
-    "Roll the right side of arch 3 of the right wall's arcade",
-    "Roll the left side of arch 3 of the right wall's arcade",
-    "Boss the point of arch 3 of the right wall's arcade",
-    "Roll the right side of arch 4 of the left wall's arcade",
-    "Roll the left side of arch 4 of the left wall's arcade",
-    "Boss the point of arch 4 of the left wall's arcade",
-    "Roll the right side of arch 4 of the right wall's arcade",
-    "Roll the left side of arch 4 of the right wall's arcade",
-    "Boss the point of arch 4 of the right wall's arcade",
-    "Roll the right side of arch 5 of the left wall's arcade",
-    "Roll the left side of arch 5 of the left wall's arcade",
-    "Boss the point of arch 5 of the left wall's arcade",
-    "Roll the right side of arch 5 of the right wall's arcade",
-    "Roll the left side of arch 5 of the right wall's arcade",
-    "Boss the point of arch 5 of the right wall's arcade",
-    "Roll the right side of arch 6 of the left wall's arcade",
-    "Roll the left side of arch 6 of the left wall's arcade",
-    "Boss the point of arch 6 of the left wall's arcade",
-    "Roll the right side of arch 6 of the right wall's arcade",
-    "Roll the left side of arch 6 of the right wall's arcade",
-    "Boss the point of arch 6 of the right wall's arcade",
-    "Roll the right side of arch 7 of the left wall's arcade",
-    "Roll the left side of arch 7 of the left wall's arcade",
-    "Boss the point of arch 7 of the left wall's arcade",
-    "Roll the right side of arch 7 of the right wall's arcade",
-    "Roll the left side of arch 7 of the right wall's arcade",
-    "Boss the point of arch 7 of the right wall's arcade",
-    "Roll the right side of arch 8 of the left wall's arcade",
-    "Roll the left side of arch 8 of the left wall's arcade",
-    "Boss the point of arch 8 of the left wall's arcade",
-    "Roll the right side of arch 8 of the right wall's arcade",
-    "Roll the left side of arch 8 of the right wall's arcade",
-    "Boss the point of arch 8 of the right wall's arcade",
+    "Draw the pocket of arch 1 of the left wall's arcade",
+    "Run the roll round arch 1 of the left wall's arcade",
+    "Sink arch 1 of the left wall's arcade, sparing its roll",
+    "Draw the point of arch 1 of the left wall's arcade",
+    "Sink arch 1 of the left wall's arcade, sparing its point",
+    "Draw the right capital of arch 1 of the left wall's arcade",
+    "Sink arch 1 of the left wall's arcade, sparing its right capital",
+    "Draw the left capital of arch 1 of the left wall's arcade",
+    "Sink arch 1 of the left wall's arcade, sparing its left capital",
+    "Draw the pocket of arch 1 of the right wall's arcade",
+    "Run the roll round arch 1 of the right wall's arcade",
+    "Sink arch 1 of the right wall's arcade, sparing its roll",
+    "Draw the point of arch 1 of the right wall's arcade",
+    "Sink arch 1 of the right wall's arcade, sparing its point",
+    "Draw the right capital of arch 1 of the right wall's arcade",
+    "Sink arch 1 of the right wall's arcade, sparing its right capital",
+    "Draw the left capital of arch 1 of the right wall's arcade",
+    "Sink arch 1 of the right wall's arcade, sparing its left capital",
+    "Draw the pocket of arch 2 of the left wall's arcade",
+    "Run the roll round arch 2 of the left wall's arcade",
+    "Sink arch 2 of the left wall's arcade, sparing its roll",
+    "Draw the point of arch 2 of the left wall's arcade",
+    "Sink arch 2 of the left wall's arcade, sparing its point",
+    "Draw the right capital of arch 2 of the left wall's arcade",
+    "Sink arch 2 of the left wall's arcade, sparing its right capital",
+    "Draw the left capital of arch 2 of the left wall's arcade",
+    "Sink arch 2 of the left wall's arcade, sparing its left capital",
+    "Draw the pocket of arch 2 of the right wall's arcade",
+    "Run the roll round arch 2 of the right wall's arcade",
+    "Sink arch 2 of the right wall's arcade, sparing its roll",
+    "Draw the point of arch 2 of the right wall's arcade",
+    "Sink arch 2 of the right wall's arcade, sparing its point",
+    "Draw the right capital of arch 2 of the right wall's arcade",
+    "Sink arch 2 of the right wall's arcade, sparing its right capital",
+    "Draw the left capital of arch 2 of the right wall's arcade",
+    "Sink arch 2 of the right wall's arcade, sparing its left capital",
+    "Draw the pocket of arch 3 of the left wall's arcade",
+    "Run the roll round arch 3 of the left wall's arcade",
+    "Sink arch 3 of the left wall's arcade, sparing its roll",
+    "Draw the point of arch 3 of the left wall's arcade",
+    "Sink arch 3 of the left wall's arcade, sparing its point",
+    "Draw the right capital of arch 3 of the left wall's arcade",
+    "Sink arch 3 of the left wall's arcade, sparing its right capital",
+    "Draw the left capital of arch 3 of the left wall's arcade",
+    "Sink arch 3 of the left wall's arcade, sparing its left capital",
+    "Draw the pocket of arch 3 of the right wall's arcade",
+    "Run the roll round arch 3 of the right wall's arcade",
+    "Sink arch 3 of the right wall's arcade, sparing its roll",
+    "Draw the point of arch 3 of the right wall's arcade",
+    "Sink arch 3 of the right wall's arcade, sparing its point",
+    "Draw the right capital of arch 3 of the right wall's arcade",
+    "Sink arch 3 of the right wall's arcade, sparing its right capital",
+    "Draw the left capital of arch 3 of the right wall's arcade",
+    "Sink arch 3 of the right wall's arcade, sparing its left capital",
+    "Draw the pocket of arch 4 of the left wall's arcade",
+    "Run the roll round arch 4 of the left wall's arcade",
+    "Sink arch 4 of the left wall's arcade, sparing its roll",
+    "Draw the point of arch 4 of the left wall's arcade",
+    "Sink arch 4 of the left wall's arcade, sparing its point",
+    "Draw the right capital of arch 4 of the left wall's arcade",
+    "Sink arch 4 of the left wall's arcade, sparing its right capital",
+    "Draw the left capital of arch 4 of the left wall's arcade",
+    "Sink arch 4 of the left wall's arcade, sparing its left capital",
+    "Draw the pocket of arch 4 of the right wall's arcade",
+    "Run the roll round arch 4 of the right wall's arcade",
+    "Sink arch 4 of the right wall's arcade, sparing its roll",
+    "Draw the point of arch 4 of the right wall's arcade",
+    "Sink arch 4 of the right wall's arcade, sparing its point",
+    "Draw the right capital of arch 4 of the right wall's arcade",
+    "Sink arch 4 of the right wall's arcade, sparing its right capital",
+    "Draw the left capital of arch 4 of the right wall's arcade",
+    "Sink arch 4 of the right wall's arcade, sparing its left capital",
+    "Draw the pocket of arch 5 of the left wall's arcade",
+    "Run the roll round arch 5 of the left wall's arcade",
+    "Sink arch 5 of the left wall's arcade, sparing its roll",
+    "Draw the point of arch 5 of the left wall's arcade",
+    "Sink arch 5 of the left wall's arcade, sparing its point",
+    "Draw the right capital of arch 5 of the left wall's arcade",
+    "Sink arch 5 of the left wall's arcade, sparing its right capital",
+    "Draw the left capital of arch 5 of the left wall's arcade",
+    "Sink arch 5 of the left wall's arcade, sparing its left capital",
+    "Draw the pocket of arch 5 of the right wall's arcade",
+    "Run the roll round arch 5 of the right wall's arcade",
+    "Sink arch 5 of the right wall's arcade, sparing its roll",
+    "Draw the point of arch 5 of the right wall's arcade",
+    "Sink arch 5 of the right wall's arcade, sparing its point",
+    "Draw the right capital of arch 5 of the right wall's arcade",
+    "Sink arch 5 of the right wall's arcade, sparing its right capital",
+    "Draw the left capital of arch 5 of the right wall's arcade",
+    "Sink arch 5 of the right wall's arcade, sparing its left capital",
     "Bevel the palm's front inner edge for comfort",
     "Bevel the palm's back inner edge for comfort",
-    "Roll the right side of the left shoulder's lancet at 40 degrees",
-    "Roll the left side of the left shoulder's lancet at 40 degrees",
-    "Boss the point of the left shoulder's lancet at 40 degrees",
-    "Roll the right side of the right shoulder's lancet at 40 degrees",
-    "Roll the left side of the right shoulder's lancet at 40 degrees",
-    "Boss the point of the right shoulder's lancet at 40 degrees",
-    "Roll the right side of the left shoulder's lancet at 48 degrees",
-    "Roll the left side of the left shoulder's lancet at 48 degrees",
-    "Boss the point of the left shoulder's lancet at 48 degrees",
-    "Roll the right side of the right shoulder's lancet at 48 degrees",
-    "Roll the left side of the right shoulder's lancet at 48 degrees",
-    "Boss the point of the right shoulder's lancet at 48 degrees",
-    "Roll the right side of the left shoulder's lancet at 57 degrees",
-    "Roll the left side of the left shoulder's lancet at 57 degrees",
-    "Boss the point of the left shoulder's lancet at 57 degrees",
-    "Roll the right side of the right shoulder's lancet at 57 degrees",
-    "Roll the left side of the right shoulder's lancet at 57 degrees",
-    "Boss the point of the right shoulder's lancet at 57 degrees",
-    "Roll the right side of the left shoulder's lancet at 66 degrees",
-    "Roll the left side of the left shoulder's lancet at 66 degrees",
-    "Boss the point of the left shoulder's lancet at 66 degrees",
-    "Roll the right side of the right shoulder's lancet at 66 degrees",
-    "Roll the left side of the right shoulder's lancet at 66 degrees",
-    "Boss the point of the right shoulder's lancet at 66 degrees",
-    "Roll the right side of the left shoulder's lancet at 74 degrees",
-    "Roll the left side of the left shoulder's lancet at 74 degrees",
-    "Boss the point of the left shoulder's lancet at 74 degrees",
-    "Roll the right side of the right shoulder's lancet at 74 degrees",
-    "Roll the left side of the right shoulder's lancet at 74 degrees",
-    "Boss the point of the right shoulder's lancet at 74 degrees"
+    "Sink the left shoulder's lancet at 47 degrees",
+    "Sink the right shoulder's lancet at 47 degrees",
+    "Sink the left shoulder's lancet at 56 degrees",
+    "Sink the right shoulder's lancet at 56 degrees",
+    "Sink the left shoulder's lancet at 65 degrees",
+    "Sink the right shoulder's lancet at 65 degrees",
+    "Sink the left shoulder's lancet at 74 degrees",
+    "Sink the right shoulder's lancet at 74 degrees"
   ],
-  "gates_passed": false,
+  "gates_passed": true,
   "investment": "Lost wax, Gold 18k, 0.8 mm section, 0.15 mm detail",
   "name": "Porta — the portal",
   "placed": {
     "doors_floor_mm": 2.25,
     "fleur_u": [
       7.8500000000000005,
-      9.8
+      10.0
     ],
-    "hood_clear_of_arch_mm": 0.5051927941108882,
+    "hood_clear_of_arch_mm": 0.23500773413475545,
     "inner_apex_u": 3.320831300812525,
     "inner_threshold_u": -4.6,
     "lands": [
@@ -2644,22 +2393,22 @@
       ],
       [
         "ruby's light to the door leaves' points",
-        1.6600000000000004
+        1.96
       ],
       [
         "crypt quatrefoil to the portal's threshold",
-        0.8199999999999994
+        1.3000000000000007
       ],
       [
         "crypt quatrefoil to the drop's round end on the axis",
-        1.0200000000000014
+        1.7400000000000002
       ]
     ],
     "lintel_u": [
-      -1.9891686991874757,
-      -1.0891686991874756
+      -2.9491686991874757,
+      -2.049168699187476
     ],
-    "ruby_u": 0.7608313008125245,
+    "ruby_u": 0.10083130081252416,
     "springing_u": -0.95,
     "tympanum_floor_mm": 2.25
   },
@@ -2670,15 +2419,12 @@
   "stamps": [],
   "template_gate": {
     "class": "stock",
-    "design_set_patches": 1,
-    "graph_bytes": 995989,
+    "bytes": 788269,
     "budget_bytes": 1000000,
-    "cold_source_identical": true,
-    "mesh_parity": true,
-    "nodes": 184,
-    "first_build_ms": 3689.668161,
-    "pass": true,
-    "record": "verification.json"
-  },
-  "thickness_note": "The 0.8 mm screen samples 384 faces of the whole ring. Every sample under 0.8 in this build lies on the factory 009 stock itself (the acute lip where the drop head's end wall meets the bore line under its overhang, 3.5 to 5 mm under the table); none is on a part this ring adds. The bare stock fails the same screen (bare_stock_same_screen: 13 of 374 samples). The gate is reported as failed because it is not clean."
+    "patches": 1,
+    "max_patches": 4,
+    "identical_triangles": true,
+    "triangles": 219230,
+    "passed": true
+  }
 }
