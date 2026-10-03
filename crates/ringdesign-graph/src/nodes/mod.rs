@@ -15,10 +15,12 @@ pub mod cluster;
 pub mod cad;
 pub mod gem;
 pub mod generator;
+pub mod gothic;
 pub mod idiom;
 pub mod layer;
 pub mod list;
 pub mod math;
+pub mod path;
 pub mod shank;
 pub mod settings;
 pub mod stamp;
@@ -48,6 +50,8 @@ pub fn register_all(reg: &mut Registry) {
     sink::register(reg);
     cluster::register(reg);
     cad::register(reg);
+    path::register(reg);
+    gothic::register(reg);
     idiom::register(reg);
     #[cfg(feature = "kernel-manifold")]
     solid::register(reg);

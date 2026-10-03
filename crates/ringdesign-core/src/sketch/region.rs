@@ -147,6 +147,24 @@ impl Sketch {
     pub fn sweep_regions(&self) -> Result<Vec<Region>> {
         regions(loops(&self.solve()?.sketch)?)
     }
+    /// Every closed loop of the profile as a region of its own, no holes, loops that meet each other
+    /// left as they are: what an extrusion of loops that overlap, such as an outline and its mirror
+    /// drawn past the line between them, extrudes one by one and joins. A loop that crosses itself
+    /// or encloses nothing is refused.
+    pub fn loop_regions(&self) -> Result<Vec<Region>> {
+        loops(&self.solve()?.sketch)?
+            .into_iter()
+            .map(|l| {
+                let boxes: Vec<Bounds> = l.curves.iter().map(Bounds::of).collect();
+                if let Some(x) = self_crossing(&l, &boxes) {
+                    bail!("Sketch loop through #{} crosses itself at ({:.4}, {:.4}); split it there and trim", l.entities[0], x[0], x[1]);
+                }
+                ensure!(l.area().abs() > 1e-12, "Sketch loop through #{} encloses no area", l.entities[0]);
+                let entities = distinct(l.entities.clone());
+                Ok(Region { outer: l.curves, holes: Vec::new(), rim: entities.len(), entities })
+            })
+            .collect()
+    }
     /// The region `pick` names among the solved profile's, and a note when only its point found it.
     pub fn region_of(&self, pick: &RegionRef) -> Result<(Region, Option<String>)> {
         pick.find(self.profile_regions()?)
