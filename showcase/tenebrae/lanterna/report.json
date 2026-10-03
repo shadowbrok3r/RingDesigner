@@ -18,16 +18,25 @@
   },
   "bore_mm": 18.600000193553186,
   "build": {
-    "build_s": 8.152351116,
+    "build_s": 6.667994945,
     "profile_steps": 448,
     "theta_steps": 1536,
-    "triangles": 90682
+    "triangles": 77136
   },
   "cold_reload_identical": true,
   "cut_lands": [],
+  "cut_lands_measured": {
+    "lands": [
+      "Cut #5 'Hollow the lantern and open it down to the finger': 3.52 mm from light 1 to the edge (floor 50)",
+      "Cut #23 'Pierce the light through the roof': 1.20 mm between light 1 and copy 2's light 1 (floor 50)",
+      "Cut #29 'Pierce the window through the plate and the wall': 0.83 mm between lights 1 and 3 (floor 50)",
+      "Cut #29 'Pierce the window through the plate and the wall': 2.47 mm between light 1 and copy 4's light 1 (floor 50)"
+    ],
+    "note": "dfm::cut_lands run again with a 50 mm floor, so every cut reports its narrowest land of each kind; every value is at least 0.8 mm"
+  },
   "design": {
-    "bytes": 303864,
-    "cad_features": 61
+    "bytes": 265623,
+    "cad_features": 68
   },
   "dfm_findings": [],
   "draft": {
@@ -51,16 +60,25 @@
       },
       "bore_mm": 18.600000193553186,
       "build": {
-        "build_s": 8.070214049,
+        "build_s": 6.674222783,
         "profile_steps": 320,
         "theta_steps": 768,
-        "triangles": 90682
+        "triangles": 77136
       },
       "cold_reload_identical": null,
       "cut_lands": [],
+      "cut_lands_measured": {
+        "lands": [
+          "Cut #5 'Hollow the lantern and open it down to the finger': 3.52 mm from light 1 to the edge (floor 50)",
+          "Cut #23 'Pierce the light through the roof': 1.20 mm between light 1 and copy 2's light 1 (floor 50)",
+          "Cut #29 'Pierce the window through the plate and the wall': 0.83 mm between lights 1 and 3 (floor 50)",
+          "Cut #29 'Pierce the window through the plate and the wall': 2.47 mm between light 1 and copy 4's light 1 (floor 50)"
+        ],
+        "note": "dfm::cut_lands run again with a 50 mm floor, so every cut reports its narrowest land of each kind; every value is at least 0.8 mm"
+      },
       "design": {
-        "bytes": 303864,
-        "cad_features": 61
+        "bytes": 265623,
+        "cad_features": 68
       },
       "dfm_findings": [],
       "feature_status": [
@@ -161,27 +179,27 @@
           "Ok"
         ],
         [
-          "#25 Draw two lancets on the wall that faces along the finger",
+          "#25 Draw the first window's tracery plate, a pointed arch on its wall",
           "Ok"
         ],
         [
-          "#26 Pierce the window through the wall",
+          "#26 Raise the tracery plate off the wall",
           "Ok"
         ],
         [
-          "#27 Open a window in every wall",
+          "#27 Raise a tracery plate on every wall",
           "Ok"
         ],
         [
-          "#28 Draw the oculus's collet over the first window's lancets",
+          "#28 Draw two lancets on the wall that faces along the finger, and a quatrefoil in the window's head",
           "Ok"
         ],
         [
-          "#29 Raise the oculus's collet off the wall",
+          "#29 Pierce the window through the plate and the wall",
           "Ok"
         ],
         [
-          "#30 Ring every window's oculus",
+          "#30 Open a window in every wall",
           "Ok"
         ],
         [
@@ -225,87 +243,115 @@
           "Ok"
         ],
         [
-          "#41 Draw the spirelet's section on the shaft, its arrises chamfered",
+          "#41 Twist the spirelet an eighth of a turn up off the shaft, tapering",
           "Ok"
         ],
         [
-          "#42 Taper the spirelet up off the shaft",
+          "#42 Turn the knop finial",
           "Ok"
         ],
         [
-          "#43 Turn the knop finial",
+          "#43 Stand a pinnacle on every corner",
           "Ok"
         ],
         [
-          "#44 Turn the crocket",
+          "#44 Lay a plane under the band's mid-plane",
           "Ok"
         ],
         [
-          "#45 Turn the crocket",
+          "#45 Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
           "Ok"
         ],
         [
-          "#46 Turn the crocket",
+          "#46 Raise the buttress across the band",
           "Ok"
         ],
         [
-          "#47 Turn the crocket",
+          "#47 Mirror the buttress onto the other shoulder",
           "Ok"
         ],
         [
-          "#48 Stand a pinnacle on every corner",
+          "#48 Lay a plane over the band at 159°",
           "Ok"
         ],
         [
-          "#49 Lay a plane under the band's mid-plane",
+          "#49 Draw the arcade's bay at 159°, a frame round a lancet standing across the band",
           "Ok"
         ],
         [
-          "#50 Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
+          "#50 Raise the arcade's bay at 159°, flat over the band's crown and sunk into it",
           "Ok"
         ],
         [
-          "#51 Raise the buttress across the band",
+          "#51 Lay a plane over the band at 172.6°",
           "Ok"
         ],
         [
-          "#52 Mirror the buttress onto the other shoulder",
+          "#52 Draw the arcade's bay at 172.6°, a frame round a lancet standing across the band",
           "Ok"
         ],
         [
-          "#53 Draw two pairs of lancets on the head's first long wall",
+          "#53 Raise the arcade's bay at 172.6°, flat over the band's crown and sunk into it",
           "Ok"
         ],
         [
-          "#54 Cut the blind lancets into the wall",
+          "#54 Lay a plane over the band at 186.2°",
           "Ok"
         ],
         [
-          "#55 Cut them into the other long wall",
+          "#55 Draw the arcade's bay at 186.2°, a frame round a lancet standing across the band",
           "Ok"
         ],
         [
-          "#56 Glaze the first oculus with a citrine lamp",
+          "#56 Raise the arcade's bay at 186.2°, flat over the band's crown and sunk into it",
           "Ok"
         ],
         [
-          "#57 Open its seat through the wall, to the light inside",
+          "#57 Lay a plane over the band at 199.8°",
           "Ok"
         ],
         [
-          "#58 Glaze every oculus with a lamp",
+          "#58 Draw the arcade's bay at 199.8°, a frame round a lancet standing across the band",
           "Ok"
         ],
         [
-          "#59 Cut every lamp's seat",
+          "#59 Raise the arcade's bay at 199.8°, flat over the band's crown and sunk into it",
           "Ok"
         ],
         [
-          "#60 Set the amethyst in the boss's collet",
+          "#60 Lay a plane over the band at 213.4°",
           "Ok"
         ],
         [
-          "#61 Cut its seat through the collet and boss, open to the lantern below",
+          "#61 Draw the arcade's bay at 213.4°, a frame round a lancet standing across the band",
+          "Ok"
+        ],
+        [
+          "#62 Raise the arcade's bay at 213.4°, flat over the band's crown and sunk into it",
+          "Ok"
+        ],
+        [
+          "#63 Mirror the arcade down the other shank",
+          "Ok"
+        ],
+        [
+          "#64 Draw the arcade's frame and its lancets on the head's first long wall",
+          "Ok"
+        ],
+        [
+          "#65 Raise the arcade off the long wall",
+          "Ok"
+        ],
+        [
+          "#66 Raise the same on the other long wall",
+          "Ok"
+        ],
+        [
+          "#67 Set the amethyst in the boss's collet",
+          "Ok"
+        ],
+        [
+          "#68 Cut its seat through the collet and boss, open to the lantern below",
           "Ok"
         ]
       ],
@@ -432,32 +478,32 @@
         },
         {
           "id": 25,
-          "name": "Draw two lancets on the wall that faces along the finger",
+          "name": "Draw the first window's tracery plate, a pointed arch on its wall",
           "operation": "Sketch"
         },
         {
           "id": 26,
-          "name": "Pierce the window through the wall",
+          "name": "Raise the tracery plate off the wall",
           "operation": "Extrude"
         },
         {
           "id": 27,
-          "name": "Open a window in every wall",
+          "name": "Raise a tracery plate on every wall",
           "operation": "Array round a part"
         },
         {
           "id": 28,
-          "name": "Draw the oculus's collet over the first window's lancets",
+          "name": "Draw two lancets on the wall that faces along the finger, and a quatrefoil in the window's head",
           "operation": "Sketch"
         },
         {
           "id": 29,
-          "name": "Raise the oculus's collet off the wall",
+          "name": "Pierce the window through the plate and the wall",
           "operation": "Extrude"
         },
         {
           "id": 30,
-          "name": "Ring every window's oculus",
+          "name": "Open a window in every wall",
           "operation": "Array round a part"
         },
         {
@@ -512,106 +558,141 @@
         },
         {
           "id": 41,
-          "name": "Draw the spirelet's section on the shaft, its arrises chamfered",
-          "operation": "Sketch"
+          "name": "Twist the spirelet an eighth of a turn up off the shaft, tapering",
+          "operation": "Twisted sweep"
         },
         {
           "id": 42,
-          "name": "Taper the spirelet up off the shaft",
-          "operation": "Extrude"
-        },
-        {
-          "id": 43,
           "name": "Turn the knop finial",
           "operation": "Loft"
         },
         {
-          "id": 44,
-          "name": "Turn the crocket",
-          "operation": "Loft"
-        },
-        {
-          "id": 45,
-          "name": "Turn the crocket",
-          "operation": "Loft"
-        },
-        {
-          "id": 46,
-          "name": "Turn the crocket",
-          "operation": "Loft"
-        },
-        {
-          "id": 47,
-          "name": "Turn the crocket",
-          "operation": "Loft"
-        },
-        {
-          "id": 48,
+          "id": 43,
           "name": "Stand a pinnacle on every corner",
           "operation": "Array round a part"
         },
         {
-          "id": 49,
+          "id": 44,
           "name": "Lay a plane under the band's mid-plane",
           "operation": "Work plane"
         },
         {
-          "id": 50,
+          "id": 45,
           "name": "Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
           "operation": "Sketch"
         },
         {
-          "id": 51,
+          "id": 46,
           "name": "Raise the buttress across the band",
           "operation": "Extrude"
         },
         {
-          "id": 52,
+          "id": 47,
           "name": "Mirror the buttress onto the other shoulder",
           "operation": "Mirror"
         },
         {
-          "id": 53,
-          "name": "Draw two pairs of lancets on the head's first long wall",
+          "id": 48,
+          "name": "Lay a plane over the band at 159°",
+          "operation": "Work plane"
+        },
+        {
+          "id": 49,
+          "name": "Draw the arcade's bay at 159°, a frame round a lancet standing across the band",
           "operation": "Sketch"
         },
         {
-          "id": 54,
-          "name": "Cut the blind lancets into the wall",
+          "id": 50,
+          "name": "Raise the arcade's bay at 159°, flat over the band's crown and sunk into it",
           "operation": "Extrude"
         },
         {
+          "id": 51,
+          "name": "Lay a plane over the band at 172.6°",
+          "operation": "Work plane"
+        },
+        {
+          "id": 52,
+          "name": "Draw the arcade's bay at 172.6°, a frame round a lancet standing across the band",
+          "operation": "Sketch"
+        },
+        {
+          "id": 53,
+          "name": "Raise the arcade's bay at 172.6°, flat over the band's crown and sunk into it",
+          "operation": "Extrude"
+        },
+        {
+          "id": 54,
+          "name": "Lay a plane over the band at 186.2°",
+          "operation": "Work plane"
+        },
+        {
           "id": 55,
-          "name": "Cut them into the other long wall",
-          "operation": "Array round a part"
+          "name": "Draw the arcade's bay at 186.2°, a frame round a lancet standing across the band",
+          "operation": "Sketch"
         },
         {
           "id": 56,
-          "name": "Glaze the first oculus with a citrine lamp",
-          "operation": "Stone"
+          "name": "Raise the arcade's bay at 186.2°, flat over the band's crown and sunk into it",
+          "operation": "Extrude"
         },
         {
           "id": 57,
-          "name": "Open its seat through the wall, to the light inside",
-          "operation": "Seat bur"
+          "name": "Lay a plane over the band at 199.8°",
+          "operation": "Work plane"
         },
         {
           "id": 58,
-          "name": "Glaze every oculus with a lamp",
-          "operation": "Array round a part"
+          "name": "Draw the arcade's bay at 199.8°, a frame round a lancet standing across the band",
+          "operation": "Sketch"
         },
         {
           "id": 59,
-          "name": "Cut every lamp's seat",
-          "operation": "Array round a part"
+          "name": "Raise the arcade's bay at 199.8°, flat over the band's crown and sunk into it",
+          "operation": "Extrude"
         },
         {
           "id": 60,
+          "name": "Lay a plane over the band at 213.4°",
+          "operation": "Work plane"
+        },
+        {
+          "id": 61,
+          "name": "Draw the arcade's bay at 213.4°, a frame round a lancet standing across the band",
+          "operation": "Sketch"
+        },
+        {
+          "id": 62,
+          "name": "Raise the arcade's bay at 213.4°, flat over the band's crown and sunk into it",
+          "operation": "Extrude"
+        },
+        {
+          "id": 63,
+          "name": "Mirror the arcade down the other shank",
+          "operation": "Mirror"
+        },
+        {
+          "id": 64,
+          "name": "Draw the arcade's frame and its lancets on the head's first long wall",
+          "operation": "Sketch"
+        },
+        {
+          "id": 65,
+          "name": "Raise the arcade off the long wall",
+          "operation": "Extrude"
+        },
+        {
+          "id": 66,
+          "name": "Raise the same on the other long wall",
+          "operation": "Array round a part"
+        },
+        {
+          "id": 67,
           "name": "Set the amethyst in the boss's collet",
           "operation": "Stone"
         },
         {
-          "id": 61,
+          "id": 68,
           "name": "Cut its seat through the collet and boss, open to the lantern below",
           "operation": "Seat bur"
         }
@@ -666,37 +747,48 @@
       "geometry": {
         "boundary_edges": 0,
         "bounds_mm": [
-          23.23117446899414,
+          23.657190322875977,
           35.67522430419922,
-          16.149688720703125
+          17.304662704467773
         ],
         "degenerate_faces": 0,
         "non_manifold_edges": 0,
         "self_crossings": 0,
-        "volume_mm3": 2148.3218157335923,
+        "volume_mm3": 2151.2235707893647,
         "watertight": true
       },
-      "grams_gold_18k": 33.47085388912937,
+      "grams_gold_18k": 33.5160632328983,
       "land_widths": {
         "amethyst_collet_rim_at_corner_mm": 0.9286796564403573,
+        "arcade_frame_beside_lancet_mm": 0.85,
+        "arcade_frame_over_lancet_mm": 0.8571796769724491,
+        "arcade_frame_under_lancet_mm": 0.8499999999999999,
+        "arcade_joint_between_bays_mm": 0.19409023337844689,
         "boss_rim_at_amethyst_corner_mm": 1.3286796564403573,
         "buttress_mm": 1.8,
         "collet_wall_mm": 0.9,
         "lantern_face_mm": 5.301933598375617,
         "lantern_roof_mm": 1.0,
         "lantern_wall_mm": 1.0,
-        "light_inset_from_bars_mm": 0.6,
-        "oculus_collet_top_to_roof_mm": 0.5500000000000005,
+        "light_inset_from_bars_mm": {
+          "note": "an offset, not a section: each vault light's outline is drawn this far inside the edges of the rib and tierceron rolls round its bay, so the metal left beside a light is the roll's own width plus this inset on the roof; the measured lands are in cut_lands_measured",
+          "value": 0.6
+        },
+        "light_reach_mm": 5.229557312592692,
         "pier_mm": 2.3,
+        "quatrefoil_cusp_angle_deg": 101.50456352651587,
+        "quatrefoil_to_lancet_heads_mm": 0.83,
         "rib_roll_mm": 0.9,
         "rim_mm": 1.1,
         "rim_over_girdle_mm": 0.35,
         "roll_mm": 0.84,
         "shaft_mm": 1.4,
-        "side_lancet_bar_mm": 0.9,
-        "side_lancet_head_to_table_mm": 1.770577136594005,
+        "side_arcade_bar_mm": 0.85,
+        "side_arcade_frame_to_table_mm": 0.5071796769724489,
         "spirelet_least_mm": 0.82,
-        "spirelet_taper_over_root_two": 0.9916741443469873,
+        "spirelet_taper_over_root_two": 1.0779066786380298,
+        "tracery_plate_point_under_cornice_mm": 0.16681957508300993,
+        "tracery_plate_round_openings_least_mm": 0.915,
         "window_mullion_mm": 0.85
       },
       "made_parts": [
@@ -753,19 +845,19 @@
           0
         ],
         [
-          "#26 Pierce the window through the wall",
+          "#26 Raise the tracery plate off the wall",
           0
         ],
         [
-          "#27 Open a window in every wall",
+          "#27 Raise a tracery plate on every wall",
           0
         ],
         [
-          "#29 Raise the oculus's collet off the wall",
+          "#29 Pierce the window through the plate and the wall",
           0
         ],
         [
-          "#30 Ring every window's oculus",
+          "#30 Open a window in every wall",
           0
         ],
         [
@@ -789,71 +881,63 @@
           0
         ],
         [
-          "#42 Taper the spirelet up off the shaft",
+          "#41 Twist the spirelet an eighth of a turn up off the shaft, tapering",
           0
         ],
         [
-          "#43 Turn the knop finial",
+          "#42 Turn the knop finial",
           0
         ],
         [
-          "#44 Turn the crocket",
+          "#43 Stand a pinnacle on every corner",
           0
         ],
         [
-          "#45 Turn the crocket",
+          "#46 Raise the buttress across the band",
           0
         ],
         [
-          "#46 Turn the crocket",
+          "#47 Mirror the buttress onto the other shoulder",
           0
         ],
         [
-          "#47 Turn the crocket",
+          "#50 Raise the arcade's bay at 159°, flat over the band's crown and sunk into it",
           0
         ],
         [
-          "#48 Stand a pinnacle on every corner",
+          "#53 Raise the arcade's bay at 172.6°, flat over the band's crown and sunk into it",
           0
         ],
         [
-          "#51 Raise the buttress across the band",
+          "#56 Raise the arcade's bay at 186.2°, flat over the band's crown and sunk into it",
           0
         ],
         [
-          "#52 Mirror the buttress onto the other shoulder",
+          "#59 Raise the arcade's bay at 199.8°, flat over the band's crown and sunk into it",
           0
         ],
         [
-          "#54 Cut the blind lancets into the wall",
+          "#62 Raise the arcade's bay at 213.4°, flat over the band's crown and sunk into it",
           0
         ],
         [
-          "#55 Cut them into the other long wall",
+          "#63 Mirror the arcade down the other shank",
           0
         ],
         [
-          "#56 Glaze the first oculus with a citrine lamp",
+          "#65 Raise the arcade off the long wall",
           0
         ],
         [
-          "#57 Open its seat through the wall, to the light inside",
+          "#66 Raise the same on the other long wall",
           0
         ],
         [
-          "#58 Glaze every oculus with a lamp",
+          "#67 Set the amethyst in the boss's collet",
           0
         ],
         [
-          "#59 Cut every lamp's seat",
-          0
-        ],
-        [
-          "#60 Set the amethyst in the boss's collet",
-          0
-        ],
-        [
-          "#61 Cut its seat through the collet and boss, open to the lantern below",
+          "#68 Cut its seat through the collet and boss, open to the lantern below",
           0
         ]
       ],
@@ -861,7 +945,7 @@
       "pattern": {
         "degenerate_faces": 0,
         "self_crossings": 0,
-        "triangles": 90682,
+        "triangles": 77136,
         "watertight": true
       },
       "process": "Lost wax",
@@ -872,17 +956,17 @@
       },
       "stock": "015",
       "stones": {
-        "carats": 0.23603399999999997,
-        "previewed": 9,
-        "reported": 9,
+        "carats": 0.13391999999999998,
+        "previewed": 1,
+        "reported": 1,
         "tight_pairs": 0
       },
       "thickness": {
         "below_limit": 0,
         "limit_mm": 0.8,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-        "rays": 383,
-        "sampled_min_mm": 0.8454998146071299,
+        "rays": 384,
+        "sampled_min_mm": 0.8290305054762719,
         "unresolved": 0
       },
       "thickness_samples_on_stock": 0,
@@ -992,27 +1076,27 @@
       "Ok"
     ],
     [
-      "#25 Draw two lancets on the wall that faces along the finger",
+      "#25 Draw the first window's tracery plate, a pointed arch on its wall",
       "Ok"
     ],
     [
-      "#26 Pierce the window through the wall",
+      "#26 Raise the tracery plate off the wall",
       "Ok"
     ],
     [
-      "#27 Open a window in every wall",
+      "#27 Raise a tracery plate on every wall",
       "Ok"
     ],
     [
-      "#28 Draw the oculus's collet over the first window's lancets",
+      "#28 Draw two lancets on the wall that faces along the finger, and a quatrefoil in the window's head",
       "Ok"
     ],
     [
-      "#29 Raise the oculus's collet off the wall",
+      "#29 Pierce the window through the plate and the wall",
       "Ok"
     ],
     [
-      "#30 Ring every window's oculus",
+      "#30 Open a window in every wall",
       "Ok"
     ],
     [
@@ -1056,87 +1140,115 @@
       "Ok"
     ],
     [
-      "#41 Draw the spirelet's section on the shaft, its arrises chamfered",
+      "#41 Twist the spirelet an eighth of a turn up off the shaft, tapering",
       "Ok"
     ],
     [
-      "#42 Taper the spirelet up off the shaft",
+      "#42 Turn the knop finial",
       "Ok"
     ],
     [
-      "#43 Turn the knop finial",
+      "#43 Stand a pinnacle on every corner",
       "Ok"
     ],
     [
-      "#44 Turn the crocket",
+      "#44 Lay a plane under the band's mid-plane",
       "Ok"
     ],
     [
-      "#45 Turn the crocket",
+      "#45 Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
       "Ok"
     ],
     [
-      "#46 Turn the crocket",
+      "#46 Raise the buttress across the band",
       "Ok"
     ],
     [
-      "#47 Turn the crocket",
+      "#47 Mirror the buttress onto the other shoulder",
       "Ok"
     ],
     [
-      "#48 Stand a pinnacle on every corner",
+      "#48 Lay a plane over the band at 159°",
       "Ok"
     ],
     [
-      "#49 Lay a plane under the band's mid-plane",
+      "#49 Draw the arcade's bay at 159°, a frame round a lancet standing across the band",
       "Ok"
     ],
     [
-      "#50 Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
+      "#50 Raise the arcade's bay at 159°, flat over the band's crown and sunk into it",
       "Ok"
     ],
     [
-      "#51 Raise the buttress across the band",
+      "#51 Lay a plane over the band at 172.6°",
       "Ok"
     ],
     [
-      "#52 Mirror the buttress onto the other shoulder",
+      "#52 Draw the arcade's bay at 172.6°, a frame round a lancet standing across the band",
       "Ok"
     ],
     [
-      "#53 Draw two pairs of lancets on the head's first long wall",
+      "#53 Raise the arcade's bay at 172.6°, flat over the band's crown and sunk into it",
       "Ok"
     ],
     [
-      "#54 Cut the blind lancets into the wall",
+      "#54 Lay a plane over the band at 186.2°",
       "Ok"
     ],
     [
-      "#55 Cut them into the other long wall",
+      "#55 Draw the arcade's bay at 186.2°, a frame round a lancet standing across the band",
       "Ok"
     ],
     [
-      "#56 Glaze the first oculus with a citrine lamp",
+      "#56 Raise the arcade's bay at 186.2°, flat over the band's crown and sunk into it",
       "Ok"
     ],
     [
-      "#57 Open its seat through the wall, to the light inside",
+      "#57 Lay a plane over the band at 199.8°",
       "Ok"
     ],
     [
-      "#58 Glaze every oculus with a lamp",
+      "#58 Draw the arcade's bay at 199.8°, a frame round a lancet standing across the band",
       "Ok"
     ],
     [
-      "#59 Cut every lamp's seat",
+      "#59 Raise the arcade's bay at 199.8°, flat over the band's crown and sunk into it",
       "Ok"
     ],
     [
-      "#60 Set the amethyst in the boss's collet",
+      "#60 Lay a plane over the band at 213.4°",
       "Ok"
     ],
     [
-      "#61 Cut its seat through the collet and boss, open to the lantern below",
+      "#61 Draw the arcade's bay at 213.4°, a frame round a lancet standing across the band",
+      "Ok"
+    ],
+    [
+      "#62 Raise the arcade's bay at 213.4°, flat over the band's crown and sunk into it",
+      "Ok"
+    ],
+    [
+      "#63 Mirror the arcade down the other shank",
+      "Ok"
+    ],
+    [
+      "#64 Draw the arcade's frame and its lancets on the head's first long wall",
+      "Ok"
+    ],
+    [
+      "#65 Raise the arcade off the long wall",
+      "Ok"
+    ],
+    [
+      "#66 Raise the same on the other long wall",
+      "Ok"
+    ],
+    [
+      "#67 Set the amethyst in the boss's collet",
+      "Ok"
+    ],
+    [
+      "#68 Cut its seat through the collet and boss, open to the lantern below",
       "Ok"
     ]
   ],
@@ -1263,32 +1375,32 @@
     },
     {
       "id": 25,
-      "name": "Draw two lancets on the wall that faces along the finger",
+      "name": "Draw the first window's tracery plate, a pointed arch on its wall",
       "operation": "Sketch"
     },
     {
       "id": 26,
-      "name": "Pierce the window through the wall",
+      "name": "Raise the tracery plate off the wall",
       "operation": "Extrude"
     },
     {
       "id": 27,
-      "name": "Open a window in every wall",
+      "name": "Raise a tracery plate on every wall",
       "operation": "Array round a part"
     },
     {
       "id": 28,
-      "name": "Draw the oculus's collet over the first window's lancets",
+      "name": "Draw two lancets on the wall that faces along the finger, and a quatrefoil in the window's head",
       "operation": "Sketch"
     },
     {
       "id": 29,
-      "name": "Raise the oculus's collet off the wall",
+      "name": "Pierce the window through the plate and the wall",
       "operation": "Extrude"
     },
     {
       "id": 30,
-      "name": "Ring every window's oculus",
+      "name": "Open a window in every wall",
       "operation": "Array round a part"
     },
     {
@@ -1343,106 +1455,141 @@
     },
     {
       "id": 41,
-      "name": "Draw the spirelet's section on the shaft, its arrises chamfered",
-      "operation": "Sketch"
+      "name": "Twist the spirelet an eighth of a turn up off the shaft, tapering",
+      "operation": "Twisted sweep"
     },
     {
       "id": 42,
-      "name": "Taper the spirelet up off the shaft",
-      "operation": "Extrude"
-    },
-    {
-      "id": 43,
       "name": "Turn the knop finial",
       "operation": "Loft"
     },
     {
-      "id": 44,
-      "name": "Turn the crocket",
-      "operation": "Loft"
-    },
-    {
-      "id": 45,
-      "name": "Turn the crocket",
-      "operation": "Loft"
-    },
-    {
-      "id": 46,
-      "name": "Turn the crocket",
-      "operation": "Loft"
-    },
-    {
-      "id": 47,
-      "name": "Turn the crocket",
-      "operation": "Loft"
-    },
-    {
-      "id": 48,
+      "id": 43,
       "name": "Stand a pinnacle on every corner",
       "operation": "Array round a part"
     },
     {
-      "id": 49,
+      "id": 44,
       "name": "Lay a plane under the band's mid-plane",
       "operation": "Work plane"
     },
     {
-      "id": 50,
+      "id": 45,
       "name": "Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
       "operation": "Sketch"
     },
     {
-      "id": 51,
+      "id": 46,
       "name": "Raise the buttress across the band",
       "operation": "Extrude"
     },
     {
-      "id": 52,
+      "id": 47,
       "name": "Mirror the buttress onto the other shoulder",
       "operation": "Mirror"
     },
     {
-      "id": 53,
-      "name": "Draw two pairs of lancets on the head's first long wall",
+      "id": 48,
+      "name": "Lay a plane over the band at 159°",
+      "operation": "Work plane"
+    },
+    {
+      "id": 49,
+      "name": "Draw the arcade's bay at 159°, a frame round a lancet standing across the band",
       "operation": "Sketch"
     },
     {
-      "id": 54,
-      "name": "Cut the blind lancets into the wall",
+      "id": 50,
+      "name": "Raise the arcade's bay at 159°, flat over the band's crown and sunk into it",
       "operation": "Extrude"
     },
     {
+      "id": 51,
+      "name": "Lay a plane over the band at 172.6°",
+      "operation": "Work plane"
+    },
+    {
+      "id": 52,
+      "name": "Draw the arcade's bay at 172.6°, a frame round a lancet standing across the band",
+      "operation": "Sketch"
+    },
+    {
+      "id": 53,
+      "name": "Raise the arcade's bay at 172.6°, flat over the band's crown and sunk into it",
+      "operation": "Extrude"
+    },
+    {
+      "id": 54,
+      "name": "Lay a plane over the band at 186.2°",
+      "operation": "Work plane"
+    },
+    {
       "id": 55,
-      "name": "Cut them into the other long wall",
-      "operation": "Array round a part"
+      "name": "Draw the arcade's bay at 186.2°, a frame round a lancet standing across the band",
+      "operation": "Sketch"
     },
     {
       "id": 56,
-      "name": "Glaze the first oculus with a citrine lamp",
-      "operation": "Stone"
+      "name": "Raise the arcade's bay at 186.2°, flat over the band's crown and sunk into it",
+      "operation": "Extrude"
     },
     {
       "id": 57,
-      "name": "Open its seat through the wall, to the light inside",
-      "operation": "Seat bur"
+      "name": "Lay a plane over the band at 199.8°",
+      "operation": "Work plane"
     },
     {
       "id": 58,
-      "name": "Glaze every oculus with a lamp",
-      "operation": "Array round a part"
+      "name": "Draw the arcade's bay at 199.8°, a frame round a lancet standing across the band",
+      "operation": "Sketch"
     },
     {
       "id": 59,
-      "name": "Cut every lamp's seat",
-      "operation": "Array round a part"
+      "name": "Raise the arcade's bay at 199.8°, flat over the band's crown and sunk into it",
+      "operation": "Extrude"
     },
     {
       "id": 60,
+      "name": "Lay a plane over the band at 213.4°",
+      "operation": "Work plane"
+    },
+    {
+      "id": 61,
+      "name": "Draw the arcade's bay at 213.4°, a frame round a lancet standing across the band",
+      "operation": "Sketch"
+    },
+    {
+      "id": 62,
+      "name": "Raise the arcade's bay at 213.4°, flat over the band's crown and sunk into it",
+      "operation": "Extrude"
+    },
+    {
+      "id": 63,
+      "name": "Mirror the arcade down the other shank",
+      "operation": "Mirror"
+    },
+    {
+      "id": 64,
+      "name": "Draw the arcade's frame and its lancets on the head's first long wall",
+      "operation": "Sketch"
+    },
+    {
+      "id": 65,
+      "name": "Raise the arcade off the long wall",
+      "operation": "Extrude"
+    },
+    {
+      "id": 66,
+      "name": "Raise the same on the other long wall",
+      "operation": "Array round a part"
+    },
+    {
+      "id": 67,
       "name": "Set the amethyst in the boss's collet",
       "operation": "Stone"
     },
     {
-      "id": 61,
+      "id": 68,
       "name": "Cut its seat through the collet and boss, open to the lantern below",
       "operation": "Seat bur"
     }
@@ -1497,37 +1644,48 @@
   "geometry": {
     "boundary_edges": 0,
     "bounds_mm": [
-      23.23117446899414,
+      23.657190322875977,
       35.67522430419922,
-      16.149688720703125
+      17.304662704467773
     ],
     "degenerate_faces": 0,
     "non_manifold_edges": 0,
     "self_crossings": 0,
-    "volume_mm3": 2148.3218157335923,
+    "volume_mm3": 2151.2235707893647,
     "watertight": true
   },
-  "grams_gold_18k": 33.47085388912937,
+  "grams_gold_18k": 33.5160632328983,
   "land_widths": {
     "amethyst_collet_rim_at_corner_mm": 0.9286796564403573,
+    "arcade_frame_beside_lancet_mm": 0.85,
+    "arcade_frame_over_lancet_mm": 0.8571796769724491,
+    "arcade_frame_under_lancet_mm": 0.8499999999999999,
+    "arcade_joint_between_bays_mm": 0.19409023337844689,
     "boss_rim_at_amethyst_corner_mm": 1.3286796564403573,
     "buttress_mm": 1.8,
     "collet_wall_mm": 0.9,
     "lantern_face_mm": 5.301933598375617,
     "lantern_roof_mm": 1.0,
     "lantern_wall_mm": 1.0,
-    "light_inset_from_bars_mm": 0.6,
-    "oculus_collet_top_to_roof_mm": 0.5500000000000005,
+    "light_inset_from_bars_mm": {
+      "note": "an offset, not a section: each vault light's outline is drawn this far inside the edges of the rib and tierceron rolls round its bay, so the metal left beside a light is the roll's own width plus this inset on the roof; the measured lands are in cut_lands_measured",
+      "value": 0.6
+    },
+    "light_reach_mm": 5.229557312592692,
     "pier_mm": 2.3,
+    "quatrefoil_cusp_angle_deg": 101.50456352651587,
+    "quatrefoil_to_lancet_heads_mm": 0.83,
     "rib_roll_mm": 0.9,
     "rim_mm": 1.1,
     "rim_over_girdle_mm": 0.35,
     "roll_mm": 0.84,
     "shaft_mm": 1.4,
-    "side_lancet_bar_mm": 0.9,
-    "side_lancet_head_to_table_mm": 1.770577136594005,
+    "side_arcade_bar_mm": 0.85,
+    "side_arcade_frame_to_table_mm": 0.5071796769724489,
     "spirelet_least_mm": 0.82,
-    "spirelet_taper_over_root_two": 0.9916741443469873,
+    "spirelet_taper_over_root_two": 1.0779066786380298,
+    "tracery_plate_point_under_cornice_mm": 0.16681957508300993,
+    "tracery_plate_round_openings_least_mm": 0.915,
     "window_mullion_mm": 0.85
   },
   "made_parts": [
@@ -1584,19 +1742,19 @@
       0
     ],
     [
-      "#26 Pierce the window through the wall",
+      "#26 Raise the tracery plate off the wall",
       0
     ],
     [
-      "#27 Open a window in every wall",
+      "#27 Raise a tracery plate on every wall",
       0
     ],
     [
-      "#29 Raise the oculus's collet off the wall",
+      "#29 Pierce the window through the plate and the wall",
       0
     ],
     [
-      "#30 Ring every window's oculus",
+      "#30 Open a window in every wall",
       0
     ],
     [
@@ -1620,71 +1778,63 @@
       0
     ],
     [
-      "#42 Taper the spirelet up off the shaft",
+      "#41 Twist the spirelet an eighth of a turn up off the shaft, tapering",
       0
     ],
     [
-      "#43 Turn the knop finial",
+      "#42 Turn the knop finial",
       0
     ],
     [
-      "#44 Turn the crocket",
+      "#43 Stand a pinnacle on every corner",
       0
     ],
     [
-      "#45 Turn the crocket",
+      "#46 Raise the buttress across the band",
       0
     ],
     [
-      "#46 Turn the crocket",
+      "#47 Mirror the buttress onto the other shoulder",
       0
     ],
     [
-      "#47 Turn the crocket",
+      "#50 Raise the arcade's bay at 159°, flat over the band's crown and sunk into it",
       0
     ],
     [
-      "#48 Stand a pinnacle on every corner",
+      "#53 Raise the arcade's bay at 172.6°, flat over the band's crown and sunk into it",
       0
     ],
     [
-      "#51 Raise the buttress across the band",
+      "#56 Raise the arcade's bay at 186.2°, flat over the band's crown and sunk into it",
       0
     ],
     [
-      "#52 Mirror the buttress onto the other shoulder",
+      "#59 Raise the arcade's bay at 199.8°, flat over the band's crown and sunk into it",
       0
     ],
     [
-      "#54 Cut the blind lancets into the wall",
+      "#62 Raise the arcade's bay at 213.4°, flat over the band's crown and sunk into it",
       0
     ],
     [
-      "#55 Cut them into the other long wall",
+      "#63 Mirror the arcade down the other shank",
       0
     ],
     [
-      "#56 Glaze the first oculus with a citrine lamp",
+      "#65 Raise the arcade off the long wall",
       0
     ],
     [
-      "#57 Open its seat through the wall, to the light inside",
+      "#66 Raise the same on the other long wall",
       0
     ],
     [
-      "#58 Glaze every oculus with a lamp",
+      "#67 Set the amethyst in the boss's collet",
       0
     ],
     [
-      "#59 Cut every lamp's seat",
-      0
-    ],
-    [
-      "#60 Set the amethyst in the boss's collet",
-      0
-    ],
-    [
-      "#61 Cut its seat through the collet and boss, open to the lantern below",
+      "#68 Cut its seat through the collet and boss, open to the lantern below",
       0
     ]
   ],
@@ -1692,7 +1842,7 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 90682,
+    "triangles": 77136,
     "watertight": true
   },
   "process": "Lost wax",
@@ -1703,17 +1853,17 @@
   },
   "stock": "015",
   "stones": {
-    "carats": 0.23603399999999997,
-    "previewed": 9,
-    "reported": 9,
+    "carats": 0.13391999999999998,
+    "previewed": 1,
+    "reported": 1,
     "tight_pairs": 0
   },
   "thickness": {
     "below_limit": 0,
     "limit_mm": 0.8,
     "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-    "rays": 383,
-    "sampled_min_mm": 0.8454998146071299,
+    "rays": 384,
+    "sampled_min_mm": 0.8290305054762719,
     "unresolved": 0
   },
   "thickness_samples_on_stock": 0,
