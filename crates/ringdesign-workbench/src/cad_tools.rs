@@ -72,8 +72,8 @@ pub fn hint(op: &Operation) -> &'static str {
         Sketch { .. } => "A closed profile of its own, for other features to extrude, revolve, sweep or loft.",
         Extrude { .. } => "Give a closed sketch depth, optionally tapering the walls.",
         Revolve { .. } => "Rotate a closed sketch about an axis. Edit the profile in Sketch.",
-        Sweep { .. } => "Carry a closed section along a 3D path. Edit the stations in Properties.",
-        Twist { .. } => "Twist a closed section along a planar path, optionally scaling its end. The section stands square to the path at its start.",
+        Sweep { .. } => "Carry a closed section along a 3D path, or along an entity of a sketch so it follows the sketch's edits. Edit the stations in Properties.",
+        Twist { .. } => "Twist a closed section along a planar path or through points in space, scaling it straight or by a law, open or closed round a loop. On a planar path the section stands square to the path at its start.",
         Loft { .. } => "Join matching closed sections. Move each station to shape the transition.",
         Boolean { .. } => {
             "Combine two different earlier solids. Consumes the source components; Preview checks the intersection."
@@ -145,10 +145,7 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
             degrees: 360.0,
             in_plane: false,
         },
-        Operation::Sweep {
-            sketch: Sketch::circle(1.0).into(),
-            path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]],
-        },
+        Operation::sweep(Sketch::circle(1.0), vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]]),
         Operation::Loft {
             sections: vec![Sketch::rectangle(10.0, 8.0).into(), top.into()],
         },
@@ -167,12 +164,7 @@ pub fn starters(source: u64, second: u64) -> Vec<Operation> {
             b: second,
             kind: Boolean::Intersect,
         },
-        Operation::Twist {
-            sketch: Sketch::rectangle(2.0, 1.5).into(),
-            path: twist_path(),
-            degrees: 180.0,
-            end_scale: 1.0,
-        },
+        Operation::twist(Sketch::rectangle(2.0, 1.5), twist_path(), 180.0, 1.0),
         Operation::Fillet {
             source,
             edges: vec![EdgeRef::bare(0)],
