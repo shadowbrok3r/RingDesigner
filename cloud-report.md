@@ -1,13 +1,19 @@
 # Cataphracta — Moloch, the thorn idol: revival report (lost wax)
 
-**Outcome: cut at 7.3 in round 6.**
-- The revival granted two more reviewed rounds. Round 5 scored **7.2** and round 6 scored **7.3**, both under the 7.5 ship bar. Under TASK.md a score under 7.5 after round 6 is a cut, and the reviewer's verdict stands.
-- Every gate is green at draft (768 × 320), at export (1536 × 448, with `--verify`) and at 384 × 192, in both rounds.
-- The template gate passes on the final build: 0 `design.set` patches, 2,362,958 B against the 3 MB painted budget, and cold source and mesh parity identical.
+**Outcome: cut at 7.4 in revival round 7.**
+- After the 7.3 cut in round 6, Logan granted one more reviewed round, revival round 7. It is recorded in the Moloch section of `docs/collections/cataphracta.md`.
+- Round 7 scored **7.4**, one tenth under the 7.5 ship bar. Round 7 was the last round, so this is a cut, and the reviewer's verdict stands.
+- The revival rounds scored 7.2, 7.3 and 7.4.
+- Every gate is green at draft (768 × 320), at export (1536 × 448, with `--verify`) and at 384 × 192, in every revival round.
+- The template gate passes on the final build: 0 `design.set` patches, 2,378,410 B against the 3 MB painted budget, and cold source and mesh parity identical.
 
-Both reviewers wrote "cut" by the three-round cap in `review.md`, since the repository records no extension. TASK.md grants round 6 whenever round 5 does not ship, so round 6 went ahead. Round 5's 7.2 is a "did not ship" for that purpose.
+**Process (Logan's rule, 2026-10-03).** Moloch is judged as lost wax: a 0.8 mm minimum section and no pull rule. The decision is recorded in the ring's section of the collection doc. No sand bonus: the final build would undercut a two-part pull over 7.2% of the band and 13.3% with the part, so it does not pull from sand as it stands.
 
-Branch: `claude/cataphracta-moloch-revival` (from `claude/cataphracta-moloch`, with `origin/master` merged at the start, again mid-round 5 for the crisp-render fix, PR #248, and at the start of round 6). Author file: `crates/ringdesign-core/examples/cataphracta_moloch.rs`. Artwork: `crates/ringdesign-core/examples/cataphracta/art/moloch/sand-ripples.svg`. Outputs: `showcase/cataphracta/moloch/`.
+**How round 7's review came to be.** The reviewer for round 7 was started on the pushed build (`867ec13`, 18:14 UTC) before this session was interrupted. It wrote `review-round7.json` at 18:17 UTC against that exact build (1,399,866 triangles). I found the file on resuming, checked that it matches the build, and committed it as the round's verdict. I did not re-run it.
+
+Rounds 5 and 6: both reviewers wrote "cut" by the three-round cap in `review.md`, because the collection doc recorded no extension at the time. Round 6 ran because TASK.md grants it when round 5 does not ship.
+
+Branch: `claude/cataphracta-moloch-revival` (from `claude/cataphracta-moloch`, with `origin/master` merged at the start, again mid-round 5 for the crisp-render fix, PR #248, at the start of round 6, and at the start of round 7, master `2e11632`). Author file: `crates/ringdesign-core/examples/cataphracta_moloch.rs`. Artwork: `crates/ringdesign-core/examples/cataphracta/art/moloch/sand-ripples.svg`. Outputs: `showcase/cataphracta/moloch/`.
 
 ## Verdicts, every round (an independent reviewer each time)
 
@@ -20,8 +26,9 @@ Branch: `claude/cataphracta-moloch-revival` (from `claude/cataphracta-moloch`, w
 | Round 4 (Logan's extra round) | cut | 7.1 | The ripples run round the ring. The feet read as cartoon gloves, with pegs off the cheek, toes at 0.175 mm and wrist knobs. |
 | **Round 5 (revival)** | **cut (by the cap; did not ship)** | **7.2** | Slender clawed toes at last, no peg (toes ≥ 0.631 mm), tubercles into the cone roots. Still: the band read as wood grain or water with crinkled palm highlights, outward spikes and a "forked tip" at the rear, a blobby head with a snout cone, an elbow knob. The template-gate file was stale (round 4's). |
 | **Round 6 (revival)** | **cut** | **7.3** | The tail is fixed (a beaded taper, no outward rail, no fork), the ripples are long, continuous and clean on the face side, and every gate is green including a fresh template gate. Still: the ripples now read as stylised water waves, too even and symmetric, with pooled highlights on the palm side. The head is a bubbly mass with seamed plates, a polished snout dome and a low forward horn. The upright flank thorns stand past the band edge in reverse view. An elbow knob remains, and the front limb bridges over the band in profile. |
+| **Revival round 7 (Logan's extra round)** | **cut** | **7.4** | Fixed: the ripples have a steep lee and an uneven pitch, read closer to dunes, and the palm highlights are continuous, with the crinkle and pooling of rounds 4–6 gone. The horns stand upright with no forward tusk. The front limbs lie on the crown with no rod read. The thorn-tip text is honest. Every gate is green and was independently confirmed. Still: (1) the new head is a smooth polished bulb carrying recessed hexagon cells that read as honeycomb or tortoise shell, not a plated wedge. (2) A dark socket at the nape beside the hump spine, and a dark-ringed dome behind it, read as an eye. (3) Five or six cones stand out radially past the band's outline in reverse view (axially inside the cheek, −0.269 mm). (4) At 300 px the ripples are still even, parallel wavy lines, readable as wood grain or water, and a 1–2 mm polished halo separates them from the figure. |
 
-Full verdicts: `read-test-1.json` and `review-round{1..6}.json` in `showcase/cataphracta/moloch/`.
+Full verdicts: `read-test-1.json` and `review-round{1..7}.json` in `showcase/cataphracta/moloch/`.
 
 ## What the revival changed
 
@@ -51,7 +58,24 @@ Full verdicts: `read-test-1.json` and `review-round{1..6}.json` in `showcase/cat
 7. **Claws.** The claw treatment uses lost-wax wording.
 8. **`crisp_relief` is off in the final design.** With it on, the template graph fails at node #29 ("the design failed upstream"), so the template gate cannot pass (see core changes). The ripples' lee faces are gentle (0.22 mm over about 0.24 mm), and a 2× zoom of the export palm shows no stepping without it. The design therefore stays at its earlier format, with no format-6 opt-in.
 
-## Gates (final, round 6: the committed design)
+### Revival round 7 (round 6's punch list, the sand first)
+1. **Ripples.**
+   - A dune ripple's profile, about 4:1: a straight stoss slope reaching 0.66 of the spacing, and a steep lee slip face reaching 0.15 of it under a narrow rounded brink.
+   - Pitch 1.7 mm ±25% (1.3–2.1 mm).
+   - Y-junctions: in place of the amplitude breaks, here and there a crest swings across onto its neighbour, runs merged with it for about 2 mm and parts again. That is a lens with a junction at each end, about one lens per 45° tile.
+   - The blur was widened to 0.055 mm.
+   - The SVG is 291 KB.
+2. **Head.**
+   - The Worley mosaic is gone. In its place, 11 flat hexagonal plates (about 0.8 × 0.64 mm, 0.12 mm proud), each tangent to the skin under it, in a staggered mosaic from the neck to the snout's tip.
+   - The horns moved back (x 8.25), were shortened to 1.6 mm, and are aimed nearly upright off the ring's radial.
+   - The small brow cones, which stood on smooth domes, are gone.
+3. **Cone roots.** Tubercles now run up to 0.72 mm above the skin, fading over 0.3 mm, so they cover the lower cone bases.
+4. **Flank rows.** The outer flank rows (|w| ≥ 2.4 mm) lean 52° back toward the tail. Every tip stays inside the cheek plane: past the cheek −0.269 mm, and the export's maximum |z| equals the cheek.
+5. **Limbs.** Each elbow rests on the crown, `top_h` plus the limb radius less 0.08 mm, so the forearm lies on the band with no daylight under it.
+6. **Thorn-tip text.** It now states the true tip: a point rounded to a 0.14 mm radius (0.28 mm across) in the field. The census's thinnest reading is a ray from a facet on the point's flank, stated as measured.
+7. **`crisp_relief`** stays off, because the graph lift cannot carry it yet (the lead confirmed the gap).
+
+## Gates (final, revival round 7: the committed design)
 
 | Gate | Draft 768 × 320 | Export 1536 × 448 | 384 × 192 |
 |---|---|---|---|
@@ -64,33 +88,33 @@ Full verdicts: `read-test-1.json` and `review-round{1..6}.json` in `showcase/cat
 | DFM findings | 0 | 0 | — |
 | Stones reported / previewed | 0 / 0 | 0 / 0 | — |
 | Casting pattern (`try_build_pattern`): watertight, degenerate faces, crossings | yes, 0, 0 | yes, 0, 0 | — |
-| Triangles (budget 2 M) | 591,120 | 1,402,980 | 274,554 |
+| Triangles (budget 2 M) | 591,276 | 1,399,866 | 275,966 |
 | Cold reload with an empty library | — | identical | — |
-| Past the cheek | −0.263 mm | −0.263 mm | — |
+| Past the cheek | −0.269 mm | −0.269 mm | — |
 
 - The sand gates (ray release at 0.100 and 0.075 mm, draft-clamp bites) do not apply: the ring is lost wax (Logan, 2026-09-27). Both reviewers confirmed the waiver.
-- The two-part undercut is reported only: 10.46% of the band, 14.75% with the part.
-- Round 5's final build had the same gate results: 1,402,610 export triangles, all 12 gates passing.
+- The two-part undercut is reported only: 7.21% of the band, 13.33% with the part.
+- Rounds 5 and 6 had the same gate results: 1,402,610 and 1,402,980 export triangles, all 12 gates passing.
 
 Land widths (export), thinnest section and area under the 0.8 mm floor:
 
 | Kind | Thinnest (mm) | Under (mm²) |
 |---|---|---|
 | body | 0.801 | 0 |
-| nuchal hump | 0.809 | 0 |
-| head and neck | 0.800 | 0 |
-| limbs | 0.800 | 0 |
-| **toes** | **0.653** | **0.03** |
-| claws (points, by design) | 0.009 | 1.84 |
-| tail | 0.800 | 0 |
-| hump spines | 0.035 | 3.43 |
-| brow horns | 0.003 | 2.59 |
-| major thorns | 0.001 | 18.20 |
-| minor thorns | 0.000 | 16.99 |
-| tail thorns | 0.003 | 0.71 |
-| hide tubercles (relief) | 0.000 | 20.54 |
+| nuchal hump | 0.804 | 0 |
+| head and neck (with plates) | 0.846 | 0 |
+| limbs | 0.803 | 0 |
+| **toes** | **0.652** | **0.03** |
+| claws (points, by design) | 0.005 | 1.81 |
+| tail | 0.801 | 0 |
+| hump spines | 0.012 | 3.38 |
+| brow horns | 0.207 | 3.32 |
+| major thorns | 0.001 | 16.82 |
+| minor thorns | 0.001 | 18.86 |
+| tail thorns | 0.003 | 1.12 |
+| hide tubercles (relief) | 0.000 | 18.63 |
 
-`dfm::part_sections` on the part alone reads 0.0001 mm thinnest, with 64.3 mm² under the floor out of 622.9 mm². Every shortfall is a point or a relief flank, and each is named in `report.json`.
+`dfm::part_sections` on the part alone reads 0.0001 mm thinnest, with 64.0 mm² under the floor out of 611.6 mm². Every shortfall is a point or a relief flank, and each is named in `report.json`.
 
 ## Template gate (after the last round)
 
@@ -100,10 +124,10 @@ Land widths (export), thinnest section and area under the 0.8 mm floor:
 |---|---|
 | Gate | **passed** |
 | `design.set` patches | **0** (limit 4) |
-| Graph size | **2,362,958 B** against the 3,000,000 B painted budget |
+| Graph size | **2,378,410 B** against the 3,000,000 B painted budget |
 | Nodes | 27 |
 | Cold source parity (`source_identical`) | true |
-| Mesh parity (`vertices_faces_normals_identical`) | true, 1,402,980 triangles |
+| Mesh parity (`vertices_faces_normals_identical`) | true, 1,399,866 triangles |
 | Cold design, cold graph and editable graph reloads | true |
 
 The file is `showcase/cataphracta/moloch/template-verification.json`. It matches this build.
@@ -113,29 +137,35 @@ The file is `showcase/cataphracta/moloch/template-verification.json`. It matches
 | Layer or part | What it is | Why |
 |---|---|---|
 | **Band** | A low dome squared at the cheeks, 6.6 mm wide, keyed wider under the lizard (up to 1.5×), 18.6 mm bore, lost wax at a 0.8 mm fill floor. | The figure needs crown under its sprawled legs. The cheeks stay polished with hard edges. |
-| **Sand ripples** (`TilingLayer`, Max blend, 8 tiles, 0.22 mm) | The desert the devil lies on, winding round the crown under the figure. | It gives the band a ground without a polished halo. |
+| **Sand ripples** (`TilingLayer`, Max blend, 8 tiles, 0.22 mm) | The desert the devil lies on: dune-profile crests at 1.3–2.1 mm with Y-junctions, winding round the crown under the figure. | It gives the band a ground without a polished halo. |
 | **Thorny devil** (one stored sculpt, joined, about 204k faces) | A distance field meshed by `sculpt` (see below). | — |
 
 The sculpt's parts:
 - **Trunk:** a broad flat egg sunk into the crown.
 - **False head:** the nuchal hump, with its two great spines.
-- **Head:** a low wedge with a flat-plate mosaic and two swept horns.
+- **Head:** a low wedge carrying 11 flat hexagonal plates, tangent to the skin, and two near-upright horns.
 - **Limbs:** four tapering legs.
 - **Feet:** five keeled, clawed toes each, plus a buried sole.
 - **Tail:** a flattened chain of eggs tapering along the crest toward the palm.
-- **Cones:** 4 brow-horn parts, 2 hump spines, 22 major thorns in paired rows graded shoulder to hip, 62 minor thorns over the flanks and limbs, and 17 tail thorns lying along the tail.
-- **Hide:** a close field of pebbled tubercles (Worley cells, 0.8 mm pitch, 0.2 mm) running into every cone's fillet.
+- **Cones:** 4 brow-horn parts, 2 hump spines, 22 major thorns in paired rows graded shoulder to hip (the outer flank rows leaned 52° back), 38 minor thorns over the flanks and limbs, and 17 tail thorns lying along the tail.
+- **Hide:** a close field of pebbled tubercles (Worley cells, 0.8 mm pitch, 0.2 mm) running up the lower cone bases, off the head.
 
 **Stones:** none, as specified.
 
 ## What I could not do
 
-- **Reach 7.5.** Round 6's punch list is still open:
-  1. **Ripples:** asymmetric 3:1 crests, pitch varied ±25%, 2–3 Y-junctions per 90°, and no pooled highlights on the palm side.
-  2. **Head:** a cleanly plated wedge with no seams, no polished snout dome and no forward horn. Tubercles over the smooth domes at the brow and mid-body cone roots.
-  3. **Flank thorns:** leaned back at least 45°, with every tip inside the cheek plane.
-  4. **Front limbs:** no elbow knob, and laid onto the band so they don't bridge it in profile.
-  5. **Treatment text:** the thorn-point treatments state a 0.28 mm tip sphere, while the measured tips read 0.001–0.035 mm.
+- **Reach 7.5.** Round 7's punch list is still open:
+  1. **Head:** drop the recessed honeycomb cells and the smooth bulb under them. Model a blunt, flat-topped wedge about 2.2 mm long, covered top and sides by 6–10 raised, slightly domed plates, leaving no smooth area wider than 0.4 mm.
+  2. **Nape:** fill the dark socket at each hump spine's root with tubercles, so the surface is convex within 1 mm of the root, and break the dark-ringed dome behind it into 3–4 tubercles.
+  3. **Outer flank cones (about 140–200°):** 40% shorter, and within 25° of the local surface, so none rises more than 0.6 mm above the tubercle field.
+  4. **Ripples:** run them to within 0.3 mm of the figure's outline, and break the even parallel stack into ripples 3–8 mm long with staggered ends and 2–3 terminations per 90°.
+- **Earlier rounds' items now closed:**
+  - Clawed feet and toe sections (round 4).
+  - The tail (round 5).
+  - The template gate (round 5).
+  - The palm crinkle and pooling (rounds 4–6).
+  - The forward horn and the limb rod (round 6).
+  - The thorn-tip text (round 6).
 - **Keep `crisp_relief`.** The template graph cannot carry it yet (below).
 - **Make the crease-normal render work for a sculpt.** The framed renderer's crease normals are right for stamps and booleans, but they show a tetrahedral sculpt's micro-folds as foil. I shaded the free sculpt surface smooth in the example, and said so above.
 
