@@ -4,18 +4,17 @@
     1536,
     448
   ],
-  "build_s": 1.78575974,
+  "build_s": 2.073451329,
   "cad_features": [
     "#1 Stock 013 (Procedural shank)",
     "#2 Table plane (Work plane)",
     "#3 Seal (Sketch)",
     "#4 Seal cutter (Extrude)",
-    "#5 Crown plane (Work plane)",
-    "#6 Crown (Sketch)",
-    "#7 Crown let down (Twisted sweep)",
-    "#8 Seal sunk (Intersect)"
+    "#5 Crown (Sketch)",
+    "#6 Crown let down (Twisted sweep)",
+    "#7 Seal sunk (Intersect)"
   ],
-  "design_bytes": 44001,
+  "design_bytes": 35477,
   "draft": {
     "bore_clear": true,
     "bore_radius_mm": 9.1,
@@ -46,21 +45,16 @@
       ],
       [
         5,
-        "Crown plane",
-        "Ok"
-      ],
-      [
-        6,
         "Crown",
         "Ok"
       ],
       [
-        7,
+        6,
         "Crown let down",
         "Ok"
       ],
       [
-        8,
+        7,
         "Seal sunk",
         "Ok"
       ]
@@ -101,7 +95,7 @@
     "stones_previewed": 0,
     "stones_reported": 0,
     "thinnest_wall_mm": 1.3688037637863513,
-    "triangles": 493122,
+    "triangles": 492932,
     "watertight": true,
     "within_two_million": true
   },
@@ -135,21 +129,16 @@
       ],
       [
         5,
-        "Crown plane",
-        "Ok"
-      ],
-      [
-        6,
         "Crown",
         "Ok"
       ],
       [
-        7,
+        6,
         "Crown let down",
         "Ok"
       ],
       [
-        8,
+        7,
         "Seal sunk",
         "Ok"
       ]
@@ -190,19 +179,20 @@
     "stones_previewed": 0,
     "stones_reported": 0,
     "thinnest_wall_mm": 1.3688037637863513,
-    "triangles": 1364220,
+    "triangles": 1363746,
     "watertight": true,
     "within_two_million": true
   },
-  "grams_18k": 10.982737657997514,
+  "grams_18k": 10.979807553094133,
   "name": "Sigil — a quartered seal on the round",
   "notes": [
     "Process: Delft sand on the drafted sand master of stock 013 at its native face, bore 18.2 mm. Bare, that master fields Castable with care (0.07% at -0.8 deg at 192 x 128): a mirror seam about 1 micron deep on the crest line between 0 and 55 deg. A 0.5 x 0.004 mm round bead on the crest line ('Parting seam dressed') fills it; it is invisible in every render and the field reads Castable.",
     "Every cut is Stage::Bench, so the casting pattern is the bare stock; the seal is in the finished ring and the renders, not in the pour.",
-    "The table is crowned across the finger (0.29 mm down at 2 mm, 0.68 mm at 4 mm) and flat round the ring, so the seal is sunk square into the crown: its cutter is the seal's regions extruded (4) and intersected with a slab whose underside is the crown let down 0.42 mm (7, a sweep of the crown sketch round the ring). Depths are in `seal`.",
+    "The table is crowned across the finger (0.29 mm down at 2 mm, 0.68 mm at 4 mm) and flat round the ring, so the seal is sunk square into the crown: its cutter is the seal's regions extruded (4) and intersected with a slab whose underside is the crown let down 0.42 mm (6, a sweep of the crown sketch round the ring). Depths are in `seal`.",
     "Finish: the sunk seal (floors and walls) is left oxidised satin, as Logan's own signets keep their recesses; the table, cross and raised quarters are polished. The renders split the faces by geometry: on the let-down floor, or a wall standing on it inside the bordure.",
-    "Render shading: the stock's source mesh is refined to 0.55 mm facets, which stand within microns of the true surface but read as stepped highlights on a polished shank; the polished metal's shading normals are diffused over 0.6 mm, never across an edge sharper than 20 deg, so the hard wall-to-face angles stay. Geometry, STL and gates are untouched by it.",
-    "Edges: the seal's walls are square and crisp, as a graver leaves an intaglio for a clean impression; a rolling-ball bead folds at the shield's 58-degree feet, and the kernel cannot tessellate a drafted prism of these regions closed."
+    "Render shading only: the stock's source mesh (and so finished-metal.stl) carries 0.55 mm facets, which stand within microns of the true surface but read as stepped highlights on a polished shank; on the shank the polished metal's shading normals are diffused over 0.6 mm, never across an edge sharper than 20 deg, blending to the build's own normals on the table, and the table round the seal shades from its own faces so every cut edge is one line. Geometry, STL and gates are untouched; mesh.json's minimum angle is the stock mesh's and the csg seams' slivers, which the gates allow (watertight, 0 degenerate faces). The README says so.",
+    "Edges: the seal's walls are square and crisp, as a graver leaves an intaglio for a clean impression; a rolling-ball bead folds at the shield's acute corners (its point, and the cross's feet on the base arcs), and the kernel cannot tessellate a drafted prism of these regions closed.",
+    "Lesson: seven features, as Logan decided. The crown is a sketch on a work plane of its own (no Plane feature), square to the ring at the slab's near end."
   ],
   "process": "Sand (two-part)",
   "seal": {
@@ -242,5 +232,28 @@
     "rim_mm": 0.0
   },
   "size": "US 8.11",
-  "template_gate": null
+  "template_gate": {
+    "passed": true,
+    "design_set_patches": 1,
+    "patch_pointers": [
+      "/manufacturing"
+    ],
+    "template_bytes": 39456,
+    "class": "procedural",
+    "class_budget_bytes": 300000,
+    "nodes": 21,
+    "cad_feature_nodes_in_timeline_order": [
+      "Stock 013",
+      "Table plane",
+      "Seal",
+      "Seal cutter",
+      "Crown",
+      "Crown let down",
+      "Seal sunk"
+    ],
+    "cold_source_identical": true,
+    "cold_graph_reload": true,
+    "mesh_parity": true,
+    "export_geometry_verified": true
+  }
 }

@@ -430,7 +430,7 @@
                 {
                   "id": 2,
                   "xy": [
-                    0.15,
+                    -2.7,
                     -2.75
                   ],
                   "fixed": false
@@ -438,21 +438,29 @@
                 {
                   "id": 4,
                   "xy": [
-                    -0.15,
-                    -2.75
+                    -2.7,
+                    -0.9
                   ],
                   "fixed": false
                 },
                 {
                   "id": 6,
                   "xy": [
-                    -2.7,
-                    -2.75
+                    2.7,
+                    -0.9
                   ],
                   "fixed": false
                 },
                 {
-                  "id": 8,
+                  "id": 7,
+                  "xy": [
+                    -0.0,
+                    3.776537180435969
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 9,
                   "xy": [
                     -2.7,
                     -0.9
@@ -468,106 +476,90 @@
                   "fixed": false
                 },
                 {
-                  "id": 12,
-                  "xy": [
-                    2.7,
-                    -0.9
-                  ],
-                  "fixed": false
-                },
-                {
                   "id": 13,
                   "xy": [
-                    -0.0,
-                    3.776537180435969
+                    0.15,
+                    -2.4
                   ],
                   "fixed": false
                 },
                 {
                   "id": 14,
                   "xy": [
-                    -0.15,
-                    3.6866654554261973
+                    -2.35,
+                    -2.4
                   ],
                   "fixed": false
                 },
                 {
                   "id": 16,
                   "xy": [
-                    2.7,
+                    -2.35,
                     -0.9
                   ],
                   "fixed": false
                 },
                 {
-                  "id": 17,
+                  "id": 18,
                   "xy": [
-                    -2.528527517380013,
-                    0.44999999999999996
+                    2.7,
+                    -0.9
                   ],
                   "fixed": false
                 },
                 {
                   "id": 19,
                   "xy": [
-                    2.7,
-                    -0.9
+                    -2.166210024238576,
+                    0.44999999999999996
                   ],
                   "fixed": false
                 },
                 {
-                  "id": 20,
+                  "id": 21,
                   "xy": [
-                    -2.596933074902873,
-                    0.15
+                    -0.15,
+                    0.44999999999999996
                   ],
                   "fixed": false
                 },
                 {
-                  "id": 22,
+                  "id": 23,
                   "xy": [
-                    2.7,
-                    -0.9
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 24,
-                  "xy": [
-                    -2.7,
-                    -0.9
+                    -0.15,
+                    3.268932717135167
                   ],
                   "fixed": false
                 },
                 {
                   "id": 25,
                   "xy": [
-                    2.596933074902873,
-                    0.15
+                    2.7,
+                    -0.9
                   ],
                   "fixed": false
                 },
                 {
-                  "id": 27,
+                  "id": 26,
                   "xy": [
-                    -2.7,
-                    -0.9
+                    -0.0,
+                    3.367610572674129
                   ],
                   "fixed": false
                 },
                 {
                   "id": 28,
                   "xy": [
-                    2.528527517380013,
-                    0.44999999999999996
+                    -2.7,
+                    -0.9
                   ],
                   "fixed": false
                 },
                 {
-                  "id": 30,
+                  "id": 29,
                   "xy": [
-                    -2.7,
-                    -0.9
+                    2.2396356140913882,
+                    0.15
                   ],
                   "fixed": false
                 },
@@ -575,116 +567,12 @@
                   "id": 31,
                   "xy": [
                     0.15,
-                    3.6866654554261973
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 33,
-                  "xy": [
-                    -2.7,
-                    -0.9
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 35,
-                  "xy": [
-                    0.15,
                     0.15
                   ],
                   "fixed": false
                 },
                 {
-                  "id": 37,
-                  "xy": [
-                    -0.15,
-                    -2.4
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 39,
-                  "xy": [
-                    -0.15,
-                    0.15
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 41,
-                  "xy": [
-                    0.15,
-                    0.44999999999999996
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 42,
-                  "xy": [
-                    0.15,
-                    3.268932717135167
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 45,
-                  "xy": [
-                    -0.15,
-                    0.44999999999999996
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 48,
-                  "xy": [
-                    -2.2396356140913882,
-                    0.15
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 51,
-                  "xy": [
-                    2.166210024238576,
-                    0.44999999999999996
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 55,
-                  "xy": [
-                    -2.35,
-                    -2.4
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 57,
-                  "xy": [
-                    -2.35,
-                    -0.9
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 59,
-                  "xy": [
-                    2.7,
-                    -0.9
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 61,
-                  "xy": [
-                    -2.7,
-                    -0.9
-                  ],
-                  "fixed": false
-                },
-                {
-                  "id": 63,
+                  "id": 34,
                   "xy": [
                     0.0,
                     0.0
@@ -692,7 +580,7 @@
                   "fixed": false
                 },
                 {
-                  "id": 64,
+                  "id": 35,
                   "xy": [
                     4.65,
                     0.0
@@ -700,7 +588,7 @@
                   "fixed": false
                 },
                 {
-                  "id": 66,
+                  "id": 37,
                   "xy": [
                     0.0,
                     0.0
@@ -708,7 +596,7 @@
                   "fixed": false
                 },
                 {
-                  "id": 67,
+                  "id": 38,
                   "xy": [
                     4.15,
                     0.0
@@ -738,27 +626,29 @@
                   }
                 },
                 {
-                  "id": 7,
+                  "id": 8,
                   "construction": false,
                   "geometry": {
-                    "Line": {
-                      "a": 4,
-                      "b": 6
-                    }
-                  }
-                },
-                {
-                  "id": 9,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 6,
-                      "b": 8
+                    "Arc": {
+                      "center": 6,
+                      "start": 7,
+                      "end": 4
                     }
                   }
                 },
                 {
                   "id": 11,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 9,
+                      "start": 10,
+                      "end": 7
+                    }
+                  }
+                },
+                {
+                  "id": 12,
                   "construction": false,
                   "geometry": {
                     "Line": {
@@ -771,65 +661,72 @@
                   "id": 15,
                   "construction": false,
                   "geometry": {
-                    "Arc": {
-                      "center": 12,
-                      "start": 13,
-                      "end": 14
+                    "Line": {
+                      "a": 13,
+                      "b": 14
                     }
                   }
                 },
                 {
-                  "id": 18,
+                  "id": 17,
                   "construction": false,
                   "geometry": {
-                    "Arc": {
-                      "center": 16,
-                      "start": 14,
-                      "end": 17
+                    "Line": {
+                      "a": 14,
+                      "b": 16
                     }
                   }
                 },
                 {
-                  "id": 21,
+                  "id": 20,
                   "construction": false,
                   "geometry": {
                     "Arc": {
-                      "center": 19,
-                      "start": 17,
-                      "end": 20
+                      "center": 18,
+                      "start": 19,
+                      "end": 16
                     }
                   }
                 },
                 {
-                  "id": 23,
+                  "id": 22,
                   "construction": false,
                   "geometry": {
-                    "Arc": {
-                      "center": 22,
-                      "start": 20,
-                      "end": 8
+                    "Line": {
+                      "a": 19,
+                      "b": 21
                     }
                   }
                 },
                 {
-                  "id": 26,
+                  "id": 24,
                   "construction": false,
                   "geometry": {
-                    "Arc": {
-                      "center": 24,
-                      "start": 10,
-                      "end": 25
+                    "Line": {
+                      "a": 21,
+                      "b": 23
                     }
                   }
                 },
                 {
-                  "id": 29,
+                  "id": 27,
                   "construction": false,
                   "geometry": {
                     "Arc": {
-                      "center": 27,
-                      "start": 25,
-                      "end": 28
+                      "center": 25,
+                      "start": 26,
+                      "end": 23
+                    }
+                  }
+                },
+                {
+                  "id": 30,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 28,
+                      "start": 29,
+                      "end": 26
                     }
                   }
                 },
@@ -837,21 +734,19 @@
                   "id": 32,
                   "construction": false,
                   "geometry": {
-                    "Arc": {
-                      "center": 30,
-                      "start": 28,
-                      "end": 31
+                    "Line": {
+                      "a": 29,
+                      "b": 31
                     }
                   }
                 },
                 {
-                  "id": 34,
+                  "id": 33,
                   "construction": false,
                   "geometry": {
-                    "Arc": {
-                      "center": 33,
-                      "start": 31,
-                      "end": 13
+                    "Line": {
+                      "a": 31,
+                      "b": 13
                     }
                   }
                 },
@@ -859,187 +754,25 @@
                   "id": 36,
                   "construction": false,
                   "geometry": {
-                    "Line": {
-                      "a": 2,
-                      "b": 35
+                    "Circle": {
+                      "center": 34,
+                      "rim": 35
                     }
                   }
                 },
                 {
-                  "id": 38,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 4,
-                      "b": 37
-                    }
-                  }
-                },
-                {
-                  "id": 40,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 37,
-                      "b": 39
-                    }
-                  }
-                },
-                {
-                  "id": 43,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 41,
-                      "b": 42
-                    }
-                  }
-                },
-                {
-                  "id": 44,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 42,
-                      "b": 31
-                    }
-                  }
-                },
-                {
-                  "id": 46,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 45,
-                      "b": 14
-                    }
-                  }
-                },
-                {
-                  "id": 47,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 25,
-                      "b": 35
-                    }
-                  }
-                },
-                {
-                  "id": 49,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 39,
-                      "b": 48
-                    }
-                  }
-                },
-                {
-                  "id": 50,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 48,
-                      "b": 20
-                    }
-                  }
-                },
-                {
-                  "id": 52,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 28,
-                      "b": 51
-                    }
-                  }
-                },
-                {
-                  "id": 53,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 51,
-                      "b": 41
-                    }
-                  }
-                },
-                {
-                  "id": 54,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 45,
-                      "b": 17
-                    }
-                  }
-                },
-                {
-                  "id": 56,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 37,
-                      "b": 55
-                    }
-                  }
-                },
-                {
-                  "id": 58,
-                  "construction": false,
-                  "geometry": {
-                    "Line": {
-                      "a": 55,
-                      "b": 57
-                    }
-                  }
-                },
-                {
-                  "id": 60,
-                  "construction": false,
-                  "geometry": {
-                    "Arc": {
-                      "center": 59,
-                      "start": 48,
-                      "end": 57
-                    }
-                  }
-                },
-                {
-                  "id": 62,
-                  "construction": false,
-                  "geometry": {
-                    "Arc": {
-                      "center": 61,
-                      "start": 51,
-                      "end": 42
-                    }
-                  }
-                },
-                {
-                  "id": 65,
+                  "id": 39,
                   "construction": false,
                   "geometry": {
                     "Circle": {
-                      "center": 63,
-                      "rim": 64
-                    }
-                  }
-                },
-                {
-                  "id": 68,
-                  "construction": false,
-                  "geometry": {
-                    "Circle": {
-                      "center": 66,
-                      "rim": 67
+                      "center": 37,
+                      "rim": 38
                     }
                   }
                 }
               ],
               "constraints": [],
-              "next_id": 69,
+              "next_id": 40,
               "grid_mm": 0.5
             }
           }
@@ -1070,7 +803,7 @@
               "feature": 3,
               "regions": [
                 {
-                  "entity": 65,
+                  "entity": 36,
                   "at": [
                     -0.0,
                     -4.4
@@ -1081,27 +814,6 @@
                   "at": [
                     1.35,
                     -1.3
-                  ]
-                },
-                {
-                  "entity": 7,
-                  "at": [
-                    -1.35,
-                    -2.575
-                  ]
-                },
-                {
-                  "entity": 32,
-                  "at": [
-                    1.940303980793455,
-                    1.5
-                  ]
-                },
-                {
-                  "entity": 54,
-                  "at": [
-                    -1.2642637586900065,
-                    2.0683327277130985
                   ]
                 }
               ]
@@ -1128,36 +840,6 @@
       },
       {
         "id": 5,
-        "name": "Crown plane",
-        "enabled": true,
-        "operation": {
-          "Plane": {
-            "base": {
-              "section": {
-                "theta_deg": 90.0
-              }
-            },
-            "offset_mm": -5.5
-          }
-        },
-        "component": {
-          "role": "Other",
-          "material": "Silver 925",
-          "manufacturing": null,
-          "visible": true,
-          "reference": false,
-          "stone_id": null,
-          "bench_notes": "",
-          "placement": {
-            "kind": "free"
-          },
-          "attach": "separate",
-          "stage": "cast",
-          "blend_mm": 0.0
-        }
-      },
-      {
-        "id": 6,
         "name": "Crown",
         "enabled": true,
         "operation": {
@@ -1166,26 +848,20 @@
               "name": "Crown",
               "plane": {
                 "origin": [
-                  0.0,
+                  -5.5,
                   0.0,
                   0.0
                 ],
                 "x": [
-                  1.0,
                   0.0,
+                  1.0,
                   0.0
                 ],
                 "y": [
                   0.0,
-                  1.0,
-                  0.0
-                ],
-                "on_face": {
-                  "feature": 5,
-                  "face": {
-                    "ordinal": 0
-                  }
-                }
+                  0.0,
+                  1.0
+                ]
               },
               "points": [
                 {
@@ -1684,13 +1360,13 @@
         }
       },
       {
-        "id": 7,
+        "id": 6,
         "name": "Crown let down",
         "enabled": true,
         "operation": {
           "Twist": {
             "sketch": {
-              "feature": 6
+              "feature": 5
             },
             "path": {
               "name": "Round the ring",
@@ -1766,13 +1442,13 @@
         }
       },
       {
-        "id": 8,
+        "id": 7,
         "name": "Seal sunk",
         "enabled": true,
         "operation": {
           "Boolean": {
             "a": 4,
-            "b": 7,
+            "b": 6,
             "kind": "Intersect"
           }
         },
@@ -1795,7 +1471,7 @@
     ],
     "outputs": [
       1,
-      8
+      7
     ],
     "joints": [],
     "through": null
