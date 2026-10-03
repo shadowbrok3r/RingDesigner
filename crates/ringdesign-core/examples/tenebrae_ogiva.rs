@@ -69,15 +69,33 @@ impl Tree {
     fn plane(&mut self, name: &str, offset_mm: f64) -> Id {
         self.add(name, Operation::Plane { base: PlaneBase::Parting, offset_mm }, ComponentRole::Other)
     }
-    fn sketch(&mut self, name: &str, plane: Id, loops: &[Vec<P2>]) -> Id {
+    fn sketch(&mut self, name: &str, plane: Id, loops: &[Shape]) -> Id {
         let mut s = Sketch::default();
         s.name = name.into();
         s.plane.on_face = Some(FaceAnchor { feature: plane, face: FaceRef::bare(0) });
         for l in loops {
-            // A polyline takes at most 512 points: a long loop keeps every k-th.
-            let k = l.len().div_ceil(500);
-            let ids: Vec<Id> = l.iter().step_by(k).map(|p| s.point(*p)).collect();
-            s.entity(Geometry::Polyline { points: ids, closed: true });
+            match l {
+                Shape::Poly(l) => {
+                    // A polyline takes at most 512 points: a long loop keeps every k-th.
+                    let k = l.len().div_ceil(500);
+                    let ids: Vec<Id> = l.iter().step_by(k).map(|p| s.point(*p)).collect();
+                    s.entity(Geometry::Polyline { points: ids, closed: true });
+                }
+                Shape::Circle { centre, radius } => {
+                    let center = s.point(*centre);
+                    let rim = s.point([centre[0] + radius, centre[1]]);
+                    s.entity(Geometry::Circle { center, rim });
+                }
+                Shape::Arch { arch, kind, d, round } => {
+                    // Walked in chords: the kernel's drafted true arcs tessellate with open seams at some resolutions.
+                    let pts = match kind {
+                        PathKind::Outline => arch.outline(*d, *round),
+                        PathKind::Head { drop } => arch.head_region(*d, *round, *drop),
+                    };
+                    let ids: Vec<Id> = pts.iter().map(|p| s.point(*p)).collect();
+                    s.entity(Geometry::Polyline { points: ids, closed: true });
+                }
+            }
         }
         self.add(name, Operation::Sketch { sketch: s }, ComponentRole::Other)
     }
@@ -91,7 +109,7 @@ impl Tree {
         self.add(name, Operation::Boolean { a, b, kind }, ComponentRole::Other)
     }
     /// Loops drawn on a plane at `z0` and raised to `z1` along the pull in the cope with draft, mirrored into the drag, the halves joined.
-    fn slab(&mut self, what: &str, loops: &[Vec<P2>], z0: f64, z1: f64, draft: f64) -> Id {
+    fn slab(&mut self, what: &str, loops: &[Shape], z0: f64, z1: f64, draft: f64) -> Id {
         let plane = self.plane(&format!("Lay a plane at z {z0:+.3} for the {what}"), z0);
         let s = self.sketch(&format!("Draw the {what}"), plane, loops);
         let cope = self.extrude(&format!("Raise the cope half of the {what} along the pull"), s, z1 - z0, draft);
@@ -99,11 +117,37 @@ impl Tree {
         self.boolean(&format!("Join the halves of the {what}"), cope, drag, Boolean::Union)
     }
     /// Loops raised from a hair under the parting line to `half` either side.
-    fn both_halves(&mut self, what: &str, loops: &[Vec<P2>], half: f64, draft: f64) -> Id {
+    fn both_halves(&mut self, what: &str, loops: &[Shape], half: f64, draft: f64) -> Id {
         self.slab(what, loops, -HAIR_MM, half, draft)
     }
+    /// Loops raised to `half` either side of the parting line: a straight belt across it, BELT_MM each way, and drafted
+    /// halves from inside the belt out to the faces.
+    fn belted(&mut self, what: &str, loops: &[Shape], half: f64, draft: f64) -> Id {
+        // A part's belt stands a little past the keel's land, so no two belt tops share a plane where the part meets the keel.
+        let belt_mm = BELT_MM + PART_BELT_EXTRA_MM;
+        let plane = self.plane(&format!("Lay a plane under the parting line for the {what}'s belt"), -belt_mm);
+        let s = self.sketch(&format!("Draw the {what}'s belt"), plane, loops);
+        let belt = self.extrude(&format!("Run the {what}'s belt straight across the parting line"), s, 2.0 * belt_mm, 0.0);
+        let inner: Vec<Shape> = loops.iter().map(|l| l.inset(HALF_IN_MM)).collect();
+        let halves = self.slab(what, &inner, HALF_FROM_MM + PART_BELT_EXTRA_MM, half, draft);
+        self.boolean(&format!("Join the {what}'s halves to its belt"), belt, halves, Boolean::Union)
+    }
+    /// A cut through the ring along the pull: drafted halves from each face to inside a straight belt at the parting
+    /// line, the belt drawn at the halves' narrowest, so each opening narrows toward the parting line.
+    fn belted_cut(&mut self, what: &str, loops: &[Shape], top: f64, draft: f64) -> Id {
+        let floor = HALF_FROM_MM + 0.04;
+        let (cope, drag) = self.pocket(what, loops, top, floor, draft);
+        let narrow = (top - floor) * draft.to_radians().tan() + HALF_IN_MM;
+        let inner: Vec<Shape> = loops.iter().map(|l| l.inset(narrow)).collect();
+        let plane = self.plane(&format!("Lay a plane under the parting line for the {what}'s belt"), -(BELT_MM + 0.04));
+        let s = self.sketch(&format!("Draw the {what}'s belt"), plane, &inner);
+        let belt = self.extrude(&format!("Run the {what}'s belt straight across the parting line"), s, 2.0 * (BELT_MM + 0.04), 0.0);
+        let both = self.boolean(&format!("Join the halves of the {what}"), cope, drag, Boolean::Union);
+        self.boolean(&format!("Join the {what}'s belt"), both, belt, Boolean::Union)
+    }
+
     /// A pocket drawn on a plane `top` over the side face and sunk to `floor` along the pull in the cope with `draft`, mirrored into the drag.
-    fn pocket(&mut self, what: &str, loops: &[Vec<P2>], top: f64, floor: f64, draft: f64) -> (Id, Id) {
+    fn pocket(&mut self, what: &str, loops: &[Shape], top: f64, floor: f64, draft: f64) -> (Id, Id) {
         let plane = self.plane(&format!("Lay a plane over the face for the {what}"), top);
         let s = self.sketch(&format!("Draw the {what}"), plane, loops);
         let cope = self.extrude(&format!("Sink the {what} along the pull"), s, -(top - floor), draft);
@@ -144,7 +188,7 @@ struct GreatArch {
 
 impl GreatArch {
     fn of(rev: bool) -> Self {
-        let (half_span, spring_y, sill_y, corner, width): (f64, f64, f64, f64, f64) = if rev { (11.0, -3.0, -11.0, 2.4, 6.0) } else { (11.0, -3.0, -11.0, 2.4, 6.0) };
+        let (half_span, spring_y, sill_y, corner, width): (f64, f64, f64, f64, f64) = if rev { (12.15, -3.0, -11.0, 2.4, 6.0) } else { (12.15, -3.0, -11.0, 2.4, 6.0) };
         let radius = 2.0 * half_span;
         let c = radius - half_span;
         let apex_y = spring_y + (radius * radius - c * c).sqrt();
@@ -178,6 +222,10 @@ impl GreatArch {
         pts.insert(0, [right[0], right[1] - drop]);
         pts
     }
+    /// One of the arch's paths `d` in from the outline, as a shape a sketch draws.
+    fn shape(&self, kind: PathKind, d: f64, round: f64) -> Shape {
+        Shape::Arch { arch: *self, kind, d, round }
+    }
     /// The whole outline offset `d` inward: the head, down the left pier, round the corner along the sill, and up the right pier.
     fn outline(&self, d: f64, round: f64) -> Vec<P2> {
         let mut pts = self.head(d, round);
@@ -185,79 +233,122 @@ impl GreatArch {
         let k = self.corner - d;
         let (cx, cy) = (self.half_span - self.corner, self.sill_y + self.corner);
         pts.push([-x, cy]);
-        pts.extend(arc_n([-cx, cy], k, PI, 1.5 * PI, 24));
+        pts.extend(arc_n([-cx, cy], k, PI, 1.5 * PI, 10));
         pts.push([cx, self.sill_y + d]);
-        pts.extend(arc_n([cx, cy], k, 1.5 * PI, 2.0 * PI, 24));
+        pts.extend(arc_n([cx, cy], k, 1.5 * PI, 2.0 * PI, 10));
         pts.pop();
         pts
     }
 }
 
+/// Which of the arch's paths a shape draws.
+#[derive(Clone, Copy, Debug)]
+enum PathKind {
+    Outline,
+    Head { drop: f64 },
+}
+
+/// A closed loop a sketch draws: a polyline, one of the arch's paths `d` in with its apex round, or a circle.
+#[derive(Clone, Debug)]
+enum Shape {
+    Poly(Vec<P2>),
+    Arch { arch: GreatArch, kind: PathKind, d: f64, round: f64 },
+    Circle { centre: P2, radius: f64 },
+}
+
+impl Shape {
+    /// The same loop drawn `by` further in.
+    fn inset(&self, by: f64) -> Shape {
+        match self {
+            Shape::Poly(l) => Shape::Poly(inset_loop(l, by)),
+            Shape::Arch { arch, kind, d, round } => Shape::Arch { arch: *arch, kind: *kind, d: d + by, round: round - by },
+            Shape::Circle { centre, radius } => Shape::Circle { centre: *centre, radius: radius - by },
+        }
+    }
+}
+
 /// Chords on each head arc.
-const HEAD_STEPS: usize = 110;
+const HEAD_STEPS: usize = 16;
 
 /// `n` chords round an arc about `c`, the start left out.
 fn arc_n(c: P2, r: f64, a0: f64, a1: f64, n: usize) -> Vec<P2> {
     (1..=n).map(|i| a0 + (a1 - a0) * i as f64 / n as f64).map(|t| [c[0] + r * t.cos(), c[1] + r * t.sin()]).collect()
 }
 
-fn circle(r: f64) -> Vec<P2> {
-    let mut pts = arc_pts([0.0, 0.0], r, 0.0, 2.0 * PI);
-    pts.pop();
-    pts
-}
-
 // --- The ring's numbers ----------------------------------------------------------------------------
 
-/// The keel: the outline on the parting plane falls KEEL_IN inward over KEEL_RISE along the pull, and its crease is rounded.
-const KEEL_IN: f64 = 0.8;
-const KEEL_RISE: f64 = 1.05;
-const KEEL_ROUND_MM: f64 = 0.3;
-/// The round is walked as tangent faces at these drafts, then the keel's own flank.
-const KEEL_ROUND_DRAFTS: [f64; 4] = [3.0, 12.0, 21.0, 29.0];
-/// The orders sunk into the head: how far inside the outline each starts, how deep its floor sits below the face, and its chamfer's draft.
-const ORDERS: [(f64, f64, f64); 3] = [(1.4, 0.6, 35.0), (2.3, 1.2, 35.0), (3.2, 1.9, 12.0)];
-/// The capitals at the springers: abacus, bell and astragal heights, how far each projects past the pier, how proud of the face.
-const ABACUS: (f64, f64) = (0.55, 0.75);
-const BELL: (f64, f64) = (0.95, 0.6);
-const ASTRAGAL: (f64, f64) = (0.5, 0.35);
+/// Every form that straddles the parting line has a straight belt across it, BELT_MM either side, and its drafted halves
+/// start inside the belt: the ledge where a half leaves the belt then stands 2 × BELT_MM of metal over its mirror, and no
+/// hair-thin lip is left where two overlapped halves meet.
+const BELT_MM: f64 = 0.41;
+/// Where each drafted half starts inside the belt, and how far inside the belt's outline it is drawn, mm.
+const HALF_FROM_MM: f64 = 0.38;
+const HALF_IN_MM: f64 = 0.012;
+/// How much further a part's belt runs than the keel's land.
+const PART_BELT_EXTRA_MM: f64 = 0.023;
+/// The keel's steep flanks start a finer hair inside its land: their drafted inset leaves the apex round little to spare.
+const KEEL_HALF_IN_MM: f64 = 0.006;
+/// The keel: its crease blunted to the belt's land, KEEL_LAND inside the outline, then a flank falling at KEEL_FLANK_DEG
+/// to KEEL_IN at the face.
+const KEEL_LAND: f64 = 0.15;
+const KEEL_FLANK_DEG: f64 = 37.0;
+const KEEL_IN: f64 = 0.6;
+/// The order sunk into the head (how far inside the outline, its floor's depth, its chamfer's draft), and the mouth
+/// (how far inside the outline, how far it keeps off the bore, its depth).
+const ORDER: (f64, f64, f64) = (1.45, 0.6, 35.0);
+const MOUTH: (f64, f64, f64) = (2.15, 0.9, 1.6);
+/// The capitals at the springers: abacus and bell heights and how far each projects past the pier, and how proud of the face.
+/// Each member is drawn tall enough that what both drafts leave of it at its proud face still holds the 0.8 mm section.
+const ABACUS: (f64, f64) = (1.4, 0.95);
+const BELL: (f64, f64) = (1.2, 0.55);
+/// How far inside the capital's own outline the abacus's boss is drawn, clear of the capital's drafted face.
+const ABACUS_BOSS_INSET: f64 = 0.2;
 const CAPITAL_PROUD: (f64, f64) = (0.5, 0.3);
-/// How far in from the pier's outer face the capitals reach (the bore trims them).
-const CAPITAL_IN: f64 = 3.4;
+/// How far in from the pier's outer face the capitals reach: they stop short of the bore, whose drafted wall would
+/// otherwise trim them to a wedge.
+const CAPITAL_IN: f64 = 2.35;
 /// Crockets up each slope of the extrados, as shares of the head arc, each one's growth, and the plate's half-width along the finger.
 const CROCKETS: [(f64, f64); 6] = [(0.16, 0.85), (0.29, 0.92), (0.42, 1.0), (0.55, 1.07), (0.68, 1.14), (0.81, 1.2)];
 const CROCKET_HALF: f64 = 0.9;
 /// How deep each crocket and the finial sink below the outline.
 const CROCKET_SINK: f64 = 1.2;
 /// A blind lancet niche in each pier face: centre off the axis, width, sill and apex heights, floor depth below the face.
-const PIER_NICHE: (f64, f64, f64, f64, f64) = (9.2, 1.0, -9.0, -5.2, 0.7);
+const PIER_NICHE: (f64, f64, f64, f64, f64) = (9.4, 1.0, -9.4, -6.1, 0.7);
 /// The pierced trefoil in the mouth over the finger: centre height, lobe radius, lobe centres' distance from the centre.
-const TREFOIL: (f64, f64, f64) = (11.0, 0.55, 0.5);
+const TREFOIL: (f64, f64, f64) = (12.6, 0.7, 0.65);
 
-/// The four tangent faces that walk the keel's round and the flank: (draft, the inset each starts at on the parting plane, the height it stops at).
-fn keel_layers() -> Vec<(f64, f64, f64, f64)> {
-    let flank = (KEEL_IN / KEEL_RISE).atan();
-    let c = KEEL_ROUND_MM / flank.cos();
-    let mut drafts: Vec<f64> = KEEL_ROUND_DRAFTS.iter().map(|d| d.to_radians()).collect();
-    drafts.push(flank);
-    let e: Vec<f64> = drafts.iter().map(|a| c - KEEL_ROUND_MM / a.cos()).collect();
-    let mut out = Vec::new();
-    let mut z0 = -HAIR_MM;
-    for k in 0..drafts.len() {
-        let z1 = if k + 1 < drafts.len() { (e[k] - e[k + 1]) / (drafts[k + 1].tan() - drafts[k].tan()) } else { KEEL_RISE };
-        // Each face runs a hair past the line where it meets the next, and the next starts a hair before it, so every
-        // rim stands inside its neighbour and no edge lies on another face.
-        let start = if k == 0 { z0 } else { z0 - 0.01 };
-        let stop = if k + 1 < drafts.len() { z1 + 0.01 } else { z1 };
-        out.push((drafts[k], e[k] + start.max(0.0) * drafts[k].tan(), start, stop));
-        z0 = z1;
-    }
-    out
+/// The keel's rise: from the land at the belt's top to KEEL_IN at the flank's draft.
+fn keel_rise() -> f64 {
+    HALF_FROM_MM + (KEEL_IN - KEEL_LAND - KEEL_HALF_IN_MM) / KEEL_FLANK_DEG.to_radians().tan()
+}
+
+/// A loop drawn `d` further in (out for a negative `d`), each point moved along its corner's bisecting normal: exact
+/// enough for the hair of an inset it is used for, on loops whose turns are wider than it.
+fn inset_loop(pts: &[P2], d: f64) -> Vec<P2> {
+    let n = pts.len();
+    let area: f64 = (0..n).map(|i| pts[i][0] * pts[(i + 1) % n][1] - pts[(i + 1) % n][0] * pts[i][1]).sum::<f64>() / 2.0;
+    let side = if area > 0.0 { 1.0 } else { -1.0 };
+    (0..n)
+        .map(|i| {
+            let (a, b, c) = (pts[(i + n - 1) % n], pts[i], pts[(i + 1) % n]);
+            let e = |p: P2, q: P2| {
+                let v = sub2(q, p);
+                let l = len2(v).max(1e-12);
+                [-v[1] / l * side, v[0] / l * side]
+            };
+            let (n1, n2) = (e(a, b), e(b, c));
+            let m = [n1[0] + n2[0], n1[1] + n2[1]];
+            let l = len2(m).max(1e-12);
+            let cos = (m[0] * n1[0] + m[1] * n1[1]) / l;
+            let k = d / cos.max(0.2);
+            [b[0] + m[0] / l * k, b[1] + m[1] / l * k]
+        })
+        .collect()
 }
 
 /// A closed outline through key points `(u, v, sharp)`, a cubic Hermite between each pair with Catmull–Rom tangents, its
-/// corners cut and the loop walked at an even pitch, so every tip is rounder than a drafted inset.
-fn spline(keys: &[(f64, f64, bool)]) -> Vec<P2> {
+/// corners cut and the loop walked at `pitch`, so every tip is rounder than a drafted inset.
+fn spline_at(keys: &[(f64, f64, bool)], pitch: f64) -> Vec<P2> {
     let n = keys.len();
     let p = |i: usize| -> P2 { [keys[i % n].0, keys[i % n].1] };
     let tangent = |i: usize| -> P2 {
@@ -276,12 +367,12 @@ fn spline(keys: &[(f64, f64, bool)]) -> Vec<P2> {
             out.push([0, 1].map(|k| h[0] * p0[k] + h[1] * m0[k] + h[2] * p1[k] + h[3] * m1[k]));
         }
     }
-    smoothed(&out)
+    smoothed_at(&out, pitch)
 }
 
 /// A loop walked at 0.3 mm, its corners cut twice and walked again at 0.28 mm.
-fn smoothed(pts: &[P2]) -> Vec<P2> {
-    let mut out = even(pts, 0.3);
+fn smoothed_at(pts: &[P2], pitch: f64) -> Vec<P2> {
+    let mut out = even(pts, 0.45);
     for _ in 0..2 {
         let n = out.len();
         out = (0..n)
@@ -291,7 +382,7 @@ fn smoothed(pts: &[P2]) -> Vec<P2> {
             })
             .collect();
     }
-    even(&out, 0.28)
+    even(&out, pitch)
 }
 
 /// A closed loop walked again at an even pitch along its length.
@@ -352,9 +443,11 @@ fn finial() -> Keys {
         (1.35, 0.9, false),
         (1.0, 1.55, false),
         (0.45, 1.25, false),
-        (0.3, 1.9, false),
-        (0.0, 2.7, true),
-        (-0.3, 1.9, false),
+        (0.45, 1.9, false),
+        (0.3, 2.5, false),
+        (0.0, 2.75, false),
+        (-0.3, 2.5, false),
+        (-0.45, 1.9, false),
         (-0.45, 1.25, false),
         (-1.0, 1.55, false),
         (-1.35, 0.9, false),
@@ -364,7 +457,8 @@ fn finial() -> Keys {
 
 /// Keys laid at `origin` with `t` along the slope and `n` out of it, `grow` times their size.
 fn laid(keys: &Keys, origin: P2, t: P2, n: P2, grow: f64) -> Vec<P2> {
-    spline(&keys.iter().map(|(a, b, s)| (a * grow, if *b > 0.0 { b * grow } else { *b }, *s)).collect::<Vec<_>>())
+    // Walked coarser than other outlines: a crocket is drawn twice, belt and halves, and its curl reads at this pitch.
+    spline_at(&keys.iter().map(|(a, b, s)| (a * grow, if *b > 0.0 { b * grow } else { *b }, *s)).collect::<Vec<_>>(), 0.55)
         .into_iter()
         .map(|[a, b]| [origin[0] + a * t[0] + b * n[0], origin[1] + a * t[1] + b * n[1]])
         .collect()
@@ -372,7 +466,7 @@ fn laid(keys: &Keys, origin: P2, t: P2, n: P2, grow: f64) -> Vec<P2> {
 
 /// The trefoil: three lobes round a centre, walked as the outline a ray from the centre meets, its cusps eased.
 fn trefoil(centre: P2, lobe: f64, out: f64) -> Vec<P2> {
-    smoothed(&trefoil_raw(centre, lobe, out))
+    smoothed_at(&trefoil_raw(centre, lobe, out), 0.4)
 }
 
 fn trefoil_raw(centre: P2, lobe: f64, out: f64) -> Vec<P2> {
@@ -395,46 +489,64 @@ fn trefoil_raw(centre: P2, lobe: f64, out: f64) -> Vec<P2> {
         .collect()
 }
 
-/// A capital at the right springer, mirrored for the left: the astragal, the bell flaring out under the abacus, or the abacus.
+/// A capital at the right springer, mirrored for the left: the bell flaring from the pier's face out to the abacus
+/// as one outline, or the abacus's boss standing on it, `inset` inside the abacus's own outline.
 fn capital(a: &GreatArch, side: f64, part: &str) -> Vec<P2> {
     let (x_o, x_i, s) = (a.half_span, a.half_span - CAPITAL_IN, a.spring_y);
-    let (bell_top, bell_bot) = (s - ABACUS.0 + 0.05, s - ABACUS.0 - BELL.0);
-    let ast = bell_bot - ASTRAGAL.0;
+    let (abacus_bot, bell_bot) = (s - ABACUS.0, s - ABACUS.0 - BELL.0);
+    let b = ABACUS_BOSS_INSET;
     let pts: Vec<P2> = match part {
-        "abacus" => vec![[x_i, s - ABACUS.0], [x_o + ABACUS.1, s - ABACUS.0], [x_o + ABACUS.1, s], [x_i, s]],
-        "astragal" => vec![[x_i, ast], [x_o + ASTRAGAL.1, ast], [x_o + ASTRAGAL.1, bell_bot + 0.05], [x_i, bell_bot + 0.05]],
-        // The bell flares from the astragal's reach out to under the abacus.
-        _ => vec![[x_i, ast + 0.05], [x_o + ASTRAGAL.1, ast + 0.05], [x_o + ASTRAGAL.1, bell_bot], [x_o + BELL.1, bell_top], [x_i, bell_top]],
+        "abacus" => vec![[x_i + b, abacus_bot + b], [x_o + ABACUS.1 - b, abacus_bot + b], [x_o + ABACUS.1 - b, s - b], [x_i + b, s - b]],
+        _ => vec![[x_i, bell_bot], [x_o, bell_bot], [x_o + BELL.1, abacus_bot], [x_o + ABACUS.1, abacus_bot], [x_o + ABACUS.1, s], [x_i, s]],
     };
     let pts: Vec<P2> = pts.into_iter().map(|[x, y]| [side * x, y]).collect();
     if side < 0.0 { pts.into_iter().rev().collect() } else { pts }
 }
 
-/// The plain arch: the keel walked through its round, and the face inside it.
+/// The plain arch: the keel's land straight across the parting line, its flanks falling to the face, and the face inside it.
 fn arch_body(t: &mut Tree, a: &GreatArch) -> Id {
     let half = a.width / 2.0;
-    let round0 = KEEL_IN + 0.05;
-    let mut cur = None;
-    for (k, (draft, off, z0, z1)) in keel_layers().into_iter().enumerate() {
-        let what = if k + 1 == KEEL_ROUND_DRAFTS.len() + 1 { "keel's flank".to_string() } else { format!("keel's round, face {}", k + 1) };
-        let id = t.slab(&what, &[a.outline(off, round0 - off)], z0, z1, draft.to_degrees());
-        cur = Some(match cur {
-            None => id,
-            Some(c) => t.boolean(&format!("Walk the {what} onto the keel"), c, id, Boolean::Union),
-        });
-    }
-    let face = t.both_halves("arch's face, inside the keel", &[a.outline(KEEL_IN, 0.25)], half, DRAFT_DEG);
-    t.boolean("Set the face on the keel", cur.unwrap(), face, Boolean::Union)
+    let round = KEEL_IN + 0.1;
+    let plane = t.plane("Lay a plane under the parting line for the keel's land", -BELT_MM);
+    let s = t.sketch("Draw the keel's land", plane, &[a.shape(PathKind::Outline, KEEL_LAND, round - KEEL_LAND)]);
+    let land = t.extrude("Run the keel's land straight across the parting line", s, 2.0 * BELT_MM, 0.0);
+    let from = KEEL_LAND + KEEL_HALF_IN_MM;
+    let flank = t.slab("keel's flanks", &[a.shape(PathKind::Outline, from, round - from)], HALF_FROM_MM, keel_rise(), KEEL_FLANK_DEG);
+    let keel = t.boolean("Raise the keel's flanks from its land", land, flank, Boolean::Union);
+    let face = t.both_halves("arch's face, inside the keel", &[a.shape(PathKind::Outline, KEEL_IN, 0.25)], half, DRAFT_DEG);
+    t.boolean("Set the face on the keel", keel, face, Boolean::Union)
 }
 
 fn bore(t: &mut Tree, a: &GreatArch) -> Id {
-    let half = a.width / 2.0;
-    // The bore, a double cone drafted from the parting line out to each face.
-    let s_plane = t.plane("Lay a plane on the parting line for the bore", -HAIR_MM - 0.02);
-    let s = t.sketch("Draw the bore", s_plane, &[circle(BORE_MM / 2.0)]);
-    let cope = t.extrude("Raise the bore's cope half, widening to the face", s, half + 0.8, -DRAFT_DEG);
-    let drag = t.mirror("Mirror the bore into the drag half", vec![cope]);
-    t.boolean("Join the bore's halves", cope, drag, Boolean::Union)
+    // The bore, a cone widening from a straight belt at the parting line out to each face.
+    let r = BORE_MM / 2.0 + (a.width / 2.0 + 0.8 - HALF_FROM_MM - 0.04) * DRAFT_DEG.to_radians().tan() + HALF_IN_MM;
+    t.belted_cut("bore", &[Shape::Circle { centre: [0.0, 0.0], radius: r }], a.width / 2.0 + 0.8, DRAFT_DEG)
+}
+
+/// The mouth over the finger: inside the head `d` in from the outline and outside a circle `keep` off the bore, a pointed
+/// crescent standing on the bore's crown, its two ends squared off where it is still 0.7 mm wide.
+fn mouth(a: &GreatArch, d: f64, keep: f64) -> Vec<P2> {
+    let r = a.radius - d;
+    let rc = BORE_MM / 2.0 + keep;
+    let cr = a.centre(1.0);
+    let head_x = |y: f64| cr[0] + (r * r - (y - cr[1]).powi(2)).max(0.0).sqrt();
+    let circle_x = |y: f64| (rc * rc - y * y).max(0.0).sqrt();
+    // Up from the springers to where the head arc stands 0.7 mm clear of the circle, above the bore's side.
+    let mut y = 0.0;
+    while head_x(y) - circle_x(y) < 0.7 && y < rc {
+        y += 0.02;
+    }
+    let (xh, xc) = (head_x(y), circle_x(y));
+    let mut pts = vec![[xc, y], [xh, y]];
+    pts.extend(a.head(d, 0.3).into_iter().filter(|q| q[1] > y + 0.05));
+    pts.push([-xh, y]);
+    pts.push([-xc, y]);
+    // Back along the circle over the crown, from the left end to the right.
+    let mut back = arc_pts([0.0, 0.0], rc, y.atan2(-xc), y.atan2(xc));
+    back.pop();
+    pts.extend(back);
+    // Its four corners eased, so the drafted floor keeps every segment.
+    smoothed_at(&pts, 0.55)
 }
 
 /// The finished arch: the keel and face, the crockets climbing to the finial, the orders and the mouth sunk into the head,
@@ -457,36 +569,39 @@ fn author(bare: bool) -> Result<(RingDesign, GreatArch)> {
             leaves.push(laid(&crocket(), p, [-n[1], n[0]], n, grow));
             leaves.push(laid(&crocket(), [-p[0], p[1]], [-n[1] * -1.0, n[0]], [-n[0], n[1]], grow).into_iter().rev().collect());
         }
-        leaves.push(laid(&finial(), [0.0, a.apex_y], [1.0, 0.0], [0.0, 1.0], 1.0));
-        let crockets = t.both_halves("crockets climbing the extrados to the finial", &leaves, CROCKET_HALF, DRAFT_DEG);
+        leaves.push(laid(&finial(), [0.0, a.apex_y], [1.0, 0.0], [0.0, 1.0], 1.3));
+        let leaves: Vec<Shape> = leaves.into_iter().map(Shape::Poly).collect();
+        let crockets = t.belted("crockets climbing the extrados to the finial", &leaves, CROCKET_HALF, DRAFT_DEG);
         cur = t.boolean("Set the crockets and the finial on the keel", cur, crockets, Boolean::Union);
-        // The orders and the mouth, sunk into the head and run down onto the capitals.
-        for (i, (d, depth, draft)) in ORDERS.iter().enumerate() {
-            let what = ["outer order", "inner order", "mouth over the finger"][i];
-            let top = half + 0.3;
-            let floor = half - depth;
-            let inset = (top - floor) * draft.to_radians().tan();
-            let (cope, drag) = t.pocket(what, &[a.head_region(*d, inset + 0.3, (ABACUS.0 + 0.437).max(inset + 0.237))], top, floor, *draft);
-            cur = t.boolean(&format!("Sink the cope's {what}"), cur, cope, Boolean::Subtract);
-            cur = t.boolean(&format!("Sink the drag's {what}"), cur, drag, Boolean::Subtract);
-        }
-        // The capitals: astragal and bell, then the abacus standing prouder over them.
-        let bells = [capital(&a, 1.0, "bell"), capital(&a, -1.0, "bell")];
-        let abaci = [capital(&a, 1.0, "abacus"), capital(&a, -1.0, "abacus"), capital(&a, 1.0, "astragal"), capital(&a, -1.0, "astragal")];
-        let b = t.both_halves("capitals' bells", &bells, half + CAPITAL_PROUD.1, DRAFT_DEG);
-        cur = t.boolean("Set the bells under the springers", cur, b, Boolean::Union);
-        let ab = t.both_halves("capitals' abaci and astragals", &abaci, half + CAPITAL_PROUD.0, DRAFT_DEG);
-        cur = t.boolean("Lay the abaci over the bells and the astragals under them", cur, ab, Boolean::Union);
+        // The order, sunk into the head and run down onto the capitals, and the mouth sunk deeper over the finger.
+        let top = half + 0.3;
+        let (d, depth, draft) = ORDER;
+        let inset = (top - (half - depth)) * draft.to_radians().tan();
+        let drop = (ABACUS.0 * 0.6).max(inset + 0.237);
+        let (cope, drag) = t.pocket("order", &[a.shape(PathKind::Head { drop }, d, inset + 0.3)], top, half - depth, draft);
+        cur = t.boolean("Sink the cope's order", cur, cope, Boolean::Subtract);
+        cur = t.boolean("Sink the drag's order", cur, drag, Boolean::Subtract);
+        let (d, keep, depth) = MOUTH;
+        let (cope, drag) = t.pocket("mouth over the finger", &[Shape::Poly(mouth(&a, d, keep))], top, half - depth, DRAFT_DEG);
+        cur = t.boolean("Sink the cope's mouth", cur, cope, Boolean::Subtract);
+        cur = t.boolean("Sink the drag's mouth", cur, drag, Boolean::Subtract);
+        // The capitals: the bell, then the abacus standing prouder over it.
+        let bells = [Shape::Poly(capital(&a, 1.0, "bell")), Shape::Poly(capital(&a, -1.0, "bell"))];
+        let abaci = [Shape::Poly(capital(&a, 1.0, "abacus")), Shape::Poly(capital(&a, -1.0, "abacus"))];
+        let b = t.belted("capitals", &bells, half + CAPITAL_PROUD.1, DRAFT_DEG);
+        cur = t.boolean("Set the capitals under the springers", cur, b, Boolean::Union);
+        // The abacus stands prouder than the bell as a boss on the capital's face, drawn from just inside that face.
+        let ab = t.slab("abaci", &abaci, half + CAPITAL_PROUD.1 - 0.05, half + CAPITAL_PROUD.0, DRAFT_DEG);
+        cur = t.boolean("Lay the abaci on the capitals", cur, ab, Boolean::Union);
         // A blind lancet niche in each pier face.
         let (x, w, from, to, depth) = PIER_NICHE;
         let niche = |side: f64| -> Vec<P2> { lancet(w, from, to).into_iter().map(|[u, v]| [side * x + u, v]).collect() };
-        let (cope, drag) = t.pocket("blind lancets in the pier faces", &[niche(1.0), niche(-1.0)], half + 0.3, half - depth, DRAFT_DEG);
+        let (cope, drag) = t.pocket("blind lancets in the pier faces", &[Shape::Poly(niche(1.0)), Shape::Poly(niche(-1.0))], half + 0.3, half - depth, DRAFT_DEG);
         cur = t.boolean("Sink the cope's pier lancets", cur, cope, Boolean::Subtract);
         cur = t.boolean("Sink the drag's pier lancets", cur, drag, Boolean::Subtract);
         // The trefoil pierced through the mouth's web along the pull, each half narrowing to the parting line.
         let (ty, lobe, out) = TREFOIL;
-        let (cope, drag) = t.pocket("trefoil through the mouth", &[trefoil([0.0, ty], lobe, out)], half + 0.3, -0.03, DRAFT_DEG);
-        let light = t.boolean("Join the trefoil's halves", cope, drag, Boolean::Union);
+        let light = t.belted_cut("trefoil through the mouth", &[Shape::Poly(trefoil([0.0, ty], lobe, out))], half + 0.3, DRAFT_DEG);
         cur = t.boolean("Pierce the trefoil through the mouth", cur, light, Boolean::Subtract);
     }
     let b = bore(&mut t, &a);
@@ -512,23 +627,29 @@ fn lands(a: &GreatArch) -> serde_json::Value {
     let half = a.width / 2.0;
     let bore_r = BORE_MM / 2.0;
     let (ty, lobe, out) = TREFOIL;
-    let mouth = ORDERS[2];
     let (x, w, _, to, depth) = PIER_NICHE;
     // The niche's inner jamb against the bore at its springing, and its outer jamb against the face's edge inside the keel.
     let niche_spring = to - w * 3f64.sqrt() / 2.0;
     let niche_to_bore = (x - w / 2.0) - (bore_r * bore_r - niche_spring * niche_spring).max(0.0).sqrt();
     let face_edge = a.half_span - KEEL_IN;
-    let pierce_draft = (half + 0.3) * DRAFT_DEG.to_radians().tan();
+    let pierce_draft = (half + 0.3 - HALF_FROM_MM - 0.04) * DRAFT_DEG.to_radians().tan();
+    // The side wall at the axis, outline to bore, and what the order leaves of it over the bore.
+    let side = a.centre(1.0)[0] + (a.radius * a.radius - a.spring_y * a.spring_y).sqrt();
     json!({
+        "side_wall_at_axis_mm": side - bore_r,
+        "order_to_bore_at_axis_mm": side - ORDER.0 - bore_r,
+        "mouth_kept_off_bore_mm": MOUTH.1,
         "trefoil_to_bore_mm": ty - out / 2.0 - lobe - bore_r,
-        "web_between_mouth_floors_mm": 2.0 * (half - mouth.1),
-        "web_between_order_floors_mm": 2.0 * (half - ORDERS[1].1),
+        "trefoil_to_mouth_step_mm": ty - out / 2.0 - lobe - (bore_r + MOUTH.1),
+        "web_between_mouth_floors_mm": 2.0 * (half - MOUTH.2),
+        "web_between_order_floors_mm": 2.0 * (half - ORDER.1),
         "web_between_pier_niche_floors_mm": 2.0 * (half - depth),
         "pier_niche_to_bore_mm": niche_to_bore,
+        "capital_to_bore_mm": a.half_span - CAPITAL_IN - (bore_r + (half + 0.8 - HALF_FROM_MM) * DRAFT_DEG.to_radians().tan()) * (1.0 - (a.spring_y / bore_r).powi(2)).max(0.0).sqrt(),
         "pier_niche_to_face_edge_mm": face_edge - (x + w / 2.0),
         "trefoil_lobe_width_at_parting_mm": 2.0 * (lobe - pierce_draft),
-        "crocket_plate_at_root_mm": 2.0 * CROCKET_HALF,
-        "crocket_plate_at_face_mm": 2.0 * CROCKET_HALF - 2.0 * CROCKET_HALF * DRAFT_DEG.to_radians().tan(),
+        "crocket_plate_mm": 2.0 * CROCKET_HALF,
+        "belt_ledge_over_its_mirror_mm": 2.0 * BELT_MM,
         "floors": {"section_mm": MIN_SECTION_MM, "sand_web_mm": MIN_SAND_WEB_MM},
     })
 }
@@ -536,7 +657,7 @@ fn lands(a: &GreatArch) -> serde_json::Value {
 fn lands_ok(a: &GreatArch) -> bool {
     let l = lands(a);
     let n = |k: &str| l[k].as_f64().unwrap_or(0.0);
-    ["trefoil_to_bore_mm", "web_between_mouth_floors_mm", "web_between_order_floors_mm", "web_between_pier_niche_floors_mm", "pier_niche_to_bore_mm", "crocket_plate_at_face_mm"]
+    ["order_to_bore_at_axis_mm", "mouth_kept_off_bore_mm", "trefoil_to_bore_mm", "trefoil_to_mouth_step_mm", "web_between_mouth_floors_mm", "web_between_order_floors_mm", "web_between_pier_niche_floors_mm", "pier_niche_to_bore_mm", "capital_to_bore_mm", "pier_niche_to_face_edge_mm", "crocket_plate_mm", "belt_ledge_over_its_mirror_mm"]
         .iter()
         .all(|k| n(k) >= MIN_SECTION_MM)
         && n("trefoil_lobe_width_at_parting_mm") >= MIN_SAND_WEB_MM
@@ -650,6 +771,15 @@ fn shot(parts: &[(&mesh::Mesh, bool, [f32; 3])], toward: P3, edge: usize) -> Vec
     render::render_parts_ss(&parts, 0.0, 0.0, edge, edge, 3)
 }
 
+/// The whole ring seen from `toward`, framed on `centre` (world) with `half` mm either side: a close-up that crops nothing.
+fn shot_framed(parts: &[(&mesh::Mesh, bool, [f32; 3])], toward: P3, centre: P3, half: f64, edge: usize) -> Vec<u8> {
+    let probe = mesh::Mesh { vertices: vec![mesh::Vec3(centre[0] as f32, centre[1] as f32, centre[2] as f32)], ..mesh::Mesh::default() };
+    let c = looked(&probe, toward).vertices[0];
+    let turned: Vec<(mesh::Mesh, bool, [f32; 3])> = parts.iter().map(|(m, gem, t)| (looked(m, toward), *gem, *t)).collect();
+    let parts: Vec<render::Part> = turned.iter().map(|(m, gem, t)| if *gem { render::Part::tinted_stone(m, *t) } else { render::Part::metal(m, *t) }).collect();
+    render::render_parts_framed(&parts, 0.0, 0.0, render::Framing::new([c.0 as f64, c.1 as f64, c.2 as f64], half), edge, edge, 3)
+}
+
 fn png(path: &Path, img: &[u8], edge: usize) -> Result<()> {
     image::save_buffer(path, img, edge as u32, edge as u32, image::ColorType::Rgb8)?;
     Ok(())
@@ -717,8 +847,7 @@ fn renders(out: &Path, fin: &render::Finished, bare: &mesh::Mesh, edge: usize) -
         png(&out.join(format!("{name}.png")), &shot(&parts, toward, edge), edge)?;
     }
     // No stones: the close-up is the head, the crockets climbing to the finial over the orders and the trefoil.
-    let head = boxed(&fin.metal, [-40.0, 5.0, -40.0], [40.0, 40.0, 40.0])?;
-    png(&out.join("stones.png"), &shot(&[(&head, false, render::GOLD)], [0.45, 0.3, 0.85], edge), edge)?;
+    png(&out.join("stones.png"), &shot_framed(&parts, [0.45, 0.3, 0.85], [0.0, 13.0, 0.0], 7.5, edge), edge)?;
     // The section through the apex, the cut toward +x: the keel's round, the orders and the mouth.
     let section = boxed(&fin.metal, [-0.3, 2.0, -40.0], [0.0, 40.0, 40.0])?;
     let sec = [(&section, false, render::GOLD)];
@@ -832,7 +961,7 @@ fn main() -> Result<()> {
         "bore_mm": built.report.inner_diameter_mm,
         "build": {"theta_steps": params.theta_steps, "profile_steps": params.profile_steps, "triangles": built.mesh.faces.len(), "build_s": build_s},
         "arch": arch,
-        "keel": {"inset_mm": KEEL_IN, "rise_mm": KEEL_RISE, "round_mm": KEEL_ROUND_MM, "faces": keel_layers().iter().map(|(a, e, z0, z1)| json!({"draft_deg": a.to_degrees(), "inset_mm": e, "z0": z0, "z1": z1})).collect::<Vec<_>>()},
+        "keel": {"inset_mm": KEEL_IN, "rise_mm": keel_rise(), "land_inset_mm": KEEL_LAND, "land_mm": 2.0 * BELT_MM, "flank_draft_deg": KEEL_FLANK_DEG, "keel_angle_deg": 180.0 - 2.0 * KEEL_FLANK_DEG},
         "geometry": {"watertight": watertight, "boundary_edges": built.report.validation.boundary_edges, "non_manifold_edges": built.report.validation.non_manifold_edges, "degenerate_faces": degenerate, "self_crossings": crossings, "shells": shells(&built.mesh), "volume_mm3": built.report.volume_mm3, "bounds_mm": built.report.bounds_mm},
         "made_parts": made,
         "feature_status": statuses,
@@ -882,6 +1011,55 @@ fn main() -> Result<()> {
     );
     for f in &findings {
         println!("    dfm: {}: {}", f.label, f.message);
+    }
+    if std::env::var("OGIVA_WHERE").is_ok() {
+        for (name, i) in [("0.100", &i100), ("0.075", &i075)] {
+            for o in i.release.obstructions.iter().take(8) {
+                println!("    obstruction {name}: {:?} {:.3} mm deep, {:.4} mm²", o.world.map(|v| (v * 100.0).round() / 100.0), o.depth_mm, o.projected_area_mm2);
+            }
+        }
+        let m = &built.mesh;
+        let tris: Vec<[[f64; 3]; 3]> = m.faces.iter().map(|f| f.map(|i| { let v = m.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] })).collect();
+        let stride = tris.len().div_ceil(384).max(1);
+        let sub3 = |a: [f64; 3], b: [f64; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+        let cr = |a: [f64; 3], b: [f64; 3]| [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+        let dt = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        for (k, t) in tris.iter().enumerate().step_by(stride) {
+            let n = cr(sub3(t[1], t[0]), sub3(t[2], t[0]));
+            let l = dt(n, n).sqrt();
+            if l < 1e-12 { continue; }
+            let c = [0, 1, 2].map(|i| (t[0][i] + t[1][i] + t[2][i]) / 3.0);
+            let d = n.map(|v| -v / l);
+            let mut best = f64::MAX;
+            for (j, u) in tris.iter().enumerate() {
+                if j == k { continue; }
+                let (e1, e2) = (sub3(u[1], u[0]), sub3(u[2], u[0]));
+                let h = cr(d, e2);
+                let det = dt(e1, h);
+                if det.abs() < 1e-12 { continue; }
+                let sv = sub3(c, u[0]);
+                let uu = dt(sv, h) / det;
+                if !(-1e-8..=1.0 + 1e-8).contains(&uu) { continue; }
+                let q = cr(sv, e1);
+                let vv = dt(d, q) / det;
+                if vv < -1e-8 || uu + vv > 1.0 + 1e-8 { continue; }
+                let tt = dt(e2, q) / det;
+                if tt > 1e-5 { best = best.min(tt); }
+            }
+            if best < 0.8 {
+                println!("    thin {best:.3} at ({:.2}, {:.2}, {:.3}) normal ({:.2}, {:.2}, {:.2})", c[0], c[1], c[2], -d[0], -d[1], -d[2]);
+            }
+        }
+        for f in &m.faces {
+            let p = f.map(|i| m.vertices[i as usize]);
+            let e = |a: mesh::Vec3, b: mesh::Vec3| (((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2) + (a.2 - b.2).powi(2)) as f64).sqrt();
+            let (a, b, c) = (e(p[0], p[1]), e(p[1], p[2]), e(p[2], p[0]));
+            let s = (a + b + c) / 2.0;
+            let area = (s * (s - a) * (s - b) * (s - c)).max(0.0).sqrt();
+            if area < 1e-10 || a.max(b).max(c) < 1e-9 {
+                println!("    degenerate near ({:.2}, {:.2}, {:.3}), edges {a:.2e} {b:.2e} {c:.2e}", p[0].0, p[0].1, p[0].2);
+            }
+        }
     }
     for (g, pass) in &gates {
         println!("  {} {g}", if *pass { "pass" } else { "FAIL" });
