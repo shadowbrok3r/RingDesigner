@@ -45,6 +45,72 @@ fn feature(_: &mut EvalCtx<'_>, n: &Node, i: &Inputs) -> Result<Outputs, NodeErr
         .map_err(|e| NodeError::new(e.to_string()))?;
     Ok(Outputs::one("design", d))
 }
+/// What a `cad.features` node's settings hold: the name, component and operation every feature it appends starts from.
+#[derive(serde::Deserialize, Default)]
+struct FeaturesBase {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    operation: Option<Operation>,
+    #[serde(default)]
+    component: ringdesign_core::cad::Component,
+}
+/// The id of feature `k` a `cad.features` node appends: the node's id in the high bits, so no node's own id and no other such
+/// node's features can take it.
+pub fn features_id(node: NodeId, k: usize) -> Option<Id> {
+    (node.0 < 1 << 43 && k + 1 < 1 << 20).then(|| node.0 << 20 | (k as u64 + 1))
+}
+fn features(_: &mut EvalCtx<'_>, n: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
+    let mut d = match i.get("design") {
+        Value::Design(d) => (**d).clone(),
+        _ => return Err(NodeError::input("design", "Connect a source design")),
+    };
+    let base: FeaturesBase = match &n.params {
+        serde_json::Value::Null => FeaturesBase::default(),
+        params => serde_json::from_value(params.clone()).map_err(|e| NodeError::new(format!("CAD features: {e}")))?,
+    };
+    let parse = |pin: &str, v: &Value| v.to_json_any().ok_or_else(|| NodeError::input(pin, "expected JSON"));
+    let operations = i.list("operation");
+    let placements = i.list("placement");
+    let count = operations.len().max(placements.len());
+    if count == 0 && base.operation.is_none() {
+        return Err(NodeError::input("operation", "Wire a list of operations, or of placements for the operation in the settings"));
+    }
+    let count = count.max(1);
+    let item = |list: &[Value], k: usize| list.get(k.min(list.len().saturating_sub(1))).cloned();
+    let name = match i.get("name") {
+        Value::Null => base.name.clone().unwrap_or_else(|| "Part".into()),
+        v => v.as_text().ok_or_else(|| NodeError::input("name", "expected text"))?.to_string(),
+    };
+    let attach = match i.get("attach") {
+        Value::Null => None,
+        v => Some(serde_json::from_value::<ringdesign_core::cad::Attach>(serde_json::json!(v.as_text().unwrap_or_default().to_lowercase())).map_err(|_| NodeError::input("attach", "separate, join or cut"))?),
+    };
+    let enabled = i.bool("enabled")?;
+    let doc = d.cad.get_or_insert_with(Document::default);
+    let mut ids = Vec::with_capacity(count);
+    for k in 0..count {
+        let id = features_id(n.id, k).ok_or_else(|| NodeError::new("CAD features: too many features for one node"))?;
+        let operation = match item(&operations, k) {
+            Some(v) => serde_json::from_value(parse("operation", &v)?).map_err(|e| NodeError::input("operation", format!("item {k}: {e}")))?,
+            None => base.operation.clone().expect("checked"),
+        };
+        let mut component = base.component.clone();
+        if let Some(v) = item(&placements, k) {
+            component.placement = serde_json::from_value(parse("placement", &v)?).map_err(|e| NodeError::input("placement", format!("item {k}: {e}")))?;
+        }
+        if let Some(attach) = attach {
+            component.attach = attach;
+        }
+        if let Some(blend) = i.get("blend_mm").as_number() {
+            component.blend_mm = blend;
+        }
+        let f = Feature { id, name: if count > 1 { format!("{name}, {}", k + 1) } else { name.clone() }, enabled, operation, component };
+        doc.append(f).map_err(|e| NodeError::new(e.to_string()))?;
+        ids.push(Value::Int(id as i64));
+    }
+    Ok(Outputs::one("design", d).with("ids", ids))
+}
 /// The numeric placement pins, each patching the coordinate of that name.
 const PLACEMENT_NUMBERS: [&str; 7] = ["theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg", "radius_mm"];
 /// Every placement pin beside `placement` and `blend_mm`, with the kind it reads.
@@ -236,6 +302,21 @@ pub fn register(reg: &mut Registry) {
         .input(PinSpec::item("rotation_deg", ValueKind::Json).optional().doc("A relative placement's turn about its part's x, y and z, [x, y, z] degrees."))
         .input(PinSpec::select("face", ["Low", "High", "Wider"].map(String::from).to_vec()).optional().doc("The side face a side placement stands on."));
     reg.register(feature_spec.output(PinSpec::item("design", ValueKind::Design).doc("Design with appended feature.")).eval(feature)).expect("unique");
+    reg.register(
+        NodeSpec::new("cad.features", "CAD features", Category::Assembly)
+            .doc("Append one CAD feature per list item to one design, where a list on a CAD feature's operation makes one design per item: the operations and placements wired in, matched longest-list, the rest from the node's settings. Feature k's id is this node's id times 2^20 plus k + 1.")
+            .input(PinSpec::item("design", ValueKind::Design).doc("Previous feature or nominal design."))
+            .input(PinSpec::list("operation", ValueKind::Json).doc("One operation per feature; empty takes the settings' operation for every placement."))
+            .input(PinSpec::list("placement", ValueKind::Json).doc("One placement per feature, such as a crest path's; empty keeps the settings' placement."))
+            .input(PinSpec::item("name", ValueKind::Text).optional().doc("What the features are called, each numbered after it."))
+            .input(PinSpec::select("attach", vec!["separate".into(), "join".into(), "cut".into()]).optional().doc("How every feature meets the band; the settings' when unset."))
+            .input(PinSpec::item("blend_mm", ValueKind::Number).optional().doc("Junction blend radius, mm."))
+            .input(PinSpec::item("enabled", ValueKind::Bool).default(true).doc("Suppress the features without deleting them."))
+            .output(PinSpec::item("design", ValueKind::Design).doc("Design with the features appended."))
+            .output(PinSpec::list("ids", ValueKind::Int).doc("The appended features' ids, in order."))
+            .eval(features),
+    )
+    .expect("unique");
     reg.register(
         NodeSpec::new("sketch.library", "Library sketch", Category::Assembly)
             .doc("A sketch from the library by name, as a Sketch feature's operation: the bundled Gothic outlines, tracery nets and artwork (gothic/...), or the user's own. Wire it into a CAD feature, or through Tracery first for a net.")

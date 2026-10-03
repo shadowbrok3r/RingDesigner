@@ -1161,7 +1161,14 @@ pins both directions. On top of that:
   along its inward normal and returns the thinnest section and the area
   under the floor — a claw's diameter, a collet's wall, a point as a little
   area to except by name. With `up`, the part's axis, faces turned toward
-  its ends are not read.
+  its ends are not read. It is a fold over `dfm::face_sections`, each
+  face's own read, which a ring that names its faces (toes, spines, hide)
+  folds by name. Relief is not a section: `dfm::part_sections_relief` sets
+  apart a short ray that runs within `max_deg` of the base surface's tangent
+  plane and leaves near it — a tubercle's or a scale's own chord — reading
+  the base off a skin field (the part without its relief) or off the mesh's
+  normals averaged over a radius, so pebbled hide over a thick body no
+  longer reads 0.000 mm while a thin fin on it still reads its 0.3.
 
   A **CAD cut's lands** are asked for, never volunteered:
   `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
@@ -2656,7 +2663,22 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   and traced, because cadkernel's tessellation of it left open edges.
   Closed at every twist from −720° to 720°, its volume area × length to
   0.05% on a straight path; like a builder's part it is a mesh, so fillet,
-  press-pull and sketch-on-face refuse it by name.
+  press-pull and sketch-on-face refuse it by name. It also runs through
+  points in space (`TwistPath::Points`, mitred or a centripetal
+  Catmull-Rom), the section's own plane carried from the first point on a
+  rotation-minimising frame — a sketch path keeps its plane's normal and
+  builds bit for bit as before; under a scale law (`scale`, a monotone
+  cubic through its knots, `twist::LEAF_LAW` and `THORN_LAW`), whose
+  curvature places stations too, or a straight untwisted leaf loses its
+  belly; and round a closed loop (`closed`: whole turns, a scale that ends
+  where it starts, the turn the frame gathers given back along the loop,
+  no caps). A `Sweep` closes (`closed`) and scales (`end_scale`) in the
+  kernel; twisted (`twist_deg`) it is this sweep, its section on the
+  kernel's own base point, because the kernel's twisted surface tessellates
+  open on every section but a round one (33 to 396 open edges, measured).
+  `SweepPath::Sketch` follows a sketch entity every 0.3 mm (≤128
+  stations), so a moulding follows edits to its arch. Each writes the
+  design at 6 and a graph at 2.
 - **A head moves by its stone.** G, R and the gizmo on a builder part act on
   the stone it is built round — its ring placement, or its `FaceSeat` on a
   part's face — and the head follows. A Transform wrapped round a head would
@@ -2726,6 +2748,37 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   word's own middle, and the marks took the verdict from 0.0000 to 0.0666
   mm²; with the opt-out it is the bare stock's exactly. An engraving is laid
   out from the drawing, so it takes the opt-out.
+- **An array along a path carries its source from the path's first
+  station** (C-V2, `PatternKind::Along`, `cad/pattern/along.rs`). The path
+  is the crest (where the outer surface crosses the parting plane, solved
+  per station as `stamp_row`'s parting line is), chart points, a sweep's
+  path or a twisted sweep's centreline, curves of a sketch on its own plane
+  or a work plane, or world points. A station's frame is `y` along the
+  path, `z` out of the band or the sketch's plane, `x = y × z` — on the
+  crest, the frame a ring placement seats by — and the source, wherever it
+  stands, keeps its pose to the first station at every other, turned
+  (`alternate_deg`, `roll_deg`), scaled (`scale`) and laid square to the
+  parting plane (`level`) as asked. `count` counts the source, as every
+  pattern does; a pitch with no count fits as many as the path holds, under
+  `MAX_PATTERN_COUNT`. A chart path reads its direction a hair either side
+  of each station and a sketch curve its own derivative: the one-sided chord
+  at a sampled path's end leaned the first frame half a sample and put every
+  crest copy 0.014° short. A scaled copy is a similarity, not a rigid
+  motion: `inverse` divides by the square of the scale, and the stone
+  record (`setstone::carried_by`) keeps each copied girdle frame square and
+  scales its gem, so a graded head still holds a stone its own size and
+  the 480-stone cap still counts every copy. `PatternKind::Line` steps
+  copies along a direction in the source's seated frame. Either writes the
+  design at 6 and a graph at 2.
+- **Paths are graph values** (C-V5, `graph/nodes/path.rs`): `path.arc`,
+  `path.helix`, `path.wreath`, `path.climb` and `path.crest` make
+  `[[x, y, z], …]` JSON in world millimetres (one per strand for a wreath),
+  `path.sweep` turns one into a sweep's operation and `path.along` into an
+  array along it, and `cad.features` appends one feature per list item to
+  one design, where a list on `cad.feature`'s operation makes one design per
+  item; feature `k` of a `cad.features` node is that node's id times 2²⁰
+  plus `k + 1`, out of reach of any node's own id. A wreath's opposite
+  strands pass at two canes less the overlap, never a tangency.
 - **A drafted arc's seams are zipped closed.** The kernel tapers an
   extrusion by lofting to an offset profile, and the lofted wall samples a
   shared arc at other points than the planar cap does. Where the old
@@ -3501,7 +3554,23 @@ and `trapezoid`, met to the ring through a `Stock` field, meshed by
 `tetra_mesh`, `relax`ed, `clean_decimate`d to a budget (backing off until
 `csg::self_crossings` reads zero) and `settle`d — sliver collapse, edge-flip
 polish, fold-corner smoothing, each kept only while the mesh stays closed and
-uncrossed. A hollow is `Heights::first_air` eroded by a ball of the wall,
+uncrossed. A relax that folds a thin crease through itself is
+undone only round the fold (`relax_clean`), and a decimation that cannot
+come clean says where it crossed (`clean_decimate_or_sites`) so the field
+can be mended there, rather than handing back the raw mesh. A stored part
+whose component sets `fillet_into_band` (mm; 0 is off, unwritten, and the
+key fences graph format 2) grows out of the band as built instead of
+sitting on it. `sculpt::fillet_into` keeps the part's own mesh and unites
+it with a collar meshed round its foot: `smin` of the part, tucked a
+little inside itself, and the band's signed distance, sunk 2% of the
+radius, so the fillet crosses both rather than lying along either; past
+the foot the band curves down before the clip to the part's footprint, so
+the collar's rim lies buried deeper than a decimation moves a crease, and
+above the fillet the collar ends inside the part. Remeshing the whole
+part instead softened Moloch's hide to the fillet's step; the collar
+leaves every vertex clear of the band bit for bit. Only a joined part
+grows, and a collar that will not come clean or unite leaves the part as
+stored, said. A hollow is `Heights::first_air` eroded by a ball of the wall,
 kept by `open_shells` where it opens into the bore; `packed` refuses an open
 or crossing mesh. On Fenrir's own wolf the hollow and every stage up to
 fold-corner smoothing are bit for bit the example's. That one changed: it
