@@ -1,72 +1,119 @@
-# Ogiva concept spike: report
+# Ogiva: the arch, rounds 1–3 — report
 
-Three rethinks of Ogiva (`ogiva`) were blocked out and read-tested. **Only the arch reads.** It passed its first read test on its outline alone, so it needed no revision. The keel judged on its section, and the gargoyle on factory 015, both failed their first test and their one revision.
+**Verdict: cut after round 3, at 6.2.** It reads at once as a Gothic pointed arch and every gate the brief sets is green at draft and at export. The art direction still failed it: three fresh reviewers called it stacked 2.5D extrusions with no seam beads, faceted crockets and a sparse head. The concept is sound and worth a fresh brief. The construction this platform gives a parts-only sand ring (planar sketches extruded along the pull, no beads) is what held it below 7.5.
 
-Nothing here is detailed and no review rounds ran. The choice is Logan's.
+- Example: `crates/ringdesign-core/examples/tenebrae_ogiva.rs`. Run `target/release/examples/tenebrae_ogiva [OUT_DIR] [--draft] [--verify]`.
+- Outputs: `showcase/tenebrae/ogiva/`, holding the renders, `report.json`, `template-verification.json` and `review-round{1,2,3}.json`.
+- The spike that chose the arch is `showcase/tenebrae/ogiva-spike/`, with `tenebrae_ogiva_spike.rs`.
+- Doc: a dated note sits at the top of Ogiva's section in `docs/collections/tenebrae.md`. It says the ring is now the 2026-10-02 spike's `arch` option, pending Logan.
+- Branch: `claude/tenebrae-ogiva-spike`, with master merged at 779a3d6 (PR #248 and later). The ring was rebuilt after the merge and every gate re-passed.
 
-- Example: `crates/ringdesign-core/examples/tenebrae_ogiva_spike.rs <arch|keel-section|gargoyle> [OUT_DIR] [--rev]`
-- Outputs: `showcase/tenebrae/ogiva-spike/<option>/`. The first block-outs of the two revised options are kept in `round1/`.
-- Read tests: `read-test.json` (test 1) and `read-test-2.json` (test 2) in each option folder.
-- Quick checks: `check.json` (and `check-2.json` for a revision) in each option folder.
+## Rounds
 
-## Results
+| Round | Score | Verdict | What changed | The reviewer's main objections |
+|---|---|---|---|---|
+| 1 | 5.8 | revise | Full detail on the spike's arch: keel rounded to a 0.82 mm straight land, then 37° flanks; two chamfered orders; sunk mouth; crockets and finial; capitals; pier lancets; pierced trefoil; drafted bore. | Flat round-lobe crockets; no seam beads; square palm slab; empty spandrel; worn view a band with teeth; face 32.3 mm tall; release "Review". |
+| 2 | 6.2 | revise | Hooked leaf crockets with bosses; arch lowered 1.5 mm; larger trefoil; bigger lands; template compacted. | Same list, less acute: blend 0 on all 85 features; crocket and finial chords visible; box-on-box imposts; hairline pier lancets. |
+| 3 | 6.2 | **cut** | Right half mirrored (crockets, capitals, pier niches) to fund detail inside the template budget; fleuron finial; round bosses; finer crocket pitch; cavetto bell under a chamfered abacus. | Changed "almost nothing a render can see". Blend still 0 on 101 features; crocket tiers stepped plates; small form nearly absent; the 0.075 study did not reach its pitch. |
 
-| Option | What it is | Process | Read test 1 | Read test 2 | What the eye saw | Main risk |
-|---|---|---|---|---|---|---|
-| `arch` | Seen along the finger, the ring is one equilateral pointed arch: a keeled extrados, two chamfered orders and a sunk mouth in the head, imposts at the springers, straight piers on a flat sill. All of it is drawn on the parting plane and extruded along the pull. | **Delft sand**, CAD-only, about 8.1 g silver | **reads** | not needed | "A pointed lancet arch at once, with nested archivolt orders stepping in at the apex and two impost blocks… 'Gothic arch' or 'church window' without a caption." The hero alone is weaker: "a teardrop or Reuleaux triangle" band. | **Local wall at the keel crease.** `cad::measure::thickness` at 0.8 has 93 of 384 samples below, because the keel is a knife edge (it needs a ~0.3 mm round). Ray release at 0.100 mm: 0 obstructions, 0 unresolved. The field verdict does not apply to a CAD-only ring ("with care"). 1 degenerate face to clear. |
-| `keel-section` | The original keel: a lancet section revolved round the finger. Test 1 judged the plain keel on `section.png` and the end-on `side.png` (plus hero and face). Test 2 added 13 crockets, 24 lancet niches a flank and a side-turned hero. | **Delft sand**, CAD-only, about 11.5 g | does not read | does not read | Test 1: "a plain smooth gold band… The section and side views show a fine lancet… but that shape lives only in cross-section." Test 2: "a gear or sprocket ring… square cog teeth… radial slots." | **The read, not a gate.** Ray release is clean (0/0). Thin-wall samples come from the niche floors and the crocket roots (32 of 383 below 0.8 in the revision). |
-| `gargoyle` | A crouched winged gargoyle drawn on the parting plane and carved in layers along the pull, on factory **015 Octagon's** Delft sand master. Test 2: rounded layers, the head thrust 2 mm past the table like a spout, a pinnacle behind the wing, and a blind lancet arcade on both head walls. | **Delft sand** holds it. Field **Castable**, ray release 0 obstructions and 0 unresolved, 0 DFM. About 26–29 g (stock included). | does not read | does not read | Test 1: "a novelty animal-topper signet… a griffin, a dragon or a winged dog… a flat cut-out silhouette." Test 2: "a winged dragon or griffin statuette… 'dragon signet ring', possibly 'gargoyle'… a quartz crystal or obelisk… seven small slots." | **Flatness.** Along-the-pull carving gives a stack of plates edge-on, and both reviewers failed it as a cut-out or badge. Sculpting it in the round means lost wax. Weight is also high. |
+Every round's reviewer passed the read: at 300 px, with no caption, the ring is "a crocketed Gothic pointed arch on two piers with a finial". The silhouette is unique in the collection. It stays distinct from Porta: one free-standing arch seen along the finger, with no doorway, jambs, tympanum or factory stock, where Porta is a portal on factory 009.
 
-300 px renders:
+## Gates (round 3, draft 768×320 and export 1536×448; identical at both)
 
-- arch: `showcase/tenebrae/ogiva-spike/arch/hero-300.png`, `showcase/tenebrae/ogiva-spike/arch/face-300.png`
-- keel-section, test 1: `showcase/tenebrae/ogiva-spike/keel-section/round1/hero-300.png`, `showcase/tenebrae/ogiva-spike/keel-section/round1/face-300.png`, with `round1/section.png` and `round1/side.png`
-- keel-section, test 2: `showcase/tenebrae/ogiva-spike/keel-section/hero-300.png`, `showcase/tenebrae/ogiva-spike/keel-section/face-300.png`, with `section.png` and `side.png`
-- gargoyle, test 1: `showcase/tenebrae/ogiva-spike/gargoyle/round1/hero-300.png`, `showcase/tenebrae/ogiva-spike/gargoyle/round1/face-300.png`
-- gargoyle, test 2: `showcase/tenebrae/ogiva-spike/gargoyle/hero-300.png`, `showcase/tenebrae/ogiva-spike/gargoyle/face-300.png`
+| Gate | Result |
+|---|---|
+| Watertight, degenerate, self-crossings | 0 boundary, 0 non-manifold, 0 degenerate, 0 crossings, one shell, 17,968 triangles |
+| Parts and features | 101 features, all Ok; made part closed; solids and parts notes empty |
+| Finger hole | 0 vertices inside; nearest 9.297 mm against r 9.3 |
+| Ray release 0.100 mm | 0 obstructions, 0 unresolved (pitch 0.0998 × 0.0998) |
+| Ray release 0.075 mm | 0 obstructions, 0 unresolved. **Pitch reached 0.075 × 0.084**: the grid is capped at 384 cells per axis and the face is 31.5 mm tall (see core changes) |
+| Local wall (`cad::measure::thickness`, 0.8) | 383 rays, 0 below, min 0.818 mm. The 0.3 mm keel round is what clears it; the spike had 93 samples below |
+| Sketch lands | all ≥ 0.8 mm section, ≥ 0.6 mm sand web |
+| DFM / stones / pattern | 0 findings; 0 stones = 0 previewed; pattern watertight |
+| Cold reload | identical (vertices, faces, normals) |
+| Field verdict | **Does not apply.** A parts-only ring has no band chart, so it reads "Castable with care" with "CAD solids require mesh-space manufacturing inspection". It is judged by ray release at both pitches and the local wall instead, and `report.json` records that under `field.why` |
+| Draft clamp | n/a: no painted relief |
+| Template gate | 107 nodes, 0 controls, **1** `design.set` patch (`/manufacturing`), 291,657 of 300,000 bytes, source-identical, 17,968 identical triangles |
 
-## How the tests ran
+Both release studies return status **Review**, never Blocked. The two warnings behind it are outside the brief's gate, and `report.json` explains them under `release_status_note`:
+1. **Low-draft area (735 mm²).** It comes from the 0.82 mm, 0° straight belts across the parting line, plus 3.0° walls sitting exactly on the threshold. Belts are what keep the halves from leaving a hair lip (0.016 mm in `thickness`) or a waist the rays read as undercut.
+2. **Sand slots under 0.6 mm (28 at 0.100, 31 at 0.075, the narrowest 0.07–0.10).** The scan walks axis-aligned lines, so every re-entrant corner on the curved extrados reads as a narrowing slot near its tip: crocket stalk to keel, trefoil cusps, the order's chamfer roots. None is a closed slot of sand.
 
-- **Blind reviewers.** Each reviewer was a fresh agent given only `target/review.md`, "Ogiva (`ogiva`)", "read-test mode" and the render paths. The renders were copied to neutral folders (`target/readtest/<random id>/`) so the folder names `arch` and `gargoyle` did not give away the intended reading.
-- **Reviewers measure against the keel brief.** `review.md` sends every reviewer to Ogiva's section of `docs/collections/tenebrae.md`, which is still the keel brief. Both gargoyle reviewers therefore judged it against "the pointed arch the name promises" and asked for the keel or an arch back. Their first impressions are still honest, but the gargoyle never had a neutral judge.
-- **One caveat on keel test 2.** The revised section is cut through the crown, which is where the finial now stands. The "straight-sided rectangular fin" the reviewer read on `section.png` is the finial plate, not the keel's profile; `round1/section.png` shows the clean lancet. Test 2's verdict also rests on hero and face reading "gear", so the caveat does not change the result.
-- **How each revision applied its reviewer's changes.** The keel took all three of its test-1 changes. The gargoyle took changes 2 and 3; change 1 was "rebuild it as the keel ring", which is another option.
+**Format:** the design writes at **format 5**. Ogiva uses neither PR #248 opt-in. It has no height-field relief, so `crisp_relief` is not set. Its leaves are CAD parts, not stamps, so `StampTop::Pillow` is not used. Close-ups go through `render::render_parts_framed`, the same framing `write_png_framed` uses, so the reviewers saw true crease normals, not a cropped mesh.
 
-## What was built, briefly
+## The ring, as built
 
-- **Arch.** Equilateral head: springers at y −3 and ±11.0 mm, arc radius 22, apex 6.75 mm over the bore. Piers drop to a flat sill 1.7 mm under the bore.
-  - Keel: the outline at z 0, falling 0.8 mm inward over 1.05 mm (a 105° crease).
-  - Face: 6.0 mm wide along the finger.
-  - Orders: sunk 0.55 and 1.0 mm with 35° chamfers; the mouth is 1.5 mm deep. Imposts are 1.1 mm tall, project 0.6 mm and stand 0.35 mm proud.
-  - Bore: a double cone drafted 3° from the parting line.
-- **Keel.** The attempt-3 lancet section: 4.2 wide, head radius 1.5 × width, keel at r 14.38 (90° keel), 0.25 mm step moulding. The revision drops the step and adds:
-  - 13 leaf crockets from θ 18° to 162°, 1.25 mm proud, with a 2.1 mm finial;
-  - 24 lancet niches a flank, 1.1 mm wide, from r 10.0 to 12.4.
-- **Gargoyle.** 015 Octagon sand master, table top at y ≈ 14.04. The figure is in four pieces (trunk, head, foreleg, tail), plus a wing membrane with four finger bones, haunch, foreleg, brow and an eye socket, half-widths 0.8–3.0 mm.
-  - The revision rounds the trunk, haunch, foreleg and head in three nested layers (to ±3.5 mm), thrusts the head out to 2 mm past the table, and drops the tail.
-  - It adds a 9.6 mm gabled pinnacle with a blind lancet, and 7 blind lancets (1.2 × 2.7 mm) on each head wall, cut 0.6 mm into the stock.
+- **The arch.** An equilateral pointed arch seen along the finger: half-span 12.4 mm, radius 24.8, springers at y −5, apex at y 16.5, sill at y −11. Face 28.1 × 31.5 mm, 7.0 mm along the finger, 12.7 g of silver 925, US 8.6 (18.6 mm bore). Centre of mass 0.54 mm off the bore axis.
+- **The keel.** The outline sits on the parting plane as a 0.82 mm straight land, inset 0.15 mm. From it, 37° flanks fall 0.6 mm in, giving a 106° crease rounded by the land. That rounding cleared the thin-wall samples.
+- **The face.** The outline is inset 0.6 mm and raised in drafted halves, starting inside the land.
+- **The orders and mouth.**
+  - The order is sunk 1.45 mm with a 35° chamfer and runs down onto the capitals.
+  - The mouth is a crescent inside the head, kept 0.9 mm off the bore and sunk 1.6 mm, with squared ends where it narrows to 0.7 mm.
+- **Crockets and finial.** Three hooked leaves a side up the extrados, each with a round boss, cored and belted across the parting line. They are built on the right and mirrored about the crown plane. A symmetric fleuron finial sits at the apex.
+- **Capitals.** A cavetto bell under a chamfered abacus at each springer, standing 0.5 and 0.3 mm proud, mirrored.
+- **Pier niches.** Sunk 0.7 mm, one per pier face, mirrored.
+- **Trefoil and bore.**
+  - A trefoil is pierced through the mouth.
+  - The bore is a belted double cone, drafted 3° from the parting line, with its radius corrected so the belt never enters the finger hole.
+- **The pour.** Everything is a sketch on a parting-parallel plane, extruded along the pull at 3°, with the drag half made by `Mirror{Band}`. That is why release is 0/0 by construction.
 
-## Platform notes found on the way (no core changes made)
+## What could not be done, and why
 
-- `Operation::Loft` through polyline sections tessellates with open edges, and a kernel union of two lofts gives `NoClosedForm`. The arch went back to drafted extrusions.
-- `extrude_tapered` refuses any loop where the inset consumes a short segment. This bites at a 90° corner next to short arc chords, and at a sharp apex. The workarounds were:
-  - give pocket regions a straight leg below the springers;
-  - round an apex by at least the inset;
-  - walk spline outlines at an even 0.28 mm after corner cutting.
+- **Seam beads (open on every round, house rule 10).** `blend_mm` acts only where a part joins the Band. `parts.rs:343` gates the bead pass on `cuts.iter().any(|c| c.blend_mm > 0.0)` against the band chain. A parts-only ring has no band, so no union in its tree can carry a bead.
+- **Smooth leaf curves.** Drafted true arcs, and lofts through polylines, tessellate with open seams at some resolutions. A kernel union of two B-rep lofts returns `NoClosedForm`. The leaves therefore stay polylines, with chords visible at 1600 px.
+- **Tracery, arcading and a moulded keel.** Each sketch point costs about 150 bytes of pretty-printed template JSON. At 291,657 of 300,000 bytes, after snapping, coarser pitches and mirroring, the head tracery, pier arcading and keel moulding the reviewers asked for do not fit.
+- **The 0.075 pitch.** The release grid stops at 384 cells, so on a 31.5 mm face the y pitch is 0.084.
+- **Rounded drafted corners.** `extrude_tapered` refuses any loop where the inset swallows a short segment, such as a sharp convex corner next to short chords, or a cusp. Pocket outlines needed legs below the springers and squared crescent ends.
 
-  One long gargoyle outline still failed, even though its own offset was clean, so the body is built in overlapping pieces.
-- Drafted halves overlapped 0.03 mm across the parting line leave a waist that the ray release reads as undercut (0.03 mm deep on the 37° keel). Starting each half 0.008 mm under the line clears it.
+## Core changes wanted (not made; exact code)
 
-## Recommendation for Logan (my call, if it were mine)
+1. **Let a parts-only ring carry seam beads.** In `parts.rs`, when the document has no `Band` feature, bead every seam that a Boolean Union traces between two parts, using the larger `blend_mm` of the two. That is the same rule the joined-cluster seams already use:
+   ```rust
+   // parts.rs, after the union chain of a band-less document is built
+   if !doc.has_band() {
+       for (a, b, traced) in &union_traces {
+           let r = a.blend_mm.max(b.blend_mm);
+           if r > 0.0 {
+               for seam in blend::seams(traced, &a.solid, &b.solid, true) {
+                   match blend::bead_seam(traced, &seam, r, ctx.cancel) {
+                       Some(Ok(bead)) => chain.combine(&bead.solid, Op::Union)?,
+                       Some(Err(e)) => out.notes.push(format!("{} / {}: seam bead failed ({e})", a.name, b.name)),
+                       None => {}
+                   }
+               }
+           }
+       }
+   }
+   ```
+2. **Release grid: reach the asked pitch.** `manufacturing/release.rs:309-314` clamps each axis to 384 cells. Raise the cap to what the pitch asks, bounded by a cell budget rather than a per-axis cap:
+   ```rust
+   const MAX_RELEASE_CELLS: f64 = 1024.0 * 1024.0;
+   let want = |span: f64| (span / setup.sample_pitch_mm).ceil().max(4.0);
+   let (mut fx, mut fy) = (want(hi[0] - lo[0]), want(hi[1] - lo[1]));
+   let k = (MAX_RELEASE_CELLS / (fx * fy)).sqrt().min(1.0);
+   fx = (fx * k).floor().max(4.0);
+   fy = (fy * k).floor().max(4.0);
+   let (nx, ny) = (fx as usize, fy as usize);
+   ```
+   The note at line 590 then reads `"Grid capped at {MAX_RELEASE_CELLS} cells; …"`.
+3. **Sand slots: measure across the gap, not along an axis.** At `release.rs:500-528`, a slot found on an axis scanline is the chord of a re-entrant corner. Confirm it against the slot's width perpendicular to its own walls, and drop it when the gap opens past `min_sand_web_mm` within its own depth:
+   ```rust
+   let true_width = width * (1.0 - (other_axis_gradient(col, z)).powi(2)).sqrt(); // walls' own normal
+   let opens = gap_opens_within(&out.columns, idx, a, step, setup.recipe.min_sand_web_mm, depth_at(col, z));
+   if true_width < setup.recipe.min_sand_web_mm && !opens { /* push SandFinding */ }
+   ```
+   Do the same for a 0° belt that is the parting line's own land: exclude it from `low_draft_area_mm2` when it straddles z = 0 within `2 * belt`.
+4. **Drafted arcs and polyline lofts that close.** `cadkernel::brep::extrude_tapered` on `Geometry::Arc` loops, and `Operation::Loft` through polylines, should share edge tessellation between adjacent faces, so the tessellated shell is closed. That would let leaves be true curves.
+5. **`extrude_tapered` that drops a consumed segment instead of refusing.** When the inset makes a segment's offset reverse, remove that vertex and re-intersect its neighbours (a standard polygon-offset cleanup), rather than returning an error.
+6. **Compact template JSON for sketch points.** Write `Sketch` points as a flat `[x, y, …]` array in graph files, rather than pretty-printed objects, behind the graph format ladder. That would roughly triple the detail a procedural template can hold.
 
-**Build the arch.** It is the only option that read, it read on the first test, and it read from the outline alone, before any crocket, tracery or stone. That is the lesson every failed Tenebrae and Bestiarium ring points to: put the subject in the silhouette the cameras see. It pours in Delft sand by construction, it weighs about 8 g, and its one real gate risk (the knife-edge crease) is a small fix.
+## Recommendation
 
-To keep it clear of Porta, keep it to one great arch, not a doorway. The reviewer's next steps fit inside the concept:
-- carry the orders down to the imposts;
-- mould the imposts as capitals;
-- add the crocket run up the extrados to a finial;
-- consider a stone in the mouth as its one piece of glass.
+**Cut Ogiva as it stands. Keep the arch as the concept.** It is the only Ogiva that ever read, and it read every round. What failed is surface quality, which this construction cannot reach on a parts-only sand ring without core changes 1 and 4. With those, the round-2/3 punch list is straightforward:
+- 0.2–0.3 mm beads on every join;
+- curved leaf crockets and a fleuron;
+- cusped head tracery;
+- blind arcading on the piers;
+- a moulded keel.
 
-The weak point to watch is the hero, which still reads "teardrop band".
-
-I would drop the keel-as-section: two tests confirm the old finding that a revolved section cannot carry the read. I would also drop the gargoyle as a sand ring. Faces may be allowed, but along-the-pull carving stays a cut-out. If Logan wants a gargoyle, it belongs in lost wax, sculpted in the round, and probably as a ring of its own rather than as Ogiva.
+The other route is to rebrief it on a procedural band, where `blend_mm` already works, carrying the arch in the outline the band's own silhouette makes.
