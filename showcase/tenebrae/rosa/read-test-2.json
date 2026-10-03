@@ -1,0 +1,33 @@
+{
+  "ring": "rosa",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Closer than attempt 1, but it still fails. Face-300: a cushion signet carrying a round pierced medallion. It now has a thin double-line circular border, and small dark pierced cells sit between the stones. The centre of it is still a ruby ringed by eight blue teardrop stones, round ends in and points out, set in soft gold petal collets. The stones are the biggest, brightest thing on the face, so the first read is 'sapphire and ruby flower cluster', or a daisy or sunburst. 'Rose window' only comes on a second look. The tracery is too thin and too small to win. The outer circle is a hairline groove, not a moulded order. The cells between the lights are tiny dark triangles and slivers with no cusps or foils. No radial mullion runs clearly from the oculus to the rim, so it does not read as a wheel of lights. Hero-300: a plain, smooth cushion signet with the medallion on top. The head walls and cheeks are blank, so the planned arcade is missing. The shoulder holes are four tiny square dots that look like a hallmark or rivets, not graded oculi. There is no pointed arch anywhere on the ring. A jeweller might say 'rosette' or 'openwork medallion signet', perhaps 'rose window' if pushed. They would not say 'Gothic cathedral'. The face is sparse next to Caiman, and the 3/4 view is mostly empty gold.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the tracery, not the stones, the dominant form, so the face reads as a window wheel and not a flower.",
+      "where": "Table face, r 2.75 to the rim circle (about r 7.2)",
+      "how_much": "Raise the outer order from a hairline to a roll moulding about 0.6 mm wide standing at least 0.4 mm proud. Run 8 radial mullions at least 0.8 mm wide (up to 1.0), standing proud of the collets, from the oculus moulding to that order on the 22.5 degree lines between the lights, so each light sits in its own framed cell. Open the spandrel cells to at least 1.6 mm across and cut them as cusped trefoils or mouchettes, pierced through. Acceptance: in face-300 the bright gold spokes and rim read before the blue stones, as a spoked wheel of framed lights."
+    },
+    {
+      "priority": 2,
+      "what": "Put a pointed arch into the window and onto the walls. At present no Gothic shape appears anywhere at 300 px.",
+      "where": "Each light's outer end on the face, and all four head walls (both cheeks and both ends)",
+      "how_much": "Close each light's cell, or its collet, in a pointed-arch head whose point runs at least 0.6 mm past the stone, so the cell is a lancet and not a teardrop petal. Cut the planned 'Wall arcade' blind three-lancet stamps, 6.0 x 2.4 mm at 0.35 mm deep, on all four head walls. Acceptance: in hero-300 a row of pointed lancets shows on the visible side wall below the table, and every light on the face ends in a sharp arch point."
+    },
+    {
+      "priority": 3,
+      "what": "Make the shoulder oculi read as windows, not dots.",
+      "where": "Shoulders, theta 90 minus 44 to 74 degrees and its mirror",
+      "how_much": "Raise the oculi from the current specks to 1.6, 1.4, 1.2 and 0.9 mm, round or quatrefoil and pierced through. Give each a raised 0.3 mm rim so it shows as a framed opening that steps down toward the palm. Acceptance: in hero-300 four distinct, graded round openings can be counted on the near shoulder."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/rosa/hero-300.png",
+    "showcase/tenebrae/rosa/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
