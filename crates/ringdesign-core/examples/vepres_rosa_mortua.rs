@@ -3,6 +3,9 @@
 //! its dried sepals. Hooked prickles run down both arms, graded toward the palm. Lost wax.
 //! cargo build --release -p ringdesign-core --example vepres_rosa_mortua
 //! target/release/examples/vepres_rosa_mortua [OUT_DIR] [--draft] [--verify] [--blockout]
+// The block-out's first attempt (a rose bloom of three petal rings round the ruby: `petal`, `petal_layout`, the
+// annular `receptacle`, `sepal`) is kept for the rethink the third failed read test calls for; it is not built now.
+#![allow(dead_code)]
 use anyhow::{Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign,

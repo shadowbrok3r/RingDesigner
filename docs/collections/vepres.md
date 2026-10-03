@@ -472,6 +472,8 @@ That is expected for most Vepres rings. Say so in each README line.
   - `profile::bypass_span(off, k)` (`:2351`) gives each arm's centre and half-width.
 
 - **Process:** Lost wax. The sepal claws and wisps overhang, and the prickles ride arm crests that slide along the finger ("the crest wanders in v": 3% at 50°).
+  - 2026-10-03 (Logan's rule): judged as lost wax, 0.8 mm minimum section, no pull rule; the process was never in question. No extra rounds granted.
+  - 2026-10-03 block-out: three read tests failed (`showcase/vepres/rosa-mortua/read-test-{1,2,3}.json`); stopped before round 1 for a rethink of the subject (see `cloud-report.md` on `claude/vepres-rosa-mortua`).
 
 - **Stones:**
   - Bud: ruby pear 7 × 5, `Gem::calibrated(GemCut::Pear, 5.0)` with `l_mm` 7. Until C-B2, the pear plan is an ellipse (`plan_pow` 2.0), so use an oval 7 × 5.
