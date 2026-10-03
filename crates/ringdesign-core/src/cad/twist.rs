@@ -238,14 +238,14 @@ fn stations(plane: &Plane, walk: &[(Curve, bool)], twist: f64, reach: f64, chord
 
 /// What a section piece is, for the surface its side sweeps.
 #[derive(Clone, Copy, Debug)]
-enum Piece {
+pub(super) enum Piece {
     Line,
     Round { centre: [f64; 2], radius: f64 },
     Other,
 }
 
 /// The walked section as points on its own plane, each piece cut to `chord` and `longest`, a corner where the walk turns.
-fn section(profile: &[Curve], senses: &[bool], chord: f64, longest: f64) -> Result<(Vec<([f64; 2], bool, usize)>, Vec<Piece>)> {
+pub(super) fn section(profile: &[Curve], senses: &[bool], chord: f64, longest: f64) -> Result<(Vec<([f64; 2], bool, usize)>, Vec<Piece>)> {
     let tangent = |c: &Curve, forward: bool, at_end: bool| -> [f64; 2] {
         let t = if forward == at_end { 1.0 } else { 0.0 };
         let d = c.tangent_at(t);
@@ -303,22 +303,22 @@ fn section(profile: &[Curve], senses: &[bool], chord: f64, longest: f64) -> Resu
     Ok((out, pieces))
 }
 
-/// Triangles filling a counter-clockwise simple polygon from its own points only, each counter-clockwise.
-fn fill(ring: &[[f64; 2]]) -> Result<Vec<[u32; 3]>> {
+/// Triangles filling a counter-clockwise simple polygon from its own points only, each counter-clockwise; `what` names the part in a refusal.
+pub(super) fn fill(ring: &[[f64; 2]], what: &str) -> Result<Vec<[u32; 3]>> {
     use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
     let n = ring.len();
-    ensure!(n >= 3, "Twisted sweep: the section has {n} points round; a cap needs three");
+    ensure!(n >= 3, "{what}: the section has {n} points round; a cap needs three");
     let mut cdt = ConstrainedDelaunayTriangulation::<Point2<f64>>::new();
     let mut index = HashMap::new();
     let mut handles = Vec::with_capacity(n);
     for (i, p) in ring.iter().enumerate() {
-        let h = cdt.insert(Point2::new(p[0], p[1])).map_err(|e| anyhow::anyhow!("Twisted sweep: the section's point {i} will not place ({e:?})"))?;
-        ensure!(index.insert(h, i as u32).is_none(), "Twisted sweep: the section meets itself at ({:.4}, {:.4})", p[0], p[1]);
+        let h = cdt.insert(Point2::new(p[0], p[1])).map_err(|e| anyhow::anyhow!("{what}: the section's point {i} will not place ({e:?})"))?;
+        ensure!(index.insert(h, i as u32).is_none(), "{what}: the section meets itself at ({:.4}, {:.4})", p[0], p[1]);
         handles.push(h);
     }
     for i in 0..n {
         let (a, b) = (handles[i], handles[(i + 1) % n]);
-        ensure!(cdt.can_add_constraint(a, b), "Twisted sweep: the section crosses itself");
+        ensure!(cdt.can_add_constraint(a, b), "{what}: the section crosses itself");
         cdt.add_constraint(a, b);
     }
     // Faces flood from the hull: outside against a hull edge the outline does not hold, flipping across each outline edge.
@@ -353,7 +353,7 @@ fn fill(ring: &[[f64; 2]]) -> Result<Vec<[u32; 3]>> {
         let area = (pb[0] - pa[0]) * (pc[1] - pa[1]) - (pc[0] - pa[0]) * (pb[1] - pa[1]);
         tris.push(if area >= 0.0 { [a, b, c] } else { [a, c, b] });
     }
-    ensure!(tris.len() == n - 2, "Twisted sweep: the section's cap did not fill ({} triangles for {n} points round)", tris.len());
+    ensure!(tris.len() == n - 2, "{what}: the section's cap did not fill ({} triangles for {n} points round)", tris.len());
     Ok(tris)
 }
 
@@ -481,7 +481,7 @@ pub fn sweep(profile_plane: Plane, profile: &[Curve], path_plane: Plane, path: &
             patch.extend([run_of[j] as u32; 2]);
         }
     }
-    let cap = fill(&rims.iter().map(|r| r.at).collect::<Vec<_>>())?;
+    let cap = fill(&rims.iter().map(|r| r.at).collect::<Vec<_>>(), "Twisted sweep")?;
     let last = st.len() - 1;
     for t in &cap {
         f.push([at(0, t[0] as usize), at(0, t[2] as usize), at(0, t[1] as usize)]);
