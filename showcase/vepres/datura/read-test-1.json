@@ -1,0 +1,31 @@
+{
+  "ring": "datura",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A round, dense spiked ball on a shield-shaped signet. In the hero it is a sea urchin, a chestnut burr or a morning-star mace head. From the face it is a spiky sunburst or a thistle head seen from above. The capsule body cannot be seen: so many long spines fill the outline that no egg shape reads, only a bristling sphere. The four-way split and the seeds do not register at 300 px. All that shows is a few dark specks at the crown that could be pits or shadows. The cheeks read as plain, slightly faceted metal with no leaf. Nothing on the ring says nightshade or thorn-apple, so a jeweller would say 'spiky ball' or 'urchin', never 'datura'.",
+  "changes": [
+    {
+      "priority": 1,
+      "zone": "head: capsule body and spine rows",
+      "change": "Make the capsule read as an upright egg with spines on it, not as a burr. Raise the capsule from 5.6 to about 7 mm high on the 4.2 mm base radius, so it is clearly taller than wide. Cut the spines to about 24-28 in total (for example rows of 8/8/6/4) and shorten them to 0.8-1.0 mm. Make them stout cones, base about 0.8 mm and tip at least 0.3 mm, so smooth egg surface shows between every pair of spines.",
+      "acceptance": "At 300 px, from both the hero and the face, the head's silhouette is a smooth ovoid with short thorns standing off it. Spine length is at most a quarter of the capsule radius, and bare body shows between neighbouring spines."
+    },
+    {
+      "priority": 2,
+      "zone": "head: valve slots and seeds (crown, all four arms)",
+      "change": "Open the thorn-apple's four-valve split so it is the thing the face view shows. Widen the slots from 0.9 to 1.8-2.0 mm at the top and cut them about 4 mm deep. Flare the valve lips outward by about 0.4 mm so they gape. Seat the 8 black spinels deep in the slot arms so they show as four dark rays of seeds. Keep spines out of a 1.2 mm band on each side of every slot.",
+      "acceptance": "In face-300 a dark four-armed cross with black seeds in it is visible at the capsule crown at first glance, with clean spine-free lips along every arm. In hero-300 at least one gaping split with seeds shows on the near side."
+    },
+    {
+      "priority": 3,
+      "zone": "cheeks and shoulders, both sides",
+      "change": "Add the datura foliage large enough to read. Put two sinuate leaves on each side, each about 8 x 5 mm, with broad wavy-lobed margins (3-4 shallow, irregular lobes rather than a serrate saw edge). Raise them at least 0.5 mm with a crisp raised midrib. Make the front leaf on each side a furled trumpet-flower bud about 7 mm long, its twisted five-point tip pointing at the head. That bud is the plant's unmistakable signature.",
+      "acceptance": "In hero-300 the near cheek shows a clearly outlined lobed leaf and a twisted trumpet bud, readable as plant parts without zooming. The cheek no longer reads as plain or faceted metal."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/datura/hero-300.png",
+    "showcase/vepres/datura/face-300.png"
+  ]
+}

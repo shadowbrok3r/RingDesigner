@@ -29,6 +29,13 @@ const SHARED_ROWS: usize = 80;
 /// Black spinel, the seeds.
 const SPINEL_TINT: [f32; 3] = [0.03, 0.03, 0.04];
 const SEED_MM: f64 = 1.5;
+/// The seed pads: radius, height, how far each stands proud of its split's floor, and the girdle over its top.
+const PAD_R_MM: f64 = 0.98;
+const PAD_H_MM: f64 = 1.0;
+const PAD_PROUD_MM: f64 = 0.05;
+const SEED_OVER_PAD_MM: f64 = 0.25;
+/// How far each seed's axis is turned up off its split's floor toward the crown.
+const SEED_LIFT: f64 = 0.0;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, refine: None, ..BuildParams::default() }
@@ -142,6 +149,102 @@ fn table(d: &RingDesign, lib: &AlphaLibrary) -> Result<Table> {
     Ok(Table { top_mm: top, round_mm: 2.0 * x, across_mm: 2.0 * z })
 }
 
+// --- The badge's outer skin, for draping ---------------------------------------------------------------------------
+
+/// The bare band's outer radius over (theta, across) on a fine grid: the largest radius any triangle reaches there.
+struct Skin {
+    theta0: f64,
+    dtheta: f64,
+    z0: f64,
+    dz: f64,
+    nt: usize,
+    nz: usize,
+    r: Vec<f64>,
+}
+
+impl Skin {
+    fn of(m: &mesh::Mesh, theta_range: (f64, f64), z_range: (f64, f64)) -> Self {
+        let (dtheta, dz) = (0.1f64.to_radians(), 0.02);
+        let nt = ((theta_range.1 - theta_range.0).to_radians() / dtheta).ceil() as usize + 1;
+        let nz = ((z_range.1 - z_range.0) / dz).ceil() as usize + 1;
+        let mut skin = Self { theta0: theta_range.0.to_radians(), dtheta, z0: z_range.0, dz, nt, nz, r: vec![f64::NAN; nt * nz] };
+        for f in &m.faces {
+            let q: Vec<[f64; 3]> = f
+                .iter()
+                .map(|&i| {
+                    let v = m.vertices[i as usize];
+                    let (x, y, z) = (v.0 as f64, v.1 as f64, v.2 as f64);
+                    [y.atan2(x).rem_euclid(2.0 * PI), z, x.hypot(y)]
+                })
+                .collect();
+            if q.iter().map(|p| p[0]).fold(f64::MIN, f64::max) - q.iter().map(|p| p[0]).fold(f64::MAX, f64::min) > PI {
+                continue;
+            }
+            let gi = |t: f64| (t - skin.theta0) / skin.dtheta;
+            let gj = |z: f64| (z - skin.z0) / skin.dz;
+            let (i0, i1) = (q.iter().map(|p| gi(p[0])).fold(f64::MAX, f64::min).ceil().max(0.0) as isize, q.iter().map(|p| gi(p[0])).fold(f64::MIN, f64::max).floor() as isize);
+            let (j0, j1) = (q.iter().map(|p| gj(p[1])).fold(f64::MAX, f64::min).ceil().max(0.0) as isize, q.iter().map(|p| gj(p[1])).fold(f64::MIN, f64::max).floor() as isize);
+            let tri: Vec<P3> = f.iter().map(|&i| { let v = m.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] }).collect();
+            let (e1, e2) = (sub3(tri[1], tri[0]), sub3(tri[2], tri[0]));
+            for i in i0..=i1.min(nt as isize - 1) {
+                for j in j0..=j1.min(nz as isize - 1) {
+                    // The radial ray from the finger's axis at this height, met exactly.
+                    let (t, z) = (skin.theta0 + i as f64 * dtheta, skin.z0 + j as f64 * dz);
+                    let (o, dir) = ([0.0, 0.0, z], [t.cos(), t.sin(), 0.0]);
+                    let h = cross3(dir, e2);
+                    let det = dot3(e1, h);
+                    if det.abs() < 1e-12 {
+                        continue;
+                    }
+                    let sv = sub3(o, tri[0]);
+                    let a = dot3(sv, h) / det;
+                    let qv = cross3(sv, e1);
+                    let b = dot3(dir, qv) / det;
+                    if a < -1e-9 || b < -1e-9 || a + b > 1.0 + 1e-9 {
+                        continue;
+                    }
+                    let r = dot3(e2, qv) / det;
+                    if r <= 0.0 {
+                        continue;
+                    }
+                    let cell = &mut skin.r[i as usize * nz + j as usize];
+                    if cell.is_nan() || r > *cell {
+                        *cell = r;
+                    }
+                }
+            }
+        }
+        skin
+    }
+    /// The outer radius at `theta` (radians) and `z`, bilinear; None off the band.
+    fn radius(&self, theta: f64, z: f64) -> Option<f64> {
+        let (u, v) = ((theta - self.theta0) / self.dtheta, (z - self.z0) / self.dz);
+        if u < 0.0 || v < 0.0 || u >= (self.nt - 1) as f64 || v >= (self.nz - 1) as f64 {
+            return None;
+        }
+        let (i, j) = (u.floor() as usize, v.floor() as usize);
+        let (fu, fv) = (u - i as f64, v - j as f64);
+        let at = |i: usize, j: usize| self.r[i * self.nz + j];
+        let r = at(i, j) * (1.0 - fu) * (1.0 - fv) + at(i + 1, j) * fu * (1.0 - fv) + at(i, j + 1) * (1.0 - fu) * fv + at(i + 1, j + 1) * fu * fv;
+        (!r.is_nan()).then_some(r)
+    }
+    /// The surface point and outward normal at `theta` (radians) and `z`.
+    fn at(&self, theta: f64, z: f64) -> Option<(P3, P3)> {
+        let p = |t: f64, z: f64| self.radius(t, z).map(|r| [r * t.cos(), r * t.sin(), z]);
+        let (e, h) = (0.004, 0.05);
+        let c = p(theta, z)?;
+        let dt = sub3(p(theta + e, z)?, p(theta - e, z)?);
+        let dz = sub3(p(theta, z + h)?, p(theta, z - h)?);
+        Some((c, unit3(cross3(dt, dz))))
+    }
+    /// How far across the band reaches at `theta` (degrees): the least and greatest z with skin.
+    fn across(&self, theta_deg: f64) -> (f64, f64) {
+        let t = theta_deg.to_radians();
+        let zs: Vec<f64> = (0..self.nz).map(|j| self.z0 + j as f64 * self.dz).filter(|&z| self.radius(t, z).is_some()).collect();
+        (zs.first().copied().unwrap_or(0.0), zs.last().copied().unwrap_or(0.0))
+    }
+}
+
 // --- The capsule ---------------------------------------------------------------------------------------------------
 
 /// The thorn-apple's measures, mm, in the capsule's own frame: z up its axis from the table, x round the ring.
@@ -155,6 +258,8 @@ struct Shape {
     split_z: f64,
     /// Half the split's angle at its widest, radians.
     gape: f64,
+    /// How far the valves' lips flare out along the splits.
+    lip_mm: f64,
     /// The calyx frill's reach and its five lobes' depth.
     frill_r: f64,
     frill_lobe: f64,
@@ -165,12 +270,13 @@ struct Shape {
 }
 
 const SHAPE: Shape = Shape {
-    egg_r: 5.0,
-    tip_z: 10.6,
-    split_z: 4.6,
-    gape: 0.36,
-    frill_r: 5.6,
-    frill_lobe: 0.6,
+    egg_r: 4.5,
+    tip_z: 11.4,
+    split_z: 4.8,
+    gape: 0.5,
+    lip_mm: 0.4,
+    frill_r: 4.9,
+    frill_lobe: 0.45,
     sunk_mm: 0.9,
     split_at: 0.0,
 };
@@ -179,43 +285,47 @@ const SHAPE: Shape = Shape {
 /// over the placenta. Both run the same way up the egg until the split opens.
 fn meridians(s: &Shape) -> (Vec<[f64; 2]>, Vec<[f64; 2]>) {
     let (r, h) = (s.egg_r, s.tip_z);
-    let floor_z = h - 1.7;
+    let floor_z = h - 1.8;
     let foot = -s.sunk_mm;
     // Shared run: the buried foot, the calyx's reflexed frill, the waist and the egg's lower half.
     let shared: Vec<[f64; 2]> = vec![
         [0.0, foot],
-        [s.frill_r - 0.5, foot],
-        [s.frill_r, foot + 0.35],
-        [s.frill_r, 0.2],
-        [s.frill_r - 0.3, 0.42],
-        [r + 0.05, 0.62],
-        [r - 0.5, 0.95],
-        [r - 0.55, 1.35],
-        [r - 0.15, 2.4],
-        [r, 3.3],
+        [s.frill_r + 0.3, foot],
+        [s.frill_r + 0.55, -0.25],
+        [s.frill_r + 0.35, 0.0],
+        [s.frill_r + 0.05, 0.14],
+        [s.frill_r - 0.15, 0.3],
+        [s.frill_r - 0.35, 0.44],
+        [r + 0.1, 0.62],
+        [r - 0.45, 0.95],
+        [r - 0.5, 1.45],
+        [r - 0.12, 2.8],
+        [r, 4.0],
         [r - 0.02, s.split_z],
     ];
     // The valve: on up the egg and over its shoulder, its lip just parted from its neighbours over the placenta.
     let valve: Vec<[f64; 2]> = vec![
-        [r - 0.2, 5.9],
-        [r - 0.6, 7.2],
-        [r - 1.3, 8.4],
-        [r - 2.2, 9.3],
-        [r - 3.1, h - 0.15],
-        [1.35, h],
-        [0.95, h - 0.2],
-        [0.75, floor_z + 0.4],
+        [r - 0.12, 6.3],
+        [r - 0.45, 7.7],
+        [r - 1.0, 8.9],
+        [r - 1.75, 9.9],
+        [r - 2.6, h - 0.25],
+        [1.15, h],
+        [0.85, h - 0.2],
+        [0.65, floor_z + 0.4],
         [0.0, floor_z + 0.25],
     ];
-    // The split's floor: from where the split opens, a channel climbing in under the valves' lips to the placenta.
+    // The split's floor: down from the slit on the side, then a gentle ramp deep under the lips where the seeds
+    // lie, climbing to the placenta.
     let split: Vec<[f64; 2]> = vec![
-        [r - 0.55, s.split_z + 0.3],
-        [r - 1.15, s.split_z + 1.35],
-        [r - 1.8, s.split_z + 2.25],
-        [r - 2.45, floor_z - 0.45],
-        [r - 3.1, floor_z - 0.12],
-        [1.2, floor_z + 0.1],
-        [0.65, floor_z + 0.2],
+        [r - 0.8, s.split_z + 0.35],
+        [r - 1.3, s.split_z + 1.1],
+        [r - 1.6, s.split_z + 1.6],
+        [r - 2.1, s.split_z + 1.95],
+        [r - 2.7, s.split_z + 2.3],
+        [r - 3.2, s.split_z + 2.75],
+        [1.0, floor_z - 0.35],
+        [0.55, floor_z + 0.05],
         [0.0, floor_z + 0.25],
     ];
     // The shared run is sampled once, so both meridians agree on it point for point; each divergent run alike.
@@ -278,33 +388,46 @@ impl Capsule {
     }
     /// How far into its split a bearing `phi` lies at meridian sample `i`: 1 on the floor, 0 on a valve's face.
     fn into_split(&self, i: usize, phi: f64) -> f64 {
-        let (v, s) = (self.valve[i], self.split[i]);
-        let parted = (v[0] - s[0]).hypot(v[1] - s[1]);
-        if parted < 1e-6 {
+        let (half, wall) = self.half(i);
+        if half <= 0.0 {
             return 0.0;
         }
-        // The clear half-gap opens over the first millimetre of the split and holds; its angle grows as the floor runs
-        // in, never shrinking up the meridian, so no meridian folds back on itself.
-        // The split runs as a slit from where it opens and gapes toward the top, its angle never shrinking up the
-        // meridian, so no meridian folds back on itself.
-        let along = (i as f64 - SHARED_ROWS as f64) / (self.valve.len() - SHARED_ROWS) as f64;
-        let opened = 0.25 + 0.75 * smooth(0.05, 0.42, along);
-        let half = self.shape.gape * opened * smooth(0.0, 0.03, along);
-        let wall = 0.06;
-        let off = (0..4).map(|k| wrap(phi - self.shape.split_at - k as f64 * PI / 2.0).abs()).fold(f64::MAX, f64::min);
-        1.0 - smooth(half, half + wall, off)
+        1.0 - smooth(half, half + wall, self.off(phi))
+    }
+    /// A split's half-angle and the width of its wall at meridian sample `i`, radians. The split runs as a slit from
+    /// where it opens and gapes toward the top, its angle never shrinking up the meridian, so no meridian folds.
+    fn half(&self, i: usize) -> (f64, f64) {
+        if i < SHARED_ROWS {
+            return (0.0, 0.06);
+        }
+        let along = self.along(i);
+        let opened = 0.3 + 0.7 * smooth(0.05, 0.4, along);
+        (self.shape.gape * opened * smooth(0.0, 0.03, along), 0.06)
+    }
+    /// How far up the split meridian sample `i` lies: 0 where it opens, 1 at the placenta.
+    fn along(&self, i: usize) -> f64 {
+        (i as f64 - SHARED_ROWS as f64).max(0.0) / (self.valve.len() - SHARED_ROWS) as f64
+    }
+    /// How far a bearing lies from the nearest split, radians.
+    fn off(&self, phi: f64) -> f64 {
+        (0..4).map(|k| wrap(phi - self.shape.split_at - k as f64 * PI / 2.0).abs()).fold(f64::MAX, f64::min)
     }
     fn point(&self, i: usize, j: usize) -> P3 {
         let phi = 2.0 * PI * j as f64 / self.around as f64;
         let t = self.into_split(i, phi);
         let [r, z] = lerp2(self.valve[i], self.split[i], t);
+        // The valves' lips flare out along each split, fading over a millimetre of the valve.
+        let (half, wall) = self.half(i);
+        let lip = if half > 0.0 {
+            let beyond = (self.off(phi) - half - wall) * r.max(1.0);
+            self.shape.lip_mm * smooth(0.02, 0.35, self.along(i)) * (1.0 - smooth(0.0, 1.1, beyond)) * (1.0 - t)
+        } else {
+            0.0
+        };
+        let r = r + lip;
         // The frill's five shallow lobes.
         let frill = smooth(0.0, 0.5, z + self.shape.sunk_mm) * (1.0 - smooth(0.5, 0.9, z));
         let r = r * (1.0 - frill * self.shape.frill_lobe / self.shape.frill_r * (0.5 - 0.5 * (5.0 * phi).cos()));
-        // Each valve's top drawn to a point: heights over the shoulder fall toward the valve's edges.
-        let shoulder = self.shape.tip_z - 3.6;
-        let edge = 0.5 - 0.5 * (4.0 * (phi - self.shape.split_at - PI / 4.0)).cos();
-        let z = if z > shoulder { shoulder + (z - shoulder) * (1.0 - 0.0 * edge) } else { z };
         [r * phi.cos(), r * phi.sin(), z]
     }
     fn solid(&self) -> csg::Solid {
@@ -442,18 +565,19 @@ fn seed_places(c: &Capsule) -> Vec<(P3, P3, f64)> {
             .min_by(|&a, &b| (c.split[a][0] - r_want).abs().total_cmp(&(c.split[b][0] - r_want).abs()))
             .unwrap_or(m / 2);
         let d = [c.split[i + 1][0] - c.split[i - 1][0], c.split[i + 1][1] - c.split[i - 1][1]];
-        // Outward: turn the run (inward and up) a quarter clockwise in (r, z).
+        // Outward and up: the run (inward and up) turned a quarter clockwise in (r, z).
         let n = [d[1], -d[0]];
         let l = n[0].hypot(n[1]).max(1e-9);
-        (i, [-n[0] / l, -n[1] / l])
+        (i, [n[0] / l, n[1] / l])
     };
     for k in 0..4 {
         let phi = c.shape.split_at + k as f64 * PI / 2.0;
-        for r_want in [c.shape.egg_r - 1.75, c.shape.egg_r - 3.35] {
+        for r_want in [c.shape.egg_r - 0.95, c.shape.egg_r - 2.85] {
             let (i, n) = floor_at(r_want);
             let [r, z] = c.split[i];
             let p = [r * phi.cos(), r * phi.sin(), z];
-            let normal = unit3([n[0] * phi.cos(), n[0] * phi.sin(), n[1]]);
+            // Turned up off the ramp toward the crown, so the seed faces the face camera.
+            let normal = unit3(add3([n[0] * phi.cos(), n[0] * phi.sin(), n[1]], [0.0, 0.0, 1.0], SEED_LIFT));
             out.push((p, normal, phi));
         }
     }
@@ -503,10 +627,10 @@ fn capsule(shape: Shape, blockout: bool) -> Result<(csg::Solid, CapsuleReport, C
     // An even, unruled coat of spines: candidates on a fine grid over the egg, taken in a fixed shuffled order and
     // kept where no kept spine stands nearer than the spacing, never in or at the lip of a split.
     let mut parts = vec![body];
-    let spacing = 1.22;
+    let spacing = 1.95;
     let mut candidates: Vec<(u64, usize, f64)> = Vec::new();
     let mut z = 1.7;
-    while z < shape.tip_z - 0.5 {
+    while z < shape.tip_z - 0.8 {
         let i = c.row_at(z);
         let r = c.valve[i][0];
         let n = (2.0 * PI * r / 0.22).round() as usize;
@@ -522,9 +646,13 @@ fn capsule(shape: Shape, blockout: bool) -> Result<(csg::Solid, CapsuleReport, C
     for &(_, i, phi) in &candidates {
         let r = c.valve[i][0];
         let z = c.valve[i][1];
-        let root = 0.43;
-        let clear = (root + 0.22) / r;
+        let root = 0.42;
+        let clear = (root + 0.85) / r;
         if [-clear, 0.0, clear].iter().any(|d| c.into_split(i, phi + d) > 0.0) {
+            continue;
+        }
+        // Clear of the buds that run out along the ring under the egg's waist.
+        if z < 3.0 && [0.0, PI].iter().any(|b| wrap(phi - b).abs() < 0.5) {
             continue;
         }
         let u = i as f64 / (c.valve.len() - 1) as f64;
@@ -533,11 +661,10 @@ fn capsule(shape: Shape, blockout: bool) -> Result<(csg::Solid, CapsuleReport, C
             continue;
         }
         // Longest round the egg's waist, shorter toward the foot and the crown; varied by the shuffle.
-        let reach = (1.9 - 0.6 * ((z - 4.6) / 4.0).powi(2)).max(0.9);
         let hash = ((i * 131 + (phi * 1000.0) as usize * 7) % 97) as f64 / 97.0;
-        let length = reach * (0.8 + 0.35 * hash);
+        let length = 0.85 + 0.2 * hash - 0.1 * ((z - 5.0) / 5.0).powi(2);
         let axis = unit3(add3(n, [0.0, 0.0, 1.0], 0.22));
-        parts.push(spine(add3(p, n, -0.05), axis, length, root, 0.17));
+        parts.push(spine(add3(p, n, -0.05), axis, length, root, 0.16));
         feet.push((p, z));
     }
     let mut report_rows = Vec::new();
@@ -560,6 +687,193 @@ fn capsule(shape: Shape, blockout: bool) -> Result<(csg::Solid, CapsuleReport, C
     ensure!(csg::self_crossings(&solid) == 0, "The spined capsule crosses itself");
     let report = CapsuleReport { shape, rows: report_rows, spines, triangles: solid.f.len(), volume_mm3: solid.volume(), slivers_cleaned: slivers };
     Ok((solid, report, c))
+}
+
+// --- Leaves and buds on the table ------------------------------------------------------------------------------------
+
+/// A closed solid from a top sheet and a bottom sheet over the same (x, v) grid, sharing their v = -1 and v = 1 rows,
+/// closed at each end by a point: `top` and `bottom` give the sheets' points, `ends` the two end points.
+fn pillow(nx: usize, ny: usize, top: &dyn Fn(f64, f64) -> P3, bottom: &dyn Fn(f64, f64) -> P3, ends: [P3; 2]) -> csg::Solid {
+    let mut s = csg::Solid::default();
+    let cols: Vec<f64> = (1..nx).map(|i| i as f64 / nx as f64).collect();
+    let vs: Vec<f64> = (0..=2 * ny).map(|j| -1.0 + j as f64 / ny as f64).collect();
+    let rows = vs.len();
+    // Top sheet: every v; bottom sheet: the inner v only, its rims taken from the top's.
+    let mut top_id = vec![vec![0u32; rows]; cols.len()];
+    let mut bot_id = vec![vec![0u32; rows]; cols.len()];
+    for (i, &u) in cols.iter().enumerate() {
+        for (j, &v) in vs.iter().enumerate() {
+            top_id[i][j] = s.v.len() as u32;
+            s.v.push(top(u, v));
+        }
+        for (j, &v) in vs.iter().enumerate() {
+            bot_id[i][j] = if j == 0 || j == rows - 1 {
+                top_id[i][j]
+            } else {
+                s.v.push(bottom(u, v));
+                (s.v.len() - 1) as u32
+            };
+        }
+    }
+    let (a, b) = (s.v.len() as u32, s.v.len() as u32 + 1);
+    s.v.push(ends[0]);
+    s.v.push(ends[1]);
+    for i in 0..cols.len() - 1 {
+        for j in 0..rows - 1 {
+            s.f.push([top_id[i][j], top_id[i + 1][j], top_id[i + 1][j + 1]]);
+            s.f.push([top_id[i][j], top_id[i + 1][j + 1], top_id[i][j + 1]]);
+            s.f.push([bot_id[i][j], bot_id[i + 1][j + 1], bot_id[i + 1][j]]);
+            s.f.push([bot_id[i][j], bot_id[i][j + 1], bot_id[i + 1][j + 1]]);
+        }
+    }
+    let last = cols.len() - 1;
+    for j in 0..rows - 1 {
+        s.f.push([a, top_id[0][j], top_id[0][j + 1]]);
+        s.f.push([a, bot_id[0][j + 1], bot_id[0][j]]);
+        s.f.push([b, top_id[last][j + 1], top_id[last][j]]);
+        s.f.push([b, bot_id[last][j], bot_id[last][j + 1]]);
+    }
+    if s.volume() < 0.0 {
+        for f in &mut s.f {
+            f.swap(1, 2);
+        }
+    }
+    s
+}
+
+/// A datura leaf lying on the table, stalk at x = 0 and point at x = `len`, in its own frame (z up off the table): a
+/// sinuate blade whose three big teeth a side lean toward the point, domed higher on the midrib and falling to a
+/// crisp margin, a raised midrib and a vein from it into every tooth; its underside sunk into the table.
+fn leaf(len: f64, wid: f64, twist: f64) -> csg::Solid {
+    let teeth = 3.0;
+    let env = |u: f64| (PI * u.clamp(0.0, 1.0).powf(0.72)).sin().max(0.0).powf(0.62);
+    // Each side's lobes: a pointed tip between rounded sinuses; the sides out of step.
+    let tooth = |u: f64, side: f64| {
+        let k = u * teeth + if side > 0.0 { 0.15 } else { 0.62 } + twist;
+        let f = k - k.floor();
+        let fade = smooth(0.1, 0.3, u) * (1.0 - smooth(0.8, 0.95, u));
+        1.0 - fade * 0.24 * (2.0 * f - 1.0).abs().powf(0.7)
+    };
+    let half = move |u: f64, v: f64| 0.5 * wid * env(u) * tooth(u, v.signum());
+    // Vein stations: where each tooth's point lies, and where its vein leaves the midrib.
+    let veins: Vec<(f64, f64, f64)> = (0..6)
+        .map(|k| {
+            let side = if k % 2 == 0 { 1.0 } else { -1.0 };
+            let off = if side > 0.0 { 0.15 } else { 0.62 } + twist;
+            let n = (k / 2) as f64 + 1.0;
+            let tip = (n - off + 0.5) / teeth;
+            (tip, (tip - 0.16).max(0.04), side)
+        })
+        .filter(|(tip, _, _)| *tip > 0.15 && *tip < 0.92)
+        .collect();
+    let height = move |u: f64, v: f64| {
+        let w = half(u, v).max(1e-6);
+        let (x, y) = (u * len, v * w);
+        // The dome follows the blade's untoothed envelope, so the teeth cut its margin without creasing it.
+        let e = (y / (0.5 * wid * env(u)).max(1e-6)).clamp(-1.0, 1.0);
+        let dome = 0.34 * (1.0 - e * e).max(0.0).powf(0.7) * env(u).powf(0.4);
+        let midrib = 0.2 * (-(y / 0.17).powi(2)).exp() * (1.0 - 0.7 * u) * smooth(0.0, 0.08, u);
+        let mut vein: f64 = 0.0;
+        for &(tip, from, side) in &veins {
+            let (a, b) = ([from * len, 0.0], [tip * len, side * half(tip, side)]);
+            let d = [b[0] - a[0], b[1] - a[1]];
+            let t = (((x - a[0]) * d[0] + (y - a[1]) * d[1]) / (d[0] * d[0] + d[1] * d[1])).clamp(0.0, 1.0);
+            let dist = (x - a[0] - d[0] * t).hypot(y - a[1] - d[1] * t);
+            vein = vein.max(0.09 * (-(dist / 0.1).powi(2)).exp() * (1.0 - 0.6 * t));
+        }
+        0.16 + (dome + midrib + vein * (1.0 - v.abs().powi(4)))
+    };
+    let top = move |u: f64, v: f64| [u * len, v * half(u, v), height(u, v)];
+    let bottom = move |u: f64, v: f64| [u * len, v * half(u, v), -0.35 + 0.51 * smooth(0.82, 1.0, v.abs())];
+    pillow(160, 14, &top, &bottom, [[-0.05, 0.0, -0.1], [len + 0.04, 0.0, 0.16]])
+}
+
+/// A furled datura bud lying on the table from its stalk at x = 0 to its point at x = `len`: a stalk, the angled
+/// calyx tube, then the corolla twisted shut to five points, half sunk in the table along its length.
+fn bud(len: f64, bow: f64) -> csg::Solid {
+    let (ns, nf) = (120usize, 50usize);
+    let rho0 = |s: f64| {
+        if s < 0.5 {
+            0.42 + 0.5 * smooth(0.08, 0.32, s)
+        } else {
+            let t = (s - 0.5) / 0.5;
+            (0.92 + 0.14 * (PI * t.min(0.5) * 2.0).sin() * (1.0 - smooth(0.25, 0.5, t))) * (1.0 - t.powf(1.6)).max(0.0).powf(0.85)
+        }
+    };
+    let twist = |s: f64| 2.6 * smooth(0.48, 1.0, s);
+    let ribs = |s: f64| 0.07 + 0.1 * smooth(0.45, 0.6, s) + 0.28 * smooth(0.85, 0.99, s);
+    let centre = |s: f64| [s * len, bow * (PI * s).sin(), 0.42];
+    let mut sol = csg::Solid::default();
+    sol.v.push(add3(centre(0.0), [-0.05, 0.0, 0.0], 1.0));
+    for i in 1..ns {
+        let s = i as f64 / ns as f64;
+        let c = centre(s);
+        let tan = unit3(sub3(centre((s + 1e-3).min(1.0)), centre((s - 1e-3).max(0.0))));
+        let up = [0.0, 0.0, 1.0];
+        let side = unit3(cross3(tan, up));
+        let up = cross3(side, tan);
+        // The stalk's end rounded into the capsule's foot.
+        let r0 = rho0(s) * if s < 0.03 { (s / 0.03).sqrt() } else { 1.0 };
+        for j in 0..nf {
+            let phi = 2.0 * PI * j as f64 / nf as f64;
+            let r = r0 * (1.0 + ribs(s) * (5.0 * (phi - twist(s))).cos());
+            sol.v.push(add3(add3(c, up, r * phi.cos()), side, r * phi.sin()));
+        }
+    }
+    sol.v.push(centre(1.0));
+    let last = (sol.v.len() - 1) as u32;
+    let at = |i: usize, j: usize| (1 + (i - 1) * nf + j % nf) as u32;
+    for j in 0..nf {
+        sol.f.push([0, at(1, j + 1), at(1, j)]);
+        sol.f.push([last, at(ns - 1, j), at(ns - 1, j + 1)]);
+    }
+    for i in 1..ns - 1 {
+        for j in 0..nf {
+            sol.f.push([at(i, j), at(i, j + 1), at(i + 1, j + 1)]);
+            sol.f.push([at(i, j), at(i + 1, j + 1), at(i + 1, j)]);
+        }
+    }
+    if sol.volume() < 0.0 {
+        for f in &mut sol.f {
+            f.swap(1, 2);
+        }
+    }
+    sol
+}
+
+/// A solid in its own frame turned `angle` about the capsule's axis and set `from` out from it.
+fn laid(s: &csg::Solid, angle: f64, from: f64) -> csg::Solid {
+    let (c, si) = (angle.cos(), angle.sin());
+    csg::Solid { v: s.v.iter().map(|p| { let x = p[0] + from; [x * c - p[1] * si, x * si + p[1] * c, p[2]] }).collect(), f: s.f.clone() }
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+struct Laid {
+    name: String,
+    bearing_deg: f64,
+    from_mm: f64,
+    length_mm: f64,
+    width_mm: f64,
+    triangles: usize,
+}
+
+/// Whether a capsule-frame point on the table lies on the badge's table, `inset` in from its edge.
+fn on_table(skin: &Skin, top: f64, x: f64, y: f64, inset: f64) -> bool {
+    (0..8).all(|k| {
+        let a = PI * k as f64 / 4.0;
+        let (px, py) = (x + inset * a.cos(), y + inset * a.sin());
+        let theta = top.atan2(px);
+        skin.radius(theta, -py).is_some_and(|r| (r * theta.sin() - top).abs() < 0.02)
+    })
+}
+
+/// The longest run out from the capsule's axis along `bearing`, from `from`, that stays on the table `inset` in.
+fn table_run(skin: &Skin, top: f64, bearing: f64, from: f64, inset: f64) -> f64 {
+    let mut run = 0.0;
+    while run < 14.0 && on_table(skin, top, (from + run + 0.1) * bearing.cos(), (from + run + 0.1) * bearing.sin(), inset) {
+        run += 0.1;
+    }
+    run
 }
 
 /// Capsule frame to the world: z up the table's normal at the top of the ring, x round the ring, y along the finger.
@@ -598,81 +912,164 @@ struct SeedReport {
     name: String,
     world: P3,
     normal: P3,
-    theta_deg: f64,
-    across_mm: f64,
-    height_mm: f64,
-    tilt_deg: f64,
-    cant_deg: f64,
-    seated_error_mm: f64,
+    pad_face: u32,
+    pad_mm: [f64; 2],
 }
 
-/// A ring placement whose seat frame stands at `target` with its z along `normal`, found on the band's own surface.
+/// A ring placement whose seat frame stands at `target` with its z along `normal`, found on the band's own surface:
+/// the ray's angle, offset and height walk the origin onto the target, and the two leans turn z onto the normal.
 fn seat_for(d: &RingDesign, surface: &mesh::Mesh, target: P3, normal: P3) -> Result<(Placement, f64)> {
-    let theta = target[1].atan2(target[0]).to_degrees();
-    let across = target[2];
-    let base = Placement::Ring { theta_deg: theta, across_mm: across, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
-    let f0 = base.frame_on(d, Some(surface))?;
-    // The ray's hit and the surface frame there.
-    let (x, y, z) = (f0.x_axis, f0.y_axis, f0.z_axis);
-    let h = dot3(sub3(target, f0.origin), z);
-    // The normal in the hit's frame; with no spin the leaned z is (cos tilt sin cant, -sin tilt, cos tilt cos cant).
-    let nl = [dot3(normal, x), dot3(normal, y), dot3(normal, z)];
-    let tilt = (-nl[1]).clamp(-1.0, 1.0).asin();
-    let cant = nl[0].atan2(nl[2]);
-    let mut best = (f64::MAX, base.clone());
-    // The origin stands on the hit's own normal line: walk the ray until it lands on the target.
-    let mut th = theta;
-    let mut ac = across;
-    let mut hh = h;
-    for _ in 0..12 {
-        let p = Placement::Ring { theta_deg: th, across_mm: ac, height_mm: hh, spin_deg: 0.0, tilt_deg: tilt.to_degrees(), cant_deg: cant.to_degrees() };
-        let f = p.frame_on(d, Some(surface))?;
+    let (mut th, mut ac, mut hh) = (target[1].atan2(target[0]).to_degrees(), target[2], 0.0);
+    let (mut tilt, mut cant) = (0.0f64, 0.0f64);
+    let frame = |th: f64, ac: f64, hh: f64, tilt: f64, cant: f64| {
+        Placement::Ring { theta_deg: th, across_mm: ac, height_mm: hh, spin_deg: 0.0, tilt_deg: tilt, cant_deg: cant }.frame_on(d, Some(surface))
+    };
+    let mut err = f64::MAX;
+    for _ in 0..40 {
+        let f = frame(th, ac, hh, tilt, cant)?;
         let miss = sub3(target, f.origin);
-        let err = dot3(miss, miss).sqrt();
-        if err < best.0 {
-            best = (err, p.clone());
-        }
-        if err < 1e-5 {
+        let turn = 1.0 - dot3(f.z_axis, normal);
+        err = dot3(miss, miss).sqrt() + turn;
+        if err < 1e-7 {
             break;
         }
-        // Correct round the ring, across it and out along the normal.
         let r = f.origin[0].hypot(f.origin[1]).max(1e-6);
         let round = [-f.origin[1] / r, f.origin[0] / r, 0.0];
+        // The origin rides the hit's normal: its height is how far out along it the origin stands.
+        let f0 = frame(th, ac, 0.0, 0.0, 0.0)?;
         th += (dot3(miss, round) / r).to_degrees();
         ac += miss[2];
-        hh += dot3(miss, z);
+        hh += dot3(miss, f0.z_axis);
+        // The leans by a numerical Jacobian of z against tilt and cant.
+        let e = 0.01;
+        let z0 = f.z_axis;
+        let zt = frame(th, ac, hh, tilt + e, cant)?.z_axis;
+        let zc = frame(th, ac, hh, tilt, cant + e)?.z_axis;
+        let (jt, jc) = (sub3(zt, z0).map(|v| v / e), sub3(zc, z0).map(|v| v / e));
+        let want = sub3(normal, z0);
+        let (a11, a12, a22) = (dot3(jt, jt), dot3(jt, jc), dot3(jc, jc));
+        let (b1, b2) = (dot3(jt, want), dot3(jc, want));
+        let det = a11 * a22 - a12 * a12;
+        if det.abs() > 1e-12 {
+            tilt += (a22 * b1 - a12 * b2) / det;
+            cant += (a11 * b2 - a12 * b1) / det;
+        }
     }
-    Ok((best.1, best.0))
+    Ok((Placement::Ring { theta_deg: th, across_mm: ac, height_mm: hh, spin_deg: 0.0, tilt_deg: tilt, cant_deg: cant }, err))
 }
 
 /// The CAD parts: the capsule joined to the badge, and the eight seeds with their seats cut into the splits.
-fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Result<(CapsuleReport, Vec<SeedReport>)> {
+fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Result<(CapsuleReport, Vec<SeedReport>, Vec<Laid>)> {
     let (local, report, c) = capsule(SHAPE, blockout)?;
     let world = solid_to_world(&local, t.top_mm);
     let mut doc = Document::default();
     doc.append(feature(1, "Badge", Operation::Band, Component { role: ComponentRole::Shank, ..Component::default() }))?;
-    doc.append(feature(
-        2,
-        "Thorn-apple capsule",
-        stored_op(&world, "capsule", json!({ "shape": SHAPE, "rows": report.rows, "table_mm": t.top_mm }))?,
-        Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::Free, blend_mm: 0.5, ..Component::default() },
-    ))?;
     let mut bare = d.clone();
     bare.cad = None;
     let surface = mesh::try_build(&bare, lib, coarse_params())?.mesh;
-    let mut seeds = Vec::new();
-    let mut id: Id = 3;
-    for (k, (p, n, phi)) in seed_places(&c).into_iter().enumerate() {
-        // The girdle sits a little proud of the split's floor, the seat cut under it.
-        let g = spinel();
-        let girdle = add3(p, n, 0.18);
-        let (wp, wn) = (to_world(girdle, t.top_mm), unit3(dir_to_world(n)));
+    let skin = Skin::of(&surface, (20.0, 160.0), (-12.5, 12.5));
+    if std::env::var("DATURA_DEBUG").is_ok() {
+        for k in 0..24 {
+            let b = 2.0 * PI * k as f64 / 24.0;
+            eprintln!("bearing {:5.1}: run {:.2}", b.to_degrees(), table_run(&skin, t.top_mm, b, 3.3, 0.45));
+        }
+    }
+    let mut id: Id = 2;
+    let mut laid_out = Vec::new();
+    let joined = |blend: f64| Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::Free, blend_mm: blend, ..Component::default() };
+    // Four leaves out along the table's diagonals from under the frill, turned off the diagonal by turns.
+    for (k, bearing) in [48.0f64, 132.0, 250.0, 290.0].into_iter().map(f64::to_radians).enumerate() {
+        let from = 3.4;
+        let len = table_run(&skin, t.top_mm, bearing, from, 0.4).min(8.4);
+        let wid = (0.74 * len).min(5.2);
+        let solid = laid(&leaf(len, wid, 0.13 * k as f64), bearing, from);
+        ensure!(solid.open_edges() == (0, 0) && csg::self_crossings(&solid) == 0, "Leaf {} does not close cleanly", k + 1);
+        let name = format!("Datura leaf {}", k + 1);
+        laid_out.push(Laid { name: name.clone(), bearing_deg: bearing.to_degrees(), from_mm: from, length_mm: len, width_mm: wid, triangles: solid.f.len() });
+        doc.append(feature(id, &name, stored_op(&solid_to_world(&solid, t.top_mm), "leaf", json!({ "bearing_deg": bearing.to_degrees(), "from_mm": from, "length_mm": len, "width_mm": wid }))?, joined(0.0)))?;
+        id += 1;
+    }
+    // Two furled buds along the ring from the capsule's foot, their points just past the table's ends.
+    for (k, bearing) in [0.0, PI].into_iter().enumerate() {
+        let (from, len) = (2.6, 6.1);
+        let solid = laid(&bud(len, if k == 0 { 0.5 } else { -0.5 }), bearing, from);
+        ensure!(solid.open_edges() == (0, 0) && csg::self_crossings(&solid) == 0, "Bud {} does not close cleanly", k + 1);
+        let name = format!("Datura bud {}", k + 1);
+        laid_out.push(Laid { name: name.clone(), bearing_deg: bearing.to_degrees(), from_mm: from, length_mm: len, width_mm: 2.0, triangles: solid.f.len() });
+        doc.append(feature(id, &name, stored_op(&solid_to_world(&solid, t.top_mm), "bud", json!({ "bearing_deg": bearing.to_degrees(), "from_mm": from, "length_mm": len }))?, joined(0.0)))?;
+        id += 1;
+    }
+    let capsule_id = id;
+    doc.append(feature(
+        capsule_id,
+        "Thorn-apple capsule",
+        stored_op(&world, "capsule", json!({ "shape": SHAPE, "rows": report.rows, "table_mm": t.top_mm }))?,
+        joined(0.0),
+    ))?;
+    id += 1;
+    // Each seed stands on the top face of a small pad sunk in its split's floor: the bur opens its seat in the pad and
+    // three thorn claws stand on it, so the setting reaches the pad and never the table below.
+    let places = seed_places(&c);
+    let mut pads = Vec::new();
+    for (k, (p, n, _)) in places.iter().enumerate() {
+        // The kernel's cylinder is centred on its origin.
+        let top = add3(*p, *n, PAD_PROUD_MM);
+        let origin = add3(top, *n, -0.5 * PAD_H_MM);
+        let (wp, wn) = (to_world(origin, t.top_mm), unit3(dir_to_world(*n)));
         let (placement, err) = seat_for(d, &surface, wp, wn)?;
-        let Placement::Ring { theta_deg, across_mm, height_mm, tilt_deg, cant_deg, .. } = placement else { unreachable!() };
-        let mut stone = builders::stone_feature(id, g, placement);
-        stone.name = format!("Seed {} ({:.0} deg)", k + 1, phi.to_degrees());
+        ensure!(err < 1e-3, "Seed pad {} cannot be seated: {err:.4} mm off", k + 1);
+        doc.append(feature(
+            id,
+            &format!("Seed pad {}", k + 1),
+            Operation::Cylinder { radius_mm: PAD_R_MM, height_mm: PAD_H_MM },
+            Component { placement, ..joined(0.0) },
+        ))?;
+        pads.push(id);
+        id += 1;
+    }
+    // The pads' top faces, read off a trial build.
+    let mut trial = d.clone();
+    trial.cad = Some(doc.clone());
+    let probe = mesh::try_build(&trial, lib, coarse_params())?;
+    let evaluated = probe.parts.evaluated.as_ref().context("no evaluated parts")?;
+    let mut seeds = Vec::new();
+    for (k, ((p, n, phi), pad)) in places.into_iter().zip(pads).enumerate() {
+        let c_pad = evaluated.components.iter().find(|c| c.id == pad).context("pad not built")?;
+        let wn = unit3(dir_to_world(n));
+        let mut best: Option<(f64, u32)> = None;
+        for f in 0..c_pad.body.faces.len() as u32 {
+            if c_pad.trace.face_kind.get(f as usize) != Some(&SurfaceKind::Plane) {
+                continue;
+            }
+            let pts: Vec<P3> = c_pad.trace.tri_face.iter().enumerate().filter(|(_, ff)| **ff == f).flat_map(|(tri, _)| c_pad.mesh.faces[tri]).map(|i| { let v = c_pad.mesh.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] }).collect();
+            if pts.is_empty() {
+                continue;
+            }
+            let along = pts.iter().map(|q| dot3(*q, wn)).sum::<f64>() / pts.len() as f64;
+            if best.is_none_or(|(b, _)| along > b) {
+                best = Some((along, f));
+            }
+        }
+        let (top_along, face) = best.context("pad has no planar top")?;
+        if std::env::var("DATURA_DEBUG").is_ok() {
+            let vs: Vec<P3> = c_pad.mesh.vertices.iter().map(|v| [v.0 as f64, v.1 as f64, v.2 as f64]).collect();
+            let lo = vs.iter().map(|q| dot3(*q, wn)).fold(f64::MAX, f64::min);
+            let centre = vs.iter().fold([0.0; 3], |a, q| add3(a, *q, 1.0 / vs.len() as f64));
+            let want = to_world(add3(p, n, PAD_PROUD_MM), t.top_mm);
+            eprintln!("pad {k}: face {face}, along n top {top_along:.3} bottom {lo:.3}, want top {:.3}; centre {:?} want top point {:?}; frame z {:?} n {:?}", dot3(want, wn), centre.map(|v| (v * 100.0).round() / 100.0), want.map(|v| (v * 100.0).round() / 100.0), c_pad.frame.z_axis.map(|v| (v * 1000.0).round() / 1000.0), wn.map(|v| (v * 1000.0).round() / 1000.0));
+        }
+        let seat = ringdesign_core::cad::FaceSeat::on(c_pad, face, None, SEED_OVER_PAD_MM)?;
+        let mut params = builders::stone_params(spinel());
+        seat.write(&mut params);
+        let name = format!("Seed {} ({:.0} deg)", k + 1, phi.to_degrees());
         let stone_id = id;
-        doc.append(stone)?;
+        doc.append(Feature {
+            id,
+            name: name.clone(),
+            enabled: true,
+            operation: Operation::Builder { key: builders::STONE.into(), on: Some(pad), params },
+            component: Component { stone_id: Some(name.clone()), role: ComponentRole::Stone, reference: true, ..Component::default() },
+        })?;
         id += 1;
         doc.append(builders::feature_on(id, &format!("Seed seat {}", k + 1), builders::BUR, stone_id, json!({ "through": false })))?;
         id += 1;
@@ -681,13 +1078,14 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Re
             &format!("Seed thorns {}", k + 1),
             builders::CLAW,
             stone_id,
-            json!({ "prongs": 3, "wire_mm": 0.45, "rails": "Seat", "style": "Thorn", "tip": "Point" }),
+            json!({ "prongs": 3, "wire_mm": 0.42, "rails": "None", "style": "Thorn", "tip": "Point" }),
         ))?;
         id += 1;
-        seeds.push(SeedReport { name: format!("Seed {}", k + 1), world: wp, normal: wn, theta_deg, across_mm, height_mm, tilt_deg, cant_deg, seated_error_mm: err });
+        let world = to_world(add3(p, n, PAD_PROUD_MM + SEED_OVER_PAD_MM), t.top_mm);
+        seeds.push(SeedReport { name, world, normal: wn, pad_face: face, pad_mm: [2.0 * PAD_R_MM, PAD_H_MM] });
     }
     d.cad = Some(doc);
-    Ok((report, seeds))
+    Ok((report, seeds, laid_out))
 }
 
 // --- Gates ---------------------------------------------------------------------------------------------------------
@@ -868,7 +1266,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
 
 /// The camera for each named view: yaw about the finger's axis, pitch toward it.
 const VIEWS: [(&str, f64, f64); 6] = [
-    ("hero", 0.3, 0.3),
+    ("hero", 0.3, 0.62),
     ("face", 0.0, PI * 0.5),
     ("palm", PI, 1.05),
     ("side", 0.0, 0.05),
@@ -901,8 +1299,45 @@ fn crop(m: &mesh::Mesh, centre: P3, radius: f64) -> mesh::Mesh {
     out
 }
 
+/// A copy of `m` for the camera with its normals averaged only across edges gentler than `crease_deg`, each face's
+/// share weighted by its area: flat faces render flat beside the parts joined to them.
+fn creased(m: &mesh::Mesh, crease_deg: f64) -> mesh::Mesh {
+    let tri = |f: &[u32; 3]| f.map(|i| { let v = m.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] });
+    let normals: Vec<P3> = m.faces.iter().map(|f| { let [a, b, c] = tri(f); cross3(sub3(b, a), sub3(c, a)) }).collect();
+    let mut around: Vec<Vec<usize>> = vec![Vec::new(); m.vertices.len()];
+    for (k, f) in m.faces.iter().enumerate() {
+        for &i in f {
+            around[i as usize].push(k);
+        }
+    }
+    let cos = crease_deg.to_radians().cos();
+    let mut out = mesh::Mesh::default();
+    let mut index: std::collections::HashMap<(u32, [i64; 3]), u32> = Default::default();
+    for (k, f) in m.faces.iter().enumerate() {
+        let nk = unit3(normals[k]);
+        let g = f.map(|i| {
+            let mut sum = [0.0; 3];
+            for &o in &around[i as usize] {
+                if dot3(unit3(normals[o]), nk) >= cos {
+                    sum = add3(sum, normals[o], 1.0);
+                }
+            }
+            let n = unit3(sum);
+            let key = (i, n.map(|x| (x * 1e4).round() as i64));
+            *index.entry(key).or_insert_with(|| {
+                out.vertices.push(m.vertices[i as usize]);
+                out.normals.push(mesh::Vec3(n[0] as f32, n[1] as f32, n[2] as f32));
+                (out.vertices.len() - 1) as u32
+            })
+        });
+        out.faces.push(g);
+    }
+    out
+}
+
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: mesh::BuildResult, top: f64, edge: usize) -> Result<render::Finished> {
-    let fin = render::finished_from(d, lib, built);
+    let mut fin = render::finished_from(d, lib, built);
+    fin.metal = creased(&fin.metal, 35.0);
     let parts = fin.parts(render::GOLD);
     for (name, yaw, pitch) in VIEWS {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
@@ -925,6 +1360,11 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: mesh::BuildRes
     let mut close = vec![render::Part::metal(&close_metal, render::GOLD)];
     close.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
     render::write_png_parts(out.join("stones.png"), &close, 0.35, 1.2, edge)?;
+    // The table at twice the face view's scale, for the outlines.
+    let table_metal = crop(&fin.metal, [0.0, top, 0.0], 11.5);
+    let mut zoom = vec![render::Part::metal(&table_metal, render::GOLD)];
+    zoom.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
+    render::write_png_parts(out.join("face-zoom.png"), &zoom, 0.0, PI * 0.5, edge)?;
     // Bare stock against the finished ring, at the hero's angle.
     let mut bare = d.clone();
     bare.cad = None;
@@ -962,6 +1402,28 @@ fn main() -> Result<()> {
     let t = table(&d, &lib)?;
     println!("  table {t:?}; bore {:.2} mm", 2.0 * d.inner_radius_mm());
     if args.iter().any(|a| a == "--bare") {
+        let mut bare = d.clone();
+        bare.cad = None;
+        let b = mesh::try_build(&bare, &lib, draft_params())?;
+        let skin = Skin::of(&b.mesh, (10.0, 170.0), (-12.0, 12.0));
+        // The +z flank: the greatest z over (x, y).
+        let mut zmax = std::collections::BTreeMap::new();
+        for f in &b.mesh.faces {
+            for &i in f {
+                let v = b.mesh.vertices[i as usize];
+                let key = ((v.0 / 1.0).round() as i32, (v.1 / 1.0).round() as i32);
+                let e = zmax.entry(key).or_insert(f32::MIN);
+                *e = e.max(v.2);
+            }
+        }
+        for y in (-2..=16).rev() {
+            let row: Vec<String> = (-14..=14).step_by(2).map(|x| zmax.get(&(x, y)).map_or("   . ".into(), |z| format!("{z:5.1}"))).collect();
+            println!("  y {y:3}: {}", row.join(""));
+        }
+        for th in (20..=90).step_by(5) {
+            let (lo, hi) = skin.across(th as f64);
+            println!("  theta {th}: across {lo:.2}..{hi:.2}, r at 0 {:?}", skin.radius((th as f64).to_radians(), 0.0));
+        }
         let b = mesh::try_build(&d, &lib, draft_params())?;
         let parts = vec![render::Part::metal(&b.mesh, render::GOLD)];
         for (name, yaw, pitch) in VIEWS {
@@ -970,12 +1432,12 @@ fn main() -> Result<()> {
         return Ok(());
     }
     let started = std::time::Instant::now();
-    let (cap, seeds) = parts(&mut d, &lib, t, blockout)?;
+    let (cap, seeds, foliage) = parts(&mut d, &lib, t, blockout)?;
     d.bake_all(&mut lib);
     let author_s = started.elapsed().as_secs_f64();
     println!("  capsule: {} spines, {} triangles, {:.1} mm3; authored in {author_s:.1} s", cap.spines, cap.triangles, cap.volume_mm3);
     for s in &seeds {
-        println!("    {}: theta {:.2} across {:.2} height {:.2} tilt {:.1} cant {:.1}; off by {:.4} mm", s.name, s.theta_deg, s.across_mm, s.height_mm, s.tilt_deg, s.cant_deg, s.seated_error_mm);
+        println!("    {}: on pad face {} at {:?}", s.name, s.pad_face, s.world.map(|v| (v * 100.0).round() / 100.0));
     }
     let params = if draft { draft_params() } else { export_params() };
     let (draft_gates, draft_pass, draft_built) = gates(&d, &lib, draft_params())?;
@@ -1024,6 +1486,7 @@ fn main() -> Result<()> {
         "table": t,
         "capsule": cap,
         "seeds": seeds,
+        "foliage": foliage,
         "placement_note": "Placement::Free from the capsule's seated frame (C-V1 Relative not on master); the capsule and seeds do not follow a resize.",
         "design_bytes": text.len(),
         "design_format": serde_json::from_str::<Value>(&text)?.get("format_version").cloned(),
