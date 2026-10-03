@@ -4,9 +4,9 @@
 //! node per layer with its gating, the alpha sources, the stack, the
 //! assembly, the output — then evaluates what it built and compares the
 //! result with the design field by field. Whatever the nodes cannot
-//! express (a flange, a tiling warp, a custom outline registry, the draft
-//! and build settings) rides as `design.set` patches at the end, so the
-//! round trip is exact by construction rather than by coverage.
+//! express (a flange, a custom outline registry) rides as `design.set`
+//! patches at the end, so the round trip is exact by construction rather
+//! than by coverage.
 
 use ringdesign_core::field::{Layer, LayerEntry, Remap, VGate};
 use ringdesign_core::{AlphaLibrary, RingDesign};
@@ -461,9 +461,12 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
     let defaults = RingDesign::default();
     let build = json_of(&d.build);
     let draft = json_of(&d.draft);
-    if build != json_of(&defaults.build) || draft != json_of(&defaults.draft) {
+    if build != json_of(&defaults.build) || draft != json_of(&defaults.draft) || d.crisp_relief {
         let apply = g.add("design.settings")?;
         g.connect(last, "design", apply, "design")?;
+        if d.crisp_relief {
+            g.set_input(apply, "crisp_relief", Literal::Bool(true))?;
+        }
         for (pin, kind, value, default) in [("build", "build.settings", build, json_of(&defaults.build)), ("draft", "draft.settings", draft, json_of(&defaults.draft))] {
             if value != default {
                 let id = g.add(kind)?;
@@ -677,5 +680,76 @@ mod tests {
         let (_, got, want) = round_trip(&d, &reg, &lib).unwrap();
         assert_eq!(got, want);
         assert!(got.contains("\"clamp\"") && got.contains("\"bare\""), "both fields travel");
+    }
+
+    fn patches(g: &Graph) -> Vec<Option<Literal>> {
+        g.nodes.iter().filter(|n| n.kind == "design.set").map(|n| n.inputs.get("pointer").cloned()).collect()
+    }
+
+    /// Crisp relief rides the settings node: no patch, back byte for byte from the file, written at graph format 2,
+    /// and the pin switched off evaluates to the design without it.
+    #[test]
+    fn crisp_relief_lifts_onto_the_settings_node_without_a_patch() {
+        use crate::file::{GRAPH_FORMAT_VERSION, graph_to_string, graph_version_for, load_graph_str};
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::builtin();
+        let mut criteria = RingDesign::default();
+        criteria.draft.min_section_mm = 0.8;
+        for (name, base) in [("default", RingDesign::default()), ("with criteria", criteria)] {
+            let d = RingDesign { crisp_relief: true, ..base };
+            let (g, got, want) = round_trip(&d, &reg, &lib).unwrap();
+            assert_eq!(got, want, "{name}");
+            assert!(patches(&g).is_empty(), "{name}: {:?}", patches(&g));
+            let settings: Vec<_> = g.nodes.iter().filter(|n| n.kind == "design.settings").collect();
+            assert_eq!(settings.len(), 1, "{name}");
+            assert_eq!(settings[0].inputs.get("crisp_relief"), Some(&Literal::Bool(true)), "{name}");
+            assert_eq!(graph_version_for(&g), GRAPH_FORMAT_VERSION, "{name}");
+            let text = graph_to_string(&g).unwrap();
+            assert!(text.contains(&format!("\"format_version\": {GRAPH_FORMAT_VERSION}")), "{name}");
+            let mut cold = load_graph_str(&text, Some(&reg)).unwrap();
+            let out = crate::eval::evaluate_design(&mut Evaluator::new(), &cold, &reg, &lib, 0).unwrap();
+            assert_eq!(serde_json::to_string(&*out.design).unwrap(), want, "{name}: from the file");
+            let id = settings[0].id;
+            cold.set_input(id, "crisp_relief", Literal::Bool(false)).unwrap();
+            let off = crate::eval::evaluate_design(&mut Evaluator::new(), &cold, &reg, &lib, 0).unwrap();
+            assert!(!off.design.crisp_relief, "{name}");
+            assert_eq!(json_of(&RingDesign { crisp_relief: true, graph: None, ..(*off.design).clone() }), json_of(&RingDesign { graph: None, ..d.clone() }), "{name}");
+        }
+    }
+
+    /// What #248, #252, #255, #257 and #258 added to a design rides nodes: crisp relief, a pillow-topped stamp, a pear on
+    /// its true girdle, a Textura inscription, a bench part with no mark and an array along the crest lift with no patch.
+    #[test]
+    fn the_newest_design_fields_lift_without_a_patch() {
+        use ringdesign_core::cad::{Along, AlongPath, Attach, Component, Document, Feature, Operation, PatternKind, Placement, Stage};
+        use ringdesign_core::gem::{Gem, GemCut};
+        use ringdesign_core::setting::{Stamp, StampTop};
+        let reg = Registry::builtin();
+        let lib = AlphaLibrary::builtin();
+        let mut d = RingDesign { crisp_relief: true, ..RingDesign::default() };
+        let ctx = d.field_context();
+        let mut pad = ringdesign_core::field::SeatPadLayer { v_mm: ctx.crest_v_mm, ..Default::default() };
+        pad.fit_stone(Gem::calibrated(GemCut::Pear, 3.0));
+        d.layers.layers.push(LayerEntry::new("Pear", Layer::SeatPad(pad)));
+        d.texts.push(ringdesign_core::text::TextAlpha { name: "Motto".into(), text: "SIGILLVM".into(), font: ringdesign_core::text::TextFont::Textura, tracking: 0.1 });
+        d.stamps.push(Stamp {
+            name: "Leaf".into(), theta_deg: 60.0, v_mm: ctx.crest_v_mm, rot_deg: 0.0, outline: ringdesign_core::outline::circle(2.0), height_mm: 0.3,
+            sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Pillow { crown_mm: 0.2 },
+        });
+        let mut doc = Document::default();
+        let bench = Component { attach: Attach::Join, stage: Stage::Bench, mark: false, placement: Placement::ring(30.0, 0.3), ..Default::default() };
+        let along = PatternKind::Along(Along { path: AlongPath::Crest { from_deg: 30.0, to_deg: 150.0 }, count: 5, ..Along::default() });
+        for (id, name, operation, component) in [
+            (1, "Band", Operation::Band, Component::default()),
+            (2, "Post", Operation::Cylinder { radius_mm: 0.4, height_mm: 1.2 }, bench),
+            (3, "Posts", Operation::Pattern { sources: 2.into(), kind: along }, Component { attach: Attach::Join, ..Default::default() }),
+        ] {
+            doc.append(Feature { id, name: name.into(), enabled: true, operation, component }).unwrap();
+        }
+        d.cad = Some(doc);
+        let (g, got, want) = round_trip(&d, &reg, &lib).unwrap();
+        assert_eq!(got, want);
+        assert!(patches(&g).is_empty(), "{:?}", patches(&g));
+        assert_eq!(crate::file::graph_version_for(&g), crate::file::GRAPH_FORMAT_VERSION);
     }
 }
