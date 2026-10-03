@@ -1,124 +1,146 @@
-# Vepres ring: Ilex (`ilex`), cloud report
+# Vepres ring: Ilex (`ilex`), revival report
 
-**Verdict: cut at 6.3 after round 3** (ship bar 7.5). It used 2 block-out read tests and all 3 review rounds. Every gate was green at every reviewed round, and so was the template gate. The ring failed on art, not on a gate.
+**Verdict: cut at 6.8 after round 5** (ship bar 7.5). This was the revival Logan granted on 2026-10-03: two extra reviewed rounds after the 2026-10-02 cut at 6.3. Round 4 scored 6.6 (revise) and round 5 scored 6.8 (cut). The score rose each round, but the ring did not reach the bar. One gate is also red in round 5: the new lost-wax wall census. Of its 79 sub-floor samples, 74 belong to the bare factory 006 before anything is added (see Gates).
 
-- Branch: `claude/vepres-ilex` from `master` at `72b9857`.
-- Commits: `e78fe13` (block-out), `d10741e` (round 1), `b43a137` (round 2), `ff09d9b` (round 3), then this report.
-- Example: `crates/ringdesign-core/examples/vepres_ilex.rs`.
-- Outputs: `showcase/vepres/ilex/`. That folder holds the renders, `report.json`, `verification.json`, `template.graph.json`, the read tests and the reviews. The STL files are git-ignored.
-- Run: `target/release/examples/vepres_ilex [OUT_DIR] [--draft] [--verify] [--blockout] [--resize-check]`.
+- **Branch:** `claude/vepres-ilex-revival`, from `claude/vepres-ilex`.
+  - Master merged three times: `2e11632` at the start (crisp edges #248, Textura #255, path patterns #258, CAD fallbacks #259, true stone plans #257), then `b03a21d` (crisp-relief lift #260) and `0c7c8c4` (wall census #261) at the start of round 5.
+  - No conflicts in `src/`. The one conflict, in `cloud-report.md`, was resolved in favour of this ring.
+- **Commits:**
+  - `2950a4a`: round 4.
+  - `24bedb7`: the round 4 review.
+  - `ccdab33` and `705cf5b`: the round 5 merges.
+  - `6e200dc`: round 5. Its title says "7.0 mm-high face leaves"; it should read "0.7 mm".
+  - `93a91dc`: the round 5 review and status update.
+  - Then this report.
+- **Example:** `crates/ringdesign-core/examples/vepres_ilex.rs`. Outputs are in `showcase/vepres/ilex/`, and STL files are git-ignored.
+- **Run:** `target/release/examples/vepres_ilex [OUT_DIR] [--draft] [--verify] [--blockout] [--resize-check]`.
 
-## Read tests and reviews
+## Reviews, all five rounds
 
-| Step | Result | Score | What the reviewer said |
+| Step | Verdict | Score | What the reviewer said |
 |---|---|---|---|
-| Read test 1 (block-out) | **reads: false** | — | Two stones either side of one 8 × 5 leaf read as "a monster face with a toothy grin". Asked for the berries gathered into a bunch at the sprig's heart, two leaves end to end, and prouder relief. |
-| Read test 2 (block-out) | **reads: true** | — | "Holly, at once": two spined leaves end to end with a tight bunch of three red berries where their stems meet. Weakness: "a signet with a holly emblem", small and flat. |
-| Round 1 | revise | **5.6** | Holly reads, but the execution is below the bar. The bench-cut wreath frame read as "a torn, dashed border". Leaves were flat, vertical-walled plates with stair-steps. Cheek berries sat in rows on cones and read as rivets. Shoulder leaves were isolated "bat silhouettes". Density was well below Caiman's. |
-| Round 2 | revise | **6.2** | Wreath gone. The cheek sprays were now "the best passage". The garland was continuous. Still failing: the face leaves (fold and notch, still 6.3 mm), the matte as two hard panels, stair-steps, the garland as a "crenellated fringe", and the bark reading as combing. |
-| Round 3 | **cut** | **6.3** | Identity holds at 300 px, and the cheek sprays and berry triangles are good. Still failing: face leaves "bats or crowns, not curved blades", the matte panels, the unsplayed garland plates, stair-steps, and density short of Caiman's. |
+| Read test 1 | reads: false | — | "A monster face with a toothy grin" (two berries over a spiny leaf). |
+| Read test 2 | reads: true | — | "Holly, at once." |
+| Round 1 (sand) | revise | 5.6 | The wreath frame read as a dashed border; flat, stair-stepped leaves; rivet-row cheek berries. |
+| Round 2 (sand) | revise | 6.2 | Cheek sprays the best passage; matte in two panels, stair-steps, crenellated garland. |
+| Round 3 (sand) | cut | 6.3 | Face leaves read as "bats or crowns", folded on the parting line; matte panels; garland unsplayed. |
+| **Round 4** (lost wax, revival) | **revise** | **6.6** | The face was much better: 7.5 mm pillowed leaves with crisp outlines, one matte field with halos. Failures: the template gate was not recorded and the design was over 1 MB; cheek berries back in a row; flat garland plates on a jointed capsule stem; coarse stipple that combed; banding and bare flanks. |
+| **Round 5** (lost wax, revival) | **cut** | **6.8** | "The face is now good… the best passage the ring has had in five rounds." The leaves are 0.7 mm high, pillowed, with crisp spines and no seam. The cheek bunch is now a triangle, and the template gate is restored. Failures: the wall gate is red; there are 2 cheek leaves, not 3, as flat wafers on a lumpy wall; the garland is a capsule bar ending in a stub; the shoulder stipple faceted; density below Caiman's. |
 
-The reviews are `read-test-1.json`, `read-test-2.json` and `review-round1.json` to `review-round3.json`, all in `showcase/vepres/ilex/`.
+The reviews are `review-round4.json` and `review-round5.json`, beside the earlier `read-test-*.json` and `review-round1..3.json`. I applied each punch list in full where the platform allowed it. What it did not allow is listed under "What I could not do".
 
-## Step 1: the 16 × 17 resize (settled)
+## Process decision (Logan, 2026-10-03)
 
-Factory 006 through the sand master goes straight from its native 16 × 21 face to 16 × 17 with no baked step. It builds watertight with 0 degenerate faces. The envelope fill is **0.016 mm** at 123.5° (limit 0.3), and the bare pull shows 0 obstructions and 0 unresolved rays at 384 × 192 and at 0.075 mm. The native 16 × 21 fill is 0.018 mm. The example measures both on every run and falls back to 16 × 21 (leaf lengthened) only if 16 × 17 stops building clean. The table is 16 × 17, the bore is 18.6 mm and the alloy is 18k yellow gold.
+The sand gates were what held Ilex back:
 
-## Gates (final build, round 3)
+- the sand master's gabled table folded the face leaves on the parting line;
+- the parting-line rule capped the leaves at 6.8 mm;
+- the parting-line rule refused the garland's splay.
 
-The process is Delft clay, two-part sand: 3.0° draft, 0.8 mm section, 0.30 mm detail.
+So from round 4 the ring is judged as **lost wax**: 0.8 mm minimum section and no pull rule. It is built on the **native factory 006**, with no sand master and no envelope, at 19.2 × 17 mm. The face is lengthened so that a 7.5 mm leaf fits each side of the berries, and the table stays flat.
 
-| Gate | Draft 768 × 320 | 384 × 192 | Export 1536 × 448 |
+The extension and the process decision are both written into Ilex's section of `docs/collections/vepres.md`, dated, ahead of round 4.
+
+**Sand bonus:** it does not pull from sand as built. Ray release shows 123 obstructions at 0.100 mm and 166 at 0.075 mm, and the face and cheek leaves are not parting-line monotone. This is recorded per build as `sand_bonus` in `report.json`.
+
+## Gates (final build, round 5)
+
+| Gate | 384 × 192 | Draft 768 × 320 | Export 1536 × 448 |
 |---|---|---|---|
-| Triangles | 540,128 | 220,356 | **1,353,792** (limit 2,000,000) |
-| Watertight, degenerate faces | yes, 0 | yes, 0 | yes, 0 |
+| Triangles | 258,830 | 521,764 | **1,554,548** (limit 2,000,000) |
+| Watertight; degenerate faces | yes; 0 | yes; 0 | yes; 0 |
 | `csg::self_crossings` (ring; no CAD parts) | 0 | 0 | 0 |
 | `solids.notes` / `parts.notes` | empty / empty | empty / empty | empty / empty |
-| Bore margin (minimum vertex radius minus bore radius) | −4.7e-7 mm | −4.7e-7 mm | −4.8e-7 mm |
-| Field verdict (`attributed_field_report` + `judge_parts`) | **Castable**, 0.000% undercut | Castable | Castable |
-| Ray release at 0.100 mm (obstructions / unresolved) | 0 / 0 | 0 / 0 | 0 / 0 |
-| Ray release at 0.075 mm | 0 / 0 | 0 / 0 | 0 / 0 |
-| `draft_clamp` bites | none (no painted relief) | none | none |
-| `parting_monotone`, parting-line stamps | 16 of 16 | 16 of 16 | 16 of 16 |
+| Stamps struck; seats resolved | 92; 9 | 92; 9 | 92; 9 |
+| Bore margin (min vertex radius − bore radius) | −0.0021 mm | −0.0021 mm | −0.0021 mm (tolerance 0.01) |
+| Field verdict (lost wax) | Castable, 0.024 % pull undercut | Castable | Castable |
+| Field thinnest fill | 1.349 mm | 1.349 mm | 1.349 mm |
+| **Wall census** (`measure::census`, floor 0.8, `edge_reach_mm` 1.6) | **79 wall samples**, 0 unresolved | **79**, 0 | **79**, 0: **not clean (red)** |
 | `dfm::findings_in` | 0 | 0 | 0 |
 | Stones reported / previewed; metal inside stones | 9 / 9; 0 | 9 / 9; 0 | 9 / 9; 0 |
+| Closest stones | 0.47 mm (Face berry 2 to 3) | same | same |
 
-Notes on the table:
+- **Wall census.** The bare native 006, with nothing on it, reads **74** wall samples under 0.8 mm. They are about 0.02 mm² of zero-thickness slivers at the stock's own palm bore edge (x ±2.5, y −9.2, z ±3.2). The sand-master 006 reads 32 at the same place, and the comfort-fit and edge-round settings do not change it. The finished ring reads 79, so the design adds **5 single samples of 0.50 to 0.80 mm**:
+  - on the cheek leaves' margins, at [−6.64, 10.80, 8.44] and [−2.95, 11.06, 8.46];
+  - near the garland's ends, at [7.06, −8.65, 1.05] and [8.98, −6.71, −1.08].
 
-- **Ray-release status.** It reads "Review", not "Clear". The cause is the stock's own sub-3° table and bore walls (about 539 mm²); the bare stock reports the same.
-- **Sand-slot notes.** The release also lists seven sand-slot notes, 0.10 to 0.60 mm wide, along the shoulder garland. These are cautions for the founder, not obstructions. They are recorded in `report.json`.
-- **Closest stones.** The closest pair is 0.19 mm apart at the girdle (Cheek berry 2,1 to 2,3). All nine stones weigh 0.245 ct together.
-- **Metal.** The ring weighs about 40.8 g of 18k gold.
+  Round 5 cut the design's own contribution from 449 samples to 5:
+  - straight-flanked spines;
+  - 0.2 mm rounded leaf ends;
+  - no stalks;
+  - a stem held at 0.85 mm;
+  - a spread cheek bunch.
 
-Further gates:
-
-- `--verify` passes: a cold reload with an empty library gives identical vertices, faces and normals.
-- The casting pattern (`try_build_pattern`) is watertight with 0 degenerate faces and 0 self-crossings, at 1,344,334 triangles.
-- `design.ring.json` is 708,842 bytes at format 6. Format 6 is needed because the stamps are tiered and use shaped tops and fine caps.
+  The census runs with `edge_reach_mm` 1.6 (two floors) instead of the default 0.8 so that holly spine points read as edges. The report names this (`wall_census.edge_reach_mm`). Edge zones are recorded as read (about 13,940 samples, nearly all spine and leaf margins). The baseline is in `resize_check[].wall_census`.
+- **`--verify`:** a cold reload with an empty library gives identical vertices, faces and normals at export.
+- **Casting pattern** (`try_build_pattern`): watertight, 0 degenerate faces, 0 self-crossings, 408,124 triangles.
+- **Design file:** `design.ring.json` is 696,495 bytes at format 6.
+- **Metal and stones:** about 38.2 g of 18k gold; nine garnets, 0.124 ct together.
+- **Stability.** A `settle` pass nudges any stamp the kernel refuses, or that leaves a degenerate sliver in the ring or pattern, by 0.35° and 0.011 mm at a time, at every build size. In the final build it moved Garland leaf right 3 and right 5 once each.
 
 ## Template gate (run after the last round)
 
-The gate ran on the stock class with `--verify-export`:
+The gate ran on the final round-5 design: class `stock`, with `--verify-export`, on master `0c7c8c4`.
 
 - **1 `design.set` patch** (`/manufacturing`), within the limit of 4.
-- The graph is **805,533 bytes** against the 1 MB stock budget, with 137 nodes. It carries the stock as a `base.preset` node; P7 removed the 3 MB mesh patch.
-- Cold source is identical, and the cold graph reloads.
-- Vertex, face and normal parity holds at 1,353,792 triangles.
-- The first build takes 2.2 s.
+- The graph is **828,279 bytes** against the 1 MB stock budget, with 196 nodes and no size review required. Round 4's design was 1.19 MB; rounding stamp outlines to 0.1 µm and wrapping mask shapes only where they cross θ = 0 brought it in.
+- Source is identical, and the cold design and cold graph both reload.
+- Vertex, face and normal parity holds at 1,554,548 triangles, and the export geometry is verified.
+- The first build takes 4.0 s.
+- `crisp_relief` rides the settings node (#260), so no patch is needed for it.
 
-The record is `showcase/vepres/ilex/verification.json`, and it is also merged into `report.json` as `template_gate`. Round 2's build gave 1 patch and 793,951 bytes.
+The record is `showcase/vepres/ilex/verification.json` with `template.graph.json`, and it is merged into `report.json` as `template_gate`.
 
-## The CAD feature tree and the stack, as sentences
+## The stack, as sentences
 
-There are no CAD features; Ilex is stock, stamps and seats.
+There are no CAD features. Ilex is native stock, stamps, seats and bench texture.
 
-- **Base.** The base is factory 006 Square through the sand master, with the envelope on. It uses a Flat profile 17 mm wide, a 16 mm head, an 18.6 mm bore, a 0.3 mm edge round and a 0.1 mm comfort fit. The chart is set from this stock before anything is drawn on it.
-- **Face leaves** (2 cast stamps, tier 0). These are two holly leaves end to end on the parting line, placed at `Hide::crest_at`. Each starts 1.25 mm from the head's centre.
-  - The outline is ring-local `holly()`: a pointed blade with three sharp spines a side leaning to the tip, concave bays between them, a spined tip and a rounded stalk. Each margin is a function of x, so the monotone rule holds by construction.
-  - Each leaf is the longest, in 0.1 mm steps, whose ends stay on the line on both sides: **6.8 × 5.5 mm**. Each leaf is turned by the least that keeps it on the line.
-  - The top is a 0.55 mm dome over 0.45 mm eaves, with 4° draft and a fine cap.
-  - Why: the leaf is the subject, struck square to the face camera on the only line where sand lets relief stand.
-- **Face veins** (18 bench cuts, tier 1). Each leaf has a rounded midrib stroke 0.25 mm deep and four pairs of tapering laterals 0.12 mm deep, leaning 42° to the tip. They are cut after the pour and never enter the pattern.
-- **Face berries** (3 garnet cabochons, 2.0 mm, flush gypsy seats).
-  - One sits on the line at the sprig's heart and is cast with a raised 0.6 mm drill mark, which pulls on the line.
-  - The other two sit 2.05 mm off the line and are wholly bench work (`bench_only`, no mound, no mark): any mound off the line has a flank facing its own mould half.
-  - Why: a three-berry bunch where the stems meet is what made read test 2 say holly.
-- **Table matte** (2 bench-only tiling layers). A procedural "Hammered" stipple 0.04 mm deep is cut into the table above and below the sprig, from 2.3 to 5.9 chart-v off the line, over 50° of the head. Why: to part the polished sprig from the field.
-- **Cheek sprays** (each head wall that faces the pull).
-  - Three leaf stamps a side are struck along the pull (`along_pull`): two of 6.0 × 3.2 mm either side of the bunch and one of 3.9 × 2.4 mm angled down at the lower corner. Each has a 0.4 mm eave and a 0.45 mm gable, plus a bench vein comb.
-  - Three 1.8 mm garnets sit in a touching triangle in gypsy mounds 2.2 mm across and 0.45 mm proud, each with a raised mark.
-  - The wall is a crescent over the bore, so the bunch rides its widest band.
-- **Shoulder garland** (14 cast stamps on the parting line, plus 2 curve layers).
-  - `stamp_row` places seven 4.2 × 2.4 mm leaves a side with `RowPath::PartingLine`, a 0.24 taper, `fold_clear_mm` 1.0 and mirrored shoulders. The row starts 1 mm past the last fold, where the line turns over the head's end walls, and runs 19 mm.
-  - A station the line will not take as struck is moved along it, by 0.5° steps up to 2°, and levelled by turning it at most 4°.
-  - Under the leaves, a 0.9 × 0.42 mm round `CurveLayer` stem runs on the line from the head's end wall down each shoulder.
-  - The alternate ±20° splay the round-2 review asked for was tried on every station. The line refused it everywhere, so all 14 leaves lie along the line.
-- **Palm.** It is bare, polished factory stock, as the plan has it.
+- **Base.** Factory 006 Square, native, with no envelope. It uses a Flat profile at 19.2 × 17 mm, an 18.6 mm bore, a 0.3 mm edge round and a 0.1 mm comfort fit. The chart is set from this stock before anything is drawn, and `crisp_relief` is on.
+- **Face leaves** (2 cast stamps). Two holly leaves lie end to end along the table's centre line, each 7.5 × 5.5 mm, starting 1.25 mm from the head's centre.
+  - The outline is ring-local `holly()`: three spines a side with straight flanks, leaning to the tip, with concave bays between them, and both ends rounded at 0.2 mm.
+  - The leaf has a 0.7 mm wall with 4° draft under a 0.3 mm `StampTop::Pillow`, which is creaseless over the spines.
+  - Why: the leaf is the subject, square to the face camera. As a cushioned blade it reads as a leaf, not a cut plate.
+- **Face veins** (18 bench cuts). Each leaf has a 0.24 mm midrib and four pairs of tapering laterals leaning 42° to the tip, all flat-floored. A domed or pillowed floor stepped against the cushion.
+- **Face berries** (3 garnet cabochons, 2.0 mm). They are set flush in gypsy seats with raised drill marks, as an apex-up triangle at the sprig's heart. This is the bunch that made read test 2 say holly.
+- **Table stipple** (1 bench layer). A procedural Hammered matte, 0.035 mm deep on about 1.2 mm cells, covers the whole table inset 0.8 mm.
+  - It is masked by an SVG carried in the design. The SVG is the inset rectangle less a 0.4 mm halo grown round each leaf and berry, feathered by about 0.12 mm.
+  - Why: one even field with polished halos, as the lessons ask, instead of panels.
+- **Cheek sprays** (each end wall). Two pillowed holly leaves, 5.2 × 2.7 mm with 0.3 mm walls and 0.35 mm pillows, flank an apex-up triangle of three 1.0 mm garnets set flush, each leaf with vein cuts.
+- **Shoulder garland** (14 cast leaves, 26 stem stamps, 2 bench layers).
+  - `stamp_row` places seven graded leaves a side, 4.2 × 2.4 mm tapering by 0.24, with 0.45 mm walls under 0.3 mm pillows.
+  - Each leaf is turned alternately ±25° and slid so its base stays on the stem.
+  - The stem is a run of flat-topped capsules with drafted walls, 0.85 × 0.32 mm, overlapping 1.2 mm.
+  - Round each leaf and along the stem, the same stipple runs down the shoulders to 160° from the head, masked by a second SVG with 0.3 mm halos.
+- **Palm.** Bare polished stock, as planned.
 
 ## What I could not do
 
-- **Face leaves at 7.5 mm.** The face is 16 mm long and the berry bunch takes its middle, so the leaves cannot reach 7.5 mm. The longest leaf both ends of the parting line accept is 6.8 mm; at 6.9 mm and above the tip leaves the line where the table turns down, and it locks. Raising the leaf over 0.7 mm made the stamp fail to join the band (degenerate CSG).
-- **Stair-steps.** The stair-stepped margins come from the stamp cap's grid: `cap_pitch` is at least 0.1 mm even with `fine_cap`. A finer outline (0.015 mm sampling, over 512 points) broke the joins of the face and cheek leaves. The stamps have no top-edge round.
-- **A seamless matte.** One uniform matte field with a halo round the sprig needs a mask. Struck under the leaves, the texture made the face stamps fail to join, and a lean design has no mask alpha to carry the halo. Two bands either side of the sprig were the workaround; the reviewer still read them as panels.
-- **The garland splay.** No splayed garland leaf passes `parting_monotone` on this shoulder.
-- **CSG fragility.** Several otherwise harmless placements failed to join ("two cuts cross inside a face"), so the cheek leaves were nudged until they joined at every build size.
-- **Bark on the flanks.** The procedural Bark tiling aliased into combing and was removed. With it went most of the small-scale density that Caiman has.
+- **Cheek leaves above 0.3 mm walls, and a third cheek leaf.** The kernel refuses cheek leaves with walls over 0.3 mm on the native 006's end wall ("two cuts cross inside a face"), so their height is in the pillow. The wall below the bunch is only about 2.15 mm tall, too short for a third leaf, and small corner leaves read as crosses.
+- **Leaf stalks.** A stalk narrow enough to join (0.3 mm) is a web under the 0.8 mm floor, and every stalk 0.6 mm or wider makes the face and cheek leaves fail to join. The blade bases run to the berries instead.
+- **A swept, tapering stem.** The stem is struck capsules held at the 0.85 mm floor. A height-field wire saw-toothed at 2x, and tapering below 0.8 mm makes walls. A true swept stem needs C-V3, the 3-D sweep, in a lost-wax assembly.
+- **A finer stipple.** At 0.6 mm cells the export grid aliased the hammered alpha into diagonal moiré bands. 1.2 mm is the finest cell that rendered as matte. On the curved shoulders it still shows triangulated facets, and the reviewer marked that.
+- **The bare stock's wall slivers.** The census fails on factory 006 itself, and nothing in an example can fill them without `src/` changes.
+- **Banding on the stock's shank** is in the factory mesh's own reflections.
 
 ## Core changes wanted (exact code)
 
-1. **A finer stamp cap for spined outlines.** In `core/setting.rs`, `Stamp::cap_pitch`:
+1. **Gate a ring only on the sub-floor slivers it adds to its stock.** Ship each preset's bare census and subtract it. In `cad/measure.rs`:
    ```rust
-   fn cap_pitch(&self, reach: f64) -> f64 {
-       if self.fine_cap { (reach / 56.0).clamp(0.04, 0.2) } else { (reach / 14.0).clamp(0.12, 0.35) }
+   impl Thickness {
+       /// `clean`, counting only wall zones not present (within 0.1 mm) in `baseline`, the bare stock's census.
+       pub fn clean_over(&self, baseline: &Thickness) -> bool {
+           self.assessed && self.unresolved == 0
+               && self.walls.iter().all(|w| baseline.walls.iter().any(|b| {
+                   let d = (0..3).map(|k| (w.point[k] - b.point[k]).powi(2)).sum::<f64>().sqrt();
+                   d < 0.1 + 0.5 * b.span_mm
+               }))
+       }
    }
    ```
-   `fine_cap` is already fenced at format 6, so no saved file changes. The point is to let a 6 mm holly leaf's cap reach its 0.03 mm outline instead of stepping at 0.11 mm.
-2. **A cushioned top with eaves.** A dome falling to a margin height, not to the eaves. In `StampTop`, add:
+   Better still, heal the factory 006 mesh at its palm bore edge, where two sheets meet at zero thickness (x ±2.5, y −9.2, z ±3.2).
+2. **Joins of shallow stamps on a curved imported wall.** In the stamp join loop in `setting.rs`, on an `Err` naming "two cuts cross", retry once with the outline resampled finer before giving up. These refusals moved with 0.01 mm nudges and with outline density, not with the design:
    ```rust
-   /// A dome from `margin_mm` over the eaves at the outline to `crown_mm` over the origin.
-   Cushion { crown_mm: f64, margin_mm: f64 },
+   let mut retry = stamp.clone();
+   retry.outline = crate::outline::resample(&stamp.outline, 0.7 * crate::outline::STEP);
    ```
-   Its lift would be `margin_mm + (crown_mm - margin_mm) * (1.0 - (d / reach).powi(2)).max(0.0)`, where `d` is the distance to the origin and `reach` is the outline's reach along that ray. It would be monotone from the origin on the parting line, as `Dome` already is.
-3. **A stamp-shaped layer mask.** A `LayerEntry::mask_stamps: Option<f64>` (halo width in mm) that zeroes a layer within that distance of any tier-0 stamp's plan. That gives one matte field round a cast sprig without an embedded alpha. In `field.rs`, where an entry's mask is applied, multiply by `1.0 - smoothstep(halo, halo + 0.2, dist_to_stamp_plans(uv))` when the field is set.
-
-The example works around all three: it relies on a fine cap and keeps the matte off the sprig's band.
+3. **A mask that follows stamps** (round 3's request, still wanted): `LayerEntry::mask_stamps: Option<f64>` (halo width in mm), zeroing a layer within that distance of any tier-0 stamp's plan. Ilex works around it with SVG masks drawn from each stamp's world outline, which costs about 100 KB in the design.
