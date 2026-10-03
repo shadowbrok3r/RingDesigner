@@ -131,6 +131,9 @@ pub struct RingDesign {
     /// Named points on the ring the snaps and Measure read from; the file carries them and the geometry never reads them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pins: Vec<pins::Pin>,
+    /// Relief averaged over each build cell, so walls running across the sweep grid stay straight.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub crisp_relief: bool,
 }
 
 /// One imported alpha embedded in the design file.
@@ -163,6 +166,7 @@ impl Default for RingDesign {
             graph: None,
             stamps: Vec::new(),
             pins: Vec::new(),
+            crisp_relief: false,
         }
     }
 }

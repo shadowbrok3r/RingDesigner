@@ -55,6 +55,7 @@ fn top(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, NodeError> 
         "Cone" => StampTop::Cone { apex_mm: p("apex_mm")?, at: [p("at_x")?, p("at_y")?], tip_mm: p("tip_mm")? },
         "Dome" => StampTop::Dome { crown_mm: p("crown_mm")? },
         "Taper" => StampTop::Taper { axis_deg: p("axis_deg")?, tip_mm: p("tip_mm")? },
+        "Pillow" => StampTop::Pillow { crown_mm: p("crown_mm")? },
         _ => return Err(NodeError::input("shape", "unknown stamp top")),
     };
     Ok(Outputs::one("top", json(top)))
@@ -83,7 +84,7 @@ pub fn register(reg: &mut Registry) {
         .eval(apply)).expect("unique");
     let mut spec = NodeSpec::new("stamp.top", "Stamp top", Category::Layer)
         .doc("Shape a stamp's top or the floor of a cut.")
-        .input(PinSpec::select("shape", ["Flat", "Gable", "Ridge", "Cone", "Dome", "Taper"].map(String::from).into()).default("Flat").doc("Top construction."));
+        .input(PinSpec::select("shape", ["Flat", "Gable", "Ridge", "Cone", "Dome", "Taper", "Pillow"].map(String::from).into()).default("Flat").doc("Top construction."));
     for (pin, default) in [("rise_mm", 0.4), ("axis_deg", 0.0), ("from_x", -0.5), ("from_y", 0.0), ("to_x", 0.5), ("to_y", 0.0), ("end_mm", 0.1), ("apex_mm", 0.5), ("at_x", 0.0), ("at_y", 0.0), ("tip_mm", 0.2), ("crown_mm", 0.3)] {
         spec = spec.input(PinSpec::item(pin, ValueKind::Number).default(default).doc(format!("{} in the stamp's local plane.", pin.replace('_', " "))));
     }
