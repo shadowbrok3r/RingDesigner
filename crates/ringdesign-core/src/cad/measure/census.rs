@@ -5,15 +5,16 @@ use crate::mesh::Mesh;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 type P3 = [f64; 3];
 
-/// Samples a census reads at most; the pitch widens to stay under it.
+/// Samples a census aims at: the pitch widens until a plane at any turn crosses no more cells, and edges add a few percent.
 const MAX_SAMPLES: f64 = 1_000_000.0;
+/// Pitch cells a plane crosses per pitch² of its area at most, square to a cube diagonal: √3.
+const OBLIQUE: f64 = 1.732_050_807_568_877_2;
 /// Least height off its longest edge a face needs for its normal to be trusted, mm.
 const MIN_FACE_HEIGHT_MM: f64 = 1e-4;
-/// How far off its face a sample's rays start when the mesh has several shells, mm.
-const OFFSET_MM: f64 = 1e-4;
 /// Directions a thin sample is marched in, as opposite pairs.
 const DIRECTIONS: usize = 8;
 /// Directions round a full turn the nearest straight way out of a parallel-faced section is probed in.
@@ -24,8 +25,12 @@ const CONVERGING: f64 = 0.05;
 const BISECTIONS: usize = 3;
 /// Crossings closer than this along a ray are one surface hit, mm.
 const SAME_HIT_MM: f64 = 1e-7;
+/// Bisected pieces of surface binned between two reads of the cancel flag.
+const PIECES_PER_CHECK: usize = 1 << 16;
+/// Samples read, or thin samples gathered into zones, between two reads of the cancel flag.
+const SAMPLES_PER_CHECK: usize = 2048;
 
-const NOTE: &str = "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge, reaches the floor within the edge reach of it, and is everywhere on the way at least floor / reach of its distance from that edge; it is a wall otherwise. Gate on walls and unresolved samples; edges are listed with their points and areas.";
+const NOTE: &str = "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge, reaches the floor within the edge reach of it, and is everywhere on the way at least floor / reach of its distance from that edge; it is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.";
 const NOT_ASSESSED: &str = "Thickness not assessed: the mesh is empty or not watertight, or the floor is not a positive length";
 
 fn add(a: P3, b: P3) -> P3 {
@@ -74,11 +79,19 @@ struct Cell {
     area: f64,
 }
 
-/// One sample per pitch cell and facing: the centroid nearest the cell centre of faces bisected to half a pitch, with their area.
-pub(super) fn sample(mesh: &Mesh, pitch: f64) -> Vec<Sample> {
+/// Whether `cancel` is raised.
+fn stopped(cancel: Option<&AtomicBool>) -> bool {
+    #[cfg(test)]
+    tests::checked(cancel);
+    cancel.is_some_and(|c| c.load(Ordering::Relaxed))
+}
+
+/// One sample per pitch cell and facing: the centroid nearest the cell centre of faces bisected to half a pitch, with their area; `None` once `cancel` is raised.
+pub(super) fn sample(mesh: &Mesh, pitch: f64, cancel: Option<&AtomicBool>) -> Option<Vec<Sample>> {
     let half2 = 0.25 * pitch * pitch;
     let mut cells: HashMap<[i64; 4], Cell> = HashMap::new();
     let mut stack: Vec<[P3; 3]> = Vec::new();
+    let mut pieces = 0usize;
     for f in &mesh.faces {
         let Some((a, b, c)) = mesh.triangle(f) else { continue };
         let normal = cross(sub(b, a), sub(c, a));
@@ -104,6 +117,10 @@ pub(super) fn sample(mesh: &Mesh, pitch: f64) -> Vec<Sample> {
                 stack.push([m, q, r]);
                 continue;
             }
+            pieces += 1;
+            if pieces % PIECES_PER_CHECK == 0 && stopped(cancel) {
+                return None;
+            }
             let p: P3 = std::array::from_fn(|i| (a[i] + b[i] + c[i]) / 3.0);
             let w = 0.5 * norm(cross(sub(b, a), sub(c, a)));
             let key = [(p[0] / pitch).floor() as i64, (p[1] / pitch).floor() as i64, (p[2] / pitch).floor() as i64, bucket];
@@ -120,7 +137,7 @@ pub(super) fn sample(mesh: &Mesh, pitch: f64) -> Vec<Sample> {
     }
     let mut keyed: Vec<([i64; 4], Cell)> = cells.into_iter().filter(|(_, c)| c.d2.is_finite()).collect();
     keyed.sort_unstable_by_key(|e| e.0);
-    keyed.into_iter().map(|(_, c)| Sample { p: c.p, n: c.n, area: c.area }).collect()
+    Some(keyed.into_iter().map(|(_, c)| Sample { p: c.p, n: c.n, area: c.area }).collect())
 }
 
 /// Each face's shell, by shared vertices, and how many shells there are.
@@ -270,17 +287,12 @@ impl<'a> Probe<'a> {
         None
     }
 
-    /// One sample's section along its inward normal.
+    /// One sample's section along its inward normal, its rays starting on its own face, which they never cross.
     pub(super) fn read(&self, s: &Sample) -> Reading {
-        let inward = scale(s.n, -1.0);
-        if !self.multi {
-            return self.leave(s.p, inward).map_or(Reading::Unresolved, |(t, far)| Reading::Section { t, far });
-        }
-        if self.winding(add(s.p, scale(s.n, OFFSET_MM)), s.n) != 0 {
+        if self.multi && self.winding(s.p, s.n) != 0 {
             return Reading::Internal;
         }
-        self.leave(sub(s.p, scale(s.n, OFFSET_MM)), inward)
-            .map_or(Reading::Unresolved, |(t, far)| Reading::Section { t: t + OFFSET_MM, far })
+        self.leave(s.p, scale(s.n, -1.0)).map_or(Reading::Unresolved, |(t, far)| Reading::Section { t, far })
     }
 
     /// The section through `m` along the unit `axis`: its length, midpoint, and the axis its two faces give.
@@ -428,8 +440,8 @@ struct ThinRead {
     depth: Option<f64>,
 }
 
-/// Samples of one kind whose mid-surface points stand within `link` of each other, as zones, largest first.
-fn zones(reads: &[ThinRead], kind: ThinKind, link: f64) -> (Vec<ThinZone>, f64) {
+/// Samples of one kind whose mid-surface points stand within `link` of each other, as the [`MAX_ZONES`] largest zones and the area of all of them; `None` once `cancel` is raised.
+fn zones(reads: &[ThinRead], kind: ThinKind, link: f64, cancel: Option<&AtomicBool>) -> Option<(Vec<ThinZone>, f64)> {
     let ids: Vec<usize> = (0..reads.len()).filter(|&i| reads[i].kind == kind).collect();
     let key = |p: P3| -> [i64; 3] { std::array::from_fn(|k| (p[k] / link).floor() as i64) };
     let mut grid: HashMap<[i64; 3], Vec<usize>> = HashMap::new();
@@ -445,6 +457,9 @@ fn zones(reads: &[ThinRead], kind: ThinKind, link: f64) -> (Vec<ThinZone>, f64) 
         i
     }
     for (slot, &i) in ids.iter().enumerate() {
+        if slot % SAMPLES_PER_CHECK == 0 && stopped(cancel) {
+            return None;
+        }
         let c = key(reads[i].mid);
         for dx in -1..=1 {
             for dy in -1..=1 {
@@ -466,6 +481,9 @@ fn zones(reads: &[ThinRead], kind: ThinKind, link: f64) -> (Vec<ThinZone>, f64) 
     let mut by_root: HashMap<usize, (ThinZone, P3, P3)> = HashMap::new();
     let mut total = 0.0;
     for (slot, &i) in ids.iter().enumerate() {
+        if slot % SAMPLES_PER_CHECK == 0 && stopped(cancel) {
+            return None;
+        }
         let r = &reads[i];
         total += r.area;
         let root = find(&mut parent, slot);
@@ -496,10 +514,16 @@ fn zones(reads: &[ThinRead], kind: ThinKind, link: f64) -> (Vec<ThinZone>, f64) 
         b.area_mm2.total_cmp(&a.area_mm2).then(a.thinnest_mm.total_cmp(&b.thinnest_mm)).then(a.point.partial_cmp(&b.point).unwrap_or(std::cmp::Ordering::Equal))
     });
     out.truncate(MAX_ZONES);
-    (out, total)
+    Some((out, total))
 }
 
-pub(super) fn run(mesh: &Mesh, options: &CensusOptions) -> Thickness {
+/// The pitch asked for, else a floor's eighth held to 0.02-0.1 mm, widened until a plane of `area` at any turn takes at most `most` cells.
+fn pitch_for(asked: Option<f64>, floor: f64, area: f64, most: f64) -> f64 {
+    asked.filter(|p| p.is_finite() && *p > 0.0).unwrap_or((floor / 8.0).clamp(0.02, 0.1)).max((OBLIQUE * area / most).sqrt())
+}
+
+/// The census of `mesh`; `None` once `cancel` is raised, read between stages, every [`PIECES_PER_CHECK`] pieces binned and every [`SAMPLES_PER_CHECK`] samples read.
+pub(super) fn run(mesh: &Mesh, options: &CensusOptions, cancel: Option<&AtomicBool>) -> Option<Thickness> {
     let floor = options.floor_mm;
     let reach = options.edge_reach_mm.filter(|r| r.is_finite() && *r >= 0.0).unwrap_or(floor);
     let mut r = Thickness {
@@ -521,8 +545,17 @@ pub(super) fn run(mesh: &Mesh, options: &CensusOptions) -> Thickness {
         walls: Vec::new(),
         edges: Vec::new(),
     };
-    if !(floor > 0.0 && floor.is_finite()) || mesh.faces.is_empty() || !mesh.validate().watertight {
-        return r;
+    if !(floor > 0.0 && floor.is_finite()) || mesh.faces.is_empty() {
+        return Some(r);
+    }
+    if stopped(cancel) {
+        return None;
+    }
+    if !mesh.validate().watertight {
+        return Some(r);
+    }
+    if stopped(cancel) {
+        return None;
     }
     r.area_mm2 = mesh
         .faces
@@ -531,18 +564,23 @@ pub(super) fn run(mesh: &Mesh, options: &CensusOptions) -> Thickness {
         .map(|(a, b, c)| 0.5 * norm(cross(sub(b, a), sub(c, a))))
         .filter(|a| a.is_finite())
         .sum();
-    let pitch = options
-        .pitch_mm
-        .filter(|p| p.is_finite() && *p > 0.0)
-        .unwrap_or((floor / 8.0).clamp(0.02, 0.1))
-        .max((r.area_mm2 / MAX_SAMPLES).sqrt());
+    let pitch = pitch_for(options.pitch_mm, floor, r.area_mm2, MAX_SAMPLES);
     r.pitch_mm = pitch;
-    let samples = sample(mesh, pitch);
+    let samples = sample(mesh, pitch, cancel)?;
+    if stopped(cancel) {
+        return None;
+    }
     let probe = Probe::new(mesh, floor, reach);
-    #[cfg(feature = "parallel")]
-    let outcomes: Vec<Outcome> = samples.par_iter().map(|s| probe.measure(s)).collect();
-    #[cfg(not(feature = "parallel"))]
-    let outcomes: Vec<Outcome> = samples.iter().map(|s| probe.measure(s)).collect();
+    let mut outcomes: Vec<Outcome> = Vec::with_capacity(samples.len());
+    for chunk in samples.chunks(SAMPLES_PER_CHECK) {
+        if stopped(cancel) {
+            return None;
+        }
+        #[cfg(feature = "parallel")]
+        outcomes.par_extend(chunk.par_iter().map(|s| probe.measure(s)));
+        #[cfg(not(feature = "parallel"))]
+        outcomes.extend(chunk.iter().map(|s| probe.measure(s)));
+    }
     let mut thin = Vec::new();
     for (s, o) in samples.iter().zip(&outcomes) {
         match *o {
@@ -564,11 +602,11 @@ pub(super) fn run(mesh: &Mesh, options: &CensusOptions) -> Thickness {
         }
     }
     let link = 3.0 * pitch;
-    (r.walls, r.wall_area_mm2) = zones(&thin, ThinKind::Wall, link);
-    (r.edges, r.edge_area_mm2) = zones(&thin, ThinKind::Edge, link);
+    (r.walls, r.wall_area_mm2) = zones(&thin, ThinKind::Wall, link, cancel)?;
+    (r.edges, r.edge_area_mm2) = zones(&thin, ThinKind::Edge, link, cancel)?;
     r.assessed = true;
     r.note = NOTE;
-    r
+    Some(r)
 }
 
 #[cfg(test)]

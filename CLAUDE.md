@@ -1176,7 +1176,16 @@ pins both directions. On top of that:
   edge to half the pitch (a floor's eighth, held to 0.02–0.1 mm), one
   sample per pitch cell and facing — and reads each along its inward
   normal through `interaction::bvh`, with no face cap: the 1.57 M-face
-  band in 0.47 s, Aile's 1.29 M-face export in 0.56 s. A reading under the
+  band in 0.47 s, Aile's 1.29 M-face export in 0.56 s. The pitch widens
+  past a million samples, by √3 because a plane turned to a cube diagonal
+  crosses √3 cells per pitch² of its area; edges add a few percent, so
+  the million is a target, not a ceiling. `census_until` and
+  `thickness_until` read a cancel flag between stages, every 65,536
+  pieces binned and every 2,048 samples read or gathered into zones, and
+  the CAD panel passes its job's flag. What still runs unbroken is the
+  watertight check and the BVH build, 0.25 and 0.33 s on the 1.57 M-face
+  band at the test profile; everything after reads the flag every few
+  milliseconds. A reading under the
   floor is then classed by marching the section's mid-surface from its
   midpoint, in four opposite pairs of directions square to it and
   re-centred on every new section, until the march leaves the metal,
@@ -1200,15 +1209,20 @@ pins both directions. On top of that:
   not turn with the part: with the bound in place, a world-axis start read
   a 0.6 × 0.62 lip clean at 0° and as wall at 7°.
   `below_limit` counts wall samples only and `Thickness::clean()` is the
-  gate; every edge is listed as a zone with its point, area, thinnest
-  section and depth, never dropped. A mesh of several shells is read by
-  winding, so a face inside another shell is skipped rather than read as
-  the 0.01 mm a face-by-face ray gives at a 0.01 mm overlap; crossings at
-  one point merge only within one shell, because merged across shells two
-  coplanar faces count once — a block flush inside another left 400
-  samples unresolved, and a 0.3 mm plate between two flush pairs read
-  4 mm. Aile's round-3 0.01 mm readings were none of that: all 63 faces
-  under 0.05 mm leave through a neighbour sharing a vertex or an edge,
+  gate; thin samples gather into zones, each with its point, area,
+  thinnest section and depth. At most 64 zones of each kind are listed
+  (`MAX_ZONES`), largest first; the counts and areas cover every sample.
+  A mesh of several shells is read by winding, so a face inside another
+  shell is skipped rather than read as the 0.01 mm a face-by-face ray
+  gives at a 0.01 mm overlap; crossings at one point merge only within one
+  shell, because merged across shells two coplanar faces count once — a
+  block flush inside another left 400 samples unresolved, and a 0.3 mm
+  plate between two flush pairs read 4 mm. Its rays start on the sample's
+  own face, which the BVH's 1e-6 mm floor keeps them from crossing, as a
+  single shell's do: started 1e-4 mm off it, a face just over the trusted
+  height at a 20° ridge read unresolved, its true section being
+  4.7e-5 mm. Aile's round-3 0.01 mm readings were none of that: all 63
+  faces under 0.05 mm leave through a neighbour sharing a vertex or an edge,
   across a 20–70° convex crease at the wing-root seam, and the census files
   them as edges of 0.0003–0.003 mm² — while the hand-made lip exception had
   been covering a collet body the census reads as a 0.779 mm wall over

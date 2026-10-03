@@ -1,6 +1,45 @@
-use super::super::{CensusOptions, ThinKind, Thickness, census, thickness};
-use super::{Probe, Reading, sample};
+use super::super::{CensusOptions, ThinKind, Thickness, census, census_until, thickness};
+use super::{MIN_FACE_HEIGHT_MM, Probe, Reading, pitch_for, sample};
 use crate::mesh::{Mesh, Vec3};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
+
+/// A census's reads of its cancel flag on one thread while recorded.
+#[derive(Default)]
+struct Checks {
+    /// When each read was made.
+    at: Vec<Instant>,
+    /// The read at which the census raises its own flag.
+    raise_at: Option<usize>,
+}
+
+thread_local! {
+    static CHECKS: std::cell::RefCell<Option<Checks>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Records this thread's reads of the cancel flag until [`checks`], the census raising its own flag as it makes read `raise_at`.
+fn record_checks(raise_at: Option<usize>) {
+    CHECKS.with(|c| *c.borrow_mut() = Some(Checks { at: Vec::new(), raise_at }));
+}
+
+/// When this thread's reads were made since [`record_checks`]; ends the record.
+fn checks() -> Vec<Instant> {
+    CHECKS.with(|c| c.borrow_mut().take().map_or_else(Vec::new, |c| c.at))
+}
+
+/// Notes a read of the cancel flag on this thread, raising it if it is the armed read.
+pub(super) fn checked(cancel: Option<&AtomicBool>) {
+    CHECKS.with(|c| {
+        if let Some(c) = c.borrow_mut().as_mut() {
+            if c.raise_at == Some(c.at.len())
+                && let Some(flag) = cancel
+            {
+                flag.store(true, Ordering::Relaxed);
+            }
+            c.at.push(Instant::now());
+        }
+    });
+}
 
 const FLOOR: f64 = 0.8;
 
@@ -234,16 +273,142 @@ fn shells_that_overlap_or_touch_do_not_read_their_contact() {
 }
 
 #[test]
-fn a_ray_that_starts_on_a_face_never_reads_that_face_or_its_neighbours() {
+fn a_ray_that_starts_on_a_face_never_reads_that_face() {
     // Every sample of a box, read one at a time: nothing nearer than its true section.
     let boxed = cuboid([0.0, 0.0, 0.0], [3.0, 2.0, 1.0]);
     let probe = Probe::new(&boxed, FLOOR, FLOOR);
-    for s in sample(&boxed, 0.1) {
+    for s in sample(&boxed, 0.1, None).unwrap() {
         let Reading::Section { t, .. } = probe.read(&s) else { panic!("{s:?}") };
         assert!(t > 1.0 - 1e-6, "{s:?} read {t}");
     }
-    let total: f64 = sample(&boxed, 0.1).iter().map(|s| s.area).sum();
+    let total: f64 = sample(&boxed, 0.1, None).unwrap().iter().map(|s| s.area).sum();
     assert!((total - 2.0 * (6.0 + 3.0 + 2.0)).abs() < 1e-9, "{total}");
+}
+
+/// A 2 mm prism whose outline has a 20° ridge between a 3 mm face and a face 1.3e-4 mm across, and that outline as the mesh holds it.
+fn crease_wedge() -> (Mesh, Vec<[f64; 2]>) {
+    let dir = |deg: f64| [deg.to_radians().cos(), deg.to_radians().sin()];
+    let (u2, u3, u0, u1) = (dir(26.0), dir(120.0), dir(215.0), dir(226.0));
+    let (l2, h) = (3.0, 1.3e-4);
+    // Lengths of the two closing edges, from l2 * u2 + l3 * u3 + l0 * u0 + h * u1 = 0.
+    let rhs = [-(l2 * u2[0] + h * u1[0]), -(l2 * u2[1] + h * u1[1])];
+    let det = u3[0] * u0[1] - u0[0] * u3[1];
+    let (l3, l0) = ((rhs[0] * u0[1] - u0[0] * rhs[1]) / det, (u3[0] * rhs[1] - rhs[0] * u3[1]) / det);
+    assert!(l3 > 0.0 && l0 > 0.0, "{l3} {l0}");
+    let r = [0.0, 0.0];
+    let b = [r[0] + l2 * u2[0], r[1] + l2 * u2[1]];
+    let q = [b[0] + l3 * u3[0], b[1] + l3 * u3[1]];
+    let s = [q[0] + l0 * u0[0], q[1] + l0 * u0[1]];
+    let outline: Vec<[f64; 2]> = [r, b, q, s].iter().map(|p| p.map(|v| v as f32 as f64)).collect();
+    (prism(&outline, 2.0), outline)
+}
+
+/// The exit along a side-face sample's inward normal from the outline itself: the nearest outline edge it crosses past its start.
+fn outline_section(outline: &[[f64; 2]], o: [f64; 2], d: [f64; 2]) -> f64 {
+    let mut best = f64::INFINITY;
+    for i in 0..outline.len() {
+        let (a, b) = (outline[i], outline[(i + 1) % outline.len()]);
+        let e = [b[0] - a[0], b[1] - a[1]];
+        let den = d[0] * e[1] - d[1] * e[0];
+        if den.abs() < 1e-300 {
+            continue;
+        }
+        let w = [a[0] - o[0], a[1] - o[1]];
+        let (t, u) = ((w[0] * e[1] - w[1] * e[0]) / den, (w[0] * d[1] - w[1] * d[0]) / den);
+        if t > 1e-12 && (-1e-12..=1.0 + 1e-12).contains(&u) {
+            best = best.min(t);
+        }
+    }
+    best
+}
+
+#[test]
+fn a_ray_beside_an_acute_crease_reads_its_true_section_alone_or_among_shells() {
+    let (wedge, outline) = crease_wedge();
+    // The ridge's short face is a face whose normal is trusted, and the only one facing -x.
+    let ridge = [outline[3], outline[0]];
+    let across = ((ridge[1][0] - ridge[0][0]).powi(2) + (ridge[1][1] - ridge[0][1]).powi(2)).sqrt();
+    assert!(across > MIN_FACE_HEIGHT_MM && across < 1.5 * MIN_FACE_HEIGHT_MM, "{across}");
+    let far = cuboid([10.0, 0.0, 0.0], [12.0, 2.0, 2.0]);
+    for (mode, mesh) in [("alone", wedge.clone()), ("among shells", shells(&[wedge, far]))] {
+        let probe = Probe::new(&mesh, FLOOR, FLOOR);
+        let (mut on_ridge, mut shortest) = (0, f64::INFINITY);
+        for s in sample(&mesh, 0.1, None).unwrap().iter().filter(|s| s.p[0] < 5.0) {
+            let truth = if s.n[1].abs() > 0.5 {
+                2.0
+            } else {
+                outline_section(&outline, [s.p[0], s.p[2]], [-s.n[0], -s.n[2]])
+            };
+            let Reading::Section { t, .. } = probe.read(s) else { panic!("{mode}: {s:?} not read, its true section {truth}") };
+            assert!(t > truth - 1e-9 && t < truth + 1e-9, "{mode}: {s:?} read {t} against {truth}");
+            if s.n[0] < -0.7 {
+                on_ridge += 1;
+                shortest = shortest.min(truth);
+            }
+        }
+        // The short face is read, across the ridge, where its true section is under a ten-thousandth.
+        assert!(on_ridge > 0 && shortest < 1e-4, "{mode}: {on_ridge} samples on the short face, shortest {shortest}");
+    }
+}
+
+/// `f` on a pool of its own, so no other test's work queues ahead of its parallel reads.
+fn on_own_pool<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+    #[cfg(feature = "parallel")]
+    return rayon::ThreadPoolBuilder::new().num_threads(4).build().expect("a pool").install(f);
+    #[cfg(not(feature = "parallel"))]
+    f()
+}
+
+#[test]
+fn a_raised_flag_stops_the_census_at_its_next_read() {
+    // The all-wall tube: every sample marches, the census's costliest reads.
+    let tube = lathe(&[[9.0, 0.0], [9.5, 0.0], [9.5, 6.0], [9.0, 6.0]], 512);
+    let options = CensusOptions::floor(FLOOR);
+    on_own_pool(|| {
+        // Left alone, it never runs a sixteenth of the census between two reads of its flag.
+        record_checks(None);
+        let started = Instant::now();
+        let whole = census_until(&tube, &options, &AtomicBool::new(false)).expect("never raised");
+        let ended = Instant::now();
+        let reads = checks();
+        let marks: Vec<Instant> = std::iter::once(started).chain(reads.iter().copied()).chain(std::iter::once(ended)).collect();
+        let longest = marks.windows(2).map(|w| w[1] - w[0]).max().unwrap();
+        eprintln!("census {:?}, {} reads of its flag, longest between two {longest:?}", ended - started, reads.len());
+        assert!(whole.assessed && whole.rays > 50_000 && reads.len() > 40, "{} reads: {whole:?}", reads.len());
+        assert!(longest * 16 < ended - started, "ran {longest:?} without reading its flag, in a census of {:?}", ended - started);
+        // Raised as it bins its surface, and as it reads its samples, it stops at that read.
+        for at in [5, reads.len() - 10] {
+            record_checks(Some(at));
+            let stop = AtomicBool::new(false);
+            assert!(census_until(&tube, &options, &stop).is_none(), "raised at read {at}");
+            assert!(stop.load(Ordering::Relaxed));
+            assert_eq!(checks().len(), at + 1, "no read after the one that raised it");
+        }
+    });
+}
+
+#[test]
+fn a_plate_turned_to_the_cube_diagonal_keeps_near_the_sample_budget() {
+    // A 40 x 40 x 1 plate whose broad faces face (1, 1, 1).
+    let mut plate = cuboid([-20.0, -20.0, -0.5], [20.0, 20.0, 0.5]);
+    let (axis, angle) = ([-1.0 / 2f64.sqrt(), 1.0 / 2f64.sqrt(), 0.0], (1.0 / 3f64.sqrt()).acos());
+    let (sin, cos) = angle.sin_cos();
+    for v in &mut plate.vertices {
+        let p = [v.0 as f64, v.1 as f64, v.2 as f64];
+        let k_x_p = [axis[1] * p[2] - axis[2] * p[1], axis[2] * p[0] - axis[0] * p[2], axis[0] * p[1] - axis[1] * p[0]];
+        let k_dot_p = axis[0] * p[0] + axis[1] * p[1] + axis[2] * p[2];
+        let r: [f64; 3] = std::array::from_fn(|i| p[i] * cos + k_x_p[i] * sin + axis[i] * k_dot_p * (1.0 - cos));
+        *v = Vec3(r[0] as f32, r[1] as f32, r[2] as f32);
+    }
+    let area: f64 = 2.0 * 40.0 * 40.0 + 4.0 * 40.0;
+    let most = 20_000.0;
+    // Turned so, the plate takes well over one sample per pitch² of its area.
+    let plain = (area / most).sqrt();
+    let crowded = sample(&plate, plain, None).unwrap().len() as f64;
+    assert!(crowded > 1.3 * most, "{crowded} samples at the unwidened pitch");
+    let pitch = pitch_for(None, FLOOR, area, most);
+    let n = sample(&plate, pitch, None).unwrap().len() as f64;
+    assert!(n <= 1.05 * most && n > 0.7 * most, "{n} samples for a budget of {most} at pitch {pitch}");
 }
 
 #[test]

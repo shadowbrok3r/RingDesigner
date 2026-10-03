@@ -483,15 +483,17 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
                     .components
                     .iter()
                     .map(|c| {
-                        cad::measure::thickness(
+                        cad::measure::thickness_until(
                             &c.mesh,
                             c.settings
                                 .manufacturing
                                 .as_ref()
                                 .map_or(d.draft.min_section_mm, |s| s.recipe.min_section_mm),
+                            &cancel,
                         )
+                        .ok_or_else(|| anyhow::anyhow!(ringdesign_graph::eval::CANCELLED))
                     })
-                    .collect();
+                    .collect::<anyhow::Result<_>>()?;
                 let gems = built.as_ref().map_or_else(Vec::new, |b| ringdesign_core::gems::built_vertices(&d, &lib, b));
                 Ok(View {
                     design: d,

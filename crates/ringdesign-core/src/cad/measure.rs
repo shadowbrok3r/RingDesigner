@@ -1,6 +1,7 @@
 //! Measurements on evaluated triangles: the wall [`census`] and plane [`section`]s.
 use crate::Mesh;
 use serde::Serialize;
+use std::sync::atomic::AtomicBool;
 
 mod census;
 
@@ -35,13 +36,13 @@ pub struct Thickness {
     pub wall_area_mm2: f64,
     /// Surface area reading under the floor as edge, mm².
     pub edge_area_mm2: f64,
-    /// Wall zones, largest first, at most [`MAX_ZONES`].
+    /// The [`MAX_ZONES`] largest wall zones, largest first; `below_limit` and `wall_area_mm2` count every wall sample.
     pub walls: Vec<ThinZone>,
-    /// Edge zones, largest first, at most [`MAX_ZONES`].
+    /// The [`MAX_ZONES`] largest edge zones, largest first; `edge_below_limit` and `edge_area_mm2` count every edge sample.
     pub edges: Vec<ThinZone>,
 }
 
-/// Zones of each kind a [`Thickness`] lists; the totals count every one.
+/// Zones of each kind a [`Thickness`] lists at most; its counts and areas cover every sample.
 pub const MAX_ZONES: usize = 64;
 
 impl Thickness {
@@ -100,9 +101,19 @@ pub fn thickness(mesh: &Mesh, limit_mm: f64) -> Thickness {
     census(mesh, &CensusOptions::floor(limit_mm))
 }
 
+/// [`thickness`] that stops soon after `cancel` is raised, with `None`.
+pub fn thickness_until(mesh: &Mesh, limit_mm: f64, cancel: &AtomicBool) -> Option<Thickness> {
+    census_until(mesh, &CensusOptions::floor(limit_mm), cancel)
+}
+
 /// Area-sampled sections of a closed mesh, each reading under the floor classed by a march along its mid-surface.
 pub fn census(mesh: &Mesh, options: &CensusOptions) -> Thickness {
-    census::run(mesh, options)
+    census::run(mesh, options, None).expect("a census with no cancel flag runs to the end")
+}
+
+/// [`census`] that stops soon after `cancel` is raised, with `None`.
+pub fn census_until(mesh: &Mesh, options: &CensusOptions, cancel: &AtomicBool) -> Option<Thickness> {
+    census::run(mesh, options, Some(cancel))
 }
 
 /// Segments where the triangles cross an axis-aligned plane, in the other two cyclic axes, mm.
