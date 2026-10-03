@@ -39,23 +39,25 @@ const R_OUT: f64 = 8.5;
 /// Each head's arcs are struck from a centre this share of the springing span across: 1 is an equilateral arch.
 const ARCH: f64 = 1.0;
 /// Tracery bar between neighbouring lights, mm.
-const BAR_MM: f64 = 0.85;
+const BAR_MM: f64 = 1.0;
 /// The table plane stands this far over the table, so every cut starts clear of the metal, mm.
-const LIFT_MM: f64 = 0.75;
+const LIFT_MM: f64 = 1.2;
 /// How proud of the table the tracery stands, mm.
-const TRACERY_MM: f64 = 0.45;
+const TRACERY_MM: f64 = 0.9;
+/// The tracery's walls lean out toward the table by this much, so each bar reads as a moulding, degrees.
+const TRACERY_DRAFT_DEG: f64 = 0.0;
 /// The ruby's feature: the part the lights are arrayed round.
 const RUBY_ID: Id = 8;
 /// The raised tracery runs this far into the table under it, mm.
 const TRACERY_FOOT_MM: f64 = 0.1;
 /// The outer order's width outside the net's outer circle, mm.
-const RING_MM: f64 = 0.55;
+const RING_MM: f64 = 0.5;
 /// Spandrels are picked this far inside the outer circle, mm.
 const SPANDREL_PICK_MM: f64 = 0.75;
 /// How deep the petals sink below the table, mm.
 const PETAL_SINK_MM: f64 = 0.5;
 /// How far below the table the spandrels are sunk, mm.
-const SPANDREL_MM: f64 = 1.5;
+const SPANDREL_MM: f64 = 3.0;
 /// How far below the table the pilots are opened: past the bore under the head, mm.
 const PIERCE_MM: f64 = 7.5;
 
@@ -67,8 +69,8 @@ const MOULD_AT_MM: f64 = 2.85;
 /// Ruby oculus and its collet.
 const RUBY_MM: f64 = 3.5;
 /// Girdles over the table: the ruby's on the hub, the sapphires' over their sunk petals, mm.
-const RUBY_GIRDLE_MM: f64 = 0.75;
-const LIGHT_GIRDLE_MM: f64 = 0.5;
+const RUBY_GIRDLE_MM: f64 = 0.4;
+const LIGHT_GIRDLE_MM: f64 = 0.25;
 /// Sapphire lights, centred this far from the ruby, and their collets.
 const LIGHT_W_MM: f64 = 1.8;
 const LIGHT_L_MM: f64 = 3.0;
@@ -79,7 +81,7 @@ const LIGHT_CUT: GemCut = GemCut::Pear;
 const COLLET_WALL_MM: f64 = 0.85;
 const SEAT_CLEAR_MM: f64 = 0.2;
 const LIP_MM: f64 = 0.35;
-const COLLET_FOOT_MM: f64 = 0.1;
+const COLLET_FOOT_MM: f64 = 0.15;
 /// How far two joined pieces of one part run into each other, so no faces coincide, mm.
 const OVERLAP_MM: f64 = 0.05;
 /// The drawn bearing stands this far under the girdle, so the bur's bearing cone cuts into it, mm.
@@ -96,15 +98,20 @@ const PILOT_GROW_MM: f64 = 0.1;
 
 /// The head walls' blind arcades: each lancet's height, width, how deep it is sunk, its centre's height over the
 /// finger's axis, and the lancets' centres along the wall, mm.
-const ARCADE_H_MM: f64 = 2.8;
+const ARCADE_H_MM: f64 = 2.3;
 /// The arcades are struck only once their stamps hold on the stock's walls.
 const WITH_ARCADES: bool = false;
-const ARCADE_W_MM: f64 = 1.5;
+const ARCADE_W_MM: f64 = 1.6;
 const ARCADE_SINK_MM: f64 = 0.35;
-const ARCADE_Y_MM: f64 = 11.6;
+const ARCADE_Y_MM: f64 = 11.55;
 const ARCADE_AT: [f64; 5] = [-4.6, -2.3, 0.0, 2.3, 4.6];
+/// The cut arcade: its lancets' centres round the ring, the plane it is drawn on outside the cheek and the plane its floor
+/// reaches along the finger, mm.
+const ARCADE_X: [f64; 3] = [-2.5, 0.0, 2.5];
+const ARCADE_PLANE_MM: f64 = 9.9;
+const ARCADE_FLOOR_MM: f64 = 8.75;
 /// The nave's oculi on each shoulder: degrees off the crown and widths, graded toward the palm.
-const OCULI: [(f64, f64); 4] = [(44.0, 1.6), (54.0, 1.4), (64.0, 1.2), (74.0, 0.9)];
+const OCULI: [(f64, f64); 4] = [(44.0, 2.0), (53.0, 1.8), (62.0, 1.5), (71.0, 1.2)];
 
 const RUBY: [f32; 3] = [0.45, 0.01, 0.04];
 const SAPPHIRE: [f32; 3] = [0.02, 0.06, 0.45];
@@ -188,7 +195,7 @@ fn r_spring() -> f64 {
 }
 
 /// How far each sapphire stands in from midway along its petal, so its collet's foot runs into the oculus moulding, mm.
-const HUB_BITE_MM: f64 = 0.0;
+const HUB_BITE_MM: f64 = 0.013;
 
 /// Where each sapphire is centred: midway between its petal light's sill and its apex (drawn in a full bar from the
 /// outer circle), less the bite into the moulding, mm.
@@ -500,6 +507,21 @@ fn arcade(d: &RingDesign, a: &ringdesign_core::skin::Atlas, name: &str, cheek: b
     out
 }
 
+/// The cheek arcade: lancets standing on a sill, their points up, seen along the finger with x round the ring and y up.
+fn arcade_sketch(plane: Id) -> Sketch {
+    use ringdesign_core::cad::builders::cutters::{Shape, outline};
+    let mut s = Sketch::default();
+    s.name = "Gallery arcade".into();
+    let lancet = outline(Shape::Lancet, ARCADE_H_MM, ARCADE_W_MM, 0.0);
+    for x in ARCADE_X {
+        // The outline's point is at −x: turned a quarter so it stands up.
+        let ids: Vec<Id> = lancet.iter().map(|p| s.point([x + p[1], ARCADE_Y_MM - p[0]])).collect();
+        s.entity(Geometry::Polyline { points: ids, closed: true });
+    }
+    s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
+    s
+}
+
 fn ruby() -> Gem {
     Gem { preview_tint: Some(RUBY), ..Gem::calibrated(GemCut::Round, RUBY_MM) }
 }
@@ -579,7 +601,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     doc.append(feature(
         6,
         "Raise the tracery: the oculus order, eight mullions, the heads and the outer order",
-        Operation::Extrude { sketch: Profile::Region { feature: 5, region: rose.bars }, height_mm: -(TRACERY_MM + TRACERY_FOOT_MM), draft_deg: 0.0 },
+        Operation::Extrude { sketch: Profile::Region { feature: 5, region: rose.bars }, height_mm: -(TRACERY_MM + TRACERY_FOOT_MM), draft_deg: knob("ROSA_TD", TRACERY_DRAFT_DEG) },
         Component { attach: Attach::Join, stage: Stage::Cast, blend_mm: knob("ROSA_TB", 0.0), ..none() },
     ))?;
     doc.append(feature(
@@ -639,7 +661,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
             id,
             name: format!("Oculus of the nave, {}", k + 1),
             enabled: true,
-            operation: Operation::Builder { key: builders::PIERCE.into(), on: None, params: json!({"shape": if *w >= 1.2 { "Quatrefoil" } else { "Round" }, "width_mm": w, "length_mm": w, "through": true}) },
+            operation: Operation::Builder { key: builders::PIERCE.into(), on: None, params: json!({"shape": "Round", "width_mm": w, "length_mm": w, "through": true, "chamfer_mm": 0.3}) },
             component: Component { placement: Placement::ring(90.0 - off, 0.0), ..builders::component(builders::PIERCE) },
         })?;
         id += 1;
@@ -649,6 +671,22 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
         "Mirror the oculi through the crown",
         Operation::Pattern { sources: cad::pattern::Sources((first_oculus..id).collect()), kind: PatternKind::Mirror { plane: cad::MirrorPlane::Section { theta_deg: 90.0 } } },
         builders::component(builders::PIERCE),
+    ))?;
+    // The gallery of kings: a blind arcade of pointed lancets cut into each cheek along the finger, mirrored across the band.
+    id += 1;
+    doc.append(feature(id, "Outside the near cheek", Operation::Plane { base: PlaneBase::Parting, offset_mm: ARCADE_PLANE_MM }, none()))?;
+    doc.append(feature(id + 1, "Gallery arcade: three lancets", Operation::Sketch { sketch: arcade_sketch(id) }, none()))?;
+    doc.append(feature(
+        id + 2,
+        "Cut the gallery arcade into the cheek",
+        Operation::Extrude { sketch: Profile::Feature { feature: id + 1 }, height_mm: -(ARCADE_PLANE_MM - ARCADE_FLOOR_MM), draft_deg: 0.0 },
+        cut(),
+    ))?;
+    doc.append(feature(
+        id + 3,
+        "The same arcade in the far cheek",
+        Operation::Pattern { sources: cad::pattern::Sources(vec![id + 2]), kind: PatternKind::Mirror { plane: cad::MirrorPlane::Band } },
+        cut(),
     ))?;
     if let Ok(off) = std::env::var("ROSA_OFF") {
         for id in off.split(',').filter_map(|t| t.parse::<Id>().ok()) {
@@ -724,7 +762,7 @@ fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<(
 /// Views: yaw about the finger axis, pitch from looking along the finger (0) to down onto the table (pi/2).
 const VIEWS: &[(&str, f64, f64)] = &[
     ("hero", -0.6, 1.0),
-    ("face", 0.12, 1.38),
+    ("face", 0.2, 1.3),
     ("palm", PI, 1.05),
     ("side", 0.0, 0.0),
     ("shoulder", 0.75, 0.6),
@@ -832,6 +870,14 @@ fn main() -> Result<()> {
             (v.len(), r(0), r(1), r(2))
         };
         println!("  top {:.2}", a.top);
+        for y in [9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] {
+            for x in [0.0, 4.0, 7.0] {
+                let z = a.samples.iter().filter(|s| s.p[2] > 0.0 && (s.p[0] - x).abs() < 0.3 && (s.p[1] - y).abs() < 0.15).map(|s| s.p[2]).fold(0.0, f64::max);
+                let zx = a.samples.iter().filter(|s| s.p[0] > 0.0 && (s.p[2] - x).abs() < 0.3 && (s.p[1] - y).abs() < 0.15).map(|s| s.p[0]).fold(0.0, f64::max);
+                print!("  y {y} x {x}: cheek z {z:.2} end x {zx:.2};");
+            }
+            println!();
+        }
         println!("  cheek +z: {:?}", span(&|s| s.p[2] > 0.0 && a.cheek(s) > 0.9));
         println!("  end +x: {:?}", span(&|s| s.n[0] > 0.85 && s.p[1] > a.top - 4.0));
         for y in [9.5, 10.5, 11.5, 12.3] {
