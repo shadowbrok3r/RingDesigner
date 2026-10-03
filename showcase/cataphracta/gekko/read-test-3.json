@@ -1,0 +1,35 @@
+{
+  "ring": "Gekko — the tokay",
+  "slug": "gekko",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Closer, but still not a gecko on first look. From the face a jeweller says 'a lizard on a pebbled band': head at the left, a spotted body along the crown, a tail curling down off the right end. The figure now holds together as one animal, and the hero angle shows a creature too (bead eyes on the head, a splayed front foot, spots down the back), not a lump. That is real progress over attempt 2. But the gecko signals are still weak or misleading. The head is a sharp arrowhead. Pointed and flat, it reads as a snake or an arrow tip, not the broad, blunt, big-eyed tokay head, and from the face the eyes barely show. The body is still covered in round beads about the size of the band's granules, so the figure melts into the ground and the beaded back still says Gila monster (Heloderma) as much as gecko. The toe-pad rosettes are the one gecko cue, but only two show, on the top edge of the face view, and they look like little flowers or asterisks sitting apart from the body. The near-side feet are lost over the lower edge. In the hero, the tail's deep ring segments read as a caterpillar or millipede curling round the shank. Verdict: 'lizard', yes. 'Gecko' only for someone who looks hard at the feet. Nobody would say tokay without the caption.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Turn the arrowhead into a tokay head. Blunt the snout to a round of about 1.0 mm radius, with no point. Widen the rear of the head to about 1.5x the neck (about 4.5–5 mm at the jaw hinge) with a visible jaw notch at the neck. Raise two eye domes on the rear corners, each about 1.5 mm across and 0.6–0.8 mm proud, so they break the head's outline in the face view. Keep the skull top smooth.",
+      "where": "The head of the 'Tokay' part, at the left end of the figure in the face view (and the front of the figure in the hero)",
+      "acceptance": "In face-300.png the head is a broad, blunt, rounded triangle with two eye bumps at its rear corners, and nothing about it reads as an arrow tip or a snake head."
+    },
+    {
+      "priority": 2,
+      "what": "Separate the figure from the ground and get rid of the beaded Heloderma back. Give the torso a smooth skin. Replace the dense bead cover with 8–12 low, flat-topped round spots, 1.0–1.5 mm across and at most 0.25 mm proud, spaced 1.5–2 mm apart in two loose rows. Calm the band's granules to half height within 1.5 mm of the figure's outline, so a smooth halo sets off the silhouette.",
+      "where": "The 'Tokay' part from the neck to the hips; the crown granule layer around the figure (about 60–120 degrees)",
+      "acceptance": "In face-300.png the body is a smooth, plump shape with a few distinct spots, its outline clearly edged against the pebbled band, and no string of beads is visible."
+    },
+    {
+      "priority": 3,
+      "what": "Make the feet and tail say gecko and not flower or millipede. Join each foot rosette to the body with a visibly bent limb (elbow or knee angled back, upper limb at least 1.0 mm thick). Bring the two near-side feet up onto the upper side face so all four toe fans show in the face view, each 5 toes with disc tips about 1.0 mm. Halve the depth of the tail's ring segments and taper the tail smoothly from about 70% of the hip width, so it reads as a lizard tail curling round the shank.",
+      "where": "All four limbs and feet, with the near-side pair moved up from below the face's lower edge; the tail from the hips down the shank (about 120–200 degrees)",
+      "acceptance": "In face-300.png you can count four limbs, each ending in a fan of toes that is clearly attached to the body. In hero-300.png the tail is a smooth taper, not a ribbed caterpillar."
+    }
+  ],
+  "notes": "Progress since attempt 2: the figure is now one animal in both views, the hero no longer reads as a lump, and the tail curls down the shank as asked. The read fails on the arrowhead head, the shared bead texture between figure and band, and feet that are partly hidden and detached. Fix the head first: it is the cheapest change and the most species-specific.",
+  "viewed_images": [
+    "showcase/cataphracta/gekko/hero-300.png",
+    "showcase/cataphracta/gekko/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

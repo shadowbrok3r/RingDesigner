@@ -1,29 +1,29 @@
 {
-  "author_s": 81.697664496,
+  "author_s": 99.26532752,
   "bore_mm": 18.6,
   "coarse_384x192": null,
   "cold_reload": null,
-  "design_bytes": 4728918,
+  "design_bytes": 4789726,
   "draft": {
     "build": {
-      "ms": 3610.870281,
+      "ms": 3527.415246,
       "profile_steps": 320,
       "theta_steps": 768,
-      "triangles": 640120
+      "triangles": 646416
     },
     "casting_pattern": {
       "degenerate_faces": 0,
       "self_crossings": 0,
-      "triangles": 640120,
+      "triangles": 646416,
       "watertight": true
     },
     "dfm_findings": [],
     "field": {
       "notes": [
-        "Lost wax: 3.69% of the surface would undercut a two-part pull (worst 12.1 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Undercut 0–358° on the crest: 52.5 mm² leaning to 10° — no single layer explains it.",
-        "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 242.5 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Stored mesh \"Tokay\" (#2) would undercut a two-part pull over 62.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Lost wax: 3.71% of the surface would undercut a two-part pull (worst 12.1 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Undercut 0–358° on the crest: 52.4 mm² leaning to 10° — no single layer explains it.",
+        "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 230.7 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Stored mesh \"Tokay\" (#2) would undercut a two-part pull over 61.8 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "process": "LostWax",
       "thinnest_wall_mm": 2.9886868228889476,
@@ -89,7 +89,7 @@
       "notes": [],
       "parts_joined": 1,
       "self_crossings": 0,
-      "triangles": 640120,
+      "triangles": 646416,
       "watertight": true
     },
     "stones": {
@@ -97,14 +97,14 @@
       "reported": 0
     },
     "two_part_undercut": {
-      "band_percent": 3.6945379022730394,
+      "band_percent": 3.7077785893173507,
       "note": "reported only: lost wax judges fill and detail, never the pull",
-      "part_undercut_mm2": 62.75950736871647,
-      "with_part_percent": 6.914915413255793
+      "part_undercut_mm2": 61.84331363776665,
+      "with_part_percent": 6.930364568940265
     },
     "unnamed_under_floor": [
-      "body: 0.152 mm2 under, thinnest 0.57",
-      "head and neck: 1.762 mm2 under, thinnest 0.46"
+      "body: 0.061 mm2 under, thinnest 0.60",
+      "head and neck: 0.764 mm2 under, thinnest 0.49"
     ]
   },
   "draft_rules": {
@@ -118,58 +118,58 @@
     "by_kind": [
       {
         "kind": "body",
-        "thinnest_mm": 0.5713346489847416,
+        "thinnest_mm": 0.5954628172509944,
         "treatment": null,
-        "under_floor_mm2": 0.1524961168544193
+        "under_floor_mm2": 0.06126272484945755
       },
       {
         "kind": "head and neck",
-        "thinnest_mm": 0.46152013729326136,
+        "thinnest_mm": 0.49072597311976107,
         "treatment": null,
-        "under_floor_mm2": 1.7618829297584013
+        "under_floor_mm2": 0.7636670743623759
       },
       {
         "kind": "limbs",
-        "thinnest_mm": 0.7588834022875274,
-        "treatment": "limb: where a wrist or ankle narrows into its foot, lying on the crown and fused to it. Measured thinnest section: 0.759 mm.",
-        "under_floor_mm2": 0.004688547517101522
+        "thinnest_mm": 0.8018594647743625,
+        "treatment": null,
+        "under_floor_mm2": 0.0
       },
       {
         "kind": "toes",
-        "thinnest_mm": 0.6553770108857527,
-        "treatment": "toe: a finger lying on the crown and fused into it along its length, fed from the foot; the reading across it is the toe alone, not the metal the wax fills, which runs on into the band; a short-filled tip is built back with a laser tack. Measured thinnest section: 0.655 mm.",
-        "under_floor_mm2": 0.23039878323311927
+        "thinnest_mm": 0.34302086517174657,
+        "treatment": "toe: a finger lying on the crown and fused into it along its length, fed from the foot; the reading across it is the toe alone, not the metal the wax fills, which runs on into the band; a short-filled tip is built back with a laser tack. Measured thinnest section: 0.343 mm.",
+        "under_floor_mm2": 12.06224145864018
       },
       {
         "kind": "toe pads",
-        "thinnest_mm": 0.5077345467263253,
-        "treatment": "toe pad: a flattened disc lying on the crown, fused to it over its whole underside; the reading is across the disc's own edge, which the band behind it feeds. Measured thinnest section: 0.508 mm.",
-        "under_floor_mm2": 0.4203106604513687
+        "thinnest_mm": 0.04283381152568595,
+        "treatment": "toe pad: a flattened disc lying on the crown, fused to it over its whole underside; the reading is across the disc's own edge, which the band behind it feeds. Measured thinnest section: 0.043 mm.",
+        "under_floor_mm2": 1.5486161795350897
       },
       {
         "kind": "tail",
-        "thinnest_mm": 0.5352344908036655,
-        "treatment": "tail tip: fed along the tail from the body; the rounded end is dressed with a file. Measured thinnest section: 0.535 mm.",
-        "under_floor_mm2": 1.0412889013507678
+        "thinnest_mm": 0.6751748984132571,
+        "treatment": "tail tip: fed along the tail from the body; the rounded end is dressed with a file. Measured thinnest section: 0.675 mm.",
+        "under_floor_mm2": 0.003250328614955796
       },
       {
         "kind": "eyes",
-        "thinnest_mm": 0.0054812070293505655,
-        "treatment": "eyelid: a 0.17 mm rim round each eye, relief on the head over the 0.15 mm detail floor; the slit pupil is relief cut into the ball. Measured thinnest section: 0.005 mm.",
-        "under_floor_mm2": 3.4013917079654745
+        "thinnest_mm": 0.012869239295168313,
+        "treatment": "eyelid: a 0.17 mm rim round each eye, relief on the head over the 0.15 mm detail floor; the slit pupil is relief cut into the ball. Measured thinnest section: 0.013 mm.",
+        "under_floor_mm2": 4.134353570518916
       },
       {
         "kind": "hide relief",
-        "thinnest_mm": 0.00043889875482843615,
-        "treatment": "hide relief: granules, spots and tail rings 0.06-0.17 mm proud of the body, read where a face's ray crosses a granule's own flank; cast as relief over the 0.15 mm detail floor. Measured thinnest section: 0.000 mm.",
-        "under_floor_mm2": 0.2994645436426658
+        "thinnest_mm": 0.0042026782388207475,
+        "treatment": "hide relief: granules, spots and tail rings 0.06-0.17 mm proud of the body, read where a face's ray crosses a granule's own flank; cast as relief over the 0.15 mm detail floor. Measured thinnest section: 0.004 mm.",
+        "under_floor_mm2": 0.348903117932407
       }
     ],
     "floor_mm": 0.8,
     "method": "dfm::part_sections on the sculpted part alone (one ray per face along its inward normal), and the same per face gathered by the shape nearest each face; faces sunk in the band are left out",
     "part_sections": {
-      "thinnest_mm": 0.00043889875482843615,
-      "under_floor_mm2": 43.14396334992319
+      "thinnest_mm": 0.00015387087651297704,
+      "under_floor_mm2": 52.468218641983505
     }
   },
   "layers": [
@@ -183,13 +183,13 @@
     "composition": {
       "box_mm": [
         [
-          -16.839192095712338,
-          -11.573819161774283,
+          -15.377256657320192,
+          -3.9475279013635185,
           -7.0
         ],
         [
-          19.88149366612574,
-          25.935461325821734,
+          19.74791966340777,
+          25.74113710454285,
           7.0
         ]
       ],
@@ -198,16 +198,15 @@
         260000,
         0.002
       ],
-      "faces": 245756,
+      "faces": 249664,
       "notes": [
-        "relax undone within 0.3 mm of 2 crossings",
-        "relax undone within 0.6 mm of 1 crossings"
+        "relax undone within 0.3 mm of 3 crossings"
       ],
-      "prims": 83,
-      "raw_faces": 403684,
-      "sculpt_s": 58.848284616,
-      "spots": 53,
-      "volume_mm3": 174.56160882660893
+      "prims": 107,
+      "raw_faces": 576956,
+      "sculpt_s": 76.609570743,
+      "spots": 18,
+      "volume_mm3": 147.4108650698462
     },
     "open_edges": 0,
     "self_crossings": 0

@@ -288,17 +288,17 @@ struct Spot {
 
 /// The tokay's measurements, frame mm.
 const HEAD_X: f64 = 8.6;
-const EYE_X: f64 = 7.2;
-const EYE_W: f64 = 2.05;
-const EYE_R: f64 = 1.08;
+const EYE_X: f64 = 7.0;
+const EYE_W: f64 = 1.7;
+const EYE_R: f64 = 0.95;
 const VENT_X: f64 = -9.0;
 const TAIL_LEN: f64 = 22.0;
 /// Front and hind limbs: where each leaves the body, and which way the hand turns along the ring.
 const LEGS: [(f64, f64); 2] = [(2.2, 1.0), (-7.0, -1.0)];
 /// The skin's granules: lattice pitch and height; the spots' height.
 const GRANULE_PITCH_MM: f64 = 0.5;
-const GRANULE_MM: f64 = 0.055;
-const SPOT_MM: f64 = 0.14;
+const GRANULE_MM: f64 = 0.0;
+const SPOT_MM: f64 = 0.26;
 
 struct Gekko<'a> {
     frame: Frame<'a>,
@@ -310,16 +310,47 @@ struct Gekko<'a> {
     bore_r: f64,
 }
 
-/// The tail's centre line and radius at a share `t` of its length from the vent.
-fn tail_at(t: f64) -> (P3, f64) {
-    let x = VENT_X - TAIL_LEN * t;
-    let r = 1.45 * (1.0 - t).powf(0.85) + 0.55 * t;
-    ([x, -0.4 * r, 0.0], r)
+/// The tail's centre line and radius at a share `t` of its length from the vent: down the crest, then swinging out
+/// across the crown's near shoulder, over the band's edge and down the side face, where its tip curls back up.
+fn tail_at(crest: &Crest, t: f64) -> (P3, f64) {
+    let r = 1.4 * (1.0 - t).powf(0.8) + 0.42 * t;
+    // Control points: x along the ring, then w across, and where the point lies (0 on the crown, 1 on the side face,
+    // with its depth under the crown's edge).
+    let pts: [(f64, f64, f64); 8] = [
+        (VENT_X, 0.0, 0.0),
+        (VENT_X - 3.0, 0.5, 0.0),
+        (VENT_X - 6.0, 1.7, 0.0),
+        (VENT_X - 8.6, 3.2, 0.0),
+        (VENT_X - 10.6, 4.0, 0.5),
+        (VENT_X - 12.6, 4.0, 1.3),
+        (VENT_X - 14.2, 4.0, 1.5),
+        (VENT_X - 15.2, 4.0, 1.0),
+    ];
+    let n = pts.len() - 1;
+    let f = (t.clamp(0.0, 1.0) * n as f64).min(n as f64 - 1e-9);
+    let i = f.floor() as usize;
+    let u = f - i as f64;
+    let g = |k: isize| pts[(k.max(0) as usize).min(n)];
+    let (p0, p1, p2, p3) = (g(i as isize - 1), g(i as isize), g(i as isize + 1), g(i as isize + 2));
+    let cr = |a: f64, b: f64, c: f64, d: f64| 0.5 * ((2.0 * b) + (-a + c) * u + (2.0 * a - 5.0 * b + 4.0 * c - d) * u * u + (-a + 3.0 * b - 3.0 * c + d) * u * u * u);
+    let x = cr(p0.0, p1.0, p2.0, p3.0);
+    let wt = cr(p0.1, p1.1, p2.1, p3.1);
+    let depth = cr(p0.2, p1.2, p2.2, p3.2).max(0.0);
+    let edge = crest.half_w(theta_of(x));
+    // On the crown the tail lies on it; past the edge it hugs the side face, standing out of it by its radius.
+    let on_face = smoothstep(0.0, 0.6, depth);
+    let w_crown = wt.min(edge - 0.2);
+    let h_crown = crest.top_h(x, w_crown.abs()) - 0.25 * r;
+    let w_face = edge + 0.55 * r;
+    let h_face = crest.top_h(x, edge) - depth;
+    let w = w_crown + (w_face - w_crown) * on_face;
+    let h = h_crown + (h_face - h_crown) * on_face;
+    ([x, h, w], r)
 }
 
 /// The tail's rings: raised bands round it at a pitch, 0..1, nothing on its root.
 const RING_PITCH_MM: f64 = 1.0;
-const RING_MM: f64 = 0.13;
+const RING_MM: f64 = 0.09;
 fn tail_rings(x: f64) -> f64 {
     if x > VENT_X - 1.2 {
         return 0.0;
@@ -333,24 +364,24 @@ fn body_prims(crest: &Crest) -> Vec<Prim> {
     let limb = |kind, a: P3, b: P3, ra: f64, rb: f64, blend: f64| Prim { kind, shape: Shape::Limb { a, b, ra, rb }, blend };
     let mut out = vec![
         // Trunk: round in section, so its back falls away from the spine at once.
-        egg(Kind::Body, [-3.2, -0.7, 0.0], [6.6, 2.1, 1.85], 0.0, 0.0),
-        egg(Kind::Body, [1.6, -0.7, 0.0], [2.7, 2.0, 1.75], 0.0, 0.6),
-        // Neck.
-        egg(Kind::Head, [4.7, -0.7, 0.0], [1.8, 1.85, 1.7], 0.0, 0.6),
-        // Head: broad and flat, a rounded triangle to the snout.
-        egg(Kind::Head, [HEAD_X, -0.6, 0.0], [3.6, 1.5, 2.8], 0.62, 0.5),
-        // The jaw's angles either side behind the eyes.
-        egg(Kind::Head, [6.7, -0.75, 1.75], [1.5, 1.25, 1.2], 0.0, 0.45),
-        egg(Kind::Head, [6.7, -0.75, -1.75], [1.5, 1.25, 1.2], 0.0, 0.45),
+        egg(Kind::Body, [-3.2, -0.9, 0.0], [6.6, 2.05, 2.0], 0.0, 0.0),
+        egg(Kind::Body, [1.4, -0.9, 0.0], [2.6, 1.95, 1.85], 0.0, 0.6),
+        // Neck: narrower than the head, so the jaw's hinge stands out from it.
+        egg(Kind::Head, [4.5, -0.8, 0.0], [1.5, 1.7, 1.3], 0.0, 0.35),
+        // Head: a broad flat wedge, widest at the jaw's hinge, to a blunt rounded snout.
+        egg(Kind::Head, [8.3, -0.6, 0.0], [3.1, 1.45, 2.1], 0.5, 0.3),
+        // The jaw's hinges, the head's broadest point, behind the eyes.
+        egg(Kind::Head, [6.4, -0.7, 1.45], [1.3, 1.15, 1.05], 0.0, 0.3),
+        egg(Kind::Head, [6.4, -0.7, -1.45], [1.3, 1.15, 1.05], 0.0, 0.3),
         // The hips.
-        egg(Kind::Body, [VENT_X + 1.0, -0.7, 0.0], [2.0, 1.9, 1.8], 0.0, 0.5),
+        egg(Kind::Body, [VENT_X + 1.0, -0.9, 0.0], [2.0, 1.95, 1.85], 0.0, 0.5),
     ];
     // The tail: a chain of rounded cones from the vent down the crest.
-    let n = 16;
+    let n = 40;
     for k in 0..n {
-        let (a, ra) = tail_at(k as f64 / n as f64);
-        let (b, rb) = tail_at((k + 1) as f64 / n as f64);
-        out.push(limb(Kind::Tail, a, b, ra, rb, if k == 0 { 0.5 } else { 0.05 }));
+        let (a, ra) = tail_at(crest, k as f64 / n as f64);
+        let (b, rb) = tail_at(crest, (k + 1) as f64 / n as f64);
+        out.push(limb(Kind::Tail, a, b, ra, rb, if k == 0 { 0.5 } else { 0.03 }));
     }
     // Four limbs, each bent at the elbow or knee, ending in a foot planted flat on the crown's shoulder with five toes
     // splayed from it, each tipped with a broad round pad.
@@ -363,8 +394,8 @@ fn body_prims(crest: &Crest) -> Vec<Prim> {
         out.push(limb(Kind::Limb, wr, ft, 0.42, 0.44, 0.08));
         out.push(egg(Kind::Limb, ft, [0.62, 0.36, 0.62], 0.0, 0.12));
         for (root, tip) in &l.toes {
-            out.push(limb(Kind::Toe, *root, *tip, 0.42, 0.4, 0.08));
-            out.push(egg(Kind::Pad, *tip, [0.58, 0.42, 0.58], 0.0, 0.06));
+            out.push(limb(Kind::Toe, *root, *tip, 0.38, 0.34, 0.08));
+            out.push(egg(Kind::Pad, *tip, [0.46, 0.4, 0.46], 0.0, 0.06));
         }
     }
     out
@@ -386,15 +417,15 @@ fn limb_plans(crest: &Crest) -> Vec<LimbPlan> {
         for (x0, hind) in [(LEGS[0].0, false), (LEGS[1].0, true)] {
             let dir = if hind { -1.0 } else { 1.0 };
             let sh = [x0, -0.25, 1.2 * s];
-            let el = on(x0 - 0.9 * dir, 2.2 * s, 0.62);
-            let wr = on(x0 - 0.1 * dir, 2.6 * s, 0.42);
-            let ft = on(x0 + 0.35 * dir, 2.8 * s, 0.34);
+            let el = on(x0 - 1.2 * dir, 2.3 * s, 0.7);
+            let wr = on(x0 + 0.0 * dir, 2.55 * s, 0.42);
+            let ft = on(x0 + 0.45 * dir, 2.7 * s, 0.34);
             let mut toes = Vec::new();
             for k in 0..5 {
                 let j = k as f64 - 2.0;
                 // Fanned about a line out and toward the head (forelimb) or the tail (hind limb).
-                let a = (34.0 * j + 30.0 * dir).to_radians();
-                let len = [1.2, 1.35, 1.4, 1.35, 1.2][k];
+                let a = (42.0 * j + 28.0 * dir).to_radians();
+                let len = [1.45, 1.65, 1.75, 1.65, 1.45][k];
                 let x = ft[0] + a.sin() * len;
                 let edge = crest.half_w(theta_of(x)) - 0.7;
                 let w = (ft[2].abs() + a.cos() * len).min(edge);
@@ -409,32 +440,22 @@ fn limb_plans(crest: &Crest) -> Vec<LimbPlan> {
 
 /// The tokay's spots: rows down both flanks and on the head's and tail's sides, each a smooth raised disc.
 fn spots() -> Vec<Spot> {
-    let mut out = Vec::new();
-    // Flanks: scattered, of mixed sizes, thinning toward the belly line, never in ranks.
-    let mut k = 0usize;
+    let mut out: Vec<Spot> = Vec::new();
+    // The back and flanks: low rounded tubercles 1.5-2 mm apart, scattered over the whole torso, the spine included.
     let mut tries = 0usize;
-    while out.len() < 44 && tries < 4000 {
+    while tries < 6000 {
         tries += 1;
-        let x = VENT_X + 0.3 + (3.6 - VENT_X - 0.3) * hash(tries, 31);
-        let w = (0.65 + 1.15 * hash(tries, 32)) * if hash(tries, 33) < 0.5 { -1.0 } else { 1.0 };
-        let r = 0.3 + 0.24 * hash(tries, 34);
-        if out.iter().any(|o: &Spot| (o.x - x).hypot(o.w - w) < o.r + r + 0.35) {
+        let x = VENT_X + 0.4 + (3.2 - VENT_X - 0.4) * hash(tries, 31);
+        let w = 1.55 * (2.0 * hash(tries, 32) - 1.0);
+        let r = 0.36 + 0.14 * hash(tries, 34);
+        if out.iter().any(|o| (o.x - x).hypot(o.w - w) < 1.55) {
             continue;
         }
         out.push(Spot { x, w, r });
-        k += 1;
     }
-    let _ = k;
-    // Down the spine, from the nape to the tail's root.
-    for (x, w, r) in [(5.9, 1.25, 0.4), (5.9, -1.25, 0.4), (9.9, 1.0, 0.36), (9.9, -1.0, 0.36)] {
+    // Behind the eyes on the head's back.
+    for (x, w, r) in [(5.4, 0.0, 0.4), (5.6, 1.15, 0.32), (5.6, -1.15, 0.32)] {
         out.push(Spot { x, w, r });
-    }
-    for j in 0..12 {
-        let t = (j as f64 + 0.5) / 13.0;
-        let (c, r) = tail_at(t);
-        for s in [1.0, -1.0] {
-            out.push(Spot { x: c[0] - 0.3 * (j % 2) as f64, w: 0.66 * r * s, r: (0.32 * r).clamp(0.22, 0.42) });
-        }
     }
     out
 }
@@ -449,7 +470,7 @@ impl<'a> Gekko<'a> {
             let m = 0.5 * (lo + hi);
             if gek.body_at([EYE_X, m, EYE_W]) > 0.0 { hi = m } else { lo = m }
         }
-        gek.eye_h = lo - 0.45 * EYE_R;
+        gek.eye_h = lo + 0.75 - EYE_R;
         gek
     }
 
@@ -504,16 +525,12 @@ impl<'a> Gekko<'a> {
     /// The hide's relief at a point, mm: smooth raised spots, fine granules between them; and apart, the spots on the
     /// spine, which straddle the parting line and fall away from it either side, so they stand whatever the slope.
     fn hide(&self, q: P3, p: P3) -> (f64, f64) {
-        let (mut spot, mut spine) = (0.0f64, 0.0f64);
+        let (mut spot, spine) = (0.0f64, 0.0f64);
         for s in &self.spots {
             let d = (q[0] - s.x).hypot(q[2] - s.w);
             if d < s.r + 0.25 {
-                let v = 1.0 - smoothstep(s.r - 0.22, s.r + 0.22, d);
-                if s.w == 0.0 {
-                    spine = spine.max(v);
-                } else {
-                    spot = spot.max(v);
-                }
+                let v = (1.0 - (d / (s.r + 0.2)).powi(2)).max(0.0).sqrt();
+                spot = spot.max(v);
             }
         }
         (SPOT_MM * spot + GRANULE_MM * granules(p) * (1.0 - spot.max(spine)), SPOT_MM * spine)
@@ -696,7 +713,7 @@ fn band_hide(d: &mut RingDesign, lib: &mut AlphaLibrary, crest: &Crest) -> Resul
     let mut t = TilingLayer::default_for("Tubercle rows", &ctx);
     ensure!(t.fit_to_side_faces(&ctx, SIDE_FACE_MIN_DRAFT_DEG), "the band has no side faces");
     t.repeats_around = repeats;
-    t.height_mm = 0.32;
+    t.height_mm = 0.16;
     t.shear = 0.35;
     let mut e = LayerEntry::new("Tubercle rows", Layer::Tiling(t));
     e.blend = Blend::Max;
@@ -961,7 +978,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, census
 // --- Renders ---------------------------------------------------------------------------------------------------------
 
 /// The camera for each named view: yaw about the finger axis, pitch from it.
-const HERO: (f64, f64) = (-0.35, 0.95);
+const HERO: (f64, f64) = (-0.3, 1.12);
 const VIEWS: [(&str, f64, f64); 6] = [
     ("hero", HERO.0, HERO.1),
     ("face", 0.0, PI * 0.5),
