@@ -986,7 +986,7 @@ impl RimBeads {
                 ((b[0] - a[0]) / l).abs() > 0.72
             })
             .collect();
-        // A corner is where the edge turns more than 30 degrees within 0.6 mm either side; one station per corner.
+        // A corner is where the edge turns more than 50 degrees within 0.6 mm either side; one station per corner.
         let dir_at = |s: f64| {
             let s = s.rem_euclid(edge.length());
             let i = edge.at.iter().position(|&a| a >= s).unwrap_or(1).clamp(1, edge.pts.len() - 1);
@@ -998,20 +998,20 @@ impl RimBeads {
         for k in 0..n {
             let s = k as f64 * 0.05;
             let turn = ((dir_at(s + 0.6) - dir_at(s - 0.6) + PI).rem_euclid(2.0 * PI) - PI).abs();
-            if turn > 30f64.to_radians() && corners.last().is_none_or(|&c| s - c > 1.5) {
+            if turn > 50f64.to_radians() && corners.last().is_none_or(|&c| s - c > 1.5) {
                 corners.push(s);
             }
         }
         Self { edge, stations, corners }
     }
 
-    /// 0 at a corner of the table's edge, rising to 1 by 1.9 mm round the edge from it: the corners' walls fade to
+    /// 0 at a corner of the table's edge, rising to 1 by 1.5 mm round the edge from it: the corners' walls fade to
     /// polish under the rim beads instead of shearing their scales.
     fn corner_fade(&self, round: f64) -> f64 {
         let l = self.edge.length();
         self.corners.iter().map(|&c| {
             let d = (round - c).rem_euclid(l);
-            smooth(0.4, 1.9, d.min(l - d))
+            smooth(0.3, 1.5, d.min(l - d))
         }).fold(1.0, f64::min)
     }
 
@@ -1096,7 +1096,7 @@ const CROWN: (f64, f64, f64, f64) = (-0.75, 0.62, 0.9, 0.55);
 const FLEURONS: [(f64, f64, f64); 5] = [(-4.0, 1.0, 0.66), (44.0, 1.18, 0.74), (90.0, 1.38, 0.8), (136.0, 1.18, 0.74), (184.0, 1.0, 0.66)];
 /// A fleuron's thickness off the band, how far it leans out, the pearl's radius and the leaf's half-width where it
 /// meets the pearl, mm and degrees.
-const FLEURON_BODY: (f64, f64, f64, f64) = (0.78, 6.0, 0.37, 0.34);
+const FLEURON_BODY: (f64, f64, f64, f64) = (0.78, 6.0, 0.36, 0.3);
 /// Fangs, one each side of the upper jaw: root along the head, radius at the root and at the rounded tip, mm.
 const FANG: (f64, f64, f64) = (3.25, 0.25, 0.165);
 /// The tongue's stem and tines, radius at the root, the fork and the tines' rounded ends, mm.
@@ -1392,7 +1392,8 @@ impl Basilisk {
         let e = (da / ra).hypot(w / rw);
         let g = (da / (ra * ra)).hypot(w / (rw * rw)) / e.max(1e-9);
         let radial = (e - 1.0) / g.max(1e-9);
-        let band = round_box2([radial - 0.5 * proud + 0.15, du - 0.5 * tall], [0.5 * proud + 0.15, 0.5 * tall], 0.16);
+        let band = round_box2([radial - 0.5 * proud + 0.15, du - 0.5 * tall], [0.5 * proud + 0.15, 0.5 * tall], 0.16)
+            - 0.1 * (1.0 - ((du - 0.5 * tall) / (0.5 * tall)).powi(2)).max(0.0);
         let mut d = band;
         let (thick, lean, pearl, petal) = FLEURON_BODY;
         let top = tall - 0.1;
@@ -1419,14 +1420,15 @@ impl Basilisk {
             // flanks bowed in, so neighbouring points meet at the band in one serrated rim.
             let foot2 = round_box2([t, along + 0.05], [half, 0.32], 0.14);
             let k = (along / high).clamp(0.0, 1.0);
-            // A convex leaf, full at the foot and blunt at the tip, where it is as wide as the pearl it carries.
-            let leaf_w = 0.72 * half * (1.0 - k.powf(2.2)).max(0.0).sqrt() + petal * k;
+            // A lanceolate middle petal, widest a third of the way up and narrowing to the pearl's own width, so the
+            // pearl sits half sunk on its tip with no neck under it.
+            let leaf_w = 0.46 * half * (PI * k.powf(0.62)).sin().max(0.0).powf(0.6) * (1.0 - k) + petal * k;
             let leaf = (t.abs() - leaf_w).max(-along - 0.1).max(along - high);
             // Two petals curl out and up from the leaf's foot: a fleur, with the pearl seated on the leaf's own tip.
             let lobe = {
-                let (x, y) = (t.abs() - 0.6 * half, along - 0.36 * high);
-                let (sn, cs) = 0.9f64.sin_cos();
-                ellipsoid([x * cs - y * sn, x * sn + y * cs, 0.0], [0.42, 0.2, 1.0]).max(-along)
+                let (x, y) = (t.abs() - 0.52 * half, along - 0.42 * high);
+                let (sn, cs) = 0.75f64.sin_cos();
+                ellipsoid([x * cs - y * sn, x * sn + y * cs, 0.0], [0.5, 0.21, 1.0]).max(-along)
             };
             let shape = smin(smin(foot2, leaf, 0.12), lobe, 0.14);
             let half_thick = 0.5 * thick * (0.82 + 0.3 * (-shape / 0.3).clamp(0.0, 1.0));
@@ -1434,7 +1436,7 @@ impl Basilisk {
             let dz = off.abs() - half_thick + r;
             let s2 = shape + r;
             let plate = s2.max(0.0).hypot(dz.max(0.0)) + s2.max(dz).min(0.0) - r;
-            let ball = (t.hypot(along - high)).hypot(off) - pearl;
+            let ball = (t.hypot(along - high + 0.08)).hypot(off) - pearl;
             d = smin(d, smin(plate, ball, 0.2), 0.1);
         }
         // Two cabochon jewels on the band between the front fleurons.
@@ -1618,12 +1620,12 @@ fn preview_head(out: &Path, step: f64) -> Result<()> {
     Ok(())
 }
 
-/// Decimation that keeps curvature: no collapse may turn a face more than 9 degrees, and the quadric cost is capped
+/// Decimation that keeps curvature: no collapse may turn a face more than 11 degrees, and the quadric cost is capped
 /// low, so the crown and the plates keep their rounding instead of flattening into facets; backs off like
 /// `sculpt::clean_decimate` while the result crosses itself.
 fn curved_decimate(raw: &csg::Solid, target: usize) -> csg::Solid {
-    for (k, cap) in [4e-4, 2e-4, 1e-4].into_iter().enumerate() {
-        let nets = sculpt::decimate(raw, target + 15_000 * k, cap, 2.0 + k as f64, 9.0, 35.0);
+    for (k, cap) in [1e-3, 6e-4, 3e-4].into_iter().enumerate() {
+        let nets = sculpt::decimate(raw, target + 10_000 * k, cap, 2.0 + k as f64, 11.0, 35.0);
         if csg::self_crossings(&nets) == 0 {
             return nets;
         }
@@ -1680,7 +1682,7 @@ fn head_lands(b: &Basilisk, m: &csg::Solid) -> Vec<(String, f64, Option<&'static
     let crown = |f: &dyn Fn(usize) -> P3| (0..FLEURONS.len()).map(|i| chord_land(m, at(f(i)))).fold(f64::MAX, f64::min);
     out.push(("Crown points, the plate at mid-height (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.0, 0.45 * FLEURONS[i].1, 0.0)), None));
     out.push(("Crown points, the leaf's waist under its pearl (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.0, FLEURONS[i].1 - pearl - 0.06, 0.0)), Some("Point's waist under its pearl: investment detail, cast in place and cleaned up with a graver")));
-    out.push(("Crown points, each side petal (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.6 * FLEURONS[i].2 + 0.15, 0.36 * FLEURONS[i].1 - 0.2, 0.0)), Some("Fleur's side petal: investment detail, cast in place")));
+    out.push(("Crown points, each side petal (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.52 * FLEURONS[i].2 + 0.25, 0.42 * FLEURONS[i].1 - 0.24, 0.0)), Some("Fleur's side petal: investment detail, cast in place")));
     out.push(("Crown pearls (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.0, FLEURONS[i].1, 0.0)), None));
     let (fa, _, _) = FANG;
     let (_, lip, _) = GAPE;
@@ -1882,7 +1884,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
         let (bore, _, along) = skin_masks(&a, &hide, s);
         feather(s).1 * bore * off_table.data[s.i] as f64 * (1.0 - smooth(0.35, 0.9, smooth(l70, l110, along))) * mantling_share(s.theta)
     });
-    portable(&mut d, &mut lib, alpha, 0.035, window(90.0, 260.0), true, Some(REACH))?;
+    portable(&mut d, &mut lib, alpha, 0.02, window(90.0, 260.0), true, Some(REACH))?;
     let lands = land_rows(&arms, &seat, gem, &head_lands);
     let mut e = LayerEntry::new("Tsavorite, flush", Layer::SeatPad(seat));
     e.blend = Blend::Max;
