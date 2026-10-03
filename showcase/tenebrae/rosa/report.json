@@ -8,14 +8,14 @@
     ],
     "stock": "001"
   },
-  "cad_features": 30,
-  "design_bytes": 630334,
+  "cad_features": 29,
+  "design_bytes": 536217,
   "draft": {
     "build": [
       768,
       320
     ],
-    "build_s": 2.027982167,
+    "build_s": 2.185805212,
     "gates": {
       "bore_radius_mm": 9.3,
       "cold_reload_identical": null,
@@ -39,21 +39,6 @@
           "status": "Ok"
         },
         {
-          "id": 4,
-          "name": "Tracery top",
-          "status": "Ok"
-        },
-        {
-          "id": 5,
-          "name": "The bars between the lights, inside the outer order",
-          "status": "Ok"
-        },
-        {
-          "id": 6,
-          "name": "Raise the tracery: the oculus order, eight mullions, the heads and the outer order",
-          "status": "Ok"
-        },
-        {
           "id": 7,
           "name": "Sink the eight cusped spandrels deep",
           "status": "Ok"
@@ -61,21 +46,6 @@
         {
           "id": 8,
           "name": "Sink the eight lancet lights deep",
-          "status": "Ok"
-        },
-        {
-          "id": 80,
-          "name": "Spoke tops",
-          "status": "Ok"
-        },
-        {
-          "id": 81,
-          "name": "Eight spokes along the mullions",
-          "status": "Ok"
-        },
-        {
-          "id": 82,
-          "name": "Raise the spokes over the tracery",
           "status": "Ok"
         },
         {
@@ -134,42 +104,67 @@
           "status": "Ok"
         },
         {
+          "id": 18,
+          "name": "Sink oculus of the nave 1",
+          "status": "Ok"
+        },
+        {
           "id": 19,
-          "name": "The near cheek's panel face",
+          "name": "Sink oculus of the nave 2",
           "status": "Ok"
         },
         {
           "id": 20,
-          "name": "Gallery panel on a sill",
+          "name": "Sink oculus of the nave 3",
           "status": "Ok"
         },
         {
           "id": 21,
-          "name": "Stand the gallery panel on the cheek",
+          "name": "Sink oculus of the nave 4",
           "status": "Ok"
         },
         {
           "id": 22,
-          "name": "The same panel on the far cheek",
+          "name": "Mirror the oculi through the crown",
           "status": "Ok"
         },
         {
           "id": 23,
-          "name": "Outside the near cheek",
+          "name": "The near cheek's panel face",
           "status": "Ok"
         },
         {
           "id": 24,
-          "name": "Gallery arcade: three lancets",
+          "name": "Gallery panel on a sill",
           "status": "Ok"
         },
         {
           "id": 25,
-          "name": "Cut the gallery arcade into the cheek",
+          "name": "Stand the gallery panel on the cheek",
           "status": "Ok"
         },
         {
           "id": 26,
+          "name": "The same panel on the far cheek",
+          "status": "Ok"
+        },
+        {
+          "id": 27,
+          "name": "Outside the near cheek",
+          "status": "Ok"
+        },
+        {
+          "id": 28,
+          "name": "Gallery arcade: three lancets",
+          "status": "Ok"
+        },
+        {
+          "id": 29,
+          "name": "Cut the gallery arcade into the cheek",
+          "status": "Ok"
+        },
+        {
+          "id": 30,
           "name": "The same arcade in the far cheek",
           "status": "Ok"
         }
@@ -178,37 +173,32 @@
         "Lost wax: 0.26% of the surface would undercut a two-part pull (worst 2.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
         "Undercut 16–54° on the crest: 3.6 mm² leaning to 2° — no single layer explains it.",
         "Undercut 153–162° on the crest: 0.4 mm² leaning to 1° — no single layer explains it.",
-        "Measured with the ring as built: 12 CAD parts (7 joined, 5 cut), 901.8 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Extrude \"Raise the tracery: the oculus order, eight mullions, the heads and the outer order\" (#6) would undercut a two-part pull over 33.9 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Sink the eight cusped spandrels deep\" (#7) would undercut a two-part pull over 135.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Sink the eight lancet lights deep\" (#8) would undercut a two-part pull over 73.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Raise the spokes over the tracery\" (#82) would undercut a two-part pull over 15.8 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Measured with the ring as built: 15 CAD parts (5 joined, 10 cut), 638.3 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Extrude \"Sink the eight cusped spandrels deep\" (#7) would undercut a two-part pull over 122.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Sink the eight lancet lights deep\" (#8) would undercut a two-part pull over 65.8 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Extrude \"Raise the corner trefoils as carved bosses\" (#92) would undercut a two-part pull over 8.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Extrude \"Oculus collet: raise the lip to the bearing\" (#13) would undercut a two-part pull over 5.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Extrude \"Oculus collet: stand the bearing on the metal\" (#16) would undercut a two-part pull over 2.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Extrude \"Drill the oculus pilot to the finger\" (#17) would undercut a two-part pull over 17.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Stand the gallery panel on the cheek\" (#21) would undercut a two-part pull over 0.6 mm² (worst -6°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Mirror \"The same panel on the far cheek\" (#22) would undercut a two-part pull over 0.5 mm² (worst -6°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Cut the gallery arcade into the cheek\" (#25) would undercut a two-part pull over 4.1 mm² (worst -5°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Mirror \"The same arcade in the far cheek\" (#26) would undercut a two-part pull over 4.1 mm² (worst -5°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Lost wax: Piercing \"Sink oculus of the nave 1\" (#18) would undercut a two-part pull over 4.4 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Sink oculus of the nave 2\" (#19) would undercut a two-part pull over 3.7 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Sink oculus of the nave 3\" (#20) would undercut a two-part pull over 3.0 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Sink oculus of the nave 4\" (#21) would undercut a two-part pull over 2.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"Mirror the oculi through the crown\" (#22) would undercut a two-part pull over 12.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Stand the gallery panel on the cheek\" (#25) would undercut a two-part pull over 0.9 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"The same panel on the far cheek\" (#26) would undercut a two-part pull over 1.0 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Cut the gallery arcade into the cheek\" (#29) would undercut a two-part pull over 4.4 mm² (worst -5°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"The same arcade in the far cheek\" (#30) would undercut a two-part pull over 4.4 mm² (worst -5°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "field_verdict": "Castable",
       "investment_min_section_mm": 0.8,
       "made_part_self_crossings": [
-        [
-          "Raise the tracery: the oculus order, eight mullions, the heads and the outer order",
-          0
-        ],
         [
           "Sink the eight cusped spandrels deep",
           0
         ],
         [
           "Sink the eight lancet lights deep",
-          0
-        ],
-        [
-          "Raise the spokes over the tracery",
           0
         ],
         [
@@ -229,6 +219,26 @@
         ],
         [
           "Drill the oculus pilot to the finger",
+          0
+        ],
+        [
+          "Sink oculus of the nave 1",
+          0
+        ],
+        [
+          "Sink oculus of the nave 2",
+          0
+        ],
+        [
+          "Sink oculus of the nave 3",
+          0
+        ],
+        [
+          "Sink oculus of the nave 4",
+          0
+        ],
+        [
+          "Mirror the oculi through the crown",
           0
         ],
         [
@@ -274,15 +284,15 @@
           384,
           160
         ],
-        "faces": 134538,
+        "faces": 143796,
         "limit_mm": 0.8,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
         "rays": 384,
-        "sampled_min_mm": 0.8499998843788665,
+        "sampled_min_mm": 0.8498704449192677,
         "unresolved": 0
       },
       "thinnest_wall_mm": 1.878189115992754,
-      "triangles": 480346,
+      "triangles": 500254,
       "vertices_inside_bore": 0,
       "watertight": true
     },
@@ -308,7 +318,7 @@
       1536,
       448
     ],
-    "build_s": 4.757319951,
+    "build_s": 6.299254034,
     "gates": {
       "bore_radius_mm": 9.3,
       "cold_reload_identical": true,
@@ -332,21 +342,6 @@
           "status": "Ok"
         },
         {
-          "id": 4,
-          "name": "Tracery top",
-          "status": "Ok"
-        },
-        {
-          "id": 5,
-          "name": "The bars between the lights, inside the outer order",
-          "status": "Ok"
-        },
-        {
-          "id": 6,
-          "name": "Raise the tracery: the oculus order, eight mullions, the heads and the outer order",
-          "status": "Ok"
-        },
-        {
           "id": 7,
           "name": "Sink the eight cusped spandrels deep",
           "status": "Ok"
@@ -354,21 +349,6 @@
         {
           "id": 8,
           "name": "Sink the eight lancet lights deep",
-          "status": "Ok"
-        },
-        {
-          "id": 80,
-          "name": "Spoke tops",
-          "status": "Ok"
-        },
-        {
-          "id": 81,
-          "name": "Eight spokes along the mullions",
-          "status": "Ok"
-        },
-        {
-          "id": 82,
-          "name": "Raise the spokes over the tracery",
           "status": "Ok"
         },
         {
@@ -427,42 +407,67 @@
           "status": "Ok"
         },
         {
+          "id": 18,
+          "name": "Sink oculus of the nave 1",
+          "status": "Ok"
+        },
+        {
           "id": 19,
-          "name": "The near cheek's panel face",
+          "name": "Sink oculus of the nave 2",
           "status": "Ok"
         },
         {
           "id": 20,
-          "name": "Gallery panel on a sill",
+          "name": "Sink oculus of the nave 3",
           "status": "Ok"
         },
         {
           "id": 21,
-          "name": "Stand the gallery panel on the cheek",
+          "name": "Sink oculus of the nave 4",
           "status": "Ok"
         },
         {
           "id": 22,
-          "name": "The same panel on the far cheek",
+          "name": "Mirror the oculi through the crown",
           "status": "Ok"
         },
         {
           "id": 23,
-          "name": "Outside the near cheek",
+          "name": "The near cheek's panel face",
           "status": "Ok"
         },
         {
           "id": 24,
-          "name": "Gallery arcade: three lancets",
+          "name": "Gallery panel on a sill",
           "status": "Ok"
         },
         {
           "id": 25,
-          "name": "Cut the gallery arcade into the cheek",
+          "name": "Stand the gallery panel on the cheek",
           "status": "Ok"
         },
         {
           "id": 26,
+          "name": "The same panel on the far cheek",
+          "status": "Ok"
+        },
+        {
+          "id": 27,
+          "name": "Outside the near cheek",
+          "status": "Ok"
+        },
+        {
+          "id": 28,
+          "name": "Gallery arcade: three lancets",
+          "status": "Ok"
+        },
+        {
+          "id": 29,
+          "name": "Cut the gallery arcade into the cheek",
+          "status": "Ok"
+        },
+        {
+          "id": 30,
           "name": "The same arcade in the far cheek",
           "status": "Ok"
         }
@@ -471,37 +476,32 @@
         "Lost wax: 0.26% of the surface would undercut a two-part pull (worst 2.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
         "Undercut 16–54° on the crest: 3.6 mm² leaning to 2° — no single layer explains it.",
         "Undercut 153–162° on the crest: 0.4 mm² leaning to 1° — no single layer explains it.",
-        "Measured with the ring as built: 12 CAD parts (7 joined, 5 cut), 901.7 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Extrude \"Raise the tracery: the oculus order, eight mullions, the heads and the outer order\" (#6) would undercut a two-part pull over 36.9 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Sink the eight cusped spandrels deep\" (#7) would undercut a two-part pull over 133.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Sink the eight lancet lights deep\" (#8) would undercut a two-part pull over 72.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Raise the spokes over the tracery\" (#82) would undercut a two-part pull over 15.8 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Measured with the ring as built: 15 CAD parts (5 joined, 10 cut), 638.2 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Extrude \"Sink the eight cusped spandrels deep\" (#7) would undercut a two-part pull over 122.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Sink the eight lancet lights deep\" (#8) would undercut a two-part pull over 65.8 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Extrude \"Raise the corner trefoils as carved bosses\" (#92) would undercut a two-part pull over 8.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Extrude \"Oculus collet: raise the lip to the bearing\" (#13) would undercut a two-part pull over 5.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Extrude \"Oculus collet: stand the bearing on the metal\" (#16) would undercut a two-part pull over 2.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Extrude \"Drill the oculus pilot to the finger\" (#17) would undercut a two-part pull over 17.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Stand the gallery panel on the cheek\" (#21) would undercut a two-part pull over 0.6 mm² (worst -6°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Mirror \"The same panel on the far cheek\" (#22) would undercut a two-part pull over 0.5 mm² (worst -6°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Cut the gallery arcade into the cheek\" (#25) would undercut a two-part pull over 4.1 mm² (worst -5°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Mirror \"The same arcade in the far cheek\" (#26) would undercut a two-part pull over 4.1 mm² (worst -5°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Lost wax: Piercing \"Sink oculus of the nave 1\" (#18) would undercut a two-part pull over 4.4 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Sink oculus of the nave 2\" (#19) would undercut a two-part pull over 3.7 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Sink oculus of the nave 3\" (#20) would undercut a two-part pull over 3.0 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Sink oculus of the nave 4\" (#21) would undercut a two-part pull over 2.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"Mirror the oculi through the crown\" (#22) would undercut a two-part pull over 12.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Stand the gallery panel on the cheek\" (#25) would undercut a two-part pull over 1.0 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"The same panel on the far cheek\" (#26) would undercut a two-part pull over 1.0 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Cut the gallery arcade into the cheek\" (#29) would undercut a two-part pull over 4.4 mm² (worst -5°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"The same arcade in the far cheek\" (#30) would undercut a two-part pull over 4.4 mm² (worst -5°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "field_verdict": "Castable",
       "investment_min_section_mm": 0.8,
       "made_part_self_crossings": [
-        [
-          "Raise the tracery: the oculus order, eight mullions, the heads and the outer order",
-          0
-        ],
         [
           "Sink the eight cusped spandrels deep",
           0
         ],
         [
           "Sink the eight lancet lights deep",
-          0
-        ],
-        [
-          "Raise the spokes over the tracery",
           0
         ],
         [
@@ -522,6 +522,26 @@
         ],
         [
           "Drill the oculus pilot to the finger",
+          0
+        ],
+        [
+          "Sink oculus of the nave 1",
+          0
+        ],
+        [
+          "Sink oculus of the nave 2",
+          0
+        ],
+        [
+          "Sink oculus of the nave 3",
+          0
+        ],
+        [
+          "Sink oculus of the nave 4",
+          0
+        ],
+        [
+          "Mirror the oculi through the crown",
           0
         ],
         [
@@ -567,15 +587,15 @@
           384,
           160
         ],
-        "faces": 134538,
+        "faces": 143796,
         "limit_mm": 0.8,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
         "rays": 384,
-        "sampled_min_mm": 0.8499998843788665,
+        "sampled_min_mm": 0.8498704449192677,
         "unresolved": 0
       },
       "thinnest_wall_mm": 1.878189115992754,
-      "triangles": 1299138,
+      "triangles": 1345930,
       "vertices_inside_bore": 0,
       "watertight": true
     },
@@ -587,7 +607,7 @@
     },
     "traced_lights": 17
   },
-  "grams_gold_18k": 37.690843296763845,
+  "grams_gold_18k": 35.019139197495264,
   "name": "Rosa — the west rose",
   "process": "Lost wax",
   "size": "US 8.6"

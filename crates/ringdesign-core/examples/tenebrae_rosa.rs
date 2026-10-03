@@ -46,6 +46,8 @@ const BAR_MM: f64 = 1.0;
 const LIFT_MM: f64 = 1.5;
 /// How proud of the table the tracery stands, mm.
 const TRACERY_MM: f64 = 0.9;
+/// The rose is cut down into the stock's own face rather than raised over it: the tracery is the face itself.
+const RAISED_TRACERY: bool = false;
 /// The tracery's walls lean out toward the table by this much, so each bar reads as a moulding, degrees.
 const TRACERY_DRAFT_DEG: f64 = 0.0;
 /// The ruby's feature: the part the lights are arrayed round.
@@ -68,7 +70,7 @@ const CORNER_MM: f64 = 1.9;
 const CORNER_AT_MM: f64 = 10.3;
 const CORNER_RISE_MM: f64 = 0.6;
 /// How deep the lancet lights sink: deep enough to read as dark glass, mm.
-const LIGHT_SINK_MM: f64 = 1.9;
+const LIGHT_SINK_MM: f64 = 2.2;
 /// The raised tracery runs this far into the table under it, mm.
 const TRACERY_FOOT_MM: f64 = 0.1;
 /// The outer order's width outside the net's outer circle, mm.
@@ -80,7 +82,7 @@ const CUSP_SAG_MM: f64 = knob_const(0.55);
 /// How deep the petals sink below the table, mm.
 const PETAL_SINK_MM: f64 = 0.5;
 /// How far below the table the spandrels are sunk, mm.
-const SPANDREL_MM: f64 = 1.9;
+const SPANDREL_MM: f64 = 2.2;
 /// How far below the table the pilots are opened: past the bore under the head, mm.
 const PIERCE_MM: f64 = 7.5;
 
@@ -123,17 +125,17 @@ const RUBY_PILOT_START_MM: f64 = 0.25;
 
 /// The head walls' blind arcades: each lancet's height, width, how deep it is sunk, its centre's height over the
 /// finger's axis, and the lancets' centres along the wall, mm.
-const ARCADE_H_MM: f64 = 1.7;
+const ARCADE_H_MM: f64 = 2.0;
 /// The arcades are struck only once their stamps hold on the stock's walls.
 const WITH_ARCADES: bool = false;
-const ARCADE_W_MM: f64 = 1.0;
+const ARCADE_W_MM: f64 = 1.1;
 const ARCADE_SINK_MM: f64 = 0.35;
-const ARCADE_Y_MM: f64 = 11.4;
+const ARCADE_Y_MM: f64 = 11.3;
 const _ARCADE_Y_ALT: f64 = 0.0;
 const ARCADE_AT: [f64; 5] = [-4.6, -2.3, 0.0, 2.3, 4.6];
 /// The cut arcade: its lancets' centres round the ring, the plane it is drawn on outside the cheek and the plane its floor
 /// reaches along the finger, mm.
-const ARCADE_X: [f64; 3] = [-1.85, 0.0, 1.85];
+const ARCADE_X: [f64; 3] = [-2.0, 0.0, 2.0];
 const ARCADE_PLANE_MM: f64 = 9.7;
 /// How far the arcade cuts in from its plane, square to the cheek, and the cheek's lean from upright, mm and degrees.
 const ARCADE_CUT_MM: f64 = 0.95;
@@ -141,8 +143,8 @@ const ARCADE_CUT_MM: f64 = 0.95;
 /// margin it keeps round the lancets, mm.
 const PANEL_FACE_MM: f64 = 9.45;
 const PANEL_DEPTH_MM: f64 = 2.0;
-const PANEL_HALF_W_MM: f64 = 3.2;
-const PANEL_MARGIN_MM: f64 = 0.9;
+const PANEL_HALF_W_MM: f64 = 3.6;
+const PANEL_MARGIN_MM: f64 = 0.85;
 const ARCADE_LEAN_DEG: f64 = 6.2;
 /// The nave's oculi on each shoulder: degrees off the crown and widths, graded toward the palm.
 /// The shoulder oculi are moulded rings standing on the shoulder, which is too thin to pierce: their rise, how far
@@ -151,7 +153,9 @@ const OCULUS_RISE_MM: f64 = 0.4;
 /// The drilled oculi start this far from the finger's axis and run this far in, mm.
 const OCULUS_FROM_MM: f64 = 14.5;
 /// The shoulder oculi stay off: the stock's shoulders over its hollowed head are too thin to pierce or sink at 0.8 mm.
-const WITH_OCULI: bool = false;
+const WITH_OCULI: bool = true;
+/// How deep the shoulder oculi are sunk along the shoulder's normal, mm.
+const OCULUS_SINK_DEEP_MM: f64 = 0.6;
 const OCULUS_DRILL_MM: f64 = 6.5;
 const OCULUS_SINK_MM: f64 = 0.6;
 const OCULUS_RING_MM: f64 = 0.85;
@@ -757,6 +761,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     let lights = rose.lights;
     let rose_lands = rose.lands;
     doc.append(feature(3, "Rose net traced into lights a bar apart", Operation::Sketch { sketch: rose.sketch }, none()))?;
+    if RAISED_TRACERY {
     doc.append(feature(4, "Tracery top", table_plane(TRACERY_MM), none()))?;
     let mut bar_sketch = rose.bar_sketch;
     bar_sketch.plane.on_face = Some(FaceAnchor { feature: 4, face: cad::FaceRef::bare(0) });
@@ -767,6 +772,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
         Operation::Extrude { sketch: Profile::Region { feature: 5, region: rose.bars }, height_mm: -(TRACERY_MM + TRACERY_FOOT_MM), draft_deg: knob("ROSA_TD", TRACERY_DRAFT_DEG) },
         Component { attach: Attach::Join, stage: Stage::Cast, blend_mm: knob("ROSA_TB", 0.0), ..none() },
     ))?;
+    }
     doc.append(feature(
         7,
         "Sink the eight cusped spandrels deep",
@@ -779,6 +785,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
         Operation::Extrude { sketch: Profile::Regions { feature: 3, regions: rose.petals.clone() }, height_mm: -(LIFT_MM + LIGHT_SINK_MM), draft_deg: 0.0 },
         cut(),
     ))?;
+    if RAISED_TRACERY {
     doc.append(feature(SPOKE_ID, "Spoke tops", table_plane(TRACERY_MM + SPOKE_RISE_MM), none()))?;
     doc.append(feature(SPOKE_ID + 1, "Eight spokes along the mullions", Operation::Sketch { sketch: spokes(SPOKE_ID) }, none()))?;
     doc.append(feature(
@@ -787,6 +794,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
         Operation::Extrude { sketch: Profile::Feature { feature: SPOKE_ID + 1 }, height_mm: -(SPOKE_RISE_MM + OVERLAP_MM), draft_deg: knob("ROSA_SD", SPOKE_DRAFT_DEG) },
         Component { attach: Attach::Join, stage: Stage::Cast, ..none() },
     ))?;
+    }
     doc.append(feature(CORNER_ID, "Corner boss height", table_plane(CORNER_RISE_MM), none()))?;
     doc.append(feature(CORNER_ID + 1, "Four corner trefoils", Operation::Sketch { sketch: corner_trefoils(CORNER_ID) }, none()))?;
     doc.append(feature(
@@ -824,9 +832,9 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     for (k, (off, w)) in OCULI.iter().enumerate().filter(|_| WITH_OCULI) {
         doc.append(feature(
             id,
-            &format!("Pierce oculus of the nave {} toward the finger", k + 1),
-            Operation::Extrude { sketch: Profile::Inline(oculus_hole(90.0 - off, *w)), height_mm: OCULUS_DRILL_MM, draft_deg: 0.0 },
-            cut(),
+            &format!("Sink oculus of the nave {}", k + 1),
+            Operation::Builder { key: builders::PIERCE.into(), on: None, params: json!({"shape": "Round", "width_mm": w, "length_mm": w, "through": false, "depth_mm": knob("ROSA_OD", OCULUS_SINK_DEEP_MM), "chamfer_mm": knob("ROSA_OCH", 0.15)}) },
+            Component { placement: Placement::ring(90.0 - off, 0.0), ..builders::component(builders::PIERCE) },
         ))?;
         id += 1;
     }
@@ -835,7 +843,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
         id,
         "Mirror the oculi through the crown",
         Operation::Pattern { sources: cad::pattern::Sources((first_oculus..id).collect()), kind: PatternKind::Mirror { plane: cad::MirrorPlane::Section { theta_deg: 90.0 } } },
-        cut(),
+        builders::component(builders::PIERCE),
     ))?;
     }
     // The gallery of kings: a blind arcade of pointed lancets cut into each cheek along the finger, mirrored across the band.
@@ -961,7 +969,7 @@ fn antiqued(m: &mesh::Mesh, table_y: f64) -> (mesh::Mesh, mesh::Mesh) {
         let z = ((a[2] + b[2] + c[2]) / 3.0).abs();
         // The gallery's lancets: their floors and walls behind the panel's face.
         let lancet = x.abs() < PANEL_HALF_W_MM - 0.3 && (y - ARCADE_Y_MM).abs() < 0.5 * ARCADE_H_MM + 0.05 && z > 8.0 && z < PANEL_FACE_MM - 0.15;
-        lancet || (r < R_OUT + CUSP_SAG_MM + RING_MM - 0.05 && y < table_y + TRACERY_MM - 0.05 && y > table_y - 3.0)
+        lancet || (r < R_OUT + CUSP_SAG_MM + RING_MM - 0.05 && y < table_y + if RAISED_TRACERY { TRACERY_MM } else { 0.0 } - 0.05 && y > table_y - 3.0)
     };
     let mut bright = mesh::Mesh { vertices: m.vertices.clone(), normals: m.normals.clone(), ..mesh::Mesh::default() };
     let mut dark = bright.clone();
