@@ -1,0 +1,12 @@
+{
+  "ring": "prunus",
+  "option": "wax-calyx",
+  "test": 2,
+  "reads": false,
+  "what_the_eye_sees": "A black round cabochon in a bulky collar ringed with blocky teeth, like a gear, a crown bezel or a turret, sitting on a smooth gold band. A short gnarled stick runs across the face from shoulder to shoulder, with a stubby straight spike at each end and a tiny lumpy flower or two near the ends. At 300 px the flowers are specks and the spikes look like pins or rivets, not thorns. It reads as a steampunk or mechanical setting with a twig laid over it. A jeweller would say 'black pearl or onyx on a branch' and would not name blackthorn or sloe. The toothed calyx is the strongest form on the ring, and it argues against the plant.",
+  "changes": [
+    "Calyx collar around the 7.0 onyx: get rid of the even, square-topped gear teeth. Cut it down to 5 short, pointed sepals that lie back against the stone, about 1.2 mm long and tapering to a point. Drop the collar's outer wall height by about half so the sloe sits up as a round, bare berry on its twig instead of inside a crown. Acceptance: in face-300 nobody reads the seat as a gear or crown bezel.",
+    "Spurs: make the thorns the blackthorn's signature. Replace the two stubby end pins with 3 to 4 graded, long, tapering spurs per side, running out from the twig at about 30 to 50 degrees to it and reaching 4 to 6 mm, the longest near the stone. Each spur should end in a sharp point that shows against the black background in both views. Acceptance: in hero-300 the spurs read as thorns, not rivets or pins.",
+    "Twig and flowers: make the stick across the face visibly a twig with clear nodes (about 2 to 3 per side), and either enlarge the blossoms to at least 2.5 mm with five separated, rounded petals (2 to 3 of them, clustered at nodes) or drop them in favour of 2 small oval serrated leaves per side. Acceptance: at 300 px each blossom resolves as a five-petal flower, not a lump."
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "ring": "prunus",
+  "option": "wax-twig-calyx",
+  "test": 3,
+  "reads": false,
+  "what_the_eye_sees": "A black pearl in a four-claw setting perched on a knobbly gold twig, with a scatter of tiny five-petal flowers and a handful of straight, blunt rods sticking out of the twig like nails or matchsticks. It says 'flowering branch with a black pearl', not a named plant. The rods are the same thickness from root to end, so they read as pins, not thorns. The stone is glossy, with a hot specular highlight, and is held by claws, so it reads as a pearl, not a sloe. The blossoms are tiny and in the same gold as everything else, so they read as filler texture, not white blossom on black wood. A botanist might guess hawthorn or blackthorn. A jeweller shown this cold would not say blackthorn.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the spurs into real thorns: tapered and sharp, growing out of the twig at an acute angle",
+      "where": "All spurs on both shoulders (the long and short spur extrudes and their ring patterns)",
+      "by_how_much": "Base diameter 0.6 to 0.7 mm, tapering to a tip of 0.1 mm or less (draft about 12 to 14 degrees instead of 7 to 8). Lean every spur 30 to 45 degrees from the twig axis, pointing toward the twig tips, with none standing near-perpendicular. Grade the lengths clearly: long spurs 3.0 mm, short spurs 1.5 mm. Acceptance: at 300 px every spur ends in a visible point and no spur reads as a rod of constant thickness."
+    },
+    {
+      "priority": 2,
+      "what": "Make the stone read as a sloe, not a pearl: drop the claws for a calyx and stalk, and give it a matte bloom",
+      "where": "The face stone and its setting",
+      "by_how_much": "Replace the four claws with a low five-sepal calyx cup no more than 1 mm tall, plus a short 1.5 to 2 mm stalk joining the twig. Render the onyx with a frosted, dusty blue-grey bloom (high roughness, about 0.5 or more) so the hot point highlight is gone. Acceptance: in the hero, the stone looks like a dull blue-black fruit hanging from the twig, not a polished pearl."
+    },
+    {
+      "priority": 3,
+      "what": "Make 'white blossom on bare black wood' visible: fewer, bigger blossoms set against dark bark",
+      "where": "Blossoms on the twig and cheeks; the twig and bark finish",
+      "by_how_much": "Cut the blossoms to 2 or 3 per side and enlarge them to 3.0 mm with distinct round petals and a set diamond centre. Oxidise or blacken the twig and bark recesses so the polished blossoms stand out with clear tonal contrast. Acceptance: each blossom reads as a separate five-petal flower at 300 px, brighter than the wood behind it."
+    }
+  ]
+}

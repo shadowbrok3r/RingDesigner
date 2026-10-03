@@ -23,24 +23,26 @@ type P3 = [f64; 3];
 
 /// How far a spur bends along its run, mm per mm squared.
 const SPUR_BEND: f64 = 0.03;
+/// A spur's point: its radius where the round cap closes it, the investment's detail floor across.
+const SPUR_POINT_R: f64 = 0.1;
 /// The lost-wax floors: Logan's 0.8 mm section, investment's 0.15 mm detail.
 const MIN_SECTION_MM: f64 = 0.8;
 
 /// The house's finish: the twig's oxidised wood, its deep fissures, the calyx's half-dark, and the sloe's bloom.
-const WOOD_TINT: [f32; 3] = [0.20, 0.14, 0.065];
-const WOOD_DEEP_TINT: [f32; 3] = [0.07, 0.05, 0.025];
+const WOOD_TINT: [f32; 3] = [0.11, 0.075, 0.036];
+const WOOD_DEEP_TINT: [f32; 3] = [0.035, 0.025, 0.013];
 const CALYX_TINT: [f32; 3] = [0.11, 0.075, 0.035];
 const ANTIQUE_MID: [f32; 3] = [0.42, 0.31, 0.14];
 const ANTIQUE_DARK: [f32; 3] = [0.10, 0.07, 0.035];
-const SLOE_TINT: [f32; 3] = [0.018, 0.02, 0.034];
+const SLOE_TINT: [f32; 3] = [0.05, 0.056, 0.08];
 const ANTIQUE_PASSES: usize = 40;
 const ANTIQUE_SHALLOW_MM: f64 = 0.015;
 const ANTIQUE_DEEP_MM: f64 = 0.04;
 
-/// How the sloe is held: a low collet with a small calyx at its stalk, or five sepals and a cup with no collet.
+/// How the sloe is held: four low claws with a small calyx at its stalk, or five sepals and a cup with no collet.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
 enum Hold {
-    Collet,
+    Claws,
     Calyx,
 }
 
@@ -64,9 +66,9 @@ struct Opt {
 }
 
 const OPTIONS: [Opt; 3] = [
-    Opt { slug: "wax-twig", base: "012", layout: Layout::Diagonal, hold: Hold::Collet, sloe_xz: [-0.4, -2.35], sloe_mm: 5.6, sloe_rise_mm: 0.55 },
-    Opt { slug: "wax-calyx", base: "013", layout: Layout::Shoulders, hold: Hold::Calyx, sloe_xz: [-0.5, -0.3], sloe_mm: 6.4, sloe_rise_mm: 0.9 },
-    Opt { slug: "wax-twig-calyx", base: "013", layout: Layout::Diagonal, hold: Hold::Calyx, sloe_xz: [-0.3, -2.2], sloe_mm: 5.6, sloe_rise_mm: 0.85 },
+    Opt { slug: "wax-twig", base: "012", layout: Layout::Diagonal, hold: Hold::Claws, sloe_xz: [-0.4, -2.35], sloe_mm: 5.6, sloe_rise_mm: 0.6 },
+    Opt { slug: "wax-calyx", base: "013", layout: Layout::Shoulders, hold: Hold::Calyx, sloe_xz: [-0.5, -0.3], sloe_mm: 6.2, sloe_rise_mm: 0.5 },
+    Opt { slug: "wax-twig-calyx", base: "013", layout: Layout::Diagonal, hold: Hold::Calyx, sloe_xz: [-0.3, -2.2], sloe_mm: 5.6, sloe_rise_mm: 0.5 },
 ];
 
 fn draft_params() -> BuildParams {
@@ -388,13 +390,13 @@ fn spur_solid(foot: P3, dir: P3, bend: P3, skin_mm: f64, length: f64, base_r: f6
             add(foot, add(mul(dir, t), mul(bend, SPUR_BEND * past * past)))
         })
         .collect();
-    let tip_r = 0.5 * MIN_SECTION_MM + 0.03;
     tube(&path, 20, |i, a| {
         let t = total * i as f64 / steps as f64;
         let past = (t - skin_mm).max(0.0);
         let u = (past / length).clamp(0.0, 1.0);
-        let core = lerp(base_r, tip_r, u.powf(0.8));
-        let flare = 0.38 * (1.0 - smooth01(past / 0.9)).powi(2);
+        // A straight cone from the base to a sharp point a detail's width across, slightly convex near the root.
+        let core = lerp(base_r, SPUR_POINT_R, u.powf(0.9));
+        let flare = 0.42 * (1.0 - smooth01(past / 1.0)).powi(2);
         let wood = if u < 0.5 { 0.6 * bark(t, a * core, seed) * (1.0 - u * 2.0) } else { 0.0 };
         core + flare + wood
     }, true)
@@ -418,9 +420,9 @@ fn blossom_solid(diameter: f64, sink: f64, turn: f64) -> csg::Solid {
         let (_, petal) = outline(phi);
         let dome = 0.36 * (1.0 - u * u).max(0.0).sqrt() * (0.5 + 0.5 * petal);
         // Each petal cups: its rim lifts a little over its middle.
-        let cup = 0.10 * smooth01((u - 0.55) / 0.4) * petal;
-        let heart = 0.28 * (1.0 - smooth01(u / 0.24));
-        let stamens = 0.12 * (1.0 - smooth01((u - 0.33).abs() / 0.07)) * (0.5 + 0.5 * (10.0 * (phi - turn)).cos()).powi(6);
+        let cup = 0.17 * smooth01((u - 0.55) / 0.4) * petal;
+        let heart = 0.36 * (1.0 - smooth01(u / 0.22));
+        let stamens = 0.17 * (1.0 - smooth01((u - 0.33).abs() / 0.07)) * (0.5 + 0.5 * (10.0 * (phi - turn)).cos()).powi(6);
         margin + dome + cup + heart + stamens
     };
     let mut s = csg::Solid::default();
@@ -494,11 +496,11 @@ fn sepal_solid(f: &SloeFrame, centre_deg: f64, half_deg: f64, reach: f64) -> csg
     let ey = cross(f.normal, ex);
     let at = |v: f64, w: f64, out: f64| -> P3 {
         let z = lerp(z0, z1, v);
-        let tip = (1.0 - v.powi(2)).max(0.0).sqrt();
-        let half = (half_deg.to_radians() * (0.35 + 0.65 * tip) * (1.0 - 0.15 * v)).max(0.5 / (f.radius + 0.5));
+        let tip = (1.0 - v.powf(1.2)).max(0.0).powf(0.8);
+        let half = (half_deg.to_radians() * (0.35 + 0.65 * tip) * (1.0 - 0.15 * v)).max(0.07 / (f.radius + 0.5));
         let phi = centre_deg.to_radians() + w * half;
         let rib = 0.12 * (1.0 - w * w) * (1.0 - v);
-        let r = dome_r(f, z.max(0.0)) + 0.03 + out * (MIN_SECTION_MM + 0.04 + rib);
+        let r = dome_r(f, z.max(0.0)) + 0.03 + out * (lerp(MIN_SECTION_MM + 0.04, 0.42, v.powf(1.5)) + rib);
         // At the top the sepal's back curls in a little onto the fruit.
         add(f.girdle, add(mul(f.normal, z + out * 0.15 * v * v), add(mul(ex, r * phi.cos()), mul(ey, r * phi.sin()))))
     };
@@ -662,13 +664,15 @@ fn twig_stations(o: &Opt, g: &Ground) -> Vec<(String, Vec<(f64, f64)>, [bool; 2]
             // A line over the table clear of the sloe by its radius, the twig's and a hair's gap, running from the
             // left shoulder over the head to the right, easing back to the band's middle down each shoulder.
             let slope = 0.55_f64;
-            let clear = 0.5 * o.sloe_mm + 1.15 + 0.2;
+            let clear = 0.5 * o.sloe_mm + 1.15 + 1.3;
             let c = o.sloe_xz[1] - slope * o.sloe_xz[0] + clear * (1.0 + slope * slope).sqrt();
             let mut st = Vec::new();
             let mut th = 152.0;
             while th >= 28.0 {
                 let x = x_of(th).clamp(-6.5, 6.5);
-                let line = (slope * x + c).clamp(-3.6, 3.6);
+                // Bowed away round the fruit, so the twig curves about it.
+                let bow = 0.6 * (-((x - o.sloe_xz[0]) / 3.0).powi(2)).exp();
+                let line = (slope * x + c + bow).clamp(-3.7, 3.7);
                 let off = smooth01(((th - 90.0).abs() - 24.0) / 26.0);
                 st.push((th, lerp(line, 0.25 * (th - 90.0).signum() * -1.0, off)));
                 th -= 0.5;
@@ -763,8 +767,8 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
     info.sloe = json!({"diameter_mm": o.sloe_mm, "centre_xz": o.sloe_xz, "girdle": girdle, "rise_mm": o.sloe_rise_mm, "crown_mm": frame.crown, "hold": o.hold});
 
     match o.hold {
-        Hold::Collet => {
-            doc.append(builders::feature_on(id, "Sloe collet", builders::BEZEL, stone_id, json!({"wall_mm": 0.8, "lip": 0.12})))?;
+        Hold::Claws => {
+            doc.append(builders::feature_on(id, "Sloe claws", builders::CLAW, stone_id, json!({"prongs": 4, "wire_mm": 0.8})))?;
             id += 1;
             // A small calyx where the stalk meets the fruit: three short sepals over the collet's stalk side.
             for (k, off) in [-34.0, 0.0, 34.0].into_iter().enumerate() {
@@ -779,13 +783,8 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
             id += 1;
             for k in 0..5 {
                 let at = 36.0 + 72.0 * k as f64 + 9.0 * (skin::hash(k, 5) - 0.5);
-                let s = sepal_solid(&frame, at, 26.0, 0.30 + 0.06 * skin::hash(k, 9));
+                let s = sepal_solid(&frame, at, 21.0, 0.36 + 0.06 * skin::hash(k, 9));
                 doc.append(Feature { id, name: format!("Calyx sepal {}", k + 1), enabled: true, operation: stored_op(&s, "sepal", json!({"at_deg": at}))?, component: cast_part(0.0) })?;
-                id += 1;
-                // Between the sepals that clasp the fruit, five more spread out flat over the table, a star under it.
-                let star = at + 36.0;
-                let leaf = flared_sepal(&frame, star, o.sloe_rise_mm, 1.7 + 0.4 * skin::hash(k, 11));
-                doc.append(Feature { id, name: format!("Calyx star sepal {}", k + 1), enabled: true, operation: stored_op(&leaf, "star_sepal", json!({"at_deg": star}))?, component: cast_part(0.0) })?;
                 id += 1;
             }
         }
@@ -793,10 +792,10 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
     // The stalk: from the twig, arching up and over to the fruit's shoulder under its calyx.
     {
         let end = match o.hold {
-            Hold::Collet => add(girdle, add(mul(to_stalk, frame.radius + 0.25), mul(normal, -0.2))),
+            Hold::Claws => add(girdle, add(mul(to_stalk, frame.radius + 0.25), mul(normal, -0.2))),
             Hold::Calyx => add(girdle, add(mul(to_stalk, frame.radius * 0.55), mul(normal, -0.55 - o.sloe_rise_mm * 0.5))),
         };
-        let mid = add(mul(add(stalk_from, end), 0.5), mul(normal, if o.hold == Hold::Collet { 0.55 } else { -0.3 }));
+        let mid = add(mul(add(stalk_from, end), 0.5), mul(normal, if o.hold == Hold::Claws { 0.55 } else { -0.3 }));
         let mut pts = Vec::new();
         for k in 0..=40 {
             let t = k as f64 / 40.0;
@@ -821,64 +820,77 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
         info.twigs.push(json!({"name": t.name, "length_mm": 0.1 * (t.path.len() - 1) as f64, "nodes": t.nodes.len(), "radius_mm": [t.radius.iter().copied().fold(f64::MAX, f64::min), t.radius.iter().copied().fold(0.0, f64::max)]}));
         // Spurs at the nodes, turned every way round the twig and leaning toward one end or the other; every third
         // node carries a blossom instead.
-        let turns = [72.0, -64.0, 18.0, -80.0, 48.0, -30.0, 80.0, -12.0, 60.0, -74.0];
+        let total = 0.1 * (t.path.len() - 1) as f64;
+        let mut spur_no = 0;
         for (k, &node) in t.nodes.iter().enumerate() {
             let (tg, up, side) = frame_at(t, node);
             let c = t.path[node];
             let r = t.radius[node];
             let on_face = c[1] > g.top - 0.2;
-            if k % 3 != 2 {
-                let lean = 22.0 + 30.0 * skin::hash(k as i64, seed + 2);
-                let lean_sign = if skin::hash(k as i64, seed + 6) < 0.5 { 1.0 } else { -1.0 };
-                let length = if on_face { 3.2 + 1.6 * skin::hash(k as i64, seed + 4) } else { 2.4 + 1.2 * skin::hash(k as i64, seed + 4) };
-                let mut phi: f64 = turns[(k + ti * 3) % turns.len()];
-                if !on_face {
-                    phi = phi.clamp(-50.0, 50.0);
-                }
+            if k % 2 == 0 {
+                // Spurs leave the wood at an acute angle, pointing toward the nearer tip of the twig, turned out to
+                // one side then the other, long and short in turn.
+                let long = spur_no % 2 == 0;
+                spur_no += 1;
+                let flank = if (k / 2) % 2 == 0 { 1.0 } else { -1.0 };
+                let mut phi: f64 = flank * if on_face { 58.0 + 22.0 * skin::hash(k as i64, seed + 8) } else { 30.0 + 15.0 * skin::hash(k as i64, seed + 8) };
+                let lean = 48.0 + 12.0 * skin::hash(k as i64, seed + 2);
+                let toward = if 0.1 * node as f64 > 0.5 * total { 1.0 } else { -1.0 };
+                let length = match (on_face, long) {
+                    (true, true) => 3.9 + 0.8 * skin::hash(k as i64, seed + 4),
+                    (true, false) => 2.0 + 0.5 * skin::hash(k as i64, seed + 4),
+                    (false, true) => 3.0 + 0.6 * skin::hash(k as i64, seed + 4),
+                    (false, false) => 1.8 + 0.4 * skin::hash(k as i64, seed + 4),
+                };
                 let mut placed_ok = None;
                 for _ in 0..4 {
                     let out = add(mul(up, phi.to_radians().cos()), mul(side, phi.to_radians().sin()));
-                    let dir = unit(add(mul(out, lean.to_radians().cos()), mul(tg, lean_sign * lean.to_radians().sin())));
+                    let dir = unit(add(mul(out, lean.to_radians().cos()), mul(tg, toward * lean.to_radians().sin())));
                     let tip = add(c, mul(dir, r + length));
-                    let clear = keep_clear(tip, 0.5) && keep_clear(add(c, mul(dir, r + 0.5 * length)), 0.5);
-                    let above = g.under(tip).is_none_or(|(gp, gn)| dot(sub(tip, gp), gn) > 0.45);
+                    let clear = keep_clear(tip, 0.3) && keep_clear(add(c, mul(dir, r + 0.5 * length)), 0.4);
+                    let above = g.under(tip).is_none_or(|(gp, gn)| dot(sub(tip, gp), gn) > 0.3);
                     if clear && above {
                         placed_ok = Some((dir, tip));
                         break;
                     }
-                    phi *= 0.55;
+                    phi *= 0.6;
                 }
                 let Some((dir, tip)) = placed_ok else { continue };
-                let bend = mul(tg, lean_sign);
+                let bend = mul(tg, toward);
                 let s = spur_solid(c, dir, bend, r, length, 0.6, seed * 100 + k as i64);
                 doc.append(Feature { id, name: format!("Spur {} on the {}", k + 1, t.name.to_lowercase()), enabled: true, operation: stored_op(&s, "spur", json!({"length_mm": length, "turn_deg": phi, "lean_deg": lean}))?, component: cast_part(0.0) })?;
                 id += 1;
-                let steps = 24;
+                let steps = 30;
                 for j in 0..=steps {
                     let q = (r + length) * j as f64 / steps as f64;
                     let past = (q - r).max(0.0);
-                    info.marks.push(Mark::Wood(add(c, add(mul(dir, q), mul(bend, SPUR_BEND * past * past))), 1.0));
+                    info.marks.push(Mark::Wood(add(c, add(mul(dir, q), mul(bend, SPUR_BEND * past * past))), 1.05));
                 }
-                info.spurs.push(json!({"twig": t.name, "node": k, "length_mm": length, "turn_deg": phi, "lean_deg": lean, "tip": tip}));
+                info.spurs.push(json!({"twig": t.name, "node": k, "length_mm": length, "turn_deg": phi, "lean_deg": lean, "tip": tip, "point_r_mm": SPUR_POINT_R}));
             } else {
-                // A blossom perched on the wood, turned a little to one side.
-                let dia = if on_face { 3.3 } else { 2.7 };
-                let flank = if (k / 3) % 2 == 0 { 1.0 } else { -1.0 };
-                let nrm = unit(add(mul(up, 1.0), mul(side, flank * 0.3)));
-                let p = add(c, mul(nrm, r * 0.72));
-                if !keep_clear(p, 0.5 * dia) || blossom_at.iter().any(|(q, rr)| len(sub(*q, p)) < rr + 0.5 * dia + 0.2) {
-                    continue;
+                // A pair of blossoms on the wood at the node, one each side, the second a little smaller and further on.
+                let dia = if on_face { 3.5 } else { 3.0 };
+                let flank = if (k / 2) % 2 == 0 { -1.0 } else { 1.0 };
+                for (j, (scale, shift, f)) in [(1.0, 0.0, flank), (0.82, 0.62, -flank)].into_iter().enumerate() {
+                    let dia = dia * scale;
+                    let node2 = ((node as f64 + shift * dia / 0.1).round() as usize).min(t.path.len() - 1);
+                    let (tg2, up2, side2) = frame_at(t, node2);
+                    let nrm = unit(add(up2, mul(side2, f * 0.45)));
+                    let p = add(t.path[node2], mul(nrm, t.radius[node2] * 0.7));
+                    if !keep_clear(p, 0.5 * dia) || blossom_at.iter().any(|(q, rr)| len(sub(*q, p)) < rr + 0.5 * dia - 0.1) {
+                        continue;
+                    }
+                    let s = placed(blossom_solid(dia, 0.55, 0.3 * k as f64 + j as f64), p, tg2, nrm);
+                    blossom_at.push((p, 0.5 * dia));
+                    info.marks.push(Mark::Blossom(p, nrm, 0.5 * dia));
+                    doc.append(Feature { id, name: format!("Blossom {}{} on the {}", k + 1, ["a", "b"][j], t.name.to_lowercase()), enabled: true, operation: stored_op(&s, "blossom", json!({"diameter_mm": dia}))?, component: cast_part(0.0) })?;
+                    id += 1;
+                    info.blossoms.push(json!({"twig": t.name, "node": k, "diameter_mm": dia, "at": p}));
                 }
-                let s = placed(blossom_solid(dia, 0.55, 0.3 * k as f64), p, tg, nrm);
-                blossom_at.push((p, 0.5 * dia));
-                info.marks.push(Mark::Blossom(p, nrm, 0.5 * dia));
-                doc.append(Feature { id, name: format!("Blossom {} on the {}", k + 1, t.name.to_lowercase()), enabled: true, operation: stored_op(&s, "blossom", json!({"diameter_mm": dia}))?, component: cast_part(0.0) })?;
-                id += 1;
-                info.blossoms.push(json!({"twig": t.name, "node": k, "diameter_mm": dia, "at": p}));
             }
         }
     }
-    info.marks.push(Mark::Calyx(girdle, normal, frame.radius + 2.6));
+    info.marks.push(Mark::Calyx(girdle, normal, frame.radius + 1.05));
     d.cad = Some(doc);
     Ok((d, lib, info))
 }
@@ -1151,7 +1163,7 @@ fn finish_classes(m: &mesh::Mesh, marks: &[Mark]) -> Vec<u8> {
                 if let Mark::Calyx(c, n, r) = mk {
                     let q = sub(p, *c);
                     let h = dot(q, *n);
-                    if h > -1.2 && len(sub(q, mul(*n, h))) < *r {
+                    if h > -0.75 && len(sub(q, mul(*n, h))) < *r {
                         return 3;
                     }
                 }
@@ -1196,7 +1208,9 @@ fn antiqued(m: &mesh::Mesh, class: &[u8]) -> Vec<(mesh::Mesh, [f32; 3])> {
     let mut out: Vec<(mesh::Mesh, [f32; 3])> = tints.iter().map(|t| (mesh::Mesh { vertices: m.vertices.clone(), normals: m.normals.clone(), ..Default::default() }, *t)).collect();
     for f in &m.faces {
         let h = f.iter().map(|&i| depth[i as usize]).sum::<f64>() / 3.0;
-        let c = f.iter().map(|&i| class.get(i as usize).copied().unwrap_or(0)).max().unwrap_or(0);
+        let cs = f.map(|i| class.get(i as usize).copied().unwrap_or(0));
+        // A face takes a finish only when all its corners do, so a coarse face of the band beside a part stays gold.
+        let c = if cs[0] == cs[1] && cs[1] == cs[2] { cs[0] } else { cs.iter().copied().filter(|&c| c != 0).min().map_or(0, |c| if cs.contains(&0) { 0 } else { c }) };
         let bin = match c {
             0 => if h > ANTIQUE_DEEP_MM { 2 } else if h > ANTIQUE_SHALLOW_MM { 1 } else { 0 },
             1 => if h > 0.02 { 4 } else { 3 },
@@ -1242,7 +1256,8 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
         let mut p = render::Part::tinted_stone(m, t);
         // The sloe is a fruit under its bloom: smooth and dull, never a polished gem.
         p.smooth = true;
-        p.roughness = 0.85;
+        p.roughness = 1.0;
+        p.gem = false;
         p
     };
     let mut parts: Vec<render::Part> = Vec::new();
@@ -1278,7 +1293,10 @@ fn main() -> Result<()> {
     let positional: Vec<&String> = args.iter().enumerate().filter(|(i, a)| !a.starts_with("--") && !(*i > 0 && args[*i - 1] == "--option")).map(|(_, a)| a).collect();
     let out = positional.first().map(PathBuf::from).unwrap_or_else(|| if pick.is_some() { root.join(o.slug) } else { root.clone() });
     std::fs::create_dir_all(&out)?;
-    let (d, lib, info) = author(o)?;
+    let (mut d, lib, info) = author(o)?;
+    if args.iter().any(|a| a == "--bare") {
+        d.cad = None;
+    }
     let params = if draft { draft_params() } else { export_params() };
     let started = std::time::Instant::now();
     let built = mesh::try_build(&d, &lib, params)?;

@@ -4,32 +4,52 @@
     "blossoms": [
       {
         "at": [
-          -5.264066525474702,
-          12.166746964011374,
-          0.19608869855184974
+          -7.4435658011457395,
+          10.329319528717924,
+          0.02539679978184428
         ],
-        "diameter_mm": 3.3,
-        "node": 2,
+        "diameter_mm": 3.0,
+        "node": 1,
         "twig": "Twig over the head"
       },
       {
         "at": [
-          1.267220344811557,
-          12.645303041669779,
-          2.8985322719354594
+          -3.3269547037585068,
+          12.561923944501636,
+          2.808996399857629
         ],
-        "diameter_mm": 3.3,
+        "diameter_mm": 3.5,
+        "node": 3,
+        "twig": "Twig over the head"
+      },
+      {
+        "at": [
+          1.2677958446931976,
+          12.557617380276394,
+          3.3449718102959256
+        ],
+        "diameter_mm": 3.5,
         "node": 5,
         "twig": "Twig over the head"
       },
       {
         "at": [
-          6.849499116121981,
-          9.274867555646054,
-          3.4476227083164037
+          4.772354910748113,
+          10.285994147264061,
+          4.69848697583971
         ],
-        "diameter_mm": 2.7,
-        "node": 8,
+        "diameter_mm": 3.0,
+        "node": 7,
+        "twig": "Twig over the head"
+      },
+      {
+        "at": [
+          8.32190151392372,
+          8.789005817852626,
+          1.3390523194644866
+        ],
+        "diameter_mm": 3.0,
+        "node": 9,
         "twig": "Twig over the head"
       }
     ],
@@ -42,130 +62,99 @@
       "crown_mm": 2.52,
       "diameter_mm": 5.6,
       "girdle": [
-        -0.30016984474069985,
-        12.044998312023898,
-        -2.2014236951482746
+        -0.30009991357961774,
+        11.694998881412266,
+        -2.200796254979188
       ],
       "hold": "Calyx",
-      "rise_mm": 0.85
+      "rise_mm": 0.5
     },
     "spurs": [
       {
-        "lean_deg": 31.573,
-        "length_mm": 3.0726,
+        "lean_deg": 51.8292,
+        "length_mm": 3.3363,
         "node": 0,
+        "point_r_mm": 0.1,
         "tip": [
-          -9.315097967216575,
-          11.104836193778509,
-          1.839207709100231
+          -12.12825988134753,
+          5.904088861751646,
+          1.0467165781111554
         ],
-        "turn_deg": 50.0,
+        "turn_deg": 38.5785,
         "twig": "Twig over the head"
       },
       {
-        "lean_deg": 34.183,
-        "length_mm": 3.25896,
-        "node": 1,
+        "lean_deg": 52.446,
+        "length_mm": 2.2918,
+        "node": 2,
+        "point_r_mm": 0.1,
         "tip": [
-          -6.717450043305268,
-          13.073591677305306,
-          -3.4765062359416814
+          -7.007979656235502,
+          11.7531780295196,
+          -1.544148273889387
         ],
-        "turn_deg": -50.0,
+        "turn_deg": -73.73,
         "twig": "Twig over the head"
       },
       {
-        "lean_deg": 38.17,
-        "length_mm": 3.83888,
-        "node": 3,
-        "tip": [
-          -4.45967235406183,
-          14.516729433948925,
-          -2.922261197971804
-        ],
-        "turn_deg": -44.0,
-        "twig": "Twig over the head"
-      },
-      {
-        "lean_deg": 40.995999999999995,
-        "length_mm": 3.37136,
+        "lean_deg": 55.5984,
+        "length_mm": 3.98568,
         "node": 4,
+        "point_r_mm": 0.1,
         "tip": [
-          0.06354358133824434,
-          14.144835261335356,
-          5.710975490382185
+          -6.652536965935467,
+          12.701419003343933,
+          4.4249245540338435
         ],
-        "turn_deg": 48.0,
+        "turn_deg": 71.409,
         "twig": "Twig over the head"
       },
       {
-        "lean_deg": 26.32,
-        "length_mm": 3.5336000000000003,
+        "lean_deg": 49.728,
+        "length_mm": 2.10425,
         "node": 6,
+        "point_r_mm": 0.1,
         "tip": [
-          4.361808054223336,
-          10.358955806689966,
-          8.291848990957458
+          6.471280205020557,
+          11.534432073478447,
+          2.809675400406947
         ],
-        "turn_deg": 80.0,
+        "turn_deg": -78.2906,
         "twig": "Twig over the head"
       },
       {
-        "lean_deg": 42.34,
-        "length_mm": 2.55264,
-        "node": 7,
+        "lean_deg": 51.804,
+        "length_mm": 3.13098,
+        "node": 8,
+        "point_r_mm": 0.1,
         "tip": [
-          3.9675147001879543,
-          13.558831256326492,
-          5.9016044241526995
+          10.283845423852563,
+          7.342856654574904,
+          2.7319515133690024
         ],
-        "turn_deg": -12.0,
-        "twig": "Twig over the head"
-      },
-      {
-        "lean_deg": 50.623,
-        "length_mm": 3.25092,
-        "node": 9,
-        "tip": [
-          6.838317843626978,
-          12.402382761388516,
-          2.3845982979276656
-        ],
-        "turn_deg": -50.0,
-        "twig": "Twig over the head"
-      },
-      {
-        "lean_deg": 45.439,
-        "length_mm": 3.47484,
-        "node": 10,
-        "tip": [
-          9.489672234371675,
-          9.853209529135864,
-          4.1293154460168795
-        ],
-        "turn_deg": 50.0,
+        "turn_deg": 31.848,
         "twig": "Twig over the head"
       }
     ],
     "twigs": [
       {
-        "length_mm": 25.900000000000002,
+        "length_mm": 25.8,
         "name": "Twig over the head",
-        "nodes": 11,
+        "nodes": 10,
         "radius_mm": [
-          0.7769367703620726,
-          1.3232516805341699
+          0.7771106102582581,
+          1.323609417695076
         ]
       }
     ]
   },
   "base": "Factory 013 native, lost wax",
   "bore_mm": 17.156467704569472,
-  "build_s": 0.628356935,
-  "cad_features": 26,
+  "build_s": 0.650746824,
+  "cad_features": 20,
   "casting_pattern": null,
   "cold_reload_identical": null,
-  "design_bytes": 1043971,
+  "design_bytes": 1117943,
   "design_format": 6,
   "draft": {
     "bore_clear": true,
@@ -184,36 +173,30 @@
     "field_notes": [
       "Lost wax: 0.04% of the surface would undercut a two-part pull (worst 1.0 deg) — fine for investment, but this pattern cannot move to sand as-is.",
       "Undercut 182–182° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
-      "Measured with the ring as built: 24 CAD parts (24 joined, 0 cut), 346.8 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Calyx cup\" (#3) would undercut a two-part pull over 4.5 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx sepal 1\" (#4) would undercut a two-part pull over 6.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx star sepal 1\" (#5) would undercut a two-part pull over 1.1 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx sepal 2\" (#6) would undercut a two-part pull over 5.4 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx star sepal 2\" (#7) would undercut a two-part pull over 1.1 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx sepal 3\" (#8) would undercut a two-part pull over 6.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx star sepal 3\" (#9) would undercut a two-part pull over 1.8 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx sepal 4\" (#10) would undercut a two-part pull over 6.0 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx star sepal 4\" (#11) would undercut a two-part pull over 0.9 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx sepal 5\" (#12) would undercut a two-part pull over 1.9 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Calyx star sepal 5\" (#13) would undercut a two-part pull over 0.2 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Sloe stalk\" (#14) would undercut a two-part pull over 0.3 mm² (worst -35°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Twig over the head\" (#15) would undercut a two-part pull over 22.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Spur 1 on the twig over the head\" (#16) would undercut a two-part pull over 4.4 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Spur 2 on the twig over the head\" (#17) would undercut a two-part pull over 5.8 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Blossom 3 on the twig over the head\" (#18) would undercut a two-part pull over 4.4 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Spur 4 on the twig over the head\" (#19) would undercut a two-part pull over 6.0 mm² (worst -40°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Spur 5 on the twig over the head\" (#20) would undercut a two-part pull over 5.4 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Blossom 6 on the twig over the head\" (#21) would undercut a two-part pull over 8.8 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Spur 7 on the twig over the head\" (#22) would undercut a two-part pull over 4.7 mm² (worst -26°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Spur 8 on the twig over the head\" (#23) would undercut a two-part pull over 4.8 mm² (worst -55°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Blossom 9 on the twig over the head\" (#24) would undercut a two-part pull over 3.7 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Spur 10 on the twig over the head\" (#25) would undercut a two-part pull over 8.0 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Spur 11 on the twig over the head\" (#26) would undercut a two-part pull over 6.5 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Measured with the ring as built: 18 CAD parts (18 joined, 0 cut), 272.5 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Calyx cup\" (#3) would undercut a two-part pull over 4.0 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 1\" (#4) would undercut a two-part pull over 4.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 2\" (#5) would undercut a two-part pull over 3.3 mm² (worst -56°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 3\" (#6) would undercut a two-part pull over 3.6 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 4\" (#7) would undercut a two-part pull over 3.6 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 5\" (#8) would undercut a two-part pull over 3.4 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Sloe stalk\" (#9) would undercut a two-part pull over 1.8 mm² (worst -34°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Twig over the head\" (#10) would undercut a two-part pull over 23.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 1 on the twig over the head\" (#11) would undercut a two-part pull over 2.2 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 2a on the twig over the head\" (#12) would undercut a two-part pull over 4.3 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 3 on the twig over the head\" (#13) would undercut a two-part pull over 2.8 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 4a on the twig over the head\" (#14) would undercut a two-part pull over 7.0 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 5 on the twig over the head\" (#15) would undercut a two-part pull over 2.4 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 6a on the twig over the head\" (#16) would undercut a two-part pull over 10.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 7 on the twig over the head\" (#17) would undercut a two-part pull over 3.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 8a on the twig over the head\" (#18) would undercut a two-part pull over 4.0 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 9 on the twig over the head\" (#19) would undercut a two-part pull over 3.1 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 10a on the twig over the head\" (#20) would undercut a two-part pull over 7.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
-    "field_undercut_percent": 10.808847913136479,
+    "field_undercut_percent": 9.15636126810137,
     "field_verdict": "Castable",
     "made_part_crossings_worst": 0,
-    "made_parts": 25,
+    "made_parts": 19,
     "made_parts_crossing": [],
     "metal_inside_stones": [
       [
@@ -230,22 +213,22 @@
     "ring_self_crossings": 8,
     "section_sampled": {
       "at": [
-        7.4668498039245605,
-        9.339619636535645,
-        4.083690166473389
+        5.011690139770508,
+        10.35381031036377,
+        5.632510185241699
       ],
-      "least_mm": 0.010733462157565876,
+      "least_mm": 0.010001320321383796,
       "method": "inward rays from every vertex (stride shown) of the finished mesh to the first surface",
-      "samples": 49494,
+      "samples": 55984,
       "stride": 1,
-      "under_floor": 4765
+      "under_floor": 12464
     },
     "solids_notes": [],
     "stones_previewed": 1,
     "stones_reported": 1,
     "thinnest_wall_mm": 1.4045889604300523,
     "tight_pairs": 0,
-    "triangles": 98988,
+    "triangles": 111968,
     "watertight": true
   },
   "min_detail_mm": 0.15,
@@ -256,7 +239,7 @@
     "hold": "Calyx",
     "layout": "Diagonal",
     "sloe_mm": 5.6,
-    "sloe_rise_mm": 0.85,
+    "sloe_rise_mm": 0.5,
     "sloe_xz": [
       -0.3,
       -2.2

@@ -1,0 +1,12 @@
+{
+  "ring": "prunus",
+  "option": "wax-twig",
+  "test": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain signet-style band with a dark blue-black cabochon in a round bezel. A knobbly twig is laid across the front of it, with straight blunt rods sticking out. In the hero view the twig looks like barbed wire or a stick of nails, not a plant. In the face view you can just make out two or three tiny five-petal flowers along the twig, which suggests some kind of blossom branch (cherry or apple blossom more than anything else). Nothing tells the eye blackthorn or sloe: the stone looks like a set gem on a signet, not a fruit growing on the twig, and the 'thorns' look like cut pegs, not spines.",
+  "changes": [
+    "Make the stone read as a sloe: take it off the round bezel and signet plate and hang it from the twig on a short stalk (about 1.5 to 2 mm), slightly oval rather than round, with the twig curving around it. If it must stay in a setting, use a low 3 to 4 prong cup tucked under the twig, not a raised bezel ring. At 300 px it should look like a fruit on the branch, not a gem with a stick in front of it.",
+    "Rework the thorns as blackthorn spur-spines: cut the count from about 10 to 5 or 6, taper each one from about 0.9 mm at the base to a sharp point (no blunt rod ends), and angle them out of the twig at 45 to 60 degrees, alternating sides. Give the twig gnarled nodes where each spine starts. Right now they look like pins or nails standing straight up, and in the hero they read as barbed wire.",
+    "Make the blossom larger and grouped: raise the flower diameter from about 2.5 mm to 3.5 to 4 mm, with cupped petals and a raised stamen boss, and put 2 or 3 of them in clusters right on the spine nodes on both shoulders (they are only visible in the face view now). White blossom on a black thorny twig together with the sloe is what names blackthorn. Add no leaves, or only one or two small narrow ones."
+  ]
+}
