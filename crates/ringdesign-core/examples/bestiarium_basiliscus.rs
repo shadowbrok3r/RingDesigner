@@ -90,6 +90,8 @@ fn base() -> Result<RingDesign> {
     d.size = ringdesign_core::resize::size_from_bore(18.6).unwrap();
     d.profile.edge_round_mm = 0.3;
     d.profile.comfort_fit_mm = 0.1;
+    // Crisp relief stays off: on this unmirrored stock it outlines the wall scales on the right-hand wall.
+    d.crisp_relief = false;
     d.imported_base.as_mut().unwrap().chart = Some(SurfaceChart {
         profile: d.profile,
         bore_radius_mm: d.inner_radius_mm(),
@@ -1092,7 +1094,7 @@ fn round_scales(x: f64, y: f64, pitch: f64, radius: f64) -> f64 {
 }
 
 /// The walls' scales: their pitch and radius in true mm, and their relief.
-const WALL_SCALES: (f64, f64, f64) = (0.78, 0.43, 0.13);
+const WALL_SCALES: (f64, f64, f64) = (0.92, 0.5, 0.11);
 
 /// The polished walls under the table's chief and point, and the one bead line run 0.5 mm under the table's edge there.
 struct RimBeads {
@@ -1662,6 +1664,14 @@ fn preview_head(out: &Path, step: f64) -> Result<()> {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, 1000)?;
     }
     render::write_png_parts(out.join("hero-300.png"), &parts, 0.55, 0.95, 300)?;
+    let sheet: Vec<Vec<u8>> = [(0.55, 0.95), (0.0, PI * 0.5), (0.35, 1.05)].iter().map(|&(y, p)| render::render_parts_ss(&parts, y, p, 300, 300, 2)).collect();
+    let mut contact = Vec::with_capacity(900 * 300 * 3);
+    for row in 0..300 {
+        for img in &sheet {
+            contact.extend_from_slice(&img[row * 900..(row + 1) * 900]);
+        }
+    }
+    image::save_buffer(out.join("contact-300.png"), &contact, 900, 300, image::ColorType::Rgb8)?;
     render::write_png_parts(out.join("face-300.png"), &parts, 0.0, PI * 0.5, 300)?;
     let near = crop(&bare.mesh, [0.0, 13.3, 0.6], 11.0);
     let close = [Part::metal(&near, render::GOLD), Part::metal(&head, render::GOLD)];
@@ -1679,17 +1689,29 @@ fn head_part(b: &Basilisk) -> Result<(Feature, csg::Solid, Value)> {
     let t = Instant::now();
     let field = |p: P3| b.sdf(p);
     let (lo, hi) = b.bounds();
-    let mut raw = sculpt::tetra_mesh(lo, hi, SCULPT_STEP, &field);
-    sculpt::relax(&mut raw, &field, 3);
-    let nets = sculpt::settle(sculpt::clean_decimate(&raw, SCULPT_FACES), &field, &|_| true);
+    // The sculpt is deterministic, so a run keeps it under target/ keyed by the source of its field and reuses it.
+    let src = include_str!("bestiarium_basiliscus.rs");
+    let field_src = &src[src.find("// --- The sculpted head").unwrap_or(0)..src.find("/// A quick look at the sculpt").unwrap_or(src.len())];
+    let key = field_src.bytes().fold(0xcbf29ce484222325u64, |h, c| (h ^ c as u64).wrapping_mul(0x100000001b3)) ^ b.table.to_bits();
+    let cache = std::path::PathBuf::from(format!("target/basiliscus-head-{key:016x}.json"));
+    let (raw_faces, nets) = match std::fs::read(&cache).ok().and_then(|b| serde_json::from_slice::<(usize, Vec<P3>, Vec<[u32; 3]>)>(&b).ok()) {
+        Some((n, v, f)) => (n, csg::Solid { v, f }),
+        None => {
+            let mut raw = sculpt::tetra_mesh(lo, hi, SCULPT_STEP, &field);
+            sculpt::relax(&mut raw, &field, 3);
+            let nets = sculpt::settle(sculpt::clean_decimate(&raw, SCULPT_FACES), &field, &|_| true);
+            let _ = std::fs::write(&cache, serde_json::to_vec(&(raw.f.len(), &nets.v, &nets.f))?);
+            (raw.f.len(), nets)
+        }
+    };
     let (open, volume) = sculpt::closure(&nets);
     let crossings = csg::self_crossings(&nets);
     let mesh = sculpt::packed(&nets)?;
     let top = nets.v.iter().map(|p| p[1]).fold(f64::MIN, f64::max) - b.table;
-    let stats = json!({"marching_step_mm": SCULPT_STEP, "raw_triangles": raw.f.len(), "triangles": nets.f.len(), "vertices": nets.v.len(),
+    let stats = json!({"marching_step_mm": SCULPT_STEP, "raw_triangles": raw_faces, "triangles": nets.f.len(), "vertices": nets.v.len(),
         "open_edges": open, "volume_mm3": volume, "self_crossings": crossings, "packed_bytes": mesh.data.len(), "height_over_table_mm": top,
         "seconds": t.elapsed().as_secs_f64()});
-    println!("  head: {} triangles from {} in {:.1} s, {} KB packed, {top:.2} mm over the table", nets.f.len(), raw.f.len(), t.elapsed().as_secs_f64(), mesh.data.len() / 1024);
+    println!("  head: {} triangles from {} in {:.1} s, {} KB packed, {top:.2} mm over the table", nets.f.len(), raw_faces, t.elapsed().as_secs_f64(), mesh.data.len() / 1024);
     let recipe = cad::stored::Recipe {
         kernel: "basiliscus".into(),
         op: "sculpt".into(),
@@ -1984,10 +2006,9 @@ fn renders(out: &Path, lib: &AlphaLibrary, built: &BuildResult, gems: &[(Mesh, [
     }
     render::write_png_parts(out.join("face-300.png"), &parts, 0.0, PI * 0.5, 300)?;
     render::write_png_parts(out.join("hero-300.png"), &parts, 0.55, 0.95, 300)?;
-    let head = crop(&built.mesh, [0.0, 13.3, 0.6], 11.0);
-    let mut close = vec![Part::metal(&head, render::GOLD)];
-    close.extend(stone_parts());
-    render::write_png_parts(out.join("stones.png"), &close, 0.35, 1.05, edge)?;
+    // Close-ups frame the whole ring on a point, so every edge keeps its crease normals.
+    render::write_png_framed(out.join("stones.png"), &parts, 0.35, 1.05, render::Framing::new([-0.3, 14.0, 0.4], 9.5), edge)?;
+    render::write_png_framed(out.join("head.png"), &parts, 0.35, 1.05, render::Framing::new([-1.2, 14.8, -2.4], 4.8), edge)?;
     let bare = mesh::try_build(&base()?, lib, params)?;
     let left = render::render_parts_ss(&[Part::metal(&bare.mesh, render::GOLD)], 0.55, 0.95, edge, edge, 2);
     let right = render::render_parts_ss(&parts, 0.55, 0.95, edge, edge, 2);
