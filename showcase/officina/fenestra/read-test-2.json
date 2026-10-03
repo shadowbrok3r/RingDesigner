@@ -1,0 +1,16 @@
+{
+  "ring": "fenestra",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "A four-claw oval solitaire on a flat gold band, now on a grey backdrop. The face view is still a parallel, even-width band with the stone in the middle. It shows no windows and no shoulder swell, so on its own it is a stock claw solitaire. The hero is still taken nearly end-on, looking down the finger. This time a curving row of dark teardrop shapes shows clearly on both upper shoulders, about four on the left and three on the right. That is an improvement on attempt 1, where the right side showed only slivers. But the drops are solid black, not lit through. They also tilt different ways and vary in size, so they look like black-enamelled or engraved paisley commas scattered along the shoulder, not openings you see daylight through. A jeweller would say 'claw solitaire with some black teardrop decoration on the shoulders', perhaps 'pierced?', but would not name windows through the shoulders as the ring's idea. The row also starts well below the head, so the drops and the stone read as two separate things.",
+  "changes": [
+    "Show daylight through the windows. The windows are cut through along the finger, but the near end-on hero shows them solid black. Either the line of sight does not run through them or something dark sits behind them. Turn the hero to a three-quarter view about 35-45 degrees off the finger axis, aimed square at the +Z side face so one whole shoulder and its row is seen face-on, and set it so the grey backdrop or a back light shows through each opening. If the cut does not go fully through both side faces at every copy, fix that first in pierce_feature/Pattern. Acceptance: at 300 px each window in the hero shows backdrop grey or light, clearly lighter than the gold around it, never black.",
+    "Make the row read as one orderly array. Keep exactly three drops per shoulder, all the same size and all pointing the same way (point toward the head, aligned with the pull), mirrored exactly across theta 90. Move the array up so the top drop starts within one drop-length of the basket feet, for example 66/56/46 degrees instead of 48/40/32. Enlarge each drop to about 55-65% of the local side-face height, keeping webs of at least 0.6 mm. Acceptance: in the 300 px hero, three equal drops at least 12 px long sit evenly spaced in a line on the near shoulder, and the top one visibly meets the head zone.",
+    "Give the shoulders a swell the face view can see. The face-300 band is still parallel. Raise the Cathedral swell from 0.8 to about 1.4-1.6 so the shoulders visibly widen and deepen toward the basket, and keep the palm at 3.2 x 2.4 mm. Acceptance: in face-300 the band under the head is at least 1.3x its width at the frame edges, and in the hero the side face under the head is at least 1.5x as tall as at the palm, with the windows sitting in that deep zone."
+  ],
+  "viewed_images": [
+    "showcase/officina/fenestra/hero-300.png",
+    "showcase/officina/fenestra/face-300.png"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "crowding": null,
+  "previewed": 1,
+  "stone_count": 1,
+  "stones": [
+    {
+      "cut": "Oval",
+      "depth_mm": 3.0,
+      "l_mm": 7.0,
+      "name": "Oval 7 × 5",
+      "seat": "bur, through",
+      "setting": "Basket: four claws, two rails",
+      "spin_deg": 0.0,
+      "theta_deg": 90.0,
+      "w_mm": 5.0
+    }
+  ],
+  "total_carats": 0.651
+}

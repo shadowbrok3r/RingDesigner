@@ -1,0 +1,16 @@
+{
+  "ring": "fenestra",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain four-claw oval solitaire on a flat, even-width gold band. The face view shows nothing else: no windows, and the shoulders do not visibly swell, so it reads as a stock solitaire. In the hero, which looks almost straight down the finger, a few small dark teardrop notches show low on the left side face. On the right they are foreshortened to thin slivers. Against the black backdrop they read as shadows or engraved nicks, not as openings you can see through. A jeweller would say 'claw solitaire, maybe some pierced detail on the side' and would not name windows through the shoulders as the ring's idea. The head also floats on the band: nothing ties the windows to the basket.",
+  "changes": [
+    "Hero camera: turn the hero from the near end-on view to a three-quarter side view about 35-45 degrees off the finger axis, aimed at the +Z side face, so one whole shoulder is seen square-on with its three windows side by side under the basket. Also give the windows daylight: use a mid-grey backdrop or a light behind or inside the bore, so the openings show lighter than the metal and do not read as black shadow. Acceptance: at 300 px the hero shows three distinct drop windows in a row on one shoulder, each clearly lit through.",
+    "Window size and position: the drops are too small and sit too far down the shank. Scale each window to about 60-65% of the side-face height and about 2.5-3 mm long (lift the 0.45-of-face / 3 mm cap in pierce_at, or size at a wider theta), keeping at least 0.6 mm webs. Move the array up toward the head, for example 64/54/44 degrees instead of 48/40/32, so the first window starts right under the basket rail. Acceptance: in the 300 px hero each window is at least 12 px long, and the top window sits within one window-length of the basket.",
+    "Shoulder swell: the face view shows a parallel band. Raise the Cathedral swell from 0.8 to about 1.4-1.6 so the side face visibly deepens toward the head and gives the windows a wall to sit in. Keep the palm at 2.4 mm. Acceptance: in the side or hero view, the side face under the head is at least 1.5x as tall as at the palm, and the windows sit in that deepened zone."
+  ],
+  "viewed_images": [
+    "showcase/officina/fenestra/hero-300.png",
+    "showcase/officina/fenestra/face-300.png"
+  ]
+}

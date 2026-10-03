@@ -1,0 +1,837 @@
+//! Officina — Fenestra, windows along the pull: a basket solitaire, an oval 7 × 5 laid along the ring, whose swelling
+//! shoulders are pierced right through their side faces by drop windows cut along the finger, three down each shoulder and
+//! mirrored to the other. Lost wax.
+//! cargo build --release -p ringdesign-core --example officina_fenestra
+//! target/release/examples/officina_fenestra [OUT_DIR] [--draft] [--verify]
+use anyhow::{Result, ensure};
+use ringdesign_core::{
+    AlphaLibrary, BuildParams, ProfileStyle, RingDesign, ShankKind,
+    profile::ShankKey,
+    cad::{
+        self, Document, Feature, FeatureStatus, Operation, PatternKind, Placement,
+        builders::{self, cutters},
+    },
+    castability::{self, CastProcess},
+    csg, dfm,
+    gem::{Gem, GemCut},
+    library,
+    manufacturing::{self as mf, Setup},
+    mesh, render,
+    sketch::Id,
+    stl,
+};
+use serde_json::json;
+use std::f64::consts::{FRAC_PI_2, PI};
+use std::path::{Path, PathBuf};
+
+const BORE_MM: f64 = 18.2;
+const WIDTH_MM: f64 = 3.2;
+const THICKNESS_MM: f64 = 2.4;
+/// The shoulders' swell, as stations round the ring (theta, width scale, thickness scale), mirrored about the head: wide
+/// under the basket, then one steady width down the shoulders, so every window in the array meets square side faces at the
+/// same height as the first, and narrowing to the band's own at the sides; the thickness stands tall down the shoulders, where
+/// the windows go, and falls back to the palm.
+const SWELL: &[(f64, f64, f64)] = &[(90.0, 1.62, 1.50), (82.0, 1.50, 1.49), (70.0, 1.38, 1.47), (55.0, 1.38, 1.43), (40.0, 1.38, 1.38), (25.0, 1.38, 1.30), (10.0, 1.25, 1.18), (-30.0, 1.0, 1.0)];
+const ALLOY: &str = "Gold 18k";
+/// The stone: an oval 7 × 5 laid along the ring.
+const STONE_L_MM: f64 = 7.0;
+const STONE_W_MM: f64 = 5.0;
+/// The first window's centre, degrees round the ring (90 is the head); the array steps down the shoulder from it.
+const FIRST_WINDOW_DEG: f64 = 68.0;
+/// Windows down each shoulder and the angle they step by.
+const WINDOWS: u32 = 3;
+const WINDOW_STEP_DEG: f64 = 15.0;
+/// A window's length round the ring and its width across the wall, and the bright cut round its mouth, mm.
+const WINDOW_L_MM: f64 = 2.0;
+const WINDOW_W_MM: f64 = 1.4;
+const WINDOW_CHAMFER_MM: f64 = 0.15;
+/// Which way the drop's point turns in the window's plane, degrees: 180 points it up the shoulder at the head.
+const WINDOW_TURN_DEG: f64 = 180.0;
+/// The window's lean along the ring, degrees: none, the side faces standing square to the finger down the shoulders.
+const WINDOW_TILT_DEG: f64 = 0.0;
+/// How far the stone sits below the basket's own stand-off, its pavilion down in the seat the bur cuts, mm.
+const STONE_SINK_MM: f64 = 0.6;
+/// The basket's claw and rail wire, mm.
+const WIRE_MM: f64 = 1.2;
+/// Least metal the investment fills, mm.
+const MIN_SECTION_MM: f64 = 0.8;
+
+fn draft_params() -> BuildParams {
+    BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
+}
+fn export_params() -> BuildParams {
+    BuildParams { theta_steps: 1536, profile_steps: 448, ..BuildParams::default() }
+}
+
+fn setup() -> Setup {
+    let mut s = Setup::default();
+    s.recipe = mf::Recipe::sand(castability::SandProcess::DelftClay);
+    s.recipe.process = CastProcess::LostWax;
+    s.recipe.sand = None;
+    s.recipe.min_draft_deg = 0.0;
+    s.recipe.min_detail_mm = 0.15;
+    s.recipe.min_section_mm = MIN_SECTION_MM;
+    s.recipe.name = format!("Fenestra / investment / {ALLOY}");
+    s.recipe.alloy = ALLOY.into();
+    s.recipe.shrink_pct = ringdesign_core::metal::find(ALLOY).unwrap().shrink_pct;
+    s.recipe.calibration_note = "Starting shrink allowance; confirm with the caster's alloy, pattern material and measured trials.".into();
+    s.sample_pitch_mm = 0.1;
+    s.auto_parting = false;
+    s.parting_mm = 0.0;
+    s.flask.width_mm = 80.0;
+    s.flask.length_mm = 80.0;
+    s.channels = vec![
+        mf::Channel { kind: mf::ChannelKind::Gate, start: [0.0, -10.5, 0.0], end: [0.0, -19.0, 0.0], diameter_mm: 3.0 },
+        mf::Channel { kind: mf::ChannelKind::Sprue, start: [0.0, -19.0, 0.0], end: [0.0, -29.0, 0.0], diameter_mm: 5.0 },
+    ];
+    s.bench_notes = "Investment cast in one piece with the basket, sprued at the palm. Flush investment from the six windows with water under pressure. Polish the band, the basket and the windows' bright cuts; set the oval in the four claws.".into();
+    s
+}
+
+/// The band: Flat 3.2 × 2.4 with squared side faces, swelling on the shoulders toward the head.
+fn band() -> RingDesign {
+    let mut d = RingDesign::default();
+    d.name = "Fenestra".into();
+    d.size = ringdesign_core::resize::size_from_bore(BORE_MM).unwrap();
+    d.profile.apply_style(ProfileStyle::Flat);
+    d.profile.width_mm = WIDTH_MM;
+    d.profile.thickness_mm = THICKNESS_MM;
+    d.profile.flatten_sides();
+    d.profile.edge_round_mm = 0.3;
+    d.profile.comfort_fit_mm = 0.1;
+    d.shank.kind = ShankKind::Keyframes;
+    d.shank.amount = 1.0;
+    d.shank.keys = SWELL
+        .iter()
+        .flat_map(|&(theta, w, t)| {
+            let key = |theta_deg: f64| ShankKey { theta_deg: theta_deg.rem_euclid(360.0), width_scale: w, thickness_scale: t, ..Default::default() };
+            let mirror = 180.0 - theta;
+            if (mirror - theta).abs() < 1e-9 || (mirror - theta).rem_euclid(360.0) < 1e-9 { vec![key(theta)] } else { vec![key(theta), key(mirror)] }
+        })
+        .collect();
+    CastProcess::LostWax.apply(&mut d.draft);
+    d.draft.min_section_mm = MIN_SECTION_MM;
+    d.draft.auto_parting = false;
+    d.draft.parting_z_mm = 0.0;
+    d.build = draft_params();
+    d.manufacturing = Some(setup());
+    d
+}
+
+fn gem() -> Gem {
+    Gem { l_mm: STONE_L_MM, ..Gem::calibrated(GemCut::Oval, STONE_W_MM) }
+}
+
+fn named(mut f: Feature, name: &str) -> Feature {
+    f.name = name.into();
+    f
+}
+
+/// The feature tree, in the order the timeline teaches it.
+fn author() -> Result<RingDesign> {
+    let mut d = band();
+    let mut doc = Document::default();
+    doc.append(Feature { id: 1, name: "Band: Flat 3.2 × 2.4, its shoulders swelling to the head".into(), enabled: true, operation: Operation::Band, component: Default::default() })?;
+    let g = gem();
+    let at = Placement::ring(90.0, builders::stand_off_mm("basket", g) - std::env::var("FENESTRA_SINK").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(STONE_SINK_MM));
+    doc.append(named(builders::stone_feature(2, g, at), "Oval 7 × 5, laid along the ring"))?;
+    doc.append(builders::feature_on(3, "Basket: four claws tied by two rails", builders::BASKET, 2, json!({"prongs": 4, "rails": 2, "tip": std::env::var("FENESTRA_TIP").unwrap_or("Dome".into()), "wire_mm": std::env::var("FENESTRA_WIRE").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(WIRE_MM)})))?;
+    let mut bur = builders::feature_on(4, "Seat bur, through to the finger", builders::BUR, 2, json!({"through": std::env::var("FENESTRA_BLIND").is_err()}));
+    if std::env::var("FENESTRA_CASTBUR").is_err() {
+        bur.component.stage = cad::Stage::Bench;
+    }
+    doc.append(bur)?;
+    d.cad = Some(doc);
+    // The first window, sized from the side face where it sits, then set to the lesson's drop.
+    let (p, n) = side_face_point(&d, FIRST_WINDOW_DEG);
+    let at = cutters::pierce_at(&d, FIRST_WINDOW_DEG, 0.0, Some((p, n)), cutters::Shape::Drop)?;
+    let mut w = cutters::pierce_feature(5, cutters::Shape::Drop, &at);
+    let tilt: f64 = std::env::var("FENESTRA_TILT").ok().and_then(|v| v.parse().ok()).unwrap_or(WINDOW_TILT_DEG);
+    if let Placement::Ring { tilt_deg, .. } = &mut w.component.placement {
+        *tilt_deg = tilt;
+    }
+    w.name = "Drop window, through both side faces along the finger".into();
+    if let Operation::Builder { params, .. } = &mut w.operation {
+        params["length_mm"] = json!(WINDOW_L_MM);
+        params["width_mm"] = json!(WINDOW_W_MM);
+        params["chamfer_mm"] = json!(WINDOW_CHAMFER_MM);
+        params["turn_deg"] = json!(WINDOW_TURN_DEG);
+    }
+    if std::env::var("FENESTRA_EXTRUDE").is_ok() {
+        let r_c = p[0].hypot(p[1]);
+        let z0 = 3.4;
+        let turn = (FIRST_WINDOW_DEG - 90.0).to_radians();
+        let mut sk = ringdesign_core::sketch::Sketch::default();
+        sk.name = "Drop".into();
+        // The drop's length runs round the ring, its point toward the head: the outline's -x point turned to +x.
+        let ids: Vec<Id> = cutters::outline(cutters::Shape::Drop, WINDOW_L_MM, WINDOW_W_MM, 0.0)
+            .into_iter()
+            .map(|q| {
+                let (x, y) = (-q[1], r_c - q[0] * 0.0 + 0.0);
+                let _ = (x, y);
+                // Local frame at the window: u round the ring (toward the head is -u at theta < 90), v radial.
+                let (u, v) = (-q[0], q[1]);
+                let local = [u, r_c + v];
+                let (sn, cs) = turn.sin_cos();
+                sk.point([local[0] * cs - local[1] * sn, local[0] * sn + local[1] * cs])
+            })
+            .collect();
+        sk.entity(ringdesign_core::sketch::Geometry::Polyline { points: ids, closed: true });
+        sk.plane.on_face = Some(ringdesign_core::sketch::FaceAnchor { feature: 5, face: cad::FaceRef::bare(0) });
+        let doc = d.cad.as_mut().unwrap();
+        doc.append(Feature { id: 5, name: "Side face, lifted clear".into(), enabled: true, operation: Operation::Plane { base: cad::PlaneBase::Parting, offset_mm: z0 }, component: Default::default() })?;
+        doc.append(Feature { id: 6, name: "Drop".into(), enabled: true, operation: Operation::Sketch { sketch: sk }, component: Default::default() })?;
+        let mut ex = Feature { id: 7, name: "Pierce".into(), enabled: true, operation: Operation::Extrude { sketch: cad::Profile::Feature { feature: 6 }, height_mm: -2.0 * z0, draft_deg: 0.0 }, component: Default::default() };
+        ex.component.attach = cad::Attach::Cut;
+        doc.append(ex)?;
+        let span = -WINDOW_STEP_DEG * (WINDOWS - 1) as f64;
+        doc.append(pattern(8, "Array", 7, PatternKind::Ring { count: WINDOWS, span_deg: span }))?;
+        let mirror = || PatternKind::Mirror { plane: cad::MirrorPlane::Section { theta_deg: 90.0 } };
+        doc.append(pattern(9, "Mirror 1", 7, mirror()))?;
+        doc.append(pattern(10, "Mirror 2", 8, mirror()))?;
+        return Ok(d);
+    }
+    let doc = d.cad.as_mut().unwrap();
+    doc.append(w)?;
+    let span = -WINDOW_STEP_DEG * (WINDOWS - 1) as f64;
+    doc.append(pattern(6, "Array the window down the shoulder", 5, PatternKind::Ring { count: WINDOWS, span_deg: span }))?;
+    let mirror = || PatternKind::Mirror { plane: cad::MirrorPlane::Section { theta_deg: 90.0 } };
+    doc.append(pattern(7, "Mirror the first window to the other shoulder", 5, mirror()))?;
+    doc.append(pattern(8, "Mirror the array to the other shoulder", 6, mirror()))?;
+    if std::env::var("FENESTRA_BOTH").is_ok() {
+        let mut f = pattern(9, "Bright-cut the far mouths", 5, PatternKind::Mirror { plane: cad::MirrorPlane::Band });
+        if let Operation::Pattern { sources, .. } = &mut f.operation {
+            *sources = cad::pattern::Sources(vec![5, 6, 7, 8]);
+        }
+        doc.append(f)?;
+    }
+    Ok(d)
+}
+
+fn pattern(id: Id, name: &str, source: Id, kind: PatternKind) -> Feature {
+    let mut f = Feature { id, name: name.into(), enabled: true, operation: Operation::Pattern { sources: cad::pattern::Sources(vec![source]), kind }, component: Default::default() };
+    f.component.attach = cad::Attach::Cut;
+    f
+}
+
+/// A point mid-wall on the +Z side face at `theta_deg`, and its normal.
+fn side_face_point(d: &RingDesign, theta_deg: f64) -> ([f64; 3], [f64; 3]) {
+    let r_in = d.inner_radius_mm();
+    let m = mesh::try_build(&band(), &AlphaLibrary::builtin(), draft_params()).expect("bare band");
+    // The bare band's outer radius at theta, read from the mesh near the mid-plane.
+    let t = theta_deg.to_radians();
+    let r_out = m
+        .mesh
+        .vertices
+        .iter()
+        .filter(|v| (v.1 as f64).atan2(v.0 as f64).to_degrees().sub_abs(theta_deg) < 0.5)
+        .map(|v| (v.0 as f64).hypot(v.1 as f64))
+        .fold(r_in, f64::max);
+    let r = 0.5 * (r_in + r_out);
+    let z = m.mesh.vertices.iter().map(|v| v.2 as f64).fold(0.0, f64::max);
+    let _ = d;
+    ([r * t.cos(), r * t.sin(), z], [0.0, 0.0, 1.0])
+}
+
+trait SubAbs {
+    fn sub_abs(self, o: f64) -> f64;
+}
+impl SubAbs for f64 {
+    fn sub_abs(self, o: f64) -> f64 {
+        (self - o).abs()
+    }
+}
+
+fn solid_of(m: &mesh::Mesh) -> csg::Solid {
+    csg::Solid { v: m.vertices.iter().map(|v| [v.0 as f64, v.1 as f64, v.2 as f64]).collect(), f: m.faces.clone() }
+}
+
+/// Views: yaw about the finger axis, pitch from looking along the finger (0) to down onto the head (pi/2).
+const VIEWS: &[(&str, f64, f64)] = &[
+    ("hero", -0.7, 0.5),
+    ("face", 0.0, FRAC_PI_2),
+    ("palm", PI, 1.05),
+    ("side", 0.0, 0.0),
+    ("shoulder", 0.0, 0.35),
+    ("reverse", PI - 0.5, 0.35),
+];
+
+/// The stones close-up: the head and the top windows from a three-quarter view.
+const STONES_VIEW: (f64, f64) = (-0.45, 0.7);
+
+fn view(name: &str) -> (f64, f64) {
+    let v = VIEWS.iter().find(|v| v.0 == name).unwrap();
+    (v.1, v.2)
+}
+
+fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<()> {
+    let mut out = vec![0u8; edge * 2 * edge * 3];
+    for y in 0..edge {
+        out[y * edge * 6..y * edge * 6 + edge * 3].copy_from_slice(&left[y * edge * 3..(y + 1) * edge * 3]);
+        out[y * edge * 6 + edge * 3..(y + 1) * edge * 6].copy_from_slice(&right[y * edge * 3..(y + 1) * edge * 3]);
+    }
+    image::save_buffer(path, &out, (edge * 2) as u32, edge as u32, image::ColorType::Rgb8)?;
+    Ok(())
+}
+
+/// The renderer's empty background, which [`shot`] replaces with the studio's daylight backdrop.
+const VOID: u8 = 18;
+
+/// A supersampled frame on a light backdrop, so the windows show daylight through them: the parts drawn at `ss` times the
+/// size, every untouched pixel given the backdrop's soft top-to-bottom fall, then box-filtered down.
+fn shot(parts: &[render::Part], yaw: f64, pitch: f64, w: usize, h: usize, ss: usize) -> Vec<u8> {
+    let (bw, bh) = (w * ss, h * ss);
+    let mut big = render::render_parts_ss(parts, yaw, pitch, bw, bh, 1);
+    for y in 0..bh {
+        let t = y as f64 / (bh - 1).max(1) as f64;
+        let grey = [206.0 - 30.0 * t, 204.0 - 30.0 * t, 200.0 - 30.0 * t];
+        for x in 0..bw {
+            let k = (y * bw + x) * 3;
+            if big[k] == VOID && big[k + 1] == VOID && big[k + 2] == VOID {
+                for c in 0..3 {
+                    big[k + c] = grey[c] as u8;
+                }
+            }
+        }
+    }
+    let mut out = vec![0u8; w * h * 3];
+    for y in 0..h {
+        for x in 0..w {
+            for c in 0..3 {
+                let mut sum = 0usize;
+                for dy in 0..ss {
+                    for dx in 0..ss {
+                        sum += big[((y * ss + dy) * bw + x * ss + dx) * 3 + c] as usize;
+                    }
+                }
+                out[(y * w + x) * 3 + c] = (sum / (ss * ss)) as u8;
+            }
+        }
+    }
+    out
+}
+
+fn save(path: &Path, parts: &[render::Part], yaw: f64, pitch: f64, edge: usize) -> Result<()> {
+    image::save_buffer(path, &shot(parts, yaw, pitch, edge, edge, 3), edge as u32, edge as u32, image::ColorType::Rgb8)?;
+    Ok(())
+}
+
+/// Text drawn into an RGB image, dark on the light backdrop.
+fn label(img: &mut [u8], w: usize, h: usize, x0: usize, y0: usize, text: &str, px: f32) {
+    static FONT: std::sync::OnceLock<fontdue::Font> = std::sync::OnceLock::new();
+    let font = FONT.get_or_init(|| {
+        fontdue::Font::from_bytes(&include_bytes!("../../../assets/fonts/EBGaramond.ttf")[..], fontdue::FontSettings::default()).unwrap()
+    });
+    let mut x = x0 as f32;
+    for ch in text.chars() {
+        let (m, bm) = font.rasterize(ch, px);
+        let top = y0 as i64 + px as i64 - m.height as i64 - m.ymin as i64;
+        for j in 0..m.height {
+            for i in 0..m.width {
+                let (px_x, px_y) = (x as i64 + m.xmin as i64 + i as i64, top + j as i64);
+                if px_x < 0 || px_y < 0 || px_x as usize >= w || px_y as usize >= h {
+                    continue;
+                }
+                let a = bm[j * m.width + i] as f32 / 255.0;
+                let k = (px_y as usize * w + px_x as usize) * 3;
+                for c in 0..3 {
+                    img[k + c] = (img[k + c] as f32 * (1.0 - a) + 40.0 * a) as u8;
+                }
+            }
+        }
+        x += m.advance_width;
+    }
+}
+
+/// One tile per feature: the ring rolled back to it, with its stones, and the feature's number and name.
+fn timeline(out: &Path, d: &RingDesign, lib: &AlphaLibrary) -> Result<()> {
+    let doc = d.cad.as_ref().unwrap();
+    let (tile, cols) = (420usize, 4usize);
+    let rows = doc.features.len().div_ceil(cols);
+    let (w, h) = (tile * cols, tile * rows);
+    let mut sheet = vec![200u8; w * h * 3];
+    let (yaw, pitch) = view("hero");
+    for (k, f) in doc.features.iter().enumerate() {
+        let mut step = d.clone();
+        step.cad.as_mut().unwrap().through = Some(f.id);
+        let fin = render::finished(&step, lib, draft_params())?;
+        let (bright, dark) = window_walls(&fin.metal);
+        let img = shot(&dressed(&bright, &dark, &fin), yaw, pitch, tile, tile, 2);
+        let (cx, cy) = (k % cols * tile, k / cols * tile);
+        for y in 0..tile {
+            sheet[((cy + y) * w + cx) * 3..((cy + y) * w + cx + tile) * 3].copy_from_slice(&img[y * tile * 3..(y + 1) * tile * 3]);
+        }
+        label(&mut sheet, w, h, cx + 10, cy + 8, &format!("{}  {}", f.id, f.name), 17.0);
+    }
+    image::save_buffer(out.join("timeline.png"), &sheet, w as u32, h as u32, image::ColorType::Rgb8)?;
+    Ok(())
+}
+
+/// The metal split for the back light: the windows' walls apart from the polished rest.
+fn window_walls(m: &mesh::Mesh) -> (mesh::Mesh, mesh::Mesh) {
+    let wall = |f: &[u32; 3]| {
+        let from_part = f.iter().all(|&i| m.origin.get(i as usize).is_some_and(|&o| o >= mesh::SOLID_VERTEX));
+        let Some((a, b, c)) = m.triangle(f) else { return false };
+        let (u, v) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
+        let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+        let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+        let theta = ((a[1] + b[1] + c[1]) / 3.0).atan2((a[0] + b[0] + c[0]) / 3.0).to_degrees();
+        let r = ((a[0] + b[0] + c[0]) / 3.0).hypot((a[1] + b[1] + c[1]) / 3.0);
+        from_part && l > 1e-12 && (n[2] / l).abs() < 0.5 && (theta - 90.0).abs() > 14.0 && r < 11.8
+    };
+    let mut bright = mesh::Mesh { vertices: m.vertices.clone(), normals: m.normals.clone(), ..mesh::Mesh::default() };
+    let mut dark = bright.clone();
+    let corners: std::collections::HashMap<u32, [mesh::Vec3; 3]> = m.corner_normals.iter().copied().collect();
+    for (i, f) in m.faces.iter().enumerate() {
+        let target = if wall(f) { &mut dark } else { &mut bright };
+        if let Some(c) = corners.get(&(i as u32)) {
+            target.corner_normals.push((target.faces.len() as u32, *c));
+        }
+        target.faces.push(*f);
+    }
+    (bright, dark)
+}
+/// The windows' walls in the back light: a pale warm daylight, bright enough that even a wall turned from the key reads lit.
+const BACKLIT: [f32; 3] = [3.6, 3.5, 3.3];
+
+/// The windows' walls under the studio's back light, which shows through the shoulders: bright and soft.
+fn backlit(m: &mesh::Mesh) -> render::Part<'_> {
+    let mut p = render::Part::metal(m, BACKLIT);
+    p.roughness = render::POLISHES[2].1 as f64;
+    p.studio = false;
+    p
+}
+
+fn dressed<'a>(bright: &'a mesh::Mesh, dark: &'a mesh::Mesh, fin: &'a render::Finished) -> Vec<render::Part<'a>> {
+    let mut parts = vec![render::Part::metal(bright, render::GOLD), backlit(dark)];
+    parts.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
+    parts
+}
+
+fn renders(out: &Path, lib: &AlphaLibrary, fin: &render::Finished, edge: usize) -> Result<()> {
+    let (bright, dark) = window_walls(&fin.metal);
+    if std::env::var("FENESTRA_DEBUG").is_ok() {
+        let parted = fin.metal.origin.iter().filter(|&&o| o >= mesh::SOLID_VERTEX).count();
+        println!("    window walls: {} faces of {}; {} of {} vertices from parts", dark.faces.len(), fin.metal.faces.len(), parted, fin.metal.origin.len());
+    }
+    let parts = dressed(&bright, &dark, fin);
+    if let Ok(list) = std::env::var("FENESTRA_TRY") {
+        for (k, yp) in list.split(';').enumerate() {
+            let v: Vec<f64> = yp.split(',').filter_map(|x| x.parse().ok()).collect();
+            save(&out.join(format!("try-{k}.png")), &parts, v[0], v[1], 300)?;
+        }
+    }
+    for (name, yaw, pitch) in VIEWS {
+        save(&out.join(format!("{name}.png")), &parts, *yaw, *pitch, edge)?;
+    }
+    for name in ["hero", "face"] {
+        let (yaw, pitch) = view(name);
+        save(&out.join(format!("{name}-300.png")), &parts, yaw, pitch, 300)?;
+    }
+    // Stones: the head and the first windows, framed on the metal within 35° of the top.
+    let head = |p: [f64; 3]| (p[1].atan2(p[0]).to_degrees() - 90.0).abs() < 50.0 && p[1] > 0.0;
+    let (near, near_dark) = (crop(&bright, head), crop(&dark, head));
+    let mut close = vec![render::Part::metal(&near, render::GOLD), backlit(&near_dark)];
+    close.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
+    save(&out.join("stones.png"), &close, STONES_VIEW.0, STONES_VIEW.1, edge)?;
+    let bare = mesh::try_build(&band(), lib, draft_params())?;
+    let (yaw, pitch) = view("hero");
+    let bare_img = shot(&[render::Part::metal(&bare.mesh, render::GOLD)], yaw, pitch, edge, edge, 3);
+    let finished_img = shot(&parts, yaw, pitch, edge, edge, 3);
+    side_by_side(&out.join("bare-vs-finished.png"), &bare_img, &finished_img, edge)?;
+    let tiles: Vec<Vec<u8>> = ["hero", "face", "side", "palm"]
+        .iter()
+        .map(|n| {
+            let (yaw, pitch) = view(n);
+            shot(&parts, yaw, pitch, 300, 300, 3)
+        })
+        .collect();
+    let mut sheet = vec![0u8; 1200 * 300 * 3];
+    for (k, t) in tiles.iter().enumerate() {
+        for y in 0..300 {
+            sheet[y * 3600 + k * 900..y * 3600 + (k + 1) * 900].copy_from_slice(&t[y * 900..(y + 1) * 900]);
+        }
+    }
+    image::save_buffer(out.join("contact-300.png"), &sheet, 1200, 300, image::ColorType::Rgb8)?;
+    Ok(())
+}
+
+/// The faces of `m` whose every corner `keep` keeps, as a mesh of their own.
+fn crop(m: &mesh::Mesh, keep: impl Fn([f64; 3]) -> bool) -> mesh::Mesh {
+    let at = |i: u32| {
+        let v = m.vertices[i as usize];
+        [v.0 as f64, v.1 as f64, v.2 as f64]
+    };
+    let mut c = mesh::Mesh::default();
+    let mut index = std::collections::HashMap::new();
+    for f in m.faces.iter().filter(|f| f.iter().all(|&i| keep(at(i)))) {
+        let g = f.map(|i| {
+            *index.entry(i).or_insert_with(|| {
+                c.vertices.push(m.vertices[i as usize]);
+                c.normals.push(m.normals[i as usize]);
+                (c.vertices.len() - 1) as u32
+            })
+        });
+        c.faces.push(g);
+    }
+    c
+}
+
+fn main() -> Result<()> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let draft = args.iter().any(|a| a == "--draft");
+    let verify = args.iter().any(|a| a == "--verify");
+    let out = args
+        .iter()
+        .find(|a| !a.starts_with("--"))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../showcase/officina/fenestra"));
+    std::fs::create_dir_all(&out)?;
+    println!("Fenestra");
+    let mut d = author()?;
+    if let Ok(off) = std::env::var("FENESTRA_OFF") {
+        for id in off.split(',').filter_map(|v| v.parse::<Id>().ok()) {
+            if let Some(f) = d.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == id) {
+                f.enabled = false;
+            }
+        }
+    }
+    let lib = AlphaLibrary::builtin();
+    let params = if draft { draft_params() } else { export_params() };
+    d.build = params;
+    let started = std::time::Instant::now();
+    let built = mesh::try_build(&d, &lib, params)?;
+    let build_s = started.elapsed().as_secs_f64();
+    let v = &built.report.validation;
+    let q = built.report.quality;
+    println!("  {} triangles in {build_s:.1} s; watertight {}; degenerate {}", built.mesh.faces.len(), v.watertight, q.degenerate_faces);
+    let features: Vec<(Id, String, String)> = built
+        .parts
+        .evaluated
+        .iter()
+        .flat_map(|e| e.features.iter())
+        .map(|r| {
+            let s = match &r.status {
+                FeatureStatus::Ok => "Ok".to_string(),
+                FeatureStatus::Suppressed => "Suppressed".into(),
+                FeatureStatus::Failed(m) => format!("Failed: {m}"),
+                FeatureStatus::Skipped(m) => format!("Skipped: {m}"),
+            };
+            (r.id, r.name.clone(), s)
+        })
+        .collect();
+    for (id, name, s) in &features {
+        println!("    #{id} {name}: {s}");
+    }
+    let made: Vec<(String, usize)> =
+        built.parts.evaluated.iter().flat_map(|e| e.components.iter()).map(|c| (c.name.clone(), csg::self_crossings(&solid_of(&c.mesh)))).collect();
+    if std::env::var("FENESTRA_DEBUG").is_ok() {
+        for c in built.parts.evaluated.iter().flat_map(|e| e.components.iter()) {
+            let t = cad::measure::thickness(&c.mesh, MIN_SECTION_MM);
+            if c.id == 3 {
+                let all = thin_rays_every(&c.mesh, MIN_SECTION_MM, 1);
+                let worst = all.iter().map(|x| x.0).fold(f64::MAX, f64::min);
+                println!("    basket every face: {} of {} below, worst {worst:.3}", all.len(), c.mesh.faces.len());
+                for (v, c, _) in all.iter().filter(|x| x.0 < 0.7).take(12) {
+                    println!("      {v:.3} at r {:.2} θ {:.1} z {:.2}", c[0].hypot(c[1]), c[1].atan2(c[0]).to_degrees(), c[2]);
+                }
+            }
+            let at = t.point.map(|p| (p[0].hypot(p[1]), p[1].atan2(p[0]).to_degrees(), p[2]));
+            if c.id == 5 && std::env::var("FENESTRA_RIM").is_ok() {
+                let mut levels: std::collections::BTreeMap<i64, (f64, f64)> = std::collections::BTreeMap::new();
+                for v in &c.mesh.vertices {
+                    let r = (v.0 as f64).hypot(v.1 as f64);
+                    let e = levels.entry((v.2 as f64 * 20.0).round() as i64).or_insert((f64::MAX, f64::MIN));
+                    e.0 = e.0.min(r);
+                    e.1 = e.1.max(r);
+                }
+                for (z, (lo, hi)) in levels {
+                    println!("    cutter z {:.2}: r {lo:.3}..{hi:.3} ({:.3})", z as f64 / 20.0, hi - lo);
+                }
+            }
+            if c.id == 5 {
+                render::write_png_parts(out.join("debug-part-5.png"), &[render::Part::metal(&c.mesh, render::GOLD)], 0.0, 0.0, 800)?;
+                render::write_png_parts(out.join("debug-part-5b.png"), &[render::Part::metal(&c.mesh, render::GOLD)], 0.6, 0.6, 800)?;
+            }
+            println!("    part {} {}: {} faces, bounds {:?}; thickness min {:?} at {at:?}, {} below", c.id, c.name, c.mesh.faces.len(), c.mesh.bounds(), t.sampled_min_mm, t.below_limit);
+        }
+    }
+    let ring_crossings = csg::self_crossings(&solid_of(&built.mesh));
+    let bore = d.inner_radius_mm();
+    let inside = built.mesh.vertices.iter().filter(|p| (p.0 as f64).hypot(p.1 as f64) < bore - 0.01).count();
+    let min_r = built.mesh.vertices.iter().map(|p| (p.0 as f64).hypot(p.1 as f64)).fold(f64::MAX, f64::min);
+    let field = castability::judged_field_report(&d, &lib, &d.draft, 256, 128, Some(&built));
+    let findings = dfm::findings_in(&d, &lib);
+    let lands = dfm::cut_lands(&d, &built, MIN_SECTION_MM);
+    let stones_report = ringdesign_core::stones::report(&d, field.parting_z_mm);
+    let previewed = ringdesign_core::gems::built_meshes(&d, &lib, &built).len();
+    // Wall thickness is screened on a build light enough for the measure.
+    let coarse = BuildParams { theta_steps: 384, profile_steps: 160, ..params };
+    let thin_mesh = if std::env::var("FENESTRA_FINISHED").is_ok() { mesh::try_build(&d, &lib, coarse)?.mesh } else { mesh::try_build_pattern(&d, &lib, coarse)?.mesh };
+    let thickness = cad::measure::thickness(&thin_mesh, MIN_SECTION_MM);
+    println!(
+        "  thickness at {} x {} ({} faces): {} rays, min {:?}, {} below {:.1}, {} unresolved at {:?}",
+        coarse.theta_steps,
+        coarse.profile_steps,
+        thin_mesh.faces.len(),
+        thickness.rays,
+        thickness.sampled_min_mm,
+        thickness.below_limit,
+        MIN_SECTION_MM,
+        thickness.unresolved,
+        thickness.point.map(|p| (p[0].hypot(p[1]), p[1].atan2(p[0]).to_degrees(), p[2]))
+    );
+    if let Ok(z) = std::env::var("FENESTRA_SECTION") {
+        let z: f64 = z.parse()?;
+        let mut segs: Vec<_> = cad::measure::section(&thin_mesh, 2, z)
+            .into_iter()
+            .filter(|s| s.iter().all(|p| { let t = p[1].atan2(p[0]).to_degrees(); (46.0..60.0).contains(&t) && p[0].hypot(p[1]) > 9.5 && p[0].hypot(p[1]) < 12.0 }))
+            .collect();
+        segs.sort_by(|a, b| a[0][0].total_cmp(&b[0][0]));
+        for s in segs {
+            println!("    seg x {:.2} y {:.2} -> x {:.2} y {:.2}", s[0][0], s[0][1], s[1][0], s[1][1]);
+        }
+    }
+    if std::env::var("FENESTRA_HEAD").is_ok() {
+        let head = crop(&thin_mesh, |p| p[1] > 11.0 && (p[1].atan2(p[0]).to_degrees() - 90.0).abs() < 25.0);
+        let all = thin_rays_every(&head, MIN_SECTION_MM, 1);
+        println!("    head every face: {} of {} below", all.len(), head.faces.len());
+        let claws: Vec<_> = all.iter().filter(|x| x.1[0].hypot(x.1[1]) > 13.8 && x.0 > 0.05).collect();
+        let worst = claws.iter().map(|x| x.0).fold(f64::MAX, f64::min);
+        println!("    claws (r > 13.8, past edge slivers): {} below, worst {worst:.3}", claws.len());
+        let mut hist = [0usize; 8];
+        for c in &claws {
+            hist[((c.1[0].hypot(c.1[1]) - 13.8) / 0.25).floor().clamp(0.0, 7.0) as usize] += 1;
+        }
+        println!("    by radius from 13.8 in 0.25 steps: {hist:?}");
+        for c in claws.iter().step_by(37) {
+            println!("      {:.3} at r {:.2} θ {:.1} z {:.2} in {:?}", c.0, c.1[0].hypot(c.1[1]), c.1[1].atan2(c.1[0]).to_degrees(), c.1[2], c.2.map(|x| (x * 100.0).round() / 100.0));
+        }
+        let mut sorted = all.clone();
+        sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
+        for (v, c, n) in sorted.iter().take(14) {
+            println!("      {v:.3} at r {:.2} θ {:.1} z {:.2} in {:?}", c[0].hypot(c[1]), c[1].atan2(c[0]).to_degrees(), c[2], n.map(|x| (x * 100.0).round() / 100.0));
+        }
+    }
+    if std::env::var("FENESTRA_DEBUG").is_ok() {
+        for (v, c, n) in thin_rays(&thin_mesh, MIN_SECTION_MM) {
+            println!("    thin {v:.3} mm at r {:.2} θ {:.1} z {:.2}, inward {:?}", c[0].hypot(c[1]), c[1].atan2(c[0]).to_degrees(), c[2], n.map(|x| (x * 100.0).round() / 100.0));
+        }
+    }
+    let grams = built.report.metals.iter().find(|m| m.metal == ALLOY).map_or(0.0, |m| m.grams);
+    library::save_design(out.join("design.ring.json"), &d)?;
+    let design_bytes = std::fs::metadata(out.join("design.ring.json"))?.len();
+    let cold = if verify {
+        let saved = library::load_design(out.join("design.ring.json"))?;
+        let cold_lib = mf::source_library(&saved, &AlphaLibrary::default()).into_owned();
+        let rebuilt = mesh::try_build(&saved, &cold_lib, params)?;
+        let same = rebuilt.mesh.vertices == built.mesh.vertices && rebuilt.mesh.faces == built.mesh.faces && rebuilt.mesh.normals == built.mesh.normals;
+        println!("  cold reload with an empty library: {}", if same { "identical" } else { "DIFFERENT" });
+        Some(same)
+    } else {
+        None
+    };
+    let pattern = mesh::try_build_pattern(&d, &lib, params)?;
+    let pattern_crossings = csg::self_crossings(&solid_of(&pattern.mesh));
+    let pattern_ok = pattern.report.validation.watertight && pattern.report.quality.degenerate_faces == 0 && pattern_crossings == 0;
+    let stone_count = stones_report.as_ref().map_or(0, |s| s.stone_count) as usize;
+    let crowding = stones_report.as_ref().and_then(|s| s.crowding_note());
+    let gates = json!({
+        "watertight": v.watertight,
+        "degenerate_faces": q.degenerate_faces,
+        "ring_self_crossings": ring_crossings,
+        "made_part_self_crossings": made,
+        "solids_notes": built.solids.notes,
+        "parts_notes": built.parts.notes,
+        "features": features.iter().map(|(id, n, s)| json!({"id": id, "name": n, "status": s})).collect::<Vec<_>>(),
+        "bore_radius_mm": bore,
+        "min_vertex_radius_mm": min_r,
+        "vertices_inside_bore": inside,
+        "field_verdict": field.verdict.label(),
+        "field_notes": field.notes,
+        "investment_min_section_mm": d.draft.min_section_mm,
+        "thickness": {"build": [coarse.theta_steps, coarse.profile_steps], "faces": thin_mesh.faces.len(), "limit_mm": thickness.limit_mm, "rays": thickness.rays, "sampled_min_mm": thickness.sampled_min_mm, "below_limit": thickness.below_limit, "unresolved": thickness.unresolved, "note": thickness.note},
+        "cut_lands": lands.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
+        "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
+        "stones_reported": stone_count,
+        "stones_previewed": previewed,
+        "crowding": crowding,
+        "cold_reload_identical": cold,
+        "triangles": built.mesh.faces.len(),
+        "pattern": {"watertight": pattern.report.validation.watertight, "degenerate_faces": pattern.report.quality.degenerate_faces, "self_crossings": pattern_crossings},
+    });
+    let passed = v.watertight
+        && q.degenerate_faces == 0
+        && ring_crossings == 0
+        && made.iter().all(|(_, n)| *n == 0)
+        && built.solids.notes.is_empty()
+        && built.parts.notes.is_empty()
+        && features.iter().all(|(_, _, s)| s == "Ok")
+        && inside == 0
+        && thickness.rays > 0
+        && thickness.below_limit == 0
+        && thickness.unresolved == 0
+        && lands.is_empty()
+        && findings.is_empty()
+        && stone_count == previewed
+        && cold != Some(false)
+        && built.mesh.faces.len() <= 2_000_000
+        && pattern_ok;
+    let block = json!({"build": [params.theta_steps, params.profile_steps], "build_s": build_s, "gates": gates, "gates_passed": passed});
+    let report_path = out.join("report.json");
+    let mut report: serde_json::Value = std::fs::read(&report_path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_else(|| json!({}));
+    report["name"] = json!(d.name);
+    report["process"] = json!(d.draft.process.label());
+    report["alloy"] = json!(ALLOY);
+    report["size"] = json!(d.size.display());
+    report["bore_mm"] = json!(built.report.inner_diameter_mm);
+    report["band"] = json!({"style": "Flat", "width_mm": WIDTH_MM, "thickness_mm": THICKNESS_MM, "shank": "Keyframes", "swell_keys": SWELL});
+    report["stone"] = json!({"cut": "Oval", "l_mm": STONE_L_MM, "w_mm": STONE_W_MM, "spin_deg": 0.0});
+    report["windows"] = json!({"per_shoulder": WINDOWS, "first_deg": FIRST_WINDOW_DEG, "step_deg": WINDOW_STEP_DEG, "length_mm": WINDOW_L_MM, "width_mm": WINDOW_W_MM, "chamfer_mm": WINDOW_CHAMFER_MM});
+    report["grams_gold_18k"] = json!(grams);
+    report["design_bytes"] = json!(design_bytes);
+    report["cad_features"] = json!(d.cad.as_ref().map_or(0, |c| c.features.len()));
+    report["draft_settings"] = json!(d.draft);
+    report[if draft { "draft" } else { "export" }] = block;
+    std::fs::write(&report_path, serde_json::to_vec_pretty(&report)?)?;
+    if std::env::var("FENESTRA_RIM").is_ok() {
+        // The rim of the window nearest theta 55 on the -Z face: edges shared by a wall face (part) and a face of the band.
+        let m = &built.mesh;
+        let part = |f: &[u32; 3]| f.iter().all(|&i| m.origin[i as usize] >= mesh::SOLID_VERTEX);
+        let mut owner: std::collections::HashMap<(u32, u32), Vec<bool>> = std::collections::HashMap::new();
+        for f in &m.faces {
+            for k in 0..3 {
+                let (a, b) = (f[k], f[(k + 1) % 3]);
+                owner.entry((a.min(b), a.max(b))).or_default().push(part(f));
+            }
+        }
+        let mut pts = Vec::new();
+        for ((a, b), o) in &owner {
+            if o.len() == 2 && o[0] != o[1] {
+                for v in [a, b] {
+                    let q = m.vertices[*v as usize];
+                    let t = (q.1 as f64).atan2(q.0 as f64).to_degrees();
+                    if (t - 55.0).abs() < 7.0 && q.2.abs() > 1.0 {
+                        pts.push((t, (q.0 as f64).hypot(q.1 as f64), q.2 as f64));
+                    }
+                }
+            }
+        }
+        pts.sort_by(|a, b| a.0.total_cmp(&b.0));
+        pts.dedup();
+        for side in [-1.0, 1.0] {
+            let s: Vec<_> = pts.iter().filter(|p| p.2 * side > 0.0).collect();
+            let (t0, t1) = s.iter().fold((f64::MAX, f64::MIN), |a, p| (a.0.min(p.0), a.1.max(p.0)));
+            let (r0, r1) = s.iter().fold((f64::MAX, f64::MIN), |a, p| (a.0.min(p.1), a.1.max(p.1)));
+            let (z0, z1) = s.iter().fold((f64::MAX, f64::MIN), |a, p| (a.0.min(p.2), a.1.max(p.2)));
+            println!("    rim side {side}: {} pts, theta {t0:.2}..{t1:.2}, r {r0:.3}..{r1:.3}, z {z0:.3}..{z1:.3}", s.len());
+        }
+    }
+    let fin = render::finished_from(&d, &lib, built);
+    if std::env::var("FENESTRA_DEBUG").is_ok() {
+        let lo: f64 = std::env::var("FENESTRA_LO").ok().and_then(|v| v.parse().ok()).unwrap_or(25.0);
+        let hi: f64 = std::env::var("FENESTRA_HI").ok().and_then(|v| v.parse().ok()).unwrap_or(55.0);
+        let zmax: f64 = std::env::var("FENESTRA_Z").ok().and_then(|v| v.parse().ok()).unwrap_or(9.0);
+        let near = crop(&fin.metal, |p| { let t = p[1].atan2(p[0]).to_degrees(); (lo..hi).contains(&t) && p[2] < zmax });
+        for (k, (yaw, pitch)) in [(0.0, 0.0), (PI, 0.0), (0.3, 0.3), (PI - 0.3, 0.3), (0.0, FRAC_PI_2), (0.0, 0.8)].iter().enumerate() {
+            render::write_png_parts(out.join(format!("debug-window-{k}.png")), &[render::Part::metal(&near, render::GOLD)], *yaw, *pitch, 800)?;
+        }
+    }
+    if !draft {
+        stl::write_stl(out.join("finished-metal.stl"), &fin.metal, &d.name)?;
+        stl::write_stl(out.join("casting-pattern.stl"), &pattern.mesh, &d.name)?;
+        for (k, (m, _)) in fin.stones.iter().enumerate() {
+            stl::write_stl(out.join(format!("reference-oval-{}.stl", k + 1)), m, "Oval 7 x 5")?;
+        }
+    }
+    if let Some(s) = &stones_report {
+        let g = gem();
+        let stones = json!({
+            "stone_count": s.stone_count,
+            "total_carats": s.total_carats,
+            "stones": [{"name": builders::gem_label(g), "cut": "Oval", "l_mm": g.l_mm, "w_mm": g.w_mm, "depth_mm": g.depth_mm(), "theta_deg": 90.0, "spin_deg": 0.0, "setting": "Basket: four claws, two rails", "seat": "bur, through"}],
+            "previewed": fin.stones.len(),
+            "crowding": s.crowding_note(),
+        });
+        std::fs::write(out.join("stones.json"), serde_json::to_vec_pretty(&stones)?)?;
+    }
+    renders(&out, &lib, &fin, if draft { 1000 } else { 1600 })?;
+    if !args.iter().any(|a| a == "--no-timeline") {
+        timeline(&out, &d, &lib)?;
+    }
+    println!("  field {} (lost wax: informational); dfm {}; lands {}; min r {:.3} vs bore {:.3}; {:.1} g 18k", field.verdict.label(), findings.len(), lands.len(), min_r, bore, grams);
+    for f in findings.iter().chain(&lands) {
+        println!("    dfm: {}: {}", f.label, f.message);
+    }
+    for n in built_notes(&report) {
+        println!("    note: {n}");
+    }
+    println!("  gates {}", if passed { "passed" } else { "FAILED" });
+    ensure!(passed || std::env::var("FENESTRA_ALLOW_FAIL").is_ok(), "Fenestra failed its gates; see {}", report_path.display());
+    Ok(())
+}
+
+/// Every ray `cad::measure::thickness` samples that falls under `limit`: its length, start and inward direction.
+fn thin_rays(m: &mesh::Mesh, limit: f64) -> Vec<(f64, [f64; 3], [f64; 3])> {
+    thin_rays_every(m, limit, m.faces.len().div_ceil(384).max(1))
+}
+
+/// [`thin_rays`] from every `stride`-th face.
+fn thin_rays_every(m: &mesh::Mesh, limit: f64, stride: usize) -> Vec<(f64, [f64; 3], [f64; 3])> {
+    let sub = |a: [f64; 3], b: [f64; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    let cross = |a: [f64; 3], b: [f64; 3]| [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    let tris: Vec<_> = m.faces.iter().filter_map(|f| m.triangle(f)).collect();
+    let mut out = Vec::new();
+    for (i, (a, b, c)) in tris.iter().enumerate().step_by(stride) {
+        let n = cross(sub(*b, *a), sub(*c, *a));
+        let l = dot(n, n).sqrt();
+        if l < 1e-12 {
+            continue;
+        }
+        let o: [f64; 3] = std::array::from_fn(|k| (a[k] + b[k] + c[k]) / 3.0);
+        let d = n.map(|v| -v / l);
+        let mut best = f64::MAX;
+        for (j, (p, q, r)) in tris.iter().enumerate() {
+            if j == i {
+                continue;
+            }
+            let (e1, e2) = (sub(*q, *p), sub(*r, *p));
+            let h = cross(d, e2);
+            let det = dot(e1, h);
+            if det.abs() < 1e-12 {
+                continue;
+            }
+            let s = sub(o, *p);
+            let u = dot(s, h) / det;
+            if !(-1e-8..=1.0 + 1e-8).contains(&u) {
+                continue;
+            }
+            let qq = cross(s, e1);
+            let v = dot(d, qq) / det;
+            if v < -1e-8 || u + v > 1.0 + 1e-8 {
+                continue;
+            }
+            let t = dot(e2, qq) / det;
+            if t > 1e-5 {
+                best = best.min(t);
+            }
+        }
+        if best < limit {
+            out.push((best, o, d));
+        }
+    }
+    out
+}
+
+fn built_notes(report: &serde_json::Value) -> Vec<String> {
+    let mut out = Vec::new();
+    for b in ["draft", "export"] {
+        for k in ["solids_notes", "parts_notes"] {
+            if let Some(a) = report[b]["gates"][k].as_array() {
+                out.extend(a.iter().filter_map(|s| s.as_str().map(String::from)));
+            }
+        }
+    }
+    out
+}

@@ -1,0 +1,16 @@
+{
+  "ring": "fenestra",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": true,
+  "what_the_eye_sees": "The hero is now a three-quarter view on a grey backdrop, and the windows finally show daylight. Each drop is pale grey or white through the gold, so they read as holes cut through the shank, not as black enamel or shadow. There is a row of three along the far shoulder and a row of three down the near shoulder, either side of a four-claw oval head. A jeweller would say 'claw solitaire with pierced drop windows down the shoulders', which is the ring's idea. The face view has changed too: the band now visibly widens toward the head instead of running parallel, so the shoulders carry some swell, though no windows show from the top (as expected for side-face cuts). It is still not a confident read. The windows are small, about 8 to 10 px at 300 px. The near row starts well below the head, so the windows and the stone still feel like two separate events. On the far shoulder the drops seem to tilt slightly differently from one another, which makes them look like scattered hearts or commas rather than a ruled array. The idea is there, but only just.",
+  "changes": [
+    "Pull the arrays up to the head. On the near (+Z) shoulder the top window sits about two window-lengths below the basket feet. Start the array nearer the head, for example 62/54/46 degrees instead of 48/40/32, keeping the side-face web at MIN_EDGE + 0.2 or more at each copy. Acceptance: in hero-300 the top window on each shoulder sits within one window-length of the nearest basket claw foot.",
+    "Enlarge the windows. Raise each drop to about 55-65% of the local side-face height, up to about 2.5 mm long: lift the 0.45-of-face / 3 mm sizing in pierce_at, or size at the deeper face nearer the head. Keep webs of at least 0.6 mm. Acceptance: in hero-300 each window is at least 12 px long and its lit opening is plainly visible on both shoulders.",
+    "Make the array visibly ordered. All six drops should have the same size and the same orientation, with the point aimed along the pull toward the head, and they should be mirrored exactly across theta 90. Spacing should be even. Acceptance: in hero-300 the three drops on the far shoulder have the same shape and tilt and sit at equal spacing on one curve. None reads as a heart or a reversed comma."
+  ],
+  "viewed_images": [
+    "showcase/officina/fenestra/hero-300.png",
+    "showcase/officina/fenestra/face-300.png"
+  ]
+}
