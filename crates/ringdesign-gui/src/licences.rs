@@ -6,7 +6,7 @@ use ringdesign_occt::client::Locator;
 pub const MIT: &str = include_str!("../../../LICENSE-MIT");
 /// RingDesigner's Apache licence.
 pub const APACHE: &str = include_str!("../../../LICENSE-APACHE");
-/// OpenCascade's, cadrum's and MinGW-w64's notices and licences.
+/// OpenCascade's, cadrum's, MinGW-w64's and the bundled fonts' notices and licences.
 pub const NOTICES: &str = include_str!("../../../THIRD-PARTY-NOTICES.md");
 
 /// Where RingDesigner's source is, the OpenCascade worker's included.
@@ -177,11 +177,16 @@ mod tests {
         let notices = NOTICES.replace("\r\n", "\n");
         let blocks = blocks(&notices);
         let headings: Vec<&str> = blocks.iter().filter_map(|b| if let Block::Heading(2, h) = b { Some(*h) } else { None }).collect();
-        assert_eq!(headings, ["Open CASCADE Technology 8.0.1", "cadrum 0.8.20", "MinGW-w64 runtime (the Windows worker)", "Everything else"]);
+        assert_eq!(headings, ["Open CASCADE Technology 8.0.1", "cadrum 0.8.20", "MinGW-w64 runtime (the Windows worker)", "Fonts", "Everything else"]);
         let code = |under: &str| blocks.iter().find_map(|b| if let Block::Code { under: u, text } = b { (*u == under).then_some(text.as_str()) } else { None }).unwrap();
         assert!(code("GNU Lesser General Public License, version 2.1").starts_with("                  GNU LESSER GENERAL PUBLIC LICENSE"));
         assert!(code("Open CASCADE exception, version 1.0").starts_with("Open CASCADE exception (version 1.0) to GNU LGPL version 2.1."));
         assert!(code("cadrum 0.8.20").contains("Copyright (c) 2026 cadrum Contributors"));
+        // Every bundled font named with its copyright, and the OFL in full.
+        assert!(code("Fonts").contains("SIL OPEN FONT LICENSE Version 1.1") && code("Fonts").contains("OTHER DEALINGS IN THE FONT SOFTWARE."));
+        for holder in ["The EB Garamond Project Authors", "The Great Vibes Pro Project Authors", "with Reserved Font Name UnifrakturMaguntia", "Peter Wiegel"] {
+            assert!(blocks.iter().any(|b| matches!(b, Block::Text(t) if t.contains(holder))), "{holder}");
+        }
         assert!(notices.contains("https://github.com/Open-Cascade-SAS/OCCT/archive/refs/tags/V8_0_1.tar.gz"));
         assert!(notices.contains("makes use of, and is in part based on,\nfacilities provided by the Open CASCADE Technology software"));
         assert!(MIT.contains("Copyright (c) 2026 Logan and the RingDesigner authors") && APACHE.contains("Version 2.0, January 2004"));

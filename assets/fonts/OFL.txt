@@ -1,4 +1,15 @@
+The three fonts in this folder are each licensed under the SIL Open Font
+License, Version 1.1, reproduced below. Each is carried unmodified.
+
+EBGaramond.ttf (EB Garamond):
+Copyright 2017 The EB Garamond Project Authors (https://github.com/octaviopardo/EBGaramond12)
+
+GreatVibes-Regular.ttf (Great Vibes):
 Copyright 2015 The Great Vibes Pro Project Authors (https://github.com/googlefonts/great-vibes)
+
+UnifrakturMaguntia-Book.ttf (UnifrakturMaguntia):
+Copyright (c) 2010, j. 'mach' wust, with Reserved Font Name UnifrakturMaguntia.
+Copyright (c) 2009, Peter Wiegel.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

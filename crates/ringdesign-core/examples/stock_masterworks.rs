@@ -900,6 +900,7 @@ fn decorate(slug: &str) -> Result<(RingDesign, AlphaLibrary)> {
             profile: WireProfile::Round,
             taper: 0.,
             mirror_v: false,
+            ..Default::default()
         };
         let mut e = LayerEntry::new("Swept halo thread", Layer::Curve(c));
         e.mask = Some("Face reserve".into());

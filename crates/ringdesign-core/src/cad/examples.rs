@@ -190,13 +190,13 @@ pub fn design(name: &str) -> Result<RingDesign> {
                 add(
                     &mut doc,
                     &format!("Gallery strut {}", k + 1),
-                    Operation::Sweep {
-                        sketch: Sketch::circle(0.4).into(),
-                        path: vec![
+                    Operation::sweep(
+                        Sketch::circle(0.4),
+                        vec![
                             [4.0 * a.cos(), 4.0 * a.sin(), 0.0],
                             [5.0 * a.cos(), 5.0 * a.sin(), 3.0],
                         ],
-                    },
+                    ),
                     ComponentRole::Setting,
                 )?;
             }
