@@ -1,0 +1,27 @@
+{
+  "ring": "viscum",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Still a gold blossom with pearls, and now a fuller one. Each clover lobe has split into two or three overlapping, broad, round-ended blades, so the face shows eight or more petals in a pinwheel around the centre. That reads as a double flower (magnolia, gardenia, a pinwheel brooch), not as two crossed pairs of narrow mistletoe leaves. The blades are still swollen and glossy, as wide as a thumbprint, and their midribs and edge ridges look like petal veins. The white stones are better grouped than in attempt 2. On the shoulder there are now small triangles of three, and the right side of the face has one three-berry triangle, which is the most mistletoe-like detail on the ring. But the face also carries two lone pearls on the left lobes, and berries sitting on top of petals, so the stones read as a pearl-studded flower and not as fruit in twig forks. No forked twig is visible at 300 px on the face or the cheeks. Shown it without a caption, a jeweller says 'gold flower ring with pearls'. White berries alone might prompt a guess of mistletoe or snowberry, but the leaf form argues against it.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Face, all four clover lobes (lobe axes at 45 + k*90 deg) and the leaf stamps on them",
+      "change": "Go back to exactly four leaves, one per lobe, and remove the secondary overlapping blades, which have multiplied the petal count. Each leaf must be a single narrow strap, about 3:1 length to width (about 10 x 3.2 mm), round-tipped, with a dark recessed outline at least 0.5 mm deep along both edges so the leaf is cut out of the lobe and not puffed up from it. Reduce the lobe crown by about 40%. Make one opposite pair about 1.5 mm longer than the other, so the face reads as two crossed leaf pairs from one node, not a radially symmetric flower.",
+      "acceptance": "On face-300.png you can count exactly four leaf outlines, each clearly longer than it is wide, forming an X of two unequal opposite pairs. No petal count above four can be read."
+    },
+    {
+      "priority": 2,
+      "where": "Face stones (the two lone stones on the left-hand lobes and the three-stone triangle right of centre)",
+      "change": "Take every stone off the leaf blades. Move the three-berry triangle onto the centre node where the four leaf stalks meet, tight together (gaps of 0.4 mm or less). Delete the two lone stones on the left lobes, or regroup them into a second tight pair in the axil between two leaf bases. No berry sits on a leaf surface.",
+      "acceptance": "On face-300.png every white stone sits in the centre fork or in a leaf axil. The centre cluster is centred on the node, and no single pearl stands isolated on a lobe."
+    },
+    {
+      "priority": 3,
+      "where": "Cheeks and shoulders, both sides (from the lobe tips down to about theta 60 deg from the face)",
+      "change": "Keep the three-berry triangles; they work. Mount each one in the crotch of a visible Y-forked twig, 1.0 mm wide and 0.8 mm proud, with about a 60 deg fork. Put one opposite pair of small strap leaves, about 5 x 1.6 mm, at each fork tip. This repeated fork, leaf pair and berry unit is the botanical signature that the lobes can't carry by themselves.",
+      "acceptance": "On hero-300.png at least two Y-forks are legible on the near cheek or shoulder, each with a paired-leaf tip and a berry triangle in the crotch."
+    }
+  ]
+}
