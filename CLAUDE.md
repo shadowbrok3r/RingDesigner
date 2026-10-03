@@ -2624,6 +2624,47 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   0.9: every gap 0.9 ± 1e-6). A branched sketch that carries several depths
   sweeps its cells by `Profile::Regions`; one Sketch feature per depth is
   still the plainer way. The graph reaches it as `sketch.tracery`.
+- **Text is a sketch like any other** (C-T6, `sketch::text`). `TextLayout`
+  reads each glyph's outline through ttf-parser and draws it as closed loops
+  of lines and cubic Béziers, counters holes by even-odd nesting, straight or
+  round a circle (`TextArc`: clockwise stands the letters outward, as a
+  seal's legend; each glyph is placed rigid at its advance centre), aligned
+  Start/Centre/End and optionally mirrored for a seal. A TrueType quadratic
+  costs three of a sketch's 1024 points, so smooth runs of them are refitted
+  as fewer cubics held to `FIT_TOLERANCE_EM` (1/1000 em, under two microns at
+  a 1.2 mm capital; corners and lines kept exactly): SIGILLVM went from 1112
+  points to 764. A text still over the cap is set `parts()` at a time, a word
+  each (a long word split between letters), every part laid where it falls in
+  the whole; `tracking_for(length)` solves the tracking that closes an arc.
+  `✠` draws the bundled cross pattée where a font has none (`SYMBOLS`).
+  `TextFont::Textura` is UnifrakturMaguntia, SIL OFL, carried unmodified;
+  all three faces' notices are in `assets/fonts/OFL.txt` and under Tools >
+  Licences. Touching letters are refused by name ("open the tracking"); EB
+  Garamond's `g` crosses itself and is refused, every Textura letter sweeps.
+  A design whose inscription is Textura is written at 6, and the graph node
+  `sketch.text` (whole text, or `part` k) fences its graph at 2. Two things
+  the text found in the kernel, both fixed as retries so a solid that built
+  before builds byte for byte: a Bézier wall's edges are sampled more finely
+  than the flat cap beside it, and the cracks the sliver stitch could not
+  close are now split along the cap's own triangles (`split_t_junctions`; V,
+  A and P cut open before); and an SVG's arcs drawn to nine places miss
+  their neighbours by a nanometre once scaled up (the quatrefoil at 2x),
+  which the kernel refuses, so a refused region is retried with its pieces
+  meeting exactly (`sketch::solid::healed`). **A drafted extrusion of any
+  outline with a curve or an inward corner is refused by the kernel**
+  (`extrude_tapered` takes lines and arcs whose offset keeps every edge): the
+  fleur, the quatrefoil and every word cut with no draft today.
+- **A bench part may stand no mark** (C-T5). `Component::mark` (default on,
+  written only when off, then at format 6) leaves a part staged Bench out of
+  the sand pattern's locating and drill marks; the pattern then is the bare
+  stock, and the report names it under "Left to the bench with no mark".
+  Measured on the 017 sand master with a seal's four bench cuts: every 1 mm
+  drill dot on the zero-draft table leaned 22–28° over 0.12–0.29 mm², the
+  one at the table's middle on the parting line too (its note now says it
+  has nowhere better to go), a legend cut a word at a time is marked at each
+  word's own middle, and the marks took the verdict from 0.0000 to 0.0666
+  mm²; with the opt-out it is the bare stock's exactly. An engraving is laid
+  out from the drawing, so it takes the opt-out.
 
 ## Python: `crates/ringdesign-py`
 

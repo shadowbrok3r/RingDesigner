@@ -495,6 +495,10 @@ pub fn attachment(ui: &mut egui::Ui, c: &mut Component) {
                 ui.selectable_value(&mut c.stage, stage, label).on_hover_text(hint).on_disabled_hover_text(STONE);
             }
         });
+        if c.attaches() && c.stage == Stage::Bench {
+            ui.checkbox(&mut c.mark, "Mark in the pattern")
+                .on_hover_text("A sand pattern stands a raised locating or drill mark where this part meets the band; an engraving laid out from the drawing needs none");
+        }
         if c.attaches() {
             crate::controls::named(ui, "Seam blend mm", "Seam blend", |ui| {
                 ui.add(egui::DragValue::new(&mut c.blend_mm).range(0.0..=1.5).speed(0.01).max_decimals(2).suffix(" mm"))

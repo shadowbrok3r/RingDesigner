@@ -45,7 +45,8 @@ pub const DESIGN_EXT: &str = "ring.json";
 // it also protects a revolution whose line is read in its sketch's plane, which an earlier build would turn about the world's line,
 // a pattern of several parts, which an earlier build cannot parse, a cut carved from a ring of parts alone, which an earlier
 // build pours as metal, and a stamp with a tier, a shaped top or an outline over 512 points, which an earlier build flattens
-// or refuses.
+// or refuses; a part left to the bench with no mark, which an earlier build would mark, and an inscription in the Textura
+// face, which an earlier build cannot name.
 // A design with none of these is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
@@ -67,6 +68,8 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
         || design.graph.as_ref().is_some_and(template_features_in_json)
         || design.shank.bypass_fair_deg != 0.0
+        || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| !f.component.mark))
+        || design.texts.iter().any(|t| t.font == crate::text::TextFont::Textura)
     {
         FORMAT_VERSION
     } else {
@@ -126,8 +129,11 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     if value.get("space").and_then(serde_json::Value::as_str) == Some("Hide") { return true; }
     if value.get("mask").and_then(serde_json::Value::as_str).is_some_and(|m| m.starts_with(crate::skin::REGION_PREFIX)) { return true; }
     if value.get("taper").is_some() && value.get("law").is_some_and(|law| law == "Cosine" || law.get("Spiral").is_some()) { return true; }
+    // A part left to the bench with no mark, which an older reader would mark; a face an older reader cannot name.
+    if value.get("attach").is_some() && value.get("stage").is_some() && value.get("mark").and_then(serde_json::Value::as_bool) == Some(false) { return true; }
+    if value.get("font").and_then(serde_json::Value::as_str) == Some("Textura") { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
-        if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps")
+        if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps" | "sketch.text")
             || kind.starts_with("stamp.outline.") || kind.starts_with("cad.op.") { return true; }
         if value.get("inputs").and_then(serde_json::Value::as_object).is_some_and(|inputs| inputs.iter().any(|(pin, v)| {
             new_pin(kind, pin) && !v.is_null() && v.as_bool() != Some(false) && (kind != "window" || pin != "v_gate" || matches!(v.as_str(), Some("side_faces" | "draft")))
@@ -184,6 +190,33 @@ mod template_source_tests {
         }
         assert!(template_features_in_json(&serde_json::json!({"nodes": [{"kind": "layer.tiling", "inputs": {"grade": graded.grade}}]})));
         assert!(!template_features_in_json(&serde_json::json!({"nodes": [{"kind": "layer.tiling", "inputs": {}}]})));
+    }
+
+    /// A bench part with no mark, or an inscription in Textura, writes the design at 6 and a graph carrying either at 2;
+    /// the defaults stay plain and leave nothing new in the file.
+    #[test]
+    fn an_unmarked_bench_part_and_a_textura_inscription_fence_the_design_and_its_graph() {
+        use crate::cad::{Attach, Component, Document, Feature, Operation, Stage};
+        use crate::text::{TextAlpha, TextFont};
+        let part = |mark: bool| {
+            let mut doc = Document::default();
+            let component = Component { attach: Attach::Cut, stage: Stage::Bench, mark, ..Component::default() };
+            doc.features.push(Feature { id: 1, name: "Legend".into(), enabled: true, operation: Operation::Box { size: [1.0; 3] }, component });
+            RingDesign { cad: Some(doc), ..RingDesign::default() }
+        };
+        let inscription = |font: TextFont| RingDesign { texts: vec![TextAlpha { font, ..TextAlpha::default() }], ..RingDesign::default() };
+        for (d, fenced) in [(part(true), false), (part(false), true), (inscription(TextFont::Serif), false), (inscription(TextFont::Textura), true)] {
+            let text = design_json(&d).unwrap();
+            assert_eq!(format_version_for(&d), if fenced { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION });
+            assert_eq!(read_design(&text, PLAIN_FORMAT_VERSION).is_err(), fenced);
+            assert_eq!(serde_json::to_value(load_design_str(&text).unwrap()).unwrap(), serde_json::to_value(&d).unwrap());
+            assert_eq!(text.contains("\"mark\""), d.cad.as_ref().is_some_and(|doc| !doc.features[0].component.mark));
+            let graph = serde_json::json!({"nodes":[{"kind":"design.set","params":{"value":serde_json::to_value(&d).unwrap()}}]});
+            assert_eq!(template_features_in_json(&graph), fenced);
+        }
+        for (kind, inputs, fenced) in [("alpha.text", serde_json::json!({"font":"Textura"}), true), ("alpha.text", serde_json::json!({"font":"Serif"}), false), ("sketch.text", serde_json::json!({}), true)] {
+            assert_eq!(template_features_in_json(&serde_json::json!({"nodes":[{"kind":kind,"inputs":inputs}]})), fenced, "{kind} {inputs}");
+        }
     }
 
     #[test]

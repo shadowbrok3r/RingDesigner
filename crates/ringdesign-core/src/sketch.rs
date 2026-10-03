@@ -18,6 +18,7 @@ pub mod query;
 pub mod region;
 pub mod solid;
 pub mod solver;
+pub mod text;
 pub use dimension::{Held, Measure};
 pub use edit::{Pattern, Tracery};
 pub use query::Near;

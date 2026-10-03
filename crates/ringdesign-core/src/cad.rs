@@ -302,6 +302,15 @@ pub struct Component {
     pub stage: Stage,
     /// Radius of the seam bead laid along a `Join`/`Cut` junction; 0 lays none.
     pub blend_mm: f64,
+    /// Whether a sand pattern stands a raised locating or drill mark where this part, left to the
+    /// bench, meets the band. An engraving cut from the drawing needs none. Written only when off,
+    /// and then at format 6, since an older build would stand the mark.
+    #[serde(skip_serializing_if = "marked")]
+    pub mark: bool,
+}
+/// Whether a component keeps its bench mark: the default, which a file leaves unwritten.
+fn marked(mark: &bool) -> bool {
+    *mark
 }
 /// How a component's solid meets the band once both are built.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -346,6 +355,7 @@ struct ComponentWire {
     attach: Attach,
     stage: Stage,
     blend_mm: f64,
+    mark: bool,
     ring_anchor_deg: Option<f64>,
     anchor_height_mm: f64,
 }
@@ -364,6 +374,7 @@ impl Default for ComponentWire {
             attach: c.attach,
             stage: c.stage,
             blend_mm: c.blend_mm,
+            mark: c.mark,
             ring_anchor_deg: None,
             anchor_height_mm: 0.0,
         }
@@ -387,6 +398,7 @@ impl From<ComponentWire> for Component {
             attach: w.attach,
             stage: w.stage,
             blend_mm: w.blend_mm,
+            mark: w.mark,
         }
     }
 }
@@ -1272,6 +1284,7 @@ impl Default for Component {
             attach: Attach::Separate,
             stage: Stage::Cast,
             blend_mm: 0.0,
+            mark: true,
         }
     }
 }
@@ -3021,6 +3034,10 @@ pub fn tessellate_traced(body: &Body, chord_mm: f64) -> Result<(Mesh, PartTrace)
         stitch_chord_gaps(&mut mesh, body, chord_mm);
         tri_face.resize(mesh.faces.len(), u32::MAX);
     }
+    // Cracks the sliver pass left open; after it, so every mesh that pass closes is unchanged.
+    if !mesh.validate().watertight {
+        split_t_junctions(&mut mesh, &mut tri_face, &precise, chord_mm);
+    }
     let validation = mesh.validate();
     ensure!(
         validation.watertight,
@@ -3035,6 +3052,88 @@ pub fn tessellate_traced(body: &Body, chord_mm: f64) -> Result<(Mesh, PartTrace)
         .map(|(_, v)| v.point)
         .collect();
     Ok((mesh, PartTrace { tri_face, positions: precise, face_kind, vertices, patches: Vec::new() }))
+}
+/// Where one face samples a shared spline edge more finely than its neighbour, the neighbour's open
+/// edge has the finer side's open vertices lying along it: the triangle on that edge is fanned from
+/// its far corner through them, in order, so no point moves and none is added. A vertex counts as on
+/// the edge within twice the chord tolerance of it and a quarter of its length, strictly between its
+/// ends; a triangle the split would fold is left as it is.
+fn split_t_junctions(mesh: &mut Mesh, tri_face: &mut Vec<u32>, at: &[[f64; 3]], chord_mm: f64) {
+    for _ in 0..4 {
+        let mut count: HashMap<(u32, u32), usize> = HashMap::new();
+        for f in &mesh.faces {
+            for k in 0..3 {
+                let (a, b) = (f[k], f[(k + 1) % 3]);
+                *count.entry((a.min(b), a.max(b))).or_default() += 1;
+            }
+        }
+        let open: Vec<(usize, usize)> = mesh
+            .faces
+            .iter()
+            .enumerate()
+            .flat_map(|(i, f)| (0..3).map(move |k| (i, k, f)))
+            .filter(|(_, k, f)| count[&(f[*k].min(f[(*k + 1) % 3]), f[*k].max(f[(*k + 1) % 3]))] == 1)
+            .map(|(i, k, _)| (i, k))
+            .collect();
+        if open.is_empty() || open.len() > 12_000 || count.values().any(|n| *n > 2) {
+            return;
+        }
+        let ends: BTreeSet<u32> = open.iter().flat_map(|&(i, k)| [mesh.faces[i][k], mesh.faces[i][(k + 1) % 3]]).collect();
+        let mut split: BTreeMap<usize, (usize, Vec<u32>)> = BTreeMap::new();
+        for &(i, k) in &open {
+            if split.contains_key(&i) {
+                continue;
+            }
+            let f = mesh.faces[i];
+            let (a, b) = (f[k], f[(k + 1) % 3]);
+            let (pa, pb) = (at[a as usize], at[b as usize]);
+            let d = crate::mesh::sub(pb, pa);
+            let l2 = d.iter().map(|v| v * v).sum::<f64>();
+            if !(l2 > 1e-24) {
+                continue;
+            }
+            let reach = (2.0 * chord_mm).min(0.25 * l2.sqrt());
+            let mut on: Vec<(f64, u32)> = ends
+                .iter()
+                .filter(|&&m| m != a && m != b)
+                .filter_map(|&m| {
+                    let pm = at[m as usize];
+                    let t = crate::mesh::sub(pm, pa).iter().zip(d).map(|(x, y)| x * y).sum::<f64>() / l2;
+                    let off = crate::mesh::norm(crate::mesh::sub(pm, std::array::from_fn(|j| pa[j] + d[j] * t)));
+                    (t > 1e-6 && t < 1.0 - 1e-6 && off <= reach).then_some((t, m))
+                })
+                .collect();
+            if on.is_empty() {
+                continue;
+            }
+            on.sort_by(|x, y| x.0.total_cmp(&y.0));
+            split.insert(i, (k, on.into_iter().map(|(_, m)| m).collect()));
+        }
+        if split.is_empty() {
+            return;
+        }
+        for (i, (k, inner)) in split {
+            let f = mesh.faces[i];
+            let (a, b, c) = (f[k], f[(k + 1) % 3], f[(k + 2) % 3]);
+            let chain: Vec<u32> = std::iter::once(a).chain(inner).chain(std::iter::once(b)).collect();
+            let fan: Vec<[u32; 3]> = chain.windows(2).map(|w| [w[0], w[1], c]).collect();
+            // The fan keeps the triangle's own facing, or the split is not made.
+            let normal = |t: &[u32; 3]| crate::mesh::cross(crate::mesh::sub(at[t[1] as usize], at[t[0] as usize]), crate::mesh::sub(at[t[2] as usize], at[t[0] as usize]));
+            let n0 = normal(&[a, b, c]);
+            if !fan.iter().all(|t| normal(t).iter().zip(n0).map(|(x, y)| x * y).sum::<f64>() > 0.0) {
+                continue;
+            }
+            let face = tri_face[i];
+            mesh.faces[i] = fan[0];
+            for t in &fan[1..] {
+                mesh.faces.push(*t);
+                tri_face.push(face);
+            }
+        }
+        if mesh.validate().watertight {
+            return;
+        }
+    }
 }
 /// The kernel can refine one side of a shared spline boundary more than the
 /// planar cap, leaving triangular slivers between two chord approximations.
