@@ -55,9 +55,9 @@ impl Thickness {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ThinKind {
-    /// The section closes at a free edge and reaches the floor within the edge reach of it.
+    /// The section closes at a free edge, reaches the floor within the edge reach of it, and is everywhere at least floor / reach of its distance from that edge.
     Edge,
-    /// The section stays under the floor beyond the edge reach of any free edge.
+    /// The section stays under the floor beyond the edge reach of any free edge, or is thinner on the way than an edge may be.
     Wall,
 }
 

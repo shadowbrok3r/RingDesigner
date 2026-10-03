@@ -16,8 +16,16 @@ const MIN_FACE_HEIGHT_MM: f64 = 1e-4;
 const OFFSET_MM: f64 = 1e-4;
 /// Directions a thin sample is marched in, as opposite pairs.
 const DIRECTIONS: usize = 8;
+/// Directions round a full turn the nearest straight way out of a parallel-faced section is probed in.
+const PROBES: usize = 16;
+/// Least length of the two faces' summed normals, square to the section, that orients the march toward where they converge.
+const CONVERGING: f64 = 0.05;
+/// Halvings that place where a march's section reaches the floor.
+const BISECTIONS: usize = 3;
+/// Crossings closer than this along a ray are one surface hit, mm.
+const SAME_HIT_MM: f64 = 1e-7;
 
-const NOTE: &str = "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge and reaches the floor within the edge reach of it, and a wall otherwise. Gate on walls and unresolved samples; edges are listed with their points and areas.";
+const NOTE: &str = "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge, reaches the floor within the edge reach of it, and is everywhere on the way at least floor / reach of its distance from that edge; it is a wall otherwise. Gate on walls and unresolved samples; edges are listed with their points and areas.";
 const NOT_ASSESSED: &str = "Thickness not assessed: the mesh is empty or not watertight, or the floor is not a positive length";
 
 fn add(a: P3, b: P3) -> P3 {
@@ -115,8 +123,8 @@ pub(super) fn sample(mesh: &Mesh, pitch: f64) -> Vec<Sample> {
     keyed.into_iter().map(|(_, c)| Sample { p: c.p, n: c.n, area: c.area }).collect()
 }
 
-/// Connected shells, by shared vertices.
-fn shells(mesh: &Mesh) -> usize {
+/// Each face's shell, by shared vertices, and how many shells there are.
+fn shells(mesh: &Mesh) -> (Vec<u32>, usize) {
     fn find(parent: &mut [u32], mut i: u32) -> u32 {
         while parent[i as usize] != i {
             parent[i as usize] = parent[parent[i as usize] as usize];
@@ -137,10 +145,12 @@ fn shells(mesh: &Mesh) -> usize {
         }
     }
     let n = parent.len();
-    let mut roots: Vec<u32> = mesh.faces.iter().filter(|f| (f[0] as usize) < n).map(|f| find(&mut parent, f[0])).collect();
+    let of: Vec<u32> = mesh.faces.iter().map(|f| if (f[0] as usize) < n { find(&mut parent, f[0]) } else { u32::MAX }).collect();
+    let mut roots: Vec<u32> = of.iter().copied().filter(|&r| r != u32::MAX).collect();
     roots.sort_unstable();
     roots.dedup();
-    roots.len()
+    let count = roots.len();
+    (of, count)
 }
 
 /// How a sample's ray went.
@@ -184,6 +194,8 @@ enum Outcome {
 pub(super) struct Probe<'a> {
     mesh: &'a Mesh,
     bvh: Bvh,
+    /// Each face's shell.
+    shell: Vec<u32>,
     multi: bool,
     floor: f64,
     reach: f64,
@@ -192,7 +204,8 @@ pub(super) struct Probe<'a> {
 
 impl<'a> Probe<'a> {
     pub(super) fn new(mesh: &'a Mesh, floor: f64, reach: f64) -> Self {
-        Self { mesh, bvh: Bvh::build(mesh), multi: shells(mesh) > 1, floor, reach, step: (floor / 8.0).max(1e-3) }
+        let (shell, count) = shells(mesh);
+        Self { mesh, bvh: Bvh::build(mesh), shell, multi: count > 1, floor, reach, step: (floor / 8.0).max(1e-3) }
     }
 
     /// Face `f`'s outward unit normal.
@@ -205,7 +218,7 @@ impl<'a> Probe<'a> {
             .unwrap_or([0.0; 3])
     }
 
-    /// Faces the ray crosses, sorted, +1 leaving and -1 entering, a shared edge counted once.
+    /// Faces the ray crosses, sorted, +1 leaving and -1 entering, one shell's hit on a shared edge counted once.
     fn crossings(&self, o: P3, d: P3) -> Vec<(f64, usize, i32)> {
         let mut raw = Vec::new();
         self.bvh.ray_all(self.mesh, o, d, &mut raw);
@@ -217,8 +230,19 @@ impl<'a> Probe<'a> {
             })
             .collect();
         c.sort_unstable_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
-        c.dedup_by(|later, kept| (later.0 - kept.0).abs() < 1e-7 && later.2 == kept.2);
-        c
+        let shell = |f: usize| self.shell.get(f).copied().unwrap_or(u32::MAX);
+        let mut kept: Vec<(f64, usize, i32)> = Vec::with_capacity(c.len());
+        let (mut cluster, mut prev) = (0, f64::NEG_INFINITY);
+        for x in c {
+            if x.0 - prev >= SAME_HIT_MM {
+                cluster = kept.len();
+            }
+            prev = x.0;
+            if !kept[cluster..].iter().any(|k| k.2 == x.2 && shell(k.1) == shell(x.1)) {
+                kept.push(x);
+            }
+        }
+        kept
     }
 
     /// How many shells hold `o`, read along `d`.
@@ -268,8 +292,14 @@ impl<'a> Probe<'a> {
         Some((t1 + t2, mid, turned))
     }
 
-    /// March the mid-surface from `start` along `dir` until it leaves the metal, meets the floor, or runs `limit` mm.
-    fn walk(&self, start: P3, axis: P3, dir: P3, first: f64, limit: f64) -> Walk {
+    /// Whether a section `s` standing `x` from its free edge is at least floor / reach of that distance, within half a step.
+    fn fed(&self, x: f64, s: f64) -> bool {
+        x <= 0.5 * self.step + s * self.reach / self.floor
+    }
+
+    /// March the mid-surface from `start` along `dir` until it leaves the metal, meets the floor, or runs `limit` mm, keeping each thin section in `stations`; with a free edge `edge` behind it, stop at the first section not fed.
+    fn walk(&self, start: P3, axis: P3, dir: P3, first: f64, limit: f64, edge: Option<f64>, stations: &mut Vec<(f64, f64)>) -> Walk {
+        stations.clear();
         let (mut m, mut a, mut u, mut went, mut last) = (start, axis, dir, 0.0, first);
         while went < limit - 1e-9 {
             let step = self.step.min(limit - went);
@@ -281,10 +311,29 @@ impl<'a> Probe<'a> {
             let Some((s, mid, turned)) = self.section(add(m, scale(u, step)), a) else {
                 return Walk::Thin;
             };
-            went += step;
             if s >= self.floor {
-                let back = if s > last { step * (s - self.floor) / (s - last) } else { 0.0 };
-                return Walk::Body(went - back.clamp(0.0, step));
+                let (mut lo, mut hi, mut s_lo, mut s_hi) = (0.0, step, last, s);
+                for _ in 0..BISECTIONS {
+                    let h = 0.5 * (lo + hi);
+                    match self.section(add(m, scale(u, h)), a) {
+                        Some((sh, _, _)) if sh >= self.floor => (hi, s_hi) = (h, sh),
+                        Some((sh, _, _)) => {
+                            (lo, s_lo) = (h, sh);
+                            stations.push((went + h, sh));
+                            if edge.is_some_and(|c| !self.fed(c + went + h, sh)) {
+                                return Walk::Thin;
+                            }
+                        }
+                        None => break,
+                    }
+                }
+                let back = if s_hi > s_lo { (hi - lo) * (s_hi - self.floor) / (s_hi - s_lo) } else { 0.0 };
+                return Walk::Body(went + hi - back.clamp(0.0, hi - lo));
+            }
+            went += step;
+            stations.push((went, s));
+            if edge.is_some_and(|c| !self.fed(c + went, s)) {
+                return Walk::Thin;
             }
             last = s;
             m = mid;
@@ -299,7 +348,26 @@ impl<'a> Probe<'a> {
         Walk::Thin
     }
 
-    /// Edge if a line through the mid-surface point leaves the metal one way and meets the floor the other within the reach.
+    /// The direction square to `axis` of the nearest straight way out from `m`, refined between probes.
+    fn nearest_exit(&self, m: P3, axis: P3) -> P3 {
+        let e1 = square_to(axis);
+        let e2 = cross(axis, e1);
+        let gap = std::f64::consts::TAU / PROBES as f64;
+        let at = |k: f64| add(scale(e1, (k * gap).cos()), scale(e2, (k * gap).sin()));
+        let d: Vec<f64> = (0..PROBES).map(|k| self.leave(m, at(k as f64)).map_or(f64::INFINITY, |(t, _)| t)).collect();
+        let best = (0..PROBES).min_by(|&i, &j| d[i].total_cmp(&d[j])).unwrap_or(0);
+        let (l, c, r) = (d[(best + PROBES - 1) % PROBES], d[best], d[(best + 1) % PROBES]);
+        let curve = l - 2.0 * c + r;
+        let shift = if curve.is_finite() && curve > 0.0 { (0.5 * (l - r) / curve).clamp(-0.5, 0.5) } else { 0.0 };
+        at(best as f64 + shift)
+    }
+
+    /// Whether every station of a march pair is fed, the closed side's distances counted back from its edge at `c`.
+    fn tapered(&self, c: f64, first: f64, closed: &[(f64, f64)], body: &[(f64, f64)]) -> bool {
+        self.fed(c, first) && closed.iter().all(|&(w, s)| self.fed(c - w, s)) && body.iter().all(|&(w, s)| self.fed(c + w, s))
+    }
+
+    /// Edge if a line through the mid-surface point leaves the metal one way and meets the floor the other within the reach, fed all the way.
     fn classify(&self, s: &Sample, t: f64, far: usize) -> Thin {
         let inward = scale(s.n, -1.0);
         let n_far = self.normal(far);
@@ -312,23 +380,24 @@ impl<'a> Probe<'a> {
         if first >= self.floor {
             return Thin { kind: ThinKind::Edge, mid, depth: Some(0.0) };
         }
-        // Sum of the two faces' outward normals, toward the edge they close at.
+        // Sum of the two faces' outward normals, toward the edge they close at; parallel faces probe for it instead.
         let toward = add(s.n, n_far);
-        let e1 = unit(sub(toward, scale(axis, dot(toward, axis)))).unwrap_or_else(|| square_to(axis));
+        let converging = sub(toward, scale(axis, dot(toward, axis)));
+        let e1 = if norm(converging) >= CONVERGING { scale(converging, 1.0 / norm(converging)) } else { self.nearest_exit(mid, axis) };
         let e2 = cross(axis, e1);
-        let slack = 0.5 * self.step;
-        let limit = self.reach + slack;
+        let limit = self.reach + 0.5 * self.step;
+        let (mut out, mut home) = (Vec::new(), Vec::new());
         for k in 0..DIRECTIONS / 2 {
             let angle = k as f64 * std::f64::consts::TAU / DIRECTIONS as f64;
             let u = add(scale(e1, angle.cos()), scale(e2, angle.sin()));
             let back = scale(u, -1.0);
-            let depth = match self.walk(mid, axis, u, first, limit) {
-                Walk::Closed(c) => match self.walk(mid, axis, back, first, limit - c) {
-                    Walk::Body(b) => Some(c + b),
+            let depth = match self.walk(mid, axis, u, first, limit, None, &mut out) {
+                Walk::Closed(c) => match self.walk(mid, axis, back, first, limit - c, Some(c), &mut home) {
+                    Walk::Body(b) => self.tapered(c, first, &out, &home).then_some(c + b),
                     _ => None,
                 },
-                Walk::Body(b) => match self.walk(mid, axis, back, first, limit - b) {
-                    Walk::Closed(c) => Some(c + b),
+                Walk::Body(b) => match self.walk(mid, axis, back, first, limit - b, None, &mut home) {
+                    Walk::Closed(c) => self.tapered(c, first, &home, &out).then_some(c + b),
                     _ => None,
                 },
                 Walk::Thin => None,

@@ -1176,29 +1176,45 @@ pins both directions. On top of that:
   edge to half the pitch (a floor's eighth, held to 0.02–0.1 mm), one
   sample per pitch cell and facing — and reads each along its inward
   normal through `interaction::bvh`, with no face cap: the 1.57 M-face
-  band in 0.47 s, Aile's 1.29 M-face export in 0.53 s. A reading under the
+  band in 0.47 s, Aile's 1.29 M-face export in 0.56 s. A reading under the
   floor is then classed by marching the section's mid-surface from its
   midpoint, in four opposite pairs of directions square to it and
   re-centred on every new section, until the march leaves the metal,
   meets a section at the floor, or has run the reach (one floor). It is an
   **edge** when some line leaves the metal one way and reaches the floor
-  the other within the reach — a knife, a point, a lip, fed from the body
-  behind it — and a **wall** otherwise: a web never meets a free edge, and
-  a fin or a long taper stays thin past the reach. Sections are read
-  square to the mid-surface, so at one floor a wedge or a cone passes from
-  a 53° included angle and a lip at most a floor tall; a sharper point is
-  thin over more than a floor of its length, which is a wall, and a brief
-  that wants feather points widens `edge_reach_mm` and says so.
+  the other within the reach, *and* the section at every station on the
+  way is at least `floor / reach` of its distance from that free edge
+  (half a step of slack, the floor's crossing bisected to an eighth of a
+  step) — a knife, a point, a lip, fed from the body behind it. Anything
+  else is a **wall**: a web never meets a free edge, a long taper stays
+  thin past the reach, and a fin, pin or lip taller than it is thick
+  starves before the body feeds it however short it is — reach alone
+  passed a 0.05 mm fin 0.7 mm tall. Sections are read square to the
+  mid-surface, so at one floor a wedge or a cone passes from a 53°
+  included angle and a parallel-faced lip only as tall as it is thick; a
+  sharper point is a wall, and a brief that wants feather points widens
+  `edge_reach_mm` and says so. The march sets off toward where the
+  section's two faces converge, or, where they are parallel, toward the
+  nearest straight way out of the metal (sixteen probes round the section,
+  refined by a parabola to a third of a degree), so a lip's verdict does
+  not turn with the part: with the bound in place, a world-axis start read
+  a 0.6 × 0.62 lip clean at 0° and as wall at 7°.
   `below_limit` counts wall samples only and `Thickness::clean()` is the
   gate; every edge is listed as a zone with its point, area, thinnest
   section and depth, never dropped. A mesh of several shells is read by
   winding, so a face inside another shell is skipped rather than read as
-  the 0.01 mm a face-by-face ray gives at a 0.01 mm overlap. Aile's round-3
-  0.01 mm readings were none of that: all 63 faces under 0.05 mm leave
-  through a neighbour sharing a vertex or an edge, across a 20–70° convex
-  crease at the wing-root seam, and the census files them as edges of
-  0.0003–0.003 mm² — while the hand-made lip exception had been covering a
-  collet body the census reads as a 0.779 mm wall over 5.6 mm².
+  the 0.01 mm a face-by-face ray gives at a 0.01 mm overlap; crossings at
+  one point merge only within one shell, because merged across shells two
+  coplanar faces count once — a block flush inside another left 400
+  samples unresolved, and a 0.3 mm plate between two flush pairs read
+  4 mm. Aile's round-3 0.01 mm readings were none of that: all 63 faces
+  under 0.05 mm leave through a neighbour sharing a vertex or an edge,
+  across a 20–70° convex crease at the wing-root seam, and the census files
+  them as edges of 0.0003–0.003 mm² — while the hand-made lip exception had
+  been covering a collet body the census reads as a 0.779 mm wall over
+  5.6 mm², and the bezel's two 40° knife rims are walls of 1.31 mm² each,
+  0.024 mm at the tip: sharper than 53°, they starve before the body behind
+  them reaches the floor.
 
   A **CAD cut's lands** are asked for, never volunteered:
   `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP

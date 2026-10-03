@@ -296,3 +296,79 @@ fn a_thin_sheet_ring_is_wall_everywhere() {
     assert!(t.wall_area_mm2 > 0.95 * faces, "{} of {faces} mm²", t.wall_area_mm2);
     assert!(t.walls[0].span_mm > 18.0 && (t.walls[0].thinnest_mm - 0.5).abs() < 0.01, "{:?}", t.walls[0]);
 }
+
+/// A 6 x 6 x 2 block carrying a fin `thick` wide and `tall` high along its length, turned `deg` about the fin's normal.
+fn fin_block(thick: f64, tall: f64, deg: f64) -> Mesh {
+    let (a, b) = (3.0 - 0.5 * thick, 3.0 + 0.5 * thick);
+    let mut m = prism(&[[0.0, 0.0], [6.0, 0.0], [6.0, 2.0], [b, 2.0], [b, 2.0 + tall], [a, 2.0 + tall], [a, 2.0], [0.0, 2.0]], 6.0);
+    let (s, c) = deg.to_radians().sin_cos();
+    for v in &mut m.vertices {
+        let (y, z) = (v.1 as f64, v.2 as f64);
+        (v.1, v.2) = ((y * c - z * s) as f32, (y * s + z * c) as f32);
+    }
+    m
+}
+
+/// A 3 mm rod carrying a pin `dia` across and `long` high on its end.
+fn pinned_rod(dia: f64, long: f64) -> Mesh {
+    let r = 0.5 * dia;
+    lathe(&[[0.0, 0.0], [1.5, 0.0], [1.5, 3.0], [r, 3.0], [r, 3.0 + long], [0.0, 3.0 + long]], 96)
+}
+
+#[test]
+fn a_fin_pin_or_lip_taller_than_it_is_thick_is_a_wall() {
+    for (what, m) in [
+        ("0.05 mm fin 0.7 mm tall", fin_block(0.05, 0.7, 0.0)),
+        ("0.3 mm lip 0.82 mm tall", fin_block(0.3, 0.82, 0.0)),
+        ("0.3 mm lip 0.5 mm tall", fin_block(0.3, 0.5, 0.0)),
+        ("0.1 mm pin 0.6 mm long", pinned_rod(0.1, 0.6)),
+        ("0.15 mm pin 0.7 mm long", pinned_rod(0.15, 0.7)),
+    ] {
+        let t = at_floor(&m);
+        assert!(!t.clean() && !t.walls.is_empty(), "{what}: {t:?}");
+        assert!(t.walls.iter().all(|z| z.point[2] > 2.0 - 1e-6), "{what}: {:?}", t.walls);
+    }
+    // A lip no taller than it is thick is fed from the body behind it.
+    let t = at_floor(&fin_block(0.4, 0.3, 0.0));
+    assert!(t.clean() && !t.edges.is_empty(), "{t:?}");
+}
+
+#[test]
+fn a_lip_reads_the_same_at_every_turn_about_its_normal() {
+    for deg in [0.0, 7.0, 11.25, 16.0, 22.5, 30.0, 33.75, 45.0, 61.0, 90.0] {
+        let short = at_floor(&fin_block(0.6, 0.62, deg));
+        assert!(short.clean() && !short.edges.is_empty(), "{deg}°: {short:?}");
+        let tall = at_floor(&fin_block(0.6, 0.75, deg));
+        assert!(!tall.clean() && tall.wall_area_mm2 > 0.8 * 2.0 * 6.0 * 0.75, "{deg}°: {tall:?}");
+    }
+}
+
+#[test]
+fn a_shell_flush_inside_another_reads_as_their_union() {
+    // A block inside another with their tops flush: the union is the outer block, a 2 mm slab.
+    let outer = cuboid([0.0, 0.0, 0.0], [4.0, 4.0, 2.0]);
+    let inner = cuboid([1.0, 1.0, 1.0], [3.0, 3.0, 2.0]);
+    let t = at_floor(&shells(&[outer, inner]));
+    assert!(t.internal > 0 && t.clean() && t.walls.is_empty() && t.edges.is_empty(), "{t:?}");
+    assert!(t.sampled_min_mm.unwrap() > 2.0 - 1e-3, "{t:?}");
+}
+
+#[test]
+fn a_plate_between_flush_pairs_reads_its_own_section() {
+    // A 0.3 mm plate with a pair of overlapping blocks above and below it, each pair flush on the face toward it.
+    let plate = cuboid([0.0, 0.0, 0.0], [4.0, 4.0, 0.3]);
+    let pairs = [
+        cuboid([0.0, 0.0, 1.0], [4.0, 4.0, 2.0]),
+        cuboid([1.0, 1.0, 1.0], [3.0, 3.0, 3.0]),
+        cuboid([0.0, 0.0, -2.0], [4.0, 4.0, -1.0]),
+        cuboid([1.0, 1.0, -3.0], [3.0, 3.0, -1.0]),
+    ];
+    let alone = at_floor(&shells(&[plate.clone(), cuboid([10.0, 0.0, 0.0], [12.0, 2.0, 2.0])]));
+    let mut parts = vec![plate];
+    parts.extend(pairs);
+    let sandwich = at_floor(&shells(&parts));
+    for t in [&alone, &sandwich] {
+        assert!(!t.clean() && (t.walls[0].thinnest_mm - 0.3).abs() < 1e-3, "{t:?}");
+    }
+    assert!((sandwich.wall_area_mm2 - alone.wall_area_mm2).abs() < 1e-6, "{} against {}", sandwich.wall_area_mm2, alone.wall_area_mm2);
+}
