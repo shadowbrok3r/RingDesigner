@@ -1,0 +1,16 @@
+{
+  "ring": "rivet",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Closer than attempt 1, but still not a riveted strap. The raised centre strip now shows: in both views a stepped band runs round the crest with an edge line on each side. Without the caption, though, it reads as a raised centre rail between two flat side rails, and the first thing that comes to mind is a spinner ring. The heads are still beads. The large ones (about 0.5 mm proud on a 2.0 mm footprint) catch a full round highlight with a dark underside, so in face-300 they look like balls or drops, not low rivet domes. The small ones are proportionally taller, so they read as dots, and on the hero flanks they shrink to specks. A jeweller would call it a studded or beaded band, maybe a beaded spinner. They would not say 'riveted'.",
+  "changes": [
+    "Flatten every head into a low rivet dome with a lens-shaped profile. Large: Sphere R about 1.8 mm, centred about 1.42 mm below the strap top (about 0.38 mm proud, about 2.2 mm footprint; height-to-footprint at or under 0.18, against 0.24 now). Small: R about 1.0 mm, centred about 0.70 mm below (0.30 mm proud, which keeps the Delft 0.30 detail floor, about 1.4 mm footprint, against 1.04 now). Tighten the blend to 0.08-0.10 mm so each head keeps a crisp dark foot ring. Acceptance: in face-300 no head shows a round ball highlight with a dark underside. Each head shows a flat-topped cap highlight with a thin shadow ring at the foot, and the small heads read as discs, not dots.",
+    "Make the strap read as a strip laid onto the band, not a spinner rail. Size it to the heads: about 3.0 mm wide, so there is about 0.4 mm of plain strap each side of a 2.2 mm large head, and 0.45-0.5 mm proud. Let the band fall away from the strap's foot as LowDome curvature, with no flat shelf or second line beside the step, so the only lines across the face are the strap's two edges. Keep the edges broken at 0.1-0.15 mm and drafted 3 degrees or more. Acceptance: in hero-300 and face-300 each side of the strap shows exactly one continuous edge line, the band either side visibly curves down from it with no parallel rail line, and the large heads nearly fill the strap's width.",
+    "Keep the small heads legible on the flanks. With the footprints above (2.2 vs 1.4 mm), check that the small heads at 30-60 degrees either side of centre in hero-300 still render as distinct discs and not single-pixel specks. If they do not, raise the small footprint to 1.5 mm, but no further, so the big/small hierarchy holds. Acceptance: in hero-300 a viewer can count at least five large-small pitches on each side of centre."
+  ],
+  "viewed_images": [
+    "showcase/officina/rivet/hero-300.png",
+    "showcase/officina/rivet/face-300.png"
+  ]
+}

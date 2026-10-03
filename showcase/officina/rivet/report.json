@@ -1,14 +1,14 @@
 {
   "draft": {
     "authored": {
-      "gap_mm": 0.654804538646232,
-      "large_foot_mm": 2.04939015319192,
-      "large_proud_mm": 0.5,
+      "gap_mm": 0.4172641894554391,
+      "large_foot_mm": 2.135415650406262,
+      "large_proud_mm": 0.38,
       "pitch_deg": 22.5,
       "rivets": 32,
-      "small_foot_mm": 1.0392304845413265,
-      "small_proud_mm": 0.3,
-      "strap_proud_mm": 0.4,
+      "small_foot_mm": 1.4282856857085704,
+      "small_proud_mm": 0.30000000000000004,
+      "strap_proud_mm": 0.48,
       "strap_wide_mm": 3.0
     },
     "bore_mm": 18.2,
@@ -20,8 +20,8 @@
         768,
         320
       ],
-      "build_s": 8.655981031,
-      "closest_to_axis_mm": 9.099990799546443,
+      "build_s": 9.890401028,
+      "closest_to_axis_mm": 9.100013098948724,
       "cold_reload_identical": null,
       "degenerate_faces": 0,
       "dfm_findings": [],
@@ -54,7 +54,7 @@
       ],
       "field_notes": [
         "Field-sampled: the surface itself carries no undercut at this parting.",
-        "Judged with the ring as built: 4 CAD parts (4 joined, 0 cut) at the parting plane z = +0.00 mm — 101.3 mm² of part surface, none of it locking."
+        "Judged with the ring as built: 4 CAD parts (4 joined, 0 cut) at the parting plane z = +0.00 mm — 117.6 mm² of part surface, none of it locking."
       ],
       "field_verdict": "Castable",
       "inside_finger_hole": 0,
@@ -86,32 +86,32 @@
       "release": [
         {
           "fits_flask": true,
-          "low_draft_area_mm2": 117.63698468447062,
+          "low_draft_area_mm2": 124.925259204742,
           "obstructions": 0,
           "pitch_mm": 0.1,
           "status": "Review",
           "unresolved_rays": 0,
-          "worst_draft_deg": -0.14490149096360572
+          "worst_draft_deg": -1.1172168307893502
         },
         {
           "fits_flask": true,
-          "low_draft_area_mm2": 117.63698468447062,
+          "low_draft_area_mm2": 124.925259204742,
           "obstructions": 0,
           "pitch_mm": 0.075,
           "status": "Review",
           "unresolved_rays": 0,
-          "worst_draft_deg": -0.14490149096360572
+          "worst_draft_deg": -1.1172168307893502
         }
       ],
       "solids_notes": [],
       "stones_previewed": 0,
       "stones_reported": 0,
-      "thinnest_wall_mm": 1.362907454127832,
-      "triangles": 682270,
-      "undercut_percent": 0.00035510942672085596,
+      "thinnest_wall_mm": 1.264339288350179,
+      "triangles": 723228,
+      "undercut_percent": 0.01593050837442064,
       "watertight": true,
       "within_2m_triangles": true,
-      "worst_draft_deg": -3.333555936977078
+      "worst_draft_deg": -2.3886805255844306
     },
     "min_detail_mm": 0.3,
     "min_draft_deg": 3.0,

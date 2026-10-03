@@ -11,7 +11,7 @@ use ringdesign_core::{
     manufacturing::{self as mf, Setup},
     mesh, render,
     profile::DropCurve,
-    sketch::Id,
+    sketch::{Geometry, Id, Sketch, Workplane},
     stl,
 };
 use std::f64::consts::PI;
@@ -26,35 +26,42 @@ const THETA: f64 = 90.0;
 const COUNT: u32 = 16;
 /// The strap drawn into the band's crown: across the finger and how far it steps proud of the dome.
 const STRAP_WIDE_MM: f64 = 3.0;
-const STRAP_PROUD_MM: f64 = 0.4;
+const STRAP_PROUD_MM: f64 = 0.48;
 /// The crown's whole drop, crest to edge, with the strap's step in it.
-const CROWN_MM: f64 = 1.0;
+const CROWN_MM: f64 = 1.2;
 /// The drop from the crest (`x` from the crest to the edge, `d` of the crown, both 0..1): a strap
-/// top roofed at 5 degrees to its edge at x = 0.5, a rounded step, then the dome falling to the band's edge.
-const STRAPPED_CROWN: [[f64; 2]; 14] = [
+/// top rounded over the crest and roofed at 5 degrees to its edge at x = 0.5, a rounded step, then the dome falling from its foot to the band's edge.
+const STRAPPED_CROWN: [[f64; 2]; 16] = [
     [0.0, 0.0],
-    [0.15, 0.038],
-    [0.3, 0.077],
-    [0.42, 0.108],
-    [0.465, 0.122],
-    [0.485, 0.17],
-    [0.5, 0.33],
-    [0.515, 0.48],
-    [0.54, 0.53],
-    [0.6, 0.56],
+    [0.05, 0.004],
+    [0.1, 0.014],
+    [0.2, 0.038],
+    [0.32, 0.068],
+    [0.42, 0.09],
+    [0.465, 0.10],
+    [0.485, 0.14],
+    [0.5, 0.28],
+    [0.515, 0.43],
+    [0.535, 0.50],
+    [0.6, 0.545],
     [0.7, 0.62],
-    [0.8, 0.7],
-    [0.9, 0.81],
+    [0.8, 0.71],
+    [0.9, 0.83],
     [1.0, 1.0],
 ];
-/// The large head: its sphere's radius and how far its centre sits under the strap's top.
-const LARGE_RADIUS_MM: f64 = 1.3;
-const LARGE_SINK_MM: f64 = 0.8;
-const LARGE_BEAD_MM: f64 = 0.12;
+/// The large head: a spherical cap `FOOT` in radius and `RISE` high on a buried shank, its foot
+/// plane `SINK` under the strap so the visible dome stands `RISE - SINK` proud.
+const LARGE_FOOT_MM: f64 = 1.2;
+const LARGE_RISE_MM: f64 = 0.5;
+const LARGE_SINK_MM: f64 = 0.12;
+const LARGE_BEAD_MM: f64 = 0.10;
 /// The small head, half a pitch on.
-const SMALL_RADIUS_MM: f64 = 0.6;
-const SMALL_SINK_MM: f64 = 0.3;
-const SMALL_BEAD_MM: f64 = 0.10;
+const SMALL_FOOT_MM: f64 = 0.8;
+const SMALL_RISE_MM: f64 = 0.4;
+const SMALL_SINK_MM: f64 = 0.10;
+const SMALL_BEAD_MM: f64 = 0.08;
+/// How far each head's shank runs on under its foot, buried in the strap.
+const SHANK_MM: f64 = 0.4;
 const ALLOY: &str = "Gold 14k";
 
 fn draft_params() -> BuildParams {
@@ -133,10 +140,44 @@ fn component(role: ComponentRole, attach: Attach, blend_mm: f64, placement: Plac
     }
 }
 
-/// A head seated on the crest line at `theta_deg`, `height_mm` out along the surface normal, turned a
-/// quarter about it so the sphere's facets split evenly across the parting plane.
-fn seat(theta_deg: f64, height_mm: f64) -> Placement {
-    Placement::Ring { theta_deg, across_mm: 0.0, height_mm, spin_deg: 90.0, tilt_deg: 0.0, cant_deg: 0.0 }
+fn head_section(name: &str, foot: f64, rise: f64) -> Sketch {
+    let radius = (foot * foot + rise * rise) / (2.0 * rise);
+    let mut s = Sketch {
+        name: name.into(),
+        plane: Workplane::section(),
+        ..Sketch::default()
+    };
+    let bottom = s.point([0.0, -SHANK_MM]);
+    let heel = s.point([foot, -SHANK_MM]);
+    let rim = s.point([foot, 0.0]);
+    // The arc stops a hair short of the axis, where a turned face would close to a point.
+    let near = 0.02;
+    let crown = s.point([near, rise - radius + (radius * radius - near * near).sqrt()]);
+    let apex = s.point([0.0, rise - radius + (radius * radius - near * near).sqrt()]);
+    let centre = s.point([0.0, rise - radius]);
+    s.entity(Geometry::Line { a: bottom, b: heel });
+    s.entity(Geometry::Line { a: heel, b: rim });
+    s.entity(Geometry::Arc { center: centre, start: rim, end: crown });
+    s.entity(Geometry::Line { a: crown, b: apex });
+    s.entity(Geometry::Line { a: apex, b: bottom });
+    s
+}
+
+/// The head turned whole about its own axis.
+fn head(name: &str, foot: f64, rise: f64) -> Operation {
+    Operation::Revolve {
+        sketch: head_section(name, foot, rise).into(),
+        pivot: [0.0; 3],
+        axis: [0.0, 0.0, 1.0],
+        degrees: 360.0,
+        in_plane: false,
+    }
+}
+
+/// The visible footprint of a cap `foot` x `rise` sunk `sink` under the ground: its diameter there.
+fn footprint(foot: f64, rise: f64, sink: f64) -> f64 {
+    let radius = (foot * foot + rise * rise) / (2.0 * rise);
+    2.0 * (radius * radius - (sink - (rise - radius)).powi(2)).sqrt()
 }
 
 fn add(d: &mut RingDesign, name: &str, operation: Operation, component: Component) -> Result<Id> {
@@ -183,8 +224,8 @@ fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
     let large = add(
         &mut d,
         "Large rivet head",
-        Operation::Sphere { radius_mm: LARGE_RADIUS_MM },
-        component(ComponentRole::Other, Attach::Join, LARGE_BEAD_MM, seat(THETA, -LARGE_SINK_MM)),
+        head("Large rivet head", LARGE_FOOT_MM, LARGE_RISE_MM),
+        component(ComponentRole::Other, Attach::Join, LARGE_BEAD_MM, Placement::ring(THETA, -LARGE_SINK_MM)),
     )?;
     add(
         &mut d,
@@ -198,8 +239,8 @@ fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
     let small = add(
         &mut d,
         "Small rivet head",
-        Operation::Sphere { radius_mm: SMALL_RADIUS_MM },
-        component(ComponentRole::Other, Attach::Join, SMALL_BEAD_MM, seat(THETA + pitch / 2.0, -SMALL_SINK_MM)),
+        head("Small rivet head", SMALL_FOOT_MM, SMALL_RISE_MM),
+        component(ComponentRole::Other, Attach::Join, SMALL_BEAD_MM, Placement::ring(THETA + pitch / 2.0, -SMALL_SINK_MM)),
     )?;
     add(
         &mut d,
@@ -212,17 +253,17 @@ fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
     )?;
     evaluated(&d, lib)?;
     let crest = d.inner_radius_mm() + d.profile.thickness_mm;
-    let foot = |r: f64, s: f64| 2.0 * (r * r - s * s).sqrt();
+    let (large_foot, small_foot) = (footprint(LARGE_FOOT_MM, LARGE_RISE_MM, LARGE_SINK_MM), footprint(SMALL_FOOT_MM, SMALL_RISE_MM, SMALL_SINK_MM));
     let notes = Authored {
         strap_wide_mm: STRAP_WIDE_MM,
         strap_proud_mm: STRAP_PROUD_MM,
         rivets: 2 * COUNT,
         pitch_deg: pitch,
-        large_proud_mm: LARGE_RADIUS_MM - LARGE_SINK_MM,
-        large_foot_mm: foot(LARGE_RADIUS_MM, LARGE_SINK_MM),
-        small_proud_mm: SMALL_RADIUS_MM - SMALL_SINK_MM,
-        small_foot_mm: foot(SMALL_RADIUS_MM, SMALL_SINK_MM),
-        gap_mm: (pitch / 2.0).to_radians() * crest - foot(LARGE_RADIUS_MM, LARGE_SINK_MM) / 2.0 - foot(SMALL_RADIUS_MM, SMALL_SINK_MM) / 2.0,
+        large_proud_mm: LARGE_RISE_MM - LARGE_SINK_MM,
+        large_foot_mm: large_foot,
+        small_proud_mm: SMALL_RISE_MM - SMALL_SINK_MM,
+        small_foot_mm: small_foot,
+        gap_mm: (pitch / 2.0).to_radians() * crest - large_foot / 2.0 - small_foot / 2.0,
     };
     Ok((d, notes))
 }
