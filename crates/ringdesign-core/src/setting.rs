@@ -11,7 +11,7 @@
 //! sized in the stone's millimetres and placed rigidly, the seat fits its
 //! stone wherever on the ring it lands.
 use crate::csg::{self, Op, Parent, Snag, Solid, P3};
-use crate::gem::{Gem, GemForm};
+use crate::gem::{Gem, GemCut, GemForm};
 use serde::{Deserialize, Serialize};
 use std::f64::consts::{PI, TAU};
 use std::sync::Arc;
@@ -100,25 +100,38 @@ pub fn prong_wire_mm(gem: Gem) -> f64 { (0.11 * gem.w_mm + 0.48).clamp(0.6, 1.5)
 /// Bead radius for a stone, mm.
 pub fn bead_radius_mm(gem: Gem) -> f64 { (0.14 * gem.w_mm).clamp(0.16, 0.34) }
 
-/// The girdle outline: the superellipse every seat, stone and report already reads.
+/// The girdle outline every seat, stone and report reads: a superellipse, or the cut's true girdle.
 #[derive(Clone, Copy, Debug)]
 pub struct Plan {
     pub a: f64,
     pub b: f64,
     pub pow: f64,
+    /// The true girdle at unit half-extents; `None` reads the superellipse of `pow`.
+    pub table: Option<&'static crate::girdle::Girdle>,
 }
 
 impl Plan {
     pub fn of(gem: Gem) -> Self {
-        Self { a: gem.l_mm.max(0.2) * 0.5, b: gem.w_mm.max(0.2) * 0.5, pow: gem.cut.plan_pow().max(1.0) }
+        Self { a: gem.l_mm.max(0.2) * 0.5, b: gem.w_mm.max(0.2) * 0.5, pow: gem.cut.plan_pow().max(1.0), table: gem.cut.girdle() }
+    }
+    /// A superellipse of half-axes `a` along and `b` across.
+    pub fn superellipse(a: f64, b: f64, pow: f64) -> Self {
+        Self { a, b, pow, table: None }
     }
     pub fn point(&self, phi: f64) -> [f64; 2] {
+        if let Some(g) = self.table {
+            let p = g.unit_point(phi);
+            return [p[0] * self.a, p[1] * self.b];
+        }
         let (s, c) = phi.sin_cos();
         let m = (c.abs().powf(self.pow) + s.abs().powf(self.pow)).powf(-1.0 / self.pow);
         [c * m * self.a, s * m * self.b]
     }
-    /// Outward unit normal, from a centred difference so a marquise's point reads the mean of its two sides.
+    /// Outward unit normal: a centred difference on a superellipse, the edge's own or the corner's mean on a girdle.
     pub fn normal(&self, phi: f64) -> [f64; 2] {
+        if let Some(g) = self.table {
+            return g.normal_mm(phi, self.a, self.b);
+        }
         let h = 1e-3;
         let (p, q) = (self.point(phi - h), self.point(phi + h));
         let (tx, ty) = (q[0] - p[0], q[1] - p[1]);
@@ -126,6 +139,9 @@ impl Plan {
         [ty / l, -tx / l]
     }
     pub fn perimeter(&self) -> f64 {
+        if let Some(g) = self.table {
+            return g.perimeter_mm(self.a, self.b);
+        }
         let n = 256;
         (0..n).map(|i| {
             let (p, q) = (self.point(TAU * i as f64 / n as f64), self.point(TAU * (i + 1) as f64 / n as f64));
@@ -135,9 +151,47 @@ impl Plan {
     fn segments(&self) -> usize {
         ((self.perimeter() / 0.13).round() as usize).clamp(28, 96)
     }
-    /// Where the claws stand: the corners of a squared plan, the points of a marquise, else evenly round.
+    /// The angles a ring of `around` samples takes: even from a phase, plus every girdle corner and its corner rays.
+    pub fn ring_angles(&self, around: usize) -> Vec<f64> {
+        let n = around.max(8);
+        let even = (0..n).map(|i| TAU * (i as f64 + PHASE) / n as f64);
+        let Some(g) = self.table else { return even.collect() };
+        // Even samples within 0.3 of a step of a fixed ray are dropped.
+        let mut fixed: Vec<f64> = g.angles().to_vec();
+        fixed.extend(g.corner_rays(self.a, self.b));
+        let gap = 0.3 * TAU / n as f64;
+        let mut out: Vec<f64> = even
+            .filter(|phi| fixed.iter().all(|c| {
+                let d = (phi - c).rem_euclid(TAU);
+                d.min(TAU - d) > gap
+            }))
+            .collect();
+        out.extend(fixed);
+        out.sort_by(f64::total_cmp);
+        out.dedup();
+        out
+    }
+    /// The plan scaled by `s` and grown by `o` at `phi`: along the normal on a superellipse, along the ray on a girdle.
+    fn grown(&self, phi: f64, s: f64, o: f64) -> [f64; 2] {
+        let p = self.point(phi);
+        let Some(g) = self.table else {
+            let nrm = self.normal(phi);
+            return [p[0] * s + nrm[0] * o, p[1] * s + nrm[1] * o];
+        };
+        if o <= 0.0 {
+            return [p[0] * s, p[1] * s];
+        }
+        let l = p[0].hypot(p[1]);
+        let dir = if l > 1e-12 { [p[0] / l, p[1] / l] } else { [1.0, 0.0] };
+        let r = g.grown_mm(dir, self.a, self.b, s, o);
+        [dir[0] * r, dir[1] * r]
+    }
+    /// Where the claws stand: the corners of a squared plan, the points of a marquise or a girdle, else evenly round.
     pub fn claw_angles(&self, n: u32) -> Vec<f64> {
         let n = n.clamp(3, 8) as usize;
+        if let Some(g) = self.table {
+            return g.claw_angles(n, self.a, self.b);
+        }
         if self.pow >= 3.0 && n == 4 {
             let c = self.b.atan2(self.a);
             return vec![c, PI - c, PI + c, TAU - c];
@@ -164,17 +218,17 @@ fn pole(z: f64) -> Station { st(POLE, 0.0, z) }
 /// Sweep a section round the plan. Stations run down the outside; a section that starts and ends on the axis
 /// closes as a ball, any other closes on itself as a ring and must run clockwise with the axis to its left.
 pub fn sweep(plan: &Plan, section: &[Station], around: usize) -> Solid {
-    let n = around.max(8);
+    let angles = plan.ring_angles(around);
+    let n = angles.len();
     let is_pole = |s: &Station| s.s == 0.0 && s.o == 0.0;
     let ball = section.first().is_some_and(is_pole) && section.last().is_some_and(is_pole);
     let rows: Vec<&Station> = section.iter().filter(|s| !is_pole(s)).collect();
     let mut out = Solid::default();
     for row in &rows {
         let (s, o) = if row.o < 0.0 { ((row.s * (1.0 + row.o / plan.a.min(plan.b).max(1e-6))).max(0.02), 0.0) } else { (row.s, row.o) };
-        for i in 0..n {
-            let phi = TAU * (i as f64 + PHASE) / n as f64;
-            let (p, nrm) = (plan.point(phi), plan.normal(phi));
-            out.v.push([p[0] * s + nrm[0] * o, p[1] * s + nrm[1] * o, row.z]);
+        for &phi in &angles {
+            let p = plan.grown(phi, s, o);
+            out.v.push([p[0], p[1], row.z]);
         }
     }
     let at = |r: usize, i: usize| (r * n + i % n) as u32;
@@ -203,7 +257,7 @@ pub fn sweep(plan: &Plan, section: &[Station], around: usize) -> Solid {
 /// [`sweep`] with each face's section interval: face `k` spans stations `seg[k]` and `seg[k] + 1`, a ring wrapping.
 pub fn sweep_traced(plan: &Plan, section: &[Station], around: usize) -> (Solid, Vec<u32>) {
     let solid = sweep(plan, section, around);
-    let n = around.max(8);
+    let n = plan.ring_angles(around).len();
     let is_pole = |s: &Station| s.s == 0.0 && s.o == 0.0;
     let ball = section.first().is_some_and(is_pole) && section.last().is_some_and(is_pole);
     let rows: Vec<u32> = section.iter().enumerate().filter(|(_, s)| !is_pole(s)).map(|(i, _)| i as u32).collect();
@@ -548,7 +602,7 @@ pub fn ball(centre: P3, r: f64, rings: usize) -> Solid {
         let a = PI * k as f64 / rings as f64;
         if k == 0 || k == rings { pole(r * a.cos()) } else { st(a.sin(), 0.0, r * a.cos()) }
     }).collect();
-    sweep(&Plan { a: r, b: r, pow: 2.0 }, &section, rings * 2).translated(centre)
+    sweep(&Plan::superellipse(r, r, 2.0), &section, rings * 2).translated(centre)
 }
 
 /// The crown's own scale at a height over the girdle: 1 at the girdle, 0.78 at the bezel facets' break, 0.52 at the table.
@@ -909,7 +963,19 @@ pub enum Rails {
 /// Claws a head carries: `prongs` when it names three or more, else the cut's own.
 pub fn claw_count(gem: Gem, prongs: u32) -> u32 {
     let plan = Plan::of(gem);
-    if prongs >= 3 { prongs } else if plan.pow < 1.8 || (plan.a / plan.b > 1.25 && plan.pow < 3.0) { 6 } else { 4 }
+    if prongs >= 3 {
+        prongs
+    } else if plan.table.is_some() {
+        match gem.cut {
+            GemCut::Trillion => 3,
+            GemCut::HalfMoon => 4,
+            _ => 5,
+        }
+    } else if plan.pow < 1.8 || (plan.a / plan.b > 1.25 && plan.pow < 3.0) {
+        6
+    } else {
+        4
+    }
 }
 
 /// [`claw_parts`] with the wire, rails and floor chosen, each part named: claws first, then rails from the base up.
@@ -1356,6 +1422,8 @@ pub enum StampTop {
     Dome { crown_mm: f64 },
     /// A top falling along `axis_deg` from `height_mm` at the outline's back to `tip_mm` at its front.
     Taper { axis_deg: f64, tip_mm: f64 },
+    /// A membrane pressed up from the outline to `crown_mm` at its highest: [`StampTop::Dome`] on a circle, without creases on any other outline.
+    Pillow { crown_mm: f64 },
 }
 
 impl StampTop {
@@ -1373,6 +1441,7 @@ impl StampTop {
             StampTop::Cone { apex_mm, at, tip_mm } => StampTop::Cone { apex_mm: apex_mm * k, at: s(at), tip_mm: tip_mm * k },
             StampTop::Dome { crown_mm } => StampTop::Dome { crown_mm: crown_mm * k },
             StampTop::Taper { axis_deg, tip_mm } => StampTop::Taper { axis_deg, tip_mm: tip_mm * k },
+            StampTop::Pillow { crown_mm } => StampTop::Pillow { crown_mm: crown_mm * k },
         }
     }
 
@@ -1386,8 +1455,136 @@ impl StampTop {
             StampTop::Cone { apex_mm, at, tip_mm } => StampTop::Cone { apex_mm, at: m(at), tip_mm },
             StampTop::Dome { crown_mm } => StampTop::Dome { crown_mm },
             StampTop::Taper { axis_deg, tip_mm } => StampTop::Taper { axis_deg: 180.0 - axis_deg, tip_mm },
+            StampTop::Pillow { crown_mm } => StampTop::Pillow { crown_mm },
         }
     }
+}
+
+/// A membrane's height over a fine triangulation of an outline: zero on the outline, one at its highest.
+struct Pillow {
+    points: Vec<[f64; 2]>,
+    tris: Vec<[u32; 3]>,
+    height: Vec<f64>,
+    lo: [f64; 2],
+    bucket: f64,
+    columns: usize,
+    rows: usize,
+    cells: Vec<Vec<u32>>,
+}
+
+impl Pillow {
+    fn new(outline: &[[f64; 2]]) -> Option<Self> {
+        let n = outline.len();
+        let area = 0.5 * (0..n).map(|i| { let (a, b) = (outline[i], outline[(i + 1) % n]); a[0] * b[1] - b[0] * a[1] }).sum::<f64>().abs();
+        let perimeter: f64 = (0..n).map(|i| { let (a, b) = (outline[i], outline[(i + 1) % n]); (b[0] - a[0]).hypot(b[1] - a[1]) }).sum();
+        // Eight points across the mean width (twice area over perimeter), at most about 5000 grid points.
+        let pitch = (area / (4.0 * perimeter.max(1e-9))).clamp(0.01, 0.12).max((area / 4300.0).sqrt());
+        let (points, tris) = cap_faces(outline, pitch, &[])?;
+        let height = membrane(&points, &tris, outline.len());
+        let (lo, hi) = points.iter().fold(([f64::MAX; 2], [f64::MIN; 2]), |(lo, hi), p| ([lo[0].min(p[0]), lo[1].min(p[1])], [hi[0].max(p[0]), hi[1].max(p[1])]));
+        let bucket = ((hi[0] - lo[0]).max(hi[1] - lo[1]) / 64.0).max(1e-6);
+        let (columns, rows) = (((hi[0] - lo[0]) / bucket) as usize + 1, ((hi[1] - lo[1]) / bucket) as usize + 1);
+        let mut cells = vec![Vec::new(); columns * rows];
+        for (k, t) in tris.iter().enumerate() {
+            let c = t.map(|i| points[i as usize]);
+            let cell = |x: f64, lo: f64, n: usize| (((x - lo) / bucket) as usize).min(n - 1);
+            let (x0, x1) = (cell(c.iter().map(|p| p[0]).fold(f64::MAX, f64::min), lo[0], columns), cell(c.iter().map(|p| p[0]).fold(f64::MIN, f64::max), lo[0], columns));
+            let (y0, y1) = (cell(c.iter().map(|p| p[1]).fold(f64::MAX, f64::min), lo[1], rows), cell(c.iter().map(|p| p[1]).fold(f64::MIN, f64::max), lo[1], rows));
+            for y in y0..=y1 {
+                for x in x0..=x1 {
+                    cells[y * columns + x].push(k as u32);
+                }
+            }
+        }
+        Some(Self { points, tris, height, lo, bucket, columns, rows, cells })
+    }
+
+    /// The membrane's height at plan point `p`, zero outside the outline.
+    fn at(&self, p: [f64; 2]) -> f64 {
+        let (fx, fy) = ((p[0] - self.lo[0]) / self.bucket, (p[1] - self.lo[1]) / self.bucket);
+        if !(fx >= 0.0 && fy >= 0.0) || fx as usize >= self.columns || fy as usize >= self.rows {
+            return 0.0;
+        }
+        for &k in &self.cells[fy as usize * self.columns + fx as usize] {
+            let t = self.tris[k as usize];
+            let [a, b, c] = t.map(|i| self.points[i as usize]);
+            let det = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+            if det.abs() < 1e-18 {
+                continue;
+            }
+            let wb = ((p[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (p[1] - a[1])) / det;
+            let wc = ((b[0] - a[0]) * (p[1] - a[1]) - (p[0] - a[0]) * (b[1] - a[1])) / det;
+            if wb >= -1e-9 && wc >= -1e-9 && wb + wc <= 1.0 + 1e-9 {
+                let h = t.map(|i| self.height[i as usize]);
+                return h[0] * (1.0 - wb - wc) + h[1] * wb + h[2] * wc;
+            }
+        }
+        0.0
+    }
+}
+
+/// Solves the cotangent Laplacian's `-Δu = 1` with `u = 0` on the first `fixed` points, scaled to a peak of one.
+fn membrane(points: &[[f64; 2]], tris: &[[u32; 3]], fixed: usize) -> Vec<f64> {
+    let n = points.len();
+    let mut diag = vec![0.0; n];
+    let mut mass = vec![0.0; n];
+    let mut links: Vec<Vec<(u32, f64)>> = vec![Vec::new(); n];
+    for t in tris {
+        let c = t.map(|i| points[i as usize]);
+        let area = 0.5 * ((c[1][0] - c[0][0]) * (c[2][1] - c[0][1]) - (c[2][0] - c[0][0]) * (c[1][1] - c[0][1])).abs();
+        if area < 1e-14 {
+            continue;
+        }
+        for k in 0..3 {
+            let (i, j, o) = (t[(k + 1) % 3] as usize, t[(k + 2) % 3] as usize, k);
+            let (e1, e2) = ([c[(o + 1) % 3][0] - c[o][0], c[(o + 1) % 3][1] - c[o][1]], [c[(o + 2) % 3][0] - c[o][0], c[(o + 2) % 3][1] - c[o][1]]);
+            let w = 0.5 * (e1[0] * e2[0] + e1[1] * e2[1]) / (2.0 * area);
+            diag[i] += w;
+            diag[j] += w;
+            links[i].push((j as u32, w));
+            links[j].push((i as u32, w));
+            mass[t[k] as usize] += area / 3.0;
+        }
+    }
+    let free = |i: usize| i >= fixed && diag[i] > 1e-12;
+    let apply = |x: &[f64], y: &mut [f64]| {
+        for i in 0..n {
+            y[i] = if free(i) { diag[i] * x[i] - links[i].iter().filter(|(j, _)| free(*j as usize)).map(|(j, w)| w * x[*j as usize]).sum::<f64>() } else { 0.0 };
+        }
+    };
+    // Conjugate gradients, preconditioned by the diagonal.
+    let mut u = vec![0.0; n];
+    let mut r: Vec<f64> = (0..n).map(|i| if free(i) { mass[i] } else { 0.0 }).collect();
+    let pre = |r: &[f64]| -> Vec<f64> { (0..n).map(|i| if free(i) { r[i] / diag[i] } else { 0.0 }).collect() };
+    let mut z = pre(&r);
+    let mut p = z.clone();
+    let mut rz: f64 = r.iter().zip(&z).map(|(a, b)| a * b).sum();
+    let tol = rz * 1e-20;
+    let mut ap = vec![0.0; n];
+    for _ in 0..4 * n.max(16) {
+        if rz <= tol {
+            break;
+        }
+        apply(&p, &mut ap);
+        let pap: f64 = p.iter().zip(&ap).map(|(a, b)| a * b).sum();
+        if pap <= 0.0 {
+            break;
+        }
+        let alpha = rz / pap;
+        for i in 0..n {
+            u[i] += alpha * p[i];
+            r[i] -= alpha * ap[i];
+        }
+        z = pre(&r);
+        let next: f64 = r.iter().zip(&z).map(|(a, b)| a * b).sum();
+        let beta = next / rz;
+        rz = next;
+        for i in 0..n {
+            p[i] = z[i] + beta * p[i];
+        }
+    }
+    let peak = u.iter().copied().fold(0.0, f64::max);
+    if peak > 0.0 { u.iter().map(|x| (x / peak).max(0.0)).collect() } else { u }
 }
 
 /// A top read against one outline.
@@ -1399,10 +1596,13 @@ struct Shape<'a> {
     shift: [f64; 2],
     /// The outline's reach either side of a gable, from a ridge, or back and front along a taper.
     reach: [f64; 2],
+    /// A pillow's membrane.
+    pillow: Option<Pillow>,
 }
 
 impl<'a> Shape<'a> {
     fn new(top: StampTop, outline: &'a [[f64; 2]], height: f64, shift: [f64; 2]) -> Self {
+        let pillow = matches!(top, StampTop::Pillow { .. }).then(|| Pillow::new(outline)).flatten();
         let mut reach: [f64; 2] = [0.0, 0.0];
         match top {
             StampTop::Gable { axis_deg, .. } => {
@@ -1422,7 +1622,7 @@ impl<'a> Shape<'a> {
             }
             _ => {}
         }
-        Self { top, outline, height, shift, reach }
+        Self { top, outline, height, shift, reach, pillow }
     }
 
     /// Height of the top over the eaves at plan point `p`, mm.
@@ -1464,6 +1664,7 @@ impl<'a> Shape<'a> {
                 let u = ((p[0] * a[0] + p[1] * a[1] - self.reach[0]) / (self.reach[1] - self.reach[0]).max(1e-9)).clamp(0.0, 1.0);
                 (tip_mm.max(0.0) - self.height) * u
             }
+            StampTop::Pillow { crown_mm } => self.pillow.as_ref().map_or(0.0, |m| crown_mm * m.at(p)),
         }
     }
 
@@ -1472,7 +1673,7 @@ impl<'a> Shape<'a> {
         let mut out = Creases::default();
         let inside = |p: [f64; 2]| inside_polygon(self.outline, p) && edge_distance(self.outline, p) > CREASE_CLEAR;
         match self.top {
-            StampTop::Flat | StampTop::Taper { .. } => {}
+            StampTop::Flat | StampTop::Taper { .. } | StampTop::Pillow { .. } => {}
             StampTop::Gable { axis_deg, .. } => {
                 let a = [axis_deg.to_radians().cos(), axis_deg.to_radians().sin()];
                 for (t0, t1) in inside_runs(self.outline, self.shift, a, f64::MIN, f64::MAX) {
@@ -2341,16 +2542,42 @@ impl<'a> BareSurface<'a> {
 
     /// Point, normal and tangents of the bare surface at a chart point, interpolated on a swept band.
     fn at(&self, theta_deg: f64, v_mm: f64) -> SurfacePoint {
-        self.kept(theta_deg, v_mm, false, || {
-            if self.design.imported_base.is_some() {
-                return crate::stones::surface_frame(self.design, self.ctx, theta_deg, v_mm);
+        self.kept(theta_deg, v_mm, false, || self.point(theta_deg, v_mm))
+    }
+
+    /// [`Self::at`] made afresh, leaving the cross-call store to the stamps.
+    pub(crate) fn point(&self, theta_deg: f64, v_mm: f64) -> SurfacePoint {
+        if self.design.imported_base.is_some() {
+            return crate::stones::surface_frame(self.design, self.ctx, theta_deg, v_mm);
+        }
+        let ([r, z], [nr, nz]) = self.section_point(theta_deg, v_mm);
+        let l = nr.hypot(nz).max(1e-12);
+        let (nr, nz) = (nr / l, nz / l);
+        let (sin, cos) = theta_deg.to_radians().sin_cos();
+        ([r * cos, r * sin, z], [nr * cos, nr * sin, nz], [-sin, cos, 0.0], [-nz * cos, -nz * sin, nr])
+    }
+
+    /// The outward normal of the bare section at `theta_deg` where its surface comes nearest `(r, z)`; `None` with no surface there.
+    pub(crate) fn normal_near(&self, theta_deg: f64, r: f64, z: f64) -> Option<[f64; 3]> {
+        let samples = self.samples(theta_deg);
+        let s = &samples.0;
+        let mut best: Option<(f64, f64, f64)> = None;
+        for w in s.windows(2) {
+            let (a, b) = (w[0], w[1]);
+            let (dr, dz) = (b[1] - a[1], b[2] - a[2]);
+            let t = (((r - a[1]) * dr + (z - a[2]) * dz) / (dr * dr + dz * dz).max(1e-18)).clamp(0.0, 1.0);
+            let d = (r - a[1] - dr * t).hypot(z - a[2] - dz * t);
+            if best.is_none_or(|(nearest, _, _)| d < nearest) {
+                best = Some((d, a[3] + (b[3] - a[3]) * t, a[4] + (b[4] - a[4]) * t));
             }
-            let ([r, z], [nr, nz]) = self.section_point(theta_deg, v_mm);
-            let l = nr.hypot(nz).max(1e-12);
-            let (nr, nz) = (nr / l, nz / l);
-            let (sin, cos) = theta_deg.to_radians().sin_cos();
-            ([r * cos, r * sin, z], [nr * cos, nr * sin, nz], [-sin, cos, 0.0], [-nz * cos, -nz * sin, nr])
-        })
+        }
+        let (_, nr, nz) = best?;
+        let l = nr.hypot(nz);
+        if !(l > 1e-12) {
+            return None;
+        }
+        let (sin, cos) = theta_deg.to_radians().sin_cos();
+        Some([nr / l * cos, nr / l * sin, nz / l])
     }
 
     /// [`crate::stones::surface_frame`] bit for bit: on a swept band the nearest sample of a [`PLAIN_SECTION_STEPS`] section.
@@ -2389,7 +2616,7 @@ impl<'a> BareSurface<'a> {
     }
 
     /// The chart `v` nearest `guess` at which the section at `theta_deg` crosses the parting plane.
-    fn parting_v(&self, theta_deg: f64, guess: f64) -> Option<f64> {
+    pub(crate) fn parting_v(&self, theta_deg: f64, guess: f64) -> Option<f64> {
         let (design, ctx) = (self.design, self.ctx);
         if design.imported_base.is_some() {
             let z = |v: f64| crate::stones::surface_frame(design, ctx, theta_deg, v).0[2];
@@ -2630,7 +2857,7 @@ impl Stamp {
             hull.iter().map(|p| shape.lift(*p)).fold(0.0, f64::max).max(match self.top {
                 StampTop::Gable { rise_mm, .. } | StampTop::Ridge { rise_mm, .. } => rise_mm,
                 StampTop::Cone { apex_mm, .. } => apex_mm,
-                StampTop::Dome { crown_mm } => crown_mm,
+                StampTop::Dome { crown_mm } | StampTop::Pillow { crown_mm } => crown_mm,
                 _ => 0.0,
             })
         };
@@ -4203,6 +4430,55 @@ mod tests {
         assert!(crate::library::template_features_in_json(&serde_json::json!({"stamps": [d.stamps[0]]})), "a graph carrying it is fenced");
     }
 
+    /// A pillow is the dome on a circle and creaseless on a holly leaf, where the dome folds along every spine's ray.
+    #[test]
+    fn a_pillow_is_the_dome_on_a_circle_and_creaseless_on_a_holly_leaf() {
+        use crate::library::{format_version_for, template_features_in_json, FORMAT_VERSION};
+        let circle = crate::outline::circle(3.0);
+        let dome = Shape::new(StampTop::Dome { crown_mm: 0.5 }, &circle, 0.3, [0.0; 2]);
+        let pillow = Shape::new(StampTop::Pillow { crown_mm: 0.5 }, &circle, 0.3, [0.0; 2]);
+        for k in 0..60 {
+            let (s, c) = (k as f64 * 0.7).sin_cos();
+            let p = [1.45 * (k as f64 / 60.0) * c, 1.45 * (k as f64 / 60.0) * s];
+            assert!((dome.lift(p) - pillow.lift(p)).abs() < 0.01, "at {p:?}: dome {:.4}, pillow {:.4}", dome.lift(p), pillow.lift(p));
+        }
+        assert!(pillow.lift(circle[7]).abs() < 1e-9, "zero on the outline");
+        let holly = crate::outline::leaf(crate::outline::Margin::Holly { spines: 3, depth_mm: 0.55, lean_deg: 20.0 }, 8.6, 5.0);
+        // The worst second difference of the top across the blade, mm per mm squared.
+        let kink = |top: StampTop| {
+            let shape = Shape::new(top, &holly, 0.3, [0.0; 2]);
+            let e = 0.03;
+            let mut worst: f64 = 0.0;
+            for i in -80..=80 {
+                for j in -50..=50 {
+                    let p = [i as f64 * 0.05, j as f64 * 0.05];
+                    if !inside_polygon(&holly, p) || edge_distance(&holly, p) < 0.2 {
+                        continue;
+                    }
+                    for d in [[e, 0.0], [0.0, e]] {
+                        let h = |k: f64| shape.lift([p[0] + k * d[0], p[1] + k * d[1]]);
+                        worst = worst.max((h(1.0) - 2.0 * h(0.0) + h(-1.0)).abs() / (e * e));
+                    }
+                }
+            }
+            worst
+        };
+        let (folds, smooth) = (kink(StampTop::Dome { crown_mm: 0.5 }), kink(StampTop::Pillow { crown_mm: 0.5 }));
+        assert!(smooth < 0.25 * folds, "pillow {smooth:.2} against dome {folds:.2}");
+        let mut d = crest_band();
+        let ctx = d.field_context();
+        let lib = crate::AlphaLibrary::builtin();
+        let mesh = crate::mesh::try_build(&d, &lib, strike()).unwrap().mesh;
+        let band = Solid { v: mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: mesh.faces.clone() };
+        let leaf = Stamp { top: StampTop::Pillow { crown_mm: 0.5 }, ..plain("Holly", 90.0, ctx.crest_v_mm, holly, 0.3) };
+        sound(&leaf.solid(&leaf.frame(&d, &ctx), &band).unwrap(), "the pillowed leaf");
+        d.stamps = vec![leaf];
+        assert_eq!(format_version_for(&d), FORMAT_VERSION);
+        let back = crate::library::load_design_str(&crate::library::design_json(&d).unwrap()).unwrap();
+        assert_eq!(back.stamps, d.stamps);
+        assert!(template_features_in_json(&serde_json::json!({"stamps": [d.stamps[0]]})), "a graph carrying it is fenced");
+    }
+
     /// A gable off the parting line holds its ridge as an edge of the cap, every vertex on it at full rise.
     #[test]
     fn an_off_chord_gable_creases_its_ridge_at_full_rise() {
@@ -4587,8 +4863,8 @@ mod tests {
                 let (collet, stone) = (collet(gem), envelope(gem, 0.0));
                 let overlap = csg::combine(&collet, &stone, csg::Op::Intersect).map_or(0.0, |s| s.volume());
                 let inside = collet.v.iter().filter(|v| csg::inside(&stone, **v) == Some(true)).count();
-                // A 1.3 mm trillion's scaled ledge still grazes it at its corners, 3e-4 mm^3 where it had 6e-4.
-                let (most, deepest) = if cut == GemCut::Trillion && w < 2.0 { (4e-4, 40) } else { (1e-6, 0) };
+                // A 1.3 mm trillion's scaled ledge grazes its corners: 2.1e-4 mm^3 on its girdle, 3e-4 on the superellipse.
+                let (most, deepest) = if cut == GemCut::Trillion && w < 2.0 { (4e-4, 60) } else { (1e-6, 0) };
                 assert!(overlap < most && inside <= deepest, "{cut:?} {w}: {overlap:.2e} mm^3 of collet in the stone, {inside} vertices");
             }
         }
@@ -4596,5 +4872,304 @@ mod tests {
         for (cut, expected) in [(GemCut::Round, 0x7739dd05ff5fcf20), (GemCut::Oval, 0x868cb526a0918b92)] {
             assert_eq!(fingerprint(&collet(Gem::cabochon(cut, 8.0))), expected, "{cut:?}");
         }
+    }
+
+    /// A swept part's ring at height `z`, in sweep order.
+    fn ring_at(s: &Solid, z: f64) -> Vec<[f64; 2]> {
+        s.v.iter().filter(|v| v[2] == z).map(|v| [v[0], v[1]]).collect()
+    }
+
+    fn point_to_segment_mm(p: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
+        let (ex, ey) = (b[0] - a[0], b[1] - a[1]);
+        let l2 = ex * ex + ey * ey;
+        let t = if l2 > 0.0 { (((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / l2).clamp(0.0, 1.0) } else { 0.0 };
+        (p[0] - a[0] - t * ex).hypot(p[1] - a[1] - t * ey)
+    }
+
+    fn true_cuts() -> impl Iterator<Item = GemCut> {
+        GemCut::ALL.iter().copied().filter(|c| c.has_true_girdle())
+    }
+
+    /// The preview stone and the metal cut for it agree to 0.02 mm on every true-girdle cut, size and form.
+    #[test]
+    fn a_true_girdle_cuts_the_stone_the_preview_draws() {
+        let fit = Fit { surface_z: 0.4, through_mm: None, prongs: 0 };
+        let mut worst_all: f64 = 0.0;
+        for cut in true_cuts() {
+            for gem in [Gem::calibrated(cut, 1.3), Gem::calibrated(cut, 3.0), Gem::calibrated(cut, 5.0), Gem::calibrated(cut, 8.0), Gem::calibrated(cut, 12.0), Gem::cabochon(cut, 6.0)] {
+                let who = format!("{cut:?} {:?} {} mm", gem.form, gem.w_mm);
+                let drawn: Vec<[[f64; 2]; 3]> = crate::gems::bundled_drawing(gem).iter().map(|(a, b, c)| [[a[0], a[1]], [b[0], b[1]], [c[0], c[1]]]).collect();
+                let edges: Vec<([f64; 2], [f64; 2])> = drawn.iter().flat_map(|t| (0..3).map(move |k| (t[k], t[(k + 1) % 3]))).collect();
+                let outline: Vec<[f64; 2]> = (0..1440)
+                    .map(|k| {
+                        let t = TAU * (k as f64 + 0.5) / 1440.0;
+                        let r = crate::girdle::silhouette_radius(&drawn, t);
+                        [t.cos() * r, t.sin() * r]
+                    })
+                    .collect();
+                // Distance outside the drawn stone; negative inside.
+                let off_stone = |v: [f64; 2]| -> f64 {
+                    let inside = v[0].hypot(v[1]) < crate::girdle::silhouette_radius(&drawn, v[1].atan2(v[0])) - 1e-9;
+                    let d = edges.iter().map(|(a, b)| point_to_segment_mm(v, *a, *b)).fold(f64::MAX, f64::min);
+                    if inside { -d } else { d }
+                };
+                let plan = Plan::of(gem);
+                let girdle = plan.table.unwrap_or_else(|| panic!("{who}: no true girdle"));
+                let strays = outline.iter().map(|p| (p[0].hypot(p[1]) - girdle.radius_mm(p[0], p[1], plan.a, plan.b)).abs()).fold(0.0, f64::max);
+                assert!(strays < 1e-9, "{who}: the plan strays {strays:.2e} mm off the drawn stone");
+                let g = girdle_half(gem);
+                let rings: Vec<(&str, Solid, f64, f64)> = match gem.form {
+                    GemForm::Faceted => vec![
+                        ("envelope", envelope(gem, 0.0), g, 0.0),
+                        ("bur girdle wall", bur(gem, &fit), g, CLEAR),
+                        ("bur bearing", bur(gem, &fit), -g, CLEAR),
+                        ("collet girdle seat", collet(gem), g, CLEAR),
+                    ],
+                    GemForm::Cabochon => vec![
+                        ("envelope", envelope(gem, 0.0), 0.0, 0.0),
+                        ("bur girdle wall", bur(gem, &fit), g, CLEAR),
+                        ("collet girdle seat", collet(gem), g, CLEAR),
+                    ],
+                };
+                for (what, solid, z, clear) in rings {
+                    let ring = ring_at(&solid, z);
+                    assert!(ring.len() >= 28, "{who} {what}: {} vertices at z {z}", ring.len());
+                    // Metal ring to stone.
+                    for v in &ring {
+                        let d = off_stone(*v);
+                        worst_all = worst_all.max((d - clear).abs());
+                        assert!((d - clear).abs() < 0.02, "{who} {what}: a vertex stands {d:.4} mm off the stone, not {clear}");
+                    }
+                    // Stone to metal ring, allowing the miter within 0.2 mm of a concave corner.
+                    let n = ring.len();
+                    let clefts: Vec<([f64; 2], f64)> = girdle
+                        .points()
+                        .iter()
+                        .zip(girdle.turns())
+                        .filter(|(_, t)| **t < -0.2)
+                        .map(|(c, t)| ([c[0] * plan.a, c[1] * plan.b], clear / (0.5 * (PI - t.abs())).sin()))
+                        .collect();
+                    for p in &outline {
+                        let d = (0..n).map(|i| point_to_segment_mm(*p, ring[i], ring[(i + 1) % n])).fold(f64::MAX, f64::min);
+                        let miter = clefts.iter().filter(|(c, _)| (p[0] - c[0]).hypot(p[1] - c[1]) < 0.2).map(|(_, m)| *m).fold(clear, f64::max);
+                        assert!(d > clear - 0.02 && d < miter + 0.02, "{who} {what}: the stone's girdle stands {d:.4} mm from the metal, not {clear}");
+                        if miter == clear {
+                            worst_all = worst_all.max((d - clear).abs());
+                        }
+                    }
+                }
+            }
+        }
+        eprintln!("true girdles: the drawn stone and the metal cut for it agree to {worst_all:.4} mm");
+    }
+
+    /// Every made part on a true girdle is closed, uncrossed and clear of the stone.
+    #[test]
+    fn made_settings_on_a_true_girdle_close_uncrossed_and_clear_the_stone() {
+        let open = Fit { surface_z: 0.4, through_mm: Some(2.4), prongs: 0 };
+        let blind = Fit { surface_z: -0.3, through_mm: None, prongs: 0 };
+        let closed = |s: &Solid, who: &str| {
+            let c = s.check(true);
+            assert_eq!((c.open_edges, c.repeated_edges, c.zero_area_faces, c.self_crossings), (0, 0, 0, Some(0)), "{who}: {c:?}");
+            assert!(c.volume > 0.0, "{who}: {c:?}");
+        };
+        for cut in true_cuts() {
+            for gem in [Gem::calibrated(cut, 1.5), Gem::calibrated(cut, 3.0), Gem::calibrated(cut, 6.0), Gem::calibrated(cut, 10.0), Gem::cabochon(cut, 8.0)] {
+                let who = format!("{cut:?} {:?} {} mm", gem.form, gem.w_mm);
+                let stone = envelope(gem, 0.0);
+                // A cabochon's envelope at no clearance carries a flat band on every cut.
+                let c = stone.check(true);
+                assert_eq!((c.open_edges, c.repeated_edges, c.self_crossings), (0, 0, Some(0)), "{who} stone: {c:?}");
+                if gem.form == GemForm::Faceted {
+                    closed(&stone, &format!("{who} stone"));
+                }
+                closed(&envelope(gem, 0.02), &format!("{who} notch"));
+                closed(&bur(gem, &open), &format!("{who} bur"));
+                closed(&bur(gem, &blind), &format!("{who} blind bur"));
+                let ring = collet(gem);
+                closed(&ring, &format!("{who} collet"));
+                // A trillion under 2 mm grazes its scaled ledge at the corners.
+                let overlap = csg::combine(&ring, &stone, Op::Intersect).map_or(0.0, |s| s.volume());
+                let most = if cut == GemCut::Trillion && gem.w_mm < 2.0 { 4e-4 } else { 1e-6 };
+                assert!(overlap < most, "{who}: {overlap:.2e} mm^3 of collet in the stone");
+                if let Some(r) = relief(gem, -0.4, 0.3, &open) {
+                    closed(&r, &format!("{who} relief"));
+                }
+                for (c, r) in beads(gem, &open) {
+                    closed(&ball(c, r, 8), &format!("{who} bead"));
+                }
+                let styles: &[ClawStyle] = if gem.w_mm == 6.0 { &CLAW_STYLES } else { &[ClawStyle::Wire] };
+                for &style in styles {
+                    let options = ClawOptions { style, ..ClawOptions::default() };
+                    let head = claw_head_named_styled(gem, 0, prong_wire_mm(gem), Rails::Seat, None, options).unwrap_or_else(|e| panic!("{who} {style:?}: {e}"));
+                    closed(&head.solid, &format!("{who} {style:?} head"));
+                    let buried = head.solid.v.iter().filter(|p| csg::inside(&stone, **p) == Some(true)).count();
+                    assert_eq!(buried, 0, "{who} {style:?}: metal in the stone");
+                    assert_eq!(head.names.iter().filter(|n| n.starts_with("Claw ")).count() as u32, claw_count(gem, 0), "{who} {style:?}");
+                }
+            }
+        }
+    }
+
+    /// A true girdle's claws stand on its points first, and none on a half moon's straight side.
+    #[test]
+    fn claws_stand_on_a_true_girdles_points() {
+        for (cut, count, points) in [(GemCut::Pear, 5, 1), (GemCut::Trillion, 3, 3), (GemCut::Heart, 5, 1), (GemCut::HalfMoon, 4, 2)] {
+            let gem = Gem::calibrated(cut, 5.0);
+            let plan = Plan::of(gem);
+            let girdle = plan.table.unwrap();
+            assert_eq!(claw_count(gem, 0), count, "{cut:?}");
+            let claws = plan.claw_angles(claw_count(gem, 0));
+            assert_eq!(claws.len(), count as usize, "{cut:?}");
+            let corners: Vec<f64> = girdle.angles().iter().zip(girdle.turns()).filter(|(_, t)| **t >= crate::girdle::CORNER_TURN).map(|(a, _)| *a).collect();
+            assert_eq!(corners.len(), points, "{cut:?}");
+            assert!(corners.iter().all(|c| claws.contains(c)), "{cut:?}: {claws:?} misses {corners:?}");
+            if cut == GemCut::HalfMoon {
+                let side = plan.point(corners[0])[1];
+                assert!(claws.iter().filter(|c| !corners.contains(c)).all(|c| (plan.point(*c)[1] - side).abs() > 0.5), "{claws:?}");
+            }
+            // The normal at a point faces out.
+            let n = plan.normal(corners[0]);
+            let p = plan.point(corners[0]);
+            assert!(n[0] * p[0] + n[1] * p[1] > 0.0, "{cut:?}: the point's normal faces out");
+        }
+    }
+
+    /// Every kind of made setting resolves watertight on a true girdle, with the drawn girdle clear of the metal.
+    #[test]
+    fn every_kind_resolves_on_a_true_girdle() {
+        for cut in true_cuts() {
+            let gem = Gem::calibrated(cut, 2.5);
+            let g = girdle_half(gem);
+            for kind in [SolidKind::Flush, SolidKind::Bead, SolidKind::Prong, SolidKind::Bezel] {
+                let who = format!("{cut:?} {kind:?}");
+                let d = ring_with(kind, gem, &[90.0], false);
+                let b = built(&d);
+                assert!(b.solids.notes.is_empty(), "{who}: {:?}", b.solids.notes);
+                assert_eq!(b.solids.resolved, 1, "{who}");
+                assert!(b.report.validation.watertight, "{who}: {:?}", b.report.validation);
+                let (_, frame) = &crate::stones::stone_frames(&d)[0];
+                let ring = Solid { v: b.mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: b.mesh.faces.clone() };
+                let girdle: Vec<P3> = crate::gems::bundled_drawing(gem).iter().flat_map(|(a, b, c)| [*a, *b, *c]).filter(|p| p[2].abs() <= g + 1e-9).collect();
+                assert!(girdle.len() > 20, "{who}: {} girdle vertices", girdle.len());
+                // Half a percent inside the drawn girdle.
+                let buried = girdle.iter().filter(|p| {
+                    let q: P3 = std::array::from_fn(|k| frame.girdle[k] + (p[0] * frame.long[k] + p[1] * frame.short[k] + p[2] * frame.normal[k]) * 0.995);
+                    csg::inside(&ring, q) == Some(true)
+                }).count();
+                assert_eq!(buried, 0, "{who}: the drawn girdle sits in its seat, not in the metal");
+            }
+        }
+    }
+
+    /// `RD_TRUE_PLAN_SHEET=$PWD/docs/stones/true-plans.png cargo test -p ringdesign-core --lib true_plan_sheet -- --ignored`.
+    #[test]
+    #[ignore]
+    fn true_plan_sheet() {
+        let Some(dest) = std::env::var_os("RD_TRUE_PLAN_SHEET") else { return };
+        let dest = std::path::PathBuf::from(dest);
+        if let Some(dir) = dest.parent() {
+            std::fs::create_dir_all(dir).unwrap();
+        }
+        let mesh = |s: Solid| {
+            let n = s.v.len();
+            crate::parts::into_mesh(s, &[], vec![u32::MAX; n])
+        };
+        const TILE: usize = 300;
+        const LABEL: usize = 40;
+        let views = [(0.0, 0.0), (0.55, -0.95)];
+        let cuts: Vec<GemCut> = true_cuts().collect();
+        let tints = [[0.45, 0.01, 0.04], [0.04, 0.20, 0.48], [0.62, 0.10, 0.30], [0.10, 0.36, 0.14]];
+        let (cols, rows) = (2 * views.len() + 1, cuts.len());
+        let (w, h) = (cols * TILE, rows * (TILE + LABEL) + LABEL);
+        let mut sheet = vec![18u8; w * h * 3];
+        let blit = |sheet: &mut Vec<u8>, img: &[u8], x0: usize, y0: usize, tw: usize, th: usize| {
+            for y in 0..th {
+                for x in 0..tw {
+                    let (s, d) = ((y * tw + x) * 3, ((y0 + y) * w + x0 + x) * 3);
+                    sheet[d..d + 3].copy_from_slice(&img[s..s + 3]);
+                }
+            }
+        };
+        let label = |sheet: &mut Vec<u8>, text: &str, x0: usize, y0: usize, px: f64| {
+            let a = crate::text::TextAlpha { name: "label".into(), text: text.into(), font: crate::text::TextFont::Serif, tracking: 0.0 }.rasterize();
+            if a.width == 0 || a.height == 0 {
+                return;
+            }
+            let scale = px / a.height as f64;
+            let (lw, lh) = ((a.width as f64 * scale) as usize, px as usize);
+            for y in 0..lh {
+                for x in 0..lw.min(w - x0) {
+                    let c = a.sample(x as f64 / lw.max(1) as f64, y as f64 / lh.max(1) as f64).clamp(0.0, 1.0);
+                    let d = ((y0 + y) * w + x0 + x) * 3;
+                    for k in 0..3 {
+                        sheet[d + k] = (sheet[d + k] as f32 * (1.0 - c) + 235.0 * c) as u8;
+                    }
+                }
+            }
+        };
+        let heads = ["collet, from above", "collet", "claws, from above", "claws", "the plan"];
+        for (c, head) in heads.iter().enumerate() {
+            label(&mut sheet, head, c * TILE + 10, 8, 24.0);
+        }
+        for (r, cut) in cuts.iter().enumerate() {
+            let gem = Gem { preview_tint: Some(tints[r]), ..Gem::calibrated(*cut, 5.0) };
+            let stone = crate::gems::stone_mesh(gem);
+            let y0 = LABEL + r * (TILE + LABEL);
+            label(&mut sheet, &gem.display(), 10, y0 + 6, 24.0);
+            let collet_mesh = mesh(collet(gem));
+            let claws = mesh(claw_head(gem, 0).unwrap());
+            for (k, metal) in [&collet_mesh, &claws].into_iter().enumerate() {
+                for (v, (yaw, pitch)) in views.iter().enumerate() {
+                    let parts = [crate::render::Part::metal(metal, crate::render::GOLD), crate::render::Part::tinted_stone(&stone, crate::gems::tint_of(gem))];
+                    let img = crate::render::render_parts_ss(&parts, *yaw, *pitch, TILE, TILE, 3);
+                    blit(&mut sheet, &img, (2 * k + v) * TILE, y0 + LABEL, TILE, TILE);
+                }
+            }
+            // Drawn silhouette filled, bur girdle wall in gold, the superellipse in grey.
+            let plan = Plan::of(gem);
+            let old = Plan::superellipse(plan.a, plan.b, plan.pow);
+            let wall = ring_at(&bur(gem, &Fit { surface_z: 0.4, through_mm: None, prongs: 0 }), girdle_half(gem));
+            let drawn: Vec<[[f64; 2]; 3]> = crate::gems::bundled_drawing(gem).iter().map(|(a, b, c)| [[a[0], a[1]], [b[0], b[1]], [c[0], c[1]]]).collect();
+            let reach = plan.table.unwrap().reach_mm(plan.a, plan.b).max(old.a.max(old.b)) * 1.15;
+            let px = TILE as f64 / (2.0 * reach);
+            let (x0, y0p) = (4 * TILE, y0 + LABEL);
+            let mut img = vec![18u8; TILE * TILE * 3];
+            for y in 0..TILE {
+                for x in 0..TILE {
+                    let p = [(x as f64 + 0.5) / px - reach, reach - (y as f64 + 0.5) / px];
+                    let r = crate::girdle::silhouette_radius(&drawn, p[1].atan2(p[0]));
+                    if p[0].hypot(p[1]) < r {
+                        let t = crate::gems::tint_of(gem);
+                        img[(y * TILE + x) * 3..(y * TILE + x) * 3 + 3].copy_from_slice(&[(t[0] * 255.0) as u8, (t[1] * 255.0) as u8, (t[2] * 255.0) as u8]);
+                    }
+                }
+            }
+            let mut stroke = |pts: &[[f64; 2]], rgb: [u8; 3]| {
+                let n = pts.len();
+                for i in 0..n {
+                    let (a, b) = (pts[i], pts[(i + 1) % n]);
+                    let steps = (((b[0] - a[0]).hypot(b[1] - a[1])) * px * 2.0).ceil().max(1.0) as usize;
+                    for s in 0..=steps {
+                        let t = s as f64 / steps as f64;
+                        let q = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+                        let (x, y) = (((q[0] + reach) * px) as isize, ((reach - q[1]) * px) as isize);
+                        for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                            let (x, y) = (x + dx, y + dy);
+                            if (0..TILE as isize).contains(&x) && (0..TILE as isize).contains(&y) {
+                                let d = (y as usize * TILE + x as usize) * 3;
+                                img[d..d + 3].copy_from_slice(&rgb);
+                            }
+                        }
+                    }
+                }
+            };
+            let superellipse: Vec<[f64; 2]> = (0..256).map(|k| old.point(TAU * k as f64 / 256.0)).collect();
+            stroke(&superellipse, [130, 130, 130]);
+            stroke(&wall, [230, 180, 70]);
+            blit(&mut sheet, &img, x0, y0p, TILE, TILE);
+        }
+        image::save_buffer(&dest, &sheet, w as u32, h as u32, image::ColorType::Rgb8).unwrap();
+        eprintln!("wrote {}", dest.display());
     }
 }
