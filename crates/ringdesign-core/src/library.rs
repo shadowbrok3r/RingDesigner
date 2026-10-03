@@ -133,6 +133,7 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     if value.get("SeatRun").and_then(|run| run.get("bare")).and_then(serde_json::Value::as_bool) == Some(true) { return true; }
     if value.get("Group").and_then(|group| group.get("clamp")).is_some_and(|clamp| !clamp.is_null()) { return true; }
     if value.get("fine_cap").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
+    if value.get("fillet_into_band").and_then(serde_json::Value::as_f64).is_some_and(|r| r != 0.0) { return true; }
     if value.get("crisp_relief").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
     if value.get("Pillow").is_some() { return true; }
     if value.get("kind").and_then(serde_json::Value::as_str) == Some("design.set")
