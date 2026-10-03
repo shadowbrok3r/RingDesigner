@@ -1,87 +1,85 @@
 # Cataphracta: Chamaeleo, cloud report
 
-Branch `claude/cataphracta-chamaeleo`: `f337575` (block-out, read tests 1 and 2), `a55dc47` (merge of master `2e11632`), `4f9b152` (block-out attempt 3, read test 3), then this report. Nothing was pushed to master and nothing was tagged.
+Branch `claude/cataphracta-chamaeleo`. The first block-out is in `f337575` and `4f9b152`, with master `2e11632` merged in `a55dc47`. The rethink Logan approved is in `a1869da` (read test 4), `b95592b` (read test 5) and the commit that carries this report (read test 6). Nothing was pushed to master and nothing was tagged.
 
 ## Outcome
 
-**Stopped at the block-out: three read tests failed.** Per TASK.md, the subject needs rethinking, not detailing. No review round was run, so **0 of 3 review rounds were used** and there is no review score. The template gate was not run, because it follows the last round and no round started.
+**Stopped at the block-out a second time.** Logan approved the rethink, and it improved every read, but none of read tests 4 to 6 named a chameleon. Following his instruction ("if none of the three reads, stop and report"), I ran **0 reviewed rounds**, so there is no review score. The template gate and the export `--verify` build were not run, because both belong to the rounds.
 
-| Read test | Design | `reads` | What the reviewer saw |
+| Test | Design | `reads` | First read |
 |---|---|---|---|
-| 1 | The head in profile, struck on the parting line: a domed head plate, a cranium tier whose lower edge is the mouth, a casque tier, and a ringed turret eye (three cone tiers) holding the alexandrite cabochon as its pupil. Delft. | false | "An abstract stepped signet with a cabochon". The ringed eye read as "a target or a single eye", with no helmet in the silhouette. Changes: casque on the line, 1.8 mm high and 4 mm wide; remove the concentric rings; a 5 mm cushion boss; a tail coil 3.6 to 5 mm in radius on each cheek; granules on the table. |
-| 2 | The plan above, in Delft: casque (Dome, 0.25 + 1.55 mm) on two closed temporal-crest tiers, a 5 × 4 cushion on a boss at along −4, granules cut at the bench on the table flanks, cast granules on the cheeks in a C-R1 clamped group, a dorsal keel and cones, and a tail curling on each cheek. | false | "A tribal or industrial signet": a stud-framed plate, a bullet-shaped boss, and "rivet rows". Changes: a broad helmet casque 1.8 to 2.0 mm high; a tail 4 to 5 mm in radius; open crest steps instead of a closed frame; pebbled granules; bigger cones. |
-| 3 | Judged as **lost wax** (Logan, 2026-10-03). Broad domed casque (0.35 + 1.65 mm, 2.8 to 4 mm wide); two 0.3 mm temporal steps each side, beside it rather than under it; bench-cut granules on the flanks; coil grown to 2.1 mm in radius at the cheek's tallest corner; cones 0.6 + 0.9 mm. | false | "A carved cartouche, like a Maya glyph or a robot mask … perhaps a beetle, a fish or a dinosaur toy, but not a chameleon." The casque reads as a flat pill, the tail as a scroll, and the texture as pits and drips. |
+| 1 | Factory 001 in Delft. The head in profile on the parting line, with a ringed turret eye holding the stone. | false | "a target"; an abstract stepped signet |
+| 2 | Factory 001 in Delft. A casque on the line behind a cushion boss, plus crests, coils and granules. | false | a tribal or industrial signet |
+| 3 | Factory 001 in lost wax. A broader casque, open crest steps and bench grain. | false | a Maya glyph or robot mask |
+| 4 | **Rethink**: a keyed body with a 9 mm plinth, and the head sculpted as one part (`sculpt.rs`) with a blade casque and cone eyes. The tail is coiled 2.4 turns on each 7.8 mm flank. | false | "a seal, a sleeping bird, or a fish with a dorsal fin". The spiral "finally reads as a curl". |
+| 5 | The same, with ringed turret eyes, a wedge casque, cast granular skin and a mouth groove. | false | "a toad"; "closest yet". The casque read as a CAD slab and the eye as a spike. |
+| 6 | The same, with a snout 3 to 4 mm past the eyes, beaded dome turrets with pupil bosses, a helmet blended into the skull, and the grin. | false | "a toad", "pickle", "sea cucumber". The helmet was smoothed away, the warts read as toad hide, and the eyes and grin were lost at 300 px. |
 
-The reviews are in `showcase/cataphracta/chamaeleo/read-test-{1,2,3}.json`. The renders in that folder are attempt 3's draft set. The attempt 1 and 2 renders were overwritten by later runs; the attempt 1 code is in `f337575`'s history.
+The reviews are `showcase/cataphracta/chamaeleo/read-test-{1..6}.json`. The renders in that folder are attempt 6's draft set.
 
-## Why it does not read, and what I would rethink
+## Why it still does not read
 
-- **The table is the only place both cameras look, and the factory table limits the subject.** In two-part sand, every form on the table must step down away from the parting line. That ruled out a plan-view head with its turret eyes, cast granules, and a coil on the table. The profile head (attempt 1) obeyed the rule, but its eye then had to sit on the line in the middle of the head. That gave the "target" read, and the turret's concentric steps are a target.
-- **The tail cannot be big.** The 001 cheek at 17 × 14.5 is a crescent over the bore, 1.9 mm tall at its middle. The largest circle it holds has a radius of 1.78 mm (measured from the atlas; side faces with |n_z| > 0.85). All three reviews asked for a coil 3.6 to 5 mm in radius at the centre of the cheek. That is physically absent on this base, so the tail never reaches the size that names a chameleon.
-- **Recommendation:** lost wax (now allowed) on a **taller procedural or keyed head**, or on a stock whose cheeks are not a thin crescent. Sculpt the head as a part (`sculpt.rs`), not as stacked plates: a real casque silhouette that rises above the table, turret eyes standing out on both sides, and the tail coiled on a side face at least 9 mm tall. The plates-on-a-flat-table approach reads as a glyph three times running.
+- **The tail is solved; the head is not.** From attempt 4 on, every reviewer read the spiral as a coiled tail. The head ran through four wrong animals. A blade read as a fin (seal or fish). A slab read as CAD. A merged helmet left a loaf (toad), and uniform warts read as toad skin. The fixes for each attempt undid the gain of the one before.
+- **Two of the three cues are too small to read from the hero and face cameras.** The turret eye and the grin read clearly in the side render (`side.png`), which neither read-test camera shows. At 300 px from above, the eye becomes a knob and the grin disappears.
+- **What I would do next.** I would not attempt a seventh test without a sculptor's reference sheet for the head, such as Logan's ZBrush sheets. They are not available in this cloud environment.
+  - The casque should be a polished, tubercle-edged helmet standing 2.5 to 3 mm proud, with a shadowed back drop.
+  - The skin should be fine graded granulation, not uniform warts.
+  - The eyes should be larger cone-domes aimed at the hero camera.
+  - The body should run from the head down into the coil, so the animal reads as one piece.
 
-## Gates (attempt 3, lost wax)
+  These are read test 6's punch items, and they are concrete. The risk is the pattern above: each fix overshot.
 
-Lost wax judges fill and detail. The sand items are reported as a bonus and gate nothing.
+## Gates (attempt 6, lost wax, draft and 384 × 192)
 
-| Gate | Draft 768 × 320 | 384 × 192 | Export 1536 × 448 |
-|---|---|---|---|
-| Watertight, 0 degenerate faces, 0 self-crossings | yes, 0, 0 | yes, 0, 0 | yes, 0, 0 |
-| Solids notes empty, every stamp struck | yes (13 of 13) | yes | **no**: "Tail, fingertip: could not be joined (two cuts cross inside a face)" |
-| Bore margin (≥ −0.01 mm) | −0.00007 | −0.00018 | −0.00002 |
-| Field verdict (lost wax), thinnest wall ≥ 0.8 mm | Castable, 1.296 mm | Castable, 1.296 mm | Castable, 1.296 mm |
-| DFM findings | 0 | 0 | 0 |
-| Stones reported = preview; metal inside the stone | 1 = 1; 0 | 1 = 1; 0 | 1 = 1; 0 |
-| Triangles | 503,008 | 172,672 | 1,350,252 (≤ 2 M) |
-| Casting pattern closed | — | — | watertight, 0 degenerate, 0 crossings (1,346,420 triangles) |
-| Cold reload with an empty library (`--verify`) | — | — | identical |
-| **Bonus: Delft pull** | blocked: 2 obstructions at 0.100 mm, 3 at 0.075 mm, deepest 1.03 mm; two-part undercut 0.015% | same | blocked; 7 of 13 stamps fail `parting_monotone` (the off-line crests, cones and tails) |
+| Gate | Draft 768 × 320 | 384 × 192 |
+|---|---|---|
+| Watertight, 0 degenerate faces, 0 self-crossings | yes, 0, 0 | yes, 0, 0 |
+| Solids and parts notes empty | yes | yes |
+| Sculpted head part | 342,372 faces, 0 open edges, 0 self-crossings, 478 mm³ | same |
+| Nothing inside the finger hole (≥ −0.01 mm) | −0.00006 mm | −0.00026 mm |
+| Field verdict (lost wax), thinnest wall | Castable, 2.27 mm | Castable, 2.27 mm |
+| Design-for-manufacture findings | 0 | 0 |
+| Stones reported = preview; metal inside the stone | 1 = 1; 0 | 1 = 1; 0 |
+| Triangles | 820,346 | 486,322 |
+| Bonus: two-part Delft pull | blocked: 249 obstructions at 0.100 mm, deepest 3.6 mm; 3.7% undercut. It does not pour from sand. | same |
 
-The export tail join is a fragile boolean that moves with resolution. It passed at draft and 384, and passed at export in an earlier configuration, but it is not fixed. Attempt 2 (Delft) was green on every sand gate at draft and 384: Castable, release 0 and 0 at both steps, clamp bites 0.000, DFM 0, monotone all true. It still failed its read.
+The export build and the cold reload were not run for attempt 6. The first block-out's export was clean: watertight, 0 crossings, Castable, pattern closed, cold reload identical.
 
-**Step 0, the bare base:** 001 through the sand master at 17 × 14.5 is watertight, has 0 degenerates and pulls 0 and 0. In Delft it fields "Castable with care", 0.098% at −1.75° on the shoulder crest at 20–40° and 130°. In attempt 2, the knife keel down both shoulders lifted it to Castable. In lost wax the bare base reads Castable.
+## What the rethink is
 
-**Template gate:** not run. TASK.md runs it after the last round, and none started.
-
-## What each part is (attempt 3)
-
-- **Alexandrite:** a 5 × 4 cushion (`Gem { l_mm: 5.0, ..calibrated(Cushion, 4.0) }`), tinted [0.18, 0.50, 0.38], on a boss 0.8 mm high (crown 0.85, skirt 0.4) at along −4. Flush, through, with a drill mark; a top-level `Max` entry.
-- **Casque:** a stamp from the occiput's station, `Dome { 1.65 }` over 0.35 mm eaves, a shield from along −0.9 to +7.6, 2.8 mm wide at the brow and 4.0 mm over the occiput.
-- **Temporal crests:** four `Pillow` strips at 0.3 mm, two a side, the upper resting 0.25 mm in from the lower. In lost wax they need not cross the line.
-- **Granules:** my own seeded largest-fit packing (`hide_tile`: radii 0.7, 0.5 and 0.33, lands 0.25). They are cast on the cheeks where |n_z| > 0.97, with masks drawn as SVG in the chart so they travel in the design. On the table they are cut at the bench (lands 0.35 mm deep), because the sand master's envelope fills a cast granule's shadow along the finger into a "drip".
-- **Keel and dorsal crest:** knife `CurveLayer`s on the parting line down both shoulders (13.2 to 36 mm along), and eight graded cone stamps (`stamp_row`, `PartingLine`) on the occiput's shoulder.
-- **Tail:** one stroke per cheek, 0.95 mm tapering to 0.42 mm, running along the crescent and coiling 1.6 turns at the cheek's tallest corner. Along the pull, 0.8 mm high.
+- **Body:** a procedural Flat band, 7 × 3 mm. Keys run from 0.8× thickness at the palm (2.4 mm) to 3.0× (9.0 mm) and 1.3× width from 70° to 112°. The flank's side face is flat over 7.8 mm, from r 9.56 to 17.37 mm.
+- **Head:** one stored sculpt (`sculpt.rs`) from a signed distance field, drawn at unit size and scaled 1.55×. It is joined to the plinth with 0.8 mm of sink.
+  - The skull, a squared snout and the jaw are blended ellipsoids.
+  - The helmet casque is a tilted ellipsoid narrowed toward the brow.
+  - Each turret is a sphere with four rings of beads, a pupil boss and a 0.1 mm pit, aimed 25° forward.
+  - The downturned grin is a groove each side.
+  - Cast granules cover the skull, from a hashed lattice of domes; the casque ridge and the eyes are left smooth.
+  - The head stands 7.3 mm over the crown. The snout faces rising theta, so the hero camera sees its face.
+- **Tail:** an along-pull stamp on each flank, with a Pillow top 0.9 mm high. Its stroke runs from 1.05 mm down to 0.42 mm, from the body's rear into a 2.4-turn coil 7.55 mm across.
+- **Alexandrite:** a 5 × 4 cushion on a boss 0.9 mm high on the back at 61°, behind the casque.
+- **Hero render:** yaw 0.5 and pitch 0.55, lower than the collection's 1.0, so that the hero shows the head's profile.
 
 ## Enablers used
 
-- **C-R1** (clamped group): attempt 2, cheek granules. Bites 0.000 after masking to faces square to the pull. Dropped in lost wax.
-- **C-R4**: hide-space tilings and `##region:` masks (attempt 2); replaced by atlas-drawn SVG masks.
-- **C-R7**: `granule_voronoi`, tried and replaced, because it packs too sparsely (below).
-- **#248**: `StampTop::Pillow` (crests). `crisp_relief` was tried and changed nothing, because the drips were the envelope. It is left off, since the template lift cannot carry it yet.
+- **#248:** the `StampTop::Pillow` top on the tail. `crisp_relief` is off; nothing in this design needs it.
+- From the first block-out: C-R1, C-R4 and C-R7. The rethink drops them, because a procedural lost-wax body needs none of them.
 - **Not used:** C-B2, C-V1 to C-V5, C-T5 to C-T7, #255, #258, #259.
 
 ## Core changes wanted
 
-1. **`granule_voronoi` packs sparsely.** About 18 granules land in a 5 × 5 tile, because it throws each radius in turn and the large ones jam first. Choose the largest radius that fits each throw (`reptile.rs`, in `scatter`):
-   ```rust
-   for _ in 0..60_000 {
-       let c = [next() * w, next() * h];
-       let room = placed.iter().map(|(q, rq)| wrap_dist(c, *q, w, h) - rq - land).fold(f64::MAX, f64::min);
-       if let Some(r) = radii.iter().map(|k| k * base).find(|r| *r <= room) { placed.push((c, r)); }
-   }
-   ```
-   Draw consecutive coordinates from SplitMix64, not an LCG: consecutive LCG pairs lie on lattice planes.
-2. **The sand envelope runs whatever the process is.** In lost wax it still fills every relief's shadow along the pull. In `imported_base.rs`, where the mesh build reads `sand_envelope`:
-   ```rust
-   let envelope = base.sand_envelope && design.draft.process != CastProcess::LostWax;
-   ```
-   Without the envelope, though, the 001 sand master self-crosses (364 crossings at draft). The master's own section also needs closing without it.
-3. **DFM squashes hide-space cells.** `tiling_finest_mm_remapped` multiplies the cell height by `station_stretch` even when `t.space == ChartSpace::Hide`, whose cells are already true millimetres:
-   ```rust
-   let ch = if t.space == ChartSpace::Hide { ch } else { ch * v_scale.clamp(0.05, 8.0) };
-   ```
-4. **`parting_monotone` cannot pass a ridge off a symmetric station.** A stamp framed 5 mm from the head's centre has `frame.x[2] ≈ 0.004`, so its ridge sits 0.02 mm off the line at its far end. That fails the 1e-7 fall test until the frame is turned by hundredths of a degree. `frame_on` could project `x` onto the parting plane, as it already does for `y` across the line.
+These carry over from the first report.
+
+1. **`granule_voronoi` packs sparsely.** Choose the largest radius that fits each throw, and draw coordinates from SplitMix64.
+2. **The sand envelope runs whatever the process is.** Skip it when `draft.process == LostWax`. Separately, the 001 sand master self-crosses without it.
+3. **DFM squashes hide-space cells.** Leave `ChartSpace::Hide` cells out of the `station_stretch` scaling.
+4. **`frame_on` should project a stamp frame's `x` onto the parting plane**, so `parting_monotone` passes a ridge struck off a symmetric station.
+5. **New: keyed `thickness_scale` is clamped at 3.0** (`profile.rs:2624`). A plinth taller than three profile thicknesses needs a thicker reference profile, which makes the palm heavier unless the palm is keyed down. Documenting the clamp, or raising it for bands whose palm is keyed below 1.0, would help.
 
 ## Process note
 
-Logan's 2026-10-03 rule, which judges the ring as lost wax, is recorded in the Chamaeleo section of `docs/collections/cataphracta.md`, with the stop. No extra rounds were granted or used.
+The Chamaeleo section of `docs/collections/cataphracta.md` records:
+- Logan's lost-wax decision;
+- the approved rethink (2026-10-03);
+- the stop.
+
+No extra rounds were granted or used.

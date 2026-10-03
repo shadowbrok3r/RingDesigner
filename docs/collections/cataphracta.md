@@ -887,7 +887,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 
 - **Process decision (Logan, 2026-10-03):** judged as **lost wax**, 0.8 mm minimum section, no pull rule. The two-part sand gates held the ring back (a factory table takes only steps down away from the parting line, so neither a turret eye nor a granular hide could stand on it). The Delft pull is still measured and reported as a bonus.
 - **Rethink (Logan, 2026-10-03, approved):** a procedural keyed body instead of factory 001, so the head stands on a tall plinth whose side faces are the chameleon's flank (about 9 mm tall at the head); the head sculpted as one stored part (`sculpt.rs`) with a casque rising above it and turret eyes standing out on both sides; the tail coiled on the flank's side face. Lost wax, 0.8 mm section, no pull rule; a sand pass is reported as a bonus. A fresh block-out with read tests 4 to 6; on a read, the three reviewed rounds as TASK.md says.
-- **Status:** the factory-001 block-out stopped after three failed read tests (1 to 3, 2026-10-03); the rethink is in progress.
+- **Status:** stopped at the block-out again (2026-10-03). The factory-001 block-out failed read tests 1 to 3; the approved rethink (sculpted head on a keyed body) failed read tests 4 to 6, reading as a seal, then a toad. No reviewed round was run. See `cloud-report.md` on `claude/cataphracta-chamaeleo`.
   - Blocked on **C-R1**, **C-R4** and **C-R7**. P3 and P4 have landed.
   - Two base facts first:
     - The brief's 17 × 13 face is **refused** by the stock guard. 13 / 20 = 0.65, below the 70% floor (`imported_base.rs:532`). Use **17 × 14.5**.

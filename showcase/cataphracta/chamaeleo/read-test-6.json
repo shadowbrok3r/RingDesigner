@@ -1,0 +1,31 @@
+{
+  "ring": "chamaeleo",
+  "mode": "read-test",
+  "attempt": 6,
+  "reads": false,
+  "what_the_eye_sees": "My first word is still 'toad', with 'pickle' or 'sea cucumber' close behind, not 'chameleon'. In hero-300 a long, evenly warty gold lump lies along the top of a tall, plain plinth, with a teal stone at its right end. Its top outline is one soft, even hump, like a loaf. Fixing the slab casque from attempt 5 went too far the other way: the helmet has been smoothed into the head and covered with the same warts, so it is gone. Nothing rises at the back of the head and no ridge shows. The near eye does not read at all. The far eye shows as a rounded knob poking over the crown at the left, which is exactly a frog's eye bump. No mouth line shows. The spiral on the plinth, about 25 px across with a stroke running back toward the stone, is the one chameleon cue that works. But it sits on the plinth, cut off from the head, so it reads as a scroll ornament or a snail as easily as a tail. Face-300 is a granulated oval, like a bean or a slug, with a slightly pointed left end, two round warty knobs bulging from its sides about a third of the way back, a faint smoother strip down its middle, and the stone at the tail. From above that is a frog's head with its eyes. The warts are large and the same size everywhere, so the skin reads as toad hide, not the fine granules of a chameleon. Since attempt 5 the spiked eye cones and the CAD slab are gone and the forms are now sculpted, which is real progress. But a jeweller shown only these two images would say 'a toad' or 'a frog on a signet'. Of the three cues that name a chameleon (the helmet casque, the turret eyes with a pinhole pupil, and the downturned grin), none shows at 300 px.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Bring the casque back as the silhouette: a smooth, rolled helmet that clearly rises above the warty skull, neither the flat slab of attempt 5 nor the merged hump of attempt 6",
+      "where": "Sculpted head part (sculpt.rs), the back half of the head: hero-300 about x 95-150, y 60-80 (now an even granular hump); face-300 the faint smooth strip down the middle at about x 140-195",
+      "by_how_much": "Raise the peak to 2.5 to 3 mm above the skull's general top line, at the back of the head (above the occiput, just before the stone). Keep the round, filleted profile from attempt 6, with no planar facets, but rebuild the rise. From between the eyes, the top line climbs steadily to the peak. From the peak, the back edge drops 1.5 mm or more over less than 1.5 mm of length, with a 0.3 to 0.5 mm radius, so the back edge casts a shadow. Leave the casque's top and a band about 1.5 to 2 mm wide along its centre line polished and free of granules, so it reads against the warty flanks. Edge it with a single row of slightly larger flat tubercles (radius about 0.5 mm) running from the eye's rear rim up to the peak on each side. In plan it should be a wedge, about 2 mm wide between the eyes and 4 to 5 mm wide at the back. Acceptance: in hero-300 the head's top outline shows a distinct helmet peak at least 10 px above the rest of the head line near its right end, with a shadowed back drop. In face-300 a polished wedge at least 12 px wide at its widest, edged by a tubercle row, runs back from between the eyes."
+    },
+    {
+      "priority": 2,
+      "what": "Make the turret eyes and the grin read from the hero angle: a turret with a pupil and a downturned mouth, and no frog bump on the crown",
+      "where": "Sculpted head part, front third: the near eye in hero-300 (about x 60-80, y 90-115, now lost in the warts); the far eye's knob over the crown (about x 75-85, y 65-80); the near side of the snout below the eye. In face-300 the two warty knobs at about x 125, y 120 and y 170",
+      "by_how_much": "Make each eye a cone-dome turret about 4.5 mm across and 2 mm proud. Cover it with concentric granule rings that are visibly finer (radius 0.2 to 0.25 mm) than the head's warts, and end it in a polished pupil boss about 1.2 mm across with a 0.4 mm-deep pinhole. Aim it out and slightly forward, so from the hero camera the near turret profiles against the plinth with its pupil visible. Turn the far eye outward and lower it about 0.7 mm, so it no longer pokes over the crown as a knob. Cut the grin: a groove about 0.6 mm wide and 0.5 mm deep, from the snout tip back and down to below the turret's rear, about 8 mm long, curving down at its back end, with no warts across it. Acceptance: in hero-300 the near eye is a ringed dome at least 18 px across with a dark pupil dot, and a dark, downturned mouth line at least 25 px long runs from the snout under it. Nothing knob-shaped sticks up from the crown. In face-300 the eyes are cone-domes with a dark centre, not round warts."
+    },
+    {
+      "priority": 3,
+      "what": "Turn the toad hide into chameleon skin, and tie the tail to the animal",
+      "where": "The head's granule field (everything except the casque band and the pupils), and the plinth flank between the head and the tail spiral (hero-300 about x 100-175, y 100-160)",
+      "by_how_much": "Cut the head granules from their current wart size to radius 0.25 to 0.35 mm and height about 0.2 mm, roughly halving them and doubling their count. Grade them, with the finest on the snout and eyes and slightly larger tubercles only along the casque rows and the jaw line, so the skin reads as fine chameleon granulation, not uniform warts. On the plinth flank, sculpt the body or neck coming down off the back of the head as a raised, granulated band at least 2.5 mm wide and 0.6 mm proud, flowing into the outer turn of the spiral, so head, body and coiled tail read as one animal and the spiral reads as its tail. Add a row of 4 to 6 small, graded cones along its top edge as the dorsal crest. Acceptance: at 300 px the head skin reads as a fine, even pebble with no individual warts larger than about 3 px. In hero-300 a continuous granulated band runs from the back of the head down into the spiral, with no bare polished gap between them."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/chamaeleo/hero-300.png",
+    "showcase/cataphracta/chamaeleo/face-300.png"
+  ]
+}

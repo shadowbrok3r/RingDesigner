@@ -135,14 +135,16 @@ fn mul(a: P3, k: f64) -> P3 {
 const HEAD_THETA: f64 = 90.0;
 const SINK_MM: f64 = 0.8;
 /// The eye turrets: the centre of each on the skull (f, u, |z|), its reach out, its base and tip radii.
-const EYE: (P3, f64, f64) = ([2.6, 2.15, 2.05], 1.2, 0.33);
+const EYE: (P3, f64, f64) = ([2.4, 1.75, 2.15], 1.3, 0.18);
 /// The head's granules: lattice pitch and height, in the head's unit sketch.
 const GRAIN: (f64, f64) = (0.42, 0.17);
 /// How much bigger the head is drawn than its unit sketch.
 const HEAD_SCALE: f64 = 1.55;
-const PUPIL_MM: f64 = 0.11;
-/// The casque: its front between the eyes, its back, where it peaks (f); its half width and its ridge's height there.
-const CASQUE: (f64, f64, f64, [f64; 2], [f64; 2]) = (1.4, -4.55, -3.9, [0.65, 1.55], [2.95, 4.6]);
+const PUPIL_MM: f64 = 0.1;
+/// The casque: an ellipsoid's centre and semi-axes and its tilt up and back.
+const CASQUE: (P3, P3, f64) = ([-2.1, 2.55, 0.0], [3.0, 1.75, 1.3], 24.0);
+/// Half the width of the casque's smooth ridge, unit sketch.
+const CASQUE_RIDGE: f64 = 0.26;
 /// The sculpt's grid step and face budget.
 const STEP_MM: f64 = 0.06;
 const FACES: usize = 360_000;
@@ -178,60 +180,97 @@ fn head_field(q: P3) -> f64 {
 
 fn head_shape(q: P3) -> f64 {
     let at = |c: P3| [q[0] - c[0], q[1] - c[1], q[2] - c[2]];
-    let skull = ellipsoid(at([0.3, 1.25, 0.0]), [4.4, 1.95, 2.55]);
-    // A blunt, square-ended snout.
-    let snout = ellipsoid(at([3.9, 0.95, 0.0]), [1.8, 1.25, 1.75]);
-    let jaw = ellipsoid(at([0.8, 0.2, 0.0]), [4.0, 1.4, 2.35]);
-    let mut f = smin(smin(skull, snout, 1.0), jaw, 0.8);
-    // The casque.
+    let skull = ellipsoid(at([0.0, 1.2, 0.0]), [4.4, 1.9, 2.5]);
+    // The snout runs on 3 to 4 mm past the eyes, narrowing to a blunt end, its top sloping down from the brow.
+    let snout = ellipsoid(at([4.4, 0.85, 0.0]), [2.1, 1.05, 1.45]);
+    let jaw = ellipsoid(at([0.9, 0.2, 0.0]), [4.4, 1.35, 2.3]);
+    let mut f = smin(smin(skull, snout, 1.1), jaw, 0.8);
     let helmet = casque(q);
-    // Pebbled skin over the skull and jaw, the casque and the eyes left smooth.
-    let (ec, er) = (EYE.0, EYE.1);
-    let near_eye = |side: f64| ((q[0] - ec[0]).powi(2) + (q[1] - ec[1]).powi(2) + (q[2] - side * ec[2]).powi(2)).sqrt() - er;
-    let keep = (helmet - 0.15).min(near_eye(1.0) - 0.25).min(near_eye(-1.0) - 0.25);
+    f = smin(f, helmet, 1.0);
+    // Pebbled skin everywhere but the casque's narrow ridge and the eyes.
+    let ridge = (q[2].abs() - CASQUE_RIDGE).max(-(q[0] - 1.0)).max(1.8 - q[1]);
+    let eyes = [1.0f64, -1.0].map(|side| ellipsoid(at(eye_centre(side)), [EYE.1 + 0.25; 3]));
+    let keep = ridge.min(eyes[0]).min(eyes[1]);
     if f.abs() < 0.5 && keep > 0.0 {
-        f -= granules(q) * (keep / 0.25).clamp(0.0, 1.0);
+        f -= granules(q) * (keep / 0.2).clamp(0.0, 1.0);
     }
-    f = smin(f, helmet, 0.7);
-    // A turret each side: a domed eyeball ringed with scale rows, a smooth cone at its crown pierced by the pupil.
+    // A turret each side: a dome beaded in rings like the skin, a smooth pupil boss at its crown with its pit,
+    // looking forward and out.
     for side in [1.0, -1.0] {
-        let c = [ec[0], ec[1], side * ec[2]];
-        let ball = ellipsoid(at(c), [er; 3]);
-        let tip_a = [c[0], c[1], c[2] + side * 0.75 * er];
-        let tip_b = [c[0], c[1], c[2] + side * (er + 0.42)];
-        let mut turret = smin(ball, round_cone(q, tip_a, tip_b, 0.55, EYE.2), 0.25);
-        // The scale rings: shallow grooves round the dome at three heights.
-        let d = at(c);
-        let axial = d[2] * side;
-        let radial = d[0].hypot(d[1]);
-        for phi in [38.0f64, 58.0, 78.0] {
-            let (sn, cs) = phi.to_radians().sin_cos();
-            let groove = (radial - er * sn).hypot(axial - er * cs) - 0.085;
-            turret = smax(turret, -groove, 0.04);
-        }
-        f = smin(f, turret, 0.3);
-        let pupil = ellipsoid([q[0] - tip_b[0], q[1] - tip_b[1], q[2] - (tip_b[2] + side * EYE.2 * 0.85)], [PUPIL_MM; 3]);
-        f = smax(f, -pupil, 0.05);
+        f = smin(f, turret(q, side), 0.35);
     }
-    // The mouth: the chameleon's downturned grin, from the snout's tip back under the eye.
+    // The mouth: the chameleon's downturned grin, from the snout's tip back and down under the eye.
     for side in [1.0, -1.0] {
-        let line = [[5.6, 0.72, side * 0.75], [4.6, 0.55, side * 1.45], [3.4, 0.4, side * 1.95], [2.3, 0.28, side * 2.15], [1.6, 0.02, side * 2.2]];
-        f = smax(f, -tube(q, &line, 0.17), 0.05);
+        let line = [[6.35, 0.62, side * 0.55], [5.3, 0.48, side * 1.15], [4.0, 0.34, side * 1.75], [2.6, 0.2, side * 2.15], [1.4, 0.02, side * 2.3], [0.9, -0.3, side * 2.3]];
+        f = smax(f, -tube(q, &line, 0.24), 0.05);
     }
     f
 }
 
-/// The casque: a wedge in plan from between the eyes, narrow, to the back of the skull, broad; its top a gabled ridge
-/// ramping up and back from flush with the skull to a peak over the occiput, then dropping sharply to the neck.
+fn eye_centre(side: f64) -> P3 {
+    [EYE.0[0], EYE.0[1], side * EYE.0[2]]
+}
+
+/// The eye's axis: out from the head and turned forward.
+fn eye_axis(side: f64) -> P3 {
+    let (s, c) = 25f64.to_radians().sin_cos();
+    let a = [s, 0.12, side * c];
+    let l = (a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).sqrt();
+    [a[0] / l, a[1] / l, a[2] / l]
+}
+
+fn turret(q: P3, side: f64) -> f64 {
+    let c = eye_centre(side);
+    let r = EYE.1;
+    let d = [q[0] - c[0], q[1] - c[1], q[2] - c[2]];
+    let dist = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+    let mut t = dist - r;
+    if dist > r + 0.6 {
+        return t;
+    }
+    let a = eye_axis(side);
+    let cross = |u: P3, v: P3| [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    let norm = |u: P3| {
+        let l = (u[0] * u[0] + u[1] * u[1] + u[2] * u[2]).sqrt();
+        [u[0] / l, u[1] / l, u[2] / l]
+    };
+    let b1 = norm(cross(a, [0.0, 1.0, 0.0]));
+    let b2 = cross(a, b1);
+    // The beads: rings of granules round the axis, smaller toward the crown.
+    let mut beads = f64::MAX;
+    for (k, phi) in [36.0f64, 52.0, 68.0, 84.0].into_iter().enumerate() {
+        let (sp, cp) = phi.to_radians().sin_cos();
+        let rb = EYE.2 * (0.8 + 0.07 * k as f64);
+        let n = ((2.0 * PI * r * sp) / (2.0 * rb + 0.05)).floor().max(6.0) as usize;
+        for i in 0..n {
+            let w = 2.0 * PI * (i as f64 + 0.5 * (k % 2) as f64) / n as f64;
+            let (sw, cw) = w.sin_cos();
+            let p = [0, 1, 2].map(|j| c[j] + (r - 0.25 * rb) * (a[j] * cp + sp * (b1[j] * cw + b2[j] * sw)));
+            let e = ((q[0] - p[0]).powi(2) + (q[1] - p[1]).powi(2) + (q[2] - p[2]).powi(2)).sqrt() - rb;
+            beads = beads.min(e);
+        }
+    }
+    t = smin(t, beads, 0.06);
+    // The pupil boss and its pit.
+    let boss_c = [0, 1, 2].map(|j| c[j] + a[j] * (r - 0.12));
+    let boss = ((q[0] - boss_c[0]).powi(2) + (q[1] - boss_c[1]).powi(2) + (q[2] - boss_c[2]).powi(2)).sqrt() - 0.36;
+    t = smin(t, boss, 0.12);
+    let pit_c = [0, 1, 2].map(|j| c[j] + a[j] * (r + 0.3));
+    let pit = ((q[0] - pit_c[0]).powi(2) + (q[1] - pit_c[1]).powi(2) + (q[2] - pit_c[2]).powi(2)).sqrt() - PUPIL_MM;
+    smax(t, -pit, 0.03)
+}
+
+/// The casque: a helmet grown out of the skull, an ellipsoid tilted up and back so its top curves from between the
+/// eyes over a peak at the back of the skull and rolls down to the neck; narrow at the brow, broad behind.
 fn casque(q: P3) -> f64 {
-    let (front, back, peak_f) = (CASQUE.0, CASQUE.1, CASQUE.2);
-    let t = ((front - q[0]) / (front - peak_f)).clamp(0.0, 1.0);
-    let half = CASQUE.3[0] + (CASQUE.3[1] - CASQUE.3[0]) * t;
-    let ridge = CASQUE.4[0] + (CASQUE.4[1] - CASQUE.4[0]) * t;
-    let top = q[1] - (ridge - 1.1 * q[2].abs() / half.max(0.1));
-    let side = q[2].abs() - half;
-    let ends = smax(q[0] - front, back - q[0], 0.6);
-    smax(smax(side, top, 0.55), smax(ends, 1.0 - q[1], 0.3), 0.6)
+    let (centre, radii, tilt) = (CASQUE.0, CASQUE.1, CASQUE.2);
+    let d = [q[0] - centre[0], q[1] - centre[1], q[2]];
+    let (s, c) = tilt.to_radians().sin_cos();
+    let r = [d[0] * c - d[1] * s, d[0] * s + d[1] * c, d[2]];
+    // Narrower toward the brow: the wedge in plan.
+    let t = ((q[0] - (centre[0] - radii[0])) / (2.0 * radii[0])).clamp(0.0, 1.0);
+    let squeeze = 1.0 - 0.55 * t;
+    ellipsoid([r[0], r[1], r[2] / squeeze], radii) * squeeze.max(0.45)
 }
 
 /// Cast granules for the head's skin: a jittered lattice of domes, each its own size, as a raise of the surface.
@@ -521,7 +560,7 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed, csg::Soli
     let recipe = stored::Recipe {
         kernel: "sculpt".into(),
         op: "chameleon head".into(),
-        params: json!({ "theta_deg": HEAD_THETA, "step_mm": STEP_MM, "faces": FACES, "casque": [CASQUE.0, CASQUE.1, CASQUE.2], "casque_half": CASQUE.3, "casque_ridge": CASQUE.4, "grain": [GRAIN.0, GRAIN.1], "eye": [EYE.0, EYE.1, EYE.2] }),
+        params: json!({ "theta_deg": HEAD_THETA, "step_mm": STEP_MM, "faces": FACES, "casque": [CASQUE.0, CASQUE.1, [CASQUE.2, 0.0, 0.0]], "grain": [GRAIN.0, GRAIN.1], "eye": [EYE.0, EYE.1, EYE.2] }),
         digest: String::new(),
     };
     doc.append(Feature { id: next, name: "Head".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: packed }, component: joined() })?;
