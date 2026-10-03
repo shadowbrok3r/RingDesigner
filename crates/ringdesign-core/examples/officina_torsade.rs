@@ -27,24 +27,24 @@ const BORE_MM: f64 = 18.2;
 const WIDTH_MM: f64 = 4.4;
 const THICKNESS_MM: f64 = 1.8;
 /// The rope's axis: its radius round the finger and its height off the parting plane.
-const PATH_R_MM: f64 = 10.75;
-const PATH_Z_MM: f64 = 2.05;
+const PATH_R_MM: f64 = 10.68;
+const PATH_Z_MM: f64 = 2.1;
 /// Where the rope leaves the collet and where it comes back to it, the long way round the palm.
 fn env_f(k: &str, d: f64) -> f64 {
     std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d)
 }
 fn start_deg() -> f64 {
-    env_f("START", 106.0)
+    env_f("START", 100.0)
 }
 fn end_deg() -> f64 {
-    env_f("END", 74.0)
+    env_f("END", 80.0)
 }
-/// Ten full turns, the most a twisted sweep takes.
-const TWIST_DEG: f64 = 3600.0;
+/// Eight full turns: a slow lay that reads as rope, under the ten a twisted sweep takes.
+const TWIST_DEG: f64 = 2880.0;
 /// Three round strands laid about the rope's axis: each strand's radius and its centre's offset.
 const STRANDS: usize = 3;
-const STRAND_R_MM: f64 = 0.45;
-const STRAND_OFFSET_MM: f64 = 0.27;
+const STRAND_R_MM: f64 = 0.5;
+const STRAND_OFFSET_MM: f64 = 0.3;
 /// The fillet rounding each groove between two strands.
 const GROOVE_R_MM: f64 = 0.10;
 fn rope_blend_mm() -> f64 {
@@ -53,9 +53,23 @@ fn rope_blend_mm() -> f64 {
 const MIN_SECTION_MM: f64 = 0.8;
 /// The collet's foot: a solid drum round the stone's axis that the ropes run into and the collet stands on.
 fn foot_r_mm() -> f64 {
-    env_f("FOOT_R", 4.7)
+    env_f("FOOT_R", 4.62)
 }
-const FOOT_TOP_MM: f64 = 11.55;
+const FOOT_TOP_MM: f64 = 11.7;
+/// The round on the foot's shoulder under the collet and on its lower rim.
+fn foot_shoulder_mm() -> f64 {
+    env_f("SHOULDER", 0.35)
+}
+const FOOT_RIM_MM: f64 = 0.2;
+/// The upright collar at the top of the foot, under its shoulder.
+const FOOT_COLLAR_MM: f64 = 0.55;
+/// The foot's radius where it meets the band, narrower than its shoulder.
+const FOOT_BASE_R_MM: f64 = 3.55;
+/// The crest's gentle crown: the drop from the middle of the crest to each arris.
+const CROWN_MM: f64 = 0.22;
+/// The collet's wall and its lip's share of the dome.
+const COLLET_WALL_MM: f64 = 0.9;
+const COLLET_LIP: f64 = 0.3;
 const FOOT_BOTTOM_MM: f64 = 9.95;
 const CREST_MM: f64 = BORE_MM / 2.0 + THICKNESS_MM;
 
@@ -71,7 +85,7 @@ fn screen_params() -> BuildParams {
 }
 
 fn gem() -> Gem {
-    Gem::cabochon(GemCut::Round, 7.0)
+    Gem { preview_tint: Some([0.42, 0.03, 0.05]), ..Gem::cabochon(GemCut::Round, 7.0) }
 }
 
 /// The workshop's investment recipe, flask and channels, in 18k gold.
@@ -106,6 +120,7 @@ fn band() -> RingDesign {
     d.profile.apply_style(ProfileStyle::Flat);
     d.profile.width_mm = WIDTH_MM;
     d.profile.thickness_mm = THICKNESS_MM;
+    d.profile.crown_mm = CROWN_MM;
     d.profile.flatten_sides();
     CastProcess::LostWax.apply(&mut d.draft);
     d.draft.min_section_mm = MIN_SECTION_MM;
@@ -179,6 +194,57 @@ fn section_sketch() -> Sketch {
     s
 }
 
+/// A closed polyline with its corners rounded: each corner `(point, radius)`, a radius of 0 kept sharp; the rounds as arcs, the runs between them as lines.
+fn rounded(s: &mut Sketch, corners: &[([f64; 2], f64)]) {
+    let n = corners.len();
+    let unit2 = |a: [f64; 2]| {
+        let l = a[0].hypot(a[1]);
+        [a[0] / l, a[1] / l]
+    };
+    // Where each corner's round leaves the incoming run and joins the outgoing one, as sketch points.
+    let mut ends = Vec::with_capacity(n);
+    for k in 0..n {
+        let (p, r) = corners[k];
+        let (a, b) = (corners[(k + n - 1) % n].0, corners[(k + 1) % n].0);
+        if r <= 0.0 {
+            let id = s.point(p);
+            ends.push((id, id));
+            continue;
+        }
+        let u = unit2([a[0] - p[0], a[1] - p[1]]);
+        let v = unit2([b[0] - p[0], b[1] - p[1]]);
+        let half = (u[0] * v[0] + u[1] * v[1]).clamp(-1.0, 1.0).acos() / 2.0;
+        let t = r / half.tan();
+        let bis = unit2([u[0] + v[0], u[1] + v[1]]);
+        let c = [p[0] + bis[0] * r / half.sin(), p[1] + bis[1] * r / half.sin()];
+        let t1 = [p[0] + u[0] * t, p[1] + u[1] * t];
+        let t2 = [p[0] + v[0] * t, p[1] + v[1] * t];
+        let (i1, i2, ic) = (s.point(t1), s.point(t2), s.point(c));
+        let turn = (t1[0] - c[0]) * (t2[1] - c[1]) - (t1[1] - c[1]) * (t2[0] - c[0]);
+        let (start, end) = if turn > 0.0 { (i1, i2) } else { (i2, i1) };
+        s.entity(Geometry::Arc { center: ic, start, end });
+        ends.push((i1, i2));
+    }
+    for k in 0..n {
+        let (a, b) = (ends[k].1, ends[(k + 1) % n].0);
+        s.entity(Geometry::Line { a, b });
+    }
+}
+
+/// The foot's half-section in the plane through the finger's axis and the stone's: radius out from the finger along x, distance from the stone's axis along y. A cone flaring up from the band to a rounded shoulder a step wider than the collet.
+fn foot_sketch() -> Sketch {
+    let mut s = Sketch::default();
+    s.name = "Collet foot section".into();
+    s.plane.x = [0.0, 1.0, 0.0];
+    s.plane.y = [0.0, 0.0, 1.0];
+    let (lo, hi) = (FOOT_BOTTOM_MM, FOOT_TOP_MM);
+    rounded(
+        &mut s,
+        &[([lo, 0.0], 0.0), ([lo, FOOT_BASE_R_MM], FOOT_RIM_MM), ([hi - FOOT_COLLAR_MM, foot_r_mm()], 0.0), ([hi, foot_r_mm()], foot_shoulder_mm()), ([hi, 0.0], 0.0)],
+    );
+    s
+}
+
 fn author() -> Result<RingDesign> {
     let mut d = band();
     let g = gem();
@@ -204,17 +270,16 @@ fn author() -> Result<RingDesign> {
     let mut foot = feature(
         8,
         "Collet foot",
-        Operation::Cylinder { radius_mm: foot_r_mm(), height_mm: FOOT_TOP_MM - FOOT_BOTTOM_MM },
+        Operation::Revolve { sketch: foot_sketch().into(), pivot: [0.0; 3], axis: [0.0, 1.0, 0.0], degrees: 360.0, in_plane: false },
         ComponentRole::Setting,
     );
-    foot.component.placement = Placement::ring(90.0, (FOOT_TOP_MM + FOOT_BOTTOM_MM) / 2.0 - CREST_MM);
     foot.component.attach = Attach::Join;
     doc.append(foot)?;
     let lift = FOOT_TOP_MM - CREST_MM;
     let mut stone = builders::stone_feature(9, g, Placement::ring(90.0, builders::stand_off_mm(builders::BEZEL, g) + lift));
-    stone.name = "Round cabochon 7.0".into();
+    stone.name = "Garnet cabochon 7.0".into();
     doc.append(stone)?;
-    let mut collet = builders::feature_on(10, "Collet", builders::BEZEL, 9, json!({}));
+    let mut collet = builders::feature_on(10, "Collet", builders::BEZEL, 9, json!({ "wall_mm": COLLET_WALL_MM, "lip": COLLET_LIP }));
     collet.component.material = "Gold 18k".into();
     collet.component.blend_mm = env_f("COLLET_BLEND", 0.0);
     doc.append(collet)?;
@@ -279,6 +344,7 @@ struct Wall {
     triangles: usize,
     rays: usize,
     sampled_min_mm: Option<f64>,
+    at: Option<[f64; 3]>,
     below_limit: usize,
     unresolved: usize,
     note: String,
@@ -353,7 +419,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, verify: Option
         .iter()
         .map(|(name, m)| {
             let t = cad::measure::thickness(m, MIN_SECTION_MM);
-            Wall { piece: name.clone(), triangles: m.faces.len(), rays: t.rays, sampled_min_mm: t.sampled_min_mm, below_limit: t.below_limit, unresolved: t.unresolved, note: t.note.into() }
+            Wall { piece: name.clone(), triangles: m.faces.len(), rays: t.rays, sampled_min_mm: t.sampled_min_mm, at: t.point, below_limit: t.below_limit, unresolved: t.unresolved, note: t.note.into() }
         })
         .collect();
     let lands: Vec<String> = dfm::cut_lands(d, &built, MIN_SECTION_MM).iter().map(|f| format!("{}: {}", f.label, f.message)).collect();
@@ -588,8 +654,8 @@ const VIEWS: [(&str, f64, f64); 6] = [
 ];
 
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, params: BuildParams, edge: usize) -> Result<Vec<(String, f64)>> {
-    let fin = render::Finished { metal: built.mesh.clone(), stones: ringdesign_core::gems::built_meshes(d, lib, built) };
-    let parts = fin.parts(render::GOLD);
+    let fin = dressed(d, lib, built);
+    let parts = parts_of(&fin);
     for (name, yaw, pitch) in VIEWS {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
     }
@@ -605,10 +671,7 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
     // The collet and the rope ends close up, framed on the metal within 7 mm of the stone.
     let frames = ringdesign_core::stones::stone_frames(d);
     let c = frames.first().map(|(_, f)| f.girdle).unwrap_or([0.0, 10.9, 0.0]);
-    let near = crop(&fin.metal, c, 7.5);
-    let mut close = vec![render::Part::metal(&near, render::GOLD), render::Part::metal(&fin.metal, render::GOLD)];
-    close.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    render::write_png_parts(out.join("stones.png"), &close, 0.45, 1.0, edge)?;
+    render::write_png_framed(out.join("stones.png"), &parts, render::yaw_facing(90.0) + 0.45, 1.0, render::Framing::new([c[0], c[1] - 0.8, c[2]], 7.0), edge)?;
     let b = mesh::try_build(&band(), lib, params)?;
     let bare = render::render_parts_ss(&[render::Part::metal(&b.mesh, render::GOLD)], 0.55, 0.95, edge, edge, 3);
     let finished = render::render_parts_ss(&parts, 0.55, 0.95, edge, edge, 3);
@@ -627,9 +690,9 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
         let started = Instant::now();
         let tb = mesh::try_build(&t, lib, draft_params())?;
         timing.push((f.name.clone(), started.elapsed().as_secs_f64()));
-        let tf = render::finished_from(&t, lib, tb);
+        let tf = dressed(&t, lib, &tb);
         let g = guides(f.id);
-        let mut ps = tf.parts(render::GOLD);
+        let mut ps = parts_of(&tf);
         ps.extend(g.iter().map(|m| render::Part::metal(m, GUIDE_TINT)));
         let img = render::render_parts_ss(&ps, 0.55, 0.95, 300, 300, 3);
         tiles.push((img, format!("{}. {}", f.id, f.name)));
@@ -638,23 +701,52 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
     Ok(timing)
 }
 
-fn crop(m: &mesh::Mesh, centre: P3, radius: f64) -> mesh::Mesh {
-    let near = |i: u32| {
-        let p = m.vertices[i as usize];
-        (p.0 as f64 - centre[0]).hypot(p.1 as f64 - centre[1]).hypot(p.2 as f64 - centre[2]) < radius
-    };
-    let mut index = std::collections::HashMap::new();
+/// The finished ring with each stone welded and its normals averaged, so a cabochon's dome shades smooth.
+fn dressed(d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult) -> render::Finished {
+    let stones = ringdesign_core::gems::built_meshes(d, lib, built).into_iter().map(|(m, t)| (weld(&m), t)).collect();
+    render::Finished { metal: built.mesh.clone(), stones }
+}
+fn parts_of(fin: &render::Finished) -> Vec<render::Part<'_>> {
+    let mut parts = fin.parts(render::GOLD);
+    for p in parts.iter_mut().skip(1) {
+        p.smooth = true;
+    }
+    parts
+}
+fn weld(m: &mesh::Mesh) -> mesh::Mesh {
     let mut out = mesh::Mesh::default();
-    for f in m.faces.iter().filter(|f| f.iter().all(|&i| near(i))) {
+    let mut index = std::collections::HashMap::new();
+    for f in &m.faces {
         let g = f.map(|i| {
-            *index.entry(i).or_insert_with(|| {
-                out.vertices.push(m.vertices[i as usize]);
-                out.normals.push(m.normals.get(i as usize).copied().unwrap_or(mesh::Vec3(0.0, 0.0, 1.0)));
+            let v = m.vertices[i as usize];
+            let key = [v.0, v.1, v.2].map(|c| (c * 1e4).round() as i64);
+            *index.entry(key).or_insert_with(|| {
+                out.vertices.push(v);
                 (out.vertices.len() - 1) as u32
             })
         });
-        out.faces.push(g);
+        if g[0] != g[1] && g[1] != g[2] && g[0] != g[2] {
+            out.faces.push(g);
+        }
     }
+    let mut n = vec![[0.0f32; 3]; out.vertices.len()];
+    for f in &out.faces {
+        let [a, b, c] = f.map(|i| out.vertices[i as usize]);
+        let (e1, e2) = ([b.0 - a.0, b.1 - a.1, b.2 - a.2], [c.0 - a.0, c.1 - a.1, c.2 - a.2]);
+        let x = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+        for &i in f {
+            for k in 0..3 {
+                n[i as usize][k] += x[k];
+            }
+        }
+    }
+    out.normals = n
+        .iter()
+        .map(|v| {
+            let l = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt().max(1e-12);
+            mesh::Vec3(v[0] / l, v[1] / l, v[2] / l)
+        })
+        .collect();
     out
 }
 
@@ -776,7 +868,7 @@ fn main() -> Result<()> {
         for (k, (m, tint)) in fin.stones.iter().enumerate() {
             let file = if k == 0 { "reference-cabochon.stl".to_string() } else { format!("reference-cabochon-{k}.stl") };
             stl::write_stl(out.join(&file), m, "Torsade reference stone")?;
-            materials.push(json!({ "mesh": file, "name": "Round cabochon 7.0", "tint": tint, "ior": 1.54, "dispersion": 0.013, "roughness": 0.065, "transmission": 0.35 }));
+            materials.push(json!({ "mesh": file, "name": "Garnet cabochon 7.0", "tint": tint, "ior": 1.54, "dispersion": 0.013, "roughness": 0.065, "transmission": 0.35 }));
         }
         std::fs::write(out.join("stones.json"), serde_json::to_vec_pretty(&json!({ "stones": materials }))?)?;
     }

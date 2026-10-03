@@ -1,0 +1,17 @@
+{
+  "stones": [
+    {
+      "dispersion": 0.013,
+      "ior": 1.54,
+      "mesh": "reference-cabochon.stl",
+      "name": "Garnet cabochon 7.0",
+      "roughness": 0.065,
+      "tint": [
+        0.41999998688697815,
+        0.029999999329447746,
+        0.05000000074505806
+      ],
+      "transmission": 0.35
+    }
+  ]
+}

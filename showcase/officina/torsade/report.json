@@ -3,7 +3,7 @@
   "slug": "torsade",
   "process": "Lost wax",
   "size": "US 8.11",
-  "bore_mm": 18.19999912020255,
+  "bore_mm": 18.200016584165695,
   "stone": "Round cabochon 7.0 mm in a cast collet",
   "cad_features": [
     "1. Band (Procedural shank)",
@@ -13,70 +13,70 @@
     "5. Section (Sketch)",
     "6. Rope (Twisted sweep)",
     "7. Mirror across the band (Mirror)",
-    "8. Collet foot (Cylinder)",
-    "9. Round cabochon 7.0 (Stone)",
+    "8. Collet foot (Revolve)",
+    "9. Garnet cabochon 7.0 (Stone)",
     "10. Collet (Bezel)"
   ],
-  "design_bytes": 19595,
+  "design_bytes": 24216,
   "design_format": 5,
   "rope": {
     "build": [
-      768,
-      320
+      1536,
+      448
     ],
-    "rope_length_mm": 61.54030942532006,
-    "twist_turns": 10.0,
-    "lay_pitch_mm": 6.154030942532006,
-    "strand_pitch_mm": 2.0513436475106688,
-    "lay_angle_deg": 36.32000074179706,
-    "rope_triangles": 309854,
-    "band_only_s": 0.161350889,
-    "one_rope_joined_s": 1.670894613,
-    "both_ropes_joined_s": 2.707711715,
-    "with_collet_s": 3.733955622,
-    "first_join_s": 1.509543724,
-    "mirror_join_s": 1.0368171019999999
+    "rope_length_mm": 63.376395798418095,
+    "twist_turns": 8.0,
+    "lay_pitch_mm": 7.922049474802262,
+    "strand_pitch_mm": 2.6406831582674206,
+    "lay_angle_deg": 32.395167460025434,
+    "rope_triangles": 247934,
+    "band_only_s": 0.548916083,
+    "one_rope_joined_s": 3.451689539,
+    "both_ropes_joined_s": 4.768634661,
+    "with_collet_s": 7.805501701,
+    "first_join_s": 2.9027734560000003,
+    "mirror_join_s": 1.316945122
   },
   "feature_build_s": [
     [
       "Band",
-      0.165099787
+      0.172754457
     ],
     [
       "Plane over the arris",
-      0.160036439
+      0.177891254
     ],
     [
       "Path",
-      0.164851516
+      0.174365334
     ],
     [
       "Plane across the path",
-      0.156142158
+      0.170841974
     ],
     [
       "Section",
-      0.173358849
+      0.170649048
     ],
     [
       "Rope",
-      1.7753002740000001
+      1.643851857
     ],
     [
       "Mirror across the band",
-      2.733056646
+      2.588003621
     ],
     [
       "Collet foot",
-      3.778535968
+      3.723405869
     ],
     [
-      "Round cabochon 7.0",
-      3.723838664
+      "Garnet cabochon 7.0",
+      3.749559537
     ],
     [
       "Collet",
-      3.713706805
+      3.758329756
     ]
   ],
   "draft": {
@@ -84,9 +84,9 @@
       768,
       320
     ],
-    "build_s": 3.813173468,
+    "build_s": 3.792386311,
     "metal": {
-      "triangles": 819138,
+      "triangles": 718682,
       "watertight": true,
       "boundary_edges": 0,
       "non_manifold_edges": 0,
@@ -107,7 +107,7 @@
         0
       ],
       [
-        "Round cabochon 7.0",
+        "Garnet cabochon 7.0",
         0
       ],
       [
@@ -160,7 +160,7 @@
       ],
       [
         9,
-        "Round cabochon 7.0",
+        "Garnet cabochon 7.0",
         "Ok"
       ],
       [
@@ -176,59 +176,28 @@
     "field_verdict": "Castable",
     "field_notes": [
       "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
-      "Measured with the ring as built: 4 CAD parts (4 joined, 0 cut), 571.4 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Twisted sweep \"Rope\" (#6) would undercut a two-part pull over 58.6 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Mirror \"Mirror across the band\" (#7) would undercut a two-part pull over 58.6 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Collet\" (#10) would undercut a two-part pull over 29.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Measured with the ring as built: 4 CAD parts (4 joined, 0 cut), 600.4 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Twisted sweep \"Rope\" (#6) would undercut a two-part pull over 63.4 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Mirror \"Mirror across the band\" (#7) would undercut a two-part pull over 63.4 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Collet\" (#10) would undercut a two-part pull over 29.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "thickness_build": [
       192,
       64
     ],
-    "thickness_sampled_min_mm": 0.8412251150165574,
+    "thickness_sampled_min_mm": 0.9402394992722275,
     "thickness_clean": true,
     "thickness": [
       {
-        "piece": "Band",
-        "triangles": 24576,
+        "piece": "Whole ring",
+        "triangles": 242566,
         "rays": 384,
-        "sampled_min_mm": 1.5289509385950804,
-        "below_limit": 0,
-        "unresolved": 0,
-        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection"
-      },
-      {
-        "piece": "Rope",
-        "triangles": 187352,
-        "rays": 384,
-        "sampled_min_mm": 0.9691069299896572,
-        "below_limit": 0,
-        "unresolved": 0,
-        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection"
-      },
-      {
-        "piece": "Mirror across the band",
-        "triangles": 187352,
-        "rays": 384,
-        "sampled_min_mm": 0.969106929989658,
-        "below_limit": 0,
-        "unresolved": 0,
-        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection"
-      },
-      {
-        "piece": "Collet foot",
-        "triangles": 252,
-        "rays": 252,
-        "sampled_min_mm": 1.5999994277954093,
-        "below_limit": 0,
-        "unresolved": 0,
-        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection"
-      },
-      {
-        "piece": "Collet",
-        "triangles": 1728,
-        "rays": 346,
-        "sampled_min_mm": 0.8412251150165574,
+        "sampled_min_mm": 0.9402394992722275,
+        "at": [
+          1.5749396483103435,
+          12.492650032043457,
+          4.112026373545329
+        ],
         "below_limit": 0,
         "unresolved": 0,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection"
@@ -240,9 +209,9 @@
     "stones_previewed": 1,
     "stone_warnings": [],
     "crowding_tight_pairs": 0,
-    "stone_over_foot_mm": 0.3499996185302727,
+    "stone_over_foot_mm": 0.3499992370605476,
     "pattern": {
-      "triangles": 819138,
+      "triangles": 718682,
       "watertight": true,
       "boundary_edges": 0,
       "non_manifold_edges": 0,
@@ -253,6 +222,148 @@
     "within_2m_triangles": true,
     "passed": true
   },
-  "export": null,
+  "export": {
+    "build": [
+      1536,
+      448
+    ],
+    "build_s": 8.046141846,
+    "metal": {
+      "triangles": 1353822,
+      "watertight": true,
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "degenerate_faces": 0,
+      "self_crossings": 0
+    },
+    "made_parts": [
+      [
+        "Rope",
+        0
+      ],
+      [
+        "Mirror across the band",
+        0
+      ],
+      [
+        "Collet foot",
+        0
+      ],
+      [
+        "Garnet cabochon 7.0",
+        0
+      ],
+      [
+        "Collet",
+        0
+      ]
+    ],
+    "solids_notes": [],
+    "parts_notes": [],
+    "features": [
+      [
+        1,
+        "Band",
+        "Ok"
+      ],
+      [
+        2,
+        "Plane over the arris",
+        "Ok"
+      ],
+      [
+        3,
+        "Path",
+        "Ok"
+      ],
+      [
+        4,
+        "Plane across the path",
+        "Ok"
+      ],
+      [
+        5,
+        "Section",
+        "Ok"
+      ],
+      [
+        6,
+        "Rope",
+        "Ok"
+      ],
+      [
+        7,
+        "Mirror across the band",
+        "Ok"
+      ],
+      [
+        8,
+        "Collet foot",
+        "Ok"
+      ],
+      [
+        9,
+        "Garnet cabochon 7.0",
+        "Ok"
+      ],
+      [
+        10,
+        "Collet",
+        "Ok"
+      ]
+    ],
+    "features_ok": true,
+    "bore_radius_mm": 9.1,
+    "nearest_to_axis_mm": 9.100008292082848,
+    "inside_finger_hole": 0,
+    "field_verdict": "Castable",
+    "field_notes": [
+      "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
+      "Measured with the ring as built: 4 CAD parts (4 joined, 0 cut), 600.4 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Twisted sweep \"Rope\" (#6) would undercut a two-part pull over 63.4 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Mirror \"Mirror across the band\" (#7) would undercut a two-part pull over 63.4 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Collet\" (#10) would undercut a two-part pull over 29.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+    ],
+    "thickness_build": [
+      192,
+      64
+    ],
+    "thickness_sampled_min_mm": 0.9402394992722275,
+    "thickness_clean": true,
+    "thickness": [
+      {
+        "piece": "Whole ring",
+        "triangles": 242566,
+        "rays": 384,
+        "sampled_min_mm": 0.9402394992722275,
+        "at": [
+          1.5749396483103435,
+          12.492650032043457,
+          4.112026373545329
+        ],
+        "below_limit": 0,
+        "unresolved": 0,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection"
+      }
+    ],
+    "cut_lands": [],
+    "dfm_findings": [],
+    "stones_reported": 1,
+    "stones_previewed": 1,
+    "stone_warnings": [],
+    "crowding_tight_pairs": 0,
+    "stone_over_foot_mm": 0.3499992370605476,
+    "pattern": {
+      "triangles": 1353822,
+      "watertight": true,
+      "boundary_edges": 0,
+      "non_manifold_edges": 0,
+      "degenerate_faces": 0,
+      "self_crossings": 0
+    },
+    "cold_reload_identical": true,
+    "within_2m_triangles": true,
+    "passed": true
+  },
   "gates_passed": true
 }
