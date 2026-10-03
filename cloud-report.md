@@ -1,6 +1,6 @@
 # Core: CAD operations that stop failing on Gothic geometry
 
-Branch `claude/core-cad-robust`, off master `8e5a59a`, with master `6f7bce0` (crisp edges) merged in. One code commit, the merge and this report.
+Branch `claude/core-cad-robust`, off master `8e5a59a`, with master merged in up to `779a3d6` (crisp edges, Gothic clusters, frame timing). One code commit, two merges and this report.
 
 **The rule behind every fix:** each one is a fallback that runs only where the kernel failed. If the kernel already built a body, the core still uses that body, so no existing result moves. The core suite and golden test pass unchanged, and the graph and template tests are below. No new option, no serde field and no format change were needed, so nothing is fenced. `cadkernel` is not forked; every fix is in `cad.rs`, the new `cad/draft.rs` and `cad/turn.rs`, `cad/twist.rs` (two helpers made `pub(super)`) and `sketch/region.rs`.
 
@@ -33,8 +33,10 @@ New tests in `cad::robust_tests` and `cad::draft::tests`, each built from the re
 Reproduced on unmodified master first, with a scratch probe that was not committed: domed revolve "0 open and 16 nonmanifold edges"; arch "Kernel could not tessellate 1 faces"; ring − niche "CutRefused"; Bézier and notch drafts "unsupported or degenerate geometry"; fanned loft "68 open edges" in one order and "unsupported" in the other; overlapping halves "loops may nest but not touch". Tests that cannot fail on master by construction instead assert the kernel's own refusal in place.
 
 Results:
-- `cargo test -p ringdesign-core`: 848 passed, 0 failed, 16 ignored; golden 1 passed. After merging master `6f7bce0`: 852 passed, 0 failed, 16 ignored; golden 1 passed.
-- `cargo test -p ringdesign-graph` (templates byte for byte, showcase, bestiarium, imported bases, cad edits): all 140 passed, 0 failed, both before and after the merge.
+- `cargo test -p ringdesign-core`: 848 passed, 0 failed, 16 ignored; golden 1 passed. After merging master up to `779a3d6`: 881 passed, 0 failed, 16 ignored; golden 1 passed.
+- `cargo test -p ringdesign-graph` (templates byte for byte, showcase, bestiarium, imported bases, cad edits): all passed before the merges (140) and after them (151, including the new `gothic_clusters`), 0 failed.
+
+**Merge note.** Master `779a3d6` brought its own seam repair, `zip_chord_seams`, which splits open edges at the other side's samples within the chord. The merged `tessellate_traced` runs master's `stitch_chord_gaps` and then `zip_chord_seams` exactly as master does. Only what those two leave open goes on to `cancel_twins` and `split_t_junctions`, followed by one more stitch. So whatever master's pass already closes is closed byte for byte as master closes it, and my passes see only what it cannot close: the doubled seams, and T-junctions it reverts.
 
 ## For a ring author
 
