@@ -35,10 +35,10 @@ const MIN_SECTION_MM: f64 = 0.8;
 const MIN_DETAIL_MM: f64 = 0.15;
 /// The bud on arm A, 25 deg past the top, nodding down its arm; the hip on arm B, 25 deg before it.
 const BUD_DEG: f64 = 115.0;
-const BUD_NOD_DEG: f64 = 15.0;
+const BUD_NOD_DEG: f64 = 25.0;
 const HIP_DEG: f64 = 65.0;
 /// How far each stone is lifted to stand on its arm's stem.
-const BUD_LIFT_MM: f64 = 1.15;
+const BUD_LIFT_MM: f64 = 1.7;
 const HIP_LIFT_MM: f64 = 0.6;
 /// The two arms' stems over the band: round, `STEM_R_MM`, standing `STEM_PROUD_MM` proud, from this far either
 /// side of the top to under their stones.
@@ -53,16 +53,16 @@ const BUD_LIP: f64 = 0.3;
 const BUD_POINT_X: f64 = -1.0;
 /// The sepals round the collet's rounded end, at plan azimuths from the point (180 deg is the round end): broad,
 /// pointed, climbing the collet's wall to `BUD_SEPAL_TOP_MM` over the girdle and curling off it.
-const BUD_SEPAL_PHI_DEG: [f64; 5] = [180.0, 136.0, 224.0, 96.0, 264.0];
-const BUD_SEPAL_TOP_MM: f64 = 1.5;
+const BUD_SEPAL_PHI_DEG: [f64; 7] = [180.0, 146.0, 214.0, 112.0, 248.0, 78.0, 282.0];
+const BUD_SEPAL_TOP_MM: f64 = 1.6;
 const BUD_SEPAL_OFF_MM: f64 = 0.45;
 const BUD_SEPAL_FOOT_MM: f64 = 0.6;
 const BUD_SEPAL_CURL_MM: f64 = 1.0;
-const BUD_SEPAL_W_MM: f64 = 1.9;
+const BUD_SEPAL_W_MM: f64 = 1.5;
 const BUD_SEPAL_T_MM: f64 = 0.55;
 /// The receptacle bulb under the round end: semi-axes along, across and up, how far past the end and how far under
 /// the girdle its centre stands.
-const BUD_RECEPTACLE: (f64, f64, f64, f64, f64) = (2.3, 2.0, 0.75, -2.6, 2.85);
+const BUD_RECEPTACLE: (f64, f64, f64, f64, f64) = (2.4, 2.7, 1.6, -1.9, 3.3);
 /// Four petals wrapped round the collet, each a layer `PETAL_LAYER_MM` further out and `PETAL_STEP_DEG` further
 /// round (the golden angle, as a rose lays them), each lower than the last and flaring wider.
 /// Three rings of petals: (count, rise over the horizontal in degrees, length, width, foot height in mm under the
@@ -83,28 +83,31 @@ const SEPAL_T_MM: f64 = 0.55;
 /// The hip: a garnet cabochon held by five Sepal claws, which are its dried crown.
 const HIP_CLAWS: u32 = 5;
 const HIP_WIRE_MM: f64 = 0.75;
-const HIP_RISE: f64 = 0.6;
+const HIP_WALL_MM: f64 = 0.6;
+const HIP_LIP: f64 = 0.3;
 /// The hip's body under the stone: semi-axes and how far its centre stands under the girdle.
 const HIP_BODY: (f64, f64, f64, f64) = (2.6, 2.6, 1.35, 1.55);
 /// The dried sepal crown on the hip, between its claws: five wisps, each a lens `WISP_W x WISP_T` swept up
 /// `WISP_RISE` then curling out over `WISP_CURL_DEG` on a `WISP_BEND` radius, turning and tapering.
 const WISPS: u32 = 5;
 const WISP_W_MM: f64 = 1.3;
-const WISP_T_MM: f64 = 0.45;
-const WISP_RISE_MM: f64 = 2.4;
+/// How far the wisp leans in over the dome as it rises.
+const WISP_IN_MM: f64 = 1.1;
+const WISP_T_MM: f64 = 0.7;
+const WISP_RISE_MM: f64 = 3.1;
 const WISP_BEND_MM: f64 = 1.0;
-const WISP_CURL_DEG: f64 = 100.0;
+const WISP_CURL_DEG: f64 = 130.0;
 const WISP_TWIST_DEG: f64 = 50.0;
-const WISP_END: f64 = 0.35;
-const WISP_ROOT_Z_MM: f64 = -0.1;
-const WISP_ROOT_OUT_MM: f64 = 0.3;
+const WISP_END: f64 = 0.4;
+const WISP_ROOT_Z_MM: f64 = 0.2;
+const WISP_ROOT_OUT_MM: f64 = 0.4;
 /// The leaf: where its rachis starts, how far across, the rachis's run, each leaflet's (length, width), the
 /// laterals' spread; how far it stands off the band, arches, domes and how thick it is.
-const LEAF_DEG: f64 = 133.0;
+const LEAF_DEG: f64 = 129.0;
 const LEAF_Z_MM: f64 = -0.2;
-const LEAF_RACHIS_MM: f64 = 1.3;
-const LEAF_TERMINAL: (f64, f64) = (5.4, 2.8);
-const LEAF_LATERAL: (f64, f64) = (4.2, 2.2);
+const LEAF_RACHIS_MM: f64 = 2.0;
+const LEAF_TERMINAL: (f64, f64) = (6.0, 3.2);
+const LEAF_LATERAL: (f64, f64) = (5.0, 2.6);
 const LEAF_SPREAD_DEG: f64 = 50.0;
 const LEAF_SINK_MM: f64 = 0.12;
 const DRAPE_Z_MM: (f64, f64) = (-0.8, 0.45);
@@ -112,7 +115,9 @@ const DRAPE_SLOPE: f64 = 0.2;
 const LEAF_T_MM: f64 = 0.6;
 const LEAF_TOOTH: f64 = 0.12;
 /// Seven prickles down each arm, the first this far from the top, then every `PRICKLE_STEP_DEG`.
-const PRICKLES: usize = 7;
+const PRICKLES: usize = 5;
+/// Each arm's prickles, degrees from the top, spaced unevenly over the shoulder; the palm's lower third stays smooth.
+const PRICKLE_OFFS_DEG: [[f64; PRICKLES]; 2] = [[50.0, 59.0, 70.0, 78.0, 88.0], [60.0, 68.0, 77.0, 87.0, 95.0]];
 const PRICKLE_FROM_DEG: [f64; 2] = [48.0, 70.0];
 const PRICKLE_STEP_DEG: [f64; 2] = [10.0, 10.0];
 /// The smallest prickle's scale, at the palm end.
@@ -122,10 +127,10 @@ const PRICKLE_BLEND_MM: f64 = 0.25;
 const PRICKLE_SPIN_DEG: f64 = 25.0;
 const PRICKLE_SIDES: usize = 24;
 /// A rose prickle: a broad flattened foot (round the ring, across), a short rise, then hooked down the stem.
-const PRICKLE_FOOT_MM: (f64, f64) = (4.2, 2.1);
-const PRICKLE_RISE_MM: f64 = 0.45;
-const PRICKLE_BEND_MM: f64 = 1.9;
-const PRICKLE_HOOK_DEG: f64 = 78.0;
+const PRICKLE_FOOT_MM: (f64, f64) = (3.6, 1.9);
+const PRICKLE_RISE_MM: f64 = 1.0;
+const PRICKLE_BEND_MM: f64 = 1.5;
+const PRICKLE_HOOK_DEG: f64 = 70.0;
 /// Alternate prickles stand this far either side of the crest, canted with it.
 const PRICKLE_ACROSS_MM: f64 = 0.55;
 const PRICKLE_CANT_DEG: f64 = 18.0;
@@ -490,7 +495,8 @@ fn bud_sepal(gem: Gem, phi: f64) -> csg::Solid {
         let o = r + 0.5 * BUD_SEPAL_T_MM + 0.05 + BUD_SEPAL_FOOT_MM * (1.0 - t) + BUD_SEPAL_CURL_MM * smooth01((t - 0.6) / 0.4).powi(2);
         add3([0.0, 0.0, z], radial, o)
     };
-    ribbon(40, 10, c, move |_| tangent, |t| BUD_SEPAL_W_MM * (PI * (0.12 + 0.88 * t.powf(0.9))).sin().max(0.1).powf(0.55), |t| BUD_SEPAL_T_MM * (1.0 - 0.35 * t), 0.3)
+    // Lanceolate: widest at two-fifths, tapering to a sharp point, thinning toward it.
+    ribbon(40, 10, c, move |_| tangent, |t| BUD_SEPAL_W_MM * (2.6 * t.powf(0.8) * (1.0 - t)).min(1.0).max(0.06), |t| BUD_SEPAL_T_MM * (1.0 - 0.55 * t), 0.3)
 }
 
 /// The bud's receptacle in the stone frame: a swollen bulb under the round end, where the sepals meet the stem.
@@ -719,15 +725,15 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
     doc.append(builders::stone_feature(
         2,
         bud,
-        Placement::Ring { theta_deg: BUD_DEG, across_mm: bud_z, height_mm: builders::stand_off_mm(builders::BEZEL, bud) + BUD_LIFT_MM, spin_deg: 180.0, tilt_deg: BUD_NOD_DEG, cant_deg: 0.0, level: false },
+        Placement::Ring { theta_deg: BUD_DEG, across_mm: bud_z, height_mm: builders::stand_off_mm(builders::BEZEL, bud) + BUD_LIFT_MM, spin_deg: 0.0, tilt_deg: -BUD_NOD_DEG, cant_deg: 0.0, level: false },
     ))?;
     doc.append(builders::feature_on(3, "Bud collet", builders::BEZEL, 2, json!({"wall_mm": BUD_WALL_MM, "lip": BUD_LIP})))?;
     doc.append(builders::stone_feature(
         4,
         hip,
-        Placement::Ring { theta_deg: HIP_DEG, across_mm: hip_z, height_mm: builders::stand_off_mm(builders::CLAW, hip) + HIP_LIFT_MM, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false },
+        Placement::Ring { theta_deg: HIP_DEG, across_mm: hip_z, height_mm: builders::stand_off_mm(builders::BEZEL, hip) + HIP_LIFT_MM, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false },
     ))?;
-    doc.append(builders::feature_on(5, "Hip sepals", builders::CLAW, 4, json!({"prongs": HIP_CLAWS, "wire_mm": HIP_WIRE_MM, "style": "Sepal", "tip": "Point", "grouping": "Even", "rise": HIP_RISE})))?;
+    doc.append(builders::feature_on(5, "Hip collet", builders::BEZEL, 4, json!({"wall_mm": HIP_WALL_MM, "lip": HIP_LIP})))?;
     d.cad = Some(doc);
     let rec = setstone::record(d, None);
     let frame_of = |id: Id| rec.stones.iter().find(|s| s.cad_feature() == Some(id)).and_then(|s| s.frame).ok_or_else(|| anyhow::anyhow!("stone #{id} has no frame"));
@@ -755,14 +761,21 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
     let root = add3([0.0, 0.0, WISP_ROOT_Z_MM], ex, 0.5 * hip.w_mm + WISP_ROOT_OUT_MM);
     let _ = hip_frame;
     let mut path = Sketch { plane: Workplane { origin: root, x: ex, y: ez, ..Default::default() }, ..Sketch::default() };
+    // Up and in over the dome, then curling out above it.
+    let (lean_s, lean_c) = (WISP_IN_MM / WISP_IN_MM.hypot(WISP_RISE_MM), WISP_RISE_MM / WISP_IN_MM.hypot(WISP_RISE_MM));
     let a = path.point([0.0, 0.0]);
-    let b = path.point([0.0, WISP_RISE_MM]);
+    let tip = [-WISP_IN_MM, WISP_RISE_MM];
+    let b = path.point(tip);
     path.entity(Geometry::Line { a, b });
-    let centre = path.point([WISP_BEND_MM, WISP_RISE_MM]);
-    let t = (180.0 - WISP_CURL_DEG).to_radians();
-    let end = path.point([WISP_BEND_MM + WISP_BEND_MM * t.cos(), WISP_RISE_MM + WISP_BEND_MM * t.sin()]);
+    let c = [tip[0] + WISP_BEND_MM * lean_c, tip[1] + WISP_BEND_MM * lean_s];
+    let centre = path.point(c);
+    let (cs, sn) = ((-WISP_CURL_DEG).to_radians().cos(), (-WISP_CURL_DEG).to_radians().sin());
+    let v = [tip[0] - c[0], tip[1] - c[1]];
+    let end = path.point([c[0] + v[0] * cs - v[1] * sn, c[1] + v[0] * sn + v[1] * cs]);
     path.entity(Geometry::Arc { center: centre, start: end, end: b });
-    let section = ellipse_on(Workplane { origin: root, x: ex, y: ey, ..Default::default() }, WISP_W_MM, WISP_T_MM, "Wisp lens");
+    // The section stands square to the lean.
+    let across = [ex[0] * lean_c + ez[0] * lean_s, ex[1] * lean_c + ez[1] * lean_s, ex[2] * lean_c + ez[2] * lean_s];
+    let section = ellipse_on(Workplane { origin: root, x: across, y: ey, ..Default::default() }, WISP_W_MM, WISP_T_MM, "Wisp lens");
     doc.append(feature(id, "Dried sepal", Operation::Twist { sketch: section.into(), path: TwistPath::Sketch(path), degrees: WISP_TWIST_DEG, end_scale: WISP_END, scale: Vec::new(), closed: false }, on(4)))?;
     doc.append(feature(id + 1, "Dried sepal crown", Operation::Pattern { sources: id.into(), kind: PatternKind::About { part: 4, count: WISPS, span_deg: 360.0 } }, free(0.0)))?;
     id += 2;
@@ -783,7 +796,7 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
     for arm_a in [true, false] {
         for k in 0..PRICKLES {
             let arm = usize::from(!arm_a);
-            let off = PRICKLE_FROM_DEG[arm] + PRICKLE_STEP_DEG[arm] * k as f64;
+            let off = PRICKLE_OFFS_DEG[arm][k];
             let theta = if arm_a { TOP_DEG - off } else { TOP_DEG + off };
             let z = arm_z(d, theta, arm_a);
             let (from, to) = if arm_a { (TOP_DEG - STEM_FROM_DEG[0], BUD_DEG - 4.0) } else { (TOP_DEG + STEM_FROM_DEG[1], HIP_DEG + 4.0) };
