@@ -1496,6 +1496,22 @@ the pour, all hand-rolled in core with tests:
   skirt around a seat. A stone keeps flat facets, because there the facets
   are the point.
 
+  **A close-up is framed, never cropped** (`render::Framing`,
+  `write_png_framed`). A mesh cropped to a sphere or wedge keeps whole
+  triangles, so its rim is the build grid, and a copy without
+  `corner_normals` shades every stamp's and part's crease as one smooth
+  roll: the reviewers read both as stair-steps on the motifs. A sand
+  master's envelope shades from normals blurred over 0.45 mm of its own
+  surface, stopping at 12° creases, because the master is 0.55 mm flat
+  facets and a five-cell blur showed every one as a band. Two opt-ins move
+  geometry, both fenced at format 6: `StampTop::Pillow`, a membrane top
+  that is the dome on a circle and creaseless on a spiny outline where
+  `Dome` folds along every spine's ray, and `RingDesign::crisp_relief`,
+  which reads the height field through a one-cell tent where it is not
+  linear across the cell, so a wall crossing the grid lies straight
+  instead of stepping a row at a time. `docs/crisp/` has the measured
+  before and after.
+
 The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply,step`.
 
 A ring carrying CAD parts leaves whole and a part comes in. OBJ writes one
@@ -2531,6 +2547,19 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   (`Placement::frame_on`), `height_mm` a stand-off along the surface normal.
   The reference-crest formula it replaced buried a part's foot 2.06–2.42 mm
   on a signet's shoulders (`examples/anchor_probe.rs`).
+- **A part can stand level, in another part's frame, or on a side face.**
+  `Ring { level }` drops the normal's part along the finger before x is
+  squared to it: x runs exactly along the finger and the seat's y–z plane is
+  the plane `z = across_mm`, so a spur on the parting line keeps its axis in
+  the parting plane whatever the facet under it does; where the normal is
+  already level (a symmetric crest, a mirrored sand master) it changes
+  nothing. `Relative { part, at, rotation_deg }` stands in the frame `part`
+  was seated by and follows it when the ring is resized; `part` is one of
+  `Feature::sources()`, so order, removal, skips and the cache read it.
+  `Side { theta_deg, radius_mm, face, .. }` stands a part on a side face, z
+  along the finger, where a ray along the finger meets it, and a ring array
+  reseats each copy on the face at its own angle. Each writes the design at
+  6, and `cad.feature` carries a pin for each.
 - **`Component.attach` / `stage` / `blend_mm`** say how the part meets the
   band (Separate, Join, Cut), whether it is poured or added at the bench,
   and the radius of the rolling-ball seam bead (`blend.rs`) laid along every
@@ -2539,6 +2568,12 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   largest `blend_mm` among them, whatever part owns its first face.
   A bead that pinches or folds says where — ring angle, the section's r and
   z, and the point (`blend::station_at`) — so no probe build hunts for it.
+  A ring of parts alone (`parts::assembled`) lays the same bead after each
+  union, at the larger `blend_mm` of the parts on the seam, and rounds the
+  rims a filleted cut leaves; that writes the design at 6, since an older
+  build leaves it unbeaded. The bead's arc stands `blend::proud` toward the
+  corner, so it gains the volume of the fillet that arc bounds: 0.3% from it,
+  and 6.4% under the ideal torus at 0.3 mm round a 1 mm post.
   A bench part is shown finished and left out of a sand pattern. Every part
   vertex names its feature through `Mesh.origin` (`Resolved::feature_of`).
 - **Edges are named by signature, not by position.** `EdgeRef` carries the

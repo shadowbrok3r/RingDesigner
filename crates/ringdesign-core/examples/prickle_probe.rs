@@ -1,4 +1,5 @@
-//! A hooked round prickle swept in the parting plane on a symmetric crest, judged by field, parts and ray release as it tilts.
+//! A hooked round prickle swept in the parting plane on a symmetric crest, judged by field, parts and ray release as it tilts;
+//! and on the 012 sand master, the prickle and Prunus's straight spur seated by the raw normal and levelled.
 //! cargo run -p ringdesign-core --release --example prickle_probe -- [OUT_DIR]
 use anyhow::Result;
 use ringdesign_core::{
@@ -34,6 +35,11 @@ fn prickle() -> Operation {
     Operation::twist(Sketch::circle(0.55), path(0.5, 1.6, 70.0), 0.0, 0.28)
 }
 
+/// The Prunus long spur: a 1.0 mm round 2.6 mm long, drafted 7° to a 0.36 mm tip.
+fn spur() -> Operation {
+    Operation::Extrude { sketch: Sketch::circle(0.5).into(), height_mm: 2.6, draft_deg: 7.0 }
+}
+
 #[derive(Clone, Copy)]
 struct Seat {
     theta: f64,
@@ -41,20 +47,26 @@ struct Seat {
     tilt: f64,
     cant: f64,
     blend: f64,
+    level: bool,
+    spur: bool,
 }
 
-const NOMINAL: Seat = Seat { theta: 90.0, spin: 0.0, tilt: 0.0, cant: 0.0, blend: 0.35 };
+const NOMINAL: Seat = Seat { theta: 90.0, spin: 0.0, tilt: 0.0, cant: 0.0, blend: 0.35, level: false, spur: false };
+/// The Prunus spur's seat: on the parting line, sunk 0.4 mm, leaned 38° along the ring.
+const SPUR: Seat = Seat { theta: 45.0, spin: 0.0, tilt: 38.0, cant: 0.0, blend: 0.3, level: false, spur: true };
 
 fn with_prickle(body: &RingDesign, seat: Seat) -> Result<RingDesign> {
     let mut d = body.clone();
     let mut doc = Document::default();
     doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component { role: ComponentRole::Shank, ..Default::default() } })?;
     let mut c = Component::default();
-    c.placement = Placement::Ring { theta_deg: seat.theta, across_mm: 0.0, height_mm: -0.35, spin_deg: seat.spin, tilt_deg: seat.tilt, cant_deg: seat.cant };
+    let sink = if seat.spur { -0.4 } else { -0.35 };
+    c.placement = Placement::Ring { theta_deg: seat.theta, across_mm: 0.0, height_mm: sink, spin_deg: seat.spin, tilt_deg: seat.tilt, cant_deg: seat.cant, level: seat.level };
     c.attach = Attach::Join;
     c.stage = Stage::Cast;
     c.blend_mm = seat.blend;
-    doc.append(Feature { id: 2, name: "Prickle".into(), enabled: true, operation: prickle(), component: c })?;
+    let (name, operation) = if seat.spur { ("Spur", spur()) } else { ("Prickle", prickle()) };
+    doc.append(Feature { id: 2, name: name.into(), enabled: true, operation, component: c })?;
     d.cad = Some(doc);
     Ok(d)
 }
@@ -145,6 +157,19 @@ fn main() -> Result<()> {
     judge("on the table at 90°", &stock, NOMINAL, PREVIEW, &lib)?;
     judge("on the shoulder at 50°", &stock, Seat { theta: 50.0, ..NOMINAL }, PREVIEW, &lib)?;
     judge("on the shank at 0°", &stock, Seat { theta: 0.0, ..NOMINAL }, PREVIEW, &lib)?;
+    println!("== 012 Cushion sand master, native: seated by the raw normal, then levelled");
+    let stock = probe::stock("012", true, None)?;
+    for (label, seat) in [
+        ("prickle on the table at 90°", NOMINAL),
+        ("prickle on the shoulder at 50°", Seat { theta: 50.0, ..NOMINAL }),
+        ("spur leaning 38° at 45°", SPUR),
+        ("spur leaning -30° at 135°", Seat { theta: 135.0, tilt: -30.0, ..SPUR }),
+        ("spur leaning 38° on the shank at 0°", Seat { theta: 0.0, ..SPUR }),
+    ] {
+        for level in [false, true] {
+            judge(&format!("{label}{}", if level { ", level" } else { "" }), &stock, Seat { level, ..seat }, PREVIEW, &lib)?;
+        }
+    }
     if let (Some(out), Some(built)) = (out, export) {
         std::fs::create_dir_all(&out)?;
         for (view, yaw, pitch) in [("hero", 0.48, 1.0), ("side", 0.0, 0.05), ("face", 0.0, std::f64::consts::FRAC_PI_2)] {
