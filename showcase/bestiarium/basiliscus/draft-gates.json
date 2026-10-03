@@ -1,8 +1,8 @@
 {
   "build": {
-    "build_ms": 1918,
+    "build_ms": 1723,
     "export_note": "The hide's layers carry the Relief reach mask, which keeps imported_base::subdivide from detailing the lower walls by the bore edges; without it 1536 x 448 overruns its 2 million triangle budget",
-    "faces": 539184,
+    "faces": 545250,
     "profile_steps": 320,
     "theta_steps": 768
   },
@@ -22,14 +22,14 @@
     "solids_resolved": 1,
     "stamps": 0,
     "stamps_struck": 0,
-    "triangles": 223364,
+    "triangles": 226336,
     "watertight": true
   },
   "cold_reload": {
-    "bake_ms": 19.07632,
-    "build_ms": 3434.695215,
+    "bake_ms": 18.984569999999998,
+    "build_ms": 3154.629235,
     "identical_vertices_faces_normals": true,
-    "read_ms": 2.4289229999999997
+    "read_ms": 1.596838
   },
   "composition": {
     "atlas": [
@@ -37,7 +37,7 @@
       560
     ],
     "bead_height_mm": 0.26,
-    "beads": 72,
+    "beads": 74,
     "body_crest_mm": 1.31651019442575,
     "body_crown_mm": 1.4,
     "body_outer_quarter_steepest_deg": 55.50355163813933,
@@ -87,25 +87,26 @@
       ],
       "pearl_diameter": 0.9472
     },
+    "field": "polished, inside one bead row: the clustered pits of round 4 are gone",
     "girth_mm": [
       1.25,
       0.4
     ],
     "head": {
-      "height_over_table_mm": 4.516347968599533,
+      "height_over_table_mm": 4.516871137479516,
       "marching_step_mm": 0.045,
       "open_edges": 0,
-      "packed_bytes": 838032,
-      "raw_triangles": 1139548,
-      "seconds": 0.184401438,
+      "packed_bytes": 896576,
+      "raw_triangles": 1243444,
+      "seconds": 0.203552067,
       "self_crossings": 0,
-      "triangles": 77884,
-      "vertices": 38942,
-      "volume_mm3": 125.3770909879614
+      "triangles": 83434,
+      "vertices": 41715,
+      "volume_mm3": 126.28378083502659
     },
     "head_frame": {
       "axis_face_x_z_height_mm": [
-        -0.95,
+        -0.6,
         -1.95,
         0.5
       ],
@@ -122,13 +123,6 @@
     },
     "morph_end_along_mm": 25.814397118817936,
     "morph_start_along_mm": 17.79535254752604,
-    "pit_depth_mm": 0.09,
-    "pit_reach_mm": {
-      "furthest_arm_edge_from_a_pit": 0.536099033699941,
-      "share_of_arm_edge_within_0_4": 0.9723756906077348,
-      "widest_bare_field": 0.5085489812492014
-    },
-    "pits": 94,
     "rim_beads": 46,
     "seat_plan_mm": [
       4.88,
@@ -154,17 +148,24 @@
       8.675
     ]
   },
-  "design_bytes": 2864220,
+  "design_bytes": 2740045,
   "dfm": [],
   "field": {
     "marginal_area_mm2": 0.0,
     "notes": [
-      "Lost wax: 12.14% of the surface would undercut a two-part pull (worst 74.2 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 331–209° on the crest: 168.2 mm² leaning to 70° — no single layer explains it.",
+      "Lost wax: 11.83% of the surface would undercut a two-part pull (worst 73.9 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 310–229° on the crest: 160.2 mm² leaning to 69° — no single layer explains it.",
+      "Undercut 236–236° on the crest: 0.3 mm² leaning to 1° — caused by \"Belly scutes\"; muting it clears it.",
+      "Undercut 248–248° on the crest: 0.5 mm² leaning to 3° — caused by \"Belly scutes\"; muting it clears it.",
+      "Undercut 259–259° on the crest: 0.5 mm² leaning to 2° — caused by \"Belly scutes\"; muting it clears it.",
+      "Undercut 270–270° on the crest: 0.4 mm² leaning to 2° — caused by \"Belly scutes\"; muting it clears it.",
+      "Undercut 281–281° on the crest: 0.4 mm² leaning to 3° — caused by \"Belly scutes\"; muting it clears it.",
+      "Undercut 292–292° on the crest: 0.4 mm² leaning to 3° — caused by \"Belly scutes\"; muting it clears it.",
+      "Undercut 304–304° on the crest: 0.2 mm² leaning to 1° — caused by \"Belly scutes\"; muting it clears it.",
       "Cut at the bench after casting, and so not judged here: Graver's barbs and keels.",
       "1 made setting cast in place with the ring; the field judges the band under it.",
-      "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 129.3 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Basilisk's crowned head\" (#2) would undercut a two-part pull over 53.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 131.8 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Basilisk's crowned head\" (#2) would undercut a two-part pull over 56.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "parting_z_mm": 0.0,
     "parts": [
@@ -175,32 +176,32 @@
         "label": "Stored mesh \"Basilisk's crowned head\" (#2)",
         "marginal_area_mm2": 0.0,
         "name": "Basilisk's crowned head",
-        "note": "Lost wax: Stored mesh \"Basilisk's crowned head\" (#2) would undercut a two-part pull over 53.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "silhouette_mm2": 0.010241172193052815,
+        "note": "Lost wax: Stored mesh \"Basilisk's crowned head\" (#2) would undercut a two-part pull over 56.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "silhouette_mm2": 0.00630700505217293,
         "stage": "cast",
-        "total_area_mm2": 129.33537252182725,
-        "undercut_area_mm2": 52.969203918594,
+        "total_area_mm2": 131.8264220544129,
+        "undercut_area_mm2": 56.55449672048122,
         "undercut_at": {
-          "across_from_mm": -4.994969844818115,
-          "across_to_mm": 3.0810439586639404,
+          "across_from_mm": -4.992489814758301,
+          "across_to_mm": 3.511615037918091,
           "side": "Both",
-          "theta_from_deg": 66.26296744202592,
-          "theta_to_deg": 114.48205446375799
+          "theta_from_deg": 66.90340531850305,
+          "theta_to_deg": 115.52156512402463
         },
-        "vertical_area_mm2": 2.754625491921098,
-        "worst_draft_deg": -90.0
+        "vertical_area_mm2": 3.9724318593408174,
+        "worst_draft_deg": -89.52041692211827
       }
     ],
     "process": "LostWax",
     "profile_samples": 128,
     "theta_samples": 256,
-    "thinnest_wall_mm": 1.6701618803851197,
+    "thinnest_wall_mm": 1.6691400455729255,
     "thinnest_wall_theta_deg": 232.03125,
-    "total_area_mm2": 1558.4799204595142,
-    "undercut_area_mm2": 226.48357887623104,
+    "total_area_mm2": 1552.7417752836377,
+    "undercut_area_mm2": 224.57909002100087,
     "verdict": "Castable",
-    "vertical_area_mm2": 80.52505653787267,
-    "worst_draft_deg": -90.0
+    "vertical_area_mm2": 105.77124831347757,
+    "worst_draft_deg": -89.52041692211827
   },
   "gates": [
     {
@@ -256,7 +257,7 @@
     "solids_resolved": 1,
     "stamps": 0,
     "stamps_struck": 0,
-    "triangles": 539184,
+    "triangles": 545250,
     "watertight": true
   },
   "land_widths": [
@@ -291,50 +292,50 @@
     {
       "exception": false,
       "kind": "sculpt",
-      "min_land_mm": 0.819,
-      "name": "Crown fleurons, plate thickness at the edge (sculpted)",
+      "min_land_mm": 1.085,
+      "name": "Crown points, the plate at mid-height (sculpted, measured)",
+      "status": "at or above 0.8"
+    },
+    {
+      "exception": false,
+      "kind": "sculpt",
+      "min_land_mm": 0.932,
+      "name": "Crown points, the leaf's waist under its pearl (sculpted, measured)",
       "status": "at or above 0.8"
     },
     {
       "exception": true,
       "kind": "sculpt",
-      "min_land_mm": 0.512,
-      "name": "Crown points, the leaf's waist under its pearl (sculpted)",
-      "status": "Point's waist under its pearl: investment detail, cast in place and cleaned up with a graver"
+      "min_land_mm": 0.668,
+      "name": "Crown points, each side petal (sculpted, measured)",
+      "status": "Fleur's side petal: investment detail, cast in place"
     },
     {
       "exception": false,
       "kind": "sculpt",
       "min_land_mm": 0.947,
-      "name": "Crown pearls (sculpted)",
-      "status": "at or above 0.8"
-    },
-    {
-      "exception": false,
-      "kind": "sculpt",
-      "min_land_mm": 0.845,
-      "name": "Crown jewels, cabochons on the band (sculpted)",
+      "name": "Crown pearls (sculpted, measured)",
       "status": "at or above 0.8"
     },
     {
       "exception": true,
       "kind": "sculpt",
-      "min_land_mm": 0.422,
-      "name": "Fangs, at the rounded tip (sculpted)",
+      "min_land_mm": 0.718,
+      "name": "Fang near its rounded tip (sculpted, measured)",
       "status": "Fang hanging from the upper jaw to a rounded point: investment detail, cast in place"
     },
     {
       "exception": true,
       "kind": "sculpt",
-      "min_land_mm": 0.5,
-      "name": "Forked tongue, stem (sculpted)",
+      "min_land_mm": 0.602,
+      "name": "Forked tongue, stem (sculpted, measured)",
       "status": "Tongue's round stem: investment detail cast in place, lying on the jaw and the field"
     },
     {
       "exception": true,
       "kind": "sculpt",
-      "min_land_mm": 0.34,
-      "name": "Forked tongue, tines at their rounded ends (sculpted)",
+      "min_land_mm": 0.399,
+      "name": "Forked tongue, tines near their ends (sculpted, measured)",
       "status": "Tongue's tine to a rounded end, lying on the field: investment detail cast in place"
     },
     {
@@ -377,11 +378,11 @@
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 539184,
-      "vertex_count": 269588,
+      "triangle_count": 545250,
+      "vertex_count": 272619,
       "watertight": true
     },
-    "volume_mm3": 1708.6794721863992
+    "volume_mm3": 1696.1337372042615
   },
   "name": "Basiliscus — king of serpents",
   "pattern": {
@@ -396,12 +397,12 @@
     },
     "scale": 1.019367991845056,
     "self_crossings": 0,
-    "triangles": 539184,
+    "triangles": 545250,
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 539184,
-      "vertex_count": 269588,
+      "triangle_count": 545250,
+      "vertex_count": 272619,
       "watertight": true
     }
   },

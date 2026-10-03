@@ -25,8 +25,6 @@ const HACKLE_HEIGHT: f64 = 0.75;
 const BELLY_HEIGHT: f64 = 0.34;
 /// Scale of the painted serpent layer, mm.
 const SERPENT_HEIGHT: f64 = 2.0;
-/// Depth of the punched pits, mm.
-const PIT_DEPTH: f64 = 0.09;
 /// The bordure's beads, mm.
 const BEAD_HEIGHT: f64 = 0.26;
 /// The boss the tsavorite is set flush in, mm over the field.
@@ -208,10 +206,6 @@ fn within(theta: f64, centre: f64, half: f64) -> bool {
     (theta - centre + 180.0).rem_euclid(360.0) - 180.0 <= half && (theta - centre + 180.0).rem_euclid(360.0) - 180.0 >= -half
 }
 
-fn centroid(poly: &[P2]) -> P2 {
-    let n = poly.len() as f64;
-    [poly.iter().map(|p| p[0]).sum::<f64>() / n, poly.iter().map(|p| p[1]).sum::<f64>() / n]
-}
 
 /// The tsavorite's centre on the face; its long axis runs round the ring.
 const STONE: P2 = [-0.2, 2.95];
@@ -485,17 +479,13 @@ impl Line {
     }
 }
 
-/// Punched pits: radius and the even ground's pitch, mm (the third is the ground's pitch again).
-const PIT: (f64, f64, f64) = (0.21, 0.62, 0.62);
-/// The polished halo kept round every arm, mm past a pit's rim.
-const PIT_HALO: f64 = 0.22;
 /// The bordure's beads: inset from the table's edge, pitch and radius, mm.
 const BEADS: (f64, f64, f64) = (0.5, 0.62, 0.22);
 /// The seat's skirt beyond its rim, mm.
 const SKIRT: f64 = 0.45;
 
 /// The head's footprint on the table: how far outside the sculpted head (and its tongue and neck) each face point lies,
-/// mm, negative under it, on a grid over the head's box; and the iso-line the field's first row of pits follows.
+/// mm, negative under it, on a grid over the head's box.
 struct Footprint {
     lo: P2,
     step: f64,
@@ -593,39 +583,16 @@ impl Footprint {
         if outside { v.max(2.5) } else { v }
     }
 
-    /// Points `by` outside the footprint, about `pitch` apart, in order round the head's centre.
-    fn row(&self, by: f64, pitch: f64) -> Vec<P2> {
-        let mut pts: Vec<P2> = Vec::new();
-        for j in 0..self.n[1] {
-            for i in 0..self.n[0] {
-                let p = [self.lo[0] + (i as f64 + 0.5) * self.step, self.lo[1] + (j as f64 + 0.5) * self.step];
-                if (self.at(p) - by).abs() < 0.5 * self.step {
-                    pts.push(p);
-                }
-            }
-        }
-        let c = centroid(&pts);
-        pts.sort_by(|a, b| (a[1] - c[1]).atan2(a[0] - c[0]).total_cmp(&(b[1] - c[1]).atan2(b[0] - c[0])));
-        let mut out: Vec<P2> = Vec::new();
-        for p in pts {
-            if out.iter().all(|q| (q[0] - p[0]).hypot(q[1] - p[1]) >= pitch) {
-                out.push(p);
-            }
-        }
-        out
-    }
 }
 
 /// The arms on the shield: the sculpted crowned head, and the serpent's painted body coiled round the tsavorite on a
-/// pounced field inside a beaded bordure.
+/// polished field inside a beaded bordure.
 struct Arms {
     table: Shape,
     body: Body,
     head: Footprint,
     boss: Shape,
     beads: Vec<P2>,
-    pits: Vec<P2>,
-    grid: std::collections::HashMap<(i64, i64), Vec<usize>>,
 }
 
 impl Arms {
@@ -641,9 +608,8 @@ impl Arms {
         let rim = ccw(resample(&rim, 0.05));
         let boss = Shape::new(rim);
         let table = Shape::new(table);
-        let mut arms = Self { table, body: Body::new(), head, boss, beads: Vec::new(), pits: Vec::new(), grid: Default::default() };
+        let mut arms = Self { table, body: Body::new(), head, boss, beads: Vec::new() };
         arms.beads = arms.bordure();
-        arms.pounce();
         Ok(arms)
     }
 
@@ -727,124 +693,6 @@ impl Arms {
             .fold(0.0, f64::max)
     }
 
-    /// Whether a pit centred at `q` stays on the field: inside the bordure, clear of the arms by `gap`.
-    fn pit_fits(&self, q: P2, gap: f64) -> bool {
-        let (r, _, _) = PIT;
-        self.table.sdf(q, 3.0) > BEADS.0 + BEADS.2 + 0.12 + r && self.clear(q) >= r + gap
-    }
-
-    /// Lays the punched ground: a row of pits following every arm's outline, then a jittered grain filling the field.
-    fn pounce(&mut self) {
-        // One even ground over the whole open field on a jittered staggered lattice, with a polished halo round every
-        // arm and no rows tracing their outlines.
-        let (_, pitch, _) = PIT;
-        let mut pits: Vec<P2> = Vec::new();
-        let [lo, hi] = [self.table.lo, self.table.hi];
-        let row = pitch * 0.866;
-        let (i0, i1) = ((lo[0] / pitch).floor() as i64 - 1, (hi[0] / pitch).ceil() as i64 + 1);
-        let (j0, j1) = ((lo[1] / row).floor() as i64 - 1, (hi[1] / row).ceil() as i64 + 1);
-        for j in j0..=j1 {
-            for i in i0..=i1 {
-                let stagger = if j.rem_euclid(2) == 0 { 0.0 } else { 0.5 };
-                let q = [
-                    (i as f64 + stagger + 0.06 * (skin::hash(i, j) - 0.5)) * pitch,
-                    j as f64 * row + 0.06 * pitch * (skin::hash(j + 7919, i) - 0.5),
-                ];
-                if self.pit_fits(q, PIT_HALO) {
-                    pits.push(q);
-                }
-            }
-        }
-        let mut grid: std::collections::HashMap<(i64, i64), Vec<usize>> = Default::default();
-        for (k, q) in pits.iter().enumerate() {
-            grid.entry(((q[0] / 0.5).floor() as i64, (q[1] / 0.5).floor() as i64)).or_default().push(k);
-        }
-        self.pits = pits;
-        self.grid = grid;
-    }
-
-    /// Distance from `p` to the nearest pit's rim, mm.
-    fn to_pit(&self, p: P2) -> f64 {
-        let (ci, cj) = ((p[0] / 0.5).floor() as i64, (p[1] / 0.5).floor() as i64);
-        let mut best = f64::MAX;
-        for ring in 1..8 {
-            for i in ci - ring..=ci + ring {
-                for j in cj - ring..=cj + ring {
-                    for &k in self.grid.get(&(i, j)).map_or(&[][..], |v| v.as_slice()) {
-                        let q = self.pits[k];
-                        best = best.min((p[0] - q[0]).hypot(p[1] - q[1]) - PIT.0);
-                    }
-                }
-            }
-            if best < 0.5 * ring as f64 - 0.5 {
-                break;
-            }
-        }
-        best
-    }
-
-    /// How close the ground's pits come: the widest bare stretch of field, and the furthest any arm's edge lies from a pit, mm.
-    fn pounce_reach(&self) -> (f64, f64, f64) {
-        let (lo, hi) = (self.table.lo, self.table.hi);
-        let open = |q: P2| self.pit_fits(q, 0.09);
-        let mut bare: f64 = 0.0;
-        let mut z = lo[1];
-        while z < hi[1] {
-            let mut x = lo[0];
-            while x < hi[0] {
-                if open([x, z]) {
-                    bare = bare.max(self.to_pit([x, z]));
-                }
-                x += 0.05;
-            }
-            z += 0.05;
-        }
-        let mut edge: f64 = 0.0;
-        let (mut near, mut all) = (0usize, 0usize);
-        let mut probe = |q: P2, into: P2| {
-            if open(into) {
-                let d = self.to_pit(q) + 0.12;
-                all += 1;
-                near += usize::from(d <= 0.4);
-                edge = edge.max(d);
-            }
-        };
-        // Round the head the outward direction is the footprint's own gradient.
-        for p in self.head.row(0.0, 0.1) {
-            let g = [self.head.at([p[0] + 0.02, p[1]]) - self.head.at([p[0] - 0.02, p[1]]), self.head.at([p[0], p[1] + 0.02]) - self.head.at([p[0], p[1] - 0.02])];
-            let l = g[0].hypot(g[1]).max(1e-12);
-            let n = [g[0] / l, g[1] / l];
-            probe([p[0] + n[0] * 0.12, p[1] + n[1] * 0.12], [p[0] + n[0] * (0.12 + PIT.0), p[1] + n[1] * (0.12 + PIT.0)]);
-        }
-        let poly = resample(&self.boss.poly, 0.1);
-        let n = poly.len();
-        for i in 0..n {
-            let (a, b) = (poly[(i + n - 1) % n], poly[(i + 1) % n]);
-            let t = [b[0] - a[0], b[1] - a[1]];
-            let l = t[0].hypot(t[1]).max(1e-12);
-            let by = SKIRT + 0.12;
-            let q = [poly[i][0] + t[1] / l * by, poly[i][1] - t[0] / l * by];
-            probe(q, [q[0] + t[1] / l * PIT.0, q[1] - t[0] / l * PIT.0]);
-        }
-        (bare, edge, near as f64 / all.max(1) as f64)
-    }
-
-    /// The pounced ground sunk into the table, 0..1 of the pits' depth.
-    fn pounce_depth(&self, p: P2) -> f64 {
-        let (r, _, _) = PIT;
-        let (ci, cj) = ((p[0] / 0.5).floor() as i64, (p[1] / 0.5).floor() as i64);
-        let mut pit: f64 = 0.0;
-        for i in ci - 1..=ci + 1 {
-            for j in cj - 1..=cj + 1 {
-                for &k in self.grid.get(&(i, j)).map_or(&[][..], |v| v.as_slice()) {
-                    let q = self.pits[k];
-                    let d = (p[0] - q[0]).hypot(p[1] - q[1]);
-                    pit = pit.max((1.0 - (d / r).powi(2)).max(0.0).powf(0.6));
-                }
-            }
-        }
-        pit
-    }
 }
 
 /// The chart point of the face point at world `(x, z)`.
@@ -1005,7 +853,7 @@ impl Hackles {
 /// the next scute's root, with no step anywhere; the joints bow toward the head across the band.
 fn scute(u: f64, across: f64) -> f64 {
     let c = across.clamp(-1.0, 1.0);
-    let u = u + 0.26 * c * c;
+    let u = u + 0.42 * c * c;
     let t = u - u.floor();
     let lip = smooth(0.0, 0.16, t).sqrt();
     let rise = smooth(0.0, 0.84, 1.0 - t);
@@ -1243,8 +1091,8 @@ struct Basilisk {
     tongue: Vec<(P3, f64)>,
     tines: [Vec<(P3, f64)>; 2],
     /// The painted coil's surface over the neck's zone, sampled every `NECK_GRID.2` mm from `NECK_GRID.0`: its height,
-    /// how far outside its edge, and how far down its spine.
-    neck: Vec<[f32; 3]>,
+    /// how far outside its edge, how far down its spine, and its height without the scales.
+    neck: Vec<[f32; 4]>,
     /// The table's outline, for keeping the skirt on it.
     outline: Shape,
 }
@@ -1290,8 +1138,8 @@ impl Basilisk {
             .map(|k| {
                 let p = [x0 + (k % nx) as f64 * step, z0 + (k / nx) as f64 * step];
                 match body.nearest_until(p, NECK_RUN.0 + 0.5) {
-                    Some((d, s, _)) => [body.height(p, true) as f32, (d - body.girth(s)) as f32, s as f32],
-                    None => [0.0, 9.0, 99.0],
+                    Some((d, s, _)) => [body.height(p, true) as f32, (d - body.girth(s)) as f32, s as f32, body.height(p, false) as f32],
+                    None => [0.0, 9.0, 99.0, 0.0],
                 }
             })
             .collect();
@@ -1531,7 +1379,11 @@ impl Basilisk {
             let leaf_w = 0.62 * half * (1.0 - k).powf(1.1) + petal * k;
             let leaf = (t.abs() - leaf_w).max(-along - 0.1).max(along - high);
             // Two rounded side lobes lean out from the leaf: a trefoil, the pearl seated on the leaf's own tip.
-            let lobe = ((t.abs() - 0.72 * half).hypot(along - 0.42 * high) - 0.32).max(-along);
+            let lobe = {
+                let (x, y) = (t.abs() - 0.62 * half, along - 0.4 * high);
+                let (sn, cs) = 0.8f64.sin_cos();
+                ellipsoid([x * cs - y * sn, x * sn + y * cs, 0.0], [0.44, 0.17, 1.0]).max(-along)
+            };
             let shape = smin(smin(foot2, leaf, 0.12), lobe, 0.16);
             let half_thick = 0.5 * thick * (0.82 + 0.3 * (-shape / 0.3).clamp(0.0, 1.0));
             let r = 0.2;
@@ -1649,7 +1501,9 @@ impl Basilisk {
             let g = |a: usize, b: usize| self.neck[(j + b) * nx + i + a][c] as f64;
             (g(0, 0) * (1.0 - tx) + g(1, 0) * tx) * (1.0 - tz) + (g(0, 1) * (1.0 - tx) + g(1, 1) * tx) * tz
         };
-        let (painted, outside, s) = (at(0), at(1), at(2));
+        let (outside, s) = (at(1), at(2));
+        // Right behind the head the neck is smooth, so the jowls meet it cleanly; its scales come in over 1.4 mm.
+        let painted = at(3) + (at(0) - at(3)) * smooth(0.8, 2.2, s);
         let (run, level, under) = NECK_RUN;
         let k = 1.5 - 0.65 * smooth(0.5, under, s);
         let _ = level;
@@ -1769,7 +1623,7 @@ fn head_lands(b: &Basilisk, m: &csg::Solid) -> Vec<(String, f64, Option<&'static
     let crown = |f: &dyn Fn(usize) -> P3| (0..FLEURONS.len()).map(|i| chord_land(m, at(f(i)))).fold(f64::MAX, f64::min);
     out.push(("Crown points, the plate at mid-height (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.0, 0.45 * FLEURONS[i].1, 0.0)), None));
     out.push(("Crown points, the leaf's waist under its pearl (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.0, FLEURONS[i].1 - pearl - 0.06, 0.0)), Some("Point's waist under its pearl: investment detail, cast in place and cleaned up with a graver")));
-    out.push(("Crown points, each side lobe (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.72 * FLEURONS[i].2, 0.42 * FLEURONS[i].1, 0.0)), Some("Trefoil's side lobe: investment detail, cast in place")));
+    out.push(("Crown points, each side petal (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.62 * FLEURONS[i].2 + 0.17, 0.4 * FLEURONS[i].1 - 0.18, 0.0)), Some("Fleur's side petal: investment detail, cast in place")));
     out.push(("Crown pearls (sculpted, measured)".to_string(), crown(&|i| b.fleuron_point(i, 0.0, FLEURONS[i].1, 0.0)), None));
     let (fa, _, _) = FANG;
     let (_, lip, _) = GAPE;
@@ -1974,10 +1828,6 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
     let mut e = LayerEntry::new("Tsavorite, flush", Layer::SeatPad(seat));
     e.blend = Blend::Max;
     d.layers.layers.push(e);
-    let alpha = a.paint("Pounced field", |s| if on_table(s) { arms.pounce_depth([s.p[0], s.p[2]]) } else { 0.0 });
-    portable(&mut d, &mut lib, alpha, PIT_DEPTH, face, false, None)?;
-    d.layers.layers.last_mut().unwrap().blend = Blend::Subtract;
-    let (bare, edge, share) = arms.pounce_reach();
     let (crest, steep) = arms.body.profile();
     let composition = json!({
         "stone_mm": STONE, "seat_plan_mm": [SEAT_PLAN.0, SEAT_PLAN.1, SEAT_PLAN.2], "stone_boss_mm": STONE_BOSS, "coil_lap_on_seat_mm": LAP,
@@ -1991,7 +1841,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Vec<V
                      "fleurons": FLEURONS.iter().map(|f| json!({"bearing_deg": f.0, "height": f.1 * HEAD_SCALE, "width_at_band": 2.0 * f.2 * HEAD_SCALE})).collect::<Vec<_>>(),
                      "pearl_diameter": 2.0 * FLEURON_BODY.2 * HEAD_SCALE},
         "serpent_layer_scale_mm": SERPENT_HEIGHT, "serpent_painted_peak_mm": painted_peak,
-        "pit_depth_mm": PIT_DEPTH, "pits": arms.pits.len(), "pit_reach_mm": {"widest_bare_field": bare, "furthest_arm_edge_from_a_pit": edge, "share_of_arm_edge_within_0_4": share},
+        "field": "polished, inside one bead row: the clustered pits of round 4 are gone",
         "bead_height_mm": BEAD_HEIGHT, "beads": arms.beads.len(), "rim_beads": rims.stations.len(),
         "table_points": arms.table.poly.len(), "table_z_mm": [arms.table.lo[1], arms.table.hi[1]], "table_x_mm": [arms.table.lo[0], arms.table.hi[0]],
         "morph_start_along_mm": l70, "morph_end_along_mm": l110, "stock": "020 native unmirrored", "atlas": [AW, ah],
