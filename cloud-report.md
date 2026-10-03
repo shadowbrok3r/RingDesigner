@@ -1,53 +1,144 @@
-# Core: CAD operations that stop failing on Gothic geometry
+# Vepres — Datura (`datura`): cloud report
 
-Branch `claude/core-cad-robust`, off master `8e5a59a`, with master merged in up to `60b3881` (crisp edges, Gothic clusters, frame timing, relief sculpt, true stone plans). One code commit, three merges and this report. The last merge's conflicts were in `twist.rs`, where master's closed and scaled sweep keeps its form and the cap's `fill` takes the label that `cad::draft` and `cad::turn` share, and in CLAUDE.md, where master's twisted-sweep text comes first and the new doctrine bullet follows it.
+**Outcome: stopped at the block-out.** Three read tests, three times `reads: false`. TASK.md says a third failed block-out means
+the subject needs rethinking, not detailing, so no review round was started (0 of 3 rounds used). No extension is recorded in the
+collection doc, so none was taken.
 
-**The rule behind every fix:** each one is a fallback that runs only where the kernel failed. If the kernel already built a body, the core still uses that body, so no existing result moves. The core suite and golden test pass unchanged, and the graph and template tests are below. No new option, no serde field and no format change were needed, so nothing is fenced. `cadkernel` is not forked; every fix is in `cad.rs`, the new `cad/draft.rs` and `cad/turn.rs`, `cad/twist.rs` (two helpers made `pub(super)`) and `sketch/region.rs`.
+Branch `claude/vepres-datura` (merged with master `2e11632`). Head before this report: `e1bd1b3`.
+Ring: `crates/ringdesign-core/examples/vepres_datura.rs`. Outputs: `showcase/vepres/datura/`.
+Build: `cargo build --release -p ringdesign-core --example vepres_datura`. Run: `target/release/examples/vepres_datura [OUT] [--draft] [--verify] [--blockout] [--bare]`.
 
-## Per request
+## Read tests (independent reviewer agents, `target/review.md`, read-test mode)
 
-| # | Request | Status | What changed |
+| # | Commit | reads | What the eye saw |
 |---|---|---|---|
-| 3 | Revolved arcs do not tessellate | **Fixed** | There were two separate defects. (a) "N nonmanifold edges": the kernel covers a revolved arc's torus seam with a zero-width strip, every triangle laid twice, once each way. `tessellate_traced` now removes opposite twin triangles wherever some edge has more than two faces (`cancel_twins`). The volume is unchanged and the body stays the kernel's. (b) "Kernel could not tessellate 1 faces": the kernel drops a torus face (on Ogiva's arch it is the comfort arc), and whether it does depends on the chord (on one arch it failed at 0.04 mm, passed at 0.015 and failed again at 0.012). Retrying cannot be relied on, so a revolve that has arcs and fails to tessellate becomes our own mesh (`cad::turn`). It is sampled at a quarter of the chord, with full and part turns, holes on full turns, and points on the axis shared. |
-| 4 | Drafted extrusion refuses Béziers and inset-dropping outlines | **Fixed** | When the kernel's tapered extrude refuses a region with no holes, `cad::draft` builds it. The outline is walked to the chord, and the far end is a mitred inset that removes each edge as the wavefront collapses it. Each side face is planar. A draft that would carry a notch's root across the outline (a split event) is refused by name: "the draft closes the outline across a neck or notch". |
-| 7 | Brep − Brep gives `NoClosedForm` (`CutRefused` here) | **Fixed** | When `brep::combine` fails, the Boolean goes through `csg` on the operands tessellated at the export chord, the same path a mesh operand already took. The 500-face refusal before the kernel stays as it was. |
-| 2 | Loft through non-parallel sections has open seams | **Fixed** | The kernel splits a ruled face's straight edge where its planar neighbour leaves it whole, so the seam has T-junctions. `split_t_junctions` fans each open edge's triangle through the open corners lying on it, within 1e-6 mm. No vertex moves. |
-| 6 | Loft only runs along the section normal | **Fixed, differently** | Measured: what decides success is the sections' winding relative to the direction the loft runs, not their order. On the probe's fanned planes, the order the report found working has (c1 − c0) · n0 **> 0**, so the literal rule ("reverse when > 0") would reverse the order that works. Instead, when the kernel refuses a polygon loft, `wound_sections` winds every section about the first-to-last centre line and lines each one up with the section before it. Either order now gives the same solid. |
-| 1 | Loft winding read off the first corner | **Fixed** | The same `wound_sections` pass also starts every section together where the first and last sections are convex at their second corner. The kernel's `polygon_normal` reads that corner through the first fan triangle, so it is the one that matters, not the first corner itself. |
-| 5 | Mirrored outlines in one sketch fail the drafted extrude | **Fixed** | Measured cause: the halves overlap or touch at the centre line, and the sketch refuses "loops may nest but not touch". The extrude itself does not fail. Now a **Sketch feature** whose loops meet extrudes each loop alone (straight, kernel-drafted or `cad::draft`) and joins the loops by `csg`. Inline profiles still refuse several loops, as their tests pin. Each loop is drafted on its own, so halves that only touch leave a draft groove along the line where they meet. Overlap them by at least the draft's inset (height × tan(draft)), as Ogiva's `FINIAL_OVERLAP_MM` did. |
+| 1 | `4be75ba` | false | "An urchin or a spiked ball", a chestnut burr or a morning-star mace. Too many long spines hid the egg, and the split and seeds did not register. Cheeks read as bare metal. |
+| 2 | `295a1a2` | false | "Thistle, pine cone, spiky bud". The pointed head read as a closed bud or artichoke, the spines as scales and the seeds as set gems. Serrate leaves in an X read as holly or a thistle badge. Buds invisible. |
+| 3 | `211e6d1` | false | "Chestnut burr, urchin, cracked pod" ("the right family"). The quartered crown read as a hot-cross bun or Celtic boss. The mouth-on trumpet read as a starfish, the bud as a candle flame, the leaves as crumpled foil or bananas. |
 
-Every fallback part is a mesh value, as `cad::twist` is. Fillet, press-pull and sketch-on-face refuse it by name: "a drafted extrusion's mesh", "a revolution's mesh", "a mesh of loops extruded and joined".
+The full JSON, with each reviewer's three changes and acceptance tests, is in `showcase/vepres/datura/read-test-{1,2,3}.json`.
 
-## Tests
+**What moved and what did not.** Each attempt applied the previous reviewer's changes. Attempt 2 brought the 24 short stout spines, the flared lips and the foliage. Attempt 3 brought the round egg, a 2 mm gap 4 mm deep, the trumpet flower and broad unserrated leaves. The read improved from "urchin" to "cracked seed pod / chestnut, the right family". Three things never landed:
+1. **Spine count pulls two ways.** Reviewer 1 asked for fewer, shorter spines (24 to 28, about 1 mm) so the egg shows. Reviewer 3 asked for the full 40 or more at 1.4 to 1.8 mm. A thorn-apple sits between urchin and chestnut, and no single spine density read as datura to both.
+2. **The renderer's top light makes the split floor bright.** Any floor a seed can sit on faces up, so it catches light. The cross read as an inlay, not a dark crack.
+3. **The flower and leaves are small on this table.** Past the frill, the table leaves about 4 to 6.5 mm of run on any bearing. Seen face-on, the trumpet mouth is a star, not a flower.
 
-New tests in `cad::robust_tests` and `cad::draft::tests`, each built from the report's kind of geometry:
+**Recommendation for the rethink.** The signature that names datura is the long white trumpet flower, not the capsule. At 300 px a spined fruit always lands in burr, urchin or chestnut. Build the ring around one large trumpet, 18 to 22 mm, in three-quarter profile: lying along a shoulder, or wrapping the shank, with its mouth flaring past the badge. Keep the capsule as a supporting element at a smaller scale. Alternatively, move to a base with more table (018 Butterfly is the doc's fallback), so the foliage can reach 9 to 10 mm leaves.
 
-- `a_revolved_sketch_arc_closes_and_holds_its_volume` (3a): a domed band section, closed at preview and export, volume within 0.4% / 0.15% of Pappus, and still the kernel's body.
-- `a_pointed_arch_revolves_whole_and_in_part` (3b): Ogiva's arch (comfort arc, jambs, two head arcs). It asserts the kernel's own tessellation still fails, then checks the full turn against a fine-walked Pappus within 0.5% / 0.2%, and the half turn either way within 0.5% of half.
-- `a_brep_cut_the_kernel_refuses_is_resolved_by_csg` (7): a revolved ring less a lancet niche. It asserts `brep::combine` still refuses, then checks the volume against the analytic ring less the niche's foot.
-- `a_loft_through_fanned_sections_closes_listed_either_way` (2, 6): five fanned sections, both orders, preview and export, all closed with identical volumes.
-- `a_loft_section_may_start_on_a_concave_corner` (1): asserts `brep::loft` still refuses, then checks the volume is exactly 10.
-- `mirrored_loops_that_meet_extrude_together` (5): straight volume exactly the union's 9.0, drafted below it, closed.
-- `a_bezier_outline_drafts`, `an_inset_that_drops_a_piece_drafts`, `a_draft_the_kernel_takes_is_still_its_body` (4): each asserts `brep::extrude_tapered` still refuses. Checked: the first-order draft volume, the mirrored run, the collapsed tip (5 far corners), the filled notch on the grown rectangle, the named refusal of a split, and that a draft the kernel accepts stays its body.
+## Process
 
-Reproduced on unmodified master first, with a scratch probe that was not committed: domed revolve "0 open and 16 nonmanifold edges"; arch "Kernel could not tessellate 1 faces"; ring − niche "CutRefused"; Bézier and notch drafts "unsupported or degenerate geometry"; fanned loft "68 open edges" in one order and "unsupported" in the other; overlapping halves "loops may nest but not touch". Tests that cannot fail on master by construction instead assert the kernel's own refusal in place.
+Lost wax on native factory 011 Badge (18 x 20, not mirrored), 18k yellow gold, bore 18.6 mm. Logan's 2026-10-03 rule is recorded in Datura's section of `docs/collections/vepres.md`: judged as lost wax, 0.8 mm minimum section, no pull rule. Sand bonus: not pursued. Spines radiate from a dome, and the field reports a 10% undercut in a two-part pull.
 
-Results:
-- `cargo test -p ringdesign-core`: 848 passed, 0 failed, 16 ignored; golden 1 passed. After merging master up to `60b3881`: 912 passed, 0 failed, 17 ignored; golden and the other integration test both pass.
-- `cargo test -p ringdesign-graph` (templates byte for byte, showcase, bestiarium, imported bases, cad edits): all passed before the merges (140) and after them (152, including the new `gothic_clusters`), 0 failed.
+## Gates (final block-out, attempt 3 geometry, `--blockout --verify`)
 
-**Merge note.** Master (from `779a3d6`) brought its own seam repair, `zip_chord_seams`, which splits open edges at the other side's samples within the chord. The merged `tessellate_traced` runs master's `stitch_chord_gaps` and then `zip_chord_seams` exactly as master does. Only what those two leave open goes on to `cancel_twins` and `split_t_junctions`, followed by one more stitch. So whatever master's pass already closes is closed byte for byte as master closes it, and my passes see only what it cannot close: the doubled seams, and T-junctions it reverts.
+Every gate is green at draft (768 x 320) and at export (1536 x 448).
 
-## For a ring author
+| Gate | Draft | Export |
+|---|---|---|
+| Watertight, degenerate faces, self-crossings, shells | yes, 0, 0, 1 | yes, 0, 0, 1 |
+| Self-crossings on every made part (40 features) | 0 | 0 |
+| `solids.notes`, `parts.notes`, features not `Ok` | empty, empty, none | empty, empty, none |
+| Nothing in the finger hole: least margin to the bore | -9e-8 mm (the bore itself) | same |
+| Lost-wax verdict, thinnest wall (field) | Castable, 1.58 mm | Castable, 1.58 mm |
+| DFM findings | 0 | 0 |
+| Stones reported / previewed, metal in stones, seat warnings | 8 / 8, none, none | 8 / 8, none, none |
+| Triangles (budget 2 M) | 339,170 | 339,170 |
+| Casting pattern (`try_build_pattern`) | n/a | watertight, 0 degenerate, 0 crossings |
+| `--verify` cold reload, empty library | n/a | identical vertices, faces, normals |
 
-Draw what you mean and stop working around the kernel:
+Weight: 33.9 g in 18k (the capsule alone is about 500 mm³). Design format 6, 4.03 MB.
 
-- **Revolves:** use real sketch arcs, not chord-walked polylines.
-- **Drafted extrusions:** Béziers and sharp crocket tips are fine. A draft that would close a neck is refused by name; draft less or widen the neck.
-- **Mirrored outlines:** they may share one Sketch feature. Overlap the halves by at least height × tan(draft), or a groove stays where they meet.
-- **Lofts:** list fanned sections in either order, and start a section on any corner.
-- **Booleans:** a Brep minus a Brep the kernel cannot close now resolves through csg.
+Notes on the numbers:
+- **Triangle count.** It is the same at both resolutions because the imported stock and the stored meshes do not depend on the band's theta and profile steps.
+- **Crowding census.** It lists each split's seed pair at 0.46 mm at the girdle and 0.36 mm deep, and adjacent inner seeds at 0.58 / 0.50 mm. Explained: two 1.5 mm seeds share one 2 mm split arm by design. No pair touches and no metal enters a stone.
+- **Thin details.** Spine tips are 0.32 mm across (lost-wax detail floor 0.15). The trumpet wall is 0.85 mm. The leaf margins stand 0.16 mm proud of the table. These are detail, judged at the detail floor; the field's 1.58 mm is the section gate.
 
-Each of these comes back as a mesh rather than a kernel body only where the kernel failed. So fillet before the step that falls back, not after it, and check `Value::mesh_words` in any refusal you see.
+## Template gate
 
-What remains: a part turn of a section with holes that the kernel cannot tessellate is still refused. A revolve with arcs now pays one extra tessellation in `body_for`, about the cost of one tessellation, so up to about 0.6 s at export on a large arch.
+Run with `collection_templates vepres … --only datura --verify-export`, as class `procedural` and as class `stock`:
+- **`design.set` patches:** 1 (`/manufacturing`).
+- **Nodes:** 74, with 0 exposed controls.
+- **Cold source:** identical, through the lift. Cold graph reload and editable reload pass.
+- **Export mesh parity:** vertices, faces and normals identical at 1536 x 448, 339,170 triangles.
+- **Size:** 4,053,828 bytes, against a budget of 300 KB (procedural) or 1 MB (stock). It is over the 3 MB flag, so **`template_gate_passed: false`**.
+- **Open:** first build 3.4 s.
+
+The weight is the stored meshes: the capsule (about 258k triangles), four leaves, the flower and the bud, each packed into the graph. See core change 2.
+
+## CAD feature tree, as sentences
+
+1. **Badge** is the procedural band, carrying factory 011.
+2. **Thorn-apple capsule** is a stored mesh seated by `Placement::Ring` at 90° on the table's centre and joined (cast). It is one closed solid in the capsule's own frame, made of four pieces:
+   - a 4.5 mm egg, blunt-crowned at 9 mm, sunk 0.9 mm into the table;
+   - a five-lobed reflexed calyx frill (r 4.9) with its fillet modelled into its edge;
+   - four V-section splits holding a 2 mm clear gap, running 4 mm deep under the crown, with lips flared 0.5 mm;
+   - 24 Poisson-scattered conical spines, 0.9 to 1.1 mm long, 0.84 mm at the root and 0.32 mm at the tip, kept 0.8 mm clear of every lip and unioned by `csg::union_all`.
+3. **Datura leaves 1 to 4** are stored meshes, `Placement::Relative` to the capsule and joined. They lie at bearings 35°, 150°, 228° and 345°, from 3.3 mm out, up to 8.6 mm long and 6 mm wide. Each is a sculpted pillow solid:
+   - a domed two-slope top, highest on a raised midrib;
+   - a side vein into each lobe;
+   - a sinuate margin of irregular rounded lobes, standing 0.16 mm proud;
+   - a blade that curls down past the table's edge.
+4. **Datura flower** is a stored mesh, Relative to the capsule and joined. It is an open trumpet 10.6 mm long on bearing 300°, toward the hero camera:
+   - a five-ribbed calyx tube;
+   - a shelled bell with a 0.85 mm wall, flaring to a 6.4 mm mouth pleated into five points;
+   - a bend of 30° up off the table from 5.8 mm along it.
+5. **Datura bud** is a stored mesh, Relative and joined: a furled corolla 8 mm long on bearing 100°, spiral-twisted shut to a point.
+6. **Seed pads 1 to 8** are kernel cylinders (r 0.98, h 1.0), each Relative to the capsule with its axis turned onto its split floor's normal by `rotation_deg`, joined, and standing 0.05 mm proud.
+7. **Seeds 1 to 8** are black spinel round 1.5 mm stones (tint 0.03, 0.03, 0.04). Each sits on its pad's top planar face through a `FaceSeat`, two per split arm.
+8. **Seed seat 1 to 8** are `seat.bur` cuts (cast).
+9. **Seed thorns 1 to 8** are `head.claw` heads with 3 prongs, `style: Thorn`, `tip: Point` and `rails: None`. They ground on the pad, so their legs stay short instead of running down to the table.
+
+## Enablers used from master
+
+- **C-V1 `Placement::Relative`** (and the new `level` field). Once it landed, the capsule seats by `Ring` and the leaves, flower, bud and pads all follow it, so the head follows a resize. Built `Free` until then.
+- **P6 claw styles** (`Thorn`).
+- **#248 render API:** `write_png_framed`, `yaw_facing`, `Framing` for the close-ups.
+
+Not used: C-B2 and #257 (round stones only), #255 (no lettering), #258 and #259 (the forms are stored meshes), `crisp_relief` and `StampTop::Pillow` (no height-field relief or stamps). C-V2 to C-V5 and C-T5 to C-T7: none were needed by what was built.
+
+## What I could not do
+
+- **The read.** See above.
+- **The doc's CAD recipe as written.** It called for a Revolve capsule, an Extrude slot cut and `About` spine arrays. The reviewers' shape changes (wedge splits that gape, flared lips, scattered spines) needed a sculpted parametric surface, so the capsule is one stored mesh. The template therefore carries meshes rather than editable features.
+- **The template budget.** See core change 2.
+- **Leaves on the cheeks.** The 011 side walls are 3 mm tall, so the leaves sit on the table and curl over its edge.
+
+## Core changes wanted (exact code)
+
+**1. Setting builders ground on the part their stone stands near, not only the band.** `cad.rs`, `build_made`: a claw or bezel on a stone placed above a joined part reaches past it to the table. I worked around it with kernel seat pads. Change:
+
+```rust
+// after: grounds.extend(on.and_then(|stone| stood_on(doc, stone, values)).map(|mesh| Ground::new(&mesh, &frame, reach, below)));
+if spec.on_stone {
+    for (id, v) in values.iter() {
+        let joined = doc.feature(*id).is_some_and(|f| f.component.attach == Attach::Join && f.component.stage == Stage::Cast);
+        if let (true, Value::Mesh(m)) = (joined, v) {
+            grounds.push(Ground::new(&m.mesh(), &frame, reach, below));
+        }
+    }
+}
+```
+
+**2. Stored meshes weigh the template down.** Pack `stored::Packed` with a quantised, delta-coded and deflated vertex stream, which takes it from about 24 bytes per vertex to about 6:
+
+```rust
+// cad/stored.rs
+pub fn encode_compact(v: &[[f64; 3]], f: &[[u32; 3]], quantum_mm: f64) -> Packed {
+    let q: Vec<i32> = v.iter().flatten().map(|x| (x / quantum_mm).round() as i32).collect();
+    let deltas: Vec<i32> = q.chunks(3).scan([0i32; 3], |p, c| { let d = [c[0] - p[0], c[1] - p[1], c[2] - p[2]]; *p = [c[0], c[1], c[2]]; Some(d) }).flatten().collect();
+    Packed::deflated(quantum_mm, &deltas, f)
+}
+```
+
+Alternatively, add a `Stored` recipe that regenerates from its parameters through a registered example kernel.
+
+**3. Crease-aware normals in `render::finished_from`.** After a union, the table's large triangles share vertex normals with the joined parts' seams, so flat faces smear. My example re-normals the render mesh with a 35° crease (`creased()` in the example). Suggested in core:
+
+```rust
+pub fn finished_from(design: &crate::RingDesign, lib: &crate::AlphaLibrary, built: crate::BuildResult) -> Finished {
+    let stones = crate::gems::built_meshes(design, lib, &built);
+    Finished { metal: crate::mesh::creased(&built.mesh, 35.0), stones }
+}
+```
+
+#248 may already cover this; I have not re-checked without it.

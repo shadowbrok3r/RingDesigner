@@ -1,0 +1,49 @@
+{
+  "authoring_ms": {
+    "graph_creation": 51.380201,
+    "source_read": 28.227095000000002
+  },
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "design_set_patches": [
+    {
+      "graph": "Datura — the thorn-apple",
+      "node": 113,
+      "pointer": "/manufacturing"
+    }
+  ],
+  "detail_findings": 0,
+  "editable_design_bytes": 4108688,
+  "editable_graph_reload": true,
+  "export_geometry_verified": true,
+  "exposed_control_policy": "explicit_allowlist",
+  "exposed_controls": [],
+  "geometry_check_resolution": {
+    "profile_steps": 448,
+    "refine": null,
+    "theta_steps": 1536
+  },
+  "nodes": 74,
+  "open_ms": {
+    "bake": 0.015895,
+    "bake_again": 0.000328,
+    "detail": 1.238761,
+    "detail_again": 0.9818570000000001,
+    "evaluate": 39.900728,
+    "first_build": 3426.7479019999996,
+    "read": 1.681606,
+    "rebuild": 6.376787,
+    "unpack": null,
+    "verdict": 26.030087
+  },
+  "size_budget_bytes": 1000000,
+  "size_review_required": true,
+  "source_identical": true,
+  "source_method": "lift",
+  "template_bytes": 4053828,
+  "template_class": "stock",
+  "template_gate_passed": false,
+  "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
+  "triangles": 339170,
+  "vertices_faces_normals_identical": true
+}
