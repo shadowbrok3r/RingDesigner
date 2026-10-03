@@ -179,11 +179,11 @@ const CORNER_DEG: f64 = 19.0;
 /// The fangs' bearing round the moon, degrees from +x.
 const FANG_DEG: f64 = 73.4;
 /// The stop, where the muzzle leaves the brow, and the nose leather's centre, face `u`: a wolf's long muzzle.
-const STOP_U: f64 = 6.9;
+const STOP_U: f64 = 7.3;
 const NOSE_U: f64 = 0.95;
 /// Each ear's base and tip, face `x`, `u`, `h` (right side).
-const EAR_BASE: P3 = [3.75, 8.35, 1.35];
-const EAR_TIP: P3 = [5.3, 11.9, 2.45];
+const EAR_BASE: P3 = [3.75, 8.6, 1.35];
+const EAR_TIP: P3 = [5.3, 12.1, 2.45];
 
 /// A point `rho` from the moon's axis, `deg` from +x toward +u, at height `h`.
 fn rim(rho: f64, deg: f64, h: f64) -> P3 {
@@ -285,11 +285,11 @@ fn upper_lip(deg: f64) -> [f64; 4] {
     let a = (90.0 - (90.0 - deg).abs()).clamp(CORNER_DEG, 90.0);
     spline(
         &[
-            (CORNER_DEG, [6.2, 1.35, 0.9, 0.8]),
-            (25.0, [6.45, 1.6, 1.05, 0.85]),
-            (34.0, [6.85, 1.9, 1.2, 0.9]),
-            (47.0, [7.05, 2.15, 1.25, 0.95]),
-            (61.0, [6.65, 2.4, 1.15, 0.95]),
+            (CORNER_DEG, [5.95, 1.35, 1.0, 0.85]),
+            (25.0, [5.95, 1.6, 1.1, 0.9]),
+            (34.0, [5.95, 1.85, 1.15, 0.9]),
+            (47.0, [5.95, 2.05, 1.15, 0.95]),
+            (61.0, [5.95, 2.3, 1.1, 0.95]),
             (FANG_DEG, [6.1, 2.75, 1.05, 0.95]),
             (82.0, [5.95, 2.35, 0.9, 0.9]),
             (90.0, [5.95, 2.25, 0.85, 0.85]),
@@ -356,9 +356,9 @@ fn cheek_fur(s: P3) -> f64 {
         let (along, across) = (s[0] * cx + s[1] * cu, -s[0] * cu + s[1] * cx);
         flames(along + shift, across, pitch, length, 0.12, 0.3, seed, &grooved_lock(pitch)).h
     };
-    let low = tier((0.85, 0.55), 1.45, 3.8, 5, 0.0) * (1.0 - smooth(0.6, 2.2, s[1]));
-    let mid = tier((0.6, 0.8), 1.35, 3.6, 11, 0.7) * smooth(0.6, 2.2, s[1]) * (1.0 - smooth(3.4, 4.8, s[1]));
-    let high = tier((0.35, 0.94), 1.25, 3.2, 23, 1.3) * smooth(3.4, 4.8, s[1]);
+    let low = tier((0.85, 0.55), 1.85, 4.2, 5, 0.0) * (1.0 - smooth(0.6, 2.2, s[1]));
+    let mid = tier((0.6, 0.8), 1.75, 4.0, 11, 0.7) * smooth(0.6, 2.2, s[1]) * (1.0 - smooth(3.4, 4.8, s[1]));
+    let high = tier((0.35, 0.94), 1.6, 3.6, 23, 1.3) * smooth(3.4, 4.8, s[1]);
     smax(smax(low, mid, 0.3), high, 0.3)
 }
 
@@ -366,7 +366,7 @@ fn cheek_fur(s: P3) -> f64 {
 /// point, which the flame's narrowing draws to a tip.
 fn grooved_lock(pitch: f64) -> impl Fn(f64, f64, f64) -> f64 {
     move |t, q, half| {
-        let across = (q * PI * 0.5).cos().max(0.0).powi(2) * (1.0 - 0.22 * (-(q / 0.38).powi(2)).exp());
+        let across = (q * PI * 0.5).cos().max(0.0).powi(2) * (1.0 - 0.15 * (-(q / 0.4).powi(2)).exp());
         let rise = (0.35 + 0.65 * smooth(0.0, 0.5, t)) * smooth(0.0, 0.2, t) * (1.0 - smooth(0.72, 1.0, t));
         // Lowered where it narrows, so the point is drawn by its outline and never stands up as a blade.
         across * rise * (half / (0.45 * pitch)).min(1.0).powi(2)
@@ -479,6 +479,10 @@ impl Wolf {
             let mirror = |deg: f64| if sx > 0.0 { deg } else { 180.0 - deg };
             for (jaw, sign, lip) in [("upper", 1.0, upper_lip as fn(f64) -> [f64; 4]), ("lower", -1.0, lower_lip as fn(f64) -> [f64; 4])] {
                 for (name, a, kind) in [("incisor", 86.0, incisor), ("second incisor", 80.3, incisor2), ("premolar", 61.5, premolar), ("second premolar", 50.5, premolar2), ("carnassial", 38.5, carnassial), ("molar", 27.0, molar)] {
+                    // Behind the canine the upper flew hangs over the cheek teeth, so only the lower row shows them.
+                    if sign > 0.0 && a < FANG_DEG {
+                        continue;
+                    }
                     let deg = sign * a;
                     let edge = lip(deg)[0];
                     // Rooted on the stone's side of the gum, standing nearly upright, so a clear gap of 0.35 mm and more
@@ -546,24 +550,24 @@ impl Wolf {
         let sec = [s[0], dot(ps, b)];
         // A wedge tapering from the stop to the nose, its sides sloping straight down to the lips and its top a plane that
         // runs straight to the leather.
-        let body = trapezoid(sec, lerp(2.6, 1.55, tc), lerp(0.95, 0.55, tc), lerp(1.4, 1.15, tc)) - 0.18;
+        let body = trapezoid(sec, lerp(2.6, 1.55, tc), lerp(1.0, 0.45, tc), lerp(1.4, 1.15, tc)) - 0.3;
         smax(body, (t - 1.0) * l, 0.3).max(-t * l - 1.2)
     }
     /// The nose's frame: its top running on from the bridge, its front turned down toward the moon.
     fn nose_frame(s: P3) -> P3 {
-        turn(sub(s, [0.0, NOSE_U, 3.35]), 1, 2, 22.0)
+        turn(sub(s, [0.0, NOSE_U, 3.55]), 1, 2, 22.0)
     }
     /// The nose: a wedge of leather seen from over the face, 1.96 mm across its back and 1.1 mm across its front,
     /// rounded 0.3 mm all round, standing clear of the bridge; under it the philtrum carries it down into the lip.
     fn nose(s: P3) -> f64 {
         let p = Self::nose_frame(s);
-        let plan = trapezoid([p[0], p[1]], 0.55, 0.98, 0.62);
+        let plan = trapezoid([p[0], p[1]], 0.85, 1.4, 0.62);
         let w = [plan + 0.42, p[2].abs() - 0.45 + 0.42];
         // Rounded 0.42 mm all round and domed, so the pad reads as leather rather than a block.
         let wedge = len([w[0].max(0.0), w[1].max(0.0), 0.0]) + w[0].max(w[1]).min(0.0) - 0.42;
-        let pad = smin(wedge, ellipsoid(sub(p, [0.0, 0.05, 0.05]), [0.86, 0.66, 0.5]), 0.3);
+        let pad = smin(wedge, ellipsoid(sub(p, [0.0, 0.05, 0.08]), [1.3, 0.72, 0.6]), 0.3);
         // The philtrum, and a web under the pad's back that closes the crease between nose and lip.
-        let philtrum = smin(ellipsoid(sub(s, [0.0, NOSE_U - 0.28, 2.62]), [0.62, 0.42, 0.55]), ellipsoid(sub(s, [0.0, NOSE_U + 0.1, 2.65]), [1.0, 0.6, 0.4]), 0.3);
+        let philtrum = smin(ellipsoid(sub(s, [0.0, NOSE_U - 0.28, 2.7]), [0.75, 0.42, 0.6]), ellipsoid(sub(s, [0.0, NOSE_U + 0.1, 2.75]), [1.3, 0.6, 0.45]), 0.3);
         smin(pad, philtrum, 0.5)
     }
     /// A lip at the query's bearing: a rolled flew of the width and thickness `lip` gives, its section an ellipse
@@ -691,7 +695,7 @@ impl Wolf {
         let over = self.stock.at([f[0], f[2] + self.table, -f[1]]);
         // Along the flanks the fur runs a little further down the fillet toward the stock, where the ruff takes it up.
         let flank = smooth(6.2, 8.2, f[0].abs()) * smooth(-3.5, -1.5, f[1]) * smooth(-1.8, -0.8, f[2]);
-        smooth(lerp(0.1, 0.0, flank), lerp(0.6, 0.25, flank), over)
+        smooth(lerp(0.1, -0.1, flank), lerp(0.6, 0.15, flank), over)
     }
     /// The fur's relief at face point `q`, mm: cheeks and jowls flowing up and out toward the ears, the crown flowing back
     /// between the ears, the throat flowing down the apex wall; none on the lips, round the eyes, on the muzzle or ears,
@@ -733,7 +737,7 @@ impl Wolf {
         let off_lips = smooth(lip + lerp(0.1, 0.0, behind), lip + lerp(1.3, 0.8, behind), rho).max(smooth(CORNER_DEG, CORNER_DEG - 7.0, ang.abs()));
         let off_face = off_lips * smooth(1.8, 3.4, fs[0]) * smooth(1.3, 2.7, (fs[0] - Self::EYE.0).hypot(fs[1] - Self::EYE.1));
         let cheeks = 0.38 * cheek_fur(fs) * off_face * (1.0 - smooth(STOP_U - 1.9, STOP_U + 0.3, fs[1])) * smooth(MOON_U - 1.5, MOON_U + 1.0, fs[1]);
-        let jaw = 0.2 * jaw_fur(fs) * off_lips * (1.0 - smooth(MOON_U - 0.5, MOON_U + 1.5, fs[1])) * smooth(-1.4, -0.6, fs[2]);
+        let jaw = 0.12 * jaw_fur(fs) * off_lips * (1.0 - smooth(MOON_U - 0.5, MOON_U + 1.5, fs[1])) * smooth(-1.4, -0.6, fs[2]);
         let crown = 0.26 * crown_fur(f) * smooth(STOP_U - 0.1, STOP_U + 1.3, fs[1]) * (1.0 - smooth(3.0, 4.6, fs[0])) * smooth(-0.4, 1.0, fs[2]) * smooth(0.1, 1.0, Self::ear(fs));
         // The throat's locks run up over the jaw fur's lower edge by a millimetre, so no line parts them.
         let throat = 0.26 * throat_fur(f) * smooth(0.4, -0.5, fs[2]) * (1.0 - smooth(MOON_U - 5.0, MOON_U - 3.5, fs[1]));
@@ -784,8 +788,10 @@ impl Wolf {
         }
         // Comma nostrils: a pit at each lower corner of the pad, curling up and out along its side.
         let nf = Self::nose_frame(s);
-        let nostril = smin(ellipsoid(sub(nf, [0.2, -0.66, -0.12]), [0.13, 0.07, 0.1]), ellipsoid(turn(sub(nf, [0.3, -0.6, -0.14]), 0, 1, 35.0), [0.14, 0.05, 0.07]), 0.05);
+        let nostril = smin(ellipsoid(sub(nf, [0.34, -0.66, -0.12]), [0.17, 0.09, 0.12]), ellipsoid(turn(sub(nf, [0.48, -0.6, -0.14]), 0, 1, 35.0), [0.18, 0.07, 0.09]), 0.06);
         d = smax(d, -nostril, 0.08);
+        // The leather stands off the bridge behind a crease, so the nose reads as its own pad.
+        d += 0.16 * near * sculpt::bell(q[1], NOSE_U + 0.78, 0.16) * (1.0 - smooth(1.1, 1.6, s[0])) * smooth(2.9, 3.3, q[2]);
         // The groove down the middle of the pad and on under it.
         d += 0.07 * near * (-(s[0] / 0.2).powi(2)).exp() * smooth(NOSE_U + 0.5, NOSE_U + 0.1, s[1]) * smooth(NOSE_U - 0.35, NOSE_U - 0.1, s[1]);
         // Eyes sunk under the brows: a slanted pocket whose upper rim is the brow, a ball low in it.
@@ -978,7 +984,7 @@ const RUFF_MM: f64 = 0.6;
 /// How far the ruff's rows beside the head lean back toward the ears, degrees.
 const RUFF_LEAN_DEG: f64 = 42.0;
 /// Out along the shoulders each lock still sweeps this far off the band's line, so the rows never stand as a comb.
-const RUFF_SWEEP_DEG: f64 = 24.0;
+const RUFF_SWEEP_DEG: f64 = 20.0;
 const GLEIPNIR_MM: f64 = 0.6;
 const BINDING_MM: f64 = 0.5;
 const HAIR_LINES_MM: f64 = 0.08;
@@ -1042,7 +1048,7 @@ fn stone_and_fangs(d: &mut RingDesign) -> Result<()> {
     let gem = moonstone();
     let doc = d.cad.get_or_insert_with(Document::default);
     doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
-    let placement = Placement::Ring { theta_deg: 90.0, across_mm: -MOON_U, height_mm: builders::stand_off_mm(builders::CLAW, gem) + MOON_LIFT_MM, spin_deg: 90.0, tilt_deg: MOON_TILT_DEG, cant_deg: 0.0 };
+    let placement = Placement::Ring { theta_deg: 90.0, across_mm: -MOON_U, height_mm: builders::stand_off_mm(builders::CLAW, gem) + MOON_LIFT_MM, spin_deg: 90.0, tilt_deg: MOON_TILT_DEG, cant_deg: 0.0, level: false };
     doc.append(builders::stone_feature(2, gem, placement))?;
     let mut fangs = builders::feature_on(3, "Fangs", builders::CLAW, 2, json!({"prongs": 4, "wire_mm": FANG_WIRE_MM, "rails": "None", "style": "Fang", "grouping": "Jaws", "tip": "Point", "rise": FANG_RISE}));
     fangs.component.attach = Attach::Join;
@@ -1520,7 +1526,7 @@ fn sculpted_lock(pitch: f64) -> impl Fn(f64, f64, f64) -> f64 {
 fn fur(along: f64, across: f64) -> (f64, f64) {
     // Overlapping locks join by a soft maximum a third of the relief wide, so no shingle leaves a terrace on the one
     // under it; the hair lines keep to the crown of the lock that leads and die where it meets another.
-    let f = flames(along, across, 1.5, 5.5, 0.3, 0.3, 17, &painted_lock);
+    let f = flames(along, across, 1.6, 7.5, 0.2, 0.3, 17, &painted_lock);
     let lines = 0.5 - 0.5 * (2.0 * PI * f.across * f.half / 0.22).cos();
     let hair = lines * smooth(0.45, 0.75, f.h) * smooth(0.45, 0.65, f.half) * smooth(0.15, 0.35, f.lead) * (1.0 - smooth(0.55, 0.8, f.across.abs()));
     (0.1 + 0.9 * smin(f.h, 1.0, 0.15), hair)
@@ -1700,6 +1706,29 @@ fn fold_sites(d: &RingDesign, lib: &AlphaLibrary) -> Result<Vec<P3>> {
     Ok(out)
 }
 
+/// A Gaussian blur of `sigma` texels, wrapping round the ring and clamped across the band.
+fn blur_alpha(a: &mut Alpha, sigma: f64) {
+    let (w, h) = (a.width, a.height);
+    let k = (3.0 * sigma).ceil() as i64;
+    let wt: Vec<f64> = (-k..=k).map(|d| (-0.5 * (d as f64 / sigma).powi(2)).exp()).collect();
+    let sum: f64 = wt.iter().sum();
+    let src = a.data.clone();
+    let along: Vec<f32> = (0..w * h)
+        .into_par_iter()
+        .map(|c| {
+            let (x, y) = ((c % w) as i64, c / w);
+            (-k..=k).zip(&wt).map(|(d, t)| t * src[y * w + (x + d).rem_euclid(w as i64) as usize] as f64).sum::<f64>() as f32 / sum as f32
+        })
+        .collect();
+    a.data = (0..w * h)
+        .into_par_iter()
+        .map(|c| {
+            let (x, y) = (c % w, (c / w) as i64);
+            (-k..=k).zip(&wt).map(|(d, t)| t * along[(y + d).clamp(0, h as i64 - 1) as usize * w + x] as f64).sum::<f64>() as f32 / sum as f32
+        })
+        .collect();
+}
+
 /// A painted alpha stored as portable 16-bit PNG and shown as one tile over the chart.
 fn portable(d: &mut RingDesign, lib: &mut AlphaLibrary, mut alpha: Alpha, height: f64, win: Window, bench: bool) -> Result<()> {
     let name = alpha.name.clone();
@@ -1760,7 +1789,10 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Wolf)
             ((lock * (1.0 - apex)).max(down * apex), (line * (1.0 - apex)).max(down_line * apex))
         };
         // The fold room caps the relief by a soft minimum, so where it bites the lock rounds over instead of flattening.
-        let ruff = a.paint("Ruff", |s| smin(pelt(s).0 * clear(s), room[s.i] / RUFF_MM, 0.15).max(0.0));
+        let mut ruff = a.paint("Ruff", |s| smin(pelt(s).0 * clear(s), room[s.i] / RUFF_MM, 0.15).max(0.0));
+        // Each texel reads the lock that wins at its own point, so where two locks meet the crease between them aliases
+        // into a saw-tooth one texel deep; a blur of a texel and a half takes it out and leaves the locks' shapes.
+        blur_alpha(&mut ruff, 1.5);
         portable(d, &mut lib, ruff, RUFF_MM, window(90.0, 262.0), false)?;
         let hair = a.paint("Graver's hair lines", |s| pelt(s).1 * clear(s));
         portable(d, &mut lib, hair, HAIR_LINES_MM, window(90.0, 262.0), true)?;
@@ -1807,7 +1839,7 @@ fn author(params: BuildParams) -> Result<(RingDesign, AlphaLibrary, Value, Wolf)
     d.layers.layers.push(e);
     let (bw, bh) = (3.2, (v1 - v0) * 0.98);
     d.svgs.push(SvgAlpha { name: "Gleipnir binding".into(), svg: binding_svg(bw, bh, squash), invert: false });
-    let mut knots = DecalLayer { alpha: "Gleipnir binding".into(), decals: Vec::new(), feather_mm: 0.2, invert: false };
+    let mut knots = DecalLayer { alpha: "Gleipnir binding".into(), decals: Vec::new(), feather_mm: 0.35, invert: false };
     for theta in [236.0, 304.0] {
         knots.decals.push(Decal { theta_deg: theta, v_mm: 0.5 * (v0 + v1), size_mm: bw, rotation_deg: 0.0, height_mm: BINDING_MM, flip: false });
     }
