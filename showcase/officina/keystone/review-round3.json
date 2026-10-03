@@ -1,0 +1,70 @@
+{
+  "ring": "Keystone",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.8,
+  "summary": "Round 3 fixes two things and leaves the three that matter. Fixed: the table now shades as one flat tone, so the fan triangles from round 2 are gone. The rim chamfer is down to 0.18 mm and shows as a fine bright line in hero.png and stones.png. Worst draft is -0.75 deg (it was -0.97). Every gate the JSON records is green. Still wrong, for the third round running: (1) The washer and moat at the foot are still there. face.png shows a light rounded-rectangle lip, a dark moat inside it, then the drafted wall. stones.png shows the boss standing in a sunk pocket, with a hard outer wall on the right end and a stepped, jagged edge at the pocket's top-right corner. hero.png and bare-vs-finished.png show a plinth wider than the boss. (2) The facet is now four mirrored quarters. They make a sunk four-sided pyramid with its long axis round the ring. In hero-300 and hero.png one dark half and one light half read as a left-pointing arrow, the motif Logan rejected. In face.png and stones.png it reads as an envelope or a pyramid stud, which is exactly what round 2's acceptance test ruled out. (3) The lesson has grown from 8 features to 11. Frames 8 to 10 of timeline.png show near-invisible slivers, and frame 11 shows one bright triangle that does not match the four-tone pyramid in the finished renders. Frames 4 and 5 still look the same height. reverse.png still shows a two-tier bolt-head profile. The cartouche still reads, so the idea survives, but this is not a finished piece at the Caiman bar, and it is not a clear lesson. Round 3 is below 7.5, so the verdict is cut.",
+  "strengths": [
+    "The one idea reads at 300 px: a raised, drafted rectangular tablet with rounded corners on a plain squared band. The theme runs face to palm, with nothing scattered.",
+    "Table tone is now even (round 2 punch #2 fixed). The 0.18 mm chamfer gives a single fine bright rim line in hero.png and stones.png.",
+    "Band edges are broken and the band no longer reads as cut sheet (palm.png). side.png shows a clean, true band with the tablet standing square at the crest.",
+    "report.json verdict_cause is a model explanation of 'castable with care': it gives drag on the bare band, the cartouche's vertical share, and the domed-band control.",
+    "Every gate is green and recorded, including cold reload, the template gate (1 patch) and the casting pattern."
+  ],
+  "checklist": [
+    {"item": "One idea face to palm, reads at 300 px without caption", "result": "pass", "reason": "hero-300 and face-300 read as a cartouche or plaque band. The facet weakens the read (it looks like an arrow or envelope), but it does not replace it."},
+    {"item": "Finished piece a jeweller would sell; parts meet the band with seam beads", "result": "fail", "reason": "The tablet stands in a sunk pocket with an outer lip (face.png, stones.png). It looks set into a recess, not grown from the band. The four-quarter facet looks like an icon, not a bright-cut."},
+    {"item": "No flat, blocky or mechanical CAD", "result": "fail", "reason": "reverse.png and shoulder.png still show a two-tier, bolt-head boss. The pocket wall is a hard step. The facet is a mechanical four-way mirror."},
+    {"item": "Outlines crisp, no combing or stair-steps", "result": "fail", "reason": "stones.png shows a stepped, jagged edge at the top-right corner of the foot pocket and a wavy pocket rim on the near side. face.png shows a wavy moat outline along the top and bottom."},
+    {"item": "Stones in made settings", "result": "pass", "reason": "Not applicable: no stones. The report records 0 previewed and 0 reported."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "result": "pass", "reason": "Not applicable: the base is Flat 6.0 x 2.0, not factory stock. The squared section reads in side.png."},
+    {"item": "Lesson legible in timeline.png, one visible step per feature, short sensible order", "result": "fail", "reason": "11 features against the spec's 8. Frames 4 and 5 look the same height. Frames 8, 9 and 10 add slivers that are barely visible. Frame 11 shows one bright triangle that does not match the finished four-tone pyramid."},
+    {"item": "Silhouette distinct from other Officina rings and the starters", "result": "pass", "reason": "A flat band with a drafted rectangular boss is distinct from the Court band, the signets and the other lessons."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces", "claimed": "watertight true, 0 degenerate, 0 boundary/non-manifold edges", "verified": "report.json gates", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "mesh_self_crossings 0; made_parts all 0", "verified": "report.json gates.made_parts", "pass": true},
+    {"gate": "solids notes empty", "claimed": "solids_notes [] and parts_notes []", "verified": "report.json", "pass": true},
+    {"gate": "Every CAD feature Ok", "claimed": "11 of 11 Ok", "verified": "gates.features", "pass": true},
+    {"gate": "Nothing inside finger hole", "claimed": "inside_finger_hole 0; closest_to_axis 9.100 mm vs bore r 9.1", "verified": "report.json", "pass": true},
+    {"gate": "Sand field verdict (Keystone exemption: castable with care, explained)", "claimed": "Castable with care, 31.2% drag", "verified": "verdict_cause.lesson explains the zero-draft top and end walls, gives the bare-band control (30.2%) and the domed control (Castable to Castable with care). The 0.015 mm^2 at -0.75 deg is attributed to tessellation.", "pass": true},
+    {"gate": "Ray release 0 obstructions, 0 unresolved at 0.100 and 0.075 mm", "claimed": "0 and 0 at both pitches, fits flask", "verified": "gates.release", "pass": true},
+    {"gate": "Lost-wax thickness and cut_lands", "claimed": "thickness_below 0; cut_lands lists one 0.00 mm land on Cut #8", "verified": "This ring is Delft sand, so the lost-wax gate does not bind. The 0.00 mm land between mirrored facet copies is still worth clearing if the ring is ever poured in wax.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "dfm_findings []", "verified": "report.json", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "0 = 0", "verified": "report.json", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "gates.cold_reload_identical (the draft block records null; the final gates record true)", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "1,344,544", "verified": "within_2m_triangles true", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "watertight, 0 degenerate, 0 self-crossings, 1,344,484 tris", "verified": "gates.pattern", "pass": true},
+    {"gate": "Template gate: at most 4 design.set patches within class budget", "claimed": "1 patch (/manufacturing), 127 KB of 300 KB procedural, parity true", "verified": "template_gate.passed true", "pass": true}
+  ],
+  "punch_items_from_earlier_rounds": [
+    {"source": "R1#1 / R2#1 foot washer and moat", "status": "not fixed", "evidence": "face.png still shows the lip and moat. stones.png shows the pocket with a hard outer wall."},
+    {"source": "R1#2 / R2#4 hex-nut tier and chamfer undercut", "status": "partly fixed", "evidence": "The chamfer is 0.18 mm and worst draft is -0.75 deg (passes >= -1). The fillet was tried at 0.15 mm and refused (recorded). reverse.png still shows two tiers."},
+    {"source": "R1#3 / R2#5 combing, stair-steps, corner notch", "status": "partly fixed", "evidence": "The tablet flanks are clean. The pocket's top-right corner is still stepped in stones.png."},
+    {"source": "R1#4 band edges", "status": "fixed", "evidence": "palm.png and hero.png"},
+    {"source": "R1#5 verdict explained in report", "status": "fixed", "evidence": "verdict_cause.lesson"},
+    {"source": "R2#2 fan triangles on table", "status": "fixed", "evidence": "The table is one tone in face.png and stones.png."},
+    {"source": "R2#3 facet must not read as pyramid, stud or envelope", "status": "not fixed (worse read)", "evidence": "A four-quarter sunk pyramid. It reads as an arrow in hero-300 and as an envelope or pyramid in face.png and stones.png."},
+    {"source": "R1#6 / R2#6 timeline press-pull legible", "status": "not fixed", "evidence": "Frames 4 and 5 look the same height. The added frames 8 to 10 are barely visible."}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Tablet foot, all round, theta about 80 to 100 deg (feature 2 work-plane offset, feature 4 Join blend)", "change": "If the ring is revived, remove the pocket. Set the plane offset so the boss foot meets the band crest at band level (about -0.45 mm, just past the 0.41 mm sag). Make the Join blend (0.6 to 0.8 mm) the only surface between the drafted wall and the band.", "acceptance": "face.png shows no lip or moat round the tablet. stones.png shows no pocket wall and no stepped corner. hero.png shows no plinth wider than the boss."},
+    {"number": 2, "priority": "high", "zone": "Facet, features 7 to 11, theta 90 deg", "change": "Go back to the spec's single lozenge (4.0 x 2.8) with one diagonal, and one sloped cut (0 at the diagonal to 0.4 mm at the apex) on one triangle only. Drop the three mirror features, so the history is 8 features again.", "acceptance": "face-300 shows one flat plane in a darker tone beside a table-tone triangle. A viewer with no caption does not say arrow, envelope or pyramid. timeline.png has 8 frames."},
+    {"number": 3, "priority": "medium", "zone": "timeline.png frames 4 and 5; final frame", "change": "Render the timeline lower, side-on enough to show wall height. The last frame must match the finished render.", "acceptance": "Frame 5's wall is at least a third taller than frame 4's. The last frame's facet tones match face.png."}
+  ],
+  "viewed_images": [
+    "showcase/officina/keystone/hero-300.png",
+    "showcase/officina/keystone/face-300.png",
+    "showcase/officina/keystone/contact-300.png",
+    "showcase/officina/keystone/hero.png",
+    "showcase/officina/keystone/face.png",
+    "showcase/officina/keystone/stones.png",
+    "showcase/officina/keystone/side.png",
+    "showcase/officina/keystone/shoulder.png",
+    "showcase/officina/keystone/reverse.png",
+    "showcase/officina/keystone/palm.png",
+    "showcase/officina/keystone/timeline.png",
+    "showcase/officina/keystone/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}
