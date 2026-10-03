@@ -48,18 +48,27 @@ const SILL_STEP: f64 = 0.1;
 /// The roll in each order's foot: its radius, and its centre this many radii out from the riser (so its back is buried).
 const ROLL_R: f64 = 0.3;
 const ROLL_IN: f64 = 0.5;
+/// Each order's floor falls this much from the roll's toe (this far out from its riser) to the next riser: the splay.
+const SPLAY: f64 = 0.15;
+const SPLAY_FROM: f64 = 0.42;
+/// Each roll's capital at the springing and base on the sill: balls of these radii.
+const CAPITAL_R: f64 = 0.34;
+const BASE_R: f64 = 0.34;
 /// Every round moulding's centre stands this far under the surface it rises from, so less than half of it shows and
 /// every ray in from its face meets buried metal past its centre.
 const BED: f64 = 0.06;
 /// The doorway: the trumeau between the leaves and its column, the jambs either side, the sill under the leaves,
 /// and the lintel bar over them.
-const TRUMEAU_W: f64 = 0.85;
-const TRUMEAU_R: f64 = TRUMEAU_W / 2.0;
+const TRUMEAU_W: f64 = 1.1;
+const TRUMEAU_R: f64 = 0.42;
+const TRUMEAU_CAP_R: f64 = TRUMEAU_W / 2.0;
 const DOOR_JAMB: f64 = 0.35;
 /// Each leaf's width at most: a lancet, taller than it is wide.
 const DOOR_LEAF_W: f64 = 1.45;
 const SILL_H: f64 = 0.12;
-const LINTEL_R: f64 = 0.42;
+/// The lintel: a beam this half-height, standing this proud of the tympanum floor.
+const LINTEL_R: f64 = 0.45;
+const LINTEL_PROUD: f64 = 0.45;
 /// The ruby: a 3.0 mm round, the clear margin kept round it in the tympanum, and how far its girdle stands over the floor.
 const RUBY_MM: f64 = 3.0;
 const COLLET_WALL_MM: f64 = 0.3;
@@ -79,23 +88,35 @@ const OGEE_U: f64 = 7.7;
 const OGEE_TIP_DEG: f64 = 28.0;
 /// Crockets up each side of the hood, as fractions of its length from the springer: each a tapering leaf of this
 /// radius at its root, curling round a circle of `CROCKET_CURL`.
-const CROCKETS: [f64; 3] = [0.5, 0.68, 0.84];
-const CROCKET_R: f64 = 0.3;
-const CROCKET_CURL: f64 = 0.42;
+const CROCKETS: [f64; 3] = [0.46, 0.64, 0.82];
+const CROCKET_R: f64 = 0.46;
+const CROCKET_RZ: f64 = 0.48;
+const CROCKET_END: f64 = 0.88;
+const CROCKET_CURL: f64 = 0.8;
 /// The fleur-de-lis finial: three tapering petals and a band, standing on the ogee's point.
 const FLEUR_BASE: f64 = 0.15;
-const FLEUR_PETAL_R: f64 = 0.42;
-const FLEUR_SIDE_R: f64 = 0.34;
-const FLEUR_BAND_R: f64 = 0.28;
-const FLEUR_CURL: f64 = 0.6;
+const FLEUR_PETAL_R: f64 = 0.5;
+const FLEUR_PETAL_LEN: f64 = 1.65;
+const FLEUR_SIDE_R: f64 = 0.45;
+const FLEUR_BAND_R: f64 = 0.42;
+const FLEUR_RZ: f64 = 0.55;
+const FLEUR_END: f64 = 1.0;
+const FLEUR_CURL: f64 = 0.8;
 /// The crypt trefoil at the round end.
-const CRYPT_U: f64 = -7.1;
+const CRYPT_U: f64 = -7.02;
 const CRYPT_MM: f64 = 2.4;
 /// The palm's comfort bevel: from θ and through how many degrees, and its line z = r − this.
 const PALM_BEVEL_DEG: (f64, f64) = (215.0, 110.0);
 const PALM_BEVEL_OFF: f64 = 7.05;
+/// The head's long walls: a blind arcade of lancets at these u, this wide and tall, centred this high over the axis.
+const WALL_ARCADE: [f64; 8] = [-5.1, -3.65, -2.2, -0.75, 0.75, 2.2, 3.65, 5.1];
+const WALL_LANCET: (f64, f64) = (0.95, 2.0);
+const WALL_MID_Y: f64 = 11.5;
 /// The shoulder lancets: θ off the crown and length, each side.
-const LANCETS: [(f64, f64); 4] = [(42.0, 2.8), (52.0, 2.45), (62.0, 2.1), (72.0, 1.8)];
+/// The shoulder arcade's rolls: radius, and how deep their centres sit under the seat's plane.
+const SHOULDER_ROLL_R: f64 = 0.3;
+const SHOULDER_BED: f64 = 0.12;
+const LANCETS: [(f64, f64); 5] = [(40.0, 2.8), (48.5, 2.6), (57.0, 2.4), (65.5, 2.2), (74.0, 2.0)];
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, refine: None, ..BuildParams::default() }
@@ -182,7 +203,7 @@ fn arch_loop(inset: f64) -> Vec<P2> {
     let ut = sill_u(inset);
     let half = ARCH_W / 2.0 - inset;
     let phi_top = apex_phi(r);
-    let n = ((r * phi_top) / 0.08).ceil() as usize;
+    let n = ((r * phi_top) / 0.3).ceil() as usize;
     let mut pts = vec![[ut, -half], [ut, half]];
     // Right jamb up to the springing, then the right head arc (its centre past the axis) to the apex.
     for i in 0..=n {
@@ -243,8 +264,8 @@ fn inner() -> Inner {
     while clearance(ruby_u) < 0.1 && ruby_u > ut {
         ruby_u -= 0.01;
     }
-    let lintel_u = ruby_u - collet_r - 0.05 - LINTEL_R;
-    Inner { floor, doors: floor, lintel_lo: lintel_u - LINTEL_R, lintel_hi: lintel_u, ruby_u }
+    let lintel_hi = ruby_u - collet_r - 0.05;
+    Inner { floor, doors: floor, lintel_lo: lintel_hi - 2.0 * LINTEL_R, lintel_hi, ruby_u }
 }
 
 /// A cubic Bézier sampled at `n` + 1 points.
@@ -318,7 +339,7 @@ fn foil(centre: P2, across: f64, lobes: usize) -> Vec<P2> {
     let r_lobe = across * if lobes == 4 { 0.25 } else { 0.29 };
     let r_c = across / 2.0 - r_lobe;
     let mut pts = Vec::new();
-    let n = 180;
+    let n = 64;
     for i in 0..n {
         let a = 2.0 * PI * i as f64 / n as f64;
         // The radius of the union of three circles along direction a, by sampling.
@@ -343,7 +364,7 @@ fn foil(centre: P2, across: f64, lobes: usize) -> Vec<P2> {
 fn lancet(w: f64, from: f64, to: f64) -> Vec<P2> {
     let h = w / 2.0;
     let spring = to - w * 3f64.sqrt() / 2.0;
-    let steps = 12;
+    let steps = 16;
     let mut pts = vec![[-h, from], [h, from], [h, spring]];
     // The right half of the head turns about the left springer, the left half about the right one.
     for i in 1..steps {
@@ -357,6 +378,59 @@ fn lancet(w: f64, from: f64, to: f64) -> Vec<P2> {
     }
     pts.push([-h, spring]);
     pts
+}
+
+/// A lancet's outline open at its sill: up the left jamb, over the pointed head, down the right jamb.
+fn lancet_arch(w: f64, from: f64, to: f64) -> Vec<P2> {
+    let closed = lancet(w, from, to);
+    // `lancet` runs sill-left, sill-right, up the right jamb, over to the left springer: start at the right sill instead.
+    let mut open: Vec<P2> = closed[1..].to_vec();
+    open.push(closed[0]);
+    open
+}
+
+/// A lancet arch `arch` (open at its sill, as [`lancet_arch`] draws it) as rolls on the surface `placement` seats it on:
+/// each side a smooth roll from its sill to the point, and a boss over the point where they meet.
+fn lancet_roll(t: &mut Tree, what: &str, arch: &[P2], placement: Placement) -> Result<()> {
+    let apex = arch.len() / 2;
+    let right = arch[..=apex].to_vec();
+    let left: Vec<P2> = arch[apex..].iter().rev().copied().collect();
+    let (r, bed) = (SHOULDER_ROLL_R, SHOULDER_BED);
+    let first = oval_tube_at(t, &format!("Roll the right side of {what}"), &right, -bed, r, r, Attach::Join, placement.clone())?;
+    oval_tube_at(t, &format!("Roll the left side of {what}"), &left, -bed, r, r, Attach::Join, placement)?;
+    let p = arch[apex];
+    t.add(
+        &format!("Boss the point of {what}"),
+        Operation::Sphere { radius_mm: r + 0.06 },
+        part(Attach::Join, Placement::Relative { part: first, at: [p[0], p[1], -bed - 0.04], rotation_deg: [0.0; 3] }, 0.0),
+    )?;
+    Ok(())
+}
+
+/// The table's half-width round the ring at `u`, off factory 009's measured plan at 14.5 x 19.
+fn drop_half(u: f64) -> f64 {
+    const PLAN: [(f64, f64); 21] = [(-9.0, 0.77), (-8.0, 3.38), (-7.0, 4.58), (-6.0, 5.40), (-5.0, 6.07), (-4.0, 6.59), (-3.0, 6.88), (-2.0, 7.07), (-1.0, 7.17), (0.0, 7.16), (1.0, 7.08), (2.0, 6.84), (3.0, 6.57), (4.0, 6.08), (5.0, 5.61), (6.0, 4.91), (7.0, 4.12), (8.0, 3.03), (9.0, 1.84), (9.5, 1.09), (10.0, 0.58)];
+    for w in PLAN.windows(2) {
+        let ((a, ra), (b, rb)) = (w[0], w[1]);
+        if u >= a && u <= b {
+            return ra + (rb - ra) * (u - a) / (b - a);
+        }
+    }
+    0.0
+}
+
+/// A ring seat moved along the finger.
+trait Across {
+    fn with_across(self, across: f64) -> Self;
+}
+
+impl Across for Placement {
+    fn with_across(mut self, across: f64) -> Self {
+        if let Placement::Ring { across_mm, .. } = &mut self {
+            *across_mm = across;
+        }
+        self
+    }
 }
 
 fn sketch_of(name: &str, loops: &[Vec<P2>]) -> Sketch {
@@ -391,7 +465,7 @@ impl Tree {
 }
 
 fn seat(height: f64) -> Placement {
-    Placement::Ring { theta_deg: CROWN_DEG, across_mm: 0.0, height_mm: height, spin_deg: SPIN_DEG, tilt_deg: 0.0, cant_deg: 0.0 }
+    Placement::Ring { theta_deg: CROWN_DEG, across_mm: 0.0, height_mm: height, spin_deg: SPIN_DEG, tilt_deg: 0.0, cant_deg: 0.0, level: false }
 }
 
 fn part(attach: Attach, placement: Placement, blend: f64) -> Component {
@@ -416,8 +490,25 @@ fn tube(t: &mut Tree, name: &str, path: &[P2], z: f64, r: f64, attach: Attach) -
 
 /// [`tube`] with a section `rx` across the path and `rz` up out of the table: a half-ellipse where they differ.
 fn oval_tube(t: &mut Tree, name: &str, path: &[P2], z: f64, r: f64, rz: f64, attach: Attach) -> Result<Id> {
+    oval_tube_at(t, name, path, z, r, rz, attach, seat(0.0))
+}
+
+/// [`oval_tube`] in the frame `placement` gives: x and y in the seat's plane, z out of it.
+#[allow(clippy::too_many_arguments)]
+fn oval_tube_at(t: &mut Tree, name: &str, path: &[P2], z: f64, r: f64, rz: f64, attach: Attach, placement: Placement) -> Result<Id> {
     ensure!(path.len() >= 2, "{name}: a path needs two points");
-    let path = &eased(path, r, 0.12);
+    let length: f64 = path.windows(2).map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1])).sum();
+    let path = &eased(path, r.max(rz), if length > 6.0 { 0.3 } else { 0.25 }, 1.15);
+    if std::env::var("PORTA_JOINTS").map_or(false, |v| name.contains(&v)) {
+        for i in 1..path.len() - 1 {
+            let (a, b, c) = (path[i - 1], path[i], path[i + 1]);
+            let (u, v) = (unit([b[0] - a[0], b[1] - a[1]]), unit([c[0] - b[0], c[1] - b[1]]));
+            let turn = (u[0] * v[0] + u[1] * v[1]).clamp(-1.0, 1.0).acos().to_degrees();
+            if turn > 3.0 {
+                eprintln!("  joint {i} at {:?}: turn {turn:.1}, runs {:.3} {:.3}", b, (b[0] - a[0]).hypot(b[1] - a[1]), (c[0] - b[0]).hypot(c[1] - b[1]));
+            }
+        }
+    }
     let (p0, p1) = (path[0], path[1]);
     let d = unit([p1[0] - p0[0], p1[1] - p0[1]]);
     // Across the path in the table's plane, and up out of it: their cross is along the path.
@@ -425,26 +516,26 @@ fn oval_tube(t: &mut Tree, name: &str, path: &[P2], z: f64, r: f64, rz: f64, att
     let mut section = Sketch::default();
     section.name = format!("{name}: section");
     section.plane = ringdesign_core::sketch::Workplane { origin: [p0[0], p0[1], z], x: across, y: [0.0, 0.0, 1.0], on_face: None };
-    let ring: Vec<Id> = (0..24).map(|i| 2.0 * PI * i as f64 / 24.0).map(|a| section.point([r * a.cos(), rz * a.sin()])).collect();
+    let ring: Vec<Id> = (0..12).map(|i| 2.0 * PI * i as f64 / 12.0).map(|a| section.point([r * a.cos(), rz * a.sin()])).collect();
     section.entity(Geometry::Polyline { points: ring, closed: true });
     let mut line = Sketch::default();
     line.name = format!("{name}: path");
     line.plane = ringdesign_core::sketch::Workplane { origin: [0.0, 0.0, z], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], on_face: None };
     let ids: Vec<Id> = path.iter().map(|p| line.point(*p)).collect();
     line.entity(Geometry::Polyline { points: ids, closed: false });
-    t.add(name, Operation::Twist { sketch: Profile::Inline(section), path: line, degrees: 0.0, end_scale: 1.0 }, part(attach, seat(0.0), 0.0))
+    t.add(name, Operation::Twist { sketch: Profile::Inline(section), path: line, degrees: 0.0, end_scale: 1.0 }, part(attach, placement, 0.0))
 }
 
-/// `path` walked again at about `pitch`, every corner (a turn past 40°) kept and given a straight run either side
+/// `path` walked again at about `pitch`, every corner (a turn past 25°) kept and given a straight run either side
 /// long enough for a section of radius `r` to mitre round it.
-fn eased(path: &[P2], r: f64, pitch: f64) -> Vec<P2> {
+fn eased(path: &[P2], r: f64, pitch: f64, mitre: f64) -> Vec<P2> {
     let turn = |a: P2, b: P2, c: P2| {
         let (u, v) = (unit([b[0] - a[0], b[1] - a[1]]), unit([c[0] - b[0], c[1] - b[1]]));
         (u[0] * v[0] + u[1] * v[1]).clamp(-1.0, 1.0).acos()
     };
     let mut corners = vec![0];
     for i in 1..path.len() - 1 {
-        if turn(path[i - 1], path[i], path[i + 1]) > 40f64.to_radians() {
+        if turn(path[i - 1], path[i], path[i + 1]) > 25f64.to_radians() {
             corners.push(i);
         }
     }
@@ -453,7 +544,7 @@ fn eased(path: &[P2], r: f64, pitch: f64) -> Vec<P2> {
         if i == 0 || i == path.len() - 1 {
             return 0.0;
         }
-        r * (0.5 * turn(path[i - 1], path[i], path[i + 1])).tan() * 1.3 + 0.05
+        r * (0.5 * turn(path[i - 1], path[i], path[i + 1])).tan() * mitre + 0.03
     };
     let mut out: Vec<P2> = vec![path[0]];
     for w in corners.windows(2) {
@@ -484,9 +575,31 @@ fn eased(path: &[P2], r: f64, pitch: f64) -> Vec<P2> {
     out
 }
 
-/// A tapering half-round petal along `path`, `r` at its foot and `r · end` at its tip: a Join part.
-fn taper(t: &mut Tree, name: &str, path: &[P2], r: f64, end: f64) -> Result<Id> {
-    let id = tube(t, name, path, -BED, r, Attach::Join)?;
+/// A section given as points (across the path, up out of the table) swept along `path` at height `z`, scaled to
+/// `end` by its far end: a twisted sweep with no twist, so a mesh, mitred at every joint.
+fn swept(t: &mut Tree, name: &str, path: &[P2], z: f64, section: &[P2], attach: Attach, end: f64) -> Result<Id> {
+    ensure!(path.len() >= 2, "{name}: a path needs two points");
+    let reach = section.iter().map(|p| p[0].hypot(p[1])).fold(0.0, f64::max);
+    let path = &eased(path, reach, 0.3, 1.4);
+    let (p0, p1) = (path[0], path[1]);
+    let d = unit([p1[0] - p0[0], p1[1] - p0[1]]);
+    let across = [-d[1], d[0], 0.0];
+    let mut sec = Sketch::default();
+    sec.name = format!("{name}: section");
+    sec.plane = ringdesign_core::sketch::Workplane { origin: [p0[0], p0[1], z], x: across, y: [0.0, 0.0, 1.0], on_face: None };
+    let ring: Vec<Id> = section.iter().map(|p| sec.point(*p)).collect();
+    sec.entity(Geometry::Polyline { points: ring, closed: true });
+    let mut line = Sketch::default();
+    line.name = format!("{name}: path");
+    line.plane = ringdesign_core::sketch::Workplane { origin: [0.0, 0.0, z], x: [1.0, 0.0, 0.0], y: [0.0, 1.0, 0.0], on_face: None };
+    let ids: Vec<Id> = path.iter().map(|p| line.point(*p)).collect();
+    line.entity(Geometry::Polyline { points: ids, closed: false });
+    t.add(name, Operation::Twist { sketch: Profile::Inline(sec), path: line, degrees: 0.0, end_scale: end }, part(attach, seat(0.0), 0.0))
+}
+
+/// [`taper`] with a half-ellipse section, `rz` tall.
+fn oval_taper(t: &mut Tree, name: &str, path: &[P2], r: f64, rz: f64, end: f64) -> Result<Id> {
+    let id = oval_tube(t, name, path, -BED, r, rz + BED, Attach::Join)?;
     if let Some(f) = t.doc.features.iter_mut().find(|f| f.id == id) {
         if let Operation::Twist { end_scale, .. } = &mut f.operation {
             *end_scale = end;
@@ -494,6 +607,17 @@ fn taper(t: &mut Tree, name: &str, path: &[P2], r: f64, end: f64) -> Result<Id> 
     }
     Ok(id)
 }
+
+/// A ball of radius `r` centred `z` under the table at `(u, w)`.
+fn knob(t: &mut Tree, name: &str, at: P2, r: f64, z: f64, table: f64, attach: Attach) -> Result<Id> {
+    let theta = table.atan2(at[1]).to_degrees();
+    t.add(
+        name,
+        Operation::Sphere { radius_mm: r },
+        part(attach, Placement::Ring { theta_deg: theta, across_mm: at[0], height_mm: z, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false }, 0.0),
+    )
+}
+
 
 /// The table's height over the finger's axis, read off the bare stock.
 fn table_height(d: &RingDesign) -> Result<f64> {
@@ -521,7 +645,7 @@ fn spare(t: &mut Tree, name: &str, pocket: Id, keep: Id) -> Result<Id> {
 fn arch_path(n: f64, from_u: f64) -> Vec<P2> {
     let r = ARCH_R - n;
     let phi_top = apex_phi(r);
-    let steps = ((r * phi_top) / 0.1).ceil() as usize;
+    let steps = ((r * phi_top) / 0.3).ceil() as usize;
     let mut right: Vec<P2> = vec![[from_u, ARCH_W / 2.0 - n]];
     for i in 0..=steps {
         right.push(arc_pt(r, phi_top * i as f64 / steps as f64));
@@ -542,6 +666,8 @@ struct Placed {
     ruby_u: f64,
     hood_clear_of_arch_mm: f64,
     fleur_u: [f64; 2],
+    /// The lands between pierced openings that the cut-land screen does not pair, measured off the sketch numbers, mm.
+    lands: Vec<(String, f64)>,
 }
 
 fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
@@ -557,23 +683,49 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
         let n = m as f64 * STEP_W + ROLL_R * ROLL_IN;
         (arch_path(n, sill_u(m as f64 * STEP_W) - 0.05), -((m + 1) as f64) * STEP_DEPTH - BED)
     };
+    let table = table_height(&d)?;
     for k in 0..ORDERS {
         let depth = (k + 1) as f64 * STEP_DEPTH;
         let what = format!("archivolt {}", k + 1);
         let pocket = cut(&mut t, &format!("Draw {what}'s order, {depth:.2} mm deep"), &[arch_loop(k as f64 * STEP_W)], 0.03 * (k + 1) as f64, depth)?;
+        // The splay: the order's floor falls `SPLAY` toward the next riser, swept round the arch past the roll's toe.
+        let n0 = k as f64 * STEP_W;
+        let wedge = [[-SPLAY_FROM, -0.01], [-(STEP_W + 0.02), -SPLAY], [-(STEP_W + 0.02), 0.05], [-SPLAY_FROM, 0.05]];
+        let full = arch_path(n0, sill_u(n0 + STEP_W) + 0.06);
+        let wedge = swept(&mut t, &format!("Draw {what}'s splay"), &full, -depth, &wedge, Attach::Cut, 1.0)?;
+        let splayed = t.add(&format!("Splay {what}'s floor"), Operation::Boolean { a: pocket, b: wedge, kind: ringdesign_core::cad::Boolean::Union }, part(Attach::Cut, Placement::Free, 0.0))?;
         let (path, z) = roll_path(k);
         let roll = tube(&mut t, &format!("Run the roll up the foot of {what}"), &path, z, ROLL_R, Attach::Cut)?;
-        spare(&mut t, &format!("Sink {what}, sparing its roll"), pocket, roll)?;
+        let mut tool = spare(&mut t, &format!("Sink {what}, sparing its roll"), splayed, roll)?;
+        // A capital where the roll springs, and a base where it stands on the sill, each side.
+        let w = ARCH_W / 2.0 - (n0 + ROLL_R * ROLL_IN);
+        for (u, r, which) in [(SPRING_U, CAPITAL_R, "capital"), (sill_u(n0) + BASE_R * 0.6, BASE_R, "base")] {
+            for side in [1.0, -1.0] {
+                let hand = if side > 0.0 { "right" } else { "left" };
+                let ball = knob(&mut t, &format!("Draw the {which} of {what}'s {hand} roll"), [u, side * w], r, -depth - BED, table, Attach::Cut)?;
+                tool = spare(&mut t, &format!("Sink {what}, sparing its {hand} {which}"), tool, ball)?;
+            }
+        }
     }
     // The tympanum and the door opening, sparing the lintel bar and the trumeau's column.
     let tympanum = cut(&mut t, "Draw the tympanum and the door opening", &[arch_loop(inset)], 0.03 * (ORDERS + 1) as f64, inn.floor)?;
-    let lintel_w = half_width(inset, inn.lintel_hi) + 0.4;
-    let lintel = tube(&mut t, "Lay the lintel bar across the doorway", &[[inn.lintel_hi, lintel_w], [inn.lintel_hi, -lintel_w]], -inn.floor - BED, LINTEL_R, Attach::Cut)?;
-    let column = tube(&mut t, "Stand the trumeau's column between the doors", &[[ut - 0.05, 0.0], [inn.lintel_hi, 0.0]], -inn.floor - BED, TRUMEAU_R, Attach::Cut)?;
-    let spared = spare(&mut t, "Sink the tympanum, sparing the lintel bar", tympanum, lintel)?;
-    spare(&mut t, "Sink the door opening, sparing the trumeau", spared, column)?;
+    // The lintel: a beam across the opening, its ends buried in the jambs, standing proud of the tympanum floor.
+    let lintel_w = half_width(inset, inn.lintel_lo) + 0.4;
+    // Its section: a flat face with both upper edges chamfered, so the beam catches the light face-on.
+    let (hw, top, ch) = (LINTEL_R, LINTEL_PROUD, 0.2);
+    let section = [[-hw, -0.1], [hw, -0.1], [hw, top - ch], [hw - ch, top], [-(hw - ch), top], [-hw, top - ch]];
+    let mid = 0.5 * (inn.lintel_lo + inn.lintel_hi);
+    let lintel = swept(&mut t, "Draw the lintel beam across the doorway", &[[mid, lintel_w], [mid, -lintel_w]], -inn.floor, &section, Attach::Cut, 1.0)?;
+    let column = tube(&mut t, "Stand the trumeau's column between the doors", &[[ut - 0.05, 0.0], [inn.lintel_lo + 0.05, 0.0]], -inn.floor - BED, TRUMEAU_R, Attach::Cut)?;
+    let mut tool = spare(&mut t, "Sink the tympanum, sparing the lintel beam", tympanum, lintel)?;
+    tool = spare(&mut t, "Sink the door opening, sparing the trumeau", tool, column)?;
+    for (u, which) in [(inn.lintel_lo, "capital"), (ut + SILL_H + 0.2, "base")] {
+        let ball = knob(&mut t, &format!("Draw the trumeau's {which}"), [u, 0.0], TRUMEAU_CAP_R, -inn.floor - BED, table, Attach::Cut)?;
+        tool = spare(&mut t, &format!("Sink the door opening, sparing the trumeau's {which}"), tool, ball)?;
+    }
+    let _ = tool;
     // The twin doors under the lintel, either side of the trumeau: lancet-headed leaves pierced through to the finger, so they read dark.
-    let (lo, hi) = (ut + SILL_H, inn.lintel_lo);
+    let (lo, hi) = (ut + SILL_H, inn.lintel_lo - 0.06);
     let leaf_w = (half_width(inset, hi) - DOOR_JAMB - TRUMEAU_W / 2.0).min(DOOR_LEAF_W);
     for side in [1.0, -1.0] {
         let which = if side > 0.0 { "right" } else { "left" };
@@ -587,7 +739,7 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
     let stone = t.push(builders::stone_feature(
         0,
         gem,
-        Placement::Ring { theta_deg: CROWN_DEG, across_mm: inn.ruby_u, height_mm: -inn.floor + GIRDLE_OVER_FLOOR, spin_deg: SPIN_DEG, tilt_deg: 0.0, cant_deg: 0.0 },
+        Placement::Ring { theta_deg: CROWN_DEG, across_mm: inn.ruby_u, height_mm: -inn.floor + GIRDLE_OVER_FLOOR, spin_deg: SPIN_DEG, tilt_deg: 0.0, cant_deg: 0.0, level: false },
     ))?;
     // Set flush (gypsy): its girdle just under the tympanum's floor, the seat burred into the floor's own metal and its rim
     // burnished over the girdle at the bench, so no thin collet wall stands in the cut.
@@ -598,7 +750,7 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
     bur.component.stage = Stage::Cast;
     t.push(bur)?;
     // Its light: a straight pilot under the culet to the finger, so the ruby is set à jour.
-    let light: Vec<P2> = (0..48).map(|i| 2.0 * PI * i as f64 / 48.0).map(|a| [inn.ruby_u + PILOT_R * a.cos(), PILOT_R * a.sin()]).collect();
+    let light: Vec<P2> = (0..32).map(|i| 2.0 * PI * i as f64 / 32.0).map(|a| [inn.ruby_u + PILOT_R * a.cos(), PILOT_R * a.sin()]).collect();
     cut(&mut t, "Open the ruby's light through to the finger, à jour", &[light], 0.03 * (ORDERS + 3) as f64, 7.0)?;
     // The ogee hood-mould: one half-round roll from springer to springer, mitred into the ogee's point.
     let right = hood_centre();
@@ -606,12 +758,11 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
     hood.extend(right.iter().rev().skip(1).map(|p| [p[0], -p[1]]));
     oval_tube(&mut t, "Roll the ogee hood-mould over the arch", &hood, -BED, HOOD_W / 2.0, HOOD_RISE + BED, Attach::Join)?;
     // Its label stops: a boss over each end, where the hood comes down beside the springing.
-    let table = table_height(&d)?;
     for (end, which) in [(hood[0], "right"), (hood[hood.len() - 1], "left")] {
         t.add(
             &format!("Stop the hood's {which} end on a boss"),
             Operation::Sphere { radius_mm: LABEL_STOP_R },
-            part(Attach::Join, Placement::Ring { theta_deg: table.atan2(end[1]).to_degrees(), across_mm: end[0], height_mm: LABEL_STOP_LIFT, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 }, 0.0),
+            part(Attach::Join, Placement::Ring { theta_deg: table.atan2(end[1]).to_degrees(), across_mm: end[0], height_mm: LABEL_STOP_LIFT, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false }, 0.0),
         )?;
     }
     // Crockets: tapering leaves up each side of the hood, each springing out of its back and curling over toward the point.
@@ -619,33 +770,46 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
     for (i, f) in CROCKETS.iter().enumerate() {
         let k = ((right.len() - 1) as f64 * f).round() as usize;
         let (root, n, tg) = (right[k], normals[k], along[k]);
-        let root = [root[0] + n[0] * (HOOD_W / 2.0 - 0.15), root[1] + n[1] * (HOOD_W / 2.0 - 0.15)];
+        let root = [root[0] + n[0] * (HOOD_W / 2.0 - 0.36), root[1] + n[1] * (HOOD_W / 2.0 - 0.36)];
         let c = [root[0] + tg[0] * CROCKET_CURL, root[1] + tg[1] * CROCKET_CURL];
-        let curl: Vec<P2> = (0..=36)
-            .map(|j| (165.0 * j as f64 / 36.0f64).to_radians())
+        let curl: Vec<P2> = (0..=14)
+            .map(|j| (150.0 * j as f64 / 14.0f64).to_radians())
             .map(|phi| [c[0] + CROCKET_CURL * (-tg[0] * phi.cos() + n[0] * phi.sin()), c[1] + CROCKET_CURL * (-tg[1] * phi.cos() + n[1] * phi.sin())])
             .collect();
         for side in [1.0, -1.0] {
             let which = if side > 0.0 { "right" } else { "left" };
             let path: Vec<P2> = curl.iter().map(|p| [p[0], side * p[1]]).collect();
-            taper(&mut t, &format!("Curl crocket {} up the hood's {which}", i + 1), &path, CROCKET_R, 0.3)?;
+            oval_taper(&mut t, &format!("Curl crocket {} up the hood's {which}", i + 1), &path, CROCKET_R, CROCKET_RZ, CROCKET_END)?;
+            let tip = path[path.len() - 1];
+            knob(&mut t, &format!("Bud crocket {} on the hood's {which}", i + 1), tip, (CROCKET_RZ + BED) * CROCKET_END + 0.05, -BED, table, Attach::Join)?;
         }
     }
     // The fleur-de-lis finial on the ogee's point: a tapering centre petal, two curling side petals, and the band.
     let base = OGEE_U + FLEUR_BASE;
-    taper(&mut t, "Rise the fleur's centre petal", &[[base, 0.0], [base + 0.8, 0.0], [base + 1.95, 0.0]], FLEUR_PETAL_R, 0.15)?;
+    oval_taper(&mut t, "Rise the fleur's centre petal", &[[base, 0.0], [base + FLEUR_PETAL_LEN, 0.0]], FLEUR_PETAL_R, FLEUR_RZ, FLEUR_END)?;
+    knob(&mut t, "Point the fleur's centre petal", [base + FLEUR_PETAL_LEN, 0.0], (FLEUR_RZ + BED) * FLEUR_END + 0.05, -BED, table, Attach::Join)?;
     for side in [1.0, -1.0] {
         let which = if side > 0.0 { "right" } else { "left" };
         // Up and out from the band, over, and down the outside: an arc of `FLEUR_CURL` round its centre.
-        let c = [base + 0.42, 0.82];
-        let curl: Vec<P2> = (0..=40).map(|i| (270.0 + 150.0 * i as f64 / 40.0f64).to_radians()).map(|a| [c[0] + FLEUR_CURL * a.cos(), side * (c[1] + FLEUR_CURL * a.sin())]).collect();
-        taper(&mut t, &format!("Curl the fleur's {which} petal"), &curl, FLEUR_SIDE_R, 0.2)?;
+        let c = [base + 0.45, 0.2 + FLEUR_CURL];
+        let curl: Vec<P2> = (0..=16).map(|i| (270.0 + 150.0 * i as f64 / 16.0f64).to_radians()).map(|a| [c[0] + FLEUR_CURL * a.cos(), side * (c[1] + FLEUR_CURL * a.sin())]).collect();
+        oval_taper(&mut t, &format!("Curl the fleur's {which} petal"), &curl, FLEUR_SIDE_R, FLEUR_RZ * 0.9, FLEUR_END)?;
+        knob(&mut t, &format!("Bud the fleur's {which} petal"), curl[curl.len() - 1], (FLEUR_RZ * 0.9 + BED) * FLEUR_END + 0.05, -BED, table, Attach::Join)?;
     }
-    tube(&mut t, "Bind the fleur's petals with its band", &[[base + 0.42, 0.85], [base + 0.42, -0.85]], -BED, FLEUR_BAND_R, Attach::Join)?;
+    oval_tube(&mut t, "Bind the fleur's petals with its band", &[[base + 0.45, 1.0], [base + 0.45, -1.0]], -BED, FLEUR_BAND_R, FLEUR_RZ * 0.8, Attach::Join)?;
     // The crypt trefoil pierced through the round end.
     let head = d.inner_radius_mm();
     let _ = head;
     cut(&mut t, "Pierce the crypt quatrefoil through the round end", &[foil([CRYPT_U, 0.0], CRYPT_MM, 4)], 0.03, 6.0)?;
+    // A blind arcade down each long wall of the head: lancet arches drawn as rolls, standing up the wall.
+    for (k, u) in WALL_ARCADE.iter().enumerate() {
+        for side in [1.0, -1.0] {
+            let theta = WALL_MID_Y.atan2(side * (drop_half(*u) + 0.3)).to_degrees();
+            let arch: Vec<P2> = lancet_arch(WALL_LANCET.0, -WALL_LANCET.1 / 2.0, WALL_LANCET.1 / 2.0).into_iter().map(|[x, y]| [x, side * y]).collect();
+            let which = if side > 0.0 { "left" } else { "right" };
+            lancet_roll(&mut t, &format!("arch {} of the {which} wall's arcade", k + 1), &arch, Placement::ring(theta, 0.0).with_across(*u))?;
+        }
+    }
     // The palm's inner edges eased with a comfort bevel, which also takes away the stock's own folded facets there.
     for side in [1.0, -1.0] {
         let a = PALM_BEVEL_DEG.0.to_radians();
@@ -662,18 +826,14 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
             part(Attach::Cut, Placement::Free, 0.0),
         )?;
     }
-    // Four lancets pierced through each shoulder, diminishing away from the head, each pointing to it.
+    // A blind arcade down each shoulder: lancet arches drawn as half-round rolls on the band, diminishing away from
+    // the head, each pointing to it, bedded deep enough to stay in the metal where the section curves away.
     for (off, len) in LANCETS {
         for side in [1.0, -1.0] {
             let theta = CROWN_DEG + side * off;
-            let width = len * 0.42;
-            let params = json!({ "shape": "Lancet", "width_mm": width, "length_mm": len, "turn_deg": side * 90.0, "through": true, "depth_mm": 4.0, "chamfer_mm": 0.0 });
+            let arch: Vec<P2> = lancet_arch(len * 0.45, -len / 2.0, len / 2.0).into_iter().map(|[x, y]| [x, -side * y]).collect();
             let which = if side > 0.0 { "left" } else { "right" };
-            t.add(
-                &format!("Pierce the {which} shoulder's lancet at {off:.0} degrees"),
-                Operation::Builder { key: builders::PIERCE.into(), on: None, params },
-                Component { placement: Placement::ring(theta, 0.0), stage: Stage::Cast, attach: Attach::Cut, material: ALLOY.into(), ..Component::default() },
-            )?;
+            lancet_roll(&mut t, &format!("the {which} shoulder's lancet at {off:.0} degrees"), &arch, Placement::ring(theta, 0.0))?;
         }
     }
     let _ = blockout;
@@ -694,6 +854,12 @@ fn author(blockout: bool) -> Result<(RingDesign, Placed)> {
         ruby_u: inn.ruby_u,
         hood_clear_of_arch_mm: clear,
         fleur_u: [fl, fh],
+        lands: vec![
+            ("trumeau, between the two pierced door leaves".into(), TRUMEAU_W),
+            ("ruby's light to the door leaves' points".into(), (inn.ruby_u - PILOT_R) - (inn.lintel_lo - 0.06)),
+            ("crypt quatrefoil to the portal's threshold".into(), THRESHOLD_U - (CRYPT_U + CRYPT_MM / 2.0)),
+            ("crypt quatrefoil to the drop's round end on the axis".into(), (CRYPT_U - CRYPT_MM / 2.0) - (-9.24)),
+        ],
     };
     Ok((d, placed))
 }
@@ -1011,6 +1177,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         "solids_notes": built.solids.notes,
         "parts_notes": built.parts.notes,
         "bore_margin_mm": margin,
+        "nothing_in_finger_hole": { "rule": "every vertex at least the bore radius minus 0.01 mm from the finger's axis", "margin_mm": margin, "pass": margin >= -0.01 },
         "thickness_0_8": {
             "mesh_triangles": thick_mesh.faces.len(),
             "rays": thick.rays,
@@ -1189,7 +1356,8 @@ fn main() -> Result<()> {
         }
         std::fs::write(out.join("stones.json"), serde_json::to_vec_pretty(&json!({ "stones": materials }))?)?;
     }
-    let all = draft_pass && export_pass && pattern_pass && (draft || cold == Some(true));
+    let lands_ok = placed.lands.iter().all(|(_, v)| *v >= MIN_SECTION_MM);
+    let all = draft_pass && export_pass && pattern_pass && lands_ok && (draft || cold == Some(true));
     let report = json!({
         "name": d.name,
         "slug": "porta",
@@ -1204,6 +1372,7 @@ fn main() -> Result<()> {
         "stamps": d.stamps.iter().map(|s| json!({ "name": s.name, "theta_deg": s.theta_deg, "v_mm": s.v_mm, "cut": s.cut, "along_pull": s.along_pull, "height_mm": s.height_mm })).collect::<Vec<_>>(),
         "design_bytes": text.len(),
         "design_format": serde_json::from_str::<Value>(&text)?.get("format_version").cloned(),
+        "asserted_lands": { "floor_mm": MIN_SECTION_MM, "lands": placed.lands.iter().map(|(what, v)| json!({ "land": what, "mm": v, "pass": *v >= MIN_SECTION_MM })).collect::<Vec<_>>(), "pass": lands_ok, "note": "Every Extrude cut is also screened by dfm::cut_lands at 0.8 mm (cut_lands_0_8 in each build block); an empty list there means no land under 0.8 was found." },
         "draft": draft_gates,
         "export": export_gates,
         "casting_pattern": pattern_gates,
