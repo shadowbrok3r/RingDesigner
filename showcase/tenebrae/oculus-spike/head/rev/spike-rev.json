@@ -1,0 +1,164 @@
+{
+  "bore_radius_mm": 9.3,
+  "build": [
+    768,
+    320
+  ],
+  "build_s": 4.3750069400000005,
+  "degenerate_faces": 0,
+  "dfm_findings": [],
+  "features": [
+    {
+      "id": 1,
+      "name": "Procedural shank",
+      "status": "Ok"
+    },
+    {
+      "id": 2,
+      "name": "Back face of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 3,
+      "name": "The wheel's disc, standing on the crown",
+      "status": "Ok"
+    },
+    {
+      "id": 4,
+      "name": "Stand the wheel up across the band",
+      "status": "Ok"
+    },
+    {
+      "id": 5,
+      "name": "Back face of the gable",
+      "status": "Ok"
+    },
+    {
+      "id": 6,
+      "name": "The gable round the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 7,
+      "name": "Raise the gable out of the crown",
+      "status": "Ok"
+    },
+    {
+      "id": 8,
+      "name": "The sill under the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 200,
+      "name": "Raise the sill into the crown",
+      "status": "Ok"
+    },
+    {
+      "id": 9,
+      "name": "Front face of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 10,
+      "name": "The wheel's field",
+      "status": "Ok"
+    },
+    {
+      "id": 11,
+      "name": "Sink the field in the front face",
+      "status": "Ok"
+    },
+    {
+      "id": 12,
+      "name": "The rim's second order",
+      "status": "Ok"
+    },
+    {
+      "id": 13,
+      "name": "Sink the second order",
+      "status": "Ok"
+    },
+    {
+      "id": 14,
+      "name": "Front face, lifted clear",
+      "status": "Ok"
+    },
+    {
+      "id": 15,
+      "name": "The wheel's lancets on their spokes",
+      "status": "Ok"
+    },
+    {
+      "id": 16,
+      "name": "Pierce the lancets through",
+      "status": "Ok"
+    },
+    {
+      "id": 17,
+      "name": "The ring of quatrefoils between their heads",
+      "status": "Ok"
+    },
+    {
+      "id": 18,
+      "name": "Pierce the quatrefoils through",
+      "status": "Ok"
+    }
+  ],
+  "lands": {
+    "field_edge_to_light_mm": 0.15000000000000036,
+    "foil_to_foil_mm": 1.3960515418257726,
+    "gable_apex_over_crown_mm": 16.454359291032112,
+    "gable_width_mm": 16.8,
+    "inner_radius_mm": 2.3999999999999995,
+    "lancet_apex_r_mm": 4.493958831320169,
+    "lancet_to_foil_mm": 0.8070276569543907,
+    "lancet_to_lancet_mm": 0.7999999999999997,
+    "lancet_width_at_spring_mm": 1.0792176708753707,
+    "lights": 12,
+    "lowest_light_over_crown_mm": 0.9000000000000004,
+    "outer_radius_mm": 6.05,
+    "spoke_mm": 0.8,
+    "wheel_diameter_mm": 15.0
+  },
+  "min_vertex_radius_mm": 9.299999525547445,
+  "notes": [
+    "Raise the gable out of the crown: its fillet pinches to 0.02 mm at 162 of 871 stations, smallest at 66.2° round the ring, r 11.85 z 1.00 mm in its section, point (4.78, 10.85, 1.00) mm"
+  ],
+  "option": "head",
+  "process": "neither clean at the draft check",
+  "revision": true,
+  "ring_self_crossings": 0,
+  "sand_check": {
+    "castable": false,
+    "field_verdict": "Castable with care",
+    "notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Judged with the ring as built: 7 CAD parts (3 joined, 4 cut) at the parting plane z = +0.00 mm — 869.1 mm² of part surface, 0.1 mm² of it undercut.",
+      "Extrude \"Raise the gable out of the crown\" (#7): 0.1 mm² of undercut leaning to -83° on flanks facing back across the parting plane, 45–135°, 1.5 mm toward the low edge to 1.5 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "With its CAD parts 25.4% of the ring carries less than 3.0 deg of draft or stands parallel to the pull — it releases, but drags on the sand."
+    ],
+    "process": "Delft clay, 3.0 deg, 0.8 section, 0.30 detail",
+    "thinnest_wall_mm": 2.3887889368385764,
+    "undercut_percent": 0.005497542706160632,
+    "worst_draft_deg": -89.400964380876
+  },
+  "stone_preview_triangles": 0,
+  "stones_reported": 0,
+  "summary": "6 x 2.6 band carrying a vertical wheel 15 mm across and 3 thick, proud of a pointed gable rising out of the crown: 12 lancets on 0.80 mm spokes round a hub, 12 quatrefoils 1.4 mm across, pierced through; the rim in two orders.",
+  "triangles": 521154,
+  "watertight": true,
+  "wax_check": {
+    "below_limit": 3,
+    "build": [
+      384,
+      160
+    ],
+    "clean": false,
+    "faces": 161666,
+    "limit_mm": 0.8,
+    "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+    "rays": 384,
+    "sampled_min_mm": 0.03223786829457467,
+    "unresolved": 0
+  }
+}

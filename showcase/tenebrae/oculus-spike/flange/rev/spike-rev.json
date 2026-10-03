@@ -1,0 +1,171 @@
+{
+  "bore_radius_mm": 9.3,
+  "build": [
+    768,
+    320
+  ],
+  "build_s": 9.242736783,
+  "degenerate_faces": 0,
+  "dfm_findings": [],
+  "features": [
+    {
+      "id": 1,
+      "name": "Procedural shank",
+      "status": "Ok"
+    },
+    {
+      "id": 2,
+      "name": "The flange's outer face, proud of the high side face",
+      "status": "Ok"
+    },
+    {
+      "id": 3,
+      "name": "The flange: an annulus round the finger",
+      "status": "Ok"
+    },
+    {
+      "id": 4,
+      "name": "Raise the flange along the band's high edge",
+      "status": "Ok"
+    },
+    {
+      "id": 5,
+      "name": "The rim's roll",
+      "status": "Ok"
+    },
+    {
+      "id": 6,
+      "name": "Raise the rim's roll, its arrises chamfered",
+      "status": "Ok"
+    },
+    {
+      "id": 7,
+      "name": "The hub's roll",
+      "status": "Ok"
+    },
+    {
+      "id": 8,
+      "name": "Raise the hub's roll",
+      "status": "Ok"
+    },
+    {
+      "id": 9,
+      "name": "The tracery field",
+      "status": "Ok"
+    },
+    {
+      "id": 10,
+      "name": "Sink the field",
+      "status": "Ok"
+    },
+    {
+      "id": 11,
+      "name": "The rim's second order",
+      "status": "Ok"
+    },
+    {
+      "id": 12,
+      "name": "Sink the second order half as deep",
+      "status": "Ok"
+    },
+    {
+      "id": 13,
+      "name": "The flange's face, lifted clear of the metal",
+      "status": "Ok"
+    },
+    {
+      "id": 14,
+      "name": "One bay of the wheel: a lancet on its spokes and the quatrefoil beside its head",
+      "status": "Ok"
+    },
+    {
+      "id": 15,
+      "name": "Pierce the bay through the flange and the band",
+      "status": "Ok"
+    },
+    {
+      "id": 16,
+      "name": "Over the field's floor",
+      "status": "Ok"
+    },
+    {
+      "id": 17,
+      "name": "The bay's splay",
+      "status": "Ok"
+    },
+    {
+      "id": 18,
+      "name": "Splay the bay's arrises",
+      "status": "Ok"
+    },
+    {
+      "id": 19,
+      "name": "Wheel the bay round the finger",
+      "status": "Ok"
+    }
+  ],
+  "lands": {
+    "bore_rail_mm": 1.1999999999999993,
+    "crown_r_mm": 11.9,
+    "flange_proud_of_crown_mm": 5.1,
+    "foil_to_foil_mm": 3.542912517314643,
+    "inner_radius_mm": 10.5,
+    "lancet_apex_r_mm": 14.568041622063257,
+    "lancet_to_foil_mm": 0.8181327475765527,
+    "lancet_to_lancet_mm": 1.1000000000000003,
+    "lancet_width_at_spring_mm": 3.0798880532446793,
+    "lights": 18,
+    "outer_radius_mm": 14.899999999999999,
+    "radial_run_mm": 7.699999999999999,
+    "rim_order_mm": [
+      0.4499999999999993,
+      0.8500000000000014
+    ],
+    "spoke_flat_after_splay_mm": 0.5000000000000001,
+    "spoke_mm": 1.1
+  },
+  "min_vertex_radius_mm": 9.299999525547445,
+  "notes": [],
+  "option": "flange",
+  "process": "neither clean at the draft check",
+  "revision": true,
+  "ring_self_crossings": 0,
+  "sand_check": {
+    "castable": false,
+    "field_verdict": "Will not release",
+    "notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Judged with the ring as built: 8 CAD parts (3 joined, 5 cut) at the parting plane z = +0.00 mm — 2160.4 mm² of part surface, 422.6 mm² of it undercut.",
+      "Extrude \"Raise the flange along the band's high edge\" (#4): 328.3 mm² of undercut leaning to -90° on its drag-facing flank above the parting plane, 70–69°, 1.2–3.3 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Extrude \"Raise the rim's roll, its arrises chamfered\" (#6): 44.9 mm² of undercut leaning to -90° on its drag-facing flank above the parting plane, 59–241°, 3.3–3.3 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Extrude \"Raise the hub's roll\" (#8): 24.1 mm² of undercut leaning to -90° on its drag-facing flank above the parting plane, 58–242°, 3.3–3.3 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Extrude \"Pierce the bay through the flange and the band\" (#15): 0.4 mm² of undercut leaning to -90° on the hole's walls facing down above the parting plane, 97–102°, 1.2–1.2 mm toward the high edge — drill it at the bench: stage it Bench and the pattern keeps a raised drill mark at its centre.",
+      "Extrude \"Splay the bay's arrises\" (#18): 1.1 mm² of undercut leaning to -90° on the hole's walls facing down above the parting plane, 81–99°, 2.8–2.8 mm toward the high edge — drill it at the bench: stage it Bench and the pattern keeps a raised drill mark at its centre.",
+      "Ring array \"Wheel the bay round the finger\" (#19): 23.9 mm² of undercut leaning to -90° on the hole's walls either side of the parting plane, 102–82°, 3.0 mm toward the low edge to 3.1 mm toward the high edge — drill it at the bench: stage it Bench and the pattern keeps a raised drill mark at its centre.",
+      "With its CAD parts 33.5% of the ring carries less than 3.0 deg of draft or stands parallel to the pull — it releases, but drags on the sand."
+    ],
+    "process": "Delft clay, 3.0 deg, 0.8 section, 0.30 detail",
+    "thinnest_wall_mm": 2.3887889368385764,
+    "undercut_percent": 13.07183138222045,
+    "worst_draft_deg": -90.0
+  },
+  "stone_preview_triangles": 0,
+  "stones_reported": 0,
+  "summary": "6 x 2.6 band with one 2.4 mm flange on its high edge out to r 17.0 (7.7 mm of run): 18 lancets on 1.1 mm spokes with splayed arrises, 18 quatrefoils 1.4 mm across, the field sunk 0.6 in two orders inside a chamfered rim roll and a hub roll.",
+  "triangles": 344062,
+  "watertight": true,
+  "wax_check": {
+    "below_limit": 6,
+    "build": [
+      384,
+      160
+    ],
+    "clean": false,
+    "faces": 130606,
+    "limit_mm": 0.8,
+    "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+    "rays": 384,
+    "sampled_min_mm": 0.13371193401820902,
+    "unresolved": 0
+  }
+}

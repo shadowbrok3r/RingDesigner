@@ -402,6 +402,202 @@ fn stones(rev: bool) -> Result<Authored> {
     Ok(Authored { design: d, summary, lands, antique: None })
 }
 
+// --- Revisions: each option's one round of its reviewer's changes -------------------------------------------------------
+
+/// The flange, revised: fewer, longer lancets on broader spokes whose arrises are splayed, larger quatrefoils, a field sunk in
+/// two orders below a chamfered roll at the rim and a smaller one at the hub.
+fn flange_rev() -> Result<Authored> {
+    let (width, thickness) = (6.0, 2.6);
+    let half = width * 0.5;
+    let crown = BORE_R_MM + thickness;
+    let wheel = flange_rev_wheel();
+    let (flange_in, flange_t, proud) = (9.5, 2.1, 0.3);
+    let outer = wheel.lands()["outer_radius_mm"].as_f64().unwrap();
+    // Orders out from the lights: a 0.45 step sunk 0.3, then the 0.85 rim carrying its roll.
+    let step_in = outer + 0.8;
+    let field_out = step_in + 0.45;
+    let flange_out = field_out + 0.85;
+    let field_in = wheel.r_sill - 0.15;
+    let (field_depth, step_depth) = (0.6, 0.3);
+    let face = half + proud;
+    let mut d = band(width, thickness);
+    let mut doc = Document::default();
+    doc.append(feature(1, "Procedural shank", Operation::Band, Component::default()))?;
+    doc.append(feature(2, "The flange's outer face, proud of the high side face", plane(face), Component::default()))?;
+    doc.append(feature(3, "The flange: an annulus round the finger", Operation::Sketch { sketch: circles_sketch("Flange", [0.0, 0.0], &[flange_out, flange_in], 2) }, Component::default()))?;
+    doc.append(feature(4, "Raise the flange along the band's high edge", extrude(3, -flange_t, 0.0), join(0.0)))?;
+    doc.append(feature(5, "The rim's roll", Operation::Sketch { sketch: circles_sketch("Rim roll", [0.0, 0.0], &[flange_out, field_out], 2) }, Component::default()))?;
+    doc.append(feature(6, "Raise the rim's roll, its arrises chamfered", extrude(5, 0.45, 25.0), join(0.0)))?;
+    doc.append(feature(7, "The hub's roll", Operation::Sketch { sketch: circles_sketch("Hub roll", [0.0, 0.0], &[field_in - 0.05, flange_in + 0.05], 2) }, Component::default()))?;
+    doc.append(feature(8, "Raise the hub's roll", extrude(7, 0.25, 25.0), join(0.0)))?;
+    doc.append(feature(9, "The tracery field", Operation::Sketch { sketch: circles_sketch("Field", [0.0, 0.0], &[step_in, field_in], 2) }, Component::default()))?;
+    doc.append(feature(10, "Sink the field", extrude(9, -field_depth, 20.0), cut()))?;
+    doc.append(feature(11, "The rim's second order", Operation::Sketch { sketch: circles_sketch("Step", [0.0, 0.0], &[field_out, step_in], 2) }, Component::default()))?;
+    doc.append(feature(12, "Sink the second order half as deep", extrude(11, -step_depth, 20.0), cut()))?;
+    doc.append(feature(13, "The flange's face, lifted clear of the metal", plane(face + 0.45 + OVERSHOOT_MM), Component::default()))?;
+    let loops = wheel.loops(0.0);
+    let bay = [loops[0].clone(), loops[wheel.lights].clone()];
+    doc.append(feature(14, "One bay of the wheel: a lancet on its spokes and the quatrefoil beside its head", Operation::Sketch { sketch: loops_sketch("Bay", &bay, [0.0, 0.0], 13) }, Component::default()))?;
+    doc.append(feature(15, "Pierce the bay through the flange and the band", extrude(14, -(width + proud + 0.45 + 2.0 * OVERSHOOT_MM), 0.0), cut()))?;
+    // The splay: the bay drawn 0.3 wider, cut 45 degrees down from just over the field to meet the light, so the spokes read as colonnettes.
+    let splay = Wheel { spoke: wheel.spoke - 0.6, r_sill: wheel.r_sill - 0.3, foil: wheel.foil + 0.6, ..wheel };
+    let sl = splay.loops(0.0);
+    let floor = face - field_depth;
+    doc.append(feature(16, "Over the field's floor", plane(floor + 0.05), Component::default()))?;
+    doc.append(feature(17, "The bay's splay", Operation::Sketch { sketch: loops_sketch("Splay", &[sl[0].clone(), sl[wheel.lights].clone()], [0.0, 0.0], 16) }, Component::default()))?;
+    doc.append(feature(18, "Splay the bay's arrises", extrude(17, -0.35, 45.0), cut()))?;
+    doc.append(feature(
+        19,
+        "Wheel the bay round the finger",
+        Operation::Pattern { sources: cad::pattern::Sources(vec![15, 18]), kind: PatternKind::Ring { count: wheel.lights as u32, span_deg: 360.0 } },
+        cut(),
+    ))?;
+    d.cad = Some(doc);
+    let mut lands = wheel.lands();
+    lands["bore_rail_mm"] = json!(wheel.r_sill - BORE_R_MM);
+    lands["crown_r_mm"] = json!(crown);
+    lands["rim_order_mm"] = json!([field_out - step_in, flange_out - field_out]);
+    lands["radial_run_mm"] = json!(flange_out - BORE_R_MM);
+    lands["flange_proud_of_crown_mm"] = json!(flange_out - crown);
+    lands["spoke_flat_after_splay_mm"] = json!(splay.spoke);
+    let summary = format!(
+        "{width} x {thickness} band with one {:.1} mm flange on its high edge out to r {flange_out:.1} ({:.1} mm of run): {} lancets on {:.1} mm spokes with splayed arrises, {} quatrefoils {:.1} mm across, the field sunk 0.6 in two orders inside a chamfered rim roll and a hub roll.",
+        flange_t + proud, flange_out - BORE_R_MM, wheel.lights, wheel.spoke, wheel.lights, wheel.foil
+    );
+    Ok(Authored { design: d, summary, lands, antique: Some(([0.0, 0.0], 10.0, flange_out - 0.3)) })
+}
+fn flange_rev_wheel() -> Wheel {
+    Wheel { lights: 18, spoke: 1.1, r_sill: 10.5, r_spring: 12.0, foil: 1.4, r_foil: 14.2 }
+}
+
+/// The head, revised (and the stones' revision on the same frame): a wheel 15 mm across, standing proud of a pointed gable
+/// that rises out of the crown; the rim in two orders. As the head, twelve lancets and twelve quatrefoils pierce the wheel.
+/// With stones, the wheel is unpierced: a ruby boss at the hub, eight marquise sapphires as the lights between raised
+/// mullions, eight rubies between their heads, each in a collet set through.
+fn gable_wheel(with_stones: bool) -> Result<Authored> {
+    let (width, thickness) = (6.0, 2.6);
+    let crown = BORE_R_MM + thickness;
+    let (r_wheel, plate_t, gable_t) = (7.5, 3.0, 2.0);
+    let wheel = head_rev_wheel();
+    // Orders: the rim 0.85 standing, a 0.45 step sunk 0.25, the field sunk 0.5.
+    let (rim_in, step_in) = (r_wheel - 0.85, r_wheel - 1.3);
+    let field_in = if with_stones { 0.0 } else { wheel.r_sill - 0.3 };
+    let loops = wheel.loops(PI);
+    let low = loops.iter().flatten().map(|p| p[1]).fold(f64::MAX, f64::min);
+    let centre_y = if with_stones { crown + r_wheel - 1.2 } else { crown + MIN_SECTION_MM + 0.1 - low };
+    let half_t = plate_t * 0.5;
+    let mut d = band(width, thickness);
+    let mut doc = Document::default();
+    doc.append(feature(1, "Procedural shank", Operation::Band, Component::default()))?;
+    doc.append(feature(2, "Back face of the wheel", plane(-half_t), Component::default()))?;
+    doc.append(feature(3, "The wheel's disc, standing on the crown", Operation::Sketch { sketch: circles_sketch("Wheel disc", [0.0, centre_y], &[r_wheel], 2) }, Component::default()))?;
+    doc.append(feature(4, "Stand the wheel up across the band", extrude(3, plate_t, 0.0), join(0.3)))?;
+    // The gable: a drop arch springing level with the wheel's centre, its jambs running down into the band.
+    let w = r_wheel + 0.9;
+    let apex_over = r_wheel + 2.2;
+    let c = (apex_over * apex_over - w * w) / (2.0 * w);
+    let rr = w + c;
+    let mut gable: Vec<P2> = Vec::new();
+    let foot_r = crown - 1.0;
+    let foot_a = (w / foot_r).asin();
+    for k in 0..=16 {
+        let a = -foot_a + 2.0 * foot_a * k as f64 / 16.0;
+        gable.push([foot_r * a.sin(), foot_r * a.cos()]);
+    }
+    // Up the right jamb, over the right arc (centred left of the axis) to the apex, and down the left.
+    let apex_a = ((apex_over) / rr).asin();
+    for k in 0..=12 {
+        let a = apex_a * k as f64 / 12.0;
+        gable.push([-c + rr * a.cos(), centre_y + rr * a.sin()]);
+    }
+    for k in (0..12).rev() {
+        let a = apex_a * k as f64 / 12.0;
+        gable.push([c - rr * a.cos(), centre_y + rr * a.sin()]);
+    }
+    gable.dedup_by(|a, b| (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-6);
+    doc.append(feature(5, "Back face of the gable", plane(-gable_t * 0.5), Component::default()))?;
+    doc.append(feature(6, "The gable round the wheel", Operation::Sketch { sketch: loops_sketch("Gable", &[gable], [0.0, 0.0], 5) }, Component::default()))?;
+    doc.append(feature(7, "Raise the gable out of the crown", extrude(6, gable_t, 0.0), join(0.3)))?;
+    // The sill: a splayed foot under the wheel, as thick as the wheel, so the disc meets the crown steeply.
+    let foot_y = crown - 1.7;
+    let sill = vec![[-4.6, foot_y], [4.6, foot_y], [3.4, centre_y - r_wheel + 1.2], [-3.4, centre_y - r_wheel + 1.2]];
+    doc.append(feature(8, "The sill under the wheel", Operation::Sketch { sketch: loops_sketch("Sill", &[sill], [0.0, 0.0], 2) }, Component::default()))?;
+    doc.append(feature(200, "Raise the sill into the crown", extrude(8, plate_t, 0.0), join(0.3)))?;
+    doc.append(feature(9, "Front face of the wheel", plane(half_t), Component::default()))?;
+    doc.append(feature(10, "The wheel's field", Operation::Sketch { sketch: circles_sketch("Field", [0.0, centre_y], &if with_stones { vec![step_in] } else { vec![step_in, field_in] }, 9) }, Component::default()))?;
+    doc.append(feature(11, "Sink the field in the front face", extrude(10, -0.5, 20.0), cut()))?;
+    doc.append(feature(12, "The rim's second order", Operation::Sketch { sketch: circles_sketch("Step", [0.0, centre_y], &[rim_in, step_in], 9) }, Component::default()))?;
+    doc.append(feature(13, "Sink the second order", extrude(12, -0.25, 20.0), cut()))?;
+    let mut lands;
+    let summary;
+    if with_stones {
+        let boss = Gem { preview_tint: Some(RUBY), ..Gem::calibrated(GemCut::Round, 3.0) };
+        let light = Gem { preview_tint: Some(SAPPHIRE), l_mm: 3.0, ..Gem::calibrated(GemCut::Marquise, 1.5) };
+        let foil = Gem { preview_tint: Some(RUBY), ..Gem::calibrated(GemCut::Round, 1.25) };
+        let n = 8usize;
+        let (r_light, r_foil) = (4.25, 5.65);
+        let floor = half_t - 0.5;
+        // Mullions: raised bars between the lights, from the boss's collet out to the step.
+        let mut bars = Vec::new();
+        for k in 0..n {
+            let a = (k as f64 + 0.5) * TAU / n as f64;
+            let (r0, r1, hw) = (2.45, r_foil - 0.95, 0.4);
+            let q = [[-hw, r0], [hw, r0], [hw, r1], [-hw, r1]];
+            bars.push(q.iter().map(|p| { let v = rot(*p, a); [v[0], v[1] + centre_y] }).collect::<Vec<_>>());
+        }
+        doc.append(feature(14, "The wheel's floor", plane(floor - 0.05), Component::default()))?;
+        doc.append(feature(15, "Eight mullions", Operation::Sketch { sketch: loops_sketch("Mullions", &bars, [0.0, 0.0], 14) }, Component::default()))?;
+        doc.append(feature(16, "Raise the mullions", extrude(15, 0.75, 20.0), join(0.0)))?;
+        let mut id = 17;
+        let mut place = |doc: &mut Document, gem: Gem, at: P2, spin: f64, name: String, wall: f64| -> Result<()> {
+            let stand = builders::stand_off_mm("bezel", gem);
+            let p = Placement::Relative { part: 4, at: [at[0], at[1] + centre_y, floor + stand], rotation_deg: [0.0, 0.0, spin] };
+            let mut stone = builders::stone_feature(id, gem, p);
+            stone.name = name.clone();
+            doc.append(stone)?;
+            doc.append(builders::feature_on(id + 1, &format!("Collet of the {}", name.to_lowercase()), builders::BEZEL, id, json!({"wall_mm": wall, "lip": 0.3})))?;
+            doc.append(builders::feature_on(id + 2, &format!("Seat of the {}, through", name.to_lowercase()), builders::BUR, id, json!({"through": true})))?;
+            id += 3;
+            Ok(())
+        };
+        place(&mut doc, boss, [0.0, 0.0], 0.0, "Ruby boss".into(), 0.45)?;
+        for k in 0..n {
+            let a = k as f64 * TAU / n as f64;
+            let p = rot([0.0, r_light], a);
+            place(&mut doc, light, p, a.to_degrees() + 90.0, format!("Light {}", k + 1), 0.35)?;
+            let f = rot([0.0, r_foil], a + PI / n as f64);
+            place(&mut doc, foil, f, 0.0, format!("Foil {}", k + 1), 0.3)?;
+        }
+        lands = json!({"lights": n, "light_radius_mm": r_light, "foil_radius_mm": r_foil, "boss": "Round 3.0 ruby", "light": "Marquise 1.5 x 3 sapphire", "foil": "Round 1.25 ruby", "mullion_mm": 0.8});
+        summary = format!(
+            "{width} x {thickness} band carrying a vertical wheel {:.0} mm across, proud of a pointed gable rising out of the crown: a 3 mm ruby boss, {n} marquise sapphires as the lights between raised mullions, {n} rubies between their heads, each in a collet set through; the rim in two orders.",
+            2.0 * r_wheel
+        );
+    } else {
+        doc.append(feature(14, "Front face, lifted clear", plane(half_t + OVERSHOOT_MM), Component::default()))?;
+        let n = wheel.lights;
+        doc.append(feature(15, "The wheel's lancets on their spokes", Operation::Sketch { sketch: loops_sketch("Lancets", &loops[..n], [0.0, centre_y], 14) }, Component::default()))?;
+        doc.append(feature(16, "Pierce the lancets through", extrude(15, -(plate_t + 2.0 * OVERSHOOT_MM), 0.0), cut()))?;
+        doc.append(feature(17, "The ring of quatrefoils between their heads", Operation::Sketch { sketch: loops_sketch("Quatrefoils", &loops[n..], [0.0, centre_y], 14) }, Component::default()))?;
+        doc.append(feature(18, "Pierce the quatrefoils through", extrude(17, -(plate_t + 2.0 * OVERSHOOT_MM), 0.0), cut()))?;
+        lands = wheel.lands();
+        lands["lowest_light_over_crown_mm"] = json!(centre_y + low - crown);
+        lands["field_edge_to_light_mm"] = json!(step_in - lands["outer_radius_mm"].as_f64().unwrap());
+        summary = format!(
+            "{width} x {thickness} band carrying a vertical wheel {:.0} mm across and {plate_t} thick, proud of a pointed gable rising out of the crown: {} lancets on {:.2} mm spokes round a hub, {} quatrefoils {:.1} mm across, pierced through; the rim in two orders.",
+            2.0 * r_wheel, wheel.lights, wheel.spoke, wheel.lights, wheel.foil
+        );
+    }
+    d.cad = Some(doc);
+    lands["wheel_diameter_mm"] = json!(2.0 * r_wheel);
+    lands["gable_apex_over_crown_mm"] = json!(centre_y + apex_over - crown);
+    lands["gable_width_mm"] = json!(2.0 * w);
+    Ok(Authored { design: d, summary, lands, antique: if with_stones { None } else { Some(([0.0, centre_y], 0.5, step_in)) } })
+}
+fn head_rev_wheel() -> Wheel {
+    Wheel { lights: 12, spoke: 0.8, r_sill: 2.4, r_spring: 3.6, foil: 1.4, r_foil: 5.35 }
+}
+
 // --- Build, check, render ---------------------------------------------------------------------------------------------
 
 fn solid_of(m: &mesh::Mesh) -> csg::Solid {
@@ -452,12 +648,15 @@ fn main() -> Result<()> {
     let out = free
         .next()
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../showcase/tenebrae/oculus-spike").join(option.slug()));
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../showcase/tenebrae/oculus-spike").join(option.slug()).join(if rev { "rev" } else { "" }));
     std::fs::create_dir_all(&out)?;
     let a = match option {
-        Option_::Flange => flange(rev)?,
-        Option_::Head => head(rev)?,
-        Option_::Stones => stones(rev)?,
+        Option_::Flange if rev => flange_rev()?,
+        Option_::Head if rev => gable_wheel(false)?,
+        Option_::Stones if rev => gable_wheel(true)?,
+        Option_::Flange => flange(false)?,
+        Option_::Head => head(false)?,
+        Option_::Stones => stones(false)?,
     };
     let d = a.design.clone();
     println!("Oculus spike: {}{}\n  {}", option.slug(), if rev { " (revision)" } else { "" }, a.summary);

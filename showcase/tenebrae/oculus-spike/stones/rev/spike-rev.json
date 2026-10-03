@@ -1,0 +1,408 @@
+{
+  "bore_radius_mm": 9.3,
+  "build": [
+    768,
+    320
+  ],
+  "build_s": 6.993162615,
+  "degenerate_faces": 0,
+  "dfm_findings": [],
+  "features": [
+    {
+      "id": 1,
+      "name": "Procedural shank",
+      "status": "Ok"
+    },
+    {
+      "id": 2,
+      "name": "Back face of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 3,
+      "name": "The wheel's disc, standing on the crown",
+      "status": "Ok"
+    },
+    {
+      "id": 4,
+      "name": "Stand the wheel up across the band",
+      "status": "Ok"
+    },
+    {
+      "id": 5,
+      "name": "Back face of the gable",
+      "status": "Ok"
+    },
+    {
+      "id": 6,
+      "name": "The gable round the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 7,
+      "name": "Raise the gable out of the crown",
+      "status": "Ok"
+    },
+    {
+      "id": 8,
+      "name": "The sill under the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 200,
+      "name": "Raise the sill into the crown",
+      "status": "Ok"
+    },
+    {
+      "id": 9,
+      "name": "Front face of the wheel",
+      "status": "Ok"
+    },
+    {
+      "id": 10,
+      "name": "The wheel's field",
+      "status": "Ok"
+    },
+    {
+      "id": 11,
+      "name": "Sink the field in the front face",
+      "status": "Ok"
+    },
+    {
+      "id": 12,
+      "name": "The rim's second order",
+      "status": "Ok"
+    },
+    {
+      "id": 13,
+      "name": "Sink the second order",
+      "status": "Ok"
+    },
+    {
+      "id": 14,
+      "name": "The wheel's floor",
+      "status": "Ok"
+    },
+    {
+      "id": 15,
+      "name": "Eight mullions",
+      "status": "Ok"
+    },
+    {
+      "id": 16,
+      "name": "Raise the mullions",
+      "status": "Ok"
+    },
+    {
+      "id": 17,
+      "name": "Ruby boss",
+      "status": "Ok"
+    },
+    {
+      "id": 18,
+      "name": "Collet of the ruby boss",
+      "status": "Ok"
+    },
+    {
+      "id": 19,
+      "name": "Seat of the ruby boss, through",
+      "status": "Ok"
+    },
+    {
+      "id": 20,
+      "name": "Light 1",
+      "status": "Ok"
+    },
+    {
+      "id": 21,
+      "name": "Collet of the light 1",
+      "status": "Ok"
+    },
+    {
+      "id": 22,
+      "name": "Seat of the light 1, through",
+      "status": "Ok"
+    },
+    {
+      "id": 23,
+      "name": "Foil 1",
+      "status": "Ok"
+    },
+    {
+      "id": 24,
+      "name": "Collet of the foil 1",
+      "status": "Ok"
+    },
+    {
+      "id": 25,
+      "name": "Seat of the foil 1, through",
+      "status": "Ok"
+    },
+    {
+      "id": 26,
+      "name": "Light 2",
+      "status": "Ok"
+    },
+    {
+      "id": 27,
+      "name": "Collet of the light 2",
+      "status": "Ok"
+    },
+    {
+      "id": 28,
+      "name": "Seat of the light 2, through",
+      "status": "Ok"
+    },
+    {
+      "id": 29,
+      "name": "Foil 2",
+      "status": "Ok"
+    },
+    {
+      "id": 30,
+      "name": "Collet of the foil 2",
+      "status": "Ok"
+    },
+    {
+      "id": 31,
+      "name": "Seat of the foil 2, through",
+      "status": "Ok"
+    },
+    {
+      "id": 32,
+      "name": "Light 3",
+      "status": "Ok"
+    },
+    {
+      "id": 33,
+      "name": "Collet of the light 3",
+      "status": "Ok"
+    },
+    {
+      "id": 34,
+      "name": "Seat of the light 3, through",
+      "status": "Ok"
+    },
+    {
+      "id": 35,
+      "name": "Foil 3",
+      "status": "Ok"
+    },
+    {
+      "id": 36,
+      "name": "Collet of the foil 3",
+      "status": "Ok"
+    },
+    {
+      "id": 37,
+      "name": "Seat of the foil 3, through",
+      "status": "Ok"
+    },
+    {
+      "id": 38,
+      "name": "Light 4",
+      "status": "Ok"
+    },
+    {
+      "id": 39,
+      "name": "Collet of the light 4",
+      "status": "Ok"
+    },
+    {
+      "id": 40,
+      "name": "Seat of the light 4, through",
+      "status": "Ok"
+    },
+    {
+      "id": 41,
+      "name": "Foil 4",
+      "status": "Ok"
+    },
+    {
+      "id": 42,
+      "name": "Collet of the foil 4",
+      "status": "Ok"
+    },
+    {
+      "id": 43,
+      "name": "Seat of the foil 4, through",
+      "status": "Ok"
+    },
+    {
+      "id": 44,
+      "name": "Light 5",
+      "status": "Ok"
+    },
+    {
+      "id": 45,
+      "name": "Collet of the light 5",
+      "status": "Ok"
+    },
+    {
+      "id": 46,
+      "name": "Seat of the light 5, through",
+      "status": "Ok"
+    },
+    {
+      "id": 47,
+      "name": "Foil 5",
+      "status": "Ok"
+    },
+    {
+      "id": 48,
+      "name": "Collet of the foil 5",
+      "status": "Ok"
+    },
+    {
+      "id": 49,
+      "name": "Seat of the foil 5, through",
+      "status": "Ok"
+    },
+    {
+      "id": 50,
+      "name": "Light 6",
+      "status": "Ok"
+    },
+    {
+      "id": 51,
+      "name": "Collet of the light 6",
+      "status": "Ok"
+    },
+    {
+      "id": 52,
+      "name": "Seat of the light 6, through",
+      "status": "Ok"
+    },
+    {
+      "id": 53,
+      "name": "Foil 6",
+      "status": "Ok"
+    },
+    {
+      "id": 54,
+      "name": "Collet of the foil 6",
+      "status": "Ok"
+    },
+    {
+      "id": 55,
+      "name": "Seat of the foil 6, through",
+      "status": "Ok"
+    },
+    {
+      "id": 56,
+      "name": "Light 7",
+      "status": "Ok"
+    },
+    {
+      "id": 57,
+      "name": "Collet of the light 7",
+      "status": "Ok"
+    },
+    {
+      "id": 58,
+      "name": "Seat of the light 7, through",
+      "status": "Ok"
+    },
+    {
+      "id": 59,
+      "name": "Foil 7",
+      "status": "Ok"
+    },
+    {
+      "id": 60,
+      "name": "Collet of the foil 7",
+      "status": "Ok"
+    },
+    {
+      "id": 61,
+      "name": "Seat of the foil 7, through",
+      "status": "Ok"
+    },
+    {
+      "id": 62,
+      "name": "Light 8",
+      "status": "Ok"
+    },
+    {
+      "id": 63,
+      "name": "Collet of the light 8",
+      "status": "Ok"
+    },
+    {
+      "id": 64,
+      "name": "Seat of the light 8, through",
+      "status": "Ok"
+    },
+    {
+      "id": 65,
+      "name": "Foil 8",
+      "status": "Ok"
+    },
+    {
+      "id": 66,
+      "name": "Collet of the foil 8",
+      "status": "Ok"
+    },
+    {
+      "id": 67,
+      "name": "Seat of the foil 8, through",
+      "status": "Ok"
+    }
+  ],
+  "lands": {
+    "boss": "Round 3.0 ruby",
+    "foil": "Round 1.25 ruby",
+    "foil_radius_mm": 5.65,
+    "gable_apex_over_crown_mm": 15.999999999999998,
+    "gable_width_mm": 16.8,
+    "light": "Marquise 1.5 x 3 sapphire",
+    "light_radius_mm": 4.25,
+    "lights": 8,
+    "mullion_mm": 0.8,
+    "wheel_diameter_mm": 15.0
+  },
+  "min_vertex_radius_mm": 9.299999525547445,
+  "notes": [
+    "Stand the wheel up across the band: its fillet pinches to 0.02 mm at 184 of 872 stations, smallest at 65.5° round the ring, r 11.85 z 1.00 mm in its section, point (4.92, 10.79, 1.00) mm"
+  ],
+  "option": "stones",
+  "process": "neither clean at the draft check",
+  "revision": true,
+  "ring_self_crossings": 0,
+  "sand_check": {
+    "castable": false,
+    "field_verdict": "Will not release",
+    "notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Judged with the ring as built: 40 CAD parts (21 joined, 19 cut) at the parting plane z = +0.00 mm — 687.6 mm² of part surface, 34.5 mm² of it undercut.",
+      "Extrude \"Stand the wheel up across the band\" (#4): 0.1 mm² of undercut leaning to -82° on flanks facing back across the parting plane, 45–135°, 1.5 mm toward the low edge to 1.5 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "Extrude \"Sink the field in the front face\" (#11): 29.2 mm² of undercut leaning to -90° on the hole's walls facing down above the parting plane, 74–107°, 1.5–1.6 mm toward the high edge — drill it at the bench: stage it Bench and the pattern keeps a raised drill mark at its centre.",
+      "Extrude \"Sink the second order\" (#13): 0.8 mm² of undercut leaning to -90° on the hole's walls facing down above the parting plane, 82–98°, 1.5–1.5 mm toward the high edge — drill it at the bench: stage it Bench and the pattern keeps a raised drill mark at its centre.",
+      "Bezel \"Collet of the ruby boss\" (#18): 4.4 mm² of undercut leaning to -4° on its drag-facing flank above the parting plane, 84–96°, 1.5–1.9 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+      "With its CAD parts 13.0% of the ring carries less than 3.0 deg of draft or stands parallel to the pull — it releases, but drags on the sand."
+    ],
+    "process": "Delft clay, 3.0 deg, 0.8 section, 0.30 detail",
+    "thinnest_wall_mm": 2.3887889368385764,
+    "undercut_percent": 1.9614931928704358,
+    "worst_draft_deg": -90.0
+  },
+  "stone_preview_triangles": 5888,
+  "stones_reported": 17,
+  "summary": "6 x 2.6 band carrying a vertical wheel 15 mm across, proud of a pointed gable rising out of the crown: a 3 mm ruby boss, 8 marquise sapphires as the lights between raised mullions, 8 rubies between their heads, each in a collet set through; the rim in two orders.",
+  "triangles": 535076,
+  "watertight": true,
+  "wax_check": {
+    "below_limit": 47,
+    "build": [
+      384,
+      160
+    ],
+    "clean": false,
+    "faces": 177954,
+    "limit_mm": 0.8,
+    "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+    "rays": 384,
+    "sampled_min_mm": 0.0011116101132816018,
+    "unresolved": 0
+  }
+}
