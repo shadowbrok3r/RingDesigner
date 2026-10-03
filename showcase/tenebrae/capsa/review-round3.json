@@ -1,0 +1,63 @@
+{
+  "ring": "Capsa",
+  "round": 3,
+  "verdict": "cut",
+  "score": 5.5,
+  "summary": "Cut at 5.5 (round 1: 5.0, round 2: 5.5, Caiman: 7, ship: 7.5). This was the final round, and the ring is far below the bar. It also has a red gate: the only template-gate record, target/tpl/capsa/verification.json, says template_gate_passed false, with a 445,742-byte template against the 300,000-byte procedural budget. The design is still format 6 against the plan's format 5. Every export gate in report.json is green and checks out against the JSON. Watertight, 0 degenerate faces, 0 crossings on the ring, the 30 parts and the lid pattern, empty notes, 0 vertices in the bore, thickness at 0.8 clean with 0 wall area, cut_lands clean (2.85/3.50/3.59 mm), 0 DFM findings, 6 stones reported and 6 previewed with no warnings or crowding, cold reload identical, 1,270,824 triangles. At 300 px the ring still reads without a caption as a Gothic chapel front with a skull in a pointed niche, and the walls view now shows the wall garnet and a vesica roof light. Little else moved since round 2. The skull (face.png, stones.png) is the same glyph: ring-shaped sockets with no bowl and no brow, a triangle nose and the sinuous temple flanks. The only addition is a row of 4-5 sawtooth teeth about 0.1 mm tall, and in hero-close.png it reads as two buttons. The crockets on the spires and gable are unchanged scalloped cookie-cutter plates, as walls.png shows from the side. The cylinder rod at the gable foot, the hairline circle round the gable sapphire, the plain flat fields of the chest front, the square tower steps, the plain plinth slab and the two stray notches on the rear (reverse.png) are all still there. The shoulders now carry 4 blind lancets per side instead of 3, but they are still isolated 0.3 mm sinks that read as 'D' and 'I' letters in face.png and hero-300. The side walls and palm of the shank are bare. Seen from side.png, reverse.png and palm.png, the head is a stack of boxes, which house rule 10 fails. Density and modelling are well below Caiman's and the Reptilia sheet.",
+  "strengths": [
+    "The subject reads at 300 px without the caption: a Gothic chapel or shrine front with two pinnacles, a crocketed gable, a pointed niche and a skull (hero-300, face-300).",
+    "Its silhouette is distinct in the collection: a tall gabled reliquary front standing along the finger.",
+    "All 6 cabochons sit in registered head.bezel settings with visible lips and stained-glass colour (garnet and sapphire), and the census is clean (closest pair 1.54 mm).",
+    "The new walls.png shows the north wall garnet in its bay and a vesica tracery light in the roof slope, which closes round 2's 'wall garnets not visible' item.",
+    "Every export gate is green and the report matches the JSON, including cut_lands and the thickness census at 0.8 mm."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "fail", "reason": "The theme stops at the head plus 4 small blind lancets per shoulder. The shank side walls, the lower shank and the palm are plain polished band (palm.png, reverse.png, side.png)."},
+    {"item": "Reads as its Gothic subject at 300 px without the caption", "result": "pass", "reason": "hero-300 and face-300 read as a Gothic chapel or reliquary front with pinnacles, a gable and a skull in a pointed niche, not as a perforated band."},
+    {"item": "Figurative motifs have true outlines, crisp, with no combing, smearing or stair-steps", "result": "fail", "reason": "Outlines are crisp, but the skull is a flat line glyph (ring sockets, triangle nose, temple flanks, 0.1 mm sawtooth teeth) that reads as two buttons in hero-close.png. The crockets are flat extruded scallop outlines, not modelled leaves (walls.png)."},
+    {"item": "Stones in made settings, à jour, visible, coloured as stained glass", "result": "pass", "reason": "There are 6 bezel-set cabochons with clear garnet and sapphire tints, all now visible across the set (walls.png shows the wall garnet). Cabochons take no bur, per the plan."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "Stacked slabs with 45-degree chamfers, a plain cylinder rod, square tower set-offs, a blank plinth and blank chest fields. side.png, reverse.png and walls.png read as stacked boxes (house rule 10)."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "Not applicable: the base is a procedural Flat profile, not factory stock. Its edges stay crisp."},
+    {"item": "Distinct silhouette; custom head at least 13 mm; shoulder ornament not cut off before the face", "result": "pass", "reason": "The silhouette is distinct, the chest is 13 mm along the finger and the head stands 6.76 mm over the crest. The first lancet sits at 37 degrees, against the head."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "Large forms only, a few medium ones (pinnacles, niche) and almost no small-scale detail. Large flat fields remain on the front, sides and back. Far below Caiman's surface density."}
+  ],
+  "gates": [
+    {"gate": "Finished mesh watertight, 0 degenerate faces, 0 self-crossings", "claimed": "pass", "verified": "export.geometry: watertight true, 0 degenerate, 0 crossings, 1,270,824 triangles", "pass": true},
+    {"gate": "Every made part watertight, 0 degenerate, 0 crossings", "claimed": "pass", "verified": "0 of 30 parts fail", "pass": true},
+    {"gate": "Solids notes and parts notes empty, every feature Ok", "claimed": "pass", "verified": "solids_notes [], parts_notes [], features_not_ok []", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "bore: 0 vertices inside, nearest 9.300 mm at r 9.3", "pass": true},
+    {"gate": "Lost wax: cad::measure::thickness at 0.8 mm", "claimed": "pass", "verified": "thickness.clean true, wall_area 0.0, internal 0, unresolved 0; edge samples only, at free edges", "pass": true},
+    {"gate": "Asserted CAD lands at 0.8 mm", "claimed": "pass", "verified": "cut_lands floor 0.8, three cuts at 2.85/3.50/3.59 mm, under_floor []", "pass": true},
+    {"gate": "Sand field verdict and ray release at 0.100/0.075, draft-clamp bites", "claimed": "replaced", "verified": "Not applicable: lost wax (Logan, 2026-10-03), so thickness and lands replace them", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings []", "pass": true},
+    {"gate": "Stone count equals preview; census clean", "claimed": "pass", "verified": "reported 6 = previewed 6, warnings [], crowding [], closest 1.54 mm", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "pass", "verified": "cold_reload_identical true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "1,270,824", "pass": true},
+    {"gate": "Casting patterns closed (ring and lid)", "claimed": "pass", "verified": "ring and lid patterns watertight with 0 degenerate faces and 0 crossings; lid Part(71), 5,910 triangles", "pass": true},
+    {"gate": "Template gate: at most 4 design.set patches within the class budget", "claimed": "not claimed in report.json", "verified": "target/tpl/capsa/verification.json: template_gate_passed false, template 445,742 bytes > 300,000 procedural budget, size_review_required true; 1 design.set patch. The record (23:03) also predates the round-3 build (23:15), so it is stale.", "pass": false},
+    {"gate": "Format 5, no Stored (plan, house rule 8)", "claimed": "not addressed", "verified": "export.design.format_version 6 at 264,809 bytes; round 2's punch item 6 was not resolved", "pass": false}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P1", "zone": "Template gate / design.ring.json", "change": "Bring the design to format 5 by finding what forces format 6, and bring the template under 300,000 bytes. Re-run the template gate on the current build.", "acceptance": "verification.json, dated after the build, records template_gate_passed true, format 5, template bytes at or under 300,000 and at most 4 design.set patches."},
+    {"number": 2, "priority": "P1", "zone": "Skull (#16 'Sink the eye sockets and the nasal aperture into the skull' and its loft)", "change": "Still open from rounds 1 and 2. Make a domed cranium at least 0.8 mm proud, bowl orbits about 1.0 mm across and 0.5 mm deep under a brow ridge, an inverted-heart nasal aperture, pinched cheekbones, and 6-8 teeth 0.25 mm wide. Delete the temple flanks.", "acceptance": "stones.png shows shaded orbits and 6 or more countable teeth, and in face-300 a viewer says 'skull'."},
+    {"number": 3, "priority": "P1", "zone": "Crockets (#20, #24, gable rakes); chest front; gable-foot rod; towers; plinth", "change": "Still open from round 2. Model curled leaf crockets about 0.5 mm proud with their own shading, a roll-and-hollow string course in place of the cylinder rod, trefoil cusping in the archivolt, blind tracery in the front fields, weathered set-offs, a lobed frame round the sapphire, and a profiled base course.", "acceptance": "No flat field larger than 2 × 2 mm on the front in face.png, no cylinder rod, and walls.png shows crockets as lobes rather than extruded plates."},
+    {"number": 4, "priority": "P1", "zone": "Shoulders theta 90 ± (35..85), shank side walls, rear of the head", "change": "Run a continuous cusped lancet arcade (0.4 mm deep, 0.8 mm posts) or pierced graded quatrefoils down the top and side walls. Give the rear a three-bay blind arcade and remove the two stray notches.", "acceptance": "In hero-300 the shank does not read as a plain band and the lancets read as arches, not letters. reverse.png shows pointed bays."}
+  ],
+  "viewed_images": [
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png",
+    "showcase/tenebrae/capsa/hero-300.png",
+    "showcase/tenebrae/capsa/face-300.png",
+    "showcase/tenebrae/capsa/hero.png",
+    "showcase/tenebrae/capsa/hero-close.png",
+    "showcase/tenebrae/capsa/face.png",
+    "showcase/tenebrae/capsa/stones.png",
+    "showcase/tenebrae/capsa/side.png",
+    "showcase/tenebrae/capsa/shoulder.png",
+    "showcase/tenebrae/capsa/reverse.png",
+    "showcase/tenebrae/capsa/palm.png",
+    "showcase/tenebrae/capsa/walls.png",
+    "showcase/tenebrae/capsa/bare-vs-finished.png",
+    "showcase/tenebrae/capsa/contact-300.png"
+  ]
+}
