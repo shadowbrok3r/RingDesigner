@@ -1,0 +1,60 @@
+{
+  "ring": "rosa",
+  "round": 3,
+  "verdict": "cut",
+  "score": 5.7,
+  "summary": "Cut at 5.7, down from 5.8 in round 2 (Caiman 7, ship bar 7.5, Corvus was cut at 6.6). This was round 3, the last, and the ring is 1.8 points short. Every recorded gate is green: watertight, 0 degenerate faces, 0 self-crossings, Castable, thickness 0 below 0.8, lands at or above 0.9, cold reload identical, 1,345,930 triangles, and the template gate passed with 1 design.set patch at 546,160 bytes. The art has not moved enough. Of the seven round-2 punch items, one is done and two are partly done. Done: (4) graded shoulder oculi, four per side at 1.6 to 0.9, sunk 0.6 with a chamfer. They are countable at 300 px, but their rims render serrated like gear teeth, not as clean rings. Partly done: (1) the floating spokes (80-82) are deleted, but the continuous petal arcs that item asked to drop are still there. Without the spokes the face now reads as a lotus or mandala, more than in round 2. (2) The stacked tracery-top plates are gone, but the face still has a flat CAD look, with stray hairline seams across the table and a jagged head-seam highlight. Not done: (3) the cheek arcade still sits on the proud rectangular panel plate (features 23-26) with bright flat sill slivers, and the end walls carry one stubby D-shaped notch on a plate, not an arcade. (5) There is no shank frieze, and the trefoil bosses are still flat-topped cylinders with vertical walls. (6) There is no 16-cusp rim and no rolled outer order. (7) The collet is still a plain flat tube. Against Caiman's hero and the Reptilia sheet, the shank and head walls are still mostly bare polished metal, and the forms that are there read as stuck-on CAD plates.",
+  "strengths": [
+    "The gates are complete and green in both blocks. The thickness figure moved (0.84987 mm, against 0.84999 in round 2), which shows it was re-run on this build. The template is down to 546 KB.",
+    "The graded shoulder oculi are new and work at the large scale: four openings stepping smaller toward the palm, countable in hero-300.",
+    "Deleting the floating spokes removed the worst floating-bar artefact, and no bar now stands above the tracery with a gap under it.",
+    "The pierced tracery is deep and dark, and the single ruby in its collet is a clear focal point. The cheek lancets are clean pointed openings.",
+    "The ring is a 19 mm cushion with a round pierced face, a silhouette distinct within Tenebrae."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "fail", "reason": "The theme still lives on the table. The shoulder oculi help, but there is a long plain run from the oculi to the palm. The cheek arcade is a small glued-on plate, and the end walls carry one stray notch each. The pieces read as scattered, not as one cathedral programme."},
+    {"item": "Reads as its Gothic subject at 300 px without the caption", "result": "fail", "reason": "With the spokes gone, face-300 reads first as a lotus, mandala or flower medallion: interlaced pointed petals round a red centre. 'Rose window' is now a second guess, and nothing on the face says Gothic (no cusping, no mullions, no pointed lancet heads framed by bars). hero-300 shows the same flower, plus dots on the shoulder and a slot plate."},
+    {"item": "Figurative motifs have true, crisp outlines", "result": "fail", "reason": "The shoulder oculi rims render serrated, like stair-steps or gear teeth (hero.png, shoulder.png). The flat grey sill slivers are still under the lancets (walls.png). Hairline seams run across the table above and below the rose (stones.png). The head-seam highlight is jagged (walls.png, end.png)."},
+    {"item": "Stones in made settings, à jour, visible, coloured as stained glass", "result": "pass", "reason": "One ruby, ruby-tinted, in a drawn collet with a through pilot, and visible. The collet is still a plain flat-topped tube with no bead or moulding (round-2 #7 not done)."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "The cheek arcade sits on a flat rectangular plate (walls.png, side.png). The end-wall panel is a flat slab with one notch (end.png). The trefoils are extruded cylinders with vertical walls. The tracery bars are flat-topped with sharp vertical walls and no chamfer. The collet is a plain tube. This reads as stacked boxes, which house rule 10 fails."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "fail", "reason": "The cheek panel plates break the face-to-wall edge at the centre of each cheek and stick out past the cushion outline (stones.png top and bottom, side.png). The edge along the head seam shows a ragged highlight."},
+    {"item": "Distinct silhouette; custom heads ≥ 13 mm; shoulder ornament not cut off before the face", "result": "pass", "reason": "A 19 mm cushion, distinct in Tenebrae. The shoulder oculi stop well short of the head, so nothing is cut off. The cheek plate's outline does break the silhouette in side.png."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "Large: the rose. Medium: the shoulder oculi and the small cheek plate. Small: none. There is no frieze, cusping or texture, and most of the shank and the head walls are plain. Caiman and every Reptilia piece carry dense small-scale relief from face to shoulder, so this is well below the bar."}
+  ],
+  "gates": [
+    {"gate": "Watertight", "claimed": "true", "verified": "draft and export watertight true; pattern watertight true", "pass": true},
+    {"gate": "0 degenerate faces", "claimed": "0", "verified": "draft 0, export 0, pattern 0", "pass": true},
+    {"gate": "0 self-crossings on the ring and every made part", "claimed": "0", "verified": "ring_self_crossings 0 in both blocks; all 16 made_part_self_crossings entries 0; pattern 0", "pass": true},
+    {"gate": "Empty solids notes", "claimed": "[]", "verified": "solids_notes [] and parts_notes [] in both blocks", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "0", "verified": "vertices_inside_bore 0; min_vertex_radius 9.29997 (draft) and 9.29999 (export) against bore r 9.3, within float tolerance", "pass": true},
+    {"gate": "Field verdict Castable", "claimed": "Castable", "verified": "field_verdict 'Castable' in both blocks, investment_min_section_mm 0.8. The field notes are informational lost-wax undercuts only.", "pass": true},
+    {"gate": "Lost wax: cad::measure::thickness at 0.8 mm", "claimed": "0 below limit", "verified": "below_limit 0, unresolved 0, sampled_min 0.84987 mm over 384 rays. The value changed from round 2, so it was re-run.", "pass": true},
+    {"gate": "Lost wax: asserted CAD lands ≥ 0.8 mm", "claimed": "bar 1.0, ruby_collet_to_petal 0.90, spandrel_to_table_edge 2.01; cut_lands_0_8 []", "verified": "All three lands are ≥ 0.8 in the export block; cut_lands_0_8 is empty in both blocks", "pass": true},
+    {"gate": "Ray release 0/0 at 0.100 and 0.075 mm", "claimed": "n/a (lost wax)", "verified": "Replaced by the thickness and lands gates for lost wax, per review.md", "pass": true},
+    {"gate": "Draft-clamp bites ≤ 0.05 mm", "claimed": "not recorded", "verified": "process LostWax, sand null, so there is no draft clamp; not applicable", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "[]", "verified": "dfm_findings [] in both blocks; verification.json detail_findings 0", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "1 / 1", "verified": "stones_reported 1, stones_previewed 1; stones.json 1 ruby; tight_pairs 0", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "export.gates.cold_reload_identical true (draft null, as expected for a draft); verification.json vertices_faces_normals_identical true, cold design and graph reload true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "1,345,930", "verified": "export triangles 1,345,930, and verification.json agrees", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "watertight", "verified": "pattern watertight true, 0 degenerates, 0 self-crossings", "pass": true},
+    {"gate": "Template gate: ≤ 4 design.set patches within class budget", "claimed": "passed", "verified": "1 patch (/manufacturing), template_bytes 546,160 ≤ 1,000,000 stock budget, template_gate_passed true, source_identical true", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Table tracery, sketch #3 and cuts #7/#8, r 2.75-7.2 (carried from R1 #2 and R2 #1)", "change": "Only if Logan reopens the ring: redraw the net as 8 straight radial mullions 1.0 mm wide fused into the oculus order and the outer order, each lancet with a pointed head, and drop every continuous petal arc. Chamfer bar tops 0.15-0.2 mm.", "acceptance": "face-300: eight straight gold mullions and eight pointed dark lancets, and no petal shapes. A fresh read test names 'rose window' first, not flower or mandala."},
+    {"number": 2, "priority": "high", "zone": "Cheek panels, features 23-26, and both end walls", "change": "Delete the panel plates. Cut the three-lancet arcade straight into the stock wall 0.4-0.6 mm deep at ≥ 60% of the wall height, with a rounded 0.3 mm sill in place of the flat slivers. Put the same arcade on both end walls.", "acceptance": "walls.png, side.png and end.png: no rectangular plate outline, no grey sill slivers, and three pointed lancets on every wall."},
+    {"number": 3, "priority": "high", "zone": "Shoulder oculi, features 18-22", "change": "Fix the serrated rims: raise the cutter's segment count, or replace the chamfer with a true revolved 0.3 mm roll moulding.", "acceptance": "shoulder.png: each oculus rim is a smooth continuous ring with no teeth."},
+    {"number": 4, "priority": "medium", "zone": "Shank, from the oculi to θ 90 − 110 and mirror; trefoils #90-92; outer order r 6.6-7.2; collet #11-16", "change": "Add a 0.2-0.3 mm cusped or quatrefoil frieze along both shank edges. Dome the trefoils. Add a 16-cusp rim and a rolled outer order. Bead the collet top.", "acceptance": "hero.png: large, medium and small forms all present, and no plain shank run above the palm longer than about 6 mm. stones.png: 16 countable cusps."}
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/rosa/hero-300.png",
+    "showcase/tenebrae/rosa/face-300.png",
+    "showcase/tenebrae/rosa/stones.png",
+    "showcase/tenebrae/rosa/walls.png",
+    "showcase/tenebrae/rosa/end.png",
+    "showcase/tenebrae/rosa/hero.png",
+    "showcase/tenebrae/rosa/shoulder.png",
+    "showcase/tenebrae/rosa/side.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
