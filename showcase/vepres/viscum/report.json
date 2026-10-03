@@ -3,7 +3,7 @@
   "bore_mm": 18.6,
   "casting_pattern": null,
   "cold_reload_identical": null,
-  "design_bytes": 3110590,
+  "design_bytes": 3052069,
   "design_format": 6,
   "draft": {
     "bore_margin_mm": -0.0008861904691439548,
@@ -12,123 +12,128 @@
       768,
       320
     ],
-    "build_s": 7.018361815,
-    "closest_stones": "Face berry 1 to Face berry 2: 0.70 mm at the girdle, 0.70 mm deep",
+    "build_s": 10.528885459,
+    "closest_stones": "Shoulder berry B2.1 to Shoulder berry B2.2: 0.22 mm at the girdle, 0.20 mm deep",
     "degenerate_faces": 0,
     "dfm_findings": [],
     "field_notes": [
-      "Lost wax: 14.02% of the surface would undercut a two-part pull (worst 71.0 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: 14.00% of the surface would undercut a two-part pull (worst 71.0 deg) — fine for investment, but this pattern cannot move to sand as-is.",
       "Undercut 0–358° on the crest: 207.1 mm² leaning to 71° — no single layer explains it.",
-      "2 made settings cast in place with the ring; the field judges the band under them.",
-      "Measured with the ring as built: 117 CAD parts (98 joined, 19 cut), 676.1 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Face joint 1\" (#2) would undercut a two-part pull over 2.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face leaf 1\" (#3) would undercut a two-part pull over 7.2 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face leaf 2\" (#4) would undercut a two-part pull over 7.6 mm² (worst -49°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face leaf 3\" (#5) would undercut a two-part pull over 8.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face leaf 4\" (#6) would undercut a two-part pull over 7.2 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face leaf 5\" (#7) would undercut a two-part pull over 8.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face leaf 6\" (#8) would undercut a two-part pull over 7.3 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face fork 1\" (#9) would undercut a two-part pull over 3.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face joint 2\" (#10) would undercut a two-part pull over 2.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face fork 2\" (#11) would undercut a two-part pull over 2.2 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face joint 3\" (#12) would undercut a two-part pull over 1.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face berry 1 mound\" (#13) would undercut a two-part pull over 0.7 mm² (worst -36°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face berry 2 mound\" (#14) would undercut a two-part pull over 2.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face berry 3 mound\" (#15) would undercut a two-part pull over 0.6 mm² (worst -23°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face berry 4 mound\" (#16) would undercut a two-part pull over 6.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face berry 5 mound\" (#17) would undercut a two-part pull over 4.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder node A1\" (#18) would undercut a two-part pull over 1.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry A1.1 mound\" (#19) would undercut a two-part pull over 6.5 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry A1.2 mound\" (#20) would undercut a two-part pull over 5.1 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf A1.1\" (#21) would undercut a two-part pull over 3.9 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf A1.2\" (#22) would undercut a two-part pull over 2.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry A2.1 mound\" (#24) would undercut a two-part pull over 1.2 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry A2.2 mound\" (#25) would undercut a two-part pull over 0.9 mm² (worst -51°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf A2.1\" (#26) would undercut a two-part pull over 0.8 mm² (worst -46°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf A2.2\" (#27) would undercut a two-part pull over 0.7 mm² (worst -63°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry A3.1 mound\" (#28) would undercut a two-part pull over 0.2 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf A3.1\" (#29) would undercut a two-part pull over 1.5 mm² (worst -72°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf A3.2\" (#30) would undercut a two-part pull over 0.8 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry A4.1 mound\" (#31) would undercut a two-part pull over 0.2 mm² (worst -55°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf A4.1\" (#32) would undercut a two-part pull over 1.5 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf A4.2\" (#33) would undercut a two-part pull over 0.6 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry A5.1 mound\" (#34) would undercut a two-part pull over 0.2 mm² (worst -60°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf A5.1\" (#35) would undercut a two-part pull over 1.4 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf A5.2\" (#36) would undercut a two-part pull over 0.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder bough A1\" (#37) would undercut a two-part pull over 22.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder bough A2\" (#38) would undercut a two-part pull over 2.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder bough A3\" (#39) would undercut a two-part pull over 1.9 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder bough A4\" (#40) would undercut a two-part pull over 1.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Face joint 4\" (#41) would undercut a two-part pull over 3.9 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder node B1\" (#42) would undercut a two-part pull over 1.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry B1.1 mound\" (#43) would undercut a two-part pull over 6.5 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry B1.2 mound\" (#44) would undercut a two-part pull over 5.1 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf B1.1\" (#45) would undercut a two-part pull over 2.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf B1.2\" (#46) would undercut a two-part pull over 3.9 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry B2.1 mound\" (#48) would undercut a two-part pull over 1.2 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry B2.2 mound\" (#49) would undercut a two-part pull over 0.9 mm² (worst -49°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf B2.1\" (#50) would undercut a two-part pull over 0.7 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf B2.2\" (#51) would undercut a two-part pull over 0.8 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry B3.1 mound\" (#52) would undercut a two-part pull over 0.2 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf B3.1\" (#53) would undercut a two-part pull over 0.8 mm² (worst -49°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf B3.2\" (#54) would undercut a two-part pull over 1.5 mm² (worst -72°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry B4.1 mound\" (#55) would undercut a two-part pull over 0.2 mm² (worst -55°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf B4.1\" (#56) would undercut a two-part pull over 0.6 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf B4.2\" (#57) would undercut a two-part pull over 1.5 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder berry B5.1 mound\" (#58) would undercut a two-part pull over 0.2 mm² (worst -60°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf B5.1\" (#59) would undercut a two-part pull over 0.4 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder leaf B5.2\" (#60) would undercut a two-part pull over 1.4 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder bough B1\" (#61) would undercut a two-part pull over 18.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder bough B2\" (#62) would undercut a two-part pull over 2.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder bough B3\" (#63) would undercut a two-part pull over 1.9 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Shoulder bough B4\" (#64) would undercut a two-part pull over 1.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Face berry 1 bezel\" (#83) would undercut a two-part pull over 1.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Face berry 1 seat bur\" (#84) would undercut a two-part pull over 2.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Face berry 2 bezel\" (#87) would undercut a two-part pull over 4.5 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Face berry 2 seat bur\" (#88) would undercut a two-part pull over 3.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Face berry 3 bezel\" (#91) would undercut a two-part pull over 2.2 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Face berry 3 seat bur\" (#92) would undercut a two-part pull over 2.7 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Face berry 4 bezel\" (#95) would undercut a two-part pull over 1.6 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Face berry 4 seat bur\" (#96) would undercut a two-part pull over 0.3 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Face berry 5 bezel\" (#99) would undercut a two-part pull over 1.9 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Face berry 5 seat bur\" (#100) would undercut a two-part pull over 0.3 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry A1.1 bezel\" (#103) would undercut a two-part pull over 3.6 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry A1.1 seat bur\" (#104) would undercut a two-part pull over 3.0 mm² (worst -58°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry A1.2 bezel\" (#107) would undercut a two-part pull over 3.3 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry A1.2 seat bur\" (#108) would undercut a two-part pull over 2.9 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry A2.1 bezel\" (#111) would undercut a two-part pull over 3.7 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry A2.1 seat bur\" (#112) would undercut a two-part pull over 0.2 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry A2.2 bezel\" (#115) would undercut a two-part pull over 1.9 mm² (worst -51°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry A2.2 seat bur\" (#116) would undercut a two-part pull over 0.2 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry A3.1 bezel\" (#119) would undercut a two-part pull over 1.4 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry A3.1 seat bur\" (#120) would undercut a two-part pull over 0.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry A4.1 bezel\" (#123) would undercut a two-part pull over 1.4 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry A4.1 seat bur\" (#124) would undercut a two-part pull over 0.8 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry A5.1 bezel\" (#127) would undercut a two-part pull over 1.5 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry A5.1 seat bur\" (#128) would undercut a two-part pull over 0.8 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry B1.1 bezel\" (#131) would undercut a two-part pull over 3.5 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry B1.1 seat bur\" (#132) would undercut a two-part pull over 3.1 mm² (worst -58°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry B1.2 bezel\" (#135) would undercut a two-part pull over 3.3 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry B1.2 seat bur\" (#136) would undercut a two-part pull over 2.9 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry B2.1 bezel\" (#139) would undercut a two-part pull over 3.7 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry B2.1 seat bur\" (#140) would undercut a two-part pull over 0.2 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry B2.2 bezel\" (#143) would undercut a two-part pull over 2.0 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry B2.2 seat bur\" (#144) would undercut a two-part pull over 0.2 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry B3.1 bezel\" (#147) would undercut a two-part pull over 1.4 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry B3.1 seat bur\" (#148) would undercut a two-part pull over 0.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry B4.1 bezel\" (#151) would undercut a two-part pull over 1.4 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry B4.1 seat bur\" (#152) would undercut a two-part pull over 0.9 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Shoulder berry B5.1 bezel\" (#155) would undercut a two-part pull over 1.5 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Shoulder berry B5.1 seat bur\" (#156) would undercut a two-part pull over 0.8 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is."
+      "4 made settings cast in place with the ring; the field judges the band under them.",
+      "Measured with the ring as built: 120 CAD parts (91 joined, 29 cut), 625.4 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Face node\" (#2) would undercut a two-part pull over 2.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 1\" (#3) would undercut a two-part pull over 16.8 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 2\" (#4) would undercut a two-part pull over 15.4 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 3\" (#5) would undercut a two-part pull over 11.4 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 4\" (#6) would undercut a two-part pull over 8.7 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face stalk 1\" (#7) would undercut a two-part pull over 1.3 mm² (worst -51°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face stalk 2\" (#8) would undercut a two-part pull over 0.8 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face stalk 3\" (#9) would undercut a two-part pull over 1.1 mm² (worst -53°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face stalk 4\" (#10) would undercut a two-part pull over 0.8 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face berry 1 mound\" (#11) would undercut a two-part pull over 1.9 mm² (worst -36°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face berry 2 mound\" (#12) would undercut a two-part pull over 5.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face berry 3 mound\" (#13) would undercut a two-part pull over 2.1 mm² (worst -37°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face berry 4 mound\" (#14) would undercut a two-part pull over 4.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face berry 5 mound\" (#15) would undercut a two-part pull over 3.6 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder bough A1\" (#16) would undercut a two-part pull over 15.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder node A1\" (#17) would undercut a two-part pull over 2.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder twig A1.1\" (#18) would undercut a two-part pull over 3.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder joint A1.1\" (#19) would undercut a two-part pull over 1.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder leaf A1.1\" (#20) would undercut a two-part pull over 2.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder twig A1.2\" (#21) would undercut a two-part pull over 0.8 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder joint A1.2\" (#22) would undercut a two-part pull over 1.0 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder leaf A1.2\" (#23) would undercut a two-part pull over 2.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry A1.1 mound\" (#24) would undercut a two-part pull over 1.2 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry A1.2 mound\" (#25) would undercut a two-part pull over 1.6 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry A1.3 mound\" (#26) would undercut a two-part pull over 0.7 mm² (worst -28°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder bough A2\" (#27) would undercut a two-part pull over 1.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder node A2\" (#28) would undercut a two-part pull over 0.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder twig A2.1\" (#29) would undercut a two-part pull over 0.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder joint A2.1\" (#30) would undercut a two-part pull over 0.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder leaf A2.1\" (#31) would undercut a two-part pull over 0.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder twig A2.2\" (#32) would undercut a two-part pull over 0.8 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder joint A2.2\" (#33) would undercut a two-part pull over 0.3 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder leaf A2.2\" (#34) would undercut a two-part pull over 0.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry A2.1 mound\" (#35) would undercut a two-part pull over 0.8 mm² (worst -21°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry A2.2 mound\" (#36) would undercut a two-part pull over 0.2 mm² (worst -10°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry A2.3 mound\" (#37) would undercut a two-part pull over 0.4 mm² (worst -12°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder bough B1\" (#38) would undercut a two-part pull over 10.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder node B1\" (#39) would undercut a two-part pull over 2.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder twig B1.1\" (#40) would undercut a two-part pull over 0.8 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder joint B1.1\" (#41) would undercut a two-part pull over 1.0 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder leaf B1.1\" (#42) would undercut a two-part pull over 2.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder twig B1.2\" (#43) would undercut a two-part pull over 3.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder joint B1.2\" (#44) would undercut a two-part pull over 1.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder leaf B1.2\" (#45) would undercut a two-part pull over 2.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry B1.1 mound\" (#46) would undercut a two-part pull over 1.2 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry B1.2 mound\" (#47) would undercut a two-part pull over 1.6 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry B1.3 mound\" (#48) would undercut a two-part pull over 0.7 mm² (worst -27°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder bough B2\" (#49) would undercut a two-part pull over 1.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder node B2\" (#50) would undercut a two-part pull over 0.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder twig B2.1\" (#51) would undercut a two-part pull over 0.8 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder joint B2.1\" (#52) would undercut a two-part pull over 0.3 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder leaf B2.1\" (#53) would undercut a two-part pull over 0.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder twig B2.2\" (#54) would undercut a two-part pull over 0.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder joint B2.2\" (#55) would undercut a two-part pull over 0.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder leaf B2.2\" (#56) would undercut a two-part pull over 0.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry B2.1 mound\" (#57) would undercut a two-part pull over 0.8 mm² (worst -21°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry B2.2 mound\" (#58) would undercut a two-part pull over 0.2 mm² (worst -10°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder berry B2.3 mound\" (#59) would undercut a two-part pull over 0.4 mm² (worst -12°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 1 trench 1\" (#76) would undercut a two-part pull over 2.2 mm² (worst -61°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 1 trench 2\" (#77) would undercut a two-part pull over 2.2 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 1 midrib\" (#78) would undercut a two-part pull over 0.3 mm² (worst -40°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 2 trench 1\" (#79) would undercut a two-part pull over 2.1 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 2 trench 2\" (#80) would undercut a two-part pull over 2.8 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 2 midrib\" (#81) would undercut a two-part pull over 0.2 mm² (worst -40°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 3 trench 1\" (#82) would undercut a two-part pull over 2.2 mm² (worst -63°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 3 trench 2\" (#83) would undercut a two-part pull over 2.3 mm² (worst -61°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 3 midrib\" (#84) would undercut a two-part pull over 0.2 mm² (worst -39°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 4 trench 1\" (#85) would undercut a two-part pull over 2.8 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 4 trench 2\" (#86) would undercut a two-part pull over 2.5 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Face leaf 4 midrib\" (#87) would undercut a two-part pull over 0.2 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Face berry 1 bezel\" (#90) would undercut a two-part pull over 2.2 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Face berry 1 seat bur\" (#91) would undercut a two-part pull over 1.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Face berry 2 bezel\" (#94) would undercut a two-part pull over 5.4 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Face berry 2 seat bur\" (#95) would undercut a two-part pull over 1.6 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Face berry 3 bezel\" (#98) would undercut a two-part pull over 2.9 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Face berry 3 seat bur\" (#99) would undercut a two-part pull over 1.5 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Face berry 4 bezel\" (#102) would undercut a two-part pull over 4.8 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Face berry 4 seat bur\" (#103) would undercut a two-part pull over 1.4 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Face berry 5 bezel\" (#106) would undercut a two-part pull over 4.4 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Face berry 5 seat bur\" (#107) would undercut a two-part pull over 1.4 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry A1.1 bezel\" (#110) would undercut a two-part pull over 0.8 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry A1.1 seat bur\" (#111) would undercut a two-part pull over 2.3 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry A1.2 bezel\" (#114) would undercut a two-part pull over 2.7 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry A1.2 seat bur\" (#115) would undercut a two-part pull over 1.3 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry A1.3 bezel\" (#118) would undercut a two-part pull over 1.5 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry A1.3 seat bur\" (#119) would undercut a two-part pull over 0.9 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry A2.1 bezel\" (#122) would undercut a two-part pull over 1.1 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry A2.1 seat bur\" (#123) would undercut a two-part pull over 0.7 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry A2.2 bezel\" (#126) would undercut a two-part pull over 1.2 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry A2.2 seat bur\" (#127) would undercut a two-part pull over 0.2 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry A2.3 bezel\" (#130) would undercut a two-part pull over 0.9 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry A2.3 seat bur\" (#131) would undercut a two-part pull over 0.8 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry B1.1 bezel\" (#134) would undercut a two-part pull over 1.1 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry B1.1 seat bur\" (#135) would undercut a two-part pull over 2.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry B1.2 bezel\" (#138) would undercut a two-part pull over 2.7 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry B1.2 seat bur\" (#139) would undercut a two-part pull over 1.3 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry B1.3 bezel\" (#142) would undercut a two-part pull over 1.5 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry B1.3 seat bur\" (#143) would undercut a two-part pull over 0.9 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry B2.1 bezel\" (#146) would undercut a two-part pull over 1.2 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry B2.1 seat bur\" (#147) would undercut a two-part pull over 0.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry B2.2 bezel\" (#150) would undercut a two-part pull over 1.3 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry B2.2 seat bur\" (#151) would undercut a two-part pull over 0.2 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Shoulder berry B2.3 bezel\" (#154) would undercut a two-part pull over 0.8 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Shoulder berry B2.3 seat bur\" (#155) would undercut a two-part pull over 0.8 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "field_verdict": "Castable",
-    "grams_18k": 30.154655980154804,
+    "grams_18k": 29.81196317300066,
     "kernel_thickness": null,
     "made_parts": [
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Face joint 1",
+        "part": "Face node",
         "self_crossings": 0
       },
       {
@@ -158,37 +163,25 @@
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Face leaf 5",
+        "part": "Face stalk 1",
         "self_crossings": 0
       },
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Face leaf 6",
+        "part": "Face stalk 2",
         "self_crossings": 0
       },
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Face fork 1",
+        "part": "Face stalk 3",
         "self_crossings": 0
       },
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Face joint 2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Face fork 2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Face joint 3",
+        "part": "Face stalk 4",
         "self_crossings": 0
       },
       {
@@ -224,7 +217,49 @@
       {
         "non_manifold": 0,
         "open_edges": 0,
+        "part": "Shoulder bough A1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
         "part": "Shoulder node A1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder twig A1.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder joint A1.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder leaf A1.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder twig A1.2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder joint A1.2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder leaf A1.2",
         "self_crossings": 0
       },
       {
@@ -242,19 +277,55 @@
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Shoulder leaf A1.1",
+        "part": "Shoulder berry A1.3 mound",
         "self_crossings": 0
       },
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Shoulder leaf A1.2",
+        "part": "Shoulder bough A2",
         "self_crossings": 0
       },
       {
         "non_manifold": 0,
         "open_edges": 0,
         "part": "Shoulder node A2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder twig A2.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder joint A2.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder leaf A2.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder twig A2.2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder joint A2.2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder leaf A2.2",
         "self_crossings": 0
       },
       {
@@ -272,103 +343,55 @@
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Shoulder leaf A2.1",
+        "part": "Shoulder berry A2.3 mound",
         "self_crossings": 0
       },
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Shoulder leaf A2.2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder berry A3.1 mound",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf A3.1",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf A3.2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder berry A4.1 mound",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf A4.1",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf A4.2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder berry A5.1 mound",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf A5.1",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf A5.2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder bough A1",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder bough A2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder bough A3",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder bough A4",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Face joint 4",
+        "part": "Shoulder bough B1",
         "self_crossings": 0
       },
       {
         "non_manifold": 0,
         "open_edges": 0,
         "part": "Shoulder node B1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder twig B1.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder joint B1.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder leaf B1.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder twig B1.2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder joint B1.2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder leaf B1.2",
         "self_crossings": 0
       },
       {
@@ -386,19 +409,55 @@
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Shoulder leaf B1.1",
+        "part": "Shoulder berry B1.3 mound",
         "self_crossings": 0
       },
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Shoulder leaf B1.2",
+        "part": "Shoulder bough B2",
         "self_crossings": 0
       },
       {
         "non_manifold": 0,
         "open_edges": 0,
         "part": "Shoulder node B2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder twig B2.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder joint B2.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder leaf B2.1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder twig B2.2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder joint B2.2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Shoulder leaf B2.2",
         "self_crossings": 0
       },
       {
@@ -416,91 +475,7 @@
       {
         "non_manifold": 0,
         "open_edges": 0,
-        "part": "Shoulder leaf B2.1",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf B2.2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder berry B3.1 mound",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf B3.1",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf B3.2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder berry B4.1 mound",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf B4.1",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf B4.2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder berry B5.1 mound",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf B5.1",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder leaf B5.2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder bough B1",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder bough B2",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder bough B3",
-        "self_crossings": 0
-      },
-      {
-        "non_manifold": 0,
-        "open_edges": 0,
-        "part": "Shoulder bough B4",
+        "part": "Shoulder berry B2.3 mound",
         "self_crossings": 0
       },
       {
@@ -598,139 +573,220 @@
         "open_edges": 0,
         "part": "Cheek leaf B2.2",
         "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 1 trench 1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 1 trench 2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 1 midrib",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 2 trench 1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 2 trench 2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 2 midrib",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 3 trench 1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 3 trench 2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 3 midrib",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 4 trench 1",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 4 trench 2",
+        "self_crossings": 0
+      },
+      {
+        "non_manifold": 0,
+        "open_edges": 0,
+        "part": "Face leaf 4 midrib",
+        "self_crossings": 0
       }
     ],
     "metal_inside_stones": [],
-    "min_angle_deg": 0.0011273831264952113,
+    "min_angle_deg": 0.0011763061417547366,
     "non_manifold_edges": 0,
-    "parts_joined": 98,
+    "parts_joined": 91,
     "parts_notes": [],
     "pass": true,
     "seam_beads": 0,
-    "seats_resolved": 2,
+    "seats_resolved": 4,
     "self_crossings": 0,
     "solids_notes": [],
     "stamps_struck": 0,
-    "stone_carats": 0.5255535164352646,
+    "stone_carats": 0.51721824280676,
     "stone_warnings": [],
     "stones_previewed": 21,
     "stones_reported": 21,
     "thinnest_wall_mm": 1.368819935174308,
-    "triangles": 340480,
-    "undercut_percent_two_part_not_gated": 21.61064484945233,
+    "triangles": 364248,
+    "undercut_percent_two_part_not_gated": 20.806322971708983,
     "watertight": true
   },
   "export": null,
   "gates_passed": true,
   "layers": [
     "Cheek berry A1",
-    "Cheek berry B1"
+    "Cheek berry A2",
+    "Cheek berry B1",
+    "Cheek berry B2"
   ],
   "name": "Viscum — the golden bough",
   "placed": {
     "berries": [
-      "Face berry 1 2.4 mm in a collet, girdle at [0.70, 14.44, 0.00], facing [0.02, 1.00, 0.00]",
-      "Face berry 2 2.1 mm in a collet, girdle at [3.30, 14.40, 1.40], facing [0.08, 1.00, -0.05]",
-      "Face berry 3 2.1 mm in a collet, girdle at [3.35, 14.40, -1.45], facing [0.08, 1.00, 0.04]",
-      "Face berry 4 2.0 mm in a collet, girdle at [5.89, 12.28, 7.14], facing [0.71, 0.57, 0.41]",
-      "Face berry 5 2.0 mm in a collet, girdle at [5.85, 12.58, -6.79], facing [0.65, 0.65, -0.40]",
-      "Shoulder berry A1.1 2.0 mm in a collet, girdle at [-10.27, 10.27, 2.17], facing [-0.75, 0.30, -0.59]",
-      "Shoulder berry A1.2 1.9 mm in a collet, girdle at [-10.23, 10.23, -2.12], facing [-0.74, 0.30, 0.60]",
-      "Shoulder berry A2.1 1.8 mm in a collet, girdle at [-11.43, 4.24, 1.91], facing [-0.99, 0.00, 0.14]",
-      "Shoulder berry A2.2 1.7 mm in a collet, girdle at [-11.43, 4.24, -1.86], facing [-0.99, 0.01, -0.11]",
-      "Shoulder berry A3.1 1.6 mm in a collet, girdle at [-11.66, -0.36, 0.00], facing [-1.00, -0.03, 0.00]",
-      "Shoulder berry A4.1 1.5 mm in a collet, girdle at [-10.53, -5.01, 0.00], facing [-0.90, -0.43, 0.00]",
-      "Shoulder berry A5.1 1.4 mm in a collet, girdle at [-7.78, -8.68, 0.00], facing [-0.67, -0.75, -0.00]",
-      "Shoulder berry B1.1 2.0 mm in a collet, girdle at [10.27, 10.27, 2.17], facing [0.75, 0.30, -0.59]",
-      "Shoulder berry B1.2 1.9 mm in a collet, girdle at [10.23, 10.23, -2.12], facing [0.74, 0.30, 0.60]",
-      "Shoulder berry B2.1 1.8 mm in a collet, girdle at [11.43, 4.24, 1.91], facing [0.99, 0.00, 0.14]",
-      "Shoulder berry B2.2 1.7 mm in a collet, girdle at [11.43, 4.24, -1.86], facing [0.99, 0.01, -0.11]",
-      "Shoulder berry B3.1 1.6 mm in a collet, girdle at [11.66, -0.36, 0.00], facing [1.00, -0.03, 0.00]",
-      "Shoulder berry B4.1 1.5 mm in a collet, girdle at [10.53, -5.01, 0.00], facing [0.90, -0.43, 0.00]",
-      "Shoulder berry B5.1 1.4 mm in a collet, girdle at [7.78, -8.68, 0.00], facing [0.67, -0.75, -0.00]",
+      "Face berry 1 2.4 mm in a collet, girdle at [2.60, 14.61, 0.00], facing [0.13, 0.99, -0.00]",
+      "Face berry 2 2.1 mm in a collet, girdle at [5.14, 14.41, 1.50], facing [0.22, 0.94, -0.27]",
+      "Face berry 3 2.1 mm in a collet, girdle at [5.14, 14.42, -1.50], facing [0.22, 0.94, 0.27]",
+      "Face berry 4 1.9 mm in a collet, girdle at [-6.70, 14.03, 2.05], facing [-0.37, 0.89, -0.28]",
+      "Face berry 5 1.9 mm in a collet, girdle at [-6.70, 14.03, -2.05], facing [-0.37, 0.89, 0.28]",
+      "Shoulder berry A1.1 1.9 mm in a collet, girdle at [-10.53, 5.59, 0.00], facing [-0.91, 0.42, 0.00]",
+      "Shoulder berry A1.2 1.8 mm in a collet, girdle at [-11.51, 3.98, 1.05], facing [-0.96, 0.16, -0.24]",
+      "Shoulder berry A1.3 1.7 mm in a collet, girdle at [-11.47, 3.97, -1.05], facing [-0.96, 0.15, 0.25]",
+      "Shoulder berry A2.1 1.8 mm in a collet, girdle at [-11.59, -2.05, 0.00], facing [-0.98, -0.18, 0.00]",
+      "Shoulder berry A2.2 1.6 mm in a collet, girdle at [-11.08, -3.66, 0.97], facing [-0.92, -0.30, 0.25]",
+      "Shoulder berry A2.3 1.6 mm in a collet, girdle at [-11.08, -3.66, -0.97], facing [-0.92, -0.30, -0.24]",
+      "Shoulder berry B1.1 1.9 mm in a collet, girdle at [10.56, 5.52, 0.00], facing [0.91, 0.42, 0.00]",
+      "Shoulder berry B1.2 1.8 mm in a collet, girdle at [11.51, 3.91, 1.05], facing [0.96, 0.15, -0.23]",
+      "Shoulder berry B1.3 1.7 mm in a collet, girdle at [11.50, 3.91, -1.05], facing [0.96, 0.15, 0.24]",
+      "Shoulder berry B2.1 1.8 mm in a collet, girdle at [11.56, -2.15, 0.00], facing [0.98, -0.18, 0.00]",
+      "Shoulder berry B2.2 1.6 mm in a collet, girdle at [11.04, -3.76, 0.97], facing [0.92, -0.31, 0.25]",
+      "Shoulder berry B2.3 1.6 mm in a collet, girdle at [11.04, -3.76, -0.97], facing [0.92, -0.31, -0.24]",
       "Cheek berry A1 1.5 mm at 67.32 deg, v 18.838",
-      "Cheek berry B1 1.5 mm at 67.32 deg, v 1.226"
+      "Cheek berry A2 1.5 mm at 112.68 deg, v 18.838",
+      "Cheek berry B1 1.5 mm at 67.32 deg, v 1.226",
+      "Cheek berry B2 1.5 mm at 112.68 deg, v 1.226"
     ],
     "parts": [
-      "Face joint 1: 2556 triangles, 2.74 mm3",
-      "Face leaf 1: 5116 triangles, 12.23 mm3",
-      "Face leaf 2: 5116 triangles, 13.05 mm3",
-      "Face leaf 3: 5116 triangles, 13.65 mm3",
-      "Face leaf 4: 5116 triangles, 11.89 mm3",
-      "Face leaf 5: 5116 triangles, 13.97 mm3",
-      "Face leaf 6: 5116 triangles, 11.95 mm3",
-      "Face fork 1: 2556 triangles, 4.99 mm3",
-      "Face joint 2: 2556 triangles, 2.15 mm3",
-      "Face fork 2: 2556 triangles, 5.15 mm3",
-      "Face joint 3: 2556 triangles, 2.18 mm3",
-      "Face berry 1 mound: 3836 triangles, 7.69 mm3",
-      "Face berry 2 mound: 3836 triangles, 6.49 mm3",
-      "Face berry 3 mound: 3836 triangles, 6.54 mm3",
-      "Face berry 4 mound: 3836 triangles, 6.27 mm3",
-      "Face berry 5 mound: 3836 triangles, 6.42 mm3",
-      "Shoulder node A1: 2556 triangles, 2.72 mm3",
-      "Shoulder berry A1.1 mound: 3836 triangles, 7.83 mm3",
-      "Shoulder berry A1.2 mound: 3836 triangles, 7.30 mm3",
-      "Shoulder leaf A1.1: 4476 triangles, 4.19 mm3",
-      "Shoulder leaf A1.2: 4476 triangles, 4.22 mm3",
-      "Shoulder node A2: 2556 triangles, 1.37 mm3",
-      "Shoulder berry A2.1 mound: 3836 triangles, 5.14 mm3",
-      "Shoulder berry A2.2 mound: 3836 triangles, 4.74 mm3",
-      "Shoulder leaf A2.1: 4476 triangles, 3.20 mm3",
-      "Shoulder leaf A2.2: 4476 triangles, 3.22 mm3",
-      "Shoulder berry A3.1 mound: 3836 triangles, 4.02 mm3",
-      "Shoulder leaf A3.1: 4476 triangles, 2.63 mm3",
-      "Shoulder leaf A3.2: 4476 triangles, 2.65 mm3",
-      "Shoulder berry A4.1 mound: 3836 triangles, 3.74 mm3",
-      "Shoulder leaf A4.1: 4476 triangles, 2.33 mm3",
-      "Shoulder leaf A4.2: 4476 triangles, 2.34 mm3",
-      "Shoulder berry A5.1 mound: 3836 triangles, 3.46 mm3",
-      "Shoulder leaf A5.1: 4476 triangles, 2.03 mm3",
-      "Shoulder leaf A5.2: 4476 triangles, 2.04 mm3",
-      "Shoulder bough A1: 2556 triangles, 36.11 mm3",
-      "Shoulder bough A2: 2556 triangles, 3.45 mm3",
-      "Shoulder bough A3: 2556 triangles, 2.78 mm3",
-      "Shoulder bough A4: 2556 triangles, 1.30 mm3",
-      "Face joint 4: 2556 triangles, 4.02 mm3",
-      "Shoulder node B1: 2556 triangles, 2.89 mm3",
-      "Shoulder berry B1.1 mound: 3836 triangles, 8.85 mm3",
-      "Shoulder berry B1.2 mound: 3836 triangles, 8.25 mm3",
-      "Shoulder leaf B1.1: 4476 triangles, 4.84 mm3",
-      "Shoulder leaf B1.2: 4476 triangles, 4.86 mm3",
-      "Shoulder node B2: 2556 triangles, 1.51 mm3",
-      "Shoulder berry B2.1 mound: 3836 triangles, 5.75 mm3",
-      "Shoulder berry B2.2 mound: 3836 triangles, 5.32 mm3",
-      "Shoulder leaf B2.1: 4476 triangles, 3.67 mm3",
-      "Shoulder leaf B2.2: 4476 triangles, 3.69 mm3",
-      "Shoulder berry B3.1 mound: 3836 triangles, 4.53 mm3",
-      "Shoulder leaf B3.1: 4476 triangles, 3.01 mm3",
-      "Shoulder leaf B3.2: 4476 triangles, 3.03 mm3",
-      "Shoulder berry B4.1 mound: 3836 triangles, 4.21 mm3",
-      "Shoulder leaf B4.1: 4476 triangles, 2.65 mm3",
-      "Shoulder leaf B4.2: 4476 triangles, 2.67 mm3",
-      "Shoulder berry B5.1 mound: 3836 triangles, 3.88 mm3",
-      "Shoulder leaf B5.1: 4476 triangles, 2.31 mm3",
-      "Shoulder leaf B5.2: 4476 triangles, 2.32 mm3",
-      "Shoulder bough B1: 2556 triangles, 30.53 mm3",
-      "Shoulder bough B2: 2556 triangles, 3.84 mm3",
-      "Shoulder bough B3: 2556 triangles, 3.12 mm3",
-      "Shoulder bough B4: 2556 triangles, 1.46 mm3",
-      "Cheek twig A1: 2556 triangles, 1.47 mm3",
-      "Cheek node A1: 2556 triangles, 1.62 mm3",
-      "Cheek leaf A1.1: 4476 triangles, 2.66 mm3",
-      "Cheek leaf A1.2: 4476 triangles, 2.68 mm3",
-      "Cheek twig A2: 2556 triangles, 1.49 mm3",
-      "Cheek node A2: 2556 triangles, 1.64 mm3",
-      "Cheek leaf A2.1: 4476 triangles, 2.72 mm3",
-      "Cheek leaf A2.2: 4476 triangles, 2.74 mm3",
-      "Cheek twig B1: 2556 triangles, 1.51 mm3",
-      "Cheek node B1: 2556 triangles, 1.67 mm3",
-      "Cheek leaf B1.1: 4476 triangles, 2.78 mm3",
-      "Cheek leaf B1.2: 4476 triangles, 2.80 mm3",
-      "Cheek twig B2: 2556 triangles, 1.53 mm3",
-      "Cheek node B2: 2556 triangles, 1.69 mm3",
-      "Cheek leaf B2.1: 4476 triangles, 2.83 mm3",
-      "Cheek leaf B2.2: 4476 triangles, 2.85 mm3"
+      "Face node: 2556 triangles, 3.43 mm3",
+      "Face leaf 1: 5116 triangles, 26.84 mm3",
+      "Face leaf 2: 5116 triangles, 25.79 mm3",
+      "Face leaf 3: 5116 triangles, 20.68 mm3",
+      "Face leaf 4: 5116 triangles, 19.19 mm3",
+      "Face stalk 1: 2556 triangles, 1.47 mm3",
+      "Face stalk 2: 2556 triangles, 1.49 mm3",
+      "Face stalk 3: 2556 triangles, 1.50 mm3",
+      "Face stalk 4: 2556 triangles, 1.50 mm3",
+      "Face berry 1 mound: 3836 triangles, 8.78 mm3",
+      "Face berry 2 mound: 3836 triangles, 7.20 mm3",
+      "Face berry 3 mound: 3836 triangles, 7.28 mm3",
+      "Face berry 4 mound: 3836 triangles, 5.88 mm3",
+      "Face berry 5 mound: 3836 triangles, 5.92 mm3",
+      "Shoulder bough A1: 2556 triangles, 21.27 mm3",
+      "Shoulder node A1: 2556 triangles, 2.71 mm3",
+      "Shoulder twig A1.1: 2556 triangles, 2.30 mm3",
+      "Shoulder joint A1.1: 2556 triangles, 1.12 mm3",
+      "Shoulder leaf A1.1: 4476 triangles, 2.50 mm3",
+      "Shoulder twig A1.2: 2556 triangles, 2.33 mm3",
+      "Shoulder joint A1.2: 2556 triangles, 1.14 mm3",
+      "Shoulder leaf A1.2: 4476 triangles, 2.55 mm3",
+      "Shoulder berry A1.1 mound: 3836 triangles, 5.92 mm3",
+      "Shoulder berry A1.2 mound: 3836 triangles, 5.07 mm3",
+      "Shoulder berry A1.3 mound: 3836 triangles, 4.54 mm3",
+      "Shoulder bough A2: 2556 triangles, 2.75 mm3",
+      "Shoulder node A2: 2556 triangles, 0.91 mm3",
+      "Shoulder twig A2.1: 2556 triangles, 0.96 mm3",
+      "Shoulder joint A2.1: 2556 triangles, 0.52 mm3",
+      "Shoulder leaf A2.1: 4476 triangles, 0.83 mm3",
+      "Shoulder twig A2.2: 2556 triangles, 0.97 mm3",
+      "Shoulder joint A2.2: 2556 triangles, 0.53 mm3",
+      "Shoulder leaf A2.2: 4476 triangles, 0.85 mm3",
+      "Shoulder berry A2.1 mound: 3836 triangles, 4.56 mm3",
+      "Shoulder berry A2.2 mound: 3836 triangles, 4.02 mm3",
+      "Shoulder berry A2.3 mound: 3836 triangles, 3.88 mm3",
+      "Shoulder bough B1: 2556 triangles, 11.02 mm3",
+      "Shoulder node B1: 2556 triangles, 2.86 mm3",
+      "Shoulder twig B1.1: 2556 triangles, 2.50 mm3",
+      "Shoulder joint B1.1: 2556 triangles, 1.22 mm3",
+      "Shoulder leaf B1.1: 4476 triangles, 2.86 mm3",
+      "Shoulder twig B1.2: 2556 triangles, 2.53 mm3",
+      "Shoulder joint B1.2: 2556 triangles, 1.23 mm3",
+      "Shoulder leaf B1.2: 4476 triangles, 2.90 mm3",
+      "Shoulder berry B1.1 mound: 3836 triangles, 6.49 mm3",
+      "Shoulder berry B1.2 mound: 3836 triangles, 5.57 mm3",
+      "Shoulder berry B1.3 mound: 3836 triangles, 5.07 mm3",
+      "Shoulder bough B2: 2556 triangles, 3.08 mm3",
+      "Shoulder node B2: 2556 triangles, 1.01 mm3",
+      "Shoulder twig B2.1: 2556 triangles, 1.08 mm3",
+      "Shoulder joint B2.1: 2556 triangles, 0.58 mm3",
+      "Shoulder leaf B2.1: 4476 triangles, 0.95 mm3",
+      "Shoulder twig B2.2: 2556 triangles, 1.10 mm3",
+      "Shoulder joint B2.2: 2556 triangles, 0.59 mm3",
+      "Shoulder leaf B2.2: 4476 triangles, 0.96 mm3",
+      "Shoulder berry B2.1 mound: 3836 triangles, 5.06 mm3",
+      "Shoulder berry B2.2 mound: 3836 triangles, 4.46 mm3",
+      "Shoulder berry B2.3 mound: 3836 triangles, 4.28 mm3",
+      "Cheek twig A1: 2556 triangles, 1.44 mm3",
+      "Cheek node A1: 2556 triangles, 1.59 mm3",
+      "Cheek leaf A1.1: 4476 triangles, 2.56 mm3",
+      "Cheek leaf A1.2: 4476 triangles, 2.58 mm3",
+      "Cheek twig A2: 2556 triangles, 1.46 mm3",
+      "Cheek node A2: 2556 triangles, 1.61 mm3",
+      "Cheek leaf A2.1: 4476 triangles, 2.62 mm3",
+      "Cheek leaf A2.2: 4476 triangles, 2.64 mm3",
+      "Cheek twig B1: 2556 triangles, 1.49 mm3",
+      "Cheek node B1: 2556 triangles, 1.64 mm3",
+      "Cheek leaf B1.1: 4476 triangles, 2.68 mm3",
+      "Cheek leaf B1.2: 4476 triangles, 2.70 mm3",
+      "Cheek twig B2: 2556 triangles, 1.51 mm3",
+      "Cheek node B2: 2556 triangles, 1.66 mm3",
+      "Cheek leaf B2.1: 4476 triangles, 2.73 mm3",
+      "Cheek leaf B2.2: 4476 triangles, 2.75 mm3",
+      "Face leaf 1 trench 1: cut, 4992 triangles",
+      "Face leaf 1 trench 2: cut, 4480 triangles",
+      "Face leaf 1 midrib: cut, 2184 triangles",
+      "Face leaf 2 trench 1: cut, 4032 triangles",
+      "Face leaf 2 trench 2: cut, 4512 triangles",
+      "Face leaf 2 midrib: cut, 2184 triangles",
+      "Face leaf 3 trench 1: cut, 4448 triangles",
+      "Face leaf 3 trench 2: cut, 4512 triangles",
+      "Face leaf 3 midrib: cut, 2184 triangles",
+      "Face leaf 4 trench 1: cut, 4864 triangles",
+      "Face leaf 4 trench 2: cut, 5440 triangles",
+      "Face leaf 4 midrib: cut, 2184 triangles"
     ],
     "shoulder_width_mm": [
       [

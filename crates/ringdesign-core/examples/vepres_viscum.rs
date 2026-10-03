@@ -1157,7 +1157,9 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
                 sprig.mounded_berry(&crest, &format!("Shoulder berry {unit}.{}", b_k + 1), *c, *dmm, rim)?;
                 far = far.max((c[0] - node) * out + 0.5 * dmm + rim);
             }
-            from = node + out * (far - 0.6);
+            // The bough on starts from between the bunch's far berries, clear of the first one.
+            let first_r = 0.5 * sizes[0];
+            from = node + out * (a + first_r + 0.3 + BOUGH_R);
             eprintln!("  unit {unit}: node at {:.1} deg, bunch from {:.2} to {:.2} mm", (node / r0).to_degrees().abs() % 360.0, a, far);
             let next_knob = 0.62 * SHOULDER_UNITS.get(n_k + 1).map_or(0.8, |u| u.1.max(0.8));
             node += out * (far + 0.9 + next_knob);
@@ -1259,11 +1261,6 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
             if let Operation::Builder { key, params, .. } = &mut s.operation {
                 if key == ringdesign_core::cad::builders::BEZEL {
                     *params = json!({ "wall_mm": 0.3, "lip": 0.1 });
-                }
-                // The berry's flat back sits on its mound's crown, so no seat is cut under it: the setter trues
-                // the bearing at the bench.
-                if key == ringdesign_core::cad::builders::BUR && std::env::var("VISCUM_BUR").is_err() {
-                    continue;
                 }
             }
             doc.append(s)?;
@@ -1564,26 +1561,6 @@ const VIEWS: [(&str, f64, f64); 6] = [
     ("reverse", 1.6, 0.8),
 ];
 
-fn crop(m: &mesh::Mesh, centre: [f64; 3], radius: f64) -> mesh::Mesh {
-    let near = |i: u32| {
-        let p = m.vertices[i as usize];
-        (p.0 as f64 - centre[0]).hypot(p.1 as f64 - centre[1]).hypot(p.2 as f64 - centre[2]) < radius
-    };
-    let mut index = std::collections::HashMap::new();
-    let mut out = mesh::Mesh::default();
-    for f in m.faces.iter().filter(|f| f.iter().all(|&i| near(i))) {
-        let g = f.map(|i| {
-            *index.entry(i).or_insert_with(|| {
-                out.vertices.push(m.vertices[i as usize]);
-                out.normals.push(m.normals.get(i as usize).copied().unwrap_or(mesh::Vec3(0.0, 0.0, 1.0)));
-                (out.vertices.len() - 1) as u32
-            })
-        });
-        out.faces.push(g);
-    }
-    out
-}
-
 fn save_rgb(path: &Path, rgb: &[u8], w: usize, h: usize) -> Result<()> {
     image::save_buffer(path, rgb, w as u32, h as u32, image::ColorType::Rgb8)?;
     Ok(())
@@ -1609,12 +1586,10 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: mesh::BuildRes
         }
     }
     save_rgb(&out.join("contact-300.png"), &sheet, cols * 300, rows * 300)?;
-    // The stones close-up frames the face.
+    // Close-ups framed on whole parts, never a cropped mesh: the face's sprig, and the near shoulder's forks.
     let top = fin.metal.vertices.iter().map(|v| v.1 as f64).fold(0.0, f64::max);
-    let close_metal = crop(&fin.metal, [0.0, top - 1.0, 0.0], 11.0);
-    let mut close = vec![render::Part::metal(&close_metal, render::GOLD)];
-    close.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    render::write_png_parts(out.join("stones.png"), &close, 0.3, 1.15, edge)?;
+    render::write_png_framed(out.join("stones.png"), &parts, render::yaw_facing(90.0), 1.15, render::Framing::new([0.0, top - 1.0, 0.0], 11.0), edge)?;
+    render::write_png_framed(out.join("shoulder-close.png"), &parts, render::yaw_facing(30.0), 0.9, render::Framing::new([9.5, 7.0, 0.0], 7.0), edge)?;
     // Bare stock against the finished ring, at the hero's angle.
     let mut bare = d.clone();
     bare.imported_base.as_mut().unwrap().bare = true;

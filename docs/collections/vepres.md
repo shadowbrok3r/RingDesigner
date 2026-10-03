@@ -676,6 +676,7 @@ That is expected for most Vepres rings. Say so in each README line.
 
 ## Viscum — *the golden bough*
 
+- **Process decided (2026-10-03, Logan's rule):** judged as lost wax on native 003, 0.8 mm minimum section, no pull rule; any sand pull is reported only as a bonus. No extra review rounds granted: the three-round cap applies.
 - **Status:** Not started. **Blocked on Logan's process decision** (§0). After that it is buildable now: route 1 needs nothing unlanded.
 
 - **Concept:** Aeneas's golden bough, his passport into the underworld, which Frazer identified as mistletoe. The factory clover's four lobes are the mistletoe's two crossed leaf pairs, each cut in intaglio at the bench like a seal. Three moonstone berries sit in the fork where the lobes meet. Forked twigs with paired leaves fill the cheeks. Graded moonstone berries run down both shoulders on the crest line, and the shank is the host oak, with bark on its walls.
