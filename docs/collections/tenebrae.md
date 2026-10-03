@@ -354,6 +354,8 @@ fn assert_lands(s: &Sketch, bar: f64) -> Result<()>                             
 
 ## Ogiva — *the keel*
 
+> **2026-10-03, pending Logan's confirmation: Ogiva is now the `arch` option of the 2026-10-02 concept spike** (`showcase/tenebrae/ogiva-spike/`, `cloud-report.md` on `claude/tenebrae-ogiva-spike`). The keel brief below failed five read tests, and judging the keel on its section failed two more. The arch read at once. Seen along the finger, the ring is one great equilateral pointed arch standing on two piers. It has a keeled extrados, stepped orders sunk into its head, and imposts at the springers. Everything is drawn on the parting plane and extruded along the pull, so it still pours in Delft sand as a parts-only ring. It is a single arch, not a doorway: no doors, tympanum or trumeau, which keeps it distinct from Porta on factory 009. The face view (along the finger) carries the read. **Reviewers judge the ring that exists, not the keel brief below**, which stays as the record of what was tried.
+
 - **Status:** Not started. Buildable now. The resizable template waits on C-T2.
 - **Concept:** The ring *is* a pointed arch: its cross-section is a blunt lancet, 5.6 wide and 3.6 thick, standing on the bore. Thirteen crockets climb its keel over the top of the hand, and thirty-six blind lancet niches are cut into each foot. Every feature is an extrusion along the pull, so it pours in two-part sand. It is the library's first parts-only sand ring.
 - **Theme face to palm:**
