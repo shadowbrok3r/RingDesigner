@@ -1,154 +1,139 @@
-# Tenebrae enablers C-T1, C-T3, C-T4: cloud report
+# Officina ring: Sigil — cloud report
 
-Branch `claude/tenebrae-enablers` from `master` at `a66879e`: `8246c5a` (C-T1), `67a3493` (C-T3),
-`0905b88` (C-T4), then this report. Pull request: https://github.com/shadowbrok3r/RingDesigner/pull/239
-Every enabler is opt-in: nothing existing changes shape, and every new saved form is fenced at design
-format 6 / graph format 2 without a new version.
+**Result: shipped at 7.5** (round 3), every gate green at draft and at export, and the template gate passed.
+Branch `claude/officina-sigil`. Example `crates/ringdesign-core/examples/officina_sigil.rs`; outputs in `showcase/officina/sigil/`.
 
-## C-T1: tracery from a net, and `Profile::Regions`
+(This file replaces, on this branch only, the Tenebrae enablers report that master carries at this path.)
 
-**What landed**
-- `Sketch::tracery(net, bar_mm) -> Tracery { lights, skipped }` (`sketch/edit.rs`). It composes the
-  proven calls: `split_at_intersections` on the net alone (every other drawn curve stands aside as
-  construction while it splits, so the rest of the sketch is neither split nor moved), the cells from
-  `profile_regions`, each rim offset in by `bar/2` and each hole out by as much, then the net marked
-  construction. A cell whose offset folds is left out whole and named in `skipped` with the reason. A
-  bar no cell takes is refused, and the sketch is left unchanged.
-- `Profile::Regions { feature, regions }`, an untagged arm placed before `Feature`. `regions_of` takes
-  every picked region once (a pick named twice counts once), and an empty list is refused. A twisted
-  sweep, a loft and a sweep take one region and refuse several by name. Wired through every exhaustive
-  match (workbench grips, GUI sketch mode, and the GUI profile source, which shows "regions 1, 3 of 5").
-- Fence: `cad::picks_regions` / `picks_regions_json` (document and graph JSON, clusters included) join
-  `library::format_version_for` and the graph writers' `fenced_json`. An older build would read
-  `{feature, regions}` as `Feature` and sweep every region.
-- Exposure: a `sketch.tracery` graph node takes a Sketch operation or a bare sketch, the net's ids
-  (empty takes every drawn curve) and the bar. It returns the operation, how many lights, and each
-  skipped cell with its reason. MCP reaches it through its graph tools.
-- CLAUDE.md: the fence sentence, and a "Tracery is drawn from a net" bullet under the CAD rules.
+## Verdicts
 
-**Tests**
-- `sketch::edit::tests::a_polar_net_traces_to_one_light_per_cell_each_a_bar_from_its_neighbours`:
-  a 24-cell polar net at bar 0.9 gives 24 loops, and each loop's gap to its neighbour round the wheel is
-  0.9 ± 1e-6. The test also checks that the net ends as construction and a circle beside it is untouched.
-- `sketch::edit::tests::a_cell_too_narrow_for_the_bar_is_skipped_whole_and_a_bar_no_cell_takes_is_refused`
-- `cad::tests::several_regions_of_one_branched_sketch_extrude_together_and_read_back_as_regions`:
-  the two outer cells of a three-cell box extrude as (12 + 16) × 2 mm³, the whole branched sketch is
-  refused, and each profile shape round-trips through untagged serde as itself.
-- `library::tests::several_picked_regions_write_the_design_at_six_and_one_stays_at_five` (document
-  and graph), and `nodes::cad::tests::a_tracery_node_draws_one_light_per_cell_of_a_sketch_operation`.
+| Step | File | Verdict | Score |
+|---|---|---|---|
+| Block-out read test, attempt 1 | `read-test-1.json` | **reads: true**. The face read at once as a quartered seal in a bordure; the hero read only weakly ("clock hands"). | — |
+| Round 1 | `review-round1.json` | revise | 5.8 |
+| Round 2 | `review-round2.json` | revise | 7.2 |
+| Round 3 | `review-round3.json` | **ship** | **7.5** |
 
-## C-T3: Gothic cutter shapes, the outline library and the artwork set
+Rounds used: the block-out (one attempt) plus 3 review rounds.
 
-**What landed**
-- `cutters::Shape` gains Lancet, Ogee, Trefoil, Quatrefoil and Mouchette, and `PIERCE_SHAPES` lists all
-  ten, which reaches the inspector's choice and the `cad.op.cutter.pierce` node. The workbench's
-  right-click "Cut here" list (`PIERCE_KEYS`) carries all ten on desktop and phone. `pierce_at` sizes
-  each one, and an arch's point and a trefoil's lobe stand away from the bore.
-- The bright cut insets concave cusps. Each Gothic plan is drawn dense, read on fixed rays from a centre
-  it is star-shaped about (each ray turned onto the nearest point or cusp), and grown along those rays by
-  the true Minkowski offset of the drawn plan. The point count never changes, the fan never folds, and a
-  cusp moves straight out along its own ray. The five older plans are untouched.
-- Fence: a piercing with a Gothic shape is `geometry_extended`, so it is written at 6 and graph 2. An
-  older reader would otherwise cut it as a Round.
-- Library: `bundled/sketches/gothic/*.svg`, 16 pieces, all in `import_svg`-clean form. The
-  `ringdesign-assets` `SKETCHES` family is swept through subfolders and named by path (for example
-  `gothic/fleur-de-lis`). `library::list_sketches()` / `list_sketches_in(dir)` / `sketch_dir()` lay the
-  user's `sketches/` folder over the bundled set by name, like `list_outlines`. A `sketch.library` graph
-  node serves any of them by name, with a scale.
-- Outlines and nets: gallery-ogee, gallery-quatrefoil, gallery-cusped-lozenge,
-  ornament-quatrefoil-ring, and the four jalis (lozenge, quatrefoil, honeycomb, intersecting arches) as
-  centre lines for `tracery`.
-- Artwork: fleur-de-lis, fleur-cresting, crocket-leaf, nave-arcade (three lancet bays),
-  gargoyle-silhouette, gargoyle-face (an eye, a brow, a nostril and a fang: Logan now allows faces),
-  memento-mori (crossed bones under an open hourglass) and cross-pattee.
-- Tools: `tools/author_gothic.py` draws the set, with exact lines and arcs for the geometric
-  pieces and shapely polygons for the figurative ones. `tools/harvest_gothic.py` (rhino3dm) is the
-  3DM harvester; it was smoke-tested here on synthetic 3DM files (a line+arc polycurve, a circle, a
-  B-rep box).
-- CLAUDE.md: a "Gothic piercing grows by a true offset" bullet, and the `SKETCHES` family in the assets
-  section.
+What each round fixed:
+- **Round 1 → 2.**
+  - The round quartered disc read as the BMW roundel, so it became a heater shield.
+  - Bench cuts are now of even depth on the crowned table: 0.36–0.47 mm, where they had run 0.22–0.95 mm.
+  - The stair-stepped stock shoulders now shade clean.
+  - The matting punch was dropped.
+- **Round 2 → 3.**
+  - The bordure no longer shows a milled-coin serration.
+  - The lesson is back to Logan's 7 features.
+  - The timeline uses one camera and shows tool bodies translucent.
+  - The escutcheon outline is closed.
+  - A README discloses the seam bead and the render-only shading.
 
-**Tests**
-- `cutters::tests::a_gothic_plan_grows_by_a_true_offset_so_its_cusps_inset_instead_of_folding`: every
-  grown point stands exactly `g` off the drawn plan (1e-6). The ray reading keeps the drawn area, so each
-  plan is star-shaped about its centre. A quatrefoil's cusp moves out along its ray, and each point or
-  tip lies at −x.
-- The existing outline, crown-piercing (volume to 3%), blind, side-face and edge tests now run all ten
-  shapes. The side-face test also pins which way the new points face.
-- `library::tests::every_bundled_gothic_sketch_sweeps_its_area_or_traces_its_lights`: every file
-  imports. Each outline sweeps the area recorded on its root (1e-5). Each net traces to the recorded light
-  count with none skipped. A user file overlays a bundled one and a new name joins the list.
-- `nodes::cad::tests::a_library_sketch_feeds_tracery_and_names_the_library_when_it_is_missing`, and the
-  assets crate's round-trip, length, name and SVG checks now cover `SKETCHES`.
+Round 3's three optional polish items were left alone, so the shipped files are exactly what was reviewed:
+- P2: a reflection smear on the table crest in `face.png`.
+- P2: the slab in timeline frame 6 is too opaque.
+- P3: the sunk quarters could be about 10% darker in the hero.
 
-**Could not do**
-- The nine harvested pieces (Under Gallery Cuts 001–003, Jalis 000/002/010/016, Ornaments 027/028)
-  are drawn stand-ins. `assets/User/Profiles/` is git-ignored (`.gitignore` line 3: `assets/`). It is not
-  on master or any branch, so the 3DM files were not in this checkout. Each stand-in says so in its
-  `<desc>`. Run `uv run --no-project --with rhino3dm==8.32.0 --with shapely python
-  tools/harvest_gothic.py assets/User/Profiles` on the workstation to replace them under the same
-  names, then rerun `every_bundled_gothic_sketch`. The file matching (folder keyword plus number) is a
-  guess at the folder names; `--dry-run` shows what it would take.
-- The gargoyle pieces are a serviceable first pass and have not been through a render review. Hold them
-  to that bar, and cut the face variant if it does not read at size.
+## Gates (final build; `report.json` → `gates`, with the draft run in `draft`)
 
-## C-T4: DFM land width for CAD cuts
+| Gate | Draft 768 × 320 | Export 1536 × 448 |
+|---|---|---|
+| Watertight, degenerate faces | yes, 0 | yes, 0 |
+| `csg::self_crossings`: ring / made part "Seal sunk" | 0 / 0 | 0 / 0 |
+| Solids notes, parts notes | empty | empty |
+| CAD features Ok | 7 / 7 | 7 / 7 |
+| Bore clearance (closest vertex vs bore radius 9.100) | 9.0999995 | 9.0999995 |
+| Field verdict at 192 × 128 and 256 × 128 (Delft) | Castable, Castable (0.0000%, worst −0.34°) | Castable, Castable |
+| Ray release at 0.100 mm (obstructions, unresolved) | 0, 0 | 0, 0 |
+| Ray release at 0.075 mm (obstructions, unresolved) | 0, 0 | 0, 0 |
+| `dfm::findings_in` | 0 | 0 |
+| Stones reported / previewed | 0 / 0 | 0 / 0 |
+| Triangles (limit 2 M) | 492,932 | 1,363,746 |
+| `--verify` cold reload | — | identical |
+| Casting pattern: watertight, degenerate, crossings | — | yes, 0, 0 (1,376,256 triangles) |
 
-**What landed**
-- `dfm::cut_lands(design, built, floor_mm) -> Vec<DfmFinding>`, with `CUT_LAND` as the label and
-  `dfm::PART` as the layer sentinel. For every Cut extrusion it reports the narrowest land in three
-  places: between two of its regions, between it and each copy a Pattern makes, and to the band's or host
-  part's edge. Each kind is reported once when it falls under the floor, for example
-  `Cut #3 'Pierce the lights': 0.60 mm between lights 1 and 2 (floor 0.8)`.
-- How it measures:
-  - Region lands are measured between outlines in the sketch's plane (`cad::extruded_regions` gives the
-    plane as built, face-anchored sketches included), and carried to copies by their copy motions.
-  - The edge land is walked out from each outline in the plane until a line along the normal, within the
-    cut's reach, meets no metal in the built ring.
-  - Where that line runs through a copy's opening instead, the land is booked to the copy. A ring of
-    copies converges toward the bore, so its land at the metal is narrower than in the plane.
-- It only runs when asked, so nothing existing changes. It is reachable through `ringdesign export
-  --cut-land <mm>` and MCP `manufacturing_check { cut_land_mm }`, which adds `cut_lands` to the report.
-- CLAUDE.md: a "CAD cut's lands" paragraph beside the made-part lands.
+Other numbers:
+- Thinnest wall 1.37 mm.
+- `dfm::cut_lands` at 0.8 mm is empty (informational; this is a sand ring).
+- 10.98 g in 18k.
 
-**Test**
-- `dfm::tests::a_cut_names_the_narrowest_land_between_its_lights_its_copies_and_the_edge` covers five
-  cases on a Court band:
-  - Two 1 mm lights 0.6 mm apart report exactly `0.60 mm between lights 1 and 2 (floor 0.8)`.
-  - A lower floor stays silent, and so does the design's own report.
-  - Lights a full floor apart pass.
-  - A light 0.5 mm in from the side reports 0.5 ± 0.06 mm to the edge.
-  - A ring of 48 copies reports a copy land.
+The release tool's status reads "Review" because of its standard low-draft-area note (bore walls included), not because of any obstruction.
 
-**Could not do**
-- Revolve and sweep cuts are not measured; only extrusions have a plane to measure in.
+## Template gate (run after round 3, on the shipped files)
 
-## Checks run
+`collection_templates officina … --only sigil --verify-export`, class `procedural`:
+- **1 `design.set` patch** (`/manufacturing`), within the limit of 4.
+- **39,456 bytes** against the 300 KB class budget.
+- 21 nodes.
+- Cold design reload, cold graph reload and source: identical.
+- Mesh parity: vertices, faces and normals identical at 1536 × 448 (1,363,746 triangles).
+- `template_gate_passed: true`.
+- The graph lists the 7 features as `cad.feature` nodes in timeline order, on `base.preset`.
 
-All on the final tree, with rustc 1.98.1. The workstation's `systemd-run` guard and `--offline` were
-not used here, as TASK.md says.
+The numbers are in `showcase/officina/sigil/template-gate.json` and `report.json` → `template_gate`.
 
-- `cargo test -p ringdesign-core`: 839 passed, 0 failed, 16 ignored. `tests/golden.rs` passed.
-- `cargo test -p ringdesign-graph --no-fail-fast`: 109 lib tests passed, plus `bestiarium_templates`,
-  `cad_edits`, `imported_bases`, `showcase_templates`, `template_nodes` and the `collection_templates`
-  example (25 more), 0 failed. This includes the struct-coverage and table-consistency tests for the two
-  new nodes.
-- `cargo test -p ringdesign-assets`: 4 passed.
-- `cargo check --no-default-features --target wasm32-unknown-unknown -p ringdesign-core`: clean.
-- `cargo check --tests` of graph, workbench, gui, mcp, cli and the Android app: clean. The only warning
-  is the existing `COMFY_GATE_KEY` build note.
-- Spot suites for the touched exposure points:
-  - workbench `viewport::cutters`/`menu`/`grips`: 12 passed. Every one of the ten right-click keys plans
-    on a Court band.
-  - gui `cutter`/`sweep`: 13 passed.
-  - `ringdesign-mcp --lib`: 45 passed.
-- Commits `8246c5a` and `67a3493` were each checked on their own (core, graph, workbench and gui, plus
-  assets for C-T3), so the history bisects.
-- The full workspace test run was not done; I ran the suites TASK.md names plus the crates whose code I
-  touched.
+## Feature tree (the lesson)
 
-Housekeeping: the 30 GB disk allowance ran out once, mid-run, from the example binaries under
-`target/debug/examples` (20 GB). I deleted them and reran that step. `tools/harvest/` is git-ignored by
-design ("never tracked"), so the two new scripts live at `tools/author_gothic.py` and
-`tools/harvest_gothic.py`, beside `audit_3dm_profiles.py`. I stayed out of
-`crates/ringdesign-core/examples/tenebrae_*`.
+1. **Stock 013** (`Band`). The factory stock is the band, and this feature is the anchor. The reader learns that CAD parts stand on imported stock as they do on a procedural band.
+2. **Table plane** (work plane, tangent at 90°). It seats on the stock's table to 0.000 mm and 0.003° off radial; this was the spike the section asked for, and it passed. The reader learns that a work plane reads the surface as built.
+3. **Seal** (sketch on 2). It holds a round bordure (two circles, so a region with a hole) and a heater shield. The shield's outline is one loop; a second loop runs round the raised cross and the two bright quarters. The reader learns that loops nest even-odd, so the sunk field is one region with the cross as its hole.
+4. **Seal cutter** (extrude of two regions picked by `RegionRef`, 2 mm down). The reader learns that several picked regions extrude at once, as a tool body that has not yet cut.
+5. **Crown** (sketch on its own plane, square to the ring). It is the table's crown across the finger, read off the stock and let down 0.42 mm. The reader learns why a flat cut fails on a crowned table: the table falls 0.68 mm at 4 mm.
+6. **Crown let down** (a sweep of 5 round the ring). It makes a slab whose underside follows the crown, as a mesh. The reader learns that a sweep carries a section along a path.
+7. **Seal sunk** (intersect of 4 and 6; cut, `Stage::Bench`). It sinks the seal 0.36–0.47 mm everywhere, with crisp walls and oxidised satin floors. The reader learns that a planar cutter intersected with a surface-following slab gives an even-depth cut, and that the two-stage model keeps the cut out of the pour.
+
+## Parts and stones
+
+- **No stones.** `stones.json` is empty, and `stones.png` is a close-up of the seal.
+- **Made parts:** only "Seal sunk", a bench cut. "Seal cutter" and "Crown let down" are tool bodies that the intersect consumes.
+- **Layer "Parting seam dressed".** A 0.5 × 0.004 mm round border on the crest line. Bare, the 013 sand master fields "Castable with care" (0.07% at −0.8° at 192 × 128). The cause is a mirror seam about 1 µm deep between θ 0° and 55°, and the bead fills it. It is disclosed in `report.json` notes and in `showcase/officina/sigil/README.md`.
+
+## Process and decisions
+
+- **Delft is not what `templates::stock` gives for 013.** `templates::stock(013)` opens 013 as native lost wax, because the core records its sand master as Marginal. TASK.md and the section ask for Delft. The example builds the Delft sand master itself, with the same steps as `stock_as(.., true)`, at an 18.2 mm bore, and dresses the seam as above.
+- **The table is crowned across the finger** and flat round the ring. A planar extrude therefore cuts 0.22–0.95 mm deep, which round 1 failed. Hence features 5–7.
+- **Renders:** the sunk seal is left oxidised satin, as Logan's own signets keep their recesses.
+- **Render-only shading:** the stock's source mesh, and so `finished-metal.stl`, carries 0.55 mm facets that stand within microns of the true surface. On a polished shank they read as stepped highlights, so the renders diffuse the shank's shading normals over 0.6 mm, never across an edge sharper than 20°. On the table the build's own normals are kept, and the faces round the cuts use their own normals. The geometry and the gates are untouched; the README says so.
+- **Enablers:** master did not move during the session; I fetched before every round and after the restart. So no enabler (C-B2, C-V1–C-V5, C-T5–C-T7) or render-edge change reached me, and none was used.
+- **Session limit:** the session stopped at the account's limit after the round-2 review, and resumed with the checkout intact. The round-2 review was pushed first, and from then on every review was pushed as it landed.
+
+## What I could not do
+
+- **No edge bead on the seal.** A rolling-ball bead (`blend_mm` 0.03–0.06) folds or pinches at the shield's acute corners (its point and the cross's feet), which fails the empty-notes gate. The walls are crisp intaglio walls; reviewers accepted this.
+- **No drafted walls.** A drafted prism of these regions does not tessellate closed (48–156 open edges). The kernel's analytic intersection with the polyline slab is refused (`NoClosedForm`, then `CutRefused`), so the slab is made as a mesh (a `Twist` with 0°) and the boolean runs through `csg`.
+- **mesh.json's minimum angle is still 0.002°.** These are stock-mesh and csg slivers, which the gates allow; a remesh needs core. It is disclosed.
+- **Not the section's own sketch topology.** The section's T-junction quarters, with every junction an endpoint, did not survive. Nested loops are refused as cells inside a hole, and sunk regions that share an edge give a non-manifold prism. The lesson teaches even-odd nesting and region picking instead.
+
+## Core changes wanted (exact code; no `src/` file was edited)
+
+1. **Make 013's sand master Delft-ready.** This is the workaround as a core default. In `core/templates.rs`:
+
+```rust
+pub fn stock_sand_ready(preset: &crate::imported_base::Preset) -> bool {
+    matches!(preset.id, "002" | "006" | "013" | "015" | "017")
+}
+```
+
+and in `stock_as`, after `SandProcess::DelftClay.apply(&mut d.draft);`:
+
+```rust
+if sand && preset.id == "013" {
+    // The mirrored master leaves a ~1 µm seam on the crest line (θ 0–55°), which fields Marginal.
+    let ctx = d.field_context();
+    let seam = crate::field::BorderLayer { v_mm: ctx.crest_v_mm, width_mm: 0.5, height_mm: 0.004, mirror: false, ..Default::default() };
+    d.layers.layers.push(crate::LayerEntry::new("Parting seam dressed", crate::field::Layer::Border(seam)));
+}
+```
+
+Also drop `"013"` from `stock_process_note`'s first arm. The root cause sits in `imported_base/sand_master.rs`: the crest strip |z| < 0.125 mm lies 1.1 µm below its edges. It should be fixed there, by holding each section's outer radius non-increasing in |z| after the draft pass.
+
+2. **Shading for imported stock in `render.rs`.** Promote the example's `diffused` as `pub fn diffused_normals(m: &Mesh, deg: f64, reach_mm: f64, step_mm: f64) -> Vec<Vec3>`. The body is in `officina_sigil.rs`: edge-gated Laplacian passes, `(reach/step)²` passes capped at 400. Apply it to an imported base's band in `render::finished` and in the viewports, so every stock ring stops banding its highlights.
+
+3. **Normals at csg cut edges.** `parts::resolve` leaves the vertex normals on a cut's top edge averaged with the wall, about 45° off. Faces carrying those vertices without a `corner_normals` entry shade as a sawtooth. Give every band face touching a cut vertex its own corner normals:
+
+```rust
+// parts.rs, after the cut resolves, for each band face f with a vertex whose origin is a cut's:
+m.corner_normals.push((f as u32, [n_face; 3]));   // then sort corner_normals by face
+```
+
+4. **`Sketch::profile_regions` should return the cells of a branched loop nested at odd depth**, or say why it drops them. Today a quartered shield drawn inside an outline groove quietly loses its quarters.
