@@ -1014,9 +1014,9 @@ fn base() -> Result<RingDesign> {
     d.draft.min_draft_deg = 0.0;
     d.draft.auto_parting = false;
     d.draft.parting_z_mm = 0.0;
-    // The painted ruff and the fetter are steep height-field relief: read through one cell so their walls lie straight
-    // across the sweep grid instead of stepping row by row. The verdict still reads the true surface.
-    d.crisp_relief = true;
+    // `crisp_relief` would lay the painted ruff's walls straight across the sweep grid, but the graph's `design.set`
+    // refuses its pointer, which serde leaves out when false, so the template gate cannot lift a design carrying it
+    // (cloud-report.md, core change 1). The ruff's alpha is blurred instead.
     Ok(d)
 }
 
