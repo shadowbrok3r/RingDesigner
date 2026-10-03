@@ -1,0 +1,31 @@
+{
+  "ring": "datura",
+  "mode": "read-test",
+  "attempt": 4,
+  "reads": false,
+  "what_the_eye_sees": "The trumpet flower now works as a trumpet. In both views a long slim tube flares into a pleated, pointed mouth, so a jeweller says 'trumpet flower', and some would say 'lily', 'morning glory' or 'angel's trumpet'. That is the right family, but nothing in the image makes it datura rather than a lily or a brugmansia. The thorn-apple, which carries both the name and the Vepres thorns, has almost vanished. In the face it is a small, low, four-armed boss with a cross and a ring of dark gems, about the size of the trumpet's mouth. It reads as a little four-petal flower, a compass rose or a gem cluster, not a spiny fruit. In the hero it is a tiny lump with a few dark specks, hidden behind the leaves. No spine breaks any outline anywhere, so the ring has no thorns at all. The two leaves at the top read as generic veined leaves or feathers, with smooth oval outlines and no datura lobing. About half of the badge face is a bare flat plate, empty at the left and centre, so the motif looks pasted on rather than composed. First guess: 'lily signet' or 'trumpet flower on a shield'. Not 'datura' and not 'thorn-apple'.",
+  "changes": [
+    {
+      "priority": 1,
+      "zone": "head: the spined capsule (face, upper right, the end of the trumpet farthest from the mouth)",
+      "change": "Bring the thorn-apple back as the second major form, the same visual weight as the trumpet. Make it a raised near-round egg 7-8 mm across, standing 4-5 mm proud of the plate, not a low 4 mm boss. Cover it with 30-40 distinct spines, each 1.4-1.8 mm long, base 0.8 mm tapering to a 0.3 mm tip, set near-normal to the surface with bare egg showing between them. Keep the four-valve split, but narrow it to a dark wedge on one or two valves only, so the spines dominate and the split no longer reads as a cross. Place it where the hero camera sees it in silhouette against the background, not tucked behind the leaves.",
+      "acceptance": "In hero-300 at least 12 separate spine tips break the capsule's outline against the black background, and the capsule is clearly a spiny ball on its own. In face-300 the capsule is at least 7 mm across, about half the trumpet's length, and reads as a bristling fruit, not a four-armed boss or gem cluster."
+    },
+    {
+      "priority": 2,
+      "zone": "badge plate: the bare left half and centre of the face, plus leaves 1-2 (top)",
+      "change": "Fill the empty plate with datura foliage. Swap the two smooth oval leaves for 3-4 broad sinuate leaves, each 9-11 mm by 6-7 mm, with 3-4 shallow, irregular, angular lobes on each margin (no saw teeth), a raised midrib and 3-4 side veins. Lay them under and behind the trumpet and capsule across the bare left and centre of the badge, at irregular angles, with one curling over the plate's left edge. Leave at most about 20% of the face as flat plate.",
+      "acceptance": "In face-300 no flat empty region of the plate is wider than about 4 mm, and the leaves show wavy, lobed outlines that are plainly different from Ilex's toothed leaves and from plain ovals."
+    },
+    {
+      "priority": 3,
+      "zone": "trumpet flower (tube and mouth, face lower left)",
+      "change": "Give the trumpet the datura markers that separate it from a lily. Raise five ribs about 0.3 mm proud down the tube, each running into one mouth point. End each of the five mouth points in a short, thin, curled tooth about 1.2 mm long, flicked back. Lift the mouth 1.5-2 mm off the plate so it flares in free air instead of lying flat.",
+      "acceptance": "In hero-300 the trumpet shows ribbing on the tube and five separate flicked tips at the mouth, and it casts a visible shadow under the mouth. Beside the spiny capsule it reads as datura, not a lily or a calla."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/datura/hero-300.png",
+    "showcase/vepres/datura/face-300.png"
+  ]
+}
