@@ -1003,6 +1003,9 @@ fn base() -> Result<RingDesign> {
     d.draft.min_draft_deg = 0.0;
     d.draft.auto_parting = false;
     d.draft.parting_z_mm = 0.0;
+    // The painted ruff and the fetter are steep height-field relief: read through one cell so their walls lie straight
+    // across the sweep grid instead of stepping row by row. The verdict still reads the true surface.
+    d.crisp_relief = true;
     Ok(d)
 }
 
@@ -1883,7 +1886,7 @@ fn welded(m: &Mesh) -> Mesh {
 }
 
 /// Studio-gold renders with the moon set.
-fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, params: BuildParams, edge: usize) -> Result<()> {
+fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildResult, params: BuildParams, edge: usize, table: f64) -> Result<()> {
     let gems: Vec<(Mesh, [f32; 3])> = ringdesign_core::gems::built_meshes(d, lib, built).into_iter().map(|(m, t)| (welded(&m), t)).collect();
     let mut parts = vec![Part::metal(&built.mesh, render::GOLD)];
     parts.extend(gems.iter().map(|(m, tint)| {
@@ -1904,6 +1907,16 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: &mesh::BuildRe
     }
     render::write_png_parts(out.join("face-300.png"), &parts, 0.0, PI * 0.5, 300)?;
     render::write_png_parts(out.join("hero-300.png"), &parts, 0.55, 0.95, 300)?;
+    // Close-ups framed on the whole ring, so every crease keeps its own normals: the head face-on, and the ruff on
+    // the right shoulder and at the palm's binding.
+    let rim = |theta: f64| -> [f64; 3] {
+        let t = theta.to_radians();
+        let r = built.mesh.vertices.iter().filter(|p| ((p.1 as f64).atan2(p.0 as f64) - t).abs() < 0.01 && (p.2 as f64).abs() < 0.6).map(|p| (p.0 as f64).hypot(p.1 as f64)).fold(0.0, f64::max);
+        [r * t.cos(), r * t.sin(), 0.0]
+    };
+    render::write_png_framed(out.join("close-head.png"), &parts, 0.0, PI * 0.5, render::Framing::new([0.0, table + 2.0, -5.0], 7.5), edge)?;
+    render::write_png_framed(out.join("close-ruff.png"), &parts, render::yaw_facing(40.0), PI * 0.5, render::Framing::new(rim(40.0), 4.0), edge)?;
+    render::write_png_framed(out.join("close-binding.png"), &parts, render::yaw_facing(236.0), PI * 0.5, render::Framing::new(rim(236.0), 3.0), edge)?;
     // The 300 px read sheet: hero, face, shoulder, palm and reverse side by side, as a jeweller sees them small.
     let views = [(0.55, 0.95), (0.0, PI * 0.5), (-0.9, 0.62), (PI, 1.05), (1.6, 0.8)];
     let tiles: Vec<Vec<u8>> = views.iter().map(|&(yaw, pitch)| render::render_parts_ss(&parts, yaw, pitch, 300, 300, 3)).collect();
@@ -2057,7 +2070,7 @@ fn write(out: &Path, draft: bool, verify: bool) -> Result<()> {
             std::fs::write(art.join(format!("{}.png", name.to_lowercase().replace([' ', '\''], "-"))), alpha.to_png16()?)?;
         }
     }
-    renders(out, &d, &lib, &built, params, if draft { 1000 } else { 1600 })?;
+    renders(out, &d, &lib, &built, params, if draft { 1000 } else { 1600 }, wolf.table)?;
     println!(
         "  crossings {cross}; made parts {:?}; innermost {inner:.3} of bore {bore:.3}; field {} wall {:.2} mm; DFM {}; stones {stone_count}/{previewed}; {grams:.1} g 18k; design {} KB at format {format}",
         made.iter().map(|(_, n)| *n).collect::<Vec<_>>(),
