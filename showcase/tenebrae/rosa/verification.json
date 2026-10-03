@@ -1,0 +1,49 @@
+{
+  "authoring_ms": {
+    "graph_creation": 44.257405999999996,
+    "source_read": 12.142056
+  },
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "design_set_patches": [
+    {
+      "graph": "Rosa — the west rose",
+      "node": 105,
+      "pointer": "/manufacturing"
+    }
+  ],
+  "detail_findings": 0,
+  "editable_design_bytes": 1081769,
+  "editable_graph_reload": true,
+  "export_geometry_verified": true,
+  "exposed_control_policy": "explicit_allowlist",
+  "exposed_controls": [],
+  "geometry_check_resolution": {
+    "profile_steps": 448,
+    "refine": null,
+    "theta_steps": 1536
+  },
+  "nodes": 62,
+  "open_ms": {
+    "bake": 0.007243,
+    "bake_again": 0.0006940000000000001,
+    "detail": 1.2987529999999998,
+    "detail_again": 1.1503539999999999,
+    "evaluate": 36.980225999999995,
+    "first_build": 1312.133108,
+    "read": 2.5139709999999997,
+    "rebuild": 2.3902379999999996,
+    "unpack": null,
+    "verdict": 12.873206999999999
+  },
+  "size_budget_bytes": 1000000,
+  "size_review_required": false,
+  "source_identical": true,
+  "source_method": "lift",
+  "template_bytes": 528319,
+  "template_class": "stock",
+  "template_gate_passed": true,
+  "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
+  "triangles": 65012,
+  "vertices_faces_normals_identical": true
+}

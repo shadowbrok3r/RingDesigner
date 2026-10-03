@@ -438,6 +438,7 @@ fn pointed_arch(bore_r: f64, width: f64, thickness: f64, fillet: f64, comfort: f
   - No sand master and no envelope (`sand_envelope = false`), as Nocturne and Vesper are. Bore 18.6.
   - Base setup: copy `examples/stock_masterworks.rs:317-411`.
   - **Fallback:** 001 Cushion at 18 × 18, the brief's base. That also restores its four corner mouchette pairs.
+- **Built (2026-10-03, branch `claude/tenebrae-rosa`):** judged as lost wax (Logan, 2026-10-03: 0.8 mm minimum section, no pull rule); it was lost wax from the start, so nothing changed. Base: the 001 fallback at 19 × 19, because the 16 mm 013 needs a baked source carried inline (1.25 MB of design alone, over the 1 MB stock template budget). Lights: true pears (C-B2's `has_true_girdle`, though `plan_pow` still reads 2.0). Stopped at the block-out: all three read tests came back `reads: false` (flower cluster first, rose window second, nothing Gothic off the face). No extra rounds were granted.
 - **Process:** lost wax, Gold 18k: `CastProcess::LostWax.apply(&mut d.draft)`, then `min_section_mm = 0.8`, `min_detail_mm = 0.15`. The through-lights, the proud collets and the crown piercing all lock in sand.
 - **Stones:** 9 in all, each with a `head.bezel` collet and a `seat.bur { through: true }`.
 

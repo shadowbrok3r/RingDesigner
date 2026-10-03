@@ -222,8 +222,8 @@
     "layers": []
   },
   "build": {
-    "theta_steps": 768,
-    "profile_steps": 320,
+    "theta_steps": 1536,
+    "profile_steps": 448,
     "min_wall_mm": 0.5,
     "adaptive": false,
     "refine": null,
