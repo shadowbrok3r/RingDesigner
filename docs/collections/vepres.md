@@ -526,7 +526,9 @@ That is expected for most Vepres rings. Say so in each README line.
 
 ## Hedera — *the strangling ivy*
 
-- **Status:** Not started.
+- **Process (2026-10-03, Logan's rule):** judged as lost wax, with a 0.8 mm minimum section and no pull rule. Body parts (stem, leaves, petioles, stalks) hold 0.8 mm. The collets, their receptacles and the rootlets are held at the 0.15 mm detail floor. No extra rounds have been granted.
+- **Status (2026-10-03):** stopped at the block-out. All three read tests failed (`showcase/vepres/hedera/read-test-{1,2,3}.json`): at 300 px the leaves read as maple or star leaves and the berries as bezel-set gems. The subject needs rethinking before any detailing; `cloud-report.md` on `claude/vepres-hedera` has the details.
+- **Status (as planned):** Not started.
   - Blocked on **C-V2** for the rootlets; a stamp fallback is below.
   - C-V3 is an upgrade for the stem's growing tip and the edge leaves.
   - Ivy outlines are ring-local and need nothing new.
