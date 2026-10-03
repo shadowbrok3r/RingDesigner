@@ -33,7 +33,7 @@ Listed in build order.
 
 | # | Ring | Epithet | Base | Process | Stone | Status |
 |---|---|---|---|---|---|---|
-| 1 | **Sphenodon** | *the parietal* | Procedural Flat 7.5 × 3.4, thickness-only keys | Delft | Peridot 3.0 round, flush on a gypsy mound | Not started. An ungraded draft can be built now; the final form needs C-R2 and C-R7 |
+| 1 | **Sphenodon** | *the parietal* | Procedural Flat 7.5 × 2.5, thickness-only keys | Lost wax | Peridot 3.0 round, flush on the skull | Built in lost wax; revived for rounds 4 and 5 on `claude/cataphracta-sphenodon-revival` (see the section below) |
 | 2 | **Heloderma** | *the beaded one* | Procedural HalfRound 8.0 × 3.2, keyframed fat-tail swell | Delft | Spessartite 3.0 round, flush on a gypsy mound | Not started. Needs C-R1, C-R2, C-R3, P5 and C-R7. A painted fallback exists |
 | 3 | **Moloch** | *the thorn idol* | Procedural Flat 7.0 × 3.6, thickness-only hump | Petrobond | — | Not started. Can be built now ungraded (P4 has landed); grading needs C-R2 |
 | 4 | **Gekko** | *the tokay* | Procedural Flat 7.0 × 3.4, thickness-only keys | Delft | — | Not started. Needs C-R1, C-R2 and C-R7. A painted fallback exists |
@@ -342,13 +342,12 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
   - An **ungraded draft can be built now**. The thickness-only keys keep the reference side gate clean, and every non-graded API exists.
   - The final form needs **C-R2**, since the sail's grade is what C-R2 is calibrated on, and **C-R7**; its generators can live in the ring module first.
   - **P5** is needed only for the fillet granules' Draft gate.
-- **Concept:** The last of the beak-heads, older than the dinosaurs' fall. A serrated sail stands on the parting line, the one place where a fin is two side faces. Where the sail begins, the parietal stone, a peridot, sits on the spine. The copy must never call it an eye.
-- **Theme face to palm:**
-  - **Face (90°):** the peridot on the crest. The sail parts round its mound.
-  - **Shoulders (crest):** the sail. Its teeth rise behind the stone, are tallest at 90 ± 22°, and grade down both shoulders to a low saw at the palm.
-  - **Crown flanks:** a polished ribbon either side of the sail, so the sail reads. Only the crown's edge fillet carries fine granules.
-  - **Side faces:** granular skin with wandering longitudinal rows of enlarged tubercles (warped). Toward the palm they hand over to squarish ventral scales.
-  - **Palm:** a low saw on the crest, and ventral squares on the side faces.
+- **Concept (as built, lost wax):** The last of the beak-heads, older than the dinosaurs' fall. A tuatara lies round the band. Its short, blunt, beaked skull is on the face, with the parietal stone, a peridot, set in the crown of the skull behind the two eyes. The copy must never call the stone an eye. The crest is a comb of separate spines from the nape to the tail's tip. The sail plan below is the sand version this replaced.
+- **Theme face to palm (as built):**
+  - **Face (90°):** the head. It is a short wedge with about 4 mm of snout ahead of the eyes, and a beak lip with the notch between its two points. The eyes are smooth domes under crescent lids, each with a vertical pupil. The peridot is flush on the parietal, ringed by a 0.4 mm burnished rim, and the head's granules run up to that rim.
+  - **Shoulders (crest):** the nape, the neck and the barrel. The crest's spines are tallest over the shoulders, and the front legs grip the rim, their toes on the side faces. Either side of the crest is a band of domed, keeled scales on jittered cells, graded into the body's granules, with tubercles down the flanks.
+  - **Side faces:** the toed feet, and the tail's tip curled down onto one face.
+  - **Palm:** the hind legs, then the tail in staggered rings of domed scales with a low saw on its crest, tapering to a point.
   - **Bore:** a plain comfort fit.
 - **Base:**
   - Profile: `ProfileStyle::Flat`, 7.5 × 3.4, `crown_mm` 1.2, `flatten_sides()`, `comfort_fit_mm` 0.15, bore 18.6.
