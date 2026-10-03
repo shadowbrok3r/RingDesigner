@@ -366,9 +366,10 @@ fn cheek_fur(s: P3) -> f64 {
 /// point, which the flame's narrowing draws to a tip.
 fn grooved_lock(pitch: f64) -> impl Fn(f64, f64, f64) -> f64 {
     move |t, q, half| {
-        let across = (q * PI * 0.5).cos().max(0.0).powi(2) * (1.0 - 0.32 * (-(q / 0.22).powi(2)).exp());
-        let rise = (0.35 + 0.65 * smooth(0.0, 0.5, t)) * smooth(0.0, 0.12, t) * (1.0 - smooth(0.82, 1.0, t));
-        across * rise * (half / (0.4 * pitch)).min(1.0)
+        let across = (q * PI * 0.5).cos().max(0.0).powi(2) * (1.0 - 0.22 * (-(q / 0.38).powi(2)).exp());
+        let rise = (0.35 + 0.65 * smooth(0.0, 0.5, t)) * smooth(0.0, 0.2, t) * (1.0 - smooth(0.72, 1.0, t));
+        // Lowered where it narrows, so the point is drawn by its outline and never stands up as a blade.
+        across * rise * (half / (0.45 * pitch)).min(1.0).powi(2)
     }
 }
 
@@ -596,7 +597,7 @@ impl Wolf {
         let a = ang.clamp(-90.0, -CORNER_DEG);
         let l = lower_lip(a);
         let rho = s[0].hypot(s[1] - MOON_U);
-        let jaw = smax(Self::lip(s, a, l, jaw_out(a) - 0.45, -1.35, 0.6, 0.45), (ang + CORNER_DEG - 4.0).to_radians() * rho, 0.6);
+        let jaw = smax(Self::lip(s, a, l, jaw_out(a) - 0.75, -1.35, 0.9, 0.45), (ang + CORNER_DEG - 4.0).to_radians() * rho, 0.6);
         let chin = ellipsoid(sub(s, [0.0, MOON_U - 5.95, -0.3]), [1.2, 0.8, 0.9]);
         smin(jaw, chin, 0.8)
     }
@@ -726,10 +727,10 @@ impl Wolf {
         let ang = (fs[1] - MOON_U).atan2(fs[0]).to_degrees();
         let (lo, up) = (lower_lip(ang), upper_lip(ang));
         let lip = lerp(lo[0] + lo[2], up[0] + up[2], smooth(-8.0, 8.0, ang));
-        // Over the premolars the cheek's locks run down over the flew's outer edge, so it ends in fur rather than a
-        // rolled rim; under the nose the lip stays clean. Past the mouth's corners there is no lip to keep off.
+        // Over the premolars the cheek's locks run down to the flew's outer edge, so it ends in fur rather than a
+        // bare rolled rim; under the nose the lip stays clean. Past the mouth's corners there is no lip to keep off.
         let behind = smooth(FANG_DEG - 6.0, FANG_DEG - 16.0, ang.abs());
-        let off_lips = smooth(lip + lerp(0.1, -0.35, behind), lip + lerp(1.3, 0.45, behind), rho).max(smooth(CORNER_DEG, CORNER_DEG - 7.0, ang.abs()));
+        let off_lips = smooth(lip + lerp(0.1, 0.0, behind), lip + lerp(1.3, 0.8, behind), rho).max(smooth(CORNER_DEG, CORNER_DEG - 7.0, ang.abs()));
         let off_face = off_lips * smooth(1.8, 3.4, fs[0]) * smooth(1.3, 2.7, (fs[0] - Self::EYE.0).hypot(fs[1] - Self::EYE.1));
         let cheeks = 0.38 * cheek_fur(fs) * off_face * (1.0 - smooth(STOP_U - 1.9, STOP_U + 0.3, fs[1])) * smooth(MOON_U - 1.5, MOON_U + 1.0, fs[1]);
         let jaw = 0.2 * jaw_fur(fs) * off_lips * (1.0 - smooth(MOON_U - 0.5, MOON_U + 1.5, fs[1])) * smooth(-1.4, -0.6, fs[2]);
@@ -743,8 +744,10 @@ impl Wolf {
         if fur < 1e-5 {
             return 0.0;
         }
-        let (_, lap) = grad(&masses, f, 0.2);
-        fur * smooth(-2.2, -0.3, lap) * (1.0 - smooth(0.9, 1.6, core.abs()))
+        // Where the skin under the query turns away from the query's own normal, the query sits over a crease and
+        // its drop lands on the far wall; locks raised there would float off the near one, so they fade.
+        let (nf, lap) = grad(&masses, f, 0.35);
+        fur * smooth(-4.0, -0.3, lap) * smooth(0.9, 0.98, dot(n, nf)) * (1.0 - smooth(0.9, 1.6, core.abs()))
     }
     fn head(&self, q: P3) -> f64 {
         let s = [q[0].abs(), q[1], q[2]];
