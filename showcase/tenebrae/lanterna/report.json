@@ -1868,5 +1868,18 @@
   },
   "thickness_samples_on_stock": 0,
   "thickness_strict_screen_clean": true,
-  "thin_samples_by_part": []
+  "thin_samples_by_part": [],
+  "template_gate": {
+    "passed": true,
+    "design_set_patches": 1,
+    "template_bytes": 282443,
+    "size_budget_bytes": 300000,
+    "nodes": 79,
+    "source_identical": true,
+    "vertices_faces_normals_identical": true,
+    "cold_design_reload": true,
+    "cold_graph_reload": true,
+    "triangles": 77136,
+    "command": "collection_templates tenebrae target/tpl-src --output-dir target/tpl --only lanterna --verify-export (template_class procedural, no exposed controls)"
+  }
 }

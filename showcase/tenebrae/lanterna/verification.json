@@ -1,0 +1,49 @@
+{
+  "authoring_ms": {
+    "graph_creation": 60.483839999999994,
+    "source_read": 15.738128
+  },
+  "cold_design_reload": true,
+  "cold_graph_reload": true,
+  "design_set_patches": [
+    {
+      "graph": "Lanterna — the octagon lantern",
+      "node": 146,
+      "pointer": "/manufacturing"
+    }
+  ],
+  "detail_findings": 0,
+  "editable_design_bytes": 570090,
+  "editable_graph_reload": true,
+  "export_geometry_verified": true,
+  "exposed_control_policy": "explicit_allowlist",
+  "exposed_controls": [],
+  "geometry_check_resolution": {
+    "profile_steps": 448,
+    "refine": null,
+    "theta_steps": 1536
+  },
+  "nodes": 79,
+  "open_ms": {
+    "bake": 0.007022,
+    "bake_again": 0.000266,
+    "detail": 1.2207050000000002,
+    "detail_again": 1.18736,
+    "evaluate": 54.535861,
+    "first_build": 1412.2663479999999,
+    "read": 1.821074,
+    "rebuild": 1.670942,
+    "unpack": null,
+    "verdict": 17.40117
+  },
+  "size_budget_bytes": 300000,
+  "size_review_required": false,
+  "source_identical": true,
+  "source_method": "lift",
+  "template_bytes": 282443,
+  "template_class": "procedural",
+  "template_gate_passed": true,
+  "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
+  "triangles": 77136,
+  "vertices_faces_normals_identical": true
+}
