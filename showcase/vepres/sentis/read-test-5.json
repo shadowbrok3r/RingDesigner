@@ -1,0 +1,33 @@
+{
+  "ring": "sentis",
+  "mode": "read-test",
+  "attempt": 5,
+  "reads": true,
+  "what_the_eye_sees": "It reads now, though only just. In the hero, two thin gold canes twine round the finger and carry spikes. Over the crown lie two compound leaves with broad, saw-edged leaflets in opposite pairs and a terminal leaflet. Between them sits a round orange-red fruit with a star of sepals on its top. Pinnate toothed leaves, a thorny cane and a crowned red fruit together say 'wild rose with a hip' (dog rose, briar), and that is the first name a jeweller gives. Hawthorn and pomegranate come second. The face view backs it up. Each leaf counts as five broad toothed leaflets (two pairs and a tip), no longer a fern or laurel. The hip shows the five-point calyx star across its end, which is correct for a rose hip seen from above. Even when the eye takes that star for a gold five-petal flower on a red bead, the guess is still 'rose'. Three things are weak and could tip the read back. (1) The sepals are thick, straight, even spokes that run right across the stone and meet at its centre. They look like a claw cage or pinwheel laid over a cabochon, not slender sepals curling back from the tip. (2) The leaflets are near-circular discs with very regular teeth, so at 300 px they look a little like gears or bottle caps. Rose leaflets are ovals with a point. (3) At both ends of the face view, the bulbous, beaked lumps where the canes part are still there, and the prickles in the hero are still small straight needles, not the broad hooked prickles of a rose.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the calyx read as rose-hip sepals, not a cage. Thin each of the 5 sepals to about 0.6 mm wide at the root, tapering to a point. Pull their roots back so they spring from a small raised boss about 1.5 mm across at the hip's tip, so about 60 percent of the stone's face shows red between and beyond them. Curl each sepal back and down past the hip's outline, overhanging it by about 0.8 mm, with a slight twist or a notched (pinnate) edge on two of them, the way dog-rose sepals look. No spoke should run straight to the stone's centre.",
+      "where": "Hip calyx (5 sepals) and the tip of the hip cabochon, crown theta 90.",
+      "acceptance": "In face-300 the red stone shows as an unbroken oval with a small gold star at its centre and sepal tips curling past its rim. Nothing reads as prongs, a cage or a gold daisy over a bead."
+    },
+    {
+      "priority": 2,
+      "what": "Reshape every leaflet from a near-circle to a pointed oval, about 3.2 x 2.0 mm (length to width about 1.6), with a distinct acute tip. Make the teeth smaller and less regular: about 0.2 mm deep, slightly forward-hooked, and fading toward the base. Tilt each pair about 15-20 degrees up off the rachis so the leaflets catch light differently. Keep five leaflets per leaf, with the terminal one largest.",
+      "where": "Both rose leaves (all 10 leaflets), crown theta about 55-125.",
+      "acceptance": "In face-300 the leaflets read as pointed toothed ovals, not round coins or gears. Each leaf still counts as five leaflets."
+    },
+    {
+      "priority": 3,
+      "what": "Remove the beaked lumps at the ends of the face view: blend the cane parting points into a smooth fork, trimming about 1 mm. Then swap the needle prickles for rose prickles: flattened triangular bases about 0.8 mm long along the cane, about 1.0 mm tall, all hooked back the same way. Make the crown prickles about 1.4x the palm ones.",
+      "where": "Cane forks at the face-view flanks (about theta 40-55 and 125-140); every prickle on both canes.",
+      "acceptance": "In face-300 neither end shows a bud- or bird-head lump. In hero-300 the prickles show wide bases and hooked tips, and none read as straight pins."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/sentis/hero-300.png",
+    "showcase/vepres/sentis/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
