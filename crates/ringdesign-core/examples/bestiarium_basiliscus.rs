@@ -1221,7 +1221,7 @@ const NECK_RUN: [(f64, f64, f64, f64); 5] =
 const SCULPT_STEP: f64 = 0.045;
 /// The head's size over the units its frame is drawn in.
 const HEAD_SCALE: f64 = 1.28;
-const SCULPT_FACES: usize = 150_000;
+const SCULPT_FACES: usize = 85_000;
 
 /// The basilisk's head as a distance field over world millimetres, standing on the table with its neck running down into
 /// the painted coil.

@@ -1,8 +1,8 @@
 {
   "build": {
-    "build_ms": 1762,
+    "build_ms": 1918,
     "export_note": "The hide's layers carry the Relief reach mask, which keeps imported_base::subdivide from detailing the lower walls by the bore edges; without it 1536 x 448 overruns its 2 million triangle budget",
-    "faces": 582480,
+    "faces": 539184,
     "profile_steps": 320,
     "theta_steps": 768
   },
@@ -22,14 +22,14 @@
     "solids_resolved": 1,
     "stamps": 0,
     "stamps_struck": 0,
-    "triangles": 266564,
+    "triangles": 223364,
     "watertight": true
   },
   "cold_reload": {
-    "bake_ms": 17.443211,
-    "build_ms": 3206.356286,
+    "bake_ms": 19.07632,
+    "build_ms": 3434.695215,
     "identical_vertices_faces_normals": true,
-    "read_ms": 2.388868
+    "read_ms": 2.4289229999999997
   },
   "composition": {
     "atlas": [
@@ -92,16 +92,16 @@
       0.4
     ],
     "head": {
-      "height_over_table_mm": 4.516640026417178,
+      "height_over_table_mm": 4.516347968599533,
       "marching_step_mm": 0.045,
       "open_edges": 0,
-      "packed_bytes": 1395404,
+      "packed_bytes": 838032,
       "raw_triangles": 1139548,
-      "seconds": 0.309904401,
+      "seconds": 0.184401438,
       "self_crossings": 0,
-      "triangles": 135288,
-      "vertices": 67644,
-      "volume_mm3": 125.38463520517116
+      "triangles": 77884,
+      "vertices": 38942,
+      "volume_mm3": 125.3770909879614
     },
     "head_frame": {
       "axis_face_x_z_height_mm": [
@@ -124,9 +124,9 @@
     "morph_start_along_mm": 17.79535254752604,
     "pit_depth_mm": 0.09,
     "pit_reach_mm": {
-      "furthest_arm_edge_from_a_pit": 0.45405882034941747,
-      "share_of_arm_edge_within_0_4": 0.9774011299435028,
-      "widest_bare_field": 0.5103855906472147
+      "furthest_arm_edge_from_a_pit": 0.536099033699941,
+      "share_of_arm_edge_within_0_4": 0.9723756906077348,
+      "widest_bare_field": 0.5085489812492014
     },
     "pits": 94,
     "rim_beads": 46,
@@ -154,13 +154,13 @@
       8.675
     ]
   },
-  "design_bytes": 3421666,
+  "design_bytes": 2864220,
   "dfm": [],
   "field": {
     "marginal_area_mm2": 0.0,
     "notes": [
-      "Lost wax: 12.16% of the surface would undercut a two-part pull (worst 74.2 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 331–209° on the crest: 167.2 mm² leaning to 70° — no single layer explains it.",
+      "Lost wax: 12.14% of the surface would undercut a two-part pull (worst 74.2 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 331–209° on the crest: 168.2 mm² leaning to 70° — no single layer explains it.",
       "Cut at the bench after casting, and so not judged here: Graver's barbs and keels.",
       "1 made setting cast in place with the ring; the field judges the band under it.",
       "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 129.3 mm² of part surface; under lost wax they are reported, never gating.",
@@ -176,19 +176,19 @@
         "marginal_area_mm2": 0.0,
         "name": "Basilisk's crowned head",
         "note": "Lost wax: Stored mesh \"Basilisk's crowned head\" (#2) would undercut a two-part pull over 53.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "silhouette_mm2": 0.0043663679332085585,
+        "silhouette_mm2": 0.010241172193052815,
         "stage": "cast",
-        "total_area_mm2": 129.33986297925154,
-        "undercut_area_mm2": 52.965305591619114,
+        "total_area_mm2": 129.33537252182725,
+        "undercut_area_mm2": 52.969203918594,
         "undercut_at": {
-          "across_from_mm": -4.986169815063477,
-          "across_to_mm": 3.0796568393707275,
+          "across_from_mm": -4.994969844818115,
+          "across_to_mm": 3.0810439586639404,
           "side": "Both",
-          "theta_from_deg": 66.25843319999619,
-          "theta_to_deg": 114.4707478600424
+          "theta_from_deg": 66.26296744202592,
+          "theta_to_deg": 114.48205446375799
         },
-        "vertical_area_mm2": 2.855484591517202,
-        "worst_draft_deg": -89.67140389727561
+        "vertical_area_mm2": 2.754625491921098,
+        "worst_draft_deg": -90.0
       }
     ],
     "process": "LostWax",
@@ -196,11 +196,11 @@
     "theta_samples": 256,
     "thinnest_wall_mm": 1.6701618803851197,
     "thinnest_wall_theta_deg": 232.03125,
-    "total_area_mm2": 1558.4865743003377,
-    "undercut_area_mm2": 226.70481576136942,
+    "total_area_mm2": 1558.4799204595142,
+    "undercut_area_mm2": 226.48357887623104,
     "verdict": "Castable",
-    "vertical_area_mm2": 80.39890813719688,
-    "worst_draft_deg": -89.67140389727561
+    "vertical_area_mm2": 80.52505653787267,
+    "worst_draft_deg": -90.0
   },
   "gates": [
     {
@@ -256,7 +256,7 @@
     "solids_resolved": 1,
     "stamps": 0,
     "stamps_struck": 0,
-    "triangles": 582480,
+    "triangles": 539184,
     "watertight": true
   },
   "land_widths": [
@@ -377,11 +377,11 @@
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 582480,
-      "vertex_count": 291236,
+      "triangle_count": 539184,
+      "vertex_count": 269588,
       "watertight": true
     },
-    "volume_mm3": 1708.6871610568962
+    "volume_mm3": 1708.6794721863992
   },
   "name": "Basiliscus — king of serpents",
   "pattern": {
@@ -396,12 +396,12 @@
     },
     "scale": 1.019367991845056,
     "self_crossings": 0,
-    "triangles": 582480,
+    "triangles": 539184,
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 582480,
-      "vertex_count": 291236,
+      "triangle_count": 539184,
+      "vertex_count": 269588,
       "watertight": true
     }
   },
