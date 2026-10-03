@@ -1,12 +1,12 @@
 {
   "alloy": "Silver 925",
   "arch": {
-    "apex_y": 18.04441731196186,
+    "apex_y": 16.47743001385408,
     "corner": 2.4,
-    "half_span": 12.15,
-    "radius": 24.3,
+    "half_span": 12.4,
+    "radius": 24.8,
     "sill_y": -11.0,
-    "spring_y": -3.0,
+    "spring_y": -5.0,
     "width": 6.0
   },
   "bore": {
@@ -16,15 +16,20 @@
   },
   "bore_mm": 18.594423796328872,
   "build": {
-    "build_s": 0.485879843,
+    "build_s": 0.470942538,
     "profile_steps": 448,
     "theta_steps": 1536,
-    "triangles": 14320
+    "triangles": 14906
   },
+  "centre_of_mass_mm": [
+    -0.002,
+    0.42,
+    -0.0
+  ],
   "cold_reload_identical": true,
   "design": {
-    "bytes": 280151,
-    "cad_features": 79
+    "bytes": 279269,
+    "cad_features": 85
   },
   "dfm_findings": [],
   "draft": {
@@ -32,12 +37,12 @@
     "build": {
       "alloy": "Silver 925",
       "arch": {
-        "apex_y": 18.04441731196186,
+        "apex_y": 16.47743001385408,
         "corner": 2.4,
-        "half_span": 12.15,
-        "radius": 24.3,
+        "half_span": 12.4,
+        "radius": 24.8,
         "sill_y": -11.0,
-        "spring_y": -3.0,
+        "spring_y": -5.0,
         "width": 6.0
       },
       "bore": {
@@ -47,15 +52,20 @@
       },
       "bore_mm": 18.594423796328872,
       "build": {
-        "build_s": 0.478562358,
+        "build_s": 0.531186166,
         "profile_steps": 320,
         "theta_steps": 768,
-        "triangles": 14320
+        "triangles": 14906
       },
+      "centre_of_mass_mm": [
+        -0.002,
+        0.42,
+        -0.0
+      ],
       "cold_reload_identical": null,
       "design": {
-        "bytes": 280151,
-        "cad_features": 79
+        "bytes": 279269,
+        "cad_features": 85
       },
       "dfm_findings": [],
       "feature_status": [
@@ -374,6 +384,30 @@
         [
           "79",
           "Ok"
+        ],
+        [
+          "80",
+          "Ok"
+        ],
+        [
+          "81",
+          "Ok"
+        ],
+        [
+          "82",
+          "Ok"
+        ],
+        [
+          "83",
+          "Ok"
+        ],
+        [
+          "84",
+          "Ok"
+        ],
+        [
+          "85",
+          "Ok"
         ]
       ],
       "features": [
@@ -499,276 +533,306 @@
         },
         {
           "id": 25,
+          "name": "Lay a plane at z +0.850 for the bosses on the crockets' leaves",
+          "operation": "Work plane"
+        },
+        {
+          "id": 26,
+          "name": "Draw the bosses on the crockets' leaves",
+          "operation": "Sketch"
+        },
+        {
+          "id": 27,
+          "name": "Raise the cope half of the bosses on the crockets' leaves along the pull",
+          "operation": "Extrude"
+        },
+        {
+          "id": 28,
+          "name": "Mirror the bosses on the crockets' leaves into the drag half",
+          "operation": "Mirror"
+        },
+        {
+          "id": 29,
+          "name": "Join the halves of the bosses on the crockets' leaves",
+          "operation": "Union"
+        },
+        {
+          "id": 30,
+          "name": "Raise the bosses on the leaves",
+          "operation": "Union"
+        },
+        {
+          "id": 31,
           "name": "Set the crockets and the finial on the keel",
           "operation": "Union"
         },
         {
-          "id": 26,
+          "id": 32,
           "name": "Lay a plane over the face for the order",
           "operation": "Work plane"
         },
         {
-          "id": 27,
+          "id": 33,
           "name": "Draw the order",
           "operation": "Sketch"
         },
         {
-          "id": 28,
+          "id": 34,
           "name": "Sink the order along the pull",
           "operation": "Extrude"
         },
         {
-          "id": 29,
+          "id": 35,
           "name": "Mirror the order into the drag side",
           "operation": "Mirror"
         },
         {
-          "id": 30,
+          "id": 36,
           "name": "Sink the cope's order",
           "operation": "Subtract"
         },
         {
-          "id": 31,
+          "id": 37,
           "name": "Sink the drag's order",
           "operation": "Subtract"
         },
         {
-          "id": 32,
+          "id": 38,
           "name": "Lay a plane over the face for the mouth over the finger",
           "operation": "Work plane"
         },
         {
-          "id": 33,
+          "id": 39,
           "name": "Draw the mouth over the finger",
           "operation": "Sketch"
         },
         {
-          "id": 34,
+          "id": 40,
           "name": "Sink the mouth over the finger along the pull",
           "operation": "Extrude"
         },
         {
-          "id": 35,
+          "id": 41,
           "name": "Mirror the mouth over the finger into the drag side",
           "operation": "Mirror"
         },
         {
-          "id": 36,
+          "id": 42,
           "name": "Sink the cope's mouth",
           "operation": "Subtract"
         },
         {
-          "id": 37,
+          "id": 43,
           "name": "Sink the drag's mouth",
           "operation": "Subtract"
         },
         {
-          "id": 38,
+          "id": 44,
           "name": "Lay a plane under the parting line for the capitals's belt",
           "operation": "Work plane"
         },
         {
-          "id": 39,
+          "id": 45,
           "name": "Draw the capitals's belt",
           "operation": "Sketch"
         },
         {
-          "id": 40,
+          "id": 46,
           "name": "Run the capitals's belt straight across the parting line",
           "operation": "Extrude"
         },
         {
-          "id": 41,
+          "id": 47,
           "name": "Lay a plane at z +0.403 for the capitals",
           "operation": "Work plane"
         },
         {
-          "id": 42,
+          "id": 48,
           "name": "Draw the capitals",
           "operation": "Sketch"
         },
         {
-          "id": 43,
+          "id": 49,
           "name": "Raise the cope half of the capitals along the pull",
           "operation": "Extrude"
         },
         {
-          "id": 44,
+          "id": 50,
           "name": "Mirror the capitals into the drag half",
           "operation": "Mirror"
         },
         {
-          "id": 45,
+          "id": 51,
           "name": "Join the halves of the capitals",
           "operation": "Union"
         },
         {
-          "id": 46,
+          "id": 52,
           "name": "Join the capitals's halves to its belt",
           "operation": "Union"
         },
         {
-          "id": 47,
+          "id": 53,
           "name": "Set the capitals under the springers",
           "operation": "Union"
         },
         {
-          "id": 48,
+          "id": 54,
           "name": "Lay a plane at z +3.250 for the abaci",
           "operation": "Work plane"
         },
         {
-          "id": 49,
+          "id": 55,
           "name": "Draw the abaci",
           "operation": "Sketch"
         },
         {
-          "id": 50,
+          "id": 56,
           "name": "Raise the cope half of the abaci along the pull",
           "operation": "Extrude"
         },
         {
-          "id": 51,
+          "id": 57,
           "name": "Mirror the abaci into the drag half",
           "operation": "Mirror"
         },
         {
-          "id": 52,
+          "id": 58,
           "name": "Join the halves of the abaci",
           "operation": "Union"
         },
         {
-          "id": 53,
+          "id": 59,
           "name": "Lay the abaci on the capitals",
           "operation": "Union"
         },
         {
-          "id": 54,
+          "id": 60,
           "name": "Lay a plane over the face for the blind lancets in the pier faces",
           "operation": "Work plane"
         },
         {
-          "id": 55,
+          "id": 61,
           "name": "Draw the blind lancets in the pier faces",
           "operation": "Sketch"
         },
         {
-          "id": 56,
+          "id": 62,
           "name": "Sink the blind lancets in the pier faces along the pull",
           "operation": "Extrude"
         },
         {
-          "id": 57,
+          "id": 63,
           "name": "Mirror the blind lancets in the pier faces into the drag side",
           "operation": "Mirror"
         },
         {
-          "id": 58,
+          "id": 64,
           "name": "Sink the cope's pier lancets",
           "operation": "Subtract"
         },
         {
-          "id": 59,
+          "id": 65,
           "name": "Sink the drag's pier lancets",
           "operation": "Subtract"
         },
         {
-          "id": 60,
+          "id": 66,
           "name": "Lay a plane over the face for the trefoil through the mouth",
           "operation": "Work plane"
         },
         {
-          "id": 61,
+          "id": 67,
           "name": "Draw the trefoil through the mouth",
           "operation": "Sketch"
         },
         {
-          "id": 62,
+          "id": 68,
           "name": "Sink the trefoil through the mouth along the pull",
           "operation": "Extrude"
         },
         {
-          "id": 63,
+          "id": 69,
           "name": "Mirror the trefoil through the mouth into the drag side",
           "operation": "Mirror"
         },
         {
-          "id": 64,
+          "id": 70,
           "name": "Lay a plane under the parting line for the trefoil through the mouth's belt",
           "operation": "Work plane"
         },
         {
-          "id": 65,
+          "id": 71,
           "name": "Draw the trefoil through the mouth's belt",
           "operation": "Sketch"
         },
         {
-          "id": 66,
+          "id": 72,
           "name": "Run the trefoil through the mouth's belt straight across the parting line",
           "operation": "Extrude"
         },
         {
-          "id": 67,
+          "id": 73,
           "name": "Join the halves of the trefoil through the mouth",
           "operation": "Union"
         },
         {
-          "id": 68,
+          "id": 74,
           "name": "Join the trefoil through the mouth's belt",
           "operation": "Union"
         },
         {
-          "id": 69,
+          "id": 75,
           "name": "Pierce the trefoil through the mouth",
           "operation": "Subtract"
         },
         {
-          "id": 70,
+          "id": 76,
           "name": "Lay a plane over the face for the bore",
           "operation": "Work plane"
         },
         {
-          "id": 71,
+          "id": 77,
           "name": "Draw the bore",
           "operation": "Sketch"
         },
         {
-          "id": 72,
+          "id": 78,
           "name": "Sink the bore along the pull",
           "operation": "Extrude"
         },
         {
-          "id": 73,
+          "id": 79,
           "name": "Mirror the bore into the drag side",
           "operation": "Mirror"
         },
         {
-          "id": 74,
+          "id": 80,
           "name": "Lay a plane under the parting line for the bore's belt",
           "operation": "Work plane"
         },
         {
-          "id": 75,
+          "id": 81,
           "name": "Draw the bore's belt",
           "operation": "Sketch"
         },
         {
-          "id": 76,
+          "id": 82,
           "name": "Run the bore's belt straight across the parting line",
           "operation": "Extrude"
         },
         {
-          "id": 77,
+          "id": 83,
           "name": "Join the halves of the bore",
           "operation": "Union"
         },
         {
-          "id": 78,
+          "id": 84,
           "name": "Join the bore's belt",
           "operation": "Union"
         },
         {
-          "id": 79,
+          "id": 85,
           "name": "Pierce the bore through the arch",
           "operation": "Subtract"
         }
@@ -837,24 +901,32 @@
         {
           "gate": "cold reload identical",
           "pass": true
+        },
+        {
+          "gate": "field verdict: not applicable to a parts-only ring, replaced by ray release and local wall",
+          "pass": true
+        },
+        {
+          "gate": "draft-clamp bites: none, the ring carries no painted relief",
+          "pass": true
         }
       ],
       "gates_passed": true,
       "geometry": {
         "boundary_edges": 0,
         "bounds_mm": [
-          26.200000762939453,
-          32.34252166748047,
+          28.130599975585938,
+          30.771800994873047,
           7.0
         ],
         "degenerate_faces": 0,
         "non_manifold_edges": 0,
         "self_crossings": 0,
         "shells": 1,
-        "volume_mm3": 1293.3013571120591,
+        "volume_mm3": 1225.5998661409535,
         "watertight": true
       },
-      "grams_silver": 13.398602059680933,
+      "grams_silver": 12.697214613220279,
       "keel": {
         "flank_draft_deg": 37.0,
         "inset_mm": 0.6,
@@ -865,20 +937,20 @@
       },
       "land_widths": {
         "belt_ledge_over_its_mirror_mm": 0.82,
-        "capital_to_bore_mm": 0.8275064705791912,
+        "capital_to_bore_mm": 2.057317345106691,
         "crocket_plate_mm": 1.8,
         "floors": {
           "sand_web_mm": 0.6,
           "section_mm": 0.8
         },
         "mouth_kept_off_bore_mm": 0.9,
-        "order_to_bore_at_axis_mm": 1.2141037569303013,
-        "pier_niche_to_bore_mm": 2.7384669055640174,
-        "pier_niche_to_face_edge_mm": 1.6500000000000004,
-        "side_wall_at_axis_mm": 2.6641037569303005,
-        "trefoil_lobe_width_at_parting_mm": 1.0981311913296825,
-        "trefoil_to_bore_mm": 2.2750000000000004,
-        "trefoil_to_mouth_step_mm": 1.375,
+        "order_to_bore_at_axis_mm": 1.1407389759965927,
+        "pier_niche_to_bore_mm": 5.994070409650943,
+        "pier_niche_to_face_edge_mm": 1.700000000000001,
+        "side_wall_at_axis_mm": 2.590738975996592,
+        "trefoil_lobe_width_at_parting_mm": 0.9981311913296826,
+        "trefoil_to_bore_mm": 1.9999999999999982,
+        "trefoil_to_mouth_step_mm": 1.0999999999999979,
         "web_between_mouth_floors_mm": 2.8,
         "web_between_order_floors_mm": 4.8,
         "web_between_pier_niche_floors_mm": 4.6
@@ -887,12 +959,12 @@
         "below_limit": 0,
         "limit_mm": 0.8,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-        "rays": 377,
-        "sampled_min_mm": 0.8199999928474425,
+        "rays": 383,
+        "sampled_min_mm": 0.8199999928474424,
         "unresolved": 0,
         "worst_point": [
-          -1.5448203484217327,
-          16.866875966389973,
+          -11.679262479146322,
+          -10.072941462198893,
           0.4099999964237213
         ]
       },
@@ -906,7 +978,7 @@
       "pattern": {
         "degenerate_faces": 0,
         "self_crossings": 0,
-        "triangles": 14320,
+        "triangles": 14906,
         "watertight": true
       },
       "process": "Sand (two-part)",
@@ -920,60 +992,53 @@
           "limit_mm": 0.8,
           "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
           "point": [
-            -10.13131014506022,
-            6.26664670308431,
-            0.4099999666213989
+            6.957855860392253,
+            10.22673225402832,
+            -0.4099999666213989
           ],
-          "rays": 377,
+          "rays": 383,
           "sampled_min_mm": 0.8199999332427973,
           "unresolved": 0
         },
-        "low_draft_area_mm2": 742.226668316753,
+        "low_draft_area_mm2": 735.9788580521916,
         "notes": [
-          "742.23 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
-          "Sample spacing 0.075 × 0.086 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
-          "Grid capped at 384 cells per axis; requested pitch was not reached"
+          "735.98 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+          "Sample spacing 0.075 × 0.082 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
+          "Grid capped at 384 cells per axis; requested pitch was not reached",
+          "Some faces have negative draft without a resolved interval obstruction; inspect at finer sampling"
         ],
         "obstructions": 0,
         "pitch_mm": [
-          0.07481076002788811,
-          0.08585659166177113
+          0.0748705801702355,
+          0.08168694376945496
         ],
         "sand_findings": [
+          "Sand slot about 0.07 mm wide; inspect its support and depth",
+          "Sand slot about 0.07 mm wide; inspect its support and depth",
+          "Sand slot about 0.07 mm wide; inspect its support and depth",
+          "Sand slot about 0.07 mm wide; inspect its support and depth",
+          "Sand slot about 0.37 mm wide; inspect its support and depth",
           "Sand slot about 0.15 mm wide; inspect its support and depth",
           "Sand slot about 0.15 mm wide; inspect its support and depth",
           "Sand slot about 0.07 mm wide; inspect its support and depth",
           "Sand slot about 0.07 mm wide; inspect its support and depth",
+          "Sand slot about 0.33 mm wide; inspect its support and depth",
+          "Sand slot about 0.57 mm wide; inspect its support and depth",
+          "Sand slot about 0.41 mm wide; inspect its support and depth",
+          "Sand slot about 0.41 mm wide; inspect its support and depth",
+          "Sand slot about 0.49 mm wide; inspect its support and depth",
+          "Sand slot about 0.57 mm wide; inspect its support and depth",
+          "Sand slot about 0.41 mm wide; inspect its support and depth",
+          "Sand slot about 0.41 mm wide; inspect its support and depth",
+          "Sand slot about 0.08 mm wide; inspect its support and depth",
+          "Sand slot about 0.57 mm wide; inspect its support and depth",
+          "Sand slot about 0.16 mm wide; inspect its support and depth",
+          "Sand slot about 0.41 mm wide; inspect its support and depth",
+          "Sand slot about 0.25 mm wide; inspect its support and depth",
+          "Sand slot about 0.16 mm wide; inspect its support and depth",
+          "Sand slot about 0.33 mm wide; inspect its support and depth",
           "Sand slot about 0.15 mm wide; inspect its support and depth",
-          "Sand slot about 0.15 mm wide; inspect its support and depth",
-          "Sand slot about 0.15 mm wide; inspect its support and depth",
-          "Sand slot about 0.15 mm wide; inspect its support and depth",
-          "Sand slot about 0.60 mm wide; inspect its support and depth",
-          "Sand slot about 0.15 mm wide; inspect its support and depth",
-          "Sand slot about 0.15 mm wide; inspect its support and depth",
-          "Sand slot about 0.30 mm wide; inspect its support and depth",
-          "Sand slot about 0.22 mm wide; inspect its support and depth",
-          "Sand slot about 0.22 mm wide; inspect its support and depth",
-          "Sand slot about 0.15 mm wide; inspect its support and depth",
-          "Sand slot about 0.52 mm wide; inspect its support and depth",
-          "Sand slot about 0.34 mm wide; inspect its support and depth",
-          "Sand slot about 0.34 mm wide; inspect its support and depth",
-          "Sand slot about 0.43 mm wide; inspect its support and depth",
-          "Sand slot about 0.43 mm wide; inspect its support and depth",
-          "Sand slot about 0.43 mm wide; inspect its support and depth",
-          "Sand slot about 0.17 mm wide; inspect its support and depth",
-          "Sand slot about 0.52 mm wide; inspect its support and depth",
-          "Sand slot about 0.17 mm wide; inspect its support and depth",
-          "Sand slot about 0.26 mm wide; inspect its support and depth",
-          "Sand slot about 0.26 mm wide; inspect its support and depth",
-          "Sand slot about 0.17 mm wide; inspect its support and depth",
-          "Sand slot about 0.17 mm wide; inspect its support and depth",
-          "Sand slot about 0.34 mm wide; inspect its support and depth",
-          "Sand slot about 0.52 mm wide; inspect its support and depth",
-          "Sand slot about 0.52 mm wide; inspect its support and depth",
-          "Sand slot about 0.15 mm wide; inspect its support and depth",
-          "Sand slot about 0.45 mm wide; inspect its support and depth",
-          "Sand slot about 0.52 mm wide; inspect its support and depth"
+          "Sand slot about 0.60 mm wide; inspect its support and depth"
         ],
         "status": "Review",
         "unresolved_rays": 0
@@ -988,61 +1053,56 @@
           "limit_mm": 0.8,
           "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
           "point": [
-            -10.13131014506022,
-            6.26664670308431,
-            0.4099999666213989
+            6.957855860392253,
+            10.22673225402832,
+            -0.4099999666213989
           ],
-          "rays": 377,
+          "rays": 383,
           "sampled_min_mm": 0.8199999332427973,
           "unresolved": 0
         },
-        "low_draft_area_mm2": 742.226668316753,
+        "low_draft_area_mm2": 735.9788580521916,
         "notes": [
-          "742.23 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
-          "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+          "735.98 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+          "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
+          "Some faces have negative draft without a resolved interval obstruction; inspect at finer sampling"
         ],
         "obstructions": 0,
         "pitch_mm": [
-          0.09965463182819423,
-          0.0999058521155155
+          0.09991439792752681,
+          0.0998974089409895
         ],
         "sand_findings": [
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "Sand slot about 0.60 mm wide; inspect its support and depth",
-          "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "Sand slot about 0.60 mm wide; inspect its support and depth",
-          "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "Sand slot about 0.50 mm wide; inspect its support and depth",
-          "Sand slot about 0.40 mm wide; inspect its support and depth",
-          "Sand slot about 0.60 mm wide; inspect its support and depth",
-          "Sand slot about 0.60 mm wide; inspect its support and depth",
-          "Sand slot about 0.40 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "Sand slot about 0.60 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
-          "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "Sand slot about 0.40 mm wide; inspect its support and depth",
-          "Sand slot about 0.50 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth",
           "Sand slot about 0.30 mm wide; inspect its support and depth",
-          "Sand slot about 0.20 mm wide; inspect its support and depth"
+          "Sand slot about 0.30 mm wide; inspect its support and depth",
+          "Sand slot about 0.30 mm wide; inspect its support and depth",
+          "Sand slot about 0.30 mm wide; inspect its support and depth",
+          "Sand slot about 0.50 mm wide; inspect its support and depth",
+          "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "Sand slot about 0.40 mm wide; inspect its support and depth",
+          "Sand slot about 0.30 mm wide; inspect its support and depth",
+          "Sand slot about 0.50 mm wide; inspect its support and depth",
+          "Sand slot about 0.40 mm wide; inspect its support and depth",
+          "Sand slot about 0.50 mm wide; inspect its support and depth",
+          "Sand slot about 0.50 mm wide; inspect its support and depth",
+          "Sand slot about 0.50 mm wide; inspect its support and depth",
+          "Sand slot about 0.50 mm wide; inspect its support and depth",
+          "Sand slot about 0.50 mm wide; inspect its support and depth",
+          "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "Sand slot about 0.40 mm wide; inspect its support and depth",
+          "Sand slot about 0.30 mm wide; inspect its support and depth",
+          "Sand slot about 0.30 mm wide; inspect its support and depth",
+          "Sand slot about 0.40 mm wide; inspect its support and depth",
+          "Sand slot about 0.50 mm wide; inspect its support and depth",
+          "Sand slot about 0.40 mm wide; inspect its support and depth"
         ],
         "status": "Review",
         "unresolved_rays": 0
       },
+      "release_status_note": "Both studies report 'Review needed', never 'Blocked': 0 obstructions and 0 unresolved rays. The review comes from two warnings the brief's gate does not count. (1) Low-draft area: the straight belts across the parting line (0.82 mm tall, 0°) on the keel's land, the crockets, the capitals, the trefoil and the bore, plus the 3.0° walls at the threshold itself. (2) Sand-slot width warnings: the study walks axis-aligned scanlines and flags any sand gap under 0.6 mm, which every re-entrant corner on the curved extrados produces near its tip, where a crocket's stalk meets the keel and at the trefoil's cusps. Neither is an obstruction. The 0.075 mm study is capped at 384 cells per axis, so its pitch along the 32 mm height is about 0.08 mm.",
       "sand": "Delft clay",
       "size": "US 8.6",
       "solids": {
@@ -1377,6 +1437,30 @@
     [
       "79",
       "Ok"
+    ],
+    [
+      "80",
+      "Ok"
+    ],
+    [
+      "81",
+      "Ok"
+    ],
+    [
+      "82",
+      "Ok"
+    ],
+    [
+      "83",
+      "Ok"
+    ],
+    [
+      "84",
+      "Ok"
+    ],
+    [
+      "85",
+      "Ok"
     ]
   ],
   "features": [
@@ -1502,276 +1586,306 @@
     },
     {
       "id": 25,
+      "name": "Lay a plane at z +0.850 for the bosses on the crockets' leaves",
+      "operation": "Work plane"
+    },
+    {
+      "id": 26,
+      "name": "Draw the bosses on the crockets' leaves",
+      "operation": "Sketch"
+    },
+    {
+      "id": 27,
+      "name": "Raise the cope half of the bosses on the crockets' leaves along the pull",
+      "operation": "Extrude"
+    },
+    {
+      "id": 28,
+      "name": "Mirror the bosses on the crockets' leaves into the drag half",
+      "operation": "Mirror"
+    },
+    {
+      "id": 29,
+      "name": "Join the halves of the bosses on the crockets' leaves",
+      "operation": "Union"
+    },
+    {
+      "id": 30,
+      "name": "Raise the bosses on the leaves",
+      "operation": "Union"
+    },
+    {
+      "id": 31,
       "name": "Set the crockets and the finial on the keel",
       "operation": "Union"
     },
     {
-      "id": 26,
+      "id": 32,
       "name": "Lay a plane over the face for the order",
       "operation": "Work plane"
     },
     {
-      "id": 27,
+      "id": 33,
       "name": "Draw the order",
       "operation": "Sketch"
     },
     {
-      "id": 28,
+      "id": 34,
       "name": "Sink the order along the pull",
       "operation": "Extrude"
     },
     {
-      "id": 29,
+      "id": 35,
       "name": "Mirror the order into the drag side",
       "operation": "Mirror"
     },
     {
-      "id": 30,
+      "id": 36,
       "name": "Sink the cope's order",
       "operation": "Subtract"
     },
     {
-      "id": 31,
+      "id": 37,
       "name": "Sink the drag's order",
       "operation": "Subtract"
     },
     {
-      "id": 32,
+      "id": 38,
       "name": "Lay a plane over the face for the mouth over the finger",
       "operation": "Work plane"
     },
     {
-      "id": 33,
+      "id": 39,
       "name": "Draw the mouth over the finger",
       "operation": "Sketch"
     },
     {
-      "id": 34,
+      "id": 40,
       "name": "Sink the mouth over the finger along the pull",
       "operation": "Extrude"
     },
     {
-      "id": 35,
+      "id": 41,
       "name": "Mirror the mouth over the finger into the drag side",
       "operation": "Mirror"
     },
     {
-      "id": 36,
+      "id": 42,
       "name": "Sink the cope's mouth",
       "operation": "Subtract"
     },
     {
-      "id": 37,
+      "id": 43,
       "name": "Sink the drag's mouth",
       "operation": "Subtract"
     },
     {
-      "id": 38,
+      "id": 44,
       "name": "Lay a plane under the parting line for the capitals's belt",
       "operation": "Work plane"
     },
     {
-      "id": 39,
+      "id": 45,
       "name": "Draw the capitals's belt",
       "operation": "Sketch"
     },
     {
-      "id": 40,
+      "id": 46,
       "name": "Run the capitals's belt straight across the parting line",
       "operation": "Extrude"
     },
     {
-      "id": 41,
+      "id": 47,
       "name": "Lay a plane at z +0.403 for the capitals",
       "operation": "Work plane"
     },
     {
-      "id": 42,
+      "id": 48,
       "name": "Draw the capitals",
       "operation": "Sketch"
     },
     {
-      "id": 43,
+      "id": 49,
       "name": "Raise the cope half of the capitals along the pull",
       "operation": "Extrude"
     },
     {
-      "id": 44,
+      "id": 50,
       "name": "Mirror the capitals into the drag half",
       "operation": "Mirror"
     },
     {
-      "id": 45,
+      "id": 51,
       "name": "Join the halves of the capitals",
       "operation": "Union"
     },
     {
-      "id": 46,
+      "id": 52,
       "name": "Join the capitals's halves to its belt",
       "operation": "Union"
     },
     {
-      "id": 47,
+      "id": 53,
       "name": "Set the capitals under the springers",
       "operation": "Union"
     },
     {
-      "id": 48,
+      "id": 54,
       "name": "Lay a plane at z +3.250 for the abaci",
       "operation": "Work plane"
     },
     {
-      "id": 49,
+      "id": 55,
       "name": "Draw the abaci",
       "operation": "Sketch"
     },
     {
-      "id": 50,
+      "id": 56,
       "name": "Raise the cope half of the abaci along the pull",
       "operation": "Extrude"
     },
     {
-      "id": 51,
+      "id": 57,
       "name": "Mirror the abaci into the drag half",
       "operation": "Mirror"
     },
     {
-      "id": 52,
+      "id": 58,
       "name": "Join the halves of the abaci",
       "operation": "Union"
     },
     {
-      "id": 53,
+      "id": 59,
       "name": "Lay the abaci on the capitals",
       "operation": "Union"
     },
     {
-      "id": 54,
+      "id": 60,
       "name": "Lay a plane over the face for the blind lancets in the pier faces",
       "operation": "Work plane"
     },
     {
-      "id": 55,
+      "id": 61,
       "name": "Draw the blind lancets in the pier faces",
       "operation": "Sketch"
     },
     {
-      "id": 56,
+      "id": 62,
       "name": "Sink the blind lancets in the pier faces along the pull",
       "operation": "Extrude"
     },
     {
-      "id": 57,
+      "id": 63,
       "name": "Mirror the blind lancets in the pier faces into the drag side",
       "operation": "Mirror"
     },
     {
-      "id": 58,
+      "id": 64,
       "name": "Sink the cope's pier lancets",
       "operation": "Subtract"
     },
     {
-      "id": 59,
+      "id": 65,
       "name": "Sink the drag's pier lancets",
       "operation": "Subtract"
     },
     {
-      "id": 60,
+      "id": 66,
       "name": "Lay a plane over the face for the trefoil through the mouth",
       "operation": "Work plane"
     },
     {
-      "id": 61,
+      "id": 67,
       "name": "Draw the trefoil through the mouth",
       "operation": "Sketch"
     },
     {
-      "id": 62,
+      "id": 68,
       "name": "Sink the trefoil through the mouth along the pull",
       "operation": "Extrude"
     },
     {
-      "id": 63,
+      "id": 69,
       "name": "Mirror the trefoil through the mouth into the drag side",
       "operation": "Mirror"
     },
     {
-      "id": 64,
+      "id": 70,
       "name": "Lay a plane under the parting line for the trefoil through the mouth's belt",
       "operation": "Work plane"
     },
     {
-      "id": 65,
+      "id": 71,
       "name": "Draw the trefoil through the mouth's belt",
       "operation": "Sketch"
     },
     {
-      "id": 66,
+      "id": 72,
       "name": "Run the trefoil through the mouth's belt straight across the parting line",
       "operation": "Extrude"
     },
     {
-      "id": 67,
+      "id": 73,
       "name": "Join the halves of the trefoil through the mouth",
       "operation": "Union"
     },
     {
-      "id": 68,
+      "id": 74,
       "name": "Join the trefoil through the mouth's belt",
       "operation": "Union"
     },
     {
-      "id": 69,
+      "id": 75,
       "name": "Pierce the trefoil through the mouth",
       "operation": "Subtract"
     },
     {
-      "id": 70,
+      "id": 76,
       "name": "Lay a plane over the face for the bore",
       "operation": "Work plane"
     },
     {
-      "id": 71,
+      "id": 77,
       "name": "Draw the bore",
       "operation": "Sketch"
     },
     {
-      "id": 72,
+      "id": 78,
       "name": "Sink the bore along the pull",
       "operation": "Extrude"
     },
     {
-      "id": 73,
+      "id": 79,
       "name": "Mirror the bore into the drag side",
       "operation": "Mirror"
     },
     {
-      "id": 74,
+      "id": 80,
       "name": "Lay a plane under the parting line for the bore's belt",
       "operation": "Work plane"
     },
     {
-      "id": 75,
+      "id": 81,
       "name": "Draw the bore's belt",
       "operation": "Sketch"
     },
     {
-      "id": 76,
+      "id": 82,
       "name": "Run the bore's belt straight across the parting line",
       "operation": "Extrude"
     },
     {
-      "id": 77,
+      "id": 83,
       "name": "Join the halves of the bore",
       "operation": "Union"
     },
     {
-      "id": 78,
+      "id": 84,
       "name": "Join the bore's belt",
       "operation": "Union"
     },
     {
-      "id": 79,
+      "id": 85,
       "name": "Pierce the bore through the arch",
       "operation": "Subtract"
     }
@@ -1840,24 +1954,32 @@
     {
       "gate": "cold reload identical",
       "pass": true
+    },
+    {
+      "gate": "field verdict: not applicable to a parts-only ring, replaced by ray release and local wall",
+      "pass": true
+    },
+    {
+      "gate": "draft-clamp bites: none, the ring carries no painted relief",
+      "pass": true
     }
   ],
   "gates_passed": true,
   "geometry": {
     "boundary_edges": 0,
     "bounds_mm": [
-      26.200000762939453,
-      32.34252166748047,
+      28.130599975585938,
+      30.771800994873047,
       7.0
     ],
     "degenerate_faces": 0,
     "non_manifold_edges": 0,
     "self_crossings": 0,
     "shells": 1,
-    "volume_mm3": 1293.3013571120591,
+    "volume_mm3": 1225.5998661409535,
     "watertight": true
   },
-  "grams_silver": 13.398602059680933,
+  "grams_silver": 12.697214613220279,
   "keel": {
     "flank_draft_deg": 37.0,
     "inset_mm": 0.6,
@@ -1868,20 +1990,20 @@
   },
   "land_widths": {
     "belt_ledge_over_its_mirror_mm": 0.82,
-    "capital_to_bore_mm": 0.8275064705791912,
+    "capital_to_bore_mm": 2.057317345106691,
     "crocket_plate_mm": 1.8,
     "floors": {
       "sand_web_mm": 0.6,
       "section_mm": 0.8
     },
     "mouth_kept_off_bore_mm": 0.9,
-    "order_to_bore_at_axis_mm": 1.2141037569303013,
-    "pier_niche_to_bore_mm": 2.7384669055640174,
-    "pier_niche_to_face_edge_mm": 1.6500000000000004,
-    "side_wall_at_axis_mm": 2.6641037569303005,
-    "trefoil_lobe_width_at_parting_mm": 1.0981311913296825,
-    "trefoil_to_bore_mm": 2.2750000000000004,
-    "trefoil_to_mouth_step_mm": 1.375,
+    "order_to_bore_at_axis_mm": 1.1407389759965927,
+    "pier_niche_to_bore_mm": 5.994070409650943,
+    "pier_niche_to_face_edge_mm": 1.700000000000001,
+    "side_wall_at_axis_mm": 2.590738975996592,
+    "trefoil_lobe_width_at_parting_mm": 0.9981311913296826,
+    "trefoil_to_bore_mm": 1.9999999999999982,
+    "trefoil_to_mouth_step_mm": 1.0999999999999979,
     "web_between_mouth_floors_mm": 2.8,
     "web_between_order_floors_mm": 4.8,
     "web_between_pier_niche_floors_mm": 4.6
@@ -1890,12 +2012,12 @@
     "below_limit": 0,
     "limit_mm": 0.8,
     "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-    "rays": 377,
-    "sampled_min_mm": 0.8199999928474425,
+    "rays": 383,
+    "sampled_min_mm": 0.8199999928474424,
     "unresolved": 0,
     "worst_point": [
-      -1.5448203484217327,
-      16.866875966389973,
+      -11.679262479146322,
+      -10.072941462198893,
       0.4099999964237213
     ]
   },
@@ -1909,7 +2031,7 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 14320,
+    "triangles": 14906,
     "watertight": true
   },
   "process": "Sand (two-part)",
@@ -1923,60 +2045,53 @@
       "limit_mm": 0.8,
       "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
       "point": [
-        -10.13131014506022,
-        6.26664670308431,
-        0.4099999666213989
+        6.957855860392253,
+        10.22673225402832,
+        -0.4099999666213989
       ],
-      "rays": 377,
+      "rays": 383,
       "sampled_min_mm": 0.8199999332427973,
       "unresolved": 0
     },
-    "low_draft_area_mm2": 742.226668316753,
+    "low_draft_area_mm2": 735.9788580521916,
     "notes": [
-      "742.23 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
-      "Sample spacing 0.075 × 0.086 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
-      "Grid capped at 384 cells per axis; requested pitch was not reached"
+      "735.98 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.075 × 0.082 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
+      "Grid capped at 384 cells per axis; requested pitch was not reached",
+      "Some faces have negative draft without a resolved interval obstruction; inspect at finer sampling"
     ],
     "obstructions": 0,
     "pitch_mm": [
-      0.07481076002788811,
-      0.08585659166177113
+      0.0748705801702355,
+      0.08168694376945496
     ],
     "sand_findings": [
+      "Sand slot about 0.07 mm wide; inspect its support and depth",
+      "Sand slot about 0.07 mm wide; inspect its support and depth",
+      "Sand slot about 0.07 mm wide; inspect its support and depth",
+      "Sand slot about 0.07 mm wide; inspect its support and depth",
+      "Sand slot about 0.37 mm wide; inspect its support and depth",
       "Sand slot about 0.15 mm wide; inspect its support and depth",
       "Sand slot about 0.15 mm wide; inspect its support and depth",
       "Sand slot about 0.07 mm wide; inspect its support and depth",
       "Sand slot about 0.07 mm wide; inspect its support and depth",
+      "Sand slot about 0.33 mm wide; inspect its support and depth",
+      "Sand slot about 0.57 mm wide; inspect its support and depth",
+      "Sand slot about 0.41 mm wide; inspect its support and depth",
+      "Sand slot about 0.41 mm wide; inspect its support and depth",
+      "Sand slot about 0.49 mm wide; inspect its support and depth",
+      "Sand slot about 0.57 mm wide; inspect its support and depth",
+      "Sand slot about 0.41 mm wide; inspect its support and depth",
+      "Sand slot about 0.41 mm wide; inspect its support and depth",
+      "Sand slot about 0.08 mm wide; inspect its support and depth",
+      "Sand slot about 0.57 mm wide; inspect its support and depth",
+      "Sand slot about 0.16 mm wide; inspect its support and depth",
+      "Sand slot about 0.41 mm wide; inspect its support and depth",
+      "Sand slot about 0.25 mm wide; inspect its support and depth",
+      "Sand slot about 0.16 mm wide; inspect its support and depth",
+      "Sand slot about 0.33 mm wide; inspect its support and depth",
       "Sand slot about 0.15 mm wide; inspect its support and depth",
-      "Sand slot about 0.15 mm wide; inspect its support and depth",
-      "Sand slot about 0.15 mm wide; inspect its support and depth",
-      "Sand slot about 0.15 mm wide; inspect its support and depth",
-      "Sand slot about 0.60 mm wide; inspect its support and depth",
-      "Sand slot about 0.15 mm wide; inspect its support and depth",
-      "Sand slot about 0.15 mm wide; inspect its support and depth",
-      "Sand slot about 0.30 mm wide; inspect its support and depth",
-      "Sand slot about 0.22 mm wide; inspect its support and depth",
-      "Sand slot about 0.22 mm wide; inspect its support and depth",
-      "Sand slot about 0.15 mm wide; inspect its support and depth",
-      "Sand slot about 0.52 mm wide; inspect its support and depth",
-      "Sand slot about 0.34 mm wide; inspect its support and depth",
-      "Sand slot about 0.34 mm wide; inspect its support and depth",
-      "Sand slot about 0.43 mm wide; inspect its support and depth",
-      "Sand slot about 0.43 mm wide; inspect its support and depth",
-      "Sand slot about 0.43 mm wide; inspect its support and depth",
-      "Sand slot about 0.17 mm wide; inspect its support and depth",
-      "Sand slot about 0.52 mm wide; inspect its support and depth",
-      "Sand slot about 0.17 mm wide; inspect its support and depth",
-      "Sand slot about 0.26 mm wide; inspect its support and depth",
-      "Sand slot about 0.26 mm wide; inspect its support and depth",
-      "Sand slot about 0.17 mm wide; inspect its support and depth",
-      "Sand slot about 0.17 mm wide; inspect its support and depth",
-      "Sand slot about 0.34 mm wide; inspect its support and depth",
-      "Sand slot about 0.52 mm wide; inspect its support and depth",
-      "Sand slot about 0.52 mm wide; inspect its support and depth",
-      "Sand slot about 0.15 mm wide; inspect its support and depth",
-      "Sand slot about 0.45 mm wide; inspect its support and depth",
-      "Sand slot about 0.52 mm wide; inspect its support and depth"
+      "Sand slot about 0.60 mm wide; inspect its support and depth"
     ],
     "status": "Review",
     "unresolved_rays": 0
@@ -1991,61 +2106,56 @@
       "limit_mm": 0.8,
       "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
       "point": [
-        -10.13131014506022,
-        6.26664670308431,
-        0.4099999666213989
+        6.957855860392253,
+        10.22673225402832,
+        -0.4099999666213989
       ],
-      "rays": 377,
+      "rays": 383,
       "sampled_min_mm": 0.8199999332427973,
       "unresolved": 0
     },
-    "low_draft_area_mm2": 742.226668316753,
+    "low_draft_area_mm2": 735.9788580521916,
     "notes": [
-      "742.23 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
-      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+      "735.98 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
+      "Some faces have negative draft without a resolved interval obstruction; inspect at finer sampling"
     ],
     "obstructions": 0,
     "pitch_mm": [
-      0.09965463182819423,
-      0.0999058521155155
+      0.09991439792752681,
+      0.0998974089409895
     ],
     "sand_findings": [
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
-      "Sand slot about 0.10 mm wide; inspect its support and depth",
-      "Sand slot about 0.10 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
-      "Sand slot about 0.60 mm wide; inspect its support and depth",
-      "Sand slot about 0.10 mm wide; inspect its support and depth",
-      "Sand slot about 0.10 mm wide; inspect its support and depth",
-      "Sand slot about 0.60 mm wide; inspect its support and depth",
-      "Sand slot about 0.10 mm wide; inspect its support and depth",
-      "Sand slot about 0.10 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
-      "Sand slot about 0.50 mm wide; inspect its support and depth",
-      "Sand slot about 0.40 mm wide; inspect its support and depth",
-      "Sand slot about 0.60 mm wide; inspect its support and depth",
-      "Sand slot about 0.60 mm wide; inspect its support and depth",
-      "Sand slot about 0.40 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
-      "Sand slot about 0.10 mm wide; inspect its support and depth",
-      "Sand slot about 0.60 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
-      "Sand slot about 0.10 mm wide; inspect its support and depth",
-      "Sand slot about 0.10 mm wide; inspect its support and depth",
-      "Sand slot about 0.40 mm wide; inspect its support and depth",
-      "Sand slot about 0.50 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth",
       "Sand slot about 0.30 mm wide; inspect its support and depth",
-      "Sand slot about 0.20 mm wide; inspect its support and depth"
+      "Sand slot about 0.30 mm wide; inspect its support and depth",
+      "Sand slot about 0.30 mm wide; inspect its support and depth",
+      "Sand slot about 0.30 mm wide; inspect its support and depth",
+      "Sand slot about 0.50 mm wide; inspect its support and depth",
+      "Sand slot about 0.10 mm wide; inspect its support and depth",
+      "Sand slot about 0.10 mm wide; inspect its support and depth",
+      "Sand slot about 0.20 mm wide; inspect its support and depth",
+      "Sand slot about 0.20 mm wide; inspect its support and depth",
+      "Sand slot about 0.40 mm wide; inspect its support and depth",
+      "Sand slot about 0.30 mm wide; inspect its support and depth",
+      "Sand slot about 0.50 mm wide; inspect its support and depth",
+      "Sand slot about 0.40 mm wide; inspect its support and depth",
+      "Sand slot about 0.50 mm wide; inspect its support and depth",
+      "Sand slot about 0.50 mm wide; inspect its support and depth",
+      "Sand slot about 0.50 mm wide; inspect its support and depth",
+      "Sand slot about 0.50 mm wide; inspect its support and depth",
+      "Sand slot about 0.50 mm wide; inspect its support and depth",
+      "Sand slot about 0.10 mm wide; inspect its support and depth",
+      "Sand slot about 0.40 mm wide; inspect its support and depth",
+      "Sand slot about 0.30 mm wide; inspect its support and depth",
+      "Sand slot about 0.30 mm wide; inspect its support and depth",
+      "Sand slot about 0.40 mm wide; inspect its support and depth",
+      "Sand slot about 0.50 mm wide; inspect its support and depth",
+      "Sand slot about 0.40 mm wide; inspect its support and depth"
     ],
     "status": "Review",
     "unresolved_rays": 0
   },
+  "release_status_note": "Both studies report 'Review needed', never 'Blocked': 0 obstructions and 0 unresolved rays. The review comes from two warnings the brief's gate does not count. (1) Low-draft area: the straight belts across the parting line (0.82 mm tall, 0°) on the keel's land, the crockets, the capitals, the trefoil and the bore, plus the 3.0° walls at the threshold itself. (2) Sand-slot width warnings: the study walks axis-aligned scanlines and flags any sand gap under 0.6 mm, which every re-entrant corner on the curved extrados produces near its tip, where a crocket's stalk meets the keel and at the trefoil's cusps. Neither is an obstruction. The 0.075 mm study is capped at 384 cells per axis, so its pitch along the 32 mm height is about 0.08 mm.",
   "sand": "Delft clay",
   "size": "US 8.6",
   "solids": {

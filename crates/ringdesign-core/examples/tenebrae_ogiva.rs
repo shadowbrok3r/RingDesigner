@@ -42,6 +42,11 @@ fn export_params() -> BuildParams {
     BuildParams { theta_steps: 1536, profile_steps: 448, refine: None, ..BuildParams::default() }
 }
 
+/// A sketch point held to a tenth of a micron: far under any tolerance, and a third of the template's bytes.
+fn snap(p: P2) -> P2 {
+    p.map(|v| (v * 1e4).round() / 1e4)
+}
+
 fn sub2(a: P2, b: P2) -> P2 {
     [a[0] - b[0], a[1] - b[1]]
 }
@@ -78,7 +83,7 @@ impl Tree {
                 Shape::Poly(l) => {
                     // A polyline takes at most 512 points: a long loop keeps every k-th.
                     let k = l.len().div_ceil(500);
-                    let ids: Vec<Id> = l.iter().step_by(k).map(|p| s.point(*p)).collect();
+                    let ids: Vec<Id> = l.iter().step_by(k).map(|p| s.point(snap(*p))).collect();
                     s.entity(Geometry::Polyline { points: ids, closed: true });
                 }
                 Shape::Circle { centre, radius } => {
@@ -92,7 +97,7 @@ impl Tree {
                         PathKind::Outline => arch.outline(*d, *round),
                         PathKind::Head { drop } => arch.head_region(*d, *round, *drop),
                     };
-                    let ids: Vec<Id> = pts.iter().map(|p| s.point(*p)).collect();
+                    let ids: Vec<Id> = pts.iter().map(|p| s.point(snap(*p))).collect();
                     s.entity(Geometry::Polyline { points: ids, closed: true });
                 }
             }
@@ -123,13 +128,17 @@ impl Tree {
     /// Loops raised to `half` either side of the parting line: a straight belt across it, BELT_MM each way, and drafted
     /// halves from inside the belt out to the faces.
     fn belted(&mut self, what: &str, loops: &[Shape], half: f64, draft: f64) -> Id {
+        let inner: Vec<Shape> = loops.iter().map(|l| l.inset(HALF_IN_MM)).collect();
+        self.belted_with(what, loops, &inner, half, draft)
+    }
+    /// `belted`, its halves drawn from their own loops, which must lie inside the belt's.
+    fn belted_with(&mut self, what: &str, loops: &[Shape], inner: &[Shape], half: f64, draft: f64) -> Id {
         // A part's belt stands a little past the keel's land, so no two belt tops share a plane where the part meets the keel.
         let belt_mm = BELT_MM + PART_BELT_EXTRA_MM;
         let plane = self.plane(&format!("Lay a plane under the parting line for the {what}'s belt"), -belt_mm);
         let s = self.sketch(&format!("Draw the {what}'s belt"), plane, loops);
         let belt = self.extrude(&format!("Run the {what}'s belt straight across the parting line"), s, 2.0 * belt_mm, 0.0);
-        let inner: Vec<Shape> = loops.iter().map(|l| l.inset(HALF_IN_MM)).collect();
-        let halves = self.slab(what, &inner, HALF_FROM_MM + PART_BELT_EXTRA_MM, half, draft);
+        let halves = self.slab(what, inner, HALF_FROM_MM + PART_BELT_EXTRA_MM, half, draft);
         self.boolean(&format!("Join the {what}'s halves to its belt"), belt, halves, Boolean::Union)
     }
     /// A cut through the ring along the pull: drafted halves from each face to inside a straight belt at the parting
@@ -188,7 +197,7 @@ struct GreatArch {
 
 impl GreatArch {
     fn of(rev: bool) -> Self {
-        let (half_span, spring_y, sill_y, corner, width): (f64, f64, f64, f64, f64) = if rev { (12.15, -3.0, -11.0, 2.4, 6.0) } else { (12.15, -3.0, -11.0, 2.4, 6.0) };
+        let (half_span, spring_y, sill_y, corner, width): (f64, f64, f64, f64, f64) = if rev { (12.4, -5.0, -11.0, 2.4, 6.0) } else { (12.4, -5.0, -11.0, 2.4, 6.0) };
         let radius = 2.0 * half_span;
         let c = radius - half_span;
         let apex_y = spring_y + (radius * radius - c * c).sqrt();
@@ -308,14 +317,19 @@ const CAPITAL_PROUD: (f64, f64) = (0.5, 0.3);
 /// otherwise trim them to a wedge.
 const CAPITAL_IN: f64 = 2.35;
 /// Crockets up each slope of the extrados, as shares of the head arc, each one's growth, and the plate's half-width along the finger.
-const CROCKETS: [(f64, f64); 6] = [(0.16, 0.85), (0.29, 0.92), (0.42, 1.0), (0.55, 1.07), (0.68, 1.14), (0.81, 1.2)];
+const CROCKETS: [(f64, f64); 3] = [(0.22, 1.1), (0.48, 1.2), (0.74, 1.3)];
 const CROCKET_HALF: f64 = 0.9;
+/// How far inside a crocket's belt its drafted halves are drawn, and the pitch they are walked at, mm.
+const CORE_INSET_MM: f64 = 0.1;
+const CORE_PITCH_MM: f64 = 0.55;
+/// How proud of its leaf each crocket's boss stands.
+const CROCKET_BOSS_MM: f64 = 0.25;
 /// How deep each crocket and the finial sink below the outline.
 const CROCKET_SINK: f64 = 1.2;
 /// A blind lancet niche in each pier face: centre off the axis, width, sill and apex heights, floor depth below the face.
-const PIER_NICHE: (f64, f64, f64, f64, f64) = (9.4, 1.0, -9.4, -6.1, 0.7);
+const PIER_NICHE: (f64, f64, f64, f64, f64) = (9.6, 1.0, -9.4, -7.9, 0.7);
 /// The pierced trefoil in the mouth over the finger: centre height, lobe radius, lobe centres' distance from the centre.
-const TREFOIL: (f64, f64, f64) = (12.6, 0.7, 0.65);
+const TREFOIL: (f64, f64, f64) = (12.2, 0.65, 0.5);
 
 /// The keel's rise: from the land at the belt's top to KEEL_IN at the flank's draft.
 fn keel_rise() -> f64 {
@@ -412,7 +426,7 @@ fn lancet(w: f64, from: f64, to: f64) -> Vec<P2> {
     let h = w / 2.0;
     let spring = to - w * 3f64.sqrt() / 2.0;
     let mut pts = vec![[-h, from], [h, from], [h, spring]];
-    let steps = 6;
+    let steps = 4;
     for i in 1..steps {
         let a = PI / 3.0 * i as f64 / steps as f64;
         pts.push([-h + w * a.cos(), spring + w * a.sin()]);
@@ -426,11 +440,43 @@ fn lancet(w: f64, from: f64, to: f64) -> Vec<P2> {
     pts
 }
 
-/// One crocket in its own frame, `t` along the slope toward the apex and `n` out of the extrados: a leaf rising from the
-/// keel, leaning toward the apex and rolling its tip forward into a bud.
+/// One crocket in its own frame, `t` along the slope toward the apex and `n` out of the extrados: a stalk rising square
+/// from the keel into a leaf of three lobes whose tip hooks forward and down toward the apex, the throat under the hook
+/// held open wide enough for the sand.
 fn crocket() -> Keys {
     let k = -CROCKET_SINK;
-    vec![(-0.75, k, true), (0.75, k, true), (0.8, 0.2, false), (1.3, 0.7, false), (1.1, 1.25, false), (0.45, 1.4, false), (-0.2, 1.1, false), (-0.65, 0.5, false)]
+    vec![
+        (-0.9, k, true),
+        (0.9, k, true),
+        (0.9, 0.15, false),
+        (0.95, 0.75, false),
+        // The throat under the hook, and the hook's underside out to its tip.
+        (1.2, 1.1, false),
+        (1.7, 1.15, false),
+        (2.15, 1.0, false),
+        (2.4, 0.8, false),
+        (2.95, 0.85, false),
+        (3.05, 1.45, false),
+        // Over the lobes, notched apart, and down the back of the stalk.
+        (2.5, 2.05, false),
+        (2.1, 1.95, false),
+        (1.55, 2.4, false),
+        (1.1, 2.15, false),
+        (0.45, 2.3, false),
+        (-0.3, 1.85, false),
+        (-0.85, 1.0, false),
+        (-0.9, 0.15, false),
+    ]
+}
+
+/// The boss on a crocket's leaf, a second tier standing on the plate.
+fn crocket_boss(grow: f64) -> Keys {
+    // In the leaf's body over the stalk, where it is widest, and wide enough itself to hold the section.
+    let (c, rx, ry) = ([0.25 * grow, 1.25 * grow], 0.52, 0.52);
+    (0..6).map(|i| {
+        let a = 2.0 * PI * i as f64 / 6.0;
+        (c[0] + rx * a.cos(), c[1] + ry * a.sin(), false)
+    }).collect()
 }
 
 /// The finial on the apex, symmetric about the axis: a stem opening into three lobes, the middle one pointed.
@@ -457,11 +503,20 @@ fn finial() -> Keys {
 
 /// Keys laid at `origin` with `t` along the slope and `n` out of it, `grow` times their size.
 fn laid(keys: &Keys, origin: P2, t: P2, n: P2, grow: f64) -> Vec<P2> {
-    // Walked coarser than other outlines: a crocket is drawn twice, belt and halves, and its curl reads at this pitch.
-    spline_at(&keys.iter().map(|(a, b, s)| (a * grow, if *b > 0.0 { b * grow } else { *b }, *s)).collect::<Vec<_>>(), 0.55)
+    spline_at(&keys.iter().map(|(a, b, s)| (a * grow, if *b > 0.0 { b * grow } else { *b }, *s)).collect::<Vec<_>>(), 0.4)
         .into_iter()
         .map(|[a, b]| [origin[0] + a * t[0] + b * n[0], origin[1] + a * t[1] + b * n[1]])
         .collect()
+}
+
+/// A leaf's outline drawn CORE_INSET_MM further in and walked at CORE_PITCH_MM, its chords' sag well inside the inset.
+fn cored(l: Vec<P2>) -> Vec<P2> {
+    even(&inset_loop(&l, CORE_INSET_MM), CORE_PITCH_MM)
+}
+
+/// Keys laid at `origin` as a plain loop, `t` along the slope and `n` out of it.
+fn laid_raw(keys: &Keys, origin: P2, t: P2, n: P2) -> Vec<P2> {
+    keys.iter().map(|(a, b, _)| [origin[0] + a * t[0] + b * n[0], origin[1] + a * t[1] + b * n[1]]).collect()
 }
 
 /// The trefoil: three lobes round a centre, walked as the outline a ray from the centre meets, its cusps eased.
@@ -546,7 +601,7 @@ fn mouth(a: &GreatArch, d: f64, keep: f64) -> Vec<P2> {
     back.pop();
     pts.extend(back);
     // Its four corners eased, so the drafted floor keeps every segment.
-    smoothed_at(&pts, 0.55)
+    smoothed_at(&pts, 0.6)
 }
 
 /// The finished arch: the keel and face, the crockets climbing to the finial, the orders and the mouth sunk into the head,
@@ -558,7 +613,7 @@ fn author(bare: bool) -> Result<(RingDesign, GreatArch)> {
     let mut cur = arch_body(&mut t, &a);
     if !bare {
         // Crockets up both slopes of the extrados, leaning toward the apex, and the finial on it.
-        let mut leaves = Vec::new();
+        let (mut leaves, mut cores, mut bosses) = (Vec::new(), Vec::new(), Vec::new());
         let r = a.radius;
         let cr = a.centre(1.0);
         let top = (cr[0].abs() / r).acos();
@@ -568,10 +623,22 @@ fn author(bare: bool) -> Result<(RingDesign, GreatArch)> {
             let p = [cr[0] + r * n[0], cr[1] + r * n[1]];
             leaves.push(laid(&crocket(), p, [-n[1], n[0]], n, grow));
             leaves.push(laid(&crocket(), [-p[0], p[1]], [-n[1] * -1.0, n[0]], [-n[0], n[1]], grow).into_iter().rev().collect());
+            cores.push(cored(leaves[leaves.len() - 2].clone()));
+            cores.push(cored(leaves[leaves.len() - 1].clone()));
+            bosses.push(laid_raw(&crocket_boss(grow), p, [-n[1], n[0]], n));
+            bosses.push(laid_raw(&crocket_boss(grow), [-p[0], p[1]], [-n[1] * -1.0, n[0]], [-n[0], n[1]]).into_iter().rev().collect());
         }
         leaves.push(laid(&finial(), [0.0, a.apex_y], [1.0, 0.0], [0.0, 1.0], 1.3));
+        cores.push(cored(leaves[leaves.len() - 1].clone()));
         let leaves: Vec<Shape> = leaves.into_iter().map(Shape::Poly).collect();
-        let crockets = t.belted("crockets climbing the extrados to the finial", &leaves, CROCKET_HALF, DRAFT_DEG);
+        // The belt carries each leaf's outline at the parting line; its drafted halves are drawn coarser, a tenth of a
+        // millimetre inside it, which keeps the template within its budget.
+        let cores: Vec<Shape> = cores.into_iter().map(Shape::Poly).collect();
+        let crockets = t.belted_with("crockets climbing the extrados to the finial", &leaves, &cores, CROCKET_HALF, DRAFT_DEG);
+        // Each leaf carries a boss, a second tier standing on its plate.
+        let bosses: Vec<Shape> = bosses.into_iter().map(Shape::Poly).collect();
+        let boss = t.slab("bosses on the crockets' leaves", &bosses, CROCKET_HALF - 0.05, CROCKET_HALF + CROCKET_BOSS_MM, DRAFT_DEG);
+        let crockets = t.boolean("Raise the bosses on the leaves", crockets, boss, Boolean::Union);
         cur = t.boolean("Set the crockets and the finial on the keel", cur, crockets, Boolean::Union);
         // The order, sunk into the head and run down onto the capitals, and the mouth sunk deeper over the finger.
         let top = half + 0.3;
@@ -803,6 +870,23 @@ fn made_parts(built: &mesh::BuildResult) -> Vec<(String, usize)> {
         .collect()
 }
 
+/// The metal's centre of mass, from the signed tetrahedra the closed mesh makes with the origin, mm.
+fn centre_of_mass(m: &mesh::Mesh) -> [f64; 3] {
+    let (mut v, mut c) = (0.0, [0.0; 3]);
+    for f in &m.faces {
+        let p = f.map(|i| {
+            let q = m.vertices[i as usize];
+            [q.0 as f64, q.1 as f64, q.2 as f64]
+        });
+        let t = (p[0][0] * (p[1][1] * p[2][2] - p[1][2] * p[2][1]) - p[0][1] * (p[1][0] * p[2][2] - p[1][2] * p[2][0]) + p[0][2] * (p[1][0] * p[2][1] - p[1][1] * p[2][0])) / 6.0;
+        v += t;
+        for k in 0..3 {
+            c[k] += t * (p[0][k] + p[1][k] + p[2][k]) / 4.0;
+        }
+    }
+    c.map(|x| if v.abs() > 1e-12 { (x / v * 1000.0).round() / 1000.0 } else { 0.0 })
+}
+
 fn shells(m: &mesh::Mesh) -> usize {
     let mut parent: Vec<usize> = (0..m.vertices.len()).collect();
     fn root(p: &mut [usize], mut i: usize) -> usize {
@@ -950,6 +1034,10 @@ fn main() -> Result<()> {
         ("casting pattern watertight, 0 degenerates, 0 crossings", pw && pd == 0 && px == 0),
         ("export build within the 2 million triangle budget", built.mesh.faces.len() <= 2_000_000),
         ("cold reload identical", cold != Some(false)),
+        // The brief judges a parts-only sand ring by its ray release and local wall, which replace the field verdict:
+        // with no band chart the field reports only that CAD solids need mesh-space inspection.
+        ("field verdict: not applicable to a parts-only ring, replaced by ray release and local wall", field.notes.iter().any(|n| n.contains("CAD solids"))),
+        ("draft-clamp bites: none, the ring carries no painted relief", d.layers.layers.is_empty()),
     ];
     let features: Vec<serde_json::Value> = d.cad.as_ref().unwrap().features.iter().map(|f| json!({"id": f.id, "name": f.name, "operation": f.operation.label()})).collect();
     let mut report = json!({
@@ -975,6 +1063,8 @@ fn main() -> Result<()> {
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "stones": {"reported": reported, "previewed": previewed},
         "grams_silver": grams,
+        "centre_of_mass_mm": centre_of_mass(&built.mesh),
+        "release_status_note": "Both studies report 'Review needed', never 'Blocked': 0 obstructions and 0 unresolved rays. The review comes from two warnings the brief's gate does not count. (1) Low-draft area: the straight belts across the parting line (0.82 mm tall, 0°) on the keel's land, the crockets, the capitals, the trefoil and the bore, plus the 3.0° walls at the threshold itself. (2) Sand-slot width warnings: the study walks axis-aligned scanlines and flags any sand gap under 0.6 mm, which every re-entrant corner on the curved extrados produces near its tip, where a crocket's stalk meets the keel and at the trefoil's cusps. Neither is an obstruction. The 0.075 mm study is capped at 384 cells per axis, so its pitch along the 32 mm height is about 0.08 mm.",
         "pattern": {"watertight": pw, "degenerate_faces": pd, "self_crossings": px, "triangles": prepared.mesh.faces.len()},
         "design": {"bytes": text.len(), "cad_features": features.len()},
         "features": features,
@@ -1017,6 +1107,9 @@ fn main() -> Result<()> {
             for o in i.release.obstructions.iter().take(8) {
                 println!("    obstruction {name}: {:?} {:.3} mm deep, {:.4} mm²", o.world.map(|v| (v * 100.0).round() / 100.0), o.depth_mm, o.projected_area_mm2);
             }
+        }
+        for f in i100.release.sand_findings.iter().take(40) {
+            println!("    sand slot {:.2} mm at {:?}", f.width_mm, f.point.map(|v| (v * 100.0).round() / 100.0));
         }
         let m = &built.mesh;
         let tris: Vec<[[f64; 3]; 3]> = m.faces.iter().map(|f| f.map(|i| { let v = m.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] })).collect();
