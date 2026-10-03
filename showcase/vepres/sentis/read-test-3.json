@@ -1,0 +1,33 @@
+{
+  "ring": "sentis",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Still a crown of thorns: a woven wreath of smooth gold wire with spikes, and a glossy red oval gem stuck on the upper right. In the hero, the open, airy weave and the cut stubs at the crown now give a better silhouette than attempt 2. The tiny pale star on the tip of the red oval is the only plant clue, and it reads like a prong or a spark, not a calyx. The stone still looks cut and polished, not like a fruit. In the hero the prickles are still thin straight needles pointing every way, and the canes are one even gauge of round wire. The face view has improved: the weave is looser, and there are now pointed, almond-shaped flecks on both sides of the stone that might be leaves. But they read as single blades, feathers or flames, not three-leaflet rose leaves. Next to them, the red oval sits flat in the middle like a cabochon on a braided band. A jeweller shown these two images would say 'crown of thorns' or 'thorny vine band with a ruby'. They would not say briar, wild rose or rose hip. It has a real silhouette and real presence, and it is close to Caiman's density, but the plant is still unnamed.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the leaves unmistakably rose: change each single blade-like leaf into a pinnate leaf of 5 leaflets (one terminal and two opposite pairs) on a visible 0.4 mm rachis about 5 mm long. Each leaflet should be an oval about 3.0 x 2.0 mm with 6-8 saw teeth a side about 0.3 mm deep, and a sunk midrib with darkened recesses. Lay the leaves flat and facing out, about 0.5 mm proud of the canes, and use at least 3 of them: one each side of the hip and one lower on the face side.",
+      "where": "Briar leaf 1-3 at theta 60-120, on the outermost cane at each angle; the face-view flanks either side of the hip.",
+      "acceptance": "In face-300 at least two leaves each show 5 separate leaflets along a stalk with toothed edges, and no leaf reads as a single blade, feather or flame."
+    },
+    {
+      "priority": 2,
+      "what": "Turn the gem into a hip: replace the faceted or glossy oval look with a smooth, matte-tinted urn about 6 x 4.5 mm, long axis radial and standing about 1.5 mm higher. Give it a calyx of 5 sepals, each about 2.5 mm long and 0.6 mm wide, flaring and curling back past the hip's shoulder so they overhang its sides in the face view, not a small star on the tip. Make the stalk 0.7 mm thick, with about 2 mm of it visible, curving into a cane. Darken the stone tint toward garnet-orange [0.55, 0.12, 0.06] so it reads as fruit, not ruby.",
+      "where": "Hip urn, Hip calyx, Hip stalk and the oval cabochon, crown theta 90.",
+      "acceptance": "In hero-300 the sepals are visible as 5 separate points with dark gaps and the stalk joins a cane. In face-300 the sepal star covers the hip's top. A viewer says 'rose hip' or 'berry'."
+    },
+    {
+      "priority": 3,
+      "what": "Make the needles into rose prickles: thorn base from 0.40 to about 0.80 across, flattened and broad, with length about 1.0 mm. Hook every tip back the same way along its cane, with no alternating spin. Make the crown prickles about 1.4x the palm ones, and taper the canes 1.0 to 0.85 between crossings so they stop reading as wire.",
+      "where": "Every Thorn n on cane m across all 3 pattern periods, grading from theta 90 (largest) to theta 270 (smallest); Briar cane 1-4 sections.",
+      "acceptance": "In hero-300 the thorns show wide triangular bases with one-way hooked tips and none read as straight radial needles; the canes visibly thicken and thin."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/sentis/hero-300.png",
+    "showcase/vepres/sentis/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
