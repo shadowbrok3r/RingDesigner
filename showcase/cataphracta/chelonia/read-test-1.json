@@ -1,0 +1,33 @@
+{
+  "ring": "Chelonia",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": true,
+  "what_the_eye_sees": "Face-on at 300 px a jeweller says 'turtle' straight away: a small plated shell with a scute pattern, stubby legs and a nub of a head pointing east. The trouble is that the turtle is a small appliqué sitting on a big, smooth, four-lobed blob. The ring reads as a butterfly, quatrefoil or four-leaf-clover signet with a turtle charm stuck in the middle, not as a ring that is the turtle. The shell covers only about a third of the face width. The four textured ovals on the lobes read as pine cones or leaves floating on the polished bulbs, not as flippers joined to the shell. The shell also seems to carry its own little legs, so the eye counts up to eight limbs. In the 300 px hero the read is weaker: the polished lobes swell into soft pillows that dominate the silhouette, the turtle shrinks to a small textured patch, and the eye has to hunt for it. It still names a turtle, but barely and second, after 'lumpy flower signet'.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the carapace the face, not a badge on it.",
+      "where": "Table centre, the 'Carapace' group (vertebral, costal and marginal scutes)",
+      "how_much": "Grow the shell outline from about 1/3 to about 2/3 of the face width (and the same along the ring), so that its marginals run right out to the four waists where the lobes meet. Keep the vertebral tier the highest, at least 0.5 mm above the lobe surface, so that the shell is the brightest and most raised form in both 300 px views."
+    },
+    {
+      "priority": 2,
+      "what": "Turn the four lobes into the flippers and get rid of the double limbs.",
+      "where": "The four quatrefoil lobes ('Flippers' layer) and the small legs on the shell motif",
+      "how_much": "Remove the shell's own stub legs so that only the four lobe flippers remain. Stretch each scaled flipper from the shell's marginal edge out to within about 0.5 mm of the lobe rim, tapering it to a rounded point and angling it back about 30 degrees. Make the fore pair about 25% longer than the hind pair. Cut the polished doming of the lobes, roughly halving their crown height, so that no smooth bulb shows around a flipper and the silhouette stops reading as a pillowy flower."
+    },
+    {
+      "priority": 3,
+      "what": "Give the turtle a clear front and back.",
+      "where": "The two along-ring cusps (neck and tail notches)",
+      "how_much": "At the neck cusp, push the current nub out to a plain blunt head form about 3 mm long and 2.5 mm wide, with no eyes, stopping 1 mm short of the fold. At the opposite cusp, add a short pointed tail of about 1.5 mm. That way the shell plus four flippers plus head reads as a sea turtle seen from above, even in the three-quarter hero."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/chelonia/hero-300.png",
+    "showcase/cataphracta/chelonia/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
