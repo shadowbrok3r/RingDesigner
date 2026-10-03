@@ -1,0 +1,35 @@
+{
+  "ring": "Gekko — the tokay",
+  "slug": "gekko",
+  "mode": "read-test",
+  "attempt": 4,
+  "reads": true,
+  "what_the_eye_sees": "A gecko, on first look. Moving to a signet face fixed the read. From the face, a jeweller sees a lizard laid flat on a pebbled tonneau, seen from above, with all four limbs splayed and bent at elbow and knee. Every foot ends in a fan of disc-tipped toes. That splayed, sticky-toed outline is the classic gecko emblem, and nobody would call it a skink, a monitor or a snake. The head (right) is now broad and blunt, and the arrowhead is gone. The hero angle carries the same read: a figure clinging to the face, toe fans at both corners. It is still not a tokay, and it is not yet strong. (1) The head is a smooth, polished, featureless dome. At 300 px the eyes barely register, so the face of the animal, where the eye goes first, says nothing. (2) The back is still covered in round beads about the size of the ground's granules. The torso partly melts into the pebbling, and the beading still hints at Heloderma. (3) The tail at the left end curls back into a tight hook that merges with the hind leg and the face's edge. It reads as a knot, not as a tail. Verdict: 'gecko', yes, by the feet and the posture. 'Tokay', no.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Give the head eyes that break its outline. Raise two eye domes on the rear corners of the head, each about 1.6 mm across and 0.7 mm proud, set so they bulge past the head's side outline by about 0.4 mm. Cut a 0.15 mm groove ring round each dome as the lid, and give the head a shallow jaw line from the snout back to the eye. Keep the skull between them smooth but not mirror-flat.",
+      "where": "The head of the 'Tokay' part, at the right end of the figure in face-300.png",
+      "acceptance": "In face-300.png two distinct eye bumps stick out at the rear corners of the head, and the head reads as a face, not as a polished blob."
+    },
+    {
+      "priority": 2,
+      "what": "Separate the body from the ground. Replace the bead cover on the torso with smooth skin carrying 8–12 low, flat-topped spots, 1.0–1.5 mm across and at most 0.25 mm proud, in two loose rows. Drop the crown granules to half height, or to smooth, within 1.0–1.5 mm of the figure's outline, so a quiet halo edges the silhouette.",
+      "where": "The 'Tokay' part from neck to hips; the crown granule layer around the figure",
+      "acceptance": "In face-300.png the body is a plump, smooth shape with a few clear spots and a crisp outline against the pebbling. No string of beads shows."
+    },
+    {
+      "priority": 3,
+      "what": "Open the tail. Instead of the tight hook, run it in one smooth S-curve, tapering from about 70% of the hip width to a 0.8 mm tip. Keep it at least 1.0 mm clear of the hind foot and 0.8 mm inside the face's edge.",
+      "where": "The tail of the 'Tokay' part, at the left end of the face",
+      "acceptance": "In face-300.png the tail is a separate, tapering curve that you can follow to its tip, not touching the hind foot."
+    }
+  ],
+  "notes": "This is the first attempt that reads. The signet rethink was the right call: the splayed, disc-toed figure seen from above names the animal without help. Remaining work is quality, not identity: eyes first, figure-ground second, tail third. The concept text in the section ('no eyes') contradicts the rethink's 'large eyes breaking its outline'; the rethink governs.",
+  "viewed_images": [
+    "showcase/cataphracta/gekko/hero-300.png",
+    "showcase/cataphracta/gekko/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

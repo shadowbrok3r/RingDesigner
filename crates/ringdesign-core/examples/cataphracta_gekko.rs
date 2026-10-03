@@ -10,13 +10,13 @@
 //! 0.8 mm minimum section, no pull rule; the two-part undercut is reported as a number.
 use anyhow::{Result, ensure};
 use ringdesign_core::{
-    AlphaLibrary, BuildParams, ProfileStyle, RingDesign, ShankKind,
+    AlphaLibrary, BuildParams, ProfileStyle, RingDesign,
+    imported_base::{ImportedBase, PRESETS, SurfaceChart},
     cad::{Attach, Component, Document, Feature, Operation, Placement, stored},
     castability::{self, CastProcess, Verdict},
     csg, dfm,
     field::{Blend, Layer, LayerEntry, SIDE_FACE_MIN_DRAFT_DEG, SideFacePick, VGate},
     manufacturing as mf, mesh,
-    profile::ShankKey,
     render,
     sculpt::{self, ellipsoid, round_cone, smin},
     reptile::svg::{self as rsvg, Params},
@@ -37,13 +37,10 @@ type P3 = [f64; 3];
 const NAME: &str = "Gekko \u{2014} the tokay";
 const SLUG: &str = "gekko";
 const BORE_MM: f64 = 18.6;
-/// The Flat style's crown exponent, opened from its 8 so the crown carries draft off the crest.
-const CROWN_EXPONENT: f64 = 3.0;
+/// The face, mm: across the band (along the finger) and round the ring.
+const FACE_W_MM: f64 = 15.0;
+const FACE_L_MM: f64 = 20.0;
 
-/// Ring angle of the body frame's origin, degrees; the head lies toward increasing angle.
-const THETA_C: f64 = 90.0;
-/// Radius at which the body frame measures arc along the ring, mm.
-const R_REF: f64 = 13.4;
 /// Nothing of the sculpt comes nearer the finger axis than the bore plus this, mm.
 const BORE_CLEAR_MM: f64 = 0.6;
 /// How deep the sculpt reaches into the band under its own outline, mm: past it the band is metal already.
@@ -51,7 +48,7 @@ const SINK_MM: f64 = 0.45;
 const STEP_MM: f64 = 0.05;
 /// The investment's fill floor, mm.
 const MIN_SECTION_MM: f64 = 0.8;
-const FACES: usize = 260_000;
+const FACES: usize = 420_000;
 
 fn params(draft: bool) -> BuildParams {
     let (t, p) = if draft { (768, 320) } else { (1536, 448) };
@@ -70,22 +67,19 @@ fn smoothstep(a: f64, b: f64, x: f64) -> f64 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// The keyed Flat band, cast in lost wax: deepest under the gecko, the palm the reference and the tightest station.
+/// Factory 017 Tonneau, 20 mm round the ring by 15 across (the master's 16 x 12 at 125%), cast in lost wax: its long
+/// axis runs the way the gecko lies, and its width takes the splayed feet.
 fn band() -> RingDesign {
     let mut d = RingDesign { name: NAME.into(), ..RingDesign::default() };
-    d.profile.width_mm = 7.0;
-    d.profile.thickness_mm = 3.4;
+    let source = PRESETS.iter().find(|p| p.id == "017").expect("017").load().expect("017 loads");
+    ImportedBase::attach(&mut d, source).expect("attach");
     d.profile.apply_style(ProfileStyle::Flat);
-    d.profile.crown_mm = 1.2;
-    d.profile.shape_a = CROWN_EXPONENT;
-    d.profile.flatten_sides();
-    d.profile.comfort_fit_mm = 0.15;
+    d.profile.width_mm = FACE_W_MM;
+    d.shank.head.length_mm = FACE_L_MM;
     d.size = ringdesign_core::resize::size_from_bore(BORE_MM).expect("bore");
-    d.shank.kind = ShankKind::Keyframes;
-    d.shank.amount = 1.0;
-    // Broad and deep under the gecko so its limbs reach the edges; thickness held at or over width at every key.
-    let key = |theta_deg: f64, width_scale: f64, thickness_scale: f64| ShankKey { theta_deg, width_scale, thickness_scale, crown_scale: 1.0 };
-    d.shank.keys = vec![key(30.0, 1.12, 1.14), key(65.0, 1.25, 1.25), key(115.0, 1.25, 1.25), key(150.0, 1.12, 1.14), key(210.0, 1.0, 1.02), key(270.0, 1.0, 1.0), key(330.0, 1.0, 1.02)];
+    d.profile.edge_round_mm = 0.3;
+    d.profile.comfort_fit_mm = 0.1;
+    d.imported_base.as_mut().unwrap().chart = Some(SurfaceChart { profile: d.profile.clone(), bore_radius_mm: d.inner_radius_mm() });
     CastProcess::LostWax.apply(&mut d.draft);
     d.draft.min_section_mm = MIN_SECTION_MM;
     d.draft.min_draft_deg = 0.0;
@@ -122,108 +116,64 @@ fn hash(k: usize, salt: u64) -> f64 {
     (x >> 11) as f64 / (1u64 << 53) as f64
 }
 
-/// The bare band read off its atlas, one entry per column: the crest radius, the half width along the finger, and
-/// the crown's radius across the band where the skin faces out.
-struct Crest {
-    r: Vec<f64>,
-    half_w: Vec<f64>,
-    crown: Vec<Vec<(f64, f64)>>,
+/// The bare ring's top seen from above: the height of its outer surface over a plan grid in world `x` and `z`, read
+/// by casting down onto the built bare mesh. Over the signet's face it is the face; past the face's ends it is the
+/// shoulder falling away to the shank.
+struct Ground {
+    x0: f64,
+    z0: f64,
+    step: f64,
+    nx: usize,
+    nz: usize,
+    y: Vec<f64>,
 }
 
-impl Crest {
+impl Ground {
     fn of(d: &RingDesign) -> Result<Self> {
-        let a = Atlas::of(d, 1440, 256)?;
-        let r = (0..a.width).map(|x| (0..a.height).map(|y| { let p = a.at(x, y).p; p[0].hypot(p[1]) }).fold(0.0, f64::max)).collect();
-        let half_w = (0..a.width).map(|x| (0..a.height).map(|y| a.at(x, y).p[2].abs()).fold(0.0, f64::max)).collect();
-        let crown = (0..a.width)
-            .map(|x| {
-                let mut c: Vec<(f64, f64)> = (0..a.height)
-                    .map(|y| a.at(x, y))
-                    .filter(|s| {
-                        let rho = s.p[0].hypot(s.p[1]).max(1e-9);
-                        (s.n[0] * s.p[0] + s.n[1] * s.p[1]) / rho > 0.3
-                    })
-                    .map(|s| (s.p[2], s.p[0].hypot(s.p[1])))
-                    .collect();
-                c.sort_by(|a, b| a.0.total_cmp(&b.0));
-                c
-            })
-            .collect();
-        Ok(Self { r, half_w, crown })
-    }
-    fn read(v: &[f64], theta_deg: f64) -> f64 {
-        let n = v.len();
-        let f = theta_deg.rem_euclid(360.0) / 360.0 * n as f64;
-        let i = f.floor() as usize % n;
-        let t = f - f.floor();
-        v[i] * (1.0 - t) + v[(i + 1) % n] * t
-    }
-    fn at(&self, theta_deg: f64) -> f64 {
-        Self::read(&self.r, theta_deg)
-    }
-    fn half_w(&self, theta_deg: f64) -> f64 {
-        Self::read(&self.half_w, theta_deg)
-    }
-    /// The crown's radius at `theta` and `z`, mm; held at the edge past it.
-    fn crown_r(&self, theta_deg: f64, z: f64) -> f64 {
-        let n = self.crown.len();
-        let col = &self.crown[((theta_deg.rem_euclid(360.0) / 360.0 * n as f64).round() as usize) % n];
-        match col.iter().position(|c| c.0 >= z) {
-            Some(0) => col[0].1,
-            None => col.last().map_or(0.0, |c| c.1),
-            Some(i) => {
-                let (a, b) = (col[i - 1], col[i]);
-                a.1 + (b.1 - a.1) * (z - a.0) / (b.0 - a.0).max(1e-9)
+        use ringdesign_core::interaction::bvh::Bvh;
+        let built = mesh::try_build(d, &AlphaLibrary::default(), BuildParams { theta_steps: 1536, profile_steps: 448, refine: None, ..BuildParams::default() })?;
+        let bvh = Bvh::build(&built.mesh);
+        let (x0, z0, step) = (-16.0, -9.5, 0.05);
+        let (nx, nz) = ((32.0 / step) as usize + 1, (19.0 / step) as usize + 1);
+        let mut y = vec![-50.0; nx * nz];
+        for i in 0..nx {
+            for j in 0..nz {
+                let (x, z) = (x0 + i as f64 * step, z0 + j as f64 * step);
+                if let Some((_, t)) = bvh.ray(&built.mesh, [x, 40.0, z], [0.0, -1.0, 0.0]) {
+                    y[i * nz + j] = 40.0 - t;
+                }
             }
         }
+        Ok(Self { x0, z0, step, nx, nz, y })
     }
-    /// The bare crown's draft at `theta` and `z`, degrees: how fast it falls away from the parting line.
-    fn draft_deg(&self, theta_deg: f64, z: f64) -> f64 {
-        let e = 0.05;
-        let slope = (self.crown_r(theta_deg, z.abs() + e) - self.crown_r(theta_deg, z.abs() - e)) / (2.0 * e);
-        (-slope).atan().to_degrees()
+    /// The ground's height at plan `x`, `z`, bilinear.
+    fn s(&self, x: f64, z: f64) -> f64 {
+        let fx = ((x - self.x0) / self.step).clamp(0.0, (self.nx - 1) as f64 - 1e-9);
+        let fz = ((z - self.z0) / self.step).clamp(0.0, (self.nz - 1) as f64 - 1e-9);
+        let (i, j) = (fx.floor() as usize, fz.floor() as usize);
+        let (tx, tz) = (fx - i as f64, fz - j as f64);
+        let g = |a: usize, b: usize| self.y[a * self.nz + b];
+        (g(i, j) * (1.0 - tx) + g(i + 1, j) * tx) * (1.0 - tz) + (g(i, j + 1) * (1.0 - tx) + g(i + 1, j + 1) * tx) * tz
     }
-
-    /// The crown's height over the crest at a frame `x` and `w`, mm (at or under 0).
-    fn top_h(&self, x: f64, w: f64) -> f64 {
-        let theta = theta_of(x);
-        self.crown_r(theta, w) - self.at(theta)
-    }
-    /// Signed distance to the bare band, roughly: negative inside, its edge corner rounded generously so a point in
-    /// the fillet's lee never reads as inside.
+    /// How far a point stands over the ground, straight up, mm: negative under it.
     fn band_sd(&self, p: P3) -> f64 {
-        const ROUND: f64 = 0.6;
-        let theta = p[1].atan2(p[0]).to_degrees();
-        let r = p[0].hypot(p[1]);
-        let hw = self.half_w(theta);
-        let a = r - self.crown_r(theta, p[2].clamp(-hw, hw)) + ROUND;
-        let b = p[2].abs() - hw + ROUND;
-        a.max(0.0).hypot(b.max(0.0)) + a.max(b).min(0.0) - ROUND
+        p[1] - self.s(p[0], p[2])
     }
 }
 
-fn theta_of(x: f64) -> f64 {
-    THETA_C + (x / R_REF).to_degrees()
-}
-
-/// The body frame: `x` mm of arc along the ring from `THETA_C` (toward the head positive), `h` mm over the band's crest,
-/// `w` mm along the finger.
+/// The body frame over the face: `x` mm round the ring's tangent at the top (toward the head positive), `h` mm over
+/// the ground straight up, `w` mm along the finger.
 #[derive(Clone, Copy)]
 struct Frame<'a> {
-    crest: &'a Crest,
+    crest: &'a Ground,
 }
 
 impl Frame<'_> {
     fn local(&self, p: P3) -> P3 {
-        let theta = p[1].atan2(p[0]).to_degrees();
-        let r = p[0].hypot(p[1]);
-        [wrap180(theta - THETA_C).to_radians() * R_REF, r - self.crest.at(theta), p[2]]
+        [p[0], p[1] - self.crest.s(p[0], p[2]), p[2]]
     }
     fn world(&self, q: P3) -> P3 {
-        let theta = theta_of(q[0]);
-        let r = self.crest.at(theta) + q[1];
-        let t = theta.to_radians();
-        [r * t.cos(), r * t.sin(), q[2]]
+        [q[0], self.crest.s(q[0], q[2]) + q[1], q[2]]
     }
 }
 
@@ -287,14 +237,13 @@ struct Spot {
 }
 
 /// The tokay's measurements, frame mm.
-const HEAD_X: f64 = 8.6;
-const EYE_X: f64 = 7.0;
-const EYE_W: f64 = 1.7;
-const EYE_R: f64 = 0.95;
-const VENT_X: f64 = -9.0;
-const TAIL_LEN: f64 = 22.0;
-/// Front and hind limbs: where each leaves the body, and which way the hand turns along the ring.
-const LEGS: [(f64, f64); 2] = [(2.2, 1.0), (-7.0, -1.0)];
+const HEAD_X: f64 = 6.2;
+const EYE_X: f64 = 4.9;
+const EYE_W: f64 = 2.8;
+const EYE_R: f64 = 1.0;
+const VENT_X: f64 = -6.2;
+/// Front and hind limbs: where each leaves the body.
+const LEGS: [(f64, f64); 2] = [(2.2, 1.0), (-4.0, -1.0)];
 /// The skin's granules: lattice pitch and height; the spots' height.
 const GRANULE_PITCH_MM: f64 = 0.5;
 const GRANULE_MM: f64 = 0.0;
@@ -310,42 +259,20 @@ struct Gekko<'a> {
     bore_r: f64,
 }
 
-/// The tail's centre line and radius at a share `t` of its length from the vent: down the crest, then swinging out
-/// across the crown's near shoulder, over the band's edge and down the side face, where its tip curls back up.
-fn tail_at(crest: &Crest, t: f64) -> (P3, f64) {
-    let r = 1.4 * (1.0 - t).powf(0.8) + 0.42 * t;
-    // Control points: x along the ring, then w across, and where the point lies (0 on the crown, 1 on the side face,
-    // with its depth under the crown's edge).
-    let pts: [(f64, f64, f64); 8] = [
-        (VENT_X, 0.0, 0.0),
-        (VENT_X - 3.0, 0.5, 0.0),
-        (VENT_X - 6.0, 1.7, 0.0),
-        (VENT_X - 8.6, 3.2, 0.0),
-        (VENT_X - 10.6, 4.0, 0.5),
-        (VENT_X - 12.6, 4.0, 1.3),
-        (VENT_X - 14.2, 4.0, 1.5),
-        (VENT_X - 15.2, 4.0, 1.0),
-    ];
+/// The tail's centre line and radius at a share `t` of its length from the vent: off the face's end and down the
+/// shoulder, swinging to one side and curling its tip back.
+fn tail_at(g: &Ground, t: f64) -> (P3, f64) {
+    let r = 1.5 * (1.0 - t).powf(0.8) + 0.5 * t;
+    let pts: [(f64, f64); 7] = [(VENT_X, 0.0), (-7.5, -0.35), (-8.4, -1.2), (-8.8, -2.3), (-8.5, -3.2), (-7.8, -3.5), (-7.2, -3.1)];
     let n = pts.len() - 1;
     let f = (t.clamp(0.0, 1.0) * n as f64).min(n as f64 - 1e-9);
     let i = f.floor() as usize;
     let u = f - i as f64;
-    let g = |k: isize| pts[(k.max(0) as usize).min(n)];
-    let (p0, p1, p2, p3) = (g(i as isize - 1), g(i as isize), g(i as isize + 1), g(i as isize + 2));
+    let q = |k: isize| pts[(k.max(0) as usize).min(n)];
+    let (p0, p1, p2, p3) = (q(i as isize - 1), q(i as isize), q(i as isize + 1), q(i as isize + 2));
     let cr = |a: f64, b: f64, c: f64, d: f64| 0.5 * ((2.0 * b) + (-a + c) * u + (2.0 * a - 5.0 * b + 4.0 * c - d) * u * u + (-a + 3.0 * b - 3.0 * c + d) * u * u * u);
-    let x = cr(p0.0, p1.0, p2.0, p3.0);
-    let wt = cr(p0.1, p1.1, p2.1, p3.1);
-    let depth = cr(p0.2, p1.2, p2.2, p3.2).max(0.0);
-    let edge = crest.half_w(theta_of(x));
-    // On the crown the tail lies on it; past the edge it hugs the side face, standing out of it by its radius.
-    let on_face = smoothstep(0.0, 0.6, depth);
-    let w_crown = wt.min(edge - 0.2);
-    let h_crown = crest.top_h(x, w_crown.abs()) - 0.25 * r;
-    let w_face = edge + 0.55 * r;
-    let h_face = crest.top_h(x, edge) - depth;
-    let w = w_crown + (w_face - w_crown) * on_face;
-    let h = h_crown + (h_face - h_crown) * on_face;
-    ([x, h, w], r)
+    let _ = g;
+    ([cr(p0.0, p1.0, p2.0, p3.0), -0.35 * r, cr(p0.1, p1.1, p2.1, p3.1)], r)
 }
 
 /// The tail's rings: raised bands round it at a pitch, 0..1, nothing on its root.
@@ -356,28 +283,28 @@ fn tail_rings(x: f64) -> f64 {
         return 0.0;
     }
     let f = ((VENT_X - 1.2 - x) / RING_PITCH_MM).fract();
-    smoothstep(0.05, 0.25, f) * (1.0 - smoothstep(0.45, 0.65, f)) * (1.0 - smoothstep(VENT_X - 14.0, VENT_X - 19.0, x))
+    smoothstep(0.05, 0.25, f) * (1.0 - smoothstep(0.45, 0.65, f))
 }
 
-fn body_prims(crest: &Crest) -> Vec<Prim> {
+fn body_prims(crest: &Ground) -> Vec<Prim> {
     let egg = |kind, c: P3, r: P3, snout: f64, blend: f64| Prim { kind, shape: Shape::Egg { c, r, snout }, blend };
     let limb = |kind, a: P3, b: P3, ra: f64, rb: f64, blend: f64| Prim { kind, shape: Shape::Limb { a, b, ra, rb }, blend };
     let mut out = vec![
-        // Trunk: round in section, so its back falls away from the spine at once.
-        egg(Kind::Body, [-3.2, -0.9, 0.0], [6.6, 2.05, 2.0], 0.0, 0.0),
-        egg(Kind::Body, [1.4, -0.9, 0.0], [2.6, 1.95, 1.85], 0.0, 0.6),
+        // Trunk: plump and smooth, nearly 5 mm across.
+        egg(Kind::Body, [-1.6, -0.7, 0.0], [4.4, 2.5, 2.8], 0.0, 0.0),
+        egg(Kind::Body, [1.7, -0.7, 0.0], [2.2, 2.35, 2.5], 0.0, 0.6),
         // Neck: narrower than the head, so the jaw's hinge stands out from it.
-        egg(Kind::Head, [4.5, -0.8, 0.0], [1.5, 1.7, 1.3], 0.0, 0.35),
-        // Head: a broad flat wedge, widest at the jaw's hinge, to a blunt rounded snout.
-        egg(Kind::Head, [8.3, -0.6, 0.0], [3.1, 1.45, 2.1], 0.5, 0.3),
+        egg(Kind::Head, [3.5, -0.7, 0.0], [1.3, 2.2, 1.9], 0.0, 0.35),
+        // Head: a broad flat triangle to a blunt round snout.
+        egg(Kind::Head, [HEAD_X, -0.6, 0.0], [3.1, 1.95, 3.0], 0.4, 0.3),
         // The jaw's hinges, the head's broadest point, behind the eyes.
-        egg(Kind::Head, [6.4, -0.7, 1.45], [1.3, 1.15, 1.05], 0.0, 0.3),
-        egg(Kind::Head, [6.4, -0.7, -1.45], [1.3, 1.15, 1.05], 0.0, 0.3),
+        egg(Kind::Head, [4.7, -0.7, 2.3], [1.3, 1.5, 1.35], 0.0, 0.3),
+        egg(Kind::Head, [4.7, -0.7, -2.3], [1.3, 1.5, 1.35], 0.0, 0.3),
         // The hips.
-        egg(Kind::Body, [VENT_X + 1.0, -0.9, 0.0], [2.0, 1.95, 1.85], 0.0, 0.5),
+        egg(Kind::Body, [VENT_X + 1.3, -0.7, 0.0], [1.9, 2.2, 2.4], 0.0, 0.5),
     ];
     // The tail: a chain of rounded cones from the vent down the crest.
-    let n = 40;
+    let n = 30;
     for k in 0..n {
         let (a, ra) = tail_at(crest, k as f64 / n as f64);
         let (b, rb) = tail_at(crest, (k + 1) as f64 / n as f64);
@@ -410,25 +337,25 @@ struct LimbPlan {
 
 /// The four limbs in the tokay's sprawl seen from above: the upper arm out and back, the forearm out and forward,
 /// the hand's toes fanned forward; the thigh out and forward, the shin out and back, the foot's toes fanned back.
-fn limb_plans(crest: &Crest) -> Vec<LimbPlan> {
-    let on = |x: f64, w: f64, lift: f64| [x, crest.top_h(x, w.abs()) + lift, w];
+fn limb_plans(crest: &Ground) -> Vec<LimbPlan> {
+    let _ = crest;
+    let on = |x: f64, w: f64, lift: f64| [x, lift, w];
     let mut out = Vec::new();
     for s in [1.0, -1.0] {
         for (x0, hind) in [(LEGS[0].0, false), (LEGS[1].0, true)] {
             let dir = if hind { -1.0 } else { 1.0 };
-            let sh = [x0, -0.25, 1.2 * s];
-            let el = on(x0 - 1.2 * dir, 2.3 * s, 0.7);
-            let wr = on(x0 + 0.0 * dir, 2.55 * s, 0.42);
-            let ft = on(x0 + 0.45 * dir, 2.7 * s, 0.34);
+            let sh = [x0, -0.2, 1.8 * s];
+            let el = on(x0 - 1.4 * dir, 3.9 * s, 0.95);
+            let wr = on(x0 - 0.25 * dir, 4.75 * s, 0.55);
+            let ft = on(x0 + 0.4 * dir, 5.1 * s, 0.4);
             let mut toes = Vec::new();
             for k in 0..5 {
                 let j = k as f64 - 2.0;
                 // Fanned about a line out and toward the head (forelimb) or the tail (hind limb).
-                let a = (42.0 * j + 28.0 * dir).to_radians();
+                let a = (40.0 * j + 28.0 * dir).to_radians();
                 let len = [1.45, 1.65, 1.75, 1.65, 1.45][k];
-                let x = ft[0] + a.sin() * len;
-                let edge = crest.half_w(theta_of(x)) - 0.7;
-                let w = (ft[2].abs() + a.cos() * len).min(edge);
+                let x = (ft[0] + a.sin() * len).clamp(-9.0, 9.0);
+                let w = (ft[2].abs() + a.cos() * len).min(6.6 - 0.04 * x * x / 4.0);
                 let root = on(ft[0] + a.sin() * 0.3, (ft[2].abs() + a.cos() * 0.3) * s, 0.3);
                 toes.push((root, on(x, w * s, 0.32)));
             }
@@ -445,8 +372,8 @@ fn spots() -> Vec<Spot> {
     let mut tries = 0usize;
     while tries < 6000 {
         tries += 1;
-        let x = VENT_X + 0.4 + (3.2 - VENT_X - 0.4) * hash(tries, 31);
-        let w = 1.55 * (2.0 * hash(tries, 32) - 1.0);
+        let x = VENT_X + 0.6 + (2.8 - VENT_X - 0.6) * hash(tries, 31);
+        let w = 2.2 * (2.0 * hash(tries, 32) - 1.0);
         let r = 0.36 + 0.14 * hash(tries, 34);
         if out.iter().any(|o| (o.x - x).hypot(o.w - w) < 1.55) {
             continue;
@@ -454,7 +381,7 @@ fn spots() -> Vec<Spot> {
         out.push(Spot { x, w, r });
     }
     // Behind the eyes on the head's back.
-    for (x, w, r) in [(5.4, 0.0, 0.4), (5.6, 1.15, 0.32), (5.6, -1.15, 0.32)] {
+    for (x, w, r) in [(3.8, 0.0, 0.42), (4.0, 1.35, 0.34), (4.0, -1.35, 0.34)] {
         out.push(Spot { x, w, r });
     }
     out
@@ -549,12 +476,35 @@ impl<'a> Gekko<'a> {
             f -= (flank + spine + RING_MM * tail_rings(q[0])) * fade;
         }
         f = smin(f, eyes, 0.1);
+        // The face's ground: a pebbled plate over the face, inset from its rim, the gecko grown out of it.
+        if q[1] < 0.5 {
+            f = smin(f, self.ground_plate(q), 0.12);
+        }
         f.max(-self.frame.crest.band_sd(p) - SINK_MM).max(self.bore_r + BORE_CLEAR_MM - p[0].hypot(p[1]))
+    }
+
+    /// The pebbled plate on the face: granules `CROWN_GRANULE_MM` high over the face, stopping `RIM_MM` short of its rim.
+    fn ground_plate(&self, q: P3) -> f64 {
+        const RIM_MM: f64 = 0.45;
+        let g = self.frame.crest;
+        let face = g.s(0.0, 0.0);
+        let inside = [(RIM_MM, 0.0), (-RIM_MM, 0.0), (0.0, RIM_MM), (0.0, -RIM_MM), (0.7 * RIM_MM, 0.7 * RIM_MM), (-0.7 * RIM_MM, 0.7 * RIM_MM), (0.7 * RIM_MM, -0.7 * RIM_MM), (-0.7 * RIM_MM, -0.7 * RIM_MM)]
+            .iter()
+            .all(|(dx, dz)| (g.s(q[0] + dx, q[2] + dz) - face).abs() < 0.02);
+        if !inside {
+            return 0.3;
+        }
+        let top = 0.02 + CROWN_GRANULE_MM * crown_granules(q[0], q[2]);
+        (q[1] - top).max(-q[1] - SINK_MM)
     }
 
     /// Which shape is nearest the surface at a frame point.
     fn kind_at(&self, q: P3) -> Kind {
         let mut best = (self.eyes_at(q).abs(), Kind::Eye);
+        let plate = self.ground_plate(q).abs();
+        if plate < best.0 {
+            best = (plate, Kind::Hide);
+        }
         for s in &self.prims {
             let v = s.eval(q).abs();
             if v < best.0 {
@@ -581,6 +531,14 @@ impl<'a> Gekko<'a> {
             lo[2] = lo[2].min(c[2] - r - pad);
             hi[2] = hi[2].max(c[2] + r + pad);
         }
+        // The ground plate covers the face: the box spans it, and stands no higher than the figure does.
+        let face = self.frame.crest.s(0.0, 0.0);
+        lo[0] = lo[0].min(-10.5);
+        hi[0] = hi[0].max(10.5);
+        lo[2] = lo[2].min(-7.6);
+        hi[2] = hi[2].max(7.6);
+        lo[1] = face - SINK_MM - 0.3;
+        hi[1] = face + 3.2;
         (lo, hi)
     }
 }
@@ -619,7 +577,7 @@ fn granules(p: P3) -> f64 {
 
 #[derive(Default, serde::Serialize)]
 struct Composition {
-    crest_r_at_head_mm: f64,
+    face_y_mm: f64,
     prims: usize,
     spots: usize,
     raw_faces: usize,
@@ -676,7 +634,7 @@ fn sculpt_solid(gek: &Gekko, comp: &mut Composition) -> csg::Solid {
 
 /// The crown's granules, 0..1, at `along` mm round the ring and `z` mm across: an irregular pebbling of low domed
 /// cells, each parted from its neighbours by a groove (Worley's second-minus-first distance), as a tokay's hide is.
-const CROWN_GRANULE_MM: f64 = 0.09;
+const CROWN_GRANULE_MM: f64 = 0.11;
 const CROWN_PITCH_MM: f64 = 0.62;
 fn crown_granules(along: f64, z: f64) -> f64 {
     let g = CROWN_PITCH_MM;
@@ -697,45 +655,9 @@ fn crown_granules(along: f64, z: f64) -> f64 {
             }
         }
     }
-    let t = smoothstep(0.04, 0.42, f2 - f1);
+    let t = smoothstep(0.06, 0.46, f2 - f1);
     t * (1.0 - 0.55 * (f1 / (0.7 * g)).min(1.0).powi(2))
 }
-
-/// The band's hide: granules over the crown either side of the crest, and rows of enlarged tubercles on both side
-/// faces, sheared so they spiral round the ring.
-fn band_hide(d: &mut RingDesign, lib: &mut AlphaLibrary, crest: &Crest) -> Result<()> {
-    let ctx = d.field_context();
-    let faces = ctx.side_faces(SIDE_FACE_MIN_DRAFT_DEG).and_then(|f| f.low).ok_or_else(|| anyhow::anyhow!("no side face"))?;
-    let face_h = faces.1 - faces.0;
-    let repeats = (ctx.circumference_mm / 1.35).round() as u32;
-    let pitch = ctx.circumference_mm / repeats as f64;
-    d.svgs.push(SvgAlpha { name: "Tubercle rows".into(), svg: rsvg::tubercle_rows(&Params::new(pitch, face_h, 0.42, 0.9)), invert: false });
-    let mut t = TilingLayer::default_for("Tubercle rows", &ctx);
-    ensure!(t.fit_to_side_faces(&ctx, SIDE_FACE_MIN_DRAFT_DEG), "the band has no side faces");
-    t.repeats_around = repeats;
-    t.height_mm = 0.16;
-    t.shear = 0.35;
-    let mut e = LayerEntry::new("Tubercle rows", Layer::Tiling(t));
-    e.blend = Blend::Max;
-    e.window.v_gate = VGate::SideFaces(SideFacePick::Both);
-    d.layers.layers.push(e);
-
-    let a = Atlas::of(d, 2048, 768)?;
-    let alpha = a.paint("Crown granules", |s| {
-        let rho = s.p[0].hypot(s.p[1]).max(1e-9);
-        if (s.n[0] * s.p[0] + s.n[1] * s.p[1]) / rho < 0.35 {
-            return 0.0;
-        }
-        let along = s.theta.to_radians() * R_REF;
-        crown_granules(along, s.p[2]) * smoothstep(0.4, 1.2, s.p[2].abs()) * (1.0 - 0.0 * crest.at(s.theta))
-    });
-    lib.insert(ringdesign_core::Alpha::from_png16("Crown granules", &alpha.to_png16()?)?);
-    let mut e = skin::hide_layer(d, "Crown granules", CROWN_GRANULE_MM, ringdesign_core::field::Window::default());
-    e.blend = Blend::Max;
-    d.layers.layers.push(e);
-    Ok(())
-}
-
 
 
 fn joined() -> Component {
@@ -755,10 +677,23 @@ struct Authored {
 fn author() -> Result<Authored> {
     let mut d = band();
     let mut lib = AlphaLibrary::builtin();
-    let crest = Crest::of(&d)?;
-    band_hide(&mut d, &mut lib, &crest)?;
-    let mut comp = Composition { crest_r_at_head_mm: crest.at(theta_of(HEAD_X)), ..Composition::default() };
+    let crest = Ground::of(&d)?;
+    if std::env::var_os("GEKKO_GROUND").is_some() {
+        for z in [-8.0, -7.0, -6.0, -5.0, -4.0, -3.0, 0.0] { println!("  z {z}: {}", (-12..=12).map(|x| format!("{:.1}", crest.s(x as f64, z))).collect::<Vec<_>>().join(" ")); }
+        std::process::exit(0);
+    }
+    let mut comp = Composition { face_y_mm: crest.s(0.0, 0.0), ..Composition::default() };
     let gek = Gekko::new(Frame { crest: &crest }, d.inner_radius_mm());
+    if std::env::var_os("GEKKO_PROBE").is_some() {
+        for l in &gek.limbs {
+            let ft = l.joints[3];
+            let w = gek.frame.world(ft);
+            println!("  foot frame {:?} world {:?}: body {:.3} field {:.3} ground {:.3}", ft, w, gek.body_at(ft), gek.field(w), crest.s(ft[0], ft[2]));
+        }
+        let (lo, hi) = gek.bounds(0.4);
+        println!("  bounds {:?} {:?}", lo, hi);
+        std::process::exit(0);
+    }
     comp.prims = gek.prims.len();
     comp.spots = gek.spots.len();
     let solid = sculpt_solid(&gek, &mut comp);
@@ -772,7 +707,7 @@ fn author() -> Result<Authored> {
     let recipe = stored::Recipe {
         kernel: "sculpt".into(),
         op: "tokay".into(),
-        params: json!({"theta_c_deg": THETA_C, "r_ref_mm": R_REF, "step_mm": STEP_MM, "faces": FACES, "spots": comp.spots}),
+        params: json!({"base": "017", "step_mm": STEP_MM, "faces": FACES, "spots": comp.spots}),
         digest: String::new(),
     };
     doc.append(Feature { id: next, name: "Tokay".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: packed }, component: joined() })?;
@@ -829,7 +764,7 @@ impl Kind {
             Kind::Limb => Some("limb: where a wrist or ankle narrows into its foot, lying on the crown and fused to it"),
             Kind::Tail => Some("tail tip: fed along the tail from the body; the rounded end is dressed with a file"),
             Kind::Eye => Some("eyelid: a 0.17 mm rim round each eye, relief on the head over the 0.15 mm detail floor; the slit pupil is relief cut into the ball"),
-            Kind::Hide => Some("hide relief: granules, spots and tail rings 0.06-0.17 mm proud of the body, read where a face's ray crosses a granule's own flank; cast as relief over the 0.15 mm detail floor"),
+            Kind::Hide => Some("hide relief: the face's pebbled ground (0.11 mm granules on a 0.02 mm plate over the solid face), the body's spots and the tail's rings, read where a face's ray crosses a granule's own flank or runs out through the ground plate into the face; all relief on solid metal, over the 0.15 mm detail floor"),
             _ => None,
         }
     }
@@ -866,7 +801,8 @@ fn land_census(gek: &Gekko, solid: &csg::Solid) -> Census {
         let q = gek.frame.local(centre);
         let mut kind = gek.kind_at(q);
         let exit = add(o, mul(inward, t));
-        if section < MIN_SECTION_MM && matches!(kind, Kind::Body | Kind::Head | Kind::Limb | Kind::Tail) && gek.body_at(gek.frame.local(exit)) > -0.3 {
+        let exit_q = gek.frame.local(exit);
+        if section < MIN_SECTION_MM && matches!(kind, Kind::Body | Kind::Head | Kind::Limb | Kind::Tail) && (gek.body_at(exit_q) > -0.3 || exit_q[1] < 0.45) {
             kind = Kind::Hide;
         }
         let e = out.entry(kind as u8).or_insert((kind, f64::MAX, 0.0, [0.0; 3]));
@@ -926,6 +862,9 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, census
     let bore = d.inner_radius_mm();
     let inside = built.mesh.vertices.iter().filter(|q| (q.0 as f64).hypot(q.1 as f64) < bore - 0.01).count();
     let nearest = built.mesh.vertices.iter().map(|q| (q.0 as f64).hypot(q.1 as f64) - bore).fold(f64::MAX, f64::min);
+    for q in built.mesh.vertices.iter().filter(|q| (q.0 as f64).hypot(q.1 as f64) < bore - 0.01).take(4) {
+        println!("  inside the bore: theta {:.2}, z {:.3}, r {:.4}", (q.1 as f64).atan2(q.0 as f64).to_degrees(), q.2, (q.0 as f64).hypot(q.1 as f64));
+    }
     let band_field = castability::attributed_field_report(d, lib, &d.draft, 256, 128);
     let mut field = band_field.clone();
     castability::judge_parts(&mut field, d, &built);
@@ -996,7 +935,7 @@ fn paste(sheet: &mut [u8], sheet_w: usize, img: &[u8], edge: usize, x0: usize, y
     }
 }
 
-fn renders(out: &Path, lib: &AlphaLibrary, built: &mesh::BuildResult, p: BuildParams, draft: bool) -> Result<()> {
+fn renders(out: &Path, lib: &AlphaLibrary, built: &mesh::BuildResult, p: BuildParams, draft: bool, face_y: f64) -> Result<()> {
     let parts = vec![render::Part::metal(&built.mesh, render::GOLD)];
     let edge = if draft { 1100 } else { 1600 };
     for (name, yaw, pitch) in VIEWS {
@@ -1011,10 +950,8 @@ fn renders(out: &Path, lib: &AlphaLibrary, built: &mesh::BuildResult, p: BuildPa
     }
     image::save_buffer(out.join("contact-300.png"), &sheet, 900, 600, image::ColorType::Rgb8)?;
     // No stone: the close-up is the head and forelimbs, framed on the whole ring, never a cropped mesh.
-    let theta = theta_of(EYE_X - 2.0);
-    let t = theta.to_radians();
-    let centre = [14.0 * t.cos(), 14.0 * t.sin(), 0.0];
-    render::write_png_framed(out.join("stones.png"), &parts, render::yaw_facing(theta), 1.2, render::Framing::new(centre, 6.5), edge)?;
+    let centre = [EYE_X - 0.5, face_y + 0.6, 0.0];
+    render::write_png_framed(out.join("stones.png"), &parts, render::yaw_facing(80.0), 1.2, render::Framing::new(centre, 6.5), edge)?;
     let bare = mesh::try_build(&band(), lib, p)?;
     let e = if draft { 700 } else { 1000 };
     let left = render::render_parts_ss(&[render::Part::metal(&bare.mesh, render::GOLD)], HERO.0, HERO.1, e, e, 3);
@@ -1040,6 +977,7 @@ fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
     std::fs::create_dir_all(out)?;
     let started = Instant::now();
     let Authored { mut d, lib, comp, solid, census } = author()?;
+    let comp_face_y = comp.face_y_mm;
     let p = params(draft);
     d.build = p;
     let mut blocks = serde_json::Map::new();
@@ -1107,7 +1045,7 @@ fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
     stl::write_stl(out.join("finished-metal.stl"), &main.built.mesh, &d.name)?;
     stl::write_stl(out.join("casting-pattern.stl"), &main.pattern.mesh, &format!("{} / lost-wax pattern", d.name))?;
     std::fs::write(out.join("stones.json"), serde_json::to_vec_pretty(&json!({ "stones": [], "note": "Gekko carries no stone." }))?)?;
-    renders(out, &lib, &main.built, p, draft)?;
+    renders(out, &lib, &main.built, p, draft, comp_face_y)?;
     println!("gates {}", if passed { "all pass" } else { "FAILED" });
     ensure!(passed || std::env::var_os("GEKKO_LOOSE").is_some(), "gates failed");
     Ok(())
