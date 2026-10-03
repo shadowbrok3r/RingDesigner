@@ -1,0 +1,14 @@
+== 012 Cushion sand master, native: the raw normal at the parting line
+on the shoulder at 127.5°          69024 faces | field Marginal 0.2133% | prickle undercut 0.0000 mm² (silhouette 0.0000), worst -0.2° | pull Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved | at 0.075 Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved
+                                   raw normal along the finger +1.28e-5 (0.001° off the plane)
+on the shoulder at 142°            68876 faces | field Marginal 0.2133% | prickle undercut 0.0000 mm² (silhouette 0.0000), worst -0.5° | pull Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved | at 0.075 Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved
+                                   raw normal along the finger +2.48e-4 (0.014° off the plane)
+on the shoulder at 160°            69014 faces | field Marginal 0.2133% | prickle undercut 0.0000 mm² (silhouette 0.0000), worst -0.4° | pull Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved | at 0.075 Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved
+                                   raw normal along the finger -2.77e-3 (-0.159° off the plane)
+on the shoulder at 185°            69102 faces | field Marginal 0.2133% | prickle undercut 0.0000 mm² (silhouette 0.0000), worst -0.5° | pull Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved | at 0.075 Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved
+                                   raw normal along the finger -3.55e-3 (-0.204° off the plane)
+on the shoulder at 52.5°           69020 faces | field Marginal 0.2133% | prickle undercut 0.0005 mm² (silhouette 0.0005), worst -1.0° | pull Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved | at 0.075 Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved
+                                   raw normal along the finger +2.13e-4 (0.012° off the plane)
+on the shoulder at 38°             68960 faces | field Marginal 0.2140% | prickle undercut 0.0060 mm² (silhouette 0.0060), worst -2.8° | pull Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved | at 0.075 Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved
+                                   raw normal along the finger -2.93e-5 (-0.002° off the plane)
+on the shoulder at 142°, tilted 2° 68870 faces | field Marginal 0.2330% | prickle undercut 0.1726 mm² (silhouette 0.0175), worst -23.6° | pull Review, 0 obstructions (deepest 0.000 mm, -0.000 mm²), 0 unresolved | at 0.075 Blocked, 1 obstructions (deepest 0.024 mm, 0.006 mm²), 0 unresolved

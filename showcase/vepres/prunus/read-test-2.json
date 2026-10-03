@@ -1,0 +1,27 @@
+{
+  "ring": "prunus",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "A gold cushion ring holding a big glossy blue-grey ball in four claw prongs, with steel-straight needles bristling off both shoulders. The spines are better than attempt 1: they vary in length and lean, and a few knobbly stubs at the shoulder hint at twig joints. But the needles alone read as 'spiked punk ring' or 'sea urchin', not a named plant. The shank is still smooth polished metal with only faint lace near the head, so there is no black wood, and I can find no blossom at all at 300 px. Face-on it is a square boss with one lance out each side and a blue eye in four clamps: a beetle, a spaceship or a mace head. A jeweller would say 'thorny' at best and would not say blackthorn or sloe.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Cheeks and shank walls, both sides (bark layer and blossom stamps, theta about 20-160 and 200-340 deg)",
+      "change": "Put blackthorn's signature on the walls: white blossom on black wood. Grow each cheek blossom to one 3.5-4 mm five-petal flower (petals 0.5 mm high, notched tips, open gaps) and add 2-3 more 2-2.5 mm blossoms or buds scattered along each shank wall out to theta about 60/120. Raise the bark to the clamp limit (aim 0.5 mm, bite at most 0.05) with deep lengthwise furrows, and render the recesses oxidised dark so the walls go black against the polished flowers, rim and spines.",
+      "acceptance": "At 300 px the hero shows at least three distinct five-petal flowers, light against dark rough bark, and no stretch of shank wall reads as plain polished band."
+    },
+    {
+      "priority": 2,
+      "where": "Sloe seat on the face (SeatPadLayer at on_face 0,0, its claws and the square boss)",
+      "change": "Make the stone a sloe, not an eye in a setting. Replace the four bright claw prongs with a low five-point sepal calyx under the stone, add a short 1.5 mm stalk stub that runs off one end of the stone into the twig, and set the onyx matte, near-black with a dusty blue bloom, instead of glossy mid blue-grey. Soften the boss's square corners into the twig so the face is not a box.",
+      "acceptance": "Face view at 300 px: no four-claw prong pattern is visible, the stone reads as a dark berry on a stalk with a calyx, and the outline no longer reads as a square boss with lances."
+    },
+    {
+      "priority": 3,
+      "where": "Shoulder spurs, both shoulders (long and short spur ring patterns and the side lances on the face axis)",
+      "change": "Make the spines grow from twigs, not stick into metal. Give each long spur a knuckled side-twig base (0.8-1.0 mm thick, 1.2 mm long, the same dark bark) so that the spur is the twig's tip, as on blackthorn, and shorten the two face-axis lances by about 30% so they stop reading as a weapon's crossguard.",
+      "acceptance": "In the hero every long spine visibly springs from a short dark twig stub. In the face view the end spines no longer stretch past the head by more than half the head's width."
+    }
+  ]
+}

@@ -1,0 +1,1477 @@
+{
+  "authored": {
+    "bark": {
+      "clamp_texels_cut": 1629,
+      "clamp_worst_mm": 0.04549662709236145,
+      "relief_mm": 0.42
+    },
+    "blossom_diameter_mm": 2.9691481435356115,
+    "blossoms_per_wall": 1,
+    "fold_clear_from_mm": 9.1,
+    "folds_mm": [
+      5.0,
+      5.1000000000000005,
+      5.2,
+      5.300000000000001,
+      5.4,
+      5.5,
+      5.6000000000000005,
+      6.1000000000000005,
+      6.2,
+      6.300000000000001,
+      6.4,
+      6.5,
+      7.9,
+      8.0,
+      8.1,
+      -5.0,
+      -5.1000000000000005,
+      -5.2,
+      -5.300000000000001,
+      -5.4,
+      -5.5,
+      -5.6000000000000005,
+      -6.1000000000000005,
+      -6.2,
+      -6.300000000000001,
+      -6.4,
+      -6.5,
+      -7.9,
+      -8.0,
+      -8.1
+    ],
+    "hide_reach_mm": 35.903495190903016,
+    "spurs": [
+      {
+        "along_mm": 9.1,
+        "base_r_mm": 0.48,
+        "lean_deg": 38.0,
+        "length_mm": 3.0,
+        "stub_len_mm": 1.0,
+        "stub_r_mm": 0.78,
+        "theta_deg": 127.44140625,
+        "tip_diameter_mm": 0.4
+      },
+      {
+        "along_mm": 12.0,
+        "base_r_mm": 0.46,
+        "lean_deg": 52.0,
+        "length_mm": 3.0,
+        "stub_len_mm": 0.8,
+        "stub_r_mm": 0.66,
+        "theta_deg": 142.03125,
+        "tip_diameter_mm": 0.4
+      },
+      {
+        "along_mm": 15.2,
+        "base_r_mm": 0.5,
+        "lean_deg": 31.0,
+        "length_mm": 4.2,
+        "stub_len_mm": 1.1,
+        "stub_r_mm": 0.8,
+        "theta_deg": 159.08203125,
+        "tip_diameter_mm": 0.4
+      },
+      {
+        "along_mm": 18.4,
+        "base_r_mm": 0.44,
+        "lean_deg": 47.0,
+        "length_mm": 2.6,
+        "stub_len_mm": 0.7,
+        "stub_r_mm": 0.62,
+        "theta_deg": 176.30859375,
+        "tip_diameter_mm": 0.4
+      },
+      {
+        "along_mm": 21.7,
+        "base_r_mm": 0.46,
+        "lean_deg": 40.0,
+        "length_mm": 3.3,
+        "stub_len_mm": 0.9,
+        "stub_r_mm": 0.7,
+        "theta_deg": 193.88671875,
+        "tip_diameter_mm": 0.4
+      },
+      {
+        "along_mm": -9.1,
+        "base_r_mm": 0.48,
+        "lean_deg": 38.0,
+        "length_mm": 3.0,
+        "stub_len_mm": 1.0,
+        "stub_r_mm": 0.78,
+        "theta_deg": 52.55859375,
+        "tip_diameter_mm": 0.4
+      },
+      {
+        "along_mm": -12.0,
+        "base_r_mm": 0.46,
+        "lean_deg": 52.0,
+        "length_mm": 3.0,
+        "stub_len_mm": 0.8,
+        "stub_r_mm": 0.66,
+        "theta_deg": 37.96875,
+        "tip_diameter_mm": 0.4
+      },
+      {
+        "along_mm": -15.2,
+        "base_r_mm": 0.5,
+        "lean_deg": 31.0,
+        "length_mm": 4.2,
+        "stub_len_mm": 1.1,
+        "stub_r_mm": 0.8,
+        "theta_deg": 20.91796875,
+        "tip_diameter_mm": 0.4
+      },
+      {
+        "along_mm": -18.4,
+        "base_r_mm": 0.44,
+        "lean_deg": 47.0,
+        "length_mm": 2.6,
+        "stub_len_mm": 0.7,
+        "stub_r_mm": 0.62,
+        "theta_deg": 3.69140625,
+        "tip_diameter_mm": 0.4
+      },
+      {
+        "along_mm": -21.7,
+        "base_r_mm": 0.46,
+        "lean_deg": 40.0,
+        "length_mm": 3.3,
+        "stub_len_mm": 0.9,
+        "stub_r_mm": 0.7,
+        "theta_deg": 346.11328125,
+        "tip_diameter_mm": 0.4
+      }
+    ],
+    "twig": {
+      "left": {
+        "dive": 2.5,
+        "end_scale": 0.42,
+        "from": 3.75,
+        "low": -0.35,
+        "proud": 0.6,
+        "radius": 0.85,
+        "rise": 2.2,
+        "to": 27.0
+      },
+      "right": {
+        "dive": 2.5,
+        "end_scale": 0.42,
+        "from": 5.2,
+        "low": -0.35,
+        "proud": 0.6,
+        "radius": 0.85,
+        "rise": 2.2,
+        "to": 27.0
+      },
+      "stalk": {
+        "dive": 0.0,
+        "end_scale": 1.7,
+        "from": 3.95,
+        "low": -0.6,
+        "proud": 0.45,
+        "radius": 0.36,
+        "rise": 1.1,
+        "to": 7.6
+      }
+    },
+    "wall_rho_mm": [
+      8.762452866233081,
+      11.781601009768693
+    ]
+  },
+  "base": "Factory 012 Cushion 10 x 10, native, sand master",
+  "bore_mm": 17.16268833170008,
+  "build_s": 13.206327651,
+  "cad_features": 20,
+  "casting_pattern": {
+    "degenerate_faces": 0,
+    "pass": true,
+    "self_crossings": 0,
+    "triangles": 1449414,
+    "watertight": true
+  },
+  "cold_reload_identical": true,
+  "design_bytes": 2551564,
+  "design_format": 6,
+  "draft": {
+    "bore_clear": true,
+    "bore_radius_mm": 8.58134465029811,
+    "boundary_edges": 0,
+    "build": [
+      768,
+      320
+    ],
+    "closest_vertex_to_axis_mm": 8.58134416585004,
+    "crowding": [],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "feature_status": [
+      [
+        "Cushion",
+        "Ok"
+      ],
+      [
+        "Calyx",
+        "Ok"
+      ],
+      [
+        "Twig, left shoulder",
+        "Ok"
+      ],
+      [
+        "Twig, right shoulder",
+        "Ok"
+      ],
+      [
+        "Twig, the sloe's stalk",
+        "Ok"
+      ],
+      [
+        "Spur 1 left",
+        "Ok"
+      ],
+      [
+        "Spur 2 left",
+        "Ok"
+      ],
+      [
+        "Spur 3 left",
+        "Ok"
+      ],
+      [
+        "Spur 4 left",
+        "Ok"
+      ],
+      [
+        "Spur 5 left",
+        "Ok"
+      ],
+      [
+        "Spur 1 right",
+        "Ok"
+      ],
+      [
+        "Spur 2 right",
+        "Ok"
+      ],
+      [
+        "Spur 3 right",
+        "Ok"
+      ],
+      [
+        "Spur 4 right",
+        "Ok"
+      ],
+      [
+        "Spur 5 right",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, +10.6 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, +17.0 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -6.9 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -13.6 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -20.0 mm",
+        "Ok"
+      ]
+    ],
+    "features_all_ok": true,
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Stored mesh \"Calyx\" (#2) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 90\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, +10.6 mm\" (#16) is soldered on after the pour: locating mark on the parting line at 135\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -11\u00b0 over 0.00 mm\u00b2).",
+      "Stored mesh \"Blossom on the twig, +17.0 mm\" (#17) is soldered on after the pour: locating mark on the parting line at 169\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -74\u00b0 over 0.02 mm\u00b2).",
+      "Stored mesh \"Blossom on the twig, -6.9 mm\" (#18) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 61\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, -13.6 mm\" (#19) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 30\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, -20.0 mm\" (#20) is soldered on after the pour: locating mark on the parting line at 355\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -51\u00b0 over 0.00 mm\u00b2).",
+      "3 made settings left to the bench: the pattern carries the stock and a raised drill mark for each \u2014 a pit would lock, a dot pulls \u2014 and claws or collets are soldered on after the pour.",
+      "Judged with the ring as built: 13 CAD parts (13 joined, 0 cut) at the parting plane z = -0.00 mm \u2014 154.2 mm\u00b2 of part surface, none of it locking."
+    ],
+    "field_undercut_percent": 0.013075965621277129,
+    "field_verdict": "Castable",
+    "made_part_crossings": [
+      [
+        "Calyx",
+        0
+      ],
+      [
+        "Twig, left shoulder",
+        0
+      ],
+      [
+        "Twig, right shoulder",
+        0
+      ],
+      [
+        "Twig, the sloe's stalk",
+        0
+      ],
+      [
+        "Spur 1 left",
+        0
+      ],
+      [
+        "Spur 2 left",
+        0
+      ],
+      [
+        "Spur 3 left",
+        0
+      ],
+      [
+        "Spur 4 left",
+        0
+      ],
+      [
+        "Spur 5 left",
+        0
+      ],
+      [
+        "Spur 1 right",
+        0
+      ],
+      [
+        "Spur 2 right",
+        0
+      ],
+      [
+        "Spur 3 right",
+        0
+      ],
+      [
+        "Spur 4 right",
+        0
+      ],
+      [
+        "Spur 5 right",
+        0
+      ],
+      [
+        "Blossom on the twig, +10.6 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, +17.0 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -6.9 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -13.6 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -20.0 mm",
+        0
+      ]
+    ],
+    "metal_inside_stones": [
+      [
+        "Sloe",
+        0,
+        0.0
+      ],
+      [
+        "Blossom heart, near wall",
+        0,
+        0.0
+      ],
+      [
+        "Blossom heart, far wall",
+        0,
+        0.0
+      ]
+    ],
+    "non_manifold_edges": 0,
+    "parting_monotone": [
+      [
+        "Blossom on the near wall",
+        true
+      ],
+      [
+        "Stamen 1 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 2 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 3 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 4 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 5 of the near blossom",
+        true
+      ],
+      [
+        "Small blossom on the near wall",
+        true
+      ],
+      [
+        "Bud on the near wall",
+        true
+      ],
+      [
+        "Blossom on the far wall",
+        true
+      ],
+      [
+        "Stamen 1 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 2 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 3 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 4 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 5 of the far blossom",
+        true
+      ],
+      [
+        "Small blossom on the far wall",
+        true
+      ],
+      [
+        "Bud on the far wall",
+        true
+      ]
+    ],
+    "parts_notes": [],
+    "parts_undercut_mm2": 0.14342607788357903,
+    "parts_worst_draft_deg": -45.35180541138993,
+    "pass": true,
+    "release_0_075": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "status": "Review",
+      "unresolved": 0,
+      "where": []
+    },
+    "release_0_100": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "status": "Review",
+      "unresolved": 0,
+      "where": []
+    },
+    "ring_self_crossings": 0,
+    "solids_notes": [],
+    "stamps": 16,
+    "stamps_resolved": 16,
+    "stone_carats": 1.4390055978393146,
+    "stones_previewed": 3,
+    "stones_reported": 3,
+    "thinnest_wall_mm": 1.4508955744203558,
+    "tight_pairs": 0,
+    "triangles": 701782,
+    "watertight": true
+  },
+  "draft_384x192": {
+    "bore_clear": true,
+    "bore_radius_mm": 8.58134465029811,
+    "boundary_edges": 0,
+    "build": [
+      384,
+      192
+    ],
+    "closest_vertex_to_axis_mm": 8.581344330699393,
+    "crowding": [],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "feature_status": [
+      [
+        "Cushion",
+        "Ok"
+      ],
+      [
+        "Calyx",
+        "Ok"
+      ],
+      [
+        "Twig, left shoulder",
+        "Ok"
+      ],
+      [
+        "Twig, right shoulder",
+        "Ok"
+      ],
+      [
+        "Twig, the sloe's stalk",
+        "Ok"
+      ],
+      [
+        "Spur 1 left",
+        "Ok"
+      ],
+      [
+        "Spur 2 left",
+        "Ok"
+      ],
+      [
+        "Spur 3 left",
+        "Ok"
+      ],
+      [
+        "Spur 4 left",
+        "Ok"
+      ],
+      [
+        "Spur 5 left",
+        "Ok"
+      ],
+      [
+        "Spur 1 right",
+        "Ok"
+      ],
+      [
+        "Spur 2 right",
+        "Ok"
+      ],
+      [
+        "Spur 3 right",
+        "Ok"
+      ],
+      [
+        "Spur 4 right",
+        "Ok"
+      ],
+      [
+        "Spur 5 right",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, +10.6 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, +17.0 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -6.9 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -13.6 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -20.0 mm",
+        "Ok"
+      ]
+    ],
+    "features_all_ok": true,
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Stored mesh \"Calyx\" (#2) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 90\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, +10.6 mm\" (#16) is soldered on after the pour: locating mark on the parting line at 135\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -11\u00b0 over 0.00 mm\u00b2).",
+      "Stored mesh \"Blossom on the twig, +17.0 mm\" (#17) is soldered on after the pour: locating mark on the parting line at 169\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -74\u00b0 over 0.02 mm\u00b2).",
+      "Stored mesh \"Blossom on the twig, -6.9 mm\" (#18) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 61\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, -13.6 mm\" (#19) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 30\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, -20.0 mm\" (#20) is soldered on after the pour: locating mark on the parting line at 355\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -51\u00b0 over 0.00 mm\u00b2).",
+      "3 made settings left to the bench: the pattern carries the stock and a raised drill mark for each \u2014 a pit would lock, a dot pulls \u2014 and claws or collets are soldered on after the pour.",
+      "Judged with the ring as built: 13 CAD parts (13 joined, 0 cut) at the parting plane z = -0.00 mm \u2014 154.1 mm\u00b2 of part surface, none of it locking."
+    ],
+    "field_undercut_percent": 0.001927282596063079,
+    "field_verdict": "Castable",
+    "made_part_crossings": [
+      [
+        "Calyx",
+        0
+      ],
+      [
+        "Twig, left shoulder",
+        0
+      ],
+      [
+        "Twig, right shoulder",
+        0
+      ],
+      [
+        "Twig, the sloe's stalk",
+        0
+      ],
+      [
+        "Spur 1 left",
+        0
+      ],
+      [
+        "Spur 2 left",
+        0
+      ],
+      [
+        "Spur 3 left",
+        0
+      ],
+      [
+        "Spur 4 left",
+        0
+      ],
+      [
+        "Spur 5 left",
+        0
+      ],
+      [
+        "Spur 1 right",
+        0
+      ],
+      [
+        "Spur 2 right",
+        0
+      ],
+      [
+        "Spur 3 right",
+        0
+      ],
+      [
+        "Spur 4 right",
+        0
+      ],
+      [
+        "Spur 5 right",
+        0
+      ],
+      [
+        "Blossom on the twig, +10.6 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, +17.0 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -6.9 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -13.6 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -20.0 mm",
+        0
+      ]
+    ],
+    "metal_inside_stones": [
+      [
+        "Sloe",
+        0,
+        0.0
+      ],
+      [
+        "Blossom heart, near wall",
+        0,
+        0.0
+      ],
+      [
+        "Blossom heart, far wall",
+        0,
+        0.0
+      ]
+    ],
+    "non_manifold_edges": 0,
+    "parting_monotone": [
+      [
+        "Blossom on the near wall",
+        true
+      ],
+      [
+        "Stamen 1 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 2 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 3 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 4 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 5 of the near blossom",
+        true
+      ],
+      [
+        "Small blossom on the near wall",
+        true
+      ],
+      [
+        "Bud on the near wall",
+        true
+      ],
+      [
+        "Blossom on the far wall",
+        true
+      ],
+      [
+        "Stamen 1 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 2 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 3 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 4 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 5 of the far blossom",
+        true
+      ],
+      [
+        "Small blossom on the far wall",
+        true
+      ],
+      [
+        "Bud on the far wall",
+        true
+      ]
+    ],
+    "parts_notes": [],
+    "parts_undercut_mm2": 0.02113771264141073,
+    "parts_worst_draft_deg": -48.18746461616811,
+    "pass": true,
+    "release_0_075": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "status": "Review",
+      "unresolved": 0,
+      "where": []
+    },
+    "release_0_100": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "status": "Review",
+      "unresolved": 0,
+      "where": []
+    },
+    "ring_self_crossings": 0,
+    "solids_notes": [],
+    "stamps": 16,
+    "stamps_resolved": 16,
+    "stone_carats": 1.4390055978393146,
+    "stones_previewed": 3,
+    "stones_reported": 3,
+    "thinnest_wall_mm": 1.4508955744203558,
+    "tight_pairs": 0,
+    "triangles": 317464,
+    "watertight": true
+  },
+  "export": {
+    "bore_clear": true,
+    "bore_radius_mm": 8.58134465029811,
+    "boundary_edges": 0,
+    "build": [
+      1536,
+      448
+    ],
+    "closest_vertex_to_axis_mm": 8.58134416585004,
+    "crowding": [],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "feature_status": [
+      [
+        "Cushion",
+        "Ok"
+      ],
+      [
+        "Calyx",
+        "Ok"
+      ],
+      [
+        "Twig, left shoulder",
+        "Ok"
+      ],
+      [
+        "Twig, right shoulder",
+        "Ok"
+      ],
+      [
+        "Twig, the sloe's stalk",
+        "Ok"
+      ],
+      [
+        "Spur 1 left",
+        "Ok"
+      ],
+      [
+        "Spur 2 left",
+        "Ok"
+      ],
+      [
+        "Spur 3 left",
+        "Ok"
+      ],
+      [
+        "Spur 4 left",
+        "Ok"
+      ],
+      [
+        "Spur 5 left",
+        "Ok"
+      ],
+      [
+        "Spur 1 right",
+        "Ok"
+      ],
+      [
+        "Spur 2 right",
+        "Ok"
+      ],
+      [
+        "Spur 3 right",
+        "Ok"
+      ],
+      [
+        "Spur 4 right",
+        "Ok"
+      ],
+      [
+        "Spur 5 right",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, +10.6 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, +17.0 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -6.9 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -13.6 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -20.0 mm",
+        "Ok"
+      ]
+    ],
+    "features_all_ok": true,
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Stored mesh \"Calyx\" (#2) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 90\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, +10.6 mm\" (#16) is soldered on after the pour: locating mark on the parting line at 135\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -11\u00b0 over 0.00 mm\u00b2).",
+      "Stored mesh \"Blossom on the twig, +17.0 mm\" (#17) is soldered on after the pour: locating mark on the parting line at 169\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -74\u00b0 over 0.02 mm\u00b2).",
+      "Stored mesh \"Blossom on the twig, -6.9 mm\" (#18) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 61\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, -13.6 mm\" (#19) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 30\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, -20.0 mm\" (#20) is soldered on after the pour: locating mark on the parting line at 355\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -51\u00b0 over 0.00 mm\u00b2).",
+      "3 made settings left to the bench: the pattern carries the stock and a raised drill mark for each \u2014 a pit would lock, a dot pulls \u2014 and claws or collets are soldered on after the pour.",
+      "Judged with the ring as built: 13 CAD parts (13 joined, 0 cut) at the parting plane z = -0.00 mm \u2014 154.2 mm\u00b2 of part surface, none of it locking."
+    ],
+    "field_undercut_percent": 0.013059198520158213,
+    "field_verdict": "Castable",
+    "made_part_crossings": [
+      [
+        "Calyx",
+        0
+      ],
+      [
+        "Twig, left shoulder",
+        0
+      ],
+      [
+        "Twig, right shoulder",
+        0
+      ],
+      [
+        "Twig, the sloe's stalk",
+        0
+      ],
+      [
+        "Spur 1 left",
+        0
+      ],
+      [
+        "Spur 2 left",
+        0
+      ],
+      [
+        "Spur 3 left",
+        0
+      ],
+      [
+        "Spur 4 left",
+        0
+      ],
+      [
+        "Spur 5 left",
+        0
+      ],
+      [
+        "Spur 1 right",
+        0
+      ],
+      [
+        "Spur 2 right",
+        0
+      ],
+      [
+        "Spur 3 right",
+        0
+      ],
+      [
+        "Spur 4 right",
+        0
+      ],
+      [
+        "Spur 5 right",
+        0
+      ],
+      [
+        "Blossom on the twig, +10.6 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, +17.0 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -6.9 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -13.6 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -20.0 mm",
+        0
+      ]
+    ],
+    "metal_inside_stones": [
+      [
+        "Sloe",
+        0,
+        0.0
+      ],
+      [
+        "Blossom heart, near wall",
+        0,
+        0.0
+      ],
+      [
+        "Blossom heart, far wall",
+        0,
+        0.0
+      ]
+    ],
+    "non_manifold_edges": 0,
+    "parting_monotone": [
+      [
+        "Blossom on the near wall",
+        true
+      ],
+      [
+        "Stamen 1 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 2 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 3 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 4 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 5 of the near blossom",
+        true
+      ],
+      [
+        "Small blossom on the near wall",
+        true
+      ],
+      [
+        "Bud on the near wall",
+        true
+      ],
+      [
+        "Blossom on the far wall",
+        true
+      ],
+      [
+        "Stamen 1 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 2 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 3 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 4 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 5 of the far blossom",
+        true
+      ],
+      [
+        "Small blossom on the far wall",
+        true
+      ],
+      [
+        "Bud on the far wall",
+        true
+      ]
+    ],
+    "parts_notes": [],
+    "parts_undercut_mm2": 0.1432467659426575,
+    "parts_worst_draft_deg": -26.191406861290528,
+    "pass": true,
+    "release_0_075": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "status": "Review",
+      "unresolved": 0,
+      "where": []
+    },
+    "release_0_100": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "status": "Review",
+      "unresolved": 0,
+      "where": []
+    },
+    "ring_self_crossings": 0,
+    "solids_notes": [],
+    "stamps": 16,
+    "stamps_resolved": 16,
+    "stone_carats": 1.4390055978393146,
+    "stones_previewed": 3,
+    "stones_reported": 3,
+    "thinnest_wall_mm": 1.4508955744203558,
+    "tight_pairs": 0,
+    "triangles": 1500560,
+    "watertight": true
+  },
+  "export_384x192": {
+    "bore_clear": true,
+    "bore_radius_mm": 8.58134465029811,
+    "boundary_edges": 0,
+    "build": [
+      384,
+      192
+    ],
+    "closest_vertex_to_axis_mm": 8.581344330699393,
+    "crowding": [],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "feature_status": [
+      [
+        "Cushion",
+        "Ok"
+      ],
+      [
+        "Calyx",
+        "Ok"
+      ],
+      [
+        "Twig, left shoulder",
+        "Ok"
+      ],
+      [
+        "Twig, right shoulder",
+        "Ok"
+      ],
+      [
+        "Twig, the sloe's stalk",
+        "Ok"
+      ],
+      [
+        "Spur 1 left",
+        "Ok"
+      ],
+      [
+        "Spur 2 left",
+        "Ok"
+      ],
+      [
+        "Spur 3 left",
+        "Ok"
+      ],
+      [
+        "Spur 4 left",
+        "Ok"
+      ],
+      [
+        "Spur 5 left",
+        "Ok"
+      ],
+      [
+        "Spur 1 right",
+        "Ok"
+      ],
+      [
+        "Spur 2 right",
+        "Ok"
+      ],
+      [
+        "Spur 3 right",
+        "Ok"
+      ],
+      [
+        "Spur 4 right",
+        "Ok"
+      ],
+      [
+        "Spur 5 right",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, +10.6 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, +17.0 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -6.9 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -13.6 mm",
+        "Ok"
+      ],
+      [
+        "Blossom on the twig, -20.0 mm",
+        "Ok"
+      ]
+    ],
+    "features_all_ok": true,
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Stored mesh \"Calyx\" (#2) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 90\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, +10.6 mm\" (#16) is soldered on after the pour: locating mark on the parting line at 135\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -11\u00b0 over 0.00 mm\u00b2).",
+      "Stored mesh \"Blossom on the twig, +17.0 mm\" (#17) is soldered on after the pour: locating mark on the parting line at 169\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -74\u00b0 over 0.02 mm\u00b2).",
+      "Stored mesh \"Blossom on the twig, -6.9 mm\" (#18) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 61\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, -13.6 mm\" (#19) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 30\u00b0, 1.0 mm across.",
+      "Stored mesh \"Blossom on the twig, -20.0 mm\" (#20) is soldered on after the pour: locating mark on the parting line at 355\u00b0; the part's foot is 0.0 mm toward the high edge (a dot there leaned to -51\u00b0 over 0.00 mm\u00b2).",
+      "3 made settings left to the bench: the pattern carries the stock and a raised drill mark for each \u2014 a pit would lock, a dot pulls \u2014 and claws or collets are soldered on after the pour.",
+      "Judged with the ring as built: 13 CAD parts (13 joined, 0 cut) at the parting plane z = -0.00 mm \u2014 154.1 mm\u00b2 of part surface, none of it locking."
+    ],
+    "field_undercut_percent": 0.0020974277184923206,
+    "field_verdict": "Castable",
+    "made_part_crossings": [
+      [
+        "Calyx",
+        0
+      ],
+      [
+        "Twig, left shoulder",
+        0
+      ],
+      [
+        "Twig, right shoulder",
+        0
+      ],
+      [
+        "Twig, the sloe's stalk",
+        0
+      ],
+      [
+        "Spur 1 left",
+        0
+      ],
+      [
+        "Spur 2 left",
+        0
+      ],
+      [
+        "Spur 3 left",
+        0
+      ],
+      [
+        "Spur 4 left",
+        0
+      ],
+      [
+        "Spur 5 left",
+        0
+      ],
+      [
+        "Spur 1 right",
+        0
+      ],
+      [
+        "Spur 2 right",
+        0
+      ],
+      [
+        "Spur 3 right",
+        0
+      ],
+      [
+        "Spur 4 right",
+        0
+      ],
+      [
+        "Spur 5 right",
+        0
+      ],
+      [
+        "Blossom on the twig, +10.6 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, +17.0 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -6.9 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -13.6 mm",
+        0
+      ],
+      [
+        "Blossom on the twig, -20.0 mm",
+        0
+      ]
+    ],
+    "metal_inside_stones": [
+      [
+        "Sloe",
+        0,
+        0.0
+      ],
+      [
+        "Blossom heart, near wall",
+        0,
+        0.0
+      ],
+      [
+        "Blossom heart, far wall",
+        0,
+        0.0
+      ]
+    ],
+    "non_manifold_edges": 0,
+    "parting_monotone": [
+      [
+        "Blossom on the near wall",
+        true
+      ],
+      [
+        "Stamen 1 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 2 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 3 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 4 of the near blossom",
+        true
+      ],
+      [
+        "Stamen 5 of the near blossom",
+        true
+      ],
+      [
+        "Small blossom on the near wall",
+        true
+      ],
+      [
+        "Bud on the near wall",
+        true
+      ],
+      [
+        "Blossom on the far wall",
+        true
+      ],
+      [
+        "Stamen 1 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 2 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 3 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 4 of the far blossom",
+        true
+      ],
+      [
+        "Stamen 5 of the far blossom",
+        true
+      ],
+      [
+        "Small blossom on the far wall",
+        true
+      ],
+      [
+        "Bud on the far wall",
+        true
+      ]
+    ],
+    "parts_notes": [],
+    "parts_undercut_mm2": 0.023003802152535772,
+    "parts_worst_draft_deg": -47.5610072928221,
+    "pass": true,
+    "release_0_075": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "status": "Review",
+      "unresolved": 0,
+      "where": []
+    },
+    "release_0_100": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "status": "Review",
+      "unresolved": 0,
+      "where": []
+    },
+    "ring_self_crossings": 0,
+    "solids_notes": [],
+    "stamps": 16,
+    "stamps_resolved": 16,
+    "stone_carats": 1.4390055978393146,
+    "stones_previewed": 3,
+    "stones_reported": 3,
+    "thinnest_wall_mm": 1.4508955744203558,
+    "tight_pairs": 0,
+    "triangles": 317486,
+    "watertight": true
+  },
+  "layers": [
+    "Sloe",
+    "Parting rail, left shoulder",
+    "Parting rail, right shoulder",
+    "Blossom heart, near wall",
+    "Blossom heart, far wall",
+    "Blackthorn bark"
+  ],
+  "level": {
+    "level": false,
+    "method": "C-V1 not on master: the raw surface normal under every spur, read on the band as swept",
+    "normal_z_at_spurs": [
+      [
+        127.44140625,
+        -0.0002188578470842151
+      ],
+      [
+        142.03125,
+        0.0011640099669522714
+      ],
+      [
+        159.08203125,
+        -0.0005744754051967993
+      ],
+      [
+        176.30859375,
+        -0.0007646358545518211
+      ],
+      [
+        193.88671875,
+        0.0007292980889964487
+      ],
+      [
+        52.55859375,
+        0.0015393894958230553
+      ],
+      [
+        37.96875,
+        -0.000529124520410156
+      ],
+      [
+        20.91796875,
+        0.0012198733767223883
+      ],
+      [
+        3.69140625,
+        -0.0007874642575657082
+      ],
+      [
+        346.11328125,
+        0.0007233260804374506
+      ]
+    ],
+    "worst_abs_normal_z": 0.0015393894958230553
+  },
+  "min_detail_mm": 0.3,
+  "min_draft_deg": 3.0,
+  "min_section_mm": 0.8,
+  "process": "Sand (two-part)",
+  "ring": "Prunus",
+  "sand": "Some(DelftClay)",
+  "size": "US 6.83",
+  "slug": "prunus",
+  "template_gate": {
+    "class": "stock",
+    "design_set_patches": 1,
+    "patch_pointers": [
+      "/manufacturing"
+    ],
+    "graph_bytes": 3020051,
+    "budget_bytes": 1000000,
+    "nodes": 83,
+    "cold_source_identical": true,
+    "cold_design_reload": true,
+    "cold_graph_reload": true,
+    "mesh_parity": true,
+    "export_geometry_verified": true,
+    "passed": false,
+    "why_not": "graph 3.02 MB over the 1 MB stock budget (and over the 3 MB flag): the embedded 2048 x 768 bark alpha and the stored blossom and calyx meshes"
+  }
+}

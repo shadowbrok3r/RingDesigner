@@ -1,0 +1,27 @@
+{
+  "ring": "prunus",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Closer than attempt 2, but it still doesn't read as a named plant. The hero shows a gold ring with a big glossy blue-grey ball in a squared gold bezel that has small star points round it, and thorny shoulders that now look like knobbly twigs. The spines grow out of jointed stubs, and the far shoulder has some dark recess that hints at bark, so 'thorny branch' does come through. The white blossom does not. All I can find is a row of tiny pale rosettes low on the near shank wall that read as beading or filigree dots, never as flowers on black wood. The stone still looks like a polished gem or an eye in a frame, not a dull black sloe on a stalk. Face-on it is the same layout as before: a square boss with a round cabochon in a heavy square frame, and one long jointed lance out each side, more than a head's width long. It reads as a mace head, a beetle or a steampunk crossguard. A jeweller would say 'thorn ring with a sapphire cabochon', perhaps 'some thorny twig', but not blackthorn or sloe.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Sloe seat on the face (SeatPadLayer at on_face 0,0, the square bezel frame and its star points)",
+      "change": "Remove the square frame. Its four flat corner plates and the polished square ring around the stone are what make the face read as a mechanical boss. Set the stone in a low, thin round collet, no more than 0.4 mm proud, with a five-sepal calyx tucked under one side. Add a 1.5 mm stalk stub that runs from the stone into the twig along the ring axis. Make the onyx matte near-black with a dusty blue bloom, and drop the glossy mid blue-grey. Round the cushion's corners down into the bark so the head outline is no longer a square.",
+      "acceptance": "Face view at 300 px: no square outline or corner plates around the stone; the stone shows near-black with a soft bloom and no hard highlight; a stalk stub is visible at one end, so it reads as a berry on a twig."
+    },
+    {
+      "priority": 2,
+      "where": "Blossom stamps on both shank walls and cheeks (theta about 20-160 and 200-340 deg) and the bark layer behind them",
+      "change": "Make the blossoms big enough to count petals. Use one 3.5-4 mm five-petal flower per cheek, petals 0.5 mm high with open gaps, plus two 2.5 mm blossoms per wall at theta about 50/130 and 230/310. Shrink or drop the present row of tiny rosettes, which reads as beading. Leave the flowers polished bright and oxidise the bark around them dark, so it reads as white blossom on black wood.",
+      "acceptance": "Hero at 300 px: at least three flowers in which a viewer can count five petals, light against clearly dark bark; no row of evenly spaced dots remains."
+    },
+    {
+      "priority": 3,
+      "where": "Face-axis lances (the two long spurs on the parting line either side of the head)",
+      "change": "Shorten the two face-axis lances by about 35% and give them a slight lean, so they stop forming a symmetrical crossguard. Move the knuckle nodes off the lance shaft onto a short side twig, so the spine is a twig's tip and not a jointed spear.",
+      "acceptance": "Face view: neither end spine stretches past the head by more than half the head's width, and the left and right spines are visibly not mirror images."
+    }
+  ]
+}

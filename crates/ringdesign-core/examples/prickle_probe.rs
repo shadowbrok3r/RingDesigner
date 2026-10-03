@@ -145,6 +145,17 @@ fn main() -> Result<()> {
     judge("on the table at 90°", &stock, NOMINAL, PREVIEW, &lib)?;
     judge("on the shoulder at 50°", &stock, Seat { theta: 50.0, ..NOMINAL }, PREVIEW, &lib)?;
     judge("on the shank at 0°", &stock, Seat { theta: 0.0, ..NOMINAL }, PREVIEW, &lib)?;
+    // Prunus's base: a part seated on the parting line stands on the raw facet normal, which C-V1 `level` would square
+    // to the plane. On a mirrored master that normal's part along the finger should already be nil.
+    println!("== 012 Cushion sand master, native: the raw normal at the parting line");
+    let stock = probe::stock("012", true, None)?;
+    for theta in [127.5, 142.0, 160.0, 185.0, 52.5, 38.0] {
+        let Some(built) = judge(&format!("on the shoulder at {theta}°"), &stock, Seat { theta, ..NOMINAL }, PREVIEW, &lib)? else { continue };
+        if let Some((_, n)) = built.band.as_deref().and_then(|band| ringdesign_core::cad::surface_hit(band, theta, 0.0)) {
+            println!("{:<34} raw normal along the finger {:+.2e} ({:.3}° off the plane)", "", n[2], n[2].clamp(-1.0, 1.0).asin().to_degrees());
+        }
+    }
+    judge("on the shoulder at 142°, tilted 2°", &stock, Seat { theta: 142.0, cant: 2.0, ..NOMINAL }, PREVIEW, &lib)?;
     if let (Some(out), Some(built)) = (out, export) {
         std::fs::create_dir_all(&out)?;
         for (view, yaw, pitch) in [("hero", 0.48, 1.0), ("side", 0.0, 0.05), ("face", 0.0, std::f64::consts::FRAC_PI_2)] {
