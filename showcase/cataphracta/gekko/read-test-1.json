@@ -1,0 +1,35 @@
+{
+  "ring": "Gekko — the tokay",
+  "slug": "gekko",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain polished band with a thin creature lying along the top. From the face it is a small lizard, or more likely a newt or salamander: a narrow rounded head with two bulging eye domes, a body made of a row of loose beads, and a ribbed tail running off to the right. The four legs are straight wires that wrap over the band's edges like staples or bracket clips, so they read as fixings rather than limbs. From the hero angle the creature is gone: what's left is a lumpy beaded chain, or a vertebra-like string, with pins sticking out of it. A jeweller would say 'lizard' or 'newt' from the face, and 'beaded chain' from the hero. Nobody would say gecko or tokay. Nothing gecko-specific shows: no broad wedge head, no toe pads, no plump spotted body. The band itself is bare at 300 px, so the hide gives no help.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Turn the legs into gecko limbs with toe pads. Bend each limb at the elbow or knee so it angles out and back from the body instead of crossing the band in a straight line. End each foot in 5 splayed toes, each tipped with a rounded adhesive disc about 1.0-1.2 mm across (the spread foot should be about 3 mm wide). Plant the feet flat on the shoulder and upper side faces, about 2.5-3 mm out from the centreline, not wrapped over the edge.",
+      "where": "All four legs: front pair beside the head, rear pair at the hip, about 1/3 and 2/3 along the figure",
+      "acceptance": "In face-300.png all four feet show as separate splayed toe fans with visible disc tips, and nothing reads as a staple or clip over the band's edge."
+    },
+    {
+      "priority": 2,
+      "what": "Give it the tokay's head and body mass. Widen the head into a broad, flat, triangular wedge about 1.5x the neck width, with a clear jaw line and blunt snout. Replace the string of separate beads with one continuous, plump, tapering torso about 3.5-4 mm wide at mid-body. Carry the raised spots on that torso as low tubercles (0.2-0.3 mm) rather than as the body itself. The two eye domes currently push the read toward frog or newt, and the brief says the tokay has no eyes: remove them and let the head's outline carry the read.",
+      "where": "Head through mid-body, along the crest from the head to the hips",
+      "acceptance": "In face-300.png the silhouette is one solid wedge-headed, wide-bodied figure with no gaps between beads. In hero-300.png it reads as a body, not a beaded chain."
+    },
+    {
+      "priority": 3,
+      "what": "Make the tail and hero angle read. Thicken the tail root to about 70% of the hip width and taper it smoothly, with shallow ring segments every 0.8-1.0 mm. Curve it so it follows the shank instead of running straight off the face. Lower the sharp spine beads on the far flank (as seen in the hero) by about half, so the profile is a smooth back and not a serrated chain. Put the brief's granule hide on the bare band, at least on the shoulders, so the band doesn't read as plain stock.",
+      "where": "From the hips down the shank (tail); far flank in the hero view; shoulders either side of the figure",
+      "acceptance": "In hero-300.png a tapering tail and smooth back are visible, and the shoulders show texture rather than mirror-polish."
+    }
+  ],
+  "notes": "Report stage is 'block-out', and its layers and stamps are empty. The figure is a sculpted creature with an 'Eyes' part (eye_faces 14262). This departs from the documented concept, which is hide only (lamellae, tubercle rows, granular crown, no eyes). The author should say which direction is intended before round 1.",
+  "viewed_images": [
+    "showcase/cataphracta/gekko/hero-300.png",
+    "showcase/cataphracta/gekko/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

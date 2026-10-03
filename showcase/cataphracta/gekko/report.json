@@ -1,0 +1,604 @@
+{
+  "author_s": 63.778976441,
+  "bore_mm": 18.6,
+  "coarse_384x192": null,
+  "cold_reload": null,
+  "design_bytes": 2595251,
+  "draft": {
+    "build": {
+      "ms": 3309.3284719999997,
+      "profile_steps": 320,
+      "theta_steps": 768,
+      "triangles": 632864
+    },
+    "casting_pattern": {
+      "degenerate_faces": 0,
+      "self_crossings": 0,
+      "triangles": 627776,
+      "watertight": true
+    },
+    "clamp_audit": {
+      "layers": [],
+      "painted_bites": [],
+      "worst_mm": 0.0
+    },
+    "dfm_findings": [],
+    "draft_rules": {
+      "min_detail_mm": 0.3,
+      "min_draft_deg": 3.0,
+      "min_section_mm": 0.8
+    },
+    "drag_pct": 8.99427508261812,
+    "field": {
+      "marginal_area_mm2": 80.24799786814664,
+      "notes": [
+        "Field-sampled: the surface itself carries no undercut at this parting.",
+        "Stored mesh \"Eyes\" (#3) is soldered on after the pour: the pattern carries a raised locating mark at its foot, 121°, 1.0 mm across.",
+        "Judged with the ring as built: 1 CAD part (1 joined, 0 cut) at the parting plane z = -0.00 mm — 226.9 mm² of part surface, 0.3 mm² of it undercut.",
+        "Stored mesh \"Tokay\" (#2): 0.3 mm² of undercut leaning to -39° on flanks facing back across the parting plane, 317–141°, 4.7 mm toward the low edge to 4.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line."
+      ],
+      "parts": [
+        {
+          "judged": true,
+          "marginal_mm2": 0.9454896385591648,
+          "name": "Tokay",
+          "note": "Stored mesh \"Tokay\" (#2): 0.3 mm² of undercut leaning to -39° on flanks facing back across the parting plane, 317–141°, 4.7 mm toward the low edge to 4.6 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line.",
+          "silhouette_mm2": 0.507811714457274,
+          "total_mm2": 226.91011640130355,
+          "undercut_mm2": 0.8336454420958914,
+          "vertical_mm2": 1.6712737433174418,
+          "worst_draft_deg": -38.800911732349554
+        },
+        {
+          "judged": false,
+          "marginal_mm2": 0.0,
+          "name": "Eyes",
+          "note": "Stored mesh \"Eyes\" (#3) is left to the bench: not in the pattern, and not judged.",
+          "silhouette_mm2": 0.0,
+          "total_mm2": 0.0,
+          "undercut_mm2": 0.0,
+          "vertical_mm2": 0.0,
+          "worst_draft_deg": 0.0
+        }
+      ],
+      "process": "SandTwoPart",
+      "thinnest_wall_mm": 2.988665862046023,
+      "total_area_mm2": 1636.4307883398817,
+      "undercut_area_mm2": 0.8336454420958914,
+      "verdict": "Castable",
+      "vertical_area_mm2": 66.9370887717986,
+      "with_parts_verdict": "Castable with care",
+      "worst_draft_deg": -38.800911732349554
+    },
+    "finger_hole": {
+      "bore_radius_mm": 9.3,
+      "nearest_margin_mm": 0.000010232960242717581,
+      "vertices_inside": 0
+    },
+    "gates": [
+      {
+        "gate": "watertight, 0 degenerate faces",
+        "pass": true
+      },
+      {
+        "gate": "0 self-crossings on the ring and every made part",
+        "pass": true
+      },
+      {
+        "gate": "solids notes empty, every stamp resolved, the tokay and its eyes joined",
+        "pass": true
+      },
+      {
+        "gate": "nothing inside the finger hole",
+        "pass": true
+      },
+      {
+        "gate": "field Castable under SandTwoPart, band and with the part judged",
+        "pass": false
+      },
+      {
+        "gate": "ray release clean at 0.100 mm",
+        "pass": false
+      },
+      {
+        "gate": "ray release clean at 0.075 mm",
+        "pass": false
+      },
+      {
+        "gate": "draft-clamp bite at most 0.05 mm",
+        "pass": true
+      },
+      {
+        "gate": "0 DFM findings",
+        "pass": true
+      },
+      {
+        "gate": "stones report equals the preview",
+        "pass": true
+      },
+      {
+        "gate": "within 2 million triangles",
+        "pass": true
+      },
+      {
+        "gate": "casting pattern closed, 0 degenerate, 0 crossings",
+        "pass": true
+      }
+    ],
+    "gates_passed": false,
+    "geometry": {
+      "boundary_edges": 0,
+      "degenerate_faces": 0,
+      "made_part_crossings": [
+        [
+          "Tokay",
+          0
+        ],
+        [
+          "Eyes",
+          0
+        ]
+      ],
+      "non_manifold_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 1910.8594950919887,
+      "watertight": true
+    },
+    "made": {
+      "notes": [],
+      "parts_joined": 2,
+      "stamped": 0,
+      "stamps": 0
+    },
+    "process": "SandTwoPart",
+    "release_0075": {
+      "at": [
+        {
+          "area_mm2": 0.005612129246743078,
+          "depth_mm": 0.051022712228468714,
+          "theta_deg": 66.9208171073203,
+          "z_mm": 0.051022712228468714
+        },
+        {
+          "area_mm2": 0.005612129246743078,
+          "depth_mm": 0.027446495147132443,
+          "theta_deg": 67.29181146766155,
+          "z_mm": 0.027446495147132443
+        },
+        {
+          "area_mm2": 0.005612129246743078,
+          "depth_mm": 0.025487781327058482,
+          "theta_deg": 99.58116196445752,
+          "z_mm": 0.025487781327058482
+        },
+        {
+          "area_mm2": 0.005612129246743078,
+          "depth_mm": 0.025223054907603414,
+          "theta_deg": 57.35343805108607,
+          "z_mm": 0.025223054907603414
+        },
+        {
+          "area_mm2": 0.005612129246743078,
+          "depth_mm": 0.021777587357142247,
+          "theta_deg": 42.424888365540795,
+          "z_mm": 0.021777587357142247
+        }
+      ],
+      "obstructions": 5,
+      "status": "Blocked",
+      "unresolved_rays": 0
+    },
+    "release_0100": {
+      "at": [
+        {
+          "area_mm2": 0.009959553311121519,
+          "depth_mm": 0.02479733046276511,
+          "theta_deg": 57.2976209297035,
+          "z_mm": 0.02479733046276511
+        }
+      ],
+      "obstructions": 1,
+      "status": "Blocked",
+      "unresolved_rays": 0
+    },
+    "sand": "Some(DelftClay)",
+    "stones": {
+      "preview_count": 0,
+      "report_count": 0
+    }
+  },
+  "export": null,
+  "gates_passed": false,
+  "layers": [],
+  "manufacturing": {
+    "bench_layers": [
+      "Eyes (part)"
+    ],
+    "cast_ring_grams": 19.76764205655802,
+    "casting": "ring",
+    "design": "Gekko — the tokay",
+    "detail_findings": [],
+    "diagnostic_only": false,
+    "estimated_channel_grams": 4.363198734411927,
+    "estimated_charge_grams": 24.13084079096995,
+    "feeding_proxy": [
+      90.0,
+      1.4428797979106485
+    ],
+    "format_version": 1,
+    "geometry": {
+      "bounds_mm": [
+        27.254714965820312,
+        28.332128524780273,
+        10.378898620605469
+      ],
+      "surface_area_mm2": 1550.1136876593114,
+      "validation": {
+        "boundary_edges": 0,
+        "non_manifold_edges": 0,
+        "triangle_count": 627776,
+        "vertex_count": 313888,
+        "watertight": true
+      },
+      "volume_mm3": 2021.1009953308037
+    },
+    "limits": [
+      "Release is sampled; features between rays can be missed",
+      "Sand-slot widths are a screening check, not a sand-strength model",
+      "Radial wall is not the minimum thickness in every direction",
+      "Channel volumes overlap at junctions and omit melt/handling losses",
+      "Separately cored geometry needs a core and assembly plan"
+    ],
+    "nominal_bore_mm": 18.6,
+    "nominal_size": "US 8.6",
+    "not_in_pattern": [],
+    "pattern_fingerprint": "3769b53636fda470",
+    "pattern_scale": 1.019367991845056,
+    "radial_wall_limit_mm": 0.8,
+    "radial_wall_mm": 2.9886741179696497,
+    "release": {
+      "bounds": [
+        [
+          -13.197356224060059,
+          -12.945972442626953,
+          -5.1864728927612305
+        ],
+        [
+          14.057358741760254,
+          15.38615608215332,
+          5.192425727844238
+        ]
+      ],
+      "cell_mm": [
+        0.09983412075392056,
+        0.0997610159323249
+      ],
+      "fits_flask": true,
+      "frame": {
+        "x": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "y": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "z": [
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "grid": [
+        273,
+        284
+      ],
+      "low_draft_area_mm2": 377.5215970045078,
+      "notes": [
+        "377.52 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+        "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
+      ],
+      "obstructions": [
+        {
+          "depth_mm": 0.02479733046276511,
+          "half": "Cope",
+          "point": [
+            8.117228556901983,
+            12.642728144014386,
+            0.02479733046276511
+          ],
+          "projected_area_mm2": 0.009959553311121519,
+          "samples": 1,
+          "world": [
+            8.117228556901983,
+            12.642728144014386,
+            0.02479733046276511
+          ]
+        }
+      ],
+      "occupied_rays": 31785,
+      "parting_mm": 0.0,
+      "sand_findings": [
+        {
+          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+          "point": [
+            -4.362036537338089,
+            14.238904398931586,
+            0.0
+          ],
+          "width_mm": 0.5990047245235234
+        },
+        {
+          "message": "Sand slot about 0.50 mm wide; inspect its support and depth",
+          "point": [
+            4.123863726745157,
+            14.837470494525535,
+            0.0
+          ],
+          "width_mm": 0.4991706037696028
+        },
+        {
+          "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+          "point": [
+            -10.551752024081162,
+            8.752048522653714,
+            0.0
+          ],
+          "width_mm": 0.3990440637292996
+        },
+        {
+          "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+          "point": [
+            13.807773439875456,
+            2.068060455187946,
+            0.0
+          ],
+          "width_mm": 0.29928304779697473
+        },
+        {
+          "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+          "point": [
+            6.320214383331412,
+            12.044162048420437,
+            2.596212863922119
+          ],
+          "width_mm": 0.39933648301568225
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -5.560045986385136,
+            12.34344509621741,
+            2.596212863922119
+          ],
+          "width_mm": 0.09983412075392056
+        },
+        {
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "point": [
+            -9.553410816541957,
+            0.07284013654144689,
+            2.596212863922119
+          ],
+          "width_mm": 0.1995220318646498
+        },
+        {
+          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+          "point": [
+            -1.2671787939665513,
+            13.540577287405311,
+            -2.5932364463806152
+          ],
+          "width_mm": 0.5990047245235234
+        }
+      ],
+      "status": "Blocked",
+      "suggested_parting_mm": 0.005510328337550163,
+      "tolerance_mm": 0.02,
+      "unresolved_rays": 0,
+      "worst_draft_deg": -22.369161917225487
+    },
+    "sampled_local_wall": null,
+    "setup": {
+      "auto_parting": false,
+      "axial_stock_mm": 0.0,
+      "bench_notes": "Procedural Flat band, thickness keyed deepest under the gecko. A tokay lies along the crown with its spine on the parting line, its toes splayed to the band's edges and its tail down the crest to the palm; every wall the pull would drag is filled at 8 deg before meshing. Z=0 parting, opposed Z withdrawal. At the bench: polish the eyes and the spots, leave the granular skin satin.",
+      "bore": "Molded",
+      "bore_stock_mm": 0.0,
+      "channels": [
+        {
+          "diameter_mm": 4.0,
+          "end": [
+            0.0,
+            -21.0,
+            0.0
+          ],
+          "kind": "Gate",
+          "start": [
+            0.0,
+            -12.500000000000002,
+            0.0
+          ]
+        },
+        {
+          "diameter_mm": 6.0,
+          "end": [
+            0.0,
+            -33.0,
+            0.0
+          ],
+          "kind": "Sprue",
+          "start": [
+            0.0,
+            -21.0,
+            0.0
+          ]
+        }
+      ],
+      "component": null,
+      "flask": {
+        "cope_mm": 20.0,
+        "drag_mm": 20.0,
+        "length_mm": 80.0,
+        "width_mm": 80.0
+      },
+      "parting_mm": 0.0,
+      "pull": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "radial_stock_mm": 0.0,
+      "recipe": {
+        "alloy": "Silver 925",
+        "calibration_note": "Starting values; verify with shop trials",
+        "min_detail_mm": 0.3,
+        "min_draft_deg": 3.0,
+        "min_sand_web_mm": 0.6,
+        "min_section_mm": 0.8,
+        "name": "Gekko — the tokay / Delft clay",
+        "process": "SandTwoPart",
+        "sand": "DelftClay",
+        "sand_margin_mm": 5.0,
+        "shrink_pct": 1.9
+      },
+      "sample_pitch_mm": 0.1,
+      "tolerance_mm": 0.02
+    },
+    "source_build": {
+      "band_width_mm": 8.88382339477539,
+      "bounds_mm": [
+        26.73687744140625,
+        27.793819427490234,
+        10.181699752807617
+      ],
+      "build_ms": 153,
+      "inner_diameter_mm": 18.600020465920487,
+      "max_relief_mm": 0.24294274531600715,
+      "metals": [
+        {
+          "dwt": 12.71088900039498,
+          "grams": 19.76764205655802,
+          "metal": "Silver 925"
+        },
+        {
+          "dwt": 10.796894131609635,
+          "grams": 16.79104730672882,
+          "metal": "Bronze"
+        },
+        {
+          "dwt": 10.490164184688906,
+          "grams": 16.314028917333115,
+          "metal": "Brass"
+        },
+        {
+          "dwt": 14.170923547737646,
+          "grams": 22.038249590081577,
+          "metal": "Gold 10k"
+        },
+        {
+          "dwt": 16.035841625015674,
+          "grams": 24.938521397607463,
+          "metal": "Gold 14k"
+        },
+        {
+          "dwt": 19.115410292099785,
+          "grams": 29.727786027140343,
+          "metal": "Gold 18k"
+        },
+        {
+          "dwt": 21.839172220755852,
+          "grams": 33.963709324974204,
+          "metal": "Gold 22k"
+        },
+        {
+          "dwt": 23.704090298033883,
+          "grams": 36.86398113250009,
+          "metal": "Gold 24k"
+        },
+        {
+          "dwt": 14.723037452194957,
+          "grams": 22.896882690993845,
+          "metal": "Palladium 950"
+        },
+        {
+          "dwt": 26.31742944579848,
+          "grams": 40.928177810151496,
+          "metal": "Platinum 950"
+        }
+      ],
+      "min_relief_mm": 0.0,
+      "outer_diameter_mm": 26.30500030517578,
+      "quality": {
+        "degenerate_faces": 0,
+        "min_angle_deg": 0.016625500314593845,
+        "worst_aspect": 3446.996445452397
+      },
+      "refine": null,
+      "surface_area_mm2": 1491.7691333169948,
+      "validation": {
+        "boundary_edges": 0,
+        "non_manifold_edges": 0,
+        "triangle_count": 627776,
+        "vertex_count": 313888,
+        "watertight": true
+      },
+      "volume_mm3": 1908.0735575828205
+    },
+    "units": "millimeter"
+  },
+  "ring": "Gekko — the tokay",
+  "sculpt": {
+    "composition": {
+      "box_mm": [
+        [
+          -16.62918550222618,
+          -11.573819161774283,
+          -7.0
+        ],
+        [
+          19.88149366612574,
+          25.935461325821734,
+          7.0
+        ]
+      ],
+      "crest_r_at_head_mm": 13.4503495971193,
+      "decimation": [
+        260000,
+        0.002
+      ],
+      "draft_flips": 9453,
+      "eye_faces": 14262,
+      "faces": 249398,
+      "fill_added_nodes": [
+        1006601,
+        14278
+      ],
+      "fill_nodes": [
+        913,
+        130,
+        219
+      ],
+      "fill_s": 7.761155843,
+      "notes": [
+        "the parting split crossed itself (3 crossings, 0 open edges); kept the settled mesh"
+      ],
+      "parting_splits": 0,
+      "prims": 79,
+      "raw_faces": 423016,
+      "sculpt_s": 37.587227683,
+      "spots": 57,
+      "volume_mm3": 180.92505013985763
+    },
+    "open_edges": 0,
+    "part_sections_thinnest_mm": 0.0005526545397223855,
+    "part_sections_under_floor_mm2": 74.09151943808874,
+    "self_crossings": 0
+  },
+  "size": "US 8.6",
+  "slug": "gekko",
+  "stage": "block-out",
+  "stamps": []
+}
