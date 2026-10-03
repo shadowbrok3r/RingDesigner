@@ -1,0 +1,198 @@
+{
+  "ring": "Viscum",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.8,
+  "summary": "Cut at 6.8. Earlier scores: round 1 6.2, round 2 6.6. Caiman is 7 and the ship bar is 7.5; Corvus was cut at 6.6 and Basiliscus at 7.2. This is the last round. Every build gate recorded in report.json is green and matches the JSON at draft, coarse and export. The template gate is still not recorded: there is no template block and no verification.json, after round 2 made it a P1 punch item. This round fixed three things. The crossed four-leaf node is gone, and the left of the sprig is now two opposite pairs on successive forks. 'Face berry 5' is re-seated upright on the table (facing [0.04, 0.98, 0.18]). Face-on at 300 px the ring still reads as mistletoe, from the Y-forked sprig, the paired leaves and the white berry triplets. The rest of the round-2 punch list is not done, or is done only in the JSON. (1) The stem nodes are still pinched collars with eyelet holes and torn creases (face.png, stones.png, shoulder-close.png). This is the third round this item has been set. (2) stones.json now says transmission 0.62 with a warm tint and subsurface 0.5, but every render still shows opaque flat grey pearls with visible faceting. (3) The bark is still smeared, layered streaks only on the head walls (side.png, shoulder.png, shoulder-close.png). The shank from the shoulder clusters to the palm is still bare mirror gold (palm.png, reverse.png). (4) The shoulder leaves are still crumpled lumps. (5) The stems are still uniform tubes. There is also a new problem. The two right-hand face triplets float free of the bough, with no stalk to them, and the bough's right arm ends in a torn, hooked cap at the rim (face.png x about 1120-1200). About a third of the table is bare (top-right, bottom-centre), so density stays well below Caiman's. With no round left, Viscum is cut.",
+  "strengths": [
+    "The concept holds: host and parasite, with a berried bough crossing the table and breaking over both ends onto the shoulders. The silhouette is unlike any other Vepres ring.",
+    "The crossed four-leaf 'dragonfly' node is gone. The left of the sprig now carries two opposite leaf pairs on successive forks, which is botanically right for mistletoe.",
+    "The face leaves are clean obovate pillows with crisp true outlines, the best-modelled passage on the ring.",
+    "'Face berry 5' sits upright on the table. Every collet is now on the surface it belongs to, and the closest stones are 0.34 mm apart.",
+    "The 017 Tonneau table keeps its crisp rim and corner faces, and the head-to-bore junction is clean on the bare and the finished ring (bare-vs-finished.png).",
+    "Every recorded build gate is green at all three resolutions, with all 65 made parts free of self-crossings, open edges and non-manifold edges."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "fail",
+      "reason": "The bough runs face to shoulders, but the two right-hand face triplets float detached from any stalk (face.png, stones.png). The four shoulder clusters still sit as islands. The bark stops at the head walls, so the shank to the palm is bare polished gold (palm.png, reverse.png, shoulder.png left)."
+    },
+    {
+      "item": "Reads as its plant at 300 px without caption",
+      "result": "pass",
+      "reason": "In face-300 and hero-300 the Y-forked sprig, the paired obovate leaves and the white berry triplets say mistletoe, and the cross node no longer reads as a dragonfly. The grey berries still lean toward pearls, and the detached triplets weaken the read."
+    },
+    {
+      "item": "Figurative motifs have true outlines, crisp, no combing or smearing",
+      "result": "fail",
+      "reason": "The face leaf outlines are crisp. But every stem node is still a pinched collar with an eyelet hole or torn crease: face.png at the five nodes of the sprig, stones.png at about (520,890) and (820,880), and shoulder-close.png along the shoulder twig. The bough's right arm ends in a torn hooked cap (face.png at about 1160,850). The bark smears and laminates (side.png, shoulder-close.png lower left). The shoulder leaves are crumpled lumps (shoulder-close.png at about 900,950)."
+    },
+    {
+      "item": "Stones in made settings, visible, coloured as fruit or buds",
+      "result": "fail",
+      "reason": "The collets are made, visible, upright and separated. But all 21 stones render as opaque flat grey with visible facets (stones.png, shoulder-close.png, side.png), despite stones.json's transmission 0.62. They read as grey pearls, not waxy white mistletoe berries. The collets are still flat-walled machined cylinders."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms sculpted",
+      "result": "fail",
+      "reason": "The leaves are sculpted. The stems are still straight uniform tubes, untapered and unkinked, broken by mechanical eyelet nodes. The collets are machined cylinders with flat walls."
+    },
+    {
+      "item": "Factory stock keeps hard wall-to-face angles",
+      "result": "pass",
+      "reason": "The 017 table rim and corner faces are crisp (bare-vs-finished.png, shoulder.png), and the underside junction is clean."
+    },
+    {
+      "item": "Silhouette distinct from other Vepres rings",
+      "result": "pass",
+      "reason": "A barrel-table signet with a berried bough breaking over both ends onto the shoulders. Nothing else in Vepres looks like it."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "fail",
+      "reason": "Large: the table. Medium: the sprig and the triplets. Small: only the smeared bark, and only on the head walls. About a third of the table is bare (top-right and bottom-centre in face.png), and the shank below the shoulders is bare mirror. Caiman covers every surface."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Watertight, 0 degenerate faces",
+      "claimed": "watertight, 0 degenerate",
+      "verified": "Draft, coarse and export are all watertight, with 0 degenerate faces, 0 boundary edges and 0 non-manifold edges.",
+      "pass": true
+    },
+    {
+      "gate": "0 self-crossings on ring and every made part",
+      "claimed": "0",
+      "verified": "self_crossings is 0 at every build. All 65 made_parts have 0 self-crossings, 0 open edges and 0 non-manifold edges at draft, coarse and export.",
+      "pass": true
+    },
+    {
+      "gate": "Solids and parts notes empty",
+      "claimed": "empty",
+      "verified": "solids_notes [] and parts_notes [] at every build.",
+      "pass": true
+    },
+    {
+      "gate": "Nothing inside the finger hole",
+      "claimed": "bore 18.6",
+      "verified": "bore_margin_mm is about -4.8e-7 at every build, which is floating-point zero.",
+      "pass": true
+    },
+    {
+      "gate": "Field verdict Castable (judged as lost wax)",
+      "claimed": "Castable",
+      "verified": "field_verdict is 'Castable' at every build. The two-part undercut notes (bark at 200-340 degrees, part meshes, bezels and burs) are informational under wax.",
+      "pass": true
+    },
+    {
+      "gate": "Lost wax thinnest wall >= 0.8 mm (replaces sand pull, ray release and clamp)",
+      "claimed": "1.10 mm",
+      "verified": "thinnest_wall_mm is 1.098 at every build. That is down from 1.334 in round 2, but above 0.8.",
+      "pass": true
+    },
+    {
+      "gate": "0 DFM findings",
+      "claimed": "0",
+      "verified": "dfm_findings [] at every build.",
+      "pass": true
+    },
+    {
+      "gate": "Stone count equals preview; no metal in stones",
+      "claimed": "21 = 21",
+      "verified": "stones_reported 21, stones_previewed 21, metal_inside_stones [], stone_warnings []. closest_stones is 0.34 mm (B2.1 to B2.2).",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical",
+      "claimed": "true",
+      "verified": "cold_reload_identical is true.",
+      "pass": true
+    },
+    {
+      "gate": "Export within 2 million triangles",
+      "claimed": "1,307,036",
+      "verified": "export.triangles is 1,307,036.",
+      "pass": true
+    },
+    {
+      "gate": "Casting pattern closed",
+      "claimed": "pass",
+      "verified": "casting_pattern is watertight, with 0 degenerate faces and 0 self-crossings; pass is true.",
+      "pass": true
+    },
+    {
+      "gate": "Template gate (<= 4 design.set patches within class budget)",
+      "claimed": "not claimed",
+      "verified": "Not recorded. report.json has no template block and there is no verification.json, although round 2 set it as P1 punch item 8. It cannot be counted green, and a ship would have been refused on this gate alone.",
+      "pass": false
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P1",
+      "zone": "Every stem node: the 'Face joint 1-6' and 'Shoulder joint/node' parts where they meet 'Face stem 1-6' and 'Shoulder bough/twig'",
+      "change": "For any revival only, since the ring is cut. This is set for the third time. Replace the eyelet collars with one continuous sweep per branch through each node, plus a swollen ellipsoid about 1.3x the stem diameter wide and 1.6x long, blended at blend_mm >= 0.3.",
+      "acceptance": "In face.png, stones.png and shoulder-close.png every node is a smooth bulge with no hole, slit, pinch or torn crease."
+    },
+    {
+      "number": 2,
+      "priority": "P1",
+      "zone": "Right half of the face: the two free triplets ('Face berry 4-9') and the right-hand arm of the bough",
+      "change": "Give each triplet its own stalk from the bough: a short tapered twig, 0.5 mm down to 0.35 mm, ending in a three-way node under the berries. Finish the right arm in a clean tapered tip or a node 1.5 mm inside the rim, not a torn hooked cap. Add one more leaf pair top-right and bottom-centre, so no quadrant is more than 25% bare.",
+      "acceptance": "In face.png every berry is visibly attached to the bough, no stem end shows a hole or cap, and no quadrant of the table is more than about 25% bare."
+    },
+    {
+      "number": 3,
+      "priority": "P1",
+      "zone": "Moonstone render material and reference-moonstone.stl",
+      "change": "Make the renderer honour stones.json, or fix the material path: transmission 0.62, subsurface 0.5 and the warm tint must reach the image. Smooth the cabochon normals or raise its segment count.",
+      "acceptance": "In hero-300.png the berries read as translucent waxy white fruit. In stones.png and shoulder-close.png no facets show."
+    },
+    {
+      "number": 4,
+      "priority": "P1",
+      "zone": "'Oak bark, walls' and 'Oak bark, cheeks': the head walls and both shank walls, theta about 40-150 degrees, down to 1 mm off the palm crest",
+      "change": "Carried from round 2, punch item 5. Use discrete ring-wise furrows 0.6-1.0 mm apart and 0.3 mm deep, with plates broken every 2-4 mm, at a resolution that does not comb. Extend them down the shank.",
+      "acceptance": "In side.png and shoulder-close.png the bark reads as crisp, ridged oak bark. In palm.png and reverse.png no bare mirror wall is wider than about 3 mm outside the palm crest."
+    },
+    {
+      "number": 5,
+      "priority": "P1",
+      "zone": "Template gate",
+      "change": "Run the template lift and record it: a byte-identical cold evaluation, at most 4 design.set patches, size and open time.",
+      "acceptance": "report.json or verification.json records the template gate green."
+    },
+    {
+      "number": 6,
+      "priority": "P2",
+      "zone": "'Shoulder leaf A1.1-B2.2'",
+      "change": "Carried from round 2, punch item 6. Use obovate pillow blades about 2.5 x 1.2 mm on short petioles, matching the face leaves.",
+      "acceptance": "In shoulder-close.png each shoulder leaf reads as a clean small leaf, not a crumpled lump."
+    },
+    {
+      "number": 7,
+      "priority": "P3",
+      "zone": "'Face stem 1-6' and 'Shoulder bough A1-B2'",
+      "change": "Carried from rounds 1 and 2. Taper each stem about 30% from base to tip, and add a 3-5 degree kink at each fork.",
+      "acceptance": "In face.png and shoulder.png the stems thin toward the berries, and no segment reads as a straight uniform tube."
+    }
+  ],
+  "viewed_images": [
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png",
+    "showcase/vepres/viscum/hero-300.png",
+    "showcase/vepres/viscum/face-300.png",
+    "showcase/vepres/viscum/contact-300.png",
+    "showcase/vepres/viscum/hero.png",
+    "showcase/vepres/viscum/face.png",
+    "showcase/vepres/viscum/stones.png",
+    "showcase/vepres/viscum/shoulder-close.png",
+    "showcase/vepres/viscum/shoulder.png",
+    "showcase/vepres/viscum/side.png",
+    "showcase/vepres/viscum/palm.png",
+    "showcase/vepres/viscum/reverse.png",
+    "showcase/vepres/viscum/bare-vs-finished.png"
+  ]
+}
