@@ -1356,6 +1356,8 @@ pub enum StampTop {
     Dome { crown_mm: f64 },
     /// A top falling along `axis_deg` from `height_mm` at the outline's back to `tip_mm` at its front.
     Taper { axis_deg: f64, tip_mm: f64 },
+    /// A membrane pressed up from the outline to `crown_mm` at its highest: [`StampTop::Dome`] on a circle, without creases on any other outline.
+    Pillow { crown_mm: f64 },
 }
 
 impl StampTop {
@@ -1373,6 +1375,7 @@ impl StampTop {
             StampTop::Cone { apex_mm, at, tip_mm } => StampTop::Cone { apex_mm: apex_mm * k, at: s(at), tip_mm: tip_mm * k },
             StampTop::Dome { crown_mm } => StampTop::Dome { crown_mm: crown_mm * k },
             StampTop::Taper { axis_deg, tip_mm } => StampTop::Taper { axis_deg, tip_mm: tip_mm * k },
+            StampTop::Pillow { crown_mm } => StampTop::Pillow { crown_mm: crown_mm * k },
         }
     }
 
@@ -1386,8 +1389,136 @@ impl StampTop {
             StampTop::Cone { apex_mm, at, tip_mm } => StampTop::Cone { apex_mm, at: m(at), tip_mm },
             StampTop::Dome { crown_mm } => StampTop::Dome { crown_mm },
             StampTop::Taper { axis_deg, tip_mm } => StampTop::Taper { axis_deg: 180.0 - axis_deg, tip_mm },
+            StampTop::Pillow { crown_mm } => StampTop::Pillow { crown_mm },
         }
     }
+}
+
+/// A membrane's height over a fine triangulation of an outline: zero on the outline, one at its highest.
+struct Pillow {
+    points: Vec<[f64; 2]>,
+    tris: Vec<[u32; 3]>,
+    height: Vec<f64>,
+    lo: [f64; 2],
+    bucket: f64,
+    columns: usize,
+    rows: usize,
+    cells: Vec<Vec<u32>>,
+}
+
+impl Pillow {
+    fn new(outline: &[[f64; 2]]) -> Option<Self> {
+        let n = outline.len();
+        let area = 0.5 * (0..n).map(|i| { let (a, b) = (outline[i], outline[(i + 1) % n]); a[0] * b[1] - b[0] * a[1] }).sum::<f64>().abs();
+        let perimeter: f64 = (0..n).map(|i| { let (a, b) = (outline[i], outline[(i + 1) % n]); (b[0] - a[0]).hypot(b[1] - a[1]) }).sum();
+        // Eight points across the mean width (twice area over perimeter), at most about 5000 grid points.
+        let pitch = (area / (4.0 * perimeter.max(1e-9))).clamp(0.01, 0.12).max((area / 4300.0).sqrt());
+        let (points, tris) = cap_faces(outline, pitch, &[])?;
+        let height = membrane(&points, &tris, outline.len());
+        let (lo, hi) = points.iter().fold(([f64::MAX; 2], [f64::MIN; 2]), |(lo, hi), p| ([lo[0].min(p[0]), lo[1].min(p[1])], [hi[0].max(p[0]), hi[1].max(p[1])]));
+        let bucket = ((hi[0] - lo[0]).max(hi[1] - lo[1]) / 64.0).max(1e-6);
+        let (columns, rows) = (((hi[0] - lo[0]) / bucket) as usize + 1, ((hi[1] - lo[1]) / bucket) as usize + 1);
+        let mut cells = vec![Vec::new(); columns * rows];
+        for (k, t) in tris.iter().enumerate() {
+            let c = t.map(|i| points[i as usize]);
+            let cell = |x: f64, lo: f64, n: usize| (((x - lo) / bucket) as usize).min(n - 1);
+            let (x0, x1) = (cell(c.iter().map(|p| p[0]).fold(f64::MAX, f64::min), lo[0], columns), cell(c.iter().map(|p| p[0]).fold(f64::MIN, f64::max), lo[0], columns));
+            let (y0, y1) = (cell(c.iter().map(|p| p[1]).fold(f64::MAX, f64::min), lo[1], rows), cell(c.iter().map(|p| p[1]).fold(f64::MIN, f64::max), lo[1], rows));
+            for y in y0..=y1 {
+                for x in x0..=x1 {
+                    cells[y * columns + x].push(k as u32);
+                }
+            }
+        }
+        Some(Self { points, tris, height, lo, bucket, columns, rows, cells })
+    }
+
+    /// The membrane's height at plan point `p`, zero outside the outline.
+    fn at(&self, p: [f64; 2]) -> f64 {
+        let (fx, fy) = ((p[0] - self.lo[0]) / self.bucket, (p[1] - self.lo[1]) / self.bucket);
+        if !(fx >= 0.0 && fy >= 0.0) || fx as usize >= self.columns || fy as usize >= self.rows {
+            return 0.0;
+        }
+        for &k in &self.cells[fy as usize * self.columns + fx as usize] {
+            let t = self.tris[k as usize];
+            let [a, b, c] = t.map(|i| self.points[i as usize]);
+            let det = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+            if det.abs() < 1e-18 {
+                continue;
+            }
+            let wb = ((p[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (p[1] - a[1])) / det;
+            let wc = ((b[0] - a[0]) * (p[1] - a[1]) - (p[0] - a[0]) * (b[1] - a[1])) / det;
+            if wb >= -1e-9 && wc >= -1e-9 && wb + wc <= 1.0 + 1e-9 {
+                let h = t.map(|i| self.height[i as usize]);
+                return h[0] * (1.0 - wb - wc) + h[1] * wb + h[2] * wc;
+            }
+        }
+        0.0
+    }
+}
+
+/// Solves the cotangent Laplacian's `-Δu = 1` with `u = 0` on the first `fixed` points, scaled to a peak of one.
+fn membrane(points: &[[f64; 2]], tris: &[[u32; 3]], fixed: usize) -> Vec<f64> {
+    let n = points.len();
+    let mut diag = vec![0.0; n];
+    let mut mass = vec![0.0; n];
+    let mut links: Vec<Vec<(u32, f64)>> = vec![Vec::new(); n];
+    for t in tris {
+        let c = t.map(|i| points[i as usize]);
+        let area = 0.5 * ((c[1][0] - c[0][0]) * (c[2][1] - c[0][1]) - (c[2][0] - c[0][0]) * (c[1][1] - c[0][1])).abs();
+        if area < 1e-14 {
+            continue;
+        }
+        for k in 0..3 {
+            let (i, j, o) = (t[(k + 1) % 3] as usize, t[(k + 2) % 3] as usize, k);
+            let (e1, e2) = ([c[(o + 1) % 3][0] - c[o][0], c[(o + 1) % 3][1] - c[o][1]], [c[(o + 2) % 3][0] - c[o][0], c[(o + 2) % 3][1] - c[o][1]]);
+            let w = 0.5 * (e1[0] * e2[0] + e1[1] * e2[1]) / (2.0 * area);
+            diag[i] += w;
+            diag[j] += w;
+            links[i].push((j as u32, w));
+            links[j].push((i as u32, w));
+            mass[t[k] as usize] += area / 3.0;
+        }
+    }
+    let free = |i: usize| i >= fixed && diag[i] > 1e-12;
+    let apply = |x: &[f64], y: &mut [f64]| {
+        for i in 0..n {
+            y[i] = if free(i) { diag[i] * x[i] - links[i].iter().filter(|(j, _)| free(*j as usize)).map(|(j, w)| w * x[*j as usize]).sum::<f64>() } else { 0.0 };
+        }
+    };
+    // Conjugate gradients, preconditioned by the diagonal.
+    let mut u = vec![0.0; n];
+    let mut r: Vec<f64> = (0..n).map(|i| if free(i) { mass[i] } else { 0.0 }).collect();
+    let pre = |r: &[f64]| -> Vec<f64> { (0..n).map(|i| if free(i) { r[i] / diag[i] } else { 0.0 }).collect() };
+    let mut z = pre(&r);
+    let mut p = z.clone();
+    let mut rz: f64 = r.iter().zip(&z).map(|(a, b)| a * b).sum();
+    let tol = rz * 1e-20;
+    let mut ap = vec![0.0; n];
+    for _ in 0..4 * n.max(16) {
+        if rz <= tol {
+            break;
+        }
+        apply(&p, &mut ap);
+        let pap: f64 = p.iter().zip(&ap).map(|(a, b)| a * b).sum();
+        if pap <= 0.0 {
+            break;
+        }
+        let alpha = rz / pap;
+        for i in 0..n {
+            u[i] += alpha * p[i];
+            r[i] -= alpha * ap[i];
+        }
+        z = pre(&r);
+        let next: f64 = r.iter().zip(&z).map(|(a, b)| a * b).sum();
+        let beta = next / rz;
+        rz = next;
+        for i in 0..n {
+            p[i] = z[i] + beta * p[i];
+        }
+    }
+    let peak = u.iter().copied().fold(0.0, f64::max);
+    if peak > 0.0 { u.iter().map(|x| (x / peak).max(0.0)).collect() } else { u }
 }
 
 /// A top read against one outline.
@@ -1399,10 +1530,13 @@ struct Shape<'a> {
     shift: [f64; 2],
     /// The outline's reach either side of a gable, from a ridge, or back and front along a taper.
     reach: [f64; 2],
+    /// A pillow's membrane.
+    pillow: Option<Pillow>,
 }
 
 impl<'a> Shape<'a> {
     fn new(top: StampTop, outline: &'a [[f64; 2]], height: f64, shift: [f64; 2]) -> Self {
+        let pillow = matches!(top, StampTop::Pillow { .. }).then(|| Pillow::new(outline)).flatten();
         let mut reach: [f64; 2] = [0.0, 0.0];
         match top {
             StampTop::Gable { axis_deg, .. } => {
@@ -1422,7 +1556,7 @@ impl<'a> Shape<'a> {
             }
             _ => {}
         }
-        Self { top, outline, height, shift, reach }
+        Self { top, outline, height, shift, reach, pillow }
     }
 
     /// Height of the top over the eaves at plan point `p`, mm.
@@ -1464,6 +1598,7 @@ impl<'a> Shape<'a> {
                 let u = ((p[0] * a[0] + p[1] * a[1] - self.reach[0]) / (self.reach[1] - self.reach[0]).max(1e-9)).clamp(0.0, 1.0);
                 (tip_mm.max(0.0) - self.height) * u
             }
+            StampTop::Pillow { crown_mm } => self.pillow.as_ref().map_or(0.0, |m| crown_mm * m.at(p)),
         }
     }
 
@@ -1472,7 +1607,7 @@ impl<'a> Shape<'a> {
         let mut out = Creases::default();
         let inside = |p: [f64; 2]| inside_polygon(self.outline, p) && edge_distance(self.outline, p) > CREASE_CLEAR;
         match self.top {
-            StampTop::Flat | StampTop::Taper { .. } => {}
+            StampTop::Flat | StampTop::Taper { .. } | StampTop::Pillow { .. } => {}
             StampTop::Gable { axis_deg, .. } => {
                 let a = [axis_deg.to_radians().cos(), axis_deg.to_radians().sin()];
                 for (t0, t1) in inside_runs(self.outline, self.shift, a, f64::MIN, f64::MAX) {
@@ -2630,7 +2765,7 @@ impl Stamp {
             hull.iter().map(|p| shape.lift(*p)).fold(0.0, f64::max).max(match self.top {
                 StampTop::Gable { rise_mm, .. } | StampTop::Ridge { rise_mm, .. } => rise_mm,
                 StampTop::Cone { apex_mm, .. } => apex_mm,
-                StampTop::Dome { crown_mm } => crown_mm,
+                StampTop::Dome { crown_mm } | StampTop::Pillow { crown_mm } => crown_mm,
                 _ => 0.0,
             })
         };
@@ -4201,6 +4336,55 @@ mod tests {
         let back = crate::library::load_design_str(&crate::library::design_json(&d).unwrap()).unwrap();
         assert_eq!(back.stamps, d.stamps);
         assert!(crate::library::template_features_in_json(&serde_json::json!({"stamps": [d.stamps[0]]})), "a graph carrying it is fenced");
+    }
+
+    /// A pillow is the dome on a circle and creaseless on a holly leaf, where the dome folds along every spine's ray.
+    #[test]
+    fn a_pillow_is_the_dome_on_a_circle_and_creaseless_on_a_holly_leaf() {
+        use crate::library::{format_version_for, template_features_in_json, FORMAT_VERSION};
+        let circle = crate::outline::circle(3.0);
+        let dome = Shape::new(StampTop::Dome { crown_mm: 0.5 }, &circle, 0.3, [0.0; 2]);
+        let pillow = Shape::new(StampTop::Pillow { crown_mm: 0.5 }, &circle, 0.3, [0.0; 2]);
+        for k in 0..60 {
+            let (s, c) = (k as f64 * 0.7).sin_cos();
+            let p = [1.45 * (k as f64 / 60.0) * c, 1.45 * (k as f64 / 60.0) * s];
+            assert!((dome.lift(p) - pillow.lift(p)).abs() < 0.01, "at {p:?}: dome {:.4}, pillow {:.4}", dome.lift(p), pillow.lift(p));
+        }
+        assert!(pillow.lift(circle[7]).abs() < 1e-9, "zero on the outline");
+        let holly = crate::outline::leaf(crate::outline::Margin::Holly { spines: 3, depth_mm: 0.55, lean_deg: 20.0 }, 8.6, 5.0);
+        // The worst second difference of the top across the blade, mm per mm squared.
+        let kink = |top: StampTop| {
+            let shape = Shape::new(top, &holly, 0.3, [0.0; 2]);
+            let e = 0.03;
+            let mut worst: f64 = 0.0;
+            for i in -80..=80 {
+                for j in -50..=50 {
+                    let p = [i as f64 * 0.05, j as f64 * 0.05];
+                    if !inside_polygon(&holly, p) || edge_distance(&holly, p) < 0.2 {
+                        continue;
+                    }
+                    for d in [[e, 0.0], [0.0, e]] {
+                        let h = |k: f64| shape.lift([p[0] + k * d[0], p[1] + k * d[1]]);
+                        worst = worst.max((h(1.0) - 2.0 * h(0.0) + h(-1.0)).abs() / (e * e));
+                    }
+                }
+            }
+            worst
+        };
+        let (folds, smooth) = (kink(StampTop::Dome { crown_mm: 0.5 }), kink(StampTop::Pillow { crown_mm: 0.5 }));
+        assert!(smooth < 0.25 * folds, "pillow {smooth:.2} against dome {folds:.2}");
+        let mut d = crest_band();
+        let ctx = d.field_context();
+        let lib = crate::AlphaLibrary::builtin();
+        let mesh = crate::mesh::try_build(&d, &lib, strike()).unwrap().mesh;
+        let band = Solid { v: mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: mesh.faces.clone() };
+        let leaf = Stamp { top: StampTop::Pillow { crown_mm: 0.5 }, ..plain("Holly", 90.0, ctx.crest_v_mm, holly, 0.3) };
+        sound(&leaf.solid(&leaf.frame(&d, &ctx), &band).unwrap(), "the pillowed leaf");
+        d.stamps = vec![leaf];
+        assert_eq!(format_version_for(&d), FORMAT_VERSION);
+        let back = crate::library::load_design_str(&crate::library::design_json(&d).unwrap()).unwrap();
+        assert_eq!(back.stamps, d.stamps);
+        assert!(template_features_in_json(&serde_json::json!({"stamps": [d.stamps[0]]})), "a graph carrying it is fenced");
     }
 
     /// A gable off the parting line holds its ridge as an edge of the cap, every vertex on it at full rise.
