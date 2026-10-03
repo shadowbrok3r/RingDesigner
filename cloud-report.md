@@ -1,53 +1,103 @@
-# Core: CAD operations that stop failing on Gothic geometry
+# Vepres ring: Viscum (`viscum`), cloud report
 
-Branch `claude/core-cad-robust`, off master `8e5a59a`, with master merged in up to `60b3881` (crisp edges, Gothic clusters, frame timing, relief sculpt, true stone plans). One code commit, three merges and this report. The last merge's conflicts were in `twist.rs`, where master's closed and scaled sweep keeps its form and the cap's `fill` takes the label that `cad::draft` and `cad::turn` share, and in CLAUDE.md, where master's twisted-sweep text comes first and the new doctrine bullet follows it.
+**Outcome: stopped at the block-out after three failed read tests.** No review round was run (0 of 3 used). Under TASK.md, a third block-out that does not read means the subject needs rethinking, not detailing. Every draft gate was green on the last attempt. The ring fails on its read, not on manufacture.
 
-**The rule behind every fix:** each one is a fallback that runs only where the kernel failed. If the kernel already built a body, the core still uses that body, so no existing result moves. The core suite and golden test pass unchanged, and the graph and template tests are below. No new option, no serde field and no format change were needed, so nothing is fenced. `cadkernel` is not forked; every fix is in `cad.rs`, the new `cad/draft.rs` and `cad/turn.rs`, `cad/twist.rs` (two helpers made `pub(super)`) and `sketch/region.rs`.
+- Branch: `claude/vepres-viscum` from `master` at `8e5a59a`, with master `2e11632` merged in (`edb4fda`).
+- Commits: `1563d45` (attempts 1 and 2), `5fe3c4e` (attempt 3, and the process line in the collection doc), `133e677` (read test 3), then this report.
+- Example: `crates/ringdesign-core/examples/vepres_viscum.rs`.
+- Run: `target/release/examples/vepres_viscum [OUT_DIR] [--draft] [--verify] [--blockout]`.
+- Outputs: `showcase/vepres/viscum/`. The folder holds the renders, `hero-300.png`, `face-300.png`, `contact-300.png`, `report.json`, `design.ring.json` and `read-test-{1,2,3}.json`.
+- Process: lost wax on native factory 003 Clover, 18 × 18, unmirrored, no sand envelope; 0.8 mm section, 0.15 mm detail, no draft; 18k yellow gold. Per Logan's rule of 2026-10-03, I recorded this in Viscum's section of `docs/collections/vepres.md`, with no extra rounds granted.
 
-## Per request
+## Read tests
 
-| # | Request | Status | What changed |
+| Attempt | Reads | What the eye saw | What it asked for |
 |---|---|---|---|
-| 3 | Revolved arcs do not tessellate | **Fixed** | There were two separate defects. (a) "N nonmanifold edges": the kernel covers a revolved arc's torus seam with a zero-width strip, every triangle laid twice, once each way. `tessellate_traced` now removes opposite twin triangles wherever some edge has more than two faces (`cancel_twins`). The volume is unchanged and the body stays the kernel's. (b) "Kernel could not tessellate 1 faces": the kernel drops a torus face (on Ogiva's arch it is the comfort arc), and whether it does depends on the chord (on one arch it failed at 0.04 mm, passed at 0.015 and failed again at 0.012). Retrying cannot be relied on, so a revolve that has arcs and fails to tessellate becomes our own mesh (`cad::turn`). It is sampled at a quarter of the chord, with full and part turns, holes on full turns, and points on the axis shared. |
-| 4 | Drafted extrusion refuses Béziers and inset-dropping outlines | **Fixed** | When the kernel's tapered extrude refuses a region with no holes, `cad::draft` builds it. The outline is walked to the chord, and the far end is a mitred inset that removes each edge as the wavefront collapses it. Each side face is planar. A draft that would carry a notch's root across the outline (a split event) is refused by name: "the draft closes the outline across a neck or notch". |
-| 7 | Brep − Brep gives `NoClosedForm` (`CutRefused` here) | **Fixed** | When `brep::combine` fails, the Boolean goes through `csg` on the operands tessellated at the export chord, the same path a mesh operand already took. The 500-face refusal before the kernel stays as it was. |
-| 2 | Loft through non-parallel sections has open seams | **Fixed** | The kernel splits a ruled face's straight edge where its planar neighbour leaves it whole, so the seam has T-junctions. `split_t_junctions` fans each open edge's triangle through the open corners lying on it, within 1e-6 mm. No vertex moves. |
-| 6 | Loft only runs along the section normal | **Fixed, differently** | Measured: what decides success is the sections' winding relative to the direction the loft runs, not their order. On the probe's fanned planes, the order the report found working has (c1 − c0) · n0 **> 0**, so the literal rule ("reverse when > 0") would reverse the order that works. Instead, when the kernel refuses a polygon loft, `wound_sections` winds every section about the first-to-last centre line and lines each one up with the section before it. Either order now gives the same solid. |
-| 1 | Loft winding read off the first corner | **Fixed** | The same `wound_sections` pass also starts every section together where the first and last sections are convex at their second corner. The kernel's `polygon_normal` reads that corner through the first fan triangle, so it is the one that matters, not the first corner itself. |
-| 5 | Mirrored outlines in one sketch fail the drafted extrude | **Fixed** | Measured cause: the halves overlap or touch at the centre line, and the sketch refuses "loops may nest but not touch". The extrude itself does not fail. Now a **Sketch feature** whose loops meet extrudes each loop alone (straight, kernel-drafted or `cad::draft`) and joins the loops by `csg`. Inline profiles still refuse several loops, as their tests pin. Each loop is drafted on its own, so halves that only touch leave a draft groove along the line where they meet. Overlap them by at least the draft's inset (height × tan(draft)), as Ogiva's `FINIAL_OVERLAP_MM` did. |
+| 1 | **false** | "A big gold flower with a pearl-cluster centre." The four swollen clover lobes read as petals, and the seven collared stones read as a pearl cluster or grapes. | Leaves cut along each lobe; three separate berries in the fork, not collars; repeated Y-fork / leaf pair / berry units. |
+| 2 | **false** | "Gold blossom or bow-shaped cocktail ring with pearls." The lobes are still the loudest form. The shoulder singles read as pearl studs. | A leaf outline filling each lobe with a dark recess, and the lobes 40% flatter; tight 2–3 berry bunches in Y-forks on the shoulders; visible stalks to the node; translucent berries. |
+| 3 | **false** | "Gold flower ring with pearls", now read as a double flower or pinwheel of eight or more petals. The three-berry shoulder triangles and the right-hand face triangle "work" and are "the most mistletoe-like detail". | Exactly four narrow 3:1 leaves cut out of the lobes; all berries on the central node or in axils, none on blades; Y-forks with leaf pairs on the cheeks and shoulders. |
 
-Every fallback part is a mesh value, as `cad::twist` is. Fillet, press-pull and sketch-on-face refuse it by name: "a drafted extrusion's mesh", "a revolution's mesh", "a mesh of loops extruded and joined".
+**Why it failed: the stock is the problem.** Factory 003 is four swollen, heart-shaped lobes meeting at a sharp central crossing. At 300 px the lobes are the face's loudest form, and every reviewer named them petals. Here is what each attempt tried:
 
-## Tests
+- **Raised leaves on the lobes** (attempts 1 and 2) read as veins on petals.
+- **Large free blades running past the lobe edges** (attempt 3, with engraved trenches and midribs) changed the outline. The reviewer then counted the blades together with the lobe edges, and saw an eight-petal flower.
+- **Taking the lobes' shine off.** I tried an oak-bark tiling and a hammered stipple, both in hide space (C-R4), as Subtract and as bench-only layers. Neither cut the imported stock. As Add, the bark folded the field into self-crossings and read as combing, so I dropped it.
+- **Flattening the crowns.** Every reviewer asked to flatten them by about 40%. That would mean rebuilding the factory stock, which the brief keeps "with its lobes".
 
-New tests in `cad::robust_tests` and `cad::draft::tests`, each built from the report's kind of geometry:
+What did work is the berry bunches: tight triangles of three moonstones in the crotch of a forked twig.
 
-- `a_revolved_sketch_arc_closes_and_holds_its_volume` (3a): a domed band section, closed at preview and export, volume within 0.4% / 0.15% of Pappus, and still the kernel's body.
-- `a_pointed_arch_revolves_whole_and_in_part` (3b): Ogiva's arch (comfort arc, jambs, two head arcs). It asserts the kernel's own tessellation still fails, then checks the full turn against a fine-walked Pappus within 0.5% / 0.2%, and the half turn either way within 0.5% of half.
-- `a_brep_cut_the_kernel_refuses_is_resolved_by_csg` (7): a revolved ring less a lancet niche. It asserts `brep::combine` still refuses, then checks the volume against the analytic ring less the niche's foot.
-- `a_loft_through_fanned_sections_closes_listed_either_way` (2, 6): five fanned sections, both orders, preview and export, all closed with identical volumes.
-- `a_loft_section_may_start_on_a_concave_corner` (1): asserts `brep::loft` still refuses, then checks the volume is exactly 10.
-- `mirrored_loops_that_meet_extrude_together` (5): straight volume exactly the union's 9.0, drafted below it, closed.
-- `a_bezier_outline_drafts`, `an_inset_that_drops_a_piece_drafts`, `a_draft_the_kernel_takes_is_still_its_body` (4): each asserts `brep::extrude_tapered` still refuses. Checked: the first-order draft volume, the mirrored run, the collapsed tip (5 far corners), the filled notch on the grown rectangle, the named refusal of a split, and that a draft the kernel accepts stays its body.
+### Suggested rethink
 
-Reproduced on unmodified master first, with a scratch probe that was not committed: domed revolve "0 open and 16 nonmanifold edges"; arch "Kernel could not tessellate 1 faces"; ring − niche "CutRefused"; Bézier and notch drafts "unsupported or degenerate geometry"; fanned loft "68 open edges" in one order and "unsupported" in the other; overlapping halves "loops may nest but not touch". Tests that cannot fail on master by construction instead assert the kernel's own refusal in place.
+- **(a)** Keep the forked twig and berry-bunch unit, which the reviewers praised. Put it on a stock whose face is not four petals, such as a flat or cushion signet.
+- **(b)** If 003 must stay, fill the lobes' crowns and creases with one sculpted ground plate so the face becomes a flat seal. The clover would survive only as the plan, and the sprig would sit on top. That needs Logan's consent, because it hides the factory lobes.
 
-Results:
-- `cargo test -p ringdesign-core`: 848 passed, 0 failed, 16 ignored; golden 1 passed. After merging master up to `60b3881`: 912 passed, 0 failed, 17 ignored; golden and the other integration test both pass.
-- `cargo test -p ringdesign-graph` (templates byte for byte, showcase, bestiarium, imported bases, cad edits): all passed before the merges (140) and after them (152, including the new `gothic_clusters`), 0 failed.
+## Gates (block-out attempt 3, draft 768 × 320)
 
-**Merge note.** Master (from `779a3d6`) brought its own seam repair, `zip_chord_seams`, which splits open edges at the other side's samples within the chord. The merged `tessellate_traced` runs master's `stitch_chord_gaps` and then `zip_chord_seams` exactly as master does. Only what those two leave open goes on to `cancel_twins` and `split_t_junctions`, followed by one more stitch. So whatever master's pass already closes is closed byte for byte as master closes it, and my passes see only what it cannot close: the doubled seams, and T-junctions it reverts.
+| Gate | Result |
+|---|---|
+| Watertight, degenerate faces | yes, 0 |
+| Self-crossings: ring, and each of the made parts | 0, and 0 on every part (all closed and manifold) |
+| `solids.notes` / `parts.notes` | empty / empty; 91 parts joined, 12 graver cuts |
+| Bore margin | −0.0009 mm (the stock's own bore) |
+| Field verdict (lost wax) | **Castable**; thinnest wall 1.37 mm (floor 0.8) |
+| DFM findings | 0 |
+| Stones reported / previewed | 21 / 21 (CAD moonstones counted by `built_vertices`); metal inside stones 0 |
+| Closest pair | Shoulder B2.1 to B2.2, 0.22 mm at the girdle |
+| Metal | 29.8 g of 18k |
 
-## For a ring author
+These gates were not run, because no round was reached:
 
-Draw what you mean and stop working around the kernel:
+- the export build at 1536 × 448 and `--verify`;
+- the casting pattern;
+- the template gate.
 
-- **Revolves:** use real sketch arcs, not chord-walked polylines.
-- **Drafted extrusions:** Béziers and sharp crocket tips are fine. A draft that would close a neck is refused by name; draft less or widen the neck.
-- **Mirrored outlines:** they may share one Sketch feature. Overlap the halves by at least height × tan(draft), or a groove stays where they meet.
-- **Lofts:** list fanned sections in either order, and start a section on any corner.
-- **Booleans:** a Brep minus a Brep the kernel cannot close now resolves through csg.
+The example runs all of them: an export run gates, verifies, writes the STLs and `stones.json`.
 
-Each of these comes back as a mesh rather than a kernel body only where the kernel failed. So fillet before the step that falls back, not after it, and check `Value::mesh_words` in any refusal you see.
+## The construction, as sentences
 
-What remains: a part turn of a section with holes that the kernel cannot tessellate is still refused. A revolve with arcs now pays one extra tessellation in `body_for`, about the cost of one tessellation, so up to about 0.6 s at export on a large arch.
+Nothing goes through the height field except the stock. Every element is a sculpted CAD part (`Operation::Stored`, `Attach::Join`) generated in the example.
+
+- **Depth maps.** The bare 003 surface is rasterised from its `Atlas` into three kinds of depth map:
+  - a plane map looking down on the table;
+  - one plane map for each cheek;
+  - a cylinder map round the crest.
+- **Pillows.** Each part is a pillow: rings shrunk from its margin to its spine, closed by ladders top and bottom.
+  - Leaves have an obovate strap plan, a 0.2 mm wall, a 0.1 mm top round, and a cushion crown of 0.95 mm.
+  - Stems are half-round, 0.12 mm proud, with round ends.
+  - "Bridge" stems ride the highest stock within reach, so the bough crosses the crease instead of lying in it.
+  - "Free" blades lie on a quadric fitted to the stock, and run on past a lobe's edge on their own underside.
+- **Unique sinks.** Every part sinks to its own depth, so no two part bottoms are coplanar.
+- **Face.**
+  - One node.
+  - Four strap leaves along the lobe axes: 9.4 and 9.0 mm on one pair, 7.9 and 7.5 mm on the other, about 3.2 mm wide.
+  - Stalks running into the node.
+  - Twelve graver cuts (`Attach::Cut` tubes): a 0.24 mm half-round trench round each leaf, and a tapering midrib.
+  - A bunch of three berries (2.4, 2.1 and 2.1 mm) beside the node, and a pair of 1.9 mm berries astride the bough.
+- **Berries.**
+  - The face and shoulder berries are CAD moonstones placed by a Transform. Each sits on its own fitted mound part, in a thin flush bezel (wall 0.3, lip 0.1), with the builder's seat bur.
+  - Field gypsy mounds folded over the clover's central crease and could not cut their seats there. A seat straddling the chart's 0°/360° seam failed the same way.
+  - The four cheek berries (1.5 mm) are flush gypsy-mound field seats on the lobe walls.
+- **Shoulders.** The bough runs from the face notch down each crest. Two Y-fork units sit on each side:
+  - twigs at ±27°, with a joint knob at each tip carrying one leaf of the pair;
+  - a tight bunch of three in the crotch: 1.95, 1.8 and 1.7 mm, then 1.8, 1.65 and 1.6 mm.
+- **Cheeks.** Each lobe wall carries a twig hanging from the face's edge to a joint, with a downward leaf pair and one berry in its V.
+- **Stone count.** 5 (face) + 12 (shoulders) + 4 (cheeks) = 21 moonstones.
+
+## Enablers from master
+
+The new close-up renders use #248's `render::write_png_framed` with `yaw_facing` (`stones.png`, `shoulder-close.png`), in place of a cropped mesh. No other enabler was used:
+
+- `crisp_relief` and `StampTop::Pillow` do not apply, since nothing on the ring is height-field relief or a stamp;
+- the C-B2 plans are not needed, since every stone is round;
+- the C-V and C-T enablers, and #255, #258 and #259, were not reached before the stop.
+
+## What I could not do
+
+- **Make the 003 lobes stop reading as petals.** None of the three approaches above worked. See the rethink.
+- **Cut texture into imported stock.** A `Subtract` tiling, with or without `bench_only`, showed no relief on native 003. Its heights evaluate to between 0.02 and 0.18 mm, but the mesh does not change.
+- **Lay seam beads on these parts.** `blend_mm` beads on the stored pillows folded or pinched ("the bead folds at N stations"). I set every part's blend to 0, so the lessons' 0.3–0.4 mm fillet is not met.
+
+## Core changes wanted
+
+1. **Negative field relief on imported stock.** A `Blend::Subtract` layer should cut the stock, as it does on a procedural band, so that matte grounds and bark can be laid on factory signets. I have not located the clamp in `imported_base`'s field evaluation, so I cannot give exact code. The repro is `VISCUM_BARK=1 VISCUM_BARK_BENCH=1 VISCUM_HAMMER=1 target/release/examples/vepres_viscum OUT --draft`: the layer evaluates to non-zero heights, but the finished mesh is unchanged.
+2. **Seat pads that do not fold over a concave crease.** Clamp a pad's normal offset by the local valley radius, or blend the pad's normals over its footprint before displacing. The repro is a `SeatPadLayer` gypsy mound at the 003 centre, `(θ 87°, v 8.1)`: it gives 114 self-crossings and "its seat could not be cut".
