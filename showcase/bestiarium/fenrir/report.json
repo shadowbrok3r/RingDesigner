@@ -2,17 +2,17 @@
   "bore_mm": 19.0,
   "build": {
     "profile_steps": 448,
-    "seconds": 713.975285203,
+    "seconds": 642.016798837,
     "theta_steps": 1536,
-    "triangles": 1226262
+    "triangles": 1226212
   },
   "census": {
     "edges_60_deg_by_zone": {
       "band and painted layers": {
-        "cells_1mm": 154,
-        "edges_60": 2313,
-        "edges_90": 275,
-        "length_mm": 136.41780753606687
+        "cells_1mm": 419,
+        "edges_60": 11899,
+        "edges_90": 1556,
+        "length_mm": 653.6846518525838
       },
       "brow": {
         "cells_1mm": 0,
@@ -58,15 +58,15 @@
       },
       "head flanks and throat": {
         "cells_1mm": 54,
-        "edges_60": 1731,
-        "edges_90": 174,
-        "length_mm": 21.032692286267125
+        "edges_60": 1727,
+        "edges_90": 172,
+        "length_mm": 21.140685506947722
       },
       "hollow under the head": {
         "cells_1mm": 64,
         "edges_60": 878,
         "edges_90": 347,
-        "length_mm": 50.65528164202377
+        "length_mm": 50.6552816420237
       },
       "lower jaw and chin": {
         "cells_1mm": 0,
@@ -78,7 +78,7 @@
         "cells_1mm": 15,
         "edges_60": 90,
         "edges_90": 22,
-        "length_mm": 6.785642378661064
+        "length_mm": 6.785642378661065
       },
       "muzzle": {
         "cells_1mm": 0,
@@ -105,20 +105,14 @@
         "length_mm": 0.27809999181280676
       }
     },
-    "seam_crease_run_mm": 1.2572083024325744
+    "seam_crease_run_mm": 1.0933464611102843
   },
   "cold_reload": {
     "identical_vertices_faces_normals": true,
-    "ms": 15069.264045
+    "ms": 13866.526093999999
   },
   "composition": {
-    "fold_caps": [
-      {
-        "r_mm": 10.712521189061164,
-        "theta_deg": 47.58198634396526,
-        "z_mm": -5.6368191728443495
-      }
-    ],
+    "fold_caps": [],
     "gleipnir_cell_mm": [
       2.6582707068836706,
       11.800258881361014
@@ -129,7 +123,7 @@
       "packed_bytes": 1311304,
       "packed_fnv1a": "5fd2acdb59fcbfc4",
       "raw_triangles": 1277288,
-      "seconds": 519.47980454,
+      "seconds": 523.142459293,
       "self_crossings": 0,
       "triangles": 117772,
       "vertices": 58874,
@@ -154,7 +148,7 @@
     "table_y_mm": 14.016453517526037
   },
   "design": {
-    "bytes": 2574028,
+    "bytes": 2574692,
     "cad_features": 5,
     "format_version": 6,
     "layers": [
@@ -169,9 +163,9 @@
   "draft": {
     "build": {
       "profile_steps": 320,
-      "seconds": 705.747259624,
+      "seconds": 630.663108264,
       "theta_steps": 768,
-      "triangles": 417336
+      "triangles": 417318
     },
     "dfm": [],
     "field": {
@@ -179,13 +173,13 @@
         "Lost wax: 9.08% of the surface would undercut a two-part pull (worst 46.4 deg) — fine for investment, but this pattern cannot move to sand as-is.",
         "Undercut 101–79° on the crest: 128.5 mm² leaning to 43° — no single layer explains it.",
         "Cut at the bench after casting, and so not judged here: Graver's hair lines.",
-        "Measured with the ring as built: 3 CAD parts (2 joined, 1 cut), 1049.3 mm² of part surface; under lost wax they are reported, never gating.",
+        "Measured with the ring as built: 3 CAD parts (2 joined, 1 cut), 1049.5 mm² of part surface; under lost wax they are reported, never gating.",
         "Lost wax: Stored mesh \"Fenrir's head\" (#4) would undercut a two-part pull over 255.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Stored mesh \"Hollow under the head\" (#5) would undercut a two-part pull over 230.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "thinnest_wall_mm": 1.3227560269617804,
       "thinnest_wall_theta_deg": 255.9375,
-      "undercut_percent": 24.656062456874384,
+      "undercut_percent": 24.65464107982246,
       "verdict": "Castable"
     },
     "gates": [
@@ -258,13 +252,13 @@
       "validation": {
         "boundary_edges": 0,
         "non_manifold_edges": 0,
-        "triangle_count": 417336,
-        "vertex_count": 208656,
+        "triangle_count": 417318,
+        "vertex_count": 208647,
         "watertight": true
       },
-      "volume_mm3": 2038.9217285304055
+      "volume_mm3": 2039.4457624592794
     },
-    "grams_18k": 31.76640053050372,
+    "grams_18k": 31.774564979115574,
     "hollow": {
       "more_sections": [
         "section-70.png",
@@ -482,7 +476,7 @@
         {
           "feature": "head mass",
           "min_section_mm": 0.8873488854690529,
-          "samples": 30204,
+          "samples": 30185,
           "sub_floor_from_tip_mm": 0.0,
           "sub_floor_samples": 0
         },
@@ -641,14 +635,14 @@
         "worst_aspect": 9652.75691699041
       },
       "release": {
-        "obstructions": 132
+        "obstructions": 152
       },
       "self_crossings": 0,
       "validation": {
         "boundary_edges": 0,
         "non_manifold_edges": 0,
-        "triangle_count": 417324,
-        "vertex_count": 208650,
+        "triangle_count": 417320,
+        "vertex_count": 208648,
         "watertight": true
       }
     },
@@ -675,13 +669,13 @@
       "Lost wax: 9.08% of the surface would undercut a two-part pull (worst 46.4 deg) — fine for investment, but this pattern cannot move to sand as-is.",
       "Undercut 101–79° on the crest: 128.5 mm² leaning to 43° — no single layer explains it.",
       "Cut at the bench after casting, and so not judged here: Graver's hair lines.",
-      "Measured with the ring as built: 3 CAD parts (2 joined, 1 cut), 1049.4 mm² of part surface; under lost wax they are reported, never gating.",
+      "Measured with the ring as built: 3 CAD parts (2 joined, 1 cut), 1049.5 mm² of part surface; under lost wax they are reported, never gating.",
       "Lost wax: Stored mesh \"Fenrir's head\" (#4) would undercut a two-part pull over 255.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Stored mesh \"Hollow under the head\" (#5) would undercut a two-part pull over 230.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "thinnest_wall_mm": 1.3227560269617804,
     "thinnest_wall_theta_deg": 255.9375,
-    "undercut_percent": 24.656173397264673,
+    "undercut_percent": 24.65465981779805,
     "verdict": "Castable"
   },
   "gates": [
@@ -754,13 +748,13 @@
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 1226262,
-      "vertex_count": 613119,
+      "triangle_count": 1226212,
+      "vertex_count": 613094,
       "watertight": true
     },
-    "volume_mm3": 2039.0364967185405
+    "volume_mm3": 2039.4863155589753
   },
-  "grams_18k": 31.76818861887486,
+  "grams_18k": 31.77519679640884,
   "hollow": {
     "more_sections": [
       "section-70.png",
@@ -979,7 +973,7 @@
       {
         "feature": "head mass",
         "min_section_mm": 0.8873488854690529,
-        "samples": 32590,
+        "samples": 32569,
         "sub_floor_from_tip_mm": 0.0,
         "sub_floor_samples": 0
       },
@@ -1139,14 +1133,14 @@
       "worst_aspect": 7773.276795900674
     },
     "release": {
-      "obstructions": 128
+      "obstructions": 131
     },
     "self_crossings": 0,
     "validation": {
       "boundary_edges": 0,
       "non_manifold_edges": 0,
-      "triangle_count": 1226276,
-      "vertex_count": 613126,
+      "triangle_count": 1226218,
+      "vertex_count": 613097,
       "watertight": true
     }
   },
