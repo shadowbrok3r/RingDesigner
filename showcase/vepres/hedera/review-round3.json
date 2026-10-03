@@ -1,0 +1,62 @@
+{
+  "ring": "Hedera",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.0,
+  "summary": "Cut at 6.0. This is round 3, the last round. Caiman scores 7 and the ship bar is 7.5. Every gate is green: the template is 299,166 B against a 300,000 B budget, verification.json (20:14) is newer than report.json (20:12), and both record 1,157,104 triangles. The art has not moved from round 2. Round 2 said that round 3 had to fix coverage, the small leaves and the rootlets together, and that anything less was a cut. None of the three landed. (1) Coverage: the ring is still a plain polished D band with one stem pass and one crown leaf. Bare host is well over half the visible outer surface in hero.png, face.png and bare-vs-finished.png. The crown from the leaf tip to the berries is still empty, there is no second stem, and the stem has no bark. (2) The small leaves are still crumpled, faceted slabs with vertical walls, and none has the ivy outline. In palm.png and reverse.png they read as a row of broken tabs or tyre tread, and in stem-close.png as torn flags. (3) The rootlets are still short radial spikes standing off the stem (hero.png, crown-close.png, stem-close.png), which says thorn or bristle, not gripping root. The umbel is unchanged: deep straight collet tubes, stair-stepped cabochon reflections (reference-spinel.stl is still about 5,800 triangles at 289,884 B), and a knuckled peduncle (stones.png right). The crown leaf still names the ring as ivy in hero-300. In face-300, though, its short terminal lobe is close to a five-point star or starfish, and its lateral veins still stop at mid-blade. Against Caiman's edge-to-edge working and the Reptilia sheet, this is a sparse band with one good motif.",
+  "strengths": [
+    "Every gate is green. The body walls have margin (minimum sampled 0.801 mm on the body parts, 0 below the floor, 0 unresolved; field thinnest 1.89 mm), and the template fits the procedural budget.",
+    "The crown leaf has a crisp, continuous outline with a long terminal lobe, rounded ears and a midrib from the petiole to the tip. It still gives the stylised ivy glyph in hero-300.",
+    "The stem is a convincing round cable that hugs the band and carries the petiole into the leaf, so one plant runs from the crown to the palm.",
+    "Five black spinels are the right ivy-berry colour, and the cluster reads as a bunch at 300 px."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "Ivy only: one stem, the leaves, five black berries and rootlets. The palm leaves sit in a single file along one edge (palm.png). They are sparse, but on theme."},
+    {"item": "Reads as its plant at 300 px without the caption", "result": "pass", "reason": "Marginal. hero-300 says ivy from the crown leaf and the black berries. In face-300 the leaf drifts toward a star or starfish, and the spiky rootlets pull toward thorn. The palm leaves in contact-300 read as tread, not leaves."},
+    {"item": "Figurative motifs have true outlines, crisp, no combing, smearing or stair-steps", "result": "fail", "reason": "The crown leaf's outline is crisp. The small leaves have no readable outline: they are crumpled, faceted lumps (stem-close.png, palm.png, reverse.png). The cabochon reflections are stair-stepped on all five stones (stones.png). The crown leaf's terminal lobe still shows triangulated shading streaks (crown-close.png)."},
+    {"item": "Stones in made settings, visible, coloured as fruit", "result": "fail", "reason": "The colour is right, but the collets are deep straight-walled tubes. In stones.png the gold rims and walls take a large share of each berry. In side.png and reverse.png the outer collets stand off the band's side as a stack of pipes. The peduncle ends in a mechanical knuckle. It reads as gems in tubes, not as an umbel."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "The small leaves are constant-thickness slabs with vertical walls, and some overhang the band edge as tabs (side.png bottom, contact-300 top right, palm.png bottom). The collets are cylinders. The rootlets are straight cones."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "Not applicable. The host is a procedural D-shape by design, and it is clean."},
+    {"item": "A silhouette distinct from the other Vepres rings", "result": "pass", "reason": "It is the only rendered Vepres ring, so it is distinct by default. But in side.png it is still almost a plain circle, broken only by the leaf, the berries and small tabs."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "The hierarchy exists, but the density does not. Bare polished host is well over half of the visible surface, and the right half of the crown is empty. Caiman and the Reptilia rings are worked edge to edge. This is below Caiman."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces, 0 self-crossings (ring)", "claimed": "pass", "verified": "geometry watertight true, degenerate_faces 0, self_crossings 0", "pass": true},
+    {"gate": "0 self-crossings on every made part", "claimed": "pass", "verified": "made_parts: all 39 entries 0", "pass": true},
+    {"gate": "Empty solids and parts notes", "claimed": "pass", "verified": "notes {parts: [], solids: []}", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "bore vertices_inside 0, nearest 9.30 mm at radius 9.3", "pass": true},
+    {"gate": "Lost wax verdict Castable, thinnest wall >= 0.8 mm", "claimed": "pass", "verified": "field verdict Castable, thinnest_wall_mm 1.889. 27 body parts: minimum ray wall 0.801 mm, 0 below the floor, 0 unresolved. Collets (0.247 mm) and the rootlet tuft (0.169 mm) are held at the 0.15 mm detail floor under Logan's 2026-10-03 rule", "pass": true},
+    {"gate": "Sand field, ray release and clamp gates", "claimed": "n/a (lost wax)", "verified": "process 'Lost wax'; replaced by the 0.8 mm wall gate", "pass": true},
+    {"gate": "Parting-line stamps pass parting_monotone", "claimed": "n/a", "verified": "no parting-line stamps", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings []", "pass": true},
+    {"gate": "Stone count equals the preview, no metal in stones", "claimed": "pass", "verified": "reported 5 = previewed 5; metal_inside all 0; warnings []; closest Berry 1 to Berry 4 at 0.19 mm", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "pass", "verified": "report cold_reload_identical true; verification.json vertices_faces_normals_identical, cold_design_reload, cold_graph_reload and source_identical all true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "1,157,104 triangles at 1536 x 448, equal in report.json and verification.json", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "pattern watertight true, 0 degenerates, 0 crossings", "pass": true},
+    {"gate": "Template gate: <= 4 design.set patches within the class budget", "claimed": "pass", "verified": "template_gate_passed true; 299,166 B <= 300,000 B (procedural); 1 design.set patch (/manufacturing); verification.json at 20:14, after report.json at 20:12", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P1 (for any revival under a new concept)", "zone": "Host coverage: crown and shoulders, theta 0 to 180", "change": "Add a second stem pass or branch across the crown under the leaf tip to the peduncle. Add 4 to 6 overlapping leaves in three sizes (2.5, 3.5 and 5 mm) on visible petioles. Add a 0.05 to 0.08 mm bark striation on the stems. The template has 0.8 KB left, so the added geometry must come from script nodes or the budget must be reclassified.", "acceptance": "In hero.png and face.png, bare host is at most 35% of the visible outer surface, and no bare crown run between the leaf and the berries is longer than 4 mm."},
+    {"number": 2, "priority": "P1", "zone": "Small leaves: Leaf 1 to 9 (shoulders, palm)", "change": "Rebuild each leaf with the crown leaf's three-lobed outline, 0.4 to 0.6 mm at the midrib tapering to 0.2 mm at the margin, with no vertical walls. Curl a leaf that meets the band edge over the fillet, at most 0.3 mm proud.", "acceptance": "In palm.png and reverse.png, every small leaf shows the ivy outline and a midrib. No tab projects past the band edge in side.png."},
+    {"number": 3, "priority": "P1", "zone": "Rootlet tuft array, theta about 120 to 340, both flanks", "change": "Replace the spikes with 3 to 5 filaments per tuft, lying at most 15 degrees off the band and 0.3 to 0.5 mm long, every 1.2 to 1.5 mm.", "acceptance": "In stem-close.png and hero.png, no rootlet stands above the stem's top line. A cold read of hero-300 does not mention thorns or bristles."},
+    {"number": 4, "priority": "P2", "zone": "Berry 1 to 5 collets, peduncle; reference-spinel.stl", "change": "Cut the collets to low 0.25 mm rims so that at least 60% of each cabochon stands proud. Pull the outer collets onto the crown. Blend the peduncle into the stem. Re-tessellate the spinel mesh to at least 128 x 64.", "acceptance": "In stones.png the reflections are smooth with no stair-steps, and each berry's black area is at least twice its gold rim. No collet tube shows past the side face in side.png."}
+  ],
+  "viewed_images": [
+    "showcase/vepres/hedera/hero-300.png",
+    "showcase/vepres/hedera/face-300.png",
+    "showcase/vepres/hedera/contact-300.png",
+    "showcase/vepres/hedera/hero.png",
+    "showcase/vepres/hedera/face.png",
+    "showcase/vepres/hedera/crown-close.png",
+    "showcase/vepres/hedera/stem-close.png",
+    "showcase/vepres/hedera/crown-hero.png",
+    "showcase/vepres/hedera/palm.png",
+    "showcase/vepres/hedera/side.png",
+    "showcase/vepres/hedera/shoulder.png",
+    "showcase/vepres/hedera/reverse.png",
+    "showcase/vepres/hedera/stones.png",
+    "showcase/vepres/hedera/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
