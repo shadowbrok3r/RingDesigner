@@ -3,7 +3,7 @@
   "bore_mm": 18.6,
   "casting_pattern": null,
   "cold_reload_identical": null,
-  "design_bytes": 116432,
+  "design_bytes": 416176,
   "design_format": 6,
   "draft": {
     "bore_margin_mm": -4.7445255546563203e-7,
@@ -12,7 +12,7 @@
       768,
       320
     ],
-    "build_s": 1.153965009,
+    "build_s": 3.6795580169999997,
     "cad": {
       "features": [],
       "made_parts": [],
@@ -25,39 +25,38 @@
     "dfm_findings": [],
     "field_notes": [
       "Field-sampled: the surface itself carries no undercut at this parting.",
-      "Cut at the bench after casting, and so not judged here: Seal field, Seal fleur, centre petal, Seal fleur, band, Seal fleur, foot, Seal fleur, right petal, Seal fleur, right foot, Seal fleur, left petal, Seal fleur, left foot."
+      "Cut at the bench after casting, and so not judged here: Seal field, Seal fleur, centre petal, Seal fleur, band, Seal fleur, foot, Seal fleur, right petal, Seal fleur, right spike, Seal fleur, left petal, Seal fleur, left spike, Inner fillet, 1, Inner fillet, 2, Inner fillet, 3, Inner fillet, 4, Inner fillet, 5, Inner fillet, 6, Inner fillet, 7, Inner fillet, 8, Inner fillet, 9, Inner fillet, 10, Inner fillet, 11, Inner fillet, 12, Inner fillet, 13, Inner fillet, 14, Inner fillet, 15, Inner fillet, 16, Cusped border, 1, Cusped border, 2, Cusped border, 3, Cusped border, 4, Cusped border, 5, Cusped border, 6, Cusped border, 7, Cusped border, 8, Cusped border, 9, Cusped border, 10, Cusped border, 11, Cusped border, 12, Cusped border, 13, Cusped border, 14, Cusped border, 15, Cusped border, 16, Legend, cross, Legend, S 1 stroke 1, Legend, S 1 stroke 2, Legend, S 1 stroke 3, Legend, S 1 stroke 4, Legend, S 1 stroke 5, Legend, I 2 stroke 1, Legend, G 3 stroke 1, Legend, G 3 stroke 2, Legend, G 3 stroke 3, Legend, G 3 stroke 4, Legend, G 3 stroke 5, Legend, G 3 stroke 6, Legend, G 3 stroke 7, Legend, I 4 stroke 1, Legend, L 5 stroke 1, Legend, L 5 stroke 2, Legend, L 6 stroke 1, Legend, L 6 stroke 2, Legend, V 7 stroke 1, Legend, V 7 stroke 2, Legend, V 7 stroke 3, Legend, V 7 stroke 4, Legend, M 8 stroke 1, Legend, M 8 stroke 2, Legend, M 8 stroke 3, Legend, M 8 stroke 4, Legend, M 8 stroke 5, Legend, M 8 stroke 6, Legend, M 8 stroke 7, Legend, C 10 stroke 1, Legend, C 10 stroke 2, Legend, C 10 stroke 3, Legend, C 10 stroke 4, Legend, C 10 stroke 5, Legend, A 11 stroke 1, Legend, A 11 stroke 2, Legend, A 11 stroke 3, Legend, A 11 stroke 4, Legend, A 11 stroke 5, Legend, P 12 stroke 1, Legend, P 12 stroke 2, Legend, P 12 stroke 3, Legend, P 12 stroke 4, Legend, I 13 stroke 1, Legend, T 14 stroke 1, Legend, T 14 stroke 2, Legend, T 14 stroke 3, Legend, V 15 stroke 1, Legend, V 15 stroke 2, Legend, V 15 stroke 3, Legend, V 15 stroke 4, Legend, L 16 stroke 1, Legend, L 16 stroke 2, Legend, I 17 stroke 1."
     ],
     "field_verdict": "Castable",
-    "grams_925": 17.84457066180499,
-    "min_angle_deg": 0.001179708513223302,
+    "grams_925": 17.79572492267467,
+    "min_angle_deg": 0.00010899917856027421,
     "non_manifold_edges": 0,
     "parting_monotone": [],
     "parts_cut": 0,
     "parts_notes": [],
-    "pass": true,
+    "pass": false,
     "release_0075": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
     "release_0075_obstruction_at": [],
     "release_0075_obstructions": 0,
     "release_0075_unresolved": 0,
     "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
-    "release_0100_low_draft_area_mm2": 361.9671302271352,
+    "release_0100_low_draft_area_mm2": 362.1989878923679,
     "release_0100_notes": [
-      "361.97 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
-      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
-      "Some faces have negative draft without a resolved interval obstruction; inspect at finer sampling"
+      "362.20 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
     ],
     "release_0100_obstructions": 0,
     "release_0100_sand_findings": [
       "Sand slot about 0.40 mm wide; inspect its support and depth at [0.05, 9.48, 0.00]"
     ],
     "release_0100_unresolved": 0,
-    "self_crossings": 0,
+    "self_crossings": 7,
     "solids_notes": [],
-    "stamps_struck": 14,
+    "stamps_struck": 101,
     "stones_previewed": 0,
     "stones_reported": 0,
     "thinnest_wall_mm": 1.4649834128981514,
-    "triangles": 498622,
+    "triangles": 528838,
     "undercut_percent": 0.0,
     "watertight": true,
     "worst_draft_deg": -0.4099372341160631
@@ -68,17 +67,17 @@
     15.6
   ],
   "features": null,
-  "gates_passed": true,
+  "gates_passed": false,
   "layers": [],
   "name": "Sigillum — the chapter seal",
   "placed": {
     "arcade": [
-      "Chapter-house arcade 1, 1 at 100.72 deg, v 15.811",
-      "Chapter-house arcade 1, 2 at 90.00 deg, v 15.762",
-      "Chapter-house arcade 1, 3 at 79.28 deg, v 15.811",
-      "Chapter-house arcade 2, 1 at 100.72 deg, v 2.784",
-      "Chapter-house arcade 2, 2 at 90.00 deg, v 2.833",
-      "Chapter-house arcade 2, 3 at 79.28 deg, v 2.784"
+      "Chapter-house arcade 1, 1 at 100.20 deg, v 15.932",
+      "Chapter-house arcade 1, 2 at 90.00 deg, v 15.932",
+      "Chapter-house arcade 1, 3 at 79.80 deg, v 15.956",
+      "Chapter-house arcade 2, 1 at 100.20 deg, v 2.639",
+      "Chapter-house arcade 2, 2 at 90.00 deg, v 2.663",
+      "Chapter-house arcade 2, 3 at 79.80 deg, v 2.663"
     ],
     "cheek_x_mm": [
       -10.102284090709873,
@@ -95,7 +94,7 @@
       15.6
     ],
     "table_crown_mm": 14.446300983428955,
-    "table_sag_at_field_edge_mm": 0.5952518234650288
+    "table_sag_at_field_edge_mm": 0.6054295649131145
   },
   "process": "Sand (two-part)",
   "sand": "Delft clay, 3.0 deg draft, 0.8 mm section, 0.30 mm detail",
@@ -118,7 +117,7 @@
       "bench": true,
       "cut": true,
       "name": "Seal fleur, centre petal",
-      "sink_mm": 0.75,
+      "sink_mm": 0.8,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -128,7 +127,7 @@
       "bench": true,
       "cut": true,
       "name": "Seal fleur, band",
-      "sink_mm": 0.75,
+      "sink_mm": 0.7000000000000001,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -138,7 +137,7 @@
       "bench": true,
       "cut": true,
       "name": "Seal fleur, foot",
-      "sink_mm": 0.75,
+      "sink_mm": 0.7000000000000001,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -148,7 +147,7 @@
       "bench": true,
       "cut": true,
       "name": "Seal fleur, right petal",
-      "sink_mm": 0.75,
+      "sink_mm": 0.8,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -157,8 +156,8 @@
       "along_pull": false,
       "bench": true,
       "cut": true,
-      "name": "Seal fleur, right foot",
-      "sink_mm": 0.75,
+      "name": "Seal fleur, right spike",
+      "sink_mm": 0.7000000000000001,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -168,7 +167,7 @@
       "bench": true,
       "cut": true,
       "name": "Seal fleur, left petal",
-      "sink_mm": 0.75,
+      "sink_mm": 0.8,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -177,8 +176,878 @@
       "along_pull": false,
       "bench": true,
       "cut": true,
-      "name": "Seal fleur, left foot",
-      "sink_mm": 0.75,
+      "name": "Seal fleur, left spike",
+      "sink_mm": 0.7000000000000001,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 4",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 5",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 6",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 7",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 8",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 9",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 10",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 11",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 12",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 13",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 14",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 15",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Inner fillet, 16",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 4",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 5",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 6",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 7",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 8",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 9",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 10",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 11",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 12",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 13",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 14",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 15",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, 16",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, cross",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, S 1 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, S 1 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, S 1 stroke 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, S 1 stroke 4",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, S 1 stroke 5",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, I 2 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, G 3 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, G 3 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, G 3 stroke 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, G 3 stroke 4",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, G 3 stroke 5",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, G 3 stroke 6",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, G 3 stroke 7",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, I 4 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, L 5 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, L 5 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, L 6 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, L 6 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, V 7 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, V 7 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, V 7 stroke 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, V 7 stroke 4",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, M 8 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, M 8 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, M 8 stroke 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, M 8 stroke 4",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, M 8 stroke 5",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, M 8 stroke 6",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, M 8 stroke 7",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, C 10 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, C 10 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, C 10 stroke 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, C 10 stroke 4",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, C 10 stroke 5",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, A 11 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, A 11 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, A 11 stroke 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, A 11 stroke 4",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, A 11 stroke 5",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, P 12 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, P 12 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, P 12 stroke 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, P 12 stroke 4",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, I 13 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, T 14 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, T 14 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, T 14 stroke 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, V 15 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, V 15 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, V 15 stroke 3",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, V 15 stroke 4",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, L 16 stroke 1",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, L 16 stroke 2",
+      "sink_mm": 0.1,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Legend, I 17 stroke 1",
+      "sink_mm": 0.1,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -188,60 +1057,60 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 1, 1",
-      "sink_mm": 0.35,
-      "theta_deg": 100.72265625,
+      "sink_mm": 0.3,
+      "theta_deg": 100.1953125,
       "tier": 0,
-      "v_mm": 15.81091065706495
+      "v_mm": 15.931974291498832
     },
     {
       "along_pull": true,
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 1, 2",
-      "sink_mm": 0.35,
+      "sink_mm": 0.3,
       "theta_deg": 90.0,
       "tier": 0,
-      "v_mm": 15.762485203291398
+      "v_mm": 15.931974291498832
     },
     {
       "along_pull": true,
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 1, 3",
-      "sink_mm": 0.35,
-      "theta_deg": 79.27734375,
+      "sink_mm": 0.3,
+      "theta_deg": 79.8046875,
       "tier": 0,
-      "v_mm": 15.81091065706495
+      "v_mm": 15.956187018385608
     },
     {
       "along_pull": true,
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 2, 1",
-      "sink_mm": 0.35,
-      "theta_deg": 100.72265625,
+      "sink_mm": 0.3,
+      "theta_deg": 100.1953125,
       "tier": 0,
-      "v_mm": 2.7844635919792795
+      "v_mm": 2.6391872306586213
     },
     {
       "along_pull": true,
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 2, 2",
-      "sink_mm": 0.35,
+      "sink_mm": 0.3,
       "theta_deg": 90.0,
       "tier": 0,
-      "v_mm": 2.832889045752832
+      "v_mm": 2.6633999575453973
     },
     {
       "along_pull": true,
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 2, 3",
-      "sink_mm": 0.35,
-      "theta_deg": 79.27734375,
+      "sink_mm": 0.3,
+      "theta_deg": 79.8046875,
       "tier": 0,
-      "v_mm": 2.7844635919792795
+      "v_mm": 2.6633999575453973
     }
   ]
 }

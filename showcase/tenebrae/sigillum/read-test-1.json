@@ -1,0 +1,34 @@
+{
+  "ring": "sigillum",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain, polished gold cushion signet with one small fleur-de-lis inside a four-lobed outline in the middle of the table, and nothing else. A jeweller says 'fleur-de-lis signet' (French heraldry, or the Scout badge), not 'chapter seal' and not 'Gothic cathedral'. Nothing on it says seal: there is no legend, no border ring and no cusped frame. The table outline reads as a barrelled rounded rectangle with straight sides, so the 005 rosette's cusps have gone. The cheek arcade shows as three or four small tick marks under the table edge in the hero, and no pointed arch can be seen. The shoulder roundels cannot be seen at all. The motif covers about a third of the face, and the rest is bare polish. Worse, at 300 px on the face view the fleur's curled side petals and the curved band under them read as two closed eyes over a grin, so the emblem looks like a smiley face. Caiman and the Reptilia signets carry ornament from edge to edge; this one is far below that density.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the table read as a seal matrix: add the legend band and a cusped border.",
+      "where": "Table, rim zone, radius about 5.6 to 7.4 mm from the table centre",
+      "how_much": "Cut two concentric fillet rings 0.35 mm wide and 0.35 deep at r 7.2 and r 5.4. Between them, cut the mirrored Textura legend '✠ SIGILLVM CAPITVLI' at 1.2 mm cap and 0.40 deep, tracked to close the full circle. Use the TextAlpha bench layer now if C-T6 is still blocked. On the outer ring, cut 8 to 12 inward-pointing cusps (about 0.6 mm deep) so the rosette's Gothic cusped frame comes back. Acceptance: at 300 px the face view shows a lettered band running all the way round the motif, inside a cusped edge."
+    },
+    {
+      "priority": 2,
+      "what": "Redraw the central device as Gothic and get rid of the smiley-face read.",
+      "where": "Table centre: the Seal field and Seal fleur sketches",
+      "how_much": "Grow the quatrefoil field from 9.0 to about 10.5 mm across and make each foil pointed (ogee tips) with an inner cusp between foils. Do not round the lobes. Redraw the fleur's band as a straight horizontal bar and the side petals as straight, downward-pointing spikes, not curls, so nothing forms eyes or a mouth. Deepen the fleur from 0.70 to 0.80 if the table-over-bore figure allows, or else raise the field contrast with a 0.30 to 0.50 step. A better seal subject is a twin-towered west front or a lancet under a gabled canopy at about 6 mm tall, the iconography real chapter seals use. Acceptance: shown the 300 px face, a viewer names a fleur-de-lis or a church in a cusped quatrefoil and does not see a face."
+    },
+    {
+      "priority": 3,
+      "what": "Make the cheek arcade read as pointed arches in the hero.",
+      "where": "Both ±z cheeks under the table, the 'Chapter-house arcade' stamps",
+      "how_much": "Enlarge the arcade from 7.0 × 2.2 mm to about 10 × 3.2 mm, filling the cheek height, with clearly pointed (equilateral) heads and bars at least 0.5 mm. Sink it 0.50, not 0.35, staying along the pull. Move the 12 shoulder roundels up to the largest size the 2.6 mm wall allows (Ø 2.4 / 2.0 / 1.6). Acceptance: in the 300 px hero, three lancet arches can be counted on the near cheek."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/sigillum/hero-300.png",
+    "showcase/tenebrae/sigillum/face-300.png",
+    "showcase/tenebrae/sigillum/contact-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
