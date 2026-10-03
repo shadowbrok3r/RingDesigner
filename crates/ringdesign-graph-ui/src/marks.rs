@@ -39,8 +39,9 @@ pub fn node(key: &str) -> Option<Icon> {
     // lands; the table below only names what differs inside a family.
     match key {
         k if k.starts_with("solid.") || k.starts_with("frame.") => return solid(k),
-        k if k.starts_with("cad.op.") => return Some(Icon::CadSketch),
+        k if k.starts_with("cad.op.") || k.starts_with("sketch.gothic.") => return Some(Icon::CadSketch),
         k if k.starts_with("stamp.outline.") => return Some(Icon::Stamp),
+        k if k.starts_with("path.") => return path(k),
         _ => {}
     }
     Some(match key {
@@ -53,7 +54,7 @@ pub fn node(key: &str) -> Option<Icon> {
 
         // --- the band ----------------------------------------------------
         "band.profile" => Icon::NodeProfile,
-        "band.profile.library" | "outline.library" | "alpha.library" => Icon::Files,
+        "band.profile.library" | "outline.library" | "alpha.library" | "sketch.library" => Icon::Files,
         "band.size" => Icon::NodeSize,
         "band.size.fit" => Icon::NodeFit,
         "design.new" => Icon::Add,
@@ -112,7 +113,8 @@ pub fn node(key: &str) -> Option<Icon> {
         "design.info" => Icon::NodeInfo,
         "design.resize" => Icon::Scale,
         "cad.source" => Icon::CadBand,
-        "cad.feature" => Icon::CadSketch,
+        "cad.feature" | "cad.features" | "sketch.tracery" => Icon::CadSketch,
+        "sketch.text" => Icon::Engrave,
 
         // --- sinks --------------------------------------------------------
         "gate.castable" => Icon::NodeGate,
@@ -182,6 +184,17 @@ pub fn node(key: &str) -> Option<Icon> {
     })
 }
 
+/// Paths read as what they make: a sweep, an array, or the line itself.
+fn path(key: &str) -> Option<Icon> {
+    Some(match key {
+        "path.arc" | "path.crest" => Icon::Path,
+        "path.helix" | "path.wreath" | "path.climb" => Icon::Wire,
+        "path.sweep" => Icon::CadSweep,
+        "path.along" => Icon::Pattern,
+        _ => return None,
+    })
+}
+
 /// Free-mode solids read as the CAD operation they are.
 fn solid(key: &str) -> Option<Icon> {
     Some(match key {
@@ -220,9 +233,12 @@ pub fn button(ui: &mut egui::Ui, icon: Icon, label: &str) -> egui::Response {
 /// The same row for a whole category, which opens a submenu.
 pub fn submenu<R>(ui: &mut egui::Ui, cat: Category, add: impl FnOnce(&mut egui::Ui) -> R) -> egui::Response {
     let icon = category(cat);
-    egui::containers::menu::MenuButton::from_button(
+    // Register with the parent menu so clicking a category keeps the menu
+    // chain open until a node is chosen.
+    egui::containers::menu::SubMenuButton::from_button(
         egui::Button::image_and_text(icon.image(ui, 16.0), cat.label())
             .image_tint_follows_text_color(false)
+            .right_text(egui::containers::menu::SubMenuButton::RIGHT_ARROW)
             .min_size(egui::vec2(ui.available_width().min(210.0), 0.0)),
     )
     .ui(ui, add)

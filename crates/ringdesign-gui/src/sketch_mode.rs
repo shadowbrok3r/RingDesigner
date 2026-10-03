@@ -535,11 +535,11 @@ fn sketch_of(op: &Operation) -> Option<&Sketch> {
         Operation::Sketch { sketch } => Some(sketch),
         Operation::Extrude { sketch, .. } | Operation::Revolve { sketch, .. } | Operation::Sweep { sketch, .. } | Operation::Twist { sketch, .. } => match sketch {
             Profile::Inline(s) => Some(s),
-            Profile::Feature { .. } | Profile::Region { .. } => None,
+            Profile::Feature { .. } | Profile::Region { .. } | Profile::Regions { .. } => None,
         },
         Operation::Loft { sections } => sections.first().and_then(|p| match p {
             Profile::Inline(s) => Some(s),
-            Profile::Feature { .. } | Profile::Region { .. } => None,
+            Profile::Feature { .. } | Profile::Region { .. } | Profile::Regions { .. } => None,
         }),
         _ => None,
     }

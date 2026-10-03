@@ -395,7 +395,7 @@ pub fn digest(doc: &Document, sources: &[Id]) -> String {
             continue;
         }
         if let Some(f) = doc.feature(id) {
-            stack.extend(f.operation.sources());
+            stack.extend(f.sources());
         }
     }
     let mut text = String::new();
@@ -444,7 +444,7 @@ pub(super) fn build(
         }
         None => match &f.component.placement {
             Placement::Free => brep::Placement::IDENTITY,
-            p => p.frame_on(design, ctx.surface)?,
+            p => p.seat_with(design, ctx.surface, &|id| super::host_frame(id, values, frames))?,
         },
     };
     let made = mesh.made()?;
@@ -453,7 +453,53 @@ pub(super) fn build(
         let names = sources.iter().map(|s| who(*s)).collect::<Vec<_>>().join(", ");
         notes.push(format!("{names} changed after {} made this mesh; it stands as made until it runs again where {} is", recipe.kernel_name(), recipe.kernel_name()));
     }
-    Ok(Built { value: Value::Mesh(Arc::new(made.placed(&frame))), frame: Some(frame), attach: None, notes })
+    let placed = made.placed(&frame);
+    let grown = grown_into_band(f, &placed, ctx, &mut notes)?;
+    Ok(Built { value: Value::Mesh(Arc::new(grown.unwrap_or(placed))), frame: Some(frame), attach: None, notes })
+}
+
+/// Largest fillet a stored part grows out of the band with, mm.
+pub const MAX_FILLET_INTO_BAND_MM: f64 = 2.0;
+
+/// The placed part grown out of the band with a fillet of its component's `fillet_into_band`, the two united as fields
+/// ([`crate::sculpt::fillet_into`]) and meshed near as finely as the part; `None` leaves it as stored, said in `notes`
+/// when it was asked for.
+fn grown_into_band(f: &Feature, placed: &builders::Made, ctx: &BuildCtx, notes: &mut Vec<String>) -> Result<Option<builders::Made>> {
+    let blend = f.component.fillet_into_band;
+    if blend == 0.0 {
+        return Ok(None);
+    }
+    ensure!(blend.is_finite() && blend > 0.0 && blend <= MAX_FILLET_INTO_BAND_MM, "A fillet into the band is over 0 and at most {MAX_FILLET_INTO_BAND_MM} mm, not {blend}");
+    if f.component.attach != super::Attach::Join {
+        notes.push(format!("{}: only a joined part grows into the band; it stands as stored", f.name));
+        return Ok(None);
+    }
+    let Some(surface) = ctx.surface.filter(|s| !s.faces.is_empty()) else {
+        notes.push(format!("{}: there is no band to grow into; it stands as stored", f.name));
+        return Ok(None);
+    };
+    let solid = placed.solid();
+    // Meshed about as finely as the part's own edges, and at least four steps across the fillet.
+    let edges: f64 = solid.f.iter().map(|t| (0..3).map(|e| (0..3).map(|k| (solid.v[t[e] as usize][k] - solid.v[t[(e + 1) % 3] as usize][k]).powi(2)).sum::<f64>().sqrt()).sum::<f64>()).sum();
+    let mean_edge = edges / (3 * solid.f.len()).max(1) as f64;
+    let step = mean_edge.min(blend / 4.0).max(0.02);
+    let band = crate::sculpt::MeshField::of_mesh(surface.clone(), blend + 1.0);
+    let stock = |p: csg::P3| band.at(p);
+    ctx.check()?;
+    match crate::sculpt::fillet_into(solid, &stock, blend, step) {
+        Ok(Some(grown)) => {
+            let named = Named { patch: vec![0; grown.f.len()], solid: grown, names: vec!["Face 0".into()] };
+            Ok(Some(builders::Made::of(STORED, named, None)?))
+        }
+        Ok(None) => {
+            notes.push(format!("{} does not come within {blend} mm of the band; it stands as stored", f.name));
+            Ok(None)
+        }
+        Err(e) => {
+            notes.push(format!("{}: {e}; it stands as stored", f.name));
+            Ok(None)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -694,5 +740,88 @@ mod tests {
         assert_eq!(c.frame, source.frame, "seated like the plate the mesh was taken from");
         let d = court(vec![import]);
         assert_eq!(d.cad.as_ref().unwrap().feature(3).unwrap().operation.label(), "Imported solid");
+    }
+
+    /// A sculpted dome packed as a stored part, seated at the top of the ring, joined, and grown into the band by `fillet` mm.
+    fn sculpted(id: Id, fillet: f64) -> Feature {
+        let field = |p: csg::P3| crate::sculpt::ellipsoid([p[0], p[1], p[2] - 0.6], [1.5, 1.2, 1.0]);
+        let raw = crate::sculpt::tetra_mesh([-1.8, -1.5, -0.6], [1.8, 1.5, 1.8], 0.06, &field);
+        let mesh = crate::sculpt::packed(&crate::sculpt::clean_decimate(&raw, 4_000)).unwrap();
+        let recipe = Recipe { kernel: "sculpt".into(), op: "dome".into(), ..Recipe::default() };
+        let component = Component { attach: Attach::Join, placement: import_placement(), fillet_into_band: fillet, ..Component::default() };
+        Feature { id, name: "Dome".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh }, component }
+    }
+
+    /// The design's built ring and its stored part, closed, joined and without a note.
+    fn grown(d: &RingDesign, id: Id) -> (csg::Solid, csg::Solid) {
+        let b = crate::mesh::try_build(d, &AlphaLibrary::builtin(), params()).unwrap();
+        assert_eq!(b.parts.joined, 1, "{:?}", b.parts.notes);
+        assert!(b.parts.notes.is_empty(), "{:?}", b.parts.notes);
+        let e = b.parts.evaluated.as_ref().unwrap();
+        assert!(e.features.iter().all(|r| r.notes.is_empty()), "{:?}", e.features.iter().map(|r| &r.notes).collect::<Vec<_>>());
+        let c = e.components.iter().find(|c| c.id == id).cloned().unwrap();
+        let ring = csg::Solid { v: b.mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: b.mesh.faces.clone() };
+        (ring, csg::Solid { v: c.trace.positions.clone(), f: c.mesh.faces.clone() })
+    }
+
+    /// A stored part asked to grow into the band does, on a procedural band and on a factory stock: the joined ring
+    /// gains a fillet's worth of metal round the part's foot and no more (the clipped foot is buried in the band), the
+    /// grown part is closed, uncrossed and stays within the fillet's reach of the part as stored, and the plain part
+    /// is the stored mesh exactly.
+    #[test]
+    fn a_stored_part_grows_out_of_the_band_with_a_fillet() {
+        let stock = crate::imported_base::PRESETS.first().unwrap();
+        for (what, band) in [("procedural band", court(Vec::new())), ("factory stock", crate::templates::stock(stock).unwrap())] {
+            let with = |fillet: f64| {
+                let mut d = band.clone();
+                let doc = d.cad.get_or_insert_with(Document::default);
+                if doc.band().is_none() {
+                    doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+                }
+                doc.append(sculpted(2, fillet)).unwrap();
+                d
+            };
+            let (plain_ring, plain) = grown(&with(0.0), 2);
+            let (ring, part) = grown(&with(0.4), 2);
+            let Operation::Stored { mesh, .. } = &sculpted(2, 0.0).operation else { unreachable!() };
+            assert_eq!(plain.f.len(), mesh.triangles as usize, "{what}: the plain part is the stored mesh");
+            let ((open, _), (bad, _)) = (ring.open_edges(), crate::sculpt::closure(&part));
+            assert_eq!((open, bad, csg::self_crossings(&part)), (0, 0, 0), "{what}");
+            let (v0, v1) = (crate::sculpt::closure(&plain_ring).1, crate::sculpt::closure(&ring).1);
+            // A 0.4 mm fillet round a foot about 7.5 mm round holds about 7.5 × 0.4² × (1 − π/4) ≈ 0.26 mm³.
+            assert!(v1 - v0 > 0.05 && v1 - v0 < 1.0, "{what}: the fillet adds {:.3} mm³ to {v0:.1}", v1 - v0);
+            let stored = crate::sculpt::MeshField::of(&plain, 2.0);
+            let reach = part.v.iter().map(|p| stored.at(*p)).fold(f64::MIN, f64::max);
+            assert!(reach < 0.4 * (1.0 + crate::sculpt::FILLET_SINK) + crate::sculpt::FILLET_DIVE_MM + 0.25, "{what}: the grown part reaches {reach} mm past the stored one");
+            // The stored mesh stands as it was above the fillet: every vertex of it well clear of the band is kept.
+            let bare = crate::mesh::try_build(&band, &AlphaLibrary::builtin(), params()).unwrap();
+            let band = crate::sculpt::MeshField::of_mesh(bare.mesh, 2.0);
+            let kept = |s: &csg::Solid| s.v.iter().filter(|p| band.at(**p) > 1.0).map(|p| p.map(f64::to_bits)).collect::<std::collections::BTreeSet<_>>();
+            assert!(kept(&plain).is_subset(&kept(&part)), "{what}");
+        }
+    }
+
+    /// Growing into the band asks for a joined part, a band and a sane radius.
+    #[test]
+    fn growing_into_the_band_is_opt_in_and_bounded() {
+        let mut beside = sculpted(2, 0.4);
+        beside.component.attach = Attach::Separate;
+        let b = crate::mesh::try_build(&court(vec![beside]), &AlphaLibrary::builtin(), params()).unwrap();
+        let notes = &b.parts.evaluated.as_ref().unwrap().features.iter().find(|r| r.id == 2).unwrap().notes;
+        assert!(notes.iter().any(|n| n.contains("only a joined part grows into the band")), "{notes:?}");
+        let b = crate::mesh::try_build(&court(vec![sculpted(2, 5.0)]), &AlphaLibrary::builtin(), params()).unwrap();
+        assert!(b.parts.notes.iter().any(|n| n.contains("at most 2 mm")), "{:?}", b.parts.notes);
+        // Off, the key is not written, so every file without it is byte for byte.
+        let json = serde_json::to_value(&sculpted(2, 0.0).component).unwrap();
+        assert!(json.get("fillet_into_band").is_none());
+        let json = serde_json::to_value(&sculpted(2, 0.4).component).unwrap();
+        assert_eq!(json["fillet_into_band"], 0.4);
+        let back: Component = serde_json::from_value(json).unwrap();
+        assert_eq!(back.fillet_into_band, 0.4);
+        // Fenced at design format 6, as every stored part is, and at graph format 2 wherever a graph carries it.
+        assert_eq!(crate::library::format_version_for(&court(vec![sculpted(2, 0.4)])), crate::library::FORMAT_VERSION);
+        let wire = |f: Feature| serde_json::json!({ "nodes": [{ "kind": "cad.document", "feature": f }] });
+        assert!(crate::library::template_features_in_json(&wire(sculpted(2, 0.4))));
+        assert!(!crate::library::template_features_in_json(&wire(Feature { operation: Operation::Box { size: [1.0; 3] }, ..sculpted(2, 0.0) })));
     }
 }

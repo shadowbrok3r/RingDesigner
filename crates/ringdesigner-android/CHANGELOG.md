@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.31.0 — 2026-10-02
+
+- In a text field you are editing, press and hold a word to select it, and slide to grow the selection a word at a time. Tap, then tap again and hold, to move the cursor without selecting. A magnifier above the finger shows the text under it while you select or place the cursor.
+- Opening the keyboard's symbols page right after tapping a field no longer snaps it back to letters.
+- Coming back to the app while editing a field brings the keyboard back on that field, so typing works without tapping it again.
+- The casting workshop is a guided Setup, Check & fix, Export flow, with plain-language help and a glossary of the casting terms. Diagnostics, casting trials and the gate and vent channels sit under Advanced and Optional, a correction stays unapplied until it has been checked, and the casting tools open the workshop directly.
+- Painting's follow camera turns with the ring's broad movement instead of each small face, and the follow settings expose its turn threshold, smoothing and surface averaging.
+
 ## 0.29.0 — 2026-09-23
 
 - The ring view models CAD parts by touch. Tap a part to choose it and tap the same spot again to reach its faces and edges; long-press for its menu; drag the handles to slide it round the ring, across the band or off the surface, or to turn it, with a live preview and exact values typed in the bar beside it. Every change is one undo step.

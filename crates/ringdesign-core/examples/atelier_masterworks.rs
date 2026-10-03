@@ -143,6 +143,7 @@ fn palisade() -> RingDesign {
             profile: WireProfile::Round,
             taper: 0.0,
             mirror_v: false,
+            ..Default::default()
         };
         let mut e = LayerEntry::new(name, Layer::Curve(wire));
         e.window = Window { fade_deg: 6.0, ..Window::around(270.0, 130.0) };
@@ -274,6 +275,7 @@ fn oriel() -> RingDesign {
         profile: WireProfile::Round,
         taper: 0.0,
         mirror_v: true,
+        ..Default::default()
     };
     let mut e = LayerEntry::new("Vine wires", Layer::Curve(vine));
     e.blend = Blend::SmoothMax;

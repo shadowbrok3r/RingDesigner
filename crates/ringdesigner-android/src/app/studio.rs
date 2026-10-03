@@ -171,7 +171,7 @@ impl RingApp {
                         (Tab::Band, "Paint the band"),
                         (Tab::Tile, "Draw a repeating tile"),
                         (Tab::Graph, "Recipe graph"),
-                        (Tab::Workshop, "CAD & mould workshop"),
+                        (Tab::Workshop, "Casting workshop"),
                         (Tab::Files, "Files & exports"),
                         (Tab::Bench, "Performance bench"),
                     ] {
@@ -708,6 +708,10 @@ impl RingApp {
             }
             Sheet::Edit => {
                 if self.driven_banner(ui) {
+                    if self.editor.mode == Mode::Casting && ui.button("Open casting workshop").clicked() {
+                        self.workshop.open_casting();
+                        self.tab = Tab::Workshop;
+                    }
                     return;
                 }
                 if let Some(info) = &self.probe_info {
@@ -769,56 +773,59 @@ impl RingApp {
                         &mut self.selected_layer,
                     ),
                     Mode::Casting => {
-                        ui.horizontal_wrapped(|ui| {
-                            for (mode, label) in [
-                                (ShadeMode::Draft, "Axial draft"),
-                                (ShadeMode::Wall, "Wall"),
-                                (ShadeMode::Halves, "Pull sides"),
-                            ] {
-                                if ui
-                                    .selectable_label(self.pane.shade == mode, label)
-                                    .clicked()
-                                {
-                                    self.pane.shade = mode;
-                                }
-                            }
-                        });
-                        match self.pane.shade {
-                            ShadeMode::Draft => {
-                                ui.horizontal_wrapped(|ui| {
-                                    use ringdesign_core::castability::FaceClass;
-                                    for (class, label) in [
-                                        (FaceClass::Good, "Good draft"),
-                                        (FaceClass::Marginal, "Low draft"),
-                                        (FaceClass::Vertical, "Vertical"),
-                                        (FaceClass::Undercut, "Undercut"),
-                                    ] {
-                                        let rgb = class.rgb().map(|c| (c * 255.0) as u8);
-                                        ui.label(egui::RichText::new(label).small().color(
-                                            egui::Color32::from_rgb(rgb[0], rgb[1], rgb[2]),
-                                        ));
+                        let edit = editor::controls::casting(ui, &mut self.editor, &mut self.design);
+                        ui.collapsing("Show inspection colors", |ui| {
+                            ui.horizontal_wrapped(|ui| {
+                                for (mode, label) in [
+                                    (ShadeMode::Draft, "Wall slope"),
+                                    (ShadeMode::Wall, "Thickness"),
+                                    (ShadeMode::Halves, "Mold sides"),
+                                ] {
+                                    if ui
+                                        .selectable_label(self.pane.shade == mode, label)
+                                        .clicked()
+                                    {
+                                        self.pane.shade = mode;
                                     }
-                                });
+                                }
+                            });
+                            match self.pane.shade {
+                                ShadeMode::Draft => {
+                                    ui.horizontal_wrapped(|ui| {
+                                        use ringdesign_core::castability::FaceClass;
+                                        for (class, label) in [
+                                            (FaceClass::Good, "Good draft"),
+                                            (FaceClass::Marginal, "Low draft"),
+                                            (FaceClass::Vertical, "Vertical"),
+                                            (FaceClass::Undercut, "Undercut"),
+                                        ] {
+                                            let rgb = class.rgb().map(|c| (c * 255.0) as u8);
+                                            ui.label(egui::RichText::new(label).small().color(
+                                                egui::Color32::from_rgb(rgb[0], rgb[1], rgb[2]),
+                                            ));
+                                        }
+                                    });
+                                }
+                                ShadeMode::Wall => {
+                                    ui.label(egui::RichText::new(format!("Red: ≤ {:.2} mm · amber/green/blue: thicker metal · grey: bore",self.design.draft.min_section_mm)).small());
+                                }
+                                ShadeMode::Halves => {
+                                    ui.label(egui::RichText::new("Blue: +Z-facing · gold: −Z-facing · yellow: vertical walls").small());
+                                }
+                                _ => {}
                             }
-                            ShadeMode::Wall => {
-                                ui.label(egui::RichText::new(format!("Red: ≤ {:.2} mm · amber/green/blue: thicker metal · grey: bore",self.design.draft.min_section_mm)).small());
+                            if self.editor.check_pending {
+                                ui.colored_label(
+                                    crate::theme::AQUA_BRIGHT,
+                                    "Checking the changed design…",
+                                );
+                            } else if let Some(report) = &self.field {
+                                let (color, text) = field_chip(report, self.design.draft.process);
+                                ui.colored_label(color, text);
                             }
-                            ShadeMode::Halves => {
-                                ui.label(egui::RichText::new("Blue: +Z-facing · gold: −Z-facing · yellow: vertical walls").small());
-                            }
-                            _ => {}
-                        }
-                        if self.editor.check_pending {
-                            ui.colored_label(
-                                crate::theme::AQUA_BRIGHT,
-                                "Checking the changed design…",
-                            );
-                        } else if let Some(report) = &self.field {
-                            let (color, text) = field_chip(report, self.design.draft.process);
-                            ui.colored_label(color, text);
-                        }
-                        ui.label(egui::RichText::new("Nominal ring, ±Z colours. Workshop checks the prepared pattern and chosen pull.").small().weak());
-                        editor::controls::casting(ui, &mut self.editor, &mut self.design)
+                            ui.label(egui::RichText::new("Colors show the unscaled ring with the mold opening along its axis. The workshop checks your prepared pattern and chosen opening direction.").small().weak());
+                        });
+                        edit
                     }
                 };
                 self.apply_editor_edit(edit, host);
@@ -876,7 +883,8 @@ impl RingApp {
                     let note = self.field.as_ref().and_then(|f| f.parts.iter().find(|p| p.feature == id)).map(|p| p.note.clone());
                     self.status = note.unwrap_or_else(|| format!("#{id} chosen"));
                 }
-                if ui.button("Detailed mould analysis & repairs").clicked() {
+                if ui.button("Open casting workshop").clicked() {
+                    self.workshop.open_casting();
                     self.tab = Tab::Workshop;
                 }
             }
@@ -917,7 +925,10 @@ impl RingApp {
             Action::Stones => self.choose_mode(Mode::Stones),
             Action::FrameHead => self.frame_head(true),
             Action::Advanced => self.open_editor_sheet(Sheet::Advanced),
-            Action::Workshop => self.tab = Tab::Workshop,
+            Action::Workshop => {
+                self.workshop.open_casting();
+                self.tab = Tab::Workshop;
+            }
             Action::Findings => self.open_editor_sheet(Sheet::Findings),
             Action::Report => self.open_editor_sheet(Sheet::Report),
             Action::AddStone => {

@@ -151,7 +151,8 @@ impl BandSurface {
     pub fn frame(&self, placement: &Placement, design: &RingDesign) -> Option<Affine> {
         let f = match placement {
             Placement::Ring { theta_deg, across_mm, .. } => placement.frame_on(design, Some(&self.patch(*theta_deg, *across_mm))),
-            Placement::Free => placement.frame(design),
+            Placement::Side { .. } => placement.frame_on(design, Some(self.mesh())),
+            Placement::Free | Placement::Relative { .. } => placement.frame(design),
         }
         .ok()?;
         Some(Affine::frame(f.x_axis, f.y_axis, f.z_axis, f.origin))
@@ -601,7 +602,7 @@ mod tests {
         }
         // Off the band's edge every ray misses, on the patch as on the whole.
         assert!(cad::surface_hit(&built.mesh, 90.0, 9.0).is_none() && band.hit(90.0, 9.0).is_none());
-        let p = Placement::Ring { theta_deg: 123.0, across_mm: 0.3, height_mm: 0.25, spin_deg: 10.0, tilt_deg: 3.0, cant_deg: -4.0 };
+        let p = Placement::Ring { theta_deg: 123.0, across_mm: 0.3, height_mm: 0.25, spin_deg: 10.0, tilt_deg: 3.0, cant_deg: -4.0, level: false };
         let whole = p.frame_on(&d, Some(&built.mesh)).unwrap();
         let seat = band.frame(&p, &d).unwrap();
         assert_eq!(seat, Affine::frame(whole.x_axis, whole.y_axis, whole.z_axis, whole.origin));
@@ -627,7 +628,7 @@ mod tests {
     #[test]
     fn the_euler_order_matches_the_ring_frame_the_core_builds() {
         let d = RingDesign::default();
-        let p = Placement::Ring { theta_deg: 33.0, across_mm: 0.0, height_mm: 0.0, spin_deg: 21.0, tilt_deg: -8.0, cant_deg: 13.0 };
+        let p = Placement::Ring { theta_deg: 33.0, across_mm: 0.0, height_mm: 0.0, spin_deg: 21.0, tilt_deg: -8.0, cant_deg: 13.0, level: false };
         let f = p.frame(&d).unwrap();
         let seat = transform([0.0; 3], [0.0, 90.0, 33.0]);
         let lean = transform([0.0; 3], [-8.0, 13.0, 21.0]);
@@ -739,7 +740,7 @@ mod tests {
         let world_of = |p: RingPoint| band.world(p);
         let scene = Scene { view, aperture_px: 8.0, geometry: SnapGeometry::default(), features: &features, design: Some(&d), world_of: &world_of };
         let snap = |p: RingPoint| snapper.snap_ring(band.world(p)?, p, Dofs::ALL, &scene);
-        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let seat = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         let target = Feature { id: 3, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.5, height_mm: 2.5 }, component: Component { placement: seat, ..Component::default() } };
         let mut s = Session::default();
         s.start(Box::new(MoveCmd::of(&target, 9)));
@@ -750,7 +751,7 @@ mod tests {
         assert!(p.caption.ends_with(" · palm 270.0° · parting line"), "{}", p.caption);
         let Outcome::Commit(e) = s.enter() else { panic!() };
         let [Effect::Placement { placement, .. }] = e.as_slice() else { panic!("{e:?}") };
-        assert_eq!(*placement, Placement::Ring { theta_deg: 270.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0 }, "exactly, its stand-off kept");
+        assert_eq!(*placement, Placement::Ring { theta_deg: 270.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 10.0, tilt_deg: 0.0, cant_deg: 0.0, level: false }, "exactly, its stand-off kept");
         // Off every feature the grid lands it instead, on the grid's own angle rather than the pointer's step.
         s.start(Box::new(MoveCmd::of(&target, 9)));
         land(&mut s, on_band(&band, 100.0, 0.0), &snap);
@@ -772,7 +773,7 @@ mod tests {
         let scene = Scene { view, aperture_px: 8.0, geometry: SnapGeometry::default(), features: &features, design: Some(&d), world_of: &world_of };
         let dial = Snapper { grid: Some(Grid { theta_deg: 5.0, across_mm: 0.0, height_mm: 0.0 }), ..Snapper::default() };
         let snap = |p: RingPoint| dial.snap_ring(band.world(p)?, p, Dofs::THETA, &scene);
-        let base = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let base = Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         // The dial's pointer: its angle, on the dial at the part's across and stand-off.
         let dialled = |theta: f64| StepInput::Pointer { world: [0.0; 3], normal: [0.0, 0.0, 1.0], theta_deg: theta, across_mm: 0.0, height_mm: 0.25, snapped: None, dragging: true };
         let mut s = Session::default();

@@ -13,7 +13,18 @@ use ringdesign_core::{
 };
 
 /// The piercings by the keys their items carry, and the shape each cuts.
-pub const PIERCE_KEYS: [(&str, Shape); 5] = [("round", Shape::Round), ("oval", Shape::Oval), ("marquise", Shape::Marquise), ("heart", Shape::Heart), ("drop", Shape::Drop)];
+pub const PIERCE_KEYS: [(&str, Shape); 10] = [
+    ("round", Shape::Round),
+    ("oval", Shape::Oval),
+    ("marquise", Shape::Marquise),
+    ("heart", Shape::Heart),
+    ("drop", Shape::Drop),
+    ("lancet", Shape::Lancet),
+    ("ogee", Shape::Ogee),
+    ("trefoil", Shape::Trefoil),
+    ("quatrefoil", Shape::Quatrefoil),
+    ("mouchette", Shape::Mouchette),
+];
 /// The submenu the piercings fold into.
 pub const CUT_HERE: &str = "Cut here";
 /// Azures by the keys their items carry, and how many windows each cuts.
@@ -133,7 +144,7 @@ mod tests {
     #[test]
     fn the_band_offers_every_piercing_under_cut_here_and_a_stone_its_azures_and_shoulders() {
         let items = band_items(90.0, 0.25);
-        assert_eq!(items.iter().map(|i| i.label.as_str()).collect::<Vec<_>>(), ["Round", "Oval", "Marquise", "Heart", "Drop"]);
+        assert_eq!(items.iter().map(|i| i.label.as_str()).collect::<Vec<_>>(), ["Round", "Oval", "Marquise", "Heart", "Drop", "Lancet", "Ogee", "Trefoil", "Quatrefoil", "Mouchette"]);
         assert!(items.iter().all(|i| i.submenu == Some(CUT_HERE) && i.enabled && i.icon == Icon::Cutters));
         assert_eq!(items[3].action, MenuAction::CutHere { theta_deg: 90.0, across_mm: 0.25, key: "heart" });
         let items = stone_items(4);
@@ -190,7 +201,7 @@ mod tests {
         let (edits, _) = under_stone(&d, on.parts.evaluated.as_ref(), 2, CATHEDRAL).unwrap();
         assert_eq!(added(&edits)[0].component.stage, Stage::Cast, "the stone's girdle on the parting line: the arches pour clean");
         let mut off = d.clone();
-        let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.0, height_mm: builders::stand_off_mm("claw4", gem), spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.0, height_mm: builders::stand_off_mm("claw4", gem), spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         off.cad.as_mut().unwrap().features.iter_mut().find(|f| f.id == 2).unwrap().component.placement = placement;
         let (edits, _) = under_stone(&off, build(&off).parts.evaluated.as_ref(), 2, CATHEDRAL).unwrap();
         assert_eq!(added(&edits)[0].component.stage, Stage::Bench, "a millimetre along the finger the arches lock and go to the bench");

@@ -150,7 +150,9 @@ fn opened(source: Source, reg: &Registry, lib: &Arc<AlphaLibrary>, set: Arc<dyn 
         }
         Source::File(path) => {
             set(Stage::Reading);
-            ringdesign_core::library::load_design(&path)?
+            if path.to_string_lossy().ends_with(ringdesign_graph::personal::EXT) {
+                ringdesign_graph::personal::load(&path)?.instantiate()?
+            } else { ringdesign_core::library::load_design(&path)? }
         }
     };
     anyhow::ensure!(!stop.load(Ordering::Relaxed), stopped());
