@@ -1,0 +1,101 @@
+{
+  "ring": "Keystone",
+  "round": 1,
+  "verdict": "revise",
+  "score": 6.6,
+  "summary": "A clean, legible lesson: a flat squared band with a drafted, pressed-up rectangular tablet at the top, a chamfered rim and a sunk lozenge in its table. The idea reads at 300 px as 'a plaque / cartouche band', and the timeline is short and sensible. It is not yet a finished piece at Caiman's finish level. The 0.45 mm chamfer (fallback for the refused fillet) stacked on a 7 deg drafted wall gives the tablet a hard two-tier profile that reads as a bolt head or hex nut from the side, shoulder and reverse. The foot blend shows as a separate washer: in face.png a dark moat runs round the tablet between the wall and a raised skirt, and in hero.png a light ring sits outside the foot like a plate under it. The close-up (stones.png) shows combing and stair-step streaks on the right flank and the near-right corner of the tablet, and a wobbly foot blend. The lozenge, now cut as two mirrored triangles, reads as a sunk inverted pyramid rather than one bright-cut plane; it no longer looks like an arrow, but it is closer to an envelope flap or a stud than to a bright-cut. Every gate the JSON records is green, and the 'castable with care' verdict is the lesson Keystone is allowed to carry, but the report also records a 0.2 mm^2, -11 deg undercut on the chamfer flanks, which the lesson's exemption (zero-draft walls) does not cover.",
+  "strengths": [
+    "One idea, face to palm: the tablet at the top, a plain squared band everywhere else; palm and sides carry nothing scattered.",
+    "Reads at 300 px without a caption as a cartouche or plaque band (read-test 2 passed and the final render holds that read).",
+    "Tablet now owns the top: about 85 to 90 percent of the band width, rounded corners, proud of the crest by 1.7 mm, the drafted skirt visible in hero and side.",
+    "The timeline is short and legible: band, plane, sketch, drafted boss, press-pull, chamfer, facet sketch, cut, mirror, each with its own frame.",
+    "Gates: watertight, 0 degenerate, 0 self-crossings on ring, parts and pattern, all 9 features Ok, 0 DFM findings, 0 obstructions and 0 unresolved rays at 0.100 and 0.075 mm, cold reload identical, 1.34 M triangles, template 1 patch within budget."
+  ],
+  "checklist": [
+    {"item": "One idea face to palm, reads at 300 px without the caption", "result": "pass", "reason": "hero-300 and face-300 read as a raised rectangular tablet on a plain band; nothing else competes. The facet inside it reads as a sunk diamond, which supports rather than splits the idea."},
+    {"item": "Finished piece a jeweller would sell: proportion, weight, every part meeting the band", "result": "fail", "reason": "The tablet meets the band through a visible washer: a dark moat between wall and skirt in face.png (all four sides) and a light ring outside the foot in hero.png and bare-vs-finished.png. From the side, shoulder and reverse, the drafted wall plus 0.45 mm chamfer reads as a hex-nut head bolted on. The band is right in weight (6.0 x 2.0) but the tablet is short round the ring for the width it covers, so it looks like a badge rather than a cartouche grown from the band."},
+    {"item": "No flat, blocky or mechanical CAD: edges broken, seams blended, no slabs", "result": "fail", "reason": "Chamfer-on-draft gives two hard flat bands at the rim (shoulder.png, reverse.png). Band edges carry only a 0.15 mm edge round, so the band reads as a cut sheet on palm.png. The foot blend (0.6 mm) is there but renders as a step, not a run-in."},
+    {"item": "Outlines render crisp, no combing, smearing or stair-steps", "result": "fail", "reason": "stones.png (close-up): vertical streaks and stair-steps on the right flank and near-right corner of the tablet, a wobbling foot blend line along the near long side, and smeared shading inside the lozenge cut. face.png shows small notches at the inner corners of the rim chamfer. hero-300 is clean at that size."},
+    {"item": "Stones sit in made settings and are visible", "result": "pass", "reason": "No stones by design; stones_previewed 0 = stones_reported 0."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "Not a factory stock (Flat 6.0 x 2.0 with flatten_sides); the squared band keeps its square walls."},
+    {"item": "Lesson legible in timeline.png, one visible step per feature, short sensible order", "result": "pass", "reason": "Nine frames, each adds a visible step. Weak spots: frame 5 (press-pull) is barely distinguishable from frame 4 at timeline size, and frame 8 shows only faint lines; the cut only reads in frame 9. Nine features against the planned eight (Mirror added) is acceptable."},
+    {"item": "Silhouette distinct from the other Officina rings and the starter gallery", "result": "pass", "reason": "A squared band with a single raised tablet is distinct from Rivet's domed strap, Sigil's stock seal and the stone starters; closest neighbour is the Court band, which it differs from by the tablet."}
+  ],
+  "gates": [
+    {"gate": "Watertight", "claimed": "watertight true, boundary 0, non-manifold 0", "verified": "gates.watertight true, boundary_edges 0, non_manifold_edges 0", "pass": true},
+    {"gate": "0 degenerate faces", "claimed": "0", "verified": "gates.degenerate_faces 0; pattern 0", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "0", "verified": "mesh_self_crossings 0; made_parts Chamfer the rim 0, Bright-cut facet 0, Mirror the facet 0; pattern 0", "pass": true},
+    {"gate": "Empty solids notes", "claimed": "empty", "verified": "solids_notes [], parts_notes []", "pass": true},
+    {"gate": "Every CAD feature Ok", "claimed": "all_features_ok", "verified": "9 of 9 Ok (fillet refused, Chamfer fallback per spec)", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "0", "verified": "inside_finger_hole 0, closest_to_axis 9.100 mm vs bore radius 9.1", "pass": true},
+    {"gate": "Sand field verdict (Keystone may stand at castable with care when explained)", "claimed": "Castable with care", "verified": "field_verdict 'Castable with care'; field_notes explain 29.1% low-draft surface (22.2% vertical), which is the lesson. They also record a 0.2 mm^2, -11 deg undercut on the chamfer flanks at 71-109 deg, which the exemption does not cover and the authored block does not explain", "pass": true},
+    {"gate": "Ray release 0 obstructions, 0 unresolved at 0.100 and 0.075 mm", "claimed": "0 / 0", "verified": "both pitches: obstructions 0, unresolved_rays 0, status Review, worst draft -11.2 deg", "pass": true},
+    {"gate": "Lost-wax thickness clean at 0.8 mm", "claimed": "0 below", "verified": "lost_wax_thickness_below 0; thinnest wall 1.87 mm", "pass": true},
+    {"gate": "dfm::cut_lands clean", "claimed": "[]", "verified": "lost_wax_cut_lands []", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "[]", "verified": "dfm_findings []", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "0 = 0", "verified": "stones_previewed 0, stones_reported 0", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "gates.cold_reload_identical true (draft block null, final block true)", "pass": true},
+    {"gate": "Export within 2 M triangles", "claimed": "true", "verified": "1,341,544 triangles", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "watertight", "verified": "pattern watertight true, 0 degenerate, 0 self-crossings, notes []", "pass": true},
+    {"gate": "Template gate: at most 4 design.set patches within class budget", "claimed": "passed", "verified": "1 patch (/manufacturing), 74,545 of 300,000 bytes procedural, cold source, mesh and graph parity true", "pass": true}
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "high",
+      "zone": "Tablet foot, all round (feature 4 'Drafted boss' Join blend, feature 2 plane offset), theta 84 to 96 deg",
+      "change": "Remove the washer and moat at the foot. The tablet should rise out of the band through one continuous concave run-in. Reduce the sink of the work plane (offset -0.7 toward -0.45 mm, just past the 0.41 mm sag) so the boss foot sits at band level instead of in a pocket, and keep blend_mm 0.6 but make sure the blend is the only transition (no flat step between blend and wall).",
+      "acceptance": "face.png shows no dark rectangular moat between the tablet wall and the band on any side; hero.png shows one soft highlight running from the wall down into the band, with no separate light ring outside the foot."
+    },
+    {
+      "number": 2,
+      "priority": "high",
+      "zone": "Tablet top rim (feature 6 'Chamfer the rim') and drafted wall",
+      "change": "Get rid of the hex-nut profile and the chamfer-flank undercut. Retry a native Fillet at a radius that fits (0.25 to 0.3 mm instead of 0.35) on the rim edges; if it is still refused, cut the chamfer to 0.25 mm and give it a 0.1 mm soft edge, or raise the wall draft from 7 to 10 deg so the chamfer no longer leans back across the parting plane.",
+      "acceptance": "In side.png, shoulder.png and reverse.png the tablet rim shows one rounded or single narrow bright line, not two flat steps; report.json field_notes no longer list an undercut on #6 (0 mm^2 undercut, worst draft >= 0 deg)."
+    },
+    {
+      "number": 3,
+      "priority": "high",
+      "zone": "Tablet flanks and corners, theta 87 to 93 deg (right flank and near-right corner in stones.png); lozenge cut (features 8, 9)",
+      "change": "Clear the combing and stair-steps: raise tessellation density on the drafted wall and corner arcs and on the blend, and make the lozenge cut floors planar with no smoothing across their ridge.",
+      "acceptance": "stones.png at full size shows no vertical streaks or stair-steps on any tablet flank, a smooth foot line on the near side, flat tone in each lozenge facet, and no notches at the inner corners of the rim in face.png."
+    },
+    {
+      "number": 4,
+      "priority": "medium",
+      "zone": "Band edges (Band feature, edge_round_mm)",
+      "change": "Break the band's outer edges from 0.15 to about 0.35 mm, keeping the squared section, so the band stops reading as cut sheet.",
+      "acceptance": "palm.png and hero.png show a thin continuous highlight along both outer edges of the band; the band still reads square in side.png."
+    },
+    {
+      "number": 5,
+      "priority": "medium",
+      "zone": "report.json authored block; README lesson text",
+      "change": "State the 'castable with care' verdict as the lesson in the authored block (zero-draft walls and table, as with a signet), and record the measured low-draft share, so the exemption is explained in the report itself, not only by field notes.",
+      "acceptance": "report.json authored contains a verdict explanation naming the zero-draft walls and the measured 29 percent low-draft share, with no remaining undercut note."
+    },
+    {
+      "number": 6,
+      "priority": "low",
+      "zone": "timeline.png frames 5 and 8",
+      "change": "Make the press-pull and the first facet cut visible as steps: press-pull distance 0.8 should show as a visibly taller wall versus frame 4 (or render the timeline at a slightly closer camera), and frame 8 should show the cut triangle in tone, not as faint lines.",
+      "acceptance": "In timeline.png, frame 5's tablet is visibly taller than frame 4's, and frame 8 shows one darker cut triangle in the table."
+    }
+  ],
+  "viewed_images": [
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/officina/keystone/hero-300.png",
+    "showcase/officina/keystone/face-300.png",
+    "showcase/officina/keystone/contact-300.png",
+    "showcase/officina/keystone/hero.png",
+    "showcase/officina/keystone/face.png",
+    "showcase/officina/keystone/timeline.png",
+    "showcase/officina/keystone/side.png",
+    "showcase/officina/keystone/shoulder.png",
+    "showcase/officina/keystone/palm.png",
+    "showcase/officina/keystone/reverse.png",
+    "showcase/officina/keystone/stones.png",
+    "showcase/officina/keystone/bare-vs-finished.png"
+  ]
+}
