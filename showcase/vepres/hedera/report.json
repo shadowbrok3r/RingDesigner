@@ -16,82 +16,82 @@
         "len_mm": 10.2
       },
       {
-        "axis_deg": -32.23157370205719,
+        "axis_deg": -33.352985033219824,
         "hub": [
-          148.0,
-          0.5781413801588725
+          147.2270722705221,
+          0.653448119524444
         ],
         "leaf": "Leaf 1",
         "len_mm": 3.8
       },
       {
-        "axis_deg": -22.771975293076316,
+        "axis_deg": -40.94866216276035,
         "hub": [
-          169.0,
-          1.1
+          167.66527560178702,
+          0.7127850827075968
         ],
         "leaf": "Leaf 2",
         "len_mm": 4.6
       },
       {
-        "axis_deg": -32.2061673231769,
+        "axis_deg": -48.9950863581155,
         "hub": [
-          193.0,
-          0.3553740790640024
+          190.86700236434916,
+          0.12339410756761016
         ],
         "leaf": "Leaf 3",
-        "len_mm": 3.8
+        "len_mm": 3.75
       },
       {
-        "axis_deg": 27.374048966874103,
+        "axis_deg": 27.20250872106507,
         "hub": [
-          215.0,
-          1.1
+          214.53604795421603,
+          1.0507553613491207
         ],
         "leaf": "Leaf 4",
-        "len_mm": 5.0
+        "len_mm": 3.350000000000006
       },
       {
-        "axis_deg": -14.032837742877676,
+        "axis_deg": 28.16791185193693,
         "hub": [
-          239.0,
-          -1.1
+          238.4927590065396,
+          -0.037145266207555094
         ],
         "leaf": "Leaf 5",
         "len_mm": 4.0
       },
       {
-        "axis_deg": 32.24803861935416,
+        "axis_deg": 34.849914196269,
         "hub": [
-          265.0,
-          -0.6717282571409325
+          264.1330493129255,
+          -0.7145851933757735
         ],
         "leaf": "Leaf 6",
         "len_mm": 3.8
       },
       {
-        "axis_deg": 20.135047947244868,
+        "axis_deg": 44.09618084999193,
         "hub": [
-          290.0,
-          -1.1
+          288.374607047915,
+          -0.576626744617823
         ],
         "leaf": "Leaf 7",
-        "len_mm": 4.8
+        "len_mm": 4.75
       },
       {
-        "axis_deg": 32.195689184117946,
+        "axis_deg": 51.50979263128717,
         "hub": [
-          317.0,
-          0.07063857946415508
+          314.5875651419924,
+          0.344710391977071
         ],
         "leaf": "Leaf 8",
-        "len_mm": 3.8
+        "len_mm": 3.3500000000000014
       },
       {
-        "axis_deg": -32.21918677419053,
+        "axis_deg": -27.281449991764454,
         "hub": [
-          344.0,
-          -0.4887327774805655
+          343.53241452588975,
+          -0.27627552679124484
         ],
         "leaf": "Leaf 9",
         "len_mm": 4.4
@@ -108,10 +108,10 @@
     "vertices_inside": 0
   },
   "build": {
-    "build_s": 8.570337896,
+    "build_s": 9.019996793,
     "profile_steps": 448,
     "theta_steps": 1536,
-    "triangles": 1174126
+    "triangles": 1157104
   },
   "coarse": {
     "degenerate_faces": 0,
@@ -121,8 +121,8 @@
   },
   "cold_reload_identical": true,
   "design": {
-    "bytes": 287213,
-    "cad_features": 38,
+    "bytes": 288283,
+    "cad_features": 40,
     "format_version": 6
   },
   "dfm_findings": [],
@@ -153,82 +153,82 @@
           "len_mm": 10.2
         },
         {
-          "axis_deg": -32.23157370205719,
+          "axis_deg": -33.352985033219824,
           "hub": [
-            148.0,
-            0.5781413801588725
+            147.2270722705221,
+            0.653448119524444
           ],
           "leaf": "Leaf 1",
           "len_mm": 3.8
         },
         {
-          "axis_deg": -22.771975293076316,
+          "axis_deg": -40.94866216276035,
           "hub": [
-            169.0,
-            1.1
+            167.66527560178702,
+            0.7127850827075968
           ],
           "leaf": "Leaf 2",
           "len_mm": 4.6
         },
         {
-          "axis_deg": -32.2061673231769,
+          "axis_deg": -48.9950863581155,
           "hub": [
-            193.0,
-            0.3553740790640024
+            190.86700236434916,
+            0.12339410756761016
           ],
           "leaf": "Leaf 3",
-          "len_mm": 3.8
+          "len_mm": 3.75
         },
         {
-          "axis_deg": 27.374048966874103,
+          "axis_deg": 27.20250872106507,
           "hub": [
-            215.0,
-            1.1
+            214.53604795421603,
+            1.0507553613491207
           ],
           "leaf": "Leaf 4",
-          "len_mm": 5.0
+          "len_mm": 3.350000000000006
         },
         {
-          "axis_deg": -14.032837742877676,
+          "axis_deg": 28.16791185193693,
           "hub": [
-            239.0,
-            -1.1
+            238.4927590065396,
+            -0.037145266207555094
           ],
           "leaf": "Leaf 5",
           "len_mm": 4.0
         },
         {
-          "axis_deg": 32.24803861935416,
+          "axis_deg": 34.849914196269,
           "hub": [
-            265.0,
-            -0.6717282571409325
+            264.1330493129255,
+            -0.7145851933757735
           ],
           "leaf": "Leaf 6",
           "len_mm": 3.8
         },
         {
-          "axis_deg": 20.135047947244868,
+          "axis_deg": 44.09618084999193,
           "hub": [
-            290.0,
-            -1.1
+            288.374607047915,
+            -0.576626744617823
           ],
           "leaf": "Leaf 7",
-          "len_mm": 4.8
+          "len_mm": 4.75
         },
         {
-          "axis_deg": 32.195689184117946,
+          "axis_deg": 51.50979263128717,
           "hub": [
-            317.0,
-            0.07063857946415508
+            314.5875651419924,
+            0.344710391977071
           ],
           "leaf": "Leaf 8",
-          "len_mm": 3.8
+          "len_mm": 3.3500000000000014
         },
         {
-          "axis_deg": -32.21918677419053,
+          "axis_deg": -27.281449991764454,
           "hub": [
-            344.0,
-            -0.4887327774805655
+            343.53241452588975,
+            -0.27627552679124484
           ],
           "leaf": "Leaf 9",
           "len_mm": 4.4
@@ -245,10 +245,10 @@
       "vertices_inside": 0
     },
     "build": {
-      "build_s": 3.468244299,
+      "build_s": 2.9312503530000003,
       "profile_steps": 320,
       "theta_steps": 768,
-      "triangles": 461240
+      "triangles": 440560
     },
     "coarse": {
       "degenerate_faces": 0,
@@ -258,8 +258,8 @@
     },
     "cold_reload_identical": null,
     "design": {
-      "bytes": 287213,
-      "cad_features": 38,
+      "bytes": 288283,
+      "cad_features": 40,
       "format_version": 6
     },
     "dfm_findings": [],
@@ -378,6 +378,14 @@
         "Ok"
       ],
       [
+        "#27",
+        "Ok"
+      ],
+      [
+        "#28",
+        "Ok"
+      ],
+      [
         "#100",
         "Ok"
       ],
@@ -418,11 +426,11 @@
         "Ok"
       ],
       [
-        "#27",
+        "#29",
         "Ok"
       ],
       [
-        "#28",
+        "#30",
         "Ok"
       ]
     ],
@@ -431,36 +439,38 @@
       "min_section_mm": 0.8,
       "notes": [
         "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
-        "Measured with the ring as built: 32 CAD parts (32 joined, 0 cut), 467.6 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Stored mesh \"Ivy stem\" (#2) would undercut a two-part pull over 42.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Crown leaf\" (#3) would undercut a two-part pull over 15.1 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Measured with the ring as built: 34 CAD parts (34 joined, 0 cut), 427.9 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Stored mesh \"Ivy stem\" (#2) would undercut a two-part pull over 44.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Crown leaf\" (#3) would undercut a two-part pull over 16.0 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Stored mesh \"Crown leaf: petiole\" (#4) would undercut a two-part pull over 0.3 mm² (worst -60°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 1\" (#5) would undercut a two-part pull over 1.9 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 1: petiole\" (#6) would undercut a two-part pull over 0.2 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 2\" (#7) would undercut a two-part pull over 2.4 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 2: petiole\" (#8) would undercut a two-part pull over 0.1 mm² (worst -28°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 3\" (#9) would undercut a two-part pull over 1.8 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 3: petiole\" (#10) would undercut a two-part pull over 0.1 mm² (worst -24°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 4\" (#11) would undercut a two-part pull over 3.1 mm² (worst -49°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 4: petiole\" (#12) would undercut a two-part pull over 0.2 mm² (worst -15°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 5\" (#13) would undercut a two-part pull over 0.6 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 6\" (#15) would undercut a two-part pull over 2.0 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 6: petiole\" (#16) would undercut a two-part pull over 0.2 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 7\" (#17) would undercut a two-part pull over 2.7 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 8\" (#19) would undercut a two-part pull over 1.5 mm² (worst -39°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 8: petiole\" (#20) would undercut a two-part pull over 0.0 mm² (worst -11°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 9\" (#21) would undercut a two-part pull over 2.9 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf 9: petiole\" (#22) would undercut a two-part pull over 0.4 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Berry peduncle\" (#23) would undercut a two-part pull over 2.4 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Berry 2: stalk\" (#25) would undercut a two-part pull over 0.2 mm² (worst -24°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Berry 3: stalk\" (#26) would undercut a two-part pull over 0.3 mm² (worst -26°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Bezel \"Berry 1: collet\" (#101) would undercut a two-part pull over 7.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Bezel \"Berry 2: collet\" (#103) would undercut a two-part pull over 7.6 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Bezel \"Berry 3: collet\" (#105) would undercut a two-part pull over 8.0 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Bezel \"Berry 4: collet\" (#107) would undercut a two-part pull over 7.8 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Bezel \"Berry 5: collet\" (#109) would undercut a two-part pull over 7.5 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Rootlet tuft\" (#27) would undercut a two-part pull over 0.4 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array along a path \"Rootlet tufts along the stem\" (#28) would undercut a two-part pull over 6.1 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Lost wax: Stored mesh \"Leaf 1\" (#5) would undercut a two-part pull over 1.8 mm² (worst -39°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 1: petiole\" (#6) would undercut a two-part pull over 0.1 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 2\" (#7) would undercut a two-part pull over 2.8 mm² (worst -35°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 2: petiole\" (#8) would undercut a two-part pull over 0.0 mm² (worst -34°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 3\" (#9) would undercut a two-part pull over 1.9 mm² (worst -25°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 3: petiole\" (#10) would undercut a two-part pull over 0.1 mm² (worst -21°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 4\" (#11) would undercut a two-part pull over 1.6 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 4: petiole\" (#12) would undercut a two-part pull over 0.1 mm² (worst -15°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 5\" (#13) would undercut a two-part pull over 2.7 mm² (worst -46°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 5: petiole\" (#14) would undercut a two-part pull over 0.1 mm² (worst -21°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 6\" (#15) would undercut a two-part pull over 1.9 mm² (worst -38°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 6: petiole\" (#16) would undercut a two-part pull over 0.1 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 7\" (#17) would undercut a two-part pull over 2.9 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 7: petiole\" (#18) would undercut a two-part pull over 0.0 mm² (worst -35°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 8\" (#19) would undercut a two-part pull over 1.4 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 8: petiole\" (#20) would undercut a two-part pull over 0.1 mm² (worst -7°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 9\" (#21) would undercut a two-part pull over 3.1 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf 9: petiole\" (#22) would undercut a two-part pull over 0.1 mm² (worst -15°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Berry peduncle\" (#23) would undercut a two-part pull over 1.6 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Berry 2: stalk\" (#25) would undercut a two-part pull over 0.2 mm² (worst -51°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Berry 3: stalk\" (#26) would undercut a two-part pull over 0.3 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Bezel \"Berry 1: collet\" (#101) would undercut a two-part pull over 4.0 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Bezel \"Berry 2: collet\" (#103) would undercut a two-part pull over 4.5 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Bezel \"Berry 3: collet\" (#105) would undercut a two-part pull over 4.5 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Bezel \"Berry 4: collet\" (#107) would undercut a two-part pull over 4.7 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Bezel \"Berry 5: collet\" (#109) would undercut a two-part pull over 5.1 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Rootlet tuft\" (#29) would undercut a two-part pull over 0.2 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array along a path \"Rootlet tufts along the stem\" (#30) would undercut a two-part pull over 0.3 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "thinnest_wall_mm": 1.8891712349802638,
       "thinnest_wall_theta_deg": 0.0,
@@ -522,7 +532,7 @@
       "self_crossings": 0,
       "watertight": true
     },
-    "grams_18k": 14.626953405713603,
+    "grams_18k": 14.5893659259126,
     "made_parts": [
       [
         "Ivy stem",
@@ -625,6 +635,14 @@
         0
       ],
       [
+        "Berry 4: stalk",
+        0
+      ],
+      [
+        "Berry 5: stalk",
+        0
+      ],
+      [
         "Berry 1",
         0
       ],
@@ -681,7 +699,7 @@
     "pattern": {
       "degenerate_faces": 0,
       "self_crossings": 0,
-      "triangles": 461240,
+      "triangles": 440560,
       "watertight": true
     },
     "process": "Lost wax",
@@ -700,14 +718,14 @@
       },
       {
         "at": [
-          5.573766708374023,
-          10.954913457234701,
-          0.6292933324972788
+          -5.990246613820394,
+          10.003466606140137,
+          2.6487733523050943
         ],
         "below_floor": 0,
         "part": "Crown leaf",
-        "rays": 384,
-        "sampled_min_mm": 1.2190469352713789,
+        "rays": 360,
+        "sampled_min_mm": 1.0415740789755588,
         "unresolved": 0
       },
       {
@@ -724,338 +742,362 @@
       },
       {
         "at": [
-          -11.068360010782877,
-          3.798776706059774,
-          -1.2395699818929036
+          -10.760479927062988,
+          4.393646796544393,
+          -1.192020018895467
         ],
         "below_floor": 0,
         "part": "Leaf 1",
         "rays": 320,
-        "sampled_min_mm": 0.9178597552118346,
+        "sampled_min_mm": 0.957056355257034,
         "unresolved": 0
       },
       {
         "at": [
-          -9.121033350626627,
-          7.7347133954366045,
-          1.4298733472824097
+          -8.750123341878256,
+          7.103903293609619,
+          1.6258433262507122
         ],
         "below_floor": 0,
         "part": "Leaf 1: petiole",
         "rays": 234,
-        "sampled_min_mm": 0.8231633898191305,
+        "sampled_min_mm": 0.8231575344504235,
         "unresolved": 0
       },
       {
         "at": [
-          -11.742210070292154,
-          -1.4121466477711995,
-          -0.5671733319759369
+          -11.471043268839518,
+          -0.34665999996165436,
+          -1.941813309987386
         ],
         "below_floor": 0,
         "part": "Leaf 2",
         "rays": 320,
-        "sampled_min_mm": 0.9117493131362011,
+        "sampled_min_mm": 1.0739106405214298,
         "unresolved": 0
       },
       {
         "at": [
-          -12.035776774088541,
-          1.584090034166972,
-          0.9589200019836426
+          -10.667176564534506,
+          3.4165899753570557,
+          1.848520040512085
         ],
         "below_floor": 0,
         "part": "Leaf 2: petiole",
         "rays": 234,
-        "sampled_min_mm": 0.8231719274698635,
+        "sampled_min_mm": 0.8231543661472634,
         "unresolved": 0
       },
       {
         "at": [
-          -10.463939984639486,
-          -5.114646752675374,
-          -1.458566665649414
+          -10.676223119099935,
+          -3.5655366579691568,
+          -2.131673296292623
         ],
         "below_floor": 0,
         "part": "Leaf 3",
         "rays": 320,
-        "sampled_min_mm": 0.890552868758787,
+        "sampled_min_mm": 0.919932386324677,
         "unresolved": 0
       },
       {
         "at": [
-          -11.794179916381836,
-          -0.9099233349164327,
-          1.0597800215085347
+          -11.960929870605469,
+          -0.967406690120697,
+          1.2700999975204468
         ],
         "below_floor": 0,
         "part": "Leaf 3: petiole",
         "rays": 234,
-        "sampled_min_mm": 0.8231675862238744,
+        "sampled_min_mm": 0.8231433536398446,
         "unresolved": 0
       },
       {
         "at": [
-          -6.505816618601481,
-          -9.09177335103353,
-          2.9432265758514404
+          -7.893819967905681,
+          -8.208079814910889,
+          1.853100021680196
         ],
         "below_floor": 0,
         "part": "Leaf 4",
         "rays": 320,
-        "sampled_min_mm": 0.9096979517560914,
+        "sampled_min_mm": 0.902127170199407,
         "unresolved": 0
       },
       {
         "at": [
-          -10.556193033854166,
-          -5.652616659800212,
-          -0.009163334034383297
+          -10.559890111287435,
+          -5.645730018615723,
+          -0.007786666663984458
         ],
         "below_floor": 0,
         "part": "Leaf 4: petiole",
         "rays": 234,
-        "sampled_min_mm": 0.8231657856096749,
+        "sampled_min_mm": 0.8231699565357539,
         "unresolved": 0
       },
       {
         "at": [
-          -2.939799944559733,
-          -11.088103294372559,
-          -2.0254766941070557
+          -3.5571999549865723,
+          -11.103860219319662,
+          1.027923325697581
         ],
         "below_floor": 0,
         "part": "Leaf 5",
         "rays": 320,
-        "sampled_min_mm": 0.8383099126293656,
+        "sampled_min_mm": 1.0414752306556958,
         "unresolved": 0
       },
       {
         "at": [
-          -5.572233359018962,
-          -10.705053329467773,
-          -1.3939833243687947
+          -7.328320026397705,
+          -9.439896583557129,
+          -1.1376666625340779
         ],
         "below_floor": 0,
         "part": "Leaf 5: petiole",
         "rays": 234,
-        "sampled_min_mm": 0.8231801624435361,
+        "sampled_min_mm": 0.8231771087250687,
         "unresolved": 0
       },
       {
         "at": [
-          1.755573312441508,
-          -11.618393262227377,
-          0.9630966583887736
+          1.3210899829864502,
+          -11.629403432210287,
+          0.5951800048351288
         ],
         "below_floor": 0,
         "part": "Leaf 6",
         "rays": 320,
-        "sampled_min_mm": 0.9091584082532111,
+        "sampled_min_mm": 0.9824712351963886,
         "unresolved": 0
       },
       {
         "at": [
-          -2.417536656061808,
-          -10.968523343404135,
-          -1.6290300289789836
+          -2.553826649983724,
+          -11.03190008799235,
+          -1.447309970855713
         ],
         "below_floor": 0,
         "part": "Leaf 6: petiole",
         "rays": 234,
-        "sampled_min_mm": 0.8231584371001749,
+        "sampled_min_mm": 0.8231578110405915,
         "unresolved": 0
       },
       {
         "at": [
-          7.540636698404948,
-          -9.138563474019369,
-          0.2155766636133194
+          6.20705000559489,
+          -9.538546562194824,
+          2.1250033378601074
         ],
         "below_floor": 0,
         "part": "Leaf 7",
         "rays": 320,
-        "sampled_min_mm": 0.9011699429866267,
+        "sampled_min_mm": 1.0635664416466444,
         "unresolved": 0
       },
       {
         "at": [
-          2.4932867685953775,
-          -11.702309926350912,
-          -1.6158533493677776
+          2.3488500118255615,
+          -11.036783536275228,
+          -1.534980018933614
         ],
         "below_floor": 0,
         "part": "Leaf 7: petiole",
         "rays": 234,
-        "sampled_min_mm": 0.8231689035711917,
+        "sampled_min_mm": 0.8231498372614141,
         "unresolved": 0
       },
       {
         "at": [
-          10.080236752827963,
-          -5.685946782430013,
-          1.7011500199635823
+          8.948210080464682,
+          -6.663999875386556,
+          2.357283353805542
         ],
         "below_floor": 0,
         "part": "Leaf 8",
         "rays": 320,
-        "sampled_min_mm": 0.9029795263331486,
+        "sampled_min_mm": 0.8640367757047562,
         "unresolved": 0
       },
       {
         "at": [
-          8.814156532287598,
-          -7.303343296051025,
-          0.39348333577315014
+          8.611969947814941,
+          -7.733283360799153,
+          0.7331166466077169
         ],
         "below_floor": 0,
         "part": "Leaf 8: petiole",
         "rays": 234,
-        "sampled_min_mm": 0.8231705033680352,
+        "sampled_min_mm": 0.823172839428487,
         "unresolved": 0
       },
       {
         "at": [
-          11.285849889119467,
-          -0.117746668557326,
-          -2.5774666468302407
+          11.280316670735678,
+          -0.5922900140285492,
+          -2.121193289756775
         ],
         "below_floor": 0,
         "part": "Leaf 9",
         "rays": 320,
-        "sampled_min_mm": 0.8794786145118187,
+        "sampled_min_mm": 1.1153971057362346,
         "unresolved": 0
       },
       {
         "at": [
-          11.171253522237143,
-          -2.708470026652018,
-          -1.1097333431243896
+          11.193446477254232,
+          -2.753439982732137,
+          -0.8562266627947489
         ],
         "below_floor": 0,
         "part": "Leaf 9: petiole",
         "rays": 234,
-        "sampled_min_mm": 0.8231723415149997,
+        "sampled_min_mm": 0.8231740341851053,
         "unresolved": 0
       },
       {
         "at": [
-          11.774553298950195,
-          2.044243415196737,
-          1.4031866788864136
+          11.837443033854166,
+          2.150136629740397,
+          1.7188033262888591
         ],
         "below_floor": 0,
         "part": "Berry peduncle",
-        "rays": 310,
-        "sampled_min_mm": 0.9106599275306118,
+        "rays": 299,
+        "sampled_min_mm": 0.9054842464127119,
         "unresolved": 0
       },
       {
         "at": [
-          9.037786483764648,
-          6.633483409881592,
-          -0.052616666641066935
+          8.994673411051432,
+          6.6651865641276045,
+          0.7236033280690511
         ],
         "below_floor": 0,
         "part": "Berry 1: stalk",
-        "rays": 238,
-        "sampled_min_mm": 0.8086159865898107,
+        "rays": 286,
+        "sampled_min_mm": 0.8006058162334672,
         "unresolved": 0
       },
       {
         "at": [
-          9.132186889648438,
-          7.347683270772298,
-          0.05267333363493284
+          10.068909962972006,
+          6.319643497467041,
+          -1.010890007019043
         ],
         "below_floor": 0,
         "part": "Berry 2: stalk",
-        "rays": 238,
-        "sampled_min_mm": 0.8086159186449386,
+        "rays": 286,
+        "sampled_min_mm": 0.8006112163058396,
         "unresolved": 0
       },
       {
         "at": [
-          9.037870089213053,
-          7.302546660105388,
-          -0.06435666667918365
+          9.113180160522461,
+          6.599809964497884,
+          -0.4690466622511546
         ],
         "below_floor": 0,
         "part": "Berry 3: stalk",
-        "rays": 238,
-        "sampled_min_mm": 0.808610167585859,
+        "rays": 286,
+        "sampled_min_mm": 0.8006125988482925,
         "unresolved": 0
       },
       {
         "at": [
-          9.884963671366373,
-          8.310450871785482,
-          0.46542683243751526
+          10.323769887288412,
+          5.895183404286702,
+          0.6669466694196066
+        ],
+        "below_floor": 0,
+        "part": "Berry 4: stalk",
+        "rays": 286,
+        "sampled_min_mm": 0.800609726116934,
+        "unresolved": 0
+      },
+      {
+        "at": [
+          9.151926676432291,
+          6.604236602783203,
+          -0.2637000009417534
+        ],
+        "below_floor": 0,
+        "part": "Berry 5: stalk",
+        "rays": 286,
+        "sampled_min_mm": 0.8006097834494065,
+        "unresolved": 0
+      },
+      {
+        "at": [
+          10.284549395243326,
+          5.853150844573975,
+          1.7062973181406658
         ],
         "below_floor": 216,
         "part": "Berry 1: collet",
         "rays": 324,
-        "sampled_min_mm": 0.24781054224591229,
+        "sampled_min_mm": 0.24702268644331507,
         "unresolved": 0
       },
       {
         "at": [
-          11.030791282653809,
-          6.776707649230957,
-          0.549360434214274
+          11.044037501017252,
+          5.003323237101237,
+          -0.26275336742401123
         ],
         "below_floor": 216,
         "part": "Berry 2: collet",
         "rays": 324,
-        "sampled_min_mm": 0.24733567559962855,
+        "sampled_min_mm": 0.247027400859313,
         "unresolved": 0
       },
       {
         "at": [
-          10.906160354614258,
-          5.169600486755371,
-          -1.4610735575358074
+          9.436786333719889,
+          7.4387868245442705,
+          -2.03885010878245
         ],
         "below_floor": 216,
         "part": "Berry 3: collet",
         "rays": 324,
-        "sampled_min_mm": 0.24733698150967867,
+        "sampled_min_mm": 0.24702733273944819,
         "unresolved": 0
       },
       {
         "at": [
-          9.404126485188803,
-          7.892769654591878,
-          3.0726450284322104
+          10.862257957458496,
+          5.320023536682129,
+          2.2743603388468423
         ],
         "below_floor": 213,
         "part": "Berry 4: collet",
         "rays": 318,
-        "sampled_min_mm": 0.2483388228922411,
+        "sampled_min_mm": 0.24865936925843965,
         "unresolved": 0
       },
       {
         "at": [
-          9.285184860229492,
-          7.6139421463012695,
-          -3.234067757924398
+          6.895445346832275,
+          9.691697756449381,
+          1.5944124460220337
         ],
         "below_floor": 213,
         "part": "Berry 5: collet",
         "rays": 318,
-        "sampled_min_mm": 0.24834323243826306,
+        "sampled_min_mm": 0.24865930292313396,
         "unresolved": 0
       },
       {
         "at": [
-          -6.759950002034505,
-          9.315703392028809,
-          -0.48696333169937134
+          -6.722596804300944,
+          9.33821964263916,
+          -0.09028333177169164
         ],
         "below_floor": 352,
         "part": "Rootlet tuft",
         "rays": 352,
-        "sampled_min_mm": 0.16841968866331725,
+        "sampled_min_mm": 0.1691392155160528,
         "unresolved": 0
       }
     ],
@@ -1066,7 +1108,7 @@
     },
     "stones": {
       "carats": 0.4242115179609404,
-      "closest": "Berry 3 to Berry 5: 0.23 mm at the girdle, 0.16 mm deep",
+      "closest": "Berry 1 to Berry 5: 0.19 mm at the girdle, 0.13 mm deep",
       "metal_inside": [
         [
           "Berry 1",
@@ -1200,6 +1242,14 @@
       "Ok"
     ],
     [
+      "#27",
+      "Ok"
+    ],
+    [
+      "#28",
+      "Ok"
+    ],
+    [
       "#100",
       "Ok"
     ],
@@ -1240,11 +1290,11 @@
       "Ok"
     ],
     [
-      "#27",
+      "#29",
       "Ok"
     ],
     [
-      "#28",
+      "#30",
       "Ok"
     ]
   ],
@@ -1253,36 +1303,38 @@
     "min_section_mm": 0.8,
     "notes": [
       "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
-      "Measured with the ring as built: 32 CAD parts (32 joined, 0 cut), 467.5 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Ivy stem\" (#2) would undercut a two-part pull over 42.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Crown leaf\" (#3) would undercut a two-part pull over 15.1 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Measured with the ring as built: 34 CAD parts (34 joined, 0 cut), 427.9 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Ivy stem\" (#2) would undercut a two-part pull over 44.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Crown leaf\" (#3) would undercut a two-part pull over 16.0 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Stored mesh \"Crown leaf: petiole\" (#4) would undercut a two-part pull over 0.3 mm² (worst -60°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 1\" (#5) would undercut a two-part pull over 1.9 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 1: petiole\" (#6) would undercut a two-part pull over 0.2 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 2\" (#7) would undercut a two-part pull over 2.4 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 2: petiole\" (#8) would undercut a two-part pull over 0.1 mm² (worst -28°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 3\" (#9) would undercut a two-part pull over 1.8 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 3: petiole\" (#10) would undercut a two-part pull over 0.1 mm² (worst -24°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 4\" (#11) would undercut a two-part pull over 3.1 mm² (worst -55°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 4: petiole\" (#12) would undercut a two-part pull over 0.2 mm² (worst -15°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 5\" (#13) would undercut a two-part pull over 0.6 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 6\" (#15) would undercut a two-part pull over 2.0 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 6: petiole\" (#16) would undercut a two-part pull over 0.2 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 7\" (#17) would undercut a two-part pull over 2.7 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 8\" (#19) would undercut a two-part pull over 1.5 mm² (worst -39°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 8: petiole\" (#20) would undercut a two-part pull over 0.0 mm² (worst -11°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 9\" (#21) would undercut a two-part pull over 2.9 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf 9: petiole\" (#22) would undercut a two-part pull over 0.4 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Berry peduncle\" (#23) would undercut a two-part pull over 2.4 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Berry 2: stalk\" (#25) would undercut a two-part pull over 0.2 mm² (worst -24°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Berry 3: stalk\" (#26) would undercut a two-part pull over 0.3 mm² (worst -26°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Berry 1: collet\" (#101) would undercut a two-part pull over 7.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Berry 2: collet\" (#103) would undercut a two-part pull over 7.6 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Berry 3: collet\" (#105) would undercut a two-part pull over 8.0 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Berry 4: collet\" (#107) would undercut a two-part pull over 7.8 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Berry 5: collet\" (#109) would undercut a two-part pull over 7.5 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Rootlet tuft\" (#27) would undercut a two-part pull over 0.4 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array along a path \"Rootlet tufts along the stem\" (#28) would undercut a two-part pull over 6.1 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: Stored mesh \"Leaf 1\" (#5) would undercut a two-part pull over 1.8 mm² (worst -39°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 1: petiole\" (#6) would undercut a two-part pull over 0.1 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 2\" (#7) would undercut a two-part pull over 2.8 mm² (worst -35°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 2: petiole\" (#8) would undercut a two-part pull over 0.0 mm² (worst -34°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 3\" (#9) would undercut a two-part pull over 1.9 mm² (worst -25°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 3: petiole\" (#10) would undercut a two-part pull over 0.1 mm² (worst -21°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 4\" (#11) would undercut a two-part pull over 1.6 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 4: petiole\" (#12) would undercut a two-part pull over 0.1 mm² (worst -15°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 5\" (#13) would undercut a two-part pull over 2.7 mm² (worst -46°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 5: petiole\" (#14) would undercut a two-part pull over 0.1 mm² (worst -21°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 6\" (#15) would undercut a two-part pull over 1.9 mm² (worst -38°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 6: petiole\" (#16) would undercut a two-part pull over 0.1 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 7\" (#17) would undercut a two-part pull over 2.9 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 7: petiole\" (#18) would undercut a two-part pull over 0.0 mm² (worst -35°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 8\" (#19) would undercut a two-part pull over 1.4 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 8: petiole\" (#20) would undercut a two-part pull over 0.1 mm² (worst -7°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 9\" (#21) would undercut a two-part pull over 3.1 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf 9: petiole\" (#22) would undercut a two-part pull over 0.1 mm² (worst -15°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Berry peduncle\" (#23) would undercut a two-part pull over 1.6 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Berry 2: stalk\" (#25) would undercut a two-part pull over 0.2 mm² (worst -51°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Berry 3: stalk\" (#26) would undercut a two-part pull over 0.3 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Berry 1: collet\" (#101) would undercut a two-part pull over 4.0 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Berry 2: collet\" (#103) would undercut a two-part pull over 4.5 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Berry 3: collet\" (#105) would undercut a two-part pull over 4.5 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Berry 4: collet\" (#107) would undercut a two-part pull over 4.7 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Berry 5: collet\" (#109) would undercut a two-part pull over 5.1 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Rootlet tuft\" (#29) would undercut a two-part pull over 0.2 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array along a path \"Rootlet tufts along the stem\" (#30) would undercut a two-part pull over 0.3 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "thinnest_wall_mm": 1.8891712349802638,
     "thinnest_wall_theta_deg": 0.0,
@@ -1344,7 +1396,7 @@
     "self_crossings": 0,
     "watertight": true
   },
-  "grams_18k": 14.627103711482443,
+  "grams_18k": 14.58951717110277,
   "made_parts": [
     [
       "Ivy stem",
@@ -1447,6 +1499,14 @@
       0
     ],
     [
+      "Berry 4: stalk",
+      0
+    ],
+    [
+      "Berry 5: stalk",
+      0
+    ],
+    [
       "Berry 1",
       0
     ],
@@ -1503,7 +1563,7 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 1174126,
+    "triangles": 1157104,
     "watertight": true
   },
   "process": "Lost wax",
@@ -1522,14 +1582,14 @@
     },
     {
       "at": [
-        5.573766708374023,
-        10.954913457234701,
-        0.6292933324972788
+        -5.990246613820394,
+        10.003466606140137,
+        2.6487733523050943
       ],
       "below_floor": 0,
       "part": "Crown leaf",
-      "rays": 384,
-      "sampled_min_mm": 1.2190469352713789,
+      "rays": 360,
+      "sampled_min_mm": 1.0415740789755588,
       "unresolved": 0
     },
     {
@@ -1546,338 +1606,362 @@
     },
     {
       "at": [
-        -11.068360010782877,
-        3.798776706059774,
-        -1.2395699818929036
+        -10.760479927062988,
+        4.393646796544393,
+        -1.192020018895467
       ],
       "below_floor": 0,
       "part": "Leaf 1",
       "rays": 320,
-      "sampled_min_mm": 0.9178597552118346,
+      "sampled_min_mm": 0.957056355257034,
       "unresolved": 0
     },
     {
       "at": [
-        -9.121033350626627,
-        7.7347133954366045,
-        1.4298733472824097
+        -8.750123341878256,
+        7.103903293609619,
+        1.6258433262507122
       ],
       "below_floor": 0,
       "part": "Leaf 1: petiole",
       "rays": 234,
-      "sampled_min_mm": 0.8231633898191305,
+      "sampled_min_mm": 0.8231575344504235,
       "unresolved": 0
     },
     {
       "at": [
-        -11.742210070292154,
-        -1.4121466477711995,
-        -0.5671733319759369
+        -11.471043268839518,
+        -0.34665999996165436,
+        -1.941813309987386
       ],
       "below_floor": 0,
       "part": "Leaf 2",
       "rays": 320,
-      "sampled_min_mm": 0.9117493131362011,
+      "sampled_min_mm": 1.0739106405214298,
       "unresolved": 0
     },
     {
       "at": [
-        -12.035776774088541,
-        1.584090034166972,
-        0.9589200019836426
+        -10.667176564534506,
+        3.4165899753570557,
+        1.848520040512085
       ],
       "below_floor": 0,
       "part": "Leaf 2: petiole",
       "rays": 234,
-      "sampled_min_mm": 0.8231719274698635,
+      "sampled_min_mm": 0.8231543661472634,
       "unresolved": 0
     },
     {
       "at": [
-        -10.463939984639486,
-        -5.114646752675374,
-        -1.458566665649414
+        -10.676223119099935,
+        -3.5655366579691568,
+        -2.131673296292623
       ],
       "below_floor": 0,
       "part": "Leaf 3",
       "rays": 320,
-      "sampled_min_mm": 0.890552868758787,
+      "sampled_min_mm": 0.919932386324677,
       "unresolved": 0
     },
     {
       "at": [
-        -11.794179916381836,
-        -0.9099233349164327,
-        1.0597800215085347
+        -11.960929870605469,
+        -0.967406690120697,
+        1.2700999975204468
       ],
       "below_floor": 0,
       "part": "Leaf 3: petiole",
       "rays": 234,
-      "sampled_min_mm": 0.8231675862238744,
+      "sampled_min_mm": 0.8231433536398446,
       "unresolved": 0
     },
     {
       "at": [
-        -6.505816618601481,
-        -9.09177335103353,
-        2.9432265758514404
+        -7.893819967905681,
+        -8.208079814910889,
+        1.853100021680196
       ],
       "below_floor": 0,
       "part": "Leaf 4",
       "rays": 320,
-      "sampled_min_mm": 0.9096979517560914,
+      "sampled_min_mm": 0.902127170199407,
       "unresolved": 0
     },
     {
       "at": [
-        -10.556193033854166,
-        -5.652616659800212,
-        -0.009163334034383297
+        -10.559890111287435,
+        -5.645730018615723,
+        -0.007786666663984458
       ],
       "below_floor": 0,
       "part": "Leaf 4: petiole",
       "rays": 234,
-      "sampled_min_mm": 0.8231657856096749,
+      "sampled_min_mm": 0.8231699565357539,
       "unresolved": 0
     },
     {
       "at": [
-        -2.939799944559733,
-        -11.088103294372559,
-        -2.0254766941070557
+        -3.5571999549865723,
+        -11.103860219319662,
+        1.027923325697581
       ],
       "below_floor": 0,
       "part": "Leaf 5",
       "rays": 320,
-      "sampled_min_mm": 0.8383099126293656,
+      "sampled_min_mm": 1.0414752306556958,
       "unresolved": 0
     },
     {
       "at": [
-        -5.572233359018962,
-        -10.705053329467773,
-        -1.3939833243687947
+        -7.328320026397705,
+        -9.439896583557129,
+        -1.1376666625340779
       ],
       "below_floor": 0,
       "part": "Leaf 5: petiole",
       "rays": 234,
-      "sampled_min_mm": 0.8231801624435361,
+      "sampled_min_mm": 0.8231771087250687,
       "unresolved": 0
     },
     {
       "at": [
-        1.755573312441508,
-        -11.618393262227377,
-        0.9630966583887736
+        1.3210899829864502,
+        -11.629403432210287,
+        0.5951800048351288
       ],
       "below_floor": 0,
       "part": "Leaf 6",
       "rays": 320,
-      "sampled_min_mm": 0.9091584082532111,
+      "sampled_min_mm": 0.9824712351963886,
       "unresolved": 0
     },
     {
       "at": [
-        -2.417536656061808,
-        -10.968523343404135,
-        -1.6290300289789836
+        -2.553826649983724,
+        -11.03190008799235,
+        -1.447309970855713
       ],
       "below_floor": 0,
       "part": "Leaf 6: petiole",
       "rays": 234,
-      "sampled_min_mm": 0.8231584371001749,
+      "sampled_min_mm": 0.8231578110405915,
       "unresolved": 0
     },
     {
       "at": [
-        7.540636698404948,
-        -9.138563474019369,
-        0.2155766636133194
+        6.20705000559489,
+        -9.538546562194824,
+        2.1250033378601074
       ],
       "below_floor": 0,
       "part": "Leaf 7",
       "rays": 320,
-      "sampled_min_mm": 0.9011699429866267,
+      "sampled_min_mm": 1.0635664416466444,
       "unresolved": 0
     },
     {
       "at": [
-        2.4932867685953775,
-        -11.702309926350912,
-        -1.6158533493677776
+        2.3488500118255615,
+        -11.036783536275228,
+        -1.534980018933614
       ],
       "below_floor": 0,
       "part": "Leaf 7: petiole",
       "rays": 234,
-      "sampled_min_mm": 0.8231689035711917,
+      "sampled_min_mm": 0.8231498372614141,
       "unresolved": 0
     },
     {
       "at": [
-        10.080236752827963,
-        -5.685946782430013,
-        1.7011500199635823
+        8.948210080464682,
+        -6.663999875386556,
+        2.357283353805542
       ],
       "below_floor": 0,
       "part": "Leaf 8",
       "rays": 320,
-      "sampled_min_mm": 0.9029795263331486,
+      "sampled_min_mm": 0.8640367757047562,
       "unresolved": 0
     },
     {
       "at": [
-        8.814156532287598,
-        -7.303343296051025,
-        0.39348333577315014
+        8.611969947814941,
+        -7.733283360799153,
+        0.7331166466077169
       ],
       "below_floor": 0,
       "part": "Leaf 8: petiole",
       "rays": 234,
-      "sampled_min_mm": 0.8231705033680352,
+      "sampled_min_mm": 0.823172839428487,
       "unresolved": 0
     },
     {
       "at": [
-        11.285849889119467,
-        -0.117746668557326,
-        -2.5774666468302407
+        11.280316670735678,
+        -0.5922900140285492,
+        -2.121193289756775
       ],
       "below_floor": 0,
       "part": "Leaf 9",
       "rays": 320,
-      "sampled_min_mm": 0.8794786145118187,
+      "sampled_min_mm": 1.1153971057362346,
       "unresolved": 0
     },
     {
       "at": [
-        11.171253522237143,
-        -2.708470026652018,
-        -1.1097333431243896
+        11.193446477254232,
+        -2.753439982732137,
+        -0.8562266627947489
       ],
       "below_floor": 0,
       "part": "Leaf 9: petiole",
       "rays": 234,
-      "sampled_min_mm": 0.8231723415149997,
+      "sampled_min_mm": 0.8231740341851053,
       "unresolved": 0
     },
     {
       "at": [
-        11.774553298950195,
-        2.044243415196737,
-        1.4031866788864136
+        11.837443033854166,
+        2.150136629740397,
+        1.7188033262888591
       ],
       "below_floor": 0,
       "part": "Berry peduncle",
-      "rays": 310,
-      "sampled_min_mm": 0.9106599275306118,
+      "rays": 299,
+      "sampled_min_mm": 0.9054842464127119,
       "unresolved": 0
     },
     {
       "at": [
-        9.037786483764648,
-        6.633483409881592,
-        -0.052616666641066935
+        8.994673411051432,
+        6.6651865641276045,
+        0.7236033280690511
       ],
       "below_floor": 0,
       "part": "Berry 1: stalk",
-      "rays": 238,
-      "sampled_min_mm": 0.8086159865898107,
+      "rays": 286,
+      "sampled_min_mm": 0.8006058162334672,
       "unresolved": 0
     },
     {
       "at": [
-        9.132186889648438,
-        7.347683270772298,
-        0.05267333363493284
+        10.068909962972006,
+        6.319643497467041,
+        -1.010890007019043
       ],
       "below_floor": 0,
       "part": "Berry 2: stalk",
-      "rays": 238,
-      "sampled_min_mm": 0.8086159186449386,
+      "rays": 286,
+      "sampled_min_mm": 0.8006112163058396,
       "unresolved": 0
     },
     {
       "at": [
-        9.037870089213053,
-        7.302546660105388,
-        -0.06435666667918365
+        9.113180160522461,
+        6.599809964497884,
+        -0.4690466622511546
       ],
       "below_floor": 0,
       "part": "Berry 3: stalk",
-      "rays": 238,
-      "sampled_min_mm": 0.808610167585859,
+      "rays": 286,
+      "sampled_min_mm": 0.8006125988482925,
       "unresolved": 0
     },
     {
       "at": [
-        9.88503646850586,
-        8.310529073079428,
-        0.46529509623845416
+        10.323769887288412,
+        5.895183404286702,
+        0.6669466694196066
+      ],
+      "below_floor": 0,
+      "part": "Berry 4: stalk",
+      "rays": 286,
+      "sampled_min_mm": 0.800609726116934,
+      "unresolved": 0
+    },
+    {
+      "at": [
+        9.151926676432291,
+        6.604236602783203,
+        -0.2637000009417534
+      ],
+      "below_floor": 0,
+      "part": "Berry 5: stalk",
+      "rays": 286,
+      "sampled_min_mm": 0.8006097834494065,
+      "unresolved": 0
+    },
+    {
+      "at": [
+        10.552717844645182,
+        6.333786805470784,
+        0.8171325127283732
       ],
       "below_floor": 216,
       "part": "Berry 1: collet",
       "rays": 324,
-      "sampled_min_mm": 0.2478104914842427,
+      "sampled_min_mm": 0.24702271743115645,
       "unresolved": 0
     },
     {
       "at": [
-        10.160454750061035,
-        7.87312666575114,
-        1.1635488669077556
+        10.968583106994629,
+        4.481865564982097,
+        -0.8531126578648885
       ],
       "below_floor": 216,
       "part": "Berry 2: collet",
       "rays": 324,
-      "sampled_min_mm": 0.2473360808209237,
+      "sampled_min_mm": 0.24702752984708337,
       "unresolved": 0
     },
     {
       "at": [
-        11.01325766245524,
-        5.306180000305176,
-        -1.2587753136952717
+        7.395025412241618,
+        9.313890139261881,
+        -0.7492836912473043
       ],
       "below_floor": 216,
       "part": "Berry 3: collet",
       "rays": 324,
-      "sampled_min_mm": 0.24733737039746287,
+      "sampled_min_mm": 0.24702734504298984,
       "unresolved": 0
     },
     {
       "at": [
-        8.637975692749023,
-        7.179362773895264,
-        3.5417892932891846
+        11.100693066914877,
+        6.125264644622803,
+        1.4923231601715088
       ],
       "below_floor": 213,
       "part": "Berry 4: collet",
       "rays": 318,
-      "sampled_min_mm": 0.24833917843394127,
+      "sampled_min_mm": 0.24865932904272864,
       "unresolved": 0
     },
     {
       "at": [
-        8.244667689005533,
-        9.147909164428711,
-        -2.5489174524943032
+        8.553348541259766,
+        9.596168518066406,
+        0.3236122628053029
       ],
       "below_floor": 213,
       "part": "Berry 5: collet",
       "rays": 318,
-      "sampled_min_mm": 0.24834383289353307,
+      "sampled_min_mm": 0.24865934824600955,
       "unresolved": 0
     },
     {
       "at": [
-        -6.759950002034505,
-        9.315703392028809,
-        -0.48696333169937134
+        -6.722596804300944,
+        9.33821964263916,
+        -0.09028333177169164
       ],
       "below_floor": 352,
       "part": "Rootlet tuft",
       "rays": 352,
-      "sampled_min_mm": 0.16841968866331725,
+      "sampled_min_mm": 0.1691392155160528,
       "unresolved": 0
     }
   ],
@@ -1888,7 +1972,7 @@
   },
   "stones": {
     "carats": 0.4242115179609404,
-    "closest": "Berry 3 to Berry 5: 0.23 mm at the girdle, 0.16 mm deep",
+    "closest": "Berry 1 to Berry 4: 0.19 mm at the girdle, 0.13 mm deep",
     "metal_inside": [
       [
         "Berry 1",

@@ -59,14 +59,16 @@ const BERRY_MM: f64 = 3.0;
 const SMALL_BERRY_MM: f64 = 2.2;
 const SMALL_BERRY_REACH_MM: f64 = 3.05;
 /// How much higher the smaller berries stand, over the larger ones' shoulders.
-const SMALL_BERRY_LIFT_MM: f64 = 0.3;
+const SMALL_BERRY_LIFT_MM: f64 = 0.45;
 const SPINEL_TINT: [f32; 3] = [0.03, 0.03, 0.04];
 /// The cluster's centre `(theta, w)`, each berry's reach from it, the first's turn, their lean out and girdle height.
-const BERRY_CENTRE: (f64, f64) = (37.0, 0.0);
+const BERRY_CENTRE: (f64, f64) = (37.0, -0.4);
 const BERRY_SPREAD_MM: f64 = 1.85;
-const BERRY_TURN_DEG: f64 = 0.0;
-const BERRY_TILT_DEG: f64 = 22.0;
-const BERRY_HEIGHT_MM: f64 = 0.6;
+const BERRY_TURN_DEG: f64 = 90.0;
+const BERRY_TILT_DEG: f64 = 14.0;
+const BERRY_HEIGHT_MM: f64 = 0.3;
+/// The bunch squeezed across the band so no collet passes its side face.
+const BERRY_ACROSS: f64 = 1.0;
 /// The collet's wall and lip: a setting, a thin rim round each berry, judged at the detail floor as settings are.
 const COLLET_WALL_MM: f64 = 0.25;
 /// The berries' stalks: radius (the body section) and the height of their centres over the band.
@@ -78,7 +80,7 @@ const COLLET_LIP: f64 = 0.15;
 const ROOTLET_FROM_MM: f64 = 0.5;
 const ROOTLET_ROOT_R_MM: f64 = 0.13;
 const ROOTLET_TIP_R_MM: f64 = 0.09;
-const ROOTLET_PITCH_MM: f64 = 0.65;
+const ROOTLET_PITCH_MM: f64 = 1.3;
 
 /// A leaf's sink under the band's surface, its height over it at the margin and at the hub, and the vein relief.
 const LEAF_SINK_MM: f64 = 0.8;
@@ -90,9 +92,9 @@ const LEAF_RIM_SINK_MM: f64 = 0.8;
 const LEAF_EDGE_MM: f64 = 0.45;
 const LEAF_HUB_MM: f64 = 0.52;
 /// The round on the blade's top edge.
-const LEAF_EDGE_ROUND_MM: f64 = 0.15;
+const LEAF_EDGE_ROUND_MM: f64 = 0.3;
 /// How far the margins lift over the blade's centre, a ten-millimetre leaf's worth: the blade cups.
-const LEAF_CUP_MM: f64 = 0.35;
+const LEAF_CUP_MM: f64 = 0.6;
 /// The plate's least thickness, top to floor: the lost-wax section with a little to spare.
 const LEAF_PLATE_MM: f64 = 1.25;
 /// The veins: ribs raised from the notch to near each lobe's tip over a web recessed this much, this high and wide.
@@ -103,6 +105,10 @@ const VEIN_W_MM: f64 = 0.34;
 const PETIOLE_R_MM: f64 = 0.44;
 /// The petiole's centre over the band: sunk a little, standing 0.4 mm proud.
 const PETIOLE_H_MM: f64 = 0.12;
+/// A juvenile leaf's petiole length, its splay off the stem, and how far across the crown its lobes may reach.
+const PETIOLE_LEN_MM: f64 = 1.5;
+const LEAF_SPLAY_DEG: f64 = 40.0;
+const LEAF_FIT_W_MM: f64 = 2.3;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -186,9 +192,9 @@ impl Chart {
     /// [`Chart::world`] on the surface a leaf lies on: the band's own over the crown, then past `LEAF_LIP_DEG` of tilt
     /// toward an edge a surface that carries on from there and droops `1 / LEAF_DROOP_MM` a millimetre, so a lobe
     /// reaching over the edge stands off it and breaks the band's outline.
-    fn leaf_world(&self, theta_deg: f64, w: f64, h: f64) -> P3 {
+    fn leaf_world(&self, theta_deg: f64, w: f64, h: f64, lip_deg: f64) -> P3 {
         let side = if w < 0.0 { -1.0 } else { 1.0 };
-        let lip = self.lip_w(side);
+        let lip = self.lip_w_at(side, lip_deg);
         if w * side <= lip * side {
             return self.world(theta_deg, w, h);
         }
@@ -211,10 +217,15 @@ impl Chart {
 
     /// The `w` past which a leaf leaves the band's surface toward `side`.
     fn lip_w(&self, side: f64) -> f64 {
+        self.lip_w_at(side, LEAF_LIP_DEG)
+    }
+
+    /// The `w` past which the band's normal tilts more than `deg` toward `side`.
+    fn lip_w_at(&self, side: f64, deg: f64) -> f64 {
         let mut w = 0.0;
         while w < 6.0 {
             let (_, _, nr, nz) = self.at(side * w);
-            if (nz * side).atan2(nr).to_degrees() > LEAF_LIP_DEG {
+            if (nz * side).atan2(nr).to_degrees() > deg {
                 return side * w;
             }
             w += 0.005;
@@ -445,7 +456,7 @@ impl Ivy {
         // its point: passes of neighbour averaging.
         // Each pass rounds by about a sample's spacing, which is a 48th of the leaf: so many passes for a half
         // millimetre's round, a little more on the small leaves, whose tips are sampled more coarsely.
-        let round = if len > 6.0 { 0.5 } else { 0.7 };
+        let round = if len > 6.0 { 0.5 } else { 0.85 };
         let passes = ((round * 48.0 / len).powi(2).round() as usize).clamp(4, 120);
         for _ in 0..passes {
             let m = poly.len();
@@ -489,11 +500,16 @@ impl Ivy {
     /// Perpendicular distance from plan point `(r, phi)` to the nearest vein, and that vein's reach.
     fn vein(&self, r: f64, phi: f64) -> (f64, f64) {
         let mut best = (f64::MAX, 1.0);
+        // A small leaf carries its midrib alone: side ribs on its few rings shade as a crumple.
+        let small = self.lobes[0].1 <= 6.0;
         for &(a, l, _) in &self.lobes {
+            if small && a != 0.0 {
+                continue;
+            }
             let d = (phi - a + PI).rem_euclid(TAU) - PI;
             let dist = if d.abs() < PI * 0.5 { r * d.sin().abs() } else { r };
             // The midrib stands full height; the side veins lower, so the leaf reads by its midrib, not as a star.
-            let weight = if a == 0.0 { 1.0 } else { 0.6 };
+            let weight = if a == 0.0 { 1.0 } else { 0.8 };
             if dist / weight < best.0 {
                 best = (dist / weight, l);
             }
@@ -520,10 +536,10 @@ impl Ivy {
         let run = if self.lobes[0].1 > 6.0 { 0.9 } else { 0.7 };
         let along = (r / (run * reach)).clamp(0.0, 1.0);
         // Faded in clear of the notch, where five ribs would crowd into thin metal, and out at the tip.
-        let fade = (1.0 - along.powi(4)).max(0.0) * ((r - 0.4) / 0.8).clamp(0.0, 1.0);
+        let fade = (1.0 - along.powi(8)).max(0.0) * ((r - 0.4) / 0.8).clamp(0.0, 1.0);
         // `dist` is scaled up for the side veins, which makes their ribs lower and finer.
         let rib = (-(dist / (0.5 * VEIN_W_MM)).powi(2)).exp() * fade;
-        let inside = ((rho - r) / 0.6).clamp(0.0, 1.0);
+        let inside = if self.lobes[0].1 > 6.0 { ((rho - r) / 0.6).clamp(0.0, 1.0) } else { 0.0 };
         dome.max(self.floor(r, phi) + LEAF_PLATE_MM) + VEIN_HIGH_MM * rib - VEIN_WEB_MM * (1.0 - rib) * inside
     }
 }
@@ -533,10 +549,12 @@ impl Ivy {
 fn leaf_solid(c: &Chart, ivy: &Ivy, hub: (f64, f64), axis_deg: f64, curl_mm: f64) -> csg::Solid {
     let len = ivy.lobes[0].1;
     // Resolution by size, held lean for the template's weight: the outline's columns, the top's rings, the rim's.
-    let around = if len > 6.0 { 96 } else { 64 };
+    let around = if len > 6.0 { 90 } else { 64 };
     let rings = if len > 6.0 { 8 } else { 4 };
     const RIM: usize = 4;
-    let surface = |t: f64, w: f64, h: f64| c.leaf_world(t, w, h);
+    // The crown leaf leaves the band past the crown's lip and breaks its outline; a juvenile leaf hugs the band.
+    let lip_deg = if len > 6.0 { LEAF_LIP_DEG } else { 30.0 };
+    let surface = |t: f64, w: f64, h: f64| c.leaf_world(t, w, h, lip_deg);
     // The blade's mid-surface: the band lifted by the curl, which rises past a third of the length, most at the
     // terminal lobe's tip, and by the cup, which lifts the blade with distance from the notch, the lobe tips most.
     let mid = |x: f64, y: f64| {
@@ -683,12 +701,38 @@ fn leaves(c: &Chart) -> Vec<LeafAt> {
         // The hero: one large three-lobed leaf across the crown, its notch toward the stem, its tip round the ring.
         LeafAt { name: "Crown leaf".into(), hub: (110.0, 0.95), axis_deg: aim((110.0, 0.95), 126.0), len: 10.2, curl: 0.0 },
     ];
-    // Juvenile leaves along the stem in three sizes, alternating sides, each on a petiole leaning on round the ring,
-    // its hub kept near the crest so the blade stays on the crown.
-    for (k, &(root, len)) in [(141.0, 3.8), (162.0, 4.6), (186.0, 3.8), (208.0, 5.0), (232.0, 4.0), (258.0, 3.8), (283.0, 4.8), (310.0, 3.8), (337.0, 4.4)].iter().enumerate() {
-        let side = if k % 2 == 0 { -1.0 } else { 1.0 };
-        let hub = (root + 7.0, (stem_w(c, root) + side * 0.9).clamp(-1.1, 1.1));
-        out.push(LeafAt { name: format!("Leaf {}", k + 1), hub, axis_deg: aim(hub, root), len, curl: 0.15 });
+    // Juvenile leaves along the stem, alternating sides: each leaves the stem at an angle on a short petiole into the
+    // open band beside it, sized so every lobe stays on the crown short of the edge's round, and turned to the other
+    // side where the stem leaves no room.
+    let unit_leaf = Ivy::three(4.0);
+    let reach = |hub: (f64, f64), axis: f64, len: f64| {
+        (0..72)
+            .map(|k| {
+                let phi = -PI + TAU * k as f64 / 72.0;
+                let r = unit_leaf.rho(phi) * len / 4.0;
+                plan_to_chart(c, hub, axis, [r * phi.cos(), r * phi.sin()]).1.abs()
+            })
+            .fold(0.0, f64::max)
+    };
+    let mut side = 1.0;
+    for (k, &(root, want)) in [(141.0, 3.8), (162.0, 4.6), (186.0, 3.8), (208.0, 5.0), (232.0, 4.0), (258.0, 3.8), (283.0, 4.8), (310.0, 3.8), (337.0, 4.4)].iter().enumerate() {
+        let r = c.at(stem_w(c, root)).0;
+        let slope = (stem_w(c, root + 0.5) - stem_w(c, root - 0.5)) / (1f64.to_radians() * r);
+        let along = slope.atan().to_degrees();
+        let fit = |side: f64| {
+            let axis = along + side * LEAF_SPLAY_DEG;
+            let hub = plan_to_chart(c, (root, stem_w(c, root)), axis, [PETIOLE_LEN_MM, 0.0]);
+            let mut len = want;
+            while len > 3.4 && reach(hub, axis, len) > LEAF_FIT_W_MM {
+                len -= 0.05;
+            }
+            (len, hub, axis, reach(hub, axis, len))
+        };
+        let (mine, other) = (fit(side), fit(-side));
+        let pick = if mine.3 <= LEAF_FIT_W_MM && mine.0 >= other.0 * 0.85 { mine } else if other.3 < mine.3 || other.0 > mine.0 { side = -side; other } else { mine };
+        let (len, hub, axis, _) = pick;
+        out.push(LeafAt { name: format!("Leaf {}", k + 1), hub, axis_deg: axis, len, curl: 0.15 });
+        side = -side;
     }
     out
 }
@@ -704,7 +748,7 @@ fn berries(c: &Chart) -> Vec<(P3, P3, f64)> {
     at.iter()
         .map(|&(turn, reach, size)| {
             let psi = (BERRY_TURN_DEG + turn).to_radians();
-            let (dx, dw) = (reach * psi.cos(), reach * psi.sin());
+            let (dx, dw) = (reach * psi.cos(), BERRY_ACROSS * reach * psi.sin());
             let (t, w) = (t0 + (dx / r).to_degrees(), w0 + dw);
             let foot = c.world(t, w, 0.0);
             let up = unit(sub(c.world(t, w, 1.0), foot));
@@ -769,14 +813,14 @@ fn tuft_solid(c: &Chart, path: &[[f64; 2]]) -> csg::Solid {
     let y = unit(sub(y, scale(z, dot(y, z))));
     let x = cross(y, z);
     let mut s = csg::Solid::default();
-    for (k, (along, fan, reach)) in [(-0.42, -30.0, 0.7), (-0.14, -10.0, 0.95), (0.14, 12.0, 0.8), (0.42, 32.0, 0.6)].into_iter().enumerate() {
+    for (k, (along, fan, reach)) in [(-0.48, -40.0, 0.45), (-0.16, -12.0, 0.55), (0.16, 14.0, 0.5), (0.48, 42.0, 0.4)].into_iter().enumerate() {
         let (sf, cf) = f64::to_radians(fan).sin_cos();
         let n = 6;
         let line: Vec<(P3, f64)> = (0..=n)
             .map(|i| {
                 let t = i as f64 / n as f64;
                 let across = ROOTLET_FROM_MM + reach * t * cf;
-                let h = -0.02 - 0.1 * t * t - across * across / 12.0;
+                let h = -0.03 - 0.08 * t - across * across / 9.0;
                 let p = add3(add3(o, scale(x, across)), add3(scale(y, along + reach * t * sf), scale(z, h)));
                 (p, ROOTLET_ROOT_R_MM + (ROOTLET_TIP_R_MM - ROOTLET_ROOT_R_MM) * t)
             })
@@ -831,7 +875,7 @@ fn author() -> Result<(RingDesign, AlphaLibrary, serde_json::Value)> {
     // The berries hang from the stem's growing tip: a peduncle out to the cluster's centre, a short stalk to each.
     let (bt, bw) = BERRY_CENTRE;
     let tip = STEM_FROM_DEG + STEM_SPAN_DEG - 3.0;
-    let n = 24;
+    let n = 18;
     let peduncle: Vec<(P3, f64)> = (0..=n)
         .map(|i| {
             let t = i as f64 / n as f64;
@@ -840,19 +884,19 @@ fn author() -> Result<(RingDesign, AlphaLibrary, serde_json::Value)> {
             (c.world(theta, w, stem_h() + (STALK_H_MM - stem_h()) * t), STALK_R_MM + 0.05)
         })
         .collect();
-    add(&mut doc, "Berry peduncle".into(), stored_op(&tube(&peduncle, 16, true, true), "peduncle", json!({"radius_mm": STALK_R_MM + 0.05}))?)?;
+    add(&mut doc, "Berry peduncle".into(), stored_op(&tube(&peduncle, 13, true, true), "peduncle", json!({"radius_mm": STALK_R_MM + 0.05}))?)?;
     let r_band = c.at(bw).0;
-    for k in 0..3 {
-        let psi = (BERRY_TURN_DEG + 120.0 * k as f64).to_radians();
-        let (dx, dw) = (0.55 * BERRY_SPREAD_MM * psi.cos(), 0.55 * BERRY_SPREAD_MM * psi.sin());
+    for (k, &(turn, reach)) in [(0.0, BERRY_SPREAD_MM), (120.0, BERRY_SPREAD_MM), (240.0, BERRY_SPREAD_MM), (60.0, SMALL_BERRY_REACH_MM), (300.0, SMALL_BERRY_REACH_MM)].iter().enumerate() {
+        let psi = (BERRY_TURN_DEG + turn).to_radians();
+        let (dx, dw) = (0.55 * reach * psi.cos(), 0.55 * BERRY_ACROSS * reach * psi.sin());
         let foot = (bt + (dx / r_band).to_degrees(), bw + dw);
-        let line: Vec<(P3, f64)> = (0..=12)
+        let line: Vec<(P3, f64)> = (0..=8)
             .map(|i| {
-                let t = i as f64 / 12.0;
+                let t = i as f64 / 8.0;
                 (c.world(bt + (foot.0 - bt) * t, bw + (foot.1 - bw) * t, STALK_H_MM), STALK_R_MM)
             })
             .collect();
-        add(&mut doc, format!("Berry {}: stalk", k + 1), stored_op(&tube(&line, 14, true, true), "berry_stalk", json!({"radius_mm": STALK_R_MM}))?)?;
+        add(&mut doc, format!("Berry {}: stalk", k + 1), stored_op(&tube(&line, 11, true, true), "berry_stalk", json!({"radius_mm": STALK_R_MM}))?)?;
     }
     for (k, (g, a, size)) in berries(&c).into_iter().enumerate() {
         let mut stone = builders::stone_feature(id, spinel(size), placement_at(&c, g, a));
@@ -1018,6 +1062,10 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, fin: &render::Finishe
     let crown = Chart::of(d).world(CROWN_DEG, 0.0, 0.5);
     render::write_png_framed(out.join("crown-close.png"), &parts, render::yaw_facing(CROWN_DEG), PI * 0.5, render::Framing::new(crown, 7.5), edge)?;
     render::write_png_framed(out.join("crown-hero.png"), &parts, VIEWS[0].1, 0.9, render::Framing::new(crown, 8.0), edge)?;
+    // The stem on the shoulder, square-on: its bark, a juvenile leaf and the rootlets pressed onto the band.
+    let c = Chart::of(d);
+    let at = c.world(200.0, stem_w(&c, 200.0), 0.5);
+    render::write_png_framed(out.join("stem-close.png"), &parts, render::yaw_facing(200.0), PI * 0.5, render::Framing::new(at, 4.5), edge)?;
     if quick {
         return Ok(());
     }
