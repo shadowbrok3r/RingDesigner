@@ -1,0 +1,207 @@
+{
+  "ring": "Aile — wings clasping a bezel",
+  "round": 2,
+  "verdict": "revise",
+  "score": 6.5,
+  "summary": "Revise at 6.5, up from 6.0. The Caiman finish bar is 7 and the ship bar is 7.5. The read is now strong. At 300 px the face is a blue oval held between two fanned three-feather wings, and the near wing in the hero shows three separate tips. The wings now follow the band and run out to points in side.png. Every recorded gate is green. Two things hold it back. First, the lesson is half restored. The Plane, the 'Wing' sketch and the three Extrudes are back (timeline frames 5 to 9), but feature 9, 'Sculpt the east wing', is a Stored mesh whose recipe (kernel officina_aile, op sculpt) takes no input from the sketch or the tiers. Frame 10 throws the extruded slabs away and puts an unrelated mesh in their place, so a student who edits the sketch changes nothing in the finished ring. Second, the craft is not finished. The bullet-shaped clasp nubs beside the collet at about theta 78 and 102 are still there (side.png, reverse.png, shoulder.png). The primary tips still end in faceted chisel caps in face.png and hero.png (w_tip 1.5 to 1.7 mm). The palm view shows a jagged star artefact in the collet seat. The 'Collet foot' step (frame 4) adds nothing you can see. One more round can fix all of this.",
+  "strengths": [
+    "An immediate read at 300 px: a winged oval stone, symmetric in face-300, with three distinct tips on each wing in hero-300 (round-1 item 6 fixed: headings 45/22/0).",
+    "The wings now ride the band and lift only toward their tips. side.png shows curved, concentric wings ending in points, not the straight tangent bars of round 1 (item 3 largely fixed).",
+    "The barbed feather texture and the clasp feathers hooking round the collet give a jeweller's motif rather than a CAD primitive.",
+    "The timeline is down to 11 frames and now shows the Plane, the Bezier 'Wing' sketch with its three regions, and three tier extrudes, as the section teaches.",
+    "Every gate in report.json is green on both the draft and the export, with 1 shell and a closed casting pattern."
+  ],
+  "checklist": [
+    {
+      "item": "One idea face to palm, reads at 300 px",
+      "result": "pass",
+      "reason": "face-300 and hero-300 read as 'wings clasping a stone' with no caption. The shank is plain to the palm."
+    },
+    {
+      "item": "Finished piece, not a CAD demo (proportion, weight, meeting with the band)",
+      "result": "fail",
+      "reason": "The clasp-feather roots end in bullet-shaped knobs on each side of the collet (side.png at about theta 78 and 102, also reverse.png and shoulder.png). They read as bolts or knuckles. The collet is still a plain straight-walled cylinder with a flat rim; the foot taper is barely visible."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD",
+      "result": "fail",
+      "reason": "The primary tips are still wide chisel caps with flat facets: face.png at the left and right extremes, and hero.png at the upper-left tips. Round-1 item 2 asked for about 0.6 mm; the recipe still has w_tip 1.5 to 1.7 and tip resolution 12."
+    },
+    {
+      "item": "Outlines crisp, no combing, smearing or stair-steps",
+      "result": "fail",
+      "reason": "There is faceting on the tip caps and leading edges in face.png. palm.png shows a jagged dark star in the collet seat opening at the band. In face.png the barb rows on the inner primaries smear into streaks near the collet."
+    },
+    {
+      "item": "Stones in made settings and visible",
+      "result": "pass",
+      "reason": "The oval 7 x 5 sapphire sits in a head.bezel collet and is clearly visible in the face, hero and stones views. 1 stone previewed and 1 reported."
+    },
+    {
+      "item": "Factory stock keeps hard wall-to-face angles",
+      "result": "pass",
+      "reason": "Not applicable: the band is a procedural DShape ReverseTaper, not factory stock."
+    },
+    {
+      "item": "Lesson legible in timeline.png",
+      "result": "fail",
+      "reason": "Frames 5 to 9 teach the plane, the sketch and the regions. But frame 10, 'Sculpt the east wing', is a Stored mesh that does not consume features 5 to 8; the tier slabs vanish and an unrelated mesh appears. Frame 4, 'Collet foot', shows no visible change from frame 3."
+    },
+    {
+      "item": "Silhouette distinct from the other Officina rings and the starters",
+      "result": "pass",
+      "reason": "A swept wing pair round a north-south oval. Nothing in the starters or the other five lessons looks like it."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Watertight, 0 degenerate faces",
+      "claimed": "pass",
+      "verified": "draft and export: watertight true, boundary_edges 0, non_manifold_edges 0, degenerate_faces 0, shells 1",
+      "pass": true
+    },
+    {
+      "gate": "0 self-crossings on ring and every made part",
+      "claimed": "pass",
+      "verified": "mesh_self_crossings 0; made_parts Oval, Collet, Collet foot, Sculpt the east wing and West wing all 0",
+      "pass": true
+    },
+    {
+      "gate": "Solids notes empty",
+      "claimed": "pass",
+      "verified": "solids_notes [] and parts_notes []",
+      "pass": true
+    },
+    {
+      "gate": "Every CAD feature Ok",
+      "claimed": "pass",
+      "verified": "All 11 features in feature_status are Ok, in both draft and export",
+      "pass": true
+    },
+    {
+      "gate": "Nothing inside the finger hole",
+      "claimed": "pass",
+      "verified": "bore radius 9.1 mm, nearest vertex 9.0999995 mm, vertices_inside 0",
+      "pass": true
+    },
+    {
+      "gate": "Lost wax: field verdict Castable",
+      "claimed": "pass",
+      "verified": "field.verdict 'Castable', process 'Lost wax', thinnest wall 1.18 mm at theta 90",
+      "pass": true
+    },
+    {
+      "gate": "Lost wax: thickness clean at 0.8 mm",
+      "claimed": "pass, but for the burnished lip and feather points",
+      "verified": "Whole ring: 2 samples below 0.8 (0.78 at the collet lip, and 0.73 at theta 153), both flagged lip. Each wing part: 7 samples between 0.62 and 0.77 mm at theta 21-27 and 153-159, all flagged lip: true; census_below_floor_off_lip 0. These are feather points, not a bezel lip. The section allows tips at 0.5 mm section under investment, and every sample clears 0.5, so the gate is accepted. The 'lip' label on the feather samples is a misnomer the report should correct.",
+      "pass": true
+    },
+    {
+      "gate": "Lost wax: dfm::cut_lands clean",
+      "claimed": "pass",
+      "verified": "cut_lands [] in draft and export",
+      "pass": true
+    },
+    {
+      "gate": "Sand ray release 0/0 at 0.100 and 0.075 mm",
+      "claimed": "n/a",
+      "verified": "Not applicable: the process is lost wax. The field notes list two-part undercuts on the Collet, the Collet foot and both wings, which are fine for investment.",
+      "pass": true
+    },
+    {
+      "gate": "0 DFM findings",
+      "claimed": "pass",
+      "verified": "dfm_findings []",
+      "pass": true
+    },
+    {
+      "gate": "Stone count equals preview",
+      "claimed": "pass",
+      "verified": "stones previewed 1, reported 1, warnings [], crowding []; culet 0.22 mm over the crest",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical",
+      "claimed": "pass",
+      "verified": "cold_reload_identical true; template-verification: cold_design_reload, cold_graph_reload and vertices_faces_normals_identical all true",
+      "pass": true
+    },
+    {
+      "gate": "Export within 2 M triangles",
+      "claimed": "pass",
+      "verified": "export pattern 1,312,990 triangles",
+      "pass": true
+    },
+    {
+      "gate": "Casting pattern closed",
+      "claimed": "pass",
+      "verified": "export pattern watertight, 1 shell, 0 degenerate faces, 0 self-crossings",
+      "pass": true
+    },
+    {
+      "gate": "Template gate: at most 4 design.set patches within the class budget",
+      "claimed": "pass",
+      "verified": "1 patch (/manufacturing), template_gate_passed true, template 296,881 bytes inside the 300,000 procedural budget, size_review_required false. Note: the margin is under 1%, and the section estimated about 25 KB; the stored sculpt recipe accounts for the difference.",
+      "pass": true
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "high",
+      "zone": "Feature 9 'Sculpt the east wing', east wing, theta 30-90",
+      "change": "Make the finished wing come from the sketch. Either give the sculpt recipe the Wing sketch (feature 5) or the Tier I-III extrudes (6-8) as declared sources, taking each feather's plan outline, length and heading from its region. Or replace the Stored mesh with a Loft or Sweep over the region profiles (the Harpyia construction). Editing the sketch must move the finished feathers.",
+      "acceptance": "report.json shows feature 9 either as a non-Stored op, or with its sources listing 5 (or 6-8). In timeline.png the three tips in frame 10 sit where the three region tips sit in frame 9, within about 0.5 mm, so the step reads as 'shape the tiers', not 'swap them out'."
+    },
+    {
+      "number": 2,
+      "priority": "high",
+      "zone": "Clasp-feather roots beside the collet, theta about 75-80 and 100-105",
+      "change": "Remove the bullet-shaped knob at the root of each clasp feather (round-1 item 2, still open). Run the clasp feather out to a fine point, or blend it into the collet wall with a fillet of 0.3 mm or more.",
+      "acceptance": "side.png, reverse.png and shoulder.png show no rounded knob or bolt shape on either side of the collet. The clasp feather meets the collet in one continuous highlight."
+    },
+    {
+      "number": 3,
+      "priority": "high",
+      "zone": "All six primary tips, theta about 20-35 and 145-160",
+      "change": "Taper w_tip from 1.5-1.7 mm to 0.6 mm or less over the last 2 mm, with a round of 0.3 mm at most. Raise the tip resolution from 12 to 24 or more so the cap renders smooth. Keep the section at 0.5 mm or more for investment.",
+      "acceptance": "In face.png and hero.png every primary ends in a point with one continuous highlight, with no flat facets or angular chisel planes. The thickness census for the wing parts stays at 0.5 mm or more."
+    },
+    {
+      "number": 4,
+      "priority": "medium",
+      "zone": "Collet seat seen from the palm, theta 90 (underside)",
+      "change": "Clean the jagged star in the collet floor or seat opening where the seat bur and the band meet: close the floor, or trim the seat to a smooth oval.",
+      "acceptance": "palm.png shows a smooth oval opening or floor under the stone, with no dark spikes or star pattern."
+    },
+    {
+      "number": 5,
+      "priority": "medium",
+      "zone": "Collet foot (feature 11) and collet wall, theta 80-100",
+      "change": "Make the foot do visible work: a 0.4 mm flared fillet into the band, or a 0.3 mm inward taper over the lower 1 mm (round-1 item 4). If it cannot be seen, fold it into the Collet feature so the timeline loses an empty step.",
+      "acceptance": "Frame 4 of timeline.png differs visibly from frame 3, or the frame is gone. side.png shows a curved, blended transition at the collet base."
+    },
+    {
+      "number": 6,
+      "priority": "low",
+      "zone": "Barbs on the inner primaries and clasp feathers near the collet, theta 70-110",
+      "change": "Reduce the barb depth where the feathers converge at the collet (clasp_barbs depth 0.07 down to about 0.04 mm in the last 2 mm before the root), so the texture fades rather than streaks.",
+      "acceptance": "In face.png the barb rows next to the collet read as fine parallel lines, with no smeared or combed streaks."
+    }
+  ],
+  "viewed_images": [
+    "showcase/officina/aile/hero-300.png",
+    "showcase/officina/aile/face-300.png",
+    "showcase/officina/aile/contact-300.png",
+    "showcase/officina/aile/hero.png",
+    "showcase/officina/aile/face.png",
+    "showcase/officina/aile/side.png",
+    "showcase/officina/aile/timeline.png",
+    "showcase/officina/aile/shoulder.png",
+    "showcase/officina/aile/stones.png",
+    "showcase/officina/aile/reverse.png",
+    "showcase/officina/aile/palm.png",
+    "showcase/officina/aile/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}
