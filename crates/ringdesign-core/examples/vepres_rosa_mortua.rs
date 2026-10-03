@@ -6,7 +6,7 @@
 use anyhow::{Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign,
-    cad::{self, Attach, Component, ComponentRole, Document, Feature, FeatureStatus, Operation, PatternKind, Placement, Stage, SurfaceKind, builders, stored},
+    cad::{self, Attach, Component, ComponentRole, Document, Feature, FeatureStatus, Operation, PatternKind, Placement, Stage, TwistPath, SurfaceKind, builders, stored},
     castability, csg, dfm,
     gem::{Gem, GemCut},
     library, mesh,
@@ -115,7 +115,7 @@ fn export_params() -> BuildParams {
 }
 
 fn ruby() -> Gem {
-    Gem { l_mm: 7.0, preview_tint: Some([0.60, 0.05, 0.12]), ..Gem::calibrated(GemCut::Oval, 5.0) }
+    Gem { l_mm: 7.0, preview_tint: Some([0.60, 0.05, 0.12]), ..Gem::calibrated(GemCut::Pear, 5.0) }
 }
 
 fn garnet() -> Gem {
@@ -187,9 +187,11 @@ fn ellipse_on(plane: Workplane, a: f64, b: f64, name: &str) -> Sketch {
 fn prickle(scale: f64) -> Operation {
     Operation::Twist {
         sketch: ellipse_on(Workplane::default(), 3.0 * scale, 1.4 * scale, "Prickle foot").into(),
-        path: hook_path(0.9 * scale + PRICKLE_SINK_MM, 2.2 * scale, 60.0),
+        path: TwistPath::Sketch(hook_path(0.9 * scale + PRICKLE_SINK_MM, 2.2 * scale, 60.0)),
         degrees: 0.0,
         end_scale: 0.22,
+        scale: Vec::new(),
+        closed: false,
     }
 }
 
@@ -607,13 +609,13 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
     doc.append(builders::stone_feature(
         2,
         bud,
-        Placement::Ring { theta_deg: BUD_DEG, across_mm: bud_z, height_mm: builders::stand_off_mm(builders::BEZEL, bud) + BUD_LIFT_MM, spin_deg: 0.0, tilt_deg: BUD_NOD_DEG, cant_deg: 0.0 },
+        Placement::Ring { theta_deg: BUD_DEG, across_mm: bud_z, height_mm: builders::stand_off_mm(builders::BEZEL, bud) + BUD_LIFT_MM, spin_deg: 0.0, tilt_deg: BUD_NOD_DEG, cant_deg: 0.0, level: false },
     ))?;
     doc.append(builders::feature_on(3, "Bud collet", builders::BEZEL, 2, json!({"wall_mm": BUD_WALL_MM, "lip": BUD_LIP})))?;
     doc.append(builders::stone_feature(
         4,
         hip,
-        Placement::Ring { theta_deg: HIP_DEG, across_mm: hip_z, height_mm: builders::stand_off_mm(builders::CLAW, hip) + HIP_LIFT_MM, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 },
+        Placement::Ring { theta_deg: HIP_DEG, across_mm: hip_z, height_mm: builders::stand_off_mm(builders::CLAW, hip) + HIP_LIFT_MM, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false },
     ))?;
     doc.append(builders::feature_on(5, "Hip sepals", builders::CLAW, 4, json!({"prongs": HIP_CLAWS, "wire_mm": HIP_WIRE_MM, "style": "Sepal", "tip": "Point", "grouping": "Even", "rise": HIP_RISE})))?;
     d.cad = Some(doc);
@@ -624,23 +626,27 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
     let (tube_b, path_b) = stem_tube(d, false);
     let doc = d.cad.as_mut().unwrap();
     let free = |blend: f64| joined(Placement::Free, blend);
+    // Seated in a stone's own frame (C-V1): the part follows its stone when the stone moves or resizes.
+    let on = |part: Id| joined(Placement::Relative { part, at: [0.0; 3], rotation_deg: [0.0; 3] }, 0.0);
+    let _ = (bud_frame, &moved);
     doc.append(feature(6, "Stem of arm A", stored_op(&tube_a, "stem", json!({"arm": "A", "radius_mm": STEM_R_MM, "proud_mm": STEM_PROUD_MM}))?, free(STEM_BLEND_MM)))?;
     doc.append(feature(7, "Stem of arm B", stored_op(&tube_b, "stem", json!({"arm": "B", "radius_mm": STEM_R_MM, "proud_mm": STEM_PROUD_MM}))?, free(STEM_BLEND_MM)))?;
-    doc.append(feature(8, "Receptacle", stored_op(&moved(receptacle(bud), &bud_frame), "receptacle", json!({"under": "bud"}))?, free(0.0)))?;
+    doc.append(feature(8, "Receptacle", stored_op(&receptacle(bud), "receptacle", json!({"under": "bud"}))?, on(2)))?;
     let mut id: Id = 9;
     for (k, at) in petal_layout().iter().enumerate() {
-        doc.append(feature(id, &format!("Petal {}", k + 1), stored_op(&moved(petal(bud, at), &bud_frame), "petal", json!({"ring": at.ring, "azimuth_deg": at.azimuth.to_degrees(), "rise_deg": at.rise_deg, "length_mm": at.length, "width_mm": at.width, "thick_mm": PETAL_T_MM}))?, free(0.0)))?;
+        doc.append(feature(id, &format!("Petal {}", k + 1), stored_op(&petal(bud, at), "petal", json!({"ring": at.ring, "azimuth_deg": at.azimuth.to_degrees(), "rise_deg": at.rise_deg, "length_mm": at.length, "width_mm": at.width, "thick_mm": PETAL_T_MM}))?, on(2)))?;
         id += 1;
     }
     for k in 0..SEPALS {
         let psi = std::f64::consts::TAU * (k as f64 + 0.25) / SEPALS as f64;
-        doc.append(feature(id, &format!("Sepal {}", k + 1), stored_op(&moved(sepal(bud, psi), &bud_frame), "sepal", json!({"azimuth_deg": psi.to_degrees(), "length_mm": SEPAL_LEN_MM}))?, free(0.0)))?;
+        doc.append(feature(id, &format!("Sepal {}", k + 1), stored_op(&sepal(bud, psi), "sepal", json!({"azimuth_deg": psi.to_degrees(), "length_mm": SEPAL_LEN_MM}))?, on(2)))?;
         id += 1;
     }
     // The dried sepal crown: one wisp between two claws, curling up and out off the hip, then four more about it.
     let az = (180.0 / HIP_CLAWS as f64).to_radians();
-    let (ex, ey, ez) = (hip_frame.vector([az.cos(), az.sin(), 0.0]), hip_frame.vector([-az.sin(), az.cos(), 0.0]), hip_frame.vector([0.0, 0.0, 1.0]));
-    let root = add3(hip_frame.point([0.0, 0.0, WISP_ROOT_Z_MM]), ex, 0.5 * hip.w_mm + WISP_ROOT_OUT_MM);
+    let (ex, ey, ez) = ([az.cos(), az.sin(), 0.0], [-az.sin(), az.cos(), 0.0], [0.0, 0.0, 1.0]);
+    let root = add3([0.0, 0.0, WISP_ROOT_Z_MM], ex, 0.5 * hip.w_mm + WISP_ROOT_OUT_MM);
+    let _ = hip_frame;
     let mut path = Sketch { plane: Workplane { origin: root, x: ex, y: ez, ..Default::default() }, ..Sketch::default() };
     let a = path.point([0.0, 0.0]);
     let b = path.point([0.0, WISP_RISE_MM]);
@@ -650,7 +656,7 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
     let end = path.point([WISP_BEND_MM + WISP_BEND_MM * t.cos(), WISP_RISE_MM + WISP_BEND_MM * t.sin()]);
     path.entity(Geometry::Arc { center: centre, start: end, end: b });
     let section = ellipse_on(Workplane { origin: root, x: ex, y: ey, ..Default::default() }, WISP_W_MM, WISP_T_MM, "Wisp lens");
-    doc.append(feature(id, "Dried sepal", Operation::Twist { sketch: section.into(), path, degrees: WISP_TWIST_DEG, end_scale: WISP_END }, free(0.0)))?;
+    doc.append(feature(id, "Dried sepal", Operation::Twist { sketch: section.into(), path: TwistPath::Sketch(path), degrees: WISP_TWIST_DEG, end_scale: WISP_END, scale: Vec::new(), closed: false }, on(4)))?;
     doc.append(feature(id + 1, "Dried sepal crown", Operation::Pattern { sources: id.into(), kind: PatternKind::About { part: 4, count: WISPS, span_deg: 360.0 } }, free(0.0)))?;
     id += 2;
     for (name, solid) in leaf(d) {
@@ -679,7 +685,7 @@ fn parts(d: &mut RingDesign) -> Result<serde_json::Value> {
                 id,
                 &format!("Prickle, arm {} {}", if arm_a { "A" } else { "B" }, k + 1),
                 prickle(scale),
-                joined(Placement::Ring { theta_deg: theta.rem_euclid(360.0), across_mm: z, height_mm: lift - PRICKLE_SINK_MM, spin_deg: spin, tilt_deg: 0.0, cant_deg: 0.0 }, PRICKLE_BLEND_MM),
+                joined(Placement::Ring { theta_deg: theta.rem_euclid(360.0), across_mm: z, height_mm: lift - PRICKLE_SINK_MM, spin_deg: spin, tilt_deg: 0.0, cant_deg: 0.0, level: false }, PRICKLE_BLEND_MM),
             ))?;
             placed.push(json!({"id": id, "arm": if arm_a { "A" } else { "B" }, "theta_deg": theta.rem_euclid(360.0), "across_mm": z, "scale": scale, "spin_deg": spin, "on_stem": on_stem}));
             id += 1;

@@ -1,0 +1,31 @@
+{
+  "ring": "rosa-mortua",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A gold band ringed with about thirty short, straight, evenly spaced spikes that run all the way round, palm included, so in the hero it reads as a sun-ray or gear band, or a spined dragon tail, not a rose stem. On top sit two red stones: a pear lying in a broad, lobed cup and a round stone in plain claws. The cup reads as a flower-shaped bezel or a little crown rather than sepals closed round a bud, and the round stone reads as an ordinary solitaire, not a hip with its dried sepal crown. No leaf can be seen at 300 px. A jeweller would say 'spiky band with two red stones', or at a stretch 'thorns, so maybe a rose', but would not name the rose from the render. Nothing shows a bud, a hip or a rose leaf, and the thorns are the wrong kind: rose prickles are few, broad at the base and hooked, and these are many, thin, straight and uniform.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Prickles on both arms, the whole band",
+      "change": "Cut from about 30 radial spikes to the 7 per arm the spec calls for, on the shoulders only, and leave the palm third of the band bare and smooth. Give each prickle a broad base (about 2x its current width at the root) and hook the tip down toward the palm by 40-60 degrees. Grade them 1.0 to 0.6 toward the palm and alternate their sides on the stem (spin about ±25 degrees) so they stop forming an even radial crown.",
+      "acceptance": "In hero-300 the outline shows no rays round the band, the palm is plain, and each prickle reads as a hooked rose thorn, not a straight spike."
+    },
+    {
+      "priority": 2,
+      "where": "Bud head on arm A (the pear)",
+      "change": "Swap the broad lobed cup for five long, narrow, pointed sepals that rise up about two thirds of the pear's height and hug it closed. Stand the pear point-up and outward so its tip pokes out past the sepal tips, with a true pear plan or the 7 x 5 length clearly showing. Add a short swollen receptacle under the sepals where they meet the stem.",
+      "acceptance": "In face-300 the pear reads as a closed rosebud held in sepals: the sepal tips stand clear of the stone and the stone's point leads upward. It no longer reads as a flower-shaped bezel."
+    },
+    {
+      "priority": 3,
+      "where": "Hip on arm B and the leaf below the bud",
+      "change": "Crown the round garnet with the five dried sepal wisps, standing about 1.5 mm proud of the stone's table and curling outward, so it reads as a rose hip and not a claw-set solitaire. Make the three-leaflet leaf below the bud visible in the face view: leaflets about 5-6 mm long with a toothed edge, lying against the shoulder.",
+      "acceptance": "In face-300 the round stone shows a ragged five-point crown above it, and a recognisable compound rose leaf shows beside the bud."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/rosa-mortua/hero-300.png",
+    "showcase/vepres/rosa-mortua/face-300.png"
+  ]
+}
