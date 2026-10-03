@@ -22,7 +22,7 @@ pub mod pattern;
 pub mod step;
 pub mod stored;
 pub mod twist;
-pub use pattern::{MirrorPlane, PatternKind, PlaneBase, WorkPlane};
+pub use pattern::{Along, AlongPath, MirrorPlane, PatternKind, PlaneBase, WorkPlane};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Boolean {
