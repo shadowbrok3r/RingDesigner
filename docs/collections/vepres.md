@@ -384,6 +384,14 @@ That is expected for most Vepres rings. Say so in each README line.
 
 ## Sentis — *the briar thicket*
 
+> **Rethink, 2026-10-03 (Logan).** The four-cane thicket below failed all three block-out read tests: each time it read as "a crown of thorns" (read tests 1–3 in `showcase/vepres/sentis/`). Logan approved the author's rethink. The ring is now **a wild-rose briar**:
+> - **Main forms:** two large five-leaflet rose leaves laid over the crown either side of an **opaque rose hip**. The hip is an orange-red oval cabochon, 6.4 × 4.8, sitting on a receptacle, with a stalk into a cane and a five-sepal calyx curling back over its tip.
+> - **Ground:** only **two canes**, twined twice round the finger, parted at the crown and crossing at the shoulders. They are closed, tapered twisted sweeps (C-V3), with broad hooked prickles growing out of them on seam beads (C-V4).
+> - **Read tests:** they continue as 4, 5 and 6 at most.
+> - **What it replaces:** the liner, the four-cane weave, the 36-thorn pattern, the shoots and the ruby round 4.0 in the text below.
+>
+> **Process, 2026-10-03 (Logan's rule):** lost wax, judged at the 0.8 mm minimum section with no pull rule. The ring was never a sand candidate, so there is no sand bonus to report.
+
 - **Status:** Not started. **Build last.**
   - Blocked on **C-V4** (seam beads in CAD-only assembly) and **P6** `style: Thorn`.
   - C-V3 (closed, tapered sweeps) and C-V5 (`path.wreath`) are upgrades.
