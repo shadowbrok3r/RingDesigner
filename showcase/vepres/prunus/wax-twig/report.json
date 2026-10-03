@@ -1,0 +1,264 @@
+{
+  "authored": {
+    "base": "012",
+    "blossoms": [
+      {
+        "at": [
+          -5.62477913536864,
+          12.343594885712891,
+          0.18504453675248217
+        ],
+        "diameter_mm": 3.3,
+        "node": 2,
+        "twig": "Twig over the head"
+      },
+      {
+        "at": [
+          0.9581933680610986,
+          13.180213272083877,
+          2.694450710953002
+        ],
+        "diameter_mm": 3.3,
+        "node": 5,
+        "twig": "Twig over the head"
+      },
+      {
+        "at": [
+          6.9192521397261215,
+          10.58948131664945,
+          3.4953245143812617
+        ],
+        "diameter_mm": 2.7,
+        "node": 8,
+        "twig": "Twig over the head"
+      }
+    ],
+    "option": "wax-twig",
+    "sloe": {
+      "centre_xz": [
+        -0.4,
+        -2.35
+      ],
+      "crown_mm": 2.52,
+      "diameter_mm": 5.6,
+      "girdle": [
+        -0.41880044003893097,
+        12.244678275958565,
+        -2.35
+      ],
+      "hold": "Collet",
+      "rise_mm": 0.55
+    },
+    "spurs": [
+      {
+        "lean_deg": 31.573,
+        "length_mm": 3.0726,
+        "node": 0,
+        "tip": [
+          -9.441400787937466,
+          11.109969127598694,
+          1.6478404235726916
+        ],
+        "turn_deg": 50.0,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 34.183,
+        "length_mm": 3.25896,
+        "node": 1,
+        "tip": [
+          -7.122111718151931,
+          13.030837439419965,
+          -3.676976643245561
+        ],
+        "turn_deg": -50.0,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 38.17,
+        "length_mm": 3.83888,
+        "node": 3,
+        "tip": [
+          -4.787491467627208,
+          14.898814372918677,
+          -3.1867254859722545
+        ],
+        "turn_deg": -44.0,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 40.995999999999995,
+        "length_mm": 3.37136,
+        "node": 4,
+        "tip": [
+          -0.21358858477746656,
+          14.651510993119253,
+          5.4786722530312275
+        ],
+        "turn_deg": 48.0,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 26.32,
+        "length_mm": 3.5336000000000003,
+        "node": 6,
+        "tip": [
+          4.555663253462114,
+          12.558441502420079,
+          8.06725373546577
+        ],
+        "turn_deg": 80.0,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 42.34,
+        "length_mm": 3.4035200000000003,
+        "node": 7,
+        "tip": [
+          3.092582923000733,
+          16.219635711133712,
+          3.1600527180739286
+        ],
+        "turn_deg": -12.0,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 50.623,
+        "length_mm": 3.25092,
+        "node": 9,
+        "tip": [
+          7.112809378753091,
+          13.083800651205067,
+          2.6913604420589103
+        ],
+        "turn_deg": -50.0,
+        "twig": "Twig over the head"
+      },
+      {
+        "lean_deg": 45.439,
+        "length_mm": 3.47484,
+        "node": 10,
+        "tip": [
+          8.528006724736265,
+          9.992351925507972,
+          4.815953964445935
+        ],
+        "turn_deg": 50.0,
+        "twig": "Twig over the head"
+      }
+    ],
+    "twigs": [
+      {
+        "length_mm": 26.6,
+        "name": "Twig over the head",
+        "nodes": 11,
+        "radius_mm": [
+          0.775753372539753,
+          1.3212862583500808
+        ]
+      }
+    ]
+  },
+  "base": "Factory 012 native, lost wax",
+  "bore_mm": 17.16268942795609,
+  "build_s": 0.688187096,
+  "cad_features": 19,
+  "casting_pattern": null,
+  "cold_reload_identical": null,
+  "design_bytes": 873761,
+  "design_format": 6,
+  "draft": {
+    "bore_clear": true,
+    "bore_radius_mm": 8.58134465029811,
+    "boundary_edges": 0,
+    "build": [
+      768,
+      320
+    ],
+    "closest_vertex_to_axis_mm": 8.581344713978044,
+    "crowding": [],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "features_all_ok": true,
+    "features_not_ok": [],
+    "field_notes": [
+      "Lost wax: 0.29% of the surface would undercut a two-part pull (worst 3.1 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 0–52° on the crest: 1.0 mm² leaning to 3° — no single layer explains it.",
+      "Undercut 115–164° on the crest: 1.6 mm² leaning to 3° — no single layer explains it.",
+      "Measured with the ring as built: 17 CAD parts (17 joined, 0 cut), 321.0 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Bezel \"Sloe collet\" (#3) would undercut a two-part pull over 11.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 1\" (#4) would undercut a two-part pull over 1.5 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 2\" (#5) would undercut a two-part pull over 1.0 mm² (worst -72°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Calyx sepal 3\" (#6) would undercut a two-part pull over 4.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Sloe stalk\" (#7) would undercut a two-part pull over 0.1 mm² (worst -49°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Twig over the head\" (#8) would undercut a two-part pull over 23.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 1 on the twig over the head\" (#9) would undercut a two-part pull over 4.4 mm² (worst -61°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 2 on the twig over the head\" (#10) would undercut a two-part pull over 6.0 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 3 on the twig over the head\" (#11) would undercut a two-part pull over 4.3 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 4 on the twig over the head\" (#12) would undercut a two-part pull over 5.8 mm² (worst -40°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 5 on the twig over the head\" (#13) would undercut a two-part pull over 5.3 mm² (worst -42°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 6 on the twig over the head\" (#14) would undercut a two-part pull over 8.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 7 on the twig over the head\" (#15) would undercut a two-part pull over 4.7 mm² (worst -27°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 8 on the twig over the head\" (#16) would undercut a two-part pull over 7.4 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Blossom 9 on the twig over the head\" (#17) would undercut a two-part pull over 3.2 mm² (worst -61°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 10 on the twig over the head\" (#18) would undercut a two-part pull over 7.8 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Spur 11 on the twig over the head\" (#19) would undercut a two-part pull over 5.4 mm² (worst -60°) — fine for investment, but this pattern cannot move to sand as-is."
+    ],
+    "field_undercut_percent": 9.31840241314609,
+    "field_verdict": "Castable",
+    "made_part_crossings_worst": 0,
+    "made_parts": 18,
+    "made_parts_crossing": [],
+    "metal_inside_stones": [
+      [
+        "Round cabochon 5.6 mm",
+        0,
+        0.0
+      ]
+    ],
+    "min_section_mm": 0.8,
+    "non_manifold_edges": 0,
+    "parts_notes": [],
+    "pass": false,
+    "process": "Lost wax",
+    "ring_self_crossings": 8,
+    "section_sampled": {
+      "at": [
+        7.639750003814697,
+        10.837240219116211,
+        3.9529199600219727
+      ],
+      "least_mm": 0.010737539317305695,
+      "method": "inward rays from every vertex (stride shown) of the finished mesh to the first surface",
+      "samples": 44018,
+      "stride": 1,
+      "under_floor": 4277
+    },
+    "solids_notes": [],
+    "stones_previewed": 1,
+    "stones_reported": 1,
+    "thinnest_wall_mm": 1.4956774963174606,
+    "tight_pairs": 0,
+    "triangles": 88036,
+    "watertight": true
+  },
+  "min_detail_mm": 0.15,
+  "min_draft_deg": 0.0,
+  "min_section_mm": 0.8,
+  "option": {
+    "base": "012",
+    "hold": "Collet",
+    "layout": "Diagonal",
+    "sloe_mm": 5.6,
+    "sloe_rise_mm": 0.55,
+    "sloe_xz": [
+      -0.4,
+      -2.35
+    ],
+    "slug": "wax-twig"
+  },
+  "process": "Lost wax",
+  "ring": "Prunus",
+  "size": "US 6.83",
+  "slug": "prunus"
+}
