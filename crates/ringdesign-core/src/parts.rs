@@ -1568,25 +1568,24 @@ mod tests {
         let lib = AlphaLibrary::builtin();
         // The overhanging bezel: its bead spends most of the build settling and re-sweeping its corners.
         let d = with_parts(template("Court band"), vec![bezel(3.0, 0.5, 0.3)]);
-        crate::mesh::try_build(&d, &lib, params()).unwrap();
+        // Left alone, no bead runs a third of the build without reading its flag.
+        blend::record_polls(None);
         let started = std::time::Instant::now();
         crate::mesh::try_build(&d, &lib, params()).unwrap();
         let full = started.elapsed();
-        // The bead raises the flag itself as its second settle round begins.
-        const AT: usize = 1;
-        blend::settle_rounds(Some(AT));
+        let beads = blend::polled().beads;
+        let longest = beads.iter().flat_map(|b| b.windows(2).map(|w| w[1] - w[0])).max().expect("a bead");
+        eprintln!("bead in flight: full build {full:?}, {} bead(s), longest between reads of the flag {longest:?}", beads.len());
+        assert!(longest * 3 < full, "a bead ran {longest:?} without reading its flag, in a build of {full:?}");
+        // The bead raises the flag itself at its second read, as its second settle round begins.
+        blend::record_polls(Some(1));
         let stop = AtomicBool::new(false);
-        let started = std::time::Instant::now();
         let result = crate::mesh::try_build_with(&d, &lib, params(), &stop);
-        let (returned, elapsed) = (std::time::Instant::now(), started.elapsed());
-        let (begun, raised) = blend::settle_rounds(None);
-        let raised = raised.unwrap_or_else(|| panic!("the build finished in {elapsed:?} after {begun} settle rounds without its bead raising the flag"));
-        let error = result.err().unwrap_or_else(|| panic!("the build finished in {elapsed:?} with the flag raised at {:?}", raised - started));
+        let polls = blend::polled();
+        assert!(polls.raised, "the build finished after {} reads without its bead raising the flag", polls.polls);
+        let error = result.err().expect("the flag stops the build");
         assert_eq!(error.root_cause().to_string(), cad::CANCELLED);
-        assert_eq!(begun, AT + 1, "settle rounds begun, the last with the flag up");
-        let after = returned - raised;
-        eprintln!("bead in flight: full build {full:?}, flag at {:?}, stopped {after:?} after it", raised - started);
-        assert!(after < std::time::Duration::from_millis(200), "stopped {after:?} after the flag, full build {full:?}");
+        assert_eq!(polls.polls, 2, "no read after the one that raised it");
     }
 
     #[test]

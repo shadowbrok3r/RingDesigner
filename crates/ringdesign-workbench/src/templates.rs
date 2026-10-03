@@ -867,8 +867,11 @@ mod tests {
             // Blocks until the handles are set.
             let (progress, stop) = seen.wait();
             if progress.stage() == Stage::Measuring {
-                at.lock().unwrap().get_or_insert_with(std::time::Instant::now);
-                stop.store(true, Ordering::Relaxed);
+                // The measure raises the open's flag itself once it has read its first opening.
+                at.lock().unwrap().get_or_insert_with(|| {
+                    ringdesign_core::alpha::hooks::raise_mid_measure(stop);
+                    std::time::Instant::now()
+                });
             }
         });
         handles.set((opening.progress(), opening.cancel_handle())).ok().expect("set once");
@@ -878,15 +881,22 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
         let given_up = measuring.lock().unwrap().expect("it reached the measure").elapsed();
+        assert!(!matches!(opening.answer.try_recv(), Ok(Ok(_))), "the thread keeps nothing it made");
         assert!(!matches!(opening.poll(), Some(Ok(_))), "nothing lands");
-        // The same measure made whole, which it could not skip had the cancelled one kept anything.
-        let design = ringdesign_core::library::load_design(&path).unwrap();
-        let mut baked = (*lib).clone();
-        design.unpack_embedded(&mut baked);
-        design.bake_all(&mut baked);
-        let t = std::time::Instant::now();
-        ringdesign_core::dfm::findings_in(&design, &baked);
-        let whole = t.elapsed();
+        assert!(ringdesign_core::alpha::hooks::disarm(), "the measure raised its flag part way");
+        // The same measure made whole, which it could neither skip nor wait on had the cancelled one kept anything.
+        let (tx, measured) = mpsc::channel();
+        let (file, base) = (path.clone(), lib.clone());
+        std::thread::spawn(move || {
+            let design = ringdesign_core::library::load_design(&file).unwrap();
+            let mut baked = (*base).clone();
+            design.unpack_embedded(&mut baked);
+            design.bake_all(&mut baked);
+            let t = std::time::Instant::now();
+            ringdesign_core::dfm::findings_in(&design, &baked);
+            let _ = tx.send(t.elapsed());
+        });
+        let whole = measured.recv_timeout(std::time::Duration::from_secs(120)).expect("the whole measure finished");
         assert!(given_up * 3 < whole, "given up in {given_up:?} against {whole:?} for the whole measure");
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -1022,7 +1032,8 @@ mod tests {
             assert!(started.elapsed().as_secs() < 60, "the thread never stopped");
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
-        assert!(!matches!(opening.poll(), Some(Ok(_))));
+        assert!(!matches!(opening.answer.try_recv(), Ok(Ok(_))), "the thread keeps nothing it made");
+        assert!(!matches!(opening.poll(), Some(Ok(_))), "nothing lands");
         // Dropped, as choosing another template drops it, a running open stops at its next check.
         let (hold, release) = held();
         let opening = find("caiman-imported").open(reg, lib, hold);

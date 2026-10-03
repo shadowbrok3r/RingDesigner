@@ -405,33 +405,62 @@ pub fn bead_against(seam: &[P3], normals_a: &[P3], normals_b: &[P3], radius_mm: 
 }
 
 fn cancelled(flag: Option<&AtomicBool>) -> Result<(), String> {
+    #[cfg(test)]
+    note(|p| {
+        let now = std::time::Instant::now();
+        if p.raise_at == Some(p.polls)
+            && let Some(f) = flag
+        {
+            f.store(true, Ordering::Relaxed);
+            p.raised = true;
+        }
+        p.polls += 1;
+        if let Some(bead) = p.beads.last_mut() {
+            bead.push(now);
+        }
+    });
     if flag.is_some_and(|f| f.load(Ordering::Relaxed)) { Err(Snag::Cancelled.to_string()) } else { Ok(()) }
+}
+
+/// What the beads on one thread did while recorded.
+#[cfg(test)]
+#[derive(Default)]
+pub(crate) struct Polls {
+    /// Per bead, when it began, each time it read its flag, and when it ended.
+    pub beads: Vec<Vec<std::time::Instant>>,
+    /// Flag reads made.
+    pub polls: usize,
+    /// Whether a bead raised its own flag.
+    pub raised: bool,
+    /// The read, counted over every bead, at which a bead raises its own flag.
+    raise_at: Option<usize>,
 }
 
 #[cfg(test)]
 thread_local! {
-    /// Settle rounds begun on this thread, the round at which a bead raises its own flag, and when it did.
-    static SETTLE_ROUNDS: std::cell::Cell<(usize, Option<usize>, Option<std::time::Instant>)> = const { std::cell::Cell::new((0, None, None)) };
+    static POLLS: std::cell::RefCell<Option<Polls>> = const { std::cell::RefCell::new(None) };
 }
 
-/// Counts a settle round begun on this thread, raising `cancel` if it is the armed one.
+/// Records this thread's beads until [`polled`], a bead raising its own flag as it makes read `raise_at`.
 #[cfg(test)]
-fn settle_round_begun(cancel: Option<&AtomicBool>) {
-    SETTLE_ROUNDS.with(|c| {
-        let (n, at, mut raised) = c.get();
-        if at == Some(n) && let Some(flag) = cancel {
-            flag.store(true, Ordering::Relaxed);
-            raised = Some(std::time::Instant::now());
+pub(crate) fn record_polls(raise_at: Option<usize>) {
+    POLLS.with(|p| *p.borrow_mut() = Some(Polls { raise_at, ..Polls::default() }));
+}
+
+/// What this thread's beads did since [`record_polls`]; ends the record.
+#[cfg(test)]
+pub(crate) fn polled() -> Polls {
+    POLLS.with(|p| p.borrow_mut().take().unwrap_or_default())
+}
+
+/// Applies `f` to this thread's record while one is kept.
+#[cfg(test)]
+fn note(f: impl FnOnce(&mut Polls)) {
+    POLLS.with(|p| {
+        if let Some(p) = p.borrow_mut().as_mut() {
+            f(p);
         }
-        c.set((n + 1, at, raised));
     });
-}
-
-/// Restarts this thread's settle round count with a bead raising its own flag as round `at` begins; the rounds begun before and when the flag went up.
-#[cfg(test)]
-pub(crate) fn settle_rounds(at: Option<usize>) -> (usize, Option<std::time::Instant>) {
-    let (n, _, raised) = SETTLE_ROUNDS.with(|c| c.replace((0, at, None)));
-    (n, raised)
 }
 
 /// [`bead_against`] that stops soon after `cancel` is raised: read between the settling rounds and the fold rounds.
@@ -502,8 +531,6 @@ pub fn station_at(p: P3) -> String {
 fn settle(st: &mut [Station], radii: &mut [f64], step: f64, surfaces: Option<&Surfaces>, cancel: Option<&AtomicBool>) -> Result<usize, String> {
     let mut m_arc = 3;
     for _round in 0..4 {
-        #[cfg(test)]
-        settle_round_begun(cancel);
         cancelled(cancel)?;
         for (s, r) in st.iter_mut().zip(radii.iter()) {
             s.r = *r;
@@ -678,8 +705,13 @@ pub fn bead_seam(traced: &Traced, seam: &Seam, radius_mm: f64, cancel: Option<&A
     if n < 3 || length < 3.0 * STATION_MM.min(radius_mm / 3.0) {
         return None;
     }
+    #[cfg(test)]
+    note(|p| p.beads.push(vec![std::time::Instant::now()]));
     let surfaces = Surfaces::near(traced, &seam.points, (REACH_MAX + 1.5) * radius_mm + 0.05);
-    Some(bead_polled(&seam.points, &seam.normals_a, &seam.normals_b, radius_mm, Some(&surfaces), cancel))
+    let bead = bead_polled(&seam.points, &seam.normals_a, &seam.normals_b, radius_mm, Some(&surfaces), cancel);
+    #[cfg(test)]
+    note(|p| p.beads.last_mut().into_iter().for_each(|b| b.push(std::time::Instant::now())));
+    Some(bead)
 }
 
 /// [`fillet_junction`] with what every bead did.
