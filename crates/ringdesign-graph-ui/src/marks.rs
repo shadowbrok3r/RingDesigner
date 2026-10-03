@@ -39,7 +39,7 @@ pub fn node(key: &str) -> Option<Icon> {
     // lands; the table below only names what differs inside a family.
     match key {
         k if k.starts_with("solid.") || k.starts_with("frame.") => return solid(k),
-        k if k.starts_with("cad.op.") => return Some(Icon::CadSketch),
+        k if k.starts_with("cad.op.") || k.starts_with("sketch.gothic.") => return Some(Icon::CadSketch),
         k if k.starts_with("stamp.outline.") => return Some(Icon::Stamp),
         _ => {}
     }

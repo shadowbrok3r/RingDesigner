@@ -2444,6 +2444,27 @@ What the runtime settled while being built, each pinned by a test:
   evaluates to the code template **byte for byte** (pinned). The file
   layer lists user-dir clusters and presets first and the bundled ones
   behind them, so a user file of the same name shadows a bundled one.
+- **The Gothic clusters draw their tracery exactly** (C-T2;
+  `graphs/clusters/{wheel-window,pointed-arch-section,rose-tracery,lancet-arcade}.cluster.json`,
+  built by `templates::build_gothic_cluster`, listed in `GOTHIC_CLUSTERS`).
+  Each wraps a native node over `sketch::gothic` and hands out `sketch_op`,
+  a Sketch feature's operation for a `cad.feature`'s `operation` pin:
+  `sketch.gothic.lights` (lights radiating between a sill and an apex
+  radius, a bar apart, Pointed, Round, Trefoil or each a whole Mouchette),
+  `sketch.gothic.arch` (the blunt-lancet section a ring revolves from) and
+  `sketch.gothic.arcade` (lancet bays on a sill, as niche loops and as one
+  stamp outline). Nothing is split or offset, so an example that calls
+  `sketch::gothic` and the template's cluster draw the same sketch byte for
+  byte. The wheel and the section take the bore from `band.size`, so a
+  resize moves the architecture; the rose's lights stand half a bar inside
+  its net circles. A pointed head too tall for its light springs from the
+  sill as a drop arch; a head that cannot fit is refused by name. The arch
+  section is one polyline of short chords: the kernel cannot tessellate a
+  revolved comfort arc. Trefoil cusps and mouchette tails refuse a draft
+  and cut straight. Two drafted halves of one window meeting at the parting
+  plane, mirrored, fail csg's coincidence check, drafted or not; a sand
+  wheel sinks blind drafted lights from each side face, a wax wheel
+  pierces straight through.
 - **The lift is exact by construction** (`lift.rs`, `Graph::from_design`):
   it wires the nodes a person would, evaluates them, diffs the result
   against the design field by field, and carries whatever the nodes cannot
@@ -2680,9 +2701,14 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   `sketch.text` (whole text, or `part` k) fences its graph at 2. Two things
   the text found in the kernel, both fixed as retries so a solid that built
   before builds byte for byte: a Bézier wall's edges are sampled more finely
-  than the flat cap beside it, and the cracks the sliver stitch could not
-  close are now split along the cap's own triangles (`split_t_junctions`; V,
-  A and P cut open before); and an SVG's arcs drawn to nine places miss
+  than the flat cap beside it, and the cracks the stitch and the zip leave
+  open are redrawn through the cap's own triangles (`split_t_junctions`, run
+  after both and kept only if the part closes: a cap triangle carrying
+  samples is ear-clipped as the polygon through them, which a needle of the
+  cap along a concave arc needs, an ear never puts an edge on a third
+  triangle, and a three-edge gap still open is closed by its own triangle
+  only under `SEAM_SLIVER_MM`, a micron; Textura's B, b and g and the seal's
+  CAPITVLI cut open behind the zip alone); and an SVG's arcs drawn to nine places miss
   their neighbours by a nanometre once scaled up (the quatrefoil at 2x),
   which the kernel refuses, so a refused region is retried with its pieces
   meeting exactly (`sketch::solid::healed`). **A drafted extrusion of any
@@ -2700,6 +2726,18 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   word's own middle, and the marks took the verdict from 0.0000 to 0.0666
   mm²; with the opt-out it is the bare stock's exactly. An engraving is laid
   out from the drawing, so it takes the opt-out.
+- **A drafted arc's seams are zipped closed.** The kernel tapers an
+  extrusion by lofting to an offset profile, and the lofted wall samples a
+  shared arc at other points than the planar cap does. Where the old
+  three-edge stitch leaves the mesh open, `zip_chord_seams` splits each open
+  edge at the other side's samples within the chord tolerance (each sample
+  to its nearest edge, no vertex moved) and keeps the result only if it
+  closes. The stitch now leaves a gap lying inside the face beside it (a
+  concave arc's, where the gap triangle folds over the cap) to the zip: on a
+  wheel's concave sills it laid 0.5 mm² of down-facing slivers that the sand
+  verdict read as undercut. Both run only on a mesh the kernel left open:
+  a part the kernel tessellates closed is unchanged, and only a part the
+  old stitch closed with a fold now closes differently.
 
 ## Python: `crates/ringdesign-py`
 
