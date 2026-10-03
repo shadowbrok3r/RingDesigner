@@ -204,8 +204,8 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
                 theme::TEXT
             },
             format!(
-                "Sampled local wall: {:?} mm; {} below target; {} unresolved",
-                w.sampled_min_mm, w.below_limit, w.unresolved
+                "Sampled local wall: {:?} mm; under target {} wall ({:.2} mm²), {} edge ({:.2} mm²); {} unresolved",
+                w.sampled_min_mm, w.below_limit, w.wall_area_mm2, w.edge_below_limit, w.edge_area_mm2, w.unresolved
             ),
         );
         ui.weak(w.note);

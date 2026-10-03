@@ -178,11 +178,13 @@ fn stock_masterworks_match_their_sources_with_native_maps_and_casting_modes() {
             )
             .unwrap();
             let wall = ringdesign_core::cad::measure::thickness(&wall_mesh.mesh, 0.8);
-            assert!(wall.rays > 300);
-            assert_eq!(wall.unresolved, 0);
+            assert!(wall.rays > 100_000);
+            assert!(wall.clean(), "{slug}: {wall:?}");
+            // A wedge at the bore join would read as an edge: none may read under the floor at all.
             assert_eq!(
-                wall.below_limit, 0,
-                "{slug}: bore join leaves a thin wedge: {wall:?}"
+                wall.edge_below_limit, 0,
+                "{slug}: bore join leaves a thin wedge: {:?}",
+                wall.edges
             );
         } else {
             assert_eq!(
