@@ -70,8 +70,10 @@ const RUBY_MM: f64 = 3.5;
 const RUBY_GIRDLE_MM: f64 = 0.75;
 const LIGHT_GIRDLE_MM: f64 = 0.5;
 /// Sapphire lights, centred this far from the ruby, and their collets.
-const LIGHT_W_MM: f64 = 1.6;
-const LIGHT_L_MM: f64 = 2.67;
+const LIGHT_W_MM: f64 = 1.8;
+const LIGHT_L_MM: f64 = 3.0;
+/// The lights' cut: true pear plans are on master (C-B2), so each light is a pear, its point aimed at the rim.
+const LIGHT_CUT: GemCut = GemCut::Pear;
 /// Drawn collets: the wall, the clearance round the girdle (past the bur's own bevel, so the bur cuts only the bearing), the straight lip left over the girdle for the setter to
 /// burnish, and how far the foot reaches into the metal under it, mm.
 const COLLET_WALL_MM: f64 = 0.85;
@@ -95,6 +97,8 @@ const PILOT_GROW_MM: f64 = 0.1;
 /// The head walls' blind arcades: each lancet's height, width, how deep it is sunk, its centre's height over the
 /// finger's axis, and the lancets' centres along the wall, mm.
 const ARCADE_H_MM: f64 = 2.8;
+/// The arcades are struck only once their stamps hold on the stock's walls.
+const WITH_ARCADES: bool = false;
 const ARCADE_W_MM: f64 = 1.5;
 const ARCADE_SINK_MM: f64 = 0.35;
 const ARCADE_Y_MM: f64 = 11.6;
@@ -304,6 +308,35 @@ fn collet_outline(a: f64, b: f64, at: f64, deg: f64) -> Vec<[f64; 2]> {
         })
         .collect()
 }
+/// Points round stone `g`'s true girdle grown `grow` along its normal, its length laid out along `deg` with any point
+/// aimed outward, centred `at` mm out.
+fn plan_outline(g: Gem, grow: f64, at: f64, deg: f64) -> Vec<[f64; 2]> {
+    let plan = ringdesign_core::setting::Plan::of(g);
+    let n = 180;
+    let raw: Vec<[f64; 2]> = (0..n)
+        .map(|k| {
+            let phi = TAU * k as f64 / n as f64;
+            let (p, q) = (plan.point(phi), plan.normal(phi));
+            // Drawn in, a point would fold: the plan is scaled about its centre instead.
+            if grow < 0.0 {
+                let k = (plan.b + grow) / plan.b;
+                [p[0] * k, p[1] * k]
+            } else {
+                [p[0] + q[0] * grow, p[1] + q[1] * grow]
+            }
+        })
+        .collect();
+    let (lo, hi) = raw.iter().fold((f64::MAX, f64::MIN), |(lo, hi), p| (lo.min(p[0]), hi.max(p[0])));
+    let cx = raw.iter().map(|p| p[0]).sum::<f64>() / n as f64;
+    let tip = if hi - cx >= cx - lo { 1.0 } else { -1.0 };
+    let (s, c) = deg.to_radians().sin_cos();
+    raw.iter()
+        .map(|p| {
+            let (v, u) = (at + tip * p[0], p[1]);
+            [v * c - u * s, v * s + u * c]
+        })
+        .collect()
+}
 fn nearest(a: &[[f64; 2]], b: &[[f64; 2]]) -> f64 {
     a.iter().map(|p| b.iter().map(|q| len2(sub2(*p, *q))).fold(f64::MAX, f64::min)).fold(f64::MAX, f64::min)
 }
@@ -312,7 +345,8 @@ fn measure(sketch: &Sketch, petal: &ringdesign_core::sketch::Region, spandrels: 
     let s = sapphire();
     let wall = |_: Gem, w: f64| SEAT_CLEAR_MM + w;
     let (a, b) = (0.5 * s.w_mm + wall(s, COLLET_WALL_MM), 0.5 * s.l_mm + wall(s, COLLET_WALL_MM));
-    let collet = collet_outline(a, b, light_at_mm(), light_deg(0));
+    let _ = (a, b);
+    let collet = plan_outline(s, SEAT_CLEAR_MM + COLLET_WALL_MM, light_at_mm(), light_deg(0));
     let petal_line = outline(petal);
     let inside = collet.iter().map(|p| { let d = petal_line.iter().map(|q| len2(sub2(*p, *q))).fold(f64::MAX, f64::min); if petal.contains(*p) { d } else { -d } }).fold(f64::MAX, f64::min);
     let over = collet.iter().filter(|p| !petal.contains(**p)).map(|p| petal_line.iter().map(|q| len2(sub2(*p, *q))).fold(f64::MAX, f64::min)).fold(0.0, f64::max);
@@ -364,7 +398,7 @@ fn traced_rose(plane: Id) -> Result<Rose> {
         }
         let sp = sapphire();
         for k in 0..LIGHTS {
-            let c = collet_outline(0.5 * sp.w_mm + SEAT_CLEAR_MM + COLLET_WALL_MM, 0.5 * sp.l_mm + SEAT_CLEAR_MM + COLLET_WALL_MM, light_at_mm(), light_deg(k));
+            let c = plan_outline(sp, SEAT_CLEAR_MM + COLLET_WALL_MM, light_at_mm(), light_deg(k));
             let pts: Vec<String> = c.iter().map(|p| format!("{:.3},{:.3}", p[0], -p[1])).collect();
             svg += &format!("<polyline fill='none' stroke='#0a0' stroke-width='0.05' points='{}'/>", pts.join(" "));
         }
@@ -471,7 +505,7 @@ fn ruby() -> Gem {
 }
 fn sapphire() -> Gem {
     let w = knob("ROSA_W", LIGHT_W_MM);
-    Gem { preview_tint: Some(SAPPHIRE), w_mm: w, l_mm: w * LIGHT_L_MM / LIGHT_W_MM, ..Gem::calibrated(GemCut::Oval, LIGHT_W_MM) }
+    Gem { preview_tint: Some(SAPPHIRE), w_mm: w, l_mm: w * LIGHT_L_MM / LIGHT_W_MM, ..Gem::calibrated(LIGHT_CUT, LIGHT_W_MM) }
 }
 
 fn feature(id: Id, name: &str, operation: Operation, component: Component) -> Feature {
@@ -494,7 +528,7 @@ fn collet_ring(name: &str, plane: Id, g: Gem, at: f64, deg: f64, inner_mm: f64, 
     let mut s = Sketch::default();
     s.name = name.into();
     for grow in [outer_mm, inner_mm] {
-        let pts = collet_outline(0.5 * g.w_mm + grow, 0.5 * g.l_mm + grow, at, deg);
+        let pts = plan_outline(g, grow, at, deg);
         let ids: Vec<Id> = pts.iter().step_by(2).map(|p| s.point(*p)).collect();
         s.entity(Geometry::Polyline { points: ids, closed: true });
     }
@@ -564,7 +598,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     doc.append(builders::stone_feature(
         first,
         s,
-        Placement::Ring { theta_deg: 90.0, across_mm: light_at_mm(), height_mm: LIGHT_GIRDLE_MM, spin_deg: 90.0, tilt_deg: 0.0, cant_deg: 0.0 },
+        Placement::Ring { theta_deg: 90.0, across_mm: light_at_mm(), height_mm: LIGHT_GIRDLE_MM, spin_deg: knob("ROSA_SPIN", -90.0), tilt_deg: 0.0, cant_deg: 0.0, level: false },
     ))?;
     doc.append(builders::feature_on(first + 1, "First light's seat", builders::BUR, first, json!({"through": false})))?;
     next = first + 2;
@@ -592,7 +626,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
             &name,
             Operation::Extrude { sketch: Profile::Inline(Sketch::circle(r)), height_mm: -PIERCE_MM, draft_deg: 0.0 },
             Component {
-                placement: Placement::Ring { theta_deg: 90.0 - lean, across_mm: y, height_mm: -PILOT_START_MM, spin_deg: 0.0, tilt_deg: knob("ROSA_TILT", 1.0) * lean, cant_deg: 0.0 },
+                placement: Placement::Ring { theta_deg: 90.0 - lean, across_mm: y, height_mm: -PILOT_START_MM, spin_deg: 0.0, tilt_deg: knob("ROSA_TILT", 1.0) * lean, cant_deg: 0.0, level: false },
                 ..cut()
             },
         ))?;
@@ -625,7 +659,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     }
     d.cad = Some(doc);
     let a = ringdesign_core::skin::Atlas::of(&d, 1024, 384)?;
-    for (name, cheek, side) in [("Wall arcade, near cheek", true, 1.0), ("Wall arcade, far cheek", true, -1.0), ("Wall arcade, right end", false, 1.0), ("Wall arcade, left end", false, -1.0)] {
+    for (name, cheek, side) in [("Wall arcade, near cheek", true, 1.0), ("Wall arcade, far cheek", true, -1.0), ("Wall arcade, right end", false, 1.0), ("Wall arcade, left end", false, -1.0)].into_iter().filter(|_| WITH_ARCADES) {
         let row = arcade(&d, &a, name, cheek, side);
         d.stamps.extend(row);
     }
@@ -690,7 +724,7 @@ fn side_by_side(path: &Path, left: &[u8], right: &[u8], edge: usize) -> Result<(
 /// Views: yaw about the finger axis, pitch from looking along the finger (0) to down onto the table (pi/2).
 const VIEWS: &[(&str, f64, f64)] = &[
     ("hero", -0.6, 1.0),
-    ("face", 0.0, FRAC_PI_2),
+    ("face", 0.12, 1.38),
     ("palm", PI, 1.05),
     ("side", 0.0, 0.0),
     ("shoulder", 0.75, 0.6),
@@ -735,11 +769,11 @@ fn renders(out: &Path, lib: &AlphaLibrary, d: &RingDesign, built: mesh::BuildRes
         let (_, yaw, pitch) = VIEWS.iter().find(|v| v.0 == name).unwrap();
         render::write_png_parts(out.join(format!("{name}-300.png")), &parts, *yaw, *pitch, 300)?;
     }
-    // Stones: the rose close and square, framed on the table's own metal.
-    let close = crop(&bright, table_y);
-    let mut cparts = vec![render::Part::metal(&close, render::GOLD), render::Part::metal(&dark, ANTIQUE)];
-    cparts.extend(finished.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    render::write_png_parts(out.join("stones.png"), &cparts, -0.25, 1.25, edge)?;
+    // Close-ups framed on the whole ring: the rose, a cheek's arcade and an end's.
+    let close = |name: &str, yaw: f64, pitch: f64, centre: [f64; 3], half: f64| render::write_png_framed(out.join(name), &parts, yaw, pitch, render::Framing::new(centre, half), edge);
+    close("stones.png", -0.25, 1.2, [0.0, table_y, 0.0], 9.5)?;
+    close("walls.png", 0.15, 0.12, [0.0, table_y - 2.0, 9.0], 7.0)?;
+    close("end.png", -FRAC_PI_2 + 0.15, 0.12, [9.0, table_y - 2.0, 0.0], 7.0)?;
     let (_, yaw, pitch) = VIEWS[0];
     let bare_img = render::render_parts_ss(&[render::Part::metal(&b.mesh, render::GOLD)], yaw, pitch, edge, edge, 3);
     let finished_img = render::render_parts_ss(&parts, yaw, pitch, edge, edge, 3);

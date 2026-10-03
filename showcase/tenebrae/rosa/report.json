@@ -8,14 +8,14 @@
     ],
     "stock": "001"
   },
-  "cad_features": 35,
-  "design_bytes": 402995,
+  "cad_features": 40,
+  "design_bytes": 407854,
   "draft": {
     "build": [
       768,
       320
     ],
-    "build_s": 1.331558939,
+    "build_s": 1.595398559,
     "gates": {
       "bore_radius_mm": 9.3,
       "cold_reload_identical": null,
@@ -100,7 +100,7 @@
         },
         {
           "id": 16,
-          "name": "Oval 2.67 × 1.6",
+          "name": "Pear 3 × 1.8",
           "status": "Ok"
         },
         {
@@ -197,32 +197,62 @@
           "id": 35,
           "name": "Drill light 8's pilot to the finger",
           "status": "Ok"
+        },
+        {
+          "id": 36,
+          "name": "Oculus of the nave, 1",
+          "status": "Ok"
+        },
+        {
+          "id": 37,
+          "name": "Oculus of the nave, 2",
+          "status": "Ok"
+        },
+        {
+          "id": 38,
+          "name": "Oculus of the nave, 3",
+          "status": "Ok"
+        },
+        {
+          "id": 39,
+          "name": "Oculus of the nave, 4",
+          "status": "Ok"
+        },
+        {
+          "id": 40,
+          "name": "Mirror the oculi through the crown",
+          "status": "Ok"
         }
       ],
       "field_notes": [
         "Lost wax: 0.26% of the surface would undercut a two-part pull (worst 2.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
         "Undercut 16–54° on the crest: 3.6 mm² leaning to 2° — no single layer explains it.",
         "Undercut 153–162° on the crest: 0.4 mm² leaning to 1° — no single layer explains it.",
-        "Measured with the ring as built: 19 CAD parts (6 joined, 13 cut), 755.6 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Extrude \"Raise the tracery: the oculus order, eight mullions, the heads and the outer order\" (#6) would undercut a two-part pull over 10.1 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Measured with the ring as built: 24 CAD parts (6 joined, 18 cut), 909.6 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Extrude \"Raise the tracery: the oculus order, eight mullions, the heads and the outer order\" (#6) would undercut a two-part pull over 8.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Extrude \"Sink the sixteen spandrels deep\" (#7) would undercut a two-part pull over 69.3 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Seat bur \"Oculus seat\" (#9) would undercut a two-part pull over 0.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Oculus collet: raise the lip to the bearing\" (#12) would undercut a two-part pull over 5.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Oculus collet: stand the bearing on the metal\" (#15) would undercut a two-part pull over 5.8 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Seat bur \"First light's seat\" (#17) would undercut a two-part pull over 0.0 mm² (worst -13°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"First light's collet: raise the lip to the bearing\" (#20) would undercut a two-part pull over 4.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"First light's collet: stand the bearing on the metal\" (#23) would undercut a two-part pull over 1.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array round a part \"Their eight seats\" (#25) would undercut a two-part pull over 5.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array round a part \"Their eight collets\" (#26) would undercut a two-part pull over 40.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Seat bur \"Oculus seat\" (#9) would undercut a two-part pull over 1.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Oculus collet: raise the lip to the bearing\" (#12) would undercut a two-part pull over 5.4 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Oculus collet: stand the bearing on the metal\" (#15) would undercut a two-part pull over 5.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Seat bur \"First light's seat\" (#17) would undercut a two-part pull over 0.0 mm² (worst -11°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"First light's collet: raise the lip to the bearing\" (#20) would undercut a two-part pull over 4.1 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"First light's collet: stand the bearing on the metal\" (#23) would undercut a two-part pull over 1.5 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array round a part \"Their eight seats\" (#25) would undercut a two-part pull over 2.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array round a part \"Their eight collets\" (#26) would undercut a two-part pull over 39.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Extrude \"Drill the oculus pilot to the finger\" (#27) would undercut a two-part pull over 22.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 1's pilot to the finger\" (#28) would undercut a two-part pull over 9.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 2's pilot to the finger\" (#29) would undercut a two-part pull over 10.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 3's pilot to the finger\" (#30) would undercut a two-part pull over 24.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 4's pilot to the finger\" (#31) would undercut a two-part pull over 10.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 5's pilot to the finger\" (#32) would undercut a two-part pull over 9.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 6's pilot to the finger\" (#33) would undercut a two-part pull over 10.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 7's pilot to the finger\" (#34) would undercut a two-part pull over 24.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 8's pilot to the finger\" (#35) would undercut a two-part pull over 10.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Lost wax: Extrude \"Drill light 1's pilot to the finger\" (#28) would undercut a two-part pull over 10.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Drill light 2's pilot to the finger\" (#29) would undercut a two-part pull over 12.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Drill light 3's pilot to the finger\" (#30) would undercut a two-part pull over 24.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Drill light 4's pilot to the finger\" (#31) would undercut a two-part pull over 12.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Drill light 5's pilot to the finger\" (#32) would undercut a two-part pull over 10.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Drill light 6's pilot to the finger\" (#33) would undercut a two-part pull over 12.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Drill light 7's pilot to the finger\" (#34) would undercut a two-part pull over 24.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Drill light 8's pilot to the finger\" (#35) would undercut a two-part pull over 12.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Oculus of the nave, 1\" (#36) would undercut a two-part pull over 28.4 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Oculus of the nave, 2\" (#37) would undercut a two-part pull over 18.9 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Oculus of the nave, 3\" (#38) would undercut a two-part pull over 12.9 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Oculus of the nave, 4\" (#39) would undercut a two-part pull over 8.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"Mirror the oculi through the crown\" (#40) would undercut a two-part pull over 69.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "field_verdict": "Castable",
       "investment_min_section_mm": 0.8,
@@ -252,7 +282,7 @@
           0
         ],
         [
-          "Oval 2.67 × 1.6",
+          "Pear 3 × 1.8",
           0
         ],
         [
@@ -277,7 +307,7 @@
         ],
         [
           "Their eight collets",
-          8
+          15
         ],
         [
           "Drill the oculus pilot to the finger",
@@ -314,9 +344,29 @@
         [
           "Drill light 8's pilot to the finger",
           0
+        ],
+        [
+          "Oculus of the nave, 1",
+          0
+        ],
+        [
+          "Oculus of the nave, 2",
+          0
+        ],
+        [
+          "Oculus of the nave, 3",
+          0
+        ],
+        [
+          "Oculus of the nave, 4",
+          0
+        ],
+        [
+          "Mirror the oculi through the crown",
+          0
         ]
       ],
-      "min_vertex_radius_mm": 9.300000099084864,
+      "min_vertex_radius_mm": 9.299334026148,
       "parts_notes": [
         "Raise the tracery: the oculus order, eight mullions, the heads and the outer order, Oculus collet: raise the lip to the bearing, Oculus collet: stand the bearing on the metal, First light's collet: raise the lip to the bearing, First light's collet: stand the bearing on the metal, Their eight collets: could not be united with each other (the solids meet degenerately (two points coincide in a face)); joined one by one"
       ],
@@ -329,9 +379,9 @@
       "solids_notes": [],
       "stamps_unresolved": 0,
       "stones_crowding": {
-        "carats": 0.36556880199999997,
+        "carats": 0.4080303700000001,
         "closest": "Round 3.5 mm / Eight sapphire lights round the oculus",
-        "closest_gap_mm": 2.4581404681822736,
+        "closest_gap_mm": 2.2931404681822736,
         "fill_floor_mm": 0.8,
         "note": null,
         "tight_pairs": 0
@@ -339,30 +389,30 @@
       "stones_previewed": 9,
       "stones_reported": 9,
       "thickness": {
-        "below_limit": 37,
+        "below_limit": 32,
         "build": [
           384,
           160
         ],
-        "faces": 43462,
+        "faces": 55244,
         "limit_mm": 0.8,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-        "rays": 382,
-        "sampled_min_mm": 0.00014965381621264491,
+        "rays": 384,
+        "sampled_min_mm": 0.016924869609119927,
         "unresolved": 0
       },
       "thinnest_wall_mm": 1.878189115992754,
-      "triangles": 50472,
+      "triangles": 63578,
       "vertices_inside_bore": 0,
       "watertight": true
     },
     "gates_passed": false,
     "lands": {
       "bar_mm": 0.85,
-      "collet_in_petal_mm": -0.39349604297170293,
-      "collet_over_bar_mm": 0.39349604297170293,
-      "collet_to_spandrel_mm": 0.4581618473192305,
-      "pilot_to_pilot_mm": 3.9333,
+      "collet_in_petal_mm": -0.47238852704053924,
+      "collet_over_bar_mm": 0.47238852704053924,
+      "collet_to_spandrel_mm": 0.5253331193342929,
+      "pilot_to_pilot_mm": 3.8475,
       "ruby_collet_to_petal_mm": 0.6249999999999996,
       "spandrel_to_table_edge_mm": 1.5340800537533266
     },
@@ -377,7 +427,7 @@
     "process": "LostWax",
     "sand": null
   },
-  "grams_gold_18k": 37.70087192125823,
+  "grams_gold_18k": 36.8642757036094,
   "name": "Rosa — the west rose",
   "process": "Lost wax",
   "size": "US 8.6"
