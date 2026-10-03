@@ -1,0 +1,164 @@
+{
+  "ring": "Sentis",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.4,
+  "summary": "Cut at 6.4 (round 1: 5.6, round 2: 6.2, Caiman: 7, ship bar: 7.5). This is round 3 and the score is below 7.5, so the rule is cut. Every gate is now green and checks out against report.json, draft-gates.json and verification.json. The round-2 wall-gate gap is closed: 66 ray_walls entries cover every metal made part, each with at least 203 rays. The worst hard-edge skip is 292, no part reads below its floor, and the gate line and lost_wax_note now name the true classes. The art did not move enough. (1) The leaflets are still inflated pillows with crimped, stair-stepped margins (leaf-close.png, face.png). A crease midvein was added, but the blades are not flat or bevelled, and the teeth do not read as forward-hooked serrations. In face-300 the spray still reads as laurel or olive more than rose. (2) The hip dome is now worse: it shows stepped concentric tessellation bands and a sharp apex star (stones.png, face.png, leaf-close.png). The setting is still a plain round-lipped collar with a flat inner land, and reads as a solitaire. (3) The calyx shows from the face as asked, but one sepal stands straight up over the girdle like a single claw, and with the curved sepals either side it reads as a prong cradle, not a rose's sepal crown. (4) The ground is still two smooth twisted wires. There is no bark. There are 7 nodes against the 8 asked for, and they show only as small knobs. Under the palm in hero.png there is still an evenly spaced row of 7 or 8 same-facing prickles, the centipede comb round 2 flagged. Leaf 2 is leaf 1 turned round the hip, not the scaled and folded variant asked for, so the face view is mirror-symmetric. Gains: the side shoots now end in tapered buds instead of sawn discs, the weight is up to 7.30 g, and the plant read (pinnate leaves, prickled canes, orange hip) holds at 300 px. Next to caiman/hero.png and the Reptilia sheet the ornament covers well under half of the visible surface, and the modelling is below their finish. Three rounds are used.",
+  "strengths": [
+    "Every gate green and fully recorded: 66 ray_walls entries (every metal made part), minimum 203 rays, maximum hard-edge skip 292, 0 parts below floor; bodies, leaflets and sepal bodies at 0.8 mm (leaflets 0.85-0.91, receptacle 0.85, sepals 0.83), points at 0.15 mm (prickles 0.25-0.41).",
+    "The plant read holds at 300 px: pinnate leaves, a prickled twin cane and an opaque orange oval hip say wild rose more than any other plant.",
+    "Side shoots now end in tapered live buds, not flat sawn tubes (hero.png left, palm.png right, reverse.png lower right).",
+    "Sepal tips now show in the face view at the hip's proximal end, and the five-sepal star reads well from the side (side.png).",
+    "The silhouette is unique in Vepres: an open crossed twin-cane with an off-axis spray and a raised oval hip.",
+    "The hip stone is correct in spec: oval cabochon 6.4 x 4.8, transmission 0.05, tint [0.72, 0.20, 0.06], and stones.json agrees with report.json."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "pass",
+      "reason": "Rose cane, prickles, nodes with stipules, bud-tipped shoots, leaves, hip and calyx only, thinning to cane and prickles at the palm."
+    },
+    {
+      "item": "Reads as its plant at 300 px without the caption",
+      "result": "pass",
+      "reason": "Marginal pass. In hero-300 the prickled canes, the pinnate sprays and the orange oval hip together say rose or briar. In face-300 alone the puffy crimped leaflets still read as a laurel or olive wreath round a carnelian, so the read depends on the canes."
+    },
+    {
+      "item": "Figurative motifs have true outlines, crisp, no combing, smearing or stair-steps",
+      "result": "fail",
+      "reason": "Leaflet margins are still ragged and stair-stepped, with crimped bulges, not hooked serrations (leaf-close.png, every leaflet; face.png). The midvein is a pinched crease on a pillow. The hip dome shows stepped tessellation bands and an apex star, worse than round 2 (stones.png, face.png). Round-2 punch 2 and the tessellation part of punch 3 are not met."
+    },
+    {
+      "item": "Stones in made settings, visible, coloured as the plant's fruit",
+      "result": "pass",
+      "reason": "One opaque orange-red oval hip in a made bezel, fully visible and the right colour. The setting's form and the dome faceting are judged under the CAD and outline items."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms sculpted",
+      "result": "fail",
+      "reason": "The bezel is still a uniform round-lipped collar with a flat inner land, not a flared receptacle cup, and the hip reads as a solitaire (stones.png, face.png). The leaflets are uniform inflated blobs. The canes are constant-section smooth tubes with no bark or swelling toward the crown (bare-vs-finished.png left)."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles",
+      "result": "pass",
+      "reason": "Not applicable: CAD-only, with no factory stock."
+    },
+    {
+      "item": "A silhouette distinct from the other Vepres rings",
+      "result": "pass",
+      "reason": "An open crossed twin-cane with a lateral spray and a raised oval hip. No other Vepres ring is like it."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "fail",
+      "reason": "The large form (hip and spray) and the small forms (28 prickles) are there, but the medium layer is still weak. The 7 nodes show as small knobs, there is no bark, and long runs of plain wire remain at the shoulders and palm (hero.png lower-left and right, reverse.png). The palm prickles still stand in an even same-facing row (hero.png bottom, 7 or 8 in a row). The ornamented share of the visible surface is well under Caiman's."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Watertight, 0 degenerate faces, 0 self-crossings (finished mesh)",
+      "claimed": "pass",
+      "verified": "geometry: watertight, 0 degenerate, 0 crossings, 1 shell, sealed void 0.000031 mm3 (reported, under 0.01); coarse and draft-gates agree",
+      "pass": true
+    },
+    {
+      "gate": "Every made part closed, 0 self-crossings",
+      "claimed": "pass",
+      "verified": "made_parts: all 67 entries read 0",
+      "pass": true
+    },
+    {
+      "gate": "Solids and parts notes empty, every feature Ok",
+      "claimed": "pass",
+      "verified": "notes.parts [] and notes.solids []; 0 features not Ok across 68 CAD features",
+      "pass": true
+    },
+    {
+      "gate": "Nothing inside the finger hole",
+      "claimed": "pass",
+      "verified": "bore: 0 vertices inside, nearest 9.350 mm against a 9.300 mm radius",
+      "pass": true
+    },
+    {
+      "gate": "Lost wax: thinnest wall at least 0.8 mm (replaces the field verdict, ray release, clamp and parting_monotone)",
+      "claimed": "pass (bodies, blades and sepal bodies at 0.8; prickle, sepal and bud points at 0.15)",
+      "verified": "66 ray_walls entries, equal to the made parts minus the cabochon. Minimum 203 rays, maximum hard-edge skip 292 (limit 1000), 0 below floor. At 0.8: canes 1.33, nodes 1.39-1.73, stipules 0.87-0.90 (one sampled on its own solid, as declared), shoots 1.08, receptacle and cup 0.85, stalk 1.75, calyx boss 1.60, sepals 0.83, leaflets 0.85-0.91, rachis 1.00, leaf 2 0.87. At 0.15: prickles 0.25-0.41, sepal points 0.27, bud points 1.25. The gate line and lost_wax_note now name these classes correctly. field.verdict 'Castable with care' is expected on the CAD-only path, and draft.process is LostWax with sand null.",
+      "pass": true
+    },
+    {
+      "gate": "0 DFM findings",
+      "claimed": "pass",
+      "verified": "dfm_findings [] (report and draft-gates); verification detail_findings 0",
+      "pass": true
+    },
+    {
+      "gate": "Stone count equals preview; no metal in stone; crowding clean",
+      "claimed": "pass",
+      "verified": "reported 1, previewed 1; metal_inside 0; crowding []; stones.json Oval cabochon 6.4 x 4.8 matches",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical",
+      "claimed": "pass",
+      "verified": "report cold_reload_identical true; verification vertices_faces_normals_identical true",
+      "pass": true
+    },
+    {
+      "gate": "Export within 2 million triangles",
+      "claimed": "pass",
+      "verified": "209,326 triangles at 1536 x 448",
+      "pass": true
+    },
+    {
+      "gate": "Casting pattern closed",
+      "claimed": "pass",
+      "verified": "pattern: watertight, 0 degenerate, 0 crossings",
+      "pass": true
+    },
+    {
+      "gate": "Template gate: at most 4 design.set patches within class budget",
+      "claimed": "pass",
+      "verified": "1 patch (/manufacturing); 297,607 of 300,000 B procedural; source identical (lift); cold graph and design reload true; export geometry verified",
+      "pass": true
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P0 (only if Logan reopens the ring)",
+      "zone": "All 10 leaflets, Rose leaf 1 and 2, crown theta about 55-125",
+      "change": "Rebuild the leaflets as modelled blades, not inflated pillows. Keep 0.8 mm on a 1.0 mm-wide midrib band, give a nearly flat upper face (0.2 mm sag) and bevel the margin at 30-40 degrees. Cut 7-9 forward-hooked teeth per side, 0.2-0.25 mm, from a smooth outline sampled at 0.05 mm or finer, and sink a midvein 0.15 mm deep. Make leaf 2 a 0.85x copy with one pair folded 20 degrees.",
+      "acceptance": "In leaf-close.png every margin is a continuous serration with no stepped walls. In face-300 the spray reads as rose, not laurel, and the two leaves visibly differ."
+    },
+    {
+      "number": 2,
+      "priority": "P0 (only if reopened)",
+      "zone": "Hip stone mesh, bezel and receptacle, crown theta 90",
+      "change": "Re-tessellate the cabochon dome (at least 128 around, 48 up, no apex fan). Replace the collar with a flared receptacle cup: a 0.6 mm fillet, a 10-15 degree flare, no flat land, tapering into the stalk over 2 mm. Lay the upright sepal down so that no single sepal stands proud over the girdle like a prong.",
+      "acceptance": "In stones.png and face.png the dome shows one smooth highlight with no bands and no star. No vertical wall or flat land is visible. No gold element reads as a claw."
+    },
+    {
+      "number": 3,
+      "priority": "P1 (only if reopened)",
+      "zone": "Both canes, shoulders theta 15-65 and 115-165, palm theta 200-340",
+      "change": "Swell the canes from 1.4 mm at the palm to 1.8 mm at the crown. Add 0.08-0.1 mm bark fissures on the side faces and an eighth node. Re-space the palm prickles irregularly (0.6-1.6x the mean) and alternate their direction.",
+      "acceptance": "In hero.png no run of 4 or more prickles is evenly spaced and same-facing. Cane highlights break over bark, and every 45-degree sector carries a node or at least 2 prickles."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/sentis/hero-300.png",
+    "showcase/vepres/sentis/face-300.png",
+    "showcase/vepres/sentis/contact-300.png",
+    "showcase/vepres/sentis/hero.png",
+    "showcase/vepres/sentis/face.png",
+    "showcase/vepres/sentis/leaf-close.png",
+    "showcase/vepres/sentis/stones.png",
+    "showcase/vepres/sentis/palm.png",
+    "showcase/vepres/sentis/side.png",
+    "showcase/vepres/sentis/shoulder.png",
+    "showcase/vepres/sentis/reverse.png",
+    "showcase/vepres/sentis/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
