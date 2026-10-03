@@ -2656,7 +2656,22 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   and traced, because cadkernel's tessellation of it left open edges.
   Closed at every twist from −720° to 720°, its volume area × length to
   0.05% on a straight path; like a builder's part it is a mesh, so fillet,
-  press-pull and sketch-on-face refuse it by name.
+  press-pull and sketch-on-face refuse it by name. It also runs through
+  points in space (`TwistPath::Points`, mitred or a centripetal
+  Catmull-Rom), the section's own plane carried from the first point on a
+  rotation-minimising frame — a sketch path keeps its plane's normal and
+  builds bit for bit as before; under a scale law (`scale`, a monotone
+  cubic through its knots, `twist::LEAF_LAW` and `THORN_LAW`), whose
+  curvature places stations too, or a straight untwisted leaf loses its
+  belly; and round a closed loop (`closed`: whole turns, a scale that ends
+  where it starts, the turn the frame gathers given back along the loop,
+  no caps). A `Sweep` closes (`closed`) and scales (`end_scale`) in the
+  kernel; twisted (`twist_deg`) it is this sweep, its section on the
+  kernel's own base point, because the kernel's twisted surface tessellates
+  open on every section but a round one (33 to 396 open edges, measured).
+  `SweepPath::Sketch` follows a sketch entity every 0.3 mm (≤128
+  stations), so a moulding follows edits to its arch. Each writes the
+  design at 6 and a graph at 2.
 - **A head moves by its stone.** G, R and the gizmo on a builder part act on
   the stone it is built round — its ring placement, or its `FaceSeat` on a
   part's face — and the head follows. A Transform wrapped round a head would
