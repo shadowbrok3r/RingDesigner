@@ -1,0 +1,18 @@
+{
+  "option": "wide-aisles",
+  "read_test": 3,
+  "ring": "Arcus",
+  "slug": "arcus",
+  "mode": "read-test",
+  "renders": [
+    "showcase/tenebrae/arcus/wide-aisles/hero-300.png",
+    "showcase/tenebrae/arcus/wide-aisles/face-300.png"
+  ],
+  "reads": false,
+  "what_the_eye_sees": "A blue emerald-cut solitaire in a tall four-claw basket, flanked by two crocketed spires standing on posts on the shoulders. The spires say 'Gothic' straight away, so 'Gothic cathedral solitaire' is half-named. The flying buttress itself does not read. The members between each pier and the head are thin, dark, nearly straight struts tucked under the stone. At 300 px they look like bridge or truss bracing, not a half-arch leaping from a pier to the wall, and there is no clear open quarter-circle of air beneath them. The shank's evenly spaced rectangular notches read as gear teeth or tyre tread, not as a blind arcade, and they pull the eye toward 'mechanical'. A jeweller would say 'cathedral setting with two spires', not 'flying buttress'.",
+  "changes": [
+    "Make each flyer an unmistakable half-arch. On both shoulders, replace the straight strut with one thick curved member (about 1.2 to 1.4 mm deep at 300 px scale) that springs from the top third of the pinnacle pier and curves concavely up into the gallery under the stone. Leave a clearly open, lit quarter-circle of air at least 3 mm across between the arch's underside and the shank. In the face view the two arcs should form a visible pair of ')' and '(' shapes against the background on either side of the head.",
+    "Turn the shank side notches into pointed arches. Swap the square-ended rectangular slots on the side faces for pointed (lancet) blind arches: 3 to 4 per side from shoulder to palm, each about 2.5 mm tall with a clear apex. Alternatively, cut the count by about half and give each one a pointed head, so the band stops reading as a gear or tread.",
+    "Give the piers buttress mass. Widen each pier below the pinnacle to about 1.5 times its current width and step it once (a set-off or weathering ledge) where the flyer lands, so pier, flyer and spire read as one buttress unit. Lighten or open the area under the head so the flyers are not lost in shadow in the hero view."
+  ]
+}

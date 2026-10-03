@@ -1,0 +1,12 @@
+{
+  "option": "aisles",
+  "read_test": 2,
+  "ring": "arcus",
+  "reads": false,
+  "what_the_eye_sees": "An emerald-cut blue-stone solitaire in a tall four-claw basket, with a small spiky finial standing on each shoulder and a band ringed with little notches like gear teeth or tyre tread. The finials do say 'Gothic pinnacle' and give a faint church flavour, so 'Gothic' is half there. Nothing reads as a flying buttress: no arch springs from the pinnacles to the head. On the face view the link between pier and basket is a low pair of leaf-like loops, mostly hidden behind the basket and below the stone. In the hero view it is a blob at the shoulder. A jeweller would say 'cathedral-set sapphire with spire accents', not 'flying buttress'. The piers look like thin antennas, too slight for the stone, and the side-face 'arcade' reads as notching, not lancet arches.",
+  "changes": [
+    "Flyers (shank.cathedral, both shoulders, theta about 90-124 and its mirror): make them clear open quarter-arches. Each should spring from the pier at about two thirds of its height (not from the band) and land on the basket's upper rail just below the girdle. Raise the rise from 0.75 to about 1.2 and the wire_mm from 1.0 to about 1.4. Acceptance: in face-300 each side shows a thick curved strut from pinnacle to head with a clearly black triangle of daylight underneath it, visible past the basket claws.",
+    "Piers/pinnacles (feature 18, theta 124 and mirror): make them read as structural piers, not finials. Widen the Box from 1.6 to about 2.2 mm square and keep the spire tip about level with the table. Move them out about 6-8 degrees (theta about 130) so the span of the flyer reads. Make the crockets larger (extrude 0.35 to about 0.6) so they show as bumps at 300 px. Acceptance: in hero-300 the piers are at least a third of the stone's width, and the gap between pier and basket is crossed only by the flyer.",
+    "Nave arcade (TilingLayer 'Nave arcade', side faces, theta 270 +/- 140): the notches read as gear teeth. Cut repeats_around from 36 to about 20, deepen height_mm from 0.25 to about 0.5, and give each bay a visible pointed lancet head. Acceptance: in face-300 the side faces show a row of pointed-arch windows, not square slots."
+  ]
+}

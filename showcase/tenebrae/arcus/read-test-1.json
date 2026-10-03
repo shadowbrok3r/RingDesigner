@@ -1,0 +1,14 @@
+{
+  "option": "wide",
+  "read_test": 1,
+  "ring": "Arcus",
+  "slug": "arcus",
+  "mode": "read-test",
+  "reads": false,
+  "what_the_eye_sees": "A blue emerald-cut stone in a plain four-claw cathedral solitaire head, with a small spiky finial (like a chess pawn or a bedpost knob) standing on each shoulder. The shoulders are straight sloped bars from the head down to the finials, so they read as an ordinary cathedral setting, not as arches flying through air. Below each finial a dark downward wedge reads as a spike, not a gargoyle. The side faces carry a row of small rectangular notches that read as gear teeth or a crenellated watch bezel, not a lancet arcade. A jeweller would say 'sapphire cathedral solitaire with little spires', maybe 'Gothic-ish', but would not say 'flying buttress', and 'Gothic cathedral' is only a guess carried by the two finials.",
+  "changes": [
+    "Flyers (shoulders, theta about 90 +/- 34 deg): make each one a true flying buttress, an open quarter-arch with a concave underside and clear daylight between the arch and the band. Raise rise from 0.75 to about 1.2-1.3, and make the arch spring from the pier at about two-thirds of its height and land on the basket's top rail. At 300 px, in both the hero and the face view, a visible dark triangle-to-crescent of background (at least 2 mm across at the ring) should show under each flyer. Today the shoulder reads as one straight diagonal bar resting on the band.",
+    "Piers and pinnacles (theta 124 deg and its mirror): make each pier a tall, separate tower that the flyer visibly leans against. Raise the pier box from 2.4 to about 3.2 mm, the spire loft from 2.2 to about 3.0 mm, and the crockets from 0.35 to about 0.6 mm so they read as leaves, not stubs. Stand the pier at least 2.5 mm clear of the head. Replace the gargoyle with a leaf spout, or enlarge it to about 1.5 mm with a readable open-jawed silhouette, because the current downward wedge reads as a spike.",
+    "Nave arcade (side faces, theta 270 +/- 140 deg): the notches read as gear teeth. Cut repeats_around from 36 to about 14-18 so that each bay is a pointed lancet about 2 mm tall with a clear pointed top. Deepen height_mm from 0.25 to about 0.45 so the arches cast shadow, and add a continuous string-course line above them. At 300 px in the face view the band side should read as a row of pointed arches, not slots."
+  ]
+}
