@@ -129,6 +129,24 @@ on a side face automatically when the profile has one, and `WireProfile::Round`
 is a cosine dome rather than a circle because a circular section carries a
 vertical wall at its own edge.
 
+A wire can taper and carry beads (C-B1): `CurveLayer::widths` and `heights`
+are per-control-point multipliers on `width_mm` and `height_mm` (empty is
+uniform, a short list repeats its last value), and `beads` is a `CurveBeads`
+row laid by arc length — `offset` across the wire, `phase` along one pitch,
+`graded` with the local width, plus `span`, `stagger` and a `cup` dimple —
+capped at `MAX_CURVE_BEADS`. A wire carrying any of them is the union of its
+sections swept along the path; a plain one keeps the nearest-point
+construction and samples bit for bit as before. Its footprint is its thinnest
+point and its smallest bead. Any of them, or `WireProfile::Tube` (a
+`(1 − x²)^1.25` section, for lost wax), writes the design at 6. A graph goes to
+2 when `widths`, `heights` or `beads` reaches `layer.curve` as a literal, a
+wire or an exposure, or when a wire serialized whole (a `design.set` patch's
+value) carries any of the four; the tube is fenced only as the literal
+`"Tube"` on that node's `profile` pin, so a `profile` fed by a wire or an
+expression leaves the graph at 1. They are `layer.curve`'s own pins, so a lift
+carries a profiled wire with no patch. A wire has no phase of its own: shift
+every control point's `x`, an exact move round the ring because `x` wraps.
+
 ### Pipeline
 
 ```
@@ -1517,7 +1535,9 @@ the pour, all hand-rolled in core with tests:
   which reads the height field through a one-cell tent where it is not
   linear across the cell, so a wall crossing the grid lies straight
   instead of stepping a row at a time. `docs/crisp/` has the measured
-  before and after.
+  before and after. In a graph crisp relief is the `design.settings`
+  node's `crisp_relief` pin, which writes the graph at 2, so a lift
+  carries it with no patch.
 
 The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply,step`.
 
@@ -2148,15 +2168,17 @@ superellipse exponent), and `fit_stone` fills all three from the gem. A
 marquise used to get a round boss sized off its *width*, so the stone
 overhung its own stock by 0.6 mm at each end.
 
-- The rim is `field::superellipse_radius_mm` along the sample's own ray, and
-  every drop law then reads `d / r` exactly as it did. The skirt stays a
+- The rim is `field::superellipse_radius_mm` along the sample's own ray (the
+  girdle's stock outline on the four cuts below), and every drop law then
+  reads `d / r` exactly as it did. The skirt stays a
   **millimetre width** in every direction, because it is measured from the
   rim outward rather than as a fraction of the radius — normalizing instead
   would thin an authored 0.5 mm blend to 0.25 mm at a marquise's point,
   straight through `MIN_EDGE_MM`.
 - Prong bumps stand on the plan outline, on its axes for a round plan and
   at its **corners** once `plan_pow` passes 2.5 — a princess is claw-set at
-  its corners, and the claws land where the girdle is.
+  its corners, and the claws land where the girdle is. The four cuts below
+  stand theirs at the girdle's own claw angles.
 - `plan_pow` is floored at 1, which keeps the plan **convex**. Convex is
   star-shaped about the centre, so a mound on it is still a monotone drop
   from a single crest and releases wherever a round one does — measured
@@ -2168,13 +2190,46 @@ overhung its own stock by 0.6 mm at each end.
   with `1/p + 1/q = 1`. `p = 2` gives the ellipse formula; `p → ∞` gives the
   rotated rectangle's, which is what a step cut wants. The band edge, the
   run pitch, the pavé packer, the refiner's footprints, the section view and
-  the unrolled outline all read it, so nothing measures a diameter any more.
-- One plan table, `GemCut::plan_pow()`, is read by both the stock and the
-  viewport preview — the exponents used to live privately in `gems.rs`, so
-  the drawn stone and the metal cut for it were two different shapes.
-- The halo follows suit: its ring is the centre's own outline grown by the
-  gap, with accents placed at **equal arc length** round it, so an oval
-  centre gets an oval halo instead of a circle drawn round its length.
+  the unrolled outline all read it through `SeatPadLayer::half_extents_mm`,
+  which hands the four cuts below to their girdle's stock, so nothing
+  measures a diameter any more.
+- `GemCut::plan_pow()` is the superellipse table of the ten cuts without a
+  true girdle: their seat stock reads it, and so does the preview of a
+  cabochon in one of them, so that dome and its stock are one shape. A
+  faceted stone is drawn from its cut's bundled mesh (a user's own
+  `<cut>.obj` wins), which the superellipse only approximates — the corner a
+  princess's stock leaves out is measured below. The four cuts below take
+  stock and cabochon alike from their girdle, and the table is never read
+  for them.
+- The halo follows the centre's proportions, not its plan: its ring is an
+  ellipse on the centre seat's own semi-axes grown by the gap
+  (`pave::HaloRing`), with accents placed at **equal arc length** round it,
+  so an oval centre gets an oval halo instead of a circle drawn round its
+  length. A princess's halo is that ellipse and not its rounded square, and
+  a pear's, trillion's, heart's or half moon's is the ellipse on its seat's
+  semi-axes, not its girdle.
+
+**Pear, Trillion, Heart and HalfMoon sit on their true girdles** (C-B2,
+`girdle.rs`, `GemCut::girdle`): the exact silhouette of the bundled mesh the
+preview draws — read from the bundled mesh only, never a user's override, so a
+design builds the same metal on every machine — and grown by Minkowski sum
+along the ray, so a heart's cleft fills instead of folding. On the superellipse
+a 5 mm half moon stood 0.96 mm outside its own seat. The pad's stock is
+`Girdle::stock`, the girdle's hull mirrored across both axes: convex so no two
+skirts face each other, mirrored so it still peaks on the crest line (a half
+moon's own outline fielded 0.23% at −4.2°, the stock 0.0000%). The made
+settings, the claws, the census, the clearance envelopes and the stone map
+all read the girdle. There is no opt-in and no fence, because the file carries
+nothing new: **a saved design carrying one of these four stones is re-seated
+on its true girdle when it is reopened**, and an older build still reads it as
+it always did. No bundled template or design carries one, but the kiosk
+makes them: its `SOLITAIRE_CUTS` offer a pear, and that solitaire's gypsy
+mound is cut to the pear's girdle. The other ten cuts keep the
+superellipse, pinned byte for byte by `tests/superellipse_cuts.rs`, so a
+princess's corner still stands 0.39 mm out of its own seat and a baguette's
+0.60; moving a cut over is one line in `GemCut::has_true_girdle` and a
+regeneration of the templates that carry it. The crowding table's trillion
+row below was measured on the superellipse.
 
 ### Cabochons are flat-backed, and refusing them was a bug
 
@@ -2475,9 +2530,12 @@ What the runtime settled while being built, each pinned by a test:
 - **The lift is exact by construction** (`lift.rs`, `Graph::from_design`):
   it wires the nodes a person would, evaluates them, diffs the result
   against the design field by field, and carries whatever the nodes cannot
-  express (a flange, a tiling warp, the draft settings) as `design.set`
-  patches — so "Convert to graph" never loses a field, and the test that
-  every template lifts back byte-for-byte also caps the patches at four.
+  express (a flange, a custom outline registry, a CAD document's own output
+  order, joints and `through`) as `design.set` patches — so "Convert to
+  graph" never loses a field, and the test that every template lifts back
+  byte-for-byte also caps the patches at four. A tiling's warp rides its
+  own `layer.tiling` pin, and the build and draft settings, crisp relief
+  included, a `design.settings` node; none of them is a patch.
 - **The list idioms follow Grasshopper where it was measured**
   (`batch6-8/from-rhino/brief02-lists/`, Rhino 8.34): longest-list
   matching repeats the last item; a negative Series count generates
