@@ -287,11 +287,62 @@ pub fn render_parts_ss(
     ss: usize,
 ) -> Vec<u8> {
     let ss = ss.max(1);
-    let big = draw_parts(parts, yaw, pitch, w * ss, h * ss, None);
+    let big = draw_parts(parts, yaw, pitch, w * ss, h * ss, None, None);
     if ss == 1 {
         return big;
     }
     downsample(&big, w, h, ss)
+}
+
+/// A close-up's frame: the point at the picture's centre and half the picture's width, mm.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Framing {
+    pub centre: [f64; 3],
+    pub half_width_mm: f64,
+}
+
+impl Framing {
+    /// A frame of half-width `half_width_mm` centred on `centre`.
+    pub fn new(centre: [f64; 3], half_width_mm: f64) -> Self {
+        Self { centre, half_width_mm }
+    }
+}
+
+/// The yaw that turns ring angle `theta_deg` toward the camera.
+pub fn yaw_facing(theta_deg: f64) -> f64 {
+    (90.0 - theta_deg).to_radians()
+}
+
+/// Supersampled render of several whole parts framed on `framing`, for close-ups without cropping a mesh.
+pub fn render_parts_framed(
+    parts: &[Part],
+    yaw: f64,
+    pitch: f64,
+    framing: Framing,
+    w: usize,
+    h: usize,
+    ss: usize,
+) -> Vec<u8> {
+    let ss = ss.max(1);
+    let big = draw_parts(parts, yaw, pitch, w * ss, h * ss, None, Some(framing));
+    if ss == 1 {
+        return big;
+    }
+    downsample(&big, w, h, ss)
+}
+
+/// One antialiased close-up of several whole parts to a PNG.
+pub fn write_png_framed(
+    path: impl AsRef<Path>,
+    parts: &[Part],
+    yaw: f64,
+    pitch: f64,
+    framing: Framing,
+    edge: usize,
+) -> anyhow::Result<()> {
+    let img = render_parts_framed(parts, yaw, pitch, framing, edge, edge, 3);
+    image::save_buffer(path, &img, edge as u32, edge as u32, image::ColorType::Rgb8)?;
+    Ok(())
 }
 
 /// One antialiased hero frame of several parts to a PNG.
@@ -375,7 +426,7 @@ fn draw(
     tint: [f32; 3],
 ) -> Vec<u8> {
     let part = Part { smooth: classes.is_none(), studio: classes.is_none(), ..Part::metal(m, tint) };
-    draw_parts(&[part], yaw, pitch, w, h, classes)
+    draw_parts(&[part], yaw, pitch, w, h, classes, None)
 }
 
 /// Several parts into one frame, depth-sorted against each other and framed
@@ -387,6 +438,7 @@ fn draw_parts(
     w: usize,
     h: usize,
     classes: Option<&[FaceClass]>,
+    framing: Option<Framing>,
 ) -> Vec<u8> {
     let Some(first) = parts.first() else {
         return vec![18u8; w * h * 3];
@@ -394,13 +446,18 @@ fn draw_parts(
     let Some((min, max)) = first.mesh.bounds() else {
         return vec![18u8; w * h * 3];
     };
-    let c = [
-        (min.0 + max.0) as f64 * 0.5,
-        (min.1 + max.1) as f64 * 0.5,
-        (min.2 + max.2) as f64 * 0.5,
-    ];
-    let ext = ((max.0 - min.0).max(max.1 - min.1).max(max.2 - min.2)) as f64;
-    let scale = w as f64 / (ext * 1.25);
+    let (c, scale) = match framing {
+        Some(f) => (f.centre, w as f64 / (2.0 * f.half_width_mm.max(1e-6))),
+        None => {
+            let c = [
+                (min.0 + max.0) as f64 * 0.5,
+                (min.1 + max.1) as f64 * 0.5,
+                (min.2 + max.2) as f64 * 0.5,
+            ];
+            let ext = ((max.0 - min.0).max(max.1 - min.1).max(max.2 - min.2)) as f64;
+            (c, w as f64 / (ext * 1.25))
+        }
+    };
 
     let (sy, cy) = yaw.sin_cos();
     let (sp, cp) = pitch.sin_cos();
@@ -596,6 +653,26 @@ mod finished_tests {
         let (with, without) = (green(&img), green(&bare));
         assert_eq!(without, 0, "gold paints no green");
         assert!(with > 150, "the stone shows: {with} green pixels of a 160 px thumbnail");
+    }
+}
+
+#[cfg(test)]
+mod framed_tests {
+    use super::*;
+
+    #[test]
+    fn a_framed_close_up_is_metal_edge_to_edge_where_the_band_fills_it() {
+        let d = crate::RingDesign::default();
+        let built = crate::mesh::build(&d, &crate::AlphaLibrary::default(), crate::mesh::BuildParams { theta_steps: 128, profile_steps: 64, ..Default::default() });
+        let top = built.mesh.vertices.iter().map(|v| v.1 as f64).fold(f64::MIN, f64::max);
+        let part = [Part::metal(&built.mesh, GOLD)];
+        let down = std::f64::consts::FRAC_PI_2;
+        // A 2 mm square on the crown of a wider band: no crop rim and no background anywhere in it.
+        let close = render_parts_framed(&part, yaw_facing(90.0), down, Framing::new([0.0, top, 0.0], 1.0), 48, 48, 1);
+        assert!(close.chunks_exact(3).all(|p| p != [18, 18, 18]), "background inside the frame");
+        let whole = render_parts_ss(&part, 0.0, down, 48, 48, 1);
+        assert!(whole.chunks_exact(3).any(|p| p == [18, 18, 18]), "the bounds framing leaves background round the ring");
+        assert_ne!(close, whole);
     }
 }
 
