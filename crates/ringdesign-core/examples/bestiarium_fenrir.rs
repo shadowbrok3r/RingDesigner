@@ -319,8 +319,8 @@ fn lower_lip_line(a: f64) -> [f64; 4] {
             (45.0, [6.85, 1.35, 0.95, 0.9]),
             (60.0, [6.6, 1.45, 0.9, 0.85]),
             (FANG_DEG, [6.3, 1.7, 0.85, 0.85]),
-            (82.0, [6.2, 1.45, 0.8, 0.8]),
-            (90.0, [6.15, 1.35, 0.8, 0.8]),
+            (82.0, [6.05, 1.45, 0.8, 0.8]),
+            (90.0, [6.0, 1.35, 0.8, 0.8]),
         ],
         a,
     )
@@ -335,7 +335,7 @@ fn gum_h(deg: f64) -> f64 {
 /// chin, which stands no further out than 8 mm.
 fn jaw_out(deg: f64) -> f64 {
     let l = lower_lip(deg);
-    l[0] + l[2] + 0.15
+    l[0] + l[2] + 0.05
 }
 
 /// Short fur over the mandible, 0..1: locks lying along the jaw, sweeping back from the chin to each corner.
@@ -545,7 +545,7 @@ impl Wolf {
         let sec = [s[0], dot(ps, b)];
         // A wedge tapering from the stop to the nose, its sides sloping straight down to the lips and its top a plane that
         // runs straight to the leather.
-        let body = trapezoid(sec, lerp(3.0, 1.65, tc), lerp(0.95, 0.55, tc), lerp(1.4, 1.15, tc)) - 0.18;
+        let body = trapezoid(sec, lerp(2.6, 1.55, tc), lerp(0.95, 0.55, tc), lerp(1.4, 1.15, tc)) - 0.18;
         smax(body, (t - 1.0) * l, 0.3).max(-t * l - 1.2)
     }
     /// The nose's frame: its top running on from the bridge, its front turned down toward the moon.
@@ -579,16 +579,16 @@ impl Wolf {
     fn upper_jaw(s: P3) -> f64 {
         let ang = (s[1] - MOON_U).atan2(s[0]).to_degrees();
         let a = ang.clamp(CORNER_DEG, 90.0);
-        let l = upper_lip(a);
+        let mut l = upper_lip(a);
+        // The flew is broken at the fang: its crest drops 0.65 mm where the canine comes out, so the lip reads as two,
+        // the short one under the nose and the long one hauled back over the premolars.
+        l[1] -= 0.65 * sculpt::bell(a, FANG_DEG, 4.5);
         let lip = Self::lip(s, a, l, l[0] + l[2] + 1.1, -1.0, lerp(0.95, 1.2, smooth(20.0, 60.0, a)), lerp(1.0, 0.45, smooth(28.0, 50.0, a)));
         // The flew ends in a rounded cap at the mouth's corner rather than running on round it, and the two flews
         // pinch together under the nose in a cleft, so the lip reads as a pair meeting at the philtrum.
         let rho = s[0].hypot(s[1] - MOON_U);
         let cleft = 0.28 * (-(s[0] / 0.32).powi(2)).exp() * smooth(l[1] - l[3], l[1] - 0.2 * l[3], s[2]);
-        // The flew is broken at the fang: a notch 0.6 mm deep where the canine comes out, so the lip reads as two,
-        // the short one under the nose and the long one hauled back over the premolars.
-        let notch = (((ang - FANG_DEG).abs().to_radians() * rho) - 0.45).max(l[1] - 0.8 - s[2]);
-        smax(smax(lip + cleft, -notch, 0.22), (CORNER_DEG - 4.0 - ang).to_radians() * rho, 0.6)
+        smax(lip + cleft, (CORNER_DEG - 4.0 - ang).to_radians() * rho, 0.6)
     }
     /// The mandible at the query's bearing: the lower lip inside the jaw's outline, rounded underneath to the chin.
     fn mandible(s: P3) -> f64 {
@@ -596,8 +596,8 @@ impl Wolf {
         let a = ang.clamp(-90.0, -CORNER_DEG);
         let l = lower_lip(a);
         let rho = s[0].hypot(s[1] - MOON_U);
-        let jaw = smax(Self::lip(s, a, l, jaw_out(a) + 0.1, -1.3, 0.9, 0.45), (ang + CORNER_DEG - 4.0).to_radians() * rho, 0.6);
-        let chin = ellipsoid(sub(s, [0.0, MOON_U - 6.35, -0.3]), [1.2, 0.8, 0.9]);
+        let jaw = smax(Self::lip(s, a, l, jaw_out(a) - 1.05, -1.3, 0.9, 0.45), (ang + CORNER_DEG - 4.0).to_radians() * rho, 0.6);
+        let chin = ellipsoid(sub(s, [0.0, MOON_U - 5.95, -0.3]), [1.2, 0.8, 0.9]);
         smin(jaw, chin, 0.8)
     }
     /// The gums between the lips and the stone, carried under the lips down to the table so no air is shut in
@@ -608,12 +608,12 @@ impl Wolf {
         let l = if ang >= 0.0 { upper_lip(ang) } else { lower_lip(ang) };
         let end = (CORNER_DEG + 3.0 - ang.abs()).to_radians() * rho.max(1.0);
         // Below the lip's roll the gum widens into the jaw's body, so no slot opens between them.
-        let widen = if ang >= 0.0 { (l[2] + 0.4) * smooth(l[1] - l[3] + 0.1, l[1] - l[3] - 0.5, s[2]) } else { (jaw_out(ang) - l[0] - 0.2).max(0.0) * smooth(0.8, -1.0, s[2]) };
+        let widen = if ang >= 0.0 { (l[2] + 0.4) * smooth(l[1] - l[3] + 0.1, l[1] - l[3] - 0.5, s[2]) } else { (jaw_out(ang) - l[0] - 0.5).max(0.0) * smooth(0.8, -1.0, s[2]) };
         smax((rho - l[0] - 0.3 - widen).max(s[2] - gum_h(ang)).max(-(s[2] + 2.0)), end, 0.4)
     }
     /// The throat under the chin, hanging over the apex wall, its lowest point a millimetre and more over the finger.
     fn throat(s: P3) -> f64 {
-        ellipsoid(sub(s, [0.0, MOON_U - 5.2, -1.95]), [3.7, 1.7, 1.7])
+        ellipsoid(sub(s, [0.0, MOON_U - 4.95, -1.95]), [3.7, 1.6, 1.7])
     }
     /// A pricked ear: a leaf standing up from the crown's corner, its section a stadium rounded 0.5 mm at the edges and
     /// bowed so the back is convex and the front cupped, twisting outward toward its point, which curls back; a deeper
@@ -656,8 +656,8 @@ impl Wolf {
     }
     /// A short tuft lying down the chin's front, pointing away from the moon.
     fn chin_tuft(s: P3) -> f64 {
-        let a = round_cone(s, [0.0, MOON_U - 6.6, 0.2], [0.0, MOON_U - 7.0, -0.45], 0.45, 0.36);
-        smin(a, round_cone(s, [0.0, MOON_U - 7.0, -0.45], [0.0, MOON_U - 7.15, -1.15], 0.36, 0.26), 0.25)
+        let a = round_cone(s, [0.0, MOON_U - 6.4, 0.2], [0.0, MOON_U - 6.7, -0.45], 0.42, 0.34);
+        smin(a, round_cone(s, [0.0, MOON_U - 6.7, -0.45], [0.0, MOON_U - 6.75, -1.15], 0.34, 0.26), 0.25)
     }
     /// The head's masses and smooth features, without fur or carved detail.
     fn masses(&self, q: P3) -> f64 {
@@ -673,7 +673,7 @@ impl Wolf {
         // back end, so the lower jaw hangs from the skull instead of floating.
         let hinge = ellipsoid(sub(s, [7.05, MOON_U - 0.4, -1.35]), [0.85, 2.8, 1.3]);
         let jaws = smin(smin(Self::mandible(s), Self::gums(s), 0.3), hinge, 0.9);
-        d = smin(d, smin(jaws, Self::throat(s), 1.3), 0.5);
+        d = smin(d, smin(jaws, Self::throat(s), 0.8), 0.5);
         d = smin(d, Self::ear(s), 0.5);
         // Along the flanks the masses swell into a wide fillet down onto the stock, run out a little under its
         // surface, so the head slopes into the ruff instead of standing as a wall, and the fur rides on it.
@@ -812,7 +812,7 @@ impl Wolf {
             take(t.name.clone(), if d < 0.3 { 0.0 } else { d }, t.tip);
         }
         let tuft = Self::chin_tuft(s);
-        take("chin tuft".into(), if tuft < 0.3 { 0.0 } else { tuft }, [0.0, MOON_U - 7.15, -1.15]);
+        take("chin tuft".into(), if tuft < 0.3 { 0.0 } else { tuft }, [0.0, MOON_U - 6.75, -1.15]);
         for (k, sh) in self.sheaths.iter().enumerate() {
             let d = Self::sheath(sh, q);
             take(format!("fang sheath {}", k + 1), if d < 0.25 { 0.0 } else { d }, sh.last().map_or(q, |p| p.0));
@@ -3089,6 +3089,14 @@ fn main() -> Result<()> {
     }
     if args.iter().any(|a| a == "--hollow") {
         return hollow_preview(Path::new(out));
+    }
+    if args.iter().any(|a| a == "--jaws") {
+        let mut d = base()?;
+        let a = Atlas::of(&d, AW, atlas_rows(&d))?;
+        stone_and_fangs(&mut d)?;
+        let wolf = wolf_of(&d, &a)?;
+        println!("{}", serde_json::to_string_pretty(&jaw_measures(&wolf))?);
+        return Ok(());
     }
     if args.iter().any(|a| a == "--quick") {
         return quick_preview(Path::new(out), 0.13);
