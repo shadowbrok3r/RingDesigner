@@ -1,0 +1,109 @@
+{
+  "ring": "Gurgulio",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.6,
+  "summary": "Cut at 6.6 (round 1: 6.2, round 2: 6.5, Caiman: 7, ship bar: 7.5). This was the last round, and the section grants no extra rounds. Every gate the ring's section names is green, checked against report.json at both builds and against template-gate.json. Two things improved. The crown gutter, with its two roll beads, now runs continuously over the outer palm face (palm.png). The forepaws now have four separate digits each, gripping the coping. The figure is still the same inflated cartoon bulldog: the brow is a capsule bar, the horns and ears are sausages, the claws are straight rods with no hook, and the muzzle and spout are soft blobs. stones.png still shows creases and star-shaped decimation flecks over the brow, cheeks, fangs and paws. The sculpt has 189,134 faces against the at least 450k at 0.003 asked for twice (the target was set to 300k), and the spout lip is still faceted. From above, the 'wings' are two rectangular slabs either side of a row of four or five dorsal knobs. They are not bat wings, and the back reads as a machined block. The perch is still a thin box with three faceted front lancets, and it has no cornice or quatrefoil. Thin posts and dark, unfinished-looking square sockets stand at its back corners (face.png, shoulder.png). At 300 px the hero reads as a cluttered block or robot head on a pedestal, worse than round 2's hero. The face view still says 'beast head with a pipe', and the side-wall arcade still reads as cog teeth. Against Caiman's even, legible density and the Reptilia sheet's finish, this is below the bar. It sits with Corvus (6.6), not with the shipped Arachne and Manticora (7.5). Of round 2's six punch items, one is done (6, the gutter half), two are partly done (2, 6's arcade half) and three are not done (1, 3, 4, 5's arcade lips).",
+  "strengths": [
+    "The subject concept is right and unique in the collection: a single figurative beast crouched on a parapet with a bored spout thrust past the edge. No other Tenebrae ring has this silhouette.",
+    "The crown gutter (0.9 mm wide, 0.4 mm deep, with 0.2 mm rolls) now runs continuously round the outer palm face, so the theme reaches the palm (palm.png, reverse.png).",
+    "Forepaws now have four separate digits each over the coping (side.png, shoulder.png). This is a clear step up from round 2's mittens.",
+    "The 33-bay side-wall arcade under a 0.4 mm string course is clean CAD with crisp outlines in side.png.",
+    "Every gate is clean and honestly reported. The wall census reads 0 walls and 0 unresolved at about 345k rays per build, and the reload is identical at both builds."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "pass",
+      "reason": "The parapet and beast sit at the crown. The gutter with its rolls runs over the whole outer palm face, and the lancet arcade circles both side walls (palm.png, reverse.png, side.png)."
+    },
+    {
+      "item": "Reads as its Gothic subject at 300 px without the caption",
+      "result": "fail",
+      "reason": "hero-300 now reads as a cluttered blocky head or robot on a pedestal. The brow bar, fang rods and slab wings make a stack of blocks, and 'gargoyle' no longer comes first. face-300 reads as a horned beast head with a pipe in its mouth, which could also be a bull or dragon skull. Nothing at 300 px says Gothic cathedral: the perch is a plain box, and the arcade reads as cog teeth (contact-300)."
+    },
+    {
+      "item": "Figurative motifs have true outlines, with no combing, smearing or stair-steps",
+      "result": "fail",
+      "reason": "stones.png shows crease lines and star-shaped decimation flecks over the brow, cheek, fangs, paws and muzzle. The spout lip is faceted (a star pattern on the end face). The sculpt has 189,134 faces (decimation [300000, 0.003]) against the at least 450k asked for. The front lancets are still faceted pockets."
+    },
+    {
+      "item": "Stones in made settings, à jour, coloured as stained glass",
+      "result": "pass",
+      "reason": "Not applicable. The section specifies no stones, and report.json records 0 reported and 0 previewed."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "fail",
+      "reason": "The perch is a thin-walled box with no cornice or corbel. The wings are two rectangular slabs (face.png). Thin posts with ball tips and dark square sockets at the perch's back corners look unfinished (face.png, shoulder.png). The sculpt is inflated capsules, not carved stone."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles",
+      "result": "pass",
+      "reason": "Not applicable: the section calls for a procedural keyed band, and it has crisp moulded edges."
+    },
+    {
+      "item": "Distinct silhouette; custom heads at least 13 mm; shoulder ornament not cut off before the face",
+      "result": "pass",
+      "reason": "It is the only figurative crouching beast in Tenebrae. The figure box is 13.3 mm across and stands 13.1 mm over the coping. The shoulder mouldings and gutter run into the perch foot without a break."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "fail",
+      "reason": "The large form (the figure) is there, but the medium forms are all the same rounded capsules, and the small forms are flecks or rod tips, not carving. The band carries only rib lines and an arcade that reads as teeth. Caiman's hero has an even, legible hierarchy of plates, ridges and texture that this ring does not reach."
+    }
+  ],
+  "gates": [
+    {"gate": "Process (from the draft block)", "claimed": "Lost wax, min_section_mm 0.8, min_draft 0", "verified": "report.json draft: process 'Lost wax', min_section_mm 0.8, min_detail_mm 0.15. The sand field, ray-release and draft-clamp gates are replaced by the thickness census and asserted lands.", "pass": true},
+    {"gate": "Watertight, 0 degenerate faces, 0 self-crossings (ring and every made part)", "claimed": "pass", "verified": "Draft (651,252 tris) and export (1,482,978 tris): watertight true, degenerate_faces 0, self_crossings 0. The made part 'Grow the gargoyle and its parapet out of the band' has 0 crossings. Sculpt: 189,134 faces, 0 open edges, 0 crossings.", "pass": true},
+    {"gate": "Solids notes empty, every feature Ok", "claimed": "pass", "verified": "geometry.notes [] and features_not_ok [] at both builds; parts_joined 1.", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "vertices_inside 0; nearest vertex 9.30000 mm at bore radius 9.3 (both builds).", "pass": true},
+    {"gate": "Field verdict Castable (lost-wax fill 0.8)", "claimed": "Castable", "verified": "band_verdict and verdict 'Castable' at both builds; thinnest wall 1.99 mm. The two-part undercut (18.2% with parts) is reported only, as the section requires for investment.", "pass": true},
+    {"gate": "cad::measure::thickness at 0.8 mm (replaces ray release and draft clamp)", "claimed": "clean: 0 walls, 0 unresolved", "verified": "Export: 345,401 rays, walls [], unresolved 0, below_limit 0. Draft: 342,691 samples, walls [], unresolved 0. There are 64 edge zones (1,761 edge samples, 10.2 mm²), read under the lead's interim rule and not gated. 25 export edge zones are under 0.3 mm, including the arcade rib lips at (±9.4–9.8, 6.0–7.5, ±2.8) at 0.26–0.28 mm. Round 2's punch item 5 asked for these to be rounded.", "pass": true},
+    {"gate": "dfm::cut_lands at 0.8 mm", "claimed": "clean", "verified": "cut_lands_0_8 [] at both builds.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] at both builds. part_sections_0_8 (6.67 mm² under the floor, thinnest 0.0001 mm) is recorded with gate false, as reported only, because the wall gate is the finished-ring census.", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "0 = 0", "verified": "stones reported 0, previewed 0.", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true at both builds", "verified": "cold_reload_identical true at draft and export. template-gate: source_identical, vertices_faces_normals_identical, cold_design_reload and cold_graph_reload all true.", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "1,482,978 triangles.", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "pattern watertight, 0 degenerates, 0 crossings, 1,482,978 tris.", "pass": true},
+    {"gate": "Template gate: at most 4 design.set patches within the class budget", "claimed": "passed, class painted", "verified": "0 patches; 2,063,830 bytes against the painted budget of 3,000,000; template_gate_passed true. Note that the doc's budgets list only procedural (300 KB) and stock (1 MB). The painted class is the author's, on Moloch's precedent, and is recorded in the note.", "pass": true}
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "deferred (the ring is cut; for any future restart)",
+      "zone": "Whole sculpt: brow, horns, ears, fangs, claws, muzzle",
+      "change": "Re-carve the figure as stone, not inflated capsules. Cut a hard brow overhanging the sockets by 0.6–0.8 mm. Facet the cheek and snout planes, with 2–3 furrows each side at least 0.3 mm deep. Taper horns and fangs to cones ending at 0.85 mm. Hook each claw over the coping edge. Decimate to at least 450k faces at 0.003 mm, and make the spout lip a revolved CAD tube end.",
+      "acceptance": "stones.png shows unbroken highlights with no creases or star flecks. hero-300 reads 'stone gargoyle' first, not 'cartoon dog', 'block' or 'robot'."
+    },
+    {
+      "number": 2,
+      "priority": "deferred",
+      "zone": "Back, y ±1.5 to ±3.5 mm (the slabs in face.png)",
+      "change": "Replace the rectangular slabs with folded bat wings. Give each a forearm bone, a thumb claw, 3–4 finger bones and a scalloped trailing edge, with membranes recessed 0.3–0.5 mm.",
+      "acceptance": "face-300 shows two scalloped wing shapes either side of the spine, and nothing reads as a slab, step or crest."
+    },
+    {
+      "number": 3,
+      "priority": "deferred",
+      "zone": "Perch, its back-corner posts and the arcade rib lips",
+      "change": "Build a solid moulded parapet with a two-step cornice (0.8–1.0 mm overhangs over cavetto hollows), a corbel into the band, and a 3 mm blind quatrefoil 0.5–0.7 mm deep on each side face. Remove or finish the thin back-corner posts and the dark square sockets. Round the arcade rib lips to 0.15 mm.",
+      "acceptance": "In hero-300 the perch shows a lit cornice over a shadow band and does not read as a box. No export edge zone is under 0.3 mm, and walls stays [] with 0 unresolved."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/gurgulio/hero-300.png",
+    "showcase/tenebrae/gurgulio/face-300.png",
+    "showcase/tenebrae/gurgulio/hero.png",
+    "showcase/tenebrae/gurgulio/face.png",
+    "showcase/tenebrae/gurgulio/stones.png",
+    "showcase/tenebrae/gurgulio/side.png",
+    "showcase/tenebrae/gurgulio/palm.png",
+    "showcase/tenebrae/gurgulio/shoulder.png",
+    "showcase/tenebrae/gurgulio/reverse.png",
+    "showcase/tenebrae/gurgulio/contact-300.png",
+    "showcase/tenebrae/gurgulio/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

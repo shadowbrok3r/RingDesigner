@@ -19,7 +19,7 @@ This file is self-contained. It was written on 2026-09-24 against `master` at `3
 | # | Ring | Epithet | Base | Process | Stones | Status |
 |---|---|---|---|---|---|---|
 | 1 | Oculus | the wheel | Procedural Flat 7.0 × 4.6, Uniform | Delft sand | 0 | **Replaced by Gurgulio (2026-10-03)**: the wheel windows read as flowers in six read tests of six |
-| 1′ | Gurgulio | the waterspout | Procedural keyed band, the head sculpted | Lost wax | 0 | Started 2026-10-03 |
+| 1′ | Gurgulio | the waterspout | Procedural keyed band, the head sculpted | Lost wax | 0 | **Cut at 6.6 after three rounds (2026-10-03)**; every gate green |
 | 2 | Ogiva | the keel | CAD-only revolved pointed-arch section | Delft sand | 0 | Not started; buildable now |
 | 3 | Rosa | the west rose | Factory 013 Round at a 16 mm face (fallback 001) | Lost wax | 9 | Not started; buildable now with oval lights; full form waits on C-B2, C-T1, C-T3 |
 | 4 | Sigillum | the chapter seal | Factory 005 Rosette, sand master | Delft sand + bench | 0 | Not started; blocked on C-T6 |
@@ -835,7 +835,7 @@ fn pinnacle_parts(doc: &mut Document, ids: &mut impl FnMut() -> Id, at: Placemen
 
 ## Gurgulio — *the waterspout*
 
-- **Status:** Started 2026-10-03. Logan chose it that day to take Oculus's place, after the Oculus spike's wheel windows read as flowers in six read tests out of six. Example `examples/tenebrae_gurgulio.rs`, outputs in `showcase/tenebrae/gurgulio/`.
+- **Status:** **Cut at 6.6** after the block-out (read test 2 reads) and three review rounds (6.2, 6.5, 6.6), every gate green; see `showcase/tenebrae/gurgulio/` and `cloud-report.md` on `claude/tenebrae-gurgulio`. The reviewers' standing objection: the sculpt reads as an inflated cartoon bulldog, not carved stone. Started 2026-10-03. Logan chose it that day to take Oculus's place, after the Oculus spike's wheel windows read as flowers in six read tests out of six. Example `examples/tenebrae_gurgulio.rs`, outputs in `showcase/tenebrae/gurgulio/`.
 - **Concept:** A gargoyle, the cathedral's own beast: a grotesque crouched on the parapet with its jaws thrust out past the edge as the gutter's spout. The Ogiva spike's gargoyle came close and missed ("a winged dragon or griffin statuette"): it was a flat cut-out standing on a bare table. This one is sculpted in the round and is architecture's beast, gripping a moulded Gothic perch.
 - **The read it must give:** at 300 px, from the hero and the face cameras, a jeweller says "gargoyle" (Gothic, grotesque, a waterspout) before "dragon". What carries it, in order:
   - **The face:** a snarling grotesque with a bulging brow over deep-set eyes, short horns and pointed ears, and the jaws gaping open as a spout, with a water channel running along the back and out through the mouth.
