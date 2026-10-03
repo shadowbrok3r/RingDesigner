@@ -34,13 +34,30 @@ const MIN_SECTION_MM: f64 = 0.8;
 const MIN_DETAIL_MM: f64 = 0.15;
 /// The collet's wall, mm, and the share of the crown its lip climbs.
 const COLLET_WALL_MM: f64 = 0.8;
-/// How far the stone stands over the bezel's own height, mm: the seat bur then leaves the band 0.8 mm under the culet.
+/// How far the stone stands over the bezel's own height, mm, so its culet clears the crest and no seat bur is cut: on this
+/// 1.6 mm crown a full bur leaves 0.54 mm under the culet, and the culet relief it cuts for a raised stone skims the
+/// dome to a 0.01 to 0.2 mm skin. The collet's own bearing ledge seats the oval.
 const SEAT_RISE_MM: f64 = 0.9;
-/// Where every feather meets the band: a fillet, never a cup.
-const FEATHER_BLEND_MM: f64 = 0.4;
+/// The head joins the band without a fillet bead. A collet wider than a 2.4 mm D band grazes its domed crown,
+/// and the fillet could not be laid there at any radius from 0.12 to 0.5 mm (with or without a seat under the
+/// collet); its seams are the clasp lapped over the collet and the roots sunk into the crown.
+const HEAD_BLEND_MM: f64 = 0.0;
+/// The rachis's rise along a feather's top, mm.
+const RACHIS_MM: f64 = 0.2;
 /// Stations along a feather and points round its section.
-const ALONG: usize = 160;
-const AROUND: usize = 96;
+/// Kept lean: the stored meshes ride inline in the design and its template, whose budget is 300 KB.
+const PRIMARY_RES: Res = Res { pointed_root: false, along: 72, around: 40, root: 5, tip: 14 };
+const CLASP_RES: Res = Res { pointed_root: true, along: 44, around: 32, root: 14, tip: 14 };
+/// Stations along a feather, points round its section, and rings in its root and tip caps.
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+struct Res {
+    /// A pointed root, for a part whose root shows; otherwise a rounded one buried in the collet.
+    pointed_root: bool,
+    along: usize,
+    around: usize,
+    root: usize,
+    tip: usize,
+}
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -174,14 +191,33 @@ struct Primary {
     roll_deg: f64,
 }
 
-/// The coverts: one broad rounded lobe hugging the collet's flank, under which the primaries root.
-const COVERTS: Primary = Primary { name: "Coverts", root_z: 0.5, heading_deg: 20.0, sweep_deg: 0.0, length: 1.4, h_root: 0.3, h_tip: 0.35, w_root: 5.0, w_tip: 4.0, t_root: 1.4, t_tip: 1.3, camber: 0.4, roll_deg: 0.0 };
+/// The clasp: a crescent of coverts that hooks round the collet's flank, lying low over the band at its foot and
+/// climbing the collet toward its tip, so the wing holds the stone rather than butting into it.
+const CLASP: Primary = Primary { name: "Clasp", root_z: -2.3, heading_deg: 0.0, sweep_deg: 0.0, length: 0.0, h_root: 0.4, h_tip: 1.35, w_root: 2.0, w_tip: 1.5, t_root: 1.3, t_tip: 1.12, camber: 0.3, roll_deg: 0.0 };
+/// Where the clasp's spine runs, (s, z): from its foot under the wing, out round the collet's flank, to its tip high on the collet's far side.
+fn clasp_spine() -> [[f64; 2]; 3] {
+    let (z0, z2) = (-2.3, 3.3);
+    let p0 = [flank_s(z0) + 0.45, z0];
+    let p2 = [flank_s(z2) + 0.25, z2];
+    let mid_s = flank_s(0.5) + 0.6;
+    [p0, [2.0 * mid_s - 0.5 * (p0[0] + p2[0]), 0.5], p2]
+}
 
 const PRIMARIES: [Primary; 3] = [
-    Primary { name: "Primary I", root_z: 1.7, heading_deg: 31.0, sweep_deg: 14.0, length: 7.8, h_root: 0.25, h_tip: 1.6, w_root: 3.4, w_tip: 2.3, t_root: 1.0, t_tip: 0.92, camber: 0.35, roll_deg: 12.0 },
-    Primary { name: "Primary II", root_z: 0.4, heading_deg: 16.0, sweep_deg: 10.0, length: 6.8, h_root: 0.2, h_tip: 1.35, w_root: 3.4, w_tip: 2.2, t_root: 1.0, t_tip: 0.92, camber: 0.33, roll_deg: 12.0 },
-    Primary { name: "Primary III", root_z: -0.9, heading_deg: 2.0, sweep_deg: 6.0, length: 5.6, h_root: 0.15, h_tip: 1.1, w_root: 3.0, w_tip: 2.0, t_root: 1.0, t_tip: 0.92, camber: 0.3, roll_deg: 12.0 },
+    Primary { name: "Primary I", root_z: 1.6, heading_deg: 38.0, sweep_deg: 12.0, length: 7.8, h_root: 0.45, h_tip: 1.6, w_root: 3.4, w_tip: 2.3, t_root: 1.05, t_tip: 1.06, camber: 0.35, roll_deg: 12.0 },
+    Primary { name: "Primary II", root_z: 0.3, heading_deg: 18.0, sweep_deg: 8.0, length: 6.8, h_root: 0.4, h_tip: 1.35, w_root: 3.4, w_tip: 2.2, t_root: 1.05, t_tip: 1.06, camber: 0.33, roll_deg: 12.0 },
+    Primary { name: "Primary III", root_z: -0.9, heading_deg: 0.0, sweep_deg: 4.0, length: 5.6, h_root: 0.35, h_tip: 1.1, w_root: 3.0, w_tip: 2.0, t_root: 1.05, t_tip: 1.06, camber: 0.3, roll_deg: 12.0 },
 ];
+
+/// A primary's spine, (s, z): from its root in the collet's flank, out along its heading, sweeping back by the tip.
+fn primary_spine(p: &Primary) -> [[f64; 2]; 3] {
+    let root_len = 0.25 * p.w_root;
+    let p0 = [flank_s(p.root_z) - 0.6 + root_len, p.root_z];
+    let (h0, h1) = (p.heading_deg.to_radians(), (p.heading_deg - p.sweep_deg).to_radians());
+    let p1 = [p0[0] + 0.5 * p.length * h0.cos(), p0[1] + 0.5 * p.length * h0.sin()];
+    let p2 = [p1[0] + 0.5 * p.length * h1.cos(), p1[1] + 0.5 * p.length * h1.sin()];
+    [p0, p1, p2]
+}
 
 /// The collet's outer flank round the ring at `z` along the finger, mm from the stone's centre line.
 fn flank_s(z: f64) -> f64 {
@@ -189,26 +225,51 @@ fn flank_s(z: f64) -> f64 {
     a * (1.0 - (z / b).powi(2)).max(0.0).sqrt()
 }
 
-/// One station of a feather: where its spine stands, its frame, and its section's half-width, half-thickness,
-/// camber and rachis.
-struct Station {
-    at: P3,
-    up: P3,
-    across: P3,
-    a: f64,
-    b: f64,
-    camber: f64,
-    rachis: f64,
-}
-
 fn bezier(p0: [f64; 2], p1: [f64; 2], p2: [f64; 2], u: f64) -> [f64; 2] {
     let w = [(1.0 - u) * (1.0 - u), 2.0 * u * (1.0 - u), u * u];
     [w[0] * p0[0] + w[1] * p1[0] + w[2] * p2[0], w[0] * p0[1] + w[1] * p1[1] + w[2] * p2[1]]
 }
 
+/// The radius every feather's point ends in, mm: the vane narrows to it and closes in a round, so no wall
+/// at a point falls under the 0.8 mm fill floor.
+const END_MM: f64 = 0.5;
+
+/// An ogive end `d` mm into a cap `len` long from a section of half-width `a` and half-thickness `b`: the plan
+/// narrows to `END_MM` and closes in a round, the thickness held to the round. Returns half-width,
+/// half-thickness and the share of camber and rachis kept.
+fn ogive(d: f64, len: f64, a: f64, b: f64) -> (f64, f64, f64) {
+    let narrow = len - END_MM;
+    if d <= narrow {
+        let q = d / narrow;
+        let f = (q * PI / 2.0).cos().max(0.0).powf(0.9);
+        let k = q.powi(3);
+        (END_MM + (a - END_MM) * f, b + (END_MM.min(b) - b) * k, f)
+    } else {
+        let w = ((d - narrow) / END_MM).min(1.0);
+        let g = (1.0 - w * w).max(0.0).sqrt();
+        (END_MM * g, END_MM.min(b) * g, 0.0)
+    }
+}
+
+/// The barb lines of a vane: how many rows of the mesh make one groove, their pitch along the rachis, depth,
+/// and how far a barb runs toward the tip for each mm it runs out from the rachis on the leading and trailing vanes.
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+struct Barbs {
+    rows: usize,
+    pitch_mm: f64,
+    depth_mm: f64,
+    lead_slope: f64,
+    trail_slope: f64,
+}
+/// The clasp's coverts are short and broad: their barbs stand steeper and closer.
+const CLASP_BARBS: Barbs = Barbs { rows: 5, pitch_mm: 0.42, depth_mm: 0.07, lead_slope: 1.1, trail_slope: 1.1 };
+const BARBS: Barbs = Barbs { rows: 5, pitch_mm: 0.46, depth_mm: 0.085, lead_slope: 1.6, trail_slope: 1.25 };
+
 /// A feather as a closed solid: a cambered vane with a rounded rim and a raised rachis, tapering from a buried
-/// rounded root to a rounded tip, its spine following the band round and lifting off it toward the tip.
-fn feather(p: &Primary, crest: &Crest, top_r: f64) -> csg::Solid {
+/// rounded root to an ogive tip, its spine following the band round and lifting off it toward the tip. Barbs
+/// are cut as true V-grooves; each ring of the mesh is bent into a chevron along the barbs on the vane's top,
+/// so a groove is a row of the mesh and stays crisp with few triangles.
+fn feather(p: &Primary, ctrl: [[f64; 2]; 3], barbs: Option<Barbs>, res: Res, crest: &Crest, top_r: f64) -> csg::Solid {
     let world = |s: f64, z: f64, h: f64| -> P3 {
         let theta = 90.0 - (s / top_r).to_degrees();
         let r = crest.at(theta) + h;
@@ -216,110 +277,144 @@ fn feather(p: &Primary, crest: &Crest, top_r: f64) -> csg::Solid {
         // The wings rise toward -z, which the face camera shows as up.
         [e[0] * r, e[1] * r, -z]
     };
-    let root_len = 0.5 * 0.5 * p.w_root;
-    let p0 = [flank_s(p.root_z) - 0.6 + root_len, p.root_z];
-    let (h0, h1) = (p.heading_deg.to_radians(), (p.heading_deg - p.sweep_deg).to_radians());
-    let p1 = [p0[0] + 0.5 * p.length * h0.cos(), p0[1] + 0.5 * p.length * h0.sin()];
-    let p2 = [p1[0] + 0.5 * p.length * h1.cos(), p1[1] + 0.5 * p.length * h1.sin()];
-    let spine = |u: f64| -> (P3, P3) {
+    let [p0, p1, p2] = ctrl;
+    // The spine tabled finely by arc length: length so far, point, tangent, up, across.
+    const TABLE: usize = 2000;
+    let point = |u: f64| -> (P3, P3) {
         let [s, z] = bezier(p0, p1, p2, u);
-        let h = p.h_root + (p.h_tip - p.h_root) * smooth(0.1, 0.8, u);
-        let theta = 90.0 - (s / top_r).to_degrees();
-        (world(s, z, h), er(theta))
+        let h = p.h_root + (p.h_tip - p.h_root) * smooth(0.05, 0.7, u);
+        (world(s, z, h), er(90.0 - (s / top_r).to_degrees()))
     };
-    let frame = |u: f64| -> (P3, P3, P3, P3) {
-        let (at, radial) = spine(u);
-        let (a, _) = spine((u - 1e-4).max(0.0));
-        let (b, _) = spine((u + 1e-4).min(1.0));
+    let mut table: Vec<(f64, P3, P3, P3, P3)> = Vec::with_capacity(TABLE + 1);
+    let mut length = 0.0;
+    for k in 0..=TABLE {
+        let u = k as f64 / TABLE as f64;
+        let (at, radial) = point(u);
+        let (a, _) = point((u - 1e-4).max(0.0));
+        let (b, _) = point((u + 1e-4).min(1.0));
         let tangent = unit(sub(b, a));
         let across = unit(cross(tangent, radial));
         let up = cross(across, tangent);
-        (at, tangent, up, across)
+        if let Some(last) = table.last() {
+            length += dot(sub(at, last.1), sub(at, last.1)).sqrt();
+        }
+        table.push((length, at, tangent, up, across));
+    }
+    // The frame at arc length `l`, carried straight on past either end for the caps.
+    let frame = |l: f64| -> (P3, P3, P3) {
+        if l <= 0.0 {
+            let t = table[0];
+            return (add(t.1, t.2, l), t.3, t.4);
+        }
+        if l >= length {
+            let t = table[TABLE];
+            return (add(t.1, t.2, l - length), t.3, t.4);
+        }
+        let k = table.partition_point(|e| e.0 < l).clamp(1, TABLE);
+        let (e0, e1) = (table[k - 1], table[k]);
+        let f = ((l - e0.0) / (e1.0 - e0.0).max(1e-12)).clamp(0.0, 1.0);
+        let lerp = |a: P3, b: P3| -> P3 { std::array::from_fn(|i| a[i] + (b[i] - a[i]) * f) };
+        (lerp(e0.1, e1.1), unit(lerp(e0.3, e1.3)), unit(lerp(e0.4, e1.4)))
     };
-    let roll = p.roll_deg.to_radians();
-    let mut stations: Vec<Station> = Vec::new();
-    // The root: a rounded cap, buried in the collet's flank.
-    let (r0, t0, up0, ac0) = frame(0.0);
-    let (a0, b0) = (0.5 * p.w_root, 0.5 * p.t_root);
-    for k in (1..10).rev() {
-        let q = k as f64 / 10.0;
-        let f = (1.0 - q * q).sqrt();
-        stations.push(Station {
-            at: add(r0, t0, -root_len * q),
-            up: up0,
-            across: ac0,
-            a: a0 * f,
-            b: b0 * f.powf(0.5),
-            camber: p.camber * f,
-            rachis: 0.0,
-        });
-    }
-    // The vane: tapering in width and thickness, its camber easing toward the tip.
-    for k in 0..=ALONG {
-        let u = k as f64 / ALONG as f64;
-        let (at, _, up, across) = frame(u);
+    let root_len = if res.pointed_root { 1.3 * p.w_root + END_MM } else { 0.25 * p.w_root };
+    let tip_len = 1.3 * p.w_tip + END_MM;
+    // The section at arc length `l`: half-width, half-thickness, camber, rachis.
+    let section = |l: f64| -> (f64, f64, f64, f64) {
+        let (a0, b0) = (0.5 * p.w_root, 0.5 * p.t_root);
+        let (a1, b1) = (0.5 * p.w_tip, 0.5 * p.t_tip);
+        if l < 0.0 && res.pointed_root {
+            let (a, b, c) = ogive(-l, root_len, a0, b0);
+            return (a, b, p.camber * c, 0.0);
+        }
+        if l < 0.0 {
+            let q = (-l / root_len).min(1.0);
+            let f = (1.0 - q * q).max(0.0).sqrt();
+            return (a0 * f, b0 * f.sqrt(), p.camber * f, 0.0);
+        }
+        if l > length {
+            let (a, b, c) = ogive(l - length, tip_len, a1, b1);
+            return (a, b, p.camber * c, RACHIS_MM * c);
+        }
+        let u = l / length;
         let taper = u.powf(1.2);
-        stations.push(Station {
-            at,
-
-            up,
-            across,
-            a: 0.5 * (p.w_root + (p.w_tip - p.w_root) * taper),
-            b: 0.5 * (p.t_root + (p.t_tip - p.t_root) * taper),
-            camber: p.camber * (1.0 - 0.45 * u),
-            rachis: 0.12 * smooth(0.0, 0.15, u),
-        });
+        (a0 + (a1 - a0) * taper, b0 + (b1 - b0) * taper, p.camber * (1.0 - 0.45 * u), RACHIS_MM * smooth(0.0, 0.15, u))
+    };
+    // Stations: the root cap, the body in groove rows, the tip cap.
+    let mut stations: Vec<(f64, Option<usize>)> = Vec::new();
+    // Cap rings close up toward the end, so the closing round is drawn smooth.
+    let ease = |q: f64| 1.0 - (1.0 - q) * (1.0 - q);
+    for k in (1..res.root).rev() {
+        stations.push((-root_len * ease(k as f64 / res.root as f64), None));
     }
-    // The tip: an ogive point in plan, the vane holding its thickness until the last of the curve.
-    let (r1, t1, up1, ac1) = frame(1.0);
-    let (a1, b1) = (0.5 * p.w_tip, 0.5 * p.t_tip);
-    let tip_len = 2.6 * a1;
-    for k in 1..24 {
-        let q = k as f64 / 24.0;
-        let f = (q * PI / 2.0).cos().powf(0.9);
-        stations.push(Station {
-            at: add(r1, t1, tip_len * q),
-            up: up1,
-            across: ac1,
-            a: a1 * f,
-            b: b1 * (1.0 - q.powi(6)).sqrt(),
-            camber: p.camber * 0.55 * f,
-            rachis: 0.12 * f,
-        });
+    let body = match barbs {
+        Some(b) => (length / b.pitch_mm).round().max(1.0) as usize * b.rows,
+        None => res.along,
+    };
+    for k in 0..=body {
+        stations.push((length * k as f64 / body as f64, Some(k)));
     }
-    let root_apex = add(r0, t0, -root_len);
-    let tip_apex = add(r1, t1, tip_len);
-    let mut v: Vec<P3> = vec![root_apex];
-    for st in &stations {
-        for j in 0..AROUND {
-            let phi = 2.0 * PI * j as f64 / AROUND as f64;
-            let (c, s) = (phi.cos(), phi.sin());
+    for k in 1..res.tip {
+        stations.push((length + tip_len * ease(k as f64 / res.tip as f64), None));
+    }
+    let roll = p.roll_deg.to_radians();
+    // How far the barbs lean toward the tip, faded in from the root and out toward the tip so no rows cross.
+    let lean = |l: f64| smooth(0.0, 0.8, l) * (1.0 - smooth(length - 4.5, length, l));
+    let mut v: Vec<P3> = vec![frame(-root_len).0];
+    for &(l, row) in &stations {
+        for j in 0..res.around {
+            let phi = 2.0 * PI * j as f64 / res.around as f64;
+            let (c, sn) = (phi.cos(), phi.sin());
+            let top = smooth(0.0, 0.55, sn);
+            // Where this point sits along the spine: bent toward the tip along the barb on the vane's top.
+            let (a_nom, ..) = section(l);
+            let out = a_nom * c.abs().sqrt();
+            let slope = match barbs {
+                Some(b) if c >= 0.0 => b.lead_slope,
+                Some(b) => b.trail_slope,
+                None => 0.0,
+            };
+            let bend = (slope * out - 0.12 * out * out).max(0.0);
+            let lp = if row.is_some() { l + top * lean(l) * bend } else { l };
+            let (a, b, camber, rachis) = section(lp);
             // The leading vane narrower than the trailing one, as on a flight feather.
-            let x = st.a * c.signum() * c.abs().powf(0.5) - 0.12 * st.a;
-            let mut y = st.b * s.signum() * s.abs().powf(0.5);
-            let xn = ((x + 0.12 * st.a) / st.a.max(1e-9)).clamp(-1.0, 1.0);
-            let top = smooth(-0.6, 0.6, s);
-            y += st.camber * (1.0 - xn * xn) * (top - 0.3 * (1.0 - top));
-            y += st.rachis * (-(x / 0.28).powi(2)).exp() * smooth(-0.3, 0.6, s);
+            let x = a * c.signum() * c.abs().powf(0.5) - 0.12 * a;
+            let mut y = b * sn.signum() * sn.abs().powf(0.5);
+            let xn = ((x + 0.12 * a) / a.max(1e-9)).clamp(-1.0, 1.0);
+            let topw = smooth(-0.6, 0.6, sn);
+            y += camber * (1.0 - xn * xn) * (topw - 0.3 * (1.0 - topw));
+            y += rachis * (-(x / 0.3).powi(2)).exp() * smooth(-0.3, 0.6, sn);
+            if let (Some(bb), Some(k)) = (barbs, row) {
+                // A V across the groove's rows, steep on the side toward the root, as a graver leaves it.
+                let profile = match k % bb.rows {
+                    0 => 1.0,
+                    1 => 0.3,
+                    r if r == bb.rows - 1 => 0.55,
+                    _ => 0.0,
+                };
+                let keep = smooth(0.3, 0.48, x.abs()) * (1.0 - smooth(0.72, 0.9, xn.abs())) * lean(l).min(1.0);
+                y -= bb.depth_mm * profile * keep * smooth(0.3, 0.8, sn);
+            }
             let (xr, yr) = (x * roll.cos() - y * roll.sin(), x * roll.sin() + y * roll.cos());
-            v.push(add(add(st.at, st.across, xr), st.up, yr));
+            let (at, up, across) = frame(lp);
+            v.push(add(add(at, across, xr), up, yr));
         }
     }
-    v.push(tip_apex);
+    v.push(frame(length + tip_len).0);
     let n = stations.len();
-    let ring = |k: usize, j: usize| (1 + k * AROUND + j % AROUND) as u32;
+    let around = res.around;
+    let ring = |k: usize, j: usize| (1 + k * around + j % around) as u32;
     let mut f: Vec<[u32; 3]> = Vec::new();
-    for j in 0..AROUND {
+    for j in 0..around {
         f.push([0, ring(0, j + 1), ring(0, j)]);
     }
     for k in 0..n - 1 {
-        for j in 0..AROUND {
+        for j in 0..around {
             f.push([ring(k, j), ring(k, j + 1), ring(k + 1, j + 1)]);
             f.push([ring(k, j), ring(k + 1, j + 1), ring(k + 1, j)]);
         }
     }
     let last = (v.len() - 1) as u32;
-    for j in 0..AROUND {
+    for j in 0..around {
         f.push([ring(n - 1, j), ring(n - 1, j + 1), last]);
     }
     let mut solid = csg::Solid { v, f };
@@ -355,7 +450,7 @@ fn joined() -> Component {
         attach: Attach::Join,
         stage: Stage::Cast,
         placement: Placement::Free,
-        blend_mm: FEATHER_BLEND_MM,
+        blend_mm: HEAD_BLEND_MM,
         material: "Gold 18k".into(),
         ..Component::default()
     }
@@ -375,25 +470,31 @@ fn author() -> Result<(RingDesign, AlphaLibrary, serde_json::Value)> {
     stone.name = "Oval 7 x 5".into();
     doc.append(stone)?;
     doc.append(builders::feature_on(3, "Collet", builders::BEZEL, 2, json!({"wall_mm": COLLET_WALL_MM})))?;
-    doc.append(builders::feature_on(4, "Seat bur", builders::BUR, 2, json!({"through": false})))?;
     let mut feathers = Vec::new();
     let loose = || Component { material: "Gold 18k".into(), ..Component::default() };
-    for (k, p) in std::iter::once(&COVERTS).chain(PRIMARIES.iter()).enumerate() {
-        let solid = feather(p, &crest, top_r);
+    let parts: Vec<(&Primary, [[f64; 2]; 3], Option<Barbs>, Res)> = std::iter::once((&CLASP, clasp_spine(), Some(CLASP_BARBS), CLASP_RES))
+        .chain(PRIMARIES.iter().map(|p| (p, primary_spine(p), Some(BARBS), PRIMARY_RES)))
+        .collect();
+    for (k, (p, ctrl, barbs, res)) in parts.into_iter().enumerate() {
+        let solid = feather(p, ctrl, barbs, res, &crest, top_r);
         let check = solid.check(true);
         ensure!(check.self_crossings == Some(0) && check.open_edges == 0, "{} is not a clean solid: {check:?}", p.name);
-        feathers.push(json!({"name": p.name, "spec": p, "triangles": solid.f.len(), "volume_mm3": signed_volume(&solid)}));
-        doc.append(feature(5 + k as Id, p.name, stored_op(&solid, "feather", json!(p))?, loose()))?;
+        let params = json!({"spec": p, "spine_s_z": ctrl, "barbs": barbs, "resolution": res});
+        feathers.push(json!({"name": p.name, "params": params, "triangles": solid.f.len(), "volume_mm3": signed_volume(&solid)}));
+        doc.append(feature(5 + k as Id, p.name, stored_op(&solid, "feather", params)?, loose()))?;
     }
-    doc.append(feature(9, "Wing: coverts and I", Operation::Boolean { a: 5, b: 6, kind: cad::Boolean::Union }, loose()))?;
+    doc.append(feature(9, "Wing: clasp and I", Operation::Boolean { a: 5, b: 6, kind: cad::Boolean::Union }, loose()))?;
     doc.append(feature(10, "Wing: and II", Operation::Boolean { a: 9, b: 7, kind: cad::Boolean::Union }, loose()))?;
-    doc.append(feature(11, "East wing", Operation::Boolean { a: 10, b: 8, kind: cad::Boolean::Union }, joined()))?;
+    doc.append(feature(11, "East wing", Operation::Boolean { a: 10, b: 8, kind: cad::Boolean::Union }, loose()))?;
     doc.append(feature(
         12,
         "West wing (mirror)",
         Operation::Pattern { sources: cad::pattern::Sources(vec![11]), kind: PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg: 90.0 } } },
-        joined(),
+        loose(),
     ))?;
+    // The collet and both wings become one head, which joins the band.
+    doc.append(feature(13, "Head: collet and east wing", Operation::Boolean { a: 3, b: 11, kind: cad::Boolean::Union }, loose()))?;
+    doc.append(feature(14, "Head", Operation::Boolean { a: 13, b: 12, kind: cad::Boolean::Union }, joined()))?;
     d.cad = Some(doc);
     let comp = json!({"stand_off_mm": stand, "crest_top_r_mm": top_r, "feathers": feathers});
     Ok((d, lib, comp))
@@ -494,6 +595,8 @@ fn census(m: &mesh::Mesh, samples: usize) -> Vec<(P3, P3, f64)> {
 
 // --- Pictures ------------------------------------------------------------------
 
+/// The timeline looks from the east, where the wing is built before the mirror.
+const TIMELINE_YAW: f64 = 0.6;
 /// The camera for each named view: yaw about the head's axis, pitch toward the finger's.
 const VIEWS: [(&str, f64, f64); 6] = [
     ("hero", -0.55, 0.85),
@@ -580,7 +683,7 @@ fn renders(out: &Path, lib: &AlphaLibrary, fin: &render::Finished, d: &RingDesig
         let mut at = d.clone();
         at.cad.as_mut().unwrap().through = Some(f.id);
         let fin = render::finished(&at, lib, timeline_params())?;
-        steps.push((format!("{}. {}", k + 1, f.name), render::render_parts_ss(&fin.parts(render::GOLD), yaw, pitch, 300, 300, 3)));
+        steps.push((format!("{}. {}", k + 1, f.name), render::render_parts_ss(&fin.parts(render::GOLD), TIMELINE_YAW, pitch, 300, 300, 3)));
     }
     sheet(&out.join("timeline.png"), &steps, 300, 4)?;
     Ok(())
@@ -600,6 +703,10 @@ fn gates_at(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(
     let all_ok = e.is_some_and(|e| e.features.iter().all(|r| r.status.is_ok()));
     let (least_r, inside) = bore_intrusion(d, &built.mesh);
     let field = castability::judged_field_report(d, lib, &d.draft, 256, 128, Some(&built));
+    // Every sample under the floor must be the collet's burnished lip, the bezel pushed over the crown at the bench,
+    // which stands above the girdle.
+    let girdle_r = Crest::of(d).at(90.0) + builders::stand_off_mm(builders::BEZEL, oval()) + SEAT_RISE_MM;
+    let on_lip = |p: P3| p[0].hypot(p[1]) >= girdle_r - 0.2 && (p[1].atan2(p[0]).to_degrees() - 90.0).abs() < 20.0;
     let walls: Vec<_> = e
         .map(|e| {
             e.components
@@ -607,7 +714,9 @@ fn gates_at(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(
                 .filter(|c| c.attach == Attach::Join && c.settings.role != ComponentRole::Stone && !c.name.starts_with("Collet"))
                 .map(|c| {
                     let w = cad::measure::thickness(&c.mesh, MIN_SECTION_MM);
-                    json!({"part": c.name, "sampled_min_mm": w.sampled_min_mm, "rays": w.rays, "unresolved": w.unresolved, "below_limit": w.below_limit, "note": w.note})
+                    let thin: Vec<_> = census(&c.mesh, 384).into_iter().filter(|t| t.2 < MIN_SECTION_MM).map(|t| json!({"mm": t.2, "theta_deg": t.0[1].atan2(t.0[0]).to_degrees(), "r_mm": t.0[0].hypot(t.0[1]), "z_mm": t.0[2], "lip": on_lip(t.0)})).collect();
+                    let off_lip = thin.iter().filter(|t| t["lip"] == false).count();
+                    json!({"part": c.name, "census_below_floor": thin, "census_below_floor_off_lip": off_lip, "sampled_min_mm": w.sampled_min_mm, "rays": w.rays, "unresolved": w.unresolved, "below_limit": w.below_limit, "note": w.note})
                 })
                 .collect()
         })
@@ -615,12 +724,9 @@ fn gates_at(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(
     // The whole ring as cast, at a build the sampler takes (it declines over 250 000 triangles).
     let coarse = mesh::try_build(d, lib, BuildParams { theta_steps: 320, profile_steps: 112, ..BuildParams::default() })?;
     let ring_wall = cad::measure::thickness(&coarse.mesh, MIN_SECTION_MM);
-    // Every sample the same sampler takes, kept: each one under the floor must be the collet's burnished lip,
-    // the bezel pushed over the crown at the bench, which stands above the girdle.
-    let girdle_r = Crest::of(d).at(90.0) + builders::stand_off_mm(builders::BEZEL, oval()) + SEAT_RISE_MM;
     let samples = census(&coarse.mesh, 384);
     let thin: Vec<_> = samples.iter().filter(|c| c.2 < MIN_SECTION_MM).collect();
-    let in_lip = |c: &&(P3, P3, f64)| c.0[0].hypot(c.0[1]) >= girdle_r - 0.2 && (c.0[1].atan2(c.0[0]).to_degrees() - 90.0).abs() < 20.0;
+    let in_lip = |c: &&(P3, P3, f64)| on_lip(c.0);
     let thin_off_lip = thin.iter().filter(|c| !in_lip(c)).count();
     let ring_wall = json!({
         "part": "whole ring at 320 x 112", "triangles": coarse.mesh.faces.len(),
@@ -630,14 +736,25 @@ fn gates_at(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(
         "exception": "the collet's lip: a bezel thinned to its edge so it can be burnished over the crown; every other sample clears 0.8 mm",
     });
     let ring_ok = ring_wall["unresolved"] == 0 && thin_off_lip == 0;
-    let walls_ok = ring_ok && walls.iter().all(|w| w["below_limit"] == 0 && w["unresolved"] == 0 && w["rays"].as_u64().unwrap_or(0) > 0);
+    let walls_ok = ring_ok && walls.iter().all(|w| w["census_below_floor_off_lip"] == 0 && w["unresolved"] == 0);
     let mut walls = walls;
     walls.push(ring_wall);
     let lands = dfm::cut_lands(d, &built, MIN_SECTION_MM);
     let findings = dfm::findings_in(d, lib);
     let stones = ringdesign_core::stones::report_built(d, field.parting_z_mm, &built);
     let reported = stones.as_ref().map_or(0, |s| s.stone_count as usize);
-    let previewed: usize = ringdesign_core::gems::built_meshes(d, lib, &built).iter().map(|(m, _)| shell_count_loose(m)).sum();
+    let gems = ringdesign_core::gems::built_meshes(d, lib, &built);
+    let previewed: usize = gems.iter().map(|(m, _)| shell_count_loose(m)).sum();
+    // The culet over the band: the stone's lowest point against the crest under it, mm.
+    let crest = Crest::of(d);
+    let culet_clear = gems
+        .iter()
+        .flat_map(|(m, _)| m.vertices.iter())
+        .map(|v| {
+            let (x, y) = (v.0 as f64, v.1 as f64);
+            x.hypot(y) - crest.at(y.atan2(x).to_degrees().clamp(0.0, 180.0))
+        })
+        .fold(f64::MAX, f64::min);
     let warnings: Vec<String> =
         stones.iter().flat_map(|r| r.seats.iter().flat_map(|s| s.warnings.iter().map(|w| format!("{}: {w}", s.label)))).collect();
     let crowding: Vec<String> =
@@ -650,11 +767,12 @@ fn gates_at(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(
         ("solids and parts notes empty", built.solids.notes.is_empty() && built.parts.notes.is_empty()),
         ("every CAD feature Ok", all_ok),
         ("nothing enters the finger hole", inside == 0),
-        ("lost wax: measure::thickness clean at 0.8 mm on every wing part, and on the whole ring but for the burnished lip", walls_ok),
+        ("lost wax: thickness clean at 0.8 mm on the head and the whole ring, but for the burnished lip", walls_ok),
         ("lost wax: dfm::cut_lands clean at 0.8 mm", lands.is_empty()),
         ("lost wax: field verdict Castable", field.process == CastProcess::LostWax && field.verdict == castability::Verdict::Castable),
         ("0 DFM findings", findings.is_empty()),
         ("stone record equals the gem preview, no warnings, crowding clean", reported == previewed && reported == 1 && warnings.is_empty() && crowding.is_empty()),
+        ("the culet stands clear of the band", culet_clear > 0.05),
         ("casting pattern watertight, 0 degenerate faces, 0 crossings", pw && pd == 0 && px == 0),
         ("within the 2 million triangle budget", built.mesh.faces.len() <= 2_000_000),
     ];
@@ -679,7 +797,7 @@ fn gates_at(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(
         "thickness": walls,
         "cut_lands": lands.iter().map(|f| f.message.clone()).collect::<Vec<_>>(),
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
-        "stones": {"reported": reported, "previewed": previewed, "carats": stones.as_ref().map_or(0.0, |s| s.total_carats), "warnings": warnings, "crowding": crowding},
+        "stones": {"culet_over_crest_mm": culet_clear, "reported": reported, "previewed": previewed, "carats": stones.as_ref().map_or(0.0, |s| s.total_carats), "warnings": warnings, "crowding": crowding},
         "pattern": {"watertight": pw, "degenerate_faces": pd, "self_crossings": px, "triangles": pattern.mesh.faces.len(), "shells": shells(&pattern.mesh)},
         "volume_mm3": built.report.volume_mm3,
         "grams_18k": built.report.metals.iter().find(|m| m.metal == "Gold 18k").map_or(0.0, |m| m.grams),
@@ -730,19 +848,9 @@ fn main() -> Result<()> {
         // theta,z,radius,yaw,pitch: a close-up of the draft build round one point.
         let v: Vec<f64> = spec.split(',').map(|x| x.parse().unwrap()).collect();
         let built = mesh::try_build(&d, &lib, draft_params())?;
-        let c = add([0.0, 0.0, v[1]], er(v[0]), 10.6);
-        let near = |i: u32| { let p = built.mesh.vertices[i as usize]; dot(sub([p.0 as f64, p.1 as f64, p.2 as f64], c), sub([p.0 as f64, p.1 as f64, p.2 as f64], c)).sqrt() < v[2] };
-        let mut crop = mesh::Mesh::default();
-        let mut index = std::collections::HashMap::new();
-        for f in built.mesh.faces.iter().filter(|f| f.iter().all(|&i| near(i))) {
-            let g = f.map(|i| *index.entry(i).or_insert_with(|| {
-                crop.vertices.push(built.mesh.vertices[i as usize]);
-                crop.normals.push(built.mesh.normals[i as usize]);
-                (crop.vertices.len() - 1) as u32
-            }));
-            crop.faces.push(g);
-        }
-        render::write_png_parts(out.join("look.png"), &[render::Part::metal(&crop, render::GOLD)], v[3], v[4], 900)?;
+        let c = add([0.0, 0.0, v[1]], er(v[0]), 10.8);
+        let fin = render::finished_from(&d, &lib, built);
+        render::write_png_framed(out.join("look.png"), &fin.parts(render::GOLD), render::yaw_facing(v[0]) + v[3], v[4], render::Framing::new(c, v[2]), 1000)?;
         return Ok(());
     }
     if let Ok(t) = std::env::var("AILE_PROBE") {
