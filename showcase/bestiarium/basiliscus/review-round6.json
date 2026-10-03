@@ -1,0 +1,97 @@
+{
+  "ring": "Basiliscus — king of serpents (basiliscus)",
+  "round": 6,
+  "verdict": "cut",
+  "score": 7.4,
+  "summary": "Cut at 7.4. This was revival round 6, the extra round Logan granted, so no round remains. Earlier scores: round 1 6.5, round 2 6.8, round 3 7.2 (cut), round 4 7.3, round 5 7.4 (cut). Caiman is 7 and the ship bar is 7.5. Every gate that applies to lost wax is green. I checked each one against report.json, draft-gates.json, template-gate.json and mesh.json. The sand gates do not apply under the 2026-10-03 process decision. This round did real work. The Hackles artwork now draws whole feathers that taper to a point. The crown points carry side petals and a seated pearl. The coil was given a fillet and the wall scales fade at the true corners. Face-on and at 3/4, the 300 px reads still name a crowned serpent coiled round a green stone on a shield, as in round 5. But the faults that cut round 5 still show in the renders, so the score does not move. (1) The hackles on the shoulders still render as terraced, horizontally combed slabs with stair-stepped ends: hero.png x 900-1300, y 400-720; shoulder.png x 300-950, y 330-560; reverse.png x 450-1000, y 370-560. Face-on they read as chevron fern fronds with a midrib (face.png x 290-500 and x 1100-1310). The source artwork still has ragged, combed vane edges and hard vertical alpha cut-offs at atlas x of about 300, 1150 and 1850. (2) The crown is the creature's naming attribute, and its points still read as lumpy pawns, not fleurons. In close-up (head.png x 450-1550, y 200-700) they show torn slits in the petals, flat facets on the band, and melted highlights. The skull and throat are lumpy and crumpled, with no readable head plates (head.png x 700-1600, y 640-1100). (3) The coil and boss walls still streak vertically at grazing light: shoulder.png x 1080-1300, y 480-900, and side.png x 580-1000, y 290-340. (4) The palm scutes are still polished bars with ruled vertical edge lines (palm.png x 520-1100, y 300-560). The band past the morph still shows a plank with straight grooves (reverse.png x 1370-1450, y 600-920). The wall scales stack into stretched columns beside the shield wall (reverse.png x 380-620, y 560-820), and side.png shows a hard vertical seam through the wall scales at x 820, y 360-520. The bordure beads have fuzzy, combed bases in close-up (head.png x 0-1600, y 130-1500). Manticora shipped at 7.5 with flaws only in its secondary ornament. Here the shoulders, which are the ring's second-largest area, and the crown that names the creature are still below the bar.",
+  "strengths": [
+    "The 300 px reads hold: face-300 and hero-300 name a crowned serpent coiled round a green marquise on an heraldic shield, without the caption.",
+    "The head at 3/4 (stones.png, hero.png) is a serpent's: a long wedge snout with a nostril, a slit-pupil eye under a brow, a hanging fang and a forked tongue leaving the gape.",
+    "The field is clean, polished and held inside one even bead row (74 beads). The braille clusters of round 4 have not come back.",
+    "The flush tsavorite marquise sits in a made boss with a bright-cut bevel. It is clearly visible, and the coil laps the seat by 0.52 mm.",
+    "The factory 020 escutcheon keeps its hard table-to-wall angles and crisp cusped chief (bare-vs-finished.png).",
+    "Its silhouette is distinct from Arachne, Manticora and every Reptilia tile: a standing crowned head above a shield.",
+    "The Hackles artwork now draws whole feathers that taper to a point, and the wall scales fade at the true corners (hero.png x 300-560, y 700-950 is now round scales). This is honest progress on round 5 item 4's first half.",
+    "Every lost-wax gate is green, and the template is lean: 0 design.set patches, 2,750,820 bytes."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "A serpent coil on the shield, hackles on the shoulders, scales on the walls and shank, and scutes on the palm form one creature's skin from face to palm. The cockatrice's plumage is weak, but nothing is scattered."},
+    {"item": "Reads as its creature at 300 px without the caption", "result": "pass", "reason": "face-300 and hero-300 read as a crowned snake coiled round a green stone. The crown is small and lumpy at 300 px, but the head, coil and tongue carry the read."},
+    {"item": "Figurative motifs have true outlines, with no combing, smearing or stair-steps", "result": "fail", "reason": "The shoulder hackles are terraced, stair-stepped and horizontally combed (hero.png x 900-1300, y 400-720; shoulder.png x 300-950, y 330-560; reverse.png x 450-1000, y 370-560). The crown petals show torn slits and facets (head.png x 700-1300, y 380-560). The coil and boss walls comb vertically (shoulder.png x 1080-1300, y 480-900). The bead bases are fuzzy (head.png)."},
+    {"item": "Stones sit in made settings and are visible", "result": "pass", "reason": "One flush marquise in a made boss with a bevel and a through pilot. It is plainly visible in face.png and stones.png. 1 stone is reported and 1 previewed."},
+    {"item": "No flat, blocky or mechanical CAD; forms are sculpted", "result": "fail", "reason": "The palm scutes are still polished bars with ruled edge lines (palm.png x 520-1100, y 300-560). There is a plank with straight grooves past the morph (reverse.png x 1370-1450, y 600-920). The wall scales stack into columns at the shield wall (reverse.png x 380-620, y 560-820), and a vertical seam runs through the wall scales (side.png x 820, y 360-520)."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "The 020 escutcheon's table edge and cusped chief stay crisp (bare-vs-finished.png, hero.png)."},
+    {"item": "A silhouette distinct from Arachne, Manticora and the Reptilia tiles", "result": "pass", "reason": "The crowned head standing proud of an heraldic shield is unlike any of them."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "pass", "reason": "Large: shield and head. Medium: coil, crown and hackle rows. Small: scales, beads and barbs. Overall legibility beats Caiman's. The shoulders are noisier than they should be, but they are dense."}
+  ],
+  "gates": [
+    {"gate": "Process", "claimed": "LostWax, 0.8 mm minimum section, no draft clamp, no release gates (doc process decision 2026-10-03)", "verified": "report.process: LostWax, minimum_section_mm 0.8, draft_clamp 'Not applied to lost wax', release_gates 'Not applicable'", "pass": true},
+    {"gate": "Watertight, 0 degenerate faces, 0 self-crossings (ring, export 1536x448)", "claimed": "pass", "verified": "geometry: watertight true, degenerate_faces 0, self_crossings 0; mesh.json boundary_edges 0, non_manifold_edges 0", "pass": true},
+    {"gate": "Same at 384x192 and on the draft build", "claimed": "pass", "verified": "coarse_384x192 and draft.geometry: watertight, 0 degenerates, 0 crossings", "pass": true},
+    {"gate": "Every made part closed, uncrossed", "claimed": "pass", "verified": "made_parts: 'Tsavorite, flush' and 'Basilisk's crowned head', each 0 open edges, 0 repeated edges, 0 crossings, 0 zero-area faces", "pass": true},
+    {"gate": "Empty solids and parts notes", "claimed": "pass", "verified": "solids_notes [], parts_notes [], solids_resolved 1", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "bore clear", "verified": "bore_vertices_inside 0; bore_clearance_min_mm -0.00023 (float tolerance at the comfort-fit edge, not a protrusion)", "pass": true},
+    {"gate": "Sand gates (Castable not 'with care', ray release at 0.100/0.075 mm, draft-clamp bites)", "claimed": "not applicable (lost wax)", "verified": "Not applicable under the recorded process decision; the field reports 11.87% pull undercut as information only", "pass": true},
+    {"gate": "Lost wax verdict Castable with 0.8 mm fill", "claimed": "pass", "verified": "field.verdict 'Castable', thinnest_wall_mm 1.681 at theta 299.5, minimum_section 0.8", "pass": true},
+    {"gate": "land_widths block: every section under 0.8 mm removed or named with bench treatment", "claimed": "pass", "verified": "13 rows; 7 under 0.8 mm (bevel rim 0.63, side petals 0.679, fang 0.718, tongue stem 0.567, tines 0.399, bordure and rim beads 0.44), each flagged exception with a named investment or bench treatment", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm []", "pass": true},
+    {"gate": "Stone count equal to preview", "claimed": "pass", "verified": "stones: previewed 1, reported 1, tight_pairs 0, warnings []", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "pass", "verified": "cold_reload.identical_vertices_faces_normals true (export and draft); template cold design and graph reload true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "1,799,310 triangles", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "pattern: watertight, 0 boundary and non-manifold edges, 0 crossings, 0 degenerates, scale 1.0194", "pass": true},
+    {"gate": "Template gate: at most 4 design.set patches within class budget", "claimed": "pass", "verified": "template_gate_passed true, design_set_patches [] (0), template_bytes 2,750,820 within 3,000,000 (painted class), source identical, geometry verified", "pass": true}
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P1 (reason for the cut; for any future revival)",
+      "zone": "Layer 'Hackles into scales', 0-70 deg off the head, both shoulders; Hackles artwork atlas x 0-300, 700-1150 and 1850-2048",
+      "change": "Round 3 item 5, round 4 item 2 and round 5 item 1 are still open in the render, even though the artwork changed. Smooth each vane's alpha edge: no ragged or combed edges, at most 1 px of noise at 2048 wide. Remove the hard vertical alpha cut-offs at atlas x of about 300, 1150 and 1850 by fading over at least 60 px. Lay each feather as a smooth dome rising from its edge, rolled at a radius of at least 0.15 mm, not a flat-topped plateau, so that the shoulders stop rendering as terraced slabs. Shingle each row over the next by at least 30% and drop the midrib.",
+      "acceptance": "hero.png x 900-1300, y 400-720; shoulder.png x 300-950, y 330-560; reverse.png x 450-1000, y 370-560: rounded, shingled feathers with no terraces, stair-steps or horizontal combing. face.png x 290-500 and x 1100-1310: pointed, curved feathers, not chevron fronds with a midrib."
+    },
+    {
+      "number": 2,
+      "priority": "P1 (reason for the cut)",
+      "zone": "Stored mesh 'Basilisk's crowned head': the five crown points and band, the skull, and the throat",
+      "change": "Re-sculpt the points as clean fleurons: a central leaf carrying the pearl and two side petals, with no slits or tears between them. Re-mesh at a finer marching step than 0.045 mm before a curvature-keeping decimation, so that no flat facet or torn crevice survives on the band or the petals. Cut 5-9 domed head plates of unequal size, 0.08-0.12 mm proud and divided by V-grooves, between the snout and the crown. Replace the crumpled throat with keeled scales grading from the temple into the coil's 0.25-0.55 mm scales.",
+      "acceptance": "head.png x 450-1550, y 200-700: five fleurons with smooth petals, no torn slits, no flat facets. head.png x 700-1300, y 640-950: irregular head plates on a clean skull. head.png x 1300-1600, y 700-1100 and stones.png x 900-1250, y 450-800: continuous scales, no crumpled or melted surface."
+    },
+    {
+      "number": 3,
+      "priority": "P2",
+      "zone": "The coil's outer wall and the boss wall where the coil laps the seat",
+      "change": "The claimed fillet does not show. Make the coil's outer wall slope at 45 deg or less into the field with a radius of at least 0.3 mm, and give it real scales rather than vertically stretched texture.",
+      "acceptance": "shoulder.png x 1080-1300, y 480-900 and side.png x 580-1000, y 290-340: no vertical streaking or combing."
+    },
+    {
+      "number": 4,
+      "priority": "P2",
+      "zone": "Layer 'Belly scutes' (palm.png); the band past the morph (reverse.png x 1370-1450); layer 'Wall scales' beside the shield wall and at the side-wall centre",
+      "change": "Lap each palm scute over the next by at least 0.15 mm, with a domed plate and a curved trailing edge, and remove the ruled vertical edge lines. Carry keeled scales over the plank past the morph at 0.84 mm pitch, with no straight groove. Lay the wall scales in true mm next to the shield wall, so they do not stack into columns. Close the vertical seam at the side-wall centre by painting across the atlas join.",
+      "acceptance": "palm.png x 520-1100, y 300-560: shingled plates, no ruled lines. reverse.png x 1370-1450, y 600-920: scales, no plank or groove. reverse.png x 380-620, y 560-820: round scales, no columns. side.png x 820, y 360-520: no vertical seam."
+    },
+    {
+      "number": 5,
+      "priority": "P3",
+      "zone": "Layers 'Beaded bordure' and 'Rim beads'",
+      "change": "Remove the fuzzy, combed skirt at each bead's base by giving each bead a clean round footprint with a 0.05 mm fillet into the field.",
+      "acceptance": "head.png and stones.png: every bead is a clean dome with no hairy base."
+    }
+  ],
+  "viewed_images": [
+    "showcase/bestiarium/basiliscus/hero-300.png",
+    "showcase/bestiarium/basiliscus/face-300.png",
+    "showcase/bestiarium/basiliscus/hero.png",
+    "showcase/bestiarium/basiliscus/face.png",
+    "showcase/bestiarium/basiliscus/head.png",
+    "showcase/bestiarium/basiliscus/shoulder.png",
+    "showcase/bestiarium/basiliscus/reverse.png",
+    "showcase/bestiarium/basiliscus/side.png",
+    "showcase/bestiarium/basiliscus/palm.png",
+    "showcase/bestiarium/basiliscus/stones.png",
+    "showcase/bestiarium/basiliscus/bare-vs-finished.png",
+    "showcase/bestiarium/basiliscus/artwork/Hackles-into-scales.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
