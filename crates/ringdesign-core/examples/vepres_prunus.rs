@@ -24,9 +24,13 @@ mod probe;
 type P3 = [f64; 3];
 
 /// How far a spur bends along its run, mm per mm squared.
-const SPUR_BEND: f64 = 0.045;
+const SPUR_BEND: f64 = 0.06;
+/// The seam bead the twig and shoots are joined to the band with: none, since a 0.3 mm bead folds where twig and shoot cross.
+const TWIG_SEAM_MM: f64 = 0.0;
 /// Half the bare run of the palm round the Straif mark, degrees either side of 270.
-const PALM_GAP_DEG: f64 = 20.0;
+const PALM_GAP_DEG: f64 = 18.0;
+/// Where the second shoots end either side of the palm, degrees from 270.
+const SHOOT_PALM_GAP_DEG: f64 = 19.0;
 /// The Straif mark on the palm: its stem's length and how deep it is cut.
 const STRAIF_STEM_MM: f64 = 6.0;
 const STRAIF_DEPTH_MM: f64 = 0.3;
@@ -148,11 +152,16 @@ impl Ground {
 /// A closed tube round `path` (at least two points), radius `r(i, around_angle)` at each station; both ends capped
 /// flat, or the far end with a round cap of the last radius when `round_tip`.
 fn tube(path: &[P3], around: usize, r: impl Fn(usize, f64) -> f64, round_tip: bool) -> csg::Solid {
+    tube_from(path, around, r, round_tip, None)
+}
+
+/// [`tube`], its first frame's `u` turned toward `seed` when given: the angle round the section is measured from there.
+fn tube_from(path: &[P3], around: usize, r: impl Fn(usize, f64) -> f64, round_tip: bool, seed: Option<P3>) -> csg::Solid {
     let n = path.len();
     let tangent = |i: usize| unit(sub(path[(i + 1).min(n - 1)], path[i.saturating_sub(1)]));
     // Rotation-minimising frames by double reflection.
     let t0 = tangent(0);
-    let seed = if t0[1].abs() < 0.9 { [0.0, 1.0, 0.0] } else { [1.0, 0.0, 0.0] };
+    let seed = seed.unwrap_or(if t0[1].abs() < 0.9 { [0.0, 1.0, 0.0] } else { [1.0, 0.0, 0.0] });
     let mut u = unit(cross(cross(t0, seed), t0));
     let mut frames = vec![(t0, u)];
     for i in 1..n {
@@ -381,10 +390,10 @@ fn twig(g: &Ground, name: &str, stations: &[(f64, f64)], r0: f64, r1: f64, proud
 }
 
 fn twig_solid(t: &Twig, seed: i64) -> csg::Solid {
-    // Every other station: 0.2 mm along the wood is finer than the bark's smallest feature along it.
-    let keep: Vec<usize> = (0..t.path.len()).step_by(2).chain(std::iter::once(t.path.len() - 1)).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+    // Every third station: 0.3 mm along the wood is finer than the bark's smallest feature along it.
+    let keep: Vec<usize> = (0..t.path.len()).step_by(3).chain(std::iter::once(t.path.len() - 1)).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
     let path: Vec<P3> = keep.iter().map(|&i| t.path[i]).collect();
-    tube(&path, 32, |j, a| {
+    tube(&path, 28, |j, a| {
         let i = keep[j];
         let r = t.radius[i];
         r + bark(i as f64 * 0.1, a, r, seed)
@@ -412,17 +421,19 @@ fn spur_solid(foot: P3, dir: P3, bend: P3, skin_mm: f64, length: f64, base_r: f6
             add(foot, add(mul(dir, t), mul(bend, SPUR_BEND * past * past)))
         })
         .collect();
-    tube(&path, 16, |i, a| {
+    tube(&path, 14, |i, a| {
         let t = total * i as f64 / steps as f64;
         let past = (t - skin_mm).max(0.0);
         let u = (past / length).clamp(0.0, 1.0);
         // A straight cone from the base to a sharp point a detail's width across, slightly convex near the root.
         let core = lerp(base_r, SPUR_POINT_R, u.powf(0.9));
-        let flare = 0.35 * (1.0 - smooth01(past / 0.8)).powi(2);
+        // The root swells into its host, never wider than the wood it leaves.
+        let flare = (0.42 * skin_mm / 1.15).min(0.42) * (1.0 - smooth01(past / 0.9)).powi(2);
         // Five faint ridges run up the spur from its root, fading toward the point.
         let ridge = 0.05 * core * (5.0 * a).cos() * (1.0 - smooth01(u / 0.8));
         let wood = if u < 0.4 { 0.5 * bark(t, a, core, seed) * (1.0 - u / 0.4) } else { 0.0 };
-        core + flare + ridge + wood
+        let r_all = core + flare + ridge + wood;
+        if t < skin_mm { r_all.min(0.8 * skin_mm).max(SPUR_POINT_R) } else { r_all }
     }, true)
 }
 
@@ -431,8 +442,8 @@ fn spur_solid(foot: P3, dir: P3, bend: P3, skin_mm: f64, length: f64, base_r: f6
 /// stamen beads. Every petal ends in a rolled rim `BLOSSOM_RIM_MM` thick, so the flower keeps the 0.8 mm section to
 /// its edge; under it the body narrows to a foot `sink` mm below z = 0, seated in the wood.
 fn blossom_solid(diameter: f64, sink: f64, turn: f64) -> csg::Solid {
-    const AROUND: usize = 75;
-    const RINGS: usize = 13;
+    const AROUND: usize = 65;
+    const RINGS: usize = 12;
     const ROLL: usize = 6;
     let r = 0.5 * diameter;
     let half = 0.5 * BLOSSOM_RIM_MM;
@@ -444,14 +455,14 @@ fn blossom_solid(diameter: f64, sink: f64, turn: f64) -> csg::Solid {
     };
     // Near the heart the rings run round, not star-shaped, so the grid never crumples there.
     let rr_min = (0..AROUND).map(|i| outline(2.0 * PI * i as f64 / AROUND as f64).0).fold(f64::MAX, f64::min);
-    let round = (0.6_f64).max(rr_min);
+    let round = (1.5 * rr_min).min(0.6);
     let rho = move |u: f64, phi: f64| u * lerp(round, outline(phi).0, smooth01(u / 0.55));
     let top = |u: f64, phi: f64| {
-        let (_, petal) = outline(phi);
-        let ra = rho(u, phi);
+        let (rr, petal) = outline(phi);
+        let ra = u * rr;
         // The petals part from each other only out past the heart; within it the flower is one round boss.
-        let dome = 0.30 * (1.0 - u * u).max(0.0).sqrt() * (0.5 + 0.5 * lerp(1.0, petal, smooth01((u - 0.3) / 0.4)));
-        let cup = 0.14 * smooth01((u - 0.5) / 0.5) * petal;
+        let dome = 0.22 * (1.0 - u * u).max(0.0).sqrt() * (0.5 + 0.5 * lerp(1.0, petal, smooth01((u - 0.3) / 0.4)));
+        let cup = 0.12 * smooth01((u - 0.5) / 0.5) * petal;
         let heart = 0.26 * (1.0 - smooth01(ra / 0.42));
         let bead = (0..10)
             .map(|k| {
@@ -469,13 +480,17 @@ fn blossom_solid(diameter: f64, sink: f64, turn: f64) -> csg::Solid {
     s.v.push([0.0, 0.0, top(0.0, 0.0)]);
     // Top rings, then the roll round the rim, then the underside back in to the foot.
     let mut rings: Vec<Vec<u32>> = Vec::new();
+    // Each ring stands outside the last at every angle, so the top never folds back over itself.
+    let mut last_r = vec![0.0_f64; AROUND];
     for j in 1..=RINGS {
-        // Rings close together round the heart, wider toward the rim.
         let u = j as f64 / RINGS as f64;
         let ids = (0..AROUND).map(|i| {
             let phi = 2.0 * PI * i as f64 / AROUND as f64;
-            let ra = rho(u, phi);
-            s.v.push([ra * phi.cos(), ra * phi.sin(), top(u, phi)]);
+            let rr = outline(phi).0;
+            let ra = if j == RINGS { rr } else { rho(u, phi).max(last_r[i] + 0.008).min(rr - 0.008 * (RINGS - j) as f64) };
+            last_r[i] = ra;
+            // Height follows where the vertex truly stands, so a ring held out never stands as a step.
+            s.v.push([ra * phi.cos(), ra * phi.sin(), top((ra / rr).min(1.0), phi)]);
             (s.v.len() - 1) as u32
         }).collect();
         rings.push(ids);
@@ -498,7 +513,7 @@ fn blossom_solid(diameter: f64, sink: f64, turn: f64) -> csg::Solid {
             let phi = 2.0 * PI * i as f64 / AROUND as f64;
             let ra = rho(u, phi);
             let rim = top(1.0, phi) - 2.0 * half;
-            s.v.push([ra * phi.cos(), ra * phi.sin(), lerp(-sink, rim, smooth01((u - 0.35) / 0.65))]);
+            s.v.push([ra * phi.cos(), ra * phi.sin(), lerp(-sink, rim, smooth01((u - 0.08) / 0.45))]);
             (s.v.len() - 1) as u32
         }).collect();
         rings.push(ids);
@@ -545,67 +560,34 @@ fn dome_r(f: &SloeFrame, z: f64) -> f64 {
     if z <= 0.0 { f.radius } else { f.radius * (1.0 - (z / f.crown).powi(2)).max(0.0).sqrt() }
 }
 
-/// One sepal of the calyx, hugging the fruit: from under the girdle up its dome to `reach` of the crown, `half_deg`
-/// wide at its base, rounding to a blunt leaf tip, its back `MIN_SECTION_MM` off the stone with a midrib.
-fn sepal_solid(f: &SloeFrame, centre_deg: f64, half_deg: f64, reach: f64) -> csg::Solid {
-    let (nv, nw) = (28usize, 10usize);
-    let z0 = -0.75;
-    let z1 = reach * f.crown;
+/// One sepal of the calyx, hugging the fruit: an elliptical section swept up the stone's meridian at `centre_deg`,
+/// from under the girdle to `reach` of the crown. It is `2 * half_mm` wide at its base, narrowing to a pointed, slightly
+/// reflexed tip, and 0.86 mm thick off the stone, every edge round.
+fn sepal_solid(f: &SloeFrame, centre_deg: f64, half_mm: f64, reach: f64) -> csg::Solid {
     let ex = f.to_stalk;
     let ey = cross(f.normal, ex);
-    let at = |v: f64, w: f64, out: f64| -> P3 {
-        let z = lerp(z0, z1, v);
-        // Ovate: widest two fifths of the way up, narrowing to a pointed tip.
-        let shape = (PI * (0.12 + 0.88 * v)).sin().max(0.0).powf(0.75);
-        let half = (half_deg.to_radians() * shape).max(0.1 / (f.radius + 0.5));
-        let phi = centre_deg.to_radians() + w * half;
-        // A domed back over a midrib: 0.84 mm at the margins, more along the middle.
-        let dome = 0.22 * (1.0 - w * w) * (1.0 - 0.6 * v);
-        // Over its last fifth the sepal thins and rounds to its point.
-        let end = ((v - 0.8) / 0.2).clamp(0.0, 1.0);
-        let thick = (MIN_SECTION_MM + 0.04 + dome) * (0.45 + 0.55 * (1.0 - end * end).sqrt());
-        // Reflexed: the tip turns a little away from the fruit.
-        let reflex = 0.22 * v * v;
-        let r = dome_r(f, z.max(0.0)) + 0.03 + reflex + out * thick;
-        add(f.girdle, add(mul(f.normal, z), add(mul(ex, r * phi.cos()), mul(ey, r * phi.sin()))))
-    };
-    let mut s = csg::Solid::default();
-    for layer in 0..2 {
-        for i in 0..=nv {
-            for j in 0..=nw {
-                let v = i as f64 / nv as f64 * 0.985;
-                let w = -1.0 + 2.0 * j as f64 / nw as f64;
-                s.v.push(at(v, w, layer as f64));
-            }
-        }
-    }
-    let id = |l: usize, i: usize, j: usize| (l * (nv + 1) * (nw + 1) + i * (nw + 1) + j) as u32;
-    for i in 0..nv {
-        for j in 0..nw {
-            // Outer face out, inner face toward the stone.
-            s.f.push([id(1, i, j), id(1, i + 1, j), id(1, i + 1, j + 1)]);
-            s.f.push([id(1, i, j), id(1, i + 1, j + 1), id(1, i, j + 1)]);
-            s.f.push([id(0, i, j), id(0, i + 1, j + 1), id(0, i + 1, j)]);
-            s.f.push([id(0, i, j), id(0, i, j + 1), id(0, i + 1, j + 1)]);
-        }
-    }
-    // Side walls along w = -1 and w = +1, the base and the tip.
-    for i in 0..nv {
-        let (a, b, c, d) = (id(0, i, 0), id(0, i + 1, 0), id(1, i, 0), id(1, i + 1, 0));
-        s.f.push([a, b, d]);
-        s.f.push([a, d, c]);
-        let (a, b, c, d) = (id(0, i, nw), id(0, i + 1, nw), id(1, i, nw), id(1, i + 1, nw));
-        s.f.push([a, d, b]);
-        s.f.push([a, c, d]);
-    }
-    for j in 0..nw {
-        let (a, b, c, d) = (id(0, 0, j), id(0, 0, j + 1), id(1, 0, j), id(1, 0, j + 1));
-        s.f.push([a, d, b]);
-        s.f.push([a, c, d]);
-        let (a, b, c, d) = (id(0, nv, j), id(0, nv, j + 1), id(1, nv, j), id(1, nv, j + 1));
-        s.f.push([a, b, d]);
-        s.f.push([a, d, c]);
-    }
+    let a = centre_deg.to_radians();
+    let out = add(mul(ex, a.cos()), mul(ey, a.sin()));
+    let (z0, z1) = (-0.6, reach * f.crown);
+    let steps = 30;
+    let thick = |v: f64| { let end = ((v - 0.8) / 0.2).clamp(0.0, 1.0); 0.5 * (MIN_SECTION_MM + 0.06) * (0.45 + 0.55 * (1.0 - end * end).sqrt()) };
+    // Widest where it meets the girdle, a third of the way up, rounding in to its point.
+    let width = |v: f64| (half_mm * (1.0 - ((v - 0.35) / 0.65).max(0.0)).powf(0.7) * (0.75 + 0.25 * (v / 0.35).min(1.0))).max(thick(v) + 0.02);
+    let path: Vec<P3> = (0..=steps)
+        .map(|k| {
+            let v = k as f64 / steps as f64;
+            let z = lerp(z0, z1, v);
+            let r = dome_r(f, z.max(0.0)) + 0.03 + thick(v) + 0.1 * v * v;
+            add(f.girdle, add(mul(f.normal, z), mul(out, r)))
+        })
+        .collect();
+    let t0 = unit(sub(path[1], path[0]));
+    let seed = unit(sub(out, mul(t0, dot(out, t0))));
+    let mut s = tube_from(&path, 24, |i, ang| {
+        let v = i as f64 / steps as f64;
+        let (bb, aa) = (thick(v), width(v));
+        aa * bb / ((aa * ang.cos()).powi(2) + (bb * ang.sin()).powi(2)).sqrt()
+    }, true, Some(seed));
     orient_outward(&mut s);
     s
 }
@@ -689,7 +671,24 @@ fn twig_stations(o: &Opt, g: &Ground) -> Vec<(String, Vec<(f64, f64)>, [bool; 2]
                 st.push((th, lerp(line, wander, off)));
                 th -= 0.5;
             }
-            vec![("Twig over the head".into(), st, [true, true])]
+            // A second, thinner shoot branches off each shoulder and runs down the other edge of the wall to the palm.
+            let main_z = |th: f64| st.iter().min_by(|a, b| (a.0 - th).abs().total_cmp(&(b.0 - th).abs())).map_or(0.0, |p| p.1);
+            let mut shoots = Vec::new();
+            for (name, from, to, step, edge) in [("Shoot, right wall", 52.0_f64, -90.0 + SHOOT_PALM_GAP_DEG, -0.5_f64, -1.05_f64), ("Shoot, left wall", 128.0, 270.0 - SHOOT_PALM_GAP_DEG, 0.5, 1.05)] {
+                let mut sh = Vec::new();
+                let mut th: f64 = from;
+                let z0 = main_z(from);
+                while (to - th) * f64::signum(step) >= 0.0 {
+                    let run = (th - from).abs();
+                    let z = lerp(z0, edge + 0.15 * (th.to_radians() * 7.0).sin(), smooth01(run / 26.0));
+                    sh.push((th, z));
+                    th += step;
+                }
+                shoots.push((name.to_string(), sh, [true, true]));
+            }
+            let mut all = vec![("Twig over the head".to_string(), st, [true, true])];
+            all.extend(shoots);
+            all
         }
         Layout::Shoulders => {
             // Each shoulder's twig climbs from the shank to the face; the right one runs on over the rim to the
@@ -827,7 +826,8 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
     };
     let mut twigs: Vec<Twig> = Vec::new();
     for (k, (name, st, dive)) in twig_stations(o, &g).into_iter().enumerate() {
-        let t = twig(&g, &name, &st, 1.15, 0.6, 0.5, dive, 2.3, 40 + k as i64)?;
+        let shoot = name.starts_with("Shoot");
+        let t = if shoot { twig(&g, &name, &st, 0.74, 0.6, 0.5, dive, 2.7, 40 + k as i64)? } else { twig(&g, &name, &st, 1.15, 0.6, 0.5, dive, 2.3, 40 + k as i64)? };
         twigs.push(t);
     }
     // The stalk leaves the twig at the station nearest the fruit and runs to the fruit's shoulder.
@@ -852,7 +852,7 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
             id += 1;
             // A small calyx where the stalk meets the fruit: three short sepals over the collet's stalk side.
             for (k, off) in [-34.0, 0.0, 34.0].into_iter().enumerate() {
-                let s = sepal_solid(&frame, off, 16.0, 0.55);
+                let s = sepal_solid(&frame, off, 0.8, 0.55);
                 doc.append(Feature { id, name: format!("Calyx sepal {}", k + 1), enabled: true, operation: stored_op(&s, "sepal", json!({"at_deg": off}))?, component: cast_part(0.0) })?;
                 id += 1;
             }
@@ -860,12 +860,12 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
         Hold::Calyx => {
             let cup = cup_solid(&frame, o.sloe_rise_mm, frame.radius - 0.45, frame.radius * 0.45);
             info.sections.push(("Calyx cup".into(), 2.0 * frame.radius * 0.45, "a solid turned cup under the girdle".into()));
-            info.sections.push(("Calyx sepals".into(), MIN_SECTION_MM + 0.04, "each sepal is 0.84 mm at its margins and up to 1.06 along its midrib, thinning over its last fifth to a pointed tip 0.38 mm thick (a point, as the spurs' are)".into()));
+            info.sections.push(("Calyx sepals".into(), MIN_SECTION_MM + 0.06, "each sepal is an elliptical section 0.86 mm thick and 2.1 mm wide at its base, thinning over its last fifth to a rounded point 0.39 mm thick (a point, as the spurs' are)".into()));
             doc.append(Feature { id, name: "Calyx cup".into(), enabled: true, operation: stored_op(&cup, "calyx_cup", json!({}))?, component: cast_part(0.0) })?;
             id += 1;
             for k in 0..5 {
                 let at = 36.0 + 72.0 * k as f64 + 9.0 * (skin::hash(k, 5) - 0.5);
-                let s = sepal_solid(&frame, at, 22.0, 0.26 + 0.05 * skin::hash(k, 9));
+                let s = sepal_solid(&frame, at, 1.25, 0.42 + 0.06 * skin::hash(k, 9));
                 doc.append(Feature { id, name: format!("Calyx sepal {}", k + 1), enabled: true, operation: stored_op(&s, "sepal", json!({"at_deg": at}))?, component: cast_part(0.0) })?;
                 id += 1;
             }
@@ -909,7 +909,7 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
     let keep_clear = |p: P3, r: f64| len(sub(p, girdle)) > frame.radius + r + 0.35;
     for (ti, t) in twigs.iter().enumerate() {
         let seed = 40 + ti as i64;
-        doc.append(Feature { id, name: t.name.clone(), enabled: true, operation: stored_op(&twig_solid(t, seed), "twig", json!({"stations": t.path.len()}))?, component: cast_part(0.0) })?;
+        doc.append(Feature { id, name: t.name.clone(), enabled: true, operation: stored_op(&twig_solid(t, seed), "twig", json!({"stations": t.path.len()}))?, component: cast_part(TWIG_SEAM_MM) })?;
         id += 1;
         info.marks.extend(t.path.iter().zip(&t.radius).map(|(p, r)| Mark::Wood(*p, *r + 0.12)));
         let thinnest = t.radius.iter().copied().fold(f64::MAX, f64::min);
@@ -925,7 +925,8 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
             let r = t.radius[node];
             let on_face = c[1] > g.top - 0.2;
             let theta = c[1].atan2(c[0]).to_degrees();
-            let near_head = (theta - 90.0).abs() < 55.0;
+            let shoot = t.name.starts_with("Shoot");
+            let near_head = (theta - 90.0).abs() < 55.0 && !shoot;
             let blossom_here = if on_face { k % 2 == 1 } else { k % 3 == 2 };
             if !blossom_here {
                 // Spurs leave the wood at an acute angle, pointing toward the nearer tip of the twig, turned out to
@@ -942,8 +943,8 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
                     (true, _, false) => 2.0 + 0.5 * h,
                     (false, true, true) => 3.0 + 0.6 * h,
                     (false, true, false) => 1.8 + 0.4 * h,
-                    (false, false, true) => 1.7 + 0.4 * h,
-                    (false, false, false) => 1.2 + 0.3 * h,
+                    (false, false, true) => if shoot { 1.3 + 0.3 * h } else { 1.7 + 0.4 * h },
+                    (false, false, false) => if shoot { 1.0 + 0.2 * h } else { 1.2 + 0.3 * h },
                 };
                 let mut placed_ok = None;
                 for _ in 0..4 {
@@ -960,7 +961,8 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
                 }
                 let Some((dir, tip)) = placed_ok else { continue };
                 let bend = mul(tg, toward);
-                let s = spur_solid(c, dir, bend, r, length, SPUR_BASE_R, seed * 100 + k as i64);
+                let base = if shoot { 0.5 } else { SPUR_BASE_R };
+                let s = spur_solid(c, dir, bend, r, length, base, seed * 100 + k as i64);
                 doc.append(Feature { id, name: format!("Spur {} on the {}", k + 1, t.name.to_lowercase()), enabled: true, operation: stored_op(&s, "spur", json!({"length_mm": length, "turn_deg": phi, "lean_deg": lean}))?, component: cast_part(0.0) })?;
                 id += 1;
                 let steps = 60;
@@ -968,17 +970,17 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
                     let q = (r + length) * j as f64 / steps as f64;
                     let past = (q - r).max(0.0);
                     let u = (past / length).clamp(0.0, 1.0);
-                    let rad = lerp(SPUR_BASE_R, SPUR_POINT_R, u.powf(0.9)) + 0.35 * (1.0 - smooth01(past / 0.8)).powi(2);
+                    let rad = lerp(base, SPUR_POINT_R, u.powf(0.9)) + (0.42 * r / 1.15).min(0.42) * (1.0 - smooth01(past / 0.9)).powi(2);
                     info.marks.push(Mark::Wood(add(c, add(mul(dir, q), mul(bend, SPUR_BEND * past * past))), rad + 0.25));
                 }
                 // Where the cone narrows under the floor: past u where the core is half the floor across.
-                let u_floor = ((SPUR_BASE_R - 0.5 * MIN_SECTION_MM) / (SPUR_BASE_R - SPUR_POINT_R)).powf(1.0 / 0.9);
+                let u_floor = ((base - 0.5 * MIN_SECTION_MM) / (base - SPUR_POINT_R)).powf(1.0 / 0.9);
                 let start = add(c, mul(dir, r + u_floor * length));
                 info.marks.push(Mark::Point(start, dir, (1.0 - u_floor) * length + 0.6));
                 info.spurs.push(json!({"twig": t.name, "node": k, "length_mm": length, "turn_deg": phi, "lean_deg": lean, "tip": tip, "point_r_mm": SPUR_POINT_R, "point_run_mm": (1.0 - u_floor) * length}));
             } else {
                 // A pair of blossoms on the wood at the node, one each side, the second a little smaller and further on.
-                let dia = if on_face { 3.9 } else if near_head { 3.6 } else { 2.7 };
+                let dia = if on_face { 3.9 } else if near_head { 3.6 } else if shoot { 2.4 } else { 2.7 };
                 let flank = if (k / 2) % 2 == 0 { -1.0 } else { 1.0 };
                 let pair: &[(f64, f64, f64)] = if on_face { &[(1.0, 0.0, flank), (0.82, 0.62, -flank)] } else { &[(1.0, 0.0, flank)] };
                 for (j, &(scale, shift, f)) in pair.iter().enumerate() {
@@ -1001,7 +1003,7 @@ fn author(o: &Opt) -> Result<(RingDesign, AlphaLibrary, Authored)> {
         }
     }
     if !info.spurs.is_empty() {
-        info.sections.push(("Spurs".into(), 2.0 * SPUR_BASE_R, "each spur's root; past where it narrows to 0.8 mm across it is a point, listed with its run in the spurs".into()));
+        info.sections.push(("Spurs".into(), 1.0, "each spur's root (1.2 mm on the main twig, 1.0 on the shoots); past where it narrows to 0.8 mm across it is a point, listed with its run in the spurs".into()));
     }
     if !info.blossoms.is_empty() {
         info.sections.push(("Blossoms".into(), BLOSSOM_RIM_MM, "every petal ends in a rolled rim 0.84 mm thick and is thicker inward; heart and stamen beads are relief on it".into()));
@@ -1253,7 +1255,7 @@ fn section_samples(m: &mesh::Mesh, floor: f64, stride: usize, keep: &[u8]) -> (f
                 e.1 = e.1.min(hit);
                 if std::env::var("PRUNUS_DEBUG").is_ok() && under % 1 == 0 {
                     println!("    face {:?} n {:?}", tri[hit_face].map(|p| p.map(|v| (v * 1000.0).round() / 1000.0)), fnorm[hit_face].map(|v| (v * 100.0).round() / 100.0));
-                    println!("    thin {hit:.3} class {} at ({:.2}, {:.2}, {:.2}) n ({:.2}, {:.2}, {:.2})", keep[vi], o[0], o[1], o[2], dir[0], dir[1], dir[2]);
+                    println!("    thin {hit:.3} class {} at ({:.2}, {:.2}, z {:.3}) n ({:.2}, {:.2}, {:.2})", keep[vi], o[0], o[1], o[2], dir[0], dir[1], dir[2]);
                 }
             }
             if hit < least {
@@ -1359,7 +1361,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, built: &mesh::
         "thinnest_wall_mm": field.thinnest_wall_mm,
         "sections_by_construction": info.sections,
         "sections_ok": sections_ok,
-        "section_sampled_diagnostic": {"method": "inward rays from every vertex (stride shown) of the finished mesh off a crease (incident faces within 35 deg) to the first surface; spur points (radius under 0.4 mm) are reported apart", "stride": stride, "samples": runs, "least_mm": least, "at": least_at, "under_floor": under, "spur_point_vertices_apart": point_vertices, "breakdown": clusters, "reading": "Diagnostic only. A single inward ray reads relief as section: on a blossom it crosses the domed heart, a stamen bead or the rolled rim at a slant; on the wood, a fissure wall or a spur root. A sculpted blossom alone (no band) gives the same readings at its heart. The gate is the field's thinnest wall for the band and the sections by construction for every part."},
+        "section_sampled_diagnostic": {"method": "inward rays from every vertex (stride shown) of the finished mesh off a crease (incident faces within 35 deg) to the first surface; spur points (radius under 0.4 mm) are reported apart", "stride": stride, "samples": runs, "least_mm": least, "at": least_at, "under_floor": under, "spur_point_vertices_apart": point_vertices, "breakdown": clusters, "reading": "Diagnostic only; the gate is the field's thinnest wall for the band and the sections by construction for every part. A single inward ray reads relief as section. The blossom clusters, opposite-wall ones included, come from rays leaving a petal's rolled rim sideways at the notch roots, where two petals' rims meet in a V and the ray crosses the V rather than the petal; a lone blossom with no band gives the same readings (least 0.16 mm at 2.4 to 2.7 mm across, 0.36 to 0.44 at 3.6 to 3.9), while every petal is 0.84 mm through its rim. On the wood the rays cross a fissure wall or a spur root at a slant."},
         "cad_measure_thickness": measured,
         "cad_measure_thickness_bare_stock": bare_measured,
         "cad_measure_note": "cad::measure::thickness casts one ray along each sampled face's inward normal; on the factory 013 itself it finds the same sub-0.8 readings at the bore's and side faces' rounded edges, where the ray leaves through the neighbouring face. The section gate is the field's thinnest wall for the band and the sections by construction for every made part.",
@@ -1550,7 +1552,7 @@ fn main() -> Result<()> {
     let draft = args.iter().any(|a| a == "--draft");
     let verify = args.iter().any(|a| a == "--verify");
     if std::env::var("PRUNUS_BLOSSOM_TEST").is_ok() {
-        let b = blossom_solid(3.5, 0.55, 0.0);
+        let b = blossom_solid(std::env::var("PRUNUS_BLOSSOM_TEST").ok().and_then(|v| v.parse().ok()).unwrap_or(3.5), 0.55, 0.0);
         let mut m = mesh::Mesh { vertices: b.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: b.f.clone(), ..Default::default() };
         let w = welded(&m);
         m = w;
