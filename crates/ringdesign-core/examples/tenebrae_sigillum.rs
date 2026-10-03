@@ -485,7 +485,8 @@ fn frame(outer: f64, bulge: f64, lobes: usize, w: f64, depth: f64) -> Vec<Part> 
         let r = (chord * chord + sag * sag) / (2.0 * sag);
         let c = [apex[0] - r * bm.cos(), apex[1] - r * bm.sin()];
         let half = (chord / r).asin();
-        let lap: f64 = std::env::var("SIG_LAP").ok().and_then(|v| v.parse().ok()).unwrap_or(0.03);
+        // Each foil runs past its cusps far enough that neighbours cross square, not at a graze.
+        let lap = 0.06;
         rule(&format!("Cusped border, foil {}", k + 1), c, r, bm - half - lap, bm + half + lap, w, depth, &mut parts);
     }
     // The circle the foils touch, overlapping their points so its rule and theirs cross cleanly.
@@ -1195,6 +1196,12 @@ fn main() -> Result<()> {
         "size": d.size.display(),
         "bore_mm": BORE_MM,
         "face_mm": [FACE.0, FACE.1],
+        "stock": "Factory 017 Tonneau through the sand master (the section's fallback)",
+        "stock_fallback_why": "005 Rosette's head is a domed four-lobed pillow: 1.1 mm of sag 4 mm off its crown and 0.67 mm of envelope fill at 16 x 18.7, so it has no table to cut a seal in. 017 is a true signet table (0.011 mm fill); 16 x 15.6 is the largest face 017 resizes to (130% of its native 12 mm width).",
+        "table_over_bore_mm": placed.table_crown_mm - BORE_MM * 0.5,
+        "deepest_bench_cut_mm": FLEUR_DEPTH_MM,
+        "metal_under_deepest_cut_mm": placed.table_crown_mm - BORE_MM * 0.5 - FLEUR_DEPTH_MM,
+        "release_status_why": "Review, not Clear, with 0 obstructions and 0 unresolved rays: the factory table and bore walls carry under the sand's 3 deg draft; the bare stock reports the same.",
         "placed": placed,
         "features": d.cad.as_ref().map(|c| c.features.iter().map(|f| json!({ "id": f.id, "name": f.name, "stage": format!("{:?}", f.component.stage), "attach": format!("{:?}", f.component.attach) })).collect::<Vec<_>>()),
         "stamps": d.stamps.iter().map(|s| json!({ "name": s.name, "theta_deg": s.theta_deg, "v_mm": s.v_mm, "bench": s.bench, "cut": s.cut, "tier": s.tier, "along_pull": s.along_pull, "sink_mm": s.sink_mm })).collect::<Vec<_>>(),
