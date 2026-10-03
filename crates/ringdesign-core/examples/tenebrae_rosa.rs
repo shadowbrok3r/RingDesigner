@@ -43,7 +43,7 @@ const ARCH: f64 = 1.0;
 /// Tracery bar between neighbouring lights, mm.
 const BAR_MM: f64 = 1.0;
 /// The table plane stands this far over the table, so every cut starts clear of the metal, mm.
-const LIFT_MM: f64 = 1.2;
+const LIFT_MM: f64 = 1.5;
 /// How proud of the table the tracery stands, mm.
 const TRACERY_MM: f64 = 0.9;
 /// The tracery's walls lean out toward the table by this much, so each bar reads as a moulding, degrees.
@@ -52,12 +52,21 @@ const TRACERY_DRAFT_DEG: f64 = 0.0;
 const RUBY_ID: Id = 9;
 /// The corner trefoils' sketch; its cut follows it.
 const CORNER_ID: Id = 90;
+/// The spokes' plane; their sketch and raise follow it.
+const SPOKE_ID: Id = 80;
+/// How far each spoke stands over the tracery, and its width (inside the mullion's bar), mm.
+const SPOKE_RISE_MM: f64 = 0.3;
+const SPOKE_W_MM: f64 = 0.85;
+/// Radius of the round terminal each lobe cusp ends in, mm.
+const TERMINAL_MM: f64 = 0.45;
+/// How far each terminal stands proud of the cusp's tip, mm.
+const TERMINAL_PROUD_MM: f64 = 0.2;
 /// Corner trefoils: across, their centres' distance from the table's centre on the diagonals, and how proud they stand, mm.
 const CORNER_MM: f64 = 1.9;
 const CORNER_AT_MM: f64 = 10.3;
 const CORNER_RISE_MM: f64 = 0.6;
 /// How deep the lancet lights sink: deep enough to read as dark glass, mm.
-const LIGHT_SINK_MM: f64 = 3.0;
+const LIGHT_SINK_MM: f64 = 1.9;
 /// The raised tracery runs this far into the table under it, mm.
 const TRACERY_FOOT_MM: f64 = 0.1;
 /// The outer order's width outside the net's outer circle, mm.
@@ -65,11 +74,11 @@ const RING_MM: f64 = 0.55;
 /// Spandrels are picked this far inside the outer circle, mm.
 const SPANDREL_PICK_MM: f64 = 0.8;
 /// How far each of the sixteen rim cusps bows in from the rim, mm.
-const CUSP_SAG_MM: f64 = 0.7;
+const CUSP_SAG_MM: f64 = knob_const(0.45);
 /// How deep the petals sink below the table, mm.
 const PETAL_SINK_MM: f64 = 0.5;
 /// How far below the table the spandrels are sunk, mm.
-const SPANDREL_MM: f64 = 3.0;
+const SPANDREL_MM: f64 = 1.9;
 /// How far below the table the pilots are opened: past the bore under the head, mm.
 const PIERCE_MM: f64 = 7.5;
 
@@ -106,23 +115,38 @@ const PILOT_INSET_MM: f64 = 0.1;
 /// Each drilled pilot starts this far under the table, below the collet's foot, mm.
 const PILOT_START_MM: f64 = COLLET_FOOT_MM + 0.05;
 /// How far a drilled pilot stands outside the bur's own pilot, mm.
-const PILOT_GROW_MM: f64 = 0.1;
+const PILOT_GROW_MM: f64 = 0.15;
+/// The oculus pilot starts at the collet's bearing, inside its bearing ring, so no shelf is left over it, mm.
+const RUBY_PILOT_START_MM: f64 = 0.25;
 
 /// The head walls' blind arcades: each lancet's height, width, how deep it is sunk, its centre's height over the
 /// finger's axis, and the lancets' centres along the wall, mm.
-const ARCADE_H_MM: f64 = 2.3;
+const ARCADE_H_MM: f64 = 1.7;
 /// The arcades are struck only once their stamps hold on the stock's walls.
 const WITH_ARCADES: bool = false;
-const ARCADE_W_MM: f64 = 1.6;
+const ARCADE_W_MM: f64 = 1.0;
 const ARCADE_SINK_MM: f64 = 0.35;
-const ARCADE_Y_MM: f64 = 11.55;
+const ARCADE_Y_MM: f64 = 11.4;
 const ARCADE_AT: [f64; 5] = [-4.6, -2.3, 0.0, 2.3, 4.6];
 /// The cut arcade: its lancets' centres round the ring, the plane it is drawn on outside the cheek and the plane its floor
 /// reaches along the finger, mm.
-const ARCADE_X: [f64; 3] = [-2.5, 0.0, 2.5];
-const ARCADE_PLANE_MM: f64 = 9.9;
-const ARCADE_FLOOR_MM: f64 = 8.75;
+const ARCADE_X: [f64; 3] = [-1.85, 0.0, 1.85];
+const ARCADE_PLANE_MM: f64 = 9.85;
+/// How far the arcade cuts in from its plane, square to the cheek, and the cheek's lean from upright, mm and degrees.
+const ARCADE_CUT_MM: f64 = 0.95;
+/// The gallery panel: its face's plane along the finger, how far it runs back into the cheek, its half width and the
+/// margin it keeps round the lancets, mm.
+const PANEL_FACE_MM: f64 = 9.6;
+const PANEL_DEPTH_MM: f64 = 2.0;
+const PANEL_HALF_W_MM: f64 = 3.2;
+const PANEL_MARGIN_MM: f64 = 0.9;
+const ARCADE_LEAN_DEG: f64 = 6.2;
 /// The nave's oculi on each shoulder: degrees off the crown and widths, graded toward the palm.
+/// The shoulder oculi are moulded rings standing on the shoulder, which is too thin to pierce: their rise, how far
+/// their foot runs into the shoulder, and the ring's width round the light, mm.
+const OCULUS_RISE_MM: f64 = 0.4;
+const OCULUS_SINK_MM: f64 = 0.6;
+const OCULUS_RING_MM: f64 = 0.85;
 const OCULI: [(f64, f64); 4] = [(44.0, 2.0), (53.0, 1.8), (62.0, 1.5), (71.0, 1.2)];
 
 const RUBY: [f32; 3] = [0.45, 0.01, 0.04];
@@ -314,16 +338,8 @@ struct Rose {
 struct Lands {
     /// Tracery bar between neighbouring lights, as traced.
     bar_mm: f64,
-    /// Least metal from a sapphire collet's outer wall to the pierced spandrels beside it.
-    collet_to_spandrel_mm: f64,
-    /// How far a sapphire collet's wall stands past its petal light onto the bar (its foot is on the bar there).
-    collet_over_bar_mm: f64,
-    /// Least room between a sapphire collet's wall and its petal light's wall, negative where it stands over the bar.
-    collet_in_petal_mm: f64,
-    /// Ruby collet's outer wall to the nearest petal light.
+    /// Ruby collet's outer wall to the nearest lancet light.
     ruby_collet_to_petal_mm: f64,
-    /// Ruby pilot to a sapphire pilot, edge to edge.
-    pilot_to_pilot_mm: f64,
     /// Spandrel light to the table's edge along the axes, where the table is narrowest.
     spandrel_to_table_edge_mm: f64,
 }
@@ -394,11 +410,7 @@ fn measure(sketch: &Sketch, petal: &ringdesign_core::sketch::Region, spandrels: 
     let _ = sketch;
     Lands {
         bar_mm: BAR_MM,
-        collet_to_spandrel_mm: to_spandrel,
-        collet_over_bar_mm: over,
-        collet_in_petal_mm: inside,
         ruby_collet_to_petal_mm: petal_min_r - ruby_r,
-        pilot_to_pilot_mm: light_at_mm() - pilot_l - pilot(ruby()),
         spandrel_to_table_edge_mm: 0.5 * FACE_MM - span_max,
     }
 }
@@ -465,6 +477,10 @@ fn moulding_section() -> Sketch {
     s.entity(Geometry::Polyline { points: pts, closed: true });
     s.plane = ringdesign_core::sketch::Workplane::section();
     s
+}
+
+const fn knob_const(v: f64) -> f64 {
+    v
 }
 
 fn knob(name: &str, default: f64) -> f64 {
@@ -536,6 +552,21 @@ fn arcade(d: &RingDesign, a: &ringdesign_core::skin::Atlas, name: &str, cheek: b
 }
 
 /// The cheek arcade: lancets standing on a sill, their points up, seen along the finger with x round the ring and y up.
+/// The gallery's panel: a plate a little proud of the cheek, leaned with it, that the arcade is cut into.
+fn panel_sketch(plane: Id) -> Sketch {
+    let mut s = Sketch::default();
+    s.name = "Gallery panel".into();
+    let (hx, lo, hi) = (PANEL_HALF_W_MM, -0.5 * ARCADE_H_MM - PANEL_MARGIN_MM, 0.5 * ARCADE_H_MM + PANEL_MARGIN_MM);
+    let ids: Vec<Id> = [[-hx, lo], [hx, lo], [hx, hi], [-hx, hi]].iter().map(|p| s.point(*p)).collect();
+    s.entity(Geometry::Polyline { points: ids, closed: true });
+    let lean = knob("ROSA_LEAN", ARCADE_LEAN_DEG).to_radians();
+    s.plane.origin = [0.0, ARCADE_Y_MM, 0.0];
+    s.plane.x = [1.0, 0.0, 0.0];
+    s.plane.y = [0.0, lean.cos(), lean.sin()];
+    s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
+    s
+}
+
 fn arcade_sketch(plane: Id) -> Sketch {
     use ringdesign_core::cad::builders::cutters::{Shape, outline};
     let mut s = Sketch::default();
@@ -543,9 +574,14 @@ fn arcade_sketch(plane: Id) -> Sketch {
     let lancet = outline(Shape::Lancet, ARCADE_H_MM, ARCADE_W_MM, 0.0);
     for x in ARCADE_X {
         // The outline's point is at −x: turned a quarter so it stands up.
-        let ids: Vec<Id> = lancet.iter().map(|p| s.point([x + p[1], ARCADE_Y_MM - p[0]])).collect();
+        let ids: Vec<Id> = lancet.iter().map(|p| s.point([x + p[1], -p[0]])).collect();
         s.entity(Geometry::Polyline { points: ids, closed: true });
     }
+    // Leaned with the cheek, so the cut stands square to the wall and its floor runs parallel to it.
+    let lean = knob("ROSA_LEAN", ARCADE_LEAN_DEG).to_radians();
+    s.plane.origin = [0.0, ARCADE_Y_MM, 0.0];
+    s.plane.x = [1.0, 0.0, 0.0];
+    s.plane.y = [0.0, lean.cos(), lean.sin()];
     s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
     s
 }
@@ -565,6 +601,64 @@ fn corner_trefoils(plane: Id) -> Sketch {
         s.entity(Geometry::Polyline { points: ids, closed: true });
     }
     s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
+    s
+}
+
+/// A straight strip down each mullion from the oculus order to the cusped rim, narrower than the bar it stands on.
+/// Where each lobe pair's cusp ends in a round terminal of radius `q`, on the light's axis over the cusp's tip.
+fn cusp_terminals(q: f64) -> Vec<[f64; 2]> {
+    let step = TAU / (2 * LIGHTS) as f64;
+    let p0 = [R_OUT, 0.0];
+    let p1 = [R_OUT * step.cos(), R_OUT * step.sin()];
+    let half = 0.5 * len2(sub2(p1, p0));
+    let rho = (half * half + CUSP_SAG_MM * CUSP_SAG_MM) / (2.0 * CUSP_SAG_MM);
+    let mid = 0.5 * step;
+    let d = R_OUT * mid.cos() + CUSP_SAG_MM - rho;
+    let c = [d * mid.cos(), d * mid.sin()];
+    // The spike's tip: where the two lobes' lights, half a bar inside their arcs, cross on the axis.
+    let light = rho - 0.5 * BAR_MM;
+    let tip = c[0] + (light * light - c[1] * c[1]).max(0.0).sqrt();
+    // The terminal swallows the tip and stands a little proud of it.
+    let x = tip + q - TERMINAL_PROUD_MM;
+    (0..LIGHTS).map(|k| polar(x, light_deg(k))).collect()
+}
+
+/// The cusp terminals as one sketch of circles.
+fn terminals(plane: Id) -> Sketch {
+    let mut s = Sketch::default();
+    s.name = "Cusp terminals".into();
+    for p in cusp_terminals(TERMINAL_MM) {
+        let (c, r) = (s.point(p), s.point([p[0] + TERMINAL_MM, p[1]]));
+        s.entity(Geometry::Circle { center: c, rim: r });
+    }
+    s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
+    s
+}
+
+fn spokes(plane: Id) -> Sketch {
+    let mut s = Sketch::default();
+    s.name = "Spokes".into();
+    let h = 0.5 * SPOKE_W_MM;
+    for k in 0..LIGHTS {
+        let m = (light_deg(k) - half_bay_deg()).to_radians();
+        let (d, n) = ([m.cos(), m.sin()], [-m.sin(), m.cos()]);
+        let at = |r: f64, side: f64| [d[0] * r + n[0] * side * h, d[1] * r + n[1] * side * h];
+        let (r0, r1) = (R_HUB - 0.1, R_OUT - 0.1);
+        let ids: Vec<Id> = [at(r0, -1.0), at(r1, -1.0), at(r1, 1.0), at(r0, 1.0)].iter().map(|p| s.point(*p)).collect();
+        s.entity(Geometry::Polyline { points: ids, closed: true });
+    }
+    s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
+    s
+}
+
+/// A shoulder oculus: a ring of [`OCULUS_RING_MM`] round a light `w` across, at the part's origin.
+fn oculus_ring(w: f64) -> Sketch {
+    let mut s = Sketch::default();
+    s.name = "Oculus ring".into();
+    for r in [0.5 * w + OCULUS_RING_MM, 0.5 * w] {
+        let (c, rim) = (s.point([0.0, 0.0]), s.point([r, 0.0]));
+        s.entity(Geometry::Circle { center: c, rim });
+    }
     s
 }
 
@@ -661,6 +755,14 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
         Operation::Extrude { sketch: Profile::Regions { feature: 3, regions: rose.petals.clone() }, height_mm: -(LIFT_MM + LIGHT_SINK_MM), draft_deg: 0.0 },
         cut(),
     ))?;
+    doc.append(feature(SPOKE_ID, "Spoke tops", table_plane(TRACERY_MM + SPOKE_RISE_MM), none()))?;
+    doc.append(feature(SPOKE_ID + 1, "Eight spokes along the mullions", Operation::Sketch { sketch: spokes(SPOKE_ID) }, none()))?;
+    doc.append(feature(
+        SPOKE_ID + 2,
+        "Raise the spokes over the tracery",
+        Operation::Extrude { sketch: Profile::Feature { feature: SPOKE_ID + 1 }, height_mm: -(SPOKE_RISE_MM + OVERLAP_MM), draft_deg: 0.0 },
+        Component { attach: Attach::Join, stage: Stage::Cast, ..none() },
+    ))?;
     doc.append(feature(CORNER_ID, "Corner boss height", table_plane(CORNER_RISE_MM), none()))?;
     doc.append(feature(CORNER_ID + 1, "Four corner trefoils", Operation::Sketch { sketch: corner_trefoils(CORNER_ID) }, none()))?;
     doc.append(feature(
@@ -671,7 +773,6 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     ))?;
     let r = ruby();
     doc.append(builders::stone_feature(RUBY_ID, r, Placement::ring(90.0, RUBY_GIRDLE_MM)))?;
-    doc.append(builders::feature_on(RUBY_ID + 1, "Oculus seat", builders::BUR, RUBY_ID, json!({"through": false})))?;
     let mut next: Id = RUBY_ID + 2;
     collet(&mut doc, &mut next, "Oculus collet", r, 0.0, 90.0, RUBY_GIRDLE_MM, 0.0, MOULD_STEP_MM)?;
     let s = sapphire();
@@ -680,7 +781,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     let mut id = next;
     let at = [[0.0, 0.0]].into_iter();
     for (k, [x, y]) in at.enumerate() {
-        let r = if k == 0 { 0.52 * 0.5 * r.l_mm + PILOT_GROW_MM } else { 0.52 * 0.5 * s.l_mm + PILOT_GROW_MM };
+        let r = if k == 0 { 0.3 * 0.5 * r.l_mm + PILOT_GROW_MM } else { 0.52 * 0.5 * s.l_mm + PILOT_GROW_MM };
         let lean = (x / table).atan().to_degrees();
         let name = if k == 0 { "Drill the oculus pilot to the finger".to_string() } else { format!("Drill light {k}'s pilot to the finger") };
         doc.append(feature(
@@ -688,7 +789,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
             &name,
             Operation::Extrude { sketch: Profile::Inline(Sketch::circle(r)), height_mm: -PIERCE_MM, draft_deg: 0.0 },
             Component {
-                placement: Placement::Ring { theta_deg: 90.0 - lean, across_mm: y, height_mm: -PILOT_START_MM, spin_deg: 0.0, tilt_deg: knob("ROSA_TILT", 1.0) * lean, cant_deg: 0.0, level: false },
+                placement: Placement::Ring { theta_deg: 90.0 - lean, across_mm: y, height_mm: if k == 0 { RUBY_PILOT_START_MM } else { -PILOT_START_MM }, spin_deg: 0.0, tilt_deg: knob("ROSA_TILT", 1.0) * lean, cant_deg: 0.0, level: false },
                 ..cut()
             },
         ))?;
@@ -697,29 +798,43 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     // The nave's oculi down each shoulder, pierced along the surface and mirrored through the crown.
     let first_oculus = id;
     for (k, (off, w)) in OCULI.iter().enumerate() {
-        doc.append(Feature {
+        doc.append(feature(
             id,
-            name: format!("Oculus of the nave, {}", k + 1),
-            enabled: true,
-            operation: Operation::Builder { key: builders::PIERCE.into(), on: None, params: json!({"shape": "Round", "width_mm": w, "length_mm": w, "through": true, "chamfer_mm": 0.3}) },
-            component: Component { placement: Placement::ring(90.0 - off, 0.0), ..builders::component(builders::PIERCE) },
-        })?;
+            &format!("Oculus of the nave, {}: a moulded ring", k + 1),
+            Operation::Extrude { sketch: Profile::Inline(oculus_ring(*w)), height_mm: -(OCULUS_RISE_MM + OCULUS_SINK_MM), draft_deg: 0.0 },
+            Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::ring(90.0 - off, OCULUS_RISE_MM), ..none() },
+        ))?;
         id += 1;
     }
     doc.append(feature(
         id,
         "Mirror the oculi through the crown",
         Operation::Pattern { sources: cad::pattern::Sources((first_oculus..id).collect()), kind: PatternKind::Mirror { plane: cad::MirrorPlane::Section { theta_deg: 90.0 } } },
-        builders::component(builders::PIERCE),
+        Component { attach: Attach::Join, stage: Stage::Cast, ..none() },
     ))?;
     // The gallery of kings: a blind arcade of pointed lancets cut into each cheek along the finger, mirrored across the band.
     id += 1;
+    doc.append(feature(id, "The near cheek's panel face", Operation::Plane { base: PlaneBase::Parting, offset_mm: PANEL_FACE_MM }, none()))?;
+    doc.append(feature(id + 1, "Gallery panel on a sill", Operation::Sketch { sketch: panel_sketch(id) }, none()))?;
+    doc.append(feature(
+        id + 2,
+        "Stand the gallery panel on the cheek",
+        Operation::Extrude { sketch: Profile::Feature { feature: id + 1 }, height_mm: -PANEL_DEPTH_MM, draft_deg: 0.0 },
+        Component { attach: Attach::Join, stage: Stage::Cast, ..none() },
+    ))?;
+    doc.append(feature(
+        id + 3,
+        "The same panel on the far cheek",
+        Operation::Pattern { sources: cad::pattern::Sources(vec![id + 2]), kind: PatternKind::Mirror { plane: cad::MirrorPlane::Band } },
+        Component { attach: Attach::Join, stage: Stage::Cast, ..none() },
+    ))?;
+    id += 4;
     doc.append(feature(id, "Outside the near cheek", Operation::Plane { base: PlaneBase::Parting, offset_mm: ARCADE_PLANE_MM }, none()))?;
     doc.append(feature(id + 1, "Gallery arcade: three lancets", Operation::Sketch { sketch: arcade_sketch(id) }, none()))?;
     doc.append(feature(
         id + 2,
         "Cut the gallery arcade into the cheek",
-        Operation::Extrude { sketch: Profile::Feature { feature: id + 1 }, height_mm: -(ARCADE_PLANE_MM - ARCADE_FLOOR_MM), draft_deg: 0.0 },
+        Operation::Extrude { sketch: Profile::Feature { feature: id + 1 }, height_mm: -ARCADE_CUT_MM, draft_deg: 0.0 },
         cut(),
     ))?;
     doc.append(feature(
@@ -966,7 +1081,7 @@ fn main() -> Result<()> {
     if std::env::var("ROSA_PARTS").is_ok() {
         for c in built.parts.evaluated.iter().flat_map(|e| e.components.iter()) {
             let t = cad::measure::thickness(&c.mesh, MIN_SECTION_MM);
-            if c.id == 11 || c.id == 8 {
+            if std::env::var("ROSA_BOUNDS").is_ok() {
                 let b = c.mesh.bounds();
                 println!("      bounds {b:?}");
                 render::write_png_parts(format!("/tmp/claude-0/part-{}.png", c.id), &[render::Part::metal(&c.mesh, render::GOLD)], 0.3, 0.5, 800)?;
@@ -1038,6 +1153,37 @@ fn main() -> Result<()> {
     let coarse = BuildParams { theta_steps: 384, profile_steps: 160, ..params };
     let thin_mesh = mesh::try_build(&d, &lib, coarse)?.mesh;
     let thickness = cad::measure::thickness(&thin_mesh, MIN_SECTION_MM);
+    if std::env::var("ROSA_MAP").is_ok() {
+        let m = &thin_mesh;
+        let bvh = ringdesign_core::interaction::bvh::Bvh::build(m);
+        let mut cells: std::collections::BTreeMap<(i64, i64, i64), (usize, f64)> = std::collections::BTreeMap::new();
+        let mut thin = 0;
+        for f in &m.faces {
+            let Some((a, b, c)) = m.triangle(f) else { continue };
+            let (u, v) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
+            let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+            let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+            if l < 1e-12 {
+                continue;
+            }
+            let d = n.map(|x| -x / l);
+            let o: [f64; 3] = std::array::from_fn(|i| (a[i] + b[i] + c[i]) / 3.0 + d[i] * 1e-4);
+            if let Some((_, t)) = bvh.ray(m, o, d) {
+                if t < MIN_SECTION_MM - 0.01 {
+                    thin += 1;
+                    let e = cells.entry(((o[0]).round() as i64, (o[1]).round() as i64, (o[2]).round() as i64)).or_insert((0, f64::MAX));
+                    e.0 += 1;
+                    e.1 = e.1.min(t);
+                }
+            }
+        }
+        println!("  map: {thin} thin faces of {}", m.faces.len());
+        let mut v: Vec<_> = cells.into_iter().collect();
+        v.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
+        for ((x, y, z), (n, t)) in v.iter().take(60) {
+            println!("    ({x}, {y}, {z}): {n} faces, min {t:.3}");
+        }
+    }
     println!(
         "  thickness at {}x{} ({} faces): {} rays, min {:?}, {} below, {} unresolved at {:?}",
         coarse.theta_steps,
@@ -1111,9 +1257,8 @@ fn main() -> Result<()> {
         && cold != Some(false)
         && built.mesh.faces.len() <= 2_000_000
         && pattern_ok
-        && rose_lands.collet_to_spandrel_mm >= MIN_SECTION_MM
+        && rose_lands.bar_mm >= MIN_SECTION_MM
         && rose_lands.ruby_collet_to_petal_mm >= 0.0
-        && rose_lands.pilot_to_pilot_mm >= MIN_SECTION_MM
         && rose_lands.spandrel_to_table_edge_mm >= MIN_SECTION_MM;
     let block = json!({"build": [params.theta_steps, params.profile_steps], "build_s": build_s, "traced_lights": lights, "lands": rose_lands, "gates": gates, "gates_passed": passed});
     let report_path = out.join("report.json");
