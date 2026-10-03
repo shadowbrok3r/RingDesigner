@@ -1,53 +1,86 @@
-# Core: CAD operations that stop failing on Gothic geometry
+# Cataphracta: Phrynosoma, *the horned crown*: cloud report
 
-Branch `claude/core-cad-robust`, off master `8e5a59a`, with master merged in up to `60b3881` (crisp edges, Gothic clusters, frame timing, relief sculpt, true stone plans). One code commit, three merges and this report. The last merge's conflicts were in `twist.rs`, where master's closed and scaled sweep keeps its form and the cap's `fill` takes the label that `cad::draft` and `cad::turn` share, and in CLAUDE.md, where master's twisted-sweep text comes first and the new doctrine bullet follows it.
+**Outcome: stopped at the block-out. All three read tests failed, so no detailing round was run (0 of 3 rounds used).** Under TASK.md this means the subject needs rethinking, not detailing.
 
-**The rule behind every fix:** each one is a fallback that runs only where the kernel failed. If the kernel already built a body, the core still uses that body, so no existing result moves. The core suite and golden test pass unchanged, and the graph and template tests are below. No new option, no serde field and no format change were needed, so nothing is fenced. `cadkernel` is not forked; every fix is in `cad.rs`, the new `cad/draft.rs` and `cad/turn.rs`, `cad/twist.rs` (two helpers made `pub(super)`) and `sketch/region.rs`.
+Branch `claude/cataphracta-phrynosoma`, from master `8e5a59a`, with master `2e11632` merged before block-out 3. Author file: `crates/ringdesign-core/examples/cataphracta_phrynosoma.rs`. Outputs are in `showcase/cataphracta/phrynosoma/`.
 
-## Per request
+**Base and process.** The base is the factory 016 Star at a 17 × 17 face on an 18.6 mm bore, unmirrored, in lost wax (Fallback B). Following Logan's 2026-10-03 rule, the ring is judged as lost wax: 0.8 mm minimum section, no pull rule. I recorded this in the ring's section of `docs/collections/cataphracta.md`, with a status line saying the block-out failed.
 
-| # | Request | Status | What changed |
+## Read tests (each by a fresh, independent reviewer agent)
+
+| # | reads | What the eye saw | What changed before the next attempt |
 |---|---|---|---|
-| 3 | Revolved arcs do not tessellate | **Fixed** | There were two separate defects. (a) "N nonmanifold edges": the kernel covers a revolved arc's torus seam with a zero-width strip, every triangle laid twice, once each way. `tessellate_traced` now removes opposite twin triangles wherever some edge has more than two faces (`cancel_twins`). The volume is unchanged and the body stays the kernel's. (b) "Kernel could not tessellate 1 faces": the kernel drops a torus face (on Ogiva's arch it is the comfort arc), and whether it does depends on the chord (on one arch it failed at 0.04 mm, passed at 0.015 and failed again at 0.012). Retrying cannot be relied on, so a revolve that has arcs and fails to tessellate becomes our own mesh (`cad::turn`). It is sampled at a quarter of the chord, with full and part turns, holes on full turns, and points on the axis shared. |
-| 4 | Drafted extrusion refuses Béziers and inset-dropping outlines | **Fixed** | When the kernel's tapered extrude refuses a region with no holes, `cad::draft` builds it. The outline is walked to the chord, and the far end is a mitred inset that removes each edge as the wavefront collapses it. Each side face is planar. A draft that would carry a notch's root across the outline (a split event) is refused by name: "the draft closes the outline across a neck or notch". |
-| 7 | Brep − Brep gives `NoClosedForm` (`CutRefused` here) | **Fixed** | When `brep::combine` fails, the Boolean goes through `csg` on the operands tessellated at the export chord, the same path a mesh operand already took. The 500-face refusal before the kernel stays as it was. |
-| 2 | Loft through non-parallel sections has open seams | **Fixed** | The kernel splits a ruled face's straight edge where its planar neighbour leaves it whole, so the seam has T-junctions. `split_t_junctions` fans each open edge's triangle through the open corners lying on it, within 1e-6 mm. No vertex moves. |
-| 6 | Loft only runs along the section normal | **Fixed, differently** | Measured: what decides success is the sections' winding relative to the direction the loft runs, not their order. On the probe's fanned planes, the order the report found working has (c1 − c0) · n0 **> 0**, so the literal rule ("reverse when > 0") would reverse the order that works. Instead, when the kernel refuses a polygon loft, `wound_sections` winds every section about the first-to-last centre line and lines each one up with the section before it. Either order now gives the same solid. |
-| 1 | Loft winding read off the first corner | **Fixed** | The same `wound_sections` pass also starts every section together where the first and last sections are convex at their second corner. The kernel's `polygon_normal` reads that corner through the first fan triangle, so it is the one that matters, not the first corner itself. |
-| 5 | Mirrored outlines in one sketch fail the drafted extrude | **Fixed** | Measured cause: the halves overlap or touch at the centre line, and the sketch refuses "loops may nest but not touch". The extrude itself does not fail. Now a **Sketch feature** whose loops meet extrudes each loop alone (straight, kernel-drafted or `cad::draft`) and joins the loops by `csg`. Inline profiles still refuse several loops, as their tests pin. Each loop is drafted on its own, so halves that only touch leave a draft groove along the line where they meet. Overlap them by at least the draft's inset (height × tan(draft)), as Ogiva's `FINIAL_OVERLAP_MM` did. |
+| 1 | **false** | "A spiky sunburst or a punk-maned beast head … a jeweller would call it a spiked crest or a sun ring." | A straight comb of horns on the rear edge with the occipitals dominant, a flat wedge skull with cephalic plates, and fringe and crest tubercles down the shoulders. |
+| 2 | **false** | "A spiky clump … like a pine cone, a hedgehog or a thistle head … spiked dragon, hedgehog or thistle ring." | Asked for a low skull about 1 mm proud, a plate mosaic in tiers of 0.55, 0.35 and 0.15 mm with 0.35 mm V-joints, six separate countable horns on one root line, granules and tubercles on every bare area, and granules down to the palm. |
+| 3 | **false** | "A six-lobed star signet covered all over in round granules, like a starfish or sea urchin, with a tortoise-shell patch set in the middle … turtle, starfish or urchin." | Stopped: this was the third attempt. |
 
-Every fallback part is a mesh value, as `cad::twist` is. Fillet, press-pull and sketch-on-face refuse it by name: "a drafted extrusion's mesh", "a revolution's mesh", "a mesh of loops extruded and joined".
+The JSON verdicts are `read-test-1.json`, `read-test-2.json` and `read-test-3.json`. I agree with the third verdict from the 300 px renders. At that size the six horns sink into the granule field and read as a few short spikes. The plate mosaic is a carapace, and the granulated eight-pointed star reads as a starfish or urchin. The 2× close-up (`head.png`) does show a plated skull with eyes, nostrils and a horn comb, but the read is judged at 300 px, and there it fails.
 
-## Tests
+## What block-out 3 is (the last state, all one sculpt system, no height-field paint)
 
-New tests in `cad::robust_tests` and `cad::draft::tests`, each built from the report's kind of geometry:
+- **Horned head** (a stored sculpt, joined).
+  - **Skull:** a low plaque on the pillowed table, 0.45 mm of ground plus plates.
+  - **Plates:** 57 jittered Voronoi plates in three tiers of 0.55, 0.35 and 0.15 mm, with 0.35 mm V-joints whose floor is the plaque's ground. Each step between tiers falls inside a joint.
+  - **Face:** two eyes on the skull's edge and two nostril pits.
+  - **Crown:** six straight horns rooted on the straight back edge. The two occipitals are 4.2 mm, the four temporals 2.5 and 2.0 mm, all splayed back and out, with 0.24 mm points.
+  - **Table and cheeks:** 501 granules and 66 enlarged tubercles laid on the stock's atlas by Poisson spacing.
+  - **Fit to the table:** the head's frame stands on a height map of the real table read off the atlas. A quadric fit missed by 0.25 mm and exposed a slab, so I replaced it.
+- **Shoulder hide**, one part for each shoulder, both stored sculpts and joined.
+  - Twelve crest tubercles on the parting line, graded from 0.6 to 0.35 mm radius.
+  - About 43 fringe scales along both rims. They are flattened, pointed blades from 1.35 to 0.7 mm long, leaning 58° out past the wall and toward the palm.
+  - About 170 granules, graded finer toward the palm.
 
-- `a_revolved_sketch_arc_closes_and_holds_its_volume` (3a): a domed band section, closed at preview and export, volume within 0.4% / 0.15% of Pappus, and still the kernel's body.
-- `a_pointed_arch_revolves_whole_and_in_part` (3b): Ogiva's arch (comfort arc, jambs, two head arcs). It asserts the kernel's own tessellation still fails, then checks the full turn against a fine-walked Pappus within 0.5% / 0.2%, and the half turn either way within 0.5% of half.
-- `a_brep_cut_the_kernel_refuses_is_resolved_by_csg` (7): a revolved ring less a lancet niche. It asserts `brep::combine` still refuses, then checks the volume against the analytic ring less the niche's foot.
-- `a_loft_through_fanned_sections_closes_listed_either_way` (2, 6): five fanned sections, both orders, preview and export, all closed with identical volumes.
-- `a_loft_section_may_start_on_a_concave_corner` (1): asserts `brep::loft` still refuses, then checks the volume is exactly 10.
-- `mirrored_loops_that_meet_extrude_together` (5): straight volume exactly the union's 9.0, drafted below it, closed.
-- `a_bezier_outline_drafts`, `an_inset_that_drops_a_piece_drafts`, `a_draft_the_kernel_takes_is_still_its_body` (4): each asserts `brep::extrude_tapered` still refuses. Checked: the first-order draft volume, the mirrored run, the collapsed tip (5 far corners), the filled notch on the grown rectangle, the named refusal of a split, and that a draft the kernel accepts stays its body.
+## Gates at block-out 3 (draft, 768 × 320; `report-draft.json`)
 
-Reproduced on unmodified master first, with a scratch probe that was not committed: domed revolve "0 open and 16 nonmanifold edges"; arch "Kernel could not tessellate 1 faces"; ring − niche "CutRefused"; Bézier and notch drafts "unsupported or degenerate geometry"; fanned loft "68 open edges" in one order and "unsupported" in the other; overlapping halves "loops may nest but not touch". Tests that cannot fail on master by construction instead assert the kernel's own refusal in place.
+| Gate | Result |
+|---|---|
+| Watertight, 0 degenerate faces, 0 self-crossings; parts 0 crossings; notes empty; 3 parts joined | pass |
+| Gates at 384 × 192 | pass (the stored parts and imported stock give the same 574,796 triangles) |
+| Field verdict | lost wax **Castable** (band Castable, thinnest wall 1.57 mm) |
+| DFM findings | 0, pass |
+| Stones | 0 = preview 0, pass |
+| Casting pattern | watertight, 0 degenerate faces, 0 crossings; pass |
+| Cold reload | identical, pass |
+| Triangles | 574,796, within 2 M; pass |
+| **Nothing enters the finger hole** | **FAIL**: 80 vertices, nearest at 9.23 mm against a 9.30 mm bore. These are hide beads placed on atlas samples near the comfort roll. |
+| **Sections under 0.8 mm named** | **FAIL**: the skull plaque's rounded edge (2.7 mm² of part-alone sections) has no named treatment. It is low relief fused to the table, and the census should say so. |
 
-Results:
-- `cargo test -p ringdesign-core`: 848 passed, 0 failed, 16 ignored; golden 1 passed. After merging master up to `60b3881`: 912 passed, 0 failed, 17 ignored; golden and the other integration test both pass.
-- `cargo test -p ringdesign-graph` (templates byte for byte, showcase, bestiarium, imported bases, cad edits): all passed before the merges (140) and after them (152, including the new `gothic_clusters`), 0 failed.
+Both failures are bookkeeping or placement, not form. The export build and the 384 × 192 rerun of the gates were not run as a separate pass, because no review round started.
 
-**Merge note.** Master (from `779a3d6`) brought its own seam repair, `zip_chord_seams`, which splits open edges at the other side's samples within the chord. The merged `tessellate_traced` runs master's `stitch_chord_gaps` and then `zip_chord_seams` exactly as master does. Only what those two leave open goes on to `cancel_twins` and `split_t_junctions`, followed by one more stitch. So whatever master's pass already closes is closed byte for byte as master closes it, and my passes see only what it cannot close: the doubled seams, and T-junctions it reverts.
+**Sand bonus:** none. The two-part undercut is 5.14% on the band and 10.70% with the parts. As lost wax this is reported only, never gated.
 
-## For a ring author
+## Template gate (run on the block-out 3 design, class `painted`)
 
-Draw what you mean and stop working around the kernel:
+| Measure | Result |
+|---|---|
+| `design.set` patches | 1 (`/manufacturing`), pass (at most 4) |
+| Source method | lift; source identical, cold design and graph reload identical |
+| Mesh parity | vertices, faces and normals identical, 574,796 triangles |
+| Size | **12,003,931 bytes against the 3 MB painted budget: FAIL** (`template_gate_passed: false`) |
 
-- **Revolves:** use real sketch arcs, not chord-walked polylines.
-- **Drafted extrusions:** Béziers and sharp crocket tips are fine. A draft that would close a neck is refused by name; draft less or widen the neck.
-- **Mirrored outlines:** they may share one Sketch feature. Overlap the halves by at least height × tan(draft), or a groove stays where they meet.
-- **Lofts:** list fanned sections in either order, and start a section on any corner.
-- **Booleans:** a Brep minus a Brep the kernel cannot close now resolves through csg.
+The three stored sculpt meshes, about 1.2 M faces between them, are what make it heavy. `crisp_relief` is not used, so the lift-gap note does not apply. The figures are in `template-verification.json`.
 
-Each of these comes back as a mesh rather than a kernel body only where the kernel failed. So fillet before the step that falls back, not after it, and check `Value::mesh_words` in any refusal you see.
+## Enablers used
 
-What remains: a part turn of a section with holes that the kernel cannot tessellate is still refused. A revolve with arcs now pays one extra tessellation in `body_for`, about the cost of one tessellation, so up to about 0.6 s at export on a large arch.
+- **Used:** #248's framed close-ups (`render::write_png_framed` with `Framing`) for `stones.png` and `head.png`.
+- **Not used:**
+  - C-B2 and #257 (true stone plans): there is no stone.
+  - C-V1 to C-V5, C-T5 to C-T7, #255 (Textura), #258 (patterns along a path) and #259 (CAD fallbacks): they had no use before the read passed.
+  - `crisp_relief`: there is no height-field relief.
+
+## Why it failed, and what I would rethink
+
+1. **The 016 star fights the animal.** Its eight soft points read as a starfish once granulated, and as a sunburst round a head with horns. Of the three bases offered, a horned lizard's head wants a plain shield or cushion. Fallback A ("CG Star" lofted) would carry the same trap.
+2. **The horned crown does not survive 300 px at signet scale.** Horns long enough to see (attempts 1 and 2) read as a sunburst, a mane or a thistle. Horns short enough to read as a comb (attempt 3) vanish into the texture.
+3. **A plated head seen from above is a carapace.** Without the body, a horned lizard's head reads as a turtle shell. The animal's other signature is its round, flat, fringed body, which is what Moloch's reviewers saw as "thorny devil or horned lizard".
+
+**Proposal:** a band or saddle composition in which the whole flattened, fringed body lies across the face, with the head and its crown at one end. Use smooth ground, not granules, around it, so the outline reads. That is the opposite of attempt 3's all-over texture, which drowned the outline.
+
+## What I could not do
+
+- I ran no review round, so there are no scores, as TASK.md requires.
+- The two red block-out gates are not fixed: the bore beads and the skull plaque's treatment label.
+
+## Core changes wanted
+
+None were needed. Everything was built in the example file.
