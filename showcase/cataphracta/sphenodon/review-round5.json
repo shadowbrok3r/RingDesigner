@@ -1,0 +1,65 @@
+{
+  "ring": "Sphenodon",
+  "round": 5,
+  "verdict": "cut",
+  "score": 7.4,
+  "summary": "Cut at 7.4. Scores so far: 6.5, 6.9, 7.1 (cut), then revived for rounds 4 and 5 per docs/collections/cataphracta.md line 36: 7.3, and now 7.4. Caiman is 7 and the ship bar is 7.5. This was the last round of the revival, so a score below 7.5 is a cut. Every lost-wax gate is green at draft (768 x 320) and export (1536 x 448), and the template gate passes. This is the best Sphenodon so far, and it misses the bar narrowly. Round 4's punch items are mostly done. The stone moved back to stone_t 11.0 and down to 2.5 mm, in a 3.3 mm seat. The eyes are now large lidded domes on the head's side slope, each with one vertical pupil, at least two-thirds of the stone's visible diameter in head-hero.png. The snout ends in a squared, notched beak (head.png, face.png). The head skin is fine granules with slightly larger plates between the eyes, and palm.png shows a staggered, domed, tapering tail. Three things hold it below 7.5. (1) The peridot is still the head's dominant mark. In hero-300 the first thing the eye reads is a bright green disc on a lizard's head. In stones.png, the profile view, the stone sits where a lizard's eye sits, and the real eye shows ahead of it, low on the cheek, as a hooked claw or tusk shape. Only face.png and side.png show the stone clearly as a jewel on the crown. Logan's rule is that the stone is never an eye, and from two of the six views it still is. (2) The eyes' crescent lid and slit pupil together read as a coffee bean or a clove more than as a lidded eye (hero.png, head-hero.png). At 300 px they are small bumps. (3) The tuatara signature is still weak. In stones.png the crest from the nape back reads as a file of square pyramids (osteoderms) rather than a comb of thin blades. In reverse.png the tail's rim edge is a regular grid of pyramidal studs. At 300 px a jeweller says 'lizard ring with a green stone', or 'iguana', not 'tuatara'. The punch list below is recorded in case Logan revives the ring again.",
+  "strengths": [
+    "One animal from face to palm: head on the face, nape crest and front legs at the shoulders, hind legs and an S-curved tapering tail through the palm (hero.png, side.png, palm.png). It is the clearest creature read in Cataphracta.",
+    "The silhouette is unlike every other Cataphracta plan and every Reptilia tile: an asymmetric figure lying on a plain polished band, with a spined crest breaking the outline (side.png).",
+    "The head is now a short blunt wedge with a notched, squared beak (head.png). Its skin is fine granules graded to larger plates between the eyes, which separates the skull from the body.",
+    "The stone is smaller (2.5 mm), moved back onto the crown (stone_t 11.0), and ringed by a narrow rim with the skin carried up to it. There is no bald oval.",
+    "palm.png: the tail's domed scales are staggered, shrink toward the tip, and follow the S-curve. The corn-cob grid from round 4 is gone in this view.",
+    "Every gate is green, and they match report.json and template-verification.json exactly."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "One tuatara wraps the band from the snout on the face to the tail tip on the far side face. Nothing else is on the band (hero.png, side.png, palm.png)."},
+    {"item": "Hide reads as this specific animal at 300 px without the caption", "result": "fail", "reason": "hero-300 and contact-300 read as a crested lizard with a green stone on its head, not as a tuatara. The green disc is still the first read. In stones.png the stone is in the eye position, and the crest from the nape reads as osteoderm pyramids."},
+    {"item": "Figurative motifs have true outlines, crisp, no combing, smearing or stair-steps", "result": "pass", "reason": "The eyes, lids, beak notch, toes and spines render crisp in head.png, head-hero.png and hero.png. The radial combing at the seat and the rim hairlines from earlier rounds are gone. Some granules on the hind thigh smear slightly (hero.png lower left), but there is no combing."},
+    {"item": "Stones sit in made settings and are visible", "result": "pass", "reason": "The 2.5 mm peridot is flush in a gypsy seat with a rim on the crown (head.png, stones.png). It stands visibly proud in side.png. stones.json: 1 stone, crowding 0, tight pairs 0."},
+    {"item": "No flat, blocky or mechanical CAD; forms are sculpted", "result": "pass", "reason": "The head is a crowned dome and the body and tail are rounded and tapered. The only mechanical passages are the pyramid file of the crest from the nape back (stones.png) and the stud grid at the tail's rim edge (reverse.png)."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "This is a procedural Flat band, not factory stock. Its flattened sides keep a crisp wall-to-face edge wherever the band is plain (bare-vs-finished.png)."},
+    {"item": "A silhouette distinct from the other Cataphracta rings and the Reptilia tiles", "result": "pass", "reason": "It is the only figure-on-plain-band composition in either set. The spined crest breaks the outline in side.png."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "pass", "reason": "Large: body, head and tail. Medium: legs, eyes, crest and stone. Small: granules, scales and toes. It is more legible than Caiman's hero. Density is deliberately low on the plain half of the band, but the figure itself is as dense as Caiman."}
+  ],
+  "gates": [
+    {"gate": "Process", "claimed": "lost wax (Logan, 2026-09-27)", "verified": "report.json process is 'lost wax'. draft.process and export.process are 'LostWax', with draft_rules min_section 0.8, min_draft 0 and min_detail 0.15. Judged on the ring's own process.", "pass": true},
+    {"gate": "Watertight, 0 degenerate faces", "claimed": "pass", "verified": "Draft and export: watertight true, 0 boundary edges, 0 non-manifold edges, 0 degenerate faces.", "pass": true},
+    {"gate": "0 self-crossings on the ring and every made part", "claimed": "pass", "verified": "self_crossings is 0 at draft and export. made_parts is 0, because the animal is painted relief.", "pass": true},
+    {"gate": "Solids notes empty", "claimed": "pass", "verified": "made.notes is [] and parts_notes is []; resolved 1, stamps 0, stamped 0, at draft and export.", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "vertices_inside is 0 at both. nearest_margin is -0.0000247 mm at draft and -0.0000088 mm at export, which is on the bore surface within tolerance.", "pass": true},
+    {"gate": "Field verdict Castable", "claimed": "Castable under lost wax at the 0.8 mm fill", "verified": "verdict is 'Castable' (not 'with care'), process LostWax, thinnest wall 2.134 mm, at draft and export. The two-part undercut notes are informational.", "pass": true},
+    {"gate": "land_widths: every section under 0.8 mm named with its bench treatment", "claimed": "all named", "verified": "all_named is true and removed is []. The named area is 7.244 mm², equal to the area under the floor. Every bench note states its measured section, so none overstates. The parietal seat lip is now 0.0004 mm thinnest over 0.006 mm² at export (it was 0.021 in round 4). The note gives 0.000 mm and says the lip is burnished over the girdle, which is acceptable for a flush seat. The legs and toes read 0.039 mm on a grazing ray.", "pass": true},
+    {"gate": "Ray release 0 obstructions / 0 unresolved at 0.100 and 0.075 mm", "claimed": "not applicable (lost wax)", "verified": "two_part_numbers status is NotApplicable, with 0 unresolved rays at both pitches. There are 443 obstructions at 0.100 mm and 608 at 0.075 mm, reported but not gated under lost wax. The undercut is 55.6 of 1344.5 mm² (4.14%), worst -59.4 deg, all from 'Tuatara'.", "pass": true},
+    {"gate": "Draft-clamp bite at most 0.05 mm", "claimed": "not applicable", "verified": "There is no clamp layer: this is lost wax with min_draft_deg 0. The layers are 'Tuatara' and 'Parietal peridot'.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings is [] at draft and export. template detail_findings is 0.", "pass": true},
+    {"gate": "Stone count equal to the preview", "claimed": "pass", "verified": "report_count 1 equals preview_count 1 at both. stones.json: stone_count 1, Peridot 2.5 round.", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "identical", "verified": "cold_reload.identical is true: 1,373,452 faces (equal to the export triangles) and 686,724 vertices.", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "1,373,452 triangles at export.", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "casting_pattern: watertight true, 0 degenerate faces, 0 self-crossings (491,182 triangles at draft, 1,373,452 at export).", "pass": true},
+    {"gate": "Template gate", "claimed": "passed", "verified": "template-verification.json: template_gate_passed true, source_identical true, vertices_faces_normals_identical true, cold design and graph reload true. There is 1 design.set patch (/manufacturing), within 4. Class painted, 995,177 bytes, under the 3,000,000 budget, so size_review_required is false.", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": 1, "zone": "The parietal stone against the eyes: stone_t 11.0, seat 3.3 mm, crown theta 90 deg; eyes at eye_t 7.0", "change": "Take the stone out of the eye position in profile. Either drop the seat so the table sits flush with the skull crown (no visible pavilion or proud crown in side.png), or go to a 2.0 mm peridot. Move stone_t back to about 12.0 so that it sits behind the eye line by at least 4.5 mm, on the skull roof between the jaw joints. Raise the eye centre 0.3 mm up the side slope so the eye, not the stone, is the topmost round form on the head's side in profile.", "acceptance": "In stones.png and hero-300 the first round form on the head's side is the lidded eye, and the stone reads as a jewel set into the top of the skull, above and behind the eye line. No view shows the stone at the cheek level where an eye sits."},
+    {"number": 2, "priority": 2, "zone": "Eyes, eye_t 7.0, both sides of the head", "change": "Change the bean read. Make the eyeball a full smooth dome about 2.0 mm across, with no lid crossing its centre. Run the lid as an upper crescent only, over the top third, 0.4 mm proud and fading into the brow at both corners. Shorten the slit pupil to 60% of the eye's height, as a narrow lens 0.12 mm deep, so that it does not split the dome in two.", "acceptance": "In head-hero.png and hero.png each eye reads as a dome with an overhanging brow and a short slit. Nothing reads as a coffee bean, a clove or a claw. In stones.png the near eye reads as an eye, not as a hook."},
+    {"number": 3, "priority": 3, "zone": "Dorsal crest from the nape to the hips, crest_knots t 13.5 to 33 (stones.png)", "change": "Turn the crest's pyramids into a tuatara comb. Use more, thinner, more separate spines: about 1.5x the current count, each a blade 0.4 mm thick across the band, with a 0.8 to 1.0 mm foot along the band and a clear gap between spines. Keep the nape spines tallest.", "acceptance": "In stones.png and hero.png the crest reads as a row of thin separated blades, with no square pyramids. In side.png the serrated outline is kept."},
+    {"number": 4, "priority": 4, "zone": "The tail's rim edge on the palm, theta about 200 to 340 deg (reverse.png)", "change": "Break the stud grid at the tail's edge. Stagger alternate rings by half a scale where the tail crosses the rim fillet, and lower the scale points there by about 40% so they read as domed scales, not pyramids.", "acceptance": "In reverse.png the tail's edge shows no column of matching pyramids running more than 3 scales, and it reads as scaled skin."}
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/sphenodon/hero-300.png",
+    "showcase/cataphracta/sphenodon/face-300.png",
+    "showcase/cataphracta/sphenodon/contact-300.png",
+    "showcase/cataphracta/sphenodon/hero.png",
+    "showcase/cataphracta/sphenodon/head.png",
+    "showcase/cataphracta/sphenodon/head-hero.png",
+    "showcase/cataphracta/sphenodon/stones.png",
+    "showcase/cataphracta/sphenodon/face.png",
+    "showcase/cataphracta/sphenodon/side.png",
+    "showcase/cataphracta/sphenodon/shoulder.png",
+    "showcase/cataphracta/sphenodon/palm.png",
+    "showcase/cataphracta/sphenodon/reverse.png",
+    "showcase/cataphracta/sphenodon/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

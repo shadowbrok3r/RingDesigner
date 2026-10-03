@@ -33,7 +33,7 @@ Listed in build order.
 
 | # | Ring | Epithet | Base | Process | Stone | Status |
 |---|---|---|---|---|---|---|
-| 1 | **Sphenodon** | *the parietal* | Procedural Flat 7.5 × 2.5, thickness-only keys | Lost wax | Peridot 2.5 round, flush on the skull | Built in lost wax; revived for rounds 4 and 5 on `claude/cataphracta-sphenodon-revival` (see the section below) |
+| 1 | **Sphenodon** | *the parietal* | Procedural Flat 7.5 × 2.5, thickness-only keys | Lost wax | Peridot 2.5 round, flush on the skull | Lost wax; cut at 7.4 after revival rounds 4 and 5 (see the section below) |
 | 2 | **Heloderma** | *the beaded one* | Procedural HalfRound 8.0 × 3.2, keyframed fat-tail swell | Delft | Spessartite 3.0 round, flush on a gypsy mound | Not started. Needs C-R1, C-R2, C-R3, P5 and C-R7. A painted fallback exists |
 | 3 | **Moloch** | *the thorn idol* | Procedural Flat 7.0 × 3.6, thickness-only hump | Petrobond | — | Not started. Can be built now ungraded (P4 has landed); grading needs C-R2 |
 | 4 | **Gekko** | *the tokay* | Procedural Flat 7.0 × 3.4, thickness-only keys | Delft | — | Not started. Needs C-R1, C-R2 and C-R7. A painted fallback exists |
@@ -338,7 +338,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 
 ## Sphenodon — *the parietal*
 
-- **Status:** built in lost wax on branch `claude/cataphracta-sphenodon` and **cut at 7.1** after three review rounds (6.5, 6.9, 7.1). As built it is a painted tuatara round a Flat 7.5 × 2.5 band: its head on the face with the peridot on the crown of the skull behind two lidded eyes, a comb of spines from nape to tail tip, four toed legs, and a scaled tail ending on the side face 9 mm short of the snout. Every lost-wax gate is green; it reads as "a lizard ring", not yet as a tuatara. See its `cloud-report.md`. The sand plan below is what it replaced.
+- **Status:** built in lost wax. It was cut at 7.1 after three rounds (6.5, 6.9, 7.1), then revived on `claude/cataphracta-sphenodon-revival` for rounds 4 and 5 (7.3, 7.4) and **cut at 7.4**. As built it is a painted tuatara round a Flat 7.5 × 2.5 band. Its short, beaked head is on the face, with a 2.5 mm peridot on the crown of the skull behind two large lidded eyes. A comb of spines runs from the nape to the tail tip; it has four toed legs and a tail of overlapping keeled scales, ending on the side face. Every lost-wax gate and the template gate are green. It reads as "a lizard ring with a green stone", not yet as a tuatara. See its `cloud-report.md`. The sand plan below is what it replaced.
   - An **ungraded draft can be built now**. The thickness-only keys keep the reference side gate clean, and every non-graded API exists.
   - The final form needs **C-R2**, since the sail's grade is what C-R2 is calibrated on, and **C-R7**; its generators can live in the ring module first.
   - **P5** is needed only for the fillet granules' Draft gate.
