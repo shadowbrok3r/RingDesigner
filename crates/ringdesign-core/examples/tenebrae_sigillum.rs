@@ -38,13 +38,15 @@ fn face() -> (f64, f64) {
 const BORE_MM: f64 = 18.6;
 const ALLOY: &str = "Silver 925";
 
-/// The cheek's lancet arcade, a chapter house's blind arcade: five lights `LANCET_W` wide at `LANCET_PITCH`
-/// centres, the outer two a little shorter, their sills level at `SILL_Y` (mm up from the finger axis).
+/// The cheek's lancet arcade, a chapter house's blind arcade: five lights `LANCET_W` wide at `LANCET_PITCH` centres,
+/// their heads level and each sill following the wall's foot, so the outer lights, where the wall runs deeper, stand tallest.
 const LANCET_W: f64 = 1.5;
-const LANCET_H: [f64; 5] = [2.1, 2.25, 2.25, 2.25, 2.1];
+const LANCETS: usize = 5;
 const LANCET_PITCH: f64 = 2.05;
-const SILL_Y: f64 = 10.95;
-const ARCADE_SINK_MM: f64 = 0.30;
+/// Each light stands from just above the wall's foot to `HEAD_Y` (mm up from the finger axis), under the table's edge.
+const HEAD_Y: f64 = 13.25;
+const SILL_CLEAR_MM: f64 = 0.2;
+const ARCADE_SINK_MM: f64 = 0.45;
 /// The lancet's head: each flank struck at this many spans' radius, an acute Early English point.
 const ACUTE: f64 = 1.4;
 /// Each light's floor falls a further this much to a vertical spine, so its two halves catch the light apart.
@@ -257,16 +259,15 @@ struct Part {
 /// tall pointed centre petal, two side petals arching out and down to open points, a straight band, and a foot of
 /// three spikes. No petal closes on itself.
 fn fleur(height: f64, depth: f64) -> Vec<Part> {
-    let (lo, hi) = (-2.05, 3.3);
+    let (lo, hi) = (-2.2, 3.3);
     let k = height / (hi - lo);
     let mid = 0.5 * (lo + hi);
     let fit = |p: Vec<[f64; 2]>| p.into_iter().map(|q| [q[0] * k, (q[1] - mid) * k]).collect::<Vec<_>>();
-    let fitp = |q: [f64; 2]| [q[0] * k, (q[1] - mid) * k];
     let part = |name: &str, outline: Vec<[f64; 2]>, depth: f64, top: StampTop| Part { name: format!("Seal fleur, {name}"), outline: fit(outline), depth, top };
     let mut parts = vec![
-        part("centre petal", blade([0.0, -0.4], [0.0, hi], 1.95, 0.4, 0.7), depth, StampTop::Ridge { rise_mm: 0.25, from: fitp([0.0, 0.1]), to: fitp([0.0, 2.9]), end_mm: 0.05 }),
-        part("band", bar(-1.7, 1.7, -0.95, -0.35, 0.18), depth - 0.1, StampTop::Flat),
-        part("foot", blade([0.0, -0.9], [0.0, lo], 0.8, 0.3, 0.6), depth - 0.1, StampTop::Flat),
+        part("centre petal", blade([0.0, -0.3], [0.0, hi], 1.4, 0.42, 0.6), depth, StampTop::Flat),
+        part("band", bar(-1.95, 1.95, -1.1, -0.3, 0.2), depth - 0.1, StampTop::Flat),
+        part("foot", blade([0.0, -1.05], [0.0, lo], 0.9, 0.3, 0.7), depth - 0.1, StampTop::Flat),
     ];
     for (side, name) in [(1.0f64, "right"), (-1.0, "left")] {
         let m = |p: Vec<[f64; 2]>| {
@@ -276,8 +277,8 @@ fn fleur(height: f64, depth: f64) -> Vec<Part> {
             }
             q
         };
-        parts.push(part(&format!("{name} petal"), m(curl([1.5, 0.15], 1.12, 172.0, 8.0, 0.95)), depth, StampTop::Flat));
-        parts.push(part(&format!("{name} spike"), m(blade([0.55, -0.95], [1.45, -1.85], 0.5, 0.3, 0.45)), depth - 0.1, StampTop::Flat));
+        parts.push(part(&format!("{name} petal"), m(curl([2.0, 0.0], 1.05, 160.0, 2.0, 0.9)), depth, StampTop::Flat));
+        parts.push(part(&format!("{name} spike"), m(blade([0.6, -1.1], [1.5, -2.0], 0.55, 0.3, 0.5)), depth - 0.1, StampTop::Flat));
     }
     parts
 }
@@ -457,15 +458,15 @@ fn arc_vee(c: [f64; 2], r: f64, a0: f64, a1: f64, depth: f64) -> StampTop {
 }
 
 /// A V-cut rule along an arc in runs short enough that each run's spine stays on the arc, each overlapping the next
-/// and every other one a little narrower, so no two walls coincide.
+/// and every other one a hundredth of a millimetre further out, so no two walls coincide.
 fn rule(name: &str, c: [f64; 2], r: f64, a0: f64, a1: f64, w: f64, depth: f64, out: &mut Vec<Part>) {
     let runs = (((a1 - a0).abs() * r / 1.1).ceil() as usize).max(1);
     let lap = 0.12 / r;
     for q in 0..runs {
         let (b0, b1) = (a0 + (a1 - a0) * q as f64 / runs as f64, a0 + (a1 - a0) * (q + 1) as f64 / runs as f64);
         let (b0, b1) = (if q == 0 { b0 } else { b0 - lap }, if q + 1 == runs { b1 } else { b1 + lap });
-        let wq = if q % 2 == 0 { w } else { 0.8 * w };
-        out.push(Part { name: format!("{name}, {}", q + 1), outline: arc_band(c, r, b0, b1, wq), depth: V_WALL_MM, top: arc_vee(c, r, b0, b1, depth) });
+        let rq = if q % 2 == 0 { r } else { r + 0.012 };
+        out.push(Part { name: format!("{name}, {}", q + 1), outline: arc_band(c, rq, b0, b1, w), depth: V_WALL_MM, top: arc_vee(c, rq, b0, b1, depth) });
     }
 }
 
@@ -484,10 +485,11 @@ fn frame(outer: f64, bulge: f64, lobes: usize, w: f64, depth: f64) -> Vec<Part> 
         let r = (chord * chord + sag * sag) / (2.0 * sag);
         let c = [apex[0] - r * bm.cos(), apex[1] - r * bm.sin()];
         let half = (chord / r).asin();
-        rule(&format!("Cusped border, foil {}", k + 1), c, r, bm - half - 0.03, bm + half + 0.03, w, depth, &mut parts);
+        let lap: f64 = std::env::var("SIG_LAP").ok().and_then(|v| v.parse().ok()).unwrap_or(0.03);
+        rule(&format!("Cusped border, foil {}", k + 1), c, r, bm - half - lap, bm + half + lap, w, depth, &mut parts);
     }
-    // The circle the foils touch, a hair outside them so its rule and theirs never share a wall.
-    rule("Cusped border, circle", [0.0, 0.0], outer + bulge + 0.5 * w + 0.02, 0.0, 2.0 * PI, w, depth, &mut parts);
+    // The circle the foils touch, overlapping their points so its rule and theirs cross cleanly.
+    rule("Cusped border, circle", [0.0, 0.0], outer + bulge + 0.2 * w, 0.0, 2.0 * PI, w, depth, &mut parts);
     parts
 }
 
@@ -561,10 +563,10 @@ const FLEUR_DEPTH_MM: f64 = 0.95;
 const LEGEND: &str = "\u{2720} sigillum capituli ecclesie cathedralis";
 /// The legend's band, from the quatrefoil's points out to the border's cusps.
 const LEGEND_IN_MM: f64 = 4.9;
-const LEGEND_OUT_MM: f64 = 6.4;
+const LEGEND_OUT_MM: f64 = 6.28;
 const LEGEND_DEPTH_MM: f64 = 0.45;
-const BORDER_RADIUS_MM: f64 = 6.55;
-const BORDER_BULGE_MM: f64 = 0.55;
+const BORDER_RADIUS_MM: f64 = 6.42;
+const BORDER_BULGE_MM: f64 = 0.7;
 const BORDER_LOBES: usize = 12;
 const RULE_MM: f64 = 0.3;
 const RULE_DEPTH_MM: f64 = 0.40;
@@ -648,19 +650,28 @@ fn cheek_extent(a: &Atlas, side: f64) -> ([f64; 2], [f64; 2]) {
 }
 
 /// Both cheeks' chapter-house arcade: three lancets each, recessed along the pull.
-fn arcades(d: &mut RingDesign, a: &Atlas, rot: f64, centre_y: f64, placed: &mut Vec<String>) -> Result<()> {
+fn arcades(d: &mut RingDesign, a: &Atlas, rot: f64, placed: &mut Vec<String>) -> Result<()> {
     let ctx = d.field_context();
     for (side_k, side) in [1.0f64, -1.0].into_iter().enumerate() {
-        for k in 0..LANCET_H.len() {
-            let x = (k as f64 - 0.5 * (LANCET_H.len() - 1) as f64) * LANCET_PITCH;
-            let y = centre_y + 0.5 * LANCET_H[k];
+        for k in 0..LANCETS {
+            let x = (k as f64 - 0.5 * (LANCETS - 1) as f64) * LANCET_PITCH;
+            // The wall's foot under the light's whole span.
+            let foot = a
+                .samples
+                .iter()
+                .filter(|s| s.p[2] * side > 0.0 && a.cheek(s) > 0.9 && (s.p[0] - x).abs() < 0.5 * LANCET_W + 0.1)
+                .map(|s| s.p[1])
+                .fold(f64::MAX, f64::min);
+            ensure!(foot < HEAD_Y - 1.8, "no wall under light {k} at {x}");
+            let h = HEAD_Y - foot - SILL_CLEAR_MM;
+            let y = HEAD_Y - 0.5 * h;
             let at = on_cheek(a, x, y, side).with_context(|| format!("no cheek at {x}, {y}"))?;
             let mut s = Stamp {
                 name: format!("Chapter-house arcade {}, {}", side_k + 1, k + 1),
                 theta_deg: at.0,
                 v_mm: at.1,
                 rot_deg: 0.0,
-                outline: lancet(LANCET_W, LANCET_H[k]),
+                outline: lancet(LANCET_W, h),
                 height_mm: 0.1,
                 sink_mm: ARCADE_SINK_MM,
                 draft_deg: 4.0,
@@ -669,12 +680,12 @@ fn arcades(d: &mut RingDesign, a: &Atlas, rot: f64, centre_y: f64, placed: &mut 
                 along_pull: true,
                 fine_cap: true,
                 tier: 0,
-                top: StampTop::Ridge { rise_mm: ARCADE_VEE_MM, from: [0.0, -0.5 * LANCET_H[k]], to: [0.0, 0.5 * LANCET_H[k]], end_mm: ARCADE_VEE_MM },
+                top: StampTop::Ridge { rise_mm: ARCADE_VEE_MM, from: [0.0, -0.5 * h], to: [0.0, 0.5 * h], end_mm: ARCADE_VEE_MM },
             };
             // Stand every light upright, its point straight up from the finger, wherever the wall turns.
             let f = s.frame(d, &ctx);
             s.rot_deg = (-f.x[1]).atan2(f.y[1]).to_degrees() + rot;
-            placed.push(format!("{} at {:.2} deg, v {:.3}", s.name, at.0, at.1));
+            placed.push(format!("{} at {:.2} deg, v {:.3}, {:.2} mm tall", s.name, at.0, at.1, h));
             d.stamps.push(s);
         }
     }
@@ -697,8 +708,8 @@ fn roundel(d: f64) -> Vec<[f64; 2]> {
 
 /// The shoulders' side faces past each end of the head: ring angles and the roundel struck at each, graded down
 /// the shoulder.
-const ROUNDELS: [(f64, f64); 3] = [(46.0, 1.8), (40.0, 1.5), (34.0, 1.2)];
-const ROUNDEL_SINK_MM: f64 = 0.3;
+const ROUNDELS: [(f64, f64); 3] = [(47.0, 2.4), (41.0, 2.0), (35.0, 1.6)];
+const ROUNDEL_SINK_MM: f64 = 0.35;
 
 /// Three graded roundels on each shoulder's side faces, struck along the pull at mid-wall, as wide as the wall allows.
 fn shoulder_roundels(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) -> Result<()> {
@@ -708,7 +719,13 @@ fn shoulder_roundels(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) ->
             let near: Vec<_> = a.samples.iter().filter(|s| (s.theta - theta).abs() < 0.6 && s.p[2] > 0.0).collect();
             let best = near.iter().filter(|s| s.n[2] > 0.85).map(|s| s.p[0].hypot(s.p[1])).fold((f64::MAX, f64::MIN), |(l, h), r| (l.min(r), h.max(r)));
             let nz = near.iter().map(|s| s.n[2]).fold(f64::MIN, f64::max);
-            eprintln!("theta {theta}: max nz {nz:.3}, r range {best:?}, samples {}", near.len());
+            let crown: Vec<_> = a.samples.iter().filter(|s| (s.theta - theta).abs() < 0.6 && {
+                let r = s.p[0].hypot(s.p[1]);
+                (s.n[0] * s.p[0] + s.n[1] * s.p[1]) / r > 0.85 && r > a.bore + 1.0
+            }).collect();
+            let z = crown.iter().map(|s| s.p[2]).fold((f64::MAX, f64::MIN), |(l, h), z| (l.min(z), h.max(z)));
+            let r = crown.iter().map(|s| s.p[0].hypot(s.p[1])).fold(f64::MIN, f64::max);
+            eprintln!("theta {theta}: max nz {nz:.3}, r range {best:?}, crown z {z:?} r {r:.2}");
         }
     }
     for (side_k, side) in [1.0f64, -1.0].into_iter().enumerate() {
@@ -749,6 +766,106 @@ fn shoulder_roundels(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) ->
     Ok(())
 }
 
+/// A band `w` wide along the open path `pts`, mitred at each turn and cut square at its ends. Counter-clockwise.
+fn path_band(pts: &[[f64; 2]], w: f64) -> Vec<[f64; 2]> {
+    let n = pts.len();
+    let unit = |a: [f64; 2], b: [f64; 2]| {
+        let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+        let l = dx.hypot(dy).max(1e-12);
+        [dx / l, dy / l]
+    };
+    let side = |sign: f64| -> Vec<[f64; 2]> {
+        (0..n)
+            .map(|i| {
+                let d0 = if i == 0 { unit(pts[0], pts[1]) } else { unit(pts[i - 1], pts[i]) };
+                let d1 = if i + 1 == n { unit(pts[n - 2], pts[n - 1]) } else { unit(pts[i], pts[i + 1]) };
+                let (n0, n1) = ([-d0[1], d0[0]], [-d1[1], d1[0]]);
+                let m = [n0[0] + n1[0], n0[1] + n1[1]];
+                let ml = m[0].hypot(m[1]).max(1e-12);
+                let m = [m[0] / ml, m[1] / ml];
+                let k = (0.5 * w / (m[0] * n0[0] + m[1] * n0[1]).max(0.3)).min(1.5 * w);
+                [pts[i][0] + sign * m[0] * k, pts[i][1] + sign * m[1] * k]
+            })
+            .collect()
+    };
+    let mut out = side(-1.0);
+    out.extend(side(1.0).into_iter().rev());
+    out.dedup_by(|a, b| (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-6);
+    if signed_area(&out) < 0.0 {
+        out.reverse();
+    }
+    out
+}
+
+/// A pointed arch's centre line from its left springing over its point to its right springing, `width` across, its
+/// flanks struck at `width` (equilateral), springing at `spring`, `down` below the springing on each side first.
+fn arch_path(cx: f64, width: f64, spring: f64, down: f64) -> Vec<[f64; 2]> {
+    let half = 0.5 * width;
+    let top = (0.866 * width).atan2(half);
+    let mut pts = vec![[cx - half, spring - down]];
+    // Up the left flank (centred on the right springing) to the point, then down the right one.
+    pts.extend(arc([cx + half, spring], width, PI, PI - top, 12));
+    pts.extend(arc([cx - half, spring], width, top, 0.0, 12).into_iter().skip(1));
+    pts.push([cx + half, spring - down]);
+    pts.dedup_by(|a, b| (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-6);
+    pts
+}
+
+/// A two-light Gothic window graved in outline, `width` across and `height` from sill to point, +y up to its point:
+/// an equilateral arch on its jambs, a sill, a mullion, two pointed lights under the arch and a cusped oculus in its
+/// head. Each run one continuous cut, every one at its own depth so no two floors lie in one surface.
+fn window(name: &str, width: f64, height: f64, w: f64, depth: f64) -> Vec<Part> {
+    let rise = 0.866 * width;
+    let (sill, spring) = (-0.5 * height, 0.5 * height - rise);
+    let part = |n: &str, outline: Vec<[f64; 2]>, d: f64| Part { name: format!("{name}, {n}"), outline, depth: d, top: StampTop::Flat };
+    let sub_spring = spring - 0.15;
+    let half = 0.5 * width;
+    let (y_sub, y_top) = (sub_spring + 0.866 * half, 0.5 * height);
+    vec![
+        part("arch", path_band(&arch_path(0.0, width, spring, spring - sill), w), depth),
+        part("sill", path_band(&[[-half - 0.3 * w, sill], [half + 0.3 * w, sill]], w), depth + 0.05),
+        part("left light", path_band(&arch_path(-0.5 * half, half, sub_spring, 0.0), 0.85 * w), depth - 0.06),
+        part("right light", path_band(&arch_path(0.5 * half, half, sub_spring, 0.0), 0.85 * w), depth - 0.09),
+        part("mullion", path_band(&[[0.0, sill], [0.0, sub_spring + 0.05]], 0.85 * w), depth - 0.03),
+        Part { name: format!("{name}, oculus"), outline: roundel((0.62 * (y_top - y_sub)).min(1.2)).into_iter().map(|p| [p[0], p[1] + 0.5 * (y_sub + y_top) - 0.05]).collect(), depth: depth - 0.1, top: StampTop::Flat },
+    ]
+}
+
+/// The shoulder window's span across the shoulder and its length up it to its point, mm, and where it stands.
+const WINDOW_MM: (f64, f64) = (3.3, 5.6);
+const WINDOW_THETA_DEG: f64 = 37.0;
+const WINDOW_RULE_MM: f64 = 0.24;
+const WINDOW_DEPTH_MM: f64 = 0.32;
+
+/// A graved two-light window on each shoulder's crown, its point toward the head: the cathedral's own lights carried
+/// down the shank. Bench work, like the seal.
+fn shoulder_windows(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) -> Result<()> {
+    let ctx = d.field_context();
+    for (sh, theta) in [("right", WINDOW_THETA_DEG), ("left", 180.0 - WINDOW_THETA_DEG)] {
+        let at = a
+            .samples
+            .iter()
+            .filter(|s| (s.theta - theta).abs() < 0.6 && s.p[0].hypot(s.p[1]) > a.bore + 1.0)
+            .min_by(|p, q| p.p[2].abs().total_cmp(&q.p[2].abs()).then(q.p[0].hypot(q.p[1]).total_cmp(&p.p[0].hypot(p.p[1]))))
+            .context("no shoulder crown")?;
+        let mut probe = intaglio("probe", (at.theta, at.v), 0.0, vec![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], 0.1, StampTop::Flat);
+        probe.bench = true;
+        let f = probe.frame(d, &ctx);
+        // Up the shoulder toward the head.
+        let t = { let th = theta.to_radians(); let s = if theta < 90.0 { 1.0 } else { -1.0 }; [-th.sin() * s, th.cos() * s, 0.0] };
+        let dot = |u: [f64; 3], v: [f64; 3]| u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+        let rot = dot(t, f.y).atan2(dot(t, f.x)).to_degrees();
+        // Window space (x across, y up to the point) to the stamp's own: a quarter turn, so the outline keeps its hand.
+        let map = |p: [f64; 2]| [p[1], -p[0]];
+        for part in window(&format!("Shoulder window, {sh}"), WINDOW_MM.0, WINDOW_MM.1, WINDOW_RULE_MM, WINDOW_DEPTH_MM) {
+            let top = part.top;
+            d.stamps.push(intaglio(&part.name, (at.theta, at.v), rot, part.outline.iter().map(|p| map(*p)).collect(), part.depth, top));
+        }
+        placed.push(format!("Shoulder window, {sh} at {:.2} deg, v {:.3}, turned {rot:.1} deg", at.theta, at.v));
+    }
+    Ok(())
+}
+
 #[derive(Default, serde::Serialize)]
 struct Placed {
     face_mm: [f64; 2],
@@ -760,6 +877,7 @@ struct Placed {
     table_sag_at_field_edge_mm: f64,
     arcade: Vec<String>,
     roundels: Vec<String>,
+    windows: Vec<String>,
 }
 
 fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
@@ -797,16 +915,18 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
     let mut placed = Placed { face_mm: [FACE.0, FACE.1], envelope_fill_mm: fill, envelope_fill_theta_deg: fill_at, cheek_x_mm: cx, cheek_y_mm: cy, table_crown_mm: crown, table_sag_at_field_edge_mm: sag, ..Default::default() };
     seal(&mut d, &a, std::env::var("SIG_NO_LEGEND").is_err())?;
     let rot: f64 = std::env::var("SIG_ROT").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
-    let cy_mid: f64 = std::env::var("SIG_CY").ok().and_then(|v| v.parse().ok()).unwrap_or(SILL_Y);
     if std::env::var("SIG_NO_ARCADE").is_err() {
-        arcades(&mut d, &a, rot, cy_mid, &mut placed.arcade)?;
+        arcades(&mut d, &a, rot, &mut placed.arcade)?;
     }
     if std::env::var("SIG_NO_ROUNDEL").is_err() {
         shoulder_roundels(&mut d, &a, &mut placed.roundels)?;
     }
+    if std::env::var("SIG_NO_WINDOW").is_err() {
+        shoulder_windows(&mut d, &a, &mut placed.windows)?;
+    }
     let _ = blockout;
     if let Ok(skip) = std::env::var("SIG_SKIP") {
-        let skip: Vec<&str> = skip.split(',').collect();
+        let skip: Vec<&str> = skip.split('|').collect();
         d.stamps.retain(|s| !skip.iter().any(|k| s.name.starts_with(k)));
     }
     let lib = mf::source_library(&d, &lib).into_owned();

@@ -1,0 +1,34 @@
+{
+  "ring": "sigillum",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": true,
+  "what_the_eye_sees": "This now reads as a medieval Gothic seal matrix, and a seal is the subject of this ring. On the 300 px face the first read is a cusped Gothic quatrefoil with pointed lobes and sharp cusps between them, holding a clean fleur-de-lis. Round it runs a mirrored blackletter legend with broken Textura strokes, plainly cut in intaglio to be pressed into wax, inside a bordered band. The three cues together (a tracery quatrefoil, a Textura legend, a mirrored matrix) make a jeweller say 'Gothic church seal ring' or 'ecclesiastical seal matrix' unprompted. The quatrefoil is the one piece of cathedral tracery on the table, so the link to Tenebrae holds. The smiley-face and Scout-badge reads from attempts 1 and 2 are gone. Three things are still weak. (1) In the 300 px oblique hero the fleur collapses into a knot or figure-eight inside the quatrefoil, so the device only reads on the face view. (2) The outer border is still about 20 small rounded scallops, which read as a coin or bottle-cap edge rather than pointed Gothic cusping. (3) The cheek arcade does read as pointed lancets in the side view of the contact sheet. In the hero, though, it is a few faint ticks under the table edge, and the shoulder roundels are specks, so below the table the ring is bare against Caiman or the Reptilia signets. 'Cathedral' is carried by the quatrefoil alone. The ring passes the read, but only just on that word, and the full review should press on density below the table.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the fleur hold its shape in the oblique hero.",
+      "where": "Table centre: the 'Fleur' sketch and its bench cut",
+      "how_much": "Deepen the fleur from its current depth to 0.80 if the table-over-bore figure leaves at least 0.8 mm. Widen the central petal and the band by about 25%, so the band is at least 0.8 mm tall and the gap between the side petals and the quatrefoil wall is at least 0.4 mm. Grow the fleur from 5.0 to about 5.6 mm tall. Acceptance: in the 300 px hero, the device is named 'fleur-de-lis' and not 'knot' or 'figure eight'."
+    },
+    {
+      "priority": 2,
+      "what": "Turn the outer border from coin scallops into Gothic cusping.",
+      "where": "Table rim: the outer border ring (r about 7.2 mm)",
+      "how_much": "Replace the roughly 20 rounded scallops with 12 arcs meeting at sharp inward points (cusp depth about 0.6 mm, cut 0.40). Optionally add small trefoil terminals on the cusp tips. Acceptance: in the 300 px face, the rim shows pointed cusps that can be counted, and it no longer reads as a milled or bottle-cap edge."
+    },
+    {
+      "priority": 3,
+      "what": "Make the architecture below the table visible in the hero.",
+      "where": "The 'Chapter-house arcade' stamps on the ±z cheeks, and the 'Shoulder roundel' stamps on the shoulder side faces",
+      "how_much": "Scale the arcade to fill the cheek height (about 10 × 3.2 mm) with a sink of 0.50 along the pull, keeping the pointed heads. Raise the roundels to Ø 2.4 / 2.0 / 1.6, sunk 0.35. Acceptance: in the 300 px hero, three pointed lancets can be counted on the near cheek, and at least two roundels show on the near shoulder."
+    }
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/sigillum/hero-300.png",
+    "showcase/tenebrae/sigillum/face-300.png",
+    "showcase/tenebrae/sigillum/contact-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
