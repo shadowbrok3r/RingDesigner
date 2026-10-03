@@ -24,14 +24,25 @@ const BORE_MM: f64 = 18.6;
 const MIN_SECTION_MM: f64 = 0.8;
 const MIN_DETAIL_MM: f64 = 0.15;
 /// Meridian samples the valve and the split share, foot to where the split opens.
-const SHARED_ROWS: usize = 80;
+/// The template carries every stored triangle (about ten bytes each in the graph), so the sculpture is meshed to a
+/// budget of about 90k triangles in all.
+const SHARED_ROWS: usize = 34;
+const DIVERGENT_ROWS: usize = 76;
+const CAPSULE_AROUND: usize = 120;
+/// The stem: its width, how far it stands proud of the skin, where it ends round the palm, and its nodes (degrees).
+const STEM_W_MM: f64 = 2.2;
+const STEM_PROUD_MM: f64 = 0.9;
+const STEM_END_DEG: f64 = -165.0;
+const STEM_NODES_DEG: [f64; 4] = [38.0, -12.0, -65.0, -118.0];
+/// The two small leaves hanging from the stem round the shank: bearing (degrees), across offset, turn off the stem.
+const SHANK_LEAVES: [(f64, f64, f64); 2] = [(-30.0, 0.35, 24.0), (-95.0, -0.35, -24.0)];
 /// Which way the capsule leans in the table's frame: straight back, away from the hero.
 const LEAN_BEARING_DEG: f64 = 90.0;
 /// The seeds in the open splits: which split, how far up its floor (share of its run) and how far off its middle
 /// (share of its half-angle).
 const IN_SPLIT: [(usize, f64, f64); 4] = [(0, 0.5, 0.0), (1, 0.56, 0.0), (2, 0.5, 0.0), (3, 0.56, 0.0)];
 /// The leaves: where each springs from on the table (table frame), its bearing (degrees) and its length wanted.
-const LEAVES: [([f64; 2], f64, f64); 5] = [([2.0, 6.2], 165.0, 10.0), ([-1.2, 1.6], 140.0, 8.5), ([-3.0, -0.4], 198.0, 9.0), ([5.6, -2.6], 295.0, 8.0), ([5.6, 1.2], 345.0, 5.5)];
+const LEAVES: [([f64; 2], f64, f64); 5] = [([2.0, 6.2], 165.0, 10.0), ([-1.2, 1.6], 140.0, 8.5), ([-3.0, -0.4], 198.0, 9.0), ([4.4, -1.8], 300.0, 9.0), ([1.9, -6.6], 285.0, 4.2)];
 /// The trumpet flower: length, mouth across, and any bend of its bell off the table (0 lies straight).
 const FLOWER_LEN_MM: f64 = 18.5;
 const FLOWER_MOUTH_MM: f64 = 10.0;
@@ -59,7 +70,7 @@ const PAD_H_MM: f64 = 1.0;
 const PAD_PROUD_MM: f64 = 0.05;
 const SEED_OVER_PAD_MM: f64 = 0.25;
 /// The seeds spilled on the table in front of the capsule, in the table's frame, and how far their pads stand proud.
-const SPILLED: [[f64; 2]; 4] = [[2.3, -0.6], [0.9, -2.4], [1.9, -4.3], [0.2, -5.6]];
+const SPILLED: [[f64; 2]; 4] = [[3.0, -0.7], [1.3, -1.8], [0.0, -3.5], [0.6, -5.6]];
 const SPILLED_PAD_PROUD_MM: f64 = 0.35;
 
 fn draft_params() -> BuildParams {
@@ -199,7 +210,8 @@ impl Skin {
                 .map(|&i| {
                     let v = m.vertices[i as usize];
                     let (x, y, z) = (v.0 as f64, v.1 as f64, v.2 as f64);
-                    [y.atan2(x).rem_euclid(2.0 * PI), z, x.hypot(y)]
+                    let t = y.atan2(x).rem_euclid(2.0 * PI);
+                    [if t < theta_range.0.to_radians() { t + 2.0 * PI } else { t }, z, x.hypot(y)]
                 })
                 .collect();
             if q.iter().map(|p| p[0]).fold(f64::MIN, f64::max) - q.iter().map(|p| p[0]).fold(f64::MAX, f64::min) > PI {
@@ -243,6 +255,7 @@ impl Skin {
     }
     /// The outer radius at `theta` (radians) and `z`, bilinear; None off the band.
     fn radius(&self, theta: f64, z: f64) -> Option<f64> {
+        let theta = self.theta0 + (theta - self.theta0).rem_euclid(2.0 * PI);
         let (u, v) = ((theta - self.theta0) / self.dtheta, (z - self.z0) / self.dz);
         if u < 0.0 || v < 0.0 || u >= (self.nt - 1) as f64 || v >= (self.nz - 1) as f64 {
             return None;
@@ -356,8 +369,8 @@ fn meridians(s: &Shape) -> (Vec<[f64; 2]>, Vec<[f64; 2]>) {
     v.extend(valve);
     let mut w = vec![joint];
     w.extend(split);
-    a.extend(resample(&v, 181).into_iter().skip(1));
-    b.extend(resample(&w, 181).into_iter().skip(1));
+    a.extend(resample(&v, DIVERGENT_ROWS).into_iter().skip(1));
+    b.extend(resample(&w, DIVERGENT_ROWS).into_iter().skip(1));
     let k = s.scale;
     let z = k * s.stretch;
     (a.into_iter().map(|p| [p[0] * k, p[1] * z]).collect(), b.into_iter().map(|p| [p[0] * k, p[1] * z]).collect())
@@ -440,8 +453,26 @@ impl Capsule {
     fn off(&self, phi: f64) -> f64 {
         (0..self.shape.splits).map(|k| wrap(phi - self.shape.split_at - k as f64 * PI / 2.0).abs()).fold(f64::MAX, f64::min)
     }
+    /// The bearing of column `j` on meridian row `i`. Where four splits are open the columns are warped row by row, so
+    /// each split's walls fall on the same columns all the way up and their edges run clean, not stepped.
+    fn phi_of(&self, i: usize, j: usize) -> f64 {
+        let base = 2.0 * PI * j as f64 / self.around as f64;
+        let (half, _) = self.half(i);
+        if self.shape.splits != 4 || half <= 0.0 {
+            return base;
+        }
+        let quarter = PI / 2.0;
+        let q = (base - self.shape.split_at).rem_euclid(2.0 * PI) / quarter;
+        let (k, u) = (q.floor(), q - q.floor());
+        let (h, a) = ((half / quarter).min(0.42), 0.22);
+        let warp = if u < a { u / a * h } else if u > 1.0 - a { 1.0 - (1.0 - u) / a * h } else { h + (u - a) / (1.0 - 2.0 * a) * (1.0 - 2.0 * h) };
+        let blend = smooth(0.0, 0.25, half / self.shape.gape);
+        self.shape.split_at + (k + (1.0 - blend) * u + blend * warp) * quarter
+    }
     fn point(&self, i: usize, j: usize) -> P3 {
-        let phi = 2.0 * PI * j as f64 / self.around as f64;
+        self.point_at(i, self.phi_of(i, j))
+    }
+    fn point_at(&self, i: usize, phi: f64) -> P3 {
         let t = self.into_split(i, phi);
         let [r, z] = lerp2(self.valve[i], self.split[i], t);
         // The valves' lips flare out along each split, fading over a millimetre of the valve.
@@ -495,11 +526,9 @@ impl Capsule {
     fn at(&self, u: f64, phi: f64) -> (P3, P3) {
         let m = self.valve.len();
         let i = ((u * (m - 1) as f64).round() as usize).clamp(1, m - 2);
-        let j = (phi / (2.0 * PI) * self.around as f64).rem_euclid(self.around as f64);
-        let jf = j.floor() as usize;
-        let p = self.point(i, jf);
-        let du = sub3(self.point(i + 1, jf), self.point(i - 1, jf));
-        let dv = sub3(self.point(i, jf + 1), self.point(i, (jf + self.around - 1) % self.around));
+        let p = self.point_at(i, phi);
+        let du = sub3(self.point_at(i + 1, phi), self.point_at(i - 1, phi));
+        let dv = sub3(self.point_at(i, phi + 0.01), self.point_at(i, phi - 0.01));
         (p, unit3(cross3(dv, du)))
     }
     /// The meridian index whose valve point stands nearest height `z` on the egg's outer run.
@@ -514,11 +543,11 @@ fn spine(foot: P3, axis: P3, length: f64, root_r: f64, tip_r: f64) -> csg::Solid
     let axis = unit3(axis);
     let side = unit3(cross3(axis, if axis[2].abs() < 0.9 { [0.0, 0.0, 1.0] } else { [1.0, 0.0, 0.0] }));
     let up = cross3(axis, side);
-    let around = 20usize;
+    let around = 12usize;
     let buried = 0.45;
     // Rings along the axis: (height along the axis, radius).
     let mut rings: Vec<(f64, f64)> = Vec::new();
-    let steps = 14;
+    let steps = 8;
     for k in 0..=steps {
         let t = k as f64 / steps as f64;
         let h = -buried + (length - tip_r + buried) * t;
@@ -617,7 +646,7 @@ fn leaned_normal(shape: &Shape, p: P3, n: P3) -> P3 {
 
 /// The whole capsule in its own frame: the split egg and its rows of spines, one closed solid.
 fn capsule(shape: Shape, blockout: bool) -> Result<(csg::Solid, CapsuleReport, Capsule)> {
-    let c = Capsule::new(shape, if blockout { 480 } else { 720 });
+    let c = Capsule::new(shape, if blockout { 96 } else { CAPSULE_AROUND });
     if std::env::var("DATURA_DEBUG").is_ok() {
         for jj in 0..c.around / 4 {
             let t = jj as f64;
@@ -777,9 +806,10 @@ fn pillow(nx: usize, ny: usize, top: &dyn Fn(f64, f64) -> P3, bottom: &dyn Fn(f6
 /// A datura leaf lying on the table, stalk at x = 0 and point at x = `len`, in its own frame (z up off the table): a
 /// sinuate blade whose three big teeth a side lean toward the point, domed higher on the midrib and falling to a
 /// crisp margin, a raised midrib and a vein from it into every tooth; its underside sunk into the table.
-fn leaf(len: f64, wid: f64, twist: f64, edge: f64) -> csg::Solid {
-    let teeth = 3.5;
-    let env = |u: f64| (PI * u.clamp(0.0, 1.0).powf(0.7)).sin().max(0.0).powf(0.55);
+fn leaf(len: f64, wid: f64, twist: f64, edge: f64, grid: (usize, usize)) -> csg::Solid {
+    let teeth = 2.6;
+    // Ovate, widest a little behind the middle, narrowing to an acute point.
+    let env = |u: f64| { let u = u.clamp(0.0, 1.0); (u.powf(0.55) * (1.0 - u).powf(0.85) / 0.4865).min(1.0) };
     // Each side's sinuate lobes: broad, angular at their crests, irregular in size, the sides out of step; no saw
     // teeth.
     let tooth = move |u: f64, side: f64| {
@@ -787,7 +817,7 @@ fn leaf(len: f64, wid: f64, twist: f64, edge: f64) -> csg::Solid {
         let f = k - k.floor();
         let size = 0.75 + 0.25 * (2.3 * k.floor() + 1.7 * side).sin().abs();
         let fade = smooth(0.08, 0.25, u) * (1.0 - smooth(0.82, 0.97, u));
-        1.0 - fade * 0.36 * size * (2.0 * f - 1.0).abs().powf(0.85)
+        1.0 - fade * 0.42 * size * (2.0 * f - 1.0).abs().powf(1.05)
     };
     let half = move |u: f64, v: f64| 0.5 * wid * env(u) * tooth(u, v.signum());
     // Vein stations: where each tooth's point lies, and where its vein leaves the midrib.
@@ -807,22 +837,24 @@ fn leaf(len: f64, wid: f64, twist: f64, edge: f64) -> csg::Solid {
         // The dome follows the blade's untoothed envelope, so the teeth cut its margin without creasing it.
         let e = (y / (0.5 * wid * env(u)).max(1e-6)).clamp(-1.0, 1.0);
         let dome = 0.34 * (1.0 - e * e).max(0.0).powf(0.7) * env(u).powf(0.4);
-        let midrib = 0.2 * (-(y / 0.17).powi(2)).exp() * (1.0 - 0.7 * u) * smooth(0.0, 0.08, u);
+        let midrib = 0.2 * (-(y / 0.22).powi(2)).exp() * (1.0 - 0.7 * u) * smooth(0.0, 0.08, u);
         let mut vein: f64 = 0.0;
         for &(tip, from, side) in &veins {
             let (a, b) = ([from * len, 0.0], [tip * len, side * half(tip, side)]);
             let d = [b[0] - a[0], b[1] - a[1]];
             let t = (((x - a[0]) * d[0] + (y - a[1]) * d[1]) / (d[0] * d[0] + d[1] * d[1])).clamp(0.0, 1.0);
             let dist = (x - a[0] - d[0] * t).hypot(y - a[1] - d[1] * t);
-            vein = vein.max(0.09 * (-(dist / 0.1).powi(2)).exp() * (1.0 - 0.6 * t));
+            vein = vein.max(0.1 * (-(dist / 0.32).powi(2)).exp() * (1.0 - 0.6 * t));
         }
         0.16 + (dome + midrib + vein * (1.0 - v.abs().powi(4)))
     };
     // Past the table's edge the blade curls down over it.
     let droop = move |x: f64| -0.4 * (x - edge).max(0.0).powi(2);
-    let top = move |u: f64, v: f64| [u * len, v * half(u, v), height(u, v) + droop(u * len)];
-    let bottom = move |u: f64, v: f64| [u * len, v * half(u, v), -0.35 + 0.51 * smooth(0.82, 1.0, v.abs()) + droop(u * len)];
-    pillow(160, 14, &top, &bottom, [[-0.05, 0.0, -0.1], [len + 0.04, 0.0, 0.16 + droop(len + 0.04)]])
+    // The blade cups a little up at its margins, so it is never a flat plate.
+    let wave = move |u: f64, v: f64| 0.16 * v * v * (PI * u).sin();
+    let top = move |u: f64, v: f64| [u * len, v * half(u, v), height(u, v) + droop(u * len) + wave(u, v)];
+    let bottom = move |u: f64, v: f64| [u * len, v * half(u, v), -0.35 + 0.51 * smooth(0.82, 1.0, v.abs()) + droop(u * len) + wave(u, v)];
+    pillow(grid.0, grid.1, &top, &bottom, [[-0.05, 0.0, -0.1], [len + 0.04, 0.0, 0.16 + droop(len + 0.04)]])
 }
 
 /// The open datura flower lying on the table from its stalk at x = 0: a five-ribbed calyx tube, the corolla's
@@ -830,7 +862,7 @@ fn leaf(len: f64, wid: f64, twist: f64, edge: f64) -> csg::Solid {
 /// shell `wall` thick open at the mouth; past `lift_from` along its length the flower bends up off the table, so the
 /// mouth looks up and out.
 fn trumpet(len: f64, mouth_r: f64, girth: f64, wall: f64, lift_from: f64, lift_deg: f64) -> csg::Solid {
-    let (no, nf) = (150usize, 160usize);
+    let (no, nf) = (72usize, 70usize);
     let throat = 0.6;
     // The outer meridian at bearing phi: (along, radius) for the share s of its own length.
     let outer = |s: f64, phi: f64| -> [f64; 2] {
@@ -854,7 +886,7 @@ fn trumpet(len: f64, mouth_r: f64, girth: f64, wall: f64, lift_from: f64, lift_d
     };
     let mut sol = csg::Solid::default();
     sol.v.push([-0.06, 0.0, 0.0]);
-    let inner_rows = 70usize;
+    let inner_rows = 30usize;
     let rows = no + 1 + inner_rows;
     for j in 0..nf {
         let phi = 2.0 * PI * j as f64 / nf as f64;
@@ -911,16 +943,16 @@ fn trumpet(len: f64, mouth_r: f64, girth: f64, wall: f64, lift_from: f64, lift_d
         let (a, b) = (outer(1.0, phi), outer(0.99, phi));
         let tan = unit3([a[0] - b[0], a[1] - b[1], 0.0]);
         let back = [-tan[1], tan[0]];
-        let path: Vec<[f64; 2]> = (0..=12)
+        let path: Vec<[f64; 2]> = (0..=8)
             .map(|i| {
-                let t = i as f64 / 12.0;
+                let t = i as f64 / 8.0;
                 let ang = 1.9 * t;
                 let r = TOOTH_MM / 1.9;
                 [a[0] - tan[0] * 0.35 + r * (tan[0] * ang.sin() + back[0] * (1.0 - ang.cos())) + tan[0] * 0.35 * (1.0 - t), a[1] - tan[1] * 0.35 + r * (tan[1] * ang.sin() + back[1] * (1.0 - ang.cos())) + tan[1] * 0.35 * (1.0 - t)]
             })
             .collect();
         let pts: Vec<P3> = path.iter().map(|q| [q[0], q[1] * phi.cos(), q[1] * phi.sin()]).collect();
-        pieces.push(tube(&pts, 0.34, 0.13));
+        pieces.push(tube(&pts, 0.46, 0.4));
     }
     let mut sol = csg::union_all(&pieces).expect("the flower's teeth join it");
     csg::clean(&mut sol, 2e-5);
@@ -950,8 +982,15 @@ fn trumpet(len: f64, mouth_r: f64, girth: f64, wall: f64, lift_from: f64, lift_d
 
 /// A closed tube along `pts`, its radius tapering from `r0` to `r1`, its far end rounded to a point.
 fn tube(pts: &[P3], r0: f64, r1: f64) -> csg::Solid {
-    let around = 14usize;
     let n = pts.len();
+    let radii: Vec<f64> = (0..n).map(|i| r0 + (r1 - r0) * i as f64 / (n - 1) as f64).collect();
+    tube_with(pts, &radii, 10)
+}
+
+/// A closed tube along `pts` with its own radius at each point, `around` facets round, both ends rounded to a point.
+fn tube_with(pts: &[P3], radii: &[f64], around: usize) -> csg::Solid {
+    let n = pts.len();
+    let (r0, r1) = (radii[0], radii[n - 1]);
     let mut s = csg::Solid::default();
     s.v.push(add3(pts[0], unit3(sub3(pts[0], pts[1])), r0));
     let mut normal = {
@@ -963,7 +1002,7 @@ fn tube(pts: &[P3], r0: f64, r1: f64) -> csg::Solid {
         let t = unit3(sub3(pts[(i + 1).min(n - 1)], pts[i.saturating_sub(1)]));
         normal = unit3(sub3(normal, t.map(|v| v * dot3(normal, t))));
         let bi = cross3(t, normal);
-        let r = r0 + (r1 - r0) * i as f64 / (n - 1) as f64;
+        let r = radii[i];
         for j in 0..around {
             let a = 2.0 * PI * j as f64 / around as f64;
             s.v.push(add3(add3(pts[i], normal, r * a.cos()), bi, r * a.sin()));
@@ -988,6 +1027,81 @@ fn tube(pts: &[P3], r0: f64, r1: f64) -> csg::Solid {
         }
     }
     s
+}
+
+/// The plant's stem from under the capsule over the badge's right edge, down the shoulder and round the palm: a cane
+/// standing `STEM_PROUD_MM` proud of the skin, riding a smoothed upper envelope so it bridges the step under the head,
+/// swelling at three nodes, ending in a node with a tendril curled off it. Also the bearings and across-offsets it
+/// passes, for the leaves that hang from it.
+fn stem(skin: &Skin, top: f64) -> Result<(csg::Solid, Vec<(f64, f64, f64)>)> {
+    let r = STEM_W_MM / 2.0;
+    let (from, to) = (top.atan2(CAPSULE_AT[0]).to_degrees(), STEM_END_DEG);
+    let n = ((from - to) / 1.0).ceil() as usize;
+    let thetas: Vec<f64> = (0..=n).map(|k| from + (to - from) * k as f64 / n as f64).collect();
+    let across = |t: f64| -CAPSULE_AT[1] * smooth(32.0, 68.0, t);
+    let surf: Vec<f64> = thetas.iter().map(|&t| skin.radius(t.to_radians(), across(t)).unwrap_or(0.0)).collect();
+    ensure!(surf.iter().all(|r| *r > 1.0), "The stem leaves the band");
+    let w = 4;
+    let env: Vec<f64> = (0..surf.len()).map(|i| surf[i.saturating_sub(w)..(i + w + 1).min(surf.len())].iter().copied().fold(0.0, f64::max)).collect();
+    let smooth_env: Vec<f64> = (0..env.len()).map(|i| { let s = &env[i.saturating_sub(w)..(i + w + 1).min(env.len())]; s.iter().sum::<f64>() / s.len() as f64 }).collect();
+    let mut pts = Vec::new();
+    let mut radii = Vec::new();
+    let mut path = Vec::new();
+    for (k, &t) in thetas.iter().enumerate() {
+        let rc = smooth_env[k].max(surf[k]) + STEM_PROUD_MM - r;
+        let a = t.to_radians();
+        pts.push([rc * a.cos(), rc * a.sin(), across(t)]);
+        let node: f64 = STEM_NODES_DEG.iter().map(|nd| 0.28 * (-((t - nd) / 2.5).powi(2)).exp()).sum();
+        let end = 0.3 * smooth(to + 4.0, to, t);
+        radii.push(r + node + end);
+        path.push((t, across(t), rc + r));
+    }
+    let mut parts = vec![tube_with(&pts, &radii, 12)];
+    // The tendril: a curl off the end node, lying on the skin round the palm.
+    let e = pts[pts.len() - 1];
+    let a = to.to_radians();
+    let out = [a.cos(), a.sin(), 0.0];
+    let along = unit3(sub3(e, pts[pts.len() - 3]));
+    let side = unit3(cross3(out, along));
+    let curl: Vec<P3> = (0..=40)
+        .map(|k| {
+            let u = k as f64 / 40.0;
+            let ang = 1.7 * PI * u;
+            let rho = 1.3 * (1.0 - 0.6 * u);
+            add3(add3(add3(e, along, 0.9 + rho * ang.sin()), side, rho * (1.0 - ang.cos())), out, -0.25)
+        })
+        .collect();
+    parts.push(tube(&curl, 0.45, 0.4));
+    let mut solid = csg::union_all(&parts).map_err(|e| anyhow::anyhow!("The tendril does not join the stem: {e:?}"))?;
+    csg::clean(&mut solid, 2e-5);
+    Ok((solid, path))
+}
+
+/// A leaf laid on the shank's skin: its own frame turned `turn` off the stem's run, its foot at bearing `theta` (degrees)
+/// and `across` mm along the finger, each point carried round the ring by its arc and out along the radius.
+fn draped(skin: &Skin, s: &csg::Solid, theta: f64, across: f64, turn: f64) -> csg::Solid {
+    let (c, sn) = (turn.to_radians().cos(), turn.to_radians().sin());
+    let r_ref = skin.radius(theta.to_radians(), across).unwrap_or(12.0);
+    let mut out = csg::Solid {
+        v: s.v
+            .iter()
+            .map(|p| {
+                let (arc, off) = (p[0] * c - p[1] * sn, p[0] * sn + p[1] * c);
+                let t = theta.to_radians() - arc / r_ref;
+                let z = across + off;
+                let base = (0..12).map(|k| z - z.signum() * 0.25 * k as f64).find_map(|zz| skin.radius(t, zz)).unwrap_or(r_ref);
+                [(base + p[2]) * t.cos(), (base + p[2]) * t.sin(), z]
+            })
+            .collect(),
+        f: s.f.clone(),
+    };
+    // The drape runs the arc against the bearing, which mirrors the leaf; turn it right side out.
+    if out.volume() < 0.0 {
+        for f in &mut out.f {
+            f.swap(1, 2);
+        }
+    }
+    out
 }
 
 /// A solid in its own frame turned `angle` about the capsule's axis and set `from` out from it.
@@ -1122,6 +1236,9 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Re
         let lift_from = (run - 0.8).min(len - 5.0);
         let solid = at_stalk(&laid(&trumpet(len, 0.5 * mouth, girth, 0.85, lift_from, FLOWER_BEND_DEG), bearing, 0.0));
         laid_out.push(Laid { name: "Datura flower: table run".into(), bearing_deg: FLOWER_BEARING_DEG, from_mm: 0.0, length_mm: run, width_mm: 0.0, triangles: 0 });
+        // How far the mouth stands past the table's outline along the flower, and the curled teeth's section.
+        laid_out.push(Laid { name: "Datura flower: overhang past the table".into(), bearing_deg: FLOWER_BEARING_DEG, from_mm: run, length_mm: (len - run).max(0.0), width_mm: 0.0, triangles: 0 });
+        laid_out.push(Laid { name: "Datura flower: tooth section".into(), bearing_deg: 0.0, from_mm: 0.0, length_mm: TOOTH_MM, width_mm: 0.8, triangles: 0 });
         ensure!(solid.open_edges() == (0, 0), "The flower does not close");
         let crossings = csg::self_crossings(&solid);
         ensure!(crossings == 0, "The flower crosses itself {crossings} times");
@@ -1136,13 +1253,31 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Re
         let edge = table_run_from(&skin, t.top_mm, at, bearing, 0.0, 0.3);
         let len = want.min(edge + 2.6);
         let wid = (0.66 * len).min(7.0);
-        let blade = laid(&leaf(len, wid, 0.21 * k as f64, edge), bearing, 0.0);
+        let blade = laid(&leaf(len, wid, 0.21 * k as f64, edge, (48, 12)), bearing, 0.0);
         let solid = csg::Solid { v: blade.v.iter().map(|p| [p[0] + at[0], p[1] + at[1], p[2]]).collect(), f: blade.f };
         ensure!(solid.open_edges() == (0, 0) && csg::self_crossings(&solid) == 0, "Leaf {} does not close cleanly", k + 1);
         let name = format!("Datura leaf {}", k + 1);
         laid_out.push(Laid { name: name.clone(), bearing_deg: deg, from_mm: 0.0, length_mm: len, width_mm: wid, triangles: solid.f.len() });
         doc.append(feature(id, &name, stored_op(&in_part(&solid), "leaf", json!({ "bearing_deg": deg, "at_mm": at, "length_mm": len, "width_mm": wid, "table_edge_mm": edge }))?, Component { placement: flat.clone(), ..joined(0.0) }))?;
         id += 1;
+    }
+    // The stem down the right shoulder and round the palm, and the two small leaves that hang from it.
+    let shank_skin = Skin::of(&surface, (190.0, 440.0), (-12.5, 12.5));
+    {
+        let (solid, path) = stem(&shank_skin, t.top_mm)?;
+        ensure!(solid.open_edges() == (0, 0) && csg::self_crossings(&solid) == 0, "The stem does not close cleanly");
+        laid_out.push(Laid { name: "Datura stem".into(), bearing_deg: STEM_END_DEG, from_mm: 0.0, length_mm: path.windows(2).map(|w| ((w[1].2 * w[1].0.to_radians() - w[0].2 * w[0].0.to_radians()).abs()).hypot(w[1].1 - w[0].1)).sum(), width_mm: STEM_W_MM, triangles: solid.f.len() });
+        doc.append(feature(id, "Datura stem", stored_op(&solid, "stem", json!({ "width_mm": STEM_W_MM, "proud_mm": STEM_PROUD_MM, "end_deg": STEM_END_DEG, "nodes_deg": STEM_NODES_DEG }))?, joined(0.0)))?;
+        id += 1;
+        for (k, (theta, across, turn)) in SHANK_LEAVES.into_iter().enumerate() {
+            let blade = leaf(5.4, 3.6, 0.4 + 0.3 * k as f64, 99.0, (40, 6));
+            let solid = draped(&shank_skin, &blade, theta, across, turn);
+            ensure!(solid.open_edges() == (0, 0) && csg::self_crossings(&solid) == 0, "Shank leaf {} does not close cleanly", k + 1);
+            let name = format!("Datura shank leaf {}", k + 1);
+            laid_out.push(Laid { name: name.clone(), bearing_deg: theta, from_mm: across, length_mm: 5.4, width_mm: 3.6, triangles: solid.f.len() });
+            doc.append(feature(id, &name, stored_op(&solid, "shank leaf", json!({ "theta_deg": theta, "across_mm": across, "turn_deg": turn }))?, joined(0.0)))?;
+            id += 1;
+        }
     }
     // Four seeds in the capsule's cracked crown, one in each split, each on a pad sunk in its split's floor, where the bur opens its seat and
     // three thorn claws stand.
@@ -1457,7 +1592,7 @@ fn creased(m: &mesh::Mesh, crease_deg: f64) -> mesh::Mesh {
 
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: mesh::BuildResult, top: f64, edge: usize) -> Result<render::Finished> {
     let mut fin = render::finished_from(d, lib, built);
-    fin.metal = creased(&fin.metal, 35.0);
+    fin.metal = creased(&fin.metal, 60.0);
     let parts = fin.parts(render::GOLD);
     for (name, yaw, pitch) in VIEWS {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
@@ -1514,6 +1649,15 @@ fn main() -> Result<()> {
     let mut lib = AlphaLibrary::builtin();
     let t = table(&d, &lib)?;
     println!("  table {t:?}; bore {:.2} mm", 2.0 * d.inner_radius_mm());
+    if args.iter().any(|a| a == "--leaf") {
+        let s = leaf(9.0, 6.0, 0.2, 99.0, (48, 12));
+        let mut m = mesh::Mesh::default();
+        m.vertices = s.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[2] as f32, -p[1] as f32)).collect();
+        m.faces = s.f.clone();
+        let m = creased(&m, 60.0);
+        render::write_png_parts(out.join("leaf-alone.png"), &[render::Part::metal(&m, render::GOLD)], 0.0, 1.2, 800)?;
+        return Ok(());
+    }
     if args.iter().any(|a| a == "--bare") {
         let mut bare = d.clone();
         bare.cad = None;
