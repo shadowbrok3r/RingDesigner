@@ -679,7 +679,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
   - Thickness stays at or above width at every key, but the tail runs thinner than the reference, which shrinks the side face (to about 0.94 mm at 82°). The reference-only gate therefore spills onto the fillet at the tail.
 - **Process:** **lost wax** (Logan's rule, 2026-10-03; it was Petrobond). The whorls are ≥ 1 mm.
 - **Stones:** none.
-- **Build, step by step:**
+- **Build, step by step** (the original sand plan, superseded on 2026-10-03: the second lane builds a lizard's head and four legs as made parts and the girdles as tilings in lost wax; there is no "Serpent head" part and no "Head shield" group; see `cataphracta_ouroborus.rs`):
   1. **"Whorls":**
      - Alpha: `reptile::svg::whorl`. One period is one girdle: a u-sawtooth rising to the trailing edge (a gentle loaf, then a steep 0.4 mm drop), constant across the crown (G4).
      - Grade: `TileGrade { law: Spiral { seam_deg: 90.0 }, .. }` (C-R2), pitch 2.6 → 1.0. The lattice kink lands under the bite.

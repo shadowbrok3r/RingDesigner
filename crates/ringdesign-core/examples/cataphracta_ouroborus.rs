@@ -50,16 +50,16 @@ const SECTION_PTS: usize = 160;
 /// reference width). The tail's tip runs into the jaws at 68° and is narrowest just inside them, the band widens
 /// under the head to the neck, holds broad and flat through the body, and tapers from the hips round to the tail.
 const KEYS: [(f64, f64, f64, f64); 15] = [
-    (0.0, 0.88, 0.74, 0.8),
-    (40.0, 0.66, 0.62, 0.65),
-    (58.0, 0.48, 0.54, 0.55),
-    (68.0, 0.34, 0.48, 0.5),
-    (74.0, 0.3, 0.44, 0.5),
+    (0.0, 0.84, 0.74, 0.8),
+    (40.0, 0.62, 0.62, 0.65),
+    (56.0, 0.42, 0.54, 0.55),
+    (66.0, 0.3, 0.46, 0.5),
+    (74.0, 0.28, 0.42, 0.5),
     (86.0, 0.55, 0.6, 0.6),
-    (100.0, 1.0, 0.88, 0.8),
-    (112.0, 1.12, 1.1, 1.0),
-    (125.0, 1.15, 1.12, 1.0),
-    (148.0, 1.4, 1.12, 1.0),
+    (100.0, 0.95, 0.88, 0.8),
+    (114.0, 1.0, 1.1, 1.0),
+    (126.0, 1.0, 1.12, 1.0),
+    (150.0, 1.42, 1.14, 1.0),
     (190.0, 1.5, 1.1, 1.0),
     (228.0, 1.42, 1.04, 1.0),
     (262.0, 1.3, 0.96, 0.95),
@@ -101,40 +101,35 @@ const CREST: [(f64, f64); 11] = [
     (11.2, 3.1),
 ];
 /// The dorsal fall from the crest to the canthus: a flat skull rounding over at its edges.
-const DOME: [(f64, f64); 4] = [(0.0, 0.35), (3.0, 0.45), (7.0, 0.55), (11.2, 0.5)];
-/// The cephalic shields' sutures in plan, (s, z) segments on the +z half: rostral and internasals, the frontonasal,
-/// the prefrontals, the long frontal between the supraoculars, the frontoparietals, the interparietal flanked by the
-/// parietals, and the occipital row ahead of the spiny fringe. Paired shields meet on a median suture.
-const SUTURES: [[(f64, f64); 2]; 18] = [
-    [(0.8, 0.0), (1.0, 1.1)],
-    [(2.2, 0.0), (2.3, 1.75)],
-    [(3.3, 0.0), (3.3, 1.0)],
-    [(3.3, 1.0), (3.1, 2.1)],
-    [(3.3, 1.0), (5.4, 0.75)],
-    [(5.4, 0.75), (6.0, 0.0)],
-    [(3.1, 2.1), (4.4, 2.6)],
-    [(4.4, 2.6), (5.8, 2.5)],
-    [(5.8, 2.5), (5.4, 0.75)],
-    [(5.4, 0.75), (6.6, 1.6)],
-    [(6.6, 1.6), (5.8, 2.5)],
-    [(6.0, 0.0), (6.8, 0.75)],
-    [(6.8, 0.75), (8.3, 0.6)],
-    [(8.3, 0.6), (8.8, 0.0)],
-    [(6.6, 1.6), (6.8, 0.75)],
-    [(6.6, 1.6), (8.6, 2.35)],
-    [(8.6, 2.35), (8.3, 0.6)],
-    [(1.0, 0.0), (3.3, 0.0)],
+const DOME: [(f64, f64); 4] = [(0.0, 0.2), (3.0, 0.25), (7.0, 0.3), (11.2, 0.3)];
+/// The head shields' sutures in plan, (s, z) segments on the +z half: a few large shields, the internasal, the paired
+/// prefrontals, the long frontal between the supraoculars, the interparietal flanked by the parietals.
+const SUTURES: [[(f64, f64); 2]; 13] = [
+    [(1.6, 0.0), (1.7, 1.55)],
+    [(1.7, 0.0), (3.3, 0.0)],
+    [(3.3, 0.0), (3.2, 2.2)],
+    [(3.3, 0.95), (5.6, 0.75)],
+    [(5.6, 0.75), (6.2, 0.0)],
+    [(3.2, 2.2), (5.8, 2.55)],
+    [(5.8, 2.55), (5.6, 0.75)],
+    [(6.2, 0.0), (7.0, 0.85)],
+    [(7.0, 0.85), (8.6, 0.65)],
+    [(8.6, 0.65), (9.2, 0.0)],
+    [(5.8, 2.55), (7.0, 0.85)],
+    [(9.2, 0.0), (9.5, 2.5)],
+    [(5.8, 2.55), (8.9, 2.75)],
 ];
 /// A suture's depth and half-width, mm.
-const SUTURE: (f64, f64) = (0.22, 0.13);
+const SUTURE: (f64, f64) = (0.28, 0.15);
 /// How far the dorsal plan stands inside the side wall's widest.
 const TOP_INSET: [(f64, f64); 4] = [(0.0, 0.1), (3.0, 0.14), (7.0, 0.2), (11.2, 0.15)];
 /// The head's length from the snout's tip to where it sinks into the neck, and where that burial starts.
 const HEAD_LEN: f64 = 12.2;
 const BURY_FROM: f64 = 10.0;
-/// The spiny occipital fringe on the plan: first spine's root, pitch, and each spine's reach, mm. Each spine rises
+/// The spiny temporal and occipital rim on the plan, from behind the eye to the back of the skull: first spine's
+/// root, pitch, and each spine's reach, mm. Each spine rises
 /// slowly toward its point and drops back steeply behind it, so the points rake back over the neck.
-const SPINES: (f64, f64, [f64; 4]) = (7.2, 0.8, [0.38, 0.55, 0.62, 0.5]);
+const SPINES: (f64, f64, [f64; 5]) = (6.2, 0.78, [0.4, 0.55, 0.68, 0.75, 0.6]);
 /// The gape line's height at the snout and its sag to the mouth's corner.
 const LIP_H: f64 = 1.85;
 const LIP_SAG: f64 = 0.22;
@@ -187,29 +182,31 @@ const fn bone(a: [f64; 2], b: [f64; 2], r: (f64, f64), h: (f64, f64)) -> Bone {
 }
 
 /// A foreleg tucked back along the flank: a fat upper arm running back from the shoulder to the elbow, the forearm
-/// bent sharply down to the wrist by the bore, four splayed, clawed toes raking tailward.
-const FORELEG: [Bone; 7] = [
-    bone([0.0, 2.05], [1.7, 1.8], (0.95, 0.66), (1.4, 1.3)),
-    bone([1.7, 1.8], [2.6, 0.8], (0.6, 0.48), (1.25, 1.1)),
-    bone([2.6, 0.8], [2.9, 0.8], (0.5, 0.48), (1.05, 1.0)),
-    bone([2.9, 0.8], [3.75, 1.75], (0.3, 0.2), (1.1, 0.65)),
-    bone([2.9, 0.8], [4.35, 1.3], (0.3, 0.2), (1.1, 0.65)),
-    bone([2.9, 0.8], [4.45, 0.62], (0.28, 0.2), (1.05, 0.6)),
-    bone([2.9, 0.8], [3.95, 0.3], (0.26, 0.19), (1.0, 0.55)),
+/// bent sharply down to the wrist by the bore, a broad hand, four long splayed toes fanning tailward.
+const FORELEG: [Bone; 8] = [
+    bone([0.0, 2.15], [2.0, 1.85], (1.0, 0.72), (1.75, 1.6)),
+    bone([2.0, 1.85], [3.0, 0.85], (0.68, 0.52), (1.55, 1.35)),
+    bone([3.0, 0.85], [3.4, 0.85], (0.55, 0.52), (1.3, 1.2)),
+    bone([3.4, 0.85], [4.1, 2.3], (0.32, 0.2), (1.1, 0.65)),
+    bone([3.4, 0.85], [5.0, 1.75], (0.32, 0.2), (1.1, 0.65)),
+    bone([3.4, 0.85], [5.2, 0.85], (0.32, 0.2), (1.1, 0.65)),
+    bone([3.4, 0.85], [4.6, 0.3], (0.28, 0.19), (1.0, 0.6)),
+    bone([3.4, 0.85], [3.0, 0.75], (0.4, 0.4), (1.2, 1.2)),
 ];
 /// A hind leg folded along the tail: the thigh back from the hip to the knee, the shin bent down to the ankle, four
 /// long toes.
-const HINDLEG: [Bone; 7] = [
-    bone([0.0, 1.85], [1.9, 1.5], (1.0, 0.7), (1.6, 1.45)),
-    bone([1.9, 1.5], [2.9, 0.72], (0.58, 0.46), (1.35, 1.15)),
-    bone([2.9, 0.72], [3.2, 0.72], (0.48, 0.46), (1.25, 1.15)),
-    bone([3.2, 0.72], [4.2, 1.65], (0.3, 0.2), (1.0, 0.6)),
-    bone([3.2, 0.72], [4.85, 1.2], (0.3, 0.2), (1.0, 0.6)),
-    bone([3.2, 0.72], [4.95, 0.55], (0.28, 0.2), (1.0, 0.6)),
-    bone([3.2, 0.72], [4.3, 0.28], (0.26, 0.19), (0.95, 0.55)),
+const HINDLEG: [Bone; 8] = [
+    bone([0.0, 1.9], [2.1, 1.6], (1.05, 0.74), (1.75, 1.6)),
+    bone([2.1, 1.6], [3.2, 0.75], (0.62, 0.48), (1.5, 1.3)),
+    bone([3.2, 0.75], [3.6, 0.75], (0.52, 0.5), (1.25, 1.15)),
+    bone([3.6, 0.75], [4.4, 2.1], (0.32, 0.2), (1.05, 0.62)),
+    bone([3.6, 0.75], [5.4, 1.55], (0.32, 0.2), (1.05, 0.62)),
+    bone([3.6, 0.75], [5.6, 0.7], (0.32, 0.2), (1.05, 0.62)),
+    bone([3.6, 0.75], [4.8, 0.26], (0.28, 0.19), (0.95, 0.55)),
+    bone([3.6, 0.75], [3.2, 0.7], (0.4, 0.4), (1.15, 1.15)),
 ];
 /// The legs' roots round the ring, degrees: the shoulders just behind the head, the hips where the tail begins.
-const FORE_DEG: f64 = 121.0;
+const FORE_DEG: f64 = 140.0;
 const HIND_DEG: f64 = 226.0;
 /// The legs' height-field grid pitch, mm, and the margin of buried slab kept round each footprint.
 const LEG_GRID: f64 = 0.06;
@@ -440,7 +437,7 @@ impl Head<'_> {
     fn dorsal(&self, st: &Station, z: f64) -> f64 {
         let s = st.s;
         let u = (z / st.top_w.max(1e-6)).min(1.0);
-        let mut h = st.crest - pchip(&DOME, s).min(0.5 * (st.crest - st.lip)) * u.powf(3.2);
+        let mut h = st.crest - pchip(&DOME, s).min(0.5 * (st.crest - st.lip)) * u.powf(5.0);
         // Each shield is domed a little between its sutures, which are cut as rounded V grooves.
         let mut near = f64::MAX;
         for [a, b] in SUTURES {
