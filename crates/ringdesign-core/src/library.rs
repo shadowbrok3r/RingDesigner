@@ -45,20 +45,24 @@ pub const DESIGN_EXT: &str = "ring.json";
 // it also protects a revolution whose line is read in its sketch's plane, which an earlier build would turn about the world's line,
 // a pattern of several parts, which an earlier build cannot parse, a cut carved from a ring of parts alone, which an earlier
 // build pours as metal, and a stamp with a tier, a shaped top or an outline over 512 points, which an earlier build flattens
-// or refuses.
+// or refuses. It also protects a part placed level, relative to another part or on a side face, which an earlier build
+// seats by the raw normal or cannot read, and a ring of parts alone whose parts carry a fillet, which an earlier build
+// leaves unbeaded.
 // A design with none of these is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
 /// The version a design carrying none of the format-6 features is written at, so builds that read up to it still open the file.
 pub const PLAIN_FORMAT_VERSION: u32 = 5;
 
-/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a cut on a ring of parts alone or a stamp a format-5 build cannot strike.
+/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a cut or a fillet on a ring of parts alone, a part placed level, relative to a part or on a side face, or a stamp a format-5 build cannot strike.
 pub fn format_version_for(design: &RingDesign) -> u32 {
     if crate::cad::stored::carried_by(design)
         || crate::cad::turns_in_plane(design)
         || crate::cad::picks_regions(design)
         || crate::cad::pattern::several_sources(design)
         || crate::parts::cuts_apart(design)
+        || crate::parts::beads_apart(design)
+        || crate::cad::placements_extended(design)
         || design.stamps.iter().any(|s| !s.is_plain())
         || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(&f.operation, crate::cad::Operation::Builder { key, params, .. } if crate::cad::builders::geometry_extended(key, params))))
         || station_gates_in_stack(&design.layers, design.gate_sections_are_reference())
@@ -111,12 +115,13 @@ fn tiling_features_in_stack(stack: &crate::LayerStack) -> bool {
 
 /// Source references and template controls whose geometry earlier readers cannot reproduce.
 pub fn template_features_in_json(value: &serde_json::Value) -> bool {
-    const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"];
+    const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg", "level", "part", "at", "rotation_deg", "radius_mm", "face"];
     let new_pin = |kind: &str, pin: &str| (kind == "cad.feature" && PLACEMENT.contains(&pin)) || (kind == "shank" && matches!(pin, "keys" | "bypass_fair_deg"))
         || (kind == "window" && matches!(pin, "v_gate" | "draft_min_deg" | "draft_fade_deg"))
         || (kind == "layer.seatrun" && pin == "bare") || (kind == "layer.group" && pin == "clamp")
         || (kind == "layer.tiling" && matches!(pin, "grade" | "space"));
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
+    if crate::cad::extended_placement_json(value) { return true; }
     if value.get("Builder").is_some_and(|builder| builder.get("key").and_then(serde_json::Value::as_str)
         .is_some_and(|key| crate::cad::builders::geometry_extended(key, &builder["params"]))) { return true; }
     if value.get("v_gate").is_some_and(|gate| gate.get("Draft").is_some() || gate.get("SideFaces").is_some()) { return true; }
