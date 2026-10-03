@@ -254,7 +254,7 @@ fn lattice(d: &RingDesign, pitch_top: f64, kind: Kind, land: f64, keep: &dyn Fn(
             let over = row_mm * st * 2.0 / 3f64.sqrt();
             let pitch = around.min(over) * (1.0 + 0.06 * hash(seed, 3));
             let du = ring_delta(theta, STONE_DEG) / 360.0 * circ * cs;
-            if du.hypot(across * st) < stone_r + 0.25 * pitch {
+            if du.hypot(across * st) < stone_r {
                 continue;
             }
             let dia = (1.0 - land) * pitch;
@@ -277,17 +277,17 @@ fn beads(d: &RingDesign) -> Vec<Bead> {
     let (len, crest) = (d.field_context().band_v_len_mm, d.field_context().crest_v_mm);
     let near_rim = |a: f64| (crest + a).min(len - crest - a) < EDGE_MM + RIM_FADE_MM + 0.2;
     let mut all = lattice(d, FINE_PITCH_MM, Kind::Fine, 0.1, &|t, a| {
-        shank_weight(circ, t) < 0.5 || salmon_margin(circ, t, a) < 0.3 || near_rim(a)
+        shank_weight(circ, t) < 0.5 || salmon_margin(circ, t, a) < 0.45 || near_rim(a)
     });
     all.extend(lattice(d, SALMON_PITCH_MM, Kind::Salmon, 0.06, &|t, a| {
-        shank_weight(circ, t) >= 0.5 && salmon_margin(circ, t, a) > 0.3
+        shank_weight(circ, t) >= 0.5 && salmon_margin(circ, t, a) > 0.28
     }));
     all
 }
 
 /// Radius round the stone's axis the hide keeps clear of, metal mm: the collet's wall and its beaded lip.
 fn stone_clear_mm() -> f64 {
-    MILGRAIN_RING_MM + MILGRAIN_R_MM + 0.05
+    MILGRAIN_RING_MM + 0.1
 }
 
 /// Sector `k`'s hide as one SVG over its stretch of the unrolled band and `SECTOR_OVERLAP_MM` either side of it: black ink is
@@ -307,7 +307,8 @@ fn sector_svg(d: &RingDesign, all: &[Bead], k: usize) -> String {
         }
         defs.push_str("</radialGradient>");
     };
-    let dome = |t: f64| (1.0 - t * t).max(0.0).powf(0.62);
+    // Soft-skirted domes: each bead's base runs out gently, so its outline holds on the build grid.
+    let dome = |t: f64| (1.0 - t * t).max(0.0).powf(1.2);
     gradient("sd", SALMON_BEAD_MM / BEAD_MM, &dome);
     gradient("fd", FINE_BEAD_MM / BEAD_MM, &dome);
     let mut body = String::new();
@@ -365,15 +366,15 @@ fn stone_pad(crest_v: f64) -> SeatPadLayer {
 
 /// The snout's tip and the head's centre round the ring, arc mm at the crown radius; the snout points toward smaller `u`.
 const SNOUT_U: f64 = -8.6;
-const HEAD_U: f64 = -5.6;
+const HEAD_U: f64 = -6.3;
 /// The head's plan: half its length (neck to snout) and its greatest half-width, at the jowls, mm. Length 6.0 against width 5.0:
 /// the Gila's flat wedge, 1.15 times as long as it is wide, narrowing a little to a blunt, square snout.
-const HEAD_HL: f64 = 3.0;
-const HEAD_HW: f64 = 2.6;
+const HEAD_HL: f64 = 2.3;
+const HEAD_HW: f64 = 2.1;
 /// The snout's corner radius in plan, mm: the nose is square-ended, its end 4.3 mm across, more than 80% of the head's width.
-const SNOUT_R: f64 = 0.95;
+const SNOUT_R: f64 = 0.8;
 /// The stone's centre round the ring, degrees: in front of the snout, clear of it by the collet's beaded lip.
-const STONE_DEG: f64 = 36.5;
+const STONE_DEG: f64 = 37.5;
 /// The collet's beaded lip: round domes on the mound round the collet's foot. Their ring's radius from the stone's axis, their
 /// radius, and how far their centres sit under the mound's surface.
 const MILGRAIN_BEADS: usize = 22;
@@ -384,20 +385,20 @@ const MILGRAIN_SINK_MM: f64 = 0.04;
 const SCULPT_STEP: f64 = 0.057;
 
 /// Where the neck creases behind the head and where the tail leaves the trunk, arc mm.
-const NECK_U: f64 = -2.6;
+const NECK_U: f64 = -4.0;
 const VENT_U: f64 = 5.4;
 /// The tail: a fat sausage that leaves the vent heading round the ring and curls back across the crown, an arc of this radius
 /// through this many degrees, then a rounded end.
-const TAIL_R: f64 = 4.0;
-const TAIL_TURN_DEG: f64 = 88.0;
+const TAIL_R: f64 = 2.9;
+const TAIL_TURN_DEG: f64 = 115.0;
 const TAIL_CAP_MM: f64 = 1.0;
 /// The black bands' sink below the salmon envelope, mm, and the beads: salmon pitch and dome, black pitch and dome, head pitch
 /// and dome, head flank pitch and dome.
-const SINK_MM: f64 = 0.36;
-const PALE_PITCH: f64 = 0.76;
-const PALE_DOME: f64 = 0.22;
-const DARK_PITCH: f64 = 0.42;
-const DARK_DOME: f64 = 0.10;
+const SINK_MM: f64 = 0.48;
+const PALE_PITCH: f64 = 0.9;
+const PALE_DOME: f64 = 0.2;
+const DARK_PITCH: f64 = 0.38;
+const DARK_DOME: f64 = 0.08;
 const HEAD_PITCH: f64 = 0.78;
 const HEAD_DOME: f64 = 0.11;
 const FLANK_PITCH: f64 = 0.6;
@@ -405,7 +406,7 @@ const FLANK_DOME: f64 = 0.11;
 /// The black bands along the spine, `s` mm from the neck: (centre, half-width). Three crossbands on the trunk, four rings round
 /// the tail. The forelegs and hind legs leave the flanks inside the first and third crossbands, so no pale row runs on into a
 /// leg.
-const DARK_BANDS: [(f64, f64); 7] = [(2.6, 0.72), (4.85, 0.6), (7.0, 0.6), (8.95, 0.5), (10.65, 0.5), (12.35, 0.5), (14.0, 0.45)];
+const DARK_BANDS: [(f64, f64); 7] = [(3.0, 0.85), (5.6, 0.8), (8.1, 0.8), (10.25, 0.58), (11.95, 0.58), (13.65, 0.58), (15.35, 0.55)];
 
 /// The bare band's outer radius over (theta, z): the top of every outward-facing triangle, rasterized.
 struct Surface {
@@ -543,11 +544,11 @@ struct Key {
 /// The trunk, from inside the head to a little past the vent, where the tail takes over. It drifts across the crown toward +z as
 /// it goes, so the tail can curl back over the -z side.
 const TRUNK: [Key; 7] = [
-    Key { u: -3.9, zc: 0.0, hc: 1.0, w: 1.95, t: 1.2 },
-    Key { u: -2.6, zc: 0.0, hc: 1.02, w: 2.05, t: 1.25 },
-    Key { u: -1.0, zc: 0.05, hc: 1.15, w: 2.45, t: 1.5 },
-    Key { u: 1.4, zc: 0.3, hc: 1.2, w: 2.75, t: 1.7 },
-    Key { u: 3.6, zc: 0.7, hc: 1.2, w: 2.8, t: 1.7 },
+    Key { u: -5.2, zc: 0.0, hc: 1.0, w: 1.75, t: 1.15 },
+    Key { u: -4.0, zc: 0.0, hc: 1.02, w: 1.85, t: 1.2 },
+    Key { u: -2.4, zc: 0.05, hc: 1.15, w: 2.4, t: 1.5 },
+    Key { u: 0.4, zc: 0.3, hc: 1.2, w: 2.75, t: 1.7 },
+    Key { u: 3.0, zc: 0.7, hc: 1.2, w: 2.8, t: 1.7 },
     Key { u: 5.4, zc: 1.2, hc: 1.15, w: 2.55, t: 1.6 },
     Key { u: 6.0, zc: 1.3, hc: 1.1, w: 2.45, t: 1.55 },
 ];
@@ -650,19 +651,20 @@ impl Figure {
         let head_f = [th.sin(), -th.cos(), 0.0];
         let mut limbs = Vec::new();
         let mut feet = Vec::new();
-        let spread = [-60.0, -30.0, 0.0, 28.0, 52.0];
+        let spread = [-55.0, -28.0, 0.0, 20.0, 38.0];
         // A walking pose, diagonal pairs together: the +z foreleg and the -z hind leg reach forward, the others push back. Each
-        // leg leaves the flank low, splays out with its elbow or knee barely off the band, and plants a foot of thin clawed toes.
-        let fore = [0.7, 1.0, 1.15, 1.0, 0.65];
-        let hind = [0.7, 1.0, 1.15, 1.25, 0.65];
-        limbs.push(Limb { joints: vec![([-0.4, 2.0, 1.15], 0.95), ([-0.5, 3.9, 1.05], 0.82), ([-1.3, 4.1, 0.42], 0.68)] });
-        feet.push(foot([-1.75, 4.1, 0.25], PI - 0.15, -1.0, spread, fore));
-        limbs.push(Limb { joints: vec![([0.2, -2.0, 1.15], 0.95), ([0.7, -3.9, 1.05], 0.82), ([1.2, -4.1, 0.42], 0.68)] });
-        feet.push(foot([1.45, -4.15, 0.25], -PI * 0.5 - 0.9, 1.0, spread, fore));
-        limbs.push(Limb { joints: vec![([3.9, -2.1, 1.1], 1.0), ([3.7, -3.9, 1.05], 0.86), ([2.9, -4.1, 0.42], 0.7)] });
-        feet.push(foot([2.4, -4.1, 0.25], PI + 0.2, 1.0, spread, hind));
-        limbs.push(Limb { joints: vec![([4.3, 2.3, 1.1], 1.0), ([5.0, 3.95, 1.05], 0.86), ([5.9, 4.1, 0.42], 0.7)] });
-        feet.push(foot([6.3, 4.05, 0.25], 0.2, 1.0, spread, hind));
+        // leg leaves the flank low inside a black band, splays out with its elbow or knee barely off the band, and plants a foot
+        // of thin clawed toes pointing along the ring, the outermost toe tip 0.8 mm or more inside the rim.
+        let fore = [0.7, 1.0, 1.1, 0.9, 0.6];
+        let hind = [0.7, 1.0, 1.1, 1.0, 0.6];
+        limbs.push(Limb { joints: vec![([-1.4, 2.0, 1.15], 0.95), ([-1.4, 3.5, 1.0], 0.82), ([-2.1, 3.4, 0.42], 0.68)] });
+        feet.push(foot([-2.5, 3.3, 0.25], PI - 0.15, -1.0, spread, fore));
+        limbs.push(Limb { joints: vec![([-0.8, -2.0, 1.15], 0.95), ([-0.4, -3.5, 1.0], 0.82), ([-0.4, -3.4, 0.42], 0.68)] });
+        feet.push(foot([-0.7, -3.3, 0.25], PI + 0.15, 1.0, spread, fore));
+        limbs.push(Limb { joints: vec![([3.9, -2.1, 1.1], 1.0), ([3.7, -3.5, 1.0], 0.86), ([3.0, -3.4, 0.42], 0.7)] });
+        feet.push(foot([2.6, -3.3, 0.25], PI + 0.15, 1.0, spread, hind));
+        limbs.push(Limb { joints: vec![([4.3, 2.3, 1.1], 1.0), ([5.0, 3.55, 1.0], 0.86), ([5.8, 3.45, 0.42], 0.7)] });
+        feet.push(foot([6.2, 3.3, 0.25], 0.15, 1.0, spread, hind));
         // The collet lip's beads: round the stone's axis in the band's tangent plane, each dropped onto the mound.
         let t = STONE_DEG.to_radians();
         let (up, along) = ([t.cos(), t.sin(), 0.0], [-t.sin(), t.cos(), 0.0]);
@@ -684,12 +686,12 @@ impl Figure {
         // until it ends, so each shows from above as well as from the side.
         for (k, s) in [-1.0, 1.0].into_iter().enumerate() {
             let (mut lo, mut hi) = (0.0, 3.5);
-            let (x, z) = (1.0, Self::head_top(1.0, 2.0) - 0.3);
+            let (x, z) = (0.7, Self::head_top(0.7, 1.7) - 0.34);
             for _ in 0..40 {
                 let m = 0.5 * (lo + hi);
                 if f.head_shape([x, s * m, z]) < 0.0 { lo = m } else { hi = m }
             }
-            f.eye[k] = [x, s * (lo - 0.22), z];
+            f.eye[k] = [x, s * (lo - 0.3), z];
         }
         Ok(f)
     }
@@ -711,9 +713,10 @@ impl Figure {
     /// The head's plan in its frame (x forward to the snout, y across): a wedge, widest at the jowls behind the eyes, square at
     /// the nose with corners of `SNOUT_R`, rounder at the neck. Signed distance in plan, mm.
     fn head_plan(x: f64, y: f64) -> f64 {
-        let hw = if x > -1.0 { HEAD_HW - 0.45 * smooth01((x + 1.0) / (HEAD_HL + 1.0)) } else { HEAD_HW - 0.35 * ((-1.0 - x) / (HEAD_HL - 1.0)) };
+        let jowl = -0.35 * HEAD_HL;
+        let hw = if x > jowl { HEAD_HW - 0.3 * smooth01((x - jowl) / (HEAD_HL - jowl)) } else { HEAD_HW - 0.25 * ((jowl - x) / (HEAD_HL + jowl)) };
         let yy = y * HEAD_HW / hw;
-        let r = if x > 0.0 { SNOUT_R } else { 1.2 };
+        let r = if x > 0.0 { SNOUT_R } else { 1.0 };
         let q = [x.abs() - HEAD_HL + r, yy.abs() - HEAD_HW + r];
         q[0].max(0.0).hypot(q[1].max(0.0)) + q[0].max(q[1]).min(0.0) - r
     }
@@ -721,14 +724,14 @@ impl Figure {
     /// The head's flat top over the band, mm, at `x` forward and `y` across: highest over the skull, falling a little to the
     /// snout, crowned a little across.
     fn head_top(x: f64, y: f64) -> f64 {
-        2.3 - 0.5 * smooth01((x + 1.2) / 4.2) - 0.08 * smooth01((-1.2 - x) / 1.8) - 0.22 * (y / HEAD_HW).powi(2)
+        2.35 - 0.4 * smooth01((x + 0.9) / 3.2) - 0.08 * smooth01((-0.9 - x) / 1.4) - 0.2 * (y / HEAD_HW).powi(2)
     }
 
     /// The head's mass before its features: the plan extruded between a sunk chin and the flat top, every edge rounded.
     fn head_shape(&self, q: V3) -> f64 {
-        let re = 0.55;
+        let re = 0.8;
         // The jaw tucks under: below the mouth line the head narrows to the chin, so the flank is a rounded jowl, never a wall.
-        let tuck = 0.8 + 0.2 * smooth01((q[2] + 0.3) / 1.1);
+        let tuck = 0.66 + 0.34 * smooth01((q[2] + 0.4) / 1.7);
         let d2 = Self::head_plan(q[0], q[1] / tuck) * tuck.min(1.0) + re;
         let (zt, zb) = (Self::head_top(q[0], q[1]), -0.9);
         let (zc, hz) = (0.5 * (zt + zb), 0.5 * (zt - zb) - re);
@@ -748,27 +751,22 @@ impl Figure {
             // Big domed beads over the top, rows across the head; smaller ones down the flanks. None in the eyes or on the lips.
             let top = smooth01((q[2] - (Self::head_top(q[0], q[1]) - 0.75)) / 0.45);
             let crown = dome(hex_dist(q[1], q[0] + 0.3, HEAD_PITCH, 11), HEAD_PITCH, HEAD_DOME);
-            // Round the flanks and across the snout's end: the wall unrolled, so the nose is beaded like the rest.
-            let flank = dome(hex_dist(q[0] + (q[1].abs() - 1.0).max(0.0) * (q[0] / HEAD_HL).max(0.0) + q[1].abs() * smooth01(q[0] - 1.5), q[2], FLANK_PITCH, 13), FLANK_PITCH, FLANK_DOME);
-            let eyes = self.eye.iter().map(|e| smooth01((v_len(v_sub(q, *e)) - 0.85) / 0.4)).fold(1.0, f64::min);
+            let flank = dome(hex_dist(q[0], q[2], FLANK_PITCH, 13), FLANK_PITCH, FLANK_DOME);
+            let eyes = self.eye.iter().map(|e| smooth01((v_len(v_sub(q, *e)) - 0.8) / 0.45)).fold(1.0, f64::min);
             let lips = smooth01(((q[2] - 0.48 - 0.05 * (1.5 - q[0]).clamp(0.0, 3.5)).abs() - 0.1) / 0.15);
             h -= eyes * (top * crown + (1.0 - top) * flank * lips);
         }
         // The mouth line: a groove round the jaw from the snout back to the gape, rising a little toward the gape.
         let m = 0.48 + 0.05 * (1.5 - q[0]).clamp(0.0, 3.5);
         let slot = (q[2] - m).abs() - 0.09;
-        let carve = slot.max(-(h + 0.3)).max(-(q[0] + 1.9));
+        let carve = slot.max(-(h + 0.3)).max(-(q[0] + 1.4));
         h = sculpt::smax(h, -carve, 0.05);
-        // Nostrils, near the nose's corners.
-        for s in [-1.0, 1.0] {
-            let n = [HEAD_HL - 0.4, s * 1.25, Self::head_top(HEAD_HL - 0.4, 1.25) - 0.22];
-            h = sculpt::smax(h, -(v_len(v_sub(q, n)) - 0.17), 0.04);
-        }
         // Eyes: a lidded socket at the top of the flank and a round, polished eye sunk in it under the brow.
         for e in self.eye {
-            h = sculpt::smax(h, -(v_len(v_sub(q, e)) - 0.68), 0.14);
+            // The ball sits inside the head's outline: its crown stays under the lids.
+            h = sculpt::smax(h, -(v_len(v_sub(q, e)) - 0.56), 0.2);
             let out = [0.0, e[1].signum() * 0.8, 0.6];
-            let ball = v_len(v_sub(q, [e[0], e[1] - out[1] * 0.14, e[2] - out[2] * 0.14])) - 0.5;
+            let ball = v_len(v_sub(q, [e[0], e[1] - out[1] * 0.12, e[2] - out[2] * 0.12])) - 0.4;
             h = h.min(ball);
         }
         h
@@ -777,8 +775,17 @@ impl Figure {
     /// The Gila's black against salmon at `s` mm along the spine from the neck and `ang` round its section (0 on top): 1 black,
     /// 0 salmon. Bands of fixed count, their edges wavering round the body.
     fn black(&self, s: f64, ang: f64) -> f64 {
-        let wav = 0.2 * (1.9 * ang + 0.7 * s).sin() + 0.2 * noise(s / 40.0, ang * 1.3 + 3.0, 11.0, 5);
-        let m = DARK_BANDS.iter().map(|&(c, hw)| hw - (s + wav - c).abs()).fold(f64::MIN, f64::max);
+        let wav = 0.18 * (1.9 * ang + 0.7 * s).sin() + 0.26 * noise(s / 40.0, ang * 1.3 + 3.0, 11.0, 5);
+        let m = DARK_BANDS
+            .iter()
+            .enumerate()
+            .map(|(k, &(c, hw))| {
+                // Each trunk band forks on one flank: a salmon wedge splits it into a Y, as the Gila's crossbands do.
+                let side = if k % 2 == 0 { 1.0 } else { -1.0 };
+                let fork = if k < 3 { 0.9 * (1.0 - (ang - side * 1.05).abs() / 0.55).max(0.0) * (0.55 * hw - (s - c).abs()).max(0.0) / (0.55 * hw) } else { 0.0 };
+                hw - (s + wav - c).abs() - fork * hw
+            })
+            .fold(f64::MIN, f64::max);
         smooth01(m / 0.28 + 0.5)
     }
 
@@ -790,7 +797,8 @@ impl Figure {
         let b = self.black(s, ang);
         let pale = dome(hex_dist(around, along, PALE_PITCH, 23), PALE_PITCH, PALE_DOME);
         let dark = dome(hex_dist(around, along, DARK_PITCH, 29), DARK_PITCH, DARK_DOME);
-        b * SINK_MM - ((1.0 - b) * pale + b * dark)
+        // The salmon beads' crowns lie on the envelope, their seams cut into it; the black bands sink on fine beads.
+        (1.0 - b) * (PALE_DOME - pale) + b * (SINK_MM - dark)
     }
 
     /// The trunk and the tail.
@@ -848,6 +856,12 @@ impl Figure {
         for l in &self.limbs {
             d = sculpt::smin(d, l.dist(q), 0.45);
         }
+        if self.beads && d < 0.3 {
+            // Small beads over the legs: an egg-crate of shallow domes at 0.55 mm; the feet stay smooth, so the toes read.
+            let k = 2.0 * PI / 0.55;
+            let e = (q[0] * k).sin() * (q[1] * k).sin() * ((q[2] + 0.13) * k).sin();
+            d -= 0.05 * e.max(0.0) * smooth01((q[2] - 0.5) / 0.3);
+        }
         for f in &self.feet {
             let mut fd = sculpt::ellipsoid(v_sub(q, f.pad), f.pad_r);
             for t in &f.toes {
@@ -857,12 +871,6 @@ impl Figure {
                 fd = sculpt::smin(fd, c.dist(q), 0.08);
             }
             d = sculpt::smin(d, fd, 0.35);
-        }
-        if self.beads && d < 0.3 {
-            // Small beads over the legs: an egg-crate of domes at 0.55 mm.
-            let k = 2.0 * PI / 0.55;
-            let e = (q[0] * k).sin() * (q[1] * k).sin() * ((q[2] + 0.13) * k).sin();
-            d -= 0.08 * e.max(0.0).powf(0.6) * smooth01((q[2] - 0.3) / 0.3);
         }
         d
     }

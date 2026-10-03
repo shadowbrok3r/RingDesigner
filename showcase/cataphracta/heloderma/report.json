@@ -6,18 +6,18 @@
     "crest_v_mm": 5.570686429033272
   },
   "cold_reload_identical": true,
-  "design_bytes": 2441957,
+  "design_bytes": 2477174,
   "draft": {
     "bore": {
       "bore_radius_mm": 9.3,
-      "closest_vertex_mm": 9.298603329084058,
+      "closest_vertex_mm": 9.299972889963348,
       "vertices_inside": 0
     },
     "build": {
-      "ms": 4052.758195,
+      "ms": 3739.92855,
       "profile_steps": 320,
       "theta_steps": 768,
-      "triangles": 631940
+      "triangles": 647538
     },
     "crisp_relief": {
       "on": false,
@@ -33,12 +33,13 @@
       "min_detail_mm": 0.15,
       "min_section_mm": 0.8,
       "notes": [
-        "Lost wax: 4.56% of the surface would undercut a two-part pull (worst 31.5 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Undercut 83–25° on the crest: 56.0 mm² leaning to 29° — caused by \"Gila beadwork\"; muting it clears it.",
-        "Undercut 54–76° on the crest: 3.7 mm² leaning to 10° — caused by \"Gila beadwork\"; muting it clears it.",
+        "Lost wax: 4.14% of the surface would undercut a two-part pull (worst 29.8 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Undercut 83–27° on the crest: 51.5 mm² leaning to 29° — caused by \"Gila beadwork\"; muting it clears it.",
+        "Undercut 47–47° on the upper shoulder: 0.1 mm² leaning to 1° — caused by \"Gila beadwork\"; muting it clears it.",
+        "Undercut 54–76° on the crest: 3.2 mm² leaning to 10° — caused by \"Gila beadwork\"; muting it clears it.",
         "1 made setting cast in place with the ring; the field judges the band under it.",
-        "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 356.0 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Stored mesh \"Gila\" (#1) would undercut a two-part pull over 79.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 312.2 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Stored mesh \"Gila\" (#1) would undercut a two-part pull over 68.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "process": "LostWax",
       "thinnest_wall_mm": 2.1046737237221187,
@@ -106,7 +107,7 @@
     "geometry": {
       "boundary_edges": 0,
       "degenerate_faces": 0,
-      "min_angle_deg": 0.0026930010343773495,
+      "min_angle_deg": 0.0063723165044119725,
       "non_manifold_edges": 0,
       "self_crossings": 0,
       "watertight": true
@@ -138,31 +139,31 @@
               "feature": "limbs (upper and lower legs)",
               "floor_mm": 0.8,
               "pass": true,
-              "thinnest_section_mm": 1.360000000033957
+              "thinnest_section_mm": 1.359999999999979
             },
             {
               "feature": "toes",
               "floor_mm": 0.8,
               "pass": true,
-              "thinnest_section_mm": 0.8199999999999747
+              "thinnest_section_mm": 0.8199999999999733
             },
             {
               "feature": "claw tips (rounded ends)",
               "floor_mm": 0.5,
               "pass": true,
-              "thinnest_section_mm": 0.5199999999999798
+              "thinnest_section_mm": 0.5199999999999747
             },
             {
               "feature": "neck",
               "floor_mm": 0.8,
               "pass": true,
-              "thinnest_section_mm": 2.4564141776310695
+              "thinnest_section_mm": 1.8494245211882459
             },
             {
               "feature": "tail's end",
               "floor_mm": 0.8,
               "pass": true,
-              "thinnest_section_mm": 1.41352649681834
+              "thinnest_section_mm": 1.1177888718994873
             },
             {
               "feature": "collet lip beads (round domes on the mound)",
@@ -176,17 +177,17 @@
           "part": "Gila (sculpted figure), per feature"
         },
         {
-          "area_under_floor_mm2": 58.58082282121454,
+          "area_under_floor_mm2": 49.96348934515415,
           "part": "Gila (sculpted figure), whole-part ray read",
-          "surface_area_mm2": 472.8108664246322,
-          "thinnest_section_mm": 0.0003662162372616889,
+          "surface_area_mm2": 397.15802942828907,
+          "thinnest_section_mm": 0.0009586748216386536,
           "treatment": "named, not removed: the rays that read under the floor cut chords through the bead relief (domes and seams on a body 2.6 mm or more through), the claw tips and the eye sockets; every load-bearing feature is measured above, per feature"
         }
       ]
     },
     "made": {
       "figure_self_crossings": 0,
-      "figure_triangles": 186814,
+      "figure_triangles": 190122,
       "parts_joined": 1,
       "parts_notes": [],
       "solids_notes": [],
@@ -197,25 +198,25 @@
     "pattern": {
       "degenerate_faces": 0,
       "self_crossings": 0,
-      "triangles": 631940,
+      "triangles": 647538,
       "watertight": true
     },
     "ray_release": {
       "0.075": {
         "cell_mm": [
-          0.07484719649605129,
-          0.0749151907469097
+          0.07483524101367896,
+          0.07486884808414197
         ],
-        "obstructions": 1906,
+        "obstructions": 1505,
         "status": "NotApplicable",
         "unresolved_rays": 0
       },
       "0.100": {
         "cell_mm": [
-          0.0996999335565162,
-          0.09988692099587959
+          0.09968400830007428,
+          0.09964938230917487
         ],
-        "obstructions": 1265,
+        "obstructions": 1034,
         "status": "NotApplicable",
         "unresolved_rays": 0
       },
@@ -228,22 +229,22 @@
     },
     "two_part_undercut": {
       "gated": false,
-      "undercut_percent": 4.557816171518246,
+      "undercut_percent": 4.140784777261304,
       "verdict_if_sand": "Will not release",
-      "worst_draft_deg": -31.509690811888923
+      "worst_draft_deg": -29.752811278445563
     }
   },
   "export": {
     "bore": {
       "bore_radius_mm": 9.3,
-      "closest_vertex_mm": 9.298603329084058,
+      "closest_vertex_mm": 9.299991273276998,
       "vertices_inside": 0
     },
     "build": {
-      "ms": 8734.672641,
+      "ms": 7821.760258,
       "profile_steps": 448,
       "theta_steps": 1536,
-      "triangles": 1477682
+      "triangles": 1505566
     },
     "crisp_relief": {
       "on": false,
@@ -259,12 +260,13 @@
       "min_detail_mm": 0.15,
       "min_section_mm": 0.8,
       "notes": [
-        "Lost wax: 4.56% of the surface would undercut a two-part pull (worst 31.5 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Undercut 83–25° on the crest: 56.0 mm² leaning to 29° — caused by \"Gila beadwork\"; muting it clears it.",
-        "Undercut 54–76° on the crest: 3.7 mm² leaning to 10° — caused by \"Gila beadwork\"; muting it clears it.",
+        "Lost wax: 4.14% of the surface would undercut a two-part pull (worst 29.8 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Undercut 83–27° on the crest: 51.5 mm² leaning to 29° — caused by \"Gila beadwork\"; muting it clears it.",
+        "Undercut 47–47° on the upper shoulder: 0.1 mm² leaning to 1° — caused by \"Gila beadwork\"; muting it clears it.",
+        "Undercut 54–76° on the crest: 3.2 mm² leaning to 10° — caused by \"Gila beadwork\"; muting it clears it.",
         "1 made setting cast in place with the ring; the field judges the band under it.",
-        "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 355.9 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Stored mesh \"Gila\" (#1) would undercut a two-part pull over 79.8 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 312.0 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Stored mesh \"Gila\" (#1) would undercut a two-part pull over 68.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "process": "LostWax",
       "thinnest_wall_mm": 2.1046737237221187,
@@ -332,7 +334,7 @@
     "geometry": {
       "boundary_edges": 0,
       "degenerate_faces": 0,
-      "min_angle_deg": 0.0006478370068151191,
+      "min_angle_deg": 0.0008880637298947166,
       "non_manifold_edges": 0,
       "self_crossings": 0,
       "watertight": true
@@ -364,31 +366,31 @@
               "feature": "limbs (upper and lower legs)",
               "floor_mm": 0.8,
               "pass": true,
-              "thinnest_section_mm": 1.360000000033957
+              "thinnest_section_mm": 1.359999999999979
             },
             {
               "feature": "toes",
               "floor_mm": 0.8,
               "pass": true,
-              "thinnest_section_mm": 0.8199999999999747
+              "thinnest_section_mm": 0.8199999999999733
             },
             {
               "feature": "claw tips (rounded ends)",
               "floor_mm": 0.5,
               "pass": true,
-              "thinnest_section_mm": 0.5199999999999798
+              "thinnest_section_mm": 0.5199999999999747
             },
             {
               "feature": "neck",
               "floor_mm": 0.8,
               "pass": true,
-              "thinnest_section_mm": 2.4564141776310695
+              "thinnest_section_mm": 1.8494245211882459
             },
             {
               "feature": "tail's end",
               "floor_mm": 0.8,
               "pass": true,
-              "thinnest_section_mm": 1.41352649681834
+              "thinnest_section_mm": 1.1177888718994873
             },
             {
               "feature": "collet lip beads (round domes on the mound)",
@@ -402,17 +404,17 @@
           "part": "Gila (sculpted figure), per feature"
         },
         {
-          "area_under_floor_mm2": 58.58082282121454,
+          "area_under_floor_mm2": 49.96348934515415,
           "part": "Gila (sculpted figure), whole-part ray read",
-          "surface_area_mm2": 472.8108664246322,
-          "thinnest_section_mm": 0.0003662162372616889,
+          "surface_area_mm2": 397.15802942828907,
+          "thinnest_section_mm": 0.0009586748216386536,
           "treatment": "named, not removed: the rays that read under the floor cut chords through the bead relief (domes and seams on a body 2.6 mm or more through), the claw tips and the eye sockets; every load-bearing feature is measured above, per feature"
         }
       ]
     },
     "made": {
       "figure_self_crossings": 0,
-      "figure_triangles": 186814,
+      "figure_triangles": 190122,
       "parts_joined": 1,
       "parts_notes": [],
       "solids_notes": [],
@@ -423,25 +425,25 @@
     "pattern": {
       "degenerate_faces": 0,
       "self_crossings": 0,
-      "triangles": 1477682,
+      "triangles": 1505566,
       "watertight": true
     },
     "ray_release": {
       "0.075": {
         "cell_mm": [
-          0.07485778919164686,
-          0.07491863150345651
+          0.07485431726428046,
+          0.07487593756781684
         ],
-        "obstructions": 2032,
+        "obstructions": 1591,
         "status": "NotApplicable",
         "unresolved_rays": 0
       },
       "0.100": {
         "cell_mm": [
-          0.09971404351783075,
-          0.09989150867127536
+          0.09970941874971721,
+          0.09965881831209425
         ],
-        "obstructions": 1399,
+        "obstructions": 1020,
         "status": "NotApplicable",
         "unresolved_rays": 0
       },
@@ -454,9 +456,9 @@
     },
     "two_part_undercut": {
       "gated": false,
-      "undercut_percent": 4.557816171518246,
+      "undercut_percent": 4.140784777261304,
       "verdict_if_sand": "Will not release",
-      "worst_draft_deg": -31.509690811888923
+      "worst_draft_deg": -29.752811278445563
     }
   },
   "gates_passed": true,
