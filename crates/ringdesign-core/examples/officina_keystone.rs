@@ -33,21 +33,24 @@ const CARTOUCHE_WIDE_MM: f64 = 4.8;
 const CARTOUCHE_CORNER_MM: f64 = 1.0;
 const CORNER_SEGMENTS: usize = 12;
 const BOSS_MM: f64 = 1.6;
-const BOSS_DRAFT_DEG: f64 = 7.0;
-const BOSS_BLEND_MM: f64 = 0.6;
+const BOSS_DRAFT_DEG: f64 = 12.0;
+const BOSS_BLEND_MM: f64 = 0.45;
 const PULL_MM: f64 = 0.8;
-const RIM_ROUND_MM: f64 = 0.35;
-const RIM_CHAMFER_MM: f64 = 0.45;
+/// The rim radii the native fillet is tried at, largest first.
+const RIM_ROUNDS_MM: [f64; 4] = [0.35, 0.3, 0.25, 0.2];
+const RIM_CHAMFER_MM: f64 = 0.25;
 /// The bright-cut lozenge on the top, round the ring and across. Each half is one sloped plane,
 /// level with the top on the long diagonal and `FACET_DEPTH_MM` deep at its apex, so the two
 /// halves meet on a ridge and catch the light in two tones.
-const FACET_LONG_MM: f64 = 5.0;
-const FACET_WIDE_MM: f64 = 2.8;
+const FACET_LONG_MM: f64 = 4.6;
+const FACET_WIDE_MM: f64 = 2.6;
 const FACET_DEPTH_MM: f64 = 0.45;
 /// The graver's walls open out above the facet's floor.
 const FACET_WALL_DEG: f64 = -20.0;
 /// How far the cutter stands above the facet's plane: clear of the top everywhere.
 const FACET_CLEAR_MM: f64 = 1.0;
+/// The band's outer arrises are rounded this much.
+const BAND_EDGE_MM: f64 = 0.35;
 const ALLOY: &str = "Gold 14k";
 
 fn draft_params() -> BuildParams {
@@ -106,6 +109,8 @@ fn band() -> RingDesign {
     d.profile.width_mm = 6.0;
     d.profile.thickness_mm = 2.0;
     d.profile.flatten_sides();
+    // Square walls, but the outer arrises broken so the band is not cut sheet.
+    d.profile.edge_round_mm = BAND_EDGE_MM;
     SandProcess::DelftClay.apply(&mut d.draft);
     CastProcess::SandTwoPart.apply(&mut d.draft);
     d.manufacturing = Some(setup());
@@ -245,7 +250,7 @@ fn evaluated(d: &RingDesign, lib: &AlphaLibrary) -> Result<cad::Evaluated> {
 struct Authored {
     rim_edges: usize,
     rim_finish: String,
-    fillet_refusal: Option<String>,
+    fillet_refusals: Vec<String>,
     top_height_mm: f64,
     proud_of_crest_mm: f64,
 }
@@ -296,28 +301,43 @@ fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
     let edges = rim_edges(&e, pull, normal, height)?;
     notes.rim_edges = edges.len();
     notes.top_height_mm = height;
-    let fillet = Operation::Fillet {
-        source: pull,
-        edges: edges.clone(),
-        radius_mm: RIM_ROUND_MM,
-    };
-    let rim = add(&mut d, "Round the rim", fillet, joined())?;
-    match evaluated(&d, lib) {
-        Ok(_) => notes.rim_finish = format!("Fillet {RIM_ROUND_MM} mm"),
-        Err(why) => {
-            // The native fillet refused the drafted prism: the section's fallback is a chamfer.
-            notes.fillet_refusal = Some(format!("{why:#}"));
-            notes.rim_finish = format!("Chamfer {RIM_CHAMFER_MM} mm");
-            let f = d.cad.as_mut().unwrap().features.last_mut().unwrap();
-            f.name = "Chamfer the rim".into();
-            f.operation = Operation::Chamfer {
-                source: pull,
-                edges,
-                base_face: face_ref(&e, pull, top),
-                distance_mm: RIM_CHAMFER_MM,
-            };
-            evaluated(&d, lib)?;
+    // The native fillet is tried at each radius in turn; where the kernel refuses them all, the
+    // section's fallback is a chamfer.
+    let rim = add(
+        &mut d,
+        "Round the rim",
+        Operation::Fillet {
+            source: pull,
+            edges: edges.clone(),
+            radius_mm: RIM_ROUNDS_MM[0],
+        },
+        joined(),
+    )?;
+    for radius_mm in RIM_ROUNDS_MM {
+        d.cad.as_mut().unwrap().features.last_mut().unwrap().operation = Operation::Fillet {
+            source: pull,
+            edges: edges.clone(),
+            radius_mm,
+        };
+        match evaluated(&d, lib) {
+            Ok(_) => {
+                notes.rim_finish = format!("Fillet {radius_mm} mm");
+                break;
+            }
+            Err(why) => notes.fillet_refusals.push(format!("{radius_mm} mm: {why:#}")),
         }
+    }
+    if notes.rim_finish.is_empty() {
+        notes.rim_finish = format!("Chamfer {RIM_CHAMFER_MM} mm");
+        let f = d.cad.as_mut().unwrap().features.last_mut().unwrap();
+        f.name = "Chamfer the rim".into();
+        f.operation = Operation::Chamfer {
+            source: pull,
+            edges,
+            base_face: face_ref(&e, pull, top),
+            distance_mm: RIM_CHAMFER_MM,
+        };
+        evaluated(&d, lib)?;
     }
     let e = evaluated(&d, lib)?;
     let (top, height) = top_face(&e, rim, normal)?;
@@ -326,7 +346,10 @@ fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
     let lean = (FACET_DEPTH_MM / (FACET_WIDE_MM / 2.0)).atan();
     let (mut facet, upper, _lower) = lozenge("Bright-cut lozenge", FACET_LONG_MM, FACET_WIDE_MM / lean.cos());
     facet.plane.on_face = Some(FaceAnchor { feature: rim, face: face_ref(&e, rim, top) });
-    facet.plane.y = [0.0, lean.cos(), -lean.sin()];
+    // Turned half a turn on the top, so the first facet cut is the far half, which faces away
+    // from the hero camera and reads dark against the table.
+    facet.plane.x = [-1.0, 0.0, 0.0];
+    facet.plane.y = [0.0, -lean.cos(), -lean.sin()];
     let facet_sketch = add(&mut d, "Leaning facet sketch on the top", Operation::Sketch { sketch: facet }, bare())?;
     let cut = add(
         &mut d,
@@ -402,6 +425,13 @@ struct Gates {
     field_notes: Vec<String>,
     worst_draft_deg: f64,
     undercut_percent: f64,
+    /// Share of the surface under the sand's draft or square to the pull: what "with care" means.
+    drag_percent: f64,
+    marginal_area_mm2: f64,
+    vertical_area_mm2: f64,
+    total_area_mm2: f64,
+    /// Each poured CAD part as judged: name, undercut, marginal, vertical and whole area, worst draft.
+    parts_judged: Vec<(String, f64, f64, f64, f64, f64)>,
     thinnest_wall_mm: f64,
     release: Vec<Release>,
     dfm_findings: Vec<String>,
@@ -530,6 +560,15 @@ fn gates(
         field_notes: field.notes.clone(),
         worst_draft_deg: field.worst_draft_deg,
         undercut_percent: field.undercut_fraction() * 100.0,
+        drag_percent: field.drag_fraction() * 100.0,
+        marginal_area_mm2: field.marginal_area_mm2,
+        vertical_area_mm2: field.vertical_area_mm2,
+        total_area_mm2: field.total_area_mm2,
+        parts_judged: field
+            .parts
+            .iter()
+            .map(|p| (p.name.clone(), p.undercut_area_mm2, p.marginal_area_mm2, p.vertical_area_mm2, p.total_area_mm2, p.worst_draft_deg))
+            .collect(),
         thinnest_wall_mm: field.thinnest_wall_mm,
         release,
         dfm_findings: findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect(),
@@ -595,6 +634,94 @@ fn crop(m: &mesh::Mesh, centre: P3, radius: f64) -> mesh::Mesh {
     }
     out
 }
+
+/// The mesh with a vertex per face corner, each normal averaged over the faces round it that turn
+/// less than `crease_deg` from its own: rendering only, so a ridge or a chamfer shades as the
+/// crisp edge it is while a fillet stays smooth. Exported positions and topology are untouched.
+fn creased(m: &mesh::Mesh, crease_deg: f64) -> mesh::Mesh {
+    let limit = crease_deg.to_radians().cos();
+    let p = |i: u32| {
+        let v = m.vertices[i as usize];
+        [v.0 as f64, v.1 as f64, v.2 as f64]
+    };
+    let mut normals = Vec::with_capacity(m.faces.len());
+    let mut incident: Vec<Vec<(usize, f64)>> = vec![Vec::new(); m.vertices.len()];
+    for (k, f) in m.faces.iter().enumerate() {
+        let [a, b, c] = f.map(p);
+        let (e1, e2) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
+        let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+        let l = dot(n, n).sqrt().max(1e-30);
+        normals.push(n.map(|v| v / l));
+        for (i, &v) in f.iter().enumerate() {
+            let (u, w) = (f[(i + 1) % 3], f[(i + 2) % 3]);
+            let (pu, pv, pw) = (p(u), p(v), p(w));
+            let (du, dw) = ([pu[0] - pv[0], pu[1] - pv[1], pu[2] - pv[2]], [pw[0] - pv[0], pw[1] - pv[1], pw[2] - pv[2]]);
+            let angle = (dot(du, dw) / (dot(du, du) * dot(dw, dw)).sqrt().max(1e-30)).clamp(-1.0, 1.0).acos();
+            incident[v as usize].push((k, angle));
+        }
+    }
+    let mut out = mesh::Mesh::default();
+    out.vertices.reserve(m.faces.len() * 3);
+    out.normals.reserve(m.faces.len() * 3);
+    for (k, f) in m.faces.iter().enumerate() {
+        let base = out.vertices.len() as u32;
+        for &v in f {
+            let mut sum = [0.0; 3];
+            for &(j, w) in &incident[v as usize] {
+                if dot(normals[j], normals[k]) >= limit {
+                    for a in 0..3 {
+                        sum[a] += normals[j][a] * w;
+                    }
+                }
+            }
+            let l = dot(sum, sum).sqrt().max(1e-30);
+            out.vertices.push(m.vertices[v as usize]);
+            out.normals.push(mesh::Vec3((sum[0] / l) as f32, (sum[1] / l) as f32, (sum[2] / l) as f32));
+        }
+        out.faces.push([base, base + 1, base + 2]);
+    }
+    split_long(&mut out, RENDER_EDGE_MM);
+    out
+}
+
+/// Every face of `m` (a vertex per face corner) halved across its longest edge until no edge is
+/// longer than `limit`: the renderer shades at the vertices, and a large flat triangle otherwise
+/// shows as a wedge of its own tone. Rendering only.
+fn split_long(m: &mut mesh::Mesh, limit: f64) {
+    let at = |m: &mesh::Mesh, i: u32| {
+        let v = m.vertices[i as usize];
+        [v.0 as f64, v.1 as f64, v.2 as f64]
+    };
+    let mut k = 0;
+    while k < m.faces.len() {
+        let f = m.faces[k];
+        let p = f.map(|i| at(m, i));
+        let len = |a: [f64; 3], b: [f64; 3]| ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt();
+        let (e, longest) = (0..3).map(|e| (e, len(p[e], p[(e + 1) % 3]))).fold((0, 0.0), |b, c| if c.1 > b.1 { c } else { b });
+        if longest <= limit {
+            k += 1;
+            continue;
+        }
+        let (a, b, c) = (f[e], f[(e + 1) % 3], f[(e + 2) % 3]);
+        let (va, vb) = (m.vertices[a as usize], m.vertices[b as usize]);
+        let (na, nb) = (m.normals[a as usize], m.normals[b as usize]);
+        let n = [(na.0 + nb.0) as f64, (na.1 + nb.1) as f64, (na.2 + nb.2) as f64];
+        let l = dot(n, n).sqrt().max(1e-30);
+        let mid = m.vertices.len() as u32;
+        m.vertices.push(mesh::Vec3((va.0 + vb.0) * 0.5, (va.1 + vb.1) * 0.5, (va.2 + vb.2) * 0.5));
+        m.normals.push(mesh::Vec3((n[0] / l) as f32, (n[1] / l) as f32, (n[2] / l) as f32));
+        m.faces[k] = [a, mid, c];
+        m.faces.push([mid, b, c]);
+    }
+}
+
+/// Longest triangle edge the renders shade across.
+const RENDER_EDGE_MM: f64 = 0.25;
+
+/// The timeline frames each step on the metal this close to the cartouche.
+const TIMELINE_FRAME_MM: f64 = 8.0;
+/// Faces sharper than this read as an edge in the renders.
+const CREASE_DEG: f64 = 25.0;
 
 struct Canvas {
     w: usize,
@@ -675,8 +802,8 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, finished: &render::Fi
     close.extend(finished.parts(render::GOLD));
     render::write_png_parts(out.join("stones.png"), &close, 0.35, 1.05, edge)?;
     // The bare band against the finished ring, at the hero's angle.
-    let b = mesh::try_build(&band(), lib, draft_params())?;
-    let bare_img = render::render_parts_ss(&[render::Part::metal(&b.mesh, render::GOLD)], HERO.0, HERO.1, edge, edge, 3);
+    let b = creased(&mesh::try_build(&band(), lib, draft_params())?.mesh, CREASE_DEG);
+    let bare_img = render::render_parts_ss(&[render::Part::metal(&b, render::GOLD)], HERO.0, HERO.1, edge, edge, 3);
     let finished_img = render::render_parts_ss(&parts, HERO.0, HERO.1, edge, edge, 3);
     let mut pair = Canvas::new(edge * 2, edge, 0);
     pair.blit(&bare_img, edge, edge, 0, 0);
@@ -748,9 +875,15 @@ fn timeline(out: &Path, d: &RingDesign, lib: &AlphaLibrary) -> Result<()> {
     for (k, f) in doc.features.iter().enumerate() {
         let mut step = d.clone();
         step.cad.as_mut().unwrap().through = Some(f.id);
-        let finished = render::finished(&step, lib, params)?;
+        let mut finished = render::finished(&step, lib, params)?;
+        finished.metal = creased(&finished.metal, CREASE_DEG);
         let extra = overlay(d, lib, k, params)?;
-        let mut parts = finished.parts(render::GOLD);
+        // Framed on the top of the ring, where every step happens.
+        let crest = d.inner_radius_mm() + d.profile.thickness_mm;
+        let (s, c) = THETA.to_radians().sin_cos();
+        let frame = crop(&finished.metal, [crest * c, crest * s, 0.0], TIMELINE_FRAME_MM);
+        let mut parts = vec![render::Part::metal(&frame, render::GOLD)];
+        parts.extend(finished.parts(render::GOLD));
         for m in &extra {
             parts.push(render::Part::tinted_stone(m, [0.25, 0.5, 0.95]));
         }
@@ -760,6 +893,76 @@ fn timeline(out: &Path, d: &RingDesign, lib: &AlphaLibrary) -> Result<()> {
         sheet.text(&format!("{}. {}", k + 1, f.name), 22.0, x + 10, y + 4);
     }
     sheet.save(&out.join("timeline.png"))
+}
+
+/// The verdict of the bare band, and of the same cartouche on a domed band, beside the ring's own:
+/// which surfaces put Keystone at "castable with care".
+#[derive(serde::Serialize)]
+struct VerdictCause {
+    bare_band_verdict: String,
+    bare_band_drag_percent: f64,
+    ring_verdict: String,
+    ring_drag_percent: f64,
+    cartouche_vertical_mm2: f64,
+    cartouche_area_mm2: f64,
+    cartouche_undercut_mm2: f64,
+    cartouche_worst_draft_deg: f64,
+    domed_bare_verdict: String,
+    domed_bare_drag_percent: f64,
+    domed_with_cartouche_verdict: String,
+    domed_with_cartouche_drag_percent: f64,
+    lesson: String,
+}
+
+fn verdict_cause(d: &RingDesign, lib: &AlphaLibrary, g: &Gates) -> Result<VerdictCause> {
+    let judged = |d: &RingDesign, built: bool| -> Result<castability::FieldReport> {
+        let b = if built { Some(mesh::try_build(d, lib, BuildParams { theta_steps: 512, profile_steps: 192, ..BuildParams::default() })?) } else { None };
+        Ok(castability::judged_field_report(d, lib, &d.draft, 256, 128, b.as_ref()))
+    };
+    let mut bare = d.clone();
+    bare.cad = None;
+    let bare = judged(&bare, false)?;
+    // The same history on a LowDome 6.0 x 2.1, Rivet's band: its crest falls away from the pull.
+    let mut domed = d.clone();
+    domed.profile.apply_style(ProfileStyle::LowDome);
+    domed.profile.width_mm = 6.0;
+    domed.profile.thickness_mm = 2.1;
+    let mut domed_bare = domed.clone();
+    domed_bare.cad = None;
+    let domed_bare = judged(&domed_bare, false)?;
+    let domed = judged(&domed, true)?;
+    let part = g.parts_judged.first().cloned().unwrap_or_default();
+    let lesson = format!(
+        "The verdict is the lesson, and it has two sources. Pulled along the finger in two-part Delft sand, a flat band's broad crest stands square to the pull: the bare Flat 6.0 x 2.0 already reads '{}' at {:.1}% drag, past the {:.0}% the verdict allows. The cartouche adds its own zero-draft faces: its flat top and its two end walls face round the ring, square to the pull like a signet's table, and its {BOSS_DRAFT_DEG} deg draft helps only the two long walls that face across the finger. That is {:.1} of its {:.1} mm2 standing vertical, taking the ring to {:.1}% drag and '{}', with 0 obstructions and 0 unresolved rays at 0.100 and 0.075 mm: it releases, but drags and wants a longer rap. Its {:.3} mm2 judged undercut (worst {:.1} deg) is tessellation on the faceted chamfer corners, below the 0.075 mm ray grid. The cartouche alone carries the verdict on a domed band: the same history on Rivet's LowDome 6.0 x 2.1 turns a '{}' band ({:.1}% drag) into '{}' ({:.1}%). No draft angle on the boss can make it Castable; only a draft on the top and the end walls, or another pull, would.",
+        bare.verdict.label(),
+        bare.drag_fraction() * 100.0,
+        castability::DRAG_FRACTION * 100.0,
+        part.3,
+        part.4,
+        g.drag_percent,
+        g.field_verdict,
+        part.1,
+        part.5,
+        domed_bare.verdict.label(),
+        domed_bare.drag_fraction() * 100.0,
+        domed.verdict.label(),
+        domed.drag_fraction() * 100.0,
+    );
+    Ok(VerdictCause {
+        bare_band_verdict: bare.verdict.label().into(),
+        bare_band_drag_percent: bare.drag_fraction() * 100.0,
+        ring_verdict: g.field_verdict.clone(),
+        ring_drag_percent: g.drag_percent,
+        cartouche_vertical_mm2: part.3,
+        cartouche_area_mm2: part.4,
+        cartouche_undercut_mm2: part.1,
+        cartouche_worst_draft_deg: part.5,
+        domed_bare_verdict: domed_bare.verdict.label().into(),
+        domed_bare_drag_percent: domed_bare.drag_fraction() * 100.0,
+        domed_with_cartouche_verdict: domed.verdict.label().into(),
+        domed_with_cartouche_drag_percent: domed.drag_fraction() * 100.0,
+        lesson,
+    })
 }
 
 fn main() -> Result<()> {
@@ -827,6 +1030,7 @@ fn main() -> Result<()> {
         "bore_mm": BORE,
         "size": d.size.display(),
         "authored": authored,
+        "verdict_cause": verdict_cause(&d, &lib, &g)?,
         "gates": g,
     });
     if draft {
@@ -844,7 +1048,8 @@ fn main() -> Result<()> {
         let pattern = mesh::try_build_pattern(&d, &lib, params)?;
         stl::write_stl(out.join("casting-pattern.stl"), &pattern.mesh, &d.name)?;
     }
-    let finished = render::finished_from(&d, &lib, built);
+    let mut finished = render::finished_from(&d, &lib, built);
+    finished.metal = creased(&finished.metal, CREASE_DEG);
     renders(&out, &d, &lib, &finished, if draft { 1000 } else { 1600 })?;
     timeline(&out, &d, &lib)?;
     ensure!(g.passed, "Keystone failed its gates; see {}", path.display());
