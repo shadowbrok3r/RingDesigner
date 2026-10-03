@@ -542,10 +542,10 @@ const TAIL_FLAT: f64 = 0.72;
 /// A limb's radius at the shoulder, the elbow and the wrist, mm.
 const LIMB_R: (f64, f64, f64) = (0.62, 0.5, 0.42);
 /// The toes, from the inner to the outer, as each foot reaches: heading from the limb's own reach (degrees, positive
-/// outward) and length to the claw's point, mm. The middle three are the longest.
-const FORE_TOES: [(f64, f64); 5] = [(-38.0, 1.25), (-10.0, 1.6), (18.0, 1.75), (46.0, 1.6), (82.0, 1.1)];
+/// outward) and the crest's length before the claw, mm (the claw adds `CLAW_MM`). The middle three are the longest.
+const FORE_TOES: [(f64, f64); 5] = [(-38.0, 0.8), (-10.0, 1.0), (17.0, 1.3), (43.0, 1.15), (69.0, 0.75)];
 /// The hind feet lie between the tail and the band's edge: a narrower fan reaching back, the fourth toe the longest.
-const HIND_TOES: [(f64, f64); 5] = [(-16.0, 1.05), (0.0, 1.5), (16.0, 1.7), (33.0, 1.75), (62.0, 1.1)];
+const HIND_TOES: [(f64, f64); 5] = [(-16.0, 0.8), (0.0, 1.1), (16.0, 1.25), (33.0, 1.2), (62.0, 0.7)];
 /// Where a toe leaves the wrist, how far it bends toward the body over its last half (each step), and how near the
 /// band's edge any of it may come, mm and degrees.
 const TOE_ROOT_MM: f64 = 0.3;
@@ -553,7 +553,7 @@ const TOE_BEND_DEG: f64 = -11.0;
 const TOE_EDGE_MM: f64 = 0.9;
 /// A toe's crest radius at its root, knuckle, claw base and claw point, and the crest's centre against the crown there:
 /// at the crown along the toe, then the claw dips into the sand.
-const TOE_CREST_R: [f64; 3] = [0.33, 0.31, 0.29];
+const TOE_CREST_R: [f64; 3] = [0.34, 0.32, 0.31];
 const TOE_DROP_MM: [f64; 4] = [0.0, 0.0, 0.02, -0.04];
 /// A claw's radius at its base and its point, mm.
 const CLAW_R: (f64, f64) = (0.21, 0.05);
@@ -568,7 +568,7 @@ fn leg_joints(crest: &Crest, x0: f64, dir: f64, s: f64) -> (P3, P3, P3) {
     let (xe, xw) = (x0 + dir * 1.3, x0 + dir * 2.3);
     // The hind hands rest a little further out, clear of the tail's root.
     let ww = crest.half_w_at_x(xw) - if dir < 0.0 { FOOT_IN_MM - 0.3 } else { FOOT_IN_MM };
-    ([x0, 0.6, 3.0 * s], [xe, 1.0, (crest.half_w_at_x(xe) - 0.6) * s], [xw, crest.top_h(xw, ww * s) + 0.3, ww * s])
+    ([x0, 0.6, 3.0 * s], [xe, 0.85, (crest.half_w_at_x(xe) - 0.95) * s], [xw, crest.top_h(xw, ww * s) + 0.3, ww * s])
 }
 
 /// How far in from the band's edge each hand rests on the crown, mm.
@@ -664,9 +664,11 @@ fn body_prims(crest: &Crest) -> Vec<Prim> {
                     }).collect();
                     let clear = along.iter().all(|&(x, w)| {
                         let h = crest.top_h(x, w);
+                        // Clear of its own forearm too, so no wedge opens under the limb.
+                        ((x - wrist[0]).hypot(w - wrist[2]) < 0.9 || round_cone([x, h, w], elbow, wrist, LIMB_R.1, LIMB_R.2) > 0.45) &&
                         core_at([x, h, w]) > 0.95 && core_at([x, h - 0.4, w]) > 0.75 && core_at([x, h - RIDGE_KEEL_MM, w]) > 0.95
                     });
-                    if (on_crown && clear) || len < 0.8 {
+                    if (on_crown && clear) || len < 0.6 {
                         break pts;
                     }
                     len -= 0.05;
@@ -679,7 +681,7 @@ fn body_prims(crest: &Crest) -> Vec<Prim> {
                     [x, crest.top_h(x, w) + TOE_DROP_MM[i], w]
                 };
                 for k in 0..2 {
-                    v.push(Prim { kind: Kind::Toe, shape: Shape::Ridge { a: at(k), b: at(k + 1), ra: TOE_CREST_R[k], rb: TOE_CREST_R[k + 1] }, blend: if k == 0 { 0.16 } else { 0.1 } });
+                    v.push(Prim { kind: Kind::Toe, shape: Shape::Ridge { a: at(k), b: at(k + 1), ra: TOE_CREST_R[k], rb: TOE_CREST_R[k + 1] }, blend: if k == 0 { 0.3 } else { 0.1 } });
                 }
                 // The claw: a short pointed cone from the toe's end, narrower than the toe, its point pressed into the sand.
                 v.push(limb(Kind::Claw, at(2), at(3), CLAW_R.0, CLAW_R.1, 0.08));
@@ -884,7 +886,7 @@ fn build_lizard<'a>(frame: Frame<'a>, bore_r: f64) -> Lizard<'a> {
     for s in [1.0, -1.0] {
         for (x0, dir) in LEGS {
             let (sh, el, wr) = leg_joints(liz.frame.crest, x0, dir, s);
-            for (from, to, ra, rb, t, len) in [(sh, el, LIMB_R.0, LIMB_R.1, 0.4, 0.5), (sh, el, LIMB_R.0, LIMB_R.1, 0.85, 0.45), (el, wr, LIMB_R.1, LIMB_R.2, 0.35, 0.42)] {
+            for (from, to, ra, rb, t, len) in [(sh, el, LIMB_R.0, LIMB_R.1, 0.35, 0.45), (sh, el, LIMB_R.0, LIMB_R.1, 0.7, 0.42), (el, wr, LIMB_R.1, LIMB_R.2, 0.45, 0.38)] {
                 let c: P3 = std::array::from_fn(|k| from[k] + (to[k] - from[k]) * t);
                 let r = ra + (rb - ra) * t;
                 let q = add(c, mul(unit([0.0, 0.9, 0.35 * s]), r));
