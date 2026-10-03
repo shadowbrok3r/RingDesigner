@@ -1,19 +1,24 @@
 {
   "base": "factory 007 Quatrefoil, unmirrored (Fallback B), face 16 x 17 mm",
   "bore_mm": 18.6,
-  "cold_reload": null,
-  "design_bytes": 4349022,
+  "cold_reload": {
+    "faces": 796060,
+    "identical": true,
+    "ms": 12542.996811,
+    "vertices": 398030
+  },
+  "design_bytes": 12286237,
   "draft": {
     "build": {
-      "ms": 2828.147574,
+      "ms": 12859.095593,
       "profile_steps": 320,
       "theta_steps": 768,
-      "triangles": 252546
+      "triangles": 796060
     },
     "casting_pattern": {
       "degenerate_faces": 0,
       "self_crossings": 0,
-      "triangles": 252546,
+      "triangles": 796060,
       "watertight": true
     },
     "dfm_findings": [],
@@ -29,7 +34,7 @@
     "field": {
       "notes": [
         "Lost wax: 15.83% of the surface would undercut a two-part pull (worst 61.4 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-        "7 CAD parts stand on the band (7 joined, 0 cut, 0 separate), not judged here: the built ring judges them.",
+        "12 CAD parts stand on the band (12 joined, 0 cut, 0 separate), not judged here: the built ring judges them.",
         "Undercut 0–358° on the crest: 245.0 mm² leaning to 61° — no single layer explains it."
       ],
       "process": "LostWax",
@@ -89,56 +94,56 @@
       "degenerate_faces": 0,
       "non_manifold_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 2021.1144253834948,
+      "volume_mm3": 2155.4441373225095,
       "watertight": true
     },
     "land_widths": {
       "all_named": true,
-      "area_named_mm2": 2.6928692789815214,
-      "area_under_floor_mm2": 2.692869278981521,
+      "area_named_mm2": 6.170721160497893,
+      "area_under_floor_mm2": 6.170721160497912,
       "by_feature": [
         {
-          "area_mm2": 1.1278159469481774,
-          "bench": "The scute seams' groove walls and the marginal rim where it meets the table: fill from the shell. Clean the seams with a fine graver. Thinnest single-ray section read here: 0.003 mm.",
-          "faces": 659,
-          "feature": "the carapace: scute seams and marginal rim",
-          "thinnest_mm": 0.002694173705104299
-        },
-        {
-          "area_mm2": 0.9790497098580668,
-          "bench": "The flippers' trailing edges where they meet the lobes: fill from the flipper's root. Satin brush. Thinnest single-ray section read here: 0.002 mm.",
-          "faces": 987,
+          "area_mm2": 3.1485131310580203,
+          "bench": "The flippers' trailing edges where they meet the lobes: fill from the flipper's root. Satin brush. Thinnest single-ray section read here: 0.000 mm.",
+          "faces": 2888,
           "feature": "the flippers",
-          "thinnest_mm": 0.0018291326025274683
+          "thinnest_mm": 0.00010867406071999618
         },
         {
-          "area_mm2": 0.47901242693545,
-          "bench": "The factory stock's own edges and the seam fillets: as the stock casts. Thinnest single-ray section read here: 0.012 mm.",
-          "faces": 21,
+          "area_mm2": 1.8096484142119023,
+          "bench": "The factory stock's own edges and the seam fillets: as the stock casts. Thinnest single-ray section read here: 0.000 mm.",
+          "faces": 912,
           "feature": "the shank",
-          "thinnest_mm": 0.012270185265291061
+          "thinnest_mm": 0.00010917739121596787
         },
         {
-          "area_mm2": 0.10488118478221423,
-          "bench": "The beak's tip and the eyes' bulges: relief on the head, filling from the neck. Leave as cast; touch the beak with a fine file. Thinnest single-ray section read here: 0.002 mm.",
-          "faces": 135,
-          "feature": "the head: beak, eyes, neck folds",
-          "thinnest_mm": 0.001963431497606356
+          "area_mm2": 0.5897382022452136,
+          "bench": "The scute seams' groove walls and the marginal rim where it meets the table: fill from the shell. Clean the seams with a fine graver. Thinnest single-ray section read here: 0.013 mm.",
+          "faces": 206,
+          "feature": "the carapace: scute seams and marginal rim",
+          "thinnest_mm": 0.012958262466771142
         },
         {
-          "area_mm2": 0.0021100104576132284,
-          "bench": "The tail's point on the cusp: fills from the shell's rear. Leave as cast. Thinnest single-ray section read here: 0.390 mm.",
-          "faces": 91,
+          "area_mm2": 0.3313673807222046,
+          "bench": "The tail's point on the cusp: fills from the shell's rear. Leave as cast. Thinnest single-ray section read here: 0.000 mm.",
+          "faces": 1550,
           "feature": "the tail",
-          "thinnest_mm": 0.3897151750832487
+          "thinnest_mm": 0.00039471882176207035
+        },
+        {
+          "area_mm2": 0.29145403226055344,
+          "bench": "The beak's tip and the eyes' bulges: relief on the head, filling from the neck. Leave as cast; touch the beak with a fine file. Thinnest single-ray section read here: 0.000 mm.",
+          "faces": 324,
+          "feature": "the head: beak, eyes, neck folds",
+          "thinnest_mm": 0.0001149309648358112
         }
       ],
       "floor_mm": 0.8,
       "method": "dfm::part_sections over the whole finished ring, then the same one-ray read per face grouped by the feature it lies in",
-      "thinnest_mm": 0.0018291326025274683
+      "thinnest_mm": 0.00010867406071999618
     },
     "made": {
-      "made_parts": 7,
+      "made_parts": 12,
       "notes": [],
       "parts": [
         {
@@ -148,10 +153,10 @@
             0
           ],
           "self_crossings": 0,
-          "tallest_over_stock_mm": 2.17,
-          "triangles": 156680,
-          "vertices": 78342,
-          "volume_mm3": 157.92823069983748
+          "tallest_over_stock_mm": 5.532686142242371,
+          "triangles": 252740,
+          "vertices": 126372,
+          "volume_mm3": 348.40240690068896
         },
         {
           "name": "Head and neck",
@@ -163,7 +168,7 @@
           "tallest_over_stock_mm": 6.591849029719877,
           "triangles": 39600,
           "vertices": 19802,
-          "volume_mm3": 61.72690885689015
+          "volume_mm3": 61.622247158655426
         },
         {
           "name": "Tail",
@@ -172,10 +177,70 @@
             0
           ],
           "self_crossings": 0,
-          "tallest_over_stock_mm": 0.900105689780455,
+          "tallest_over_stock_mm": 1.011323577787308,
           "triangles": 5550,
           "vertices": 2777,
-          "volume_mm3": 3.1324315075093074
+          "volume_mm3": 3.827659187043929
+        },
+        {
+          "name": "Hawksbill plates and plastron",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 0.44000000000000006,
+          "triangles": 329784,
+          "vertices": 164894,
+          "volume_mm3": 172.22655789732352
+        },
+        {
+          "name": "Skin, fore lobe +Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 0.085,
+          "triangles": 87000,
+          "vertices": 43502,
+          "volume_mm3": 22.7003908910906
+        },
+        {
+          "name": "Skin, fore lobe -Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 0.085,
+          "triangles": 87000,
+          "vertices": 43502,
+          "volume_mm3": 24.454546011384306
+        },
+        {
+          "name": "Skin, hind lobe +Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 0.085,
+          "triangles": 87000,
+          "vertices": 43502,
+          "volume_mm3": 24.680200898908307
+        },
+        {
+          "name": "Skin, hind lobe -Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 0.085,
+          "triangles": 87000,
+          "vertices": 43502,
+          "volume_mm3": 22.442787504360165
         },
         {
           "name": "Fore flipper, +Z",
@@ -184,10 +249,10 @@
             0
           ],
           "self_crossings": 0,
-          "tallest_over_stock_mm": 1.183626881132077,
-          "triangles": 60010,
-          "vertices": 30007,
-          "volume_mm3": 16.712547292527336
+          "tallest_over_stock_mm": 1.3365514718195544,
+          "triangles": 69792,
+          "vertices": 34898,
+          "volume_mm3": 30.94863972011726
         },
         {
           "name": "Fore flipper, -Z",
@@ -196,10 +261,10 @@
             0
           ],
           "self_crossings": 0,
-          "tallest_over_stock_mm": 1.155088425627303,
-          "triangles": 60010,
-          "vertices": 30007,
-          "volume_mm3": 16.716295357691383
+          "tallest_over_stock_mm": 1.338281427841396,
+          "triangles": 69792,
+          "vertices": 34898,
+          "volume_mm3": 30.935139868267804
         },
         {
           "name": "Hind flipper, +Z",
@@ -208,10 +273,10 @@
             0
           ],
           "self_crossings": 0,
-          "tallest_over_stock_mm": 1.028551229109714,
-          "triangles": 60010,
-          "vertices": 30007,
-          "volume_mm3": 11.256654908469283
+          "tallest_over_stock_mm": 1.2085694798546067,
+          "triangles": 69792,
+          "vertices": 34898,
+          "volume_mm3": 23.7593782067214
         },
         {
           "name": "Hind flipper, -Z",
@@ -220,13 +285,13 @@
             0
           ],
           "self_crossings": 0,
-          "tallest_over_stock_mm": 1.0281807677934136,
-          "triangles": 60010,
-          "vertices": 30007,
-          "volume_mm3": 11.254518849912566
+          "tallest_over_stock_mm": 1.1755006756678412,
+          "triangles": 69792,
+          "vertices": 34898,
+          "volume_mm3": 23.741257309988843
         }
       ],
-      "parts_joined": 7,
+      "parts_joined": 12,
       "parts_notes": [],
       "parts_self_crossings": 0,
       "stamped": 0,
@@ -236,12 +301,12 @@
     "release": {
       "note": "Lost wax: the ray release measures a two-part pull; reported, as the lost-wax rings report it.",
       "release_0075": {
-        "obstructions": 99,
+        "obstructions": 151,
         "status": "NotApplicable",
         "unresolved_rays": 0
       },
       "release_0100": {
-        "obstructions": 56,
+        "obstructions": 131,
         "status": "NotApplicable",
         "unresolved_rays": 0
       }
@@ -259,12 +324,332 @@
       "worst_draft_deg": -61.354527145765125
     }
   },
-  "export": null,
+  "export": {
+    "build": {
+      "ms": 12617.920497,
+      "profile_steps": 448,
+      "theta_steps": 1536,
+      "triangles": 796060
+    },
+    "casting_pattern": {
+      "degenerate_faces": 0,
+      "self_crossings": 0,
+      "triangles": 796060,
+      "watertight": true
+    },
+    "dfm_findings": [],
+    "draft_clamp": {
+      "max_bite_mm": 0.0,
+      "note": "Lost wax and no painted layer: no draft clamp runs, so no bite."
+    },
+    "draft_rules": {
+      "min_detail_mm": 0.15,
+      "min_draft_deg": 0.0,
+      "min_section_mm": 0.8
+    },
+    "field": {
+      "notes": [
+        "Lost wax: 15.83% of the surface would undercut a two-part pull (worst 61.4 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+        "12 CAD parts stand on the band (12 joined, 0 cut, 0 separate), not judged here: the built ring judges them.",
+        "Undercut 0–358° on the crest: 245.0 mm² leaning to 61° — no single layer explains it."
+      ],
+      "process": "LostWax",
+      "thinnest_wall_mm": 0.9971953290171189,
+      "verdict": "Castable"
+    },
+    "finger_hole": {
+      "bore_radius_mm": 9.3,
+      "nearest_margin_mm": -7.563679460531603e-8,
+      "vertices_inside": 0
+    },
+    "gates": [
+      {
+        "gate": "watertight, 0 degenerate faces",
+        "pass": true
+      },
+      {
+        "gate": "0 self-crossings on the ring and on every made part",
+        "pass": true
+      },
+      {
+        "gate": "solids and parts notes empty, every part joined",
+        "pass": true
+      },
+      {
+        "gate": "nothing inside the finger hole",
+        "pass": true
+      },
+      {
+        "gate": "field Castable under lost wax at the 0.8 mm fill",
+        "pass": true
+      },
+      {
+        "gate": "land widths: every section under 0.8 mm named with its bench treatment",
+        "pass": true
+      },
+      {
+        "gate": "0 DFM findings",
+        "pass": true
+      },
+      {
+        "gate": "stones report equals the preview",
+        "pass": true
+      },
+      {
+        "gate": "within 2 million triangles",
+        "pass": true
+      },
+      {
+        "gate": "casting pattern closed, 0 degenerate, 0 crossings",
+        "pass": true
+      }
+    ],
+    "gates_passed": true,
+    "geometry": {
+      "boundary_edges": 0,
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 2155.4441373225095,
+      "watertight": true
+    },
+    "land_widths": {
+      "all_named": true,
+      "area_named_mm2": 6.170721160497893,
+      "area_under_floor_mm2": 6.170721160497912,
+      "by_feature": [
+        {
+          "area_mm2": 3.1485131310580203,
+          "bench": "The flippers' trailing edges where they meet the lobes: fill from the flipper's root. Satin brush. Thinnest single-ray section read here: 0.000 mm.",
+          "faces": 2888,
+          "feature": "the flippers",
+          "thinnest_mm": 0.00010867406071999618
+        },
+        {
+          "area_mm2": 1.8096484142119023,
+          "bench": "The factory stock's own edges and the seam fillets: as the stock casts. Thinnest single-ray section read here: 0.000 mm.",
+          "faces": 912,
+          "feature": "the shank",
+          "thinnest_mm": 0.00010917739121596787
+        },
+        {
+          "area_mm2": 0.5897382022452136,
+          "bench": "The scute seams' groove walls and the marginal rim where it meets the table: fill from the shell. Clean the seams with a fine graver. Thinnest single-ray section read here: 0.013 mm.",
+          "faces": 206,
+          "feature": "the carapace: scute seams and marginal rim",
+          "thinnest_mm": 0.012958262466771142
+        },
+        {
+          "area_mm2": 0.3313673807222046,
+          "bench": "The tail's point on the cusp: fills from the shell's rear. Leave as cast. Thinnest single-ray section read here: 0.000 mm.",
+          "faces": 1550,
+          "feature": "the tail",
+          "thinnest_mm": 0.00039471882176207035
+        },
+        {
+          "area_mm2": 0.29145403226055344,
+          "bench": "The beak's tip and the eyes' bulges: relief on the head, filling from the neck. Leave as cast; touch the beak with a fine file. Thinnest single-ray section read here: 0.000 mm.",
+          "faces": 324,
+          "feature": "the head: beak, eyes, neck folds",
+          "thinnest_mm": 0.0001149309648358112
+        }
+      ],
+      "floor_mm": 0.8,
+      "method": "dfm::part_sections over the whole finished ring, then the same one-ray read per face grouped by the feature it lies in",
+      "thinnest_mm": 0.00010867406071999618
+    },
+    "made": {
+      "made_parts": 12,
+      "notes": [],
+      "parts": [
+        {
+          "name": "Carapace",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 5.532686142242371,
+          "triangles": 252740,
+          "vertices": 126372,
+          "volume_mm3": 348.40240690068896
+        },
+        {
+          "name": "Head and neck",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 6.591849029719877,
+          "triangles": 39600,
+          "vertices": 19802,
+          "volume_mm3": 61.622247158655426
+        },
+        {
+          "name": "Tail",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 1.011323577787308,
+          "triangles": 5550,
+          "vertices": 2777,
+          "volume_mm3": 3.827659187043929
+        },
+        {
+          "name": "Hawksbill plates and plastron",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 0.44000000000000006,
+          "triangles": 329784,
+          "vertices": 164894,
+          "volume_mm3": 172.22655789732352
+        },
+        {
+          "name": "Skin, fore lobe +Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 0.085,
+          "triangles": 87000,
+          "vertices": 43502,
+          "volume_mm3": 22.7003908910906
+        },
+        {
+          "name": "Skin, fore lobe -Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 0.085,
+          "triangles": 87000,
+          "vertices": 43502,
+          "volume_mm3": 24.454546011384306
+        },
+        {
+          "name": "Skin, hind lobe +Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 0.085,
+          "triangles": 87000,
+          "vertices": 43502,
+          "volume_mm3": 24.680200898908307
+        },
+        {
+          "name": "Skin, hind lobe -Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 0.085,
+          "triangles": 87000,
+          "vertices": 43502,
+          "volume_mm3": 22.442787504360165
+        },
+        {
+          "name": "Fore flipper, +Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 1.3365514718195544,
+          "triangles": 69792,
+          "vertices": 34898,
+          "volume_mm3": 30.94863972011726
+        },
+        {
+          "name": "Fore flipper, -Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 1.338281427841396,
+          "triangles": 69792,
+          "vertices": 34898,
+          "volume_mm3": 30.935139868267804
+        },
+        {
+          "name": "Hind flipper, +Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 1.2085694798546067,
+          "triangles": 69792,
+          "vertices": 34898,
+          "volume_mm3": 23.7593782067214
+        },
+        {
+          "name": "Hind flipper, -Z",
+          "open_edges": [
+            0,
+            0
+          ],
+          "self_crossings": 0,
+          "tallest_over_stock_mm": 1.1755006756678412,
+          "triangles": 69792,
+          "vertices": 34898,
+          "volume_mm3": 23.741257309988843
+        }
+      ],
+      "parts_joined": 12,
+      "parts_notes": [],
+      "parts_self_crossings": 0,
+      "stamped": 0,
+      "stamps": 0
+    },
+    "process": "LostWax",
+    "release": {
+      "note": "Lost wax: the ray release measures a two-part pull; reported, as the lost-wax rings report it.",
+      "release_0075": {
+        "obstructions": 151,
+        "status": "NotApplicable",
+        "unresolved_rays": 0
+      },
+      "release_0100": {
+        "obstructions": 131,
+        "status": "NotApplicable",
+        "unresolved_rays": 0
+      }
+    },
+    "stones": {
+      "preview_count": 0,
+      "report_count": 0
+    },
+    "two_part_numbers": {
+      "marginal_area_mm2": 0.0,
+      "note": "Lost wax: these measure a two-part sand pull and are reported, not gated.",
+      "total_area_mm2": 1537.1834185064934,
+      "undercut_area_mm2": 243.32910136289757,
+      "vertical_area_mm2": 37.15362947193396,
+      "worst_draft_deg": -61.354527145765125
+    }
+  },
   "features": [
     "Factory 007 stock",
     "Carapace",
     "Head and neck",
     "Tail",
+    "Hawksbill plates and plastron",
+    "Skin, fore lobe +Z",
+    "Skin, fore lobe -Z",
+    "Skin, hind lobe +Z",
+    "Skin, hind lobe -Z",
     "Fore flipper, +Z",
     "Fore flipper, -Z",
     "Hind flipper, +Z",
@@ -273,13 +658,13 @@
   "gates_passed": true,
   "manufacturing": {
     "bench_layers": [],
-    "cast_ring_grams": 20.938745446973005,
+    "cast_ring_grams": 22.330401262661198,
     "casting": "ring",
     "design": "Chelonia — the carapace seal",
     "detail_findings": [],
     "diagnostic_only": false,
     "estimated_channel_grams": -0.0,
-    "estimated_charge_grams": 20.938745446973005,
+    "estimated_charge_grams": 22.330401262661198,
     "feeding_proxy": [
       106.875,
       2.054764078087288
@@ -287,19 +672,19 @@
     "format_version": 1,
     "geometry": {
       "bounds_mm": [
-        22.586200714111328,
-        28.209796905517578,
+        23.323719024658203,
+        28.53641128540039,
         17.64980697631836
       ],
-      "surface_area_mm2": 1692.978667365123,
+      "surface_area_mm2": 1826.9657057905704,
       "validation": {
         "boundary_edges": 0,
         "non_manifold_edges": 0,
-        "triangle_count": 252546,
-        "vertex_count": 126273,
+        "triangle_count": 796060,
+        "vertex_count": 398030,
         "watertight": true
       },
-      "volume_mm3": 2140.838013945943
+      "volume_mm3": 2283.124929913765
     },
     "limits": [
       "Release is sampled; features between rays can be missed",
@@ -311,26 +696,26 @@
     "nominal_bore_mm": 18.6,
     "nominal_size": "US 8.6",
     "not_in_pattern": [],
-    "pattern_fingerprint": "85c8bcfff2eca8be",
+    "pattern_fingerprint": "0cd1e2599511d840",
     "pattern_scale": 1.019367991845056,
     "radial_wall_limit_mm": 0.8,
     "radial_wall_mm": 0.9967863609065315,
     "release": {
       "bounds": [
         [
-          -11.293059349060059,
-          -11.292937278747559,
+          -11.66191577911377,
+          -11.61278247833252,
           -8.826128005981445
         ],
         [
-          11.29314136505127,
-          16.916858673095703,
+          11.66180419921875,
+          16.923627853393555,
           8.823678970336914
         ]
       ],
       "cell_mm": [
-        0.09993894121288198,
-        0.09968125778036488
+        0.09967401700142102,
+        0.09977765850253872
       ],
       "fits_flask": true,
       "frame": {
@@ -351,1038 +736,2472 @@
         ]
       },
       "grid": [
-        226,
-        283
+        234,
+        286
       ],
-      "low_draft_area_mm2": 282.1861919625669,
+      "low_draft_area_mm2": 343.43983362245876,
       "notes": [
-        "282.19 mm² carries less than 0.0° draft, including bore walls; review drag and pattern finish",
+        "343.44 mm² carries less than 0.0° draft, including bore walls; review drag and pattern finish",
         "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
       ],
       "obstructions": [
         {
-          "depth_mm": 6.492077399714054,
+          "depth_mm": 5.724166413452512,
           "half": "Cope",
           "point": [
-            6.546041657439374,
-            14.574349115257126,
-            6.492077399714054
+            9.618486850689619,
+            12.383744391528044,
+            5.724166413452512
           ],
-          "projected_area_mm2": 22.08584126408639,
-          "samples": 2217,
+          "projected_area_mm2": 26.693024240369766,
+          "samples": 2684,
           "world": [
-            6.546041657439374,
-            14.574349115257126,
-            6.492077399714054
+            9.618486850689619,
+            12.383744391528044,
+            5.724166413452512
           ]
         },
         {
-          "depth_mm": 6.474665717076148,
+          "depth_mm": 5.6264797927699375,
           "half": "Drag",
           "point": [
-            6.546041657439374,
-            14.574349115257126,
-            -6.474665717076148
+            9.718160867691042,
+            11.984633757517887,
+            -5.6264797927699375
           ],
-          "projected_area_mm2": 21.18925772156597,
-          "samples": 2127,
+          "projected_area_mm2": 26.24548843902228,
+          "samples": 2639,
           "world": [
-            6.546041657439374,
-            14.574349115257126,
-            -6.474665717076148
+            9.718160867691042,
+            11.984633757517887,
+            -5.6264797927699375
           ]
         },
         {
-          "depth_mm": 5.216253554734326,
+          "depth_mm": 5.119367819497719,
+          "half": "Drag",
+          "point": [
+            -9.219902362578955,
+            11.984633757517887,
+            -5.119367819497719
+          ],
+          "projected_area_mm2": 28.61245556614896,
+          "samples": 2877,
+          "world": [
+            -9.219902362578955,
+            11.984633757517887,
+            -5.119367819497719
+          ]
+        },
+        {
+          "depth_mm": 4.891225257863015,
           "half": "Cope",
           "point": [
-            -5.946325994170873,
-            14.67403037303749,
-            5.216253554734326
+            -9.319576379580374,
+            11.785078440512812,
+            5.125360400593716
           ],
-          "projected_area_mm2": 26.957278511780682,
-          "samples": 2706,
+          "projected_area_mm2": 29.169389007825828,
+          "samples": 2933,
           "world": [
-            -5.946325994170873,
-            14.67403037303749,
-            5.216253554734326
+            -9.319576379580374,
+            11.785078440512812,
+            5.125360400593716
           ]
         },
         {
-          "depth_mm": 5.204376717726417,
-          "half": "Drag",
+          "depth_mm": 2.1918328750599705,
+          "half": "Cope",
           "point": [
-            -5.946325994170873,
-            14.67403037303749,
-            -5.204376717726417
+            0.8471733545645685,
+            16.57440604863467,
+            2.8225225930972413
           ],
-          "projected_area_mm2": 26.000922733092235,
-          "samples": 2610,
+          "projected_area_mm2": 0.4873167614672572,
+          "samples": 49,
           "world": [
-            -5.946325994170873,
-            14.67403037303749,
-            -5.204376717726417
+            0.8471733545645685,
+            16.57440604863467,
+            2.8225225930972413
           ]
         },
         {
-          "depth_mm": 1.753833898060328,
+          "depth_mm": 2.191304434533472,
           "half": "Drag",
           "point": [
-            10.743477188380417,
-            2.4132356660526124,
-            -1.753833898060328
+            0.9468473715659895,
+            16.57440604863467,
+            -2.4744181139326393
           ],
-          "projected_area_mm2": 0.019924078722676042,
+          "projected_area_mm2": 0.4773715214373132,
+          "samples": 48,
+          "world": [
+            0.9468473715659895,
+            16.57440604863467,
+            -2.4744181139326393
+          ]
+        },
+        {
+          "depth_mm": 1.7749081000860443,
+          "half": "Cope",
+          "point": [
+            11.412619156715197,
+            0.2108700542183184,
+            1.7749081000860443
+          ],
+          "projected_area_mm2": 0.4773715214373132,
+          "samples": 48,
+          "world": [
+            11.412619156715197,
+            0.2108700542183184,
+            1.7749081000860443
+          ]
+        },
+        {
+          "depth_mm": 1.1277782120847482,
+          "half": "Drag",
+          "point": [
+            11.213271122712355,
+            -2.283571408345148,
+            -1.1277782120847482
+          ],
+          "projected_area_mm2": 0.5072072415271452,
+          "samples": 51,
+          "world": [
+            11.213271122712355,
+            -2.283571408345148,
+            -1.1277782120847482
+          ]
+        },
+        {
+          "depth_mm": 1.1101856674911383,
+          "half": "Drag",
+          "point": [
+            -11.213382702607374,
+            -2.283571408345148,
+            -1.1101856674911383
+          ],
+          "projected_area_mm2": 0.5072072415271452,
+          "samples": 51,
+          "world": [
+            -11.213382702607374,
+            -2.283571408345148,
+            -1.1101856674911383
+          ]
+        },
+        {
+          "depth_mm": 0.9468096460301152,
+          "half": "Drag",
+          "point": [
+            -0.44858886645390417,
+            -11.56289364908125,
+            -0.9468096460301152
+          ],
+          "projected_area_mm2": 1.0541954431740665,
+          "samples": 106,
+          "world": [
+            -0.44858886645390417,
+            -11.56289364908125,
+            -0.9468096460301152
+          ]
+        },
+        {
+          "depth_mm": 0.9457300247616093,
+          "half": "Cope",
+          "point": [
+            2.342283609585883,
+            -11.363338332076172,
+            0.9457300247616093
+          ],
+          "projected_area_mm2": 0.5668786817068094,
+          "samples": 57,
+          "world": [
+            2.342283609585883,
+            -11.363338332076172,
+            0.9457300247616093
+          ]
+        },
+        {
+          "depth_mm": 0.9431358749870444,
+          "half": "Cope",
+          "point": [
+            -2.3423951894809045,
+            -11.363338332076172,
+            0.9431358749870444
+          ],
+          "projected_area_mm2": 0.5569334416768654,
+          "samples": 56,
+          "world": [
+            -2.3423951894809045,
+            -11.363338332076172,
+            0.9431358749870444
+          ]
+        },
+        {
+          "depth_mm": 0.9395044970086105,
+          "half": "Cope",
+          "point": [
+            -11.313056719608795,
+            -1.684905457329917,
+            0.9395044970086105
+          ],
+          "projected_area_mm2": 0.2784667208384327,
+          "samples": 28,
+          "world": [
+            -11.313056719608795,
+            -1.684905457329917,
+            0.9395044970086105
+          ]
+        },
+        {
+          "depth_mm": 0.9145243238258989,
+          "half": "Cope",
+          "point": [
+            11.312945139713777,
+            -1.684905457329917,
+            0.9145243238258989
+          ],
+          "projected_area_mm2": 0.2884119608683767,
+          "samples": 29,
+          "world": [
+            11.312945139713777,
+            -1.684905457329917,
+            0.9145243238258989
+          ]
+        },
+        {
+          "depth_mm": 0.9113053912295102,
+          "half": "Cope",
+          "point": [
+            -3.4388093764965353,
+            -11.064005356568556,
+            0.9113053912295102
+          ],
+          "projected_area_mm2": 0.5171524815570893,
+          "samples": 52,
+          "world": [
+            -3.4388093764965353,
+            -11.064005356568556,
+            0.9113053912295102
+          ]
+        },
+        {
+          "depth_mm": 0.9101272929088987,
+          "half": "Cope",
+          "point": [
+            3.4386977966015158,
+            -11.064005356568556,
+            0.9101272929088987
+          ],
+          "projected_area_mm2": 0.5270977215870333,
+          "samples": 53,
+          "world": [
+            3.4386977966015158,
+            -11.064005356568556,
+            0.9101272929088987
+          ]
+        },
+        {
+          "depth_mm": 0.8907005778066154,
+          "half": "Cope",
+          "point": [
+            8.522072663673987,
+            -7.970897942989856,
+            0.8907005778066154
+          ],
+          "projected_area_mm2": 1.1337573634136189,
+          "samples": 114,
+          "world": [
+            8.522072663673987,
+            -7.970897942989856,
+            0.8907005778066154
+          ]
+        },
+        {
+          "depth_mm": 0.8873908309658338,
+          "half": "Cope",
+          "point": [
+            -8.522184243569006,
+            -7.970897942989856,
+            0.8873908309658338
+          ],
+          "projected_area_mm2": 1.143702603443563,
+          "samples": 115,
+          "world": [
+            -8.522184243569006,
+            -7.970897942989856,
+            0.8873908309658338
+          ]
+        },
+        {
+          "depth_mm": 0.8696728130790876,
+          "half": "Cope",
+          "point": [
+            -11.313056719608795,
+            1.5079796147513223,
+            0.8696728130790876
+          ],
+          "projected_area_mm2": 0.4574810413774252,
+          "samples": 46,
+          "world": [
+            -11.313056719608795,
+            1.5079796147513223,
+            0.8696728130790876
+          ]
+        },
+        {
+          "depth_mm": 0.8633905179082774,
+          "half": "Drag",
+          "point": [
+            6.428918306644147,
+            -9.667118137533015,
+            -0.8633905179082774
+          ],
+          "projected_area_mm2": 0.5370429616169774,
+          "samples": 54,
+          "world": [
+            6.428918306644147,
+            -9.667118137533015,
+            -0.8633905179082774
+          ]
+        },
+        {
+          "depth_mm": 0.8623031354374161,
+          "half": "Drag",
+          "point": [
+            -10.515664583597427,
+            -4.778012870908617,
+            -0.8623031354374161
+          ],
+          "projected_area_mm2": 0.4674262814073692,
+          "samples": 47,
+          "world": [
+            -10.515664583597427,
+            -4.778012870908617,
+            -0.8623031354374161
+          ]
+        },
+        {
+          "depth_mm": 0.850555728688402,
+          "half": "Drag",
+          "point": [
+            -6.429029886539166,
+            -9.667118137533015,
+            -0.850555728688402
+          ],
+          "projected_area_mm2": 0.5370429616169774,
+          "samples": 54,
+          "world": [
+            -6.429029886539166,
+            -9.667118137533015,
+            -0.850555728688402
+          ]
+        },
+        {
+          "depth_mm": 0.8433158641580011,
+          "half": "Drag",
+          "point": [
+            10.51555300370241,
+            -4.778012870908617,
+            -0.8433158641580011
+          ],
+          "projected_area_mm2": 0.4674262814073692,
+          "samples": 47,
+          "world": [
+            10.51555300370241,
+            -4.778012870908617,
+            -0.8433158641580011
+          ]
+        },
+        {
+          "depth_mm": 0.7751141777322401,
+          "half": "Drag",
+          "point": [
+            -5.332615699523535,
+            -10.265784088548246,
+            -0.7751141777322401
+          ],
+          "projected_area_mm2": 0.5270977215870333,
+          "samples": 53,
+          "world": [
+            -5.332615699523535,
+            -10.265784088548246,
+            -0.7751141777322401
+          ]
+        },
+        {
+          "depth_mm": 0.7749867332472983,
+          "half": "Drag",
+          "point": [
+            5.332504119628514,
+            -10.265784088548246,
+            -0.7749867332472983
+          ],
+          "projected_area_mm2": 0.5270977215870333,
+          "samples": 53,
+          "world": [
+            5.332504119628514,
+            -10.265784088548246,
+            -0.7749867332472983
+          ]
+        },
+        {
+          "depth_mm": 0.7341754564697136,
+          "half": "Cope",
+          "point": [
+            7.226310442655515,
+            -9.068452186517781,
+            0.7341754564697136
+          ],
+          "projected_area_mm2": 0.49726200149720123,
+          "samples": 50,
+          "world": [
+            7.226310442655515,
+            -9.068452186517781,
+            0.7341754564697136
+          ]
+        },
+        {
+          "depth_mm": 0.7317802550935179,
+          "half": "Cope",
+          "point": [
+            -7.226422022550534,
+            -9.068452186517781,
+            0.7317802550935179
+          ],
+          "projected_area_mm2": 0.5469882016469214,
+          "samples": 55,
+          "world": [
+            -7.226422022550534,
+            -9.068452186517781,
+            0.7317802550935179
+          ]
+        },
+        {
+          "depth_mm": 0.7077251226261829,
+          "half": "Cope",
+          "point": [
+            11.013923088709513,
+            -3.7802362858832295,
+            0.7077251226261829
+          ],
+          "projected_area_mm2": 0.33813816101809685,
+          "samples": 34,
+          "world": [
+            11.013923088709513,
+            -3.7802362858832295,
+            0.7077251226261829
+          ]
+        },
+        {
+          "depth_mm": 0.6990111680299746,
+          "half": "Cope",
+          "point": [
+            -11.014034668604532,
+            -3.7802362858832295,
+            0.6990111680299746
+          ],
+          "projected_area_mm2": 0.32819292098815284,
+          "samples": 33,
+          "world": [
+            -11.014034668604532,
+            -3.7802362858832295,
+            0.6990111680299746
+          ]
+        },
+        {
+          "depth_mm": 0.655669675446741,
+          "half": "Drag",
+          "point": [
+            -11.213382702607374,
+            0.9093136637360908,
+            -0.8092957617652116
+          ],
+          "projected_area_mm2": 0.01989048005988805,
           "samples": 2,
           "world": [
-            10.743477188380417,
-            2.4132356660526124,
-            -1.753833898060328
+            -11.213382702607374,
+            0.9093136637360908,
+            -0.8092957617652116
           ]
         },
         {
-          "depth_mm": 1.5587212129026389,
+          "depth_mm": 0.6518027932502216,
           "half": "Drag",
           "point": [
-            -10.743395172389206,
-            2.4132356660526124,
-            -1.7389872551909493
+            11.611967190718039,
+            0.011314737213241832,
+            -0.6518027932502216
           ],
-          "projected_area_mm2": 0.019924078722676042,
+          "projected_area_mm2": 0.38786436116781703,
+          "samples": 39,
+          "world": [
+            11.611967190718039,
+            0.011314737213241832,
+            -0.6518027932502216
+          ]
+        },
+        {
+          "depth_mm": 0.6505086690919741,
+          "half": "Drag",
+          "point": [
+            11.213271122712355,
+            0.9093136637360908,
+            -0.8074961269936495
+          ],
+          "projected_area_mm2": 0.01989048005988805,
           "samples": 2,
           "world": [
-            -10.743395172389206,
-            2.4132356660526124,
-            -1.7389872551909493
+            11.213271122712355,
+            0.9093136637360908,
+            -0.8074961269936495
           ]
         },
         {
-          "depth_mm": 1.1090395845888228,
-          "half": "Cope",
-          "point": [
-            10.843416129593301,
-            2.2138731504918816,
-            1.1090395845888228
-          ],
-          "projected_area_mm2": 0.02988611808401406,
-          "samples": 3,
-          "world": [
-            10.843416129593301,
-            2.2138731504918816,
-            1.1090395845888228
-          ]
-        },
-        {
-          "depth_mm": 1.025527848917545,
-          "half": "Cope",
-          "point": [
-            -10.843334113602088,
-            2.2138731504918816,
-            1.025527848917545
-          ],
-          "projected_area_mm2": 0.02988611808401406,
-          "samples": 3,
-          "world": [
-            -10.843334113602088,
-            2.2138731504918816,
-            1.025527848917545
-          ]
-        },
-        {
-          "depth_mm": 0.789694342132365,
-          "half": "Cope",
-          "point": [
-            11.043294012019064,
-            1.5161043460293284,
-            0.789694342132365
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            11.043294012019064,
-            1.5161043460293284,
-            0.789694342132365
-          ]
-        },
-        {
-          "depth_mm": 0.775717668946005,
-          "half": "Cope",
-          "point": [
-            -11.043211996027853,
-            1.5161043460293284,
-            0.775717668946005
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            -11.043211996027853,
-            1.5161043460293284,
-            0.775717668946005
-          ]
-        },
-        {
-          "depth_mm": 0.6038287018162951,
+          "depth_mm": 0.6499326061976767,
           "half": "Drag",
           "point": [
-            -2.748279875358649,
-            16.66765552864479,
-            -0.6038287018162951
+            -11.612078770613058,
+            0.011314737213241832,
+            -0.6499326061976767
           ],
-          "projected_area_mm2": 0.02988611808401406,
-          "samples": 3,
+          "projected_area_mm2": 0.40775484122770506,
+          "samples": 41,
           "world": [
-            -2.748279875358649,
-            16.66765552864479,
-            -0.6038287018162951
+            -11.612078770613058,
+            0.011314737213241832,
+            -0.6499326061976767
           ]
         },
         {
-          "depth_mm": 0.5972257881671907,
-          "half": "Cope",
-          "point": [
-            -2.748279875358649,
-            16.66765552864479,
-            0.5972257881671907
-          ],
-          "projected_area_mm2": 0.02988611808401406,
-          "samples": 3,
-          "world": [
-            -2.748279875358649,
-            16.66765552864479,
-            0.5972257881671907
-          ]
-        },
-        {
-          "depth_mm": 0.5745857656050222,
+          "depth_mm": 0.6433025558052872,
           "half": "Drag",
           "point": [
-            0.7495830670922202,
-            16.567974270864426,
-            -1.5614276761810493
+            -9.419250396581797,
+            -6.773566040959391,
+            -0.6433025558052872
           ],
-          "projected_area_mm2": 0.26897506275612654,
-          "samples": 27,
+          "projected_area_mm2": 0.17901432053899244,
+          "samples": 18,
           "world": [
-            0.7495830670922202,
-            16.567974270864426,
-            -1.5614276761810493
+            -9.419250396581797,
+            -6.773566040959391,
+            -0.6433025558052872
           ]
         },
         {
-          "depth_mm": 0.5744923144269541,
-          "half": "Cope",
-          "point": [
-            0.7495830670922202,
-            16.567974270864426,
-            1.56136303332673
-          ],
-          "projected_area_mm2": 0.2590130233947885,
-          "samples": 26,
-          "world": [
-            0.7495830670922202,
-            16.567974270864426,
-            1.56136303332673
-          ]
-        },
-        {
-          "depth_mm": 0.5580949769405268,
+          "depth_mm": 0.6400048185652488,
           "half": "Drag",
           "point": [
-            -10.843334113602088,
-            2.0145106349311526,
-            -0.5580949769405268
+            9.419138816686777,
+            -6.773566040959391,
+            -0.6400048185652488
           ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
+          "projected_area_mm2": 0.17901432053899244,
+          "samples": 18,
           "world": [
-            -10.843334113602088,
-            2.0145106349311526,
-            -0.5580949769405268
+            9.419138816686777,
+            -6.773566040959391,
+            -0.6400048185652488
           ]
         },
         {
-          "depth_mm": 0.5534497274494425,
+          "depth_mm": 0.3968177391919685,
           "half": "Drag",
           "point": [
-            10.843416129593301,
-            2.0145106349311526,
-            -0.5534497274494425
+            -2.4420692064823255,
+            14.578852878583895,
+            -5.110630499001358
           ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            10.843416129593301,
-            2.0145106349311526,
-            -0.5534497274494425
-          ]
-        },
-        {
-          "depth_mm": 0.4909438850585389,
-          "half": "Cope",
-          "point": [
-            10.94335507080618,
-            1.8151481193704238,
-            0.4909438850585389
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            10.94335507080618,
-            1.8151481193704238,
-            0.4909438850585389
-          ]
-        },
-        {
-          "depth_mm": 0.4777333907480875,
-          "half": "Cope",
-          "point": [
-            -10.943273054814972,
-            1.8151481193704238,
-            0.4777333907480875
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            -10.943273054814972,
-            1.8151481193704238,
-            0.4777333907480875
-          ]
-        },
-        {
-          "depth_mm": 0.40516198270013115,
-          "half": "Cope",
-          "point": [
-            2.5484840089240945,
-            16.567974270864426,
-            0.40516198270013115
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            2.5484840089240945,
-            16.567974270864426,
-            0.40516198270013115
-          ]
-        },
-        {
-          "depth_mm": 0.39788541993174464,
-          "half": "Drag",
-          "point": [
-            2.5484840089240945,
-            16.567974270864426,
-            -0.39788541993174464
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            2.5484840089240945,
-            16.567974270864426,
-            -0.39788541993174464
-          ]
-        },
-        {
-          "depth_mm": 0.39328872944451887,
-          "half": "Cope",
-          "point": [
-            11.143232953231948,
-            1.1173793149078686,
-            0.39328872944451887
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            11.143232953231948,
-            1.1173793149078686,
-            0.39328872944451887
-          ]
-        },
-        {
-          "depth_mm": 0.37102766383447516,
-          "half": "Cope",
-          "point": [
-            -11.143150937240735,
-            1.1173793149078686,
-            0.37102766383447516
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            -11.143150937240735,
-            1.1173793149078686,
-            0.37102766383447516
-          ]
-        },
-        {
-          "depth_mm": 0.3384724175229251,
-          "half": "Cope",
-          "point": [
-            2.2486671852854494,
-            16.66765552864479,
-            0.3384724175229251
-          ],
-          "projected_area_mm2": 0.019924078722676042,
-          "samples": 2,
-          "world": [
-            2.2486671852854494,
-            16.66765552864479,
-            0.3384724175229251
-          ]
-        },
-        {
-          "depth_mm": 0.33837691537752973,
-          "half": "Drag",
-          "point": [
-            2.2486671852854494,
-            16.66765552864479,
-            -0.33837691537752973
-          ],
-          "projected_area_mm2": 0.019924078722676042,
-          "samples": 2,
-          "world": [
-            2.2486671852854494,
-            16.66765552864479,
-            -0.33837691537752973
-          ]
-        },
-        {
-          "depth_mm": 0.26933875734461266,
-          "half": "Cope",
-          "point": [
-            1.6490335380081576,
-            16.767336786425158,
-            0.26933875734461266
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            1.6490335380081576,
-            16.767336786425158,
-            0.26933875734461266
-          ]
-        },
-        {
-          "depth_mm": 0.2667017788341196,
-          "half": "Drag",
-          "point": [
-            1.6490335380081576,
-            16.767336786425158,
-            -0.2667017788341196
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            1.6490335380081576,
-            16.767336786425158,
-            -0.2667017788341196
-          ]
-        },
-        {
-          "depth_mm": 0.167220197531178,
-          "half": "Drag",
-          "point": [
-            -2.948157757784414,
-            15.571161693060775,
-            -3.9731644614779316
-          ],
-          "projected_area_mm2": 0.02988611808401406,
-          "samples": 3,
-          "world": [
-            -2.948157757784414,
-            15.571161693060775,
-            -3.9731644614779316
-          ]
-        },
-        {
-          "depth_mm": 0.16556444161401762,
-          "half": "Drag",
-          "point": [
-            -3.1480356402101775,
-            15.870205466401872,
-            -3.1127640725423307
-          ],
-          "projected_area_mm2": 0.14943059042007031,
-          "samples": 15,
-          "world": [
-            -3.1480356402101775,
-            15.870205466401872,
-            -3.1127640725423307
-          ]
-        },
-        {
-          "depth_mm": 0.1605835771419204,
-          "half": "Cope",
-          "point": [
-            -3.1480356402101775,
-            15.870205466401872,
-            3.108237519736935
-          ],
-          "projected_area_mm2": 0.15939262978140833,
-          "samples": 16,
-          "world": [
-            -3.1480356402101775,
-            15.870205466401872,
-            3.108237519736935
-          ]
-        },
-        {
-          "depth_mm": 0.14706982045713524,
-          "half": "Cope",
-          "point": [
-            -0.6495621098881273,
-            15.770524208621508,
-            3.616890252665097
-          ],
-          "projected_area_mm2": 0.039848157445352084,
+          "projected_area_mm2": 0.0397809601197761,
           "samples": 4,
           "world": [
-            -0.6495621098881273,
-            15.770524208621508,
-            3.616890252665097
+            -2.4420692064823255,
+            14.578852878583895,
+            -5.110630499001358
           ]
         },
         {
-          "depth_mm": 0.14327661093844046,
-          "half": "Drag",
-          "point": [
-            3.4479344798400335,
-            15.47148043528041,
-            -4.921986814468719
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            3.4479344798400335,
-            15.47148043528041,
-            -4.921986814468719
-          ]
-        },
-        {
-          "depth_mm": 0.14110959089666952,
+          "depth_mm": 0.3896291536146686,
           "half": "Cope",
           "point": [
-            2.948239773775623,
-            15.770524208621508,
-            3.3589830891041332
+            11.611967190718039,
+            -1.0862395063146837,
+            0.3896291536146686
           ],
-          "projected_area_mm2": 0.09962039361338021,
-          "samples": 10,
-          "world": [
-            2.948239773775623,
-            15.770524208621508,
-            3.3589830891041332
-          ]
-        },
-        {
-          "depth_mm": 0.1375672706669011,
-          "half": "Drag",
-          "point": [
-            2.948239773775623,
-            15.770524208621508,
-            -3.564518571914303
-          ],
-          "projected_area_mm2": 0.09962039361338021,
-          "samples": 10,
-          "world": [
-            2.948239773775623,
-            15.770524208621508,
-            -3.564518571914303
-          ]
-        },
-        {
-          "depth_mm": 0.1358245103338125,
-          "half": "Drag",
-          "point": [
-            -0.6495621098881273,
-            15.770524208621508,
-            -3.606609490436143
-          ],
-          "projected_area_mm2": 0.039848157445352084,
-          "samples": 4,
-          "world": [
-            -0.6495621098881273,
-            15.770524208621508,
-            -3.606609490436143
-          ]
-        },
-        {
-          "depth_mm": 0.11834353983794843,
-          "half": "Drag",
-          "point": [
-            -1.1492568159525376,
-            15.870205466401872,
-            -3.5543538617633876
-          ],
-          "projected_area_mm2": 0.11954447233605624,
-          "samples": 12,
-          "world": [
-            -1.1492568159525376,
-            15.870205466401872,
-            -3.5543538617633876
-          ]
-        },
-        {
-          "depth_mm": 0.11737759060132369,
-          "half": "Cope",
-          "point": [
-            -1.1492568159525376,
-            15.870205466401872,
-            3.5536350617901773
-          ],
-          "projected_area_mm2": 0.11954447233605624,
-          "samples": 12,
-          "world": [
-            -1.1492568159525376,
-            15.870205466401872,
-            3.5536350617901773
-          ]
-        },
-        {
-          "depth_mm": 0.11335869869162263,
-          "half": "Drag",
-          "point": [
-            2.7483618913498598,
-            15.571161693060775,
-            -4.1562146971493075
-          ],
-          "projected_area_mm2": 0.019924078722676042,
-          "samples": 2,
-          "world": [
-            2.7483618913498598,
-            15.571161693060775,
-            -4.1562146971493075
-          ]
-        },
-        {
-          "depth_mm": 0.10134895731744908,
-          "half": "Cope",
-          "point": [
-            3.048178714988505,
-            15.172436661939317,
-            5.659053368889533
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            3.048178714988505,
-            15.172436661939317,
-            5.659053368889533
-          ]
-        },
-        {
-          "depth_mm": 0.09744807319055582,
-          "half": "Drag",
-          "point": [
-            3.24805659741427,
-            15.272117919719681,
-            -5.451958204603936
-          ],
-          "projected_area_mm2": 0.019924078722676042,
-          "samples": 2,
-          "world": [
-            3.24805659741427,
-            15.272117919719681,
-            -5.451958204603936
-          ]
-        },
-        {
-          "depth_mm": 0.08845308097656535,
-          "half": "Cope",
-          "point": [
-            3.347995538627152,
-            15.371799177500046,
-            5.143797004917633
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            3.347995538627152,
-            15.371799177500046,
-            5.143797004917633
-          ]
-        },
-        {
-          "depth_mm": 0.08830320963375282,
-          "half": "Drag",
-          "point": [
-            3.048178714988505,
-            15.072755404158952,
-            -5.941899741453058
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            3.048178714988505,
-            15.072755404158952,
-            -5.941899741453058
-          ]
-        },
-        {
-          "depth_mm": 0.08706753266544975,
-          "half": "Drag",
-          "point": [
-            0.8495220083051019,
-            15.770524208621508,
-            -3.622963065199356
-          ],
-          "projected_area_mm2": 0.11954447233605624,
-          "samples": 12,
-          "world": [
-            0.8495220083051019,
-            15.770524208621508,
-            -3.622963065199356
-          ]
-        },
-        {
-          "depth_mm": 0.08580794199010011,
-          "half": "Cope",
-          "point": [
-            0.8495220083051019,
-            15.770524208621508,
-            3.622082327160667
-          ],
-          "projected_area_mm2": 0.11954447233605624,
-          "samples": 12,
-          "world": [
-            0.8495220083051019,
-            15.770524208621508,
-            3.622082327160667
-          ]
-        },
-        {
-          "depth_mm": 0.08522254610724955,
-          "half": "Drag",
-          "point": [
-            0.05001047860204646,
-            15.47148043528041,
-            -3.605528533243481
-          ],
-          "projected_area_mm2": 0.06973427552936615,
-          "samples": 7,
-          "world": [
-            0.05001047860204646,
-            15.47148043528041,
-            -3.605528533243481
-          ]
-        },
-        {
-          "depth_mm": 0.08482098181236086,
-          "half": "Drag",
-          "point": [
-            0.4497662434535733,
-            15.571161693060775,
-            -3.6169452244540987
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            0.4497662434535733,
-            15.571161693060775,
-            -3.6169452244540987
-          ]
-        },
-        {
-          "depth_mm": 0.07521871079471243,
-          "half": "Cope",
-          "point": [
-            2.7483618913498598,
-            15.172436661939317,
-            5.188764654946469
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            2.7483618913498598,
-            15.172436661939317,
-            5.188764654946469
-          ]
-        },
-        {
-          "depth_mm": 0.06956766867663511,
-          "half": "Cope",
-          "point": [
-            0.4497662434535733,
-            15.571161693060775,
-            3.605503355899954
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            0.4497662434535733,
-            15.571161693060775,
-            3.605503355899954
-          ]
-        },
-        {
-          "depth_mm": 0.06841721782098942,
-          "half": "Cope",
-          "point": [
-            0.05001047860204646,
-            15.47148043528041,
-            3.5919563744501577
-          ],
-          "projected_area_mm2": 0.05977223616802812,
+          "projected_area_mm2": 0.05967144017966415,
           "samples": 6,
           "world": [
-            0.05001047860204646,
-            15.47148043528041,
-            3.5919563744501577
+            11.611967190718039,
+            -1.0862395063146837,
+            0.3896291536146686
           ]
         },
         {
-          "depth_mm": 0.059927210759474825,
+          "depth_mm": 0.38336991725065256,
           "half": "Cope",
           "point": [
-            -0.5496231686752456,
-            15.67084295084114,
-            3.5558789906360966
+            -11.612078770613058,
+            -1.0862395063146837,
+            0.38336991725065256
           ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
+          "projected_area_mm2": 0.05967144017966415,
+          "samples": 6,
           "world": [
-            -0.5496231686752456,
-            15.67084295084114,
-            3.5558789906360966
+            -11.612078770613058,
+            -1.0862395063146837,
+            0.38336991725065256
           ]
         },
         {
-          "depth_mm": 0.05757843834671661,
+          "depth_mm": 0.37755013650139274,
           "half": "Drag",
           "point": [
-            -0.5496231686752456,
-            15.67084295084114,
-            -3.5554558673754135
+            8.62174668067541,
+            -7.771342625984778,
+            -0.37755013650139274
           ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
+          "projected_area_mm2": 0.09945240029944026,
+          "samples": 10,
           "world": [
-            -0.5496231686752456,
-            15.67084295084114,
-            -3.5554558673754135
+            8.62174668067541,
+            -7.771342625984778,
+            -0.37755013650139274
           ]
         },
         {
-          "depth_mm": 0.04684938879221878,
+          "depth_mm": 0.37473889846335545,
+          "half": "Drag",
+          "point": [
+            -8.621858260570427,
+            -7.771342625984778,
+            -0.37473889846335545
+          ],
+          "projected_area_mm2": 0.09945240029944026,
+          "samples": 10,
+          "world": [
+            -8.621858260570427,
+            -7.771342625984778,
+            -0.37473889846335545
+          ]
+        },
+        {
+          "depth_mm": 0.3252220460302526,
+          "half": "Drag",
+          "point": [
+            -2.8407652744880094,
+            14.578852878583895,
+            -5.04345153454097
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            -2.8407652744880094,
+            14.578852878583895,
+            -5.04345153454097
+          ]
+        },
+        {
+          "depth_mm": 0.32124695394992475,
+          "half": "Drag",
+          "point": [
+            2.1429355755830413,
+            15.776184780614361,
+            -4.075943607774037
+          ],
+          "projected_area_mm2": 0.3679738811079289,
+          "samples": 37,
+          "world": [
+            2.1429355755830413,
+            15.776184780614361,
+            -4.075943607774037
+          ]
+        },
+        {
+          "depth_mm": 0.31606783598547317,
           "half": "Cope",
           "point": [
-            2.8483008325627415,
-            15.571161693060775,
-            4.088635849171286
+            2.1429355755830413,
+            15.776184780614361,
+            4.075264481825159
           ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
+          "projected_area_mm2": 0.17901432053899244,
+          "samples": 18,
           "world": [
-            2.8483008325627415,
-            15.571161693060775,
-            4.088635849171286
+            2.1429355755830413,
+            15.776184780614361,
+            4.075264481825159
           ]
         },
         {
-          "depth_mm": 0.045905472968125416,
-          "half": "Drag",
-          "point": [
-            -0.4496842274623639,
-            15.571161693060775,
-            -3.5527052673907846
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            -0.4496842274623639,
-            15.571161693060775,
-            -3.5527052673907846
-          ]
-        },
-        {
-          "depth_mm": 0.04506566426581182,
-          "half": "Drag",
-          "point": [
-            -3.7476692874874695,
-            15.67084295084114,
-            -2.9248635533548977
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            -3.7476692874874695,
-            15.67084295084114,
-            -2.9248635533548977
-          ]
-        },
-        {
-          "depth_mm": 0.04055702917369075,
-          "half": "Drag",
-          "point": [
-            2.948239773775623,
-            15.272117919719681,
-            -5.170072718748352
-          ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
-          "world": [
-            2.948239773775623,
-            15.272117919719681,
-            -5.170072718748352
-          ]
-        },
-        {
-          "depth_mm": 0.03991162467079512,
+          "depth_mm": 0.31162641442536637,
           "half": "Cope",
           "point": [
-            -0.4496842274623639,
-            15.571161693060775,
-            3.549826972858589
+            6.129896255639882,
+            -9.866673454538091,
+            0.31162641442536637
           ],
-          "projected_area_mm2": 0.009962039361338021,
-          "samples": 1,
+          "projected_area_mm2": 0.0397809601197761,
+          "samples": 4,
           "world": [
-            -0.4496842274623639,
-            15.571161693060775,
-            3.549826972858589
+            6.129896255639882,
+            -9.866673454538091,
+            0.31162641442536637
           ]
         },
         {
-          "depth_mm": 0.032339215793308895,
+          "depth_mm": 0.27701943039790233,
           "half": "Cope",
           "point": [
-            -3.547791405061705,
-            15.272117919719681,
-            5.575841029990071
+            -2.5417432234837465,
+            14.578852878583895,
+            5.147880182747245
           ],
-          "projected_area_mm2": 0.009962039361338021,
+          "projected_area_mm2": 0.029835720089832075,
+          "samples": 3,
+          "world": [
+            -2.5417432234837465,
+            14.578852878583895,
+            5.147880182747245
+          ]
+        },
+        {
+          "depth_mm": 0.2647263007748113,
+          "half": "Cope",
+          "point": [
+            -0.3489148494524832,
+            15.8759624391169,
+            3.9869946143665618
+          ],
+          "projected_area_mm2": 0.16906908050904842,
+          "samples": 17,
+          "world": [
+            -0.3489148494524832,
+            15.8759624391169,
+            3.9869946143665618
+          ]
+        },
+        {
+          "depth_mm": 0.2644149446728141,
+          "half": "Drag",
+          "point": [
+            -0.3489148494524832,
+            15.8759624391169,
+            -3.9870308249234485
+          ],
+          "projected_area_mm2": 0.16906908050904842,
+          "samples": 17,
+          "world": [
+            -0.3489148494524832,
+            15.8759624391169,
+            -3.9870308249234485
+          ]
+        },
+        {
+          "depth_mm": 0.2627654041510629,
+          "half": "Drag",
+          "point": [
+            -8.422510226567585,
+            -8.070675601492395,
+            -0.2627654041510629
+          ],
+          "projected_area_mm2": 0.009945240029944026,
           "samples": 1,
           "world": [
-            -3.547791405061705,
-            15.272117919719681,
-            5.575841029990071
+            -8.422510226567585,
+            -8.070675601492395,
+            -0.2627654041510629
+          ]
+        },
+        {
+          "depth_mm": 0.2531828562635681,
+          "half": "Drag",
+          "point": [
+            8.422398646672567,
+            -8.070675601492395,
+            -0.2531828562635681
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            8.422398646672567,
+            -8.070675601492395,
+            -0.2531828562635681
+          ]
+        },
+        {
+          "depth_mm": 0.2398187125287583,
+          "half": "Cope",
+          "point": [
+            -2.9404392914894304,
+            14.479075220081356,
+            5.799827774280929
+          ],
+          "projected_area_mm2": 0.05967144017966415,
+          "samples": 6,
+          "world": [
+            -2.9404392914894304,
+            14.479075220081356,
+            5.799827774280929
+          ]
+        },
+        {
+          "depth_mm": 0.23481970501542238,
+          "half": "Drag",
+          "point": [
+            -10.914360651603111,
+            -2.3833490668476873,
+            -2.0226071589231642
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            -10.914360651603111,
+            -2.3833490668476873,
+            -2.0226071589231642
+          ]
+        },
+        {
+          "depth_mm": 0.22696157413266604,
+          "half": "Drag",
+          "point": [
+            10.914249071708094,
+            -2.3833490668476873,
+            -2.333542017962471
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            10.914249071708094,
+            -2.3833490668476873,
+            -2.333542017962471
+          ]
+        },
+        {
+          "depth_mm": 0.2035701383389803,
+          "half": "Drag",
+          "point": [
+            -3.1397873254922724,
+            14.578852878583895,
+            -5.158851686416778
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -3.1397873254922724,
+            14.578852878583895,
+            -5.158851686416778
+          ]
+        },
+        {
+          "depth_mm": 0.1995916063800136,
+          "half": "Cope",
+          "point": [
+            1.4452174565730944,
+            15.8759624391169,
+            4.378711589151671
+          ],
+          "projected_area_mm2": 0.17901432053899244,
+          "samples": 18,
+          "world": [
+            1.4452174565730944,
+            15.8759624391169,
+            4.378711589151671
+          ]
+        },
+        {
+          "depth_mm": 0.1850499495604998,
+          "half": "Drag",
+          "point": [
+            2.441957626587304,
+            14.578852878583895,
+            -5.179094016933597
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            2.441957626587304,
+            14.578852878583895,
+            -5.179094016933597
+          ]
+        },
+        {
+          "depth_mm": 0.14076102053306538,
+          "half": "Cope",
+          "point": [
+            2.641305660590146,
+            14.578852878583895,
+            5.1185728621663475
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            2.641305660590146,
+            14.578852878583895,
+            5.1185728621663475
+          ]
+        },
+        {
+          "depth_mm": 0.13976930978577062,
+          "half": "Cope",
+          "point": [
+            -4.634897580513588,
+            14.37929756157882,
+            6.296644460958061
+          ],
+          "projected_area_mm2": 0.04972620014972013,
+          "samples": 5,
+          "world": [
+            -4.634897580513588,
+            14.37929756157882,
+            6.296644460958061
+          ]
+        },
+        {
+          "depth_mm": 0.1359353204877234,
+          "half": "Drag",
+          "point": [
+            -4.435549546510746,
+            14.37929756157882,
+            -6.322886593035992
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            -4.435549546510746,
+            14.37929756157882,
+            -6.322886593035992
+          ]
+        },
+        {
+          "depth_mm": 0.12859514540490835,
+          "half": "Drag",
+          "point": [
+            -3.3391353594951143,
+            14.479075220081356,
+            -5.941862032166357
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            -3.3391353594951143,
+            14.479075220081356,
+            -5.941862032166357
+          ]
+        },
+        {
+          "depth_mm": 0.1241037217837162,
+          "half": "Cope",
+          "point": [
+            -3.5384833934979563,
+            14.479075220081356,
+            5.876636565578467
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            -3.5384833934979563,
+            14.479075220081356,
+            5.876636565578467
+          ]
+        },
+        {
+          "depth_mm": 0.1226241594204085,
+          "half": "Drag",
+          "point": [
+            -3.6381574104993772,
+            14.479075220081356,
+            -5.884434575082499
+          ],
+          "projected_area_mm2": 0.029835720089832075,
+          "samples": 3,
+          "world": [
+            -3.6381574104993772,
+            14.479075220081356,
+            -5.884434575082499
+          ]
+        },
+        {
+          "depth_mm": 0.11446778316974004,
+          "half": "Cope",
+          "point": [
+            2.0432615585816203,
+            14.479075220081356,
+            5.52661642101236
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            2.0432615585816203,
+            14.479075220081356,
+            5.52661642101236
+          ]
+        },
+        {
+          "depth_mm": 0.10926886934491886,
+          "half": "Drag",
+          "point": [
+            -4.933919631517851,
+            14.279519903076281,
+            -6.592622117002174
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -4.933919631517851,
+            14.279519903076281,
+            -6.592622117002174
+          ]
+        },
+        {
+          "depth_mm": 0.10500269662106287,
+          "half": "Drag",
+          "point": [
+            3.5383718136029367,
+            15.07774117109659,
+            -4.434889283270999
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            3.5383718136029367,
+            15.07774117109659,
+            -4.434889283270999
+          ]
+        },
+        {
+          "depth_mm": 0.10264000829550124,
+          "half": "Cope",
+          "point": [
+            -1.6446770704709577,
+            14.479075220081356,
+            5.168462387829254
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -1.6446770704709577,
+            14.479075220081356,
+            5.168462387829254
+          ]
+        },
+        {
+          "depth_mm": 0.10078031290546013,
+          "half": "Drag",
+          "point": [
+            8.322724629671145,
+            -8.170453259994932,
+            -0.10078031290546013
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            8.322724629671145,
+            -8.170453259994932,
+            -0.10078031290546013
+          ]
+        },
+        {
+          "depth_mm": 0.09250668679119567,
+          "half": "Cope",
+          "point": [
+            4.7344600176199885,
+            14.079964586071203,
+            7.354055269751939
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            4.7344600176199885,
+            14.079964586071203,
+            7.354055269751939
+          ]
+        },
+        {
+          "depth_mm": 0.09163959910004582,
+          "half": "Drag",
+          "point": [
+            2.541631643588725,
+            14.37929756157882,
+            -6.102980244025655
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            2.541631643588725,
+            14.37929756157882,
+            -6.102980244025655
+          ]
+        },
+        {
+          "depth_mm": 0.09156380380647011,
+          "half": "Drag",
+          "point": [
+            2.641305660590146,
+            14.578852878583895,
+            -5.042593264612506
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            2.641305660590146,
+            14.578852878583895,
+            -5.042593264612506
+          ]
+        },
+        {
+          "depth_mm": 0.08663958418417676,
+          "half": "Drag",
+          "point": [
+            -8.322836209566164,
+            -8.170453259994932,
+            -0.08663958418417676
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -8.322836209566164,
+            -8.170453259994932,
+            -0.08663958418417676
+          ]
+        },
+        {
+          "depth_mm": 0.08426931097892787,
+          "half": "Cope",
+          "point": [
+            -4.435549546510746,
+            14.37929756157882,
+            6.243059672211932
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -4.435549546510746,
+            14.37929756157882,
+            6.243059672211932
+          ]
+        },
+        {
+          "depth_mm": 0.08352302468871464,
+          "half": "Drag",
+          "point": [
+            -5.930659801532061,
+            13.880409269066124,
+            -7.427820041076485
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -5.930659801532061,
+            13.880409269066124,
+            -7.427820041076485
+          ]
+        },
+        {
+          "depth_mm": 0.0809127604764619,
+          "half": "Drag",
+          "point": [
+            4.435437966615724,
+            14.079964586071203,
+            -7.3793201047253305
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            4.435437966615724,
+            14.079964586071203,
+            -7.3793201047253305
+          ]
+        },
+        {
+          "depth_mm": 0.08061673825906457,
+          "half": "Drag",
+          "point": [
+            3.4386977966015158,
+            14.279519903076281,
+            -6.737185458092763
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            3.4386977966015158,
+            14.279519903076281,
+            -6.737185458092763
+          ]
+        },
+        {
+          "depth_mm": 0.07852235270433461,
+          "half": "Drag",
+          "point": [
+            2.0432615585816203,
+            14.479075220081356,
+            -5.453621905333444
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            2.0432615585816203,
+            14.479075220081356,
+            -5.453621905333444
+          ]
+        },
+        {
+          "depth_mm": 0.07599206228462485,
+          "half": "Drag",
+          "point": [
+            2.0432615585816203,
+            15.8759624391169,
+            -3.3726998576494887
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            2.0432615585816203,
+            15.8759624391169,
+            -3.3726998576494887
+          ]
+        },
+        {
+          "depth_mm": 0.07555283731884366,
+          "half": "Cope",
+          "point": [
+            -0.24924083245106218,
+            16.275073073127054,
+            2.8636462678358328
+          ],
+          "projected_area_mm2": 0.029835720089832075,
+          "samples": 3,
+          "world": [
+            -0.24924083245106218,
+            16.275073073127054,
+            2.8636462678358328
+          ]
+        },
+        {
+          "depth_mm": 0.07497269130227391,
+          "half": "Cope",
+          "point": [
+            -2.7410912574865884,
+            14.37929756157882,
+            6.247873312513722
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            -2.7410912574865884,
+            14.37929756157882,
+            6.247873312513722
+          ]
+        },
+        {
+          "depth_mm": 0.07433373776609198,
+          "half": "Cope",
+          "point": [
+            -5.033593648519272,
+            14.179742244573742,
+            6.9273418720146385
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            -5.033593648519272,
+            14.179742244573742,
+            6.9273418720146385
+          ]
+        },
+        {
+          "depth_mm": 0.07318689661253952,
+          "half": "Drag",
+          "point": [
+            -2.7410912574865884,
+            14.279519903076281,
+            -6.524331774255089
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            -2.7410912574865884,
+            14.279519903076281,
+            -6.524331774255089
+          ]
+        },
+        {
+          "depth_mm": 0.07283653506476462,
+          "half": "Cope",
+          "point": [
+            4.136415915611463,
+            14.179742244573742,
+            7.096431044278802
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            4.136415915611463,
+            14.179742244573742,
+            7.096431044278802
+          ]
+        },
+        {
+          "depth_mm": 0.07210375855309074,
+          "half": "Cope",
+          "point": [
+            9.917508901693884,
+            10.687524196984885,
+            0.07210375855309074
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            9.917508901693884,
+            10.687524196984885,
+            0.07210375855309074
+          ]
+        },
+        {
+          "depth_mm": 0.07207664112228951,
+          "half": "Drag",
+          "point": [
+            -3.1397873254922724,
+            14.279519903076281,
+            -6.6805115272773525
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -3.1397873254922724,
+            14.279519903076281,
+            -6.6805115272773525
+          ]
+        },
+        {
+          "depth_mm": 0.0719810042316081,
+          "half": "Drag",
+          "point": [
+            9.917508901693884,
+            10.687524196984885,
+            -0.0719810042316081
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            9.917508901693884,
+            10.687524196984885,
+            -0.0719810042316081
+          ]
+        },
+        {
+          "depth_mm": 0.06938688029627116,
+          "half": "Cope",
+          "point": [
+            -5.83098578453064,
+            13.880409269066124,
+            7.446384432693138
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            -5.83098578453064,
+            13.880409269066124,
+            7.446384432693138
+          ]
+        },
+        {
+          "depth_mm": 0.0685069470323576,
+          "half": "Drag",
+          "point": [
+            -4.236201512507904,
+            14.079964586071203,
+            -7.366888143450327
+          ],
+          "projected_area_mm2": 0.029835720089832075,
+          "samples": 3,
+          "world": [
+            -4.236201512507904,
+            14.079964586071203,
+            -7.366888143450327
+          ]
+        },
+        {
+          "depth_mm": 0.06778540295595689,
+          "half": "Cope",
+          "point": [
+            -11.412730736610216,
+            -1.4853501403248386,
+            0.06778540295595689
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -11.412730736610216,
+            -1.4853501403248386,
+            0.06778540295595689
+          ]
+        },
+        {
+          "depth_mm": 0.06633599137990043,
+          "half": "Cope",
+          "point": [
+            -3.837505444502219,
+            14.37929756157882,
+            6.306067594437745
+          ],
+          "projected_area_mm2": 0.0397809601197761,
+          "samples": 4,
+          "world": [
+            -3.837505444502219,
+            14.37929756157882,
+            6.306067594437745
+          ]
+        },
+        {
+          "depth_mm": 0.06514915525099063,
+          "half": "Cope",
+          "point": [
+            3.5383718136029367,
+            15.07774117109659,
+            4.379323309787892
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            3.5383718136029367,
+            15.07774117109659,
+            4.379323309787892
+          ]
+        },
+        {
+          "depth_mm": 0.0646523179715004,
+          "half": "Cope",
+          "point": [
+            2.840653694592988,
+            14.279519903076281,
+            6.5747079387639396
+          ],
+          "projected_area_mm2": 0.029835720089832075,
+          "samples": 3,
+          "world": [
+            2.840653694592988,
+            14.279519903076281,
+            6.5747079387639396
+          ]
+        },
+        {
+          "depth_mm": 0.06442556778843489,
+          "half": "Cope",
+          "point": [
+            -5.930659801532061,
+            13.680853952061046,
+            7.831167849640712
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -5.930659801532061,
+            13.680853952061046,
+            7.831167849640712
+          ]
+        },
+        {
+          "depth_mm": 0.0643695990943731,
+          "half": "Cope",
+          "point": [
+            -7.724792107557639,
+            5.499085954852873,
+            0.0643695990943731
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -7.724792107557639,
+            5.499085954852873,
+            0.0643695990943731
+          ]
+        },
+        {
+          "depth_mm": 0.06395302415910553,
+          "half": "Drag",
+          "point": [
+            -0.24924083245106218,
+            16.374850731629593,
+            -2.1393152498070447
+          ],
+          "projected_area_mm2": 0.029835720089832075,
+          "samples": 3,
+          "world": [
+            -0.24924083245106218,
+            16.374850731629593,
+            -2.1393152498070447
+          ]
+        },
+        {
+          "depth_mm": 0.06318157310005557,
+          "half": "Cope",
+          "point": [
+            -2.2427211724794835,
+            14.479075220081356,
+            5.5276740285988195
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -2.2427211724794835,
+            14.479075220081356,
+            5.5276740285988195
+          ]
+        },
+        {
+          "depth_mm": 0.06281802719490888,
+          "half": "Cope",
+          "point": [
+            11.412619156715197,
+            -1.4853501403248386,
+            0.06281802719490888
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            11.412619156715197,
+            -1.4853501403248386,
+            0.06281802719490888
+          ]
+        },
+        {
+          "depth_mm": 0.0592438154666155,
+          "half": "Drag",
+          "point": [
+            2.840653694592988,
+            14.37929756157882,
+            -6.238373437451234
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            2.840653694592988,
+            14.37929756157882,
+            -6.238373437451234
+          ]
+        },
+        {
+          "depth_mm": 0.05844384568601413,
+          "half": "Drag",
+          "point": [
+            2.940327711594409,
+            14.279519903076281,
+            -6.621096480950657
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            2.940327711594409,
+            14.279519903076281,
+            -6.621096480950657
+          ]
+        },
+        {
+          "depth_mm": 0.05813643302636695,
+          "half": "Cope",
+          "point": [
+            3.5383718136029367,
+            14.179742244573742,
+            7.068742833915668
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            3.5383718136029367,
+            14.179742244573742,
+            7.068742833915668
+          ]
+        },
+        {
+          "depth_mm": 0.058068846907979366,
+          "half": "Cope",
+          "point": [
+            9.817834884692461,
+            10.986857172492503,
+            0.058068846907979366
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            9.817834884692461,
+            10.986857172492503,
+            0.058068846907979366
+          ]
+        },
+        {
+          "depth_mm": 0.05797558643297343,
+          "half": "Drag",
+          "point": [
+            7.625006510661199,
+            -8.669341552507627,
+            -0.05797558643297343
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            7.625006510661199,
+            -8.669341552507627,
+            -0.05797558643297343
+          ]
+        },
+        {
+          "depth_mm": 0.057688877789486157,
+          "half": "Drag",
+          "point": [
+            9.817834884692461,
+            10.986857172492503,
+            -0.057688877789486157
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            9.817834884692461,
+            10.986857172492503,
+            -0.057688877789486157
+          ]
+        },
+        {
+          "depth_mm": 0.057451362725724486,
+          "half": "Cope",
+          "point": [
+            3.139675745597251,
+            14.279519903076281,
+            6.651115134866933
+          ],
+          "projected_area_mm2": 0.029835720089832075,
+          "samples": 3,
+          "world": [
+            3.139675745597251,
+            14.279519903076281,
+            6.651115134866933
+          ]
+        },
+        {
+          "depth_mm": 0.057386145370183606,
+          "half": "Drag",
+          "point": [
+            3.9370678816086206,
+            14.079964586071203,
+            -7.33557597866682
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            3.9370678816086206,
+            14.079964586071203,
+            -7.33557597866682
+          ]
+        },
+        {
+          "depth_mm": 0.05723241065923901,
+          "half": "Cope",
+          "point": [
+            2.2426095925844622,
+            14.479075220081356,
+            5.499533271544575
+          ],
+          "projected_area_mm2": 0.029835720089832075,
+          "samples": 3,
+          "world": [
+            2.2426095925844622,
+            14.479075220081356,
+            5.499533271544575
+          ]
+        },
+        {
+          "depth_mm": 0.05682994465670888,
+          "half": "Drag",
+          "point": [
+            8.92076873167967,
+            -7.172676674969546,
+            -0.05682994465670888
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            8.92076873167967,
+            -7.172676674969546,
+            -0.05682994465670888
+          ]
+        },
+        {
+          "depth_mm": 0.05675613275368541,
+          "half": "Cope",
+          "point": [
+            -4.236201512507904,
+            14.179742244573742,
+            7.094407438042959
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -4.236201512507904,
+            14.179742244573742,
+            7.094407438042959
+          ]
+        },
+        {
+          "depth_mm": 0.05654923552762449,
+          "half": "Drag",
+          "point": [
+            -7.625118090556218,
+            -8.669341552507627,
+            -0.05654923552762449
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -7.625118090556218,
+            -8.669341552507627,
+            -0.05654923552762449
+          ]
+        },
+        {
+          "depth_mm": 0.0562173058313849,
+          "half": "Drag",
+          "point": [
+            -8.92088031157469,
+            -7.172676674969546,
+            -0.0562173058313849
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -8.92088031157469,
+            -7.172676674969546,
+            -0.0562173058313849
+          ]
+        },
+        {
+          "depth_mm": 0.0554194034893154,
+          "half": "Drag",
+          "point": [
+            -2.0433731384766416,
+            14.479075220081356,
+            -5.434481400398677
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -2.0433731384766416,
+            14.479075220081356,
+            -5.434481400398677
+          ]
+        },
+        {
+          "depth_mm": 0.05493282148960521,
+          "half": "Cope",
+          "point": [
+            -4.236201512507904,
+            14.37929756157882,
+            6.241303396656248
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -4.236201512507904,
+            14.37929756157882,
+            6.241303396656248
+          ]
+        },
+        {
+          "depth_mm": 0.05295284465785066,
+          "half": "Cope",
+          "point": [
+            3.8373938646071997,
+            14.079964586071203,
+            7.325832736669853
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            3.8373938646071997,
+            14.079964586071203,
+            7.325832736669853
+          ]
+        },
+        {
+          "depth_mm": 0.04965149254899792,
+          "half": "Cope",
+          "point": [
+            -3.5384833934979563,
+            14.179742244573742,
+            7.0437675443718835
+          ],
+          "projected_area_mm2": 0.029835720089832075,
+          "samples": 3,
+          "world": [
+            -3.5384833934979563,
+            14.179742244573742,
+            7.0437675443718835
+          ]
+        },
+        {
+          "depth_mm": 0.03856568720374909,
+          "half": "Drag",
+          "point": [
+            -10.81468663460169,
+            -3.7802362858832295,
+            -0.03856568720374909
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -10.81468663460169,
+            -3.7802362858832295,
+            -0.03856568720374909
+          ]
+        },
+        {
+          "depth_mm": 0.03638448792682278,
+          "half": "Cope",
+          "point": [
+            9.718160867691042,
+            11.186412489497581,
+            0.03638448792682278
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            9.718160867691042,
+            11.186412489497581,
+            0.03638448792682278
+          ]
+        },
+        {
+          "depth_mm": 0.03616351835068171,
+          "half": "Drag",
+          "point": [
+            9.718160867691042,
+            11.186412489497581,
+            -0.03616351835068171
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            9.718160867691042,
+            11.186412489497581,
+            -0.03616351835068171
+          ]
+        },
+        {
+          "depth_mm": 0.035668793418021316,
+          "half": "Drag",
+          "point": [
+            -3.93717946150364,
+            14.37929756157882,
+            -6.261638159844427
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -3.93717946150364,
+            14.37929756157882,
+            -6.261638159844427
+          ]
+        },
+        {
+          "depth_mm": 0.03497665397297789,
+          "half": "Drag",
+          "point": [
+            7.525332493659776,
+            -8.070675601492395,
+            -2.3760654676547355
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            7.525332493659776,
+            -8.070675601492395,
+            -2.3760654676547355
+          ]
+        },
+        {
+          "depth_mm": 0.03288535471399179,
+          "half": "Drag",
+          "point": [
+            -3.0401133084908514,
+            14.37929756157882,
+            -6.288743071935266
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -3.0401133084908514,
+            14.37929756157882,
+            -6.288743071935266
+          ]
+        },
+        {
+          "depth_mm": 0.031503304324726214,
+          "half": "Drag",
+          "point": [
+            10.81457505470667,
+            -3.7802362858832295,
+            -0.031503304324726214
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            10.81457505470667,
+            -3.7802362858832295,
+            -0.031503304324726214
+          ]
+        },
+        {
+          "depth_mm": 0.03119544339391922,
+          "half": "Drag",
+          "point": [
+            4.335763949614305,
+            14.179742244573742,
+            -7.076225402339242
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            4.335763949614305,
+            14.179742244573742,
+            -7.076225402339242
+          ]
+        },
+        {
+          "depth_mm": 0.030611892151579667,
+          "half": "Drag",
+          "point": [
+            -5.332615699523535,
+            13.780631610563585,
+            -7.834686323349871
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -5.332615699523535,
+            13.780631610563585,
+            -7.834686323349871
+          ]
+        },
+        {
+          "depth_mm": 0.03042049930376578,
+          "half": "Drag",
+          "point": [
+            -4.136527495506482,
+            14.37929756157882,
+            -6.171456222723674
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -4.136527495506482,
+            14.37929756157882,
+            -6.171456222723674
+          ]
+        },
+        {
+          "depth_mm": 0.029567699103530742,
+          "half": "Cope",
+          "point": [
+            -2.0433731384766416,
+            14.37929756157882,
+            5.790561138498661
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -2.0433731384766416,
+            14.37929756157882,
+            5.790561138498661
+          ]
+        },
+        {
+          "depth_mm": 0.028913747135300483,
+          "half": "Drag",
+          "point": [
+            2.2426095925844622,
+            14.279519903076281,
+            -6.223229098135753
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            2.2426095925844622,
+            14.279519903076281,
+            -6.223229098135753
+          ]
+        },
+        {
+          "depth_mm": 0.02839372320445488,
+          "half": "Cope",
+          "point": [
+            -4.734571597515009,
+            14.079964586071203,
+            7.266437695317409
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -4.734571597515009,
+            14.079964586071203,
+            7.266437695317409
+          ]
+        },
+        {
+          "depth_mm": 0.02641564973196875,
+          "half": "Cope",
+          "point": [
+            -3.3391353594951143,
+            14.37929756157882,
+            6.231320462846979
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -3.3391353594951143,
+            14.37929756157882,
+            6.231320462846979
+          ]
+        },
+        {
+          "depth_mm": 0.026340232513405226,
+          "half": "Drag",
+          "point": [
+            -4.634897580513588,
+            14.279519903076281,
+            -6.513171477909189
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -4.634897580513588,
+            14.279519903076281,
+            -6.513171477909189
+          ]
+        },
+        {
+          "depth_mm": 0.02567337907905287,
+          "half": "Drag",
+          "point": [
+            -5.531963733526377,
+            13.780631610563585,
+            -7.770151967348091
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -5.531963733526377,
+            13.780631610563585,
+            -7.770151967348091
+          ]
+        },
+        {
+          "depth_mm": 0.02465221964981712,
+          "half": "Cope",
+          "point": [
+            2.940327711594409,
+            14.479075220081356,
+            5.839565456831617
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            2.940327711594409,
+            14.479075220081356,
+            5.839565456831617
+          ]
+        },
+        {
+          "depth_mm": 0.023016812645020757,
+          "half": "Drag",
+          "point": [
+            -4.734571597515009,
+            14.179742244573742,
+            -6.9493293160683525
+          ],
+          "projected_area_mm2": 0.009945240029944026,
+          "samples": 1,
+          "world": [
+            -4.734571597515009,
+            14.179742244573742,
+            -6.9493293160683525
+          ]
+        },
+        {
+          "depth_mm": 0.022597958105721183,
+          "half": "Cope",
+          "point": [
+            3.4386977966015158,
+            14.279519903076281,
+            6.6492708376635905
+          ],
+          "projected_area_mm2": 0.01989048005988805,
+          "samples": 2,
+          "world": [
+            3.4386977966015158,
+            14.279519903076281,
+            6.6492708376635905
           ]
         }
       ],
-      "occupied_rays": 22233,
+      "occupied_rays": 24757,
       "parting_mm": 0.0,
       "sand_findings": [
         {
-          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
           "point": [
-            6.945797422290904,
-            9.689967484019247,
+            0.049781218553200744,
+            -11.46311599057871,
             0.0
           ],
-          "width_mm": 0.5996336472772918
+          "width_mm": 0.19934803400284204
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -2.3423951894809045,
+            -11.263560673573634,
+            0.0
+          ],
+          "width_mm": 0.09967401700142102
         },
         {
           "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
           "point": [
-            6.446102716226494,
-            10.188373772921073,
+            -1.4453290364681157,
+            -11.263560673573634,
             0.0
           ],
-          "width_mm": 0.2998168236386459
-        },
-        {
-          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "point": [
-            -3.647730346274587,
-            15.969886724182237,
-            0.0
-          ],
-          "width_mm": 0.09993894121288198
-        },
-        {
-          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "point": [
-            2.948239773775623,
-            16.169249239742967,
-            0.0
-          ],
-          "width_mm": 0.09993894121288198
-        },
-        {
-          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "point": [
-            -1.5490125808040662,
-            16.66765552864479,
-            0.0
-          ],
-          "width_mm": 0.09993894121288198
-        },
-        {
-          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "point": [
-            0.7495830670922202,
-            16.66765552864479,
-            0.0
-          ],
-          "width_mm": 0.09993894121288198
+          "width_mm": 0.29902205100426305
         },
         {
           "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
           "point": [
-            -6.645898582661046,
-            9.689967484019247,
+            1.4452174565730944,
+            -11.263560673573634,
             0.0
           ],
-          "width_mm": 0.29904377334109467
+          "width_mm": 0.29902205100426305
         },
         {
           "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
           "point": [
-            -0.04992846261083526,
-            13.97626156857494,
-            4.411839485168457
+            2.342283609585883,
+            -11.263560673573634,
+            0.0
           ],
-          "width_mm": 0.09993894121288198
-        },
-        {
-          "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
-          "point": [
-            -1.5490125808040662,
-            14.574349115257126,
-            4.411839485168457
-          ],
-          "width_mm": 0.3997557648515279
-        },
-        {
-          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "point": [
-            2.048789302859686,
-            14.773711630817859,
-            4.411839485168457
-          ],
-          "width_mm": 0.09993894121288198
-        },
-        {
-          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
-          "point": [
-            5.146896480459026,
-            15.371799177500046,
-            4.411839485168457
-          ],
-          "width_mm": 0.09993894121288198
+          "width_mm": 0.09967401700142102
         },
         {
           "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
           "point": [
-            -3.947547169913233,
-            15.371799177500046,
-            -4.413064002990723
+            2.940327711594409,
+            -11.064005356568556,
+            0.0
           ],
-          "width_mm": 0.19987788242576396
+          "width_mm": 0.19934803400284204
         },
         {
           "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
           "point": [
-            3.7477513034786787,
-            15.571161693060775,
+            -5.531963733526377,
+            -9.866673454538091,
+            0.0
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            5.531852153631356,
+            -9.866673454538091,
+            0.0
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+          "point": [
+            6.428918306644147,
+            10.388191221477268,
+            0.0
+          ],
+          "width_mm": 0.3986960680056841
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -5.232941682522114,
+            11.984633757517887,
+            0.0
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -5.631637750527798,
+            12.483522050030583,
+            0.0
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            5.531852153631356,
+            14.778408195588973,
+            0.0
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            3.4386977966015158,
+            15.97574009761944,
+            0.0
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "point": [
+            -1.7443510874723787,
+            16.474628390132132,
+            0.0
+          ],
+          "width_mm": 0.19934803400284204
+        },
+        {
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "point": [
+            0.9468473715659895,
+            16.57440604863467,
+            0.0
+          ],
+          "width_mm": 0.19934803400284204
+        },
+        {
+          "message": "Sand slot about 0.60 mm wide; inspect its support and depth",
+          "point": [
+            -11.412730736610216,
+            0.011314737213241832,
+            0.0
+          ],
+          "width_mm": 0.5986659510152323
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -11.313056719608795,
+            0.6099806882284751,
+            0.0
+          ],
+          "width_mm": 0.09977765850253872
+        },
+        {
+          "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+          "point": [
+            -11.213382702607374,
+            -1.7846831158324543,
+            0.0
+          ],
+          "width_mm": 0.3991106340101549
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -11.113708685605953,
+            1.3084242977462457,
+            0.0
+          ],
+          "width_mm": 0.09977765850253872
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -10.116968515591743,
+            3.603310443304636,
+            0.0
+          ],
+          "width_mm": 0.09977765850253872
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -9.219902362578955,
+            -6.574010723954314,
+            0.0
+          ],
+          "width_mm": 0.09977765850253872
+        },
+        {
+          "message": "Sand slot about 0.30 mm wide; inspect its support and depth",
+          "point": [
+            -7.126748005549113,
+            8.891526343939187,
+            0.0
+          ],
+          "width_mm": 0.2993329755076162
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            9.219790782683935,
+            -6.574010723954314,
+            0.0
+          ],
+          "width_mm": 0.09977765850253872
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            10.116856935696726,
+            3.603310443304636,
+            0.0
+          ],
+          "width_mm": 0.09977765850253872
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            11.113597105710936,
+            1.3084242977462457,
+            0.0
+          ],
+          "width_mm": 0.09977765850253872
+        },
+        {
+          "message": "Sand slot about 0.40 mm wide; inspect its support and depth",
+          "point": [
+            11.213271122712355,
+            -1.7846831158324543,
+            0.0
+          ],
+          "width_mm": 0.3991106340101549
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            11.312945139713777,
+            0.011314737213241832,
+            0.0
+          ],
+          "width_mm": 0.09977765850253872
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -8.322836209566164,
+            14.079964586071203,
+            4.411839485168457
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "point": [
+            -3.3391353594951143,
+            14.678630537086434,
+            4.411839485168457
+          ],
+          "width_mm": 0.19934803400284204
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -6.429029886539166,
+            15.07774117109659,
+            4.411839485168457
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            3.5383718136029367,
+            15.177518829599126,
+            4.411839485168457
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "point": [
+            -5.332615699523535,
+            15.277296488101666,
+            4.411839485168457
+          ],
+          "width_mm": 0.19934803400284204
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            5.332504119628514,
+            15.476851805106744,
+            4.411839485168457
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            2.0432615585816203,
+            15.576629463609283,
+            4.411839485168457
+          ],
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "point": [
+            -1.2459810024652738,
+            15.676407122111822,
+            4.411839485168457
+          ],
+          "width_mm": 0.19934803400284204
+        },
+        {
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "point": [
+            0.44847728655888464,
+            15.776184780614361,
+            4.411839485168457
+          ],
+          "width_mm": 0.19934803400284204
+        },
+        {
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "point": [
+            -9.020554328576113,
+            12.483522050030583,
+            4.411839485168457
+          ],
+          "width_mm": 0.19955531700507745
+        },
+        {
+          "message": "Sand slot about 0.10 mm wide; inspect its support and depth",
+          "point": [
+            -0.1495668154496412,
+            13.481298635055971,
             -4.413064002990723
           ],
-          "width_mm": 0.09993894121288198
+          "width_mm": 0.09967401700142102
+        },
+        {
+          "message": "Sand slot about 0.20 mm wide; inspect its support and depth",
+          "point": [
+            -4.435549546510746,
+            15.377074146604205,
+            -4.413064002990723
+          ],
+          "width_mm": 0.19934803400284204
         }
       ],
       "status": "NotApplicable",
-      "suggested_parting_mm": 1.614663572050631,
+      "suggested_parting_mm": 0.8347282540053129,
       "tolerance_mm": 0.02,
       "unresolved_rays": 0,
-      "worst_draft_deg": -72.19446153970517
+      "worst_draft_deg": -79.37427907222207
     },
     "sampled_local_wall": null,
     "setup": {
@@ -1425,8 +3244,8 @@
     "source_build": {
       "band_width_mm": 17.31446075439453,
       "bounds_mm": [
-        22.15706443786621,
-        27.673812866210938,
+        22.880569458007812,
+        27.994220733642578,
         17.31446075439453
       ],
       "build_ms": 2,
@@ -1434,53 +3253,53 @@
       "max_relief_mm": 0.0,
       "metals": [
         {
-          "dwt": 13.463925966612843,
-          "grams": 20.938745446973005,
+          "dwt": 14.35878143543181,
+          "grams": 22.330401262661198,
           "metal": "Silver 925"
         },
         {
-          "dwt": 11.436539431099716,
-          "grams": 17.78580694337476,
+          "dwt": 12.196648323532813,
+          "grams": 18.967908408438085,
           "metal": "Bronze"
         },
         {
-          "dwt": 11.1116377427162,
-          "grams": 17.280528337028883,
+          "dwt": 11.850152632523358,
+          "grams": 18.42904737410746,
           "metal": "Brass"
         },
         {
-          "dwt": 15.010458003318373,
-          "grams": 23.343871613179367,
+          "dwt": 16.008100924636818,
+          "grams": 24.895379786074987,
           "metal": "Gold 10k"
         },
         {
-          "dwt": 16.985860268690143,
-          "grams": 26.41596553976228,
+          "dwt": 18.1147947259743,
+          "grams": 28.1716548748052,
           "metal": "Gold 14k"
         },
         {
-          "dwt": 20.24787322006063,
-          "grams": 31.48896274747485,
+          "dwt": 21.59361146370923,
+          "grams": 33.5818196594847,
           "metal": "Gold 18k"
         },
         {
-          "dwt": 23.13300021290624,
-          "grams": 35.97583677182621,
+          "dwt": 24.670493199873185,
+          "grams": 38.36690564434067,
           "metal": "Gold 22k"
         },
         {
-          "dwt": 25.10840247827801,
-          "grams": 39.047930698409125,
+          "dwt": 26.777187001210674,
+          "grams": 41.643180733070885,
           "metal": "Gold 24k"
         },
         {
-          "dwt": 15.5952810424087,
-          "grams": 24.25337310460194,
+          "dwt": 16.631793168453832,
+          "grams": 25.865329647870112,
           "metal": "Palladium 950"
         },
         {
-          "dwt": 27.87656486330555,
-          "grams": 43.352904424475966,
+          "dwt": 29.729330288611227,
+          "grams": 46.234276745567826,
           "metal": "Platinum 950"
         }
       ],
@@ -1488,19 +3307,19 @@
       "outer_diameter_mm": 25.506744384765625,
       "quality": {
         "degenerate_faces": 0,
-        "min_angle_deg": 0.0005118157603154651,
-        "worst_aspect": 111994.10098859796
+        "min_angle_deg": 0.0019381743061919453,
+        "worst_aspect": 29561.840385232623
       },
       "refine": null,
-      "surface_area_mm2": 1629.2568285245595,
+      "surface_area_mm2": 1758.200746360721,
       "validation": {
         "boundary_edges": 0,
         "non_manifold_edges": 0,
-        "triangle_count": 252546,
-        "vertex_count": 126273,
+        "triangle_count": 796060,
+        "vertex_count": 398030,
         "watertight": true
       },
-      "volume_mm3": 2021.1144253834948
+      "volume_mm3": 2155.4441373225095
     },
     "units": "millimeter"
   },
@@ -1508,5 +3327,5 @@
   "ring": "Chelonia — the carapace seal",
   "size": "US 8.6",
   "slug": "chelonia",
-  "stage": "block-out"
+  "stage": "full"
 }
