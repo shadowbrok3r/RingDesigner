@@ -21,6 +21,10 @@ const DIRECTIONS: usize = 8;
 const PROBES: usize = 16;
 /// Least length of the two faces' summed normals, square to the section, that orients the march toward where they converge.
 const CONVERGING: f64 = 0.05;
+/// Least cosine, 60°, between a march and the line its sample's faces converge on for the march to read relief.
+const RELIEF_LINE: f64 = 0.5;
+/// Turn, in radians, of the second ray a march casts when its first finds no way out.
+const GRAZE: f64 = 1e-6;
 /// Halvings that place where a march's section reaches the floor.
 const BISECTIONS: usize = 3;
 /// Crossings closer than this along a ray are one surface hit, mm.
@@ -30,7 +34,7 @@ const PIECES_PER_CHECK: usize = 1 << 16;
 /// Samples read, or thin samples gathered into zones, between two reads of the cancel flag.
 const SAMPLES_PER_CHECK: usize = 2048;
 
-const NOTE: &str = "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge, reaches the floor within the edge reach of it, and is everywhere on the way at least floor / reach of its distance from that edge; it is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.";
+const NOTE: &str = "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge and reaches the floor within the edge reach of it, and on the way is either everywhere at least floor / reach of its distance from that edge or flares from it like a wedge, at any angle, into metal at least a floor deep along the line its faces converge on (relief); it is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.";
 const NOT_ASSESSED: &str = "Thickness not assessed: the mesh is empty or not watertight, or the floor is not a positive length";
 
 fn add(a: P3, b: P3) -> P3 {
@@ -186,8 +190,8 @@ pub(super) enum Reading {
 enum Walk {
     /// Out through a free edge, this far along.
     Closed(f64),
-    /// The section reached the floor this far along.
-    Body(f64),
+    /// The section reached the floor this far along, at `point`.
+    Body { at: f64, point: P3 },
     /// Neither within the limit.
     Thin,
 }
@@ -309,13 +313,13 @@ impl<'a> Probe<'a> {
         x <= 0.5 * self.step + s * self.reach / self.floor
     }
 
-    /// March the mid-surface from `start` along `dir` until it leaves the metal, meets the floor, or runs `limit` mm, keeping each thin section in `stations`; with a free edge `edge` behind it, stop at the first section not fed.
-    fn walk(&self, start: P3, axis: P3, dir: P3, first: f64, limit: f64, edge: Option<f64>, stations: &mut Vec<(f64, f64)>) -> Walk {
+    /// March the mid-surface from `start` along `dir` until it leaves the metal, meets the floor, or runs `limit` mm, keeping each thin section in `stations`.
+    fn walk(&self, start: P3, axis: P3, dir: P3, first: f64, limit: f64, stations: &mut Vec<(f64, f64)>) -> Walk {
         stations.clear();
         let (mut m, mut a, mut u, mut went, mut last) = (start, axis, dir, 0.0, first);
         while went < limit - 1e-9 {
             let step = self.step.min(limit - went);
-            match self.leave(m, u) {
+            match self.leave(m, u).or_else(|| self.leave(m, unit(add(u, scale(a, GRAZE)))?)) {
                 Some((t, _)) if t <= step => return Walk::Closed(went + t),
                 Some(_) => {}
                 None => return Walk::Thin,
@@ -332,21 +336,16 @@ impl<'a> Probe<'a> {
                         Some((sh, _, _)) => {
                             (lo, s_lo) = (h, sh);
                             stations.push((went + h, sh));
-                            if edge.is_some_and(|c| !self.fed(c + went + h, sh)) {
-                                return Walk::Thin;
-                            }
                         }
                         None => break,
                     }
                 }
                 let back = if s_hi > s_lo { (hi - lo) * (s_hi - self.floor) / (s_hi - s_lo) } else { 0.0 };
-                return Walk::Body(went + hi - back.clamp(0.0, hi - lo));
+                let along = hi - back.clamp(0.0, hi - lo);
+                return Walk::Body { at: went + along, point: add(m, scale(u, along)) };
             }
             went += step;
             stations.push((went, s));
-            if edge.is_some_and(|c| !self.fed(c + went, s)) {
-                return Walk::Thin;
-            }
             last = s;
             m = mid;
             if dot(turned, a) > 0.5 {
@@ -379,7 +378,35 @@ impl<'a> Probe<'a> {
         self.fed(c, first) && closed.iter().all(|&(w, s)| self.fed(c - w, s)) && body.iter().all(|&(w, s)| self.fed(c + w, s))
     }
 
-    /// Edge if a line through the mid-surface point leaves the metal one way and meets the floor the other within the reach, fed all the way.
+    /// Whether a march pair's sections, from its free edge at `c` to the floor, never narrow by more than half a step and fit a wedge whose apex lies within the run's length past that edge.
+    fn flared(&self, c: f64, first: f64, closed: &[(f64, f64)], body: &[(f64, f64)]) -> bool {
+        let run: Vec<(f64, f64)> =
+            closed.iter().rev().map(|&(w, s)| (c - w, s)).chain(std::iter::once((c, first))).chain(body.iter().map(|&(w, s)| (c + w, s))).collect();
+        let Some(&(last, _)) = run.last().filter(|_| run.len() >= 2) else { return false };
+        let mut widest = 0.0f64;
+        for &(_, s) in &run {
+            if s < widest - 0.5 * self.step {
+                return false;
+            }
+            widest = widest.max(s);
+        }
+        let n = run.len() as f64;
+        let (mx, ms) = run.iter().fold((0.0, 0.0), |(x, s), p| (x + p.0 / n, s + p.1 / n));
+        let (cov, var) = run.iter().fold((0.0, 0.0), |(cv, v), p| (cv + (p.0 - mx) * (p.1 - ms), v + (p.0 - mx) * (p.0 - mx)));
+        if !(var > 0.0 && cov > 0.0) {
+            return false;
+        }
+        let slope = cov / var;
+        ms - slope * mx <= slope * last
+    }
+
+    /// Edge if every station is fed, or the run flares from its free edge into metal at least a floor deep along `below` from where it reaches the floor.
+    fn judge(&self, c: f64, first: f64, closed: &[(f64, f64)], body: &[(f64, f64)], point: P3, below: Option<P3>) -> bool {
+        self.tapered(c, first, closed, body)
+            || below.is_some_and(|d| self.flared(c, first, closed, body) && self.leave(point, d).is_some_and(|(t, _)| t >= self.floor))
+    }
+
+    /// Edge if a line through the mid-surface point leaves the metal one way and meets the floor the other within the reach, fed all the way or flaring into a body.
     fn classify(&self, s: &Sample, t: f64, far: usize) -> Thin {
         let inward = scale(s.n, -1.0);
         let n_far = self.normal(far);
@@ -398,18 +425,23 @@ impl<'a> Probe<'a> {
         let e1 = if norm(converging) >= CONVERGING { scale(converging, 1.0 / norm(converging)) } else { self.nearest_exit(mid, axis) };
         let e2 = cross(axis, e1);
         let limit = self.reach + 0.5 * self.step;
+        // `e1` pointed away from a march's free edge, when the march runs within 60° of it.
+        let below = |free: P3| {
+            let d = dot(free, e1);
+            (d.abs() > RELIEF_LINE).then(|| scale(e1, -d.signum()))
+        };
         let (mut out, mut home) = (Vec::new(), Vec::new());
         for k in 0..DIRECTIONS / 2 {
             let angle = k as f64 * std::f64::consts::TAU / DIRECTIONS as f64;
             let u = add(scale(e1, angle.cos()), scale(e2, angle.sin()));
             let back = scale(u, -1.0);
-            let depth = match self.walk(mid, axis, u, first, limit, None, &mut out) {
-                Walk::Closed(c) => match self.walk(mid, axis, back, first, limit - c, Some(c), &mut home) {
-                    Walk::Body(b) => self.tapered(c, first, &out, &home).then_some(c + b),
+            let depth = match self.walk(mid, axis, u, first, limit, &mut out) {
+                Walk::Closed(c) => match self.walk(mid, axis, back, first, limit - c, &mut home) {
+                    Walk::Body { at, point } => self.judge(c, first, &out, &home, point, below(u)).then_some(c + at),
                     _ => None,
                 },
-                Walk::Body(b) => match self.walk(mid, axis, back, first, limit - b, None, &mut home) {
-                    Walk::Closed(c) => self.tapered(c, first, &home, &out).then_some(c + b),
+                Walk::Body { at, point } => match self.walk(mid, axis, back, first, limit - at, &mut home) {
+                    Walk::Closed(c) => self.judge(c, first, &home, &out, point, below(back)).then_some(c + at),
                     _ => None,
                 },
                 Walk::Thin => None,

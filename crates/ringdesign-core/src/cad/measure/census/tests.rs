@@ -480,6 +480,35 @@ fn pinned_rod(dia: f64, long: f64) -> Mesh {
     lathe(&[[0.0, 0.0], [1.5, 0.0], [1.5, 3.0], [r, 3.0], [r, 3.0 + long], [0.0, 3.0 + long]], 96)
 }
 
+/// A 6 x 6 x 2 block carrying a fin `thick` wide and `tall` high whose top closes to a right-angled point.
+fn pointed_fin_block(thick: f64, tall: f64) -> Mesh {
+    let (a, b, h) = (3.0 - 0.5 * thick, 3.0 + 0.5 * thick, 0.5 * thick);
+    prism(&[[0.0, 0.0], [6.0, 0.0], [6.0, 2.0], [b, 2.0], [b, 2.0 + tall - h], [3.0, 2.0 + tall], [a, 2.0 + tall - h], [a, 2.0], [0.0, 2.0]], 6.0)
+}
+
+/// Half a circle of radius `r` about (`x`, `z`), from 0 to 180°, in 16 chords.
+fn arc(x: f64, z: f64, r: f64) -> Vec<[f64; 2]> {
+    (0..=16).map(|k| std::f64::consts::PI * k as f64 / 16.0).map(|a| [x + r * a.cos(), z + r * a.sin()]).collect()
+}
+
+/// A 6 x 6 x 2 block carrying a fin `thick` wide and `tall` high whose top is rounded to a half circle.
+fn rounded_fin_block(thick: f64, tall: f64) -> Mesh {
+    let r = 0.5 * thick;
+    let mut outline = vec![[0.0, 0.0], [6.0, 0.0], [6.0, 2.0], [3.0 + r, 2.0]];
+    outline.extend(arc(3.0, 2.0 + tall - r, r));
+    outline.extend([[3.0 - r, 2.0], [0.0, 2.0]]);
+    prism(&outline, 6.0)
+}
+
+/// A 3 mm rod carrying a pin `dia` across and `long` high on its end, its tip a half sphere.
+fn rounded_pin_rod(dia: f64, long: f64) -> Mesh {
+    let r = 0.5 * dia;
+    let mut profile = vec![[0.0, 0.0], [1.5, 0.0], [1.5, 3.0], [r, 3.0]];
+    profile.extend(arc(0.0, 3.0 + long - r, r).into_iter().take(8));
+    profile.push([0.0, 3.0 + long]);
+    lathe(&profile, 96)
+}
+
 #[test]
 fn a_fin_pin_or_lip_taller_than_it_is_thick_is_a_wall() {
     for (what, m) in [
@@ -488,6 +517,11 @@ fn a_fin_pin_or_lip_taller_than_it_is_thick_is_a_wall() {
         ("0.3 mm lip 0.5 mm tall", fin_block(0.3, 0.5, 0.0)),
         ("0.1 mm pin 0.6 mm long", pinned_rod(0.1, 0.6)),
         ("0.15 mm pin 0.7 mm long", pinned_rod(0.15, 0.7)),
+        ("0.05 mm fin 0.7 mm tall to a point", pointed_fin_block(0.05, 0.7)),
+        ("0.3 mm lip 0.5 mm tall to a point", pointed_fin_block(0.3, 0.5)),
+        ("0.3 mm lip 0.5 mm tall, rounded", rounded_fin_block(0.3, 0.5)),
+        ("0.6 mm lip 0.75 mm tall, rounded", rounded_fin_block(0.6, 0.75)),
+        ("0.3 mm pin 0.7 mm long, rounded", rounded_pin_rod(0.3, 0.7)),
     ] {
         let t = at_floor(&m);
         assert!(!t.clean() && !t.walls.is_empty(), "{what}: {t:?}");
@@ -536,4 +570,74 @@ fn a_plate_between_flush_pairs_reads_its_own_section() {
         assert!(!t.clean() && (t.walls[0].thinnest_mm - 0.3).abs() < 1e-3, "{t:?}");
     }
     assert!((sandwich.wall_area_mm2 - alone.wall_area_mm2).abs() < 1e-6, "{} against {}", sandwich.wall_area_mm2, alone.wall_area_mm2);
+}
+
+/// A 6 mm wide outline carrying a ridge of `deg` included angle standing `proud` above its top at `top`, along x = 3.
+fn ridge_on(base: &[[f64; 2]], top: f64, deg: f64, proud: f64) -> Vec<[f64; 2]> {
+    let half = proud * (0.5 * deg).to_radians().tan();
+    let mut outline = base.to_vec();
+    outline.extend([[6.0, top], [3.0 + half, top], [3.0, top + proud], [3.0 - half, top], [0.0, top]]);
+    outline
+}
+
+#[test]
+fn a_relief_ridge_on_a_thick_body_is_an_edge_whatever_its_angle() {
+    for deg in [30.0, 40.0, 50.0] {
+        for proud in [0.2, 0.3, 0.4] {
+            let t = at_floor(&prism(&ridge_on(&[[0.0, 0.0], [6.0, 0.0]], 2.0, deg, proud), 6.0));
+            let what = format!("{deg}° ridge {proud} mm proud on a 2 mm body");
+            assert!(t.clean() && t.walls.is_empty(), "{what}: {t:?}");
+            assert!(!t.edges.is_empty() && t.edges.iter().all(|z| z.point[2] > 2.0 - 1e-6), "{what}: {:?}", t.edges);
+            assert!(t.edges.iter().all(|z| z.depth_mm.unwrap() <= FLOOR + 0.5 * FLOOR / 8.0), "{what}: {:?}", t.edges);
+        }
+    }
+}
+
+#[test]
+fn a_ridge_standing_further_than_the_reach_is_a_wall() {
+    // 30° and 1.2 mm proud: its section is 0.64 mm where it meets the body, 1.2 mm from its crest.
+    let t = at_floor(&prism(&ridge_on(&[[0.0, 0.0], [6.0, 0.0]], 2.0, 30.0, 1.2), 6.0));
+    assert!(!t.clean() && !t.walls.is_empty(), "{t:?}");
+    assert!(t.walls.iter().all(|z| z.point[2] > 2.0 - 1e-6), "{:?}", t.walls);
+    // With the reach opened to the ridge's height it is relief again.
+    let wide = census(&prism(&ridge_on(&[[0.0, 0.0], [6.0, 0.0]], 2.0, 30.0, 1.2), 6.0), &CensusOptions { edge_reach_mm: Some(1.25), ..CensusOptions::floor(FLOOR) });
+    assert!(wide.clean(), "{wide:?}");
+}
+
+#[test]
+fn relief_on_a_thin_web_over_a_hollow_is_a_wall() {
+    let (deg, proud) = (40.0, 0.3);
+    // On a 3 mm block the ridge's thin flanks are relief.
+    let solid = at_floor(&prism(&ridge_on(&[[0.0, 0.0], [6.0, 0.0]], 3.0, deg, proud), 6.0));
+    assert!(solid.clean() && solid.walls.is_empty() && solid.edge_area_mm2 > 2.0, "{solid:?}");
+    // Two 1.5 mm legs bridged by a 0.5 mm web over a 3 mm hollow, bare and carrying the same ridge.
+    let arch = [[0.0, 0.0], [1.5, 0.0], [1.5, 2.5], [4.5, 2.5], [4.5, 0.0], [6.0, 0.0]];
+    let mut flat = arch.to_vec();
+    flat.extend([[6.0, 3.0], [0.0, 3.0]]);
+    let bare = at_floor(&prism(&flat, 6.0));
+    let carried = at_floor(&prism(&ridge_on(&arch, 3.0, deg, proud), 6.0));
+    assert!(!bare.clean() && !carried.clean(), "{carried:?}");
+    // The ridge's flanks read as wall on the web, less the web top under the ridge.
+    let footprint = 6.0 * 2.0 * proud * (0.5 * deg).to_radians().tan();
+    let gained = carried.wall_area_mm2 - bare.wall_area_mm2;
+    assert!(gained > 0.8 * solid.edge_area_mm2 - footprint, "{gained} mm² of wall gained against {} mm² of relief", solid.edge_area_mm2);
+    assert!(carried.edge_area_mm2 - bare.edge_area_mm2 < 0.15 * solid.edge_area_mm2, "{carried:?}");
+}
+
+/// A bezel turned about its stone: a 40° knife rim leaning in over a band `band` thick that stands on the seat's ledge.
+fn knife_bezel(band: f64) -> Mesh {
+    let out = 3.53 + band;
+    lathe(&[[2.87, 0.0], [out - 0.07, 0.0], [out, 2.18], [out - 0.15, 2.33], [3.15, 2.33], [3.1, 2.28], [3.53, 1.92], [3.53, 1.8], [2.87, 1.45]], 256)
+}
+
+#[test]
+fn a_knife_rim_on_a_band_under_the_floor_is_a_wall_by_any_march() {
+    // On a 1.1 mm band the rim is relief.
+    let thick = at_floor(&knife_bezel(1.1));
+    assert!(thick.clean() && thick.edge_area_mm2 > 10.0, "{thick:?}");
+    // On a 0.77 mm band the band and the rim are walls.
+    let thin = at_floor(&knife_bezel(0.77));
+    assert!(thin.walls.iter().any(|z| z.thinnest_mm > 0.7 && z.span_mm > 6.0), "{:?}", thin.walls);
+    assert!(thin.wall_area_mm2 > thick.edge_area_mm2, "{} mm² of wall against {} of relief on the thick band", thin.wall_area_mm2, thick.edge_area_mm2);
+    assert!(thin.edge_area_mm2 < 0.15 * thin.wall_area_mm2, "{thin:?}");
 }

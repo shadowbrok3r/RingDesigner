@@ -1209,17 +1209,27 @@ pins both directions. On top of that:
   re-centred on every new section, until the march leaves the metal,
   meets a section at the floor, or has run the reach (one floor). It is an
   **edge** when some line leaves the metal one way and reaches the floor
-  the other within the reach, *and* the section at every station on the
-  way is at least `floor / reach` of its distance from that free edge
-  (half a step of slack, the floor's crossing bisected to an eighth of a
-  step) — a knife, a point, a lip, fed from the body behind it. Anything
-  else is a **wall**: a web never meets a free edge, a long taper stays
-  thin past the reach, and a fin, pin or lip taller than it is thick
-  starves before the body feeds it however short it is — reach alone
-  passed a 0.05 mm fin 0.7 mm tall. Sections are read square to the
-  mid-surface, so at one floor a wedge or a cone passes from a 53°
-  included angle and a parallel-faced lip only as tall as it is thick; a
-  sharper point is a wall, and a brief that wants feather points widens
+  the other within the reach, *and* the section on the way is either
+  **fed** — at every station at least `floor / reach` of its distance
+  from that free edge (half a step of slack, the floor's crossing
+  bisected to an eighth of a step): a knife, a point, a lip, fed from the
+  body behind it — or **relief**: walking in from the free edge it never
+  narrows by more than half a step, a least-squares wedge through its
+  sections puts the apex no further past the edge than the run is long,
+  and where it reaches the floor the metal runs on at least a floor along
+  the line its two faces converge on. Anything else is a **wall**: a web
+  never meets a free edge, a long taper stays thin past the reach, a fin,
+  pin or lip taller than it is thick starves before the body feeds it
+  however short it is — reach alone passed a 0.05 mm fin 0.7 mm tall —
+  and relief on a web or a band under the floor stands on nothing that
+  feeds it. Sections are read square to the mid-surface, so the fed rule
+  alone passes a wedge or a cone from a 53° included angle and a
+  parallel-faced lip only as tall as it is thick; relief passes a crest at
+  any angle that flares into a floor-thick body within the reach. The
+  wedge fit is what keeps a fin out: a parallel fin, lip or pin, pointed,
+  rounded or square-topped, fits a wedge whose apex lies far past its own
+  end. A crest standing further than the reach is a wall, as a long taper
+  is, and a brief that wants feather points or deep relief widens
   `edge_reach_mm` and says so. The march sets off toward where the
   section's two faces converge, or, where they are parallel, toward the
   nearest straight way out of the metal (sixteen probes round the section,
@@ -1245,8 +1255,31 @@ pins both directions. On top of that:
   them as edges of 0.0003–0.003 mm² — while the hand-made lip exception had
   been covering a collet body the census reads as a 0.779 mm wall over
   5.6 mm², and the bezel's two 40° knife rims are walls of 1.31 mm² each,
-  0.024 mm at the tip: sharper than 53°, they starve before the body behind
-  them reaches the floor.
+  0.024 mm at the tip: sharper than 53° and standing on that band, they
+  are neither fed nor relief.
+
+  **Relief is not a wall**, and the census learned it on Basiliscus. A ring
+  that passed every other gate read 3,246 wall samples (15.3 mm², one zone
+  13.5 mm² over 10 mm at 0.0009 mm): its head's painted crests and scale
+  lips, 20–52° knives reaching a floor section 0.1–0.85 mm in from their
+  edges on a 6 mm head, all of them under the fed rule's 53°. Read as
+  relief they are 396 samples (1.82 mm²), each of it metal to point at:
+  the deepest 1.0 mm² of the 72° crest, a ~48° knife whose section stays
+  under the floor 0.86–0.9 mm below its edge (clean at a 1.0 mm reach), a
+  crown tine 0.53–0.6 mm across standing over a millimetre, a 0.2 mm
+  flange, and short pinches of 0.6–0.79 mm between relief notches. Moloch
+  keeps its horns, 4.8 mm² of cones whose floor lies 1.15–1.2 mm in from
+  the tip, and the folds its sculpt left in the stored mesh — flaps, a
+  0.2 mm nub on a 0.05 mm neck, loose specks of 2–52 faces, reading
+  0.0003–0.1 mm, real sheets in the pattern whatever made them. The body
+  under relief is read along the line its faces converge on, never along
+  the march that found it: a march slanting round Aile's bezel reads
+  0.84 mm of metal past the 0.77 mm band under its rims, and read that way
+  half of each rim passed (`knife_bezel`). And a march aimed along a
+  wedge's bisector aims at the very edge its two faces share, which an
+  exact ray test can slip between; a march whose ray finds no way out
+  tries once more turned 1e-6 rad, without which the tip row of a 40° lip
+  read as wall on solid metal.
 
   A **CAD cut's lands** are asked for, never volunteered:
   `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
