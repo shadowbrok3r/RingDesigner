@@ -1,0 +1,31 @@
+{
+  "ring": "datura",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Closer than attempt 2, but still not datura. In the hero the head is now a round ball with a dark split down its front and a few short spikes on its rim. It reads as a chestnut burr, a sea urchin or a cracked seed pod, which is the right family, but the spikes are too few and too stubby to say 'thorn-apple'. The trumpet flower beside it faces the camera flat and reads as a five-pointed star or a starfish stuck on the shoulder, not a flower. The leaves behind look like rough rock or crumpled foil. In the face view the capsule is a ball quartered by a bright cross with silver bars in the arms. It reads as a hot-cross bun, a compass boss or a Celtic cross medallion, not a fruit split into valves, and the seeds do not read as seeds. The trumpet, seen from above, pokes off the lower right like a fish tail or a trident. The furled bud at the top reads as a candle flame. The four leaves still cross in a symmetric X and look like smooth bananas or feathers, not lobed leaves. A jeweller would say 'spiked boss on a shield', 'urchin' or 'cracked pod', and with luck 'chestnut', but would not name datura or thorn-apple unprompted.",
+  "changes": [
+    {
+      "priority": 1,
+      "zone": "head: spine rows on the capsule (all four latitude rows, 18/38/58/76 deg)",
+      "change": "The spined capsule is the plant's name, and right now it is a nearly bare ball. Go from the visible handful of spikes to the full 40-spine plan, or more (12/14/12/8). Make each spine 1.4-1.8 mm long, standing near-normal to the egg, base 0.8 mm tapering to a 0.3 mm tip, with bare egg visible between neighbours. Put spines on the valve backs right up to about 0.6 mm from each slot lip, so every quarter of the ball bristles and not just the rim.",
+      "acceptance": "In hero-300 the head's silhouette is visibly bristled all round, with at least 12 distinct needle tips breaking the outline against the background. In face-300 a ring of spine tips surrounds the quartered capsule, so it reads as a spiny fruit, not a smooth boss."
+    },
+    {
+      "priority": 2,
+      "zone": "head: valve split and seeds (gape, slot depth, valve lips, the 8 spinels)",
+      "change": "The cross reads as a decorative inlay, not a split fruit. Make the four slots wedge-shaped, widest at the crown at 2.2-2.5 mm and closing to nothing about 4.5 mm down. Peel each valve lip outward 0.6-0.8 mm and roll it so the four valves look like a husk cracking open. Drop the spinels 0.5 mm deeper and cluster them unevenly, 2-3 per arm at different depths, so they read as loose dark seeds in a dark gap. Kill the bright bar look: the slot floors must render dark, with no polished flat face catching light.",
+      "acceptance": "In face-300 the crown shows four dark, tapering wedges opening from the centre with rolled-back lips, and no bright cross or bars. In hero-300 the visible split reads as a gaping crack with dark seeds in it."
+    },
+    {
+      "priority": 3,
+      "zone": "trumpet flower (near shoulder, lower right of face) and leaves 1-4",
+      "change": "Turn the trumpet so the hero camera sees it in three-quarter profile, about 35-45 deg off its axis, not mouth-on. The tube must then show as a slim flaring cone 10-12 mm long, and the mouth should be cupped about 1.5 mm deep with its five points flicked back, not a flat star. For the leaves, break the X: use four different angles and lengths (for example 25/140/220/320 deg at 9/7/8/6 mm). Give each a flat, broad ovate blade at least 5.5 mm wide with 3-4 shallow wavy lobes and a raised midrib, not the current tubular, banana-like bodies.",
+      "acceptance": "In hero-300 the flower reads as a trumpet (tube plus flared bell), not a star. In face-300 the leaves read as broad, wavy-edged blades in an irregular arrangement with no symmetric X."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/datura/hero-300.png",
+    "showcase/vepres/datura/face-300.png"
+  ]
+}
