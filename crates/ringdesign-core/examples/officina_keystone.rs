@@ -7,7 +7,7 @@ use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign,
     cad::{
         self, Attach, Component, ComponentRole, Document, EdgeRef, FaceRef, Feature,
-        FeatureStatus, Operation, PlaneBase, Profile, Stage, SurfaceKind,
+        FeatureStatus, MirrorPlane, Operation, PatternKind, PlaneBase, Profile, Stage, SurfaceKind,
     },
     castability::{self, CastProcess, SandProcess},
     csg, dfm, library,
@@ -31,21 +31,23 @@ const PLANE_SINK_MM: f64 = 0.7;
 const CARTOUCHE_LONG_MM: f64 = 7.0;
 const CARTOUCHE_WIDE_MM: f64 = 4.8;
 const CARTOUCHE_CORNER_MM: f64 = 1.0;
-const CORNER_SEGMENTS: usize = 4;
+const CORNER_SEGMENTS: usize = 12;
 const BOSS_MM: f64 = 1.6;
 const BOSS_DRAFT_DEG: f64 = 7.0;
-const BOSS_BLEND_MM: f64 = 0.5;
+const BOSS_BLEND_MM: f64 = 0.6;
 const PULL_MM: f64 = 0.8;
 const RIM_ROUND_MM: f64 = 0.35;
-const RIM_CHAMFER_MM: f64 = 0.3;
-/// The bright-cut lozenge on the top: round the ring, across, and how deep the facet is cut.
+const RIM_CHAMFER_MM: f64 = 0.45;
+/// The bright-cut lozenge on the top, round the ring and across. Each half is one sloped plane,
+/// level with the top on the long diagonal and `FACET_DEPTH_MM` deep at its apex, so the two
+/// halves meet on a ridge and catch the light in two tones.
 const FACET_LONG_MM: f64 = 5.0;
 const FACET_WIDE_MM: f64 = 2.8;
-const FACET_DEPTH_MM: f64 = 0.35;
-/// The second triangle is cut shallower, so the two planes meet on the diagonal in two tones.
-const FACET_SHALLOW_MM: f64 = 0.15;
-/// The graver's lean: the facet's walls slope in to its floor, so they catch the light.
-const FACET_DRAFT_DEG: f64 = 30.0;
+const FACET_DEPTH_MM: f64 = 0.45;
+/// The graver's walls open out above the facet's floor.
+const FACET_WALL_DEG: f64 = -20.0;
+/// How far the cutter stands above the facet's plane: clear of the top everywhere.
+const FACET_CLEAR_MM: f64 = 1.0;
 const ALLOY: &str = "Gold 14k";
 
 fn draft_params() -> BuildParams {
@@ -319,27 +321,35 @@ fn author(lib: &AlphaLibrary) -> Result<(RingDesign, Authored)> {
     }
     let e = evaluated(&d, lib)?;
     let (top, height) = top_face(&e, rim, normal)?;
-    let (mut facet, upper, lower) = lozenge("Bright-cut lozenge", FACET_LONG_MM, FACET_WIDE_MM);
+    // The sketch plane leans about the lozenge's long diagonal, falling into the top toward
+    // the far apex; the lozenge is drawn stretched across so it lands on the top at its size.
+    let lean = (FACET_DEPTH_MM / (FACET_WIDE_MM / 2.0)).atan();
+    let (mut facet, upper, _lower) = lozenge("Bright-cut lozenge", FACET_LONG_MM, FACET_WIDE_MM / lean.cos());
     facet.plane.on_face = Some(FaceAnchor { feature: rim, face: face_ref(&e, rim, top) });
-    let facet_sketch = add(&mut d, "Facet sketch on the top", Operation::Sketch { sketch: facet }, bare())?;
-    for (name, entity, at, depth) in [
-        ("Bright-cut facet", upper, FACET_WIDE_MM / 6.0, FACET_DEPTH_MM),
-        ("Shallow facet", lower, -FACET_WIDE_MM / 6.0, FACET_SHALLOW_MM),
-    ] {
-        add(
-            &mut d,
-            name,
-            Operation::Extrude {
-                sketch: Profile::Region {
-                    feature: facet_sketch,
-                    region: RegionRef { entity, at: [0.0, at] },
-                },
-                height_mm: -depth,
-                draft_deg: FACET_DRAFT_DEG,
+    facet.plane.y = [0.0, lean.cos(), -lean.sin()];
+    let facet_sketch = add(&mut d, "Leaning facet sketch on the top", Operation::Sketch { sketch: facet }, bare())?;
+    let cut = add(
+        &mut d,
+        "Bright-cut facet",
+        Operation::Extrude {
+            sketch: Profile::Region {
+                feature: facet_sketch,
+                region: RegionRef { entity: upper, at: [0.0, FACET_WIDE_MM / 6.0] },
             },
-            component(ComponentRole::Other, Attach::Cut, Stage::Bench, 0.0),
-        )?;
-    }
+            height_mm: FACET_CLEAR_MM,
+            draft_deg: FACET_WALL_DEG,
+        },
+        component(ComponentRole::Other, Attach::Cut, Stage::Bench, 0.0),
+    )?;
+    add(
+        &mut d,
+        "Mirror the facet",
+        Operation::Pattern {
+            sources: cut.into(),
+            kind: PatternKind::Mirror { plane: MirrorPlane::Band },
+        },
+        component(ComponentRole::Other, Attach::Cut, Stage::Bench, 0.0),
+    )?;
     evaluated(&d, lib)?;
     let crest = d.inner_radius_mm() + d.profile.thickness_mm;
     notes.proud_of_crest_mm = height - crest;
@@ -356,6 +366,8 @@ struct Release {
     fits_flask: bool,
     worst_draft_deg: f64,
     low_draft_area_mm2: f64,
+    /// Where each obstruction stands in the world, how deep and over how much area.
+    obstructions_at: Vec<([f64; 3], f64, f64)>,
 }
 
 #[derive(serde::Serialize)]
@@ -441,6 +453,7 @@ fn release_at(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, pitch: f6
         fits_flask: i.release.fits_flask,
         worst_draft_deg: i.release.worst_draft_deg,
         low_draft_area_mm2: i.release.low_draft_area_mm2,
+        obstructions_at: i.release.obstructions.iter().map(|o| (o.world, o.depth_mm, o.projected_area_mm2)).collect(),
     })
 }
 
@@ -450,7 +463,6 @@ fn gates(
     params: BuildParams,
     built: &mesh::BuildResult,
     build_s: f64,
-    export: bool,
     cold: Option<bool>,
 ) -> Result<Gates> {
     let v = &built.report.validation;
@@ -484,7 +496,7 @@ fn gates(
     let findings = dfm::findings_in(d, lib);
     let stones = ringdesign_core::stones::report(d, field.parting_z_mm);
     let previewed = ringdesign_core::gems::built_meshes(d, lib, built).len();
-    let pattern = if export {
+    let pattern = {
         let p = mesh::try_build_pattern(d, lib, params)?;
         Some(PatternGate {
             triangles: p.mesh.faces.len(),
@@ -493,8 +505,6 @@ fn gates(
             self_crossings: crossings_of(&p.mesh),
             notes: p.parts.notes.clone(),
         })
-    } else {
-        None
     };
     let thickness = cad::measure::thickness(&built.mesh, 0.8);
     let lands = dfm::cut_lands(d, built, 0.8);
@@ -675,11 +685,59 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, finished: &render::Fi
     Ok(())
 }
 
-/// One contact sheet of the ring after each feature, labelled with the feature's name.
+/// What a plane or sketch step adds, which builds no metal: a thin blue sheet on the plane, or
+/// each of the sketch's regions laid on its plane, standing thick enough to show through whatever
+/// the plane lies under; built from a copy of the history through that step.
+fn overlay(d: &RingDesign, lib: &AlphaLibrary, through: usize, params: BuildParams) -> Result<Vec<mesh::Mesh>> {
+    let doc = d.cad.as_ref().unwrap();
+    let f = &doc.features[through];
+    let sheets: Vec<(Profile, f64)> = match &f.operation {
+        Operation::Plane { .. } => {
+            let mut s = Sketch::rectangle(9.0, 7.5);
+            s.plane.on_face = Some(FaceAnchor { feature: f.id, face: FaceRef::bare(0) });
+            vec![(Profile::Inline(s), 0.06)]
+        }
+        Operation::Sketch { sketch } => sketch
+            .profile_regions()?
+            .iter()
+            .filter_map(RegionRef::of)
+            .map(|region| (Profile::Region { feature: f.id, region }, PLANE_SINK_MM + 0.12))
+            .collect(),
+        _ => return Ok(Vec::new()),
+    };
+    let mut copy = d.clone();
+    let mut short = Document::default();
+    for f in &doc.features[..=through] {
+        short.append(f.clone())?;
+    }
+    let mut ids = Vec::new();
+    for (sheet, thick) in sheets {
+        let id = short.features.len() as Id + 1;
+        short.append(Feature {
+            id,
+            name: "Overlay".into(),
+            enabled: true,
+            operation: Operation::Extrude {
+                sketch: sheet,
+                height_mm: thick,
+                draft_deg: 0.0,
+            },
+            component: bare(),
+        })?;
+        ids.push(id);
+    }
+    copy.cad = Some(short);
+    let e = cad::evaluate(&copy, lib, params)?;
+    ensure!(e.failures().is_empty(), "the overlay for {} failed: {:?}", f.name, e.failures());
+    Ok(e.components.iter().filter(|c| ids.contains(&c.id)).map(|c| c.mesh.clone()).collect())
+}
+
+/// One contact sheet of the ring after each feature, labelled with the feature's name; a plane or
+/// a sketch shows in blue on the ring as it stood.
 fn timeline(out: &Path, d: &RingDesign, lib: &AlphaLibrary) -> Result<()> {
     let doc = d.cad.as_ref().unwrap();
     let n = doc.features.len();
-    let (cell, label, cols) = (360usize, 34usize, 4usize);
+    let (cell, label, cols) = (360usize, 34usize, 3usize);
     let rows = n.div_ceil(cols);
     let mut sheet = Canvas::new(cell * cols, (cell + label) * rows, 24);
     let params = BuildParams {
@@ -691,7 +749,12 @@ fn timeline(out: &Path, d: &RingDesign, lib: &AlphaLibrary) -> Result<()> {
         let mut step = d.clone();
         step.cad.as_mut().unwrap().through = Some(f.id);
         let finished = render::finished(&step, lib, params)?;
-        let img = render::render_parts_ss(&finished.parts(render::GOLD), HERO.0, HERO.1, cell, cell, 2);
+        let extra = overlay(d, lib, k, params)?;
+        let mut parts = finished.parts(render::GOLD);
+        for m in &extra {
+            parts.push(render::Part::tinted_stone(m, [0.25, 0.5, 0.95]));
+        }
+        let img = render::render_parts_ss(&parts, HERO.0, HERO.1, cell, cell, 2);
         let (x, y) = ((k % cols) * cell, (k / cols) * (cell + label));
         sheet.blit(&img, cell, cell, x, y + label);
         sheet.text(&format!("{}. {}", k + 1, f.name), 22.0, x + 10, y + 4);
@@ -730,7 +793,7 @@ fn main() -> Result<()> {
     } else {
         None
     };
-    let g = gates(&d, &lib, params, &built, build_s, !draft, cold)?;
+    let g = gates(&d, &lib, params, &built, build_s, cold)?;
     println!(
         "  {} triangles in {build_s:.1} s; watertight {}; degenerate {}; crossings {}; features ok {}; inside bore {}; verdict {}; release {:?}; dfm {}; gates {}",
         g.triangles,

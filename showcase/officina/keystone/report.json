@@ -1,11 +1,19 @@
 {
+  "authored": {
+    "fillet_refusal": "feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting",
+    "proud_of_crest_mm": 1.699999999999994,
+    "rim_edges": 52,
+    "rim_finish": "Chamfer 0.45 mm",
+    "top_height_mm": 12.799999999999994
+  },
+  "bore_mm": 18.2,
   "draft": {
     "authored": {
       "fillet_refusal": "feature #6 failed: Fillet is unsupported for these edges/radius: RadiusTooLargeOrInteracting",
-      "proud_of_crest_mm": 1.7000000000000028,
-      "rim_edges": 20,
-      "rim_finish": "Chamfer 0.3 mm",
-      "top_height_mm": 12.800000000000002
+      "proud_of_crest_mm": 1.699999999999994,
+      "rim_edges": 52,
+      "rim_finish": "Chamfer 0.45 mm",
+      "top_height_mm": 12.799999999999994
     },
     "bore_mm": 18.2,
     "gates": {
@@ -16,7 +24,7 @@
         768,
         320
       ],
-      "build_s": 1.40407321,
+      "build_s": 2.361575001,
       "closest_to_axis_mm": 9.099999560101274,
       "cold_reload_identical": null,
       "degenerate_faces": 0,
@@ -54,7 +62,7 @@
         ],
         [
           7,
-          "Facet sketch on the top",
+          "Leaning facet sketch on the top",
           "Ok"
         ],
         [
@@ -64,24 +72,21 @@
         ],
         [
           9,
-          "Shallow facet",
+          "Mirror the facet",
           "Ok"
         ]
       ],
       "field_notes": [
         "Field-sampled: the surface itself carries no undercut at this parting.",
         "29.1% of the surface carries less than 3.0 deg of draft or stands parallel to the pull (6.9% marginal, 22.2% vertical). It releases, but it drags on the sand and will want a longer rap. Raise the crown or square the sides to steepen it.",
-        "Extrude \"Bright-cut facet\" (#8) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.5 mm toward the high edge (a dot there leaned to -38° over 0.17 mm²).",
-        "Extrude \"Shallow facet\" (#9) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.5 mm toward the low edge (a dot there leaned to -38° over 0.17 mm²).",
-        "Judged with the ring as built: 1 CAD part (1 joined, 0 cut) at the parting plane z = +0.00 mm — 63.4 mm² of part surface, 0.1 mm² of it undercut.",
-        "Press-pull \"Chamfer the rim\" (#6): 0.1 mm² of undercut leaning to -79° on flanks facing back across the parting plane, 72–108°, 2.2 mm toward the low edge to 2.2 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line."
+        "Extrude \"Bright-cut facet\" (#8) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.5 mm toward the high edge (a dot there leaned to -38° over 0.33 mm²).",
+        "Mirror \"Mirror the facet\" (#9) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.5 mm toward the low edge (a dot there leaned to -38° over 0.33 mm²).",
+        "Judged with the ring as built: 1 CAD part (1 joined, 0 cut) at the parting plane z = +0.00 mm — 60.5 mm² of part surface, 0.2 mm² of it undercut.",
+        "Press-pull \"Chamfer the rim\" (#6): 0.2 mm² of undercut leaning to -12° on flanks facing back across the parting plane, 71–109°, 1.5 mm toward the low edge to 1.5 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line."
       ],
       "field_verdict": "Castable with care",
       "inside_finger_hole": 0,
-      "lost_wax_cut_lands": [
-        "cut land: Cut #8 'Bright-cut facet': 0.00 mm from light 1 to the edge (floor 0.8)",
-        "cut land: Cut #9 'Shallow facet': 0.00 mm from light 1 to the edge (floor 0.8)"
-      ],
+      "lost_wax_cut_lands": [],
       "lost_wax_thickness_below": 0,
       "made_parts": [
         [
@@ -93,7 +98,7 @@
           0
         ],
         [
-          "Shallow facet",
+          "Mirror the facet",
           0
         ]
       ],
@@ -101,36 +106,44 @@
       "non_manifold_edges": 0,
       "parts_notes": [],
       "passed": true,
-      "pattern": null,
+      "pattern": {
+        "degenerate_faces": 0,
+        "notes": [],
+        "self_crossings": 0,
+        "triangles": 487936,
+        "watertight": true
+      },
       "release": [
         {
           "fits_flask": true,
-          "low_draft_area_mm2": 398.52533167307644,
+          "low_draft_area_mm2": 396.5963767011117,
           "obstructions": 0,
+          "obstructions_at": [],
           "pitch_mm": 0.1,
           "status": "Review",
           "unresolved_rays": 0,
-          "worst_draft_deg": -78.63083953335892
+          "worst_draft_deg": -11.539234223703573
         },
         {
           "fits_flask": true,
-          "low_draft_area_mm2": 398.52533167307644,
+          "low_draft_area_mm2": 396.5963767011117,
           "obstructions": 0,
+          "obstructions_at": [],
           "pitch_mm": 0.075,
           "status": "Review",
           "unresolved_rays": 0,
-          "worst_draft_deg": -78.63083953335892
+          "worst_draft_deg": -11.539234223703573
         }
       ],
       "solids_notes": [],
       "stones_previewed": 0,
       "stones_reported": 0,
       "thinnest_wall_mm": 1.867617196308892,
-      "triangles": 488020,
-      "undercut_percent": 0.006219746840440801,
+      "triangles": 488008,
+      "undercut_percent": 0.015027283422138583,
       "watertight": true,
       "within_2m_triangles": true,
-      "worst_draft_deg": -78.62970743079887
+      "worst_draft_deg": -11.542850874721477
     },
     "min_detail_mm": 0.3,
     "min_draft_deg": 3.0,
@@ -140,5 +153,174 @@
     "sand": "Delft clay",
     "size": "US 8.11",
     "slug": "keystone"
+  },
+  "gates": {
+    "all_features_ok": true,
+    "bore_radius_mm": 9.1,
+    "boundary_edges": 0,
+    "build": [
+      1536,
+      448
+    ],
+    "build_s": 6.123057856,
+    "closest_to_axis_mm": 9.100007421065252,
+    "cold_reload_identical": true,
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "features": [
+      [
+        1,
+        "Band",
+        "Ok"
+      ],
+      [
+        2,
+        "Work plane over the top",
+        "Ok"
+      ],
+      [
+        3,
+        "Cartouche sketch",
+        "Ok"
+      ],
+      [
+        4,
+        "Drafted boss",
+        "Ok"
+      ],
+      [
+        5,
+        "Press-pull the top",
+        "Ok"
+      ],
+      [
+        6,
+        "Chamfer the rim",
+        "Ok"
+      ],
+      [
+        7,
+        "Leaning facet sketch on the top",
+        "Ok"
+      ],
+      [
+        8,
+        "Bright-cut facet",
+        "Ok"
+      ],
+      [
+        9,
+        "Mirror the facet",
+        "Ok"
+      ]
+    ],
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "29.1% of the surface carries less than 3.0 deg of draft or stands parallel to the pull (6.9% marginal, 22.2% vertical). It releases, but it drags on the sand and will want a longer rap. Raise the crown or square the sides to steepen it.",
+      "Extrude \"Bright-cut facet\" (#8) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.5 mm toward the high edge (a dot there leaned to -38° over 0.33 mm²).",
+      "Mirror \"Mirror the facet\" (#9) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.5 mm toward the low edge (a dot there leaned to -38° over 0.33 mm²).",
+      "Judged with the ring as built: 1 CAD part (1 joined, 0 cut) at the parting plane z = +0.00 mm — 60.5 mm² of part surface, 0.2 mm² of it undercut.",
+      "Press-pull \"Chamfer the rim\" (#6): 0.2 mm² of undercut leaning to -11° on flanks facing back across the parting plane, 71–109°, 1.5 mm toward the low edge to 1.5 mm toward the high edge — stage it Bench to solder it on after the pour (the pattern keeps a locating mark), or move it onto the parting line."
+    ],
+    "field_verdict": "Castable with care",
+    "inside_finger_hole": 0,
+    "lost_wax_cut_lands": [],
+    "lost_wax_thickness_below": 0,
+    "made_parts": [
+      [
+        "Chamfer the rim",
+        0
+      ],
+      [
+        "Bright-cut facet",
+        0
+      ],
+      [
+        "Mirror the facet",
+        0
+      ]
+    ],
+    "mesh_self_crossings": 0,
+    "non_manifold_edges": 0,
+    "parts_notes": [],
+    "passed": true,
+    "pattern": {
+      "degenerate_faces": 0,
+      "notes": [],
+      "self_crossings": 0,
+      "triangles": 1341472,
+      "watertight": true
+    },
+    "release": [
+      {
+        "fits_flask": true,
+        "low_draft_area_mm2": 400.96033775310826,
+        "obstructions": 0,
+        "obstructions_at": [],
+        "pitch_mm": 0.1,
+        "status": "Review",
+        "unresolved_rays": 0,
+        "worst_draft_deg": -11.211982242665526
+      },
+      {
+        "fits_flask": true,
+        "low_draft_area_mm2": 400.96033775310826,
+        "obstructions": 0,
+        "obstructions_at": [],
+        "pitch_mm": 0.075,
+        "status": "Review",
+        "unresolved_rays": 0,
+        "worst_draft_deg": -11.211982242665526
+      }
+    ],
+    "solids_notes": [],
+    "stones_previewed": 0,
+    "stones_reported": 0,
+    "thinnest_wall_mm": 1.867617196308892,
+    "triangles": 1341544,
+    "undercut_percent": 0.016550617462980095,
+    "watertight": true,
+    "within_2m_triangles": true,
+    "worst_draft_deg": -11.21285062554543
+  },
+  "min_detail_mm": 0.3,
+  "min_draft_deg": 3.0,
+  "min_section_mm": 0.8,
+  "process": "Sand (two-part)",
+  "ring": "Keystone",
+  "sand": "Delft clay",
+  "size": "US 8.11",
+  "slug": "keystone",
+  "template_gate": {
+    "design_set_patches": 1,
+    "patches": [
+      {
+        "graph": "Keystone — a drafted cartouche",
+        "node": 24,
+        "pointer": "/manufacturing"
+      }
+    ],
+    "template_bytes": 74545,
+    "class": "procedural",
+    "budget_bytes": 300000,
+    "within_budget": true,
+    "cold_source_parity": true,
+    "mesh_parity": true,
+    "cold_graph_reload": true,
+    "export_geometry_verified": true,
+    "nodes": 16,
+    "triangles": 1341544,
+    "cad_feature_nodes": [
+      "Band",
+      "Work plane over the top",
+      "Cartouche sketch",
+      "Drafted boss",
+      "Press-pull the top",
+      "Chamfer the rim",
+      "Leaning facet sketch on the top",
+      "Bright-cut facet",
+      "Mirror the facet"
+    ],
+    "passed": true
   }
 }
