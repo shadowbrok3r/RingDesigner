@@ -1,0 +1,265 @@
+{
+  "bore_mm": 18.199999039585006,
+  "build": [
+    1536,
+    448
+  ],
+  "build_s": 7.840196743,
+  "cad_features": [
+    "#1 Stock 013 (Procedural shank)",
+    "#2 Table plane (Work plane)",
+    "#3 Field quartered (Sketch)",
+    "#4 First quarter sunk (Extrude)",
+    "#5 Fourth quarter sunk (Extrude)",
+    "#6 Bordure (Sketch)",
+    "#7 Bordure sunk (Extrude)",
+    "#8 Matting (Sketch)",
+    "#9 Quarters matted (Extrude)"
+  ],
+  "design_bytes": 117264,
+  "draft": {
+    "bore_clear": true,
+    "bore_radius_mm": 9.1,
+    "cold_reload_identical": null,
+    "cut_lands_08": [
+      "cut land: Cut #7 'Bordure sunk': 0.44 mm from light 1 to the edge (floor 0.8)",
+      "cut land: Cut #9 'Quarters matted': 0.16 mm between lights 12 and 13 (floor 0.8)"
+    ],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "features": [
+      [
+        1,
+        "Stock 013",
+        "Ok"
+      ],
+      [
+        2,
+        "Table plane",
+        "Ok"
+      ],
+      [
+        3,
+        "Field quartered",
+        "Ok"
+      ],
+      [
+        4,
+        "First quarter sunk",
+        "Ok"
+      ],
+      [
+        5,
+        "Fourth quarter sunk",
+        "Ok"
+      ],
+      [
+        6,
+        "Bordure",
+        "Ok"
+      ],
+      [
+        7,
+        "Bordure sunk",
+        "Ok"
+      ],
+      [
+        8,
+        "Matting",
+        "Ok"
+      ],
+      [
+        9,
+        "Quarters matted",
+        "Ok"
+      ]
+    ],
+    "features_ok": true,
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Extrude \"First quarter sunk\" (#4) is drilled at the bench: drill mark on the parting line at 99°; the hole's centre is 1.7 mm toward the high edge (a dot there leaned to -27° over 0.28 mm²).",
+      "Extrude \"Fourth quarter sunk\" (#5) is drilled at the bench: drill mark on the parting line at 81°; the hole's centre is 1.7 mm toward the low edge (a dot there leaned to -27° over 0.28 mm²).",
+      "Extrude \"Bordure sunk\" (#7) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.0 mm toward the high edge (a dot there leaned to -23° over 0.13 mm²).",
+      "Extrude \"Quarters matted\" (#9) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.0 mm toward the high edge (a dot there leaned to -24° over 0.13 mm²)."
+    ],
+    "field_undercut_percent": 0.0,
+    "field_verdict_192x128": "Castable",
+    "field_verdict_256x128": "Castable",
+    "field_worst_draft_deg": -0.3406396224478093,
+    "made_parts": [
+      [
+        "First quarter sunk",
+        0
+      ],
+      [
+        "Fourth quarter sunk",
+        0
+      ],
+      [
+        "Bordure sunk",
+        0
+      ],
+      [
+        "Quarters matted",
+        0
+      ]
+    ],
+    "min_vertex_radius_mm": 9.099999560101274,
+    "parts_notes": [],
+    "passed": true,
+    "pattern_degenerate_faces": null,
+    "pattern_self_crossings": null,
+    "pattern_triangles": null,
+    "pattern_watertight": null,
+    "release_0075": [
+      0,
+      0,
+      "Review"
+    ],
+    "release_0100": [
+      0,
+      0,
+      "Review"
+    ],
+    "ring_self_crossings": 0,
+    "solids_notes": [],
+    "stones_previewed": 0,
+    "stones_reported": 0,
+    "thinnest_wall_mm": 1.3688037637863513,
+    "triangles": 682490,
+    "watertight": true,
+    "within_two_million": true
+  },
+  "gates": {
+    "bore_clear": true,
+    "bore_radius_mm": 9.1,
+    "cold_reload_identical": true,
+    "cut_lands_08": [
+      "cut land: Cut #7 'Bordure sunk': 0.44 mm from light 1 to the edge (floor 0.8)",
+      "cut land: Cut #9 'Quarters matted': 0.16 mm between lights 70 and 71 (floor 0.8)"
+    ],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "features": [
+      [
+        1,
+        "Stock 013",
+        "Ok"
+      ],
+      [
+        2,
+        "Table plane",
+        "Ok"
+      ],
+      [
+        3,
+        "Field quartered",
+        "Ok"
+      ],
+      [
+        4,
+        "First quarter sunk",
+        "Ok"
+      ],
+      [
+        5,
+        "Fourth quarter sunk",
+        "Ok"
+      ],
+      [
+        6,
+        "Bordure",
+        "Ok"
+      ],
+      [
+        7,
+        "Bordure sunk",
+        "Ok"
+      ],
+      [
+        8,
+        "Matting",
+        "Ok"
+      ],
+      [
+        9,
+        "Quarters matted",
+        "Ok"
+      ]
+    ],
+    "features_ok": true,
+    "field_notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Extrude \"First quarter sunk\" (#4) is drilled at the bench: drill mark on the parting line at 99°; the hole's centre is 1.7 mm toward the high edge (a dot there leaned to -27° over 0.28 mm²).",
+      "Extrude \"Fourth quarter sunk\" (#5) is drilled at the bench: drill mark on the parting line at 81°; the hole's centre is 1.7 mm toward the low edge (a dot there leaned to -27° over 0.28 mm²).",
+      "Extrude \"Bordure sunk\" (#7) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.0 mm toward the high edge (a dot there leaned to -23° over 0.13 mm²).",
+      "Extrude \"Quarters matted\" (#9) is drilled at the bench: drill mark on the parting line at 90°; the hole's centre is 0.0 mm toward the high edge (a dot there leaned to -24° over 0.13 mm²)."
+    ],
+    "field_undercut_percent": 0.0,
+    "field_verdict_192x128": "Castable",
+    "field_verdict_256x128": "Castable",
+    "field_worst_draft_deg": -0.3406396224478093,
+    "made_parts": [
+      [
+        "First quarter sunk",
+        0
+      ],
+      [
+        "Fourth quarter sunk",
+        0
+      ],
+      [
+        "Bordure sunk",
+        0
+      ],
+      [
+        "Quarters matted",
+        0
+      ]
+    ],
+    "min_vertex_radius_mm": 9.099999519792503,
+    "parts_notes": [],
+    "passed": true,
+    "pattern_degenerate_faces": 0,
+    "pattern_self_crossings": 0,
+    "pattern_triangles": 1376256,
+    "pattern_watertight": true,
+    "release_0075": [
+      0,
+      0,
+      "Review"
+    ],
+    "release_0100": [
+      0,
+      0,
+      "Review"
+    ],
+    "ring_self_crossings": 0,
+    "solids_notes": [],
+    "stones_previewed": 0,
+    "stones_reported": 0,
+    "thinnest_wall_mm": 1.3688037637863513,
+    "triangles": 1552000,
+    "watertight": true,
+    "within_two_million": true
+  },
+  "grams_18k": 10.90634818252838,
+  "name": "Sigil — a quartered seal on the round",
+  "process": "Sand (two-part)",
+  "seal": {
+    "bordure_mm": {
+      "along_finger": 0.21540226390588835,
+      "round_ring": 0.8911119030530426
+    },
+    "first_quarter_mm": {
+      "centre": 0.9316584334001181,
+      "mid": 0.6845265866425709,
+      "tip_along_finger": 0.3363944029153654,
+      "tip_round_ring": 0.8613869129226845
+    },
+    "rim_mm": 0.0,
+    "second_quarter_raised_mm": 0.0
+  },
+  "size": "US 8.11",
+  "template_gate": null
+}

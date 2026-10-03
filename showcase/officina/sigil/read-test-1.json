@@ -1,0 +1,12 @@
+{
+  "ring": "sigil",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": true,
+  "what_the_eye_sees": "Face-on, it reads at once: a round signet whose table is a disc split into four, two quarters bright and two dark, inside a sunk border ring. A jeweller would say 'quartered seal' without a caption. The hero only just carries it. From the three-quarter view the sunk quarters barely differ in tone from the raised ones, and what shows is two dark strokes, one vertical and one horizontal, meeting at the centre. That looks like clock hands or an 'L' scratched on a plain signet rather than a quartered field. The border groove reads well in both views. The bare stock shank, with its hard shoulder notch, is clean and does not compete. The idea is carried by the face view; the hero is weak and needs the depth.",
+  "changes": [
+    "Deepen the two sunk quarters (features 4 and 5, NE and SW) from 0.30 mm to about 0.55 mm, keeping draft 0. Then in the hero the sunk pair shows its walls and shadow, and all four quarter edges read rather than only two strokes. Acceptance: in hero-300 the NE and SW quarters are visibly darker than NW and SE, and all four dividing edges are visible.",
+    "Give the raised NW and SE quarters a different finish from the sunk pair, either matte/stippled sunk floors or a 0.05 mm chamfer on the raised quarter edges, so the bright/dark quartering in the hero comes from the cut and not only from the face-on lighting. Acceptance: hero-300 shows a checkered two-tone field at the oblique angle.",
+    "Leave the bordure (r 4.15 to 4.6, 0.20 mm) as it is, but check the 0.15 mm land between field and bordure at r 4.0 to 4.15 once the quarters are deeper. If the land smears at 300 px, widen it to 0.25 mm by taking the field to r 3.9. Acceptance: face-300 shows a distinct bright ring between the quartered disc and the border groove."
+  ]
+}
