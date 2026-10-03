@@ -1,16 +1,16 @@
 {
   "alloy_for_weight": "Gold 18k",
   "bore": {
-    "nearest_vertex_mm": 9.35329707014487,
+    "nearest_vertex_mm": 9.454009395323759,
     "radius_mm": 9.3,
     "vertices_inside": 0
   },
   "build": {
-    "author_s": 0.186097097,
-    "build_s": 1.024856498,
+    "author_s": 3.050458002,
+    "build_s": 2.864127027,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 125292
+    "triangles": 178762
   },
   "coarse": {
     "degenerate_faces": 0,
@@ -23,8 +23,8 @@
   },
   "cold_reload_identical": null,
   "design": {
-    "bytes": 273620,
-    "cad_features": 29,
+    "bytes": 277706,
+    "cad_features": 52,
     "format_version": 6
   },
   "dfm_findings": [],
@@ -153,6 +153,98 @@
     [
       "#29",
       "Ok"
+    ],
+    [
+      "#30",
+      "Ok"
+    ],
+    [
+      "#31",
+      "Ok"
+    ],
+    [
+      "#32",
+      "Ok"
+    ],
+    [
+      "#33",
+      "Ok"
+    ],
+    [
+      "#34",
+      "Ok"
+    ],
+    [
+      "#35",
+      "Ok"
+    ],
+    [
+      "#36",
+      "Ok"
+    ],
+    [
+      "#37",
+      "Ok"
+    ],
+    [
+      "#38",
+      "Ok"
+    ],
+    [
+      "#39",
+      "Ok"
+    ],
+    [
+      "#40",
+      "Ok"
+    ],
+    [
+      "#41",
+      "Ok"
+    ],
+    [
+      "#42",
+      "Ok"
+    ],
+    [
+      "#43",
+      "Ok"
+    ],
+    [
+      "#44",
+      "Ok"
+    ],
+    [
+      "#45",
+      "Ok"
+    ],
+    [
+      "#46",
+      "Ok"
+    ],
+    [
+      "#47",
+      "Ok"
+    ],
+    [
+      "#48",
+      "Ok"
+    ],
+    [
+      "#49",
+      "Ok"
+    ],
+    [
+      "#50",
+      "Ok"
+    ],
+    [
+      "#51",
+      "Ok"
+    ],
+    [
+      "#52",
+      "Ok"
     ]
   ],
   "field": {
@@ -175,7 +267,7 @@
       "pass": true
     },
     {
-      "gate": "one shell: nothing floats",
+      "gate": "one metal shell: nothing floats (sealed voids under 0.01 mm3 are reported, not counted)",
       "pass": true
     },
     {
@@ -230,11 +322,12 @@
   "gates_passed": true,
   "geometry": {
     "degenerate_faces": 0,
+    "sealed_voids_mm3": [],
     "self_crossings": 0,
     "shells": 1,
     "watertight": true
   },
-  "grams_18k": 4.701866810705514,
+  "grams_18k": 7.0679074679188325,
   "lost_wax_note": "Lost wax (Logan, 2026-10-03): 0.8 mm minimum section, no pull rule. The band-field verdict reads 'Castable with care' for every CAD-only design by construction (castability.rs: no procedural band to sample), so the lost-wax gate is the wall gate. Walls are sampled on the finished mesh: up to 320 inward rays per part from the faces it owns, through the whole finished metal; faces touching a hard edge (over 50 degrees) and rays stopped within 0.03 mm at a seam fold are not counted and are tallied per part. Bodies (canes, receptacle, stalk, petiole and rachis) are judged at 0.8 mm; pointed details (prickles, calyx, leaflets) at the 0.15 mm detail floor, as Manticora's aculeus was.",
   "made_parts": [
     [
@@ -262,27 +355,119 @@
       0
     ],
     [
-      "Prickle 5 on cane 2",
+      "Prickle 5 on cane 1",
       0
     ],
     [
-      "Prickle 6 on cane 2",
+      "Prickle 6 on cane 1",
       0
     ],
     [
-      "Prickle 7 on cane 2",
+      "Prickle 7 on cane 1",
       0
     ],
     [
-      "Prickle 8 on cane 2",
+      "Prickle 8 on cane 1",
       0
     ],
     [
-      "Prickle 9 on cane 2",
+      "Prickle 9 on cane 1",
       0
     ],
     [
-      "Prickle 10 on cane 2",
+      "Prickle 10 on cane 1",
+      0
+    ],
+    [
+      "Prickle 11 on cane 1",
+      0
+    ],
+    [
+      "Prickle 12 on cane 1",
+      0
+    ],
+    [
+      "Prickle 13 on cane 1",
+      0
+    ],
+    [
+      "Prickle 14 on cane 1",
+      0
+    ],
+    [
+      "Prickle 15 on cane 2",
+      0
+    ],
+    [
+      "Prickle 16 on cane 2",
+      0
+    ],
+    [
+      "Prickle 17 on cane 2",
+      0
+    ],
+    [
+      "Prickle 18 on cane 2",
+      0
+    ],
+    [
+      "Prickle 19 on cane 2",
+      0
+    ],
+    [
+      "Prickle 20 on cane 2",
+      0
+    ],
+    [
+      "Prickle 21 on cane 2",
+      0
+    ],
+    [
+      "Prickle 22 on cane 2",
+      0
+    ],
+    [
+      "Prickle 23 on cane 2",
+      0
+    ],
+    [
+      "Prickle 24 on cane 2",
+      0
+    ],
+    [
+      "Prickle 25 on cane 2",
+      0
+    ],
+    [
+      "Prickle 26 on cane 2",
+      0
+    ],
+    [
+      "Prickle 27 on cane 2",
+      0
+    ],
+    [
+      "Prickle 28 on cane 2",
+      0
+    ],
+    [
+      "Prickle 29 on cane 2",
+      0
+    ],
+    [
+      "Node 1 on cane 1",
+      0
+    ],
+    [
+      "Node 1 on cane 2",
+      0
+    ],
+    [
+      "Side shoot 1",
+      0
+    ],
+    [
+      "Side shoot 2",
       0
     ],
     [
@@ -294,31 +479,31 @@
       0
     ],
     [
-      "Hip calyx, sepal 1",
-      0
-    ],
-    [
-      "Hip calyx, sepal 2",
-      0
-    ],
-    [
-      "Hip calyx, sepal 3",
-      0
-    ],
-    [
-      "Hip calyx, sepal 4",
-      0
-    ],
-    [
-      "Hip calyx, sepal 5",
-      0
-    ],
-    [
       "Hip calyx, boss",
       0
     ],
     [
-      "Round cabochon 5.6 mm",
+      "Hip calyx, sepal",
+      0
+    ],
+    [
+      "Hip calyx, sepal point",
+      0
+    ],
+    [
+      "Hip calyx, the sepal turned five times round the hip's axis",
+      0
+    ],
+    [
+      "Hip calyx, the sepal's tip turned with it: point",
+      0
+    ],
+    [
+      "Oval cabochon 6.4 × 4.8",
+      0
+    ],
+    [
+      "Hip bezel",
       0
     ],
     [
@@ -358,403 +543,697 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 125292,
+    "triangles": 178762,
     "watertight": true
   },
   "process": "Lost wax",
   "ray_walls": [
     {
       "at": [
-        -3.3,
-        -10.938,
-        1.721
+        -1.421,
+        -10.355,
+        1.077
       ],
       "below_floor": 0,
       "floor_mm": 0.8,
       "hard_edge_faces_skipped": 0,
       "part": "Briar cane 1",
-      "rays": 318,
-      "sampled_min_mm": 1.1809137728683476,
+      "rays": 317,
+      "sampled_min_mm": 1.3348347679349986,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        3.426,
-        -10.293,
-        -1.841
+        3.185,
+        -10.149,
+        -1.742
       ],
       "below_floor": 0,
       "floor_mm": 0.8,
-      "hard_edge_faces_skipped": 1090,
+      "hard_edge_faces_skipped": 1387,
       "part": "Briar cane 2",
-      "rays": 319,
-      "sampled_min_mm": 1.1800449896290013,
+      "rays": 318,
+      "sampled_min_mm": 1.3356449503294558,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        -11.885,
-        -2.625,
-        -2.017
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 234,
-      "part": "Prickle 1 on cane 1",
-      "rays": 301,
-      "sampled_min_mm": 0.39071655938113553,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        -10.671,
-        -6.27,
-        -0.691
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 185,
-      "part": "Prickle 2 on cane 1",
-      "rays": 292,
-      "sampled_min_mm": 0.38188248972897204,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        -2.134,
-        -11.611,
-        2.298
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 244,
-      "part": "Prickle 3 on cane 1",
-      "rays": 315,
-      "sampled_min_mm": 0.3098663037634206,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        0.802,
-        -10.212,
-        2.77
+        -10.696,
+        3.2,
+        -3.328
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
       "hard_edge_faces_skipped": 206,
-      "part": "Prickle 4 on cane 1",
+      "part": "Prickle 1 on cane 1",
       "rays": 297,
-      "sampled_min_mm": 0.34874191802741333,
+      "sampled_min_mm": 0.2840130520355888,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        -10.728,
-        -0.924,
-        2.895
+        -11.217,
+        1.567,
+        -3.414
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 290,
-      "part": "Prickle 5 on cane 2",
-      "rays": 310,
-      "sampled_min_mm": 0.38977271662230306,
+      "hard_edge_faces_skipped": 273,
+      "part": "Prickle 2 on cane 1",
+      "rays": 290,
+      "sampled_min_mm": 0.2918842367203338,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        -0.471,
-        -10.716,
-        -2.802
+        -11.594,
+        -0.058,
+        -3.198
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 215,
-      "part": "Prickle 6 on cane 2",
+      "hard_edge_faces_skipped": 216,
+      "part": "Prickle 3 on cane 1",
+      "rays": 302,
+      "sampled_min_mm": 0.280101559947885,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -12.314,
+        -1.677,
+        -2.491
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 227,
+      "part": "Prickle 4 on cane 1",
+      "rays": 286,
+      "sampled_min_mm": 0.28221333114128283,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -11.978,
+        -4.751,
+        -1.54
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 259,
+      "part": "Prickle 5 on cane 1",
+      "rays": 309,
+      "sampled_min_mm": 0.27564905834601905,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -5.334,
+        -11.568,
+        1.404
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 271,
+      "part": "Prickle 6 on cane 1",
+      "rays": 298,
+      "sampled_min_mm": 0.2641167070421714,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -3.505,
+        -11.961,
+        2.19
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 196,
+      "part": "Prickle 7 on cane 1",
+      "rays": 291,
+      "sampled_min_mm": 0.26757285169050954,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -0.449,
+        -11.457,
+        2.984
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 239,
+      "part": "Prickle 8 on cane 1",
+      "rays": 288,
+      "sampled_min_mm": 0.25677341836053386,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        1.255,
+        -11.153,
+        3.228
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 293,
+      "part": "Prickle 9 on cane 1",
+      "rays": 305,
+      "sampled_min_mm": 0.2576172977727668,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        3.982,
+        -10.291,
+        2.96
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 252,
+      "part": "Prickle 10 on cane 1",
+      "rays": 309,
+      "sampled_min_mm": 0.26103145554952495,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        5.693,
+        -9.237,
+        2.302
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 318,
+      "part": "Prickle 11 on cane 1",
+      "rays": 305,
+      "sampled_min_mm": 0.2593368239023329,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        9.912,
+        -4.442,
+        -2.434
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 279,
+      "part": "Prickle 12 on cane 1",
+      "rays": 291,
+      "sampled_min_mm": 0.2762764658801202,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        10.758,
+        -3.144,
+        -2.745
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 257,
+      "part": "Prickle 13 on cane 1",
+      "rays": 312,
+      "sampled_min_mm": 0.28036095216222484,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        11.435,
+        -0.515,
+        -3.334
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 252,
+      "part": "Prickle 14 on cane 1",
+      "rays": 298,
+      "sampled_min_mm": 0.2766443175019165,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        10.454,
+        4.093,
+        2.823
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 209,
+      "part": "Prickle 15 on cane 2",
+      "rays": 296,
+      "sampled_min_mm": 0.2920183536737439,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -10.723,
+        -0.952,
+        3.438
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 223,
+      "part": "Prickle 16 on cane 2",
+      "rays": 308,
+      "sampled_min_mm": 0.28141332387784695,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -11.027,
+        -3.007,
+        3.283
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 229,
+      "part": "Prickle 17 on cane 2",
+      "rays": 301,
+      "sampled_min_mm": 0.2717378507571262,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -10.088,
+        -4.598,
+        3.062
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 237,
+      "part": "Prickle 18 on cane 2",
+      "rays": 304,
+      "sampled_min_mm": 0.27485300993806433,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -6.146,
+        -9.247,
+        -2.177
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 237,
+      "part": "Prickle 19 on cane 2",
+      "rays": 304,
+      "sampled_min_mm": 0.26441452880854016,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -4.541,
+        -9.872,
+        -2.48
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 174,
+      "part": "Prickle 20 on cane 2",
       "rays": 284,
-      "sampled_min_mm": 0.2431623624493696,
+      "sampled_min_mm": 0.2662443161225783,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        3.441,
-        -11.675,
-        -1.593
+        -2.093,
+        -11.1,
+        -2.902
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 217,
-      "part": "Prickle 7 on cane 2",
-      "rays": 310,
-      "sampled_min_mm": 0.34130499380774043,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        6.228,
-        -10.911,
-        -1.113
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 203,
-      "part": "Prickle 8 on cane 2",
+      "hard_edge_faces_skipped": 267,
+      "part": "Prickle 21 on cane 2",
       "rays": 292,
-      "sampled_min_mm": 0.35247165716336604,
+      "sampled_min_mm": 0.2639729485797776,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        10.781,
-        -5.835,
-        1.271
+        0.071,
+        -11.528,
+        -3.181
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 241,
-      "part": "Prickle 9 on cane 2",
-      "rays": 293,
-      "sampled_min_mm": 0.3694691732568439,
+      "hard_edge_faces_skipped": 172,
+      "part": "Prickle 22 on cane 2",
+      "rays": 292,
+      "sampled_min_mm": 0.2588903689643689,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        11.453,
-        -2.471,
-        2.956
+        2.806,
+        -12.113,
+        -2.143
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
       "hard_edge_faces_skipped": 200,
-      "part": "Prickle 10 on cane 2",
-      "rays": 285,
-      "sampled_min_mm": 0.3921848335519097,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        0.658,
-        11.967,
-        2.57
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.8,
-      "hard_edge_faces_skipped": 163,
-      "part": "Hip receptacle",
-      "rays": 155,
-      "sampled_min_mm": 1.8619079459258383,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        1.376,
-        11.498,
-        -2.781
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.8,
-      "hard_edge_faces_skipped": 436,
-      "part": "Hip stalk",
+      "part": "Prickle 23 on cane 2",
       "rays": 295,
-      "sampled_min_mm": 0.9183990714711054,
+      "sampled_min_mm": 0.25874588589632996,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        0.449,
-        13.208,
-        3.739
+        4.93,
+        -11.977,
+        -1.36
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 100,
-      "part": "Hip calyx, sepal 1",
-      "rays": 194,
-      "sampled_min_mm": 0.2489885220916688,
+      "hard_edge_faces_skipped": 242,
+      "part": "Prickle 24 on cane 2",
+      "rays": 297,
+      "sampled_min_mm": 0.26230718040383916,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        3.546,
-        12.973,
-        0.693
+        10.991,
+        -6.971,
+        1.334
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 91,
-      "part": "Hip calyx, sepal 2",
-      "rays": 191,
-      "sampled_min_mm": 0.24888427209292555,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        2.723,
-        12.96,
-        -2.648
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 163,
-      "part": "Hip calyx, sepal 3",
-      "rays": 194,
-      "sampled_min_mm": 0.24924602256233702,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        -2.462,
-        12.973,
-        -2.645
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 109,
-      "part": "Hip calyx, sepal 4",
-      "rays": 190,
-      "sampled_min_mm": 0.24902288858316943,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        -3.417,
-        13.208,
-        1.583
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 101,
-      "part": "Hip calyx, sepal 5",
-      "rays": 194,
-      "sampled_min_mm": 0.24776234419579393,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        0.657,
-        16.0,
-        0.092
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 300,
-      "part": "Hip calyx, boss",
-      "rays": 80,
-      "sampled_min_mm": 0.34831840770513384,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        4.617,
-        12.273,
-        4.118
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 1038,
-      "part": "Rose leaf 1, pair 1 left leaflet",
-      "rays": 290,
-      "sampled_min_mm": 0.36496669544294974,
-      "seam_folds_skipped": 0
-    },
-    {
-      "at": [
-        5.371,
-        11.962,
-        -1.939
-      ],
-      "below_floor": 0,
-      "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 1012,
-      "part": "Rose leaf 1, pair 1 right leaflet",
+      "hard_edge_faces_skipped": 310,
+      "part": "Prickle 25 on cane 2",
       "rays": 308,
-      "sampled_min_mm": 0.39414270841418675,
+      "sampled_min_mm": 0.27576794104913355,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        7.752,
-        10.851,
-        4.431
+        11.528,
+        -5.034,
+        2.107
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 969,
-      "part": "Rose leaf 1, pair 2 left leaflet",
-      "rays": 301,
-      "sampled_min_mm": 0.3971319901137788,
+      "hard_edge_faces_skipped": 211,
+      "part": "Prickle 26 on cane 2",
+      "rays": 290,
+      "sampled_min_mm": 0.27155863710994266,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        8.496,
-        10.278,
-        -1.4
+        10.84,
+        -1.868,
+        3.483
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 992,
-      "part": "Rose leaf 1, pair 2 right leaflet",
-      "rays": 278,
-      "sampled_min_mm": 0.3911960970712209,
+      "hard_edge_faces_skipped": 285,
+      "part": "Prickle 27 on cane 2",
+      "rays": 312,
+      "sampled_min_mm": 0.2861888423536097,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        10.88,
-        6.576,
-        2.082
+        11.223,
+        -0.471,
+        3.231
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 1102,
-      "part": "Rose leaf 1, terminal leaflet",
-      "rays": 296,
-      "sampled_min_mm": 0.4970487456177969,
+      "hard_edge_faces_skipped": 209,
+      "part": "Prickle 28 on cane 2",
+      "rays": 314,
+      "sampled_min_mm": 0.27569461852817073,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        3.176,
-        11.254,
-        1.524
+        11.095,
+        1.093,
+        3.32
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 161,
+      "part": "Prickle 29 on cane 2",
+      "rays": 299,
+      "sampled_min_mm": 0.29424061266139584,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        10.029,
+        1.707,
+        -1.543
       ],
       "below_floor": 0,
       "floor_mm": 0.8,
-      "hard_edge_faces_skipped": 1540,
-      "part": "Rose leaf 1, petiole and rachis",
-      "rays": 311,
-      "sampled_min_mm": 0.9983181207224607,
+      "hard_edge_faces_skipped": 0,
+      "part": "Node 1 on cane 1",
+      "rays": 280,
+      "sampled_min_mm": 1.4927325976024584,
       "seam_folds_skipped": 0
     },
     {
       "at": [
-        -4.595,
-        11.4,
-        -1.615
+        -10.02,
+        2.991,
+        1.347
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 0,
+      "part": "Node 1 on cane 2",
+      "rays": 250,
+      "sampled_min_mm": 1.520798220571607,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        11.684,
+        2.378,
+        -4.181
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 439,
+      "part": "Side shoot 1",
+      "rays": 308,
+      "sampled_min_mm": 1.0410939726848785,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -13.162,
+        1.69,
+        2.445
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 398,
+      "part": "Side shoot 2",
+      "rays": 311,
+      "sampled_min_mm": 1.0471361322214883,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        1.708,
+        11.083,
+        0.458
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 124,
+      "part": "Hip receptacle",
+      "rays": 43,
+      "sampled_min_mm": 2.6408809749557065,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -0.08,
+        15.974,
+        3.399
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 66,
+      "part": "Hip calyx, sepal",
+      "rays": 273,
+      "sampled_min_mm": 0.8494433610230374,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -0.047,
+        15.268,
+        2.483
       ],
       "below_floor": 0,
       "floor_mm": 0.15,
-      "hard_edge_faces_skipped": 7346,
+      "hard_edge_faces_skipped": 0,
+      "part": "Hip calyx, sepal point",
+      "rays": 195,
+      "sampled_min_mm": 0.2787719335902403,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        1.205,
+        11.634,
+        3.475
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 468,
+      "part": "Hip calyx, the sepal turned five times round the hip's axis",
+      "rays": 286,
+      "sampled_min_mm": 0.8504182986839766,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -2.188,
+        13.91,
+        2.384
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.15,
+      "hard_edge_faces_skipped": 94,
+      "part": "Hip calyx, the sepal's tip turned with it: point",
+      "rays": 188,
+      "sampled_min_mm": 0.27915359039298987,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -1.185,
+        12.901,
+        -3.102
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 2483,
+      "part": "Hip bezel",
+      "rays": 50,
+      "sampled_min_mm": 0.8154596183724573,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        4.876,
+        10.888,
+        2.231
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 145,
+      "part": "Rose leaf 1, pair 1 left leaflet",
+      "rays": 289,
+      "sampled_min_mm": 0.8967222231203672,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        5.639,
+        11.257,
+        -2.678
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 165,
+      "part": "Rose leaf 1, pair 1 right leaflet",
+      "rays": 292,
+      "sampled_min_mm": 0.8850311927239121,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        7.141,
+        9.552,
+        2.233
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 44,
+      "part": "Rose leaf 1, pair 2 left leaflet",
+      "rays": 305,
+      "sampled_min_mm": 0.8543928423144354,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        6.255,
+        10.15,
+        -0.2
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 124,
+      "part": "Rose leaf 1, pair 2 right leaflet",
+      "rays": 280,
+      "sampled_min_mm": 0.8688283654438692,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        10.133,
+        6.626,
+        2.015
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 283,
+      "part": "Rose leaf 1, terminal leaflet",
+      "rays": 280,
+      "sampled_min_mm": 0.834546492681538,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        6.998,
+        9.133,
+        1.851
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 1043,
+      "part": "Rose leaf 1, petiole and rachis",
+      "rays": 233,
+      "sampled_min_mm": 0.9573077247777841,
+      "seam_folds_skipped": 0
+    },
+    {
+      "at": [
+        -9.288,
+        9.987,
+        1.428
+      ],
+      "below_floor": 0,
+      "floor_mm": 0.8,
+      "hard_edge_faces_skipped": 2667,
       "part": "Rose leaf 2: the leaflets and rachis of leaf 1 turned round the hip",
-      "rays": 317,
-      "sampled_min_mm": 0.5268386328531118,
+      "rays": 309,
+      "sampled_min_mm": 0.8681838188529746,
       "seam_folds_skipped": 0
     }
   ],
   "size": "US 8.6",
-  "stage": "round 1",
-  "stone_feature": 22,
+  "stage": "round 2",
+  "stone_feature": 44,
   "stones": {
     "crowding": [],
     "metal_inside": [
       [
-        "Round cabochon 5.6 mm",
+        "Oval cabochon 6.4 × 4.8",
         0
       ]
     ],
     "previewed": 1,
     "reported": 1
   },
-  "thorns": 10
+  "thorns": 29
 }

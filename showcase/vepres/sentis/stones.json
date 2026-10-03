@@ -1,18 +1,20 @@
 {
   "stones": [
     {
-      "cut": "Round 4.0",
-      "dispersion": 0.018,
-      "ior": 1.77,
-      "mesh": "reference-ruby.stl",
-      "name": "Ruby",
-      "roughness": 0.065,
+      "cut": "Oval cabochon 6.4 × 4.8",
+      "dispersion": 0.0,
+      "ior": 1.54,
+      "l_mm": 6.4,
+      "mesh": "reference-hip.stl",
+      "name": "Rose hip: opaque orange-red cabochon (carnelian or opaque garnet)",
+      "roughness": 0.25,
       "tint": [
-        0.699999988079071,
-        0.18000000715255737,
+        0.7200000286102295,
+        0.20000000298023224,
         0.05999999865889549
       ],
-      "transmission": 0.72
+      "transmission": 0.05,
+      "w_mm": 4.8
     }
   ]
 }
