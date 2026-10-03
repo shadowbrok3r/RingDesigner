@@ -44,7 +44,11 @@ const BUNDLE_CROWN_SWELL_MM: f64 = 0.45;
 /// Phase offset that puts canes 0 and 3 on the outside either side of the crown, parted round the hip.
 const PHASE0: f64 = 0.75 * PI;
 /// Each cane's wander: a phase drift of this many radians, twice round the ring, zero at crown and palm.
-const WANDER: [f64; CANES] = [0.30, -0.22, 0.26, -0.30];
+const WANDER: [f64; CANES] = [0.40, -0.30, 0.36, -0.40];
+/// Each cane's own spread across the finger, as a share of the bundle's.
+const CANE_SPREAD: [f64; CANES] = [1.0, 0.9, 1.07, 0.94];
+/// How much further out, and how much deeper, the bundle winds at the crown, where the tangle opens.
+const CROWN_OPEN_MM: f64 = 0.35;
 /// The cane section's five lobes, as a share of its radius.
 const CANE_LOBE: f64 = 0.07;
 /// Sweep stations round each closed cane (the kernel's cap).
@@ -96,17 +100,24 @@ fn phase(i: usize, theta_deg: f64) -> f64 {
     WAVES * theta_deg.to_radians() + PHASE0 + i as f64 * FRAC_PI_2 + WANDER[i] * (2.0 * from_crown).sin()
 }
 
-/// The bundle's half-depth (radial) and half-height (across) at `theta_deg`.
-fn bundle(theta_deg: f64) -> (f64, f64) {
+/// How far `theta_deg` lies inside the crown's open tangle: 1 at the crown, falling to 0 at the shoulders.
+fn crown_share(theta_deg: f64) -> f64 {
+    (theta_deg - CROWN_DEG).to_radians().cos().max(0.0).powi(2)
+}
+
+/// The bundle's centre radius, half-depth (radial) and half-height (across) at `theta_deg`, for cane `i`: the
+/// crown's tangle loosened outward and open, each cane winding a little wider or narrower than the others.
+fn bundle_of(i: usize, theta_deg: f64) -> (f64, f64, f64) {
     let c = (theta_deg - CROWN_DEG).to_radians().cos();
-    (BUNDLE_RADIAL_MM, BUNDLE_ACROSS_MM + BUNDLE_CROWN_SWELL_MM * c)
+    let w = crown_share(theta_deg);
+    (BUNDLE_R_MM + CROWN_OPEN_MM * w, BUNDLE_RADIAL_MM + CROWN_OPEN_MM * w, (BUNDLE_ACROSS_MM + BUNDLE_CROWN_SWELL_MM * c) * CANE_SPREAD[i])
 }
 
 /// Cane `i`'s centre at `theta_deg`: (radius from the finger's axis, z along it).
 fn cane_at(i: usize, theta_deg: f64) -> (f64, f64) {
-    let (a, b) = bundle(theta_deg);
+    let (r0, a, b) = bundle_of(i, theta_deg);
     let p = phase(i, theta_deg);
-    (BUNDLE_R_MM + a * p.cos(), b * p.sin())
+    (r0 + a * p.cos(), b * p.sin())
 }
 
 fn world(theta_deg: f64, (r, z): (f64, f64)) -> [f64; 3] {
@@ -146,7 +157,7 @@ fn unit(a: [f64; 3]) -> [f64; 3] {
 
 /// Cane `i`'s outward direction at `theta_deg`: away from the bundle's axis, squared to the cane, in world.
 fn cane_normal(i: usize, theta_deg: f64) -> [f64; 3] {
-    let (a, b) = bundle(theta_deg);
+    let (_, a, b) = bundle_of(i, theta_deg);
     let p = phase(i, theta_deg);
     let (n_r, n_z) = (p.cos() / a, p.sin() / b);
     let (s, c) = theta_deg.to_radians().sin_cos();
@@ -246,16 +257,6 @@ fn thorn(h: Hook) -> Operation {
     Operation::Twist { sketch: ellipse(h.along, h.across).into(), path: hook_path(h.radial, h.bend_r, h.bend_deg), degrees: 0.0, end_scale: h.end_scale }
 }
 
-/// A five-point star `across` mm over its points, its valleys at `inner` of that.
-fn star(across: f64, inner: f64) -> Sketch {
-    let pts: Vec<[f64; 2]> = (0..10).map(|k| {
-        let t = TAU * k as f64 / 10.0;
-        let r = 0.5 * across * if k % 2 == 0 { 1.0 } else { inner };
-        [r * t.cos(), r * t.sin()]
-    }).collect();
-    polygon("Shoot section", &pts)
-}
-
 /// A small deterministic hash in [0, 1).
 fn hash(k: u64) -> f64 {
     let mut x = k.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ 0xD1B5_4A32_D192_ED03;
@@ -348,7 +349,7 @@ fn hip_cup() -> Operation {
 }
 
 /// The urn's sections: height under the seat, half across the finger, half round the ring.
-const HIP_URN: [(f64, f64, f64); 5] = [(-2.3, 1.05, 1.3), (-1.6, 1.75, 2.25), (-0.75, 2.25, 2.95), (-0.22, 2.4, 3.12), (-0.05, 2.37, 3.07)];
+const HIP_URN: [(f64, f64, f64); 6] = [(-3.1, 0.8, 1.0), (-2.3, 1.15, 1.4), (-1.6, 1.75, 2.25), (-0.75, 2.25, 2.95), (-0.22, 2.4, 3.12), (-0.05, 2.37, 3.07)];
 
 fn stored_op(solid: &csg::Solid, op: &str, params: serde_json::Value) -> Result<Operation> {
     Ok(Operation::Stored {
@@ -444,12 +445,12 @@ fn calyx_solid(outer: f64, inner: f64, root: f64, tip: f64, curl: f64) -> csg::S
 /// and `wide` across, its serrate margin's teeth leaning forward, its top domed from a raised midrib down to the
 /// margin, lifting `lift` radians as it runs out; its underside sunk `sink` mm at the foot.
 fn leaflet_solid(origin: [f64; 2], alpha: f64, len: f64, wide: f64, lift: f64, sink: f64) -> csg::Solid {
-    let (steps, across) = (40usize, 6usize);
+    let (steps, across) = (56usize, 8usize);
     let (edge, rib, keel) = (LEAF_EDGE_MM, LEAF_RIB_MM, 0.12);
     let d = [alpha.sin(), alpha.cos()];
     let perp = [d[1], -d[0]];
     let half = |u: f64| {
-        let body = (PI * u).sin().powf(0.7) * (1.0 - 0.25 * u);
+        let body = (PI * u.powf(0.85)).sin().powf(0.6);
         let t = (u * LEAF_TEETH as f64).fract();
         0.5 * wide * body * (1.0 - LEAF_TOOTH * t * (u > 0.12 && u < 0.94) as u8 as f64)
     };
@@ -463,7 +464,9 @@ fn leaflet_solid(origin: [f64; 2], alpha: f64, len: f64, wide: f64, lift: f64, s
         let mut l = Vec::with_capacity(2 * across + 2);
         for j in 0..=across {
             let v = -1.0 + 2.0 * j as f64 / across as f64;
-            let top = edge + (rib - edge) * (1.0 - v.abs()).powf(1.3);
+            // Domed from the margin up toward the midrib, with the midrib itself sunk in a narrow groove.
+            let groove = LEAF_GROOVE_MM * (1.0 - (v.abs() / 0.2).min(1.0)).powi(2) * (u < 0.9) as u8 as f64;
+            let top = edge + (rib - edge) * (1.0 - v.abs()).powf(1.3) - groove;
             l.push([c[0] + perp[0] * v * w, c[1] + perp[1] * v * w, c[2] + top]);
         }
         for j in (0..=across).rev() {
@@ -479,25 +482,83 @@ fn leaflet_solid(origin: [f64; 2], alpha: f64, len: f64, wide: f64, lift: f64, s
 /// Leaflet thickness at the margin and over the midrib; teeth per leaflet and their depth as a share of the width.
 const LEAF_EDGE_MM: f64 = 0.3;
 const LEAF_RIB_MM: f64 = 0.62;
-const LEAF_TEETH: usize = 6;
-const LEAF_TOOTH: f64 = 0.16;
+const LEAF_TEETH: usize = 11;
+const LEAF_TOOTH: f64 = 0.09;
+const LEAF_GROOVE_MM: f64 = 0.1;
 
 /// The shoots' radius, rise before they lean, and their end's share of the foot.
 const SHOOT_R_MM: f64 = 0.62;
-const SHOOT_RISE_MM: f64 = 2.8;
+const SHOOT_RISE_MM: f64 = 3.3;
 const SHOOT_END: f64 = 0.78;
 /// The shoots: angle, the side of the bundle they stand from, and which way they lean.
 const SHOOTS: [(f64, f64, f64); 3] = [(CROWN_DEG - 30.0, 1.4, 180.0), (CROWN_DEG + 31.0, -1.4, 0.0), (CROWN_DEG + 44.0, 1.6, 0.0)];
-/// The leaves: angle, side of the bundle, heading in the leaf's plan (degrees from round the ring, +theta, toward b = t x n).
-const LEAVES: [(f64, f64, f64); 3] = [(CROWN_DEG - 21.0, 0.8, 190.0), (CROWN_DEG + 24.0, -0.8, 10.0), (CROWN_DEG - 45.0, -0.8, 168.0)];
+/// The leaves: angle and place across the finger of the foot, heading in the leaf's plan (degrees from round the
+/// ring, +theta, toward the finger's -z).
+const LEAVES: [(f64, f64, f64); 3] = [(CROWN_DEG - 17.0, 0.7, 192.0), (CROWN_DEG + 17.0, -0.7, -12.0), (CROWN_DEG - 46.0, -1.0, 195.0)];
+/// How deep a leaf's foot sits under the top of the tangle.
+const LEAF_SINK_MM: f64 = 0.3;
+
+/// The top of the tangle at `theta_deg`, `z` across the finger: the furthest cane surface out from the axis there.
+fn tangle_top(theta_deg: f64, z: f64) -> f64 {
+    (0..CANES)
+        .filter_map(|i| {
+            let (r, zc) = cane_at(i, theta_deg);
+            let dz = z - zc;
+            (dz.abs() < CANE_R_MM).then(|| r + (CANE_R_MM * CANE_R_MM - dz * dz).sqrt())
+        })
+        .fold(BUNDLE_R_MM, f64::max)
+}
+
+/// Where the canes swell at their nodes: cane, index and angle, at an uneven pitch, none under the hip.
+fn node_sites() -> Vec<(usize, usize, f64)> {
+    let mut out = Vec::new();
+    for i in 0..CANES {
+        for k in 0..NODES_PER_CANE {
+            let theta = (31.0 + 23.0 * i as f64 + 360.0 * (k as f64 + 0.3 * (hash((i * 50 + k + 7) as u64) - 0.5)) / NODES_PER_CANE as f64).rem_euclid(360.0);
+            let from_crown = ((theta - CROWN_DEG + 540.0).rem_euclid(360.0) - 180.0).abs();
+            if from_crown > 18.0 {
+                out.push((i, out.len(), theta));
+            }
+        }
+    }
+    out
+}
+
+/// A node's spindle: circles square to cane `i` round its centreline, swelling to `NODE_SWELL_MM` over the cane.
+fn node_loft(i: usize, theta: f64) -> Operation {
+    let n = cane_normal(i, theta);
+    let t = cane_tangent(i, theta);
+    let b = [t[1] * n[2] - t[2] * n[1], t[2] * n[0] - t[0] * n[2], t[0] * n[1] - t[1] * n[0]];
+    let r_mid = cane_at(i, theta).0;
+    let sections = [(-1.0, 0.0), (-0.55, 0.6), (0.0, 1.0), (0.55, 0.6), (1.0, 0.0)]
+        .iter()
+        .map(|&(f, swell)| {
+            let at = theta + (f * NODE_HALF_MM / r_mid).to_degrees();
+            let c = world(at, cane_at(i, at));
+            let plane = Workplane { origin: c, x: n, y: b, ..Default::default() };
+            let r = CANE_R_MM * (1.0 - CANE_LOBE) - 0.02 + (NODE_SWELL_MM + CANE_LOBE * CANE_R_MM + 0.02) * swell;
+            let pts: Vec<[f64; 2]> = (0..24).map(|k| {
+                let a = TAU * k as f64 / 24.0;
+                [r * a.cos(), r * a.sin()]
+            }).collect();
+            poly_on(plane, "Node", &pts).into()
+        })
+        .collect();
+    Operation::Loft { sections }
+}
+
+/// Nodes per cane before those under the hip are dropped; a node's half-length and swell over the cane.
+const NODES_PER_CANE: usize = 6;
+const NODE_HALF_MM: f64 = 1.1;
+const NODE_SWELL_MM: f64 = 0.16;
 /// The hip's girdle over the seat, and its tilt up out of the thicket.
-const HIP_H_MM: f64 = 1.4;
+const HIP_H_MM: f64 = 2.2;
 /// How far the calyx turns up past the hip's own axis.
-const CALYX_RISE_DEG: f64 = 40.0;
+const CALYX_RISE_DEG: f64 = 45.0;
 const HIP_TILT_DEG: f64 = 28.0;
 /// The calyx across its sepals' points; the stalk's radius.
-const CALYX_MM: f64 = 4.4;
-const STALK_R_MM: f64 = 0.42;
+const CALYX_MM: f64 = 5.0;
+const STALK_R_MM: f64 = 0.46;
 
 /// The hip's frame: its girdle `HIP_H_MM` over the seat at the crown, its long axis round the ring, tilted up out of
 /// the thicket so its calyx end rises toward the eye and its stalk end dips into the canes.
@@ -512,9 +573,9 @@ fn hip_world(d: &RingDesign, p: P3) -> P3 {
 
 /// The hip's stalk: from inside the receptacle's low end, out and down in a curve into the cane below.
 fn stalk_path(d: &RingDesign) -> Vec<[f64; 3]> {
-    let p0 = hip_world(d, [0.0, -1.3, -1.2]);
-    let mid = hip_world(d, [0.0, -3.4, -1.3]);
-    let theta1 = CROWN_DEG - 22.0;
+    let p0 = hip_world(d, [0.0, -1.2, -1.9]);
+    let mid = hip_world(d, [0.0, -4.2, -1.6]);
+    let theta1 = CROWN_DEG - 26.0;
     let cane = cane_near(theta1, 0.0);
     let p1 = world(theta1, cane_at(cane, theta1));
     (0..=12)
@@ -581,37 +642,51 @@ fn author() -> Result<Authored> {
     let hip_frame = Component { attach: Attach::Join, stage: Stage::Cast, placement: hip_placement(), ..Component::default() };
     add(&mut doc, "Hip receptacle".into(), hip_cup(), hip_frame.clone())?;
     add(&mut doc, "Hip stalk".into(), Operation::Sweep { sketch: Sketch::circle(STALK_R_MM).into(), path: stalk_path(&d) }, free.clone())?;
-    let calyx = calyx_solid(CALYX_MM, 0.55, 0.65, 0.36, 0.9);
+    let calyx = calyx_solid(CALYX_MM, 0.6, 0.72, 0.42, 1.1);
     // The calyx's axis along the ring (+y of the hip's frame), its hub just past the stone's tip.
-    let (hub_y, hub_h) = (0.5 * HIP_L_MM + 0.55, 0.25);
+    let (hub_y, hub_h) = (0.5 * HIP_L_MM + 0.7, 0.4);
     // Turned a further CALYX_RISE_DEG up out of the hip's axis, so the star of sepals faces the eye from above.
     let (sb, cb) = CALYX_RISE_DEG.to_radians().sin_cos();
     let calyx = csg::Solid { v: calyx.v.iter().map(|p| { let (y, z) = (p[2], -p[1]); [p[0], y * cb - z * sb + hub_y, y * sb + z * cb + hub_h] }).collect(), f: calyx.f };
     add(&mut doc, "Hip calyx".into(), stored_op(&calyx, "calyx", json!({"across_mm": CALYX_MM, "sepals": 5}))?, hip_frame)?;
     // Pinnate briar leaves beside the hip: a terminal leaflet and a pair of laterals from one foot.
     for (k, &(theta, z, alpha_deg)) in LEAVES.iter().enumerate() {
-        let cane = top_cane(theta, z);
         let a = alpha_deg.to_radians();
         let d0 = [a.sin(), a.cos()];
-        let lift = 7f64.to_radians();
+        let lift = 6f64.to_radians();
         let parts = [
-            ("terminal", leaflet_solid([0.0, 0.0], a, 3.8, 2.0, lift, 0.32)),
-            ("left", leaflet_solid([d0[0] * 0.95, d0[1] * 0.95], a + 0.85, 2.9, 1.6, lift * 1.2, 0.27)),
-            ("right", leaflet_solid([d0[0] * 1.0, d0[1] * 1.0], a - 0.85, 2.9, 1.6, lift * 0.85, 0.37)),
+            ("terminal", leaflet_solid([0.0, 0.0], a, 4.2, 2.7, lift, 0.32)),
+            ("left", leaflet_solid([d0[0] * 1.1, d0[1] * 1.1], a + 0.95, 3.2, 2.2, lift * 1.3, 0.27)),
+            ("right", leaflet_solid([d0[0] * 1.15, d0[1] * 1.15], a - 0.95, 3.2, 2.2, lift * 0.8, 0.37)),
         ];
-        // The leaf's plan laid on the cane: z out along its normal, y round the ring toward the leaf's heading.
-        let n = cane_normal(cane, theta);
-        let (sn, cs) = theta.to_radians().sin_cos();
-        let ring = [-sn, cs, 0.0];
-        let d_ = dot(ring, n);
-        let t = unit([ring[0] - n[0] * d_, ring[1] - n[1] * d_, ring[2] - n[2] * d_]);
-        let b = [t[1] * n[2] - t[2] * n[1], t[2] * n[0] - t[0] * n[2], t[0] * n[1] - t[1] * n[0]];
-        let c = world(theta, cane_at(cane, theta));
-        let foot: P3 = std::array::from_fn(|i| c[i] + n[i] * CANE_R_MM);
+        // The leaf laid flat over the top of the tangle and bent round the ring with it: plan y runs round the
+        // ring, plan x along the finger, plan z out from the finger's axis, its foot sunk into the cane below.
+        // Over the highest cane under the whole leaf, so no leaflet is buried in the tangle.
+        let reach_deg = (5.0 / BUNDLE_R_MM).to_degrees();
+        let base = (0..=16)
+            .flat_map(|i| (0..=12).map(move |j| (theta - reach_deg + 2.0 * reach_deg * i as f64 / 16.0, z - 3.0 + 0.5 * j as f64)))
+            .map(|(t, zz)| tangle_top(t, zz))
+            .fold(f64::MIN, f64::max)
+            - LEAF_SINK_MM;
+        let to_world = |p: &P3| -> P3 {
+            let phi = theta.to_radians() + p[1] / base;
+            let r = base + p[2];
+            [r * phi.cos(), r * phi.sin(), z - p[0]]
+        };
         for (name, solid) in parts {
-            let placed = csg::Solid { v: solid.v.iter().map(|p| std::array::from_fn(|i| foot[i] + b[i] * p[0] + t[i] * p[1] + n[i] * p[2])).collect(), f: solid.f };
+            let placed = outward(csg::Solid { v: solid.v.iter().map(to_world).collect(), f: solid.f });
             add(&mut doc, format!("Briar leaf {}, {name} leaflet", k + 1), stored_op(&placed, "leaflet", json!({"leaf": k + 1, "leaflet": name}))?, free.clone())?;
         }
+        // The leaf's stalk: from under its foot down into the outermost cane beneath it.
+        let foot = to_world(&[0.0, 0.0, -0.1]);
+        let cane = top_cane(theta, z);
+        let into = world(theta, cane_at(cane, theta));
+        let path: Vec<P3> = (0..=6).map(|k| { let t = k as f64 / 6.0; std::array::from_fn(|i| foot[i] + (into[i] - foot[i]) * t) }).collect();
+        add(&mut doc, format!("Briar leaf {}, stalk", k + 1), Operation::Sweep { sketch: Sketch::circle(STALK_R_MM).into(), path }, free.clone())?;
+    }
+    // Swollen nodes along each cane: a spindle lofted round the cane's own centreline.
+    for (i, k, theta) in node_sites() {
+        add(&mut doc, format!("Node {} on cane {}", k + 1, i + 1), node_loft(i, theta), free.clone())?;
     }
     let gem = ruby();
     let stand = gem.pavilion_mm() + 0.05;

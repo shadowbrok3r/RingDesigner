@@ -6,11 +6,11 @@
     "vertices_inside": 0
   },
   "build": {
-    "author_s": 0.179209011,
-    "build_s": 4.995754277,
+    "author_s": 0.184827696,
+    "build_s": 6.306189687,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 99518
+    "triangles": 119320
   },
   "coarse": {
     "degenerate_faces": 0,
@@ -23,8 +23,8 @@
   },
   "cold_reload_identical": null,
   "design": {
-    "bytes": 472426,
-    "cad_features": 40,
+    "bytes": 1368214,
+    "cad_features": 63,
     "format_version": 6
   },
   "dfm_findings": [],
@@ -197,6 +197,98 @@
     [
       "#40",
       "Ok"
+    ],
+    [
+      "#41",
+      "Ok"
+    ],
+    [
+      "#42",
+      "Ok"
+    ],
+    [
+      "#43",
+      "Ok"
+    ],
+    [
+      "#44",
+      "Ok"
+    ],
+    [
+      "#45",
+      "Ok"
+    ],
+    [
+      "#46",
+      "Ok"
+    ],
+    [
+      "#47",
+      "Ok"
+    ],
+    [
+      "#48",
+      "Ok"
+    ],
+    [
+      "#49",
+      "Ok"
+    ],
+    [
+      "#50",
+      "Ok"
+    ],
+    [
+      "#51",
+      "Ok"
+    ],
+    [
+      "#52",
+      "Ok"
+    ],
+    [
+      "#53",
+      "Ok"
+    ],
+    [
+      "#54",
+      "Ok"
+    ],
+    [
+      "#55",
+      "Ok"
+    ],
+    [
+      "#56",
+      "Ok"
+    ],
+    [
+      "#57",
+      "Ok"
+    ],
+    [
+      "#58",
+      "Ok"
+    ],
+    [
+      "#59",
+      "Ok"
+    ],
+    [
+      "#60",
+      "Ok"
+    ],
+    [
+      "#61",
+      "Ok"
+    ],
+    [
+      "#62",
+      "Ok"
+    ],
+    [
+      "#63",
+      "Ok"
     ]
   ],
   "field": {
@@ -277,7 +369,7 @@
     "self_crossings": 0,
     "watertight": true
   },
-  "grams_18k": 8.78575848388423,
+  "grams_18k": 9.262594949823109,
   "made_parts": [
     [
       "Heartwood liner",
@@ -356,10 +448,6 @@
       0
     ],
     [
-      "Thorn 15 on cane 4",
-      0
-    ],
-    [
       "Cut shoot 1",
       0
     ],
@@ -408,6 +496,10 @@
       0
     ],
     [
+      "Briar leaf 1, stalk",
+      0
+    ],
+    [
       "Briar leaf 2, terminal leaflet",
       0
     ],
@@ -420,6 +512,10 @@
       0
     ],
     [
+      "Briar leaf 2, stalk",
+      0
+    ],
+    [
       "Briar leaf 3, terminal leaflet",
       0
     ],
@@ -429,6 +525,94 @@
     ],
     [
       "Briar leaf 3, right leaflet",
+      0
+    ],
+    [
+      "Briar leaf 3, stalk",
+      0
+    ],
+    [
+      "Node 1 on cane 1",
+      0
+    ],
+    [
+      "Node 2 on cane 1",
+      0
+    ],
+    [
+      "Node 3 on cane 1",
+      0
+    ],
+    [
+      "Node 4 on cane 1",
+      0
+    ],
+    [
+      "Node 5 on cane 1",
+      0
+    ],
+    [
+      "Node 6 on cane 2",
+      0
+    ],
+    [
+      "Node 7 on cane 2",
+      0
+    ],
+    [
+      "Node 8 on cane 2",
+      0
+    ],
+    [
+      "Node 9 on cane 2",
+      0
+    ],
+    [
+      "Node 10 on cane 2",
+      0
+    ],
+    [
+      "Node 11 on cane 2",
+      0
+    ],
+    [
+      "Node 12 on cane 3",
+      0
+    ],
+    [
+      "Node 13 on cane 3",
+      0
+    ],
+    [
+      "Node 14 on cane 3",
+      0
+    ],
+    [
+      "Node 15 on cane 3",
+      0
+    ],
+    [
+      "Node 16 on cane 3",
+      0
+    ],
+    [
+      "Node 17 on cane 4",
+      0
+    ],
+    [
+      "Node 18 on cane 4",
+      0
+    ],
+    [
+      "Node 19 on cane 4",
+      0
+    ],
+    [
+      "Node 20 on cane 4",
+      0
+    ],
+    [
+      "Node 21 on cane 4",
       0
     ],
     [
@@ -448,7 +632,7 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 99518,
+    "triangles": 119320,
     "watertight": true
   },
   "process": "Lost wax",
@@ -464,238 +648,399 @@
       "below_floor": 0,
       "part": "Briar cane 1",
       "rays": 377,
-      "sampled_min_mm": 1.3194699384092976,
+      "sampled_min_mm": 1.3200218675753728,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Briar cane 2",
       "rays": 377,
-      "sampled_min_mm": 1.3194792902502677,
+      "sampled_min_mm": 1.3195163475600913,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Briar cane 3",
       "rays": 377,
-      "sampled_min_mm": 1.3195330663448348,
+      "sampled_min_mm": 1.3200327310743103,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Briar cane 4",
       "rays": 377,
-      "sampled_min_mm": 1.3195042363674305,
+      "sampled_min_mm": 1.319713662126916,
       "unresolved": 0
     },
     {
       "below_floor": 182,
       "part": "Thorn 1 on cane 1",
       "rays": 271,
-      "sampled_min_mm": 0.15178865422236737,
+      "sampled_min_mm": 0.15178924902980298,
       "unresolved": 0
     },
     {
       "below_floor": 209,
       "part": "Thorn 2 on cane 1",
       "rays": 271,
-      "sampled_min_mm": 0.14752095507465382,
+      "sampled_min_mm": 0.14752056096039495,
       "unresolved": 0
     },
     {
       "below_floor": 230,
       "part": "Thorn 3 on cane 1",
       "rays": 271,
-      "sampled_min_mm": 0.14670203634445575,
+      "sampled_min_mm": 0.1467020992600833,
       "unresolved": 0
     },
     {
       "below_floor": 235,
       "part": "Thorn 4 on cane 1",
       "rays": 271,
-      "sampled_min_mm": 0.147836024865447,
+      "sampled_min_mm": 0.14783887184569194,
       "unresolved": 0
     },
     {
       "below_floor": 205,
       "part": "Thorn 5 on cane 2",
       "rays": 271,
-      "sampled_min_mm": 0.14811161770561818,
+      "sampled_min_mm": 0.14811036462932126,
       "unresolved": 0
     },
     {
       "below_floor": 180,
       "part": "Thorn 6 on cane 2",
       "rays": 271,
-      "sampled_min_mm": 0.1523117351628413,
+      "sampled_min_mm": 0.15231281535567143,
       "unresolved": 0
     },
     {
       "below_floor": 197,
       "part": "Thorn 7 on cane 2",
       "rays": 271,
-      "sampled_min_mm": 0.1493521661520171,
+      "sampled_min_mm": 0.14935279114941433,
       "unresolved": 0
     },
     {
       "below_floor": 233,
       "part": "Thorn 8 on cane 2",
       "rays": 271,
-      "sampled_min_mm": 0.14763975109031074,
+      "sampled_min_mm": 0.14763878716973972,
       "unresolved": 0
     },
     {
       "below_floor": 193,
       "part": "Thorn 9 on cane 3",
       "rays": 271,
-      "sampled_min_mm": 0.14984704086772818,
+      "sampled_min_mm": 0.14984841508634084,
       "unresolved": 0
     },
     {
       "below_floor": 191,
       "part": "Thorn 10 on cane 3",
       "rays": 271,
-      "sampled_min_mm": 0.1503970150572851,
+      "sampled_min_mm": 0.15039780555781224,
       "unresolved": 0
     },
     {
       "below_floor": 235,
       "part": "Thorn 11 on cane 3",
       "rays": 271,
-      "sampled_min_mm": 0.14785252122136675,
+      "sampled_min_mm": 0.14785348954823374,
       "unresolved": 0
     },
     {
       "below_floor": 230,
       "part": "Thorn 12 on cane 3",
       "rays": 271,
-      "sampled_min_mm": 0.14665144940715233,
+      "sampled_min_mm": 0.1466482453326931,
       "unresolved": 0
     },
     {
       "below_floor": 231,
       "part": "Thorn 13 on cane 4",
       "rays": 271,
-      "sampled_min_mm": 0.14715493336409433,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 230,
-      "part": "Thorn 14 on cane 4",
-      "rays": 271,
-      "sampled_min_mm": 0.14676215072185242,
+      "sampled_min_mm": 0.14715205963539096,
       "unresolved": 0
     },
     {
       "below_floor": 225,
-      "part": "Thorn 15 on cane 4",
+      "part": "Thorn 14 on cane 4",
       "rays": 271,
-      "sampled_min_mm": 0.14697475722044362,
+      "sampled_min_mm": 0.14697332713111974,
       "unresolved": 0
     },
     {
       "below_floor": 28,
       "part": "Cut shoot 1",
       "rays": 279,
-      "sampled_min_mm": 0.04743242751922268,
+      "sampled_min_mm": 0.05375901231487334,
       "unresolved": 0
     },
     {
       "below_floor": 28,
       "part": "Cut shoot 2",
       "rays": 279,
-      "sampled_min_mm": 0.04743471710780826,
+      "sampled_min_mm": 0.05367909346671937,
       "unresolved": 0
     },
     {
       "below_floor": 28,
       "part": "Cut shoot 3",
       "rays": 279,
-      "sampled_min_mm": 0.04751348337102291,
+      "sampled_min_mm": 0.053723567464764845,
       "unresolved": 0
     },
     {
       "below_floor": 4,
       "part": "Hip receptacle",
-      "rays": 198,
-      "sampled_min_mm": 0.37020847188948464,
+      "rays": 238,
+      "sampled_min_mm": 0.37022569344509554,
       "unresolved": 0
     },
     {
-      "below_floor": 12,
+      "below_floor": 15,
       "part": "Hip stalk",
       "rays": 370,
-      "sampled_min_mm": 0.36161132407551755,
+      "sampled_min_mm": 0.5022248959193926,
       "unresolved": 0
     },
     {
       "below_floor": 305,
       "part": "Hip calyx",
       "rays": 320,
-      "sampled_min_mm": 0.09033205958902536,
+      "sampled_min_mm": 0.09582576815796763,
       "unresolved": 0
     },
     {
-      "below_floor": 321,
+      "below_floor": 331,
       "part": "Briar leaf 1, terminal leaflet",
-      "rays": 383,
-      "sampled_min_mm": 0.16592270896586933,
+      "rays": 342,
+      "sampled_min_mm": 0.30272453456793363,
       "unresolved": 0
     },
     {
-      "below_floor": 326,
+      "below_floor": 335,
       "part": "Briar leaf 1, left leaflet",
-      "rays": 383,
-      "sampled_min_mm": 0.10203204961417797,
+      "rays": 342,
+      "sampled_min_mm": 0.22495702801470163,
       "unresolved": 0
     },
     {
-      "below_floor": 327,
+      "below_floor": 333,
       "part": "Briar leaf 1, right leaflet",
-      "rays": 383,
-      "sampled_min_mm": 0.1001434748015336,
+      "rays": 342,
+      "sampled_min_mm": 0.1443619677464738,
       "unresolved": 0
     },
     {
-      "below_floor": 321,
+      "below_floor": 0,
+      "part": "Briar leaf 1, stalk",
+      "rays": 358,
+      "sampled_min_mm": 0.919691458410406,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 331,
       "part": "Briar leaf 2, terminal leaflet",
-      "rays": 383,
-      "sampled_min_mm": 0.16595208484398158,
+      "rays": 342,
+      "sampled_min_mm": 0.3016768334105509,
       "unresolved": 0
     },
     {
-      "below_floor": 326,
+      "below_floor": 335,
       "part": "Briar leaf 2, left leaflet",
-      "rays": 383,
-      "sampled_min_mm": 0.10203657652426078,
+      "rays": 342,
+      "sampled_min_mm": 0.22265167480088718,
       "unresolved": 0
     },
     {
-      "below_floor": 327,
+      "below_floor": 333,
       "part": "Briar leaf 2, right leaflet",
-      "rays": 383,
-      "sampled_min_mm": 0.10014078220790316,
+      "rays": 342,
+      "sampled_min_mm": 0.15202283022057247,
       "unresolved": 0
     },
     {
-      "below_floor": 321,
+      "below_floor": 50,
+      "part": "Briar leaf 2, stalk",
+      "rays": 358,
+      "sampled_min_mm": 0.4002751145225994,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 331,
       "part": "Briar leaf 3, terminal leaflet",
-      "rays": 383,
-      "sampled_min_mm": 0.16592343570183463,
+      "rays": 342,
+      "sampled_min_mm": 0.3029874744103414,
       "unresolved": 0
     },
     {
-      "below_floor": 326,
+      "below_floor": 335,
       "part": "Briar leaf 3, left leaflet",
-      "rays": 383,
-      "sampled_min_mm": 0.10204476462938915,
+      "rays": 342,
+      "sampled_min_mm": 0.22490820447649004,
       "unresolved": 0
     },
     {
-      "below_floor": 327,
+      "below_floor": 333,
       "part": "Briar leaf 3, right leaflet",
-      "rays": 383,
-      "sampled_min_mm": 0.10012945761900312,
+      "rays": 342,
+      "sampled_min_mm": 0.14336523069988008,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Briar leaf 3, stalk",
+      "rays": 358,
+      "sampled_min_mm": 0.9196914331068333,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 1 on cane 1",
+      "rays": 236,
+      "sampled_min_mm": 1.4884137069192396,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 2 on cane 1",
+      "rays": 236,
+      "sampled_min_mm": 1.453852859383215,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 3 on cane 1",
+      "rays": 236,
+      "sampled_min_mm": 1.4789138131950266,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 4 on cane 1",
+      "rays": 236,
+      "sampled_min_mm": 1.4625157261145814,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 5 on cane 1",
+      "rays": 236,
+      "sampled_min_mm": 1.483399780714628,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 6 on cane 2",
+      "rays": 236,
+      "sampled_min_mm": 1.462182079321437,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 7 on cane 2",
+      "rays": 236,
+      "sampled_min_mm": 1.4923962446865238,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 8 on cane 2",
+      "rays": 236,
+      "sampled_min_mm": 1.4455232627397487,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 9 on cane 2",
+      "rays": 236,
+      "sampled_min_mm": 1.4904036295191847,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 10 on cane 2",
+      "rays": 236,
+      "sampled_min_mm": 1.4889206670668946,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 11 on cane 2",
+      "rays": 236,
+      "sampled_min_mm": 1.4704572213371334,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 12 on cane 3",
+      "rays": 236,
+      "sampled_min_mm": 1.4491692567748664,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 13 on cane 3",
+      "rays": 236,
+      "sampled_min_mm": 1.4919332934566951,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 14 on cane 3",
+      "rays": 236,
+      "sampled_min_mm": 1.4601600696266606,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 15 on cane 3",
+      "rays": 236,
+      "sampled_min_mm": 1.4796086019652899,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 16 on cane 3",
+      "rays": 236,
+      "sampled_min_mm": 1.4751169788034242,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 17 on cane 4",
+      "rays": 236,
+      "sampled_min_mm": 1.4400491750865887,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 18 on cane 4",
+      "rays": 236,
+      "sampled_min_mm": 1.4703174475418326,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 19 on cane 4",
+      "rays": 236,
+      "sampled_min_mm": 1.5043443158860725,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 20 on cane 4",
+      "rays": 236,
+      "sampled_min_mm": 1.4527088054936586,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 0,
+      "part": "Node 21 on cane 4",
+      "rays": 236,
+      "sampled_min_mm": 1.4762120982681268,
       "unresolved": 0
     },
     {
@@ -708,7 +1053,7 @@
   ],
   "size": "US 8.6",
   "stage": "block-out",
-  "stone_feature": 39,
+  "stone_feature": 62,
   "stones": {
     "crowding": [],
     "metal_inside": [
@@ -720,5 +1065,5 @@
     "previewed": 1,
     "reported": 1
   },
-  "thorns": 15
+  "thorns": 14
 }

@@ -1,0 +1,33 @@
+{
+  "ring": "sentis",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Better than attempt 1, but still not nameable. The hero reads as a crown of thorns, or a woven wire wreath, with a red oval stone set high on the right. The new star calyx at the tip of the stone is the one real plant clue: it turns the gem into something like a berry or hip if you already know to look. But it is a tiny pale star on a 300 px image, and the stone is still a glossy red gem, not a fruit. The canes are still one even gauge of smooth round wire. The prickles are still thin spikes sticking out every way. The cut shoots show only as a few vertical spikes at the crown, and nothing says 'pruned stem'. The three briar leaves, which the design now has, do not read at all: at 300 px they are small flat flecks by the hip that look like more thorn bits. Face-on it is worse. The tight over-and-under plait reads as a braided rope or Celtic-knot chain band with a red cabochon in the middle. From that side the calyx and stalk are invisible, and the thorns are just a few burrs at the ends. A jeweller would say 'thorn crown' or 'braided band with a ruby', not 'briar' or 'wild rose'. The silhouette is distinct and strong, but the plant is not there yet.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the rose leaves the main identifier. Enlarge the three Briar leaves so each terminal leaflet is about 4.0 x 2.5 mm and each side leaflet about 3.0 x 2.0 mm (roughly 1.6x now). Give each leaflet a clearly serrated edge (6-8 teeth a side, about 0.25 mm deep) and a sunk midrib, and tilt them to lie on top of the canes, facing out at the camera, instead of edge-on in the tangle. Put two leaves flanking the hip and one a little lower on the face side, so at least one full three-leaflet leaf is seen flat in both the hero and the face view.",
+      "where": "Briar leaf 1-3 (left, right and terminal leaflets), theta about 60-120, on the outermost cane at each angle, standing about 0.5 mm proud of the canes.",
+      "acceptance": "In hero-300 and face-300, at least one leaf is seen as a separate three-leaflet compound leaf with toothed edges, and it is not taken for a thorn, fleck or scale."
+    },
+    {
+      "priority": 2,
+      "what": "Make the hip a fruit you see from the face, not a gem lying in the plait. Stand the oval cabochon upright with its long axis radial, so the face view looks down onto the calyx. Raise the hip about 1.5 mm so it clears the tangle. Make the Hip calyx bigger and darker: five sepals each about 2.0 mm long and 0.5 mm wide, curled back over the hip's shoulders, with darkened recesses between them. Lengthen the Hip stalk to about 1.5 mm visible and make it 0.6 mm, curving down into a cane.",
+      "where": "Hip urn, Hip receptacle, Hip calyx, Hip stalk and the Oval cabochon 6.5 x 5, crown theta 90.",
+      "acceptance": "In face-300 the red form shows a five-pointed sepal star around its top. In hero-300 a stalk visibly joins it to a cane. A viewer says 'berry' or 'hip', not 'cabochon'."
+    },
+    {
+      "priority": 3,
+      "what": "Take the wire and plait look off the canes. Loosen the weave at the crown: raise the 0.55 radial wander to about 0.9 and the 2.1 z amplitude to about 2.6 between theta 45 and 135, so there are gaps and depth instead of a tight braid. Give the canes the angled star section with a 1.0 to 0.85 taper between crossings, plus node swellings of about +0.15 mm. Change the thorns to broad-based prickles: a base about 0.75 wide, about 1.0 mm long, hooked back along the cane, all one way on each cane, and about 1.4x larger at the crown than at the palm. Make the three Cut shoots stand about 3.5 mm proud with a visible flat slanted Pruning cut.",
+      "where": "Briar cane 1-4 (path and section), every Thorn n on cane m, Cut shoot 1-3 at theta 72, 90 and 108.",
+      "acceptance": "In face-300 the crown reads as a loose open tangle with dark gaps, not a regular braided rope. In hero-300 the canes visibly thicken and thin, the thorns show wide triangular bases with one-way hooks, and three cut stubs stand above the tangle."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/sentis/hero-300.png",
+    "showcase/vepres/sentis/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
