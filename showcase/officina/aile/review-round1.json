@@ -1,0 +1,64 @@
+{
+  "ring": "aile",
+  "round": 1,
+  "verdict": "revise",
+  "score": 6.0,
+  "summary": "Revise at 6.0 (Caiman 7, ship bar 7.5). At 300 px the face reads at once as a blue oval with a pair of feathered wings. That is a clear improvement on read-test 1: the clasp feathers now hook round the collet sides, the primaries carry barbs and a spine highlight, and there is daylight between the tips. Every recorded gate is green. It is not yet a finished piece, though, and it is not yet the lesson the section describes. (1) Every feather ends in a blunt, faceted chisel cap. face.png shows polygon facets on all six primary tips, and the tips are 2.0 to 2.3 mm wide where they should come to a point. (2) The wings are straight tangent slabs. In side.png they stand off the band in straight lines with square end caps and an open gap under them, so they look bolted on rather than grown from the band. (3) The collet is a plain cylinder set on the band with a hard line at theta 90 and no seam bead. (4) The lower ends of the clasp feathers end in knobbed nubs, visible in hero.png and side.png, that read as tusks or knuckles. (5) The lesson is gone. report.json lists the feathers as 'Stored mesh' features. There is no Plane, no 'Wing' sketch, no Bezier T-junction regions and no Extrude, which are the steps the section says the ring exists to teach. The timeline has 13 steps, and steps 8, 9 and 10 (the unions) and 12 and 13 look identical to the step before them. The silhouette is distinct and the idea is right; a concrete round can fix the craft and restore the construction.",
+  "strengths": [
+    "Reads at 300 px with no caption: face-300 is unmistakably a winged stone, one idea, and the plain tapering shank keeps quiet to the palm as the brief asks.",
+    "Read-test 1's first and third changes are largely met: the clasp feathers now wrap the collet's sides, and each primary shows barbs and a spine highlight instead of a flat lit plane.",
+    "The bezel is a made collet with a burnishable lip. The sapphire is visible and well coloured, and the culet sits 0.22 mm clear of the crest.",
+    "A silhouette unlike any starter or other Officina ring: a spread, swept wing pair off a fine shank.",
+    "All geometry and process gates are green at export resolution (1536 x 448), and the export uses 1.40 M triangles, inside the 2 M budget."
+  ],
+  "checklist": [
+    {"item": "One idea face to palm, reads at 300 px", "result": "pass", "reason": "face-300 and hero-300 both read 'winged stone'; the shank is plain to the palm. The near wing in hero-300 is still a foreshortened clump right of the stone, a minor weakness."},
+    {"item": "Finished piece, not a CAD demo (proportion, weight, meeting with the band)", "result": "fail", "reason": "side.png shows the wings as straight tangent bars standing off the band, with an open gap beneath and square end caps. The collet is a plain cylinder on the band with no fillet or bead at theta 90. The clasp feathers end in knobbed nubs at about theta 75 and 105. It looks assembled, not made."},
+    {"item": "No flat, blocky or mechanical CAD", "result": "fail", "reason": "Feather tips are blunt chisel caps 2.0 to 2.3 mm wide (w_tip in composition) with visible flat facets in face.png and shoulder.png. In side.png the wing undersides read as straight slabs."},
+    {"item": "Outlines crisp, no combing, smearing or stair-steps", "result": "fail", "reason": "The tip caps of every primary show polygon faceting (stair-stepped highlights) in face.png at the left and right extremities and in stones.png. The barb texture itself is crisp."},
+    {"item": "Stones in made settings and visible", "result": "pass", "reason": "Oval 7 x 5 sapphire in a head.bezel collet, clearly visible from the face, hero and palm. The stone count of 1 matches the preview."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "result": "pass", "reason": "Not applicable: the ring is built on a procedural DShape ReverseTaper band, not factory stock."},
+    {"item": "Lesson legible in timeline.png", "result": "fail", "reason": "The feathers are 'Stored mesh' features, so the Plane, the Bezier 'Wing' sketch, the region extrudes and the 10° draft the section teaches never appear. Five of 13 frames (8, 9 and 10, which are unions, and 12 and 13) show no visible change from the frame before."},
+    {"item": "Silhouette distinct from the other Officina rings and the starters", "result": "pass", "reason": "A swept wing pair round a north-south oval; nothing in the starter gallery or the other lessons resembles it."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces", "claimed": "pass", "verified": "export: watertight true, boundary_edges 0, non_manifold_edges 0, degenerate_faces 0", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "pass", "verified": "mesh_self_crossings 0; made_parts [Oval 7 x 5: 0, Head: 0]", "pass": true},
+    {"gate": "Solids notes empty", "claimed": "pass", "verified": "solids_notes [] and parts_notes []", "pass": true},
+    {"gate": "Every CAD feature Ok", "claimed": "pass", "verified": "All 13 entries in feature_status are Ok (ids 1-3, 5-14) in both draft and export", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "bore radius 9.1 mm, nearest vertex 9.0999995 mm, vertices_inside 0", "pass": true},
+    {"gate": "Lost wax: field verdict Castable", "claimed": "pass", "verified": "field.verdict 'Castable', process 'Lost wax', thinnest wall 1.18 mm", "pass": true},
+    {"gate": "Lost wax: thickness clean at 0.8 mm", "claimed": "pass, but for the burnished lip", "verified": "Whole ring: 0 of 383 samples below the floor. Head: 3 samples below the floor (0.25, 0.35 and 0.78 mm), all flagged lip: true and above the girdle (r 12.99 to 13.36 mm against girdle_r 12.854); census_below_floor_off_lip 0. Accepted as a burnished bezel lip.", "pass": true},
+    {"gate": "Lost wax: dfm::cut_lands clean", "claimed": "pass", "verified": "cut_lands []", "pass": true},
+    {"gate": "Sand ray release 0/0 at 0.100 and 0.075 mm", "claimed": "n/a", "verified": "Not applicable: the process is lost wax. The field notes record a two-part undercut on Head (#14), which is fine for investment.", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings []", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "pass", "verified": "stones previewed 1, reported 1, warnings [], crowding []", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "pass", "verified": "report cold_reload_identical true; template-verification cold_design_reload, cold_graph_reload and vertices_faces_normals_identical all true", "pass": true},
+    {"gate": "Export within 2 M triangles", "claimed": "pass", "verified": "export pattern 1,398,248 triangles", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "pattern watertight, 1 shell, 0 degenerate faces, 0 self-crossings", "pass": true},
+    {"gate": "Template gate: at most 4 design.set patches within the class budget", "claimed": "pass", "verified": "1 patch (/manufacturing), template_gate_passed true, 286,700 bytes inside the 300,000 procedural budget. Note: the section estimated about 25 KB; the stored feather meshes account for the difference.", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Features 5-8 (Clasp, Primary I-III), east wing, theta 58-90", "change": "Replace the four 'Stored mesh' feathers with the construction the section teaches: a Plane (Tangent theta 58, offset -1.0), a 'Wing' sketch whose two internal Beziers share endpoints with the outer contour to make the feather regions, and one Extrude per region with draft. If the barbed, cambered look needs lofting, keep the sketch as the driving profile and loft from it (the Harpyia fallback), so the timeline still shows a sketch and its regions.", "acceptance": "report.json features lists a Plane, a Sketch and Extrude (or Loft) ops in place of 'Stored mesh'. timeline.png shows a frame with the flat wing sketch and its three regions before any feather has height."},
+    {"number": 2, "priority": "high", "zone": "All six primary tips and the clasp feather ends, theta about 20-60 and 120-160", "change": "Taper each primary to a point or a round of 0.3 mm at most (w_tip from 2.0-2.3 mm down to about 0.6 mm over the last 2 mm). Raise the tip resolution above 14 so the cap renders smooth. Remove the knobbed nub at the lower end of each clasp feather and let it run out to a fine point against the collet wall.", "acceptance": "In face.png every tip comes to a point with one continuous highlight and no flat facets or stair-steps. hero.png and side.png show no bulb or nub at the clasp-feather ends near theta 75 and 105."},
+    {"number": 3, "priority": "high", "zone": "Wing undersides and roots, theta 30-60 and 120-150", "change": "Make the wings follow the band, not the tangent. Bend each feather's spine so that the lowest primary (III) rides within 0.3 mm of the band surface along its first 60 percent and only the outer 40 percent lifts away, lifting at most 1.5 mm at the tip. Blend each wing root into the band and the collet with a fillet of at least 0.3 mm.", "acceptance": "In side.png the wings curve concentric with the band, with no straight tangent bars and no square end caps. No open gap is visible between the wing root and the band, and the root fillet catches a soft highlight."},
+    {"number": 4, "priority": "medium", "zone": "Collet base on the band, theta 80-100", "change": "Seat the collet into the band with a 0.4 mm fillet or seam bead. Or taper the collet's lower 1 mm inward by about 0.3 mm a side so it reads as a made bezel cup and not a cut tube.", "acceptance": "side.png and reverse.png show a blended transition at the collet base with no hard horizontal line where the cylinder meets the band."},
+    {"number": 5, "priority": "medium", "zone": "Timeline, features 9-14", "change": "Collapse the five unions into one visible step per wing, for example a single Join with blend_mm 0.12 after the feathers and one final Join after the mirror. Each remaining step must add something visible. Keep the total near the section's 12.", "acceptance": "In timeline.png every frame differs visibly from the one before it, with 12 frames or fewer."},
+    {"number": 6, "priority": "low", "zone": "Near wing in the hero view, theta 100-140", "change": "Increase the fan between Primary I, II and III (headings 38/18/0°, try 45/22/0°) so the near wing does not foreshorten into a clump in the hero view.", "acceptance": "In hero-300 the near wing shows three separate tips with dark gaps between them, as the far wing does."}
+  ],
+  "viewed_images": [
+    "showcase/officina/aile/hero-300.png",
+    "showcase/officina/aile/face-300.png",
+    "showcase/officina/aile/contact-300.png",
+    "showcase/officina/aile/timeline.png",
+    "showcase/officina/aile/hero.png",
+    "showcase/officina/aile/face.png",
+    "showcase/officina/aile/side.png",
+    "showcase/officina/aile/shoulder.png",
+    "showcase/officina/aile/palm.png",
+    "showcase/officina/aile/reverse.png",
+    "showcase/officina/aile/stones.png",
+    "showcase/officina/aile/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}
