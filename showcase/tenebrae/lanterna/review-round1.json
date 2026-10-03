@@ -1,0 +1,65 @@
+{
+  "ring": "Lanterna — the octagon lantern",
+  "round": 1,
+  "verdict": "revise",
+  "score": 5.8,
+  "summary": "Revise at 5.8 (Caiman 7, ship 7.5). Every gate recorded in report.json is green for lost wax, but the art is well short of the bar. What works is the face. In face.png the star vault (ribs and tiercerons in V-bays round a boss), the eight dark pierced lights, the octagonal rim moulding and the square amethyst in its collet read at 300 px as a Gothic vault seen from above, and the wheel that read-test 3 flagged is fixed. Everything off the face is flat, blocky CAD, which house rule 10 fails by name. The piers are square boxes, and the spirelets are flat, barely tapered blades (end_scale 0.654 in design.ring.json against the spec's 0.08; the 45° twist does not show). There are no crockets and no knops, and the 300 px crown reads as prongs or a castle rook. The drum windows are round-topped slots under plain washer collets, so they read as keyholes, not lancets. The citrine lamps are small amber dots in those washers. The blind-arcade panels are flat rectangular slabs, and in face.png they overhang the head's outline at top and bottom. Their 'lancets' are tiny L-shaped notches that read as stair-steps. The clasping buttresses are flat plates on the shoulders with no visible set-offs, and the shank is bare polished metal from the shoulders down. The building stops at the head, and density and legibility are well below Caiman's.",
+  "strengths": [
+    "The face reads as a star vault: 8 ribs and 8 tiercerons forming pointed V-bays, 8 dark pierced lights, and a clear octagonal rim (face.png, face-300.png). Read-test 3's wheel is gone.",
+    "The Asscher amethyst sits in a made collet on a raised boss and is seated through, à jour, open to the hollow lantern below (#52, palm.png).",
+    "The hero silhouette is a tall octagonal tower on a signet, unlike anything else in the house, and the drum is genuinely hollow and open.",
+    "The citrines are tinted warm amber, not blue: read-test 2's lamp colour is fixed.",
+    "The CAD tree is clean and narrated: 52 features all Ok, named as sentences, with an About pattern of the pinnacle and mirrored buttresses.",
+    "The gate record is complete for lost wax, and the factory 015 stock keeps its hard wall-to-face angles where it shows."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "fail", "reason": "The theme lives only on the head. From the shoulders round to the palm the shank is bare polished metal (hero.png, reverse.png, shoulder.png). The only shoulder element is a flat slab buttress, and the side-wall panels are applied plates. A plain palm is allowed, but the shoulders and the upper shank carry nothing of the building."},
+    {"item": "Reads as its Gothic subject at 300 px without the caption", "result": "pass", "reason": "Narrowly. hero-300 reads as a Gothic tower or lantern and face-300 as a vaulted octagon. The pinnacle crown still verges on a crown or castle rook (flat blades), and the window heads read as round."},
+    {"item": "Figurative motifs have true, crisp outlines", "result": "fail", "reason": "The outlines are crisp, but the motifs do not hold their form. The blind lancets on the long-wall panels are tiny L-notches that read as stair-steps (shoulder.png, side.png). The drum windows are round-topped slots with a stem, read as keyholes (stones.png). The spirelets are flat, untapered blades."},
+    {"item": "Stones in made settings, à jour, visible and coloured as stained glass", "result": "fail", "reason": "The amethyst passes: it is in a collet, through-seated and visible. The 8 citrines are Round 1.5 in plain washer collets with blind seats (design through:false). At 300 px they are pin-dots, so the lamps do not glow as glass."},
+    {"item": "No flat, blocky or mechanical CAD; forms are sculpted", "result": "fail", "reason": "The piers are square boxes with no moulding visible at render scale. The spirelets are flat prisms, the collets are cylinders, the arcade panels are rectangular slabs and the buttress is a flat plate. stones.png reads as stacked boxes, which house rule 10 fails by name."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "bare-vs-finished.png: the 015 octagon's walls and table edge survive where they show, and the long-wall panels sit proud without rounding the arris."},
+    {"item": "Distinct silhouette; custom head ≥ 13 mm; shoulder ornament not cut off before the face", "result": "pass", "reason": "The tower silhouette is unique in the collection. The lantern sits on the 16 × 16 table, so the head is at least 13 mm. The buttress meets the head. Two cautions: the 16 crown blades pairing into 8 knobs at the corners in face.png blurs the 8-corner read, and the snag height needs a check."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "The large form (the tower) and the medium forms (piers, collets) are present. Small forms appear only on the face vault. Caiman carries pattern face to shank, while Lanterna's walls, shoulders and shank are blank or slab-faced. Density is well below Caiman's."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces, 0 self-crossings (ring)", "claimed": "pass", "verified": "geometry.watertight true, boundary 0, non-manifold 0, degenerate 0, self_crossings 0", "pass": true},
+    {"gate": "Every made part closed, 0 crossings, every feature Ok", "claimed": "pass", "verified": "made_parts: all 33 parts with 0 crossings; feature_status: 52 of 52 Ok", "pass": true},
+    {"gate": "Solids and parts notes empty", "claimed": "pass", "verified": "solids.notes [] and parts_notes []", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "bore radius 9.3, nearest vertex 9.3000001, vertices_inside 0", "pass": true},
+    {"gate": "Lost wax: cad::measure::thickness at 0.8 mm", "claimed": "pass", "verified": "limit 0.8, 384 rays, 0 below the limit, 0 unresolved, sampled minimum 0.850; thin_samples_by_part []", "pass": true},
+    {"gate": "Asserted CAD lands at 0.8 mm", "claimed": "pass", "verified": "cut_lands is an empty array, and the land_widths block carries the assertions: spirelet 0.85, window mullion 0.85, side-lancet bar 0.9, rib roll 0.9, rim 1.1. Two values need a note: light_inset_from_bars_mm 0.6 (an inset, not a section, as far as the JSON says) and oculus_collet_top_to_roof_mm −0.125 (the collet stands proud of the roof). Neither is a section under 0.8.", "pass": true},
+    {"gate": "Sand field Castable and ray release at 0.100 and 0.075 mm", "claimed": "n/a (lost wax)", "verified": "Replaced by the thickness gate and the asserted lands, per review.md", "pass": true},
+    {"gate": "Draft-clamp bites ≤ 0.05 mm", "claimed": "n/a (lost wax, no sand draft clamp)", "verified": "No clamp in the lost-wax process", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings []", "pass": true},
+    {"gate": "Stone count equals the preview", "claimed": "pass", "verified": "stones.reported 9 = previewed 9, tight_pairs 0", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "pass", "verified": "cold_reload_identical true at export (1536 × 448); null in the draft block, as expected", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "86,650 triangles at 1536 × 448", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "pattern: watertight true, 0 degenerates, 0 crossings, 86,650 triangles", "pass": true},
+    {"gate": "Template gate (≤ 4 design.set patches within budget)", "claimed": "not yet run", "verified": "Not recorded. Design is 145,556 bytes, within the 1 MB stock budget. Required before ship.", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P0", "zone": "Corner pinnacles: features #33–#36 (shaft, spirelet Twist, About ×8)", "change": "Make the 8 spirelets true tapering spires. Twist end_scale 0.654 → 0.10–0.15, keeping the twist at 45° on a square section so the facets visibly spiral. Add the spec's 4 crockets on the shaft (leaf, Extrude +0.3, About ×4) and a revolved knop finial ⌀0.7–0.9 at each tip. Have exactly one spire per corner: remove or merge the second blade per corner so the plan shows 8, not 16. Use the shaft-1.4 / spirelet-2.0 fallback if the snag height exceeds 4.8 mm over the table.", "acceptance": "hero-300 shows 8 slender spires that come to a point, with a visible twist and crocket bumps, and no flat tines. face-300 shows exactly 8 corner finials. The report prints the spirelet's tip width (≤ 0.25 mm before the knop) and the face count."},
+    {"number": 2, "priority": "P0", "zone": "Drum walls: windows #25–#27 and oculus collets #28–#30, all 8 walls", "change": "Replace each round-topped slot-and-washer with a two-light Gothic window. Cut two lancets with two-centred pointed heads (apex ≥ 0.6 mm above the springing, height ≥ 2.2× width), a 0.85 mm mullion, and the oculus in the head as a cusped (trefoil or quatrefoil) ring instead of a plain cylinder washer, so the citrine sits in tracery. Add a 0.3 mm hood moulding over each window.", "acceptance": "In hero-300 and stones.png at least 3 window heads read unmistakably pointed, and no window reads as a keyhole. Lands stay ≥ 0.8 in land_widths."},
+    {"number": 3, "priority": "P0", "zone": "Piers and drum (#31–#32), base course #7, rim #9", "change": "Sculpt the boxes. Chamfer or roll every pier arris (≥ 0.25 mm) and give each pier two set-off weatherings at 45° (one at mid-height, one under the roof rim). Run a string-course roll ⌀0.5 round the drum at the window springing. Seam-bead every joined part with blend_mm 0.15–0.3.", "acceptance": "stones.png no longer reads as stacked boxes: every pier shows a lit chamfer edge and two sloped set-offs, and a horizontal moulding girds the drum."},
+    {"number": 4, "priority": "P1", "zone": "Long-wall blind arcade panels #41–#46, both sides", "change": "Trim the panels to the head's outline, since in face.png they overhang the 16 mm table at top and bottom by about 1 mm. Lean them flush with the wall or use stamps directly on the wall. Replace the L-notches with ≥ 4 blind lancets per wall, each ≥ 0.8 × 2.2 mm with a pointed head and a cut of 0.3, under a continuous arcade moulding.", "acceptance": "In face.png nothing projects past the octagon outline. In side.png and shoulder.png each long wall shows a row of pointed blind arches with no stair-step notches."},
+    {"number": 5, "priority": "P1", "zone": "Shoulders and upper shank, theta about 120–180° and mirrored (#37–#40)", "change": "Make the clasping buttress a sculpted elevation: two weathered set-offs that each step 0.4–0.5 mm, standing ≥ 0.9 mm off the shank, with the PressPull −0.25 on the upper set-off visible. Carry the theme down the shank to theta about 200° on both sides with a flying-buttress arch or a run of blind tracery (stamps, along_pull, cut 0.3) that fades into the band, so the building carries from the face to the shank. Keep the palm plain.", "acceptance": "In hero.png and reverse.png the shoulder shows a stepped buttress silhouette with two distinct set-offs, and the shank sides carry Gothic ornament past the shoulder. The polished run is limited to the palm, theta about 220–320°."},
+    {"number": 6, "priority": "P1", "zone": "Lamps #47–#50", "change": "Raise the 8 citrines from Round 1.5 to 2.0 and set them à jour (seat through, opening into the drum) so light passes as stained glass. Seat them in the cusped oculi from item 2 rather than washers.", "acceptance": "In hero-300 the lamps read as distinct amber stones, not pin-dots. stones.png shows a through seat. The stone count is still 9 = preview."},
+    {"number": 7, "priority": "P2", "zone": "report.json gate record", "change": "Fill cut_lands with one entry per cut (window, light, lancet, seat) and its measured land, and state what light_inset_from_bars_mm (0.6) and oculus_collet_top_to_roof_mm (−0.125) measure. Run and record the template gate.", "acceptance": "cut_lands is non-empty with every value ≥ 0.8. verification.json shows ≤ 4 design.set patches, a cold byte-identical design and a size ≤ 1 MB."}
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/lanterna/hero-300.png",
+    "showcase/tenebrae/lanterna/face-300.png",
+    "showcase/tenebrae/lanterna/contact-300.png",
+    "showcase/tenebrae/lanterna/hero.png",
+    "showcase/tenebrae/lanterna/face.png",
+    "showcase/tenebrae/lanterna/side.png",
+    "showcase/tenebrae/lanterna/palm.png",
+    "showcase/tenebrae/lanterna/reverse.png",
+    "showcase/tenebrae/lanterna/shoulder.png",
+    "showcase/tenebrae/lanterna/stones.png",
+    "showcase/tenebrae/lanterna/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
