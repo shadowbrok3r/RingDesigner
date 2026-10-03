@@ -1,0 +1,247 @@
+{
+  "ring": "Fenrir — the wolf and the moon",
+  "round": 1,
+  "candidate_head": "6fb0c2b",
+  "verdict": "revise",
+  "score": 5.5,
+  "summary": "Revise. Fenrir has the strongest concept and the most distinctive silhouette in the Bestiarium so far: a sculpted beast head with pricked ears holds a 10 mm moonstone in its jaws, a ruff runs down both shoulders and Gleipnir binds the palm. The theme holds face to palm, and every build gate passes at draft (I re-ran it) and at export. The face is the centrepiece, and it is not yet a wolf or anywhere near Logan's ZBrush heads. Five identical chevron grooves on the muzzle read as a radiator grille. The brow is one goggle bar with the eyes perched on it. The cheek locks fan out like a lion's mane. The lips are a perfect circle at rho 5.9 mm round the moon, so the stone reads as a porthole. The sculpt's skin is speckled: 1,139 edges of 60 deg or more in 120 separate 1 mm cells on the cheeks, brow and muzzle, with a median length of 0.031 mm. The ear rims are sawtoothed, the sculpted locks end on straight cut lines where they meet the painted ruff, the chin end is a flat slab, and the Gleipnir strands are stair-stepped. The lost-wax land-width gate the lane brief requires is missing: report.json has no land_widths block and the gate block has no term for part sections. The source puts the ears at 0.63-0.68 mm through their hollow, eight of the fourteen teeth under 0.8 mm for 94-100% of their length, and the fang points unreported. That alone makes this a revise. At 300 px the ring reads as a beast holding a pearl (fox, lion or boar depending on the view), not as Fenrir. Score 5.5 against Caiman's 7. Every defect is in code the author controls (the SDF head, two painters and one SVG), so the ceiling is well above the score. If the collection drops its weakest ring now, Fenrir scores below Kraken (6.0) and Phoenix (6.0) but has the highest ceiling of the three.",
+  "strengths": [
+    "The boldest silhouette in the collection: pricked ears on a head standing about 10 mm off the finger, over a 10 mm moonstone gripped in the jaws. Arachne, Kraken and Manticora share nothing with it.",
+    "One theme from face to palm: the head at the top, a ruff down both shoulders (theta -41 to 221), and Gleipnir bound round the palm at 270 +/- 35 deg with bindings at 236 and 304 deg. Nothing is scattered.",
+    "The ears are the best-reading feature: pointed, set forward, with a cupped inner ear. At 300 px they alone say 'canine' in the hero and shoulder views.",
+    "A new construction that works: a signed-distance sculpt stored as a part (108,284 triangles, closed, 0 self-crossings) joined onto unmirrored factory 010 stock. Authoring is deterministic: my draft re-run wrote the same design as the candidate apart from its stored build resolution.",
+    "The moonstone sits large and visible in a made P6 Fang head: 4.15 ct, one stone reported and one previewed, no warnings.",
+    "The template gate is clean: the lift has 0 design.set patches and 38 nodes, the graph is 1.88 MB against the 3 MB painted budget, and cold source and mesh parity both pass."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "pass",
+      "reason": "A wolf head at the top, its ruff down both shoulders and its fetter at the palm: one story. The plan's jaw stamps were replaced by the sculpted jaws, which is a legitimate change now that faces are allowed."
+    },
+    {
+      "item": "Figurative motifs are stamps or parts with true outlines, not painted smudges",
+      "result": "pass",
+      "reason": "The head is a sculpted part with a true outline, the cord is authored SVG, and the ruff is fur texture rather than a figure. Execution defects in the ruff and cord are in punch items 8 and 9."
+    },
+    {
+      "item": "Faces and eyes read well (the face is the centrepiece; judged against Logan's ZBrush heads)",
+      "result": "fail",
+      "reason": "It reads as a mask, not a wolf. Muzzle bridge: five equal chevron grooves at 0.6 mm pitch (u 2.5-4.9) read as a radiator grille (face.png x 735-865, y 535-615). Brow: the two ellipsoids at x +/-2.65 blend across the 1.2 mm gap into one bar, and the eyes sit on it like goggles instead of sinking under it. Cheeks: bare glossy domes, fringed by eight locks per side fanned from -62 to +52 deg, which is a lion's mane. Mouth: the gum channel is a perfect circle at rho 5.9 about the moon axis, so the lips are a lathe collar. Logan's Hades and Odin have organic planes, sunk sockets, fur clumps and crisp teeth. This is blended primitives on speckled skin."
+    },
+    {
+      "item": "Stones sit in made settings and are visible",
+      "result": "pass",
+      "reason": "The 10 mm moonstone is in a P6 Fang claw head (4 prongs, Jaws, wire 2.0 mm), large and unobstructed. Two notes: the fang tips stop at the girdle rather than on the dome (item 10), and the head's seat rail shows as a hairline ring inside the gum channel (item 3)."
+    },
+    {
+      "item": "Shoulder ornament is not cut off toward the face",
+      "result": "fail",
+      "reason": "The sculpted locks stop on straight cut lines where they meet the painted ruff. reverse.png: a vertical cut with a rectangular jog at x 580-610, y 250-560. shoulder.png: square-ended locks at x 600-900, y 280-520. side.png: locks planed off in a horizontal line at y 590-625 on both end walls (x 330-560 and 1050-1270)."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "fail",
+      "reason": "Mechanical reads: the grille, and the perfectly round lip collar with the rail's hairline inside it. The chin end is a flat slab with a flat underside and a dark slot under it (side.png x 545-1065, y 320-430). Gleipnir's bindings are ribbed blocks and its strands are stair-stepped. The painted locks on the head walls have straight plank edges with straight slots between them."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles where they still show",
+      "result": "pass",
+      "reason": "The head covers the 010 table by design. Where the stock still shows (the shank edges at the palm and the head walls under the ruff) its edges stay crisp."
+    },
+    {
+      "item": "A silhouette distinct from the other Bestiarium rings",
+      "result": "pass",
+      "reason": "Compared at 600 px beside Kraken and Manticora round 1 and the shipped Arachne: only Fenrir has a head standing off the top. The one overlap is that Kraken also carries a pale 10 mm round cabochon at the top; the ears and head keep the two apart."
+    },
+    {
+      "item": "Reads as its subject (Fenrir swallowing the moon) at a glance at 300 px, without the caption",
+      "result": "fail",
+      "reason": "At 300 px the hero and shoulder views read as a fox or cat with a pearl in its mouth. face-300 reads as a creature mask with a grille over a porthole (lion, boar or helmet). The reverse view reads as a horse's head. The moon reads as an orb, and 'the wolf swallowing the moon' still needs the caption."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "fail",
+      "reason": "The large forms (head, ears, moon) and medium forms (ruff flames, cord, teeth) are there. The small scale is noise rather than detail: speckle on the head, the 0.08 mm bench hair lines aliasing to a sandpaper hatch, and stair-steps on the cord. Caiman's three crisp scales stay ahead."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Draft build 768x320: watertight, 0 degenerate faces, 0 self-crossings, all ten gates",
+      "claimed": "All gates green at draft.",
+      "verified": "I re-ran target/release/examples/bestiarium_fenrir --draft --verify under the 8 GB guard into the scratchpad. Its cargo fingerprint (invoked 08:29:20) postdates the last source edit (08:29:19) and the tree is clean at 6fb0c2b. Result: 368,262 triangles, watertight, 0 boundary and 0 non-manifold edges, 0 degenerate faces, 0 self-crossings, made parts [0, 0, 0], all ten gates passing. The saved design matches the candidate except its stored build steps.",
+      "pass": true
+    },
+    {
+      "gate": "Export build 1536x448 mesh",
+      "claimed": "Watertight, 0 degenerate faces; 1,072,864 triangles.",
+      "verified": "report.json and mesh.json show 1,072,864 triangles (within the 2M budget), watertight, 0 boundary, 0 non-manifold, 0 degenerate. The worst sliver has a 0.00083 deg corner and an aspect of 68,621. These are slivers, not degenerates, but worse than Kraken's (0.0028 deg).",
+      "pass": true
+    },
+    {
+      "gate": "Self-crossings on the ring and on every made part",
+      "claimed": "0 on the ring, the moonstone, the Fangs head and the sculpted head.",
+      "verified": "The ring has 0 and made_parts report 0 for 'Round cabochon 10 mm', 'Fangs' and 'Fenrir's head'. The head's first decimation produced a crossing and the code backed off to a clean mesh (draft log).",
+      "pass": true
+    },
+    {
+      "gate": "All solids and parts resolved, notes empty",
+      "claimed": "Notes empty.",
+      "verified": "solids.notes [], parts_notes [], joined 2, no stamps.",
+      "pass": true
+    },
+    {
+      "gate": "Nothing enters the finger hole (radius >= bore - 0.01 mm)",
+      "claimed": "Innermost 9.491 against bore 9.500 (limit 9.490).",
+      "verified": "Innermost radius 9.49057 mm against a limit of 9.49000 mm: it passes by 0.6 micrometres. This matches the chord sag of the imported stock's faceted bore; the head keeps 0.35 mm clear by construction (BORE_CLEAR_MM).",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax field verdict and 0.8 mm fill",
+      "claimed": "Castable, thinnest wall 1.329 mm at 267 deg.",
+      "verified": "Castable, process Lost wax, thinnest wall 1.3292 mm at 267.2 deg, identical at draft. The 17.4% undercut and 362 pattern release obstructions are reported only, which is correct for wax. This gate term checks only the radial band wall.",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax CAD land widths (claw wire, the sculpted head's thinnest sections, teeth, ears, rails at 0.8 mm or named exceptions)",
+      "claimed": "Not claimed. The author lists only the radial-wall gate.",
+      "verified": "Missing. report.json has no land_widths block and the gate array has no term for part sections, which the lane brief requires. My estimates from the source parameters: ears 0.63-0.68 mm through the hollow over the middle of their 3.6 mm length, falling from 0.49 to 0.21 mm over the last 30%. Four incisors per side (eight in all) have 0.72-0.84 mm roots and sit under 0.8 mm for 94-100% of their length; the canines are under 0.8 mm for their last 60-67%. The source sculpts 7 teeth per side (14); the report says 13. Fang cones taper from 2.4 mm to at least 0.4 mm before the Point cone, so roughly the last 20% of each is sub-floor. The seat-rail section and the head's measured minimum section are unreported. Nothing is named as an exception.",
+      "pass": false
+    },
+    {
+      "gate": "Zero DFM findings",
+      "claimed": "0.",
+      "verified": "dfm [] at export and at draft.",
+      "pass": true
+    },
+    {
+      "gate": "Stone count equals preview count, crowding clean",
+      "claimed": "1 reported, 1 previewed.",
+      "verified": "1 reported and 1 previewed, 4.147 ct, no warnings; a single stone means no crowding pairs.",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload with an empty library",
+      "claimed": "Identical.",
+      "verified": "Identical vertices, faces and normals at export (6.5 s) and in my draft re-run (1.07 s).",
+      "pass": true
+    },
+    {
+      "gate": "Investment pattern watertight, 0 degenerate faces, 0 crossings",
+      "claimed": "Clean.",
+      "verified": "1,072,690 triangles, watertight, 0 degenerate, 0 crossings.",
+      "pass": true
+    },
+    {
+      "gate": "Template gate (lift, patches, size, parity)",
+      "claimed": "0 design.set patches, 38 nodes, 1,880,020 bytes against the 3 MB painted budget; cold reloads and the export mesh check pass.",
+      "verified": "verification.json agrees: source_method lift, 0 patches, 38 nodes, 1,880,020 bytes against 3,000,000, cold design and graph reloads true, source identical, vertices, faces and normals identical, export geometry verified at 1536x448. exposed_controls is [], as the lane brief's command specifies. It ran on design content byte-identical to the committed design (design.ring.json matches design.ring.json.bak).",
+      "pass": true
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P0 (gate)",
+      "zone": "CAD parts 'Fangs' (#3) and 'Fenrir's head' (#4): the ears (blade from face (4.3, 7.9, 1.6) to (5.9, 9.8, 4.2)), the 14 teeth round the moon (rho 5.3-6.5 about the moon axis), the claw head's seat rail; report.json and the gate array",
+      "change": "Add a land_widths block and a gate term 'lost-wax land widths >= 0.8 mm or named', measured on the built parts rather than estimated. For the head, cast rays inward along the vertex normals and report the minimum thickness per feature: ears, each tooth, brow, eye rims, cheek-lock tips, mandible. For each fang, report its minimum section and the arc length under 0.8 mm. Report the seat rail's section. Ears: raise the section through the hollow from about 0.65 to at least 0.85 mm (hollow 0.55 -> 0.35, or flat 2.4 -> 1.9) and hold 0.8 mm to 70% of the length. Name the last 1.0 mm to the tip as an exception ('ear point, cast from a thick root, polished'). Teeth: roots of at least 1.0 mm diameter, with only the last 0.6 mm of each point named. Fangs: name the sub-floor stretch as 'fang points, closed over the moonstone and polished at the bench'. Rail: bury it in the lips (item 3) or name it. Correct the tooth count.",
+      "acceptance": "report.json carries land_widths with ears, teeth (listed one by one), fangs, rail, head_min_section_mm and exceptions (each with its bench treatment). The new gate term passes at --draft --verify and at export, and no unnamed stretch under 0.8 mm remains."
+    },
+    {
+      "number": 2,
+      "priority": "P1",
+      "zone": "Head SDF Wolf::head, face coordinates: the snarl grooves at u 2.5-4.9, |x| <= 1.5; the brow ellipsoids at (+/-2.65, 6.45, 2.65); the eye pockets at (+/-3.0, 5.85, 2.45); the muzzle round cone (0, 6.0, 1.9) -> (0, 1.8, 3.7) and its pads. Renders: face.png x 700-900, y 480-640; stones.png x 480-950, y 200-420",
+      "change": "Rebuild the face as a wolf's. (a) Delete the five equal chevron grooves. Replace them with 3 raised skin folds across the muzzle bridge of unequal length (about 2.4, 1.8 and 1.2 mm), spaced 0.9-1.2 mm, bowed toward the eyes and dying out before the midline on alternating sides. Add 2 short folds per side from the nose's corners back along the lifted upper lip. (b) Split the brow into two ridges with a gap of at least 1.0 mm and a 0.3 mm stop furrow running 3 mm up the forehead from between them. Tilt each ridge 30-40 deg, outer end toward the ears, into a frowning V. (c) Sink the eyes: eyeball crest at least 0.4 mm below the brow crest, the pocket rim continuous with the brow, no raised almond on top. (d) Narrow the muzzle to at most 55% of the head's width across the cheeks and give it a flat nasal bridge with a crisp edge to its side planes.",
+      "acceptance": "face.png and stones.png: no two muzzle folds parallel within 10 deg over more than 1 mm; two separate brow ridges with a visible furrow between them; eyes recessed under the brows. face-300.png and a new hero-300.png read as a wolf without a caption: V brow, long narrow muzzle, nose at its tip."
+    },
+    {
+      "number": 3,
+      "priority": "P1",
+      "zone": "Head SDF: the gum channel 'mouth' (rho 5.9 about the moon axis at u -4.8), the mandible arc (rho 6.05, -30 to -90 deg), the teeth ring; the claw head's seat rail. face.png x 555-1045, y 690-1110",
+      "change": "Break the porthole into two jaws. Open both mouth corners at the moon's sides (about +/-(0-25) deg from +x) down to the table, each at least 1.5 mm wide, so the stone's flank and the fangs show through. Let the upper lip line wave: three scallops over the incisors, rising 0.4 mm over each canine. Make the lower jaw a V-shaped mandible that narrows to the chin. Vary the lip's distance from the girdle by at least 1.0 mm around the moon. Fill the gum channel under the lips so they cover the seat rail everywhere except in the corner gaps. Use at most 5 teeth per jaw per side, of visibly different lengths.",
+      "acceptance": "face.png: the metal round the moon is two separate arcs (upper and lower jaw) with a gap of at least 60 px (1.5 mm at the render's 40 px/mm) at each mouth corner. The rail's hairline shows only inside those gaps, and no lip edge holds a constant radius from the moon axis within +/-0.2 mm over more than 90 deg."
+    },
+    {
+      "number": 4,
+      "priority": "P1",
+      "zone": "Part #4 surface: cheeks, forehead and muzzle (moon rho > 7 mm, u < 7 mm, h > 0.3 mm) and the ear rims. Renders: hero.png x 290-650, y 250-520; stones.png x 480-950, y 200-420",
+      "change": "Remove the speckle. The export mesh carries 1,139 edges of 60 deg or more (68.6 mm in total, median 0.031 mm long) in 120 separate 1 mm cells on that zone, and 264 edges of 90 deg or more. The ear rims are sawtoothed. Likely sources: threshold-gated texture terms ('if d < 0.3 { d += ... }' in head(), 'if d < 0.25' in lock()), the 1 + distance early-out in lock(), the coarse 0.25 mm Stock field under the smax, and folds from clean_decimate, whose first pass already crossed itself. Make the field continuous (weight the texture terms smoothly instead of switching them on), march at 0.08 mm near thin features, and decimate with a normal-deviation guard (no fold over 30 deg).",
+      "acceptance": "A dihedral census of finished-metal.stl finds 0 edges of 60 deg or more in that zone, and on the ears only within 1 mm of the tips. The hero.png cheek and stones.png forehead crops show no isolated specks or pits, and the ear rims are smooth curves at 1600 px."
+    },
+    {
+      "number": 5,
+      "priority": "P1",
+      "zone": "Head-to-ruff seams: reverse.png x 580-610, y 250-560 (vertical cut with a rectangular jog); shoulder.png x 600-900, y 280-520 (square-ended locks); side.png y 590-625, x 330-560 and 1050-1270 (locks planed off on both end walls); in the design, where the sculpt's locks meet the 'Ruff' layer, about theta 90 +/- (30-45) deg and on the stock's end walls",
+      "change": "End every sculpted lock in a tapered point that overlaps the painted ruff by at least 1 mm instead of stopping on a plane. Wherever the part must stop (the bore-clearance cylinder, the table rim, any clip in sdf()), fade the lock height to zero over at least 1 mm before the boundary. Align the painted Ruff's first row with the sculpt's last so the flame direction runs continuous across the seam within 15 deg.",
+      "acceptance": "side.png, reverse.png and shoulder.png show no straight edge longer than 1 mm on the head or ruff (the stock's own wall-to-face corner excepted) and no lock end cut square. A crease census along the head part's boundary finds no run of 60 deg or more longer than 0.5 mm."
+    },
+    {
+      "number": 6,
+      "priority": "P1",
+      "zone": "Head SDF: the eight cheek locks per side at x 6.0-7.2, u -4.1..6.3 (directions -62 to +52 deg), and the cheek ellipsoids at (+/-5.3, 3.0, -1.1), radii 2.8 x 3.5 x 2.6. face.png x 320-560 and 1040-1290, y 420-1000",
+      "change": "Make it a wolf's ruff, not a lion's mane. Re-aim the cheek locks to sweep back and out toward the ears and neck (directions between +20 and +80 deg from +x toward +u), 3.5-4.5 mm long at the jowls and shorter near the eyes, in 2-3 overlapping tiers that cover the cheek domes. Flatten the domes by about 30% so fur, not a glossy bulge, makes the cheek. Keep only a short tuft at the chin pointing toward -u.",
+      "acceptance": "face.png: the head's outline is a heart or wedge, widest at the ears and cheeks and narrowing to the chin, not a radiating sunburst. No cheek lock points into the chin half except the chin tuft. hero.png shows no bare highlight dome wider than 3 mm on either cheek."
+    },
+    {
+      "number": 7,
+      "priority": "P2",
+      "zone": "Chin end: the mandible (rho 6.05, -30 to -90 deg) and the chin ellipsoid at (0, -11.35, -0.15); side.png x 545-1065, y 320-430",
+      "change": "Replace the flat slab with a rounded mandible that tapers into a chin, and a furred throat whose locks run down the apex wall into the ruff. Remove the flat underside. Fill the dark slot under the jaw with throat fur, or open it to at least 1.0 mm so no thin investment blade forms there.",
+      "acceptance": "side.png: no horizontal flat underside wider than 2 mm, no dark slot under the jaw, and fur continuous from the chin down the apex wall."
+    },
+    {
+      "number": 8,
+      "priority": "P2",
+      "zone": "Layers 'Ruff' (0.7 mm, window -41..221 deg) and bench-only 'Graver's hair lines' (0.08 mm) on the head walls and shoulders: hero.png x 780-1340, y 260-630; shoulder.png x 600-900, y 280-520",
+      "change": "The painted locks read as straight planks with straight dark slots between them. Bow each lock visibly (S amplitude at least 20% of its length), vary length by +/-25% and direction by +/-10 deg, round the crest across each lock, and point both ends. Keep the hair lines running along each lock at a pitch of at least 0.15 mm, so they stop aliasing into a sandpaper hatch in the finished renders.",
+      "acceptance": "hero.png and shoulder.png: no two neighbouring locks parallel within 5 deg over more than 3 mm, no straight slot longer than 2 mm, lock tips visibly pointed, and the fine hatch reads as hair following each lock. DFM stays at 0."
+    },
+    {
+      "number": 9,
+      "priority": "P2",
+      "zone": "Layers 'Gleipnir' (0.6 mm, 270 +/- 35 deg) and 'Gleipnir's bindings' (0.5 mm, at 236 and 304 deg); palm.png x 470-1130, y 330-580",
+      "change": "Give each strand a rounded, half-round section with walls no steeper than about 65 deg at the export grid (Alpha::draft_limited on the rasterized SVG, or a gradient falloff of at least 0.25 mm), so the stair-steps along the diagonal edges disappear. Keep strand gaps at 0.2 mm or more. Draw each binding as 4-6 rounded wraps crossing the cord at 70-80 deg with a tucked end, not a ribbed block.",
+      "acceptance": "palm.png at 1600 px: the strand edges are smooth curves with no stair-steps, each binding shows separate wraps, and DFM stays at 0."
+    },
+    {
+      "number": 10,
+      "priority": "P3",
+      "zone": "CAD 'Fangs' (#3): P6 Fang, 4 prongs, Jaws grouping, wire 2.0 mm (the builder's maximum); face.png x 560-1040, y 780-1000",
+      "change": "Make the fangs bite. The tips stop at the girdle; for the 'biting' read and for a cabochon's hold they should end at least 0.8 mm up the dome. If P6's Fang cone cannot reach, file the core change (a Fang reach or bite parameter, as exact code) in the report, and meanwhile let the sculpted canines cross in front of the fang roots so the tooth line reads as closing on the moon.",
+      "acceptance": "face.png: each fang tip overlaps the moon's disc by at least 30 px (0.75 mm), and hero.png shows the tips lying on the dome. Otherwise the report names the limit and carries the core change."
+    },
+    {
+      "number": 11,
+      "priority": "P3",
+      "zone": "Stock head under the sculpt, theta 90 +/- 25 deg, from the bore side (the plan's optional step 10)",
+      "change": "The ring weighs 36.96 g in 18k (24.6 g in silver) and is 22.7 mm long on the finger, about 50% heavier than Kraken. Up to about 8 mm of solid metal sits over the bore at the head, feeding thin ears and teeth, which is a shrinkage-porosity risk in wax. Add the plan's hollow (Plane + Sketch + Extrude Cut from the bore side, +/-5 mm along the ring, inset 1.2 mm) or a shell under the head.",
+      "acceptance": "Weight in 18k at most 32 g, thinnest radial wall at least 1.0 mm, and a section at theta 90 (the radial verdict cannot see axial webs) showing at least 1.0 mm of metal everywhere over the pocket."
+    }
+  ],
+  "viewed_images": [
+    ".claude/collection-review/fenrir-round1/hero.png",
+    ".claude/collection-review/fenrir-round1/face.png",
+    ".claude/collection-review/fenrir-round1/face-300.png",
+    ".claude/collection-review/fenrir-round1/side.png",
+    ".claude/collection-review/fenrir-round1/shoulder.png",
+    ".claude/collection-review/fenrir-round1/reverse.png",
+    ".claude/collection-review/fenrir-round1/palm.png",
+    ".claude/collection-review/fenrir-round1/bare-vs-finished.png",
+    ".claude/collection-review/fenrir-round1/stones.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png",
+    ".claude/collection-review/zbrush_top.png",
+    ".claude/collection-review/zbrush_sheet.png",
+    ".claude/collection-review/refs/arachne/hero.png",
+    ".claude/collection-review/refs/arachne/face.png",
+    ".claude/collection-review/kraken-round1/hero.png",
+    ".claude/collection-review/manticora-round1/hero.png",
+    "/tmp/claude-1000/-home-shadowbroker-Documents-Rust-JewelryProjects-RingDesigner/1e9c237f-0985-4886-80a0-d4c9483753c0/scratchpad/zb_odin_hades.png (ZBrush Odin and Hades, enlarged crops)",
+    "/tmp/claude-1000/-home-shadowbroker-Documents-Rust-JewelryProjects-RingDesigner/1e9c237f-0985-4886-80a0-d4c9483753c0/scratchpad/arachne_pair.png (Arachne hero and face)",
+    "/tmp/claude-1000/-home-shadowbroker-Documents-Rust-JewelryProjects-RingDesigner/1e9c237f-0985-4886-80a0-d4c9483753c0/scratchpad/bestiary_heroes.png (Kraken, Manticora and Fenrir heroes side by side)",
+    "/tmp/claude-1000/-home-shadowbroker-Documents-Rust-JewelryProjects-RingDesigner/1e9c237f-0985-4886-80a0-d4c9483753c0/scratchpad/fenrir_crops1.png (face grille, maw ring, reverse cut, chin end, palm cord, shoulder ruff)",
+    "/tmp/claude-1000/-home-shadowbroker-Documents-Rust-JewelryProjects-RingDesigner/1e9c237f-0985-4886-80a0-d4c9483753c0/scratchpad/fenrir_crops2.png (ruff seams, ears and brow)",
+    "/tmp/claude-1000/-home-shadowbroker-Documents-Rust-JewelryProjects-RingDesigner/1e9c237f-0985-4886-80a0-d4c9483753c0/scratchpad/fenrir_crops3.png (side-face cut line, palm wall)",
+    "/tmp/claude-1000/-home-shadowbroker-Documents-Rust-JewelryProjects-RingDesigner/1e9c237f-0985-4886-80a0-d4c9483753c0/scratchpad/fenrir_300.png (hero, stones, shoulder and reverse at 300 px)"
+  ]
+}

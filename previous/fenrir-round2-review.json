@@ -1,0 +1,244 @@
+{
+  "ring": "Fenrir — the wolf and the moon",
+  "round": 2,
+  "candidate_head": "55022f3",
+  "verdict": "revise",
+  "score": 6.5,
+  "summary": "Revise, 6.5 (round 1: 5.5; Caiman 7; ship bar 7.5). Every gate is green in the committed JSON, and this round fixes the structural problems: the porthole is now two jaws with 3.25 mm corner gaps, the land-width gate exists and names every sub-floor stretch, the ring is 31.02 g with 1.20 mm over a real hollow, and face-300.png reads as a snarling canine mask with pricked ears and a V brow. It does not clear Caiman yet, because the surface and the secondary forms read as CAD or as melted wax rather than sculpture. The upper lip is a constant-width bevelled bar with straight sides and a flat top, like a gothic doorway framing the teeth. The lower jaw is a detached crescent whose outer face is smeared lumps, and it holds a row of identical round beads for teeth. The four fangs are hexagonal pencil points. The ears are flat triangular plates. The painted ruff on both shoulders renders as terraced, contour-line stacks with ladder hatching: stair-steps, which the outline rule forbids. At 300 px the hero reads as a beast with crocodile-length jaws biting a pearl, not yet unmistakably a wolf. Section-90 shows a small closed void inside the metal that no report explains, and the author's speckle claim for the cheeks, brow and muzzle is not in report.json, whose census lumps those zones into 'elsewhere' (36,018 edges of 60 deg or more). Every remaining defect is in author-controlled code (the head SDF, the Ruff painter, the fang params, the hollow part), so one round can plausibly reach 7.5; if round 3 still shows the lip frame, bead teeth and terraced ruff, cut.",
+  "strengths": [
+    "Most distinctive silhouette in the Bestiarium: pricked ears and an open maw round a 10 mm moonstone; no other ring is a head swallowing its stone.",
+    "One theme face to palm: wolf, moon, ruff down both shoulders, Gleipnir at the palm.",
+    "Two jaws now: corner gaps of 3.25 mm each side (report.json jaws), upper-lip spread over 90 deg 1.00 mm, lower 0.73 mm; the porthole is gone.",
+    "Brow is a frowning V with a stop furrow; eyes sit under it (face.png y 440-500). face-300.png reads as a canine mask without a caption.",
+    "Land-width gate is real and measured: 16 teeth listed one by one (least 0.86 mm), head mass 0.999 mm, ears and fangs named with bench treatments, 'unnamed' empty.",
+    "Hollow works: 31.02 g in 18k (from 36.96 g), 1.196 mm over the pocket at theta 90, thinnest radial wall 1.32 mm.",
+    "Gleipnir is now a smooth, rounded two-strand rope with no stair-steps (palm.png y 280-540).",
+    "Fangs reach 0.75-0.81 mm inside the moon's disc, on the item-10 limit.",
+    "Template lifts with 0 design.set patches, 2.68 MB of a 3.0 MB painted budget."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "pass",
+      "reason": "Head and moon at the face, ruff on both shoulders, Gleipnir at the palm; nothing off-theme."
+    },
+    {
+      "item": "Figurative motifs have true outlines, no combing, smearing or stair-steps",
+      "result": "fail",
+      "reason": "The painted Ruff renders as terraced contour stacks with ladder hatching (hero.png x 880-1380, y 250-720; reverse.png x 430-1300, y 320-560; shoulder.png x 200-900, y 300-900). The lower jaw's outer face and the cheek fur are smeared lumps (face.png x 470-1140, y 1030-1240; x 470-700 and 900-1140, y 480-700)."
+    },
+    {
+      "item": "Faces and eyes read well; a poor face is a defect",
+      "result": "fail",
+      "reason": "The face reads, but the upper lip is a mechanical constant-width frame (face.png x 540-1080, y 590-780), the small teeth are identical round beads (face.png y 1030-1110; stones.png y 590-640), and the button nose and short muzzle push it toward a cat or pug in stones.png."
+    },
+    {
+      "item": "Stones sit in made settings and are visible",
+      "result": "pass",
+      "reason": "Moonstone fully visible, held by four fangs 0.75-0.81 mm inside its disc plus the lips; stones.json and report agree 1/1."
+    },
+    {
+      "item": "Shoulder ornament not cut off toward the face",
+      "result": "fail",
+      "reason": "A vertical boundary still shows where the head's flank stops and the painted ruff starts (hero.png x 880-940, y 240-650; bare-vs-finished right ring x 1540-1580). The author concedes the 1 mm overlap was not built (item 5 caveat)."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "fail",
+      "reason": "Upper-lip frame with straight vertical sides and a flat top; ears are flat triangular plates with planar inner faces (face.png x 570-690 and 900-1030, y 240-380); fangs are hexagonal pencil points (face.png y 640-750 and 1010-1070; side.png x 810-870, y 195-260); the hollow opens into the bore as a sharp-edged rectangle (palm.png x 665-935, y 580-830)."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles",
+      "result": "pass",
+      "reason": "The 010 trillion's wall-to-face corners stay crisp in side.png and palm.png."
+    },
+    {
+      "item": "Silhouette distinct from the other Bestiarium rings",
+      "result": "pass",
+      "reason": "Against Arachne, Basiliscus, Corvus, Harpyia, Kraken and Manticora, only Fenrir is a head with ears and an open maw round the stone."
+    },
+    {
+      "item": "Reads as its subject at a glance at 300 px",
+      "result": "fail",
+      "reason": "face-300.png reads as a snarling canine mask (pass on its own). hero-300.png reads as a beast with long crocodile jaws biting a pearl: the lower jaw dominates, the head is a small cap at upper left, and the ears are the only wolf cue."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "fail",
+      "reason": "Large (head, jaws, moon) and medium (ruff, rope) forms are there and dense, but the small forms are illegible: bead teeth, drip-like cheek fur, terraced ruff. Caiman's small forms are crisp; Fenrir's read as texture noise at 300 px."
+    }
+  ],
+  "gates": [
+    {
+      "gate": "Watertight, 0 degenerate faces (export)",
+      "claimed": "1,272,600 triangles, watertight, 0 degenerates",
+      "verified": "report.json geometry and mesh.json: watertight, 0 boundary, 0 non-manifold, 0 degenerate; worst min angle 0.0011 deg, aspect 50,752 (slivers, not degenerates). Draft figures (435,060) are only in the author's report.",
+      "pass": true
+    },
+    {
+      "gate": "0 self-crossings on the ring and every made part",
+      "claimed": "0; [0,0,0,0]",
+      "verified": "report.json: ring 0; made_parts Round cabochon, Fangs, Fenrir's head, Hollow under the head all 0. Investment pattern also 0.",
+      "pass": true
+    },
+    {
+      "gate": "Solids notes empty",
+      "claimed": "empty",
+      "verified": "solids.notes [] and parts_notes [].",
+      "pass": true
+    },
+    {
+      "gate": "Nothing inside the finger hole",
+      "claimed": "innermost 9.491 / bore 9.500",
+      "verified": "Gate passes in report.json; innermost_radius_mm 9.4906 against bore 9.5, i.e. 0.009 mm inside, within the builder's tolerance. The hollow deliberately opens into the bore (see punch 8).",
+      "pass": true
+    },
+    {
+      "gate": "Lost-wax field verdict and 0.8 mm fill",
+      "claimed": "Castable, thinnest wall 1.32 mm",
+      "verified": "field.verdict Castable, thinnest_wall_mm 1.323 at 255.9 deg; gate 'lost wax verdict and 0.8 mm fill' passes. The JSON carries no separate fill figure beyond the gate flag.",
+      "pass": true
+    },
+    {
+      "gate": "land_widths block: every section under 0.8 mm removed or named",
+      "claimed": "pass, nothing unnamed",
+      "verified": "land_widths present, floor 0.8, unnamed []. Ears (0.05/0.12 mm at the tip, sub-floor within 0.80/0.86 mm of the tip) and four fangs (0.44-0.46 mm, sub-floor within 1.43-1.55 mm) named with bench treatments. 16 teeth all >= 0.859 mm. head_min_section 0.969 mm.",
+      "pass": true
+    },
+    {
+      "gate": "0 DFM findings",
+      "claimed": "0",
+      "verified": "report.json dfm []; verification.json detail_findings 0.",
+      "pass": true
+    },
+    {
+      "gate": "Stone count equals preview",
+      "claimed": "1/1, 4.147 ct, no warnings",
+      "verified": "stones reported 1, previewed 1, 4.147 ct, warnings []; stones.json lists one moonstone.",
+      "pass": true
+    },
+    {
+      "gate": "Cold reload identical",
+      "claimed": "identical",
+      "verified": "cold_reload.identical_vertices_faces_normals true; verification.json cold design and graph reloads true, source_identical true.",
+      "pass": true
+    },
+    {
+      "gate": "Export within 2 M triangles",
+      "claimed": "1,272,600",
+      "verified": "build.triangles 1,272,600 at 1536x448.",
+      "pass": true
+    },
+    {
+      "gate": "Template gate: at most 4 design.set patches, within class budget",
+      "claimed": "0 patches, 2,683,392 of 3,000,000 bytes",
+      "verified": "verification.json: design_set_patches [], template_class painted, template_bytes 2,683,392 <= size_budget 3,000,000, template_gate_passed true, size_review_required false.",
+      "pass": true
+    },
+    {
+      "gate": "Hollow: <= 32 g in 18k, >= 1.0 mm over it at theta 90",
+      "claimed": "31.02 g, 1.20 mm",
+      "verified": "grams_18k 31.016; hollow.section_90_min_metal_over_mm 1.196. section-90.png shows an unexplained closed void (see punch 1); it does not change the recorded figure.",
+      "pass": true
+    },
+    {
+      "gate": "Speckle census on cheeks, brow and muzzle (round-1 item 4)",
+      "claimed": "0 edges of 60 deg or more on cheeks, brow, muzzle, ears and crown",
+      "verified": "Only in the author's report. report.json census has three zones: 'ear tips' 26, 'mouth, teeth, fangs and rail' 943 (344 of 90 deg or more, 52 cells, not mentioned by the author), and 'elsewhere' 36,018 in 842 cells, which lumps cheeks, brow and muzzle with the painted layers. Not a plan gate; recorded as unverified.",
+      "pass": false
+    }
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "P0",
+      "zone": "section-90.png at pixel (470, 228): the join of Fenrir's head (part #4) with the table step, theta 90",
+      "change": "Identify the closed elliptical void (about 8 x 14 px) inside the metal in the theta-90 section. If it is a sealed cavity between the stored head mesh and the stock (a lost-wax trap: unfillable, invisible to the radial verdict), fill it by extending the head's underside 0.3 mm into the stock or unioning a 0.5 mm fillet there. Add a 'closed internal voids' count to report.json (connected components of the finished mesh's complement not reaching the outside or the bore).",
+      "acceptance": "report.json carries internal_voids = 0 and the gate passes; a re-rendered section-90.png shows solid metal at that spot, plus sections at theta 70 and 110 committed and equally clean."
+    },
+    {
+      "number": 2,
+      "priority": "P1",
+      "zone": "Head SDF, upper lip and muzzle frame round the moon: face.png x 540-1080, y 590-780; stones.png x 380-1060, y 520-780",
+      "change": "Remove the constant-width bevelled frame. Make the upper lip a soft, drawn-back flew: width varying 0.8-2.0 mm along its length, no straight run over 1.5 mm, no flat top plane, outer edge rolling into the cheek fur with a 0.4 mm+ radius instead of a crisp bevel. Pull the lip corners back and down toward the mouth-corner gaps so the snarl reads as muscle wrinkling up from the fangs.",
+      "acceptance": "face.png and stones.png: no straight lip edge longer than 1.5 mm (60 px) and no visible flat facet on the lip; the lip's width at its narrowest is at most half its widest. Measured: report.json jaws gains upper_lip_width_min/max_mm."
+    },
+    {
+      "number": 3,
+      "priority": "P1",
+      "zone": "Lower jaw and all 16 sculpted teeth: face.png x 470-1140, y 1000-1250; hero.png x 280-870, y 620-990",
+      "change": "(a) Replace the round beads with teeth: each a laterally flattened cone with a pointed or chisel crown, heights graded incisor 0.6 < premolar 0.9 < molar 1.1 mm, at least 3 distinct shapes per jaw, keeping land widths >= 0.8 mm. If the stone's drop-in clearance (0.2-0.9 mm) forbids height, lean them 20-30 deg outward so their crowns show from above. (b) Give the lower jaw's outer face directional fur: 3-4 mm locks sweeping back from the chin to the jaw corners, replacing the lumpy smear. (c) Shorten the lower jaw's reach along the ring by about 1.5 mm so the hero reads as a wolf's jaw, not a crocodile's.",
+      "acceptance": "face.png: no two adjacent teeth identical in outline; every tooth has a visible point. hero-300.png: the lower jaw's visible length is at most 1.3x the upper muzzle's. land_widths still passes with every tooth listed."
+    },
+    {
+      "number": 4,
+      "priority": "P1",
+      "zone": "Part #3 'Fangs' (P6 claw head: Fang style, Point tip, wire 1.8): face.png y 640-750 and 1010-1070; side.png x 810-870, y 195-260",
+      "change": "The fangs are hexagonal pencil points. Make them round-section, curved canines: taper from 1.8 mm root to the point over the whole length with a 15-25 deg rearward curve and no visible facets (raise the tube's segment count or use a circular tip profile). If P6 cannot curve or round the tip, file the exact core change and meanwhile sculpt canine sheaths in the head SDF over the upper two fang roots.",
+      "acceptance": "face.png and side.png: no visible flat facet or hexagonal edge on any fang at 1600 px; every fang tip reads as curved; reach_inside_moon_disc_mm stays >= 0.75 on all four."
+    },
+    {
+      "number": 5,
+      "priority": "P1",
+      "zone": "Layer 'Ruff' (0.6 mm, window -41..221 deg) and bench-only 'Graver's hair lines': hero.png x 880-1380, y 250-720; reverse.png x 430-1300, y 320-560; shoulder.png x 200-900, y 300-900",
+      "change": "The locks render as terraced stacks (each lock outlined by 3-4 stepped contour rings) with ladder hatching across them. Make the lock height field smooth: a cosine or smoothstep cross-section with no quantised plateaus (check the 16-bit alpha isn't clamped to few levels and that overlapping locks blend with smooth max, soft 0.15-0.2 mm, not hard max). Keep the hair lines strictly along each lock and drop them where they meet a lock edge.",
+      "acceptance": "hero.png, reverse.png and shoulder.png at 1600 px: no lock shows more than one outline edge (no contour rings); no hatch crossing a lock; DFM 0. A 300 px crop of the shoulder reads as flowing fur, not bark or scales."
+    },
+    {
+      "number": 6,
+      "priority": "P1",
+      "zone": "Head SDF, ears: face.png x 570-690 and 900-1030, y 240-380; hero.png x 320-420 and 620-770, y 10-230",
+      "change": "Round the ears: a convex back with a 0.5 mm+ radius on the outer edge, a cupped (concave) front with a soft rim, a fur tuft at the inner base, and a slight outward twist (10-15 deg) so the two ears are not mirror-flat plates. Keep the tip exception as named.",
+      "acceptance": "face.png: no planar facet on either ear and no straight edge longer than 1.5 mm; the inner cup shows graded shading. land_widths ears stay >= 0.8 mm beyond the last 1.0 mm."
+    },
+    {
+      "number": 7,
+      "priority": "P2",
+      "zone": "Head-to-ruff seam and throat: hero.png x 880-940, y 240-650; side.png y 330-420, x 460-1150",
+      "change": "Carry the sculpted cheek locks 1.0-1.5 mm past the head's flank boundary onto the painted ruff (or paint the ruff's first row up the head's flank) so no vertical boundary remains. Remove the horizontal line between jaw fur and throat by running throat locks up over it for at least 1 mm.",
+      "acceptance": "hero.png and bare-vs-finished.png: no straight edge longer than 1 mm between head and ruff; side.png: no continuous horizontal line under the jaw."
+    },
+    {
+      "number": 8,
+      "priority": "P2",
+      "zone": "Part #5 'Hollow under the head', its opening into the bore: palm.png x 665-935, y 580-830",
+      "change": "The hollow opens into the finger hole as a sharp-cornered rectangle with a ragged interior. Round the opening's plan to follow the trillion (corner radii >= 1.5 mm), break its edge on the bore with a 0.5 mm radius, and smooth the pocket's interior (no ridges from the ball-eroded shell).",
+      "acceptance": "palm.png: the opening has no corner sharper than a 1.5 mm radius and no visible ragged ridge inside; grams_18k still <= 32 and section_90 over-metal >= 1.0 mm."
+    },
+    {
+      "number": 9,
+      "priority": "P2",
+      "zone": "report.json census",
+      "change": "Split 'elsewhere' into cheeks, brow, muzzle, crown and painted layers, so the round-1 speckle claim can be verified from JSON, and report what the 943 edges in 'mouth, teeth, fangs and rail' are (the fang facets are the likely source).",
+      "acceptance": "report.json census has per-zone entries for cheeks, brow and muzzle each with edges_60 = 0, and the mouth zone's count falls after items 3-4."
+    },
+    {
+      "number": 10,
+      "priority": "P3",
+      "zone": "Head SDF, muzzle and nose: stones.png x 600-800, y 330-500; face.png x 740-860, y 420-560",
+      "change": "Lengthen the muzzle 1.0-1.5 mm toward the moon, and make the nose a wedge-shaped leather pad about 25% narrower with nostrils, not a round button, so the head reads canine rather than feline.",
+      "acceptance": "face-300.png and hero-300.png read as a wolf, not a cat or pug, to a viewer given no caption; the nose pad is narrower than the gap between the eyes."
+    }
+  ],
+  "viewed_images": [
+    "candidate/hero.png",
+    "candidate/hero-300.png",
+    "candidate/face.png",
+    "candidate/face-300.png",
+    "candidate/side.png",
+    "candidate/shoulder.png",
+    "candidate/palm.png",
+    "candidate/reverse.png",
+    "candidate/stones.png",
+    "candidate/bare-vs-finished.png",
+    "candidate/section-90.png",
+    "refs/caiman-hero.png",
+    "refs/reptilia-collection.png",
+    "refs/bestiarium/arachne-hero.png",
+    "refs/bestiarium/basiliscus-hero.png",
+    "refs/bestiarium/corvus-hero.png",
+    "refs/bestiarium/harpyia-hero.png",
+    "refs/bestiarium/kraken-hero.png",
+    "refs/bestiarium/manticora-hero.png"
+  ]
+}
