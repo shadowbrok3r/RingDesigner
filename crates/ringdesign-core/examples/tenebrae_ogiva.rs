@@ -110,6 +110,11 @@ impl Tree {
     fn mirror(&mut self, name: &str, sources: Vec<Id>) -> Id {
         self.add(name, Operation::Pattern { sources: Sources(sources), kind: PatternKind::Mirror { plane: MirrorPlane::Band } }, ComponentRole::Other)
     }
+    /// The right half's part turned through the plane down the finger's axis at the apex onto the left, and the two joined.
+    fn both_sides(&mut self, what: &str, right: Id) -> Id {
+        let left = self.add(&format!("Mirror the {what} onto the left"), Operation::Pattern { sources: Sources(vec![right]), kind: PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg: 90.0 } } }, ComponentRole::Other);
+        self.boolean(&format!("Join the {what} on both sides"), right, left, Boolean::Union)
+    }
     fn boolean(&mut self, name: &str, a: Id, b: Id, kind: Boolean) -> Id {
         self.add(name, Operation::Boolean { a, b, kind }, ComponentRole::Other)
     }
@@ -312,6 +317,8 @@ const ABACUS: (f64, f64) = (1.4, 0.95);
 const BELL: (f64, f64) = (1.2, 0.55);
 /// How far inside the capital's own outline the abacus's boss is drawn, clear of the capital's drafted face.
 const ABACUS_BOSS_INSET: f64 = 0.2;
+/// The chamfer on the abacus's outer arrises, mm.
+const ABACUS_CHAMFER: f64 = 0.3;
 const CAPITAL_PROUD: (f64, f64) = (0.5, 0.3);
 /// How far in from the pier's outer face the capitals reach: they stop short of the bore, whose drafted wall would
 /// otherwise trim them to a wedge.
@@ -319,9 +326,11 @@ const CAPITAL_IN: f64 = 2.35;
 /// Crockets up each slope of the extrados, as shares of the head arc, each one's growth, and the plate's half-width along the finger.
 const CROCKETS: [(f64, f64); 3] = [(0.22, 1.1), (0.48, 1.2), (0.74, 1.3)];
 const CROCKET_HALF: f64 = 0.9;
+/// The finial's size against its drawn keys.
+const FINIAL_GROW: f64 = 1.15;
 /// How far inside a crocket's belt its drafted halves are drawn, and the pitch they are walked at, mm.
-const CORE_INSET_MM: f64 = 0.1;
-const CORE_PITCH_MM: f64 = 0.55;
+const CORE_INSET_MM: f64 = 0.08;
+const CORE_PITCH_MM: f64 = 0.4;
 /// How proud of its leaf each crocket's boss stands.
 const CROCKET_BOSS_MM: f64 = 0.25;
 /// How deep each crocket and the finial sink below the outline.
@@ -472,9 +481,9 @@ fn crocket() -> Keys {
 /// The boss on a crocket's leaf, a second tier standing on the plate.
 fn crocket_boss(grow: f64) -> Keys {
     // In the leaf's body over the stalk, where it is widest, and wide enough itself to hold the section.
-    let (c, rx, ry) = ([0.25 * grow, 1.25 * grow], 0.52, 0.52);
-    (0..6).map(|i| {
-        let a = 2.0 * PI * i as f64 / 6.0;
+    let (c, rx, ry) = ([0.25 * grow, 1.25 * grow], 0.47, 0.47);
+    (0..12).map(|i| {
+        let a = 2.0 * PI * i as f64 / 12.0;
         (c[0] + rx * a.cos(), c[1] + ry * a.sin(), false)
     }).collect()
 }
@@ -482,28 +491,30 @@ fn crocket_boss(grow: f64) -> Keys {
 /// The finial on the apex, symmetric about the axis: a stem opening into three lobes, the middle one pointed.
 fn finial() -> Keys {
     let k = -CROCKET_SINK;
-    vec![
-        (-0.9, k, true),
-        (0.9, k, true),
-        (0.6, 0.3, false),
-        (1.35, 0.9, false),
-        (1.0, 1.55, false),
-        (0.45, 1.25, false),
-        (0.45, 1.9, false),
-        (0.3, 2.5, false),
-        (0.0, 2.75, false),
-        (-0.3, 2.5, false),
-        (-0.45, 1.9, false),
-        (-0.45, 1.25, false),
-        (-1.0, 1.55, false),
-        (-1.35, 0.9, false),
-        (-0.6, 0.3, false),
-    ]
+    // From the stem up the right side: a lower leaf curling out and down, an upper leaf, and the pointed bud; then down the left.
+    let right = vec![
+        (0.55, 0.25, false),
+        (1.2, 0.35, false),
+        (1.75, 0.75, false),
+        (1.7, 1.3, false),
+        (1.2, 1.35, false),
+        (0.6, 1.4, false),
+        (1.05, 1.85, false),
+        (1.3, 2.4, false),
+        (0.9, 2.75, false),
+        (0.45, 2.6, false),
+        (0.35, 3.2, false),
+    ];
+    let mut keys = vec![(-0.9, k, true), (0.9, k, true)];
+    keys.extend(right.iter().cloned());
+    keys.push((0.0, 3.75, false));
+    keys.extend(right.iter().rev().map(|(u, v, s)| (-u, *v, *s)));
+    keys
 }
 
 /// Keys laid at `origin` with `t` along the slope and `n` out of it, `grow` times their size.
 fn laid(keys: &Keys, origin: P2, t: P2, n: P2, grow: f64) -> Vec<P2> {
-    spline_at(&keys.iter().map(|(a, b, s)| (a * grow, if *b > 0.0 { b * grow } else { *b }, *s)).collect::<Vec<_>>(), 0.4)
+    spline_at(&keys.iter().map(|(a, b, s)| (a * grow, if *b > 0.0 { b * grow } else { *b }, *s)).collect::<Vec<_>>(), 0.3)
         .into_iter()
         .map(|[a, b]| [origin[0] + a * t[0] + b * n[0], origin[1] + a * t[1] + b * n[1]])
         .collect()
@@ -549,10 +560,28 @@ fn trefoil_raw(centre: P2, lobe: f64, out: f64) -> Vec<P2> {
 fn capital(a: &GreatArch, side: f64, part: &str) -> Vec<P2> {
     let (x_o, x_i, s) = (a.half_span, a.half_span - CAPITAL_IN, a.spring_y);
     let (abacus_bot, bell_bot) = (s - ABACUS.0, s - ABACUS.0 - BELL.0);
-    let b = ABACUS_BOSS_INSET;
+    let (b, c) = (ABACUS_BOSS_INSET, ABACUS_CHAMFER);
     let pts: Vec<P2> = match part {
-        "abacus" => vec![[x_i + b, abacus_bot + b], [x_o + ABACUS.1 - b, abacus_bot + b], [x_o + ABACUS.1 - b, s - b], [x_i + b, s - b]],
-        _ => vec![[x_i, bell_bot], [x_o, bell_bot], [x_o + BELL.1, abacus_bot], [x_o + ABACUS.1, abacus_bot], [x_o + ABACUS.1, s], [x_i, s]],
+        // The abacus's boss, its outer arrises chamfered.
+        "abacus" => vec![
+            [x_i + b, abacus_bot + b],
+            [x_o + ABACUS.1 - b - c, abacus_bot + b],
+            [x_o + ABACUS.1 - b, abacus_bot + b + c],
+            [x_o + ABACUS.1 - b, s - b - c],
+            [x_o + ABACUS.1 - b - c, s - b],
+            [x_i + b, s - b],
+        ],
+        // The bell leaves the pier in a cavetto, a quarter-hollow flaring out to the abacus, whose outer arrises are chamfered.
+        _ => {
+            let mut pts = vec![[x_i, bell_bot], [x_o, bell_bot]];
+            let (w, h) = (BELL.1, BELL.0);
+            for i in 1..8 {
+                let t = PI / 2.0 * i as f64 / 8.0;
+                pts.push([x_o + w * (1.0 - t.cos()), bell_bot + h * t.sin()]);
+            }
+            pts.extend([[x_o + ABACUS.1 - c, abacus_bot], [x_o + ABACUS.1, abacus_bot + c], [x_o + ABACUS.1, s - c], [x_o + ABACUS.1 - c, s], [x_i, s]]);
+            pts
+        }
     };
     let pts: Vec<P2> = pts.into_iter().map(|[x, y]| [side * x, y]).collect();
     if side < 0.0 { pts.into_iter().rev().collect() } else { pts }
@@ -617,28 +646,28 @@ fn author(bare: bool) -> Result<(RingDesign, GreatArch)> {
         let r = a.radius;
         let cr = a.centre(1.0);
         let top = (cr[0].abs() / r).acos();
+        // The right slope's crockets, drawn once and turned onto the left through the plane at the apex.
         for (share, grow) in CROCKETS {
             let phi = top * share;
             let n = [phi.cos(), phi.sin()];
             let p = [cr[0] + r * n[0], cr[1] + r * n[1]];
             leaves.push(laid(&crocket(), p, [-n[1], n[0]], n, grow));
-            leaves.push(laid(&crocket(), [-p[0], p[1]], [-n[1] * -1.0, n[0]], [-n[0], n[1]], grow).into_iter().rev().collect());
-            cores.push(cored(leaves[leaves.len() - 2].clone()));
             cores.push(cored(leaves[leaves.len() - 1].clone()));
             bosses.push(laid_raw(&crocket_boss(grow), p, [-n[1], n[0]], n));
-            bosses.push(laid_raw(&crocket_boss(grow), [-p[0], p[1]], [-n[1] * -1.0, n[0]], [-n[0], n[1]]).into_iter().rev().collect());
         }
-        leaves.push(laid(&finial(), [0.0, a.apex_y], [1.0, 0.0], [0.0, 1.0], 1.3));
-        cores.push(cored(leaves[leaves.len() - 1].clone()));
         let leaves: Vec<Shape> = leaves.into_iter().map(Shape::Poly).collect();
         // The belt carries each leaf's outline at the parting line; its drafted halves are drawn coarser, a tenth of a
         // millimetre inside it, which keeps the template within its budget.
         let cores: Vec<Shape> = cores.into_iter().map(Shape::Poly).collect();
-        let crockets = t.belted_with("crockets climbing the extrados to the finial", &leaves, &cores, CROCKET_HALF, DRAFT_DEG);
+        let right = t.belted_with("crockets climbing the right slope", &leaves, &cores, CROCKET_HALF, DRAFT_DEG);
         // Each leaf carries a boss, a second tier standing on its plate.
         let bosses: Vec<Shape> = bosses.into_iter().map(Shape::Poly).collect();
         let boss = t.slab("bosses on the crockets' leaves", &bosses, CROCKET_HALF - 0.05, CROCKET_HALF + CROCKET_BOSS_MM, DRAFT_DEG);
-        let crockets = t.boolean("Raise the bosses on the leaves", crockets, boss, Boolean::Union);
+        let right = t.boolean("Raise the bosses on the leaves", right, boss, Boolean::Union);
+        let crockets = t.both_sides("crockets", right);
+        let fin = laid(&finial(), [0.0, a.apex_y], [1.0, 0.0], [0.0, 1.0], FINIAL_GROW);
+        let fin = t.belted("finial", &[Shape::Poly(fin)], CROCKET_HALF, DRAFT_DEG);
+        let crockets = t.boolean("Crown the climb with the finial", crockets, fin, Boolean::Union);
         cur = t.boolean("Set the crockets and the finial on the keel", cur, crockets, Boolean::Union);
         // The order, sunk into the head and run down onto the capitals, and the mouth sunk deeper over the finger.
         let top = half + 0.3;
@@ -653,19 +682,19 @@ fn author(bare: bool) -> Result<(RingDesign, GreatArch)> {
         cur = t.boolean("Sink the cope's mouth", cur, cope, Boolean::Subtract);
         cur = t.boolean("Sink the drag's mouth", cur, drag, Boolean::Subtract);
         // The capitals: the bell, then the abacus standing prouder over it.
-        let bells = [Shape::Poly(capital(&a, 1.0, "bell")), Shape::Poly(capital(&a, -1.0, "bell"))];
-        let abaci = [Shape::Poly(capital(&a, 1.0, "abacus")), Shape::Poly(capital(&a, -1.0, "abacus"))];
-        let b = t.belted("capitals", &bells, half + CAPITAL_PROUD.1, DRAFT_DEG);
-        cur = t.boolean("Set the capitals under the springers", cur, b, Boolean::Union);
+        let b = t.belted("right capital", &[Shape::Poly(capital(&a, 1.0, "bell"))], half + CAPITAL_PROUD.1, DRAFT_DEG);
         // The abacus stands prouder than the bell as a boss on the capital's face, drawn from just inside that face.
-        let ab = t.slab("abaci", &abaci, half + CAPITAL_PROUD.1 - 0.05, half + CAPITAL_PROUD.0, DRAFT_DEG);
-        cur = t.boolean("Lay the abaci on the capitals", cur, ab, Boolean::Union);
+        let ab = t.slab("right abacus", &[Shape::Poly(capital(&a, 1.0, "abacus"))], half + CAPITAL_PROUD.1 - 0.05, half + CAPITAL_PROUD.0, DRAFT_DEG);
+        let b = t.boolean("Lay the abacus on the right capital", b, ab, Boolean::Union);
+        let b = t.both_sides("capitals", b);
+        cur = t.boolean("Set the capitals under the springers", cur, b, Boolean::Union);
         // A blind lancet niche in each pier face.
         let (x, w, from, to, depth) = PIER_NICHE;
         let niche = |side: f64| -> Vec<P2> { lancet(w, from, to).into_iter().map(|[u, v]| [side * x + u, v]).collect() };
-        let (cope, drag) = t.pocket("blind lancets in the pier faces", &[Shape::Poly(niche(1.0)), Shape::Poly(niche(-1.0))], half + 0.3, half - depth, DRAFT_DEG);
-        cur = t.boolean("Sink the cope's pier lancets", cur, cope, Boolean::Subtract);
-        cur = t.boolean("Sink the drag's pier lancets", cur, drag, Boolean::Subtract);
+        let (cope, drag) = t.pocket("blind lancet in the right pier", &[Shape::Poly(niche(1.0))], half + 0.3, half - depth, DRAFT_DEG);
+        let both = t.boolean("Join the right pier's lancets", cope, drag, Boolean::Union);
+        let both = t.both_sides("pier lancets", both);
+        cur = t.boolean("Sink the blind lancets in the piers", cur, both, Boolean::Subtract);
         // The trefoil pierced through the mouth's web along the pull, each half narrowing to the parting line.
         let (ty, lobe, out) = TREFOIL;
         let light = t.belted_cut("trefoil through the mouth", &[Shape::Poly(trefoil([0.0, ty], lobe, out))], half + 0.3, DRAFT_DEG);

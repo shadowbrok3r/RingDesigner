@@ -1,19 +1,19 @@
 {
   "authoring_ms": {
-    "graph_creation": 13.168429,
-    "source_read": 2.2439690000000003
+    "graph_creation": 12.654576,
+    "source_read": 2.130774
   },
   "cold_design_reload": true,
   "cold_graph_reload": true,
   "design_set_patches": [
     {
       "graph": "Ogiva — the arch",
-      "node": 175,
+      "node": 207,
       "pointer": "/manufacturing"
     }
   ],
   "detail_findings": 0,
-  "editable_design_bytes": 600960,
+  "editable_design_bytes": 586156,
   "editable_graph_reload": true,
   "export_geometry_verified": true,
   "exposed_control_policy": "explicit_allowlist",
@@ -23,27 +23,27 @@
     "refine": null,
     "theta_steps": 1536
   },
-  "nodes": 91,
+  "nodes": 107,
   "open_ms": {
-    "bake": 0.011556,
-    "bake_again": 0.000236,
-    "detail": 0.961582,
-    "detail_again": 0.9924109999999999,
-    "evaluate": 6.352609,
-    "first_build": 316.45297100000005,
-    "read": 1.26382,
-    "rebuild": 1.513679,
+    "bake": 0.006785,
+    "bake_again": 0.00019500000000000002,
+    "detail": 0.946732,
+    "detail_again": 0.930674,
+    "evaluate": 7.713824,
+    "first_build": 336.571627,
+    "read": 1.244119,
+    "rebuild": 1.190588,
     "unpack": null,
-    "verdict": 0.522055
+    "verdict": 0.510347
   },
   "size_budget_bytes": 300000,
   "size_review_required": false,
   "source_identical": true,
   "source_method": "lift",
-  "template_bytes": 297275,
+  "template_bytes": 291657,
   "template_class": "procedural",
   "template_gate_passed": true,
   "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
-  "triangles": 14906,
+  "triangles": 17968,
   "vertices_faces_normals_identical": true
 }
