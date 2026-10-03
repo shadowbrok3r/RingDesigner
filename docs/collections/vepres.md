@@ -286,7 +286,7 @@ That is expected for most Vepres rings. Say so in each README line.
 
 ## Rubus — *the bramble cane*
 
-- **Status:** Cut at round 3 on 2026-10-02 (6.3, 6.6, 6.7), revived on 2026-10-03.
+- **Status:** **Cut** at round 5 on 2026-10-03 (6.3, 6.6, 6.7, then 6.9 and 6.8 in the revival). It was first cut at round 3 on 2026-10-02 and revived on 2026-10-03. Every gate is green; the reviewers held it on leaf, calyx and crest workmanship (see `cloud-report.md`).
   - **Extension, 2026-10-03:** Logan granted Rubus two more reviewed rounds (rounds 4 and 5) after the crisp-edge fix (#248). A reviewer applies a five-round cap to this ring, not three.
   - **Process, 2026-10-03 (Logan):** Rubus is judged as **lost wax**: 0.8 mm minimum section, no pull rule. Two-part Delft sand failed three block-out read tests (see `cloud-report.md`), so the sand field, ray-release and clamp gates do not apply; a sand pull is reported only as a bonus.
   - The build notes below are the original sand plan, kept for the record.
