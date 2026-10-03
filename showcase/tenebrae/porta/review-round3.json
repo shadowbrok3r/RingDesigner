@@ -1,0 +1,61 @@
+{
+  "ring": "porta",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.7,
+  "summary": "Cut at 6.7, against Caiman at 7 and a ship bar of 7.5. Earlier rounds: 5.8 and 6.4. This is round 3, so a score under 7.5 means a cut, even though every gate in report.json is now green. The gate work is real. Thickness is clean at 0.887 mm minimum, and draft, export and gates_passed are all true. The template gate passes at 788 KB with 1 patch. The ruby now stands in a visible rolled collet. The head-wall arcade is now pointed niches with capitals instead of hairpins. At face-300 the ring still reads at once as a Gothic church portal. But the art stays below the collection bar. The hood is a heavy flat wedge roof, not an ogee. This is asked for a third time. The crockets are still hooked curls with balls on the ends, not solid leaves. The finial is small and reads only at full size. The shoulder 'lancets' in hero and reverse read as dashes. The door leaves read as two black shark-fin notches. The crypt window in its round frame reads as a screw head at 300 px. The lower table still has a blank field about 5 x 4 mm, and the threshold steps were never added. The splay floors still show stair-step facet bands (round 2's item 6). The band from the shoulders to the palm is bare polished stock, and the side and end silhouettes are plain factory 009. Overall this is an engraved pictogram on a stock signet. It falls well short of Caiman's density and the Reptilia sheet's all-over sculpted surface. It ranks with Kraken (7.0) and Corvus (6.6), not with Arachne or Manticora (7.5).",
+  "strengths": [
+    "The read is immediate. At face-300, with no caption, a jeweller names a Gothic cathedral west portal: stepped pointed orders, a ruby in the tympanum, a lintel, a trumeau and twin doors.",
+    "The 4 archivolts carry true roll mouldings with capitals and bases at the springings. In portal-2x they are clean, crisp outlines.",
+    "Round 2's P0 collet item is done. A rolled collet with a clear shadow line runs round the ruby's full girdle, and the stone is open à jour to the finger (palm.png).",
+    "The head-wall arcade is now 5 pointed blind niches each side, with capitals (reverse.png). Round 2's hairpin read is gone.",
+    "Every gate is green and backed by the JSON: thickness 0 below 0.8, solids, parts, DFM and cut-land lists all empty, 1 stone reported and 1 previewed, cold reload identical, template gate passed at 788,269 bytes with 1 patch."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "fail", "reason": "The theme lives on the table and head wall only. From the shoulders to the palm the band is bare polished stock, apart from 4 dash-like slots each side (hero.png, reverse.png, palm.png)."},
+    {"item": "Reads as its Gothic subject at 300 px without caption", "result": "pass", "reason": "In face-300 the portal is unmistakable: pointed stepped orders, a lunette with the ruby, a lintel, a trumeau and the doors. In hero-300 it still reads as a pointed arch of orders, though less strongly."},
+    {"item": "Figurative motifs have true outlines", "result": "fail", "reason": "The rolls, collet and arcade niches are crisp. The splay floors still show stair-step facet bands towards the apex and down the right side (portal-2x, stones.png). The crockets are blobby hook curls, and the fleur is not legible at 300 px."},
+    {"item": "Stones in made settings, à jour, visible, coloured as stained glass", "result": "pass", "reason": "A 3.0 mm ruby sits in a rolled collet, open to the finger (palm.png), and its colour is a clear red."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "The hood is a faceted wedge roof. The lintel is a plain bar. The doors are flat black notches. The lower table and the whole band are flat polished stock. It reads as engraved CAD on a stock blank, not sculpted."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "The table edge of the 009 drop stays sharp in hero.png and bare-vs-finished.png."},
+    {"item": "Distinct silhouette; custom heads >= 13 mm; shoulder ornament reaches the face", "result": "fail", "reason": "The side and end views (side.png, reverse.png) are the plain factory 009 outline, with only the finial nub breaking it. The shoulder slots stop short and read as dashes, not lancets running into the head."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "The large form is the portal and the medium forms are the orders and the arcade. Small forms are sparse. More than half the visible metal is plain, far below Caiman's all-over block and dot density and the Reptilia sheet."}
+  ],
+  "gates": [
+    {"gate": "watertight", "claimed": "true (draft, export, casting pattern)", "verified": "report.json draft/export/casting_pattern watertight true, boundary_edges 0, non_manifold_edges 0", "pass": true},
+    {"gate": "0 degenerate faces", "claimed": "0", "verified": "draft, export and casting_pattern degenerate_faces 0", "pass": true},
+    {"gate": "0 self-crossings on the ring and every made part", "claimed": "0", "verified": "self_crossings 0; all 55 made_parts 0 in both draft and export", "pass": true},
+    {"gate": "solids notes empty", "claimed": "empty", "verified": "draft and export solids_notes [] and parts_notes []", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "pass", "verified": "margin -2.8e-8 mm, inside the 0.01 mm rule tolerance; pass true", "pass": true},
+    {"gate": "lost wax: cad::measure::thickness at 0.8 mm", "claimed": "pass", "verified": "384 rays, below_limit 0, unresolved 0, sampled_min 0.887 mm at draft and export", "pass": true},
+    {"gate": "asserted lands", "claimed": "4 lands >= 0.8", "verified": "1.10, 1.96, 1.30 and 1.74 mm; cut_lands_0_8 empty", "pass": true},
+    {"gate": "field verdict (informational for lost wax)", "claimed": "Castable", "verified": "field_verdict_informational Castable; 0.56% two-part undercut noted, acceptable for investment", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] in draft and export; verification.json detail_findings 0", "pass": true},
+    {"gate": "stone count equals preview", "claimed": "1", "verified": "stones_reported 1, stones_previewed 1, stone_warnings []", "pass": true},
+    {"gate": "cold reload identical", "claimed": "true", "verified": "cold_reload_identical true; verification.json vertices_faces_normals_identical true", "pass": true},
+    {"gate": "export within 2 million triangles", "claimed": "219,230", "verified": "export.triangles 219,230", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "pass", "verified": "casting_pattern watertight, 0 degenerate, 0 self-crossings, pass true", "pass": true},
+    {"gate": "template gate: <= 4 design.set patches within class budget", "claimed": "passed, 1 patch, 788,269 bytes, stock", "verified": "template_gate.passed true, patches 1 of 4, 788,269 <= 1,000,000; verification.json agrees", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P0", "zone": "Gable: 'Roll the ogee hood-mould over the arch', crockets 1..3 each side, fleur", "change": "If the ring is ever reopened, redraw the hood as a true ogee. That is two Bezier S-curves with the reverse curve in the top third, 0.7 wide and +0.7 proud, replacing the faceted wedge roof. Make the crockets solid lobed leaves of at least 0.9 mm section. Raise the fleur to 2.5 mm tall. This item has now been asked for in all three rounds.", "acceptance": "In face.png the hood reverses curvature into an ogee point. In face-300 the finial reads as a fleur-de-lis. In side.png it breaks the drop's outline."},
+    {"number": 2, "priority": "P0", "zone": "Band from the shoulder at theta 90 +/- 40 to the palm, and the side silhouette", "change": "Carry the architecture onto the band. Add real pierced or deeply sunk pointed lancets, 2.2 tapering to 1.4 mm, at theta 90 +/- (42, 52, 62, 72). Add buttress ribs or a moulded edge so the side outline is no longer plain 009 stock.", "acceptance": "In hero.png and reverse.png no bare polished band wider than 3 mm remains before theta 90 +/- 75, the lancets read as pointed windows and not dashes, and side.png shows a broken outline."},
+    {"number": 3, "priority": "P1", "zone": "Lower table, door leaves, crypt window, splay floors", "change": "Add 3 threshold steps of 0.3 mm. Give the door leaves moulded reveals instead of flat black notches. Grow the crypt frame to 3.0 mm with cusped foils so it no longer reads as a screw head. Re-tessellate the splay floors to under 3 degrees between facets.", "acceptance": "In face.png no bare table area larger than 3 x 3 mm remains. At face-300 the crypt reads as a window. In portal-2x the splay floors shade smoothly, with no bands."}
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/porta/hero-300.png",
+    "showcase/tenebrae/porta/face-300.png",
+    "showcase/tenebrae/porta/portal-2x.png",
+    "showcase/tenebrae/porta/face.png",
+    "showcase/tenebrae/porta/hero.png",
+    "showcase/tenebrae/porta/side.png",
+    "showcase/tenebrae/porta/shoulder.png",
+    "showcase/tenebrae/porta/stones.png",
+    "showcase/tenebrae/porta/reverse.png",
+    "showcase/tenebrae/porta/palm.png",
+    "showcase/tenebrae/porta/bare-vs-finished.png",
+    "showcase/tenebrae/porta/contact-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
