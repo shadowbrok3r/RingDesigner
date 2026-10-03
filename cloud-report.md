@@ -1,6 +1,6 @@
 # Vepres ring: Ilex (`ilex`), revival report
 
-**Verdict: cut at 6.8 after round 5** (ship bar 7.5). This was the revival Logan granted on 2026-10-03: two extra reviewed rounds after the 2026-10-02 cut at 6.3. Round 4 scored 6.6 (revise) and round 5 scored 6.8 (cut). The score rose each round, but the ring did not reach the bar. One gate is also red in round 5: the new lost-wax wall census. Of its 79 sub-floor samples, 74 belong to the bare factory 006 before anything is added (see Gates).
+**Verdict: cut at 6.8 after round 5** (ship bar 7.5). This was the revival Logan granted on 2026-10-03: two extra reviewed rounds after the 2026-10-02 cut at 6.3. Round 4 scored 6.6 (revise) and round 5 scored 6.8 (cut). The score rose each round, but the ring did not reach the bar. The round 5 review also found the lost-wax wall census red under the strict rule then in force. After the review, the lead set an interim rule in which census walls do not block on their own. Re-run on the identical design, every gate passes under that rule (see Gates). The verdict stands either way: the art score is under 7.5.
 
 - **Branch:** `claude/vepres-ilex-revival`, from `claude/vepres-ilex`.
   - Master merged three times: `2e11632` at the start (crisp edges #248, Textura #255, path patterns #258, CAD fallbacks #259, true stone plans #257), then `b03a21d` (crisp-relief lift #260) and `0c7c8c4` (wall census #261) at the start of round 5.
@@ -55,7 +55,8 @@ The extension and the process decision are both written into Ilex's section of `
 | Bore margin (min vertex radius − bore radius) | −0.0021 mm | −0.0021 mm | −0.0021 mm (tolerance 0.01) |
 | Field verdict (lost wax) | Castable, 0.024 % pull undercut | Castable | Castable |
 | Field thinnest fill | 1.349 mm | 1.349 mm | 1.349 mm |
-| **Wall census** (`measure::census`, floor 0.8, `edge_reach_mm` 1.6) | **79 wall samples**, 0 unresolved | **79**, 0 | **79**, 0: **not clean (red)** |
+| Wall census, as reviewed (`census`, floor 0.8, `edge_reach_mm` 1.6, 0-sample rule) | 79 wall samples, 0 unresolved | 79, 0 | 79, 0: **red** |
+| Wall census, final record (`thickness(&mesh, 0.8)`, lead's interim rule) | 219 wall samples, 0 unresolved | same | 219 wall samples (11 real zones, 33 suspected artifacts); **passes** |
 | `dfm::findings_in` | 0 | 0 | 0 |
 | Stones reported / previewed; metal inside stones | 9 / 9; 0 | 9 / 9; 0 | 9 / 9; 0 |
 | Closest stones | 0.47 mm (Face berry 2 to 3) | same | same |
@@ -72,6 +73,15 @@ The extension and the process decision are both written into Ilex's section of `
   - a spread cheek bunch.
 
   The census runs with `edge_reach_mm` 1.6 (two floors) instead of the default 0.8 so that holly spine points read as edges. The report names this (`wall_census.edge_reach_mm`). Edge zones are recorded as read (about 13,940 samples, nearly all spine and leaf margins). The baseline is in `resize_check[].wall_census`.
+- **Final census record (lead's interim rule, 2026-10-03).** This arrived after the round 5 review. I re-ran the gates on the reviewed design, with `design.ring.json` byte-identical, using `thickness(&built.mesh, 0.8)` and its default edge reach. That run gives 219 wall samples and 13,799 edge samples.
+  - **33 zones** read under 0.05 mm, among them the bare stock's own palm slivers. They are listed in `report.json` as `wall_zones_suspected_census_artifacts`, each with its point and area, and were not reshaped.
+  - **11 zones** are real sections of 0.08 to 0.80 mm, each 0.03 mm² or less, all at tips of features I made. They are listed as `wall_zones_real_0_05_to_0_8`:
+    - two face-leaf spines near the tip, about 0.08 mm, at (±7.5, 13.86, ±1.85);
+    - the face-leaf tips, 0.59 mm, at (±8.47, 14.52);
+    - cheek-leaf spines and margins, 0.19 to 0.77 mm;
+    - the garland's ends, 0.80 mm.
+  - The rule says to fix these. They were found after the final review of a cut ring, so I did not reshape the reviewed design. They are the first job if Logan reopens Ilex: blunt those spines to open at 53° or more, and shorten the leaf tips.
+  - With census walls no longer blocking, `report.json` records `gates_passed: true` at 384 × 192, draft and export. The renders are unchanged.
 - **`--verify`:** a cold reload with an empty library gives identical vertices, faces and normals at export.
 - **Casting pattern** (`try_build_pattern`): watertight, 0 degenerate faces, 0 self-crossings, 408,124 triangles.
 - **Design file:** `design.ring.json` is 696,495 bytes at format 6.
@@ -119,7 +129,7 @@ There are no CAD features. Ilex is native stock, stamps, seats and bench texture
 - **Leaf stalks.** A stalk narrow enough to join (0.3 mm) is a web under the 0.8 mm floor, and every stalk 0.6 mm or wider makes the face and cheek leaves fail to join. The blade bases run to the berries instead.
 - **A swept, tapering stem.** The stem is struck capsules held at the 0.85 mm floor. A height-field wire saw-toothed at 2x, and tapering below 0.8 mm makes walls. A true swept stem needs C-V3, the 3-D sweep, in a lost-wax assembly.
 - **A finer stipple.** At 0.6 mm cells the export grid aliased the hammered alpha into diagonal moiré bands. 1.2 mm is the finest cell that rendered as matte. On the curved shoulders it still shows triangulated facets, and the reviewer marked that.
-- **The bare stock's wall slivers.** The census fails on factory 006 itself, and nothing in an example can fill them without `src/` changes.
+- **The bare stock's wall slivers.** The census fails on factory 006 itself: 74 samples at its palm bore edge, which the interim rule now lists as suspected census artifacts. Nothing in an example can fill them without `src/` changes.
 - **Banding on the stock's shank** is in the factory mesh's own reflections.
 
 ## Core changes wanted (exact code)

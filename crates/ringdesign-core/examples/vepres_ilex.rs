@@ -33,8 +33,6 @@ const NATIVE: (f64, f64) = (16.0, 21.0);
 const BORE_MM: f64 = 18.6;
 /// The lost-wax floor Logan set for Vepres: thinnest section, mm.
 const MIN_SECTION_MM: f64 = 0.8;
-/// The census's edge reach, mm: two floors, so a spine opening at 28 deg or more reads as an edge (named in the report).
-const EDGE_REACH_MM: f64 = 1.6;
 /// Height-field relief read through a one-cell tent (`RingDesign::crisp_relief`).
 const CRISP: bool = true;
 /// The native stock for lost wax; the sand master only for the sand measure the report keeps as a bonus.
@@ -184,13 +182,14 @@ fn resize_check(face: (f64, f64), sand: bool) -> Result<Value> {
     Ok(out)
 }
 
-/// The lost-wax wall census at the 0.8 mm floor, with the edge reach widened to `EDGE_REACH_MM`: a holly spine is a
-/// point that opens at about 40 deg, narrower than the default reach (one floor) reads as an edge.
+/// The lost-wax wall census at the 0.8 mm floor, as the lead set it on 2026-10-03: `thickness` with its default edge
+/// reach, its walls and edges recorded as read.
 fn wall_census(m: &mesh::Mesh) -> ringdesign_core::cad::measure::Thickness {
-    let mut o = ringdesign_core::cad::measure::CensusOptions::floor(MIN_SECTION_MM);
-    o.edge_reach_mm = Some(EDGE_REACH_MM);
-    ringdesign_core::cad::measure::census(m, &o)
+    ringdesign_core::cad::measure::thickness(m, MIN_SECTION_MM)
 }
+
+/// Thinner than this, a census wall zone is listed as a suspected census artifact, not reshaped (lead, 2026-10-03).
+const ARTIFACT_MM: f64 = 0.05;
 
 fn release_line(r: &mf::release::ReleaseReport) -> String {
     let depth = r.obstructions.iter().map(|o| o.depth_mm).fold(0.0, f64::max);
@@ -1039,7 +1038,11 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
     // Lost wax: the wall census on the finished ring's own mesh (every face by area). Its gate is `clean()`:
     // assessed, nothing unresolved and no wall sample under the floor; the edges (tips, lips) are recorded as read.
     let census = wall_census(&built.mesh);
-    let walls_ok = census.clean() && field.thinnest_wall_mm >= MIN_SECTION_MM - 1e-9;
+    // Interim gate (lead, 2026-10-03): census walls do not block on their own. Every zone between 0.05 and 0.8 mm is a
+    // real section to fix; thinner ones are listed as suspected census artifacts. The field's fill floor still gates.
+    let real: Vec<&ringdesign_core::cad::measure::ThinZone> = census.walls.iter().filter(|w| w.thinnest_mm >= ARTIFACT_MM).collect();
+    let artifacts: Vec<&ringdesign_core::cad::measure::ThinZone> = census.walls.iter().filter(|w| w.thinnest_mm < ARTIFACT_MM).collect();
+    let walls_ok = field.thinnest_wall_mm >= MIN_SECTION_MM - 1e-9 && census.assessed && census.unresolved == 0;
     let sand_ok = coarse_release.obstructions.is_empty()
         && coarse_release.unresolved_rays == 0
         && fine.obstructions.is_empty()
@@ -1078,6 +1081,9 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         "min_section_mm": d.draft.min_section_mm,
         "thinnest_wall_mm_floor": MIN_SECTION_MM,
         "thinnest_wall_pass": walls_ok,
+        "wall_census_rule": "Lead, 2026-10-03 (interim): thickness(&mesh, 0.8) with the default edge reach; walls and edges as read; zones 0.05-0.8 mm are real sections, thinner ones suspected census artifacts; census walls do not block a review on their own.",
+        "wall_zones_real_0_05_to_0_8": real.iter().map(|w| json!({ "point": w.point, "area_mm2": w.area_mm2, "thinnest_mm": w.thinnest_mm, "span_mm": w.span_mm, "samples": w.samples })).collect::<Vec<_>>(),
+        "wall_zones_suspected_census_artifacts": artifacts.iter().map(|w| json!({ "point": w.point, "area_mm2": w.area_mm2, "thinnest_mm": w.thinnest_mm })).collect::<Vec<_>>(),
         "wall_census": json!({ "clean": census.clean(), "assessed": census.assessed, "rays": census.rays, "unresolved": census.unresolved, "wall_samples": census.below_limit, "wall_area_mm2": census.wall_area_mm2, "walls": census.walls, "edge_samples": census.edge_below_limit, "edge_area_mm2": census.edge_area_mm2, "edges": census.edges, "edge_reach_mm": census.edge_reach_mm, "pitch_mm": census.pitch_mm, "sampled_min_mm": census.sampled_min_mm, "at": census.point, "note": census.note }),
         "sand_bonus": json!({ "pulls_from_sand_as_is": sand_ok, "why": "Lost wax ring: the pull, the ray release and the parting-line rule are measured and reported here, never gated." }),
         "field_verdict": field.verdict.label(),
