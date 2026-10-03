@@ -1,0 +1,395 @@
+{
+  "base": "Factory 011 Badge, native 18 x 20, not mirrored",
+  "bore_mm": 18.6,
+  "capsule": {
+    "rows": [
+      {
+        "count": 13,
+        "length_mm": 0.0,
+        "root_mm": 0.86,
+        "z_mm": 0.0
+      },
+      {
+        "count": 26,
+        "length_mm": 0.0,
+        "root_mm": 0.86,
+        "z_mm": 2.0
+      },
+      {
+        "count": 25,
+        "length_mm": 0.0,
+        "root_mm": 0.86,
+        "z_mm": 4.0
+      },
+      {
+        "count": 15,
+        "length_mm": 0.0,
+        "root_mm": 0.86,
+        "z_mm": 6.0
+      },
+      {
+        "count": 8,
+        "length_mm": 0.0,
+        "root_mm": 0.86,
+        "z_mm": 8.0
+      },
+      {
+        "count": 0,
+        "length_mm": 0.0,
+        "root_mm": 0.86,
+        "z_mm": 10.0
+      }
+    ],
+    "shape": {
+      "egg_r": 5.0,
+      "frill_lobe": 0.6,
+      "frill_r": 5.6,
+      "gape": 0.36,
+      "split_at": 0.0,
+      "split_z": 4.6,
+      "sunk_mm": 0.9,
+      "tip_z": 10.6
+    },
+    "slivers_cleaned": 378,
+    "spines": 87,
+    "triangles": 295074,
+    "volume_mm3": 707.4093253933275
+  },
+  "casting_pattern": null,
+  "cold_reload_identical": null,
+  "design_bytes": 2995040,
+  "design_format": 6,
+  "draft": {
+    "bore_margin_mm": -8.918060068197065e-8,
+    "boundary_edges": 0,
+    "build": [
+      768,
+      320
+    ],
+    "build_s": 3.9194636000000003,
+    "crowding": [
+      "Seed 2 (0 deg) to Seed 4 (90 deg): 0.75 / 1.02 mm",
+      "Seed 6 (180 deg) to Seed 8 (270 deg): 0.75 / 1.02 mm",
+      "Seed 2 (0 deg) to Seed 8 (270 deg): 0.75 / 1.02 mm",
+      "Seed 4 (90 deg) to Seed 6 (180 deg): 0.75 / 1.02 mm",
+      "Seed 7 (270 deg) to Seed 8 (270 deg): 1.04 / 1.46 mm",
+      "Seed 3 (90 deg) to Seed 4 (90 deg): 1.04 / 1.46 mm",
+      "Seed 5 (180 deg) to Seed 6 (180 deg): 1.04 / 1.46 mm",
+      "Seed 1 (0 deg) to Seed 2 (0 deg): 1.04 / 1.46 mm"
+    ],
+    "degenerate_faces": 0,
+    "dfm_findings": [],
+    "feature_status_not_ok": [],
+    "field_notes": [
+      "Lost wax: 4.12% of the surface would undercut a two-part pull (worst 32.9 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 11–61° on the crest: 29.5 mm² leaning to 35° — no single layer explains it.",
+      "Undercut 119–169° on the crest: 29.5 mm² leaning to 36° — no single layer explains it.",
+      "Undercut 182–182° on the crest: 0.1 mm² leaning to 1° — no single layer explains it.",
+      "Undercut 358–358° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
+      "Measured with the ring as built: 17 CAD parts (9 joined, 8 cut), 615.5 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Thorn-apple capsule\" (#2) would undercut a two-part pull over 143.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 1\" (#5) would undercut a two-part pull over 2.5 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 2\" (#8) would undercut a two-part pull over 2.6 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 3\" (#11) would undercut a two-part pull over 3.2 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 4\" (#14) would undercut a two-part pull over 1.9 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 5\" (#17) would undercut a two-part pull over 2.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 6\" (#20) would undercut a two-part pull over 1.9 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 7\" (#23) would undercut a two-part pull over 2.9 mm² (worst -46°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 8\" (#26) would undercut a two-part pull over 1.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is."
+    ],
+    "field_process": "Lost wax",
+    "field_verdict": "Castable",
+    "grams_18k": 35.613564692104404,
+    "made_parts": [
+      [
+        "Thorn-apple capsule",
+        0
+      ],
+      [
+        "Seed 1 (0 deg)",
+        0
+      ],
+      [
+        "Seed seat 1",
+        0
+      ],
+      [
+        "Seed thorns 1",
+        0
+      ],
+      [
+        "Seed 2 (0 deg)",
+        0
+      ],
+      [
+        "Seed seat 2",
+        0
+      ],
+      [
+        "Seed thorns 2",
+        0
+      ],
+      [
+        "Seed 3 (90 deg)",
+        0
+      ],
+      [
+        "Seed seat 3",
+        0
+      ],
+      [
+        "Seed thorns 3",
+        0
+      ],
+      [
+        "Seed 4 (90 deg)",
+        0
+      ],
+      [
+        "Seed seat 4",
+        0
+      ],
+      [
+        "Seed thorns 4",
+        0
+      ],
+      [
+        "Seed 5 (180 deg)",
+        0
+      ],
+      [
+        "Seed seat 5",
+        0
+      ],
+      [
+        "Seed thorns 5",
+        0
+      ],
+      [
+        "Seed 6 (180 deg)",
+        0
+      ],
+      [
+        "Seed seat 6",
+        0
+      ],
+      [
+        "Seed thorns 6",
+        0
+      ],
+      [
+        "Seed 7 (270 deg)",
+        0
+      ],
+      [
+        "Seed seat 7",
+        0
+      ],
+      [
+        "Seed thorns 7",
+        0
+      ],
+      [
+        "Seed 8 (270 deg)",
+        0
+      ],
+      [
+        "Seed seat 8",
+        0
+      ],
+      [
+        "Seed thorns 8",
+        0
+      ]
+    ],
+    "metal_in_stones": [],
+    "min_angle_deg": 0.00047490617067417036,
+    "non_manifold_edges": 0,
+    "parts_cut": 8,
+    "parts_joined": 9,
+    "parts_notes": [],
+    "pass": true,
+    "self_crossings": 0,
+    "shells": 1,
+    "solids_notes": [],
+    "stamps": 0,
+    "stamps_struck": 0,
+    "stone_warnings": [],
+    "stones_previewed": 8,
+    "stones_reported": 8,
+    "thinnest_wall_mm": 1.5800248089114177,
+    "thinnest_wall_theta_deg": 246.09375,
+    "triangles": 300616,
+    "undercut_percent_reported_only": 10.720937260931603,
+    "volume_mm3": 2285.851392304519,
+    "watertight": true
+  },
+  "export": null,
+  "gates_passed": true,
+  "name": "Datura — the thorn-apple",
+  "placement_note": "Placement::Free from the capsule's seated frame (C-V1 Relative not on master); the capsule and seeds do not follow a resize.",
+  "process": "Lost wax",
+  "process_note": "Lost wax: spines radiate from a dome, so in two-part sand only about a quarter of them would release.",
+  "seeds": [
+    {
+      "across_mm": -0.00007823400962279809,
+      "cant_deg": 179.99982230972844,
+      "height_mm": 6.658829761921637,
+      "name": "Seed 1",
+      "normal": [
+        -0.8653028187722203,
+        -0.50124947064795,
+        0.0
+      ],
+      "seated_error_mm": 5.2970128235221135e-6,
+      "theta_deg": 75.87460023312813,
+      "tilt_deg": -59.917043226147655,
+      "world": [
+        3.0997076789742524,
+        18.97597320191374,
+        -0.0
+      ]
+    },
+    {
+      "across_mm": -0.00007357933616383361,
+      "cant_deg": 179.9998318173475,
+      "height_mm": 8.69988330704935,
+      "name": "Seed 2",
+      "normal": [
+        -0.3112831011576138,
+        -0.9503172264742437,
+        0.0
+      ],
+      "seated_error_mm": 0.000034567218412072475,
+      "theta_deg": 82.62888048638071,
+      "tilt_deg": -18.13643787876328,
+      "world": [
+        1.5934710365841607,
+        21.01702674699851,
+        -0.0
+      ]
+    },
+    {
+      "across_mm": -3.099748839724047,
+      "cant_deg": -120.08320484708342,
+      "height_mm": 6.658829762287272,
+      "name": "Seed 3",
+      "normal": [
+        -5.298451636512909e-17,
+        -0.50124947064795,
+        0.8653028187722203
+      ],
+      "seated_error_mm": 2.2721612872137605e-6,
+      "theta_deg": 90.00001953875153,
+      "tilt_deg": 0.000027909810226838458,
+      "world": [
+        1.8980235436741448e-16,
+        18.97597320191374,
+        -3.0997076789742524
+      ]
+    },
+    {
+      "across_mm": -1.5935368507535967,
+      "cant_deg": -161.86365201852283,
+      "height_mm": 8.699883307050124,
+      "name": "Seed 4",
+      "normal": [
+        -1.9060592673066675e-17,
+        -0.9503172264742437,
+        0.3112831011576138
+      ],
+      "seated_error_mm": 9.074784783238359e-6,
+      "theta_deg": 90.00005976147227,
+      "tilt_deg": 0.00013719798704368196,
+      "world": [
+        9.757196022434036e-17,
+        21.01702674699851,
+        -1.5934710365841607
+      ]
+    },
+    {
+      "across_mm": -0.00008458755405087948,
+      "cant_deg": 179.99985779570508,
+      "height_mm": 6.658829761848331,
+      "name": "Seed 5",
+      "normal": [
+        0.8653028187722203,
+        -0.50124947064795,
+        1.0596903273025818e-16
+      ],
+      "seated_error_mm": 5.5951911897802405e-6,
+      "theta_deg": 104.12542883766473,
+      "tilt_deg": 59.91710117040395,
+      "world": [
+        -3.0997076789742524,
+        18.97597320191374,
+        -3.7960470873482896e-16
+      ]
+    },
+    {
+      "across_mm": -0.00007784642782652091,
+      "cant_deg": 179.999848288086,
+      "height_mm": 8.699883306924926,
+      "name": "Seed 6",
+      "normal": [
+        0.3112831011576138,
+        -0.9503172264742437,
+        3.812118534613335e-17
+      ],
+      "seated_error_mm": 0.00003442638137233069,
+      "theta_deg": 97.3711598985555,
+      "tilt_deg": 18.136495823019608,
+      "world": [
+        -1.5934710365841607,
+        21.01702674699851,
+        -1.9514392044868072e-16
+      ]
+    },
+    {
+      "across_mm": 3.099611464449405,
+      "cant_deg": 120.08266570807638,
+      "height_mm": 6.658829761685067,
+      "name": "Seed 7",
+      "normal": [
+        1.5895354909538727e-16,
+        -0.50124947064795,
+        -0.8653028187722203
+      ],
+      "seated_error_mm": 7.972914296128285e-6,
+      "theta_deg": 89.99993139473133,
+      "tilt_deg": -0.00009799807455291165,
+      "world": [
+        -5.694070631022434e-16,
+        18.97597320191374,
+        3.0997076789742524
+      ]
+    },
+    {
+      "across_mm": 1.5933853908709685,
+      "cant_deg": 161.86333212399222,
+      "height_mm": 8.69988330689553,
+      "name": "Seed 8",
+      "normal": [
+        5.718177801920002e-17,
+        -0.9503172264742437,
+        -0.3112831011576138
+      ],
+      "seated_error_mm": 5.4315791575738906e-6,
+      "theta_deg": 89.99996422423482,
+      "tilt_deg": -0.00008213256436868334,
+      "world": [
+        -2.9271588067302107e-16,
+        21.01702674699851,
+        1.5934710365841607
+      ]
+    }
+  ],
+  "size": "US 8.6",
+  "slug": "datura",
+  "stage": "block-out",
+  "table": {
+    "across_mm": 20.766820907592773,
+    "round_mm": 17.803119659423828,
+    "top_mm": 12.317143440246582
+  }
+}
