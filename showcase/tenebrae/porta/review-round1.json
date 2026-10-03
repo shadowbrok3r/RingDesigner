@@ -1,0 +1,68 @@
+{
+  "ring": "porta",
+  "round": 1,
+  "verdict": "revise",
+  "score": 5.8,
+  "summary": "Revise at 5.8 (Caiman 7, ship bar 7.5). Gates also force a revise: report.json records gates_passed false. The 0.8 mm thickness gate fails with 3 samples below it (min 0.261 mm), bore_margin_mm is -0.0015, so metal sits inside the finger hole, and the template gate is not recorded. Face-on, the read now works. In face-300 a jeweller names a Gothic church portal: a pointed arch of stepped orders, a red stone in the lunette, a lintel, and two dark pointed doors split by a post. The design is still a flat-engraved pictogram on a mostly plain stock drop signet, not a carved portal. The orders read as 8 even ridges, about 4 rolls plus 4 step lips, not 4 deep splayed archivolts. The lintel and trumeau make a 'T' glyph. The 'ogee' hood is a plain pointed arch ending in two ball bosses. The 6 crockets are open wire loops that read as jump rings. The fleur is a speck with a needle-thin spike at the apex. The ruby is flush in a flat floor with no visible collet. The head walls carry none of the 4 wall-arcade stamps the spec calls for (stamps: []). Between the threshold and the round end there is a large blank table holding only a club-like quatrefoil. Apart from 4 slot lancets on each side, the shoulders and band are bare polished stock. Density is far below Caiman's, and the side silhouette is plain factory stock with nothing breaking the outline.",
+  "strengths": [
+    "Face-on, it reads at 300 px as a Gothic portal: pointed arch, ruby tympanum, lintel and twin pointed doors. The two read-test rounds moved it from a grooved band to a portal.",
+    "The doors and the quatrefoil are pierced through. Light passes through them and they show as clean pointed openings from the palm (palm.png), and the ruby is open à jour behind.",
+    "Each archivolt carries a swept roll. The rolls are continuous round the apex in portal-2x.png, and the springers stop on bosses, a real architectural detail.",
+    "Factory 009 Drop keeps its crisp table-to-wall edge (bare-vs-finished.png), and the ornament is centred on a single, coherent theme.",
+    "The feature tree reads as sentences, and every one of the 34 made parts reports 0 self-crossings."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "fail", "reason": "The theme is coherent but stops at the table. The head walls are blank because the 4 wall-arcade stamps are missing (report.json stamps: []). The shoulders carry only 4 plain slots each, and the band from 72 degrees to the palm is bare stock. The face holds the theme, and the rest of the ring is an undecorated signet."},
+    {"item": "Reads as its Gothic subject at 300 px without caption", "result": "pass", "reason": "In face-300 it reads as a Gothic portal or church door. In hero-300 it still reads as an arch, but the doors shrink to a 'T' glyph and the quatrefoil to an '8' or club. It passes narrowly, on the face view."},
+    {"item": "Figurative motifs have true outlines, crisp, no combing or stair-steps", "result": "fail", "reason": "The archivolt rolls are crisp, but the motifs that make the gable fail. The crockets are hollow wire loops (portal-2x.png) and do not read as leaves. The fleur is a sub-millimetre speck with a needle spike at the apex (face.png, near the top). The ogee hood is a plain pointed arch with no reverse curve. The rolls kink at the apex in visible facets (stones.png)."},
+    {"item": "Stones in made settings, à jour, visible, coloured as stained glass", "result": "fail", "reason": "The ruby is visible, red and opened through to the finger. It sits flush in a flat floor, though, and the 'Collet the ruby in the tympanum floor' part does not show in face.png, portal-2x.png or stones.png: there is no bezel wall and no bearing lip. It reads as a stone glued onto a plate, not a made setting."},
+    {"item": "No flat, blocky or mechanical CAD; forms are sculpted", "result": "fail", "reason": "The whole portal is flat-bottomed pocketing: flat floors, vertical walls, round rods. The lintel and trumeau are two cylinders forming a 'T'. The shoulder lancets are straight prism slots. Nothing is modelled: there are no capitals, no jamb shafts, no splay, no leafage. It reads as engraving on a stock signet, which is the flat-CAD complaint in house rule 10."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "The 009 Drop table edge stays sharp in bare-vs-finished.png and side.png."},
+    {"item": "Silhouette distinct; custom heads >= 13 mm; shoulder ornament not cut off before the face", "result": "fail", "reason": "The drop is distinct, and the head is factory stock at 14.5 x 19, which is fine. From the side (side.png, reverse.png) the silhouette is plain stock: the hood and finial stand 0.4 mm proud and never break the drop's outline. The shoulder lancets end at 42 degrees and the head walls are blank, so the ornament stops well before the face."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "Large forms: the arch. Medium: the doors and ruby. There is almost no small-scale detail: no crocket leafage, no capitals or dogtooth, no wall arcades. About 40% of the visible metal (the lower table, head walls, shoulders and band) is blank polished stock. Caiman covers every surface with graded detail. This is well below it."}
+  ],
+  "gates": [
+    {"gate": "gates_passed (author's own roll-up)", "claimed": "false", "verified": "report.json gates_passed false; draft.pass false; export.pass false", "pass": false},
+    {"gate": "Watertight", "claimed": "true", "verified": "draft and export watertight true, boundary_edges 0, non_manifold_edges 0", "pass": true},
+    {"gate": "0 degenerate faces", "claimed": "0", "verified": "degenerate_faces 0. Note min_angle_deg 0.00015: needle slivers exist, likely the spike at the fleur apex", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "0", "verified": "self_crossings 0 on the ring and on all 35 made_parts entries; casting_pattern self_crossings 0", "pass": true},
+    {"gate": "Solids notes empty", "claimed": "empty", "verified": "solids_notes [] and parts_notes []", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "not stated", "verified": "bore_margin_mm -0.0015 (negative: metal 1.5 microns inside the bore)", "pass": false},
+    {"gate": "Lost wax: cad::measure::thickness at 0.8 mm", "claimed": "thickness_0_8 run", "verified": "pass false: 3 of 383 rays below 0.8. 0.605 mm in the band at u -8.23; 0.261 mm in the band at u -6.93 w 4.64; 0.311 mm through 'Curl crocket 1 up the hood's right' at u 6.91 w 2.27. The crocket wire is genuinely sub-0.8 and will not fill", "pass": false},
+    {"gate": "Asserted CAD lands at 0.8", "claimed": "cut_lands_0_8 []", "verified": "Empty list. The JSON does not record which lands were asserted or their widths, so this cannot be verified", "pass": false},
+    {"gate": "Field verdict Castable", "claimed": "Castable (informational)", "verified": "field_verdict_informational Castable, 0.56% undercut under a two-part pull, acceptable for lost wax", "pass": true},
+    {"gate": "Ray release (replaced by thickness for lost wax)", "claimed": "n/a lost wax", "verified": "Replaced by thickness_0_8, which fails", "pass": false},
+    {"gate": "Draft-clamp bites <= 0.05 mm", "claimed": "n/a lost wax", "verified": "Not recorded. No draft clamp is applied under lost wax, so not applicable", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "[]", "verified": "dfm_findings [] at draft and export", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "1", "verified": "stones_reported 1 = stones_previewed 1; stones.json 1 ruby; stone_warnings []", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "true", "verified": "cold_reload_identical true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "122508", "verified": "export triangles 122508 at 1536x448", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "casting_pattern watertight, 0 degenerate, 0 self-crossings, pass true", "pass": true},
+    {"gate": "Template gate (<= 4 design.set patches, stock <= 1 MB)", "claimed": "not recorded", "verified": "No verification.json and no template block. design_bytes 794989 is under 1 MB but the gate was not run", "pass": false}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P0", "zone": "Hood crockets ('Curl crocket 1..3 up the hood's right/left') and band at u -6.9..-8.3", "change": "Rebuild each crocket as a solid leaf at least 0.9 mm across its thinnest section: a C-T3 leaf or a solid curled lobe, not an open wire loop. Raise it +0.5 over the hood. Find the two band samples (u -8.23 w -2.87 and u -6.93 w 4.64, 3.9 to 5.0 under the table) and thicken the stock there or fix the cut that thins it. Clear the bore so bore_margin_mm is >= 0.", "acceptance": "report.json thickness_0_8.pass true with below_limit 0, bore_margin_mm >= 0, gates_passed true. In portal-2x.png each crocket reads as a solid curled leaf with no hole through it."},
+    {"number": 2, "priority": "P0", "zone": "Archivolts 1-4 (portal sketch, face around theta 90)", "change": "Make the 4 orders read as a deep splay, not 8 ridges. Drop the flat step lip between rolls, so each order is one roll of r 0.35 on a floor that slopes inward (an inner edge about 0.25 mm deeper than its outer edge) rather than a flat shelf. Keep the floors 0.45 mm apart. Fair the roll at the apex so its facets are under 3 degrees.", "acceptance": "At face-300 you can count exactly 4 bright rolls. In hero-300 the inner orders sit in visible shadow. In stones.png the apex kink of each roll shows no facet steps."},
+    {"number": 3, "priority": "P0", "zone": "Head walls (all round the drop's side wall, below the table edge)", "change": "Add the 4 spec'd wall-arcade stamps (along_pull, cut): a blind arcade of pointed arches about 1.6 mm tall round the head wall. Extend the shoulder lancets so the series runs onto the head, at theta 90 +/- 32..72, with 5 per side. Give each lancet a chamfered reveal, not a straight prism slot.", "acceptance": "In hero.png and shoulder.png the head wall shows a continuous blind arcade with no bare polished wall wider than 2 mm, and the lancet series meets the arcade without a gap. report.json stamps is non-empty."},
+    {"number": 4, "priority": "P1", "zone": "Gable: hood-mould, finial and the drop's point", "change": "Redraw the hood as a true ogee: two Bezier S-curves with the reverse curve in the top third, rising 2.0 mm above the inner apex as specified. Make it 0.7 wide and +0.7 proud with a rounded drip section. Replace the speck and spike finial with a solid fleur-de-lis 2.5 mm tall, +0.6 proud and 0.8 mm minimum section. Remove the needle triangle at the apex.", "acceptance": "In face.png the hood visibly reverses curvature into an ogee point. The fleur is legible as three petals and a band at face-300. min_angle_deg rises above 1 degree. In side.png the finial breaks the drop's outline."},
+    {"number": 5, "priority": "P1", "zone": "Ruby in the tympanum ('Collet the ruby in the tympanum floor')", "change": "Make the setting visible: a collet wall 0.4 mm thick standing 0.5 mm above the tympanum floor, with a bead or rope collar. Alternatively, frame the ruby in a cusped trefoil or rosette sunk round it, so it reads as a rose window in the tympanum.", "acceptance": "In stones.png and portal-2x.png a metal bezel ring shows round the full girdle with a shadow line. The ruby is no longer flush on a flat plate."},
+    {"number": 6, "priority": "P1", "zone": "Doorway: lintel, trumeau and jambs", "change": "Replace the 'T' of two rods. Make the lintel a flat moulded beam 0.8 tall with a chamfered soffit. Give the trumeau a base and a capital, and stand a statue niche or colonnette 0.6 wide on it. Add a jamb colonnette with a capital where each archivolt foot meets the threshold.", "acceptance": "At hero-300 the doorway reads as a double door with a central post, not a 'T' glyph. In portal-2x.png the capitals are distinguishable at the archivolt springings."},
+    {"number": 7, "priority": "P2", "zone": "Lower table between the threshold and the round end, plus the crypt quatrefoil", "change": "Fill the blank lower table. Add a stepped plinth or a row of 3 to 5 steps across the threshold, 0.3 mm each, and set the crypt opening inside a sunk circular frame 3.0 mm across with cusped foils, so it reads as a crypt window and not a club.", "acceptance": "No bare table area larger than 3 x 3 mm remains in face.png. At face-300 the bottom opening reads as a cusped window and no longer as a card-suit club."}
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/porta/hero-300.png",
+    "showcase/tenebrae/porta/face-300.png",
+    "showcase/tenebrae/porta/hero.png",
+    "showcase/tenebrae/porta/face.png",
+    "showcase/tenebrae/porta/side.png",
+    "showcase/tenebrae/porta/shoulder.png",
+    "showcase/tenebrae/porta/palm.png",
+    "showcase/tenebrae/porta/portal-2x.png",
+    "showcase/tenebrae/porta/stones.png",
+    "showcase/tenebrae/porta/bare-vs-finished.png",
+    "showcase/tenebrae/porta/reverse.png",
+    "showcase/tenebrae/porta/contact-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
