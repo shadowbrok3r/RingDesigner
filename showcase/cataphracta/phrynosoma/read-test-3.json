@@ -1,0 +1,33 @@
+{
+  "ring": "phrynosoma",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "A six-lobed star signet covered all over in round granules, like a starfish or sea urchin, with a tortoise-shell patch set in the middle. From above, the patch is a teardrop of irregular cobblestone plates, widest on the right and tapering to a point on the left, and a few short spikes poke out of that narrow left tip. It reads as a turtle or tortoise carapace, or a pufferfish, on an urchin. In the hero, the same spikes rise off one corner as a fan of long thorns, so the ring reads as a spiked starfish or thistle. This is a real step up from attempt 2: the plate mosaic is cut, the granules fill the table and shoulders, and the bare mirror metal is gone. But the horns sit at the narrow end of the head, where a tail or snout would be, and they fan out instead of forming a crown. The plates are uniform cobbles with no symmetric skull layout, and the granulated star lobes say marine animal. A jeweller would say turtle, starfish or urchin. They would not say horned lizard, and probably not lizard at all.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Turn the head around so the horn crown sits on the head's wide rear edge, not on its pointed tip. The teardrop must become a wedge: widest across the horn row, tapering to a blunt snout at the other end. The horns become a straight, symmetric comb across that wide edge, standing clearly proud of the outline.",
+      "where": "Face table. The plate patch's left (pointed) end is now the horned end. Either move the horns to the wide right edge or reshape the patch so its left end is the widest part. Mirror the horns about the along-band centreline, with nothing on the snout half.",
+      "how_much": "The rear edge is at least 1.6x the snout width. Use 6 horns. The 2 central occipitals are at least 2.4 mm and project at least 1.5 mm beyond the plate outline in plan view. The temporals step down to 1.4-1.6 mm outboard. All roots sit on one line and every horn sweeps back and out. Acceptance: in face-300 you can count separate horns along the widest edge of the head, the longest pair in the middle, and in hero-300 they read as a crown row, not a radial fan of thorns."
+    },
+    {
+      "priority": 2,
+      "what": "Make the head dominate the star, and give it the horned lizard's lateral fringe. At present the plated patch is about 45% of the face width, and the granulated star lobes around it read as a starfish or urchin.",
+      "where": "Table and lobes of the 016 star. Grow the plate patch outward, and run a row of pointed fringe scales along both flanks of the head outline from the horn row to the snout, so they cut into the lobes.",
+      "how_much": "The head covers about 70% of the face width and 75% of its length. Use 8-10 fringe scales per side, pointed and outward-tipped, 1.0 mm at the rear grading to 0.5 mm at the snout. Grade the lobe granules down by about 40% so the lobes read as cheeks and ground rather than as six arms. Acceptance: in face-300 the eye sees one flat, wide, fringed head filling the signet, and no lobe reads as a separate star arm."
+    },
+    {
+      "priority": 3,
+      "what": "Replace the uniform tortoise cobbles with a symmetric skull plate layout, adding supraorbital brow ridges and a blunt rounded snout.",
+      "where": "The plate mosaic on the table.",
+      "how_much": "Use a midline row of 4-5 large plates of about 1.6-2.0 mm, flanked by smaller plates of about 1.0 mm that shrink toward the edges. Add two raised brow ridges about 0.4 mm proud just ahead of the temporal horns. Round off the snout instead of ending in a point. Acceptance: in face-300 the mosaic is visibly bilaterally symmetric with larger plates on the centreline, and it no longer reads as a turtle shell."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/phrynosoma/hero-300.png",
+    "showcase/cataphracta/phrynosoma/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
