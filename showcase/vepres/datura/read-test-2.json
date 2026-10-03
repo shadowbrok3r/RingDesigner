@@ -1,0 +1,31 @@
+{
+  "ring": "datura",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "The head is now tall and pointed, not a round burr. In the hero it reads as a closed flower bud, a pine cone or an artichoke, or as a flame-shaped gem cluster sitting on a rough rock. The spines lie close and read as overlapping scales, not thorns standing off a smooth egg. The dark spinels look like set gems or eyes near the tip, not seeds in a split. From the face it is a spiked boss or sea-mine with a ring of eight dark dots. Behind it, four jagged, saw-toothed leaves cross in a heraldic X, like a compass rose or a thistle badge. The leaves' toothed edges say holly or thistle, which collides with Ilex. The four-valve split does not show: there is no dark gaping cross at the crown. The trumpet buds and the cheeks register as nothing. A jeweller would say 'thistle', 'pine cone' or 'spiky bud on a shield', never 'datura' or 'thorn-apple'.",
+  "changes": [
+    {
+      "priority": 1,
+      "zone": "badge face and near shoulder (the 'Datura bud' parts, bearings 0 and 180 deg)",
+      "change": "Replace the two 6.1 x 2.0 mm buds, which are invisible at 300 px, with one open trumpet flower, the datura's unmistakable signature. Make it about 11-12 mm long, a slim tube flaring to a 6-7 mm wide mouth. Give the mouth five pleated points, each ending in a short curled tendril tip, and five raised ribs running down the tube. Lay it diagonally across the face, from under the capsule out over the near shoulder edge, with the mouth facing the hero camera. If both buds stay, the second becomes a furled, spiral-twisted bud at least 8 x 3 mm on the far side.",
+      "acceptance": "In hero-300 a flared five-pointed trumpet mouth is visible at first glance as a separate form beside the capsule. In face-300 the trumpet outline (tube plus flared star mouth) is clearly distinguishable from the leaves."
+    },
+    {
+      "priority": 2,
+      "zone": "head: capsule shape, spines, valve split (shape.tip_z, egg_r, gape, spine rows)",
+      "change": "Make the capsule a blunt, near-round egg instead of a pointed cone. Bring tip_z from 11.4 down to about 8.5-9 mm on egg_r 4.5, and round the crown. Spines must stand off it as distinct short needles (spine length currently reports 0.0 mm): 0.9-1.1 mm long, tips 0.3 mm, with bare body visible between them. Open the four-valve split for real: raise gape from 0.5 to 1.8-2.0 mm at the crown, cut it at least 4 mm deep, and peel the valve lips outward about 0.5 mm. Drop the seeds into the slot floors so they read as four dark rays, not a ring of eight set gems. Keep the slot lips spine-free.",
+      "acceptance": "In face-300 a dark four-armed cross gapes open at the capsule crown, with black seeds inside the arms. In hero-300 the head reads as a round spined fruit with at least one visible open split, not as a pointed bud, cone or flame."
+    },
+    {
+      "priority": 3,
+      "zone": "Datura leaves 1-4 (bearings 48/132/250/290 deg)",
+      "change": "Swap the saw-toothed margins, which read as holly or thistle, for true datura sinuate leaves: broad ovate blades with 3-4 shallow, irregular, rounded-to-angular lobes, no serration, and a raised midrib with 3-4 visible side veins. Enlarge them from 6.4 x 4.7 to about 8.5 x 6 mm. Break the symmetric heraldic X: angle them asymmetrically (for example 30/150/235/310 deg, with different lengths) and let the two front leaves curl down over the badge edge onto the cheeks.",
+      "acceptance": "In face-300 the leaves show broad wavy-lobed outlines with no saw teeth and do not form a symmetric X or compass rose. Set beside Ilex's face-300, the leaf margins are plainly different."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/datura/hero-300.png",
+    "showcase/vepres/datura/face-300.png"
+  ]
+}
