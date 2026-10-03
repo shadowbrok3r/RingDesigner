@@ -358,16 +358,16 @@
     "export_geometry_verified": true,
     "cad_feature_nodes": 9,
     "open_ms": {
-      "bake": 0.008060999999999999,
-      "bake_again": 0.000298,
-      "detail": 0.873604,
-      "detail_again": 1.003311,
-      "evaluate": 0.683552,
-      "first_build": 177.422372,
-      "read": 0.196246,
-      "rebuild": 0.219699,
+      "bake": 0.008143,
+      "bake_again": 0.000345,
+      "detail": 1.0044279999999999,
+      "detail_again": 0.960875,
+      "evaluate": 1.06891,
+      "first_build": 207.030866,
+      "read": 0.301326,
+      "rebuild": 0.259152,
       "unpack": null,
-      "verdict": 13.340886
+      "verdict": 15.673178
     },
     "passed": true
   }
