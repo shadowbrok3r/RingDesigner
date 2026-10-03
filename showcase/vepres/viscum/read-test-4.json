@@ -1,0 +1,27 @@
+{
+  "ring": "viscum",
+  "mode": "read-test",
+  "attempt": 4,
+  "reads": true,
+  "what_the_eye_sees": "Mistletoe, at first glance. The new cushion face is a quiet gold table, and on it lies one sprig. A stalk forks again and again into Ys, each tip carries an opposite pair of narrow, round-ended leaves, and a tight triangle of three white berries sits in the main fork, with small white bunches at the outer tips. Those are the cues that name the plant: dichotomous forking, opposite strap leaves, and white berries in the crotches. The lobes that read as petals are gone, so nothing says 'flower' any more. In the hero the same unit carries over the cheek and onto the shoulder as berry bunches on forked twigs, so it reads as one theme. It is not yet fully convincing, for three reasons. The leaves are thin, even-width paddles, like spoons or matchsticks, rather than the fleshy, slightly curved, broad-shouldered leaves of mistletoe. The near-left crossed leaf pair in the hero reads as a propeller or a dragonfly. And the berries are opaque pearl-grey, so a minority would say 'pearl sprig' or snowberry. The sprig also uses only about half the face: the lower-left of the table is empty in the face view.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Face sprig and cheek sprigs: every Pillow leaf stamp",
+      "change": "Widen the leaves and give them a fleshy outline. Go from about 6:1 length to width to about 3:1. Keep the length, increase the width by about 70% (about 1.4 mm to about 2.4 mm at the face), put the widest point at about 60% of the way from the stalk, taper to a short petiole, and curve each blade by about 10 to 15 degrees away from its partner. Raise the pillow crown by about 0.1 mm, so each leaf looks thick and succulent rather than a flat paddle.",
+      "acceptance": "On face-300.png every leaf reads as an obovate, slightly curved blade, clearly wider in its outer half, and none reads as a spoon, a matchstick or a propeller blade."
+    },
+    {
+      "priority": 2,
+      "where": "Face table, sprig placement and scale",
+      "change": "Scale the face sprig up by about 15% and rotate it about 15 degrees, so the main stalk runs corner to corner and the sprig fills the table to within about 1.5 mm of the rim on all sides. Add one more forked leaf pair into the empty lower-left quadrant. Break the crossed four-leaf node at the left end (the 'propeller') into two pairs on successive forks.",
+      "acceptance": "On face-300.png no quadrant of the face is bare gold, and on hero-300.png no leaf group reads as a cross, an X or a dragonfly."
+    },
+    {
+      "priority": 3,
+      "where": "All moonstone berries (face triangle, tip bunches, shoulder bunches): material and shading",
+      "change": "Shift the berry material from opaque pearl-grey to a warmer, translucent milky white with a soft inner glow and a small sharp highlight. Raise the subsurface or transmission so the berries look like waxy fruit, and add a darker seat shadow under each berry so the bunches separate from the gold.",
+      "acceptance": "On hero-300.png and face-300.png the berries look like translucent white fruit, not pearl beads, and each bunch of three reads as three separate spheres."
+    }
+  ]
+}
