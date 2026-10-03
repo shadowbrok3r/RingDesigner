@@ -38,19 +38,40 @@ const COLLET_WALL_MM: f64 = 0.8;
 /// 1.6 mm crown a full bur leaves 0.54 mm under the culet, and the culet relief it cuts for a raised stone skims the
 /// dome to a 0.01 to 0.2 mm skin. The collet's own bearing ledge seats the oval.
 const SEAT_RISE_MM: f64 = 0.9;
-/// The head joins the band without a fillet bead. A collet wider than a 2.4 mm D band grazes its domed crown,
-/// and the fillet could not be laid there at any radius from 0.12 to 0.5 mm (with or without a seat under the
-/// collet); its seams are the clasp lapped over the collet and the roots sunk into the crown.
+/// The wing's work plane: square to the band this far round the crest from the stone, sunk this far into it, mm.
+const WING_PLANE_S_MM: f64 = 5.0;
+const WING_PLANE_OFFSET_MM: f64 = -1.0;
+/// The block-out tiers: each region extruded off the plane, and their draft.
+const TIER_MM: [f64; 3] = [1.8, 1.6, 1.4];
+const TIER_DRAFT_DEG: f64 = 0.0;
+/// The collet's foot: its floor over the crest, its taper in over the first mm, and the round under it, mm.
+const FOOT_FLOOR_MM: f64 = 0.05;
+/// Where the foot leaves the collet: in from the wall's outer face at the girdle, mm.
+const FOOT_EDGE_MM: f64 = 0.15;
+const FOOT_TAPER_MM: f64 = 0.3;
+const FOOT_ROUND_MM: f64 = 0.35;
+/// The fillet the collet's builder lays where it meets the band, mm.
+const COLLET_BLEND_MM: f64 = 0.0;
+/// How near a feather's point a sample is judged at the detail floor, mm: the last of the ogive and its round.
+const POINT_MM: f64 = 0.9;
+/// Every point a feather ends in, both wings: where the detail floor, not the fill floor, governs.
+static POINTS: std::sync::OnceLock<Vec<P3>> = std::sync::OnceLock::new();
+/// The wings and the collet join the band without a fillet bead. Where the collet, wider than the 2.4 mm D band,
+/// straddles the band's edge round, the fillet folds at every radius from 0.12 to 0.5 mm, laid on the wing, on the
+/// collet, or on one head made of both; the seams are the clasp lapped over the collet and the roots sunk into
+/// the crown.
 const HEAD_BLEND_MM: f64 = 0.0;
 /// The rachis's rise along a feather's top, mm.
 const RACHIS_MM: f64 = 0.2;
 /// Stations along a feather and points round its section.
 /// Kept lean: the stored meshes ride inline in the design and its template, whose budget is 300 KB.
-const PRIMARY_RES: Res = Res { pointed_root: false, along: 72, around: 40, root: 5, tip: 14 };
-const CLASP_RES: Res = Res { pointed_root: true, along: 44, around: 32, root: 14, tip: 14 };
+const PRIMARY_RES: Res = Res { reach: TIP_REACH, pointed_root: false, along: 72, around: 33, root: 5, tip: 16 };
+const CLASP_RES: Res = Res { reach: 0.6, pointed_root: true, along: 44, around: 26, root: 12, tip: 12 };
 /// Stations along a feather, points round its section, and rings in its root and tip caps.
 #[derive(Clone, Copy, Debug, serde::Serialize)]
 struct Res {
+    /// How long its ends run, as a share of the width they start from.
+    reach: f64,
     /// A pointed root, for a part whose root shows; otherwise a rounded one buried in the collet.
     pointed_root: bool,
     along: usize,
@@ -65,8 +86,10 @@ fn draft_params() -> BuildParams {
 fn export_params() -> BuildParams {
     BuildParams { theta_steps: 1536, profile_steps: 448, ..BuildParams::default() }
 }
+/// The timeline's build. Finer chords open the tier extrusions' Bezier walls (12 open edges each on tiers I and II
+/// at 512 x 192 and above), which the finished ring never builds: the sculpt replaces the tiers.
 fn timeline_params() -> BuildParams {
-    BuildParams { theta_steps: 512, profile_steps: 192, ..BuildParams::default() }
+    BuildParams { theta_steps: 320, profile_steps: 112, ..BuildParams::default() }
 }
 
 /// The investment recipe Officina's wax rings share: `workshop_collection.rs`'s flask and channels.
@@ -193,20 +216,20 @@ struct Primary {
 
 /// The clasp: a crescent of coverts that hooks round the collet's flank, lying low over the band at its foot and
 /// climbing the collet toward its tip, so the wing holds the stone rather than butting into it.
-const CLASP: Primary = Primary { name: "Clasp", root_z: -2.3, heading_deg: 0.0, sweep_deg: 0.0, length: 0.0, h_root: 0.4, h_tip: 1.35, w_root: 2.0, w_tip: 1.5, t_root: 1.3, t_tip: 1.12, camber: 0.3, roll_deg: 0.0 };
+const CLASP: Primary = Primary { name: "Clasp", root_z: -2.3, heading_deg: 0.0, sweep_deg: 0.0, length: 0.0, h_root: 0.4, h_tip: 0.9, w_root: 2.0, w_tip: 1.5, t_root: 1.3, t_tip: 1.12, camber: 0.3, roll_deg: 0.0 };
 /// Where the clasp's spine runs, (s, z): from its foot under the wing, out round the collet's flank, to its tip high on the collet's far side.
 fn clasp_spine() -> [[f64; 2]; 3] {
     let (z0, z2) = (-2.3, 3.3);
-    let p0 = [flank_s(z0) + 0.45, z0];
-    let p2 = [flank_s(z2) + 0.25, z2];
+    let p0 = [flank_s(z0) - 0.15, z0];
+    let p2 = [flank_s(z2) - 0.15, z2];
     let mid_s = flank_s(0.5) + 0.6;
     [p0, [2.0 * mid_s - 0.5 * (p0[0] + p2[0]), 0.5], p2]
 }
 
 const PRIMARIES: [Primary; 3] = [
-    Primary { name: "Primary I", root_z: 1.6, heading_deg: 38.0, sweep_deg: 12.0, length: 7.8, h_root: 0.45, h_tip: 1.6, w_root: 3.4, w_tip: 2.3, t_root: 1.05, t_tip: 1.06, camber: 0.35, roll_deg: 12.0 },
-    Primary { name: "Primary II", root_z: 0.3, heading_deg: 18.0, sweep_deg: 8.0, length: 6.8, h_root: 0.4, h_tip: 1.35, w_root: 3.4, w_tip: 2.2, t_root: 1.05, t_tip: 1.06, camber: 0.33, roll_deg: 12.0 },
-    Primary { name: "Primary III", root_z: -0.9, heading_deg: 0.0, sweep_deg: 4.0, length: 5.6, h_root: 0.35, h_tip: 1.1, w_root: 3.0, w_tip: 2.0, t_root: 1.05, t_tip: 1.06, camber: 0.3, roll_deg: 12.0 },
+    Primary { name: "Primary I", root_z: 1.6, heading_deg: 45.0, sweep_deg: 14.0, length: 7.6, h_root: 0.45, h_tip: 1.5, w_root: 3.6, w_tip: 1.7, t_root: 1.1, t_tip: 1.1, camber: 0.35, roll_deg: 12.0 },
+    Primary { name: "Primary II", root_z: 0.3, heading_deg: 22.0, sweep_deg: 9.0, length: 6.8, h_root: 0.4, h_tip: 1.3, w_root: 3.6, w_tip: 1.6, t_root: 1.1, t_tip: 1.1, camber: 0.33, roll_deg: 12.0 },
+    Primary { name: "Primary III", root_z: -0.9, heading_deg: 0.0, sweep_deg: 4.0, length: 5.6, h_root: 0.35, h_tip: 1.1, w_root: 3.2, w_tip: 1.5, t_root: 1.1, t_tip: 1.1, camber: 0.3, roll_deg: 12.0 },
 ];
 
 /// A primary's spine, (s, z): from its root in the collet's flank, out along its heading, sweeping back by the tip.
@@ -232,7 +255,9 @@ fn bezier(p0: [f64; 2], p1: [f64; 2], p2: [f64; 2], u: f64) -> [f64; 2] {
 
 /// The radius every feather's point ends in, mm: the vane narrows to it and closes in a round, so no wall
 /// at a point falls under the 0.8 mm fill floor.
-const END_MM: f64 = 0.5;
+const END_MM: f64 = 0.3;
+/// How long a feather's ogive runs, as a share of the width it starts from.
+const TIP_REACH: f64 = 2.0;
 
 /// An ogive end `d` mm into a cap `len` long from a section of half-width `a` and half-thickness `b`: the plan
 /// narrows to `END_MM` and closes in a round, the thickness held to the round. Returns half-width,
@@ -269,7 +294,7 @@ const BARBS: Barbs = Barbs { rows: 5, pitch_mm: 0.46, depth_mm: 0.085, lead_slop
 /// rounded root to an ogive tip, its spine following the band round and lifting off it toward the tip. Barbs
 /// are cut as true V-grooves; each ring of the mesh is bent into a chevron along the barbs on the vane's top,
 /// so a groove is a row of the mesh and stays crisp with few triangles.
-fn feather(p: &Primary, ctrl: [[f64; 2]; 3], barbs: Option<Barbs>, res: Res, crest: &Crest, top_r: f64) -> csg::Solid {
+fn feather(p: &Primary, ctrl: [[f64; 2]; 3], barbs: Option<Barbs>, res: Res, crest: &Crest, top_r: f64) -> (csg::Solid, [P3; 2]) {
     let world = |s: f64, z: f64, h: f64| -> P3 {
         let theta = 90.0 - (s / top_r).to_degrees();
         let r = crest.at(theta) + h;
@@ -282,7 +307,8 @@ fn feather(p: &Primary, ctrl: [[f64; 2]; 3], barbs: Option<Barbs>, res: Res, cre
     const TABLE: usize = 2000;
     let point = |u: f64| -> (P3, P3) {
         let [s, z] = bezier(p0, p1, p2, u);
-        let h = p.h_root + (p.h_tip - p.h_root) * smooth(0.05, 0.7, u);
+        // The vane rides the band for its first half and lifts only toward the tip.
+        let h = p.h_root + (p.h_tip - p.h_root) * smooth(0.5, 1.0, u);
         (world(s, z, h), er(90.0 - (s / top_r).to_degrees()))
     };
     let mut table: Vec<(f64, P3, P3, P3, P3)> = Vec::with_capacity(TABLE + 1);
@@ -316,8 +342,8 @@ fn feather(p: &Primary, ctrl: [[f64; 2]; 3], barbs: Option<Barbs>, res: Res, cre
         let lerp = |a: P3, b: P3| -> P3 { std::array::from_fn(|i| a[i] + (b[i] - a[i]) * f) };
         (lerp(e0.1, e1.1), unit(lerp(e0.3, e1.3)), unit(lerp(e0.4, e1.4)))
     };
-    let root_len = if res.pointed_root { 1.3 * p.w_root + END_MM } else { 0.25 * p.w_root };
-    let tip_len = 1.3 * p.w_tip + END_MM;
+    let root_len = if res.pointed_root { res.reach * p.w_root + END_MM } else { 0.25 * p.w_root };
+    let tip_len = res.reach * p.w_tip + END_MM;
     // The section at arc length `l`: half-width, half-thickness, camber, rachis.
     let section = |l: f64| -> (f64, f64, f64, f64) {
         let (a0, b0) = (0.5 * p.w_root, 0.5 * p.t_root);
@@ -417,6 +443,131 @@ fn feather(p: &Primary, ctrl: [[f64; 2]; 3], barbs: Option<Barbs>, res: Res, cre
     for j in 0..around {
         f.push([ring(n - 1, j), ring(n - 1, j + 1), last]);
     }
+    let ends = [v[0], v[v.len() - 1]];
+    let mut solid = csg::Solid { v, f };
+    if signed_volume(&solid) < 0.0 {
+        solid.f.iter_mut().for_each(|t| t.swap(1, 2));
+    }
+    (solid, ends)
+}
+
+/// The wing's plan on its plane, in the plane's own terms: x round the ring toward the stone, y along the finger.
+/// The outer contour runs from the root against the collet round the three tips and back; two inner Beziers from
+/// the notches between the tips to the root part it into three regions. Returns the sketch and a point inside
+/// each region, in the primaries' order.
+fn wing_sketch(plane_s: f64) -> (ringdesign_core::sketch::Sketch, Vec<[f64; 2]>) {
+    use ringdesign_core::sketch::{FaceAnchor, Geometry, Sketch, Workplane};
+    // (s, z) in the feathers' terms to the plane's (x, y): x runs toward the stone, y is the world's z.
+    let to = |q: [f64; 2]| [plane_s - q[0], -q[1]];
+    let spine = |p: &Primary, u: f64| {
+        let [p0, p1, p2] = primary_spine(p);
+        bezier(p0, p1, p2, u)
+    };
+    let tip = |p: &Primary| {
+        let [_, p1, p2] = primary_spine(p);
+        let d = [p2[0] - p1[0], p2[1] - p1[1]];
+        let l = d[0].hypot(d[1]).max(1e-9);
+        // The plan stops at the vane's end, short of the sculpted point: the kernel opens long sharp spikes.
+        let reach = 0.5 * p.w_tip;
+        [p2[0] + d[0] / l * reach, p2[1] + d[1] / l * reach]
+    };
+    let mid = |a: [f64; 2], b: [f64; 2]| [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0];
+    let [one, two, three] = &PRIMARIES;
+    let root = |z: f64| [flank_s(z) - 0.1, z];
+    let r_top = root(one.root_z + 1.4);
+    let m12 = root((one.root_z + two.root_z) / 2.0);
+    let m23 = root((two.root_z + three.root_z) / 2.0);
+    let r_bot = root(three.root_z - 1.3);
+    let n12 = mid(spine(one, 0.72), spine(two, 0.72));
+    let n23 = mid(spine(two, 0.72), spine(three, 0.72));
+    let (t1, t2, t3) = (tip(one), tip(two), tip(three));
+    let mut sk = Sketch { name: "Wing".into(), ..Sketch::default() };
+    sk.plane = Workplane { on_face: Some(FaceAnchor { feature: 4, face: cad::FaceRef { ordinal: 0, signature: None } }), ..Workplane::default() };
+    let mut pt = |q: [f64; 2]| sk.point(to(q));
+    let ids: Vec<Id> = [r_bot, t3, n23, t2, n12, t1, r_top, m12, m23].iter().map(|q| pt(*q)).collect();
+    let (rb, i3, k23, i2, k12, i1, rt, j12, j23) = (ids[0], ids[1], ids[2], ids[3], ids[4], ids[5], ids[6], ids[7], ids[8]);
+    // A cubic from a to b, its handles a third of the way along and pushed `bulge` mm to the left of a to b.
+    let curve = |sk: &mut Sketch, a: Id, qa: [f64; 2], b: Id, qb: [f64; 2], bulge: f64| {
+        let (pa, pb) = (to(qa), to(qb));
+        let d = [pb[0] - pa[0], pb[1] - pa[1]];
+        let l = d[0].hypot(d[1]).max(1e-9);
+        let n = [-d[1] / l * bulge, d[0] / l * bulge];
+        let h1 = sk.point([pa[0] + d[0] / 3.0 + n[0], pa[1] + d[1] / 3.0 + n[1]]);
+        let h2 = sk.point([pa[0] + 2.0 * d[0] / 3.0 + n[0], pa[1] + 2.0 * d[1] / 3.0 + n[1]]);
+        sk.entity(Geometry::Bezier { points: [a, h1, h2, b] });
+    };
+    curve(&mut sk, rb, r_bot, i3, t3, 0.6);
+    curve(&mut sk, i3, t3, k23, n23, 0.15);
+    curve(&mut sk, k23, n23, i2, t2, 0.15);
+    curve(&mut sk, i2, t2, k12, n12, 0.15);
+    curve(&mut sk, k12, n12, i1, t1, 0.15);
+    curve(&mut sk, i1, t1, rt, r_top, 0.7);
+    sk.entity(Geometry::Line { a: rt, b: j12 });
+    sk.entity(Geometry::Line { a: j12, b: j23 });
+    sk.entity(Geometry::Line { a: j23, b: rb });
+    curve(&mut sk, k12, n12, j12, m12, 0.2);
+    curve(&mut sk, k23, n23, j23, m23, 0.2);
+    let inside = PRIMARIES.iter().map(|p| to(spine(p, 0.4))).collect();
+    (sk, inside)
+}
+
+/// The collet's foot: the collet's wall carried down into a cup that tapers in 0.3 mm over its first mm and
+/// rounds under, so the bezel reads as a made cup on the band rather than a cut tube standing on it. Its floor
+/// stands just over the crest, under the culet, so nothing grazes the dome inside the collet.
+fn collet_foot(crest: &Crest, top_r: f64) -> csg::Solid {
+    let (a, b) = (2.5 + COLLET_WALL_MM, 3.5 + COLLET_WALL_MM);
+    // The cup's section: (inset from the collet's outer wall, height over the crest), top to bottom.
+    // Its top lies inside the collet's wall and leaves it just inside the wall's foot, so no shelf shows.
+    let edge = FOOT_EDGE_MM;
+    let mut section: Vec<(f64, f64)> = vec![(0.6, FOOT_FLOOR_MM), (edge, -0.3)];
+    for k in 1..=6 {
+        let t = k as f64 / 6.0;
+        section.push((edge + FOOT_TAPER_MM * t, -0.3 - 0.7 * t));
+    }
+    for k in 1..=6 {
+        let w = k as f64 / 6.0 * PI / 2.0;
+        section.push((edge + FOOT_TAPER_MM + FOOT_ROUND_MM * (1.0 - w.cos()), -1.0 - FOOT_ROUND_MM * w.sin()));
+    }
+    let world = |s: f64, z: f64, h: f64| -> P3 {
+        let theta = 90.0 - (s / top_r).to_degrees();
+        let r = crest.at(theta) + h;
+        let e = er(theta);
+        [e[0] * r, e[1] * r, z]
+    };
+    const N: usize = 72;
+    let (lowest, inmost) = (section.last().unwrap().1, section.last().unwrap().0);
+    let mut v: Vec<P3> = vec![world(0.0, 0.0, FOOT_FLOOR_MM)];
+    for &(inset, h) in &section {
+        for j in 0..N {
+            let phi = 2.0 * PI * j as f64 / N as f64;
+            v.push(world((a - inset) * phi.cos(), (b - inset) * phi.sin(), h));
+        }
+    }
+    // The underside: a shallow dome in from the rounded rim.
+    let dome = [0.75, 0.5, 0.25];
+    for (k, f) in dome.iter().enumerate() {
+        for j in 0..N {
+            let phi = 2.0 * PI * j as f64 / N as f64;
+            v.push(world((a - inmost) * f * phi.cos(), (b - inmost) * f * phi.sin(), lowest - 0.05 * (k + 1) as f64));
+        }
+    }
+    v.push(world(0.0, 0.0, lowest - 0.2));
+    let rings = section.len() + dome.len();
+    let at = |k: usize, j: usize| (1 + k * N + j % N) as u32;
+    let mut f: Vec<[u32; 3]> = Vec::new();
+    for j in 0..N {
+        f.push([0, at(0, j), at(0, j + 1)]);
+    }
+    for k in 0..rings - 1 {
+        for j in 0..N {
+            f.push([at(k, j), at(k + 1, j), at(k + 1, j + 1)]);
+            f.push([at(k, j), at(k + 1, j + 1), at(k, j + 1)]);
+        }
+    }
+    let last = (v.len() - 1) as u32;
+    for j in 0..N {
+        f.push([at(rings - 1, j), last, at(rings - 1, j + 1)]);
+    }
     let mut solid = csg::Solid { v, f };
     if signed_volume(&solid) < 0.0 {
         solid.f.iter_mut().for_each(|t| t.swap(1, 2));
@@ -433,13 +584,6 @@ fn signed_volume(s: &csg::Solid) -> f64 {
         .sum()
 }
 
-fn stored_op(solid: &csg::Solid, op: &str, params: serde_json::Value) -> Result<Operation> {
-    Ok(Operation::Stored {
-        recipe: stored::Recipe { kernel: "officina_aile".into(), op: op.into(), params, digest: String::new() },
-        sources: Vec::new(),
-        mesh: stored::Packed::encode(&solid.v, &solid.f, &vec![0; solid.f.len()], &[SurfaceKind::Freeform])?,
-    })
-}
 
 fn feature(id: Id, name: &str, operation: Operation, component: Component) -> Feature {
     Feature { id, name: name.into(), enabled: true, operation, component }
@@ -466,37 +610,111 @@ fn author() -> Result<(RingDesign, AlphaLibrary, serde_json::Value)> {
     let top_r = crest.at(90.0);
     let mut doc = Document::default();
     doc.append(feature(1, "Band", Operation::Band, Component { role: ComponentRole::Shank, ..Component::default() }))?;
-    let mut stone = builders::stone_feature(2, gem, Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: stand + SEAT_RISE_MM, spin_deg: 90.0, tilt_deg: 0.0, cant_deg: 0.0 });
+    // North-south: the oval's length along the finger.
+    let mut seat = Placement::ring(90.0, stand + SEAT_RISE_MM);
+    if let Placement::Ring { spin_deg, .. } = &mut seat {
+        *spin_deg = 90.0;
+    }
+    let mut stone = builders::stone_feature(2, gem, seat);
     stone.name = "Oval 7 x 5".into();
     doc.append(stone)?;
-    doc.append(builders::feature_on(3, "Collet", builders::BEZEL, 2, json!({"wall_mm": COLLET_WALL_MM})))?;
+    let mut collet = builders::feature_on(3, "Collet", builders::BEZEL, 2, json!({"wall_mm": COLLET_WALL_MM}));
+    collet.component.blend_mm = COLLET_BLEND_MM;
+    doc.append(collet)?;
+    let foot = collet_foot(&crest, top_r);
+    let check = foot.check(true);
+    ensure!(check.self_crossings == Some(0) && check.open_edges == 0, "the collet's foot is not a clean solid: {check:?}");
+    doc.append(Feature {
+        id: 11,
+        name: "Collet foot".into(),
+        enabled: true,
+        operation: Operation::Stored {
+            recipe: stored::Recipe { kernel: "officina_aile".into(), op: "foot".into(), params: json!({"edge_mm": FOOT_EDGE_MM, "floor_mm": FOOT_FLOOR_MM, "taper_mm": FOOT_TAPER_MM, "round_mm": FOOT_ROUND_MM}), digest: String::new() },
+            sources: Vec::new(),
+            mesh: stored::Packed::encode(&foot.v, &foot.f, &vec![0; foot.f.len()], &[SurfaceKind::Freeform])?,
+        },
+        component: joined(),
+    })?;
+    // The wing's plan: a work plane square to the band through the middle of the east wing, and on it one
+    // sketch whose outer contour and two inner Beziers part three regions, one per primary.
+    let plane_s = WING_PLANE_S_MM;
+    let plane_theta = 90.0 - (plane_s / top_r).to_degrees();
+    doc.append(feature(4, "Wing plane", Operation::Plane { base: cad::PlaneBase::Tangent { theta_deg: plane_theta, across_mm: 0.0 }, offset_mm: WING_PLANE_OFFSET_MM }, Component::default()))?;
+    let (sketch, region_at) = wing_sketch(plane_s);
+    let regions = sketch.profile_regions()?;
+    ensure!(regions.len() == 3, "the wing sketch parts {} regions, not 3", regions.len());
+    doc.append(feature(5, "Wing", Operation::Sketch { sketch }, Component::default()))?;
+    for (k, at) in region_at.iter().enumerate() {
+        let i = regions.iter().position(|r| r.contains(*at)).ok_or_else(|| anyhow::anyhow!("no wing region holds {at:?}"))?;
+        let region = ringdesign_core::sketch::RegionRef::among(&regions, i, *at).ok_or_else(|| anyhow::anyhow!("wing region {i} has no name"))?;
+        doc.append(feature(
+            6 + k as Id,
+            &format!("Tier {}", ["I", "II", "III"][k]),
+            Operation::Extrude { sketch: cad::Profile::Region { feature: 5, region }, height_mm: TIER_MM[k], draft_deg: TIER_DRAFT_DEG },
+            joined(),
+        ))?;
+    }
+    // The sculpt: the clasp and the three primaries, cambered, barbed and pointed, made as one solid that
+    // replaces the three tiers and stands in the frame the first tier was built in.
     let mut feathers = Vec::new();
-    let loose = || Component { material: "Gold 18k".into(), ..Component::default() };
+    let mut solids = Vec::new();
+    let mut ends = Vec::new();
     let parts: Vec<(&Primary, [[f64; 2]; 3], Option<Barbs>, Res)> = std::iter::once((&CLASP, clasp_spine(), Some(CLASP_BARBS), CLASP_RES))
         .chain(PRIMARIES.iter().map(|p| (p, primary_spine(p), Some(BARBS), PRIMARY_RES)))
         .collect();
-    for (k, (p, ctrl, barbs, res)) in parts.into_iter().enumerate() {
-        let solid = feather(p, ctrl, barbs, res, &crest, top_r);
+    for (p, ctrl, barbs, res) in parts {
+        let (solid, apex) = feather(p, ctrl, barbs, res, &crest, top_r);
         let check = solid.check(true);
         ensure!(check.self_crossings == Some(0) && check.open_edges == 0, "{} is not a clean solid: {check:?}", p.name);
-        let params = json!({"spec": p, "spine_s_z": ctrl, "barbs": barbs, "resolution": res});
-        feathers.push(json!({"name": p.name, "params": params, "triangles": solid.f.len(), "volume_mm3": signed_volume(&solid)}));
-        doc.append(feature(5 + k as Id, p.name, stored_op(&solid, "feather", params)?, loose()))?;
+        feathers.push(json!({"name": p.name, "spec": p, "spine_s_z": ctrl, "barbs": barbs, "resolution": res, "triangles": solid.f.len(), "volume_mm3": signed_volume(&solid)}));
+        // Every tip is a point; the clasp's foot is one too, run out against the collet.
+        ends.push(apex[1]);
+        if res.pointed_root {
+            ends.push(apex[0]);
+        }
+        solids.push(solid);
     }
-    doc.append(feature(9, "Wing: clasp and I", Operation::Boolean { a: 5, b: 6, kind: cad::Boolean::Union }, loose()))?;
-    doc.append(feature(10, "Wing: and II", Operation::Boolean { a: 9, b: 7, kind: cad::Boolean::Union }, loose()))?;
-    doc.append(feature(11, "East wing", Operation::Boolean { a: 10, b: 8, kind: cad::Boolean::Union }, loose()))?;
+    let wing = csg::union_all(&solids).map_err(|e| anyhow::anyhow!("the east wing's feathers do not unite: {e:?}"))?;
+    let check = wing.check(true);
+    ensure!(check.self_crossings == Some(0) && check.open_edges == 0, "the east wing is not a clean solid: {check:?}");
+    // Stand the mesh in the first tier's frame.
+    d.cad = Some(doc.clone());
+    let tiers = cad::evaluate(&d, &lib, BuildParams { theta_steps: 256, profile_steps: 96, ..BuildParams::default() })?;
+    let frame = tiers.components.iter().find(|c| c.id == 6).map(|c| c.frame).ok_or_else(|| anyhow::anyhow!("tier I was not built: {:?}", tiers.features.iter().map(|r| (r.id, &r.status)).collect::<Vec<_>>()))?;
+    let local = csg::Solid {
+        v: wing
+            .v
+            .iter()
+            .map(|p| {
+                let q = sub(*p, frame.origin);
+                [dot(q, frame.x_axis), dot(q, frame.y_axis), dot(q, frame.z_axis)]
+            })
+            .collect(),
+        f: wing.f.clone(),
+    };
+    let params = json!({"feathers": feathers, "barbs": BARBS, "clasp_barbs": CLASP_BARBS, "end_mm": END_MM, "rachis_mm": RACHIS_MM});
+    doc.append(Feature {
+        id: 9,
+        name: "Sculpt the east wing".into(),
+        enabled: true,
+        operation: Operation::Stored {
+            recipe: stored::Recipe { kernel: "officina_aile".into(), op: "sculpt".into(), params, digest: String::new() },
+            sources: vec![6, 7, 8],
+            mesh: stored::Packed::encode(&local.v, &local.f, &vec![0; local.f.len()], &[SurfaceKind::Freeform])?,
+        },
+        component: joined(),
+    })?;
     doc.append(feature(
-        12,
+        10,
         "West wing (mirror)",
-        Operation::Pattern { sources: cad::pattern::Sources(vec![11]), kind: PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg: 90.0 } } },
-        loose(),
+        Operation::Pattern { sources: cad::pattern::Sources(vec![9]), kind: PatternKind::Mirror { plane: MirrorPlane::Section { theta_deg: 90.0 } } },
+        joined(),
     ))?;
-    // The collet and both wings become one head, which joins the band.
-    doc.append(feature(13, "Head: collet and east wing", Operation::Boolean { a: 3, b: 11, kind: cad::Boolean::Union }, loose()))?;
-    doc.append(feature(14, "Head", Operation::Boolean { a: 13, b: 12, kind: cad::Boolean::Union }, joined()))?;
+    let points: Vec<P3> = ends.iter().flat_map(|e| [*e, [-e[0], e[1], e[2]]]).collect();
+    let _ = POINTS.set(points.clone());
+    let feathers = json!({"east_wing_triangles": wing.f.len(), "feathers": feathers, "points": points});
     d.cad = Some(doc);
-    let comp = json!({"stand_off_mm": stand, "crest_top_r_mm": top_r, "feathers": feathers});
+    let comp = json!({"stand_off_mm": stand, "crest_top_r_mm": top_r, "wing_plane_theta_deg": plane_theta, "wing": feathers});
     Ok((d, lib, comp))
 }
 
@@ -595,8 +813,74 @@ fn census(m: &mesh::Mesh, samples: usize) -> Vec<(P3, P3, f64)> {
 
 // --- Pictures ------------------------------------------------------------------
 
-/// The timeline looks from the east, where the wing is built before the mirror.
-const TIMELINE_YAW: f64 = 0.6;
+/// The timeline looks down from the east, where the wing is built before the mirror, framed the same in every step.
+const TIMELINE_YAW: f64 = 0.45;
+const TIMELINE_PITCH: f64 = 1.0;
+const TIMELINE_CENTRE: [f64; 3] = [2.5, 8.5, -1.5];
+const TIMELINE_HALF_MM: f64 = 14.0;
+/// The wire a work plane and a sketch are drawn in, and its radius, mm.
+const WIRE_TINT: [f32; 3] = [0.25, 0.5, 0.95];
+const WIRE_MM: f64 = 0.1;
+
+/// A work plane's outline round the sketch on it and, with `curves`, the sketch's own curves, as fine tubes.
+fn wire_of(plane: &cad::WorkPlane, sk: &ringdesign_core::sketch::Sketch, curves: bool) -> mesh::Mesh {
+    use ringdesign_core::sketch::Geometry;
+    let at = |id: Id| sk.points.iter().find(|p| p.id == id).map(|p| p.xy).unwrap_or([0.0; 2]);
+    let world = |q: [f64; 2]| add(add(plane.origin, plane.x, q[0]), plane.y, q[1]);
+    let mut runs: Vec<Vec<P3>> = Vec::new();
+    let (mut lo, mut hi) = ([f64::MAX; 2], [f64::MIN; 2]);
+    for p in &sk.points {
+        for k in 0..2 {
+            lo[k] = lo[k].min(p.xy[k]);
+            hi[k] = hi[k].max(p.xy[k]);
+        }
+    }
+    let (lo, hi) = ([lo[0] - 1.0, lo[1] - 1.0], [hi[0] + 1.0, hi[1] + 1.0]);
+    runs.push([[lo[0], lo[1]], [hi[0], lo[1]], [hi[0], hi[1]], [lo[0], hi[1]], [lo[0], lo[1]]].iter().map(|q| world(*q)).collect());
+    if curves {
+        for e in &sk.entities {
+            let pts: Vec<[f64; 2]> = match &e.geometry {
+                Geometry::Line { a, b } => vec![at(*a), at(*b)],
+                Geometry::Bezier { points } => {
+                    let c = points.map(at);
+                    (0..=40)
+                        .map(|k| {
+                            let t = k as f64 / 40.0;
+                            let w = [(1.0 - t).powi(3), 3.0 * t * (1.0 - t).powi(2), 3.0 * t * t * (1.0 - t), t.powi(3)];
+                            [0, 1].map(|i| (0..4).map(|j| w[j] * c[j][i]).sum())
+                        })
+                        .collect()
+                }
+                _ => vec![],
+            };
+            runs.push(pts.iter().map(|q| world(*q)).collect());
+        }
+    }
+    let mut m = mesh::Mesh::default();
+    for run in runs {
+        for w in run.windows(2) {
+            let d = unit(sub(w[1], w[0]));
+            let a = unit(cross(d, if d[2].abs() < 0.9 { [0.0, 0.0, 1.0] } else { [1.0, 0.0, 0.0] }));
+            let b = cross(d, a);
+            let base = m.vertices.len() as u32;
+            for end in [w[0], w[1]] {
+                for j in 0..8 {
+                    let t = j as f64 * PI / 4.0;
+                    let n = add([0.0; 3], add(a.map(|v| v * t.cos()), b, t.sin()), 1.0);
+                    let p = add(end, n, WIRE_MM);
+                    m.vertices.push(mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32));
+                    m.normals.push(mesh::Vec3(n[0] as f32, n[1] as f32, n[2] as f32));
+                }
+            }
+            for j in 0..8u32 {
+                let (j0, j1) = (j, (j + 1) % 8);
+                m.faces.push([base + j0, base + j1, base + 8 + j1]);
+                m.faces.push([base + j0, base + 8 + j1, base + 8 + j0]);
+            }
+        }
+    }
+    m
+}
 /// The camera for each named view: yaw about the head's axis, pitch toward the finger's.
 const VIEWS: [(&str, f64, f64); 6] = [
     ("hero", -0.55, 0.85),
@@ -679,13 +963,39 @@ fn renders(out: &Path, lib: &AlphaLibrary, fin: &render::Finished, d: &RingDesig
     // The timeline: the ring after each feature, as the rollback marker builds it.
     let doc = d.cad.as_ref().expect("a CAD document");
     let mut steps = Vec::new();
+    let sketch = doc.features.iter().find_map(|f| match &f.operation {
+        Operation::Sketch { sketch } => Some(sketch.clone()),
+        _ => None,
+    });
+    let framing = render::Framing::new(TIMELINE_CENTRE, TIMELINE_HALF_MM);
+    let mut step_notes = Vec::new();
     for (k, f) in doc.features.iter().enumerate() {
+        // The history up to this feature, appended afresh: rolling back with `through` keeps the outputs the
+        // whole history left, so the tiers the sculpt consumes would not show.
         let mut at = d.clone();
-        at.cad.as_mut().unwrap().through = Some(f.id);
-        let fin = render::finished(&at, lib, timeline_params())?;
-        steps.push((format!("{}. {}", k + 1, f.name), render::render_parts_ss(&fin.parts(render::GOLD), TIMELINE_YAW, pitch, 300, 300, 3)));
+        let mut upto = Document { joints: doc.joints.clone(), ..Document::default() };
+        for g in &doc.features[..=k] {
+            upto.append(g.clone())?;
+        }
+        at.cad = Some(upto);
+        let built = mesh::try_build(&at, lib, timeline_params())?;
+        // A work plane and a sketch have no body: draw them as wire, the plane's outline and the sketch's curves.
+        let plane = built.parts.evaluated.as_ref().and_then(|e| e.planes.first().copied());
+        let wire = match (&f.operation, plane, &sketch) {
+            (Operation::Plane { .. }, Some(pl), Some(sk)) => Some(wire_of(&pl, sk, false)),
+            (Operation::Sketch { .. }, Some(pl), Some(sk)) => Some(wire_of(&pl, sk, true)),
+            _ => None,
+        };
+        step_notes.push(json!({"step": k + 1, "feature": f.name, "notes": [&built.solids.notes, &built.parts.notes]}));
+        let fin = render::finished_from(&at, lib, built);
+        let mut parts = fin.parts(render::GOLD);
+        if let Some(w) = &wire {
+            parts.push(render::Part::metal(w, WIRE_TINT));
+        }
+        steps.push((format!("{}. {}", k + 1, f.name), render::render_parts_framed(&parts, TIMELINE_YAW, TIMELINE_PITCH, framing, 300, 300, 3)));
     }
     sheet(&out.join("timeline.png"), &steps, 300, 4)?;
+    std::fs::write(out.join("timeline.json"), serde_json::to_vec_pretty(&json!({"params": [timeline_params().theta_steps, timeline_params().profile_steps], "steps": step_notes}))?)?;
     Ok(())
 }
 
@@ -706,7 +1016,11 @@ fn gates_at(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(
     // Every sample under the floor must be the collet's burnished lip, the bezel pushed over the crown at the bench,
     // which stands above the girdle.
     let girdle_r = Crest::of(d).at(90.0) + builders::stand_off_mm(builders::BEZEL, oval()) + SEAT_RISE_MM;
-    let on_lip = |p: P3| p[0].hypot(p[1]) >= girdle_r - 0.2 && (p[1].atan2(p[0]).to_degrees() - 90.0).abs() < 20.0;
+    let lip = |p: P3| p[0].hypot(p[1]) >= girdle_r - 0.2 && (p[1].atan2(p[0]).to_degrees() - 90.0).abs() < 20.0;
+    // ...or within POINT_MM of a feather's point, which the 0.15 mm detail floor governs.
+    let points = POINTS.get().cloned().unwrap_or_default();
+    let point = |p: P3| points.iter().any(|e| dot(sub(p, *e), sub(p, *e)).sqrt() < POINT_MM);
+    let on_lip = |p: P3| lip(p) || point(p);
     let walls: Vec<_> = e
         .map(|e| {
             e.components
@@ -733,7 +1047,7 @@ fn gates_at(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(
         "sampled_min_mm": ring_wall.sampled_min_mm, "point": ring_wall.point, "rays": ring_wall.rays, "unresolved": ring_wall.unresolved, "below_limit": ring_wall.below_limit, "note": ring_wall.note,
         "census": {"samples": samples.len(), "below_floor": thin.len(), "below_floor_on_the_burnished_lip": thin.len() - thin_off_lip, "below_floor_elsewhere": thin_off_lip, "girdle_r_mm": girdle_r,
             "below_floor_points": thin.iter().map(|c| json!({"mm": c.2, "theta_deg": c.0[1].atan2(c.0[0]).to_degrees(), "r_mm": c.0[0].hypot(c.0[1]), "z_mm": c.0[2], "lip": in_lip(c)})).collect::<Vec<_>>()},
-        "exception": "the collet's lip: a bezel thinned to its edge so it can be burnished over the crown; every other sample clears 0.8 mm",
+        "exception": "the collet's lip, a bezel thinned to its edge so it can be burnished over the crown, and the last 0.9 mm of each feather's point, judged at the 0.15 mm detail floor (its round is 0.6 mm across); every other sample clears 0.8 mm",
     });
     let ring_ok = ring_wall["unresolved"] == 0 && thin_off_lip == 0;
     let walls_ok = ring_ok && walls.iter().all(|w| w["census_below_floor_off_lip"] == 0 && w["unresolved"] == 0);
@@ -847,7 +1161,12 @@ fn main() -> Result<()> {
     if let Ok(spec) = std::env::var("AILE_LOOK") {
         // theta,z,radius,yaw,pitch: a close-up of the draft build round one point.
         let v: Vec<f64> = spec.split(',').map(|x| x.parse().unwrap()).collect();
+        if let Some(t) = v.get(5).filter(|t| **t > 0.0) {
+            d.cad.as_mut().unwrap().through = Some(*t as Id);
+        }
         let built = mesh::try_build(&d, &lib, draft_params())?;
+        let b = built.mesh.vertices.iter().fold([f32::MAX, f32::MIN, f32::MAX, f32::MIN, f32::MAX, f32::MIN], |a, v| [a[0].min(v.0), a[1].max(v.0), a[2].min(v.1), a[3].max(v.1), a[4].min(v.2), a[5].max(v.2)]);
+        println!("look mesh: {} faces, bounds {:?}, joined {}, notes {:?}", built.mesh.faces.len(), b, built.parts.joined, built.parts.notes);
         let c = add([0.0, 0.0, v[1]], er(v[0]), 10.8);
         let fin = render::finished_from(&d, &lib, built);
         render::write_png_framed(out.join("look.png"), &fin.parts(render::GOLD), render::yaw_facing(v[0]) + v[3], v[4], render::Framing::new(c, v[2]), 1000)?;
@@ -858,6 +1177,12 @@ fn main() -> Result<()> {
         let coarse = mesh::try_build(&d, &lib, BuildParams { theta_steps: 320, profile_steps: 112, ..BuildParams::default() })?;
         let w = cad::measure::thickness(&coarse.mesh, MIN_SECTION_MM);
         println!("probe through {t}: {w:?}; notes {:?} {:?}", coarse.solids.notes, coarse.parts.notes);
+        let b = coarse.mesh.vertices.iter().fold([f32::MAX, f32::MIN, f32::MAX, f32::MIN, f32::MAX, f32::MIN], |a, v| [a[0].min(v.0), a[1].max(v.0), a[2].min(v.1), a[3].max(v.1), a[4].min(v.2), a[5].max(v.2)]);
+        println!("  built mesh: {} faces, {} shells, bounds {:?}; joined {} separate {}", coarse.mesh.faces.len(), shells(&coarse.mesh), b, coarse.parts.joined, coarse.parts.separate);
+        for c in coarse.parts.evaluated.iter().flat_map(|e| e.components.iter()) {
+            let b = c.mesh.vertices.iter().fold([f32::MAX, f32::MIN, f32::MAX, f32::MIN, f32::MAX, f32::MIN], |a, v| [a[0].min(v.0), a[1].max(v.0), a[2].min(v.1), a[3].max(v.1), a[4].min(v.2), a[5].max(v.2)]);
+            println!("  part {} {}: {} faces, volume {:.2}, bounds {:?}", c.id, c.name, c.mesh.faces.len(), c.mesh.volume_mm3(), b);
+        }
         for (at, n, t) in census(&coarse.mesh, 1536).iter().filter(|c| c.2 < MIN_SECTION_MM) {
             let r = at[0].hypot(at[1]);
             println!("  thin {t:.3} at theta {:.1} r {r:.3} z {:.3} normal {:?}", at[1].atan2(at[0]).to_degrees(), at[2], n.map(|v| (v * 100.0).round() / 100.0));

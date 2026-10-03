@@ -1,0 +1,96 @@
+{
+  "params": [
+    320,
+    112
+  ],
+  "steps": [
+    {
+      "feature": "Band",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 1
+    },
+    {
+      "feature": "Oval 7 x 5",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 2
+    },
+    {
+      "feature": "Collet",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 3
+    },
+    {
+      "feature": "Collet foot",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 4
+    },
+    {
+      "feature": "Wing plane",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 5
+    },
+    {
+      "feature": "Wing",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 6
+    },
+    {
+      "feature": "Tier I",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 7
+    },
+    {
+      "feature": "Tier II",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 8
+    },
+    {
+      "feature": "Tier III",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 9
+    },
+    {
+      "feature": "Sculpt the east wing",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 10
+    },
+    {
+      "feature": "West wing (mirror)",
+      "notes": [
+        [],
+        []
+      ],
+      "step": 11
+    }
+  ]
+}
