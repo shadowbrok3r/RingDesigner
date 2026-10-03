@@ -1,0 +1,17 @@
+{
+  "ring": "porta",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": true,
+  "what_the_eye_sees": "Face-on, this is now a Gothic church doorway on a teardrop signet. A tall pointed arch fills most of the table, built from stepped concentric orders. A red stone sits in the lunette, a flat bar runs under it as a lintel, and below that are two dark door openings split by a centre post. A jeweller would say 'Gothic arch door' or 'cathedral portal' without a caption, and the shoulder lancets support the reading. It is no longer a grooved band. It still reads as engraving more than architecture. The orders look like six or seven even ridges rather than four bold steps. The hood-mould and crockets are faint hairlines with a speck of a finial, so the drop's point is not yet a gable. The doorway is small and squat, about a quarter of the arch's height, like a pictogram. The trefoil at the round end still reads as a playing-card club. In the three-quarter hero the arch and ruby carry the read. The doorway shrinks to a 'T' icon, the trefoil to an '8', and the relief throws little shadow into the head.",
+  "changes": [
+    "Doorway (lower part of the portal, under the lintel): make the door leaves taller and wider. Move the lintel up from its current height to about 55-60% of the inner arch height, so each leaf is at least 1.4 mm wide and 2.5 mm tall. Sink the leaves to the full -0.9 floor and keep the trumeau about 0.6-0.8 mm wide, proud of them. Acceptance: in hero-300 the two dark leaves and the post read as a double door, not a 'T' glyph, and the door's height is at least half the tympanum-plus-door span.",
+    "Archivolts (portal sketch): bring the visible orders down to 4 clearly stepped ones, about 1.0 mm each. Floors should step at least 0.25 mm, with a roll of r 0.3 or more on each. Merge or remove the extra hairline offsets that currently make 6-7 even ridges. Acceptance: at face-300 you can count exactly 4 bright rolls with dark steps between them, and in hero-300 the inner orders sit visibly in shadow below the outer ones.",
+    "Gable and crypt (the drop's point and round end): raise the ogee hood-mould to about +0.7 high and 0.7 wide, with crockets of at least 1.0 mm and a fleur-de-lis finial about 2.5 mm tall. Reshape the crypt opening from the club-like trefoil into a pierced trefoil or quatrefoil about 2.4 mm across, with an open centre and pointed cusps. Acceptance: at face-300 the point of the drop reads as a crocketed gable with a finial, and the bottom opening reads as a pierced window, not a club."
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/porta/hero-300.png",
+    "showcase/tenebrae/porta/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}

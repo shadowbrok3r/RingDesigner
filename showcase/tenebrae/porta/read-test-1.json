@@ -1,0 +1,17 @@
+{
+  "ring": "porta",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain teardrop signet with a red cabochon in the middle and a set of thin nested pointed-arch lines engraved flat into the table. Face-on, the nested lines do make a pointed arch, so a jeweller might say 'Gothic arch' or 'lancet window'. They would not say 'portal', and probably not 'cathedral'. The arch reads as about seven equal hairline grooves, like a fingerprint or contour lines, not four stepped archivolts receding into the head. The row of short vertical slits at the base reads as a grille or a barcode, not as twin doors split by a trumeau. The ruby floats in the arch with no lintel under it, so there is no tympanum. The finial is a speck at the point, there is no hood-mould or crockets at this size, and the trefoil at the round end reads as a playing-card club. In the three-quarter hero it is a grooved teardrop on a plain band: the shoulders show no lancets and the ornament has no relief or shadow. This is the 'grooved band' failure the checklist names.",
+  "changes": [
+    "Archivolts (face, the portal sketch): cut it as 4 wide orders, not many hairlines. Widen the portal from 8.5 to about 11 mm round the ring, so it fills the 14.5 table to a rim of about 1.5 mm. Make each ring about 1.1 mm wide, step the floors at least 0.25 mm apart (or tilt each floor so it reads as a splay), and raise the roll moulding on each order from r 0.2 to about 0.35, standing proud of its floor. Acceptance: at face-300 you can count exactly 4 bright rolls separated by dark stepped bands, and in hero-300 the arch casts visible shadow into the head.",
+    "Doorway (lower third of the portal): cut a solid lintel bar about 0.8 mm tall straight across at 60% of the inner height. Under it, sink two door leaves to the full −0.9 floor so they render as two dark panels, split by a raised trumeau about 0.8 mm wide, and delete the row of thin slits. Set the ruby in the tympanum above the lintel, at about 3.5 mm. Acceptance: at face-300 the eye sees a dark double door with a centre post under a red-jewelled lunette, not a grille.",
+    "Gable and crypt (point and round end of the drop, plus the shoulders): raise the ogee hood-mould from +0.4 to about +0.7, 0.7 wide, with 6 crockets of at least 1.0 mm. Grow the fleur-de-lis finial to about 2.5 mm tall, so the drop's point becomes a crocketed gable. Grow the crypt trefoil from 1.6 to about 2.4 mm, with the lobes reading as a pierced window and not a club. Make the shoulder lancets deep and long enough to show (2.8 down to 1.8 mm). Acceptance: hero-300 shows the gable's silhouette breaking the drop's outline, with pierced lancets visible on the near shoulder."
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/porta/hero-300.png",
+    "showcase/tenebrae/porta/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}
