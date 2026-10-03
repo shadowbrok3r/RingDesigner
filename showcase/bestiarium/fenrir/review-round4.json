@@ -1,0 +1,72 @@
+{
+  "ring": "Fenrir — the wolf and the moon",
+  "round": 4,
+  "verdict": "revise",
+  "score": 7.0,
+  "summary": "Revise, 7.0. This is revival round 1; earlier scores were 5.5, 6.5 and 7.0 (cut). Caiman is 7 and the ship bar is 7.5. The head moved in the right direction. The muzzle is 6.66 mm stop to nose, up from 5.5. The lower-jaw-to-muzzle ratio is 1.08, down from 1.45. The chin reaches 7.22 mm. The lower jaw is now tied to the cheeks by a continuous run of metal down each side. The upper flew is broken at the canines instead of running as one horseshoe. The fangs read as four curved canines, and the moonstone is held and visible. Shown without the caption, face-300 now reads as a wolf's head with an orb in its jaws more often than as a bulldog. It still does not clear 7.5. The head's surface is melted and blobby where it should be modelled. The broken flews read as segmented caterpillar rolls. The cheek fur is still worm-like squiggles. The nasal bridge is a flat plank with no nose leather at its end. The palm and shoulder relief, which is half the ring, has not moved. The Ruff is still combed vertical spikes and stacked chevrons with saw-toothed, stair-stepped outlines (close-ruff.png). The Gleipnir bindings are jagged ovals, not wraps (close-binding.png). A bare band still separates the head from the ruff, and seam_crease_run is 1.55 mm against the 0.7 mm asked for. Every gate in report.json is green. The template gate in verification.json, though, predates this round's design (it was written at 02:10, the design at 15:37, and its 1,257,542 triangles do not match the current 1,254,814), so it is not recorded for the ring as submitted. That alone forces revise. The head is close. The fur and bindings are the work.",
+  "strengths": [
+    "A unique Bestiarium silhouette: a pricked-ear wolf mask on 010 stock with the moon in its jaws. Nothing else in the collection or in Reptilia looks like it (contact-300.png).",
+    "The jaw geometry was fixed as asked: muzzle 6.66 mm (was 5.5), lower jaw to muzzle 1.08 (was 1.45), chin reach 7.22 mm (was 8.0). The lower jaw now joins each cheek (face.png x 460-540 and 1060-1140).",
+    "The upper flew is notched at each canine sheath (close-head.png x 560-620 and 880-940), so the round-3 horseshoe specular is broken.",
+    "Four fang claws curve up the moonstone's dome with their tips on it (side.png, stones.png). The stone is the focal point and fully visible.",
+    "Ears are crisp, with an inner cup and strands (close-head.png). Brow, muzzle, eyes, chin and nose census show 0 creases of 60 deg or more.",
+    "The hollow under the head has a 1.11-1.46 mm roof and a 1.16-1.17 mm floor at theta 70/90/110 (section-*.png), at 31.7 g in 18k.",
+    "One theme face to palm: the wolf's head and moon, the fur ruff, and Gleipnir at the palm."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "Head and moon on the face, ruff on the walls and shoulders, Gleipnir cord and bindings on the palm: one story. The bare band between head and ruff (hero.png x 880-910) weakens the hand-over but does not scatter it."},
+    {"item": "Reads as its creature at 300 px without the caption", "result": "pass", "reason": "face-300.png: pointed ears, a long bridge, four fangs and a gaping jaw round an orb read as a wolf or fox head. It is marginal: the head is wide and round, so it can still read as a lynx or owl mask. hero-300.png reads as a beast's head biting a pearl."},
+    {"item": "Figurative motifs have true outlines", "result": "fail", "reason": "close-ruff.png: every lock edge is saw-toothed and stair-stepped. close-binding.png: the binding wraps have jagged sawtooth rims and smeared diagonal streaks. On the head, the cheek fur is melted and smeared rather than drawn (close-head.png x 0-560 and 1040-1600, y 300-800)."},
+    {"item": "Stones in made settings and visible", "result": "pass", "reason": "A 10 mm moonstone cabochon held by four railless fang claws and the jaws. 1 reported, 1 previewed, no warnings. Fully visible face-on."},
+    {"item": "No flat, blocky or mechanical CAD; forms are sculpted", "result": "fail", "reason": "The head is sculpted, but its surface is lumpy and molten with no planes to hold light. The nasal bridge is a flat rectangular plank (close-head.png x 690-900, y 300-780). The flews are strings of sausage segments. The Ruff reads as mechanical stacked chevrons (reverse.png, shoulder.png)."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "The head and ruff cover the 010 face, and the band edges stay crisp (side.png, palm.png). Not much of the factory angle is left visible, but nothing was softened."},
+    {"item": "Silhouette distinct from Arachne, Manticora and the Reptilia tiles", "result": "pass", "reason": "The eared mask standing over the orb is unique in the collection."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "Large (head, moon) and medium (ears, fangs, jaw) are there. The small scale is noise, not legible detail: combed spikes and smeared squiggles where Caiman's plates, pits and knobs each read cleanly (caiman/hero.png)."}
+  ],
+  "gates": [
+    {"gate": "watertight, 0 degenerate faces", "claimed": "pass", "verified": "export 1536x448: 1,254,814 triangles, 0 boundary and 0 non-manifold edges, 0 degenerate faces; draft 768x320 the same", "pass": true},
+    {"gate": "0 self-crossings on the ring and every made part", "claimed": "pass", "verified": "geometry.self_crossings 0; made_parts cabochon, Fangs, Fenrir's head and Hollow each 0", "pass": true},
+    {"gate": "empty solids notes", "claimed": "pass", "verified": "solids.notes [] and parts_notes []", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "pass", "verified": "innermost radius 9.4906 against bore 9.5: 0.009 mm, within the bore tessellation chord; gate recorded pass", "pass": true},
+    {"gate": "lost wax: verdict and 0.8 mm fill", "claimed": "pass", "verified": "field verdict Castable under LostWax; thinnest wall 1.32 mm at 255.9 deg; draft min_section 0.8", "pass": true},
+    {"gate": "lost wax: land_widths, every section under 0.8 mm removed or named", "claimed": "pass", "verified": "floor 0.8; head mass min 0.81; 10 exceptions named with bench treatment (two ear points, four fang sheaths, four claw tips); unnamed []", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm [] at export and draft; template detail_findings 0", "pass": true},
+    {"gate": "stone count equals preview", "claimed": "pass", "verified": "reported 1, previewed 1, warnings []", "pass": true},
+    {"gate": "cold reload identical", "claimed": "pass", "verified": "cold_reload.identical_vertices_faces_normals true", "pass": true},
+    {"gate": "export within 2 million triangles", "claimed": "pass", "verified": "1,254,814", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "pass", "verified": "pattern watertight, 0 degenerate, 0 self-crossings (the 210 release obstructions are a two-part figure and do not gate under lost wax)", "pass": true},
+    {"gate": "hollow sections and internal voids", "claimed": "pass", "verified": "roof 1.46/1.11/1.42 and floor 1.16/-/1.17 mm at theta 70/90/110; internal_voids 0", "pass": true},
+    {"gate": "template gate: at most 4 design.set patches within the class budget", "claimed": "pass (verification.json)", "verified": "verification.json was written 02:10, before this round's design (15:37). It records 1,257,542 triangles where the current export is 1,254,814, so it was run on the previous design. design_set_patches [] and 2.41 MB in the painted class, but it is not a record of this design.", "pass": false}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P0 (gate)", "zone": "Pipeline: template gate", "change": "Re-run the template gate (lift, cold graph reload, detail) on the committed round-4 design and write verification.json from it.", "acceptance": "verification.json is newer than design.ring.json, its triangles equal report.json build.triangles (1,254,814 or the new count), template_gate_passed true, and design_set_patches has at most 4 entries."},
+    {"number": 2, "priority": "P1", "zone": "Layer 'Ruff' (0.6 mm), shoulders theta 20-70 and 110-160 and head walls: shoulder.png x 300-900, y 250-600; reverse.png x 420-1250, y 330-560; close-ruff.png", "change": "Carried over from round 3 #4 and still open. Repaint the locks at 2-3x the atlas resolution, or as stamps, so their outlines are smooth. Widen the bases to 1.2-1.6 mm, cut the count about 30%, and sweep each S-bow 20-30 deg back along the band so the locks flow toward the palm instead of standing across it as vertical spikes. Drop the stacked-chevron rows.", "acceptance": "close-ruff.png: no saw-tooth or stair-step on any lock rim. shoulder.png and reverse.png: no run of more than 4 parallel spikes, and each lock shows one pointed tip and a rounded crest. A 300 px shoulder crop reads as flowing fur. DFM stays at 0."},
+    {"number": 3, "priority": "P1", "zone": "Head #4, cheek fur and brow ruff: close-head.png x 0-560 and 1040-1600, y 250-800; face.png x 440-720 and 880-1160, y 380-700", "change": "Carried over from round 3 #7. Replace the molten squiggles with 2-3 tiers of pointed locks, 3-4 mm long, sweeping back toward the ears, each with a rounded crest, one centre groove and a clean edge. Smooth the head's base surface (a 0.3 mm relax pass) before adding them, so the light reads on planes rather than ripples.", "acceptance": "close-head.png: every cheek stroke is a lock with a pointed tip, with no closed worm shapes and no rippled specular between locks. The cheek census stays at 0 edges of 60 deg or more."},
+    {"number": 4, "priority": "P1", "zone": "Head #4, muzzle and nose: close-head.png x 690-900, y 300-800; face.png x 760-850, y 480-640", "change": "Finish the muzzle: take the stop-to-nose run from 6.66 to at least 7.0 mm. Taper the bridge from about 4 mm at the stop to 2.5 mm at the nose rather than a parallel plank. End it in a distinct nose leather that is 0.4 mm proud and 3 mm wide, with two nostril commas, sitting over the upper incisors.", "acceptance": "report.json jaws.muzzle_stop_to_nose_mm at least 7.0. close-head.png: the bridge visibly narrows toward the nose, and a separate nose pad with two nostrils sits at its end."},
+    {"number": 5, "priority": "P2", "zone": "Head #4, upper flews: close-head.png x 230-640 and 940-1380, y 780-1160", "change": "Merge the segmented flew lobes into one smooth lip on each side, with a single tapered wrinkle line, not 5-6 bead segments. Keep the notch at each canine.", "acceptance": "close-head.png: each flew is one continuous smooth lip from canine to corner, with no repeated bulges, and the notch at each canine remains."},
+    {"number": 6, "priority": "P2", "zone": "Head flank to Ruff seam, theta 90 +/- 25-35: hero.png x 870-930, y 280-560", "change": "Carried over from round 3 #5. Paint the Ruff's first row up the fillet to within 0.3 mm of the head's cheek fur, overlapping it by at least 1 mm.", "acceptance": "hero.png and shoulder.png: no smooth bare band wider than 0.8 mm. census.seam_crease_run_mm 0.7 or less (now 1.55)."},
+    {"number": 7, "priority": "P2", "zone": "Layer \"Gleipnir's bindings\" (0.5 mm) at theta 236/304: close-binding.png; palm.png x 300-480 and 1120-1300", "change": "Carried over from round 3 #9. Draw the bindings as 4-6 separate rounded wraps with a tucked end, crossing the cord at 70-80 deg, as stamps or at 2x atlas resolution so the rims are smooth.", "acceptance": "close-binding.png: countable wraps with smooth rims and no sawtooth edges. DFM stays at 0."},
+    {"number": 8, "priority": "P3", "zone": "Head #4, lower jaw rim: face.png x 440-1160, y 1010-1210", "change": "Smooth the lower jaw's outer rim; it is lumpy and nibbled. Give the lower lip one clean rolled edge 0.8-1.0 mm wide.", "acceptance": "face.png: the lower jaw's outline is one smooth curve with no nibbled bumps over 0.15 mm."}
+  ],
+  "viewed_images": [
+    "showcase/bestiarium/fenrir/hero-300.png",
+    "showcase/bestiarium/fenrir/face-300.png",
+    "showcase/bestiarium/fenrir/face.png",
+    "showcase/bestiarium/fenrir/hero.png",
+    "showcase/bestiarium/fenrir/close-head.png",
+    "showcase/bestiarium/fenrir/shoulder.png",
+    "showcase/bestiarium/fenrir/close-ruff.png",
+    "showcase/bestiarium/fenrir/reverse.png",
+    "showcase/bestiarium/fenrir/palm.png",
+    "showcase/bestiarium/fenrir/side.png",
+    "showcase/bestiarium/fenrir/stones.png",
+    "showcase/bestiarium/fenrir/close-binding.png",
+    "showcase/bestiarium/fenrir/contact-300.png",
+    "showcase/bestiarium/fenrir/bare-vs-finished.png",
+    "showcase/bestiarium/fenrir/section-90.png",
+    "showcase/bestiarium/fenrir/section-70.png",
+    "showcase/bestiarium/fenrir/section-110.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
