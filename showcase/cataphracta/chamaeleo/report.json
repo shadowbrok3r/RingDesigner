@@ -1,45 +1,89 @@
 {
-  "bare_001": {
-    "bore_mm": 18.599999078972296,
-    "degenerate_faces": 0,
-    "face_mm": [
-      17.0,
-      14.5
+  "body": {
+    "keys_theta_width_thickness": [
+      [
+        0.0,
+        1.0,
+        0.8
+      ],
+      [
+        25.0,
+        1.04,
+        0.92
+      ],
+      [
+        45.0,
+        1.14,
+        1.5
+      ],
+      [
+        60.0,
+        1.25,
+        2.6
+      ],
+      [
+        70.0,
+        1.3,
+        3.0
+      ],
+      [
+        112.0,
+        1.3,
+        3.0
+      ],
+      [
+        124.0,
+        1.25,
+        2.6
+      ],
+      [
+        140.0,
+        1.14,
+        1.5
+      ],
+      [
+        160.0,
+        1.04,
+        0.92
+      ],
+      [
+        200.0,
+        1.0,
+        0.8
+      ],
+      [
+        340.0,
+        1.0,
+        0.8
+      ]
     ],
-    "field_verdict": "Castable",
-    "pull_0075": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
-    "pull_384": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
-    "table_mm": [
-      9.537307739257812,
-      1.3321216106414795
-    ],
-    "undercut_percent": 0.09843418946668321,
-    "watertight": true,
-    "worst_draft_deg": -1.7473767528026773
+    "profile_mm": [
+      7.0,
+      3.0
+    ]
   },
   "bore_mm": 18.6,
   "casting_pattern": null,
   "coarse_384x192": {
-    "bore_margin_mm": -0.0001815892831427135,
+    "bore_margin_mm": -0.0002599290115181674,
     "boundary_edges": 0,
     "build": [
       384,
       192
     ],
-    "build_s": 1.728500411,
+    "build_s": 1.7496631310000001,
     "clamp_bites_mm": [],
     "closest_stones": null,
     "degenerate_faces": 0,
     "dfm_findings": [],
     "field_notes": [
-      "Lost wax: 0.01% of the surface would undercut a two-part pull (worst 0.5 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 63–63° on the crest: 0.2 mm² leaning to 1° — caused by \"Alexandrite\"; muting it clears it.",
-      "Undercut 130–130° on the crest: 0.4 mm² leaning to 1° — no single layer explains it.",
-      "Cut at the bench after casting, and so not judged here: Granules, table.",
-      "1 made setting cast in place with the ring; the field judges the band under it."
+      "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
+      "1 made setting cast in place with the ring; the field judges the band under it.",
+      "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 437.8 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 55.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "field_verdict": "Castable",
-    "grams_925": 21.993863189564248,
+    "grams_925": 29.781458998196896,
     "made_parts": [],
     "metal_inside_stones": [
       [
@@ -47,93 +91,58 @@
         0
       ]
     ],
-    "min_angle_deg": 0.00021241812824163413,
+    "min_angle_deg": 0.0022860404391581257,
     "non_manifold_edges": 0,
-    "parting_monotone": [
-      [
-        "Casque",
-        false
-      ],
-      [
-        "Temporal crest, left outer",
-        false
-      ],
-      [
-        "Temporal crest, left inner",
-        false
-      ],
-      [
-        "Temporal crest, right outer",
-        false
-      ],
-      [
-        "Temporal crest, right inner",
-        false
-      ],
-      [
-        "Dorsal cone, 1",
-        false
-      ],
-      [
-        "Dorsal cone, 2",
-        false
-      ],
-      [
-        "Dorsal cone, 3",
-        true
-      ],
-      [
-        "Dorsal cone, 4",
-        true
-      ],
-      [
-        "Dorsal cone, 5",
-        true
-      ],
-      [
-        "Dorsal cone, 6",
-        true
-      ],
-      [
-        "Dorsal cone, 7",
-        true
-      ],
-      [
-        "Dorsal cone, 8",
-        true
-      ]
-    ],
+    "parting_monotone": [],
     "parts_notes": [],
     "pass": true,
     "process": "Lost wax",
-    "release_0075": "Blocked, 2 obstructions (deepest 1.027 mm), 0 unresolved",
+    "release_0075": "Blocked, 20 obstructions (deepest 3.422 mm), 0 unresolved",
     "release_0075_obstruction_at": [
-      "[-7.25, 14.42, -2.69] 1.027 mm deep",
-      "[-7.25, 14.42, 2.69] 1.024 mm deep"
+      "[-3.82, 23.39, -3.42] 3.422 mm deep",
+      "[-3.82, 23.39, 3.41] 3.412 mm deep",
+      "[-3.15, 21.29, 1.67] 1.674 mm deep",
+      "[2.01, 19.98, -1.67] 1.674 mm deep",
+      "[-5.17, 22.49, -3.14] 1.112 mm deep",
+      "[-5.17, 22.49, 3.14] 1.112 mm deep",
+      "[-5.25, 22.39, 3.21] 0.974 mm deep",
+      "[-5.25, 22.39, -3.21] 0.973 mm deep",
+      "[-8.54, 19.78, -1.50] 0.805 mm deep",
+      "[-8.24, 19.68, 1.68] 0.780 mm deep",
+      "[-2.33, 23.19, -2.79] 0.303 mm deep",
+      "[-2.33, 23.19, 2.79] 0.301 mm deep",
+      "[-3.75, 21.99, 6.23] 0.218 mm deep",
+      "[-3.75, 21.99, -6.23] 0.216 mm deep",
+      "[-0.31, 19.08, -3.82] 0.204 mm deep",
+      "[-0.31, 19.08, 3.82] 0.202 mm deep",
+      "[-7.79, 19.28, 1.68] 0.137 mm deep",
+      "[-7.79, 19.28, -1.68] 0.136 mm deep",
+      "[-7.27, 19.18, 2.01] 0.094 mm deep",
+      "[-7.27, 19.18, -2.01] 0.091 mm deep"
     ],
-    "release_0075_obstructions": 2,
+    "release_0075_obstructions": 20,
     "release_0075_unresolved": 0,
-    "release_0100": "Blocked, 3 obstructions (deepest 1.032 mm), 0 unresolved",
-    "release_0100_low_draft_area_mm2": 510.8103420772994,
+    "release_0100": "Blocked, 18 obstructions (deepest 3.303 mm), 0 unresolved",
+    "release_0100_low_draft_area_mm2": 841.8841893351068,
     "release_0100_notes": [
-      "510.81 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "841.88 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
       "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
     ],
-    "release_0100_obstructions": 3,
+    "release_0100_obstructions": 18,
     "release_0100_sand_findings": [
-      "Sand slot about 0.50 mm wide; inspect its support and depth at [-6.29, -9.65, 0.00]",
-      "Sand slot about 0.50 mm wide; inspect its support and depth at [-8.29, -8.36, 0.00]",
-      "Sand slot about 0.30 mm wide; inspect its support and depth at [-10.08, -6.56, 0.00]",
-      "Sand slot about 0.10 mm wide; inspect its support and depth at [-11.18, -4.27, 0.00]",
-      "Sand slot about 0.10 mm wide; inspect its support and depth at [-11.78, 6.01, 0.00]",
-      "Sand slot about 0.30 mm wide; inspect its support and depth at [-10.58, 9.10, 0.00]",
-      "Sand slot about 0.10 mm wide; inspect its support and depth at [0.99, 15.28, 0.00]",
-      "Sand slot about 0.60 mm wide; inspect its support and depth at [-11.68, -2.77, 0.00]",
-      "Sand slot about 0.50 mm wide; inspect its support and depth at [-11.48, 7.10, 0.00]",
-      "Sand slot about 0.60 mm wide; inspect its support and depth at [-10.78, -5.37, 0.00]",
-      "Sand slot about 0.20 mm wide; inspect its support and depth at [-9.58, 11.39, 0.00]",
-      "Sand slot about 0.50 mm wide; inspect its support and depth at [-9.28, -7.56, 0.00]",
-      "Sand slot about 0.20 mm wide; inspect its support and depth at [-7.29, -8.96, 0.00]"
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-0.01, 9.48, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-7.00, 17.58, 0.00]",
+      "Sand slot about 0.30 mm wide; inspect its support and depth at [-6.40, 17.68, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [-5.80, 17.78, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [4.09, 20.68, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [4.89, 18.08, 0.00]",
+      "Sand slot about 0.30 mm wide; inspect its support and depth at [-9.60, -0.03, 3.17]",
+      "Sand slot about 0.20 mm wide; inspect its support and depth at [-4.90, 19.28, 3.17]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-4.70, 18.28, 3.17]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [-4.10, 18.18, 3.17]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-3.30, 19.08, 3.17]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-2.60, 19.08, 3.17]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [2.39, 18.48, 3.17]"
     ],
     "release_0100_unresolved": 0,
     "sand_bonus_pulls_two_part": false,
@@ -141,41 +150,40 @@
     "seats_resolved": 1,
     "self_crossings": 0,
     "solids_notes": [],
-    "stamps_struck": 15,
+    "stamps_struck": 2,
     "stone_carats": 0.40424,
     "stone_warnings": [],
     "stones_previewed": 1,
     "stones_reported": 1,
-    "thinnest_wall_mm": 1.2964091177618844,
-    "triangles": 172672,
-    "undercut_percent": 0.014908799177865665,
+    "thinnest_wall_mm": 2.2737476769392515,
+    "triangles": 306698,
+    "undercut_percent": 2.6692910265007406,
     "watertight": true,
-    "worst_draft_deg": -0.5398836223119426
+    "worst_draft_deg": -89.99709021991748
   },
   "cold_reload_identical": null,
-  "design_bytes": 304956,
+  "design_bytes": 1724888,
   "design_format": 6,
   "draft": {
-    "bore_margin_mm": -0.000071341164892047,
+    "bore_margin_mm": -0.0000640665484734626,
     "boundary_edges": 0,
     "build": [
       768,
       320
     ],
-    "build_s": 5.516653775,
+    "build_s": 4.206227241,
     "clamp_bites_mm": [],
     "closest_stones": null,
     "degenerate_faces": 0,
     "dfm_findings": [],
     "field_notes": [
-      "Lost wax: 0.01% of the surface would undercut a two-part pull (worst 0.5 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 63–63° on the crest: 0.2 mm² leaning to 1° — caused by \"Alexandrite\"; muting it clears it.",
-      "Undercut 130–130° on the crest: 0.4 mm² leaning to 1° — no single layer explains it.",
-      "Cut at the bench after casting, and so not judged here: Granules, table.",
-      "1 made setting cast in place with the ring; the field judges the band under it."
+      "Lost wax: no undercut anywhere — this pattern would also pull from two-part sand.",
+      "1 made setting cast in place with the ring; the field judges the band under it.",
+      "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 437.8 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 55.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "field_verdict": "Castable",
-    "grams_925": 21.99718873332689,
+    "grams_925": 29.786625205687717,
     "made_parts": [],
     "metal_inside_stones": [
       [
@@ -183,95 +191,58 @@
         0
       ]
     ],
-    "min_angle_deg": 0.00021241812824163413,
+    "min_angle_deg": 0.0001934489815703066,
     "non_manifold_edges": 0,
-    "parting_monotone": [
-      [
-        "Casque",
-        false
-      ],
-      [
-        "Temporal crest, left outer",
-        false
-      ],
-      [
-        "Temporal crest, left inner",
-        false
-      ],
-      [
-        "Temporal crest, right outer",
-        false
-      ],
-      [
-        "Temporal crest, right inner",
-        false
-      ],
-      [
-        "Dorsal cone, 1",
-        false
-      ],
-      [
-        "Dorsal cone, 2",
-        false
-      ],
-      [
-        "Dorsal cone, 3",
-        true
-      ],
-      [
-        "Dorsal cone, 4",
-        true
-      ],
-      [
-        "Dorsal cone, 5",
-        true
-      ],
-      [
-        "Dorsal cone, 6",
-        true
-      ],
-      [
-        "Dorsal cone, 7",
-        true
-      ],
-      [
-        "Dorsal cone, 8",
-        true
-      ]
-    ],
+    "parting_monotone": [],
     "parts_notes": [],
     "pass": true,
     "process": "Lost wax",
-    "release_0075": "Blocked, 3 obstructions (deepest 1.027 mm), 0 unresolved",
+    "release_0075": "Blocked, 20 obstructions (deepest 3.422 mm), 0 unresolved",
     "release_0075_obstruction_at": [
-      "[-7.25, 14.42, -2.69] 1.027 mm deep",
-      "[-7.25, 14.42, 2.69] 1.024 mm deep",
-      "[-7.18, -9.86, 0.02] 0.020 mm deep"
+      "[-3.82, 23.39, -3.42] 3.422 mm deep",
+      "[-3.82, 23.39, 3.41] 3.412 mm deep",
+      "[-3.15, 21.29, 1.67] 1.674 mm deep",
+      "[2.09, 19.98, -1.67] 1.674 mm deep",
+      "[-5.17, 22.49, -3.14] 1.113 mm deep",
+      "[-5.17, 22.49, 3.14] 1.113 mm deep",
+      "[-5.25, 22.39, 3.21] 0.975 mm deep",
+      "[-5.25, 22.39, -3.21] 0.974 mm deep",
+      "[-8.54, 19.78, -1.50] 0.805 mm deep",
+      "[-8.24, 19.68, 1.68] 0.780 mm deep",
+      "[-2.33, 23.19, -2.79] 0.303 mm deep",
+      "[-2.33, 23.19, 2.79] 0.301 mm deep",
+      "[-3.75, 21.99, 6.23] 0.217 mm deep",
+      "[-3.75, 21.99, -6.23] 0.216 mm deep",
+      "[-0.31, 19.08, -3.82] 0.204 mm deep",
+      "[-0.31, 19.08, 3.82] 0.202 mm deep",
+      "[-7.79, 19.28, 1.68] 0.137 mm deep",
+      "[-7.79, 19.28, -1.68] 0.136 mm deep",
+      "[-7.27, 19.18, 2.01] 0.093 mm deep",
+      "[-7.27, 19.18, -2.01] 0.090 mm deep"
     ],
-    "release_0075_obstructions": 3,
+    "release_0075_obstructions": 20,
     "release_0075_unresolved": 0,
-    "release_0100": "Blocked, 2 obstructions (deepest 1.032 mm), 0 unresolved",
-    "release_0100_low_draft_area_mm2": 509.3733425729678,
+    "release_0100": "Blocked, 19 obstructions (deepest 3.303 mm), 0 unresolved",
+    "release_0100_low_draft_area_mm2": 836.6330620712974,
     "release_0100_notes": [
-      "509.37 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "836.63 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
       "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
     ],
-    "release_0100_obstructions": 2,
+    "release_0100_obstructions": 19,
     "release_0100_sand_findings": [
-      "Sand slot about 0.50 mm wide; inspect its support and depth at [-6.29, -9.65, 0.00]",
-      "Sand slot about 0.50 mm wide; inspect its support and depth at [-8.29, -8.36, 0.00]",
-      "Sand slot about 0.30 mm wide; inspect its support and depth at [-10.08, -6.56, 0.00]",
-      "Sand slot about 0.10 mm wide; inspect its support and depth at [-11.18, -4.27, 0.00]",
-      "Sand slot about 0.10 mm wide; inspect its support and depth at [-11.78, 6.01, 0.00]",
-      "Sand slot about 0.30 mm wide; inspect its support and depth at [-10.58, 9.10, 0.00]",
-      "Sand slot about 0.10 mm wide; inspect its support and depth at [0.99, 15.28, 0.00]",
-      "Sand slot about 0.60 mm wide; inspect its support and depth at [-11.68, -2.77, 0.00]",
-      "Sand slot about 0.40 mm wide; inspect its support and depth at [-11.48, 7.20, 0.00]",
-      "Sand slot about 0.60 mm wide; inspect its support and depth at [-10.78, -5.37, 0.00]",
-      "Sand slot about 0.40 mm wide; inspect its support and depth at [-9.58, 11.39, 0.00]",
-      "Sand slot about 0.50 mm wide; inspect its support and depth at [-9.28, -7.56, 0.00]",
-      "Sand slot about 0.20 mm wide; inspect its support and depth at [-7.29, -8.96, 0.00]",
-      "Sand slot about 0.60 mm wide; inspect its support and depth at [9.47, 0.02, 0.00]"
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-0.01, 9.48, 0.00]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-7.00, 17.58, 0.00]",
+      "Sand slot about 0.30 mm wide; inspect its support and depth at [-6.40, 17.68, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [-5.80, 17.78, 0.00]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [4.09, 20.68, 0.00]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [4.89, 18.08, 0.00]",
+      "Sand slot about 0.30 mm wide; inspect its support and depth at [-9.60, -0.03, 3.17]",
+      "Sand slot about 0.20 mm wide; inspect its support and depth at [-4.90, 19.28, 3.17]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-4.70, 18.28, 3.17]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [-4.10, 18.18, 3.17]",
+      "Sand slot about 0.50 mm wide; inspect its support and depth at [-3.30, 19.08, 3.17]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [-2.60, 19.08, 3.17]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [2.39, 18.48, 3.17]"
     ],
     "release_0100_unresolved": 0,
     "sand_bonus_pulls_two_part": false,
@@ -279,116 +250,107 @@
     "seats_resolved": 1,
     "self_crossings": 0,
     "solids_notes": [],
-    "stamps_struck": 15,
+    "stamps_struck": 2,
     "stone_carats": 0.40424,
     "stone_warnings": [],
     "stones_previewed": 1,
     "stones_reported": 1,
-    "thinnest_wall_mm": 1.2964091177618844,
-    "triangles": 503008,
-    "undercut_percent": 0.014908799177865665,
+    "thinnest_wall_mm": 2.2737476769392515,
+    "triangles": 640830,
+    "undercut_percent": 2.6693286129966296,
     "watertight": true,
-    "worst_draft_deg": -0.5398836223119426
+    "worst_draft_deg": -89.99709021991748
   },
   "export": null,
-  "face_mm": [
-    17.0,
-    14.5
-  ],
   "gates_passed": true,
+  "head_part": {
+    "faces": 157410,
+    "open_edges": 0,
+    "self_crossings": 0
+  },
   "layers": [
-    "Alexandrite",
-    "Keel, snout side",
-    "Keel, occiput side",
-    "Granules, table",
-    "Hide, three granules"
+    "Alexandrite"
   ],
   "name": "Chamaeleo — the casque",
   "placed": {
-    "boss": {
-      "diameter_mm": 5.2,
-      "elong": 1.1923076923076923,
-      "height_mm": 0.8,
-      "plan_pow": 3.2
-    },
-    "cheek": [
-      "Tail, fingertip at 90.00 deg, v 14.780, 776 points",
-      "Tail, knuckle at 90.00 deg, v 2.422, 776 points"
-    ],
-    "crest": [
-      "Dorsal cone, 1 at 142.91 deg, v 8.612",
-      "Dorsal cone, 2 at 156.23 deg, v 8.612",
-      "Dorsal cone, 3 at 170.08 deg, v 8.612",
-      "Dorsal cone, 4 at 184.35 deg, v 8.612",
-      "Dorsal cone, 5 at 197.73 deg, v 8.612",
-      "Dorsal cone, 6 at 210.23 deg, v 8.612",
-      "Dorsal cone, 7 at 222.09 deg, v 8.612",
-      "Dorsal cone, 8 at 233.61 deg, v 8.612"
-    ],
-    "face_mm": [
-      17.0,
-      14.5
-    ],
-    "folds_along_mm": [
-      9.1,
-      9.200000000000001,
-      9.3,
-      9.4,
-      9.5,
-      9.600000000000001,
-      9.700000000000001,
-      9.8,
-      9.9,
-      10.0,
-      10.100000000000001,
-      10.200000000000001,
-      10.3,
-      10.4,
-      10.5,
-      10.600000000000001,
-      10.700000000000001,
-      12.600000000000001,
-      12.700000000000001,
-      12.8,
-      12.9,
-      13.0,
-      -9.1,
-      -9.200000000000001,
-      -9.3,
-      -9.4,
-      -9.5,
-      -9.600000000000001,
-      -9.700000000000001,
-      -10.0,
-      -10.100000000000001,
-      -10.200000000000001,
-      -10.3,
-      -10.4,
-      -10.5,
-      -10.600000000000001,
-      -12.3,
-      -12.4,
-      -12.5,
-      -12.600000000000001,
-      -12.700000000000001,
-      -12.8,
-      -12.9,
-      -13.0
-    ],
+    "coil_outer_diameter_mm": 7.55,
+    "eye_reach_past_skull_mm": 2.2628521504541963,
+    "flank_height_mm": 9.0,
+    "head_faces": 157410,
     "head_frame": [
+      1.1205518212198281e-15,
+      18.3,
+      0.0,
       90.0,
-      8.611594723238174,
-      0.0
+      18.3,
+      0.8
     ],
-    "keel": [
-      "Keel, snout side: -61.2 to 47.8 deg",
-      "Keel, occiput side: 132.2 to 241.3 deg"
+    "head_top_over_crown_mm": 7.735051354000664,
+    "head_volume_mm3": 463.92581886872165,
+    "keys": [
+      [
+        0.0,
+        1.0,
+        0.8
+      ],
+      [
+        25.0,
+        1.04,
+        0.92
+      ],
+      [
+        45.0,
+        1.14,
+        1.5
+      ],
+      [
+        60.0,
+        1.25,
+        2.6
+      ],
+      [
+        70.0,
+        1.3,
+        3.0
+      ],
+      [
+        112.0,
+        1.3,
+        3.0
+      ],
+      [
+        124.0,
+        1.25,
+        2.6
+      ],
+      [
+        140.0,
+        1.14,
+        1.5
+      ],
+      [
+        160.0,
+        1.04,
+        0.92
+      ],
+      [
+        200.0,
+        1.0,
+        0.8
+      ],
+      [
+        340.0,
+        1.0,
+        0.8
+      ]
     ],
-    "levelled": false,
-    "reach_mm": 41.61053440773324,
     "stone_at": [
-      74.70703125,
-      8.610002762623408
+      61.0,
+      6.074321251874663
+    ],
+    "tail": [
+      "Tail, fingertip at 95.98 deg, v 10.250, 627 points",
+      "Tail, knuckle at 95.98 deg, v 1.914, 627 points"
     ]
   },
   "process": "Lost wax",
@@ -398,169 +360,26 @@
   "stage": "block-out",
   "stamps": [
     {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 3.4535156249999996,
-      "height_mm": 0.35,
-      "name": "Casque",
-      "theta_deg": 108.80859375,
-      "tier": 0,
-      "v_mm": 8.604981899141125
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 1.1779296874999998,
-      "height_mm": 0.3,
-      "name": "Temporal crest, left outer",
-      "theta_deg": 90.0,
-      "tier": 0,
-      "v_mm": 8.611594723238174
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 0.605859375,
-      "height_mm": 0.3,
-      "name": "Temporal crest, left inner",
-      "theta_deg": 90.0,
-      "tier": 1,
-      "v_mm": 8.611594723238174
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 1.1923828125,
-      "height_mm": 0.3,
-      "name": "Temporal crest, right outer",
-      "theta_deg": 90.0,
-      "tier": 0,
-      "v_mm": 8.611594723238174
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 0.605859375,
-      "height_mm": 0.3,
-      "name": "Temporal crest, right inner",
-      "theta_deg": 90.0,
-      "tier": 1,
-      "v_mm": 8.611594723238174
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 1.7734374999999998,
-      "height_mm": 0.6,
-      "name": "Dorsal cone, 1",
-      "theta_deg": 142.91015625,
-      "tier": 0,
-      "v_mm": 8.611638666016102
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 1.721484375,
-      "height_mm": 0.5797037450555269,
-      "name": "Dorsal cone, 2",
-      "theta_deg": 156.2296350329431,
-      "tier": 0,
-      "v_mm": 8.612301299777876
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 1.5820312499999998,
-      "height_mm": 0.5267219067562197,
-      "name": "Dorsal cone, 3",
-      "theta_deg": 170.0766669374557,
-      "tier": 0,
-      "v_mm": 8.612415067184536
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 1.3875,
-      "height_mm": 0.4589903455809039,
-      "name": "Dorsal cone, 4",
-      "theta_deg": 184.34682411552808,
-      "tier": 0,
-      "v_mm": 8.612413001056574
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 1.18125,
-      "height_mm": 0.39391818776570114,
-      "name": "Dorsal cone, 5",
-      "theta_deg": 197.73343380333586,
-      "tier": 0,
-      "v_mm": 8.612413331854022
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 1.03515625,
-      "height_mm": 0.34273386786076326,
-      "name": "Dorsal cone, 6",
-      "theta_deg": 210.22899814272262,
-      "tier": 0,
-      "v_mm": 8.612411420802847
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 0.9253906249999999,
-      "height_mm": 0.31078800442337223,
-      "name": "Dorsal cone, 7",
-      "theta_deg": 222.08567650810954,
-      "tier": 0,
-      "v_mm": 8.612414538028688
-    },
-    {
-      "along_pull": false,
-      "bench": false,
-      "cut": false,
-      "finest_mm": 0.8765624999999999,
-      "height_mm": 0.3,
-      "name": "Dorsal cone, 8",
-      "theta_deg": 233.61328125,
-      "tier": 0,
-      "v_mm": 8.612414938696624
-    },
-    {
       "along_pull": true,
       "bench": false,
       "cut": false,
-      "finest_mm": 0.49328396292152193,
-      "height_mm": 0.8,
+      "finest_mm": 0.5260546861956601,
+      "height_mm": 0.9,
       "name": "Tail, fingertip",
-      "theta_deg": 90.0,
+      "theta_deg": 95.9765625,
       "tier": 0,
-      "v_mm": 14.78015979918138
+      "v_mm": 10.2504171125385
     },
     {
       "along_pull": true,
       "bench": false,
       "cut": false,
-      "finest_mm": 0.49297661373356794,
-      "height_mm": 0.8,
+      "finest_mm": 0.5260547647829819,
+      "height_mm": 0.9,
       "name": "Tail, knuckle",
-      "theta_deg": 90.0,
+      "theta_deg": 95.9765625,
       "tier": 0,
-      "v_mm": 2.422241666633671
+      "v_mm": 1.9140439361375903
     }
   ]
 }

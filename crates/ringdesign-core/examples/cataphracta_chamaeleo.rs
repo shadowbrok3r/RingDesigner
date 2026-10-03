@@ -1,33 +1,33 @@
-//! Cataphracta — Chamaeleo, the casque: a chameleon's head on factory 001, its helmet rising along the parting line
-//! to the occiput behind an alexandrite, its tail curled on each cheek, its hide granular; Delft sand.
+//! Cataphracta — Chamaeleo, the casque: a chameleon's head sculpted as one part on a tall keyed body, its casque
+//! rising above it, a turret eye standing out on each side, its tail coiled on each flank; an alexandrite on its back.
+//! Lost wax.
 //! cargo build --release -p ringdesign-core --example cataphracta_chamaeleo
 //! target/release/examples/cataphracta_chamaeleo [OUT_DIR] [--draft] [--verify] [--blockout] [--probe]
 #![recursion_limit = "256"]
 use anyhow::{Context, Result, ensure};
 use ringdesign_core::{
-    AlphaLibrary,
-    curve::{CurveLayer, WireProfile},
-    svg::SvgAlpha,
-    tiling::{ChartSpace, TilingLayer}, BuildParams, ProfileStyle, RingDesign,
+    AlphaLibrary, BuildParams, ProfileStyle, RingDesign, ShankKind,
+    cad::{Attach, Component, Document, Feature, Operation, Placement, stored},
     castability::{self, CastProcess, SandProcess},
     csg, dfm,
-    field::{Blend, Window, GroupLayer, Layer, LayerEntry, LayerStack, SeatPadLayer, SeatStyle},
+    field::{Blend, Layer, LayerEntry, SeatPadLayer, SeatStyle},
     gem::{Gem, GemCut},
-    imported_base::{ImportedBase, PRESETS, SurfaceChart, sand_master},
-    library, manufacturing as mf, mesh, outline, render,
-    setting::{RowPath, SolidKind, Stamp, StampRow, StampTop, stamp_row},
-    skin::{Atlas, Hide},
+    library, manufacturing as mf, mesh, outline,
+    profile::ShankKey,
+    render,
+    sculpt::{self, ellipsoid, round_cone, smax, smin},
+    setting::{SolidKind, Stamp, StampTop},
+    skin::Atlas,
     stl,
 };
 use serde_json::{Value, json};
 use std::f64::consts::PI;
 use std::path::{Path, PathBuf};
 
+type P3 = [f64; 3];
+
 const AW: usize = 2048;
 const AH: usize = 768;
-
-/// The face, length round the ring by width across it (the stock guard refuses the brief's 13).
-const FACE: (f64, f64) = (17.0, 14.5);
 const BORE_MM: f64 = 18.6;
 /// The lost-wax fill floor.
 const MIN_SECTION_MM: f64 = 0.8;
@@ -45,11 +45,11 @@ fn export_params() -> BuildParams {
     BuildParams { theta_steps: 1536, profile_steps: 448, refine: None, ..BuildParams::default() }
 }
 
-/// The ring's own Delft pour: z = 0 parting, opposed z withdrawal, sterling.
+/// The ring's sand set-up, kept so the two-part pull is still measured as a bonus; the ring is judged as lost wax.
 fn setup() -> mf::Setup {
     let mut s = mf::Setup::default();
     s.recipe = mf::Recipe::sand(SandProcess::DelftClay);
-    s.recipe.name = "Chamaeleo / Delft clay / Silver 925".into();
+    s.recipe.name = "Chamaeleo / Delft clay (bonus check) / Silver 925".into();
     s.recipe.alloy = "Silver 925".into();
     s.recipe.shrink_pct = ringdesign_core::metal::find("Silver 925").map_or(s.recipe.shrink_pct, |m| m.shrink_pct);
     s.sample_pitch_mm = 0.1;
@@ -57,45 +57,48 @@ fn setup() -> mf::Setup {
     s.parting_mm = 0.0;
     s.flask.width_mm = 80.0;
     s.flask.length_mm = 80.0;
-    s.bench_notes = "Factory 001 through the sand master, z = 0 parting, opposed z withdrawal. The head is struck in \
-        profile on the parting line: every plate and tier crosses the line once and steps down away from it; the tail \
-        coils stand along the pull on the cheeks. After the pour: drill the eye on its raised mark, cut the seat to the \
-        measured alexandrite and burnish it flush. Polish the casque and the eye; leave the ground satin."
+    s.bench_notes = "Lost wax. The head is one sculpted part joined to the keyed body; the turret eyes' pupils and the \
+        mouth are cast. After the pour: cut the alexandrite's seat in its boss to the measured stone and burnish it. \
+        Polish the casque, the eyes and the coils; leave the hide satin."
         .into();
     s
 }
 
-/// Factory 001 Cushion through the sand master at `face` (length, width), on its own Flat chart.
-fn stock(face: (f64, f64)) -> Result<RingDesign> {
-    let preset = PRESETS.iter().find(|p| p.id == "001").context("no stock 001")?;
-    let mut d = RingDesign::default();
-    // The sand master's taller head gives the cheeks room for the tail; its envelope only adds metal, harmless in
-    // wax, and is what keeps the master's own section closed.
-    ImportedBase::attach(&mut d, sand_master(preset.load()?)?)?;
-    d.imported_base.as_mut().unwrap().sand_envelope = true;
-    d.name = "Chamaeleo \u{2014} the casque".into();
+/// The body: a flat band squared at the sides, rising under the head to a plinth about 9 mm tall whose side faces
+/// are the chameleon's flanks, the palm the reference.
+const PROFILE: (f64, f64) = (7.0, 3.0);
+const KEYS: [(f64, f64, f64); 11] = [
+    (0.0, 1.0, 0.8),
+    (25.0, 1.04, 0.92),
+    (45.0, 1.14, 1.5),
+    (60.0, 1.25, 2.6),
+    (70.0, 1.3, 3.0),
+    (112.0, 1.3, 3.0),
+    (124.0, 1.25, 2.6),
+    (140.0, 1.14, 1.5),
+    (160.0, 1.04, 0.92),
+    (200.0, 1.0, 0.8),
+    (340.0, 1.0, 0.8),
+];
+
+fn band() -> Result<RingDesign> {
+    let mut d = RingDesign { name: "Chamaeleo \u{2014} the casque".into(), ..RingDesign::default() };
     d.profile.apply_style(ProfileStyle::Flat);
-    d.profile.width_mm = face.1;
-    d.shank.head.length_mm = face.0;
+    d.profile.width_mm = PROFILE.0;
+    d.profile.thickness_mm = PROFILE.1;
+    d.profile.flatten_sides();
+    d.profile.comfort_fit_mm = 0.15;
     d.size = ringdesign_core::resize::size_from_bore(BORE_MM).context("bore")?;
-    d.profile.edge_round_mm = 0.3;
-    d.profile.comfort_fit_mm = 0.1;
-    // The chart comes from THIS stock before anything is drawn on it.
-    d.imported_base.as_mut().unwrap().chart = Some(SurfaceChart { profile: d.profile.clone(), bore_radius_mm: d.inner_radius_mm() });
+    d.shank.kind = ShankKind::Keyframes;
+    d.shank.amount = 1.0;
+    d.shank.keys = KEYS.iter().map(|&(theta_deg, width_scale, thickness_scale)| ShankKey { theta_deg, width_scale, thickness_scale, crown_scale: 1.0 }).collect();
     d.build = export_params();
     let s = setup();
-    d.draft.process = s.recipe.process;
     d.draft.sand = s.recipe.sand;
-    d.draft.min_detail_mm = s.recipe.min_detail_mm;
-    d.draft.min_section_mm = s.recipe.min_section_mm;
-    d.draft.min_draft_deg = s.recipe.min_draft_deg;
-    // Logan, 2026-10-03: where the sand gates are what hold a ring back, judge it as lost wax, 0.8 mm section and
-    // no pull rule. The sand set-up stays as the manufacturing set-up, so the two-part pull is still reported.
     CastProcess::LostWax.apply(&mut d.draft);
     d.draft.min_section_mm = MIN_SECTION_MM;
     d.draft.min_draft_deg = 0.0;
     d.manufacturing = Some(s);
-    d.crisp_relief = std::env::var("CHAM_CRISP").is_ok();
     Ok(d)
 }
 
@@ -104,7 +107,7 @@ fn release_line(r: &mf::release::ReleaseReport) -> String {
     format!("{:?}, {} obstructions (deepest {depth:.3} mm), {} unresolved", r.status, r.obstructions.len(), r.unresolved_rays)
 }
 
-/// The ring's own pull at `params`: the inspection at 0.100 mm and the rays again at 0.075 mm.
+/// The two-part pull at `params`, reported only: the inspection at 0.100 mm and the rays again at 0.075 mm.
 fn pull(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(mf::Inspection, mf::release::ReleaseReport)> {
     let s = d.manufacturing.clone().unwrap_or_else(setup);
     let inspection = mf::inspect(d, lib, &s, params)?;
@@ -114,119 +117,190 @@ fn pull(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(mf::
     Ok((inspection, release))
 }
 
-/// Step 0: the bare 001 at 17 x 14.5, before any relief: its field verdict, its pull and its mesh.
-fn bare_study(face: (f64, f64)) -> Result<Value> {
-    let d = stock(face)?;
-    let mut bare = d.clone();
-    bare.imported_base.as_mut().unwrap().bare = true;
-    let lib = AlphaLibrary::builtin();
-    let b = mesh::try_build(&bare, &lib, draft_params())?;
-    let field = castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
-    let (inspection, fine) = pull(&d, &lib, coarse_params())?;
-    let top = b.mesh.vertices.iter().map(|v| v.1 as f64).fold(0.0, f64::max);
-    let (x, z) = b.mesh.vertices.iter().filter(|v| v.1 as f64 > top - 0.15).fold((0.0f64, 0.0f64), |(x, z), v| (x.max(v.0.abs() as f64), z.max(v.2.abs() as f64)));
-    Ok(json!({
-        "face_mm": [face.0, face.1],
-        "watertight": b.report.validation.watertight,
-        "degenerate_faces": b.mesh.quality().degenerate_faces,
-        "table_mm": [2.0 * x, 2.0 * z],
-        "bore_mm": b.report.inner_diameter_mm,
-        "field_verdict": field.verdict.label(),
-        "undercut_percent": field.undercut_fraction() * 100.0,
-        "worst_draft_deg": field.worst_draft_deg,
-        "pull_384": release_line(&inspection.release),
-        "pull_0075": release_line(&fine),
-    }))
+fn add(a: P3, b: P3) -> P3 {
+    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
+}
+fn mul(a: P3, k: f64) -> P3 {
+    [a[0] * k, a[1] * k, a[2] * k]
 }
 
-// --- The chameleon ------------------------------------------------------------------------------------------------
+// --- The head -----------------------------------------------------------------------------------------------------
 //
-// The table is the head seen from above, snout at -x (falling theta), occiput at +x. The alexandrite sits on its
-// boss at the snout's base; behind it the casque rises along the parting line to the occiput and falls at the
-// table's end, flanked by two temporal crests stepping down away from it. Every plate is drawn as
-// `-w(x) <= y <= w(x)`, so each line along the pull crosses it once, across the line: the sand's monotone rule by
-// construction. The table's flanks are granulated at the bench; the cheeks and walls carry cast granules and the
-// lateral stripe; each cheek carries the curled tail.
+// Drawn in the head's own frame on the plinth's crown: `f` forward toward the snout (falling theta), `u` up from the
+// crown, `z` across the band. The snout leads toward rising theta, so the hero camera meets the face. The skull is a long ellipsoid with a short snout; the casque a thin blade tilted up
+// and back from the brow, its back cut steep; a turret cone on each side carrying a cast pinhole pupil; the mouth a
+// groove along each jaw. The part reaches 0.8 mm into the plinth and is joined to it.
 
-/// The alexandrite's station on the parting line, mm along, and the stone: a 5 x 4 cushion.
-const STONE_ALONG: f64 = -4.0;
-const STONE_MM: (f64, f64) = (5.0, 4.0);
-/// The boss the stone is cut into: its height over the table (the casque's base), crown and skirt.
-const BOSS_MM: f64 = 0.8;
-/// The crests: where the outer one starts behind the boss and ends before the table's end, mm along.
-const CASQUE_FROM: f64 = -0.9;
-const CASQUE_TO: f64 = 7.6;
-/// Half widths across the line: the outer temporal crest, the inner one, the casque.
-/// The casque's half width at the brow and over the occiput; each temporal step's width across.
-const CASQUE_HALF: (f64, f64) = (1.4, 2.0);
-const STEP_W: (f64, f64) = (1.2, 0.6);
-/// Heights: each temporal crest step, the casque's eaves, its rise at the front and at the occiput.
-const STEP_MM: f64 = 0.3;
-const CASQUE_MM: f64 = 0.35;
-const CASQUE_RISE: f64 = 1.65;
-/// Where the casque peaks, mm along.
-const OCCIPUT: f64 = 5.0;
-/// Granules: tile, land, height; the bench cuts the table's lands this deep.
-const GRANULE_TILE: f64 = 5.0;
-const GRANULE_LAND: f64 = 0.25;
-const GRANULE_R: [f64; 3] = [0.7, 0.5, 0.33];
-/// The walls' granules run this far either side of the head's centre, degrees: the shoulders, not the palm.
-const WALL_SPAN_DEG: f64 = 70.0;
-/// How squarely a wall must face the pull to take cast granules: |n_z| over this.
-const SIDE_NZ: f64 = 0.97;
-const GRANULE_MM: f64 = 0.35;
-/// The polished halo the granules leave round every struck form, mm.
-const HALO_MM: f64 = 0.35;
+/// The head's station round the ring, degrees, and how far its frame stands under the crown, mm.
+const HEAD_THETA: f64 = 90.0;
+const SINK_MM: f64 = 0.8;
+/// The eye turrets: the centre of each on the skull (f, u, |z|), its reach out, its base and tip radii.
+const EYE: (P3, f64, f64, f64) = ([2.1, 1.6, 1.45], 1.75, 1.4, 0.9);
+/// How much bigger the head is drawn than its unit sketch.
+const HEAD_SCALE: f64 = 1.55;
+const PUPIL_MM: f64 = 0.36;
+/// The casque in profile (f, u): the brow, the peak over the occiput and the nape; its half thickness across.
+const CASQUE: ([f64; 2], [f64; 2], [f64; 2], f64) = ([2.2, 2.4], [-4.3, 5.0], [-4.7, 0.9], 0.8);
+/// The sculpt's grid step and face budget.
+const STEP_MM: f64 = 0.06;
+const FACES: usize = 160_000;
 
-/// A plate's outline from `x0` to `x1` between `lo` and `hi`, rounded into each end over `round0` and `round1` mm:
-/// counter-clockwise, a point at most every 0.09 mm.
-fn plate(x0: f64, x1: f64, round0: f64, round1: f64, lo: &dyn Fn(f64) -> f64, hi: &dyn Fn(f64) -> f64) -> Vec<[f64; 2]> {
-    let shape = |x: f64| {
-        let a = ((x - x0) / round0).clamp(0.0, 1.0);
-        let b = ((x1 - x) / round1).clamp(0.0, 1.0);
-        // A quarter ellipse into each end, so the end is round and no edge runs along the pull.
-        (a * (2.0 - a)).sqrt() * (b * (2.0 - b)).sqrt()
-    };
-    let n = (((x1 - x0) / 0.002).ceil() as usize).max(8);
-    let xs: Vec<f64> = (1..n).map(|i| x0 + (x1 - x0) * i as f64 / n as f64).collect();
-    let lower: Vec<[f64; 2]> = xs.iter().map(|&x| [x, lo(x) * shape(x)]).collect();
-    let upper: Vec<[f64; 2]> = xs.iter().rev().map(|&x| [x, hi(x) * shape(x)]).collect();
-    let mut dense = vec![[x0, 0.0]];
-    dense.extend(lower);
-    dense.push([x1, 0.0]);
-    dense.extend(upper);
-    thin(&dense, 0.07)
+struct HeadFrame {
+    o: P3,
+    fwd: P3,
+    up: P3,
 }
 
-/// A plate symmetric about the line, `half(x)` either side.
-fn band_plate(x0: f64, x1: f64, round0: f64, round1: f64, half: &dyn Fn(f64) -> f64) -> Vec<[f64; 2]> {
-    plate(x0, x1, round0, round1, &|x| -half(x), half)
-}
-
-/// The casque's half width along the head: rounded at the brow, broad over the occiput.
-fn casque_half(x: f64) -> f64 {
-    let t = ((x - CASQUE_FROM) / 4.5).clamp(0.0, 1.0);
-    CASQUE_HALF.0 + (CASQUE_HALF.1 - CASQUE_HALF.0) * t * t * (3.0 - 2.0 * t)
-}
-
-/// A strip `w` wide beside the line on `side`, its inner edge at `inner(x)`, rounded into each end.
-fn strip(x0: f64, x1: f64, inner: &dyn Fn(f64) -> f64, w: f64, side: f64) -> Vec<[f64; 2]> {
-    let round = 0.5 * w;
-    let shape = |x: f64| {
-        let a = ((x - x0) / round).clamp(0.0, 1.0);
-        let b = ((x1 - x) / round).clamp(0.0, 1.0);
-        (a * (2.0 - a)).sqrt() * (b * (2.0 - b)).sqrt()
-    };
-    let n = (((x1 - x0) / 0.002).ceil() as usize).max(8);
-    let xs: Vec<f64> = (0..=n).map(|i| x0 + (x1 - x0) * i as f64 / n as f64).collect();
-    let mid = |x: f64| inner(x) + 0.5 * w;
-    let mut dense: Vec<[f64; 2]> = xs.iter().map(|&x| [x, mid(x) - 0.5 * w * shape(x)]).collect();
-    dense.extend(xs.iter().rev().map(|&x| [x, mid(x) + 0.5 * w * shape(x)]));
-    let mut out: Vec<[f64; 2]> = thin(&dense, 0.07).into_iter().map(|p| [p[0], side * p[1]]).collect();
-    if outline::area(&out) < 0.0 {
-        out.reverse();
+impl HeadFrame {
+    fn world(&self, q: P3) -> P3 {
+        add(add(add(self.o, mul(self.fwd, q[0])), mul(self.up, q[1])), [0.0, 0.0, q[2]])
     }
-    out
+    fn local(&self, p: P3) -> P3 {
+        let d = [p[0] - self.o[0], p[1] - self.o[1], p[2] - self.o[2]];
+        [d[0] * self.fwd[0] + d[1] * self.fwd[1], d[0] * self.up[0] + d[1] * self.up[1], d[2]]
+    }
+}
+
+/// Signed distance in a plane to the triangle `a b c`.
+fn triangle(p: [f64; 2], a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> f64 {
+    let sub = |u: [f64; 2], v: [f64; 2]| [u[0] - v[0], u[1] - v[1]];
+    let dot = |u: [f64; 2], v: [f64; 2]| u[0] * v[0] + u[1] * v[1];
+    let edge = |a: [f64; 2], b: [f64; 2]| {
+        let (e, w) = (sub(b, a), sub(p, a));
+        let t = (dot(w, e) / dot(e, e)).clamp(0.0, 1.0);
+        let d = [w[0] - e[0] * t, w[1] - e[1] * t];
+        (dot(d, d), e[0] * w[1] - e[1] * w[0])
+    };
+    let (d0, s0) = edge(a, b);
+    let (d1, s1) = edge(b, c);
+    let (d2, s2) = edge(c, a);
+    let inside = (s0 >= 0.0 && s1 >= 0.0 && s2 >= 0.0) || (s0 <= 0.0 && s1 <= 0.0 && s2 <= 0.0);
+    let d = d0.min(d1).min(d2).sqrt();
+    if inside { -d } else { d }
+}
+
+/// The capsule distance from `p` to the polyline `pts`, radius `r`.
+fn tube(p: P3, pts: &[P3], r: f64) -> f64 {
+    pts.windows(2).map(|w| round_cone(p, w[0], w[1], r, r)).fold(f64::MAX, f64::min)
+}
+
+/// The head's distance field in its own frame, drawn at unit size and scaled up by `HEAD_SCALE`: negative inside.
+fn head_field(q: P3) -> f64 {
+    let k = HEAD_SCALE;
+    let f = head_shape([q[0] / k, q[1] / k, q[2] / k]) * k;
+    // Into the plinth, no further.
+    smax(f, -(q[1] + SINK_MM), 0.2)
+}
+
+fn head_shape(q: P3) -> f64 {
+    let at = |c: P3| [q[0] - c[0], q[1] - c[1], q[2] - c[2]];
+    let skull = ellipsoid(at([0.3, 1.25, 0.0]), [4.4, 1.95, 2.55]);
+    let snout = ellipsoid(at([3.9, 0.95, 0.0]), [2.0, 1.15, 1.55]);
+    let jaw = ellipsoid(at([0.8, 0.2, 0.0]), [4.0, 1.4, 2.35]);
+    let mut f = smin(smin(skull, snout, 1.0), jaw, 0.8);
+    // The casque: a helmet blade in profile, a triangle from the brow up and back to a peak over the occiput and down
+    // to the nape, thin across the band and rounded at every edge.
+    let (brow, peak, nape, half_t) = CASQUE;
+    let plan = triangle([q[0], q[1]], brow, peak, nape);
+    let r = 0.35;
+    // Thick where it springs from the skull, thinning to a keel at the peak.
+    let half = half_t * (1.0 - 0.6 * ((q[1] - 1.5) / 3.5).clamp(0.0, 1.0));
+    let ex = [plan + r, q[2].abs() - half.max(r + 0.05) + r];
+    let blade = ex[0].max(ex[1]).min(0.0) + (ex[0].max(0.0)).hypot(ex[1].max(0.0)) - r;
+    f = smin(f, blade, 0.9);
+    // A turret each side: a round eyeball bulging from the skull, a short blunt cone on it, its tip pierced by the
+    // pupil.
+    let (ec, reach, rb, rt) = EYE;
+    for side in [1.0, -1.0] {
+        let ball = ellipsoid([q[0] - ec[0], q[1] - ec[1], q[2] - side * (ec[2] + 0.5)], [rb, rb * 0.95, rb]);
+        let a = [ec[0], ec[1] + 0.05, side * (ec[2] + 0.9)];
+        let b = [ec[0] + 0.1, ec[1] + 0.2, side * (ec[2] + reach)];
+        let turret = smin(ball, round_cone(q, a, b, 0.95 * rb, rt), 0.35);
+        f = smin(f, turret, 0.45);
+        let pupil = ellipsoid([q[0] - b[0], q[1] - b[1], q[2] - (b[2] + side * 0.75 * rt)], [PUPIL_MM; 3]);
+        f = smax(f, -pupil, 0.08);
+    }
+    // The mouth: a groove along each jaw from the snout's tip, turning down at its corner.
+    for side in [1.0, -1.0] {
+        let line = [[5.75, 0.75, side * 0.45], [4.4, 0.5, side * 1.35], [2.4, 0.3, side * 2.05], [0.4, 0.15, side * 2.35], [-0.6, -0.25, side * 2.35]];
+        f = smax(f, -tube(q, &line, 0.2), 0.08);
+    }
+    f
+}
+
+/// Mesh the head and return it as a closed, uncrossed solid in world coordinates.
+fn sculpt_head(frame: &HeadFrame) -> Result<csg::Solid> {
+    let field = |p: P3| head_field(frame.local(p));
+    let k = HEAD_SCALE;
+    let corners: Vec<P3> = [-6.0 * k, 7.0 * k].iter().flat_map(|&f| [-1.2f64, 6.6 * k].into_iter().flat_map(move |u| [-4.8 * k, 4.8 * k].into_iter().map(move |z| [f, u, z]))).collect();
+    let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
+    for c in &corners {
+        let w = frame.world(*c);
+        for k in 0..3 {
+            lo[k] = lo[k].min(w[k]);
+            hi[k] = hi[k].max(w[k]);
+        }
+    }
+    let mut raw = sculpt::tetra_mesh(lo, hi, STEP_MM, &field);
+    let unrelaxed = raw.clone();
+    sculpt::relax(&mut raw, &field, 3);
+    if !sculpt::crossing_sites(&raw).is_empty() {
+        raw = unrelaxed;
+    }
+    let nets = sculpt::clean_decimate(&raw, FACES);
+    let s = sculpt::settle(nets, &field, &|_| false);
+    let (open, volume) = sculpt::closure(&s);
+    ensure!(open == 0 && volume > 0.0, "the head does not close: {open} open edges");
+    ensure!(csg::self_crossings(&s) == 0, "the head crosses itself");
+    Ok(s)
+}
+
+// --- The tail -----------------------------------------------------------------------------------------------------
+//
+// Drawn on the flank as seen along the finger (x round the ring, y up from the axis): from the body's rear it runs
+// forward along the flank and coils, tightening, under the head.
+
+/// The coil's station (theta, radius from the axis), its outer and inner radius and turns; the run's start and the
+/// stroke's width at the root and the tip.
+const COIL: (f64, f64, f64, f64, f64) = (96.0, 13.5, 3.25, 0.5, 2.4);
+const TAIL_ROOT: (f64, f64) = (58.0, 15.0);
+const TAIL_W: (f64, f64) = (1.05, 0.42);
+const TAIL_MM: f64 = 0.9;
+
+fn polar(theta: f64, r: f64) -> [f64; 2] {
+    let t = theta.to_radians();
+    [r * t.cos(), r * t.sin()]
+}
+
+/// The tail's centreline: the run from the root, then the coil turning inward.
+fn tail_line() -> Vec<[f64; 2]> {
+    let (ct, cr, r_out, r_in, turns) = COIL;
+    let c = polar(ct, cr);
+    // The coil enters at its top, heading toward the snout (falling theta: +x at the top of the ring is falling x?).
+    let up = [c[0] / cr, c[1] / cr];
+    let entry = [c[0] + up[0] * r_out, c[1] + up[1] * r_out];
+    let root = polar(TAIL_ROOT.0, TAIL_ROOT.1);
+    let mid = polar(0.5 * (TAIL_ROOT.0 + ct) - 4.0, 16.4);
+    let mut pts = Vec::new();
+    // A quadratic run from the root through the flank's top into the coil's entry.
+    let n = 400;
+    for k in 0..n {
+        let t = k as f64 / n as f64;
+        let (a, b, cc) = ((1.0 - t) * (1.0 - t), 2.0 * t * (1.0 - t), t * t);
+        pts.push([a * root[0] + b * mid[0] + cc * entry[0], a * root[1] + b * mid[1] + cc * entry[1]]);
+    }
+    // The coil turns the way the run arrives: toward falling theta at its top, then down and back under itself.
+    let start = up[1].atan2(up[0]);
+    let dir = 1.0;
+    let span = turns * 2.0 * PI;
+    let m = (span * r_out / 0.02).ceil() as usize;
+    for k in 0..=m {
+        let a = span * k as f64 / m as f64;
+        let r = r_out + (r_in - r_out) * a / span;
+        let phi = start + dir * a;
+        pts.push([c[0] + r * phi.cos(), c[1] + r * phi.sin()]);
+    }
+    pts
 }
 
 /// Keep a point once it stands `step` from the last kept one, then split any edge over 0.09 mm.
@@ -238,7 +312,6 @@ fn thin(dense: &[[f64; 2]], step: f64) -> Vec<[f64; 2]> {
             out.push(*p);
         }
     }
-    // The closing edge must not be a sliver.
     while out.len() > 3 {
         let (a, b) = (out[out.len() - 1], out[0]);
         if (a[0] - b[0]).hypot(a[1] - b[1]) < 0.5 * step {
@@ -250,7 +323,7 @@ fn thin(dense: &[[f64; 2]], step: f64) -> Vec<[f64; 2]> {
     let mut fine = Vec::with_capacity(out.len() * 2);
     for i in 0..out.len() {
         let (a, b) = (out[i], out[(i + 1) % out.len()]);
-        let k = ((a[0] - b[0]).hypot(a[1] - b[1]) / 0.09).ceil().max(1.0) as usize;
+        let k = ((a[0] - b[0]).hypot(a[1] - b[1]) / 0.16).ceil().max(1.0) as usize;
         for j in 0..k {
             let t = j as f64 / k as f64;
             fine.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
@@ -259,101 +332,7 @@ fn thin(dense: &[[f64; 2]], step: f64) -> Vec<[f64; 2]> {
     fine
 }
 
-/// A plate struck at the head's own frame: its outline drawn in head millimetres, placed at the head's centre.
-fn struck(name: &str, frame: (f64, f64, f64), outline: Vec<[f64; 2]>, height: f64, tier: u8, top: StampTop) -> Stamp {
-    Stamp {
-        name: name.into(),
-        theta_deg: frame.0,
-        v_mm: frame.1,
-        rot_deg: frame.2,
-        outline,
-        height_mm: height,
-        sink_mm: 0.3,
-        draft_deg: 4.0,
-        cut: false,
-        bench: false,
-        along_pull: false,
-        fine_cap: true,
-        tier,
-        top,
-    }
-}
-
-fn alexandrite() -> Gem {
-    Gem { l_mm: STONE_MM.0, preview_tint: Some(ALEXANDRITE_TINT), ..Gem::calibrated(GemCut::Cushion, STONE_MM.1) }
-}
-
-/// The nearest sample squarely on a head's wall to `(x, y)` seen along the finger, on the `side` of the parting line.
-fn on_cheek(a: &Atlas, x: f64, y: f64, side: f64) -> Option<(f64, f64)> {
-    a.samples
-        .iter()
-        .filter(|s| s.p[2] * side > 0.0 && a.cheek(s) > 0.9)
-        .map(|s| ((s.p[0] - x).hypot(s.p[1] - y), s))
-        .filter(|(d, _)| *d < 0.2)
-        .min_by(|p, q| p.0.total_cmp(&q.0))
-        .map(|(_, s)| (s.theta, s.v))
-}
-
-/// What was struck and where, for the report.
-#[derive(Default, serde::Serialize)]
-struct Placed {
-    face_mm: [f64; 2],
-    head_frame: [f64; 3],
-    stone_at: [f64; 2],
-    boss: Value,
-    folds_along_mm: Vec<f64>,
-    reach_mm: f64,
-    cheek: Vec<String>,
-    levelled: bool,
-    keel: Vec<String>,
-    crest: Vec<String>,
-}
-
-/// The tail on the cheek, seen along the finger (x round the ring, y up from the axis): it runs along the crescent
-/// over the bore and curls where the cheek is tallest, behind the occiput. Knots of its run, then the coil's centre,
-/// outer and inner radius and turns, then its width at the root and at the tip, mm. The cheek holds no circle wider
-/// than 1.8 mm in radius (a crescent 1.9 mm tall at its middle over the bore), so the coil fills that circle.
-const TAIL_RUN: [[f64; 2]; 5] = [[-5.6, 11.1], [-3.0, 11.75], [0.0, 11.95], [2.5, 11.95], [4.6, 12.3]];
-const COIL_C: [f64; 2] = [6.4, 10.3];
-const COIL_R: (f64, f64, f64) = (2.1, 0.45, 1.6);
-const TAIL_W: (f64, f64) = (0.95, 0.42);
-const TAIL_MM: f64 = 0.8;
-
-/// The tail's centreline on the cheek, a point every 0.02 mm or so: the run, then the coil turning clockwise inward.
-fn tail_line() -> Vec<[f64; 2]> {
-    let (r_out, r_in, turns) = COIL_R;
-    // The coil enters at its top, heading +x.
-    let entry = [COIL_C[0], COIL_C[1] + r_out];
-    let mut knots: Vec<[f64; 2]> = TAIL_RUN.to_vec();
-    knots.push(entry);
-    let mut pts = Vec::new();
-    for i in 0..knots.len() - 1 {
-        let p0 = knots[i.saturating_sub(1)];
-        let (p1, p2) = (knots[i], knots[i + 1]);
-        // The coil's own tangent at its entry, so the run flows into it.
-        let p3 = if i + 2 < knots.len() { knots[i + 2] } else { [entry[0] + 1.2, entry[1]] };
-        let seg = (p2[0] - p1[0]).hypot(p2[1] - p1[1]);
-        let n = ((seg / 0.02).ceil() as usize).max(4);
-        for k in 0..n {
-            let t = k as f64 / n as f64;
-            let (t2, t3) = (t * t, t * t * t);
-            let c = |a: f64, b: f64, c: f64, d: f64| 0.5 * ((2.0 * b) + (-a + c) * t + (2.0 * a - 5.0 * b + 4.0 * c - d) * t2 + (-a + 3.0 * b - 3.0 * c + d) * t3);
-            pts.push([c(p0[0], p1[0], p2[0], p3[0]), c(p0[1], p1[1], p2[1], p3[1])]);
-        }
-    }
-    let span = turns * 2.0 * PI;
-    let n = (span * r_out / 0.02).ceil() as usize;
-    for k in 0..=n {
-        let a = span * k as f64 / n as f64;
-        // Tighter toward the tip, as a chameleon's tail coils.
-        let r = r_out + (r_in - r_out) * a / span;
-        let phi = 0.5 * PI - a;
-        pts.push([COIL_C[0] + r * phi.cos(), COIL_C[1] + r * phi.sin()]);
-    }
-    pts
-}
-
-/// The tail as a closed outline on the cheek: the centreline offset by its tapering half width, ends rounded.
+/// The tail as a closed outline on the flank: the centreline offset by its tapering half width, ends rounded.
 fn tail_outline() -> Vec<[f64; 2]> {
     let c = tail_line();
     let n = c.len();
@@ -362,7 +341,7 @@ fn tail_outline() -> Vec<[f64; 2]> {
         len[i] = len[i - 1] + (c[i][0] - c[i - 1][0]).hypot(c[i][1] - c[i - 1][1]);
     }
     let total = len[n - 1];
-    let half = |i: usize| 0.5 * (TAIL_W.0 + (TAIL_W.1 - TAIL_W.0) * (len[i] / total).powf(0.7));
+    let half = |i: usize| 0.5 * (TAIL_W.0 + (TAIL_W.1 - TAIL_W.0) * (len[i] / total).powf(0.8));
     let normal = |i: usize| {
         let (a, b) = (c[i.saturating_sub(1)], c[(i + 1).min(n - 1)]);
         let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
@@ -374,7 +353,6 @@ fn tail_outline() -> Vec<[f64; 2]> {
         [c[i][0] + s * half(i) * m[0], c[i][1] + s * half(i) * m[1]]
     };
     let mut dense: Vec<[f64; 2]> = (0..n).map(|i| side(i, -1.0)).collect();
-    // The tip's round cap.
     let (t, m) = (c[n - 1], normal(n - 1));
     let h = half(n - 1);
     for k in 1..24 {
@@ -382,24 +360,33 @@ fn tail_outline() -> Vec<[f64; 2]> {
         dense.push([t[0] + h * ang.cos(), t[1] + h * ang.sin()]);
     }
     dense.extend((0..n).rev().map(|i| side(i, 1.0)));
-    // The root's round cap.
     let (r0, m0) = (c[0], normal(0));
     let h0 = half(0);
     for k in 1..24 {
         let ang = m0[1].atan2(m0[0]) + PI * k as f64 / 24.0;
         dense.push([r0[0] + h0 * ang.cos(), r0[1] + h0 * ang.sin()]);
     }
-    let mut out = thin(&dense, 0.06);
+    let mut out = thin(&dense, 0.12);
     if outline::area(&out) < 0.0 {
         out.reverse();
     }
     out
 }
 
-/// A cheek-drawn outline (x round the ring, y up from the axis) as a stamp standing along the pull at the cheek
-/// point nearest `centre` on the `side` of the parting line, its outline turned into the stamp's own frame.
-fn cheek_stamp(a: &Atlas, name: &str, centre: [f64; 2], side: f64, drawn: &[[f64; 2]], height: f64) -> Result<Stamp> {
-    let at = on_cheek(a, centre[0], centre[1], side).with_context(|| format!("no cheek at {centre:?}"))?;
+/// The nearest sample squarely on a side face to `(x, y)` seen along the finger, on the `side` of the band.
+fn on_side(a: &Atlas, x: f64, y: f64, side: f64) -> Option<(f64, f64)> {
+    a.samples
+        .iter()
+        .filter(|s| s.p[2] * side > 0.0 && s.n[2] * side > 0.97)
+        .map(|s| ((s.p[0] - x).hypot(s.p[1] - y), s))
+        .filter(|(d, _)| *d < 0.25)
+        .min_by(|p, q| p.0.total_cmp(&q.0))
+        .map(|(_, s)| (s.theta, s.v))
+}
+
+/// A flank-drawn outline as a stamp standing along the pull at the side-face point nearest `centre`.
+fn side_stamp(a: &Atlas, name: &str, centre: [f64; 2], side: f64, drawn: &[[f64; 2]], height: f64) -> Result<Stamp> {
+    let at = on_side(a, centre[0], centre[1], side).with_context(|| format!("no side face at {centre:?}"))?;
     let p = a.point(at.0, at.1);
     let (q, r) = (a.point(at.0 - 0.05, at.1), a.point(at.0 + 0.05, at.1));
     // The frame `Stamp::frame` stands along the pull: x the ring's way toward rising theta, flattened; y = n x x.
@@ -431,344 +418,89 @@ fn cheek_stamp(a: &Atlas, name: &str, centre: [f64; 2], side: f64, drawn: &[[f64
         along_pull: true,
         fine_cap: true,
         tier: 0,
-        top: StampTop::Dome { crown_mm: 0.25 },
+        top: StampTop::Pillow { crown_mm: 0.3 },
     })
 }
 
-/// The keel's run down each shoulder, mm along the parting line from the head's centre, its width and height.
-const KEEL: (f64, f64, f64, f64) = (13.2, 36.0, 2.6, 0.55);
-/// The dorsal crest on the occiput's shoulder: first and last cone, mm along, count, and the first cone's diameter.
-const CREST: (f64, f64, u32, f64) = (16.0, 34.5, 8, 1.8);
-
-/// The spine: a knife keel on the parting line down both shoulders (it gives the shank's crest the draft the bare
-/// stock lacks there), and on the occiput's side the dorsal crest, a graded row of cones standing on it.
-fn dorsal(d: &mut RingDesign, a: &Atlas, hide: &Hide, along_per_x: f64, placed: &mut Placed) -> Result<()> {
-    let (from, to, width, height) = KEEL;
-    for (name, sign) in [("Keel, snout side", -1.0f64), ("Keel, occiput side", 1.0)] {
-        let mut pts: Vec<[f64; 2]> = Vec::new();
-        let mut last: Option<f64> = None;
-        let steps = 48;
-        for k in 0..=steps {
-            let along = along_per_x * sign * (from + (to - from) * k as f64 / steps as f64);
-            let (theta, v) = hide.crest_at(a, along);
-            let theta = match last {
-                None => theta,
-                Some(prev) => prev + ((theta - prev + 180.0).rem_euclid(360.0) - 180.0),
-            };
-            last = Some(theta);
-            pts.push([theta / 360.0, v]);
-        }
-        if pts[0][0] > pts[pts.len() - 1][0] {
-            pts.reverse();
-        }
-        placed.keel.push(format!("{name}: {:.1} to {:.1} deg", 360.0 * pts[0][0], 360.0 * pts[pts.len() - 1][0]));
-        let c = CurveLayer { points: pts, repeats_around: 1, closed: false, width_mm: width, height_mm: height, profile: WireProfile::Knife, taper: 0.3, mirror_v: false, ..Default::default() };
-        let mut e = LayerEntry::new(name, Layer::Curve(c));
-        e.blend = Blend::Max;
-        d.layers.layers.push(e);
-    }
-    let (c0, c1, count, dia) = CREST;
-    let (t0, t1) = (hide.crest_at(a, along_per_x * c0).0, hide.crest_at(a, along_per_x * c1).0);
-    let cone = Stamp {
-        name: "Dorsal cone".into(),
-        theta_deg: 0.0,
-        v_mm: 0.0,
-        rot_deg: 0.0,
-        outline: outline::circle(dia),
-        height_mm: 0.6,
-        sink_mm: 0.3,
-        draft_deg: 4.0,
-        cut: false,
-        bench: false,
-        along_pull: false,
-        fine_cap: true,
-        tier: 0,
-        top: StampTop::Cone { apex_mm: 0.9, at: [0.0, 0.0], tip_mm: 0.25 },
-    };
-    let row = StampRow { stamp: cone, path: RowPath::PartingLine, from_deg: t0, to_deg: t1, count, taper: 0.5, fold_clear_mm: 1.0, mirror_shoulders: false };
-    let struck = stamp_row(d, &row);
-    placed.crest = struck.iter().map(|s| format!("{} at {:.2} deg, v {:.3}", s.name, s.theta_deg, s.v_mm)).collect();
-    d.stamps.extend(struck);
-    Ok(())
+fn alexandrite() -> Gem {
+    Gem { l_mm: 5.0, preview_tint: Some(ALEXANDRITE_TINT), ..Gem::calibrated(GemCut::Cushion, 4.0) }
 }
 
-/// A stamp's outline in the chart, as SVG page coordinates over the unrolled band (x = theta's share of the
-/// table's circumference, y = v): each outline point carried to the world through the stamp's frame and back to the
-/// chart by the nearest atlas sample.
-fn chart_outline(d: &RingDesign, a: &Atlas, s: &Stamp, circ: f64) -> Vec<[f64; 2]> {
-    let f = s.frame(d, &d.field_context());
-    let near: Vec<&ringdesign_core::skin::Sample> = a
-        .samples
-        .iter()
-        .filter(|q| {
-            let o = [q.p[0] - f.origin[0], q.p[1] - f.origin[1], q.p[2] - f.origin[2]];
-            o[0] * o[0] + o[1] * o[1] + o[2] * o[2] < 144.0
-        })
-        .collect();
-    s.outline
-        .iter()
-        .step_by(2)
-        .map(|p| {
-            let w: [f64; 3] = std::array::from_fn(|k| f.origin[k] + p[0] * f.x[k] + p[1] * f.y[k]);
-            let q = near
-                .iter()
-                .min_by(|m, n| {
-                    let dm = (m.p[0] - w[0]).powi(2) + (m.p[1] - w[1]).powi(2) + (m.p[2] - w[2]).powi(2);
-                    let dn = (n.p[0] - w[0]).powi(2) + (n.p[1] - w[1]).powi(2) + (n.p[2] - w[2]).powi(2);
-                    dm.total_cmp(&dn)
-                })
-                .expect("a sample near the stamp");
-            [q.theta / 360.0 * circ, q.v]
-        })
-        .collect()
-}
+/// The alexandrite's station on the back, behind the casque, degrees.
+const STONE_THETA: f64 = 61.0;
 
-/// A chameleon's granular hide as one periodic tile `tile` mm square: granules of three radii packed by dart
-/// throwing, largest first, every land at least `land` mm; each a dome, white at its crown falling to black at its
-/// rim, so the 0.5 iso-line stands at 0.86 of its radius. Seeded, so the tile is the same on every machine.
-fn hide_tile(tile: f64, radii: [f64; 3], land: f64, seed: u64) -> String {
-    // SplitMix64: consecutive draws are independent, so (x, y) pairs fill the square.
-    let mut state = seed;
-    let mut next = move || {
-        state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = state;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^= z >> 31;
-        ((z >> 11) as f64) / ((1u64 << 53) as f64)
-    };
-    let mut placed: Vec<([f64; 2], f64)> = Vec::new();
-    let wrap = |d: f64| d - tile * (d / tile).round();
-    // Each throw takes the largest of the three radii its neighbours leave room for, so the big granules come
-    // first and the small ones fill the gaps between them, as a chameleon's do.
-    for _ in 0..60000 {
-        let c = [next() * tile, next() * tile];
-        let room = placed.iter().map(|(q, rq)| wrap(c[0] - q[0]).hypot(wrap(c[1] - q[1])) - rq - land).fold(f64::MAX, f64::min);
-        if let Some(r) = radii.iter().copied().find(|r| *r <= room) {
-            placed.push((c, r));
-        }
-    }
-    let mut body = String::new();
-    for (c, r) in &placed {
-        // Each granule drawn at every wrap it reaches, so the tile is seamless.
-        for dx in [-tile, 0.0, tile] {
-            for dy in [-tile, 0.0, tile] {
-                let (x, y) = (c[0] + dx, c[1] + dy);
-                if x + r < 0.0 || x - r > tile || y + r < 0.0 || y - r > tile {
-                    continue;
-                }
-                body.push_str(&format!("<circle cx=\"{x:.4}\" cy=\"{y:.4}\" r=\"{r:.4}\" fill=\"url(#g)\"/>"));
-            }
-        }
-    }
-    format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {tile} {tile}\"><defs><radialGradient id=\"g\"><stop offset=\"0\" stop-color=\"#000\"/><stop offset=\"0.55\" stop-color=\"#141414\"/><stop offset=\"0.86\" stop-color=\"#808080\"/><stop offset=\"1\" stop-color=\"#fff\"/></radialGradient></defs><rect width=\"{tile}\" height=\"{tile}\" fill=\"#fff\"/>{body}</svg>"
-    )
-}
-
-fn svg_path(pts: &[[f64; 2]]) -> String {
-    let body: Vec<String> = pts.iter().map(|c| format!("{:.3},{:.3}", c[0], c[1])).collect();
-    format!("M{}Z", body.join(" L"))
-}
-
-/// The granules. The table's flanks cannot hold cast granules (a zero-draft table takes only steps down away from
-/// the line), so they are cut at the bench: the lands between granules sunk into the cast table, the granules its
-/// own surface left standing. The cheeks and walls face the pull and take cast granules in a clamped group, with
-/// the lateral stripe's flat tubercles standing over them on the walls. Each is masked off the struck forms by an
-/// SVG drawn in the chart, with a narrow polished halo.
-fn granules(d: &mut RingDesign, a: &Atlas, boss: (f64, f64, f64, f64)) -> Result<()> {
-    let ctx = d.field_context();
-    let circ = 2.0 * PI * a.top;
-    let page = |body: &str| format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {circ:.3} {:.3}\" preserveAspectRatio=\"none\">{body}</svg>", a.span);
-    let halo = 2.0 * HALO_MM;
-    let cut = |pts: &[[f64; 2]]| format!("<path d=\"{}\" fill=\"#fff\" stroke=\"#fff\" stroke-width=\"{halo:.3}\" stroke-linejoin=\"round\"/>", svg_path(pts));
-    // The table's flanks: the whole table, less the outer crest and the boss, each with its halo.
-    let forms: Vec<Stamp> = d.stamps.iter().filter(|s| s.name == "Casque" || s.name.starts_with("Temporal crest")).cloned().collect();
-    ensure!(!forms.is_empty(), "no casque");
-    let (bt, bv, bl, bw) = boss;
-    let bx = bt / 360.0 * circ;
-    let table: Vec<&ringdesign_core::skin::Sample> = a.samples.iter().filter(|s| a.face(s) > 0.6).collect();
-    ensure!(!table.is_empty(), "no table");
-    let (t_lo, t_hi) = table.iter().fold((f64::MAX, f64::MIN), |m, s| (m.0.min(s.theta), m.1.max(s.theta)));
-    let (v_lo, v_hi) = table.iter().fold((f64::MAX, f64::MIN), |m, s| (m.0.min(s.v), m.1.max(s.v)));
-    // Inset from the table's edge round, so the grain never runs over onto a wall and combs.
-    let inset = 0.25;
-    let flank = format!(
-        "<rect x=\"{:.3}\" y=\"{:.3}\" width=\"{:.3}\" height=\"{:.3}\" rx=\"1.2\" fill=\"#000\"/>{}<ellipse cx=\"{bx:.3}\" cy=\"{bv:.3}\" rx=\"{:.3}\" ry=\"{:.3}\" fill=\"#fff\"/>",
-        t_lo / 360.0 * circ + inset,
-        v_lo + inset,
-        (t_hi - t_lo) / 360.0 * circ - 2.0 * inset,
-        v_hi - v_lo - 2.0 * inset,
-        forms.iter().map(|f| cut(&chart_outline(d, a, f, circ))).collect::<String>(),
-        0.5 * bl + HALO_MM,
-        0.5 * bw + HALO_MM,
-    );
-    d.svgs.push(SvgAlpha { name: "Chamaeleo flanks".into(), svg: page(&flank), invert: false });
-    // The cheeks and walls: everything, less each tail with its halo.
-    let tails: String = d.stamps.iter().filter(|s| s.name.starts_with("Tail")).map(|s| cut(&chart_outline(d, a, s, circ))).collect();
-    // Only where the wall stands square to the pull, near the head: the atlas read row by row into runs.
-    let rows = 256usize;
-    let mut runs = String::new();
-    for row in 0..rows {
-        let y = (row as f64 + 0.5) / rows as f64 * a.height as f64;
-        let yy = (y as usize).min(a.height - 1);
-        let mut start: Option<usize> = None;
-        for x in 0..=a.width {
-            let on = x < a.width && {
-                let q = a.at(x, yy);
-                q.n[2].abs() > SIDE_NZ && q.p[0].hypot(q.p[1]) > a.bore + 0.7 && (q.theta - 90.0).abs() < 0.5 * WALL_SPAN_DEG
-            };
-            match (on, start) {
-                (true, None) => start = Some(x),
-                (false, Some(x0)) => {
-                    runs.push_str(&format!(
-                        "<rect x=\"{:.3}\" y=\"{:.3}\" width=\"{:.3}\" height=\"{:.3}\" fill=\"#000\"/>",
-                        x0 as f64 / a.width as f64 * circ,
-                        row as f64 / rows as f64 * a.span,
-                        (x - x0) as f64 / a.width as f64 * circ,
-                        a.span / rows as f64 + 0.01
-                    ));
-                    start = None;
-                }
-                _ => {}
-            }
-        }
-    }
-    d.svgs.push(SvgAlpha { name: "Chamaeleo sides".into(), svg: page(&format!("{runs}{tails}")), invert: false });
-    // The tiles: three radii of granule, and the stripe's flat tubercles.
-    let tile = hide_tile(GRANULE_TILE, GRANULE_R, GRANULE_LAND, 7);
-    d.svgs.push(SvgAlpha { name: "Chamaeleo grain".into(), svg: tile.clone(), invert: true });
-    d.svgs.push(SvgAlpha { name: "Chamaeleo granules".into(), svg: tile.clone(), invert: false });
-    let tiled = |alpha: &str, height: f64| {
-        let mut t = TilingLayer::default_for(alpha, &ctx);
-        t.space = ChartSpace::Hide;
-        t.repeats_around = (ctx.circumference_mm / GRANULE_TILE).round().max(1.0) as u32;
-        t.rows = 6;
-        t.v_center_mm = 0.0;
-        t.v_span_mm = 6.0 * ctx.circumference_mm / t.repeats_around as f64;
-        t.height_mm = height;
-        t.feather_mm = 0.0;
-        t.continuous = true;
-        t
-    };
-    // The table's hide is cut at the bench: the sand master's envelope would fill each cast granule's shadow along
-    // the finger, so the lands are sunk into the cast table and the granules are its own surface left standing.
-    // In the chart: the table is flat across, so chart millimetres are the table's own.
-    let mut on_table = tiled("Chamaeleo granules", GRANULE_MM);
-    on_table.space = ChartSpace::Chart;
-    // The chart's u is arc at the reference crest, short of the table's own: size the cells in the table's mm.
-    let around = 2.0 * PI * a.top / ctx.circumference_mm;
-    on_table.repeats_around = (ctx.circumference_mm * around / GRANULE_TILE).round().max(1.0) as u32;
-    on_table.rows = 3;
-    on_table.v_center_mm = 0.5 * a.span;
-    on_table.v_span_mm = 3.0 * GRANULE_TILE;
-    on_table.alpha = "Chamaeleo grain".into();
-    let mut table = LayerEntry::new("Granules, table", Layer::Tiling(on_table));
-    table.blend = Blend::Subtract;
-    table.bench_only = true;
-    table.mask = Some("Chamaeleo flanks".into());
-    table.window = Window { enabled: true, theta_deg: 90.0, span_deg: WALL_SPAN_DEG, fade_deg: 4.0, invert: false, v_gate: Default::default() };
-    // The cast hide on the cheeks and walls, wherever they stand square to the pull.
-    let mut sides = LayerEntry::new("Granules, cheeks and walls", Layer::Tiling(tiled("Chamaeleo granules", GRANULE_MM)));
-    sides.blend = Blend::Max;
-    sides.mask = Some("Chamaeleo sides".into());
-    sides.window = Window { enabled: true, theta_deg: 90.0, span_deg: WALL_SPAN_DEG, fade_deg: 4.0, invert: false, v_gate: Default::default() };
-    let mut g = LayerEntry::new(
-        "Hide, three granules",
-        Layer::Group(GroupLayer { stack: LayerStack { layers: vec![sides] }, recipe: None, clamp: None }),
-    );
-    g.blend = Blend::Max;
-    d.layers.layers.push(table);
-    g.window = Window { enabled: true, theta_deg: 90.0, span_deg: WALL_SPAN_DEG, fade_deg: 4.0, invert: false, v_gate: Default::default() };
-    d.layers.layers.push(g);
-    Ok(())
+/// What was made and where, for the report.
+#[derive(Default, serde::Serialize)]
+struct Placed {
+    keys: Vec<[f64; 3]>,
+    flank_height_mm: f64,
+    head_frame: [f64; 6],
+    head_faces: usize,
+    head_volume_mm3: f64,
+    head_top_over_crown_mm: f64,
+    eye_reach_past_skull_mm: f64,
+    stone_at: [f64; 2],
+    tail: Vec<String>,
+    coil_outer_diameter_mm: f64,
 }
 
 fn probe(d: &RingDesign) -> Result<()> {
     let a = Atlas::of(d, AW, AH)?;
-    let hide = Hide::of(&a);
-    eprintln!("top {:.3} bore {:.3} span {:.3} head {:.3} band {:.3}", a.top, a.bore, a.span, a.head_length_mm, a.band_width_mm);
-    eprintln!("reach {:.3} folds {:?}", hide.reach(), hide.folds(&a, 12.0));
-    for along in [-9.0, -8.0, -7.0, -5.0, -2.0, 0.0, 2.0, 5.0, 7.0, 8.0, 9.0] {
-        let (t, v) = hide.crest_at(&a, along);
-        eprintln!("along {along}: theta {t:.3} v {v:.3} p {:?}", hide.crest_point(&a, along));
-    }
-    let ctx = d.field_context();
-    eprintln!("stretch {:?}", (0..=36).map(|k| (k * 10, (ctx.station_stretch(k as f64 * 10.0) * 100.0).round() / 100.0)).collect::<Vec<_>>());
-    for deg in (20..=160).step_by(10) {
-        let on: Vec<_> = a.samples.iter().filter(|q| q.p[2] > 0.0 && q.n[2] > SIDE_NZ && (q.theta - deg as f64).abs() < 0.2 && q.p[0].hypot(q.p[1]) > a.bore + 0.7).collect();
-        let ac = on.iter().map(|q| hide.at(q).across).fold((f64::MAX, f64::MIN), |m, x| (m.0.min(x), m.1.max(x)));
-        let r = on.iter().map(|q| q.p[0].hypot(q.p[1])).fold((f64::MAX, f64::MIN), |m, x| (m.0.min(x), m.1.max(x)));
-        eprintln!("side at {deg}: across {ac:.2?} r {r:.2?}");
-    }
-    for name in ["table", "cheek", "wall", "rim", "shoulder", "palm"] {
-        if let Some(m) = ringdesign_core::skin::region(&a, &hide, name) {
-            let on: Vec<_> = a.samples.iter().filter(|s| m.data[s.i] > 0.5).collect();
-            let ac = on.iter().map(|s| hide.at(s).across).fold((f64::MAX, f64::MIN), |m, x| (m.0.min(x), m.1.max(x)));
-            let r = on.iter().map(|s| s.p[0].hypot(s.p[1])).fold((f64::MAX, f64::MIN), |m, x| (m.0.min(x), m.1.max(x)));
-            eprintln!("region {name}: {} samples, across {ac:.2?}, r {r:.2?}", on.len());
-        }
+    eprintln!("top {:.3} bore {:.3} span {:.3}", a.top, a.bore, a.span);
+    for deg in (0..=180).step_by(10) {
+        let f = (deg as f64).to_radians();
+        let side: Vec<f64> = a.samples.iter().filter(|s| s.p[2] > 0.0 && s.n[2] > 0.97 && (s.p[0].atan2(s.p[1]) - (PI / 2.0 - f)).abs() < 0.01).map(|s| s.p[0].hypot(s.p[1])).collect();
+        let r = side.iter().fold((f64::MAX, f64::MIN), |m, r| (m.0.min(*r), m.1.max(*r)));
+        let crest = a.samples.iter().filter(|s| (s.theta - deg as f64).abs() < 0.2).map(|s| s.p[0].hypot(s.p[1])).fold(0.0, f64::max);
+        eprintln!("  theta {deg}: side face r {r:.2?}, crest r {crest:.2}");
     }
     Ok(())
 }
 
-fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
-    let mut d = stock(FACE)?;
+fn joined() -> Component {
+    Component { attach: Attach::Join, placement: Placement::Free, blend_mm: 0.0, ..Component::default() }
+}
+
+fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed, csg::Solid)> {
+    let mut d = band()?;
     let lib = AlphaLibrary::builtin();
     let a = Atlas::of(&d, AW, AH)?;
-    let hide = Hide::of(&a);
-    let (t_minus, _) = hide.crest_at(&a, -1.0);
-    let (t_plus, _) = hide.crest_at(&a, 1.0);
-    // A stamp's +x runs toward rising theta (measured on this stock); `along` runs whichever way the hide says.
-    let along_per_x = if t_plus > t_minus { 1.0 } else { -1.0 };
-    let (theta0, v0) = hide.crest_at(&a, 0.0);
-    let mut placed = Placed { face_mm: [FACE.0, FACE.1], reach_mm: hide.reach(), folds_along_mm: hide.folds(&a, 12.0), ..Default::default() };
+    let mut placed = Placed { keys: KEYS.iter().map(|k| [k.0, k.1, k.2]).collect(), ..Default::default() };
+    placed.flank_height_mm = PROFILE.1 * 3.0;
 
-    // The head: two temporal crests stepping down away from the casque, and the casque, all on the parting line.
-    // The casque is drawn from the occiput, so its dome crowns there: a broad shield from the stone's back to the
-    // table's end, rounded at the brow, widest and highest over the occiput, falling hard at the end. The temporal
-    // crests are drawn from the head's centre: two low steps a side running along the ring beside it, stepping down
-    // away from it. In lost wax nothing need cross the parting line.
-    let frame = (theta0, v0, 0.0);
-    let oc = hide.crest_at(&a, along_per_x * OCCIPUT);
-    let occiput = (oc.0, oc.1, 0.0);
-    let half = casque_half;
-    let casque = band_plate(CASQUE_FROM, CASQUE_TO, 1.4, 1.1, &half);
-    let mut head = vec![struck("Casque", occiput, casque.into_iter().map(|p| [p[0] - OCCIPUT, p[1]]).collect(), CASQUE_MM, 0, StampTop::Dome { crown_mm: CASQUE_RISE })];
-    for (side_name, side) in [("left", 1.0f64), ("right", -1.0)] {
-        for (k, (x0, x1, w, tier)) in [(CASQUE_FROM + 1.0, CASQUE_TO - 0.4, STEP_W.0, 0u8), (CASQUE_FROM + 1.6, CASQUE_TO - 0.9, STEP_W.1, 1)].into_iter().enumerate() {
-            // The upper step stands a little in from the lower one's inner edge, so it rests wholly on it.
-            let inset = if k == 0 { 0.0 } else { 0.25 };
-            let outline = strip(x0, x1, &|x| half(x) + HALO_MM + inset, w, side);
-            let name = format!("Temporal crest, {side_name} {}", if k == 0 { "outer" } else { "inner" });
-            head.push(struck(&name, frame, outline, STEP_MM, tier, StampTop::Pillow { crown_mm: 0.06 }));
-        }
+    // The head's frame on the crown at its station.
+    let crest = |theta: f64| a.samples.iter().filter(|s| (s.theta - theta).abs() < 0.2).map(|s| s.p[0].hypot(s.p[1])).fold(0.0, f64::max);
+    let r = crest(HEAD_THETA) - SINK_MM * 0.0;
+    let t = HEAD_THETA.to_radians();
+    let frame = HeadFrame { o: [r * t.cos(), r * t.sin(), 0.0], fwd: [-t.sin(), t.cos(), 0.0], up: [t.cos(), t.sin(), 0.0] };
+    placed.head_frame = [frame.o[0], frame.o[1], frame.o[2], HEAD_THETA, r, SINK_MM];
+    let head = sculpt_head(&frame)?;
+    placed.head_faces = head.f.len();
+    placed.head_volume_mm3 = sculpt::closure(&head).1;
+    placed.head_top_over_crown_mm = head.v.iter().map(|p| frame.local(*p)[1]).fold(f64::MIN, f64::max);
+    placed.eye_reach_past_skull_mm = head.v.iter().map(|p| frame.local(*p)[2].abs()).fold(0.0, f64::max) - 2.55 * HEAD_SCALE;
+    let packed = sculpt::packed(&head)?;
+    let doc = d.cad.get_or_insert_with(Document::default);
+    if doc.band().is_none() {
+        doc.append(Feature { id: 1, name: "Keyed body".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
     }
-    placed.levelled = false;
-    placed.head_frame = [frame.0, frame.1, 0.0];
-    for s in &head {
-        if let Err(e) = outline::check(&s.outline) {
-            eprintln!("{}: {e}", s.name);
-        }
-    }
-    if std::env::var("CHAM_DEBUG").is_ok() {
-        for s in &head {
-            if let Err(bad) = s.parting_monotone(&d) {
-                eprintln!("{} not monotone at {} points, first {:?}", s.name, bad.len(), bad.iter().take(6).map(|i| s.outline[*i]).collect::<Vec<_>>());
-            }
-        }
-    }
-    d.stamps.extend(head);
+    let next = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
+    let recipe = stored::Recipe {
+        kernel: "sculpt".into(),
+        op: "chameleon head".into(),
+        params: json!({ "theta_deg": HEAD_THETA, "step_mm": STEP_MM, "faces": FACES, "casque": [CASQUE.0, CASQUE.1, CASQUE.2], "casque_half_mm": CASQUE.3, "eye": [EYE.0, EYE.1, EYE.2, EYE.3] }),
+        digest: String::new(),
+    };
+    doc.append(Feature { id: next, name: "Head".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: packed }, component: joined() })?;
 
-    // The alexandrite on its boss at the snout's base: a top-level entry, so no clamp ever shaves its stock.
-    let at = hide.crest_at(&a, along_per_x * STONE_ALONG);
-    placed.stone_at = [at.0, at.1];
+    // The alexandrite on its boss on the back, behind the casque.
+    let ctx = d.field_context();
     let mut seat = SeatPadLayer {
-        theta_deg: at.0,
-        v_mm: at.1,
+        theta_deg: STONE_THETA,
+        v_mm: ctx.crest_v_mm,
         style: SeatStyle::Boss,
         crown: 0.85,
-        blend_mm: 0.4,
+        blend_mm: 0.5,
         metal_true: true,
         solid: SolidKind::Flush,
         through: true,
@@ -776,70 +508,32 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
         ..Default::default()
     };
     seat.fit_stone(alexandrite());
-    seat.height_mm = BOSS_MM;
-    placed.boss = json!({ "diameter_mm": seat.diameter_mm, "elong": seat.elong, "height_mm": seat.height_mm, "plan_pow": seat.plan_pow });
-    let boss = (at.0, at.1, seat.diameter_mm * seat.elong + 2.0 * seat.blend_mm, seat.diameter_mm + 2.0 * seat.blend_mm);
+    seat.height_mm = 0.9;
+    placed.stone_at = [STONE_THETA, ctx.crest_v_mm];
     let mut e = LayerEntry::new("Alexandrite", Layer::SeatPad(seat));
     e.blend = Blend::Max;
     d.layers.layers.push(e);
 
-    dorsal(&mut d, &a, &hide, along_per_x, &mut placed)?;
-
-    // The tail, curled on each cheek and standing along the pull.
+    // The tail, coiled on each flank.
     let tail = tail_outline();
     if let Err(e) = outline::check(&tail) {
         eprintln!("tail: {e}");
     }
+    placed.coil_outer_diameter_mm = 2.0 * COIL.2 + TAIL_W.0;
+    let c = polar(COIL.0, COIL.1);
     for (k, side) in [1.0f64, -1.0].into_iter().enumerate() {
-        let s = cheek_stamp(&a, &format!("Tail, {}", if k == 0 { "fingertip" } else { "knuckle" }), [0.0, 11.9], side, &tail, TAIL_MM)?;
-        placed.cheek.push(format!("{} at {:.2} deg, v {:.3}, {} points", s.name, s.theta_deg, s.v_mm, s.outline.len()));
+        let s = side_stamp(&a, &format!("Tail, {}", if k == 0 { "fingertip" } else { "knuckle" }), c, side, &tail, TAIL_MM)?;
+        placed.tail.push(format!("{} at {:.2} deg, v {:.3}, {} points", s.name, s.theta_deg, s.v_mm, s.outline.len()));
         d.stamps.push(s);
     }
-    if std::env::var("CHAM_NO_GRANULES").is_err() {
-        granules(&mut d, &a, boss)?;
-    }
     let _ = blockout;
-    if let Ok(dir) = std::env::var("CHAM_DUMP") {
-        for sv in &d.svgs {
-            let r = sv.rasterize();
-            let px: Vec<u8> = r.data.iter().map(|v| (v.clamp(0.0, 1.0) * 255.0) as u8).collect();
-            image::save_buffer(Path::new(&dir).join(format!("{}.png", sv.name)), &px, r.width as u32, r.height as u32, image::ColorType::L8)?;
-        }
-    }
     if let Ok(skip) = std::env::var("CHAM_SKIP") {
         let skip: Vec<&str> = skip.split(';').collect();
         d.stamps.retain(|s| !skip.iter().any(|k| s.name.starts_with(k)));
         d.layers.layers.retain(|e| !skip.iter().any(|k| e.name.starts_with(k)));
     }
-    if std::env::var("CHAM_DEBUG").is_ok() {
-        for s in &d.stamps {
-            let bb = s.outline.iter().fold([f64::MAX, f64::MIN, f64::MAX, f64::MIN], |b, p| [b[0].min(p[0]), b[1].max(p[0]), b[2].min(p[1]), b[3].max(p[1])]);
-            eprintln!("{}: {} points, area {:.2}, x {:.2}..{:.2} y {:.2}..{:.2}, at {:.2} deg v {:.3} rot {:.2}", s.name, s.outline.len(), outline::area(&s.outline), bb[0], bb[1], bb[2], bb[3], s.theta_deg, s.v_mm, s.rot_deg);
-        }
-        if std::env::var("CHAM_STOP").is_ok() {
-            std::process::exit(0);
-        }
-    }
     let lib = mf::source_library(&d, &lib).into_owned();
-    if std::env::var("CHAM_PROF").is_ok() {
-        let ctx = d.field_context();
-        for e in &d.layers.layers {
-            if let Layer::Group(g) = &e.layer {
-                for inner in &g.stack.layers {
-                    let row = |u0: f64, v0: f64, du: f64, dv: f64| (0..200).map(|k| {
-                        let uv = ringdesign_core::field::Uv { u: u0 + du * k as f64, v: v0 + dv * k as f64 };
-                        let h = inner.layer.height(uv, &ctx, &lib) * inner.mask_at(uv, &ctx, &lib);
-                        char::from_digit(((h / GRANULE_MM) * 9.0).round().clamp(0.0, 9.0) as u32, 10).unwrap()
-                    }).collect::<String>();
-                    let u = 100.0 / 360.0 * ctx.circumference_mm;
-                    eprintln!("{} across (v 0..17 by 0.085): {}", inner.name, row(u, 0.0, 0.0, 0.085));
-                    eprintln!("{} around (u by 0.05 at v 3.5): {}", inner.name, row(u - 5.0, 3.5, 0.05, 0.0));
-                }
-            }
-        }
-        eprintln!("circumference {}", ctx.circumference_mm);
-    }
-    Ok((d, lib, placed))
+    Ok((d, lib, placed, head))
 }
 
 // --- Gates -------------------------------------------------------------------------------------------------------
@@ -1029,7 +723,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
 // --- Renders -----------------------------------------------------------------------------------------------------
 
 const VIEWS: [(&str, f64, f64); 6] = [
-    ("hero", 0.48, 1.0),
+    ("hero", 0.5, 0.55),
     ("face", 0.0, PI * 0.5),
     ("palm", PI, 1.05),
     ("side", 0.0, 0.05),
@@ -1092,7 +786,7 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: mesh::BuildRes
     render::write_png_parts(out.join("stones.png"), &close, 0.3, 1.15, edge)?;
     // Bare stock against the finished ring, at the hero's angle.
     let mut bare = d.clone();
-    bare.imported_base.as_mut().unwrap().bare = true;
+    bare.cad = None;
     bare.stamps.clear();
     bare.layers.layers.clear();
     let b = mesh::try_build(&bare, lib, draft_params())?;
@@ -1120,13 +814,12 @@ fn main() -> Result<()> {
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../showcase/cataphracta/chamaeleo"));
     if args.iter().any(|a| a == "--probe") {
-        return probe(&stock(FACE)?);
+        return probe(&band()?);
     }
     std::fs::create_dir_all(&out)?;
     println!("Chamaeleo");
-    let bare = bare_study(FACE)?;
-    println!("  bare 001 at {} x {}: {bare}", FACE.0, FACE.1);
-    let (d, lib, placed) = author(blockout)?;
+    let (d, lib, placed, head) = author(blockout)?;
+    println!("  head: {} faces, {:.1} mm3, top {:.2} mm over the crown", placed.head_faces, placed.head_volume_mm3, placed.head_top_over_crown_mm);
     let params = if draft { draft_params() } else { export_params() };
     let (draft_gates, draft_pass, draft_built) = gates(&d, &lib, draft_params())?;
     println!("  draft: {draft_gates}");
@@ -1180,8 +873,8 @@ fn main() -> Result<()> {
         "sand": "Delft clay, 3.0 deg draft, 0.8 mm section, 0.30 mm detail",
         "size": d.size.display(),
         "bore_mm": BORE_MM,
-        "bare_001": bare,
-        "face_mm": [FACE.0, FACE.1],
+        "body": { "profile_mm": [PROFILE.0, PROFILE.1], "keys_theta_width_thickness": KEYS.iter().map(|k| [k.0, k.1, k.2]).collect::<Vec<_>>() },
+        "head_part": { "faces": head.f.len(), "self_crossings": csg::self_crossings(&head), "open_edges": sculpt::closure(&head).0 },
         "placed": placed,
         "stamps": d.stamps.iter().map(|s| json!({ "name": s.name, "theta_deg": s.theta_deg, "v_mm": s.v_mm, "bench": s.bench, "cut": s.cut, "tier": s.tier, "along_pull": s.along_pull, "height_mm": s.height_mm, "finest_mm": dfm::stamp_finest_mm(&s.outline, d.draft.min_detail_mm) })).collect::<Vec<_>>(),
         "layers": d.layers.layers.iter().map(|e| e.name.clone()).collect::<Vec<_>>(),

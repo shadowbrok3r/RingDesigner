@@ -1,0 +1,27 @@
+{
+  "ring": "chamaeleo",
+  "mode": "read-test",
+  "attempt": 4,
+  "reads": false,
+  "what_the_eye_sees": "The rethink is a big step: there is a creature on top of the ring now, not a decorated signet. In the hero a smooth, rounded gold animal lies along the top. It has a blunt rounded end at the left with a small dot, a tall pointed triangular blade standing up from its back, and a teal stone at the right end. Below it, on the plinth's side, a clean spiral about 30 px across finally reads as a curl. But the creature reads as a seal, a sleeping bird, or a fish with a dorsal fin. The pointed blade looks like a shark fin or an ear, not a helmet, and the dot is too small and too low to read as an eye. Face-on it is plainer still: a smooth torpedo or seed pod with a pointed nose at the left, two symmetric pointed nubs sticking out of its sides like pectoral fins, and the stone at its tail. A jeweller would say 'a fish' or 'a dolphin', or 'a snail' because of the spiral. Without the caption nobody says chameleon, because the three signs that name the animal do not show: the turret eyes read as fins, the casque reads as a fin, and the head has no mouth line, no jaw and no skin. The body is bare polish, so there is no granular hide anywhere in either view.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the turret eyes unmistakable: big, domed cones with a pupil, sitting high on the head and not halfway along the body",
+      "where": "The sculpted head part (sculpt.rs), the two side nubs. Face-300 shows them at the body's midpoint, about x 125, so they read as pectoral fins. In hero-300 the eye is the small dot near the left end, at about x 88, y 110.",
+      "by_how_much": "Move each eye forward to the front third of the head, just behind the snout and just under the casque's front edge. Make each one a hemispherical turret about 3.5 to 4 mm across that stands 1.5 to 2 mm proud of the head's side. Cover it with 3 to 4 concentric granule rings, keep a smooth pupil cone at the tip (about 1 mm across, with a 0.3 mm pupil pit), and do not taper it to a sharp point. Acceptance: in face-300 two round domed eyes, each at least 15 px across, bulge out on either side of the front of the head, with no sharp tips. In hero-300 the near eye is a ringed dome at least 15 px across, with a visible pupil, near the snout."
+    },
+    {
+      "priority": 2,
+      "what": "Turn the free-standing triangular blade into a helmet casque that is part of the head",
+      "where": "The casque on the sculpted head: the pointed blade at about x 130, y 45 to 75 in hero-300",
+      "by_how_much": "A chameleon's casque is a raised helmet over the back of the skull, not a fin. Start it at the eyes' rear rims, flush with the top of the head. Sweep its top edge back and up in a straight or slightly concave line to a peak at the back of the skull, about 2 to 2.5 mm above the head, then drop it sharply to the neck. In plan it should be a wedge, about 2 mm wide between the eyes and widening to 4 to 5 mm at the back, with a low gabled ridge on the centre line. Remove the tall, thin, pointed blade standing up mid-back. Acceptance: in hero-300 the head's outline reads as a long ramp from the snout up to a helmet peak at the back of the head, with no separate fin-shaped spike. In face-300 a wedge-shaped shield widens back from between the eyes."
+    },
+    {
+      "priority": 3,
+      "what": "Give the head a chameleon face and give the body skin",
+      "where": "The sculpted head's side faces (snout to the back of the casque), and the body or plinth flanks around the tail spiral",
+      "by_how_much": "Cut the chameleon's downturned grin: a mouth groove about 0.4 mm deep and 0.5 mm wide, running from the snout tip back and slightly downward to below the eye turret, about 6 to 7 mm long. Make the snout blunter and squarer, not pointed. Cover the head (except the casque's ridge and the eye pupils) and the body with raised round granules, 0.3 to 0.6 mm radius and 0.25 to 0.4 mm high, so the bare polished torpedo becomes pebbled skin. Ring the tail spiral with them, but keep the spiral itself smooth. Acceptance: in hero-300 a dark mouth line runs from the snout under the eye. Both 300 px views show pebbled skin on the head and body, not polished metal, and the spiral stays at least 25 px across and reads clearly."
+    }
+  ]
+}
