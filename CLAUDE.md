@@ -1496,6 +1496,22 @@ the pour, all hand-rolled in core with tests:
   skirt around a seat. A stone keeps flat facets, because there the facets
   are the point.
 
+  **A close-up is framed, never cropped** (`render::Framing`,
+  `write_png_framed`). A mesh cropped to a sphere or wedge keeps whole
+  triangles, so its rim is the build grid, and a copy without
+  `corner_normals` shades every stamp's and part's crease as one smooth
+  roll: the reviewers read both as stair-steps on the motifs. A sand
+  master's envelope shades from normals blurred over 0.45 mm of its own
+  surface, stopping at 12° creases, because the master is 0.55 mm flat
+  facets and a five-cell blur showed every one as a band. Two opt-ins move
+  geometry, both fenced at format 6: `StampTop::Pillow`, a membrane top
+  that is the dome on a circle and creaseless on a spiny outline where
+  `Dome` folds along every spine's ray, and `RingDesign::crisp_relief`,
+  which reads the height field through a one-cell tent where it is not
+  linear across the cell, so a wall crossing the grid lies straight
+  instead of stepping a row at a time. `docs/crisp/` has the measured
+  before and after.
+
 The CLI speaks all of them: `--formats stl,obj,3mf,glb,ply,step`.
 
 A ring carrying CAD parts leaves whole and a part comes in. OBJ writes one
