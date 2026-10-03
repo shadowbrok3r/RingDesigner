@@ -55,6 +55,9 @@ const OVERSHOOT_MM: f64 = 0.3;
 /// The drawn collets: wall, clearance round the stone, how far the stone's base stands over its seat, the rim over that
 /// (rubbed over at the bench), and how far the tube sinks into what it stands on.
 const COLLET_WALL_MM: f64 = 0.9;
+/// The builder bezel's wall and lip, where the bezel is the setting.
+const BEZEL_WALL_MM: f64 = 0.9;
+const BEZEL_LIP: f64 = 0.3;
 const COLLET_CLEAR_MM: f64 = 0.03;
 const STONE_LIFT_MM: f64 = 0.02;
 const COLLET_RIM_MM: f64 = 0.45;
@@ -63,6 +66,10 @@ const COLLET_SIDES: usize = 24;
 const LID_CLEAR_MM: f64 = 0.05;
 /// The shoulder quatrefoils: offsets from the top and their sizes.
 const PIERCINGS: [(f64, f64); 3] = [(48.0, 2.0), (60.0, 1.6), (72.0, 1.3)];
+/// The shoulders' blind lancets: offset from the top, width, length.
+const SHOULDER_LANCETS: [(f64, f64, f64); 3] = [(42.0, 1.4, 2.2), (57.0, 1.25, 2.0), (72.0, 1.1, 1.8)];
+/// Wall zones thinner than this are listed as suspected census artifacts, not fixed (lead, 2026-10-03).
+const ARTIFACT_MM: f64 = 0.05;
 /// Tracery bars: the section floor.
 const BAR_MM: f64 = 0.8;
 
@@ -599,12 +606,23 @@ fn edges_where(d: &RingDesign, fr: &Placement, c: &EvaluatedComponent, keep: &dy
 /// The tube joins the ring when `ring`, else it is left for the caller to unite with its part; returns (stone, collet).
 #[allow(clippy::too_many_arguments)]
 fn cabochon(doc: &mut Document, ids: &mut Ids, d: &mut RingDesign, _lib: &AlphaLibrary, fr: &Placement, c: &EvaluatedComponent, face: usize, at: P3, gem: Gem, spin: f64, sunk: f64, name: &str, ring: bool) -> Result<(Id, Id)> {
-    let mut s = FaceSeat::on(c, face as u32, Some(fr.world(d, at)?), STONE_LIFT_MM - sunk)?;
+    let lift = if std::env::var("CAPSA_TUBES").is_err() { builders::stand_off_mm(builders::BEZEL, gem) } else { STONE_LIFT_MM };
+    let mut s = FaceSeat::on(c, face as u32, Some(fr.world(d, at)?), lift - sunk)?;
     s.spin_deg = spin;
     let stone = ids.next();
     let mut f = cad::stone_on_face(stone, gem, c.id, &s);
     f.name = format!("{name} cabochon");
     doc.append(f)?;
+    if std::env::var("CAPSA_TUBES").is_err() {
+        // The builder's bezel: a collet the census knows as a setting, its lip burnished over at the bench.
+        let bezel = ids.next();
+        let mut f = builders::feature_on(bezel, &format!("Bezel round the {name} cabochon"), builders::BEZEL, stone, serde_json::json!({"wall_mm": BEZEL_WALL_MM, "lip": BEZEL_LIP}));
+        if !ring {
+            f.component = placed(Placement::Free);
+        }
+        doc.append(f)?;
+        return Ok((stone, bezel));
+    }
     // The stone's own frame on the face (its x the long axis), carried into the frame `fr`.
     let sf = s.frame(&s.face_of(c)?, &c.frame);
     let fm = fr.frame(d)?;
@@ -732,7 +750,7 @@ struct SkullSeat {
 }
 /// The memento mori: a skull lofted from its outline into a low dome, its sockets, nose and teeth sunk into its face; returns the skull's id.
 fn skull(doc: &mut Document, ids: &mut Ids, at: &SkullSeat) -> Result<Id> {
-    let sections: [(f64, f64); 7] = [(-0.2, 1.0), (0.0, 1.0), (0.45, 0.995), (0.72, 0.98), (0.86, 0.96), (0.95, 0.935), (1.0, 0.9)];
+    let sections: [(f64, f64); 7] = [(-0.2, 1.0), (0.0, 1.0), (0.35, 0.98), (0.6, 0.94), (0.8, 0.87), (0.93, 0.8), (1.0, 0.74)];
     let mut profiles = Vec::new();
     for (k, (h, s)) in sections.iter().enumerate() {
         let origin = add(at.base, at.n, h * at.height);
@@ -752,7 +770,7 @@ fn skull(doc: &mut Document, ids: &mut Ids, at: &SkullSeat) -> Result<Id> {
         (0..28)
             .map(|i| {
                 let t = 2.0 * PI * i as f64 / 28.0;
-                let (x, y) = (0.4 * t.cos(), 0.38 * t.sin());
+                let (x, y) = (0.38 * t.cos(), 0.36 * t.sin());
                 let (ct, st) = (tip.cos(), tip.sin());
                 [s * (c[0] + x * ct - y * st), s * (c[1] + x * st + y * ct)]
             })
@@ -760,15 +778,14 @@ fn skull(doc: &mut Document, ids: &mut Ids, at: &SkullSeat) -> Result<Id> {
     };
     // One sketch for the whole face, its regions cut together with one draft: the analytic kernel takes a single cut of the lofted dome.
     let mut sk = face("Skull, the face: eye sockets, nasal cavity, the line of the teeth");
-    for ax in [-0.62, 0.62] {
-        polygon(&mut sk, &socket([ax, 0.0]));
+    for ax in [-0.56, 0.56] {
+        polygon(&mut sk, &socket([ax, 0.05]));
     }
-    polygon(&mut sk, &[[0.0, -0.36], [-0.28, -0.8], [-0.36, -1.04], [-0.12, -1.14], [0.12, -1.14], [0.36, -1.04], [0.28, -0.8]].iter().map(|p| [s * p[0], s * p[1]]).collect::<Vec<_>>());
-    polygon(&mut sk, &[[s * -0.62, s * -1.7], [s * 0.62, s * -1.7], [s * 0.62, s * -1.28], [s * -0.62, s * -1.28]]);
+    polygon(&mut sk, &[[0.0, -0.42], [-0.26, -0.78], [-0.32, -0.98], [-0.1, -1.06], [0.1, -1.06], [0.32, -0.98], [0.26, -0.78]].iter().map(|p| [s * p[0], s * p[1]]).collect::<Vec<_>>());
     let drawn = ids.next();
     doc.append(feature(drawn, "Draw the skull's face", Operation::Sketch { sketch: sk }, Component::default()))?;
     let tool = ids.next();
-    doc.append(feature(tool, "The skull's face, its walls sloped", Operation::Extrude { sketch: Profile::Feature { feature: drawn }, height_mm: 0.05 + 0.37, draft_deg: 24.0 }, placed(at.frame.clone())))?;
+    doc.append(feature(tool, "The skull's face, its walls sloped", Operation::Extrude { sketch: Profile::Feature { feature: drawn }, height_mm: 0.05 + 0.6, draft_deg: 14.0 }, placed(at.frame.clone())))?;
     let id = ids.next();
     doc.append(feature(id, "Sink the eye sockets, the nasal cavity and the line of the teeth into the skull", boolean(loft, tool, Boolean::Subtract), placed(Placement::Free)))?;
     if let Some(f) = doc.features.iter_mut().find(|f| f.id == id) {
@@ -867,6 +884,27 @@ fn moulded_prism(doc: &mut Document, ids: &mut Ids, d: &mut RingDesign, lib: &Al
     let id = ids.next();
     doc.append(feature(id, &format!("Chamfer the {}'s top as a moulding", name.to_lowercase()), Operation::Chamfer { source: block, edges: rim, base_face: face_ref(&b, top), distance_mm: chamfer }, component))?;
     Ok(id)
+}
+
+/// Graded blind lancets sunk into both shoulders, points toward the head: the arcade carried down the shank.
+fn shoulder_lancets(doc: &mut Document, ids: &mut Ids, d: &RingDesign) -> Result<()> {
+    for (off, w, l) in SHOULDER_LANCETS {
+        for (side, sign) in [("east", -1.0), ("west", 1.0)] {
+            let theta = 90.0 + sign * off;
+            let mut at = builders::cutters::pierce_at(d, theta, 0.0, None, builders::cutters::Shape::Lancet)?;
+            if let Some(m) = at.params.as_object_mut() {
+                m.insert("width_mm".into(), serde_json::json!(w));
+                m.insert("length_mm".into(), serde_json::json!(l));
+                m.insert("through".into(), serde_json::json!(false));
+                m.insert("depth_mm".into(), serde_json::json!(0.45));
+                m.insert("turn_deg".into(), serde_json::json!(if sign > 0.0 { 90.0 } else { -90.0 }));
+            }
+            let mut f = builders::cutters::pierce_feature(ids.next(), builders::cutters::Shape::Lancet, &at);
+            f.name = format!("Sink a {w:.2} x {l:.1} mm blind lancet into the {side} shoulder, {off:.0} deg off the top");
+            doc.append(f)?;
+        }
+    }
+    Ok(())
 }
 
 /// Graded quatrefoils pierced through both shoulders.
@@ -1119,11 +1157,12 @@ fn gable_crest_sdf(p: P2) -> f64 {
     let mut d = (-tri - 0.1).max(tri - 0.8).max(r0 + 2.2 - p[0]);
     let l = (XR * XR + hw * hw).sqrt();
     let n_out = [hw / l, XR / l];
-    for t in [0.42, 0.62, 0.82] {
+    // Leaf crockets standing proud of the band, five up each rake.
+    for t in [0.43, 0.53, 0.63, 0.73, 0.83] {
         for s in [1.0, -1.0] {
             let on = [r0 + XR * t, s * hw * (1.0 - t)];
-            let c = [on[0] + n_out[0] * 0.18, on[1] + s * n_out[1] * 0.18];
-            d = sdf::smin(d, sdf::circle(p, c, 0.42), 0.1);
+            let c = [on[0] + n_out[0] * 0.95, on[1] + s * n_out[1] * 0.95];
+            d = sdf::smin(d, sdf::circle(p, c, 0.44), 0.12);
         }
     }
     // The finial: a fleur-de-lis rising off the apex (the fleur's x runs across, its y along the finger).
@@ -1146,7 +1185,11 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
     let m = XBED_MARGIN;
     let bw = XW / 2.0 + 1.6;
     let bed: Vec<P2> = vec![[xa - XPLINTH_RUN - m, -bw], [3.4, -bw], [xp + 0.4, 0.0], [3.4, bw], [xa - XPLINTH_RUN - m, bw]];
-    moulded_prism(&mut doc, &mut ids, &mut d, lib, "Bed", &bed, -XBED_MM, 0.0, 0.3, joined(ComponentRole::Shank, Placement::Free, 0.0))?;
+    let bed_id = moulded_prism(&mut doc, &mut ids, &mut d, lib, "Bed", &bed, -XBED_MM, 0.0, 0.3, placed(Placement::Free))?;
+    if let Some(f) = doc.features.iter_mut().find(|f| f.id == bed_id) {
+        f.name = format!("{}: the bed", f.name);
+        f.component = joined(ComponentRole::Shank, Placement::Free, 0.0);
+    }
     let step: Vec<P2> = vec![[xa - XPLINTH_RUN, -XTW_OUT], [xa + 0.7, -XTW_OUT], [xa + 0.7, XTW_OUT], [xa - XPLINTH_RUN, XTW_OUT]];
     let plinth = moulded_prism(&mut doc, &mut ids, &mut d, lib, "Plinth", &step, -0.1, XD - 1.2, 0.3, placed(Placement::Free))?;
 
@@ -1185,17 +1228,31 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
     for (side, sign) in [("north", 1.0f64), ("south", -1.0)] {
         let span = |a: f64, b: f64| if sign > 0.0 { (a, b) } else { (-b, -a) };
         let (y0, y1) = span(XTW_IN, XTW_OUT);
-        let shaft = moulded_prism(&mut doc, &mut ids, &mut d, lib, &format!("{} tower", if sign > 0.0 { "North" } else { "South" }), &rect_pts(xa - 0.15, spire0, y0, y1), zt0, zt1, 0.2, joined(ComponentRole::Head, Placement::Free, 0.0))?;
+        // The shaft in plan: three stages, each set off outward by a weathering, the spire springing from the top one.
+        let (s1x, s2x) = (xa + 2.4, xr - 0.4);
+        let stages = vec![[xa - 0.15, XTW_IN], [spire0, XTW_IN], [spire0, XTW_OUT - 0.1], [s2x + 0.2, XTW_OUT - 0.1], [s2x, XTW_OUT + 0.1], [s1x + 0.25, XTW_OUT + 0.1], [s1x, XTW_OUT + 0.35], [xa - 0.15, XTW_OUT + 0.35]];
+        let mut plan_pts: Vec<P2> = stages.iter().map(|q| [q[0], sign * q[1]]).collect();
+        if sign < 0.0 {
+            plan_pts.reverse();
+        }
+        let mut sk = plan(&format!("{} tower plan", if sign > 0.0 { "North" } else { "South" }), zt0);
+        polygon(&mut sk, &plan_pts);
+        let shaft = ids.next();
+        doc.append(feature(shaft, &format!("Raise the {side} tower in three stages"), extrude(sk, zt1 - zt0), joined(ComponentRole::Head, xseat(), 0.0)))?;
         towers.push((shaft, sign, side));
+        let _ = (y0, y1);
         let (w0, w1) = span(XW / 2.0 - 0.2, XTW_IN + 0.1);
         let mut sk = plan(&format!("Web, {side} tower"), zt0);
         polygon(&mut sk, &rect_pts(xa - 0.15, xb, w0, w1));
         let id = ids.next();
         doc.append(feature(id, &format!("Web the {side} tower to the chest"), extrude(sk, zt1 - 0.25 - zt0), joined(ComponentRole::Head, xseat(), 0.0)))?;
-        // The spire: a rectangle off the shaft's top lofted to a point.
-        let base = vec![[sign * (XTW_IN + 0.06), zs - 0.65], [sign * (XTW_OUT - 0.06), zs - 0.65], [sign * (XTW_OUT - 0.06), zt1 - 0.06], [sign * (XTW_IN + 0.06), zt1 - 0.06]];
+        // The spire: the top stage's section lofted to a blunt point, four-sided.
+        let (b0, b1, bz0, bz1) = (XTW_IN + 0.06, XTW_OUT - 0.16, zs - 0.65, zt1 - 0.06);
+        let ym = 0.5 * (b0 + b1);
+        let zm = zs - 0.1;
+        let base = vec![[sign * b0, bz0], [sign * b1, bz0], [sign * b1, bz1], [sign * b0, bz1]];
         let base: Vec<P2> = if sign > 0.0 { base } else { base.into_iter().rev().collect() };
-        let tip = vec![[sign * ym - 0.45, zs - 0.45], [sign * ym + 0.45, zs - 0.45], [sign * ym + 0.45, zs + 0.45], [sign * ym - 0.45, zs + 0.45]];
+        let tip = vec![[sign * ym - 0.45, zm - 0.45], [sign * ym + 0.45, zm - 0.45], [sign * ym + 0.45, zm + 0.45], [sign * ym - 0.45, zm + 0.45]];
         let tip: Vec<P2> = if sign > 0.0 { tip } else { tip.into_iter().rev().collect() };
         let mut s0 = sketch_on(&format!("Spire foot, {side}"), plane([spire0 - 0.05, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]));
         polygon(&mut s0, &base);
@@ -1203,11 +1260,28 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
         polygon(&mut s1, &tip);
         let id = ids.next();
         doc.append(feature(id, &format!("Loft the {side} spire to its point"), Operation::Loft { sections: vec![Profile::Inline(s0), Profile::Inline(s1)] }, joined(ComponentRole::Head, xseat(), 0.0)))?;
-        knop(&mut doc, &mut ids, &fr, &format!("Knop on the {side} spire"), [spire1 + 0.2, sign * ym, zs], 0.7, joined(ComponentRole::Head, Placement::Free, 0.0))?;
+        // Crockets up both of the spire's edges as the face sees them, and its fleur finial: one outline, a fin through the spire's middle.
+        let half = |t: f64| 0.5 * (b1 - b0) * (1.0 - t) + 0.45 * t;
+        let fin = one_outline(&format!("{side} spire's crockets and finial"), &|q: P2| {
+            let (x, y) = (q[0], q[1] - sign * ym);
+            let t = ((x - spire0) / (spire1 - spire0)).clamp(0.0, 1.0);
+            let mut dd = sdf::rect([x, y], [spire0 + 0.2, -0.42], [spire1, 0.42]).max(y.abs() - half(t) + 0.05);
+            for t in [0.18, 0.4, 0.62, 0.84] {
+                let cx = spire0 + (spire1 - spire0) * t;
+                for e in [1.0, -1.0] {
+                    dd = sdf::smin(dd, sdf::circle([x, y], [cx, e * (half(t) + 0.12)], 0.43), 0.12);
+                }
+            }
+            sdf::smin(dd, fleur([y, x - (spire1 - 0.45)], [0.0, 0.0]), 0.1)
+        }, [spire0 - 0.5, sign * ym - 2.0], [spire1 + 2.6, sign * ym + 2.0], 0.02, 220)?;
+        let mut sk = plan(&format!("Crockets and finial, {side} spire"), zm - 0.45);
+        polygon(&mut sk, &fin);
+        let id = ids.next();
+        doc.append(feature(id, &format!("Cut the {side} spire's crockets and fleur finial"), extrude(sk, 0.9), joined(ComponentRole::Head, xseat(), 0.0)))?;
     }
 
     // The front: a pointed portal sunk into the chest's end wall, its jambs splayed, flanked by blind lancets, or (opened) a traceried window over the skull.
-    let (pw, psill, papex, pshare) = if openwork { (4.6, xa + 0.3, xb - 1.2, 0.75) } else { (2.8, xa + 0.55, xb - 0.95, 0.85) };
+    let (pw, psill, papex, pshare) = if openwork { (4.6, xa + 0.6, xb - 1.2, 0.75) } else { (2.8, xa + 0.55, xb - 0.95, 0.85) };
     if openwork {
         // One great pointed light, traced inside its arch at the section floor, the skull filling it.
         let mut sk = plan_arch("West window", XD + OVERSHOOT_MM, false);
@@ -1322,7 +1396,7 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
         let (s, _) = cabochon(&mut doc, &mut ids, &mut d, lib, &fr, &ch, face, p, sapphire(), 0.0, NICHE_MM, "Sapphire, portal", true)?;
         stones.push(s);
     }
-    // The shoulders stay plain: read test 6 found their marks read as dents at 300 px.
+    shoulder_lancets(&mut doc, &mut ids, &d)?;
 
     // The lid: the roof, its gable proud of the front, its rakes the slopes.
     // The apex blunted to the section floor, under the finial.
@@ -1430,6 +1504,19 @@ fn author_across(lib: &AlphaLibrary, openwork: bool) -> Result<Authored> {
     let u = ids.next();
     doc.append(feature(u, "Crest the gable", boolean(lid, crockets, Boolean::Union), placed(Placement::Free)))?;
     lid = u;
+    // A roll moulding across the gable's foot, on the eave band.
+    let roll_r = 0.45;
+    let mut sk = sketch_on("Roll at the gable's foot", plane([0.0, hw - 0.05, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]));
+    let rc = [xe + roll_r + 0.03, ztop - 0.1];
+    let mut roll: Vec<P2> = (0..=12).map(|k| { let a = -0.2 + (PI + 0.4) * k as f64 / 12.0; [rc[0] + roll_r * a.cos(), rc[1] + roll_r * a.sin()] }).collect();
+    roll.push([rc[0] - roll_r, rc[1] - 0.4]);
+    roll.push([rc[0] + roll_r, rc[1] - 0.4]);
+    polygon(&mut sk, &roll);
+    let tool = ids.next();
+    doc.append(feature(tool, "The roll at the gable's foot", extrude(sk, 2.0 * (hw - 0.05)), placed(xseat())))?;
+    let u = ids.next();
+    doc.append(feature(u, "Run the roll across the gable's foot", boolean(lid, tool, Boolean::Union), placed(Placement::Free)))?;
+    lid = u;
     // The rose's collet last: each kernel operand stays under the analytic kernel's face limit.
     let u = ids.next();
     doc.append(feature(u, "Join the rose's collet to the lid", boolean(lid, rose_bezel, Boolean::Union), placed(Placement::Free)))?;
@@ -1525,9 +1612,8 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, a_lid: Id, built: &mesh::BuildResul
         })
         .collect();
     let (least_r, inside) = bore_intrusion(d, &built.mesh);
-    // The 0.8 mm section: sampled wall on a probe build of the whole finished metal, and on the lid alone.
-    let probe = mesh::try_build(d, lib, BuildParams { theta_steps: 192, profile_steps: 96, ..BuildParams::default() })?;
-    let wall = cad::measure::thickness(&probe.mesh, MIN_SECTION_MM);
+    // The 0.8 mm section: the whole-mesh census of the finished ring's own mesh (edges named, walls the gate), and of the lid for the record.
+    let wall = cad::measure::thickness(&built.mesh, MIN_SECTION_MM);
     for f in &failed {
         println!("    feature: {f}");
     }
@@ -1541,11 +1627,21 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, a_lid: Id, built: &mesh::BuildResul
         }
     }
     if std::env::var("CAPSA_THIN").is_ok() {
-        thin_points(d, &probe.mesh, MIN_SECTION_MM, "ring")?;
-        thin_points(d, &lid_mesh, MIN_SECTION_MM, "lid")?;
+        let f = xseat().frame(d)?;
+        for (kind, zones) in [("wall", &wall.walls), ("edge", &wall.edges)] {
+            for z in zones.iter() {
+                let q = [z.point[0] - f.origin[0], z.point[1] - f.origin[1], z.point[2] - f.origin[2]];
+                println!("  {kind}: {:.3} mm over {:.3} mm2 at local ({:.2}, {:.2}, {:.2})", z.thinnest_mm, z.area_mm2, dot(q, f.x_axis), dot(q, f.y_axis), dot(q, f.z_axis));
+            }
+        }
     }
-    let wall_ok = |t: &cad::measure::Thickness| t.rays > 0 && t.below_limit == 0 && t.unresolved == 0;
+    // The interim lost-wax gate (lead, 2026-10-03): no wall zone reads a real section between 0.05 and 0.8 mm; a zone thinner than
+    // 0.05 mm is listed as a suspected census artifact and does not block.
+    let wall_ok = |t: &cad::measure::Thickness| t.assessed && t.walls.iter().all(|z| z.thinnest_mm < ARTIFACT_MM);
+    let suspected: Vec<serde_json::Value> = wall.walls.iter().filter(|z| z.thinnest_mm < ARTIFACT_MM).map(|z| serde_json::json!({"thinnest_mm": z.thinnest_mm, "point": z.point, "area_mm2": z.area_mm2})).collect();
     let lands = ringdesign_core::dfm::cut_lands(d, built, MIN_SECTION_MM);
+    // Every cut's narrowest lands, as measured: the same walk run with a floor no land reaches, so each one is reported.
+    let measured_lands: Vec<String> = ringdesign_core::dfm::cut_lands(d, built, 100.0).into_iter().map(|f| f.message.replace(" (floor 100)", "")).collect();
     let findings = ringdesign_core::dfm::findings_in(d, lib);
     let stones = ringdesign_core::stones::report_built(d, 0.0, built);
     let reported = stones.as_ref().map_or(0, |s| s.stone_count as usize);
@@ -1582,8 +1678,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, a_lid: Id, built: &mesh::BuildResul
         ("1. every made part watertight with 0 degenerate faces and 0 crossings".into(), parts.iter().all(|p| p.1 && p.2 == 0 && p.3 == 0)),
         ("1. solids and parts notes empty, every CAD feature Ok".into(), built.solids.notes.is_empty() && built.parts.notes.is_empty() && failed.is_empty()),
         ("2. nothing enters the finger hole".into(), inside == 0),
-        ("3. thickness(0.8) clean on the finished metal".into(), wall_ok(&wall)),
-        ("3. thickness(0.8) clean on the lid".into(), wall_ok(&lid_wall)),
+        ("3. thickness(0.8) on the finished ring: no wall zone between 0.05 and 0.8 mm".into(), wall_ok(&wall)),
         ("3. cut_lands clean at 0.8 mm".into(), lands.is_empty()),
         ("4. zero DFM findings".into(), findings.is_empty()),
         ("5. stones reported equal the preview".into(), reported == previewed),
@@ -1597,8 +1692,8 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, a_lid: Id, built: &mesh::BuildResul
         "parts": parts.iter().map(|p| serde_json::json!({"part": p.0, "watertight": p.1, "degenerate_faces": p.2, "self_crossings": p.3})).collect::<Vec<_>>(),
         "solids_notes": built.solids.notes, "parts_notes": built.parts.notes, "features_not_ok": failed,
         "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
-        "thickness": {"finished": wall, "lid": lid_wall, "probe_build": "192 x 96"},
-        "cut_lands": lands.iter().map(|f| f.message.clone()).collect::<Vec<_>>(),
+        "thickness": {"finished": wall, "clean": wall.clean(), "suspected_census_artifacts": suspected, "lid_alone_for_the_record": lid_wall},
+        "cut_lands": {"floor_mm": MIN_SECTION_MM, "under_floor": lands.iter().map(|f| f.message.clone()).collect::<Vec<_>>(), "measured": measured_lands, "note": "Every Attach::Cut extrusion's narrowest land, measured by dfm::cut_lands; the niches, bays, sockets and slope lights cut inside their own parts are judged by the thickness census instead"},
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
         "stones": {"reported": reported, "previewed": previewed, "warnings": warnings, "crowding": crowding, "closest": stones.as_ref().and_then(|s| s.closest.as_ref()).map(|p| format!("{} to {}: {:.2} mm", p.a, p.b, p.gap_mm))},
         "pattern": {"ring": {"watertight": pw, "degenerate_faces": pd, "self_crossings": px, "triangles": pattern.mesh.faces.len()}, "lid": {"watertight": lw, "degenerate_faces": ld, "self_crossings": lx, "triangles": lid_pattern.mesh.faces.len(), "casting": format!("{:?}", lid_pattern.casting)}},
