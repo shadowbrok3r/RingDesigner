@@ -46,11 +46,9 @@ const BORE_CLEAR_MM: f64 = 0.45;
 
 /// Band half-width at the cheeks, mm.
 const HALF_W: f64 = 3.3;
-// The sand ripples on the band: crest pitch, crest width and height, mm.
-const RIPPLE_PITCH_MM: f64 = 1.35;
+// The sand ripples on the band: their height, mm.
 /// Tiles round the ring: a short tile keeps the alpha's pixels far under the crests' curvature.
 const RIPPLE_TILES: u32 = 8;
-const RIPPLE_W_MM: f64 = 0.22;
 const RIPPLE_MM: f64 = 0.22;
 
 // The thorns: tip radius, the root sunk into the body, the base's share of the length, the lean back toward the tail.
@@ -68,6 +66,9 @@ const GRANULE_MM: f64 = 0.15;
 const TUBERCLE_PITCH_MM: f64 = 0.8;
 const TUBERCLE_GROOVE_MM: f64 = 0.2;
 const TUBERCLE_MM: f64 = 0.2;
+/// The head's flat scales: cell pitch and height, mm.
+const HEAD_SCALE_PITCH_MM: f64 = 0.85;
+const HEAD_SCALE_MM: f64 = 0.1;
 /// Round 2's loose granules, off.
 const BALL_GRANULES: bool = false;
 
@@ -99,7 +100,7 @@ fn band() -> RingDesign {
     d.shank.amount = 1.0;
     // Broad under the lizard, so its legs splay over the crown and grip the cheeks without standing past them.
     let key = |theta_deg: f64, width_scale: f64, thickness_scale: f64| ShankKey { theta_deg, width_scale, thickness_scale, crown_scale: 1.0 };
-    d.shank.keys = vec![key(10.0, 1.06, 1.06), key(40.0, 1.3, 1.12), key(65.0, 1.45, 1.15), key(110.0, 1.45, 1.15), key(140.0, 1.28, 1.1), key(170.0, 1.06, 1.04), key(210.0, 1.0, 1.0), key(270.0, 1.0, 1.0), key(330.0, 1.0, 1.02)];
+    d.shank.keys = vec![key(10.0, 1.1, 1.06), key(40.0, 1.4, 1.12), key(65.0, 1.45, 1.15), key(110.0, 1.45, 1.15), key(140.0, 1.28, 1.1), key(170.0, 1.06, 1.04), key(210.0, 1.0, 1.0), key(270.0, 1.0, 1.0), key(330.0, 1.0, 1.02)];
     CastProcess::LostWax.apply(&mut d.draft);
     d.draft.min_section_mm = MIN_SECTION_MM;
     d.draft.min_draft_deg = 0.0;
@@ -218,6 +219,7 @@ enum Kind {
     Head,
     Limb,
     Toe,
+    Claw,
     Tail,
     HumpSpine,
     Horn,
@@ -236,6 +238,7 @@ impl Kind {
             Kind::Head => "head and neck",
             Kind::Limb => "limbs",
             Kind::Toe => "toes",
+            Kind::Claw => "claws",
             Kind::Tail => "tail",
             Kind::HumpSpine => "hump spines",
             Kind::Horn => "brow horns",
@@ -253,10 +256,11 @@ impl Kind {
                 "thorn point: the cone's last 0.6 mm tapers under the fill floor to its rounded point (a 0.28 mm tip sphere); the thinnest reading is a ray leaving a facet on the point's flank, stated below as measured; fed through its root (over the floor) from the body and invested point up; a short-filled point is built back with a laser tack and filed to shape",
             ),
             Kind::Minor => Some("minor thorn: relief cast on the body, judged at the 0.15 mm detail floor; its point is left as cast and lightly burnished"),
-            Kind::Toe => Some("toe: a finger 0.8 mm thick at the root tapering to 0.6 mm, lying on the crown (the outer toe curled over the edge onto the cheek) and fused into the band along its length, so the part-alone reading at its tip and in the crotches between toes is not the section the metal fills; fed from the hand and left as cast; a short-filled tip is built back with a laser tack"),
+            Kind::Toe => Some("toe: a slender keeled crest lying on the crown and fused into the band along its whole length; fed from the foot and left as cast"),
+            Kind::Claw => Some("claw: a 0.3 mm point, 0.42 mm across at its base, lying on the crown at the end of each toe and fused into the band along its length, its point pressed into the sand; like a thorn's point it is under the fill floor by design, fed from the toe, and a short-filled point is built back with a laser tack"),
             Kind::Granule => Some("granule: a 0.5-0.7 mm bead of hide relief on the body, over the 0.15 mm detail floor; left as cast"),
             Kind::Hide => Some("hide tubercle: 0.2 mm pebbled relief on the thick body, read here where a face's ray crosses a tubercle's own flank and leaves within the relief layer; cast as relief over the 0.15 mm detail floor and left as cast"),
-            Kind::Limb => Some("wrist where the toes part: the crotches are opened with a graver after the pour"),
+            Kind::Limb => Some("wrist where the toes leave the limb: fed along the limb from the body and left as cast"),
             Kind::Tail => Some("tail tip: fed along the tail from the body; the rounded end is dressed with a file"),
             _ => None,
         }
@@ -274,7 +278,43 @@ enum Shape {
     Thorn { a: P3, b: P3, ra: f64, rb: f64, n: P3 },
     /// A ball at a world point.
     Ball { c: P3, r: f64 },
+    /// A toe: a rounded crest from frame point `a` to `b` (crest radius `ra` to `rb`) whose flanks flare down into a
+    /// keel buried in the band, so every section through it, crest or flank, holds the fill floor.
+    Ridge { a: P3, b: P3, ra: f64, rb: f64 },
 }
+
+/// A toe's flanks widen this much along the finger per mm of depth, and its keel reaches this far under the crest, mm.
+const RIDGE_FLARE: f64 = 0.5;
+const RIDGE_KEEL_MM: f64 = 0.75;
+
+/// The 2D uneven capsule: a circle of `r1` at the origin and one of `r2` at `(0, h)`, joined by tangent flanks.
+fn uneven_capsule(px: f64, py: f64, r1: f64, r2: f64, h: f64) -> f64 {
+    let px = px.abs();
+    let b = (r1 - r2) / h;
+    let a = (1.0 - b * b).max(0.0).sqrt();
+    let k = -b * px + a * py;
+    if k < 0.0 {
+        px.hypot(py) - r1
+    } else if k > a * h {
+        px.hypot(py - h) - r2
+    } else {
+        px * a + py * b - r1
+    }
+}
+
+/// A toe's crest swept in plan from `a` to `b`: the section is an uneven capsule, crest round on top, keel below.
+fn ridge(q: P3, a: P3, b: P3, ra: f64, rb: f64) -> f64 {
+    let (ax, aw, bx, bw) = (a[0], a[2], b[0], b[2]);
+    let (dx, dw) = (bx - ax, bw - aw);
+    let t = (((q[0] - ax) * dx + (q[2] - aw) * dw) / (dx * dx + dw * dw).max(1e-12)).clamp(0.0, 1.0);
+    let c = [ax + dx * t, a[1] + (b[1] - a[1]) * t, aw + dw * t];
+    let r = ra + (rb - ra) * t;
+    let u = (q[0] - c[0]).hypot(q[2] - c[2]);
+    let v = q[1] - c[1];
+    let d = RIDGE_KEEL_MM;
+    uneven_capsule(u, v + d, r + RIDGE_FLARE * d, r, d)
+}
+
 
 #[derive(Clone, Copy, Debug)]
 struct Prim {
@@ -296,6 +336,7 @@ impl Prim {
             // Cut at the root's centre across the axis, so a buried root never shows through a thin flank's far side.
             Shape::Thorn { a, b, ra, rb, n } => round_cone(p, a, b, ra, rb).max(-dot(sub(p, a), n)),
             Shape::Ball { c, r } => dot(sub(p, c), sub(p, c)).sqrt() - r,
+            Shape::Ridge { a, b, ra, rb } => ridge(q, a, b, ra, rb),
         }
     }
     /// World bounding box, grown by `pad`.
@@ -308,6 +349,10 @@ impl Prim {
             Shape::Limb { a, b, ra, rb } => vec![(frame.world(a), ra * 1.3), (frame.world(b), rb * 1.3)],
             Shape::Thorn { a, b, ra, rb, .. } => vec![(a, ra), (b, rb)],
             Shape::Ball { c, r } => vec![(c, r)],
+            Shape::Ridge { a, b, ra, rb } => {
+                let keel = RIDGE_KEEL_MM * (1.0 + RIDGE_FLARE);
+                vec![(frame.world(a), ra + keel), (frame.world(b), rb + keel)]
+            }
         };
         let mut lo = [f64::MAX; 3];
         let mut hi = [f64::MIN; 3];
@@ -317,7 +362,7 @@ impl Prim {
                 hi[k] = hi[k].max(c[k] + r + pad);
             }
         }
-        if let Shape::Limb { .. } | Shape::Egg { .. } = self.shape {
+        if let Shape::Limb { .. } | Shape::Egg { .. } | Shape::Ridge { .. } = self.shape {
             // A frame shape bends with the ring: pad the box for the bend over its span.
             for k in 0..3 {
                 lo[k] -= 0.6;
@@ -370,13 +415,11 @@ impl<'a> Lizard<'a> {
     fn field(&self, p: P3) -> f64 {
         let q = self.frame.local(p);
         let mut f = self.body_at(q, p);
-        let mut cone = f64::MAX;
+        let skin_f = f;
         if let Some(list) = self.grid.get(&self.key(p)) {
             for &i in list {
                 let t = &self.thorns[i as usize];
-                let v = t.eval(q, p);
-                cone = cone.min(v);
-                f = smin(f, v, t.blend);
+                f = smin(f, t.eval(q, p), t.blend);
             }
         }
         // The skin: a close field of pebbled tubercles with grooves between them, running up into each cone's fillet so
@@ -385,11 +428,19 @@ impl<'a> Lizard<'a> {
             // Faded off the toes, so each stays a clean finger, out of the crease where a limb leaves the body, and off
             // the cones themselves.
             let near = |k: Kind| self.body.iter().filter(|b| b.kind == k).map(|b| b.eval(q, p)).fold(f64::MAX, f64::min);
-            let (toe, limb, trunk) = (near(Kind::Toe), near(Kind::Limb), near(Kind::Body));
+            let (toe, limb, trunk) = (near(Kind::Toe).min(near(Kind::Claw)), near(Kind::Limb), near(Kind::Body));
             let crease = ((limb.max(trunk) - 0.15) / 0.5).clamp(0.0, 1.0);
-            let on_cone = (cone / 0.3).clamp(0.0, 1.0);
-            let fade = ((toe - 0.25) / 0.5).clamp(0.0, 1.0) * crease * on_cone;
-            f -= TUBERCLE_MM * fade * tubercles(p);
+            // Up into each cone's fillet, so no cone stands on a smooth dome, and off the cone's flank above it.
+            let on_cone = ((0.42 - skin_f) / 0.22).clamp(0.0, 1.0);
+            // The head carries a mosaic of flat, angular scales instead of round tubercles.
+            let on_head = ((q[0] - 6.8) / 0.5).clamp(0.0, 1.0);
+            let fade = ((toe - 0.25) / 0.6).clamp(0.0, 1.0) * crease * on_cone;
+            // Finer and lower on the slender limbs, and gone by the wrist, so no knob stands where the toes begin.
+            let on_limb = ((trunk - limb) / 0.4).clamp(0.0, 1.0);
+            let wrist = ((toe - 0.3) / 0.9).clamp(0.0, 1.0);
+            let round = (1.0 - on_limb) * TUBERCLE_MM * tubercles(p, TUBERCLE_PITCH_MM, TUBERCLE_GROOVE_MM, 0.45) + on_limb * wrist * 0.07 * tubercles(p, 0.45, 0.1, 0.45);
+            let skin = (1.0 - on_head) * round + on_head * HEAD_SCALE_MM * tubercles(p, HEAD_SCALE_PITCH_MM, 0.09, 0.0);
+            f -= fade * skin;
         }
         f.max(self.bore_r + BORE_CLEAR_MM - p[0].hypot(p[1]))
     }
@@ -419,6 +470,15 @@ impl<'a> Lizard<'a> {
         }
         self.thorns.iter().all(|o| match o.shape {
             Shape::Thorn { b: tip, .. } => t.eval(self.frame.local(tip), tip) > gap,
+            _ => true,
+        })
+    }
+    /// Whether a new cone's point is clear of every cone already there, and theirs of it, by `gap`.
+    fn clear_of_thorns(&self, t: &Prim, gap: f64) -> bool {
+        let Shape::Thorn { b, .. } = t.shape else { return true };
+        let q = self.frame.local(b);
+        self.thorns.iter().all(|o| match o.shape {
+            Shape::Thorn { b: tip, .. } => o.eval(q, b) > gap && t.eval(self.frame.local(tip), tip) > gap,
             _ => true,
         })
     }
@@ -481,8 +541,24 @@ const TAIL_FLAT: f64 = 0.72;
 
 /// A limb's radius at the shoulder, the elbow and the wrist, mm.
 const LIMB_R: (f64, f64, f64) = (0.62, 0.5, 0.42);
-/// A toe's radius at its root and its tip, mm.
-const TOE_R: (f64, f64) = (0.4, 0.3);
+/// The toes, from the inner to the outer, as each foot reaches: heading from the limb's own reach (degrees, positive
+/// outward) and length to the claw's point, mm. The middle three are the longest.
+const FORE_TOES: [(f64, f64); 5] = [(-38.0, 1.25), (-10.0, 1.6), (18.0, 1.75), (46.0, 1.6), (82.0, 1.1)];
+/// The hind feet lie between the tail and the band's edge: a narrower fan reaching back, the fourth toe the longest.
+const HIND_TOES: [(f64, f64); 5] = [(-16.0, 1.05), (0.0, 1.5), (16.0, 1.7), (33.0, 1.75), (62.0, 1.1)];
+/// Where a toe leaves the wrist, how far it bends toward the body over its last half (each step), and how near the
+/// band's edge any of it may come, mm and degrees.
+const TOE_ROOT_MM: f64 = 0.3;
+const TOE_BEND_DEG: f64 = -11.0;
+const TOE_EDGE_MM: f64 = 0.9;
+/// A toe's crest radius at its root, knuckle, claw base and claw point, and the crest's centre against the crown there:
+/// at the crown along the toe, then the claw dips into the sand.
+const TOE_CREST_R: [f64; 3] = [0.33, 0.31, 0.29];
+const TOE_DROP_MM: [f64; 4] = [0.0, 0.0, 0.02, -0.04];
+/// A claw's radius at its base and its point, mm.
+const CLAW_R: (f64, f64) = (0.21, 0.05);
+/// How far a claw reaches past its toe's crest centre, mm: about half of it shows past the crest's round end.
+const CLAW_MM: f64 = 0.62;
 
 /// Front and hind legs: where each shoulder stands along the body, and which way the limb reaches.
 const LEGS: [(f64, f64); 2] = [(3.4, 1.0), (-4.6, -1.0)];
@@ -492,16 +568,15 @@ fn leg_joints(crest: &Crest, x0: f64, dir: f64, s: f64) -> (P3, P3, P3) {
     let (xe, xw) = (x0 + dir * 1.3, x0 + dir * 2.3);
     // The hind hands rest a little further out, clear of the tail's root.
     let ww = crest.half_w_at_x(xw) - if dir < 0.0 { FOOT_IN_MM - 0.3 } else { FOOT_IN_MM };
-    ([x0, 0.6, 3.0 * s], [xe, 1.05, (crest.half_w_at_x(xe) - 0.3) * s], [xw, crest.top_h(xw, ww * s) + 0.3, ww * s])
+    ([x0, 0.6, 3.0 * s], [xe, 1.0, (crest.half_w_at_x(xe) - 0.6) * s], [xw, crest.top_h(xw, ww * s) + 0.3, ww * s])
 }
 
 /// How far in from the band's edge each hand rests on the crown, mm.
-const FOOT_IN_MM: f64 = 1.5;
+const FOOT_IN_MM: f64 = 2.2;
 
 /// The hide's tubercles, 0..1: cells of a jittered 3D lattice cut by the skin, each a low dome with a groove along
 /// every border between two cells (Worley's second-minus-first distance).
-fn tubercles(p: P3) -> f64 {
-    let g = TUBERCLE_PITCH_MM;
+fn tubercles(p: P3, g: f64, groove: f64, dome: f64) -> f64 {
     let c: [i64; 3] = std::array::from_fn(|k| (p[k] / g).floor() as i64);
     let (mut f1, mut f2) = (f64::MAX, f64::MAX);
     for dx in -1..=1 {
@@ -520,9 +595,9 @@ fn tubercles(p: P3) -> f64 {
             }
         }
     }
-    let t = ((f2 - f1) / TUBERCLE_GROOVE_MM).clamp(0.0, 1.0);
+    let t = ((f2 - f1) / groove).clamp(0.0, 1.0);
     let plateau = t * t * (3.0 - 2.0 * t);
-    plateau * (1.0 - 0.45 * (f1 / (0.6 * g)).min(1.0).powi(2))
+    plateau * (1.0 - dome * (f1 / (0.6 * g)).min(1.0).powi(2))
 }
 
 /// The lizard's soft body: trunk, false head, neck, head and brows, four legs with their toes, and the tail.
@@ -535,61 +610,79 @@ fn body_prims(crest: &Crest) -> Vec<Prim> {
         // The false head: a smooth dome on the nape, standing clear of the real head behind a dip.
         egg(Kind::Hump, [5.35, 1.75, 0.0], [1.85, 1.55, 1.8], 0.0, 1.0),
         egg(Kind::Head, [7.5, 0.8, 0.0], [1.2, 1.0, 1.6], 0.0, 0.7),
-        // The head: small and wedge-shaped, narrowing to a blunt snout.
-        egg(Kind::Head, [8.95, 0.85, 0.0], [1.75, 1.0, 1.4], 0.2, 0.6),
+        // The head: small, low and wedge-shaped, narrowing in plan to a blunt snout.
+        egg(Kind::Head, [8.95, 0.7, 0.0], [1.75, 0.82, 1.45], 0.4, 0.6),
         // The brows the horns rise from, blended in so no socket opens beside a horn.
-        egg(Kind::Head, [8.8, 1.3, 1.05], [0.85, 0.45, 0.55], 0.0, 0.65),
-        egg(Kind::Head, [8.8, 1.3, -1.05], [0.85, 0.45, 0.55], 0.0, 0.65),
+        egg(Kind::Head, [8.75, 1.05, 1.0], [0.85, 0.4, 0.5], 0.0, 0.6),
+        egg(Kind::Head, [8.75, 1.05, -1.0], [0.85, 0.4, 0.5], 0.0, 0.6),
         // The snout, blunt and dipped to meet the band.
-        egg(Kind::Head, [10.15, 0.45, 0.0], [0.8, 0.62, 1.0], 0.0, 0.5),
+        egg(Kind::Head, [10.15, 0.4, 0.0], [0.75, 0.55, 0.8], 0.0, 0.5),
     ];
-    // Four legs: a tapering limb from the flank over the band's edge and down its cheek, five stubby toes fused to it.
+    // What the toes must keep clear of: the trunk, hump, head and tail, without the legs.
+    let core: Vec<Prim> = v.iter().copied().chain((0..=26).map(|k| {
+        let (c, r) = tail_at(k as f64 / 26.0);
+        egg(Kind::Tail, c, [TAIL_LEN / 26.0 + 0.25, TAIL_FLAT * r, r], 0.0, 0.35)
+    })).collect();
+    // The trunk itself is where the legs come from: a toe keeps clear of the hump, the head and the tail.
+    let core_at = |q: P3| core.iter().filter(|b| b.kind != Kind::Body).map(|b| b.eval(q, [0.0; 3])).fold(f64::MAX, f64::min);
+    // Four legs: a limb tapering from the flank over the band's edge onto the crown, ending in a thorny devil's foot:
+    // five slender, slightly curved toes lying on the crown, each a keeled crest ending in a claw that dips into the sand.
     for s in [1.0, -1.0] {
         for (x0, dir) in LEGS {
             let (shoulder, elbow, wrist) = leg_joints(crest, x0, dir, s);
             v.push(limb(Kind::Limb, shoulder, elbow, LIMB_R.0, LIMB_R.1, 0.7));
             v.push(limb(Kind::Limb, elbow, wrist, LIMB_R.1, LIMB_R.2, 0.5));
-            // Five toes splayed on the crown from the hand, fanned from forward round to outward; a toe that reaches the
-            // band's edge curls over it and grips the cheek.
-            let hand = [wrist[0] + dir * 0.15, wrist[1] - 0.05, wrist[2]];
-            v.push(egg(Kind::Limb, hand, [0.55, 0.3, 0.5], 0.0, 0.3));
-            for (ang, len) in [(-40.0, 1.1), (-12.0, 1.35), (16.0, 1.3), (45.0, 0.98), (90.0, 1.6)] {
-                let a: f64 = f64::to_radians(ang);
-                let (dx, dw) = (dir * a.cos(), s * a.sin());
-                let at = |t: f64| {
-                    let (x, w) = (hand[0] + dx * t, hand[2] + dw * t);
-                    (x, w)
+            for (ang, len) in if dir > 0.0 { FORE_TOES } else { HIND_TOES } {
+                let heading = |deg: f64| {
+                    let a = deg.to_radians();
+                    (dir * a.cos(), s * a.sin())
                 };
-                let root_t = 0.4;
-                let (xr, wr) = at(root_t);
-                let edge = |x: f64| crest.half_w_at_x(x) - 0.28;
-                // Where the toe would cross the edge, it stops there on the crown and turns down the cheek.
-                let mut tip_t = root_t + len;
-                let mut over = 0.0;
-                if dw != 0.0 {
-                    for k in 0..=40 {
-                        let t = root_t + len * k as f64 / 40.0;
-                        let (x, w) = at(t);
-                        if w.abs() > edge(x) {
-                            over = root_t + len - t;
-                            tip_t = t;
-                            break;
-                        }
+                // Root, knuckle, the claw's base and its point: the toe bends toward the body as it goes.
+                let path = |len: f64| {
+                    let (hx, hw) = heading(ang);
+                    let root = (wrist[0] + hx * TOE_ROOT_MM, wrist[2] + hw * TOE_ROOT_MM);
+                    let mut pts = vec![root];
+                    // The claw reaches its own length past the round end of the toe's crest.
+                    for (share, extra, bend) in [(0.55, 0.0, 0.0), (0.45, 0.0, TOE_BEND_DEG), (0.0, CLAW_MM, 2.0 * TOE_BEND_DEG)] {
+                        let (px, pw) = *pts.last().unwrap();
+                        let (hx, hw) = heading(ang + bend);
+                        let step = share * len + extra;
+                        pts.push((px + hx * step, pw + hw * step));
                     }
+                    pts
+                };
+                // Shortened until every point stays on the crown, its keel inside the cheek, and the tip clear of the body.
+                let mut len = len;
+                let pts = loop {
+                    let pts = path(len);
+                    let on_crown = pts.iter().all(|&(x, w)| crest.half_w_at_x(x) - w.abs() >= TOE_EDGE_MM);
+                    // Clear at the crown, and the keel clear under it, so no thin crevice opens between them.
+                    let along: Vec<(f64, f64)> = (3..=12).map(|k| {
+                        let f = k as f64 / 12.0 * 3.0;
+                        let (i, t) = ((f.floor() as usize).min(2), f - (f.floor()).min(2.0));
+                        (pts[i].0 + (pts[i + 1].0 - pts[i].0) * t, pts[i].1 + (pts[i + 1].1 - pts[i].1) * t)
+                    }).collect();
+                    let clear = along.iter().all(|&(x, w)| {
+                        let h = crest.top_h(x, w);
+                        core_at([x, h, w]) > 0.95 && core_at([x, h - 0.4, w]) > 0.75 && core_at([x, h - RIDGE_KEEL_MM, w]) > 0.95
+                    });
+                    if (on_crown && clear) || len < 0.8 {
+                        break pts;
+                    }
+                    len -= 0.05;
+                };
+                if std::env::var("MOLOCH_DEBUG").is_ok() {
+                    println!("  toe at x {:.1} side {s}: heading {ang}, length {len:.2}", x0);
                 }
-                let (xt, wt) = at(tip_t);
-                let on = |x: f64, w: f64| [x, crest.top_h(x, w) + 0.12, w];
-                let knuckle = on(xt, wt);
-                v.push(limb(Kind::Toe, on(xr, wr), knuckle, TOE_R.0, if over > 0.0 { 0.5 * (TOE_R.0 + TOE_R.1) } else { TOE_R.1 }, 0.14));
-                if over > 0.25 {
-                    // Over the edge and down the cheek, the claw pressed into it.
-                    let wc = (crest.half_w_at_x(xt) + 0.03) * s;
-                    let claw = [xt + dx * 0.3 * over, knuckle[1] - 0.2 - 0.8 * over, wc];
-                    v.push(limb(Kind::Toe, knuckle, claw, 0.5 * (TOE_R.0 + TOE_R.1), TOE_R.1, 0.12));
-                    // A knuckle rounds the bend, so no crease opens where the toe turns over the edge.
-                    let kr = 0.5 * (TOE_R.0 + TOE_R.1) + 0.04;
-                    v.push(egg(Kind::Toe, knuckle, [kr, kr, kr], 0.0, 0.2));
+                let at = |i: usize| {
+                    let (x, w) = pts[i];
+                    [x, crest.top_h(x, w) + TOE_DROP_MM[i], w]
+                };
+                for k in 0..2 {
+                    v.push(Prim { kind: Kind::Toe, shape: Shape::Ridge { a: at(k), b: at(k + 1), ra: TOE_CREST_R[k], rb: TOE_CREST_R[k + 1] }, blend: if k == 0 { 0.16 } else { 0.1 } });
                 }
+                // The claw: a short pointed cone from the toe's end, narrower than the toe, its point pressed into the sand.
+                v.push(limb(Kind::Claw, at(2), at(3), CLAW_R.0, CLAW_R.1, 0.08));
             }
         }
     }
@@ -673,6 +766,24 @@ fn thorn_at(liz: &Lizard, x: f64, w: f64, len: f64, kind: Kind, splay: f64, surf
     Some((c, p, r))
 }
 
+/// A tail thorn rooted at frame surface point `q`, a share `t` down the tail: its axis lies up and back along the tail,
+/// `TAIL_THORN_OFF_DEG` off the tail's own line, so it never points out past the band's edge.
+fn tail_thorn(liz: &Lizard, q: P3, t: f64, len: f64) -> Option<(Prim, P3, f64)> {
+    let p = liz.frame.world(q);
+    let n = liz.normal(p);
+    let (c0, _) = tail_at(t);
+    let (c1, _) = tail_at((t + 0.02).min(1.0));
+    let along = unit(sub(liz.frame.world(c1), liz.frame.world(c0)));
+    let up = unit([p[0], p[1], 0.0]);
+    let off = TAIL_THORN_OFF_DEG.to_radians();
+    let dir = unit(add(mul(along, off.cos()), mul(up, off.sin())));
+    let r = root_of(Kind::TailThorn, len);
+    Some((Prim { kind: Kind::TailThorn, shape: Shape::Thorn { a: sub(p, mul(n, ROOT_SINK * r)), b: add(p, mul(dir, len)), ra: r, rb: TIP_MM, n }, blend: THORN_BLEND_MM }, p, r))
+}
+
+/// How far a tail thorn rises off the tail's line, degrees.
+const TAIL_THORN_OFF_DEG: f64 = 28.0;
+
 /// A horn bent back over the brow: a stout cone up and out, then a second leaning back to the point.
 fn horn(liz: &Lizard, x: f64, w: f64, len: f64) -> Option<[Prim; 2]> {
     let q = liz.top(x, w)?;
@@ -746,20 +857,23 @@ fn build_lizard<'a>(frame: Frame<'a>, bore_r: f64) -> Lizard<'a> {
             liz.push_thorn(t);
         }
     }
-    // The tail's whorls: three cones round its top, every ring turned half a step, graded to the tip.
+    // The tail's whorls: cones over its top, every ring turned half a step, graded to the tip, each lying up and back
+    // along the tail, never out over the cheek.
     for k in 0..13 {
         let t = (k as f64 + 0.5) / 13.5;
         let (c, r) = tail_at(t);
-        let len = 0.85 - 0.45 * t;
+        let len = 0.7 - 0.35 * t;
         let turn = if k % 2 == 0 { 0.0 } else { 0.5 };
         for j in [-1.0, 0.0, 1.0] {
-            let phi = ((j + turn) * 48.0f64).to_radians();
-            if phi.abs() > 1.4 {
+            let phi = ((j + turn) * 38.0f64).to_radians();
+            if phi.abs() > 0.75 {
                 continue;
             }
             let q = [c[0], c[1] + TAIL_FLAT * r * phi.cos(), c[2] + r * phi.sin()];
-            if let Some((th, p, rr)) = thorn_at(&liz, 0.0, 0.0, len, Kind::TailThorn, 0.0, Some(q)) {
-                if clear(&placed, p, rr, 0.12) && liz.fits(&th, 0.3) {
+            if let Some((th, p, rr)) = tail_thorn(&liz, q, t, len) {
+                // A thorn lying along the tail sits close over it by design: only its point must stand clear of the
+                // thorns already there.
+                if clear(&placed, p, rr, 0.12) && liz.clear_of_thorns(&th, 0.2) {
                     placed.push((p, 0.8 * rr));
                     liz.push_thorn(th);
                 }
@@ -770,7 +884,7 @@ fn build_lizard<'a>(frame: Frame<'a>, bore_r: f64) -> Lizard<'a> {
     for s in [1.0, -1.0] {
         for (x0, dir) in LEGS {
             let (sh, el, wr) = leg_joints(liz.frame.crest, x0, dir, s);
-            for (from, to, ra, rb, t, len) in [(sh, el, LIMB_R.0, LIMB_R.1, 0.4, 0.6), (sh, el, LIMB_R.0, LIMB_R.1, 0.85, 0.55), (el, wr, LIMB_R.1, LIMB_R.2, 0.3, 0.5), (el, wr, LIMB_R.1, LIMB_R.2, 0.7, 0.45)] {
+            for (from, to, ra, rb, t, len) in [(sh, el, LIMB_R.0, LIMB_R.1, 0.4, 0.5), (sh, el, LIMB_R.0, LIMB_R.1, 0.85, 0.45), (el, wr, LIMB_R.1, LIMB_R.2, 0.35, 0.42)] {
                 let c: P3 = std::array::from_fn(|k| from[k] + (to[k] - from[k]) * t);
                 let r = ra + (rb - ra) * t;
                 let q = add(c, mul(unit([0.0, 0.9, 0.35 * s]), r));
@@ -809,7 +923,7 @@ fn build_lizard<'a>(frame: Frame<'a>, bore_r: f64) -> Lizard<'a> {
                 continue;
             }
             let p = liz.frame.world(q);
-            let near_leg = liz.body.iter().filter(|b| matches!(b.kind, Kind::Limb | Kind::Toe)).map(|b| b.eval(q, p)).fold(f64::MAX, f64::min);
+            let near_leg = liz.body.iter().filter(|b| matches!(b.kind, Kind::Limb | Kind::Toe | Kind::Claw)).map(|b| b.eval(q, p)).fold(f64::MAX, f64::min);
             if near_leg < 0.35 {
                 continue;
             }
@@ -974,62 +1088,102 @@ fn sculpt_solid(liz: &mut Lizard, comp: &mut Composition) -> csg::Solid {
     unreachable!()
 }
 
-/// Wind ripples in sand, as one SVG tile `w` by `h` mm of `RIPPLE_TILES` round the crown. Each crest climbs exactly one
-/// crest spacing across the tile, so it runs on into the next crest of the next tile and the ripples wind round the
-/// ring at a shallow angle, never across it. A crest is a stack of strokes: a long windward slope built up in steps of
-/// light ink, and a sharp lee edge; its line wavers, and some crests break and pick up again as dune ripples do.
+/// Wind ripples in sand, as one SVG tile `w` by `h` mm of `RIPPLE_TILES` round the crown.
+///
+/// Every crest is one stretch of a single line `s`, with crest `i` running `s` from `i` to `i + 1` across the tile, so
+/// it runs on into crest `i + 1` of the next tile and the ripples wind round the ring at a shallow angle. Everything
+/// about a crest is a smooth function of `s`, so it is seamless at the joins: where it lies (the spacing to the next
+/// crest wanders between 1.0 and 1.8 mm), how it wavers, and how tall it stands (some crests sink away and pick up
+/// again). The profile is a dune ripple's: a long gentle windward slope, a rounded crest and a short steep lee, drawn
+/// as nested bands of ink so the height climbs in fine even steps under a light blur. Faint micro-ripples lie in the
+/// troughs.
 fn ripples_svg(w: f64, h: f64) -> String {
     use std::fmt::Write;
-    let n = (h / RIPPLE_PITCH_MM).round().max(1.0) as usize;
-    let gap = h / n as f64;
+    let tau = std::f64::consts::TAU;
+    // The spacing to the next crest, and the crest line's place across the tile at `s`, mm.
+    let spacing = |s: f64| 1.4 + 0.28 * (tau * 0.37 * s + 0.4).sin() + 0.12 * (tau * 1.13 * s + 2.2).sin();
+    let place = |s: f64| {
+        // The integral of the spacing, so neighbouring crests sit one spacing apart.
+        1.4 * s - 0.28 / (tau * 0.37) * ((tau * 0.37 * s + 0.4).cos() - 0.4f64.cos()) - 0.12 / (tau * 1.13) * ((tau * 1.13 * s + 2.2).cos() - 2.2f64.cos())
+    };
+    let waver = |s: f64| 0.13 * (tau * 1.31 * s + 0.3).sin() + 0.06 * (tau * 2.71 * s + 1.7).sin() + 0.03 * (tau * 4.37 * s + 0.9).sin();
+    // The crest's height, 0..1: it rises and falls along the crest, and sinks away where the crest breaks.
+    let breaks = [0.31, 1.62, 2.47, 3.83, 4.36, 5.71, 6.94, 7.52, 8.68];
+    let tall = |s: f64| {
+        let base = 0.78 + 0.16 * (tau * 0.83 * s + 1.1).sin() + 0.06 * (tau * 2.3 * s).sin();
+        let gap = breaks.iter().map(|&b| { let d = ((s - b) / 0.075).powi(2); (-d).exp() }).fold(0.0, f64::max);
+        (base * (1.0 - gap)).clamp(0.0, 1.0)
+    };
+    // Crest i covers s in [i, i + 1]; the tile shows every crest whose line crosses it.
+    let s_of = |y: f64| {
+        // place() is increasing: find s with place(s) = y by bisection.
+        let (mut lo, mut hi) = (-20.0, 40.0);
+        for _ in 0..60 {
+            let m = 0.5 * (lo + hi);
+            if place(m) < y { lo = m } else { hi = m }
+        }
+        lo
+    };
+    let (i0, i1) = ((s_of(-2.5) - 1.0).floor() as i64, (s_of(h + 2.5) + 1.0).ceil() as i64);
+    const LEVELS: usize = 18;
+    const STEP_MM: f64 = 0.04;
     let mut body = String::new();
-    // Crests over two extra spacings each side, so the tile's top and bottom edges are covered as the line climbs.
-    for i in 0..n + 4 {
-        let i = i as f64 - 2.0;
-        // The waver is periodic in the tile's width and the same on every crest, so a crest leaving one tile meets the
-        // next crest of the next tile exactly.
-        let y_at = |u: f64| (i + u / w) * gap + 0.2 * (6.283 * u / w * 2.0 + 0.7).sin() + 0.07 * (6.283 * u / w * 5.0 + 2.1).sin();
-        let broken = hash(i as usize + 7, 73) < 0.45;
-        let (b0, b1) = { let c = w * (0.2 + 0.6 * hash(i as usize + 7, 74)); (c - 0.5, c + 0.5) };
-        let mut runs: Vec<Vec<(f64, f64)>> = vec![Vec::new()];
-        let mut u = -0.2;
-        while u <= w + 0.2 {
-            if broken && u > b0 && u < b1 {
-                if !runs.last().unwrap().is_empty() {
+    // The micro-ripples first, under the crests' bands.
+    for i in i0..=i1 {
+        let at = |u: f64, i: i64| {
+            let s = i as f64 + u / w;
+            (place(s) + waver(s), spacing(s), tall(s))
+        };
+        for k in 1..=3 {
+            let mut d = String::new();
+            let mut u = -0.2;
+            let mut first = true;
+            while u <= w + 0.2 {
+                let (y, gap, _) = at(u, i);
+                let y = y + gap * (0.22 + 0.24 * (k - 1) as f64);
+                let _ = write!(d, "{}{u:.3} {y:.3}", if first { "M" } else { " L" });
+                first = false;
+                u += STEP_MM;
+            }
+            let _ = write!(body, r##"<path d="{d}" fill="none" stroke="#000" stroke-opacity="0.17" stroke-width="0.13"/>"##);
+        }
+    }
+    // Each crest as nested bands: level j covers where the profile stands at least (j - 0.5) / LEVELS of the crest, and
+    // its opacity makes the stack's ink exactly j / LEVELS there.
+    for i in i0..=i1 {
+        for j in 1..=LEVELS {
+            let level = (j as f64 - 0.5) / LEVELS as f64;
+            let opacity = 1.0 / (LEVELS - j + 1) as f64;
+            let mut runs: Vec<Vec<(f64, f64, f64)>> = vec![Vec::new()];
+            let mut u = -0.2;
+            while u <= w + 0.2 {
+                let s = i as f64 + u / w;
+                let (y, gap, a) = (place(s) + waver(s), spacing(s), tall(s));
+                if a > level {
+                    // Windward reach on the low side, lee on the high side: height = a (1 - (d / reach)^p).
+                    let share = 1.0 - level / a;
+                    let wind = 0.6 * gap * share.powf(1.0 / 1.7);
+                    let lee = 0.17 * gap * share.powf(1.0 / 1.5);
+                    runs.last_mut().unwrap().push((u, y - wind, y + lee));
+                } else if !runs.last().unwrap().is_empty() {
                     runs.push(Vec::new());
                 }
-            } else {
-                runs.last_mut().unwrap().push((u, y_at(u)));
+                u += STEP_MM;
             }
-            u += 0.05;
-        }
-        for run in runs.iter().filter(|r| r.len() > 1) {
-            // Where a crest breaks, its windward strokes stop short in turn, the furthest first, so the crest's end
-            // tapers away instead of stacking into a bar; at the tile's own edges the run carries on into the next tile.
-            let (u0, u1) = (run[0].0, run[run.len() - 1].0);
-            let (open0, open1) = (u0 > 0.0, u1 < w);
-            let stroke = |body: &mut String, off: f64, trim: f64, opacity: f64, width: f64| {
+            for run in runs.iter().filter(|r| r.len() > 1) {
                 let mut d = String::new();
-                let mut first = true;
-                for (x, y) in run {
-                    if (open0 && *x < u0 + trim) || (open1 && *x > u1 - trim) {
-                        continue;
-                    }
-                    let _ = write!(d, "{}{x:.3} {:.3}", if first { "M" } else { " L" }, y - off);
-                    first = false;
+                for (k, (u, top, _)) in run.iter().enumerate() {
+                    let _ = write!(d, "{}{u:.3} {top:.3}", if k == 0 { "M" } else { " L" });
                 }
-                if !first {
-                    let _ = write!(body, r##"<path d="{d}" fill="none" stroke="#000" stroke-opacity="{opacity:.2}" stroke-width="{width:.3}" stroke-linecap="butt"/>"##);
+                for (u, _, bottom) in run.iter().rev() {
+                    let _ = write!(d, " L{u:.3} {bottom:.3}");
                 }
-            };
-            for (k, off) in [0.62, 0.48, 0.34, 0.2, 0.06].into_iter().enumerate() {
-                stroke(&mut body, off, 1.6 * off, 0.2 + 0.08 * k as f64, 0.26);
+                let _ = write!(body, r##"<path d="{d}Z" fill="#000" fill-opacity="{opacity:.4}"/>"##);
             }
-            stroke(&mut body, 0.0, 0.0, 1.0, RIPPLE_W_MM);
         }
     }
     format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}" height="{h:.4}" viewBox="0 0 {w:.4} {h:.4}"><defs><filter id="soft" x="-0.1" y="-0.1" width="1.2" height="1.2"><feGaussianBlur stdDeviation="0.07"/></filter></defs><g filter="url(#soft)">{body}</g></svg>"##
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}" height="{h:.4}" viewBox="0 0 {w:.4} {h:.4}"><defs><filter id="soft" x="-0.1" y="-0.1" width="1.2" height="1.2"><feGaussianBlur stdDeviation="0.045"/></filter></defs><g filter="url(#soft)">{body}</g></svg>"##
     )
 }
 
@@ -1071,6 +1225,28 @@ fn author(art: &Path) -> Result<(RingDesign, AlphaLibrary, Composition, csg::Sol
     let mut comp = Composition { crest_r_at_face_mm: crest.at(90.0), ..Composition::default() };
     let mut liz = build_lizard(Frame { crest: &crest }, d.inner_radius_mm());
     band_hide(&mut d, &mut lib, &mut comp, &art)?;
+    if let Ok(at) = std::env::var("MOLOCH_PROBE_AT") {
+        let v: Vec<f64> = at.split(',').filter_map(|x| x.parse().ok()).collect();
+        let t = v[0].to_radians();
+        let p = [v[1] * t.cos(), v[1] * t.sin(), v[2]];
+        let q = liz.frame.local(p);
+        println!("  probe at x {:.2} h {:.2} w {:.2}: field {:.3}", q[0], q[1], q[2], liz.field(p));
+        let mut near: Vec<(f64, String)> = liz.body.iter().chain(liz.thorns.iter()).map(|s| (s.eval(q, p), format!("{:?} {:?}", s.kind, s.shape))).collect();
+        near.sort_by(|a, b| a.0.total_cmp(&b.0));
+        for n in near.iter().take(5) {
+            println!("    {:.3} {}", n.0, n.1);
+        }
+    }
+    if std::env::var("MOLOCH_CONE_DEBUG").is_ok() {
+        for t in liz.thorns.iter().filter(|t| t.kind == Kind::Major).take(3) {
+            if let Shape::Thorn { a, b, .. } = t.shape {
+                for k in 0..=6 {
+                    let p = add(a, mul(sub(b, a), k as f64 / 6.0));
+                    println!("  cone {k}: field {:.3} body {:.3} self {:.3}", liz.field(p), liz.body_at(liz.frame.local(p), p), t.eval(liz.frame.local(p), p));
+                }
+            }
+        }
+    }
     if std::env::var("MOLOCH_PLAN_ONLY").is_ok() {
         println!("  plan: {} cones", liz.thorns.len());
         std::process::exit(0);
@@ -1114,18 +1290,6 @@ fn author(art: &Path) -> Result<(RingDesign, AlphaLibrary, Composition, csg::Sol
     };
     doc.append(Feature { id: next, name: "Thorny devil".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: packed }, component: joined() })?;
     let census = land_census(&solid, &kinds, &|p| liz.body_at(liz.frame.local(p), p));
-    if let Ok(at) = std::env::var("MOLOCH_PROBE_AT") {
-        let v: Vec<f64> = at.split(',').filter_map(|x| x.parse().ok()).collect();
-        let t = v[0].to_radians();
-        let p = [v[1] * t.cos(), v[1] * t.sin(), v[2]];
-        let q = liz.frame.local(p);
-        println!("  probe at x {:.2} h {:.2} w {:.2}: field {:.3}", q[0], q[1], q[2], liz.field(p));
-        let mut near: Vec<(f64, String)> = liz.body.iter().chain(liz.thorns.iter()).map(|s| (s.eval(q, p), format!("{:?} {:?}", s.kind, s.shape))).collect();
-        near.sort_by(|a, b| a.0.total_cmp(&b.0));
-        for n in near.iter().take(5) {
-            println!("    {:.3} {}", n.0, n.1);
-        }
-    }
     Ok((d, lib, comp, solid, census))
 }
 
