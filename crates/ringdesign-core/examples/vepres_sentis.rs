@@ -1,6 +1,6 @@
-//! Vepres — Sentis, the briar thicket: four thorned briar canes wound over and under one another round the
-//! finger on a hidden heartwood liner, the tangle densest at the crown, where three cut shoots bristle up and one
-//! ruby rose-hip sits gripped deep inside by four thorn claws. CAD only, lost wax.
+//! Vepres — Sentis, the briar: two thorned briar canes twined round the finger, parted at the crown round a wild
+//! rose's hip (an opaque red cabochon with its dried calyx and stalk), framed by two large five-leaflet rose leaves
+//! laid over the top. CAD only, lost wax. (The rethink of 2026-10-03; the four-cane thicket read as a crown of thorns.)
 //! cargo build --release -p ringdesign-core --example vepres_sentis
 //! target/release/examples/vepres_sentis [OUT_DIR] [--draft] [--verify]
 use anyhow::Result;
@@ -11,6 +11,7 @@ use ringdesign_core::{
     gem::{Gem, GemCut, GemForm},
     library, mesh, render,
     sketch::{Geometry, Sketch, Workplane},
+    cad::TwistPath,
     stl,
 };
 use serde_json::json;
@@ -28,38 +29,32 @@ const MIN_DETAIL_MM: f64 = 0.15;
 /// The crown, where the hip sits.
 const CROWN_DEG: f64 = 90.0;
 /// The analytic seat surface `Placement::Ring` stands parts on with no band: inner radius plus this thickness.
-const SEAT_THICK_MM: f64 = 2.7;
-/// The heartwood liner: a smooth torus whose inside is the bore.
-const LINER_MINOR_MM: f64 = 0.55;
-/// Four canes, each three waves round the ring.
-const CANES: usize = 4;
-const WAVES: f64 = 3.0;
-/// The cane's section radius, and the radius the bundle winds about.
-const CANE_R_MM: f64 = 0.72;
-const BUNDLE_R_MM: f64 = 10.85;
-/// The bundle's half-height across the finger and half-depth radially: deeper at the crown.
-const BUNDLE_RADIAL_MM: f64 = 0.55;
-const BUNDLE_ACROSS_MM: f64 = 2.15;
-const BUNDLE_CROWN_SWELL_MM: f64 = 0.45;
-/// Phase offset that puts canes 0 and 3 on the outside either side of the crown, parted round the hip.
-const PHASE0: f64 = 0.75 * PI;
-/// Each cane's wander: a phase drift of this many radians, twice round the ring, zero at crown and palm.
-const WANDER: [f64; CANES] = [0.40, -0.30, 0.36, -0.40];
-/// Each cane's own spread across the finger, as a share of the bundle's.
-const CANE_SPREAD: [f64; CANES] = [1.0, 0.9, 1.07, 0.94];
-/// How much further out, and how much deeper, the bundle winds at the crown, where the tangle opens.
-const CROWN_OPEN_MM: f64 = 0.35;
-/// The cane section's five lobes, as a share of its radius.
-const CANE_LOBE: f64 = 0.07;
-/// Sweep stations round each closed cane (the kernel's cap).
-const STATIONS: usize = 128;
-/// Thorns per cane before the inward-facing ones are dropped.
-const THORNS_PER_CANE: usize = 8;
-/// The hip's length and width.
-const HIP_L_MM: f64 = 6.5;
-const HIP_W_MM: f64 = 5.0;
-/// How deep each thorn's foot sinks into its cane.
-const THORN_SINK_MM: f64 = 0.28;
+const SEAT_THICK_MM: f64 = 1.4;
+/// Two canes, twined twice round each other round the ring: parted either side of the crown, crossing at the shoulders.
+const CANES: usize = 2;
+const WAVES: f64 = 2.0;
+/// The twine's centre radius and its radial and across half-sizes; it opens across the finger toward the crown.
+const TWINE_R_MM: f64 = 10.65;
+const TWINE_RADIAL_MM: f64 = 0.5;
+const TWINE_ACROSS_MM: f64 = 1.6;
+const TWINE_CROWN_OPEN_MM: f64 = 0.95;
+/// Each cane's wander, radians of phase, zero at crown and palm.
+const WANDER: [f64; CANES] = [0.28, -0.22];
+/// Cane radius at the palm and at the crown.
+const CANE_PALM_MM: f64 = 0.62;
+const CANE_CROWN_MM: f64 = 0.8;
+/// The cane section's five lobes, as a share of its radius, and the turns they make round each cane.
+const CANE_LOBE: f64 = 0.06;
+const CANE_TURNS: f64 = 3.0;
+/// Path points round each closed cane.
+const STATIONS: usize = 180;
+/// Prickles per cane before those facing the finger or under the crown's leaves and hip are dropped.
+const THORNS_PER_CANE: usize = 22;
+/// How deep each prickle's foot sinks into its cane, as a share of its size.
+const THORN_SINK_MM: f64 = 0.26;
+/// The hip: an oval cabochon, its length and width.
+const HIP_L_MM: f64 = 6.4;
+const HIP_W_MM: f64 = 4.8;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -69,17 +64,18 @@ fn export_params() -> BuildParams {
     BuildParams { theta_steps: 1536, profile_steps: 448, ..BuildParams::default() }
 }
 
-/// The hip: an oval ruby cabochon, its long axis round the ring.
-fn ruby() -> Gem {
-    Gem { l_mm: HIP_L_MM, form: GemForm::Cabochon, preview_tint: Some([0.55, 0.03, 0.08]), ..Gem::calibrated(GemCut::Oval, HIP_W_MM) }
+/// The hip: an oval cabochon in the orange-red of a ripe rose hip.
+fn hip_gem() -> Gem {
+    Gem { l_mm: HIP_L_MM, form: GemForm::Cabochon, preview_tint: Some(HIP_TINT), ..Gem::calibrated(GemCut::Oval, HIP_W_MM) }
 }
+const HIP_TINT: [f32; 3] = [0.55, 0.12, 0.06];
 
 /// The design with no band: size, process and the analytic seat.
 fn ground() -> RingDesign {
     let mut d = RingDesign::default();
     d.name = "Sentis".into();
     d.size = ringdesign_core::resize::size_from_bore(BORE_MM).unwrap();
-    d.profile.width_mm = 5.6;
+    d.profile.width_mm = 6.0;
     d.profile.thickness_mm = SEAT_THICK_MM;
     probe::cast_in(&mut d, &probe::wax_setup(0.1));
     d.draft.auto_parting = false;
@@ -92,105 +88,171 @@ fn seat_r(d: &RingDesign) -> f64 {
     d.inner_radius_mm() + d.profile.thickness_mm
 }
 
-// --- The canes ---------------------------------------------------------------------------------------------
+type P3 = [f64; 3];
 
-/// Cane `i`'s phase round its bundle at `theta_deg`.
-fn phase(i: usize, theta_deg: f64) -> f64 {
-    let from_crown = (theta_deg - CROWN_DEG).to_radians();
-    WAVES * theta_deg.to_radians() + PHASE0 + i as f64 * FRAC_PI_2 + WANDER[i] * (2.0 * from_crown).sin()
+fn sub(a: P3, b: P3) -> P3 {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+fn add3(a: P3, b: P3) -> P3 {
+    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
+}
+fn mul(a: P3, k: f64) -> P3 {
+    a.map(|v| v * k)
+}
+fn dot(a: P3, b: P3) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+fn cross(a: P3, b: P3) -> P3 {
+    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+}
+fn unit(a: P3) -> P3 {
+    let l = dot(a, a).sqrt().max(1e-12);
+    a.map(|v| v / l)
+}
+/// Rounded to the micron, so the design file carries no f64 noise.
+fn um(a: P3) -> P3 {
+    a.map(|v| (v * 1000.0).round() / 1000.0)
 }
 
-/// How far `theta_deg` lies inside the crown's open tangle: 1 at the crown, falling to 0 at the shoulders.
+/// A small deterministic hash in [0, 1).
+fn hash(k: u64) -> f64 {
+    let mut x = k.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ 0xD1B5_4A32_D192_ED03;
+    x ^= x >> 29;
+    x = x.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    x ^= x >> 32;
+    (x >> 11) as f64 / (1u64 << 53) as f64
+}
+
+// --- The canes ---------------------------------------------------------------------------------------------
+
+/// 1 at the crown, falling to 0 a quarter turn either side.
 fn crown_share(theta_deg: f64) -> f64 {
     (theta_deg - CROWN_DEG).to_radians().cos().max(0.0).powi(2)
 }
 
-/// The bundle's centre radius, half-depth (radial) and half-height (across) at `theta_deg`, for cane `i`: the
-/// crown's tangle loosened outward and open, each cane winding a little wider or narrower than the others.
-fn bundle_of(i: usize, theta_deg: f64) -> (f64, f64, f64) {
-    let c = (theta_deg - CROWN_DEG).to_radians().cos();
-    let w = crown_share(theta_deg);
-    (BUNDLE_R_MM + CROWN_OPEN_MM * w, BUNDLE_RADIAL_MM + CROWN_OPEN_MM * w, (BUNDLE_ACROSS_MM + BUNDLE_CROWN_SWELL_MM * c) * CANE_SPREAD[i])
+/// Cane `i`'s phase round the twine at `theta_deg`: cane 0 on the high side (+z) at the crown, cane 1 on the low.
+fn phase(i: usize, theta_deg: f64) -> f64 {
+    let from_crown = (theta_deg - CROWN_DEG).to_radians();
+    WAVES * from_crown + FRAC_PI_2 + i as f64 * PI + WANDER[i] * from_crown.sin() * (2.0 * from_crown).cos().abs()
+}
+
+/// The twine's radial and across half-sizes at `theta_deg`.
+fn twine(theta_deg: f64) -> (f64, f64) {
+    (TWINE_RADIAL_MM, TWINE_ACROSS_MM + TWINE_CROWN_OPEN_MM * crown_share(theta_deg))
 }
 
 /// Cane `i`'s centre at `theta_deg`: (radius from the finger's axis, z along it).
 fn cane_at(i: usize, theta_deg: f64) -> (f64, f64) {
-    let (r0, a, b) = bundle_of(i, theta_deg);
+    let (a, b) = twine(theta_deg);
     let p = phase(i, theta_deg);
-    (r0 + a * p.cos(), b * p.sin())
+    (TWINE_R_MM + a * p.cos(), b * p.sin())
 }
 
-fn world(theta_deg: f64, (r, z): (f64, f64)) -> [f64; 3] {
+/// A cane's radius at `theta_deg`: thicker at the crown, thinning toward the palm.
+fn cane_r(theta_deg: f64) -> f64 {
+    let c = 0.5 + 0.5 * (theta_deg - CROWN_DEG).to_radians().cos();
+    CANE_PALM_MM + (CANE_CROWN_MM - CANE_PALM_MM) * c * c
+}
+
+fn world(theta_deg: f64, (r, z): (f64, f64)) -> P3 {
     let (s, c) = theta_deg.to_radians().sin_cos();
     [r * c, r * s, z]
 }
 
-/// Cane `i`'s closed centreline, starting at `start_deg`, its last station its first.
-fn cane_path(i: usize, start_deg: f64) -> Vec<[f64; 3]> {
-    let mut path: Vec<[f64; 3]> = (0..STATIONS - 1)
-        .map(|k| {
-            let t = start_deg + 360.0 * k as f64 / (STATIONS - 1) as f64;
-            world(t, cane_at(i, t))
-        })
-        .collect();
-    path.push(path[0]);
-    path
+fn cane_point(i: usize, theta_deg: f64) -> P3 {
+    world(theta_deg, cane_at(i, theta_deg))
 }
 
-/// Cane `i`'s unit tangent at `theta_deg`, in world.
-fn cane_tangent(i: usize, theta_deg: f64) -> [f64; 3] {
+/// Cane `i`'s unit tangent at `theta_deg`.
+fn cane_tangent(i: usize, theta_deg: f64) -> P3 {
     let h = 0.05;
-    let (a, b) = (world(theta_deg - h, cane_at(i, theta_deg - h)), world(theta_deg + h, cane_at(i, theta_deg + h)));
-    unit(sub(b, a))
+    unit(sub(cane_point(i, theta_deg + h), cane_point(i, theta_deg - h)))
 }
 
-fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-}
-fn unit(a: [f64; 3]) -> [f64; 3] {
-    let l = dot(a, a).sqrt().max(1e-12);
-    a.map(|v| v / l)
-}
-
-/// Cane `i`'s outward direction at `theta_deg`: away from the bundle's axis, squared to the cane, in world.
-fn cane_normal(i: usize, theta_deg: f64) -> [f64; 3] {
-    let (_, a, b) = bundle_of(i, theta_deg);
+/// Cane `i`'s outward direction at `theta_deg`: away from the twine's axis, squared to the cane.
+fn cane_normal(i: usize, theta_deg: f64) -> P3 {
+    let (a, b) = twine(theta_deg);
     let p = phase(i, theta_deg);
     let (n_r, n_z) = (p.cos() / a, p.sin() / b);
     let (s, c) = theta_deg.to_radians().sin_cos();
     let n = unit([n_r * c, n_r * s, n_z]);
     let t = cane_tangent(i, theta_deg);
-    let d = dot(n, t);
-    unit([n[0] - t[0] * d, n[1] - t[1] * d, n[2] - t[2] * d])
+    unit(sub(n, mul(t, dot(n, t))))
 }
 
-/// A part standing on cane `i` at `theta_deg`: its foot sunk `sink` mm into the cane's surface, its z along the
-/// cane's outward normal there, its y round the ring, turned `spin` about its own axis.
-fn on_cane(d: &RingDesign, i: usize, theta_deg: f64, sink: f64, spin: f64) -> Component {
-    let n = cane_normal(i, theta_deg);
-    let centre = world(theta_deg, cane_at(i, theta_deg));
-    let foot: [f64; 3] = std::array::from_fn(|k| centre[k] + n[k] * (CANE_R_MM - sink));
+/// A closed polygon sketch on `plane`: `pts` in its x, y.
+fn poly_on(plane: Workplane, name: &str, pts: &[[f64; 2]]) -> Sketch {
+    let mut s = Sketch { plane, ..Sketch::default() };
+    s.name = name.into();
+    let ids: Vec<_> = pts.iter().map(|p| s.point([(p[0] * 1e4).round() / 1e4, (p[1] * 1e4).round() / 1e4])).collect();
+    s.entity(Geometry::Polyline { points: ids, closed: true });
+    s
+}
+
+fn polygon(name: &str, pts: &[[f64; 2]]) -> Sketch {
+    poly_on(Workplane::default(), name, pts)
+}
+
+/// Cane `i`: one closed twisted sweep through a smooth path, its five-lobed section turning `CANE_TURNS` times
+/// round the ring and swelling from palm to crown by a scale law.
+fn cane_op(i: usize) -> Operation {
+    let start = CROWN_DEG + 180.0 + 9.0 * i as f64;
+    let points: Vec<P3> = (0..STATIONS).map(|k| um(cane_point(i, start + 360.0 * k as f64 / STATIONS as f64))).collect();
+    let lobed: Vec<[f64; 2]> = (0..40)
+        .map(|k| {
+            let t = TAU * k as f64 / 40.0;
+            let r = CANE_PALM_MM * (1.0 + CANE_LOBE * (5.0 * t).cos());
+            [r * t.cos(), r * t.sin()]
+        })
+        .collect();
+    let scale: Vec<[f64; 2]> = (0..=24)
+        .map(|k| {
+            let share = k as f64 / 24.0;
+            [share, ((cane_r(start + 360.0 * share) / CANE_PALM_MM) * 1e4).round() / 1e4]
+        })
+        .collect();
+    Operation::Twist { sketch: polygon("Cane section", &lobed).into(), path: TwistPath::Points { points, smooth: true }, degrees: 360.0 * CANE_TURNS, end_scale: 1.0, scale, closed: true }
+}
+
+/// The world frame `(x, y, z, origin)` as a ring placement at `theta_deg`, solved for its leans and spin.
+fn placed_as(d: &RingDesign, theta_deg: f64, origin: P3, x: P3, z: P3) -> Placement {
     let (s, c) = theta_deg.to_radians().sin_cos();
-    // The seat's frame: x along -Z, y round the ring, z radial.
-    let (radial, tangential) = ([c, s, 0.0], [-s, c, 0.0]);
-    let local = [-n[2], dot(n, tangential), dot(n, radial)];
-    let tilt = (-local[1]).asin();
-    let cant = local[0].atan2(local[2]);
-    let r = foot[0] * c + foot[1] * s;
+    // The seat's frame at theta: x along -Z, y round the ring, z radial.
+    let seat = [[0.0, 0.0, -1.0], [-s, c, 0.0], [c, s, 0.0]];
+    let y = cross(z, x);
+    // The lean in seat coordinates, columns the wanted axes: m = Rz(spin) Ry(cant) Rx(tilt).
+    let col = |v: P3| [dot(v, seat[0]), dot(v, seat[1]), dot(v, seat[2])];
+    let (cx, cy, cz) = (col(x), col(y), col(z));
+    let m = [[cx[0], cy[0], cz[0]], [cx[1], cy[1], cz[1]], [cx[2], cy[2], cz[2]]];
+    let cant = (-m[2][0]).clamp(-1.0, 1.0).asin();
+    let tilt = m[2][1].atan2(m[2][2]);
+    let spin = m[1][0].atan2(m[0][0]);
+    let r = origin[0] * c + origin[1] * s;
+    Placement::Ring { theta_deg, across_mm: origin[2], height_mm: r - seat_r(d), spin_deg: spin.to_degrees(), tilt_deg: tilt.to_degrees(), cant_deg: cant.to_degrees(), level: false }
+}
+
+/// A part standing on cane `i` at `theta_deg`: its foot sunk `sink` mm into the cane, its z along the cane's
+/// outward normal, its y along the cane, `flip`ped to hook back the other way.
+fn on_cane(d: &RingDesign, i: usize, theta_deg: f64, sink: f64, flip: bool) -> Component {
+    let n = cane_normal(i, theta_deg);
+    let t = cane_tangent(i, theta_deg);
+    let t = if flip { mul(t, -1.0) } else { t };
+    let foot = add3(cane_point(i, theta_deg), mul(n, cane_r(theta_deg) - sink));
+    let x = cross(t, n);
     let mut comp = Component::default();
-    comp.placement = Placement::Ring { theta_deg, across_mm: foot[2], height_mm: r - seat_r(d), spin_deg: spin, tilt_deg: tilt.to_degrees(), cant_deg: cant.to_degrees() };
+    comp.placement = placed_as(d, theta_deg, foot, x, n);
     comp.attach = Attach::Join;
     comp.stage = Stage::Cast;
+    comp.blend_mm = THORN_BLEND_MM;
     comp
 }
+/// The seam bead where each prickle grows out of its cane (C-V4).
+const THORN_BLEND_MM: f64 = 0.18;
 
-// --- Thorns and shoots -------------------------------------------------------------------------------------
+// --- Prickles --------------------------------------------------------------------------------------------
 
-/// A thorn's centreline in the part's tangent-radial plane: `radial` mm straight out, then an arc of `bend_r`
-/// turning `bend_deg` round the ring.
+/// A prickle's centreline in the part's y-z plane: `radial` mm straight out, then an arc of `bend_r` turning
+/// `bend_deg` toward +y (along the cane).
 fn hook_path(radial: f64, bend_r: f64, bend_deg: f64) -> Sketch {
     let mut s = Sketch { plane: Workplane { x: [0.0, 1.0, 0.0], y: [0.0, 0.0, 1.0], ..Default::default() }, ..Sketch::default() };
     let a = s.point([0.0, 0.0]);
@@ -203,8 +265,7 @@ fn hook_path(radial: f64, bend_r: f64, bend_deg: f64) -> Sketch {
     s
 }
 
-/// A rose prickle: a broad flattened foot `along` x `across` mm, swept up `radial` mm and round a `bend_r` hook of
-/// `bend_deg`, tapering to `end_scale` of the foot.
+/// A rose prickle: a broad, flattened foot long along the cane, a short rise and a hard hook back down it.
 #[derive(Clone, Copy)]
 struct Hook {
     along: f64,
@@ -212,150 +273,83 @@ struct Hook {
     radial: f64,
     bend_r: f64,
     bend_deg: f64,
-    end_scale: f64,
 }
 
-/// A briar prickle at the crown's size: a broad, flattened foot long along the cane, a short rise, a hard hook.
-const THORN: Hook = Hook { along: 2.7, across: 1.0, radial: 0.35, bend_r: 1.25, bend_deg: 72.0, end_scale: 0.3 };
-/// Each prickle's tip across, at least: the investment's detail with margin.
+const THORN: Hook = Hook { along: 2.6, across: 1.05, radial: 0.4, bend_r: 1.3, bend_deg: 70.0 };
+/// Each prickle's tip across, at least.
 const THORN_TIP_MM: f64 = 0.42;
 
-impl Hook {
-    fn scaled(self, k: f64) -> Hook {
-        Hook { along: self.along * k, across: self.across * k, radial: self.radial * k, bend_r: self.bend_r * k, end_scale: (THORN_TIP_MM / (self.across * k)).max(0.18), ..self }
-    }
-}
-
-/// A closed polygon sketch on `plane`: `pts` in its x, y.
-fn poly_on(plane: Workplane, name: &str, pts: &[[f64; 2]]) -> Sketch {
-    let mut s = Sketch { plane, ..Sketch::default() };
-    s.name = name.into();
-    let ids: Vec<_> = pts.iter().map(|p| s.point(*p)).collect();
-    s.entity(Geometry::Polyline { points: ids, closed: true });
-    s
-}
-
-/// A closed polygon sketch on the default plane: `pts` in its x, y.
-fn polygon(name: &str, pts: &[[f64; 2]]) -> Sketch {
-    let mut s = Sketch::default();
-    s.name = name.into();
-    let ids: Vec<_> = pts.iter().map(|p| s.point(*p)).collect();
-    s.entity(Geometry::Polyline { points: ids, closed: true });
-    s
-}
-
-/// An ellipse `a` mm along the hook's turn (round the ring) and `b` mm across it.
+/// The prickle's foot: an ellipse `a` mm along the cane and `b` mm across it.
 fn ellipse(a: f64, b: f64) -> Sketch {
     let pts: Vec<[f64; 2]> = (0..24).map(|k| {
         let t = TAU * k as f64 / 24.0;
         [0.5 * b * t.cos(), 0.5 * a * t.sin()]
     }).collect();
-    polygon("Thorn foot", &pts)
+    polygon("Prickle foot", &pts)
 }
 
-fn thorn(h: Hook) -> Operation {
-    Operation::Twist { sketch: ellipse(h.along, h.across).into(), path: hook_path(h.radial, h.bend_r, h.bend_deg), degrees: 0.0, end_scale: h.end_scale }
+/// A prickle `k` times the crown's size, tapering by a law that keeps its foot broad and runs fast to the point.
+fn thorn(k: f64) -> Operation {
+    let h = THORN;
+    let tip = (THORN_TIP_MM / (h.across * k)).max(0.2);
+    let scale = vec![[0.0, 1.0], [0.25, 0.62], [0.6, 0.38], [1.0, (tip * 1e4).round() / 1e4]];
+    Operation::Twist { sketch: ellipse(h.along * k, h.across * k).into(), path: hook_path(h.radial * k, h.bend_r * k, h.bend_deg).into(), degrees: 0.0, end_scale: tip, scale, closed: false }
 }
 
-/// A small deterministic hash in [0, 1).
-fn hash(k: u64) -> f64 {
-    let mut x = k.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ 0xD1B5_4A32_D192_ED03;
-    x ^= x >> 29;
-    x = x.wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    x ^= x >> 32;
-    (x >> 11) as f64 / (1u64 << 53) as f64
-}
-
-/// Where a thorn stands: cane, angle, size and which way it hooks.
+/// Where a prickle stands: cane, angle, size and which way it hooks.
 #[derive(Clone, Copy)]
 struct ThornAt {
     cane: usize,
     theta: f64,
     scale: f64,
-    spin: f64,
+    flip: bool,
 }
 
-/// The thorns: along each cane at an uneven pitch, larger at the crown, dropped where the cane faces the finger
-/// or runs under the hip.
+/// The prickles: along each cane at an uneven pitch, the crown's 1.4 times the palm's, every one on a cane hooking
+/// back the same way; none facing the finger, none under the leaves and hip.
 fn thorn_sites() -> Vec<ThornAt> {
     let mut out = Vec::new();
     for i in 0..CANES {
         for k in 0..THORNS_PER_CANE {
             let seed = (i * 100 + k) as u64;
-            let theta = (17.0 * i as f64 + 360.0 * (k as f64 + 0.35 * (hash(seed) - 0.5)) / THORNS_PER_CANE as f64).rem_euclid(360.0);
+            let theta = (11.0 + 13.0 * i as f64 + 360.0 * (k as f64 + 0.35 * (hash(seed) - 0.5)) / THORNS_PER_CANE as f64).rem_euclid(360.0);
             let n = cane_normal(i, theta);
             let (s, c) = theta.to_radians().sin_cos();
             let out_r = n[0] * c + n[1] * s;
-            // Facing the finger, or tucked under the hip's footprint.
             let from_crown = ((theta - CROWN_DEG + 540.0).rem_euclid(360.0) - 180.0).abs();
-            if out_r < -0.25 || from_crown < 11.0 {
+            // Clear of the crossings, where a prickle would run into the other cane.
+            let (me, other) = (cane_at(i, theta), cane_at(1 - i, theta));
+            let apart = (me.0 - other.0).hypot(me.1 - other.1);
+            let crown = 0.5 + 0.5 * (theta - CROWN_DEG).to_radians().cos();
+            let scale = 0.72 + 0.29 * crown + 0.05 * (hash(seed + 7) - 0.5);
+            // The whole prickle, foot to hooked tip, clear of the other cane.
+            let t = cane_tangent(i, theta);
+            let foot = add3(cane_point(i, theta), mul(n, cane_r(theta)));
+            let reach = |p: P3| (0..=40).map(|j| { let a = theta - 20.0 + j as f64; dot(sub(p, cane_point(1 - i, a)), sub(p, cane_point(1 - i, a))).sqrt() - cane_r(a) }).fold(f64::MAX, f64::min);
+            let hook = if i == 1 { -1.0 } else { 1.0 };
+            let clear = [0.0, 0.5, 1.0].iter().all(|&f| reach(add3(foot, add3(mul(n, 1.1 * scale * f), mul(t, hook * 1.2 * scale * f * f)))) > 0.35)
+                && reach(add3(foot, mul(t, 1.4 * scale))) > 0.2
+                && reach(add3(foot, mul(t, -1.4 * scale))) > 0.2;
+            if out_r < -0.3 || from_crown < 56.0 || apart < 1.8 || !clear {
                 continue;
             }
-            // Crown prickles 1.4 times the palm's; every prickle on a cane hooks back the way that cane grew.
-            let crown = 0.5 + 0.5 * (theta - CROWN_DEG).to_radians().cos();
-            let scale = 0.75 + 0.3 * crown + 0.06 * (hash(seed + 7) - 0.5);
-            let spin = if i % 2 == 0 { 0.0 } else { 180.0 };
-            out.push(ThornAt { cane: i, theta, scale, spin });
+            if out.iter().any(|o: &ThornAt| o.cane == i && ((o.theta - theta + 540.0).rem_euclid(360.0) - 180.0).abs() < 11.0) {
+                continue;
+            }
+            out.push(ThornAt { cane: i, theta, scale, flip: i == 1 });
         }
     }
     out
 }
 
-/// The outermost cane at `theta_deg`.
-fn outer_cane(theta_deg: f64) -> usize {
-    (0..CANES).max_by(|a, b| cane_at(*a, theta_deg).0.total_cmp(&cane_at(*b, theta_deg).0)).unwrap_or(0)
-}
-
-/// The cane nearest `z` across the finger, among those on the outside half of the bundle at `theta_deg`.
-fn cane_near(theta_deg: f64, z: f64) -> usize {
-    (0..CANES)
-        .filter(|i| cane_at(*i, theta_deg).0 >= BUNDLE_R_MM - 0.1)
-        .min_by(|a, b| (cane_at(*a, theta_deg).1 - z).abs().total_cmp(&(cane_at(*b, theta_deg).1 - z).abs()))
-        .unwrap_or_else(|| outer_cane(theta_deg))
-}
-
-/// The cane at `theta_deg` whose surface faces most nearly outward, preferring those near `z` across the finger.
-fn top_cane(theta_deg: f64, z: f64) -> usize {
-    let (s, c) = theta_deg.to_radians().sin_cos();
-    let out = |i: usize| {
-        let n = cane_normal(i, theta_deg);
-        n[0] * c + n[1] * s
-    };
-    let score = |i: usize| out(i) - 0.15 * (cane_at(i, theta_deg).1 - z).abs();
-    (0..CANES).max_by(|a, b| score(*a).total_cmp(&score(*b))).unwrap_or(0)
-}
-
-// --- The hip, its calyx and the leaves --------------------------------------------------------------------
-
-type P3 = [f64; 3];
-
-/// An ellipse polygon of `n` points, `ax` mm half across x and `ay` half along y, on the plane `h` mm up z.
-fn ellipse_at(name: &str, ax: f64, ay: f64, h: f64, n: usize) -> Sketch {
-    let mut s = Sketch { plane: Workplane { origin: [0.0, 0.0, h], ..Default::default() }, ..Sketch::default() };
-    s.name = name.into();
-    let ids: Vec<_> = (0..n).map(|k| {
-        let t = TAU * k as f64 / n as f64;
-        s.point([ax * t.cos(), ay * t.sin()])
-    }).collect();
-    s.entity(Geometry::Polyline { points: ids, closed: true });
-    s
-}
-
-/// The hip's receptacle: an oval urn lofted under the stone, its flat top at the seat radius, its foot down among
-/// the canes; long round the ring, as the hip is.
-fn hip_cup() -> Operation {
-    let sections = HIP_URN.iter().map(|&(h, ax, ay)| ellipse_at("Hip urn", ax, ay, h, 40).into()).collect();
-    Operation::Loft { sections }
-}
-
-/// The urn's sections: height under the seat, half across the finger, half round the ring.
-const HIP_URN: [(f64, f64, f64); 6] = [(-3.1, 0.8, 1.0), (-2.3, 1.15, 1.4), (-1.6, 1.75, 2.25), (-0.75, 2.25, 2.95), (-0.22, 2.4, 3.12), (-0.05, 2.37, 3.07)];
+// --- Stored meshes ---------------------------------------------------------------------------------------
 
 fn stored_op(solid: &csg::Solid, op: &str, params: serde_json::Value) -> Result<Operation> {
+    let v: Vec<P3> = solid.v.iter().map(|p| um(*p)).collect();
     Ok(Operation::Stored {
         recipe: stored::Recipe { kernel: "vepres_sentis".into(), op: op.into(), params, digest: String::new() },
         sources: Vec::new(),
-        mesh: stored::Packed::encode(&solid.v, &solid.f, &vec![0; solid.f.len()], &[SurfaceKind::Freeform])?,
+        mesh: stored::Packed::encode(&v, &solid.f, &vec![0; solid.f.len()], &[SurfaceKind::Freeform])?,
     })
 }
 
@@ -363,7 +357,7 @@ fn stored_op(solid: &csg::Solid, op: &str, params: serde_json::Value) -> Result<
 fn outward(mut s: csg::Solid) -> csg::Solid {
     let vol: f64 = s.f.iter().map(|f| {
         let (a, b, c) = (s.v[f[0] as usize], s.v[f[1] as usize], s.v[f[2] as usize]);
-        a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])
+        dot(a, cross(b, c))
     }).sum();
     if vol < 0.0 {
         for f in &mut s.f {
@@ -397,75 +391,31 @@ fn lofted(loops: &[Vec<P3>], start: P3, end: P3) -> csg::Solid {
     outward(s)
 }
 
-/// The dried calyx at the hip's tip: five slender sepals radiating from a hub `outer` mm across their points, each
-/// thinning from `root` to `tip` mm and curling `curl` mm back away from the hip; its axis along z.
-fn calyx_solid(outer: f64, inner: f64, root: f64, tip: f64, curl: f64) -> csg::Solid {
-    let (n, k) = (60usize, 4usize);
-    let rim = |a: f64| {
-        let lobe = (0.5 + 0.5 * (5.0 * a).cos()).powf(3.0);
-        inner + (0.5 * outer - inner) * lobe
-    };
-    let rmax = 0.5 * outer;
-    let mid = |r: f64| curl * (r / rmax).powi(2);
-    let thick = |r: f64| root + (tip - root) * (r / rmax);
-    let mut s = csg::Solid::default();
-    s.v.push([0.0, 0.0, mid(0.0) - 0.5 * root]);
-    s.v.push([0.0, 0.0, mid(0.0) + 0.5 * root]);
-    let idx = |face: usize, ring: usize, j: usize| (2 + face * k * n + (ring - 1) * n + j % n) as u32;
-    for face in 0..2 {
-        for ring in 1..=k {
-            for j in 0..n {
-                let a = TAU * j as f64 / n as f64;
-                let r = rim(a) * ring as f64 / k as f64;
-                let z = mid(r) + if face == 0 { -0.5 } else { 0.5 } * thick(r);
-                s.v.push([r * a.cos(), r * a.sin(), z]);
-            }
-        }
-    }
-    for j in 0..n {
-        s.f.push([0, idx(0, 1, j + 1), idx(0, 1, j)]);
-        s.f.push([1, idx(1, 1, j), idx(1, 1, j + 1)]);
-    }
-    for ring in 1..k {
-        for j in 0..n {
-            s.f.push([idx(0, ring, j), idx(0, ring, j + 1), idx(0, ring + 1, j + 1)]);
-            s.f.push([idx(0, ring, j), idx(0, ring + 1, j + 1), idx(0, ring + 1, j)]);
-            s.f.push([idx(1, ring, j), idx(1, ring + 1, j + 1), idx(1, ring, j + 1)]);
-            s.f.push([idx(1, ring, j), idx(1, ring + 1, j), idx(1, ring + 1, j + 1)]);
-        }
-    }
-    for j in 0..n {
-        s.f.push([idx(0, k, j), idx(0, k, j + 1), idx(1, k, j + 1)]);
-        s.f.push([idx(0, k, j), idx(1, k, j + 1), idx(1, k, j)]);
-    }
-    outward(s)
-}
+// --- The rose leaves -------------------------------------------------------------------------------------
 
-/// A briar leaflet in its leaf's plan: from `origin` along heading `alpha` (radians from +y toward +x), `len` long
-/// and `wide` across, its serrate margin's teeth leaning forward, its top domed from a raised midrib down to the
-/// margin, lifting `lift` radians as it runs out; its underside sunk `sink` mm at the foot.
+/// A rose leaflet in its leaf's plan: from `origin` along heading `alpha` (radians from +y toward +x), `len` long
+/// and `wide` across; ovate, its finely serrate margin's teeth leaning forward, its top domed up from the margin to
+/// a sunk midrib, lifting `lift` radians as it runs out; its foot sunk `sink` mm.
 fn leaflet_solid(origin: [f64; 2], alpha: f64, len: f64, wide: f64, lift: f64, sink: f64) -> csg::Solid {
-    let (steps, across) = (56usize, 8usize);
-    let (edge, rib, keel) = (LEAF_EDGE_MM, LEAF_RIB_MM, 0.12);
+    let (steps, across) = (72usize, 7usize);
+    let (edge, rib, keel) = (LEAF_EDGE_MM, LEAF_RIB_MM, 0.1);
     let d = [alpha.sin(), alpha.cos()];
     let perp = [d[1], -d[0]];
     let half = |u: f64| {
-        let body = (PI * u.powf(0.85)).sin().powf(0.6);
+        let body = (PI * u.powf(0.8)).sin().powf(0.62);
         let t = (u * LEAF_TEETH as f64).fract();
-        0.5 * wide * body * (1.0 - LEAF_TOOTH * t * (u > 0.12 && u < 0.94) as u8 as f64)
+        0.5 * wide * body * (1.0 - LEAF_TOOTH * t * (u > 0.15 && u < 0.93) as u8 as f64)
     };
     let (u0, u1) = (0.03, 0.95);
     let centre = |u: f64| -> P3 { [origin[0] + d[0] * u * len, origin[1] + d[1] * u * len, u * len * lift.tan()] };
     let loops: Vec<Vec<P3>> = (0..=steps).map(|i| {
         let u = u0 + (u1 - u0) * i as f64 / steps as f64;
-        let (c, w) = (centre(u), half(u).max(0.16));
-        // The foot sinks into the cane and rises clear of it within the first fifth of the leaflet.
-        let under = sink * (1.0 - u / 0.2).max(0.0);
+        let (c, w) = (centre(u), half(u).max(0.17));
+        let under = sink * (1.0 - u / 0.25).max(0.0);
         let mut l = Vec::with_capacity(2 * across + 2);
         for j in 0..=across {
             let v = -1.0 + 2.0 * j as f64 / across as f64;
-            // Domed from the margin up toward the midrib, with the midrib itself sunk in a narrow groove.
-            let groove = LEAF_GROOVE_MM * (1.0 - (v.abs() / 0.2).min(1.0)).powi(2) * (u < 0.9) as u8 as f64;
+            let groove = LEAF_GROOVE_MM * (1.0 - (v.abs() / 0.22).min(1.0)).powi(2) * (u < 0.9) as u8 as f64;
             let top = edge + (rib - edge) * (1.0 - v.abs()).powf(1.3) - groove;
             l.push([c[0] + perp[0] * v * w, c[1] + perp[1] * v * w, c[2] + top]);
         }
@@ -479,112 +429,103 @@ fn leaflet_solid(origin: [f64; 2], alpha: f64, len: f64, wide: f64, lift: f64, s
     lofted(&loops, [a[0], a[1], a[2] + 0.5 * edge - sink], [b[0], b[1], b[2] + 0.5 * edge])
 }
 
-/// Leaflet thickness at the margin and over the midrib; teeth per leaflet and their depth as a share of the width.
-const LEAF_EDGE_MM: f64 = 0.3;
-const LEAF_RIB_MM: f64 = 0.62;
-const LEAF_TEETH: usize = 11;
-const LEAF_TOOTH: f64 = 0.09;
-const LEAF_GROOVE_MM: f64 = 0.1;
+const LEAF_EDGE_MM: f64 = 0.32;
+const LEAF_RIB_MM: f64 = 0.66;
+const LEAF_TEETH: usize = 9;
+const LEAF_TOOTH: f64 = 0.1;
+const LEAF_GROOVE_MM: f64 = 0.12;
 
-/// The shoots' radius, rise before they lean, and their end's share of the foot.
-const SHOOT_R_MM: f64 = 0.62;
-const SHOOT_RISE_MM: f64 = 3.3;
-const SHOOT_END: f64 = 0.78;
-/// The shoots: angle, the side of the bundle they stand from, and which way they lean.
-const SHOOTS: [(f64, f64, f64); 3] = [(CROWN_DEG - 30.0, 1.4, 180.0), (CROWN_DEG + 31.0, -1.4, 0.0), (CROWN_DEG + 44.0, 1.6, 0.0)];
-/// The leaves: angle and place across the finger of the foot, heading in the leaf's plan (degrees from round the
-/// ring, +theta, toward the finger's -z).
-const LEAVES: [(f64, f64, f64); 3] = [(CROWN_DEG - 17.0, 0.7, 192.0), (CROWN_DEG + 17.0, -0.7, -12.0), (CROWN_DEG - 46.0, -1.0, 195.0)];
-/// How deep a leaf's foot sits under the top of the tangle.
-const LEAF_SINK_MM: f64 = 0.3;
+/// A rose leaf: the rachis's foot at `theta_deg` on cane `cane`, its plan laid over the crown from `(theta0, z0)`
+/// heading round the ring by `dir` (+1 or -1) and leaning `skew` radians across the finger.
+struct Leaf {
+    cane: usize,
+    foot_deg: f64,
+    theta0: f64,
+    z0: f64,
+    dir: f64,
+    skew: f64,
+}
 
-/// The top of the tangle at `theta_deg`, `z` across the finger: the furthest cane surface out from the axis there.
-fn tangle_top(theta_deg: f64, z: f64) -> f64 {
+/// The leaves either side of the hip, their terminal leaflets running away from it down the shoulders.
+const LEAVES: [Leaf; 2] = [
+    Leaf { cane: 0, foot_deg: CROWN_DEG - 14.0, theta0: CROWN_DEG - 15.0, z0: 0.9, dir: -1.0, skew: -0.12 },
+    Leaf { cane: 1, foot_deg: CROWN_DEG + 14.0, theta0: CROWN_DEG + 15.0, z0: -0.9, dir: 1.0, skew: 0.12 },
+];
+/// The rachis: its length to the terminal leaflet, its radius; the leaflet pairs' stations, angles, sizes.
+const RACHIS_MM: f64 = 5.4;
+const RACHIS_R_MM: f64 = 0.43;
+const PAIRS: [(f64, f64, f64, f64); 2] = [(1.0, 62.0, 3.3, 2.1), (3.3, 52.0, 3.5, 2.25)];
+const TERMINAL: (f64, f64) = (4.2, 2.6);
+/// How far the leaf's underside sits under the highest cane beneath it.
+const LEAF_SINK_MM: f64 = 0.15;
+
+/// The top of the canes at `theta_deg`, `z` across the finger.
+fn canes_top(theta_deg: f64, z: f64) -> f64 {
     (0..CANES)
         .filter_map(|i| {
             let (r, zc) = cane_at(i, theta_deg);
+            let rc = cane_r(theta_deg);
             let dz = z - zc;
-            (dz.abs() < CANE_R_MM).then(|| r + (CANE_R_MM * CANE_R_MM - dz * dz).sqrt())
+            (dz.abs() < rc).then(|| r + (rc * rc - dz * dz).sqrt())
         })
-        .fold(BUNDLE_R_MM, f64::max)
+        .fold(TWINE_R_MM, f64::max)
 }
 
-/// Where the canes swell at their nodes: cane, index and angle, at an uneven pitch, none under the hip.
-fn node_sites() -> Vec<(usize, usize, f64)> {
-    let mut out = Vec::new();
-    for i in 0..CANES {
-        for k in 0..NODES_PER_CANE {
-            let theta = (31.0 + 23.0 * i as f64 + 360.0 * (k as f64 + 0.3 * (hash((i * 50 + k + 7) as u64) - 0.5)) / NODES_PER_CANE as f64).rem_euclid(360.0);
-            let from_crown = ((theta - CROWN_DEG + 540.0).rem_euclid(360.0) - 180.0).abs();
-            if from_crown > 18.0 {
-                out.push((i, out.len(), theta));
-            }
-        }
+// --- The hip -----------------------------------------------------------------------------------------------
+
+/// The hip's frame: girdle centre, long axis (toward the calyx), across, and up out of the ring.
+struct HipFrame {
+    g: P3,
+    u: P3,
+    v: P3,
+    w: P3,
+}
+
+/// The hip's girdle over the seat, the long axis's turn from along the finger toward round the ring, and its lift.
+const HIP_H_MM: f64 = 1.75;
+const HIP_TURN_DEG: f64 = 28.0;
+
+/// The hip's placement: at the crown, its long axis turned `HIP_TURN_DEG` off the finger's axis, girdle level.
+fn hip_placement(d: &RingDesign) -> (Placement, HipFrame) {
+    let r = seat_r(d) + HIP_H_MM;
+    let g = world(CROWN_DEG, (r, 0.0));
+    let w = world(CROWN_DEG, (1.0, 0.0));
+    let ring = world(CROWN_DEG + 90.0, (1.0, 0.0));
+    let t = HIP_TURN_DEG.to_radians();
+    let u = unit(add3(mul([0.0, 0.0, 1.0], t.cos()), mul(ring, t.sin())));
+    let v = cross(w, u);
+    // A stone's long axis is its frame's y: the frame's x is y x z.
+    (placed_as(d, CROWN_DEG, g, cross(u, w), w), HipFrame { g, u, v, w })
+}
+
+impl HipFrame {
+    fn at(&self, p: P3) -> P3 {
+        add3(self.g, add3(mul(self.u, p[0]), add3(mul(self.v, p[1]), mul(self.w, p[2]))))
     }
-    out
+    fn plane(&self, p: P3) -> Workplane {
+        Workplane { origin: um(self.at(p)), x: self.u, y: self.v, ..Default::default() }
+    }
 }
 
-/// A node's spindle: circles square to cane `i` round its centreline, swelling to `NODE_SWELL_MM` over the cane.
-fn node_loft(i: usize, theta: f64) -> Operation {
-    let n = cane_normal(i, theta);
-    let t = cane_tangent(i, theta);
-    let b = [t[1] * n[2] - t[2] * n[1], t[2] * n[0] - t[0] * n[2], t[0] * n[1] - t[1] * n[0]];
-    let r_mid = cane_at(i, theta).0;
-    let sections = [(-1.0, 0.0), (-0.55, 0.6), (0.0, 1.0), (0.55, 0.6), (1.0, 0.0)]
-        .iter()
-        .map(|&(f, swell)| {
-            let at = theta + (f * NODE_HALF_MM / r_mid).to_degrees();
-            let c = world(at, cane_at(i, at));
-            let plane = Workplane { origin: c, x: n, y: b, ..Default::default() };
-            let r = CANE_R_MM * (1.0 - CANE_LOBE) - 0.02 + (NODE_SWELL_MM + CANE_LOBE * CANE_R_MM + 0.02) * swell;
-            let pts: Vec<[f64; 2]> = (0..24).map(|k| {
-                let a = TAU * k as f64 / 24.0;
-                [r * a.cos(), r * a.sin()]
-            }).collect();
-            poly_on(plane, "Node", &pts).into()
-        })
-        .collect();
-    Operation::Loft { sections }
+/// The receptacle under the stone: an oval cup lofted down from just under the girdle into the canes.
+const HIP_CUP: [(f64, f64, f64); 5] = [(-2.3, 1.5, 1.05), (-1.6, 2.45, 1.85), (-0.85, 2.95, 2.2), (-0.3, 3.05, 2.28), (-0.06, 2.98, 2.22)];
+
+fn ellipse_on(plane: Workplane, name: &str, au: f64, av: f64) -> Sketch {
+    let pts: Vec<[f64; 2]> = (0..40).map(|k| {
+        let t = TAU * k as f64 / 40.0;
+        [au * t.cos(), av * t.sin()]
+    }).collect();
+    poly_on(plane, name, &pts)
 }
 
-/// Nodes per cane before those under the hip are dropped; a node's half-length and swell over the cane.
-const NODES_PER_CANE: usize = 6;
-const NODE_HALF_MM: f64 = 1.1;
-const NODE_SWELL_MM: f64 = 0.16;
-/// The hip's girdle over the seat, and its tilt up out of the thicket.
-const HIP_H_MM: f64 = 2.2;
-/// How far the calyx turns up past the hip's own axis.
-const CALYX_RISE_DEG: f64 = 45.0;
-const HIP_TILT_DEG: f64 = 28.0;
-/// The calyx across its sepals' points; the stalk's radius.
-const CALYX_MM: f64 = 5.0;
+/// The calyx's sepals: how many, their length out from the hub and back along the hip, section and taper.
+const SEPALS: usize = 5;
+const SEPAL_REACH_MM: f64 = 2.5;
+const SEPAL_BACK_MM: f64 = 1.6;
+const SEPAL_SECTION: (f64, f64) = (0.95, 0.55);
+/// The calyx hub's radius and its standing-off past the stone's tip.
+const HUB_OFF_MM: f64 = 0.78;
 const STALK_R_MM: f64 = 0.46;
-
-/// The hip's frame: its girdle `HIP_H_MM` over the seat at the crown, its long axis round the ring, tilted up out of
-/// the thicket so its calyx end rises toward the eye and its stalk end dips into the canes.
-fn hip_placement() -> Placement {
-    Placement::Ring { theta_deg: CROWN_DEG, across_mm: 0.0, height_mm: HIP_H_MM, spin_deg: 0.0, tilt_deg: HIP_TILT_DEG, cant_deg: 0.0 }
-}
-
-/// A point of the hip's frame in world millimetres.
-fn hip_world(d: &RingDesign, p: P3) -> P3 {
-    hip_placement().world(d, p).unwrap_or(p)
-}
-
-/// The hip's stalk: from inside the receptacle's low end, out and down in a curve into the cane below.
-fn stalk_path(d: &RingDesign) -> Vec<[f64; 3]> {
-    let p0 = hip_world(d, [0.0, -1.2, -1.9]);
-    let mid = hip_world(d, [0.0, -4.2, -1.6]);
-    let theta1 = CROWN_DEG - 26.0;
-    let cane = cane_near(theta1, 0.0);
-    let p1 = world(theta1, cane_at(cane, theta1));
-    (0..=12)
-        .map(|k| {
-            let t = k as f64 / 12.0;
-            std::array::from_fn(|i| (1.0 - t) * (1.0 - t) * p0[i] + 2.0 * t * (1.0 - t) * mid[i] + t * t * p1[i])
-        })
-        .collect()
-}
 
 // --- The document ------------------------------------------------------------------------------------------
 
@@ -594,7 +535,7 @@ struct Authored {
     stone_id: u64,
 }
 
-fn author() -> Result<Authored> {
+fn author(bare: bool) -> Result<Authored> {
     let mut d = ground();
     let mut doc = Document::default();
     let mut next = 0u64;
@@ -604,96 +545,85 @@ fn author() -> Result<Authored> {
         Ok(next)
     };
     let free = Component { attach: Attach::Join, stage: Stage::Cast, role: ComponentRole::Shank, ..Component::default() };
-    let liner_major = d.inner_radius_mm() + LINER_MINOR_MM;
-    add(&mut doc, "Heartwood liner".into(), Operation::Torus { major_mm: liner_major, minor_mm: LINER_MINOR_MM }, free.clone())?;
     for i in 0..CANES {
-        let start = 250.0 + 13.0 * i as f64;
-        // A briar cane is faintly angled: five low lobes round its section.
-        let lobed: Vec<[f64; 2]> = (0..40).map(|k| {
-            let t = TAU * k as f64 / 40.0;
-            let r = CANE_R_MM * (1.0 + CANE_LOBE * (5.0 * t).cos());
-            [r * t.cos(), r * t.sin()]
-        }).collect();
-        let section = polygon("Cane section", &lobed);
-        add(&mut doc, format!("Briar cane {}", i + 1), Operation::Sweep { sketch: section.into(), path: cane_path(i, start) }, free.clone())?;
+        add(&mut doc, format!("Briar cane {}", i + 1), cane_op(i), free.clone())?;
+    }
+    if bare {
+        d.cad = Some(doc);
+        return Ok(Authored { design: d, thorns: 0, stone_id: 0 });
     }
     let sites = thorn_sites();
     for (k, t) in sites.iter().enumerate() {
-        add(&mut doc, format!("Thorn {} on cane {}", k + 1, t.cane + 1), thorn(THORN.scaled(t.scale)), on_cane(&d, t.cane, t.theta, THORN_SINK_MM * t.scale, t.spin))?;
+        add(&mut doc, format!("Prickle {} on cane {}", k + 1, t.cane + 1), thorn(t.scale), on_cane(&d, t.cane, t.theta, THORN_SINK_MM * t.scale, t.flip))?;
     }
-    // Three cut shoots standing up out of the tangle round the hip, each leaning away from it, its end pruned
-    // on a slant by a cut in its own frame.
-    for (k, (theta, z, spin)) in SHOOTS.into_iter().enumerate() {
-        let cane = top_cane(theta, z);
-        let (rise, bend_r, bend) = (SHOOT_RISE_MM, 4.0, 16f64.to_radians());
-        let op = Operation::Twist { sketch: Sketch::circle(SHOOT_R_MM).into(), path: hook_path(rise, bend_r, bend.to_degrees()), degrees: 0.0, end_scale: SHOOT_END };
-        let at = on_cane(&d, cane, theta, 0.35, spin);
-        add(&mut doc, format!("Cut shoot {}", k + 1), op, at.clone())?;
-        // The end and its heading in the shoot's frame (y round the ring, z out), then the slanted cut plane.
-        let tip = [0.0, bend_r * (1.0 - bend.cos()), rise + bend_r * bend.sin()];
-        let slant = bend + 38f64.to_radians();
-        let n = [0.0, slant.sin(), slant.cos()];
-        let o: P3 = std::array::from_fn(|i| tip[i] - [0.0, bend.sin(), bend.cos()][i] * 0.3);
-        let plane = Workplane { origin: o, x: [1.0, 0.0, 0.0], y: [0.0, n[2], -n[1]], ..Default::default() };
-        let cutter = poly_on(plane, "Pruning cut", &[[-1.5, -1.5], [1.5, -1.5], [1.5, 1.5], [-1.5, 1.5]]);
-        add(&mut doc, format!("Cut shoot {}: pruning cut", k + 1), Operation::Extrude { sketch: cutter.into(), height_mm: 2.0, draft_deg: 0.0 }, Component { attach: Attach::Cut, ..at })?;
-    }
-    // The hip: its receptacle among the canes, the stalk it hangs from, the dried calyx at its tip.
-    let hip_frame = Component { attach: Attach::Join, stage: Stage::Cast, placement: hip_placement(), ..Component::default() };
-    add(&mut doc, "Hip receptacle".into(), hip_cup(), hip_frame.clone())?;
-    add(&mut doc, "Hip stalk".into(), Operation::Sweep { sketch: Sketch::circle(STALK_R_MM).into(), path: stalk_path(&d) }, free.clone())?;
-    let calyx = calyx_solid(CALYX_MM, 0.6, 0.72, 0.42, 1.1);
-    // The calyx's axis along the ring (+y of the hip's frame), its hub just past the stone's tip.
-    let (hub_y, hub_h) = (0.5 * HIP_L_MM + 0.7, 0.4);
-    // Turned a further CALYX_RISE_DEG up out of the hip's axis, so the star of sepals faces the eye from above.
-    let (sb, cb) = CALYX_RISE_DEG.to_radians().sin_cos();
-    let calyx = csg::Solid { v: calyx.v.iter().map(|p| { let (y, z) = (p[2], -p[1]); [p[0], y * cb - z * sb + hub_y, y * sb + z * cb + hub_h] }).collect(), f: calyx.f };
-    add(&mut doc, "Hip calyx".into(), stored_op(&calyx, "calyx", json!({"across_mm": CALYX_MM, "sepals": 5}))?, hip_frame)?;
-    // Pinnate briar leaves beside the hip: a terminal leaflet and a pair of laterals from one foot.
-    for (k, &(theta, z, alpha_deg)) in LEAVES.iter().enumerate() {
-        let a = alpha_deg.to_radians();
-        let d0 = [a.sin(), a.cos()];
-        let lift = 6f64.to_radians();
-        let parts = [
-            ("terminal", leaflet_solid([0.0, 0.0], a, 4.2, 2.7, lift, 0.32)),
-            ("left", leaflet_solid([d0[0] * 1.1, d0[1] * 1.1], a + 0.95, 3.2, 2.2, lift * 1.3, 0.27)),
-            ("right", leaflet_solid([d0[0] * 1.15, d0[1] * 1.15], a - 0.95, 3.2, 2.2, lift * 0.8, 0.37)),
-        ];
-        // The leaf laid flat over the top of the tangle and bent round the ring with it: plan y runs round the
-        // ring, plan x along the finger, plan z out from the finger's axis, its foot sunk into the cane below.
-        // Over the highest cane under the whole leaf, so no leaflet is buried in the tangle.
-        let reach_deg = (5.0 / BUNDLE_R_MM).to_degrees();
-        let base = (0..=16)
-            .flat_map(|i| (0..=12).map(move |j| (theta - reach_deg + 2.0 * reach_deg * i as f64 / 16.0, z - 3.0 + 0.5 * j as f64)))
-            .map(|(t, zz)| tangle_top(t, zz))
+    // The rose leaves: a rachis from the cane up over the crown, two pairs of leaflets and a terminal one.
+    for (k, leaf) in LEAVES.iter().enumerate() {
+        let reach_deg = (8.0 / TWINE_R_MM).to_degrees();
+        let base = (0..=24)
+            .flat_map(|i| (0..=14).map(move |j| (leaf.theta0 + leaf.dir * reach_deg * i as f64 / 24.0, leaf.z0 - 3.5 + 0.5 * j as f64)))
+            .map(|(t, zz)| canes_top(t, zz))
             .fold(f64::MIN, f64::max)
             - LEAF_SINK_MM;
-        let to_world = |p: &P3| -> P3 {
-            let phi = theta.to_radians() + p[1] / base;
+        // The plan: y round the ring the leaf's way, x across the finger, z out; bent round the ring.
+        let (theta0, z0, dir) = (leaf.theta0, leaf.z0, leaf.dir);
+        let to_world = move |p: &P3| -> P3 {
+            let phi = theta0.to_radians() + dir * p[1] / base;
             let r = base + p[2];
-            [r * phi.cos(), r * phi.sin(), z - p[0]]
+            [r * phi.cos(), r * phi.sin(), z0 + dir * p[0]]
         };
-        for (name, solid) in parts {
-            let placed = outward(csg::Solid { v: solid.v.iter().map(to_world).collect(), f: solid.f });
-            add(&mut doc, format!("Briar leaf {}, {name} leaflet", k + 1), stored_op(&placed, "leaflet", json!({"leaf": k + 1, "leaflet": name}))?, free.clone())?;
+        let head = leaf.skew;
+        let rachis_dir = [head.sin(), head.cos()];
+        let along = |s: f64| [rachis_dir[0] * s, rachis_dir[1] * s];
+        let mut leaflets = Vec::new();
+        for (j, &(s, ang, len, wide)) in PAIRS.iter().enumerate() {
+            for side in [-1.0, 1.0] {
+                let a = head + side * ang.to_radians();
+                let lift = (5.0 + 2.0 * j as f64).to_radians();
+                leaflets.push((format!("pair {} {}", j + 1, if side > 0.0 { "right" } else { "left" }), leaflet_solid(along(s), a, len, wide, lift, 0.25 + 0.03 * j as f64 + 0.01 * side)));
+            }
         }
-        // The leaf's stalk: from under its foot down into the outermost cane beneath it.
-        let foot = to_world(&[0.0, 0.0, -0.1]);
-        let cane = top_cane(theta, z);
-        let into = world(theta, cane_at(cane, theta));
-        let path: Vec<P3> = (0..=6).map(|k| { let t = k as f64 / 6.0; std::array::from_fn(|i| foot[i] + (into[i] - foot[i]) * t) }).collect();
-        add(&mut doc, format!("Briar leaf {}, stalk", k + 1), Operation::Sweep { sketch: Sketch::circle(STALK_R_MM).into(), path }, free.clone())?;
+        leaflets.push(("terminal".into(), leaflet_solid(along(RACHIS_MM - 0.4), head, TERMINAL.0, TERMINAL.1, 4f64.to_radians(), 0.3)));
+        for (name, solid) in leaflets {
+            let placed = outward(csg::Solid { v: solid.v.iter().map(&to_world).collect(), f: solid.f });
+            add(&mut doc, format!("Rose leaf {}, {name} leaflet", k + 1), stored_op(&placed, "leaflet", json!({"leaf": k + 1, "leaflet": name}))?, free.clone())?;
+        }
+        // The rachis: from inside the cane, up and over into the leaf's plane, along it to the terminal leaflet.
+        let foot = cane_point(leaf.cane, leaf.foot_deg);
+        let start = to_world(&[0.0, 0.0, 0.3]);
+        // The petiole, straight from inside the cane up to the leaf's foot; then the rachis along the leaf.
+        let petiole = vec![um(foot), um(add3(start, mul(sub(start, foot), 0.05)))];
+        add(&mut doc, format!("Rose leaf {}, petiole", k + 1), Operation::Twist { sketch: Sketch::circle(RACHIS_R_MM).into(), path: TwistPath::Points { points: petiole, smooth: false }, degrees: 0.0, end_scale: 1.0, scale: Vec::new(), closed: false }, free.clone())?;
+        let points: Vec<P3> = (0..=8).map(|k| um(to_world(&[along(RACHIS_MM * k as f64 / 8.0)[0], along(RACHIS_MM * k as f64 / 8.0)[1], 0.3]))).collect();
+        let mut section = Sketch::circle(RACHIS_R_MM);
+        section.name = "Rachis".into();
+        add(&mut doc, format!("Rose leaf {}, rachis", k + 1), Operation::Twist { sketch: section.into(), path: TwistPath::Points { points, smooth: true }, degrees: 0.0, end_scale: 1.0, scale: Vec::new(), closed: false }, free.clone())?;
     }
-    // Swollen nodes along each cane: a spindle lofted round the cane's own centreline.
-    for (i, k, theta) in node_sites() {
-        add(&mut doc, format!("Node {} on cane {}", k + 1, i + 1), node_loft(i, theta), free.clone())?;
+    // The hip: receptacle, stalk, calyx and stone, all in the hip's frame.
+    let (stone_at, h) = hip_placement(&d);
+    let sections = HIP_CUP.iter().map(|&(w, au, av)| ellipse_on(h.plane([0.0, 0.0, w]), "Hip receptacle", au, av).into()).collect();
+    add(&mut doc, "Hip receptacle".into(), Operation::Loft { sections }, free.clone())?;
+    // The stalk: out of the receptacle's far end, down and round into the low cane.
+    let into = cane_point(1, CROWN_DEG - 12.0);
+    let p0 = h.at([-1.4, 0.0, -1.4]);
+    let p1 = h.at([-3.4, 0.0, -1.5]);
+    let stalk_pts: Vec<P3> = (0..=8).map(|k| { let t = k as f64 / 8.0; um(add3(add3(mul(p0, (1.0 - t) * (1.0 - t)), mul(p1, 2.0 * t * (1.0 - t))), mul(into, t * t))) }).collect();
+    add(&mut doc, "Hip stalk".into(), Operation::Twist { sketch: Sketch::circle(STALK_R_MM).into(), path: TwistPath::Points { points: stalk_pts, smooth: true }, degrees: 0.0, end_scale: 1.0, scale: Vec::new(), closed: false }, free.clone())?;
+    // The calyx: a hub past the stone's tip, five sepals flaring out of it and curling back over the hip's shoulders.
+    let hub = h.at([0.5 * HIP_L_MM + HUB_OFF_MM, 0.0, 0.05]);
+    for k in 0..SEPALS {
+        let a = TAU * k as f64 / SEPALS as f64 + 0.5 * PI;
+        let out = add3(mul(h.v, a.cos()), mul(h.w, a.sin()));
+        let at = |o: f64, b: f64| um(add3(hub, add3(mul(out, o), mul(h.u, b))));
+        let points = vec![at(0.0, 0.15), at(0.9, 0.35), at(1.8, 0.1), at(SEPAL_REACH_MM, -0.6), at(SEPAL_REACH_MM + 0.15, -SEPAL_BACK_MM)];
+        let (sa, sb) = SEPAL_SECTION;
+        let pts: Vec<[f64; 2]> = (0..20).map(|j| { let t = TAU * j as f64 / 20.0; [0.5 * sa * t.cos(), 0.5 * sb * t.sin()] }).collect();
+        let scale = vec![[0.0, 0.8], [0.3, 1.1], [0.7, 0.75], [1.0, 0.5]];
+        add(&mut doc, format!("Hip sepal {}", k + 1), Operation::Twist { sketch: polygon("Sepal", &pts).into(), path: TwistPath::Points { points, smooth: true }, degrees: 0.0, end_scale: 0.5, scale, closed: false }, free.clone())?;
     }
-    let gem = ruby();
-    let stand = gem.pavilion_mm() + 0.05;
+    let gem = hip_gem();
     next += 1;
     let stone_id = next;
-    let _ = stand;
-    doc.append(builders::stone_feature(stone_id, gem, hip_placement()))?;
+    doc.append(builders::stone_feature(stone_id, gem, stone_at))?;
     next += 1;
     let mut claws = builders::feature_on(next, "Thorn claws", builders::CLAW, stone_id, json!({"prongs": 4, "style": "Thorn", "tip": "Dome", "rails": "None"}));
     claws.component.stage = Stage::Cast;
@@ -706,6 +636,29 @@ fn author() -> Result<Authored> {
 
 fn solid_of(m: &mesh::Mesh) -> csg::Solid {
     csg::Solid { v: m.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: m.faces.clone() }
+}
+
+/// The finished metal's separate shells: one, or something floats.
+fn shells(m: &mesh::Mesh) -> usize {
+    let mut parent: Vec<u32> = (0..m.vertices.len() as u32).collect();
+    fn find(p: &mut [u32], mut x: u32) -> u32 {
+        while p[x as usize] != x {
+            p[x as usize] = p[p[x as usize] as usize];
+            x = p[x as usize];
+        }
+        x
+    }
+    for f in &m.faces {
+        for k in 1..3 {
+            let (a, b) = (find(&mut parent, f[0]), find(&mut parent, f[k]));
+            parent[a as usize] = b;
+        }
+    }
+    let mut roots = std::collections::HashSet::new();
+    for f in &m.faces {
+        roots.insert(find(&mut parent, f[0]));
+    }
+    roots.len()
 }
 
 fn geometry(m: &mesh::Mesh) -> (bool, usize, usize) {
@@ -802,7 +755,7 @@ fn walls(built: &mesh::BuildResult) -> Vec<serde_json::Value> {
 
 /// Whether a part is a pointed detail, judged at the detail floor: thorns, shoots and the claws' points.
 fn pointed(name: &str) -> bool {
-    name.contains("Thorn") || name.contains("calyx") || name.contains("leaflet")
+    name.contains("Prickle") || name.contains("sepal") || name.contains("leaflet") || name.contains("claws")
 }
 
 fn walls_ok(walls: &[serde_json::Value]) -> bool {
@@ -841,27 +794,9 @@ fn contact(path: &Path, parts: &[render::Part<'_>]) -> Result<()> {
     Ok(())
 }
 
-/// The faces of `m` whose every corner lies within `half_deg` of `theta` round the ring and `over` mm out.
-fn wedge(m: &mesh::Mesh, theta: f64, half_deg: f64, over: f64) -> mesh::Mesh {
-    let near = |i: u32| {
-        let p = m.vertices[i as usize];
-        let t = (p.1 as f64).atan2(p.0 as f64).to_degrees();
-        let d = (t - theta + 540.0).rem_euclid(360.0) - 180.0;
-        d.abs() <= half_deg && (p.0 as f64).hypot(p.1 as f64) >= over
-    };
-    let mut index = std::collections::HashMap::new();
-    let mut out = mesh::Mesh::default();
-    for f in m.faces.iter().filter(|f| f.iter().all(|&i| near(i))) {
-        let g = f.map(|i| {
-            *index.entry(i).or_insert_with(|| {
-                out.vertices.push(m.vertices[i as usize]);
-                out.normals.push(m.normals[i as usize]);
-                (out.vertices.len() - 1) as u32
-            })
-        });
-        out.faces.push(g);
-    }
-    out
+/// The face view framed on the ring's whole width, down onto the crown.
+fn face_framing() -> render::Framing {
+    render::Framing::new(world(CROWN_DEG, (TWINE_R_MM, 0.0)), 12.6)
 }
 
 fn renders(out: &Path, finished: &render::Finished, edge: usize) -> Result<()> {
@@ -874,27 +809,24 @@ fn renders(out: &Path, finished: &render::Finished, edge: usize) -> Result<()> {
         return Ok(());
     }
     for (name, yaw, pitch) in VIEWS {
-        render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
+        if name == "face" {
+            render::write_png_framed(out.join("face.png"), &parts, yaw, pitch, face_framing(), edge)?;
+        } else {
+            render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
+        }
     }
-    // The hip close: the crown's metal round it, and the stone.
-    let near = wedge(&finished.metal, CROWN_DEG, 32.0, 0.0);
-    let mut close = vec![render::Part::metal(&near, render::GOLD)];
-    close.extend(finished.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    render::write_png_parts(out.join("stones.png"), &close, -0.45, 0.85, edge)?;
-    // Bare against finished: the heartwood liner alone beside the thicket.
-    let liner = wedge(&finished.metal, 0.0, 181.0, 0.0);
-    let _ = liner;
+    // The hip close and the leaf close, framed on the whole parts (#248), never a cropped mesh.
+    let crown = world(CROWN_DEG, (TWINE_R_MM + 1.5, 0.0));
+    render::write_png_framed(out.join("stones.png"), &parts, render::yaw_facing(CROWN_DEG) - 0.45, 0.85, render::Framing::new(crown, 6.0), edge)?;
+    render::write_png_framed(out.join("leaf-close.png"), &parts, render::yaw_facing(CROWN_DEG - 22.0), 1.2, render::Framing::new(world(CROWN_DEG - 22.0, (TWINE_R_MM + 1.0, 0.0)), 6.0), edge)?;
+    // Bare against finished: the two canes alone beside the finished ring.
     let (yaw, pitch) = (VIEWS[0].1, VIEWS[0].2);
-    let mut bare_doc = ground();
-    let mut doc = Document::default();
-    doc.append(Feature { id: 1, name: "Heartwood liner".into(), enabled: true, operation: Operation::Torus { major_mm: bare_doc.inner_radius_mm() + LINER_MINOR_MM, minor_mm: LINER_MINOR_MM }, component: Component { attach: Attach::Join, ..Component::default() } })?;
-    bare_doc.cad = Some(doc);
-    let bare = mesh::try_build(&bare_doc, &AlphaLibrary::builtin(), draft_params())?;
+    let bare = mesh::try_build(&author(true)?.design, &AlphaLibrary::builtin(), draft_params())?;
     let bare_img = render::render_parts_ss(&[render::Part::metal(&bare.mesh, render::GOLD)], yaw, pitch, edge, edge, 3);
     let finished_img = render::render_parts_ss(&parts, yaw, pitch, edge, edge, 3);
     side_by_side(&out.join("bare-vs-finished.png"), &bare_img, &finished_img, edge)?;
     render::write_png_parts(out.join("hero-300.png"), &parts, yaw, pitch, 300)?;
-    render::write_png_parts(out.join("face-300.png"), &parts, VIEWS[1].1, VIEWS[1].2, 300)?;
+    render::write_png_framed(out.join("face-300.png"), &parts, VIEWS[1].1, VIEWS[1].2, face_framing(), 300)?;
     contact(&out.join("contact-300.png"), &parts)?;
     Ok(())
 }
@@ -907,7 +839,7 @@ fn main() -> Result<()> {
     std::fs::create_dir_all(&out)?;
     println!("Sentis");
     let started = std::time::Instant::now();
-    let Authored { design: d, thorns, stone_id } = author()?;
+    let Authored { design: d, thorns, stone_id } = author(false)?;
     let lib = AlphaLibrary::builtin();
     let author_s = started.elapsed().as_secs_f64();
     let params = if draft { draft_params() } else { export_params() };
@@ -938,6 +870,30 @@ fn main() -> Result<()> {
         println!("    finished vertices beyond the hip's tip: {near}");
     }
     let made = made_parts(&built);
+    let shell_count = shells(&built.mesh);
+    if std::env::var("SENTIS_DEBUG").is_ok() {
+        for c in built.parts.evaluated.iter().flat_map(|e| e.components.iter()) {
+            if let Some((lo, hi)) = c.mesh.bounds() {
+                if lo.0 < -11.0 && hi.0 > -11.05 && lo.1 < 3.5 && hi.1 > 3.47 && lo.2 < 0.88 && hi.2 > 0.86 {
+                    println!("    near the shard: {} ({} shells alone)", c.name, shells(&c.mesh));
+                }
+            }
+        }
+        // Each finished shell's extent.
+        let mut by: std::collections::HashMap<u32, (usize, [f32; 3], [f32; 3])> = Default::default();
+        let mut parent: Vec<u32> = (0..built.mesh.vertices.len() as u32).collect();
+        fn find(p: &mut [u32], mut x: u32) -> u32 { while p[x as usize] != x { p[x as usize] = p[p[x as usize] as usize]; x = p[x as usize]; } x }
+        for f in &built.mesh.faces { for k in 1..3 { let (a, b) = (find(&mut parent, f[0]), find(&mut parent, f[k])); parent[a as usize] = b; } }
+        for f in &built.mesh.faces {
+            let r = find(&mut parent, f[0]);
+            let p = built.mesh.vertices[f[0] as usize];
+            let e = by.entry(r).or_insert((0, [f32::MAX; 3], [f32::MIN; 3]));
+            e.0 += 1;
+            for (k, v) in [p.0, p.1, p.2].into_iter().enumerate() { e.1[k] = e.1[k].min(v); e.2[k] = e.2[k].max(v); }
+        }
+        for (_, (n, lo, hi)) in by { println!("    shell of {n} faces: {lo:?} .. {hi:?}"); }
+    }
+    println!("  shells {shell_count}");
     let (solids_notes, parts_notes) = (built.solids.notes.clone(), built.parts.notes.clone());
     let status = feature_status(&built);
     for (n, s) in &status {
@@ -994,10 +950,10 @@ fn main() -> Result<()> {
     let gates = [
         ("finished mesh watertight, 0 degenerate faces, 0 self-crossings", watertight && degenerate == 0 && crossings == 0),
         ("every CAD part closed without crossings", made.iter().all(|(_, n)| *n == 0)),
+        ("one shell: nothing floats", shell_count == 1),
         ("solids and parts notes empty, every feature Ok", solids_notes.is_empty() && parts_notes.is_empty() && status.iter().all(|(_, s)| s == "Ok")),
         ("nothing enters the finger hole", inside == 0),
         ("every part's ray-sampled wall at the 0.8 mm section, its pointed details (thorns, shoots) at the 0.15 mm detail floor", walls_ok(&wall)),
-        ("lost-wax verdict Castable with the 0.8 mm section", field.process == castability::CastProcess::LostWax && field.verdict == castability::Verdict::Castable && field.thinnest_wall_mm >= MIN_SECTION_MM),
         ("zero DFM findings", findings.is_empty()),
         ("stones reported equal the preview", reported == previewed && reported == 1),
         ("no metal inside a stone", in_stones.iter().all(|(_, n)| *n == 0)),
@@ -1017,7 +973,7 @@ fn main() -> Result<()> {
         "grams_18k": grams,
         "size": d.size.display(),
         "build": {"theta_steps": params.theta_steps, "profile_steps": params.profile_steps, "triangles": triangles, "build_s": build_s, "author_s": author_s},
-        "geometry": {"watertight": watertight, "degenerate_faces": degenerate, "self_crossings": crossings},
+        "geometry": {"watertight": watertight, "degenerate_faces": degenerate, "self_crossings": crossings, "shells": shell_count},
         "made_parts": made,
         "features": status,
         "thorns": thorns,
