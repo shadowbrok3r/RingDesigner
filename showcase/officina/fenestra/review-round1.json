@@ -1,0 +1,65 @@
+{
+  "ring": "fenestra",
+  "round": 1,
+  "verdict": "revise",
+  "score": 5.3,
+  "summary": "The idea now reads: a four-claw oval solitaire with three drop windows through each shoulder, pointed toward the head, evenly spaced and mirrored across theta 90. The gates are all green. It is still a CAD demo and not a piece Logan would sell. The band is a plain flat 3.2 x 2.4 slab whose swell hardly shows (face view is close to parallel-sided). The basket is pushed straight down into that slab with no seam bead, collar or shoulder, so it looks glued on. The drop windows have rough, combed chamfers at their points. The face view shows no part of the lesson. Seat bur (step 4) adds nothing visible in the timeline. Next to Caiman (7: dense, crisp, resolved) this is sparse and unresolved where parts meet. The craft fixes are concrete and one round can make them.",
+  "strengths": [
+    "One idea, read at 300 px: hero-300 shows a claw solitaire with a ruled row of pierced drops on each shoulder. All three read-test changes landed: the windows are pulled up to the head, they are larger, and the six share one shape and one tilt.",
+    "The windows are true through-cuts along the pull, with daylight in every view (side, shoulder, palm). The side view shows a clean symmetric fan of 3 + 3 drops around the head.",
+    "The made setting is legible: four claws, two rails, a through bur, and the stone visible from the face.",
+    "Every gate is recorded and green, including export at 1.33 M triangles and cold reload identical.",
+    "The timeline has 8 short steps in a sensible order. Steps 5 to 8 (cut, array, mirror, mirror) teach patterning cleanly."
+  ],
+  "checklist": [
+    {"item": "One idea face to palm, reads at 300 px without the caption", "result": "pass", "reason": "hero-300 reads as 'solitaire with pierced drop windows down the shoulders'. The palm stays plain as specified. Weak point: face-300 shows only a stone on a plain flat band, with no hint of the windows."},
+    {"item": "A finished piece a jeweller would sell: proportion, weight, every part meeting the band", "result": "fail", "reason": "The basket claws and lower rail stop flat on the band top and side faces with no seam bead or fillet (stones.png, shoulder.png), so the head looks glued on. The band is a plain constant-section slab. The procedural Cathedral swell is barely visible in face.png or timeline step 1, so the shoulders do not 'swell to the head' as the concept says. The head sits on a band about as wide as the stone's minor axis and looks undersized and perched."},
+    {"item": "No flat, blocky or mechanical CAD", "result": "fail", "reason": "The side faces are large flat sheets with near-square edges (hero.png, reverse.png, palm.png). The windows look punched into a slab. Nothing breaks or softens the shoulder planes."},
+    {"item": "Outlines render crisp, no combing, smearing or stair-steps", "result": "fail", "reason": "The 0.15 mm window chamfers comb and hatch at the drop points. This is plainly visible at the tips of the near-head windows in hero.png, side.png (top two each side), reverse.png (all six tips) and bare-vs-finished.png."},
+    {"item": "Stones sit in made settings and are visible", "result": "pass", "reason": "The Oval 7 x 5 sits in a made four-claw, two-rail basket and shows from the face. The stone renders as a flat grey disc with weak facet contrast. That is a render note, not a setting failure."},
+    {"item": "Factory stock keeps hard wall-to-face angles", "result": "pass", "reason": "Not applicable: a Flat procedural band, not factory stock."},
+    {"item": "Lesson legible in timeline.png: each feature one visible step", "result": "fail", "reason": "Step 4 (seat bur) looks the same as step 3 from the timeline camera. Step 1's 'shoulders swelling to the head' cannot be seen. Steps 5 to 8 are clear, though step 7's single far window is small and faint."},
+    {"item": "Silhouette distinct from other Officina rings and the starter gallery", "result": "fail", "reason": "Seen from the face or in three-quarter view at a glance, the outline is a generic four-claw solitaire on a flat band, close to the Cathedral/Bezel starters. 'Daylight through the band along the pull' is also Split gallery's lesson. Only the repeated drops tell it apart, and they show only side-on."}
+  ],
+  "gates": [
+    {"gate": "watertight", "claimed": "true (draft and export)", "verified": "report.json export.gates.watertight = true; pattern.watertight = true", "pass": true},
+    {"gate": "0 degenerate faces", "claimed": "0", "verified": "export.gates.degenerate_faces = 0; pattern.degenerate_faces = 0", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "0", "verified": "ring_self_crossings 0; all 7 made_part_self_crossings 0; pattern.self_crossings 0", "pass": true},
+    {"gate": "solids notes empty", "claimed": "empty", "verified": "solids_notes [] and parts_notes []", "pass": true},
+    {"gate": "every CAD feature Ok", "claimed": "8 Ok", "verified": "features 1-8 all status Ok in draft and export", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "0", "verified": "vertices_inside_bore 0; min_vertex_radius 9.09999 vs bore radius 9.1 (within tolerance)", "pass": true},
+    {"gate": "field verdict (lost wax)", "claimed": "Castable", "verified": "field_verdict Castable. The basket and bur undercut notes are informational under wax.", "pass": true},
+    {"gate": "sand ray release at 0.100 / 0.075 mm", "claimed": "n/a (lost wax)", "verified": "Process is LostWax, so the sand ray gate does not apply", "pass": true},
+    {"gate": "thickness clean at 0.8 mm", "claimed": "clean", "verified": "limit 0.8, below_limit 0, unresolved 0, sampled_min 0.867 mm", "pass": true},
+    {"gate": "dfm::cut_lands clean", "claimed": "clean", "verified": "cut_lands []", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings []", "pass": true},
+    {"gate": "stone count equals preview", "claimed": "1 = 1", "verified": "stones_reported 1, stones_previewed 1; stones.json stone_count 1", "pass": true},
+    {"gate": "cold reload identical", "claimed": "true", "verified": "export.gates.cold_reload_identical true. The draft records null, which is expected for the draft pass.", "pass": true},
+    {"gate": "export within 2 M triangles", "claimed": "1,329,686", "verified": "export.gates.triangles 1,329,686", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "watertight", "verified": "pattern {watertight true, degenerate 0, self_crossings 0}", "pass": true},
+    {"gate": "template gate (<= 4 design.set patches)", "claimed": "not yet run", "verified": "Not recorded in report.json. review.md applies this gate only once it has run. Run it before round 2.", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Head-to-band junction, theta 78-102, Basket (#3) claw feet and lower rail", "change": "Seat the basket into the band. Add a seam bead or fillet of 0.3-0.4 mm where each claw foot and the lower rail meet the band top. Or lift the band top under the head into a low saddle or collar (about 0.4 mm proud, running 1 mm past the basket footprint) so that the claws grow out of metal instead of stopping on a flat sheet.", "acceptance": "In stones.png and shoulder.png, every claw foot meets the band through a visible radiused transition with no hard crease, and no claw ends flush on a flat face."},
+    {"number": 2, "priority": "high", "zone": "Band (#1) swell keys, theta 10-90 each side", "change": "Make the shoulders visibly swell. Raise the width scale at theta 90 from 1.66 toward about 1.9 (to about 6 mm at the head), taper smoothly to 1.0 by theta 10 on a curved (not linear) profile, and lift the thickness at theta 70-55 so the side faces are deeper where the windows sit. Soften the outer edges with a 0.4-0.5 mm round so the side faces stop reading as cut sheet.", "acceptance": "In face.png and face-300.png the band outline flares visibly toward the head (top width at least 1.6x the width at the frame edge). In hero.png the band edges show a highlight roll rather than a single hard line."},
+    {"number": 3, "priority": "high", "zone": "Drop windows (#5-#8), chamfer at the points", "change": "Fix the combing on the window chamfers. Raise the cutter outline sampling at the drop tip, or round the tip with a radius of at least 0.25 mm and build the 0.15 mm chamfer from the rounded outline, so the bevel is a continuous surface instead of a hatched fan.", "acceptance": "In hero.png, side.png and reverse.png at full size, all six drop tips show a smooth, unbroken chamfer highlight with no striping, hatching or stair-steps."},
+    {"number": 4, "priority": "medium", "zone": "Timeline step 4 (seat bur) and the timeline camera", "change": "Make every step visible. Either render the timeline from a camera that shows the bur pilot (a slightly lower three-quarter view that catches the inside of the bore at theta 90), or show step 4 from that alternate view in its tile. Also make step 1 show the swell once item 2 lands.", "acceptance": "In timeline.png, each of the 8 tiles differs visibly from the one before it: the step-4 tile shows the bur pilot or the seat cut, and the step-1 tile shows a flaring band."},
+    {"number": 5, "priority": "medium", "zone": "Face read and silhouette, theta 60-120", "change": "Let the lesson reach the face and the outline. With the deeper, flared shoulders from item 2, carry a shallow 0.3 mm bevel or flute along the top edge over theta 50-80 that lines up with the window row, or let the top window break just into the top-edge chamfer, so that face-300 hints at the pierced shoulders. Check that the result no longer reads as a generic claw solitaire beside the Cathedral/Bezel starters or Split gallery.", "acceptance": "In face-300.png the shoulders show a visible feature beside the head aligned with the window rows. In contact-300.png the ring is told apart from a plain solitaire in at least the face and the side panel."},
+    {"number": 6, "priority": "low", "zone": "stones.json / report.json stone spin", "change": "Make the stone's recorded spin_deg (0.0) agree with the spec's 'laid along the ring, spin_deg 90', or note in the blurb that 0 is the along-the-ring orientation in this convention.", "acceptance": "report.json stone.spin_deg and the spec agree, or the README or blurb states the convention, and face.png still shows the oval's long axis along the band."}
+  ],
+  "viewed_images": [
+    "showcase/officina/fenestra/hero-300.png",
+    "showcase/officina/fenestra/face-300.png",
+    "showcase/officina/fenestra/contact-300.png",
+    "showcase/officina/fenestra/hero.png",
+    "showcase/officina/fenestra/face.png",
+    "showcase/officina/fenestra/side.png",
+    "showcase/officina/fenestra/shoulder.png",
+    "showcase/officina/fenestra/palm.png",
+    "showcase/officina/fenestra/reverse.png",
+    "showcase/officina/fenestra/stones.png",
+    "showcase/officina/fenestra/timeline.png",
+    "showcase/officina/fenestra/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png"
+  ]
+}
