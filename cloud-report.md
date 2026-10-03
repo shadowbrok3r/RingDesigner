@@ -1,53 +1,150 @@
-# Core: CAD operations that stop failing on Gothic geometry
+# Tenebrae — Gurgulio, the waterspout: cut at 6.6
 
-Branch `claude/core-cad-robust`, off master `8e5a59a`, with master merged in up to `60b3881` (crisp edges, Gothic clusters, frame timing, relief sculpt, true stone plans). One code commit, three merges and this report. The last merge's conflicts were in `twist.rs`, where master's closed and scaled sweep keeps its form and the cap's `fill` takes the label that `cad::draft` and `cad::turn` share, and in CLAUDE.md, where master's twisted-sweep text comes first and the new doctrine bullet follows it.
+Branch `claude/tenebrae-gurgulio`, cut from master `29babc4`. Master was merged at the start of each round: `0c7c8c4` (#261, wall census) and `b03a21d` (#263) in round 2, and `803a93e` (#262) in round 3. Author file: `crates/ringdesign-core/examples/tenebrae_gurgulio.rs`. Outputs: `showcase/tenebrae/gurgulio/`. The ring's section, "Gurgulio — *the waterspout*", is new in `docs/collections/tenebrae.md`. Gurgulio takes Oculus's row in the table there, and the section now records the cut.
 
-**The rule behind every fix:** each one is a fallback that runs only where the kernel failed. If the kernel already built a body, the core still uses that body, so no existing result moves. The core suite and golden test pass unchanged, and the graph and template tests are below. No new option, no serde field and no format change were needed, so nothing is fenced. `cadkernel` is not forked; every fix is in `cad.rs`, the new `cad/draft.rs` and `cad/turn.rs`, `cad/twist.rs` (two helpers made `pub(super)`) and `sketch/region.rs`.
+**Verdict: cut at 6.6.** Every gate is green at draft and export. The ring used both block-out read tests it needed (of three allowed) and all three review rounds. No extra round was granted, and the doc records none.
 
-## Per request
+## Read tests and reviews
 
-| # | Request | Status | What changed |
+| Step | Verdict | Score | What the reviewer saw |
 |---|---|---|---|
-| 3 | Revolved arcs do not tessellate | **Fixed** | There were two separate defects. (a) "N nonmanifold edges": the kernel covers a revolved arc's torus seam with a zero-width strip, every triangle laid twice, once each way. `tessellate_traced` now removes opposite twin triangles wherever some edge has more than two faces (`cancel_twins`). The volume is unchanged and the body stays the kernel's. (b) "Kernel could not tessellate 1 faces": the kernel drops a torus face (on Ogiva's arch it is the comfort arc), and whether it does depends on the chord (on one arch it failed at 0.04 mm, passed at 0.015 and failed again at 0.012). Retrying cannot be relied on, so a revolve that has arcs and fails to tessellate becomes our own mesh (`cad::turn`). It is sampled at a quarter of the chord, with full and part turns, holes on full turns, and points on the axis shared. |
-| 4 | Drafted extrusion refuses Béziers and inset-dropping outlines | **Fixed** | When the kernel's tapered extrude refuses a region with no holes, `cad::draft` builds it. The outline is walked to the chord, and the far end is a mitred inset that removes each edge as the wavefront collapses it. Each side face is planar. A draft that would carry a notch's root across the outline (a split event) is refused by name: "the draft closes the outline across a neck or notch". |
-| 7 | Brep − Brep gives `NoClosedForm` (`CutRefused` here) | **Fixed** | When `brep::combine` fails, the Boolean goes through `csg` on the operands tessellated at the export chord, the same path a mesh operand already took. The 500-face refusal before the kernel stays as it was. |
-| 2 | Loft through non-parallel sections has open seams | **Fixed** | The kernel splits a ruled face's straight edge where its planar neighbour leaves it whole, so the seam has T-junctions. `split_t_junctions` fans each open edge's triangle through the open corners lying on it, within 1e-6 mm. No vertex moves. |
-| 6 | Loft only runs along the section normal | **Fixed, differently** | Measured: what decides success is the sections' winding relative to the direction the loft runs, not their order. On the probe's fanned planes, the order the report found working has (c1 − c0) · n0 **> 0**, so the literal rule ("reverse when > 0") would reverse the order that works. Instead, when the kernel refuses a polygon loft, `wound_sections` winds every section about the first-to-last centre line and lines each one up with the section before it. Either order now gives the same solid. |
-| 1 | Loft winding read off the first corner | **Fixed** | The same `wound_sections` pass also starts every section together where the first and last sections are convex at their second corner. The kernel's `polygon_normal` reads that corner through the first fan triangle, so it is the one that matters, not the first corner itself. |
-| 5 | Mirrored outlines in one sketch fail the drafted extrude | **Fixed** | Measured cause: the halves overlap or touch at the centre line, and the sketch refuses "loops may nest but not touch". The extrude itself does not fail. Now a **Sketch feature** whose loops meet extrudes each loop alone (straight, kernel-drafted or `cad::draft`) and joins the loops by `csg`. Inline profiles still refuse several loops, as their tests pin. Each loop is drafted on its own, so halves that only touch leave a draft groove along the line where they meet. Overlap them by at least the draft's inset (height × tan(draft)), as Ogiva's `FINIAL_OVERLAP_MM` did. |
+| Read test 1 | does not read | — | "A dragon figurine on a pedestal ring". The body was a tube-and-knob armature (wire, toy robot), the plinth read as a lettered plaque, and the face view was unreadable. |
+| Read test 2 | **reads** | — | "Gargoyle, Gothic… passes, but only just on the architecture." The hero showed a snarling beast with paws over a ledge. The face view showed a head thrust out past a block with a spout down the finger, "the clearest waterspout read". |
+| Round 1 | revise | 6.2 | The subject reads. Two problems: the part's own sections and a dense thickness sampling were not gates, and the sculpt was a "cartoon bulldog" with decimation shards. Also: the perch was a box, the wings a fan, the shoulders were "ziggurat" step blocks, and the band was bare from shoulder to palm. |
+| Round 2 | revise | 6.5 | Every gate green, the draft cold reload fixed, the field notes fixed. The theme now runs face to palm (the side-wall arcade), and the bored spout shows in the hero. Still: the bulldog sculpt, the decimation flecks, the wings as chevrons, the perch as a box, no visible gutter, and the arcade reading as "gear teeth". |
+| Round 3 | **cut** | 6.6 | Every gate green. The gutter and its rolls run over the palm, and the paws grip the coping with separate digits. Still: inflated capsules, not carved stone; flecks and creases in the close-up; the wings read as slabs from above; the perch still reads as a box; the hero reads as "a cluttered block or robot head". |
 
-Every fallback part is a mesh value, as `cad::twist` is. Fillet, press-pull and sketch-on-face refuse it by name: "a drafted extrusion's mesh", "a revolution's mesh", "a mesh of loops extruded and joined".
+Full verdicts: `read-test-1.json`, `read-test-2.json` and `review-round{1,2,3}.json`.
 
-## Tests
+## What the ring is
 
-New tests in `cad::robust_tests` and `cad::draft::tests`, each built from the report's kind of geometry:
+- **Base:** a procedural `Flat` band, 4.6 × 2.4 mm at the palm, keyed (`ShankKind::Keyframes`) to 1.85× width and 1.05× thickness over the crown (θ 66–118°), bore 18.6 mm (US 8.6). I chose this over a factory signet because the perch *is* the head here: it is sculpted with the beast as one part, so the band only has to rise into the corbel's foot. A factory table under a figure is what read as a "hood ornament" in the Ogiva spike.
+- **The part:** one sculpted stored mesh, "Grow the gargoyle and its parapet out of the band" (`sculpt.rs`: `tetra_mesh` at 0.055 mm, then the largest shell kept, then `decimate` to 300k at a cost cap of 0.003, then `settle`, giving 189,134 faces and 1,804 mm³). It is joined with `fillet_into_band` 0.7 mm. It contains:
+  - **The parapet.** A corbel tapering out of the band into the wall, with chamfered upright edges.
+  - **The wall.** Three blind pointed lancets on the front and on the back, and one blind quatrefoil (lobes run together on a 0.16 round) on each side, all sunk 0.6 mm.
+  - **The cornice.** Two steps round all four sides. Each step overhangs 0.85 / 0.8 mm through a cavetto, keeps 0.82 mm of stone over its hollow, and the coping's arris is chamfered.
+  - **The pinnacles.** Two at the back corners: a chamfered shaft, gablets, a spire and a knob finial.
+  - **The gargoyle,** 1.9× in its frame, facing the fingertip. It has a heavy crouched body with a row of seven dorsal knobs. Its forelegs are braced to the coping, with wrists and three claws per paw gripping the coping's front edge, sunk into it. The hind legs are folded high, and the tail is wrapped into a foot.
+  - **The wings.** Two folded bat wings ride the back like a cape. Each is a membrane slab with an arm bone, four finger bones lying 0.32 mm proud, a wrist claw, and a trailing edge scalloped between the fingers.
+  - **The head,** 1.6× and raised 38°. It is cut in planes: a brow shelf over deep sockets with the eyes set back, cheekbones, a snout block with a snarl crease and two furrows each side, a dropped jaw, conical horns and ears, and two fangs. A lead pipe lies out of the jaws 12.5° above the finger's line, its end cut square with a rounded lip, and bored 0.73 mm.
+- **The band's ornament** (tiling layers, `crisp_relief` on):
+  - "Nave arcade": 33 bays of pointed lancets on both side walls under a string course, the ribs 0.95 mm and the course standing 0.4 mm.
+  - "Arcade fields": each bay's field sunk 0.25 mm.
+  - "Gutter rolls" and "Lead gutter": a 0.9 × 0.4 mm gutter sunk along the crown's centre line all round, between two 0.8 mm roll beads. It is the source of the spout's water.
+- **Stones:** none.
+- **Process:** lost wax, Silver 925, `CastProcess::LostWax` with `min_section_mm` raised to 0.8. The decision is recorded in the ring's section.
+- **Sand bonus:** none. The two-part undercut is 7.9% on the band and 18.2% with the part, so it does not pull from sand.
 
-- `a_revolved_sketch_arc_closes_and_holds_its_volume` (3a): a domed band section, closed at preview and export, volume within 0.4% / 0.15% of Pappus, and still the kernel's body.
-- `a_pointed_arch_revolves_whole_and_in_part` (3b): Ogiva's arch (comfort arc, jambs, two head arcs). It asserts the kernel's own tessellation still fails, then checks the full turn against a fine-walked Pappus within 0.5% / 0.2%, and the half turn either way within 0.5% of half.
-- `a_brep_cut_the_kernel_refuses_is_resolved_by_csg` (7): a revolved ring less a lancet niche. It asserts `brep::combine` still refuses, then checks the volume against the analytic ring less the niche's foot.
-- `a_loft_through_fanned_sections_closes_listed_either_way` (2, 6): five fanned sections, both orders, preview and export, all closed with identical volumes.
-- `a_loft_section_may_start_on_a_concave_corner` (1): asserts `brep::loft` still refuses, then checks the volume is exactly 10.
-- `mirrored_loops_that_meet_extrude_together` (5): straight volume exactly the union's 9.0, drafted below it, closed.
-- `a_bezier_outline_drafts`, `an_inset_that_drops_a_piece_drafts`, `a_draft_the_kernel_takes_is_still_its_body` (4): each asserts `brep::extrude_tapered` still refuses. Checked: the first-order draft volume, the mirrored run, the collapsed tip (5 far corners), the filled notch on the grown rectangle, the named refusal of a split, and that a draft the kernel accepts stays its body.
+**The feature tree, as sentences.**
+1. "Procedural shank": the keyed band.
+2. "Grow the gargoyle and its parapet out of the band": the stored sculpt, joined with a 0.7 mm fillet into the band.
 
-Reproduced on unmodified master first, with a scratch probe that was not committed: domed revolve "0 open and 16 nonmanifold edges"; arch "Kernel could not tessellate 1 faces"; ring − niche "CutRefused"; Bézier and notch drafts "unsupported or degenerate geometry"; fanned loft "68 open edges" in one order and "unsupported" in the other; overlapping halves "loops may nest but not touch". Tests that cannot fail on master by construction instead assert the kernel's own refusal in place.
+The field layers, in stack order: the nave arcade stands on both side walls; the gutter's roll beads stand on the crown; each bay's field is sunk; the lead gutter is sunk last, so no `Max` fills a carving back in.
 
-Results:
-- `cargo test -p ringdesign-core`: 848 passed, 0 failed, 16 ignored; golden 1 passed. After merging master up to `60b3881`: 912 passed, 0 failed, 17 ignored; golden and the other integration test both pass.
-- `cargo test -p ringdesign-graph` (templates byte for byte, showcase, bestiarium, imported bases, cad edits): all passed before the merges (140) and after them (152, including the new `gothic_clusters`), 0 failed.
+## Gates (final build, from `report.json`)
 
-**Merge note.** Master (from `779a3d6`) brought its own seam repair, `zip_chord_seams`, which splits open edges at the other side's samples within the chord. The merged `tessellate_traced` runs master's `stitch_chord_gaps` and then `zip_chord_seams` exactly as master does. Only what those two leave open goes on to `cancel_twins` and `split_t_junctions`, followed by one more stitch. So whatever master's pass already closes is closed byte for byte as master closes it, and my passes see only what it cannot close: the doubled seams, and T-junctions it reverts.
+| Gate | Draft 768 × 320 | Export 1536 × 448 |
+|---|---|---|
+| Watertight, 0 degenerate, 0 self-crossings | 651,252 tris; true / 0 / 0 | 1,482,978 tris; true / 0 / 0 |
+| Sculpt closed and uncrossed, as made and as placed | 0 open edges, 0 crossings | same |
+| Solids/parts notes empty, every feature `Ok`, the part joined | pass | pass |
+| Nothing in the finger hole | nearest 9.30001 of 9.3 mm, 0 inside | nearest 9.29999 mm, 0 inside |
+| Lost-wax field verdict | Castable (band and with the part), thinnest wall 1.99 mm | same |
+| Wall census `cad::measure::thickness(&built.mesh, 0.8)` | assessed, 342,691 samples, 0 unresolved, **0 wall**; 1,596 edge samples (9.37 mm²) read as reported | assessed, 345,401 samples, 0 unresolved, **0 wall**; 1,761 edge samples (10.21 mm²); `clean()` true |
+| Suspected census artifacts (zones under 0.05 mm) | none | none |
+| `dfm::cut_lands` at 0.8 | clean | clean |
+| `dfm::findings_in` | 0 | 0 |
+| Stones reported = preview | 0 = 0 | 0 = 0 |
+| Casting pattern | watertight, 0 / 0 | watertight, 0 / 0 |
+| Within 2M triangles | yes | yes |
+| Cold reload, empty library | identical | identical |
 
-## For a ring author
+The wall gate follows the lead's notes in order:
+- **#261:** the census on the finished ring replaced my 384-ray pass and my 20k-ray hand census. Both were removed.
+- **The interim correction:** no wall zone that is a real section of 0.05–0.8 mm, and zones under 0.05 mm listed as artifacts. The final build reads 0 wall samples, so it also passes the strict `clean()`.
+- **`dfm::part_sections`** on the part alone (its buried foot included) is reported, not gated: thinnest 0.0001 mm, 6.67 mm² under 0.8.
 
-Draw what you mean and stop working around the kernel:
+**Template gate**, after the last round, on the final build:
+- Class `painted`.
+- 0 `design.set` patches.
+- **2,063,830 B** against the 3 MB budget (39 nodes).
+- Cold source identical, and vertices, faces and normals identical at 1,482,978 triangles.
+- Cold design and graph reloads true; first open 9.3 s.
 
-- **Revolves:** use real sketch arcs, not chord-walked polylines.
-- **Drafted extrusions:** Béziers and sharp crocket tips are fine. A draft that would close a neck is refused by name; draft less or widen the neck.
-- **Mirrored outlines:** they may share one Sketch feature. Overlap the halves by at least height × tan(draft), or a groove stays where they meet.
-- **Lofts:** list fanned sections in either order, and start a section on any corner.
-- **Booleans:** a Brep minus a Brep the kernel cannot close now resolves through csg.
+As `procedural` the graph is over its 300 KB budget (1.56 MB in round 1). The stored sculpt is most of the graph, as with Moloch, which ran `painted`. `crisp_relief` is on, and the lift carries it since #260. Numbers are in `template-gate.json`.
 
-Each of these comes back as a mesh rather than a kernel body only where the kernel failed. So fillet before the step that falls back, not after it, and check `Value::mesh_words` in any refusal you see.
+## Master enablers used
 
-What remains: a part turn of a section with holes that the kernel cannot tessellate is still refused. A revolve with arcs now pays one extra tessellation in `body_for`, about the cost of one tessellation, so up to about 0.6 s at export on a large arch.
+- **#248 (crisp edges):** I used `render::write_png_framed` for the close-up (`stones.png`) and `crisp_relief` for the band's arcade and gutter.
+- **#261 (wall census):** the lost-wax wall gate. It found real walls my own checks had missed: blend webs, the coping lip, the pipe wall and the cavetto shelf. All were fixed.
+- **Not used:**
+  - C-B2 / #257 true stone plans: there are no stones.
+  - C-T5/C-T6 (#255) Textura and marks: there is no lettering, and the part is cast with its default mark.
+  - C-V1–V5 / #258 patterns along a path, C-T7 sweeps and #259 CAD fallbacks: the perch and figure are one sculpt, not CAD features.
+
+## What I could not do
+
+- **Carve the figure as stone.** All three reviewers read an inflated cartoon or "vinyl" grotesque. Building a stone-carved face from smooth SDF primitives (ellipsoids, capsules, rounded boxes, plane cuts) did not get there in three rounds. The round-3 attempt at planes read as "blocky / robot" at 300 px. A head built as a CAD loft of carved sections, or a sculpted asset, would be the honest route.
+- **Reach the reviewers' decimation target.** They asked twice for ≥450k faces at 0.003. At ~11 B per face the design would pass the 3 MB painted budget, so the template gate would fail. I raised the budget to 300k at 0.003 (189k after settle) and eased the figure's shading normals in the renders only. Flecks remain at the creases.
+- **Wings that read as bat wings from above.** They read as a fan in round 1, chevrons in round 2 and slabs in round 3.
+- **The perch's cornice at 300 px.** The two-step cavetto cornice is in the geometry, but the beast covers most of it from the hero camera, and the final reviewer still read "a box".
+- **The arcade at 300 px.** Its relief has to stay at least 0.8 mm across every rib, measured all the way to the bore edge. At 2 mm pitch on a ~2.2 mm wall that leaves small lancets, which read as "cog teeth".
+- **A floating fragment.** The meshing's shells left one small positive-volume piece (0.77 mm³) apart from the body, and keeping the largest shell dropped it. The figure as built is therefore one solid, but one small feature (likely an eye ball or a claw tip) may be missing from that spot.
+
+## Core changes wanted
+
+1. **`sculpt::tetra_mesh` closes sealed voids inside a thick body.** On this figure it made inner shells of 36.5 mm³, 3.2 mm³ and smaller deep in the torso, where the field reads solid (probe: field −3.4 mm). These are blocks the coarse pass skipped, and they cast as voids. Until the skipped blocks take the coarse sample's sign, a public helper lets callers drop them. This is the example's own, moved as is into `sculpt.rs`:
+
+```rust
+/// The mesh's largest connected shell, and the others dropped (their face counts and enclosed volumes, mm³).
+pub fn largest_shell(m: &Solid) -> (Solid, Vec<(usize, f64)>) {
+    let n = m.v.len();
+    let mut parent: Vec<usize> = (0..n).collect();
+    fn find(p: &mut [usize], mut x: usize) -> usize {
+        while p[x] != x {
+            p[x] = p[p[x]];
+            x = p[x];
+        }
+        x
+    }
+    for t in &m.f {
+        for k in 0..2 {
+            let (a, b) = (find(&mut parent, t[k] as usize), find(&mut parent, t[k + 1] as usize));
+            if a != b {
+                parent[a] = b;
+            }
+        }
+    }
+    let root: Vec<usize> = (0..n).map(|i| find(&mut parent, i)).collect();
+    let mut faces: std::collections::BTreeMap<usize, (usize, f64)> = Default::default();
+    for t in &m.f {
+        let [a, b, c] = t.map(|i| m.v[i as usize]);
+        let vol = (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6.0;
+        let e = faces.entry(root[t[0] as usize]).or_default();
+        e.0 += 1;
+        e.1 += vol;
+    }
+    let keep = faces.iter().max_by_key(|(_, (f, _))| *f).map(|(r, _)| *r).unwrap_or(0);
+    let dropped = faces.iter().filter(|(r, _)| **r != keep).map(|(_, v)| *v).collect();
+    let mut index = vec![u32::MAX; n];
+    let mut v = Vec::new();
+    for i in 0..n {
+        if root[i] == keep {
+            index[i] = v.len() as u32;
+            v.push(m.v[i]);
+        }
+    }
+    let f = m.f.iter().filter(|t| root[t[0] as usize] == keep).map(|t| t.map(|i| index[i as usize])).collect();
+    (Solid { v, f }, dropped)
+}
+```
+
+   The root fix: in `tetra_mesh`, a block the coarse pass skips should be filled with the sign of its coarse sample, rather than read as outside.
+
+2. **`sculpt::relax_clean` is unusable on fields with chamfered or slab features.** Here it put back 691k vertices in 279 s. A cheap early-out would help: skip the relax when a first pass's crossing count exceeds a share of the vertices, and say so in the return value.
+
+3. **A template class for stored sculpts.** `painted` (3 MB) is used by precedent (Moloch, and now Gurgulio), but the README names it for painted relief. Name a `sculpt` class with the 3 MB budget in `collection_templates`, so the next sculpted ring needn't argue the point.
+
+## Rounds used
+
+Two block-out read tests (no, then yes) and three review rounds (6.2, 6.5, 6.6): cut. Every commit on this branch is pushed to `claude/tenebrae-gurgulio`. No pushes to master or any other branch, and no tags.
