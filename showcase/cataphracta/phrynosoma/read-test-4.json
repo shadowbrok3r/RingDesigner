@@ -1,0 +1,33 @@
+{
+  "ring": "phrynosoma",
+  "mode": "read-test",
+  "attempt": 4,
+  "reads": false,
+  "what_the_eye_sees": "A big step up, and close. From above it is now one symmetric, heart- or arrowhead-shaped shield of polygonal plates that fills the signet, widest at the top and tapering to a point at the bottom, with larger plates down the middle and a spiked crown along the wide edge. The urchin lobes and the turtle-shell patch are gone, and a reptile head seen from above is now a reasonable guess. Three things still keep a jeweller from saying 'horned lizard'. First, the crown reads as a tiara or sunburst, not a lizard's horns. It has seven thin, needle-like spikes that stand almost upright and fan out radially, and the single tallest one sits dead centre on the midline. A horned lizard has a pair of stout occipital horns either side of the midline, with shorter temporals outboard, all lying back flat. Second, the flanks are smooth stacked plates with no serrated fringe, so the outline is a plain heart or shield. A small knob or hook sticks out at mid-length on each side and reads as a bolt, ear or handle. Third, the snout ends in a sharp point with a little nub, so the shape reads as an arrowhead or spade. In the hero the face reads as a scaly, spiked dragon or stegosaur crest, or an artichoke or pine cone with thorns, on a granulated shank. A jeweller would say 'spiky lizard or dragon head'. A few might guess horned toad, but most would not name the animal.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Rebuild the crown as horned-lizard horns rather than a needle tiara. Take the single central spike off the midline and use a central pair of occipital horns either side of it. Make every horn a stout cone, not a needle, and lay the horns back so they lie low over the shank instead of standing upright.",
+      "where": "The horn row on the wide (rear) edge of the head, mirrored about the along-band centreline, with nothing on the midline itself.",
+      "how_much": "Use 6 horns: 2 occipitals, then 2 temporals per side. The occipitals are 2.4-2.8 mm long, sit about 1.2-1.6 mm either side of the centreline, and are at least 1.5x the temporals (1.4-1.6 mm, stepping shorter outboard). The base diameter is at least 40% of the length (an occipital about 1.0-1.1 mm at the root). Tilt the horns back to about 30-40 degrees from the face plane rather than near-vertical, splaying 10-25 degrees outward. Acceptance: in face-300 there is a visible notch on the midline between two equal longest horns, the horns read as thick thorns rather than wires, and in hero-300 they read as a backswept crown, not a radial sunburst."
+    },
+    {
+      "priority": 2,
+      "what": "Give the head the horned lizard's fringed outline in place of a plain heart. Run a serrated row of pointed fringe scales down both flanks, and replace the mid-flank knobs/hooks with the angled temporal 'corners' of the skull.",
+      "where": "Both flanks of the head outline, from the outer temporal horn to about 75% of the way to the snout. Remove the two hook-like knobs at mid-length.",
+      "how_much": "Use 8-10 fringe points per side, pointed outward and slightly back, 1.0 mm at the rear grading to 0.5 mm, standing at least 0.6 mm proud of the plate edge in plan view. Acceptance: in face-300 both flanks show a visibly toothed edge you can count, and nothing at mid-flank reads as a bolt, ear or handle."
+    },
+    {
+      "priority": 3,
+      "what": "Blunt the snout. The sharp point and nub make the head read as an arrowhead or spade.",
+      "where": "The narrow (front) end of the head, at the bottom of face-300.",
+      "how_much": "Make the snout a rounded blunt end about 35-40% of the rear width, with a tip radius of at least 1.5 mm and no protruding nub. Add two low brow ridges (about 0.4 mm proud) just ahead of the temporal horns. Acceptance: in face-300 the outline reads as a wide, flat, blunt-nosed reptile skull, not as a heart, shield or arrowhead."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/phrynosoma/hero-300.png",
+    "showcase/cataphracta/phrynosoma/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
