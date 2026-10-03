@@ -1,5 +1,16 @@
 {
   "alloy": "Gold 18k",
+  "bare_stock_census": {
+    "least_at": [
+      -7.683557510375977,
+      5.6755936940511065,
+      -4.644179979960124
+    ],
+    "least_mm": 0.18493725119914137,
+    "note": "Every triangle of the bare factory 015 stock, before any part is added: its edge rounds read under the section on the screen's own inward rays",
+    "triangles": 12500,
+    "under_section": 21
+  },
   "bore": {
     "nearest_vertex_mm": 9.300000096776593,
     "radius_mm": 9.3,
@@ -7,23 +18,32 @@
   },
   "bore_mm": 18.600000193553186,
   "build": {
-    "build_s": 7.9056417020000005,
-    "profile_steps": 320,
-    "theta_steps": 768,
-    "triangles": 240026
+    "build_s": 7.100248225,
+    "profile_steps": 448,
+    "theta_steps": 1536,
+    "triangles": 86650
   },
-  "cold_reload_identical": null,
-  "cut_lands": [
-    "cut land: Cut #17 'Pierce the window's lights through the wall': 0.80 mm between lights 1 and 3 (floor 0.8)"
-  ],
+  "cold_reload_identical": true,
+  "cut_lands": [],
   "design": {
-    "bytes": 156756,
-    "cad_features": 48
+    "bytes": 145556,
+    "cad_features": 52
   },
   "dfm_findings": [],
   "draft": {
     "build": {
       "alloy": "Gold 18k",
+      "bare_stock_census": {
+        "least_at": [
+          -7.683557510375977,
+          5.6755936940511065,
+          -4.644179979960124
+        ],
+        "least_mm": 0.18493725119914137,
+        "note": "Every triangle of the bare factory 015 stock, before any part is added: its edge rounds read under the section on the screen's own inward rays",
+        "triangles": 12500,
+        "under_section": 21
+      },
       "bore": {
         "nearest_vertex_mm": 9.300000096776593,
         "radius_mm": 9.3,
@@ -31,18 +51,16 @@
       },
       "bore_mm": 18.600000193553186,
       "build": {
-        "build_s": 7.9056417020000005,
+        "build_s": 7.476496893,
         "profile_steps": 320,
         "theta_steps": 768,
-        "triangles": 240026
+        "triangles": 86650
       },
       "cold_reload_identical": null,
-      "cut_lands": [
-        "cut land: Cut #17 'Pierce the window's lights through the wall': 0.80 mm between lights 1 and 3 (floor 0.8)"
-      ],
+      "cut_lands": [],
       "design": {
-        "bytes": 156756,
-        "cad_features": 48
+        "bytes": 145556,
+        "cad_features": 52
       },
       "dfm_findings": [],
       "feature_status": [
@@ -67,175 +85,191 @@
           "Ok"
         ],
         [
-          "#6 Draw the rim moulding round the roof",
+          "#6 Draw the base course round the lantern's foot",
           "Ok"
         ],
         [
-          "#7 Raise the rim moulding",
+          "#7 Raise the base course, weathered",
           "Ok"
         ],
         [
-          "#8 Draw the boss at the vault's crown",
+          "#8 Draw the rim moulding round the roof",
           "Ok"
         ],
         [
-          "#9 Raise the boss",
+          "#9 Raise the rim moulding",
           "Ok"
         ],
         [
-          "#10 Draw a rib from the boss to the lantern's first corner",
+          "#10 Draw the boss at the vault's crown",
           "Ok"
         ],
         [
-          "#11 Raise the rib, gabled",
+          "#11 Raise the boss",
           "Ok"
         ],
         [
-          "#12 Spring a rib to every corner",
+          "#12 Draw the amethyst's collet on the boss, its bore the stone's cut-corner square",
           "Ok"
         ],
         [
-          "#13 Draw a lancet light between the first two ribs, pointing out to its wall",
+          "#13 Raise the amethyst's collet off the boss",
           "Ok"
         ],
         [
-          "#14 Pierce the light through the roof",
+          "#14 Turn the roll moulding round the boss's foot",
           "Ok"
         ],
         [
-          "#15 Pierce a light in every bay of the vault",
+          "#15 Draw a rib's half-round section at the boss, square to the first corner",
           "Ok"
         ],
         [
-          "#16 Draw a window's outline, mullion and fork on the wall that faces along the finger, and trace its lights a bar apart",
+          "#16 Run the rib out to the corner",
           "Ok"
         ],
         [
-          "#17 Pierce the window's lights through the wall",
+          "#17 Draw the first bay's right tierceron's section at its rib, square to the star's point",
           "Ok"
         ],
         [
-          "#18 Open a window in every wall",
+          "#18 Run the right tierceron out to the star's point",
           "Ok"
         ],
         [
-          "#19 Draw a pier on the lantern's first corner",
+          "#19 Draw the first bay's left tierceron's section at its rib, square to the star's point",
           "Ok"
         ],
         [
-          "#20 Raise the pier past the roof",
+          "#20 Run the left tierceron out to the star's point",
           "Ok"
         ],
         [
-          "#21 Twist the spirelet up off the pier, a quarter turn",
+          "#21 Spring the star vault's ribs and tiercerons in every bay",
           "Ok"
         ],
         [
-          "#22 Loft the spire cap to a point",
+          "#22 Draw the first bay's light inside the star's point",
           "Ok"
         ],
         [
-          "#23 Set a crocket on the cap's arris",
+          "#23 Pierce the light through the roof",
           "Ok"
         ],
         [
-          "#24 Set a crocket on the cap's arris",
+          "#24 Pierce a light in every bay of the vault",
           "Ok"
         ],
         [
-          "#25 Set a crocket on the cap's arris",
+          "#25 Draw two lancets on the wall that faces along the finger",
           "Ok"
         ],
         [
-          "#26 Set a crocket on the cap's arris",
+          "#26 Pierce the window through the wall",
           "Ok"
         ],
         [
-          "#27 Draw the corbel under the first pier's lamp",
+          "#27 Open a window in every wall",
           "Ok"
         ],
         [
-          "#28 Bracket the corbel out from the pier",
+          "#28 Draw the oculus's collet over the first window's lancets",
           "Ok"
         ],
         [
-          "#29 Stand a pinnacle on every corner",
+          "#29 Raise the oculus's collet off the wall",
           "Ok"
         ],
         [
-          "#30 Lay a plane under the band's mid-plane",
+          "#30 Ring every window's oculus",
           "Ok"
         ],
         [
-          "#31 Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
+          "#31 Draw a pier on the lantern's first corner, its arrises chamfered",
           "Ok"
         ],
         [
-          "#32 Raise the buttress across the band",
+          "#32 Raise the pier's lower stage",
           "Ok"
         ],
         [
-          "#33 Mirror the buttress onto the other shoulder",
+          "#33 Draw the pinnacle's shaft on the set-off",
           "Ok"
         ],
         [
-          "#34 Draw paired lancets on the head's first long wall",
+          "#34 Raise the shaft past the roof",
           "Ok"
         ],
         [
-          "#35 Cut the blind lancets into the long wall",
+          "#35 Twist the spirelet up off the shaft, tapering to its top",
           "Ok"
         ],
         [
-          "#36 Cut them into every long wall",
+          "#36 Stand a pinnacle on every corner",
           "Ok"
         ],
         [
-          "#37 Draw paired lancets on the head's first chamfer",
+          "#37 Lay a plane under the band's mid-plane",
           "Ok"
         ],
         [
-          "#38 Cut the blind lancets into the chamfer",
+          "#38 Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
           "Ok"
         ],
         [
-          "#39 Cut them into every chamfer",
+          "#39 Raise the buttress across the band",
           "Ok"
         ],
         [
-          "#40 Set a citrine lamp on the first corbel",
+          "#40 Mirror the buttress onto the other shoulder",
           "Ok"
         ],
         [
-          "#41 Its collet",
+          "#41 Draw the blind arcade's panel on the head's first long wall, leaning with it",
           "Ok"
         ],
         [
-          "#42 Its seat",
+          "#42 Raise the panel off the wall",
           "Ok"
         ],
         [
-          "#43 Light a lamp on every corbel",
+          "#43 Set a panel on the other long wall",
           "Ok"
         ],
         [
-          "#44 Ring every lamp in its collet",
+          "#44 Draw two pairs of lancets on the first panel",
           "Ok"
         ],
         [
-          "#45 Cut every lamp's seat",
+          "#45 Sink the blind lancets into the panel",
           "Ok"
         ],
         [
-          "#46 Set the amethyst on the boss",
+          "#46 Sink them into the other panel",
           "Ok"
         ],
         [
-          "#47 Its collet",
+          "#47 Glaze the first oculus with a citrine lamp",
           "Ok"
         ],
         [
-          "#48 Its seat, open to the lantern below",
+          "#48 Cut its seat into the wall",
+          "Ok"
+        ],
+        [
+          "#49 Glaze every oculus with a lamp",
+          "Ok"
+        ],
+        [
+          "#50 Cut every lamp's seat",
+          "Ok"
+        ],
+        [
+          "#51 Set the amethyst in the boss's collet",
+          "Ok"
+        ],
+        [
+          "#52 Cut its seat through the collet and boss, open to the lantern below",
           "Ok"
         ]
       ],
@@ -267,217 +301,237 @@
         },
         {
           "id": 6,
-          "name": "Draw the rim moulding round the roof",
+          "name": "Draw the base course round the lantern's foot",
           "operation": "Sketch"
         },
         {
           "id": 7,
-          "name": "Raise the rim moulding",
+          "name": "Raise the base course, weathered",
           "operation": "Extrude"
         },
         {
           "id": 8,
-          "name": "Draw the boss at the vault's crown",
+          "name": "Draw the rim moulding round the roof",
           "operation": "Sketch"
         },
         {
           "id": 9,
-          "name": "Raise the boss",
+          "name": "Raise the rim moulding",
           "operation": "Extrude"
         },
         {
           "id": 10,
-          "name": "Draw a rib from the boss to the lantern's first corner",
+          "name": "Draw the boss at the vault's crown",
           "operation": "Sketch"
         },
         {
           "id": 11,
-          "name": "Raise the rib, gabled",
+          "name": "Raise the boss",
           "operation": "Extrude"
         },
         {
           "id": 12,
-          "name": "Spring a rib to every corner",
-          "operation": "Array round a part"
+          "name": "Draw the amethyst's collet on the boss, its bore the stone's cut-corner square",
+          "operation": "Sketch"
         },
         {
           "id": 13,
-          "name": "Draw a lancet light between the first two ribs, pointing out to its wall",
-          "operation": "Sketch"
+          "name": "Raise the amethyst's collet off the boss",
+          "operation": "Extrude"
         },
         {
           "id": 14,
-          "name": "Pierce the light through the roof",
-          "operation": "Extrude"
+          "name": "Turn the roll moulding round the boss's foot",
+          "operation": "Revolve"
         },
         {
           "id": 15,
-          "name": "Pierce a light in every bay of the vault",
-          "operation": "Array round a part"
-        },
-        {
-          "id": 16,
-          "name": "Draw a window's outline, mullion and fork on the wall that faces along the finger, and trace its lights a bar apart",
+          "name": "Draw a rib's half-round section at the boss, square to the first corner",
           "operation": "Sketch"
         },
         {
-          "id": 17,
-          "name": "Pierce the window's lights through the wall",
+          "id": 16,
+          "name": "Run the rib out to the corner",
           "operation": "Extrude"
         },
         {
+          "id": 17,
+          "name": "Draw the first bay's right tierceron's section at its rib, square to the star's point",
+          "operation": "Sketch"
+        },
+        {
           "id": 18,
-          "name": "Open a window in every wall",
-          "operation": "Array round a part"
+          "name": "Run the right tierceron out to the star's point",
+          "operation": "Extrude"
         },
         {
           "id": 19,
-          "name": "Draw a pier on the lantern's first corner",
+          "name": "Draw the first bay's left tierceron's section at its rib, square to the star's point",
           "operation": "Sketch"
         },
         {
           "id": 20,
-          "name": "Raise the pier past the roof",
+          "name": "Run the left tierceron out to the star's point",
           "operation": "Extrude"
         },
         {
           "id": 21,
-          "name": "Twist the spirelet up off the pier, a quarter turn",
-          "operation": "Twisted sweep"
-        },
-        {
-          "id": 22,
-          "name": "Loft the spire cap to a point",
-          "operation": "Loft"
-        },
-        {
-          "id": 23,
-          "name": "Set a crocket on the cap's arris",
-          "operation": "Revolve"
-        },
-        {
-          "id": 24,
-          "name": "Set a crocket on the cap's arris",
-          "operation": "Revolve"
-        },
-        {
-          "id": 25,
-          "name": "Set a crocket on the cap's arris",
-          "operation": "Revolve"
-        },
-        {
-          "id": 26,
-          "name": "Set a crocket on the cap's arris",
-          "operation": "Revolve"
-        },
-        {
-          "id": 27,
-          "name": "Draw the corbel under the first pier's lamp",
-          "operation": "Sketch"
-        },
-        {
-          "id": 28,
-          "name": "Bracket the corbel out from the pier",
-          "operation": "Extrude"
-        },
-        {
-          "id": 29,
-          "name": "Stand a pinnacle on every corner",
+          "name": "Spring the star vault's ribs and tiercerons in every bay",
           "operation": "Array round a part"
         },
         {
+          "id": 22,
+          "name": "Draw the first bay's light inside the star's point",
+          "operation": "Sketch"
+        },
+        {
+          "id": 23,
+          "name": "Pierce the light through the roof",
+          "operation": "Extrude"
+        },
+        {
+          "id": 24,
+          "name": "Pierce a light in every bay of the vault",
+          "operation": "Array round a part"
+        },
+        {
+          "id": 25,
+          "name": "Draw two lancets on the wall that faces along the finger",
+          "operation": "Sketch"
+        },
+        {
+          "id": 26,
+          "name": "Pierce the window through the wall",
+          "operation": "Extrude"
+        },
+        {
+          "id": 27,
+          "name": "Open a window in every wall",
+          "operation": "Array round a part"
+        },
+        {
+          "id": 28,
+          "name": "Draw the oculus's collet over the first window's lancets",
+          "operation": "Sketch"
+        },
+        {
+          "id": 29,
+          "name": "Raise the oculus's collet off the wall",
+          "operation": "Extrude"
+        },
+        {
           "id": 30,
-          "name": "Lay a plane under the band's mid-plane",
-          "operation": "Work plane"
+          "name": "Ring every window's oculus",
+          "operation": "Array round a part"
         },
         {
           "id": 31,
-          "name": "Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
+          "name": "Draw a pier on the lantern's first corner, its arrises chamfered",
           "operation": "Sketch"
         },
         {
           "id": 32,
-          "name": "Raise the buttress across the band",
+          "name": "Raise the pier's lower stage",
           "operation": "Extrude"
         },
         {
           "id": 33,
-          "name": "Mirror the buttress onto the other shoulder",
-          "operation": "Mirror"
-        },
-        {
-          "id": 34,
-          "name": "Draw paired lancets on the head's first long wall",
+          "name": "Draw the pinnacle's shaft on the set-off",
           "operation": "Sketch"
         },
         {
-          "id": 35,
-          "name": "Cut the blind lancets into the long wall",
+          "id": 34,
+          "name": "Raise the shaft past the roof",
           "operation": "Extrude"
         },
         {
+          "id": 35,
+          "name": "Twist the spirelet up off the shaft, tapering to its top",
+          "operation": "Twisted sweep"
+        },
+        {
           "id": 36,
-          "name": "Cut them into every long wall",
+          "name": "Stand a pinnacle on every corner",
           "operation": "Array round a part"
         },
         {
           "id": 37,
-          "name": "Draw paired lancets on the head's first chamfer",
-          "operation": "Sketch"
+          "name": "Lay a plane under the band's mid-plane",
+          "operation": "Work plane"
         },
         {
           "id": 38,
-          "name": "Cut the blind lancets into the chamfer",
-          "operation": "Extrude"
+          "name": "Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
+          "operation": "Sketch"
         },
         {
           "id": 39,
-          "name": "Cut them into every chamfer",
-          "operation": "Array round a part"
+          "name": "Raise the buttress across the band",
+          "operation": "Extrude"
         },
         {
           "id": 40,
-          "name": "Set a citrine lamp on the first corbel",
-          "operation": "Stone"
+          "name": "Mirror the buttress onto the other shoulder",
+          "operation": "Mirror"
         },
         {
           "id": 41,
-          "name": "Its collet",
-          "operation": "Bezel"
+          "name": "Draw the blind arcade's panel on the head's first long wall, leaning with it",
+          "operation": "Sketch"
         },
         {
           "id": 42,
-          "name": "Its seat",
-          "operation": "Seat bur"
+          "name": "Raise the panel off the wall",
+          "operation": "Extrude"
         },
         {
           "id": 43,
-          "name": "Light a lamp on every corbel",
+          "name": "Set a panel on the other long wall",
           "operation": "Array round a part"
         },
         {
           "id": 44,
-          "name": "Ring every lamp in its collet",
-          "operation": "Array round a part"
+          "name": "Draw two pairs of lancets on the first panel",
+          "operation": "Sketch"
         },
         {
           "id": 45,
+          "name": "Sink the blind lancets into the panel",
+          "operation": "Extrude"
+        },
+        {
+          "id": 46,
+          "name": "Sink them into the other panel",
+          "operation": "Array round a part"
+        },
+        {
+          "id": 47,
+          "name": "Glaze the first oculus with a citrine lamp",
+          "operation": "Stone"
+        },
+        {
+          "id": 48,
+          "name": "Cut its seat into the wall",
+          "operation": "Seat bur"
+        },
+        {
+          "id": 49,
+          "name": "Glaze every oculus with a lamp",
+          "operation": "Array round a part"
+        },
+        {
+          "id": 50,
           "name": "Cut every lamp's seat",
           "operation": "Array round a part"
         },
         {
-          "id": 46,
-          "name": "Set the amethyst on the boss",
+          "id": 51,
+          "name": "Set the amethyst in the boss's collet",
           "operation": "Stone"
         },
         {
-          "id": 47,
-          "name": "Its collet",
-          "operation": "Bezel"
-        },
-        {
-          "id": 48,
-          "name": "Its seat, open to the lantern below",
+          "id": 52,
+          "name": "Cut its seat through the collet and boss, open to the lantern below",
           "operation": "Seat bur"
         }
       ],
@@ -499,12 +553,12 @@
           "pass": true
         },
         {
-          "gate": "thickness at the 0.8 mm section clean",
-          "pass": false
+          "gate": "thickness at the 0.8 mm section clean on every part made for the ring (stock samples recorded beside it)",
+          "pass": true
         },
         {
           "gate": "CAD cut lands at 0.8 mm clean",
-          "pass": false
+          "pass": true
         },
         {
           "gate": "zero DFM findings",
@@ -527,40 +581,42 @@
           "pass": true
         }
       ],
-      "gates_passed": false,
+      "gates_passed": true,
       "geometry": {
         "boundary_edges": 0,
         "bounds_mm": [
           23.20948028564453,
-          35.284820556640625,
-          17.706974029541016
+          35.18482208251953,
+          18.6653995513916
         ],
         "degenerate_faces": 0,
         "non_manifold_edges": 0,
         "self_crossings": 0,
-        "volume_mm3": 1971.9848421147824,
+        "volume_mm3": 2194.320415783619,
         "watertight": true
       },
-      "grams_gold_18k": 30.72352384014831,
+      "grams_gold_18k": 34.187512077908785,
       "land_widths": {
-        "amethyst_collet_wall_mm": 0.6,
+        "amethyst_collet_rim_at_corner_mm": 0.9286796564403573,
+        "boss_rim_at_amethyst_corner_mm": 1.3286796564403573,
         "buttress_mm": 1.8,
-        "chamfer_lancet_bar_mm": 0.85,
-        "crocket_mm": 0.9,
-        "lamp_collet_wall_mm": 0.3,
+        "collet_wall_mm": 0.9,
         "lantern_face_mm": 5.301933598375617,
-        "lantern_pier_mm": 1.4,
         "lantern_roof_mm": 1.0,
         "lantern_wall_mm": 1.0,
-        "light_width_mm": 1.3,
-        "rib_foot_mm": 0.8,
-        "rim_mm": 0.9,
+        "light_inset_from_bars_mm": 0.6,
+        "oculus_collet_top_to_roof_mm": -0.12500000000000022,
+        "pier_mm": 2.3,
+        "rib_roll_mm": 0.9,
+        "rim_mm": 1.1,
+        "rim_over_girdle_mm": 0.35,
+        "roll_mm": 0.84,
+        "shaft_mm": 1.4,
         "side_lancet_bar_mm": 0.9,
-        "side_lancet_head_to_table_mm": 0.8839745962155614,
-        "spirelet_least_mm": 0.8200000000000001,
-        "window_apex_to_roof_mm": 0.8555136271329085,
-        "window_outline_to_wall_edge_mm": 0.9509667991878084,
-        "window_tracery_bar_mm": 0.8
+        "side_lancet_head_to_table_mm": 1.1839745962155612,
+        "spirelet_least_mm": 0.85,
+        "spirelet_taper_over_root_two": 1.081457430050014,
+        "window_mullion_mm": 0.85
       },
       "made_parts": [
         [
@@ -572,131 +628,127 @@
           0
         ],
         [
-          "#7 Raise the rim moulding",
+          "#7 Raise the base course, weathered",
           0
         ],
         [
-          "#9 Raise the boss",
+          "#9 Raise the rim moulding",
           0
         ],
         [
-          "#11 Raise the rib, gabled",
+          "#11 Raise the boss",
           0
         ],
         [
-          "#12 Spring a rib to every corner",
+          "#13 Raise the amethyst's collet off the boss",
           0
         ],
         [
-          "#14 Pierce the light through the roof",
+          "#14 Turn the roll moulding round the boss's foot",
           0
         ],
         [
-          "#15 Pierce a light in every bay of the vault",
+          "#16 Run the rib out to the corner",
           0
         ],
         [
-          "#17 Pierce the window's lights through the wall",
+          "#18 Run the right tierceron out to the star's point",
           0
         ],
         [
-          "#18 Open a window in every wall",
+          "#20 Run the left tierceron out to the star's point",
           0
         ],
         [
-          "#20 Raise the pier past the roof",
+          "#21 Spring the star vault's ribs and tiercerons in every bay",
           0
         ],
         [
-          "#21 Twist the spirelet up off the pier, a quarter turn",
+          "#23 Pierce the light through the roof",
           0
         ],
         [
-          "#22 Loft the spire cap to a point",
+          "#24 Pierce a light in every bay of the vault",
           0
         ],
         [
-          "#23 Set a crocket on the cap's arris",
+          "#26 Pierce the window through the wall",
           0
         ],
         [
-          "#24 Set a crocket on the cap's arris",
+          "#27 Open a window in every wall",
           0
         ],
         [
-          "#25 Set a crocket on the cap's arris",
+          "#29 Raise the oculus's collet off the wall",
           0
         ],
         [
-          "#26 Set a crocket on the cap's arris",
+          "#30 Ring every window's oculus",
           0
         ],
         [
-          "#28 Bracket the corbel out from the pier",
+          "#32 Raise the pier's lower stage",
           0
         ],
         [
-          "#29 Stand a pinnacle on every corner",
+          "#34 Raise the shaft past the roof",
           0
         ],
         [
-          "#32 Raise the buttress across the band",
+          "#35 Twist the spirelet up off the shaft, tapering to its top",
           0
         ],
         [
-          "#33 Mirror the buttress onto the other shoulder",
+          "#36 Stand a pinnacle on every corner",
           0
         ],
         [
-          "#35 Cut the blind lancets into the long wall",
+          "#39 Raise the buttress across the band",
           0
         ],
         [
-          "#36 Cut them into every long wall",
+          "#40 Mirror the buttress onto the other shoulder",
           0
         ],
         [
-          "#38 Cut the blind lancets into the chamfer",
+          "#42 Raise the panel off the wall",
           0
         ],
         [
-          "#39 Cut them into every chamfer",
+          "#43 Set a panel on the other long wall",
           0
         ],
         [
-          "#40 Set a citrine lamp on the first corbel",
+          "#45 Sink the blind lancets into the panel",
           0
         ],
         [
-          "#41 Its collet",
+          "#46 Sink them into the other panel",
           0
         ],
         [
-          "#42 Its seat",
+          "#47 Glaze the first oculus with a citrine lamp",
           0
         ],
         [
-          "#43 Light a lamp on every corbel",
+          "#48 Cut its seat into the wall",
           0
         ],
         [
-          "#44 Ring every lamp in its collet",
+          "#49 Glaze every oculus with a lamp",
           0
         ],
         [
-          "#45 Cut every lamp's seat",
+          "#50 Cut every lamp's seat",
           0
         ],
         [
-          "#46 Set the amethyst on the boss",
+          "#51 Set the amethyst in the boss's collet",
           0
         ],
         [
-          "#47 Its collet",
-          0
-        ],
-        [
-          "#48 Its seat, open to the lantern below",
+          "#52 Cut its seat through the collet and boss, open to the lantern below",
           0
         ]
       ],
@@ -704,7 +756,7 @@
       "pattern": {
         "degenerate_faces": 0,
         "self_crossings": 0,
-        "triangles": 240026,
+        "triangles": 86650,
         "watertight": true
       },
       "process": "Lost wax",
@@ -715,66 +767,22 @@
       },
       "stock": "015",
       "stones": {
-        "carats": 0.23603399999999997,
+        "carats": 0.19301374999999998,
         "previewed": 9,
         "reported": 9,
         "tight_pairs": 0
       },
       "thickness": {
-        "below_limit": 26,
+        "below_limit": 0,
         "limit_mm": 0.8,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
         "rays": 384,
-        "sampled_min_mm": 0.00041690318821696625,
+        "sampled_min_mm": 0.8499996581124909,
         "unresolved": 0
       },
-      "thin_samples_by_part": [
-        {
-          "least_mm": 0.028158187866210483,
-          "part": "#14 Pierce the light through the roof",
-          "samples": 1
-        },
-        {
-          "least_mm": 0.18923599593762552,
-          "part": "#21 Twist the spirelet up off the pier, a quarter turn",
-          "samples": 1
-        },
-        {
-          "least_mm": 0.781717659655045,
-          "part": "#22 Loft the spire cap to a point",
-          "samples": 2
-        },
-        {
-          "least_mm": 0.2817065364466669,
-          "part": "#29 Stand a pinnacle on every corner",
-          "samples": 13
-        },
-        {
-          "least_mm": 0.0019152428363748007,
-          "part": "#38 Cut the blind lancets into the chamfer",
-          "samples": 1
-        },
-        {
-          "least_mm": 0.00041690318821696625,
-          "part": "#39 Cut them into every chamfer",
-          "samples": 1
-        },
-        {
-          "least_mm": 0.2988416486141354,
-          "part": "#44 Ring every lamp in its collet",
-          "samples": 5
-        },
-        {
-          "least_mm": 0.6700584119453348,
-          "part": "#47 Its collet",
-          "samples": 1
-        },
-        {
-          "least_mm": 0.019226371633031005,
-          "part": "the stock",
-          "samples": 1
-        }
-      ]
+      "thickness_samples_on_stock": 0,
+      "thickness_strict_screen_clean": true,
+      "thin_samples_by_part": []
     },
     "min_detail_mm": 0.15,
     "min_draft_deg": 3.0,
@@ -803,175 +811,191 @@
       "Ok"
     ],
     [
-      "#6 Draw the rim moulding round the roof",
+      "#6 Draw the base course round the lantern's foot",
       "Ok"
     ],
     [
-      "#7 Raise the rim moulding",
+      "#7 Raise the base course, weathered",
       "Ok"
     ],
     [
-      "#8 Draw the boss at the vault's crown",
+      "#8 Draw the rim moulding round the roof",
       "Ok"
     ],
     [
-      "#9 Raise the boss",
+      "#9 Raise the rim moulding",
       "Ok"
     ],
     [
-      "#10 Draw a rib from the boss to the lantern's first corner",
+      "#10 Draw the boss at the vault's crown",
       "Ok"
     ],
     [
-      "#11 Raise the rib, gabled",
+      "#11 Raise the boss",
       "Ok"
     ],
     [
-      "#12 Spring a rib to every corner",
+      "#12 Draw the amethyst's collet on the boss, its bore the stone's cut-corner square",
       "Ok"
     ],
     [
-      "#13 Draw a lancet light between the first two ribs, pointing out to its wall",
+      "#13 Raise the amethyst's collet off the boss",
       "Ok"
     ],
     [
-      "#14 Pierce the light through the roof",
+      "#14 Turn the roll moulding round the boss's foot",
       "Ok"
     ],
     [
-      "#15 Pierce a light in every bay of the vault",
+      "#15 Draw a rib's half-round section at the boss, square to the first corner",
       "Ok"
     ],
     [
-      "#16 Draw a window's outline, mullion and fork on the wall that faces along the finger, and trace its lights a bar apart",
+      "#16 Run the rib out to the corner",
       "Ok"
     ],
     [
-      "#17 Pierce the window's lights through the wall",
+      "#17 Draw the first bay's right tierceron's section at its rib, square to the star's point",
       "Ok"
     ],
     [
-      "#18 Open a window in every wall",
+      "#18 Run the right tierceron out to the star's point",
       "Ok"
     ],
     [
-      "#19 Draw a pier on the lantern's first corner",
+      "#19 Draw the first bay's left tierceron's section at its rib, square to the star's point",
       "Ok"
     ],
     [
-      "#20 Raise the pier past the roof",
+      "#20 Run the left tierceron out to the star's point",
       "Ok"
     ],
     [
-      "#21 Twist the spirelet up off the pier, a quarter turn",
+      "#21 Spring the star vault's ribs and tiercerons in every bay",
       "Ok"
     ],
     [
-      "#22 Loft the spire cap to a point",
+      "#22 Draw the first bay's light inside the star's point",
       "Ok"
     ],
     [
-      "#23 Set a crocket on the cap's arris",
+      "#23 Pierce the light through the roof",
       "Ok"
     ],
     [
-      "#24 Set a crocket on the cap's arris",
+      "#24 Pierce a light in every bay of the vault",
       "Ok"
     ],
     [
-      "#25 Set a crocket on the cap's arris",
+      "#25 Draw two lancets on the wall that faces along the finger",
       "Ok"
     ],
     [
-      "#26 Set a crocket on the cap's arris",
+      "#26 Pierce the window through the wall",
       "Ok"
     ],
     [
-      "#27 Draw the corbel under the first pier's lamp",
+      "#27 Open a window in every wall",
       "Ok"
     ],
     [
-      "#28 Bracket the corbel out from the pier",
+      "#28 Draw the oculus's collet over the first window's lancets",
       "Ok"
     ],
     [
-      "#29 Stand a pinnacle on every corner",
+      "#29 Raise the oculus's collet off the wall",
       "Ok"
     ],
     [
-      "#30 Lay a plane under the band's mid-plane",
+      "#30 Ring every window's oculus",
       "Ok"
     ],
     [
-      "#31 Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
+      "#31 Draw a pier on the lantern's first corner, its arrises chamfered",
       "Ok"
     ],
     [
-      "#32 Raise the buttress across the band",
+      "#32 Raise the pier's lower stage",
       "Ok"
     ],
     [
-      "#33 Mirror the buttress onto the other shoulder",
+      "#33 Draw the pinnacle's shaft on the set-off",
       "Ok"
     ],
     [
-      "#34 Draw paired lancets on the head's first long wall",
+      "#34 Raise the shaft past the roof",
       "Ok"
     ],
     [
-      "#35 Cut the blind lancets into the long wall",
+      "#35 Twist the spirelet up off the shaft, tapering to its top",
       "Ok"
     ],
     [
-      "#36 Cut them into every long wall",
+      "#36 Stand a pinnacle on every corner",
       "Ok"
     ],
     [
-      "#37 Draw paired lancets on the head's first chamfer",
+      "#37 Lay a plane under the band's mid-plane",
       "Ok"
     ],
     [
-      "#38 Cut the blind lancets into the chamfer",
+      "#38 Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
       "Ok"
     ],
     [
-      "#39 Cut them into every chamfer",
+      "#39 Raise the buttress across the band",
       "Ok"
     ],
     [
-      "#40 Set a citrine lamp on the first corbel",
+      "#40 Mirror the buttress onto the other shoulder",
       "Ok"
     ],
     [
-      "#41 Its collet",
+      "#41 Draw the blind arcade's panel on the head's first long wall, leaning with it",
       "Ok"
     ],
     [
-      "#42 Its seat",
+      "#42 Raise the panel off the wall",
       "Ok"
     ],
     [
-      "#43 Light a lamp on every corbel",
+      "#43 Set a panel on the other long wall",
       "Ok"
     ],
     [
-      "#44 Ring every lamp in its collet",
+      "#44 Draw two pairs of lancets on the first panel",
       "Ok"
     ],
     [
-      "#45 Cut every lamp's seat",
+      "#45 Sink the blind lancets into the panel",
       "Ok"
     ],
     [
-      "#46 Set the amethyst on the boss",
+      "#46 Sink them into the other panel",
       "Ok"
     ],
     [
-      "#47 Its collet",
+      "#47 Glaze the first oculus with a citrine lamp",
       "Ok"
     ],
     [
-      "#48 Its seat, open to the lantern below",
+      "#48 Cut its seat into the wall",
+      "Ok"
+    ],
+    [
+      "#49 Glaze every oculus with a lamp",
+      "Ok"
+    ],
+    [
+      "#50 Cut every lamp's seat",
+      "Ok"
+    ],
+    [
+      "#51 Set the amethyst in the boss's collet",
+      "Ok"
+    ],
+    [
+      "#52 Cut its seat through the collet and boss, open to the lantern below",
       "Ok"
     ]
   ],
@@ -1003,217 +1027,237 @@
     },
     {
       "id": 6,
-      "name": "Draw the rim moulding round the roof",
+      "name": "Draw the base course round the lantern's foot",
       "operation": "Sketch"
     },
     {
       "id": 7,
-      "name": "Raise the rim moulding",
+      "name": "Raise the base course, weathered",
       "operation": "Extrude"
     },
     {
       "id": 8,
-      "name": "Draw the boss at the vault's crown",
+      "name": "Draw the rim moulding round the roof",
       "operation": "Sketch"
     },
     {
       "id": 9,
-      "name": "Raise the boss",
+      "name": "Raise the rim moulding",
       "operation": "Extrude"
     },
     {
       "id": 10,
-      "name": "Draw a rib from the boss to the lantern's first corner",
+      "name": "Draw the boss at the vault's crown",
       "operation": "Sketch"
     },
     {
       "id": 11,
-      "name": "Raise the rib, gabled",
+      "name": "Raise the boss",
       "operation": "Extrude"
     },
     {
       "id": 12,
-      "name": "Spring a rib to every corner",
-      "operation": "Array round a part"
+      "name": "Draw the amethyst's collet on the boss, its bore the stone's cut-corner square",
+      "operation": "Sketch"
     },
     {
       "id": 13,
-      "name": "Draw a lancet light between the first two ribs, pointing out to its wall",
-      "operation": "Sketch"
+      "name": "Raise the amethyst's collet off the boss",
+      "operation": "Extrude"
     },
     {
       "id": 14,
-      "name": "Pierce the light through the roof",
-      "operation": "Extrude"
+      "name": "Turn the roll moulding round the boss's foot",
+      "operation": "Revolve"
     },
     {
       "id": 15,
-      "name": "Pierce a light in every bay of the vault",
-      "operation": "Array round a part"
-    },
-    {
-      "id": 16,
-      "name": "Draw a window's outline, mullion and fork on the wall that faces along the finger, and trace its lights a bar apart",
+      "name": "Draw a rib's half-round section at the boss, square to the first corner",
       "operation": "Sketch"
     },
     {
-      "id": 17,
-      "name": "Pierce the window's lights through the wall",
+      "id": 16,
+      "name": "Run the rib out to the corner",
       "operation": "Extrude"
     },
     {
+      "id": 17,
+      "name": "Draw the first bay's right tierceron's section at its rib, square to the star's point",
+      "operation": "Sketch"
+    },
+    {
       "id": 18,
-      "name": "Open a window in every wall",
-      "operation": "Array round a part"
+      "name": "Run the right tierceron out to the star's point",
+      "operation": "Extrude"
     },
     {
       "id": 19,
-      "name": "Draw a pier on the lantern's first corner",
+      "name": "Draw the first bay's left tierceron's section at its rib, square to the star's point",
       "operation": "Sketch"
     },
     {
       "id": 20,
-      "name": "Raise the pier past the roof",
+      "name": "Run the left tierceron out to the star's point",
       "operation": "Extrude"
     },
     {
       "id": 21,
-      "name": "Twist the spirelet up off the pier, a quarter turn",
-      "operation": "Twisted sweep"
-    },
-    {
-      "id": 22,
-      "name": "Loft the spire cap to a point",
-      "operation": "Loft"
-    },
-    {
-      "id": 23,
-      "name": "Set a crocket on the cap's arris",
-      "operation": "Revolve"
-    },
-    {
-      "id": 24,
-      "name": "Set a crocket on the cap's arris",
-      "operation": "Revolve"
-    },
-    {
-      "id": 25,
-      "name": "Set a crocket on the cap's arris",
-      "operation": "Revolve"
-    },
-    {
-      "id": 26,
-      "name": "Set a crocket on the cap's arris",
-      "operation": "Revolve"
-    },
-    {
-      "id": 27,
-      "name": "Draw the corbel under the first pier's lamp",
-      "operation": "Sketch"
-    },
-    {
-      "id": 28,
-      "name": "Bracket the corbel out from the pier",
-      "operation": "Extrude"
-    },
-    {
-      "id": 29,
-      "name": "Stand a pinnacle on every corner",
+      "name": "Spring the star vault's ribs and tiercerons in every bay",
       "operation": "Array round a part"
     },
     {
+      "id": 22,
+      "name": "Draw the first bay's light inside the star's point",
+      "operation": "Sketch"
+    },
+    {
+      "id": 23,
+      "name": "Pierce the light through the roof",
+      "operation": "Extrude"
+    },
+    {
+      "id": 24,
+      "name": "Pierce a light in every bay of the vault",
+      "operation": "Array round a part"
+    },
+    {
+      "id": 25,
+      "name": "Draw two lancets on the wall that faces along the finger",
+      "operation": "Sketch"
+    },
+    {
+      "id": 26,
+      "name": "Pierce the window through the wall",
+      "operation": "Extrude"
+    },
+    {
+      "id": 27,
+      "name": "Open a window in every wall",
+      "operation": "Array round a part"
+    },
+    {
+      "id": 28,
+      "name": "Draw the oculus's collet over the first window's lancets",
+      "operation": "Sketch"
+    },
+    {
+      "id": 29,
+      "name": "Raise the oculus's collet off the wall",
+      "operation": "Extrude"
+    },
+    {
       "id": 30,
-      "name": "Lay a plane under the band's mid-plane",
-      "operation": "Work plane"
+      "name": "Ring every window's oculus",
+      "operation": "Array round a part"
     },
     {
       "id": 31,
-      "name": "Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
+      "name": "Draw a pier on the lantern's first corner, its arrises chamfered",
       "operation": "Sketch"
     },
     {
       "id": 32,
-      "name": "Raise the buttress across the band",
+      "name": "Raise the pier's lower stage",
       "operation": "Extrude"
     },
     {
       "id": 33,
-      "name": "Mirror the buttress onto the other shoulder",
-      "operation": "Mirror"
-    },
-    {
-      "id": 34,
-      "name": "Draw paired lancets on the head's first long wall",
+      "name": "Draw the pinnacle's shaft on the set-off",
       "operation": "Sketch"
     },
     {
-      "id": 35,
-      "name": "Cut the blind lancets into the long wall",
+      "id": 34,
+      "name": "Raise the shaft past the roof",
       "operation": "Extrude"
     },
     {
+      "id": 35,
+      "name": "Twist the spirelet up off the shaft, tapering to its top",
+      "operation": "Twisted sweep"
+    },
+    {
       "id": 36,
-      "name": "Cut them into every long wall",
+      "name": "Stand a pinnacle on every corner",
       "operation": "Array round a part"
     },
     {
       "id": 37,
-      "name": "Draw paired lancets on the head's first chamfer",
-      "operation": "Sketch"
+      "name": "Lay a plane under the band's mid-plane",
+      "operation": "Work plane"
     },
     {
       "id": 38,
-      "name": "Cut the blind lancets into the chamfer",
-      "operation": "Extrude"
+      "name": "Draw the clasping buttress's elevation on the shoulder, with its two set-offs",
+      "operation": "Sketch"
     },
     {
       "id": 39,
-      "name": "Cut them into every chamfer",
-      "operation": "Array round a part"
+      "name": "Raise the buttress across the band",
+      "operation": "Extrude"
     },
     {
       "id": 40,
-      "name": "Set a citrine lamp on the first corbel",
-      "operation": "Stone"
+      "name": "Mirror the buttress onto the other shoulder",
+      "operation": "Mirror"
     },
     {
       "id": 41,
-      "name": "Its collet",
-      "operation": "Bezel"
+      "name": "Draw the blind arcade's panel on the head's first long wall, leaning with it",
+      "operation": "Sketch"
     },
     {
       "id": 42,
-      "name": "Its seat",
-      "operation": "Seat bur"
+      "name": "Raise the panel off the wall",
+      "operation": "Extrude"
     },
     {
       "id": 43,
-      "name": "Light a lamp on every corbel",
+      "name": "Set a panel on the other long wall",
       "operation": "Array round a part"
     },
     {
       "id": 44,
-      "name": "Ring every lamp in its collet",
-      "operation": "Array round a part"
+      "name": "Draw two pairs of lancets on the first panel",
+      "operation": "Sketch"
     },
     {
       "id": 45,
+      "name": "Sink the blind lancets into the panel",
+      "operation": "Extrude"
+    },
+    {
+      "id": 46,
+      "name": "Sink them into the other panel",
+      "operation": "Array round a part"
+    },
+    {
+      "id": 47,
+      "name": "Glaze the first oculus with a citrine lamp",
+      "operation": "Stone"
+    },
+    {
+      "id": 48,
+      "name": "Cut its seat into the wall",
+      "operation": "Seat bur"
+    },
+    {
+      "id": 49,
+      "name": "Glaze every oculus with a lamp",
+      "operation": "Array round a part"
+    },
+    {
+      "id": 50,
       "name": "Cut every lamp's seat",
       "operation": "Array round a part"
     },
     {
-      "id": 46,
-      "name": "Set the amethyst on the boss",
+      "id": 51,
+      "name": "Set the amethyst in the boss's collet",
       "operation": "Stone"
     },
     {
-      "id": 47,
-      "name": "Its collet",
-      "operation": "Bezel"
-    },
-    {
-      "id": 48,
-      "name": "Its seat, open to the lantern below",
+      "id": 52,
+      "name": "Cut its seat through the collet and boss, open to the lantern below",
       "operation": "Seat bur"
     }
   ],
@@ -1235,12 +1279,12 @@
       "pass": true
     },
     {
-      "gate": "thickness at the 0.8 mm section clean",
-      "pass": false
+      "gate": "thickness at the 0.8 mm section clean on every part made for the ring (stock samples recorded beside it)",
+      "pass": true
     },
     {
       "gate": "CAD cut lands at 0.8 mm clean",
-      "pass": false
+      "pass": true
     },
     {
       "gate": "zero DFM findings",
@@ -1263,40 +1307,42 @@
       "pass": true
     }
   ],
-  "gates_passed": false,
+  "gates_passed": true,
   "geometry": {
     "boundary_edges": 0,
     "bounds_mm": [
       23.20948028564453,
-      35.284820556640625,
-      17.706974029541016
+      35.18482208251953,
+      18.6653995513916
     ],
     "degenerate_faces": 0,
     "non_manifold_edges": 0,
     "self_crossings": 0,
-    "volume_mm3": 1971.9848421147824,
+    "volume_mm3": 2194.320415783619,
     "watertight": true
   },
-  "grams_gold_18k": 30.72352384014831,
+  "grams_gold_18k": 34.187512077908785,
   "land_widths": {
-    "amethyst_collet_wall_mm": 0.6,
+    "amethyst_collet_rim_at_corner_mm": 0.9286796564403573,
+    "boss_rim_at_amethyst_corner_mm": 1.3286796564403573,
     "buttress_mm": 1.8,
-    "chamfer_lancet_bar_mm": 0.85,
-    "crocket_mm": 0.9,
-    "lamp_collet_wall_mm": 0.3,
+    "collet_wall_mm": 0.9,
     "lantern_face_mm": 5.301933598375617,
-    "lantern_pier_mm": 1.4,
     "lantern_roof_mm": 1.0,
     "lantern_wall_mm": 1.0,
-    "light_width_mm": 1.3,
-    "rib_foot_mm": 0.8,
-    "rim_mm": 0.9,
+    "light_inset_from_bars_mm": 0.6,
+    "oculus_collet_top_to_roof_mm": -0.12500000000000022,
+    "pier_mm": 2.3,
+    "rib_roll_mm": 0.9,
+    "rim_mm": 1.1,
+    "rim_over_girdle_mm": 0.35,
+    "roll_mm": 0.84,
+    "shaft_mm": 1.4,
     "side_lancet_bar_mm": 0.9,
-    "side_lancet_head_to_table_mm": 0.8839745962155614,
-    "spirelet_least_mm": 0.8200000000000001,
-    "window_apex_to_roof_mm": 0.8555136271329085,
-    "window_outline_to_wall_edge_mm": 0.9509667991878084,
-    "window_tracery_bar_mm": 0.8
+    "side_lancet_head_to_table_mm": 1.1839745962155612,
+    "spirelet_least_mm": 0.85,
+    "spirelet_taper_over_root_two": 1.081457430050014,
+    "window_mullion_mm": 0.85
   },
   "made_parts": [
     [
@@ -1308,131 +1354,127 @@
       0
     ],
     [
-      "#7 Raise the rim moulding",
+      "#7 Raise the base course, weathered",
       0
     ],
     [
-      "#9 Raise the boss",
+      "#9 Raise the rim moulding",
       0
     ],
     [
-      "#11 Raise the rib, gabled",
+      "#11 Raise the boss",
       0
     ],
     [
-      "#12 Spring a rib to every corner",
+      "#13 Raise the amethyst's collet off the boss",
       0
     ],
     [
-      "#14 Pierce the light through the roof",
+      "#14 Turn the roll moulding round the boss's foot",
       0
     ],
     [
-      "#15 Pierce a light in every bay of the vault",
+      "#16 Run the rib out to the corner",
       0
     ],
     [
-      "#17 Pierce the window's lights through the wall",
+      "#18 Run the right tierceron out to the star's point",
       0
     ],
     [
-      "#18 Open a window in every wall",
+      "#20 Run the left tierceron out to the star's point",
       0
     ],
     [
-      "#20 Raise the pier past the roof",
+      "#21 Spring the star vault's ribs and tiercerons in every bay",
       0
     ],
     [
-      "#21 Twist the spirelet up off the pier, a quarter turn",
+      "#23 Pierce the light through the roof",
       0
     ],
     [
-      "#22 Loft the spire cap to a point",
+      "#24 Pierce a light in every bay of the vault",
       0
     ],
     [
-      "#23 Set a crocket on the cap's arris",
+      "#26 Pierce the window through the wall",
       0
     ],
     [
-      "#24 Set a crocket on the cap's arris",
+      "#27 Open a window in every wall",
       0
     ],
     [
-      "#25 Set a crocket on the cap's arris",
+      "#29 Raise the oculus's collet off the wall",
       0
     ],
     [
-      "#26 Set a crocket on the cap's arris",
+      "#30 Ring every window's oculus",
       0
     ],
     [
-      "#28 Bracket the corbel out from the pier",
+      "#32 Raise the pier's lower stage",
       0
     ],
     [
-      "#29 Stand a pinnacle on every corner",
+      "#34 Raise the shaft past the roof",
       0
     ],
     [
-      "#32 Raise the buttress across the band",
+      "#35 Twist the spirelet up off the shaft, tapering to its top",
       0
     ],
     [
-      "#33 Mirror the buttress onto the other shoulder",
+      "#36 Stand a pinnacle on every corner",
       0
     ],
     [
-      "#35 Cut the blind lancets into the long wall",
+      "#39 Raise the buttress across the band",
       0
     ],
     [
-      "#36 Cut them into every long wall",
+      "#40 Mirror the buttress onto the other shoulder",
       0
     ],
     [
-      "#38 Cut the blind lancets into the chamfer",
+      "#42 Raise the panel off the wall",
       0
     ],
     [
-      "#39 Cut them into every chamfer",
+      "#43 Set a panel on the other long wall",
       0
     ],
     [
-      "#40 Set a citrine lamp on the first corbel",
+      "#45 Sink the blind lancets into the panel",
       0
     ],
     [
-      "#41 Its collet",
+      "#46 Sink them into the other panel",
       0
     ],
     [
-      "#42 Its seat",
+      "#47 Glaze the first oculus with a citrine lamp",
       0
     ],
     [
-      "#43 Light a lamp on every corbel",
+      "#48 Cut its seat into the wall",
       0
     ],
     [
-      "#44 Ring every lamp in its collet",
+      "#49 Glaze every oculus with a lamp",
       0
     ],
     [
-      "#45 Cut every lamp's seat",
+      "#50 Cut every lamp's seat",
       0
     ],
     [
-      "#46 Set the amethyst on the boss",
+      "#51 Set the amethyst in the boss's collet",
       0
     ],
     [
-      "#47 Its collet",
-      0
-    ],
-    [
-      "#48 Its seat, open to the lantern below",
+      "#52 Cut its seat through the collet and boss, open to the lantern below",
       0
     ]
   ],
@@ -1440,7 +1482,7 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 240026,
+    "triangles": 86650,
     "watertight": true
   },
   "process": "Lost wax",
@@ -1451,64 +1493,20 @@
   },
   "stock": "015",
   "stones": {
-    "carats": 0.23603399999999997,
+    "carats": 0.19301374999999998,
     "previewed": 9,
     "reported": 9,
     "tight_pairs": 0
   },
   "thickness": {
-    "below_limit": 26,
+    "below_limit": 0,
     "limit_mm": 0.8,
     "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
     "rays": 384,
-    "sampled_min_mm": 0.00041690318821696625,
+    "sampled_min_mm": 0.8499996581124909,
     "unresolved": 0
   },
-  "thin_samples_by_part": [
-    {
-      "least_mm": 0.028158187866210483,
-      "part": "#14 Pierce the light through the roof",
-      "samples": 1
-    },
-    {
-      "least_mm": 0.18923599593762552,
-      "part": "#21 Twist the spirelet up off the pier, a quarter turn",
-      "samples": 1
-    },
-    {
-      "least_mm": 0.781717659655045,
-      "part": "#22 Loft the spire cap to a point",
-      "samples": 2
-    },
-    {
-      "least_mm": 0.2817065364466669,
-      "part": "#29 Stand a pinnacle on every corner",
-      "samples": 13
-    },
-    {
-      "least_mm": 0.0019152428363748007,
-      "part": "#38 Cut the blind lancets into the chamfer",
-      "samples": 1
-    },
-    {
-      "least_mm": 0.00041690318821696625,
-      "part": "#39 Cut them into every chamfer",
-      "samples": 1
-    },
-    {
-      "least_mm": 0.2988416486141354,
-      "part": "#44 Ring every lamp in its collet",
-      "samples": 5
-    },
-    {
-      "least_mm": 0.6700584119453348,
-      "part": "#47 Its collet",
-      "samples": 1
-    },
-    {
-      "least_mm": 0.019226371633031005,
-      "part": "the stock",
-      "samples": 1
-    }
-  ]
+  "thickness_samples_on_stock": 0,
+  "thickness_strict_screen_clean": true,
+  "thin_samples_by_part": []
 }

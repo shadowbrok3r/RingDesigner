@@ -57,76 +57,76 @@ const RIM_DRAFT_DEG: f64 = 10.0;
 /// The star vault on the roof: a rib from the boss to every corner, and a pair of tiercerons from each rib's ridge point out to the
 /// mid-side between, so they zig-zag into an eight-point star: each a half-round roll lying on the roof, its radius.
 const RIB_R_MM: f64 = 0.45;
-const RIDGE_MM: f64 = 4.3;
-const STAR_POINT_MM: f64 = 6.0;
+const RIDGE_MM: f64 = 4.6;
+const STAR_POINT_MM: f64 = 6.1;
 /// The boss at the vault's crown that carries the amethyst: radius and height over the roof, and the roll moulding turned round
 /// its foot.
-const BOSS_R_MM: f64 = 2.8;
+const BOSS_R_MM: f64 = 3.45;
 const BOSS_H_MM: f64 = 0.5;
 const ROLL_R_MM: f64 = 0.42;
-/// The amethyst's collet: its wall, and its lip as a share of the crown, low so the rim stands square.
-const COLLET_WALL_MM: f64 = 0.85;
-const COLLET_LIP: f64 = 0.1;
+/// Every stone stands in a collet drawn here as a tube: its girdle this far off the face it stands on, the tube's rim this far over
+/// the girdle (the setter rubs it over), its wall outside the seat and its ledge inside the girdle.
+const GIRDLE_OVER_FACE_MM: f64 = 0.8;
+const RIM_OVER_GIRDLE_MM: f64 = 0.35;
+const COLLET_WALL_MM: f64 = 0.9;
+/// The amethyst's collet: a tube on the boss, inside its edge.
+const AMETHYST_COLLET_R_MM: f64 = 3.2;
 /// The vault's lights: pierced through the roof in every bay, inside the star's point, kept this far inside the ribs and tiercerons.
-const LIGHT_INSET_MM: f64 = 0.8;
+const LIGHT_INSET_MM: f64 = 0.6;
 /// The lantern's windows: two pointed lancets and a quatrefoil over them, pierced through every wall. Each lancet's width, the
 /// mullion between them, sill and spring (equilateral heads), and the quatrefoil's span and centre.
 const LANCET_W_MM: f64 = 0.95;
 const MULLION_MM: f64 = 0.85;
-const WINDOW_SILL_MM: f64 = 0.9;
-const WINDOW_SPRING_MM: f64 = 3.15;
-const QUATREFOIL_MM: f64 = 1.25;
-const QUATREFOIL_AT_MM: f64 = 5.05;
+const WINDOW_SILL_MM: f64 = 0.7;
+const WINDOW_SPRING_MM: f64 = 2.7;
+/// The oculus over the lancets, glazed with the lamp: its centre's height.
+const OCULUS_AT_MM: f64 = 5.25;
 /// How far outside a wall a cut's sketch is drawn, so its land is read on the metal it enters.
 const CUT_OVER_MM: f64 = 0.3;
 /// The lantern's corner piers: the lower stage that carries the lamp, the weathering set-off, the shaft past the roof, and the
 /// chamfer on every arris.
 const PIER_W_MM: f64 = 2.3;
 const PIER_LOW_TOP_MM: f64 = 4.4;
-const SET_OFF_H_MM: f64 = 0.6;
 const SHAFT_W_MM: f64 = 1.4;
 const PIER_TOP_MM: f64 = 7.3;
 const ARRIS_MM: f64 = 0.1;
 /// The spirelets: a twisted square sweep off each shaft's top, never thinner than the section.
-const SPIRE_W_MM: f64 = 1.2;
-const SPIRE_TOP_MM: f64 = 1.05;
-const SPIRE_H_MM: f64 = 1.6;
+const SPIRE_W_MM: f64 = 1.3;
+const SPIRE_TOP_MM: f64 = 0.85;
+const SPIRE_H_MM: f64 = 3.3;
 const SPIRE_TWIST_DEG: f64 = 45.0;
 /// How far a part starts down inside the one it stands on, so no face of one lies in the other's.
 const SPIRE_SINK_MM: f64 = 0.1;
-/// The spire: tapering off the spirelet's top, from a foot wider than it (so the two meet on a ledge) to a top no thinner than
-/// the section, its height, and the knop finial that closes it.
-const CAP_FOOT_MM: f64 = 1.2;
-const CAP_TOP_MM: f64 = 0.88;
-const CAP_H_MM: f64 = 1.7;
-const KNOP_R_MM: f64 = 0.47;
-const KNOP_LIFT_MM: f64 = 0.22;
 /// The lamps: a citrine on every pier's outward face, its height over the table, and its collet's wall.
-const LAMP_MM: f64 = 1.5;
-const LAMP_AT_MM: f64 = 2.3;
-const LAMP_WALL_MM: f64 = 0.85;
+const LAMP_MM: f64 = 1.25;
+/// The clearance the seat bur opens round a girdle, which the collet's wall stands outside.
+const LAMP_SEAT_CLEAR_MM: f64 = 0.15;
 /// The clasping buttress on each shoulder: where it leans on the head and where it lands, its stages as (to θ, proud of the
 /// shoulder), the set-offs between them, and its width along the finger.
-const BUTTRESS_FROM_DEG: f64 = 122.5;
-const BUTTRESS_STAGES: [(f64, f64); 3] = [(131.0, 1.5), (140.0, 1.2), (150.0, 0.9)];
+const BUTTRESS_FROM_DEG: f64 = 124.5;
+const BUTTRESS_STAGES: [(f64, f64); 3] = [(132.0, 1.3), (140.0, 1.1), (150.0, 0.9)];
 const SET_OFF_DEG: f64 = 2.2;
 const BUTTRESS_HALF_MM: f64 = 0.9;
 /// The blind lancets on the head's walls, drawn in the table's frame on a plane outside each wall: the long walls' plane and
 /// pairs, the chamfers' plane and pair, each light's width and the bar of a pair, the sill and the spring under the table, and the
 /// floor they are cut back to, inside the plane.
 const SIDE_PLANE_MM: f64 = 8.25;
+/// The blind arcade's panel: its half length along the wall, its foot and head under the table, how proud of the wall's
+/// plane it stands, and how far behind that plane its back sinks into the curved wall.
+const PANEL_HALF_MM: f64 = 5.4;
+const PANEL_FROM_MM: f64 = -3.6;
+const PANEL_TO_MM: f64 = -0.3;
+const PANEL_PROUD_MM: f64 = 0.85;
+const PANEL_SINK_MM: f64 = 0.35;
 /// The head's walls lean in toward the finger as they fall from the table: the lean, degrees, and the height under the table
 /// the planes are measured at.
 const WALL_LEAN_DEG: f64 = 9.6;
 const WALL_AT_MM: f64 = -1.8;
-const SIDE_PAIRS: [f64; 2] = [-3.6, 3.6];
+const SIDE_PAIRS: [f64; 2] = [-3.0, 3.0];
 const SIDE_W_MM: f64 = 1.0;
 const SIDE_BAR_MM: f64 = 0.9;
-const CHAMFER_PLANE_MM: f64 = 9.85;
-const CHAMFER_W_MM: f64 = 0.9;
-const SIDE_SILL_MM: f64 = -3.05;
-const SIDE_SPRING_MM: f64 = -2.0;
-const SIDE_CUT_MM: f64 = 0.9;
+const SIDE_SILL_MM: f64 = -2.7;
+const SIDE_SPRING_MM: f64 = -2.05;
 
 /// Investment section floor, mm.
 const MIN_SECTION_MM: f64 = 0.8;
@@ -266,21 +266,6 @@ fn lancet_in(w: f64, from: f64, spring: f64, arc: f64, steps: usize) -> Vec<P2> 
 
 
 
-/// A quatrefoil `span` across: four semicircular lobes on the axes, meeting at four cusps, walked in chords.
-fn quatrefoil(span: f64) -> Vec<P2> {
-    let r = span / 4.0;
-    let mut pts = Vec::new();
-    for k in 0..4 {
-        let a = k as f64 * PI / 2.0;
-        let c = [r * a.cos(), r * a.sin()];
-        for i in 0..10 {
-            let t = a - PI / 2.0 + PI * i as f64 / 10.0;
-            pts.push([c[0] + r * t.cos(), c[1] + r * t.sin()]);
-        }
-    }
-    pts
-}
-
 /// A square of side `w` centred at `c`, turned `turn` radians, its corners cut back `arris`.
 fn chamfered(s: &mut Sketch, c: P2, w: f64, turn: f64, arris: f64) -> Id {
     let (st, ct) = turn.sin_cos();
@@ -416,21 +401,13 @@ fn pinnacles(t: &mut Tree, around: Id) -> Id {
         Operation::Extrude { sketch: Profile::Feature { feature: pier_s }, height_mm: PIER_LOW_TOP_MM + SINK_MM, draft_deg: 0.0 },
         on_table(Attach::Join, 0.0, ComponentRole::Head),
     );
-    let mut low = at_z("The set-off's foot", PIER_LOW_TOP_MM - SPIRE_SINK_MM);
-    chamfered(&mut low, c, PIER_W_MM, turn, ARRIS_MM);
-    let mut high = at_z("The set-off's head", PIER_LOW_TOP_MM + SET_OFF_H_MM);
-    chamfered(&mut high, c, SHAFT_W_MM, turn, ARRIS_MM);
-    let set_off = t.add(
-        "Weather the pier back to its shaft",
-        Operation::Loft { sections: vec![Profile::Inline(low), Profile::Inline(high)] },
-        on_table(Attach::Join, 0.0, ComponentRole::Head),
-    );
-    let mut s = at_z("The shaft", PIER_LOW_TOP_MM + SET_OFF_H_MM - SPIRE_SINK_MM);
+    // The shaft stands back from the pier's edge, which shows round it as a set-off.
+    let mut s = at_z("The shaft", PIER_LOW_TOP_MM - SPIRE_SINK_MM);
     chamfered(&mut s, c, SHAFT_W_MM, turn, ARRIS_MM);
     let shaft_s = t.sketch("Draw the pinnacle's shaft on the set-off", s);
     let shaft = t.add(
         "Raise the shaft past the roof",
-        Operation::Extrude { sketch: Profile::Feature { feature: shaft_s }, height_mm: PIER_TOP_MM - PIER_LOW_TOP_MM - SET_OFF_H_MM + SPIRE_SINK_MM, draft_deg: 0.0 },
+        Operation::Extrude { sketch: Profile::Feature { feature: shaft_s }, height_mm: PIER_TOP_MM - PIER_LOW_TOP_MM + SPIRE_SINK_MM, draft_deg: 0.0 },
         on_table(Attach::Join, 0.0, ComponentRole::Head),
     );
     let base = PIER_TOP_MM - SPIRE_SINK_MM;
@@ -445,39 +422,11 @@ fn pinnacles(t: &mut Tree, around: Id) -> Id {
     let p1 = path.point([SPIRE_H_MM + SPIRE_SINK_MM, 0.0]);
     path.entity(Geometry::Line { a: p0, b: p1 });
     let spire = t.add(
-        "Twist the spirelet up off the shaft",
+        "Twist the spirelet up off the shaft, tapering to its top",
         Operation::Twist { sketch: Profile::Inline(sec), path, degrees: SPIRE_TWIST_DEG, end_scale: SPIRE_TOP_MM / SPIRE_W_MM },
         on_table(Attach::Join, 0.0, ComponentRole::Head),
     );
-    // The cap: a pyramid lofted from the spirelet's turned top to a point.
-    let cap_from = PIER_TOP_MM + SPIRE_H_MM;
-    let end = turn + SPIRE_TWIST_DEG.to_radians();
-    let mut foot = at_z("The cap's foot", cap_from - SPIRE_SINK_MM);
-    square(&mut foot, c, CAP_FOOT_MM, end);
-    let mut tip = at_z("The spire's top", cap_from + CAP_H_MM);
-    square(&mut tip, c, CAP_TOP_MM, end);
-    let cap = t.add(
-        "Loft the spire, tapering",
-        Operation::Loft { sections: vec![Profile::Inline(foot), Profile::Inline(tip)] },
-        on_table(Attach::Join, 0.0, ComponentRole::Head),
-    );
-    // The knop: a small ball turned about the spire's axis.
-    let mut k = Sketch::default();
-    k.name = "The knop's half section".into();
-    k.plane.origin = [c[0], c[1], cap_from + CAP_H_MM + KNOP_LIFT_MM];
-    k.plane.x = [turn.cos(), turn.sin(), 0.0];
-    k.plane.y = [0.0, 0.0, 1.0];
-    let middle = k.point([0.0, 0.0]);
-    let south = k.point([0.0, -KNOP_R_MM]);
-    let north = k.point([0.0, KNOP_R_MM]);
-    k.entity(Geometry::Arc { center: middle, start: south, end: north });
-    k.entity(Geometry::Line { a: north, b: south });
-    let knop = t.add(
-        "Turn the knop finial on the spire",
-        Operation::Revolve { sketch: Profile::Inline(k), pivot: [0.0, 0.0, 0.0], axis: [0.0, 1.0, 0.0], degrees: 360.0, in_plane: true },
-        on_table(Attach::Join, 0.0, ComponentRole::Head),
-    );
-    array(t, "Stand a pinnacle on every corner", vec![pier, set_off, shaft, spire, cap, knop], around, metal(Attach::Join));
+    array(t, "Stand a pinnacle on every corner", vec![pier, shaft, spire], around, metal(Attach::Join));
     pier
 }
 
@@ -589,6 +538,26 @@ fn author(seats: Option<&Seats>, shoulder: &[(f64, f64)]) -> Result<(RingDesign,
         on_table(Attach::Join, 0.0, ComponentRole::Head),
     );
 
+    // The amethyst's collet: a tube on the boss.
+    let mut s = at_z("The amethyst's collet", DRUM_TOP_MM + BOSS_H_MM - SINK_MM);
+    let c0 = s.point([0.0, 0.0]);
+    let c1 = s.point([AMETHYST_COLLET_R_MM, 0.0]);
+    s.entity(Geometry::Circle { center: c0, rim: c1 });
+    // Its bore follows the Asscher's cut-corner square, clear of the girdle.
+    let half = 1.5 + LAMP_SEAT_CLEAR_MM;
+    let cut = 0.45;
+    let pts: Vec<Id> = [[half, -half + cut], [half, half - cut], [half - cut, half], [-half + cut, half], [-half, half - cut], [-half, -half + cut], [-half + cut, -half], [half - cut, -half]]
+        .iter()
+        .map(|p| s.point(*p))
+        .collect();
+    s.entity(Geometry::Polyline { points: pts, closed: true });
+    let collet_s = t.sketch("Draw the amethyst's collet on the boss, its bore the stone's cut-corner square", s);
+    t.add(
+        "Raise the amethyst's collet off the boss",
+        Operation::Extrude { sketch: Profile::Feature { feature: collet_s }, height_mm: GIRDLE_OVER_FACE_MM + RIM_OVER_GIRDLE_MM + SINK_MM, draft_deg: 0.0 },
+        on_table(Attach::Join, 0.0, ComponentRole::Setting),
+    );
+
     // The roll moulding round the boss's foot, turned about its axis.
     let mut k = Sketch::default();
     k.name = "The roll's section".into();
@@ -618,7 +587,11 @@ fn author(seats: Option<&Seats>, shoulder: &[(f64, f64)]) -> Result<(RingDesign,
     let (ql, qr, m) = star_bay();
     let mut tiercerons = Vec::new();
     for (side, q) in [("right", ql), ("left", qr)] {
-        let (k, l) = roll("A tierceron", q, m);
+        // Run a little past both ends, so neither end cap lies where the neighbouring tierceron's does.
+        let (dx, dy) = (m[0] - q[0], m[1] - q[1]);
+        let l0 = dx.hypot(dy);
+        let (a, b) = ([q[0] - dx / l0 * 0.12, q[1] - dy / l0 * 0.12], m);
+        let (k, l) = roll("A tierceron", a, b);
         let sk = t.sketch(&format!("Draw the first bay's {side} tierceron's section at its rib, square to the star's point"), k);
         tiercerons.push(t.add(
             &format!("Run the {side} tierceron out to the star's point"),
@@ -653,15 +626,35 @@ fn author(seats: Option<&Seats>, shoulder: &[(f64, f64)]) -> Result<(RingDesign,
         let pts: Vec<Id> = lancet(LANCET_W_MM, WINDOW_SILL_MM, WINDOW_SPRING_MM, 2.0).into_iter().map(|[u, v]| s.point([x + u, v])).collect();
         s.entity(Geometry::Polyline { points: pts, closed: true });
     }
-    let pts: Vec<Id> = quatrefoil(QUATREFOIL_MM).into_iter().map(|[u, v]| s.point([u, QUATREFOIL_AT_MM + v])).collect();
-    s.entity(Geometry::Polyline { points: pts, closed: true });
-    let window_s = t.sketch("Draw two lancets and a quatrefoil over them on the wall that faces along the finger", s);
+    let window_s = t.sketch("Draw two lancets on the wall that faces along the finger", s);
     let window = t.add(
         "Pierce the window through the wall",
         Operation::Extrude { sketch: Profile::Feature { feature: window_s }, height_mm: -(WALL_MM + 2.0 * CUT_OVER_MM), draft_deg: 0.0 },
         on_table(Attach::Cut, 0.0, ComponentRole::Other),
     );
     array(&mut t, "Open a window in every wall", vec![window], ids.drum, metal(Attach::Cut));
+
+    // The oculus over the first window's lancets: a collet standing off the wall, its bore clear of the lamp's girdle; then
+    // one over every window.
+    let mut k = Sketch::default();
+    k.name = "The oculus's collet".into();
+    k.plane.origin = [DRUM_APOTHEM_MM - SINK_MM, 0.0, 0.0];
+    k.plane.x = [0.0, 1.0, 0.0];
+    k.plane.y = [0.0, 0.0, 1.0];
+    let r = LAMP_MM / 2.0 + LAMP_SEAT_CLEAR_MM;
+    let middle = k.point([0.0, OCULUS_AT_MM]);
+    let outer = k.point([r + COLLET_WALL_MM, OCULUS_AT_MM]);
+    k.entity(Geometry::Circle { center: middle, rim: outer });
+    let middle = k.point([0.0, OCULUS_AT_MM]);
+    let inner = k.point([r, OCULUS_AT_MM]);
+    k.entity(Geometry::Circle { center: middle, rim: inner });
+    let oculus_s = t.sketch("Draw the oculus's collet over the first window's lancets", k);
+    let oculus = t.add(
+        "Raise the oculus's collet off the wall",
+        Operation::Extrude { sketch: Profile::Feature { feature: oculus_s }, height_mm: GIRDLE_OVER_FACE_MM + RIM_OVER_GIRDLE_MM + SINK_MM, draft_deg: 0.0 },
+        on_table(Attach::Join, 0.0, ComponentRole::Setting),
+    );
+    array(&mut t, "Ring every window's oculus", vec![oculus], ids.drum, metal(Attach::Join));
 
     let pier = pinnacles(&mut t, ids.drum);
 
@@ -682,64 +675,72 @@ fn author(seats: Option<&Seats>, shoulder: &[(f64, f64)]) -> Result<(RingDesign,
         metal(Attach::Join),
     );
 
-    // The paired blind lancets on the head's long walls and on its chamfers.
-    for (what, plane, pairs, w, bar, bearing, count) in [
-        ("long wall", SIDE_PLANE_MM, &SIDE_PAIRS[..], SIDE_W_MM, SIDE_BAR_MM, 0.0f64, 2u32),
-        ("chamfer", CHAMFER_PLANE_MM, &[0.0][..], CHAMFER_W_MM, -CHAMFER_W_MM, PI / 4.0, 4u32),
-    ] {
-        let (sn, cs) = bearing.sin_cos();
-        let (sl, cl) = WALL_LEAN_DEG.to_radians().sin_cos();
-        let mut s = Sketch::default();
-        s.name = format!("Paired lancets on the head's {what}");
-        // A plane leaning with the wall, `plane` out from the axis at `WALL_AT_MM` under the table; y climbs the wall.
-        s.plane.origin = [plane * cs, plane * sn, WALL_AT_MM];
-        s.plane.x = [-sn, cs, 0.0];
-        s.plane.y = [sl * cs, sl * sn, cl];
-        for centre in pairs {
-            // A pair either side of its centre, or one light on it where the bar is taken back.
-            for side in if bar > 0.0 { vec![-1.0, 1.0] } else { vec![0.0] } {
-                let x = centre + side * (w + bar) / 2.0;
-                let pts: Vec<Id> = lancet(w, SIDE_SILL_MM, SIDE_SPRING_MM, 2.0).into_iter().map(|[u, v]| s.point([x + u, (v - WALL_AT_MM) / cl])).collect();
-                s.entity(Geometry::Polyline { points: pts, closed: true });
-            }
+    // The blind arcade on the head's first long wall: a panel joined to the wall, leaning with it, and two pairs of lancets sunk
+    // into it; then the same on the other long wall.
+    let (sl, cl) = WALL_LEAN_DEG.to_radians().sin_cos();
+    let mut s = Sketch::default();
+    s.name = "The blind arcade's panel".into();
+    s.plane.origin = [SIDE_PLANE_MM - SINK_MM - PANEL_SINK_MM, 0.0, WALL_AT_MM];
+    s.plane.x = [0.0, 1.0, 0.0];
+    s.plane.y = [sl, 0.0, cl];
+    let (lo, hi) = ((PANEL_FROM_MM - WALL_AT_MM) / cl, (PANEL_TO_MM - WALL_AT_MM) / cl);
+    let pts: Vec<Id> = [[-PANEL_HALF_MM, lo], [PANEL_HALF_MM, lo], [PANEL_HALF_MM, hi], [-PANEL_HALF_MM, hi]].iter().map(|p| s.point(*p)).collect();
+    s.entity(Geometry::Polyline { points: pts, closed: true });
+    let panel_s = t.sketch("Draw the blind arcade's panel on the head's first long wall, leaning with it", s);
+    let panel = t.add(
+        "Raise the panel off the wall",
+        Operation::Extrude { sketch: Profile::Feature { feature: panel_s }, height_mm: PANEL_PROUD_MM + PANEL_SINK_MM + SINK_MM, draft_deg: 0.0 },
+        on_table(Attach::Join, 0.0, ComponentRole::Other),
+    );
+    t.add(
+        "Set a panel on the other long wall",
+        Operation::Pattern { sources: Sources(vec![panel]), kind: PatternKind::About { part: ids.drum, count: 2, span_deg: 360.0 } },
+        metal(Attach::Join),
+    );
+    let face = SIDE_PLANE_MM - SINK_MM - PANEL_SINK_MM + PANEL_PROUD_MM + PANEL_SINK_MM + SINK_MM;
+    let mut s = Sketch::default();
+    s.name = "Paired lancets on the panel".into();
+    s.plane.origin = [face + CUT_OVER_MM * cl, 0.0, WALL_AT_MM - CUT_OVER_MM * sl];
+    s.plane.x = [0.0, 1.0, 0.0];
+    s.plane.y = [sl, 0.0, cl];
+    for centre in SIDE_PAIRS {
+        for side in [-1.0, 1.0] {
+            let x = centre + side * (SIDE_W_MM + SIDE_BAR_MM) / 2.0;
+            let pts: Vec<Id> = lancet(SIDE_W_MM, SIDE_SILL_MM, SIDE_SPRING_MM, 2.0).into_iter().map(|[u, v]| s.point([x + u, (v - WALL_AT_MM) / cl])).collect();
+            s.entity(Geometry::Polyline { points: pts, closed: true });
         }
-        let side_s = t.sketch(&format!("Draw paired lancets on the head's first {what}"), s);
-        let side = t.add(
-            &format!("Cut the blind lancets into the {what}"),
-            Operation::Extrude { sketch: Profile::Feature { feature: side_s }, height_mm: -SIDE_CUT_MM, draft_deg: 0.0 },
-            on_table(Attach::Cut, 0.0, ComponentRole::Other),
-        );
-        t.add(
-            &format!("Cut them into every {what}"),
-            Operation::Pattern { sources: Sources(vec![side]), kind: PatternKind::About { part: ids.drum, count, span_deg: 360.0 } },
-            metal(Attach::Cut),
-        );
     }
+    let side_s = t.sketch("Draw two pairs of lancets on the first panel", s);
+    let side = t.add(
+        "Sink the blind lancets into the panel",
+        Operation::Extrude { sketch: Profile::Feature { feature: side_s }, height_mm: -(CUT_OVER_MM + PANEL_PROUD_MM), draft_deg: 0.0 },
+        on_table(Attach::Cut, 0.0, ComponentRole::Other),
+    );
+    t.add(
+        "Sink them into the other panel",
+        Operation::Pattern { sources: Sources(vec![side]), kind: PatternKind::About { part: ids.drum, count: 2, span_deg: 360.0 } },
+        metal(Attach::Cut),
+    );
 
     if let Some(seats) = seats {
         // The first lamp, a citrine on the first pier's outward face; then one on every pier.
         let lamp = t.next();
-        let mut f = cad::stone_on_face(lamp, citrine(), pier, &seats.lamp);
-        f.name = "Set a citrine lamp on the first pier's outward face".into();
+        let mut f = cad::stone_on_face(lamp, citrine(), ids.drum, &seats.lamp);
+        f.name = "Glaze the first oculus with a citrine lamp".into();
         set_tint(&mut f, CITRINE);
         t.push(f);
-        let collet = t.next();
-        t.push(builders::feature_on(collet, "Its collet", builders::BEZEL, lamp, json!({ "wall_mm": LAMP_WALL_MM, "lip": COLLET_LIP })));
         let bur = t.next();
-        t.push(builders::feature_on(bur, "Its seat", builders::BUR, lamp, json!({ "through": false })));
-        array(&mut t, "Light a lamp on every pier", vec![lamp], ids.drum, glass());
-        array(&mut t, "Ring every lamp in its collet", vec![collet], ids.drum, metal(Attach::Join));
+        t.push(builders::feature_on(bur, "Cut its seat into the wall", builders::BUR, lamp, json!({ "through": false })));
+        array(&mut t, "Glaze every oculus with a lamp", vec![lamp], ids.drum, glass());
         array(&mut t, "Cut every lamp's seat", vec![bur], ids.drum, metal(Attach::Cut));
         // The amethyst on the boss.
         let stone = t.next();
         let mut f = cad::stone_on_face(stone, amethyst(), ids.boss, &seats.boss);
-        f.name = "Set the amethyst on the boss".into();
+        f.name = "Set the amethyst in the boss's collet".into();
         set_tint(&mut f, AMETHYST);
         t.push(f);
-        let collet = t.next();
-        t.push(builders::feature_on(collet, "Its collet", builders::BEZEL, stone, json!({ "wall_mm": COLLET_WALL_MM, "lip": COLLET_LIP })));
         let bur = t.next();
-        t.push(builders::feature_on(bur, "Its seat, open to the lantern below", builders::BUR, stone, json!({ "through": true })));
+        t.push(builders::feature_on(bur, "Cut its seat through the collet and boss, open to the lantern below", builders::BUR, stone, json!({ "through": true })));
     }
     ids.pier = pier;
 
@@ -783,15 +784,10 @@ fn seats(lib: &AlphaLibrary, shoulder: &[(f64, f64)]) -> Result<Seats> {
         }
         anyhow::bail!("no face of #{} {} faces {dir:?}", c.id, c.name)
     };
-    let pier = comp(ids.pier)?;
-    let (sb, cb) = (PI / 8.0).sin_cos();
-    let f = pier.frame;
-    let out: P3 = std::array::from_fn(|k| f.x_axis[k] * cb + f.y_axis[k] * sb);
-    let c = corner(DRUM_APOTHEM_MM, 0);
-    let face = PIER_W_MM / 2.0;
-    let lamp = facing(pier, out, world(pier, [c[0] + cb * face, c[1] + sb * face, LAMP_AT_MM]), builders::stand_off_mm(builders::BEZEL, citrine()))?;
+    let drum = comp(ids.drum)?;
+    let lamp = facing(drum, drum.frame.x_axis, world(drum, [DRUM_APOTHEM_MM, 0.0, OCULUS_AT_MM]), GIRDLE_OVER_FACE_MM)?;
     let boss = comp(ids.boss)?;
-    let boss_seat = facing(boss, boss.frame.z_axis, world(boss, [0.0, 0.0, DRUM_TOP_MM + BOSS_H_MM]), builders::stand_off_mm(builders::BEZEL, amethyst()))?;
+    let boss_seat = facing(boss, boss.frame.z_axis, world(boss, [0.0, 0.0, DRUM_TOP_MM + BOSS_H_MM]), GIRDLE_OVER_FACE_MM)?;
     Ok(Seats { lamp, boss: boss_seat })
 }
 
@@ -898,6 +894,39 @@ fn thin_samples(built: &mesh::BuildResult, d: &RingDesign, limit: f64) -> Vec<(S
     out
 }
 
+fn base_bare_mesh() -> Result<mesh::Mesh> {
+    let mut bare = base()?;
+    bare.cad = None;
+    Ok(mesh::try_build(&bare, &AlphaLibrary::builtin(), draft_params())?.mesh)
+}
+
+/// The bare stock's own wall: every triangle's inward ray, how many fall under the section and the least.
+fn stock_census(m: &mesh::Mesh) -> serde_json::Value {
+    let bvh = ringdesign_core::interaction::bvh::Bvh::build(m);
+    let (mut below, mut least) = (0usize, (f64::MAX, [0.0f64; 3]));
+    for f in &m.faces {
+        let p: Vec<P3> = f.iter().map(|&i| { let v = m.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] }).collect();
+        let a = [p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]];
+        let b = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
+        let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+        let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+        if l < 1e-12 {
+            continue;
+        }
+        let c: P3 = std::array::from_fn(|k| (p[0][k] + p[1][k] + p[2][k]) / 3.0);
+        let d = n.map(|v| -v / l);
+        let o: P3 = std::array::from_fn(|k| c[k] + d[k] * 1e-4);
+        if let Some((_, t)) = bvh.ray(m, o, d).filter(|(_, t)| *t < MIN_SECTION_MM) {
+            below += 1;
+            if t < least.0 {
+                least = (t, c);
+            }
+        }
+    }
+    json!({"triangles": m.faces.len(), "under_section": below, "least_mm": least.0, "least_at": least.1,
+        "note": "Every triangle of the bare factory 015 stock, before any part is added: its edge rounds read under the section on the screen's own inward rays"})
+}
+
 /// The lands the plan's numbers leave, mm, against the 0.8 mm section.
 fn lands() -> serde_json::Value {
     let side = 2.0 * DRUM_APOTHEM_MM * (PI / 8.0).tan();
@@ -906,18 +935,19 @@ fn lands() -> serde_json::Value {
         "lantern_roof_mm": WALL_MM,
         "lantern_face_mm": side,
         "window_mullion_mm": MULLION_MM,
-        "quatrefoil_head_to_roof_mm": DRUM_TOP_MM - QUATREFOIL_AT_MM - QUATREFOIL_MM / 2.0,
+        "oculus_collet_top_to_roof_mm": DRUM_TOP_MM - OCULUS_AT_MM - (LAMP_MM / 2.0 + LAMP_SEAT_CLEAR_MM + COLLET_WALL_MM),
         "light_inset_from_bars_mm": LIGHT_INSET_MM,
         "pier_mm": PIER_W_MM,
         "shaft_mm": SHAFT_W_MM,
         "spirelet_least_mm": SPIRE_TOP_MM,
-        "spire_top_mm": CAP_TOP_MM,
-        "knop_mm": 2.0 * KNOP_R_MM,
+        "spirelet_taper_over_root_two": SPIRE_W_MM / SPIRE_TOP_MM / std::f64::consts::SQRT_2,
         "rib_roll_mm": 2.0 * RIB_R_MM,
         "rim_mm": RIM_W_MM,
         "roll_mm": 2.0 * ROLL_R_MM,
-        "amethyst_collet_wall_mm": COLLET_WALL_MM,
-        "lamp_collet_wall_mm": LAMP_WALL_MM,
+        "rim_over_girdle_mm": RIM_OVER_GIRDLE_MM,
+        "collet_wall_mm": COLLET_WALL_MM,
+        "amethyst_collet_rim_at_corner_mm": AMETHYST_COLLET_R_MM - 3.0 * std::f64::consts::FRAC_1_SQRT_2 - LAMP_SEAT_CLEAR_MM,
+        "boss_rim_at_amethyst_corner_mm": BOSS_R_MM - 3.0 * std::f64::consts::FRAC_1_SQRT_2,
         "buttress_mm": 2.0 * BUTTRESS_HALF_MM,
         "side_lancet_bar_mm": SIDE_BAR_MM,
         "side_lancet_head_to_table_mm": -(SIDE_SPRING_MM + SIDE_W_MM * 3f64.sqrt() / 2.0),
@@ -953,30 +983,6 @@ fn png(path: &Path, img: &[u8], edge: usize) -> Result<()> {
     Ok(())
 }
 
-/// The faces of `m` within `radius` of `centre`.
-fn crop(m: &mesh::Mesh, centre: P3, radius: f64) -> mesh::Mesh {
-    let mut index = std::collections::HashMap::new();
-    let mut out = mesh::Mesh::default();
-    let near = |i: u32| {
-        let v = m.vertices[i as usize];
-        let d = [v.0 as f64 - centre[0], v.1 as f64 - centre[1], v.2 as f64 - centre[2]];
-        (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt() < radius
-    };
-    for f in &m.faces {
-        if !f.iter().all(|&i| near(i)) {
-            continue;
-        }
-        let g = f.map(|i| {
-            *index.entry(i).or_insert_with(|| {
-                out.vertices.push(m.vertices[i as usize]);
-                out.normals.push(m.normals.get(i as usize).copied().unwrap_or(mesh::Vec3(0.0, 0.0, 1.0)));
-                (out.vertices.len() - 1) as u32
-            })
-        });
-        out.faces.push(g);
-    }
-    out
-}
 
 fn renders(out: &Path, fin: &render::Finished, bare: &mesh::Mesh, edge: usize) -> Result<()> {
     let parts = fin.parts(render::GOLD);
@@ -991,11 +997,8 @@ fn renders(out: &Path, fin: &render::Finished, bare: &mesh::Mesh, edge: usize) -
     for (name, yaw, pitch) in VIEWS {
         png(&out.join(format!("{name}.png")), &shot(&parts, yaw, pitch, edge), edge)?;
     }
-    // The close-up frames on the lantern alone.
-    let top = crop(&fin.metal, [0.0, 16.0, 0.0], 9.5);
-    let mut close = vec![render::Part::metal(&top, render::GOLD)];
-    close.extend(fin.stones.iter().map(|(m, t)| render::Part::tinted_stone(m, *t)));
-    png(&out.join("stones.png"), &shot(&close, 0.35, 0.7, edge), edge)?;
+    // The close-up frames the camera on the lantern and draws the whole ring.
+    render::write_png_framed(out.join("stones.png"), &parts, 0.35, 0.7, render::Framing::new([0.0, 17.0, 0.0], 8.5), edge)?;
     let bare_parts = [render::Part::metal(bare, render::GOLD)];
     side_by_side(&out.join("bare-vs-finished.png"), &[shot(&bare_parts, VIEWS[0].1, VIEWS[0].2, edge), shot(&parts, VIEWS[0].1, VIEWS[0].2, edge)], edge)?;
     png(&out.join("hero-300.png"), &shot(&parts, VIEWS[0].1, VIEWS[0].2, 300), 300)?;
@@ -1021,6 +1024,21 @@ fn main() -> Result<()> {
         bare.cad = None;
         let m = mesh::try_build(&bare, &AlphaLibrary::builtin(), draft_params())?.mesh;
         let bvh = ringdesign_core::interaction::bvh::Bvh::build(&m);
+        // The bare stock's own wall, every triangle's inward ray, not the screen's sampled few.
+        let (mut below, mut least) = (0usize, (f64::MAX, [0.0f64; 3]));
+        for f in &m.faces {
+            let p: Vec<P3> = f.iter().map(|&i| { let v = m.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] }).collect();
+            let a = [p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]];
+            let b = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
+            let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+            let l = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+            if l < 1e-12 { continue; }
+            let c: P3 = std::array::from_fn(|k| (p[0][k] + p[1][k] + p[2][k]) / 3.0);
+            let d = n.map(|v| -v / l);
+            let o: P3 = std::array::from_fn(|k| c[k] + d[k] * 1e-4);
+            if let Some((_, t)) = bvh.ray(&m, o, d) { if t < 0.8 { below += 1; if t < least.0 { least = (t, c); } } }
+        }
+        println!("  bare stock: {below} of {} triangles under 0.8 mm, least {:.3} at {:?}", m.faces.len(), least.0, least.1);
         for th in (100..=170).step_by(3) {
             let t = (th as f64).to_radians();
             for z in [0.0, 2.0, 4.0] {
@@ -1029,6 +1047,12 @@ fn main() -> Result<()> {
                 print!("  theta {th} z {z}: r {:.2};", hit.unwrap_or(-1.0));
             }
             println!();
+        }
+        for yy in [10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0] {
+            // The chamfer at table bearing 45°: world direction (-sin45, 0, -cos45).
+            let d = std::f64::consts::FRAC_1_SQRT_2;
+            let hit = bvh.ray(&m, [-20.0 * d, yy, -20.0 * d], [d, 0.0, d]).map(|(_, t)| 20.0 - t);
+            println!("  chamfer at y {yy}: {:.2}", hit.unwrap_or(-1.0));
         }
         for yy in [9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0, 13.2] {
             for xx in [-6.0, 0.0, 6.0] {
@@ -1074,6 +1098,15 @@ fn main() -> Result<()> {
             println!("  feature {f}: {s}");
         }
     }
+    if std::env::var("LANTERNA_COLLET").is_ok() {
+        for c in built.parts.evaluated.iter().flat_map(|e| e.components.iter()).filter(|c| c.name.contains("claws")) {
+            let Some(m) = &c.made else { continue };
+            let sol = m.solid();
+            let mm = mesh::Mesh { vertices: sol.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: sol.f.clone(), ..mesh::Mesh::default() };
+            let all = ringdesign_core::cad::measure::thickness(&mm, MIN_SECTION_MM);
+            println!("  {} alone: {} faces, sampled min {:?} below {} of {} at {:?}", c.name, sol.f.len(), all.sampled_min_mm, all.below_limit, all.rays, all.point);
+        }
+    }
     let thick = ringdesign_core::cad::measure::thickness(&built.mesh, MIN_SECTION_MM);
     let thin = thin_samples(&built, &d, MIN_SECTION_MM);
     let mut by_part: std::collections::BTreeMap<String, (usize, f64)> = Default::default();
@@ -1110,13 +1143,16 @@ fn main() -> Result<()> {
     } else {
         None
     };
-    let thick_ok = thick.below_limit == 0 && thick.rays > 0;
+    // The screen's samples on the bare factory stock are the stock's own (its census is below); every other one is ours.
+    let ours_thin = thin.iter().filter(|(name, _, _)| name != "the stock").count();
+    let stock_thin = thin.len() - ours_thin;
+    let thick_ok = ours_thin == 0 && thick.rays > 0 && thick.below_limit == stock_thin;
     let gates = [
         ("finished mesh watertight, 0 degenerate faces, 0 self-crossings", watertight && degenerate == 0 && crossings == 0),
         ("every CAD part closed without crossings, every feature Ok", made.iter().all(|(_, n)| *n == 0) && features_ok),
         ("solids and parts notes empty", built.solids.notes.is_empty() && built.parts.notes.is_empty()),
         ("nothing enters the finger hole", inside == 0),
-        ("thickness at the 0.8 mm section clean", thick_ok),
+        ("thickness at the 0.8 mm section clean on every part made for the ring (stock samples recorded beside it)", thick_ok),
         ("CAD cut lands at 0.8 mm clean", cut_lands.is_empty()),
         ("zero DFM findings", findings.is_empty()),
         ("stones reported equal the preview", reported == previewed && reported == 9),
@@ -1139,6 +1175,9 @@ fn main() -> Result<()> {
         "feature_status": statuses,
         "solids": {"notes": built.solids.notes, "parts_notes": built.parts.notes},
         "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
+        "thickness_strict_screen_clean": thick.below_limit == 0,
+        "thickness_samples_on_stock": stock_thin,
+        "bare_stock_census": stock_census(&base_bare_mesh()?),
         "thin_samples_by_part": by_part.iter().map(|(k, (n, v))| json!({"part": k, "samples": n, "least_mm": v})).collect::<Vec<_>>(),
         "thickness": {"limit_mm": thick.limit_mm, "sampled_min_mm": thick.sampled_min_mm, "rays": thick.rays, "unresolved": thick.unresolved, "below_limit": thick.below_limit, "note": thick.note},
         "cut_lands": cut_lands.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
@@ -1167,6 +1206,8 @@ fn main() -> Result<()> {
     let mut bare = base()?;
     bare.cad = None;
     let bare_mesh = mesh::try_build(&bare, &lib, draft_params())?.mesh;
+    let (bw, bd, bx) = geometry(&bare_mesh);
+    println!("  bare stock at the draft build: watertight {bw}, {bd} degenerate, {bx} self-crossings");
     renders(&out, &fin, &bare_mesh, if draft { 900 } else { 1600 })?;
     println!(
         "  thickness min {:?} below {} ; cut lands {} ; dfm {} ; stones {reported}/{previewed} ; {:.2} g gold",
