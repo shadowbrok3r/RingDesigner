@@ -814,6 +814,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 
 ## Phrynosoma — *the horned crown*
 
+- **Process (Logan, 2026-10-03):** lost wax on the real factory 016 Star (Fallback B), unmirrored: judged as lost wax, 0.8 mm minimum section, no pull rule. Any sand pull it happens to pass is reported as a bonus, never gated.
 - **Status:** not started. **Blocked on the bare 016 verdict.**
   - The 016 Star sand master fields **NotCastable, 2.9% at −7.6°, bare**. Its envelope rewrites it by 0.44 mm, but only in the mesh build; the field verdict still reads the master itself.
   - After the base: C-R1, C-R4 and C-R7. P3 and P4 have landed.
