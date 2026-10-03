@@ -1,0 +1,28 @@
+{
+  "ring": "Arcus",
+  "slug": "arcus",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A plain smooth gold band carrying an emerald-cut blue stone in a tall four-claw basket, with a bare square-post-and-pyramid spike standing on each shoulder. It reads as a solitaire with two punk spikes, or a 'tower' novelty ring. In the face view the flyers are two thin, nearly straight parallel rails running from the basket down to the spikes, like a ladder or a guard rail, not an arch. Nothing curves upward, there is no open arch to see light through, no crockets or finial on the spikes, no gargoyle, and the band's side faces look blank, so there is no arcade. A jeweller would say 'sapphire solitaire with spikes'. They would not say 'flying buttress', and probably not 'Gothic cathedral' either: two plain pyramids are not enough to suggest that.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the flyers read as flying-buttress arches",
+      "where": "Shoulders, both sides: the 'Flyers' shank.cathedral feature, theta about 90 +/- 34 deg",
+      "how_much": "Raise rise from 0.75 to about 1.3-1.5 and wire_mm from 1.0 to 1.3, so each flyer is a clearly curved half-arch (concave underside) with an open, pointed void under it, at least 2 mm tall, that shows black background in the face view. Merge the two thin rails into one solid arch rib, or space them so the eye sees a single arched member, not a ladder. The arch must spring from high on the pier (just below the spire), not from its foot. Acceptance: in face-300 the flyer outline is visibly curved and the void beneath it reads as an arch."
+    },
+    {
+      "priority": 2,
+      "what": "Turn the spikes into Gothic pinnacles",
+      "where": "The 'Pinnacle' parts at theta 56 and 124 deg (pier, spire, crockets, knop, gargoyle)",
+      "how_much": "The crockets and knop do not show at 300 px. Raise crocket projection from 0.35 to about 0.6 mm and use two tiers (8 per spire). Make the knop finial at least 0.8 mm in diameter. Raise the pier from 2.4 to about 3.0 mm and cut a lancet niche or a gabled blind arch about 0.4 mm deep into its outward face. If the gargoyle spout cannot read at 300 px, enlarge it to about 1.5 mm of projection or drop it. Acceptance: in hero-300 each pinnacle shows bumpy crocketed edges and a ball tip, and no longer reads as a smooth pyramid spike."
+    },
+    {
+      "priority": 3,
+      "what": "Make the nave arcade visible on the side faces",
+      "where": "Field layer 'Nave arcade', side faces from the piers through the palm (window theta 270, span 280)",
+      "how_much": "Raise height_mm from 0.25 to about 0.5 and cut repeats_around from 36 to about 18-20, so each pointed lancet bay is about 2 mm tall and wide with deep, dark recesses. Acceptance: in hero-300 the visible side face of the band shows a row of pointed arches instead of plain polished metal."
+    }
+  ]
+}

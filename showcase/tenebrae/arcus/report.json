@@ -1,0 +1,1086 @@
+{
+  "alloy": "Gold 18k",
+  "bore": {
+    "nearest_vertex_mm": 9.299994349218723,
+    "radius_mm": 9.3,
+    "vertices_inside": 0
+  },
+  "bore_mm": 18.600024018099006,
+  "build": {
+    "build_s": 11.884067544,
+    "profile_steps": 448,
+    "theta_steps": 1536,
+    "triangles": 1262396
+  },
+  "cold_reload_identical": true,
+  "cut_lands": [],
+  "design": {
+    "bytes": 251168,
+    "cad_features": 31
+  },
+  "dfm_findings": [],
+  "draft": {
+    "min_detail_mm": 0.15,
+    "min_draft_deg": 3.0,
+    "min_section_mm": 0.8,
+    "process": "Lost wax"
+  },
+  "draft_build": {
+    "alloy": "Gold 18k",
+    "bore": {
+      "nearest_vertex_mm": 9.299952738333747,
+      "radius_mm": 9.3,
+      "vertices_inside": 0
+    },
+    "bore_mm": 18.59999905109489,
+    "build": {
+      "build_s": 5.43489931,
+      "profile_steps": 320,
+      "theta_steps": 768,
+      "triangles": 491144
+    },
+    "cold_reload_identical": null,
+    "cut_lands": [],
+    "design": {
+      "bytes": 251168,
+      "cad_features": 31
+    },
+    "dfm_findings": [],
+    "draft": {
+      "min_detail_mm": 0.15,
+      "min_draft_deg": 3.0,
+      "min_section_mm": 0.8,
+      "process": "Lost wax"
+    },
+    "feature_status": [
+      [
+        "1",
+        "Ok"
+      ],
+      [
+        "2",
+        "Ok"
+      ],
+      [
+        "3",
+        "Ok"
+      ],
+      [
+        "4",
+        "Ok"
+      ],
+      [
+        "5",
+        "Ok"
+      ],
+      [
+        "6",
+        "Ok"
+      ],
+      [
+        "7",
+        "Ok"
+      ],
+      [
+        "8",
+        "Ok"
+      ],
+      [
+        "9",
+        "Ok"
+      ],
+      [
+        "10",
+        "Ok"
+      ],
+      [
+        "11",
+        "Ok"
+      ],
+      [
+        "12",
+        "Ok"
+      ],
+      [
+        "13",
+        "Ok"
+      ],
+      [
+        "14",
+        "Ok"
+      ],
+      [
+        "15",
+        "Ok"
+      ],
+      [
+        "16",
+        "Ok"
+      ],
+      [
+        "17",
+        "Ok"
+      ],
+      [
+        "18",
+        "Ok"
+      ],
+      [
+        "19",
+        "Ok"
+      ],
+      [
+        "20",
+        "Ok"
+      ],
+      [
+        "21",
+        "Ok"
+      ],
+      [
+        "22",
+        "Ok"
+      ],
+      [
+        "23",
+        "Ok"
+      ],
+      [
+        "24",
+        "Ok"
+      ],
+      [
+        "25",
+        "Ok"
+      ],
+      [
+        "26",
+        "Ok"
+      ],
+      [
+        "27",
+        "Ok"
+      ],
+      [
+        "28",
+        "Ok"
+      ],
+      [
+        "29",
+        "Ok"
+      ],
+      [
+        "30",
+        "Ok"
+      ],
+      [
+        "31",
+        "Ok"
+      ]
+    ],
+    "features": [
+      {
+        "id": 1,
+        "name": "The band",
+        "operation": "Procedural shank"
+      },
+      {
+        "id": 2,
+        "name": "Stand the sapphire over the crown",
+        "operation": "Stone"
+      },
+      {
+        "id": 3,
+        "name": "Raise the choir: a four-claw basket with two rails",
+        "operation": "Basket"
+      },
+      {
+        "id": 4,
+        "name": "Bur the seat through to the bore",
+        "operation": "Seat bur"
+      },
+      {
+        "id": 5,
+        "name": "Cut the six crypt windows under the stone",
+        "operation": "Azures"
+      },
+      {
+        "id": 6,
+        "name": "Draw the plinth's plan under the shoulder",
+        "operation": "Sketch"
+      },
+      {
+        "id": 7,
+        "name": "Raise the plinth, battered in to its set-off",
+        "operation": "Extrude"
+      },
+      {
+        "id": 8,
+        "name": "Shape the bed under the shoulder",
+        "operation": "Box"
+      },
+      {
+        "id": 9,
+        "name": "Lay the bed along the shoulder's slope, sunk under it",
+        "operation": "Place component"
+      },
+      {
+        "id": 10,
+        "name": "Cut the plinth's foot along the shoulder",
+        "operation": "Subtract"
+      },
+      {
+        "id": 11,
+        "name": "Draw the pier's shaft on the plinth",
+        "operation": "Sketch"
+      },
+      {
+        "id": 12,
+        "name": "Raise the pier's shaft",
+        "operation": "Extrude"
+      },
+      {
+        "id": 13,
+        "name": "Draw a blind lancet on the shaft's outward face",
+        "operation": "Sketch"
+      },
+      {
+        "id": 14,
+        "name": "Sink the lancet into the shaft",
+        "operation": "Extrude"
+      },
+      {
+        "id": 15,
+        "name": "Cut the blind lancet",
+        "operation": "Subtract"
+      },
+      {
+        "id": 16,
+        "name": "Draw the spire's foot on the shaft's top, turned to stand on its arrises",
+        "operation": "Sketch"
+      },
+      {
+        "id": 17,
+        "name": "Draw the spire's top",
+        "operation": "Sketch"
+      },
+      {
+        "id": 18,
+        "name": "Loft the spire",
+        "operation": "Loft"
+      },
+      {
+        "id": 19,
+        "name": "Draw the crockets up one arris",
+        "operation": "Sketch"
+      },
+      {
+        "id": 20,
+        "name": "Raise the crockets",
+        "operation": "Extrude"
+      },
+      {
+        "id": 21,
+        "name": "Turn the crockets onto all four arrises",
+        "operation": "Array round a part"
+      },
+      {
+        "id": 22,
+        "name": "Turn the finial's collar",
+        "operation": "Cylinder"
+      },
+      {
+        "id": 23,
+        "name": "Seat the collar on the spire's top",
+        "operation": "Place component"
+      },
+      {
+        "id": 24,
+        "name": "Draw the knop's section 1",
+        "operation": "Sketch"
+      },
+      {
+        "id": 25,
+        "name": "Draw the knop's section 2",
+        "operation": "Sketch"
+      },
+      {
+        "id": 26,
+        "name": "Draw the knop's section 3",
+        "operation": "Sketch"
+      },
+      {
+        "id": 27,
+        "name": "Draw the knop's section 4",
+        "operation": "Sketch"
+      },
+      {
+        "id": 28,
+        "name": "Loft the pointed knop over the collar",
+        "operation": "Loft"
+      },
+      {
+        "id": 29,
+        "name": "Draw the flyer: a raking coping over a segmental arch, from the pier to the choir",
+        "operation": "Sketch"
+      },
+      {
+        "id": 30,
+        "name": "Raise the flyer across the finger",
+        "operation": "Extrude"
+      },
+      {
+        "id": 31,
+        "name": "Mirror the pier and its flyer across the crown",
+        "operation": "Mirror"
+      }
+    ],
+    "gates": [
+      {
+        "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+        "pass": true
+      },
+      {
+        "gate": "every CAD part closed without crossings, every feature Ok",
+        "pass": true
+      },
+      {
+        "gate": "solids and parts notes empty",
+        "pass": false
+      },
+      {
+        "gate": "nothing enters the finger hole",
+        "pass": true
+      },
+      {
+        "gate": "thickness clean at the 0.8 mm section, whole ring (coarse build)",
+        "pass": false
+      },
+      {
+        "gate": "thickness clean at the 0.8 mm section, every joined part",
+        "pass": false
+      },
+      {
+        "gate": "cut lands clean at 0.8 mm",
+        "pass": true
+      },
+      {
+        "gate": "zero DFM findings",
+        "pass": true
+      },
+      {
+        "gate": "stones reported equal the preview",
+        "pass": true
+      },
+      {
+        "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "export build within the 2 million triangle budget",
+        "pass": true
+      },
+      {
+        "gate": "cold reload identical",
+        "pass": true
+      }
+    ],
+    "gates_passed": false,
+    "geometry": {
+      "boundary_edges": 0,
+      "bounds_mm": [
+        23.40437126159668,
+        31.29511833190918,
+        6.634207725524902
+      ],
+      "degenerate_faces": 0,
+      "non_manifold_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 650.7636192517729,
+      "watertight": true
+    },
+    "grams_gold": 10.138897187942622,
+    "made_parts": [
+      [
+        "Raise the choir: a four-claw basket with two rails",
+        0
+      ],
+      [
+        "Bur the seat through to the bore",
+        0
+      ],
+      [
+        "Cut the six crypt windows under the stone",
+        0
+      ],
+      [
+        "Cut the plinth's foot along the shoulder",
+        0
+      ],
+      [
+        "Cut the blind lancet",
+        0
+      ],
+      [
+        "Loft the spire",
+        0
+      ],
+      [
+        "Raise the crockets",
+        0
+      ],
+      [
+        "Turn the crockets onto all four arrises",
+        0
+      ],
+      [
+        "Seat the collar on the spire's top",
+        0
+      ],
+      [
+        "Loft the pointed knop over the collar",
+        0
+      ],
+      [
+        "Raise the flyer across the finger",
+        0
+      ],
+      [
+        "Mirror the pier and its flyer across the crown",
+        0
+      ]
+    ],
+    "name": "Arcus — the flying buttress",
+    "part_thickness": [
+      {
+        "below_limit": 190,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "Raise the choir: a four-claw basket with two rails",
+        "rays": 377,
+        "sampled_min_mm": 0.06059658135991938,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 22,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "Cut the plinth's foot along the shoulder",
+        "rays": 108,
+        "sampled_min_mm": 0.03737355319624014,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 18,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "Cut the blind lancet",
+        "rays": 332,
+        "sampled_min_mm": 0.5342299573308513,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 34,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "Loft the spire",
+        "rays": 108,
+        "sampled_min_mm": 0.03066306577819112,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 232,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "Raise the crockets",
+        "rays": 234,
+        "sampled_min_mm": 0.1774032810363952,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 315,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "Turn the crockets onto all four arrises",
+        "rays": 351,
+        "sampled_min_mm": 0.17740385640196774,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 254,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "Seat the collar on the spire's top",
+        "rays": 254,
+        "sampled_min_mm": 0.12256649250683845,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 61,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "Loft the pointed knop over the collar",
+        "rays": 188,
+        "sampled_min_mm": 0.4371550210670829,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 29,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "Raise the flyer across the finger",
+        "rays": 168,
+        "sampled_min_mm": 0.0021807373678966882,
+        "unresolved": 0
+      },
+      {
+        "below_limit": 216,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "part": "Mirror the pier and its flyer across the crown",
+        "rays": 366,
+        "sampled_min_mm": 0.06455186755557542,
+        "unresolved": 1
+      }
+    ],
+    "pattern": {
+      "degenerate_faces": 0,
+      "self_crossings": 0,
+      "triangles": 491144,
+      "watertight": true
+    },
+    "process": "Lost wax",
+    "size": "US 8.6",
+    "solids": {
+      "notes": [],
+      "parts_notes": [
+        "Mirror the pier and its flyer across the crown: its fillet could not be laid (the bead folds at 1 of 273 stations at its smallest radius, first at 26.6° round the ring, r 11.83 z 0.71 mm in its section, point (10.57, 5.30, 0.71) mm)",
+        "Cut the plinth's foot along the shoulder: its fillet could not be laid (the bead folds at 1 of 273 stations at its smallest radius, first at 153.4° round the ring, r 11.83 z 0.72 mm in its section, point (-10.57, 5.30, 0.72) mm)"
+      ]
+    },
+    "stones": {
+      "crowding": null,
+      "previewed": 1,
+      "reported": 1
+    },
+    "thickness": {
+      "below_limit": 88,
+      "coarse_triangles": 90482,
+      "limit_mm": 0.8,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "point": [
+        0.8870850006739298,
+        12.020367940266928,
+        1.3577020168304443
+      ],
+      "rays": 384,
+      "sampled_min_mm": 0.0007595921610492603,
+      "unresolved": 0
+    }
+  },
+  "feature_status": [
+    [
+      "1",
+      "Ok"
+    ],
+    [
+      "2",
+      "Ok"
+    ],
+    [
+      "3",
+      "Ok"
+    ],
+    [
+      "4",
+      "Ok"
+    ],
+    [
+      "5",
+      "Ok"
+    ],
+    [
+      "6",
+      "Ok"
+    ],
+    [
+      "7",
+      "Ok"
+    ],
+    [
+      "8",
+      "Ok"
+    ],
+    [
+      "9",
+      "Ok"
+    ],
+    [
+      "10",
+      "Ok"
+    ],
+    [
+      "11",
+      "Ok"
+    ],
+    [
+      "12",
+      "Ok"
+    ],
+    [
+      "13",
+      "Ok"
+    ],
+    [
+      "14",
+      "Ok"
+    ],
+    [
+      "15",
+      "Ok"
+    ],
+    [
+      "16",
+      "Ok"
+    ],
+    [
+      "17",
+      "Ok"
+    ],
+    [
+      "18",
+      "Ok"
+    ],
+    [
+      "19",
+      "Ok"
+    ],
+    [
+      "20",
+      "Ok"
+    ],
+    [
+      "21",
+      "Ok"
+    ],
+    [
+      "22",
+      "Ok"
+    ],
+    [
+      "23",
+      "Ok"
+    ],
+    [
+      "24",
+      "Ok"
+    ],
+    [
+      "25",
+      "Ok"
+    ],
+    [
+      "26",
+      "Ok"
+    ],
+    [
+      "27",
+      "Ok"
+    ],
+    [
+      "28",
+      "Ok"
+    ],
+    [
+      "29",
+      "Ok"
+    ],
+    [
+      "30",
+      "Ok"
+    ],
+    [
+      "31",
+      "Ok"
+    ]
+  ],
+  "features": [
+    {
+      "id": 1,
+      "name": "The band",
+      "operation": "Procedural shank"
+    },
+    {
+      "id": 2,
+      "name": "Stand the sapphire over the crown",
+      "operation": "Stone"
+    },
+    {
+      "id": 3,
+      "name": "Raise the choir: a four-claw basket with two rails",
+      "operation": "Basket"
+    },
+    {
+      "id": 4,
+      "name": "Bur the seat through to the bore",
+      "operation": "Seat bur"
+    },
+    {
+      "id": 5,
+      "name": "Cut the six crypt windows under the stone",
+      "operation": "Azures"
+    },
+    {
+      "id": 6,
+      "name": "Draw the plinth's plan under the shoulder",
+      "operation": "Sketch"
+    },
+    {
+      "id": 7,
+      "name": "Raise the plinth, battered in to its set-off",
+      "operation": "Extrude"
+    },
+    {
+      "id": 8,
+      "name": "Shape the bed under the shoulder",
+      "operation": "Box"
+    },
+    {
+      "id": 9,
+      "name": "Lay the bed along the shoulder's slope, sunk under it",
+      "operation": "Place component"
+    },
+    {
+      "id": 10,
+      "name": "Cut the plinth's foot along the shoulder",
+      "operation": "Subtract"
+    },
+    {
+      "id": 11,
+      "name": "Draw the pier's shaft on the plinth",
+      "operation": "Sketch"
+    },
+    {
+      "id": 12,
+      "name": "Raise the pier's shaft",
+      "operation": "Extrude"
+    },
+    {
+      "id": 13,
+      "name": "Draw a blind lancet on the shaft's outward face",
+      "operation": "Sketch"
+    },
+    {
+      "id": 14,
+      "name": "Sink the lancet into the shaft",
+      "operation": "Extrude"
+    },
+    {
+      "id": 15,
+      "name": "Cut the blind lancet",
+      "operation": "Subtract"
+    },
+    {
+      "id": 16,
+      "name": "Draw the spire's foot on the shaft's top, turned to stand on its arrises",
+      "operation": "Sketch"
+    },
+    {
+      "id": 17,
+      "name": "Draw the spire's top",
+      "operation": "Sketch"
+    },
+    {
+      "id": 18,
+      "name": "Loft the spire",
+      "operation": "Loft"
+    },
+    {
+      "id": 19,
+      "name": "Draw the crockets up one arris",
+      "operation": "Sketch"
+    },
+    {
+      "id": 20,
+      "name": "Raise the crockets",
+      "operation": "Extrude"
+    },
+    {
+      "id": 21,
+      "name": "Turn the crockets onto all four arrises",
+      "operation": "Array round a part"
+    },
+    {
+      "id": 22,
+      "name": "Turn the finial's collar",
+      "operation": "Cylinder"
+    },
+    {
+      "id": 23,
+      "name": "Seat the collar on the spire's top",
+      "operation": "Place component"
+    },
+    {
+      "id": 24,
+      "name": "Draw the knop's section 1",
+      "operation": "Sketch"
+    },
+    {
+      "id": 25,
+      "name": "Draw the knop's section 2",
+      "operation": "Sketch"
+    },
+    {
+      "id": 26,
+      "name": "Draw the knop's section 3",
+      "operation": "Sketch"
+    },
+    {
+      "id": 27,
+      "name": "Draw the knop's section 4",
+      "operation": "Sketch"
+    },
+    {
+      "id": 28,
+      "name": "Loft the pointed knop over the collar",
+      "operation": "Loft"
+    },
+    {
+      "id": 29,
+      "name": "Draw the flyer: a raking coping over a segmental arch, from the pier to the choir",
+      "operation": "Sketch"
+    },
+    {
+      "id": 30,
+      "name": "Raise the flyer across the finger",
+      "operation": "Extrude"
+    },
+    {
+      "id": 31,
+      "name": "Mirror the pier and its flyer across the crown",
+      "operation": "Mirror"
+    }
+  ],
+  "gates": [
+    {
+      "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+      "pass": true
+    },
+    {
+      "gate": "every CAD part closed without crossings, every feature Ok",
+      "pass": true
+    },
+    {
+      "gate": "solids and parts notes empty",
+      "pass": false
+    },
+    {
+      "gate": "nothing enters the finger hole",
+      "pass": true
+    },
+    {
+      "gate": "thickness clean at the 0.8 mm section, whole ring (coarse build)",
+      "pass": false
+    },
+    {
+      "gate": "thickness clean at the 0.8 mm section, every joined part",
+      "pass": false
+    },
+    {
+      "gate": "cut lands clean at 0.8 mm",
+      "pass": true
+    },
+    {
+      "gate": "zero DFM findings",
+      "pass": true
+    },
+    {
+      "gate": "stones reported equal the preview",
+      "pass": true
+    },
+    {
+      "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+      "pass": true
+    },
+    {
+      "gate": "export build within the 2 million triangle budget",
+      "pass": true
+    },
+    {
+      "gate": "cold reload identical",
+      "pass": true
+    }
+  ],
+  "gates_passed": false,
+  "geometry": {
+    "boundary_edges": 0,
+    "bounds_mm": [
+      23.404449462890625,
+      31.2951602935791,
+      6.634207725524902
+    ],
+    "degenerate_faces": 0,
+    "non_manifold_edges": 0,
+    "self_crossings": 0,
+    "volume_mm3": 650.7823738348428,
+    "watertight": true
+  },
+  "grams_gold": 10.139189384346851,
+  "made_parts": [
+    [
+      "Raise the choir: a four-claw basket with two rails",
+      0
+    ],
+    [
+      "Bur the seat through to the bore",
+      0
+    ],
+    [
+      "Cut the six crypt windows under the stone",
+      0
+    ],
+    [
+      "Cut the plinth's foot along the shoulder",
+      0
+    ],
+    [
+      "Cut the blind lancet",
+      0
+    ],
+    [
+      "Loft the spire",
+      0
+    ],
+    [
+      "Raise the crockets",
+      0
+    ],
+    [
+      "Turn the crockets onto all four arrises",
+      0
+    ],
+    [
+      "Seat the collar on the spire's top",
+      0
+    ],
+    [
+      "Loft the pointed knop over the collar",
+      0
+    ],
+    [
+      "Raise the flyer across the finger",
+      0
+    ],
+    [
+      "Mirror the pier and its flyer across the crown",
+      0
+    ]
+  ],
+  "name": "Arcus — the flying buttress",
+  "part_thickness": [
+    {
+      "below_limit": 190,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "part": "Raise the choir: a four-claw basket with two rails",
+      "rays": 377,
+      "sampled_min_mm": 0.06059658135991938,
+      "unresolved": 0
+    },
+    {
+      "below_limit": 22,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "part": "Cut the plinth's foot along the shoulder",
+      "rays": 108,
+      "sampled_min_mm": 0.0373758243291558,
+      "unresolved": 0
+    },
+    {
+      "below_limit": 16,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "part": "Cut the blind lancet",
+      "rays": 332,
+      "sampled_min_mm": 0.5342299277501281,
+      "unresolved": 0
+    },
+    {
+      "below_limit": 34,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "part": "Loft the spire",
+      "rays": 108,
+      "sampled_min_mm": 0.030661669932085685,
+      "unresolved": 0
+    },
+    {
+      "below_limit": 232,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "part": "Raise the crockets",
+      "rays": 234,
+      "sampled_min_mm": 0.17740598001189198,
+      "unresolved": 0
+    },
+    {
+      "below_limit": 293,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "part": "Turn the crockets onto all four arrises",
+      "rays": 351,
+      "sampled_min_mm": 0.17740425501699703,
+      "unresolved": 0
+    },
+    {
+      "below_limit": 254,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "part": "Seat the collar on the spire's top",
+      "rays": 254,
+      "sampled_min_mm": 0.10581660897557432,
+      "unresolved": 0
+    },
+    {
+      "below_limit": 65,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "part": "Loft the pointed knop over the collar",
+      "rays": 188,
+      "sampled_min_mm": 0.43715365423859237,
+      "unresolved": 0
+    },
+    {
+      "below_limit": 29,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "part": "Raise the flyer across the finger",
+      "rays": 168,
+      "sampled_min_mm": 0.0021807672110920194,
+      "unresolved": 0
+    },
+    {
+      "below_limit": 215,
+      "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+      "part": "Mirror the pier and its flyer across the crown",
+      "rays": 362,
+      "sampled_min_mm": 0.08402744552057975,
+      "unresolved": 2
+    }
+  ],
+  "pattern": {
+    "degenerate_faces": 0,
+    "self_crossings": 0,
+    "triangles": 1262396,
+    "watertight": true
+  },
+  "process": "Lost wax",
+  "size": "US 8.6",
+  "solids": {
+    "notes": [],
+    "parts_notes": [
+      "Mirror the pier and its flyer across the crown: its fillet could not be laid (the bead folds at 1 of 273 stations at its smallest radius, first at 26.7° round the ring, r 11.83 z 0.71 mm in its section, point (10.57, 5.30, 0.71) mm)",
+      "Cut the plinth's foot along the shoulder: its fillet could not be laid (the bead folds at 1 of 273 stations at its smallest radius, first at 153.3° round the ring, r 11.83 z -0.70 mm in its section, point (-10.57, 5.30, -0.70) mm)"
+    ]
+  },
+  "stones": {
+    "crowding": null,
+    "previewed": 1,
+    "reported": 1
+  },
+  "thickness": {
+    "below_limit": 88,
+    "coarse_triangles": 90482,
+    "limit_mm": 0.8,
+    "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+    "point": [
+      0.8870850006739298,
+      12.020367940266928,
+      1.3577020168304443
+    ],
+    "rays": 384,
+    "sampled_min_mm": 0.0007595921610492603,
+    "unresolved": 0
+  }
+}

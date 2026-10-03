@@ -1,0 +1,17 @@
+{
+  "stones": [
+    {
+      "dispersion": 0.018,
+      "ior": 1.77,
+      "mesh": "reference-sapphire.stl",
+      "name": "Sapphire",
+      "roughness": 0.05,
+      "tint": [
+        0.019999999552965164,
+        0.05999999865889549,
+        0.44999998807907104
+      ],
+      "transmission": 0.7
+    }
+  ]
+}

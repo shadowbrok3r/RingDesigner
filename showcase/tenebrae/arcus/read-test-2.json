@@ -1,0 +1,28 @@
+{
+  "ring": "Arcus",
+  "slug": "arcus",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Better than attempt 1, but still not there. Hero: a blue emerald-cut stone in a tall four-claw basket, flanked by two slim towers topped with stacked beads, a bit like a Christmas tree or a pagoda. A jeweller would now say 'tower' or 'spire', and 'Gothic' is possible. The flyer between basket and tower is a flat rail at mid-height, so it looks like a bridge or a handrail. The band's side face has a row of small square notches, like gear teeth or tyre tread, not arches. Face view: the flyer drops from the basket rail and bends down onto the pier. Its curve bows up, like a shoulder, so the dark gap under it is a rounded-off rectangle, not the concave, pointed opening of a half-arch. The side-face marks read as little U-shaped cups (round, not pointed). The crockets show as round balls stacked on a stick, not leaves on a sloped spire, so the pinnacles look beaded more than crocketed. A jeweller would say 'sapphire solitaire with two spire posts, Gothic-ish'. They would not say 'flying buttress', and 'Gothic cathedral' comes only as a guess, from the spires.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Redraw the flyer as a true flying half-arch: a concave underside and a sloping top that rises toward the choir",
+      "where": "Sketch 'Flyer' (feature 'Draw the flyer: an arched rib from the pier to the choir'), both shoulders; the mirror follows",
+      "how_much": "Make the intrados (the lower edge) a quarter-arc or pointed-arc segment that springs from the pier face about 1 mm below the spire foot and lands on the basket's lower rail. Make its centre lie below and outboard, so the curve is concave seen from beneath, with a sag of at least 1.2 mm. Make the extrados (the top edge) a nearly straight raking line, rising 1.5-2 mm from the pier top to the basket's upper rail, so the rib leans up and in like a strut and does not bow over like a shoulder. Keep the rib about 0.9-1.0 mm deep at the crown of the arc, and thicken it to about 1.6 mm at each end. Acceptance: in face-300 each flyer shows as a dark, roughly quarter-pointed opening with its curved edge below and a straight raking top, and the eye sees a buttress, not a rail."
+    },
+    {
+      "priority": 2,
+      "what": "Make the pinnacles read as crocketed Gothic spires, not bead stacks",
+      "where": "'Loft the spire', 'Draw the crockets up one arris' / 'Raise the crockets', finial collar and ball; both piers",
+      "how_much": "Widen the spire foot to the full shaft width and taper it to a sharp point, so the spire is a clearly visible tapered cone or pyramid at least 1.2 mm wide at the base. The current bead stack hides the taper. Turn the crockets into hooked, leaf-shaped lobes that sit on the spire's arrises and curl outward and upward, at about 0.5 mm projection, 3 per arris, and stop them short of the tip. Make the finial a cross-shaped finial or a pointed knop about 0.8-1.0 mm across, not a ball on a stack. Acceptance: in hero-300 each pinnacle's outline is a tapering point with notched edges, and nothing in it reads as a stack of round beads."
+    },
+    {
+      "priority": 3,
+      "what": "Make the nave arcade read as pointed lancets",
+      "where": "Field layers 'Nave arcade, 1-3', side faces from the piers through the palm",
+      "how_much": "Raise height_mm from 0.1 to about 0.35-0.45, and change the alpha tile so that each bay is a tall pointed lancet, about 2.5:1 height to width and about 1.8 mm tall, with a pointed head and a thin colonnette between bays. The current cells read as square notches or U-cups. Run the arcade over the full side face, not as a fringe along its edge. Acceptance: in hero-300 and face-300 the side face shows a row of pointed-arch openings with dark recesses, and nothing that reads as gear teeth or scallops."
+    }
+  ]
+}

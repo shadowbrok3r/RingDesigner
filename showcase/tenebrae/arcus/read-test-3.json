@@ -1,0 +1,28 @@
+{
+  "ring": "Arcus",
+  "slug": "arcus",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "The pinnacles are now the strongest part. Each is a slim square shaft with a tapering, notched spire and a pointed finial, and a jeweller would call them Gothic pinnacles. The hero now says 'Gothic', and 'Gothic cathedral' comes as a fair guess. The subject still does not read. In the hero, the member between the basket and each pinnacle is a flat, straight rail at the top of the pier, so the ring looks like a sapphire solitaire with two church towers joined to the head by a bridge or handrail. In the face view the flyer is a short straight strut that slopes down from the basket's top corner onto the pier. The dark gap under it is a tall rectangle framed by the pier, the basket post and the band, with no curved underside, so nothing reads as an arch, let alone a flying half-arch. The side faces carry a dense ring of short radial ribs. In the hero they read as coin-edge reeding or gear teeth. In the face view they read as a fringe of small flames or teeth, not as a row of pointed lancet bays. A jeweller would say 'sapphire solitaire with two Gothic spires and a reeded band'. They would not say 'flying buttress'.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Give each flyer a visible curved underside, so the opening between pier and basket is an arch rather than a rectangle. This is the third attempt asking for it, and the render still shows a straight strut over a box-shaped gap.",
+      "where": "Both shoulders, the flyer rib between the pier (theta about 56 and 124 deg) and the basket; the mirror follows",
+      "how_much": "Fill the lower part of the gap with the arch itself. Make the rib's lower edge a quarter-arc or pointed arc with a radius of about 2-2.5 mm. It springs from the pier's inner face about 1.5 mm below the spire foot and meets the basket's lower rail, so the void under it is a concave, quarter-pointed opening at least 1.2 mm deep at mid-span. Keep the top edge a straight rake that rises toward the choir. Make the rib at least 1.0 mm deep at the crown of the arc and about 1.6 mm deep at each end, so it is the most prominent shape on the shoulder at 300 px. Acceptance: in face-300 each shoulder shows a dark opening whose upper edge is clearly curved (concave from below) with a straight raking top above it, and no rectangular gap remains. In hero-300 the flyer reads as an arched strut, not a level rail."
+    },
+    {
+      "priority": 2,
+      "what": "Replace the radial ribs on the side faces with a legible blind arcade of pointed lancets",
+      "where": "Field layers 'Nave arcade', both side faces from the piers through the palm",
+      "how_much": "Cut the bay count by about half. Each bay should be about 2 mm tall and about 0.8 mm wide, with a clearly pointed head, a flat colonnette about 0.3 mm wide between bays, and a recess at least 0.35 mm deep. Run the bays over the full height of the side face, with a plain fillet above and below, rather than as short ribs at the edge. Acceptance: in hero-300 the visible side face shows a row of separate pointed-arch niches, and nothing reads as reeding, gear teeth or flames."
+    },
+    {
+      "priority": 3,
+      "what": "Make the pier shafts read as buttress piers, not plain posts",
+      "where": "Both piers below the spire, outward and inner faces",
+      "how_much": "Add one set-off (a sloped weathering step about 0.3 mm deep) about halfway up each pier. Cut a gabled lancet niche about 0.4 mm deep and 1.2 mm tall into the outward face. Optionally widen the pier foot to 1.8 mm, so the flyer visibly lands on a mass. Acceptance: in hero-300 each pier shows a stepped profile and a pointed niche below the spire, and it reads as a buttress pier rather than a square stick."
+    }
+  ]
+}
