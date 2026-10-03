@@ -1,0 +1,28 @@
+{
+  "ring": "ouroborus",
+  "mode": "read-test",
+  "attempt": 6,
+  "subject": "Ouroborus cataphractus, the armadillo girdled lizard, biting its tail (Logan's confirmed subject, 2026-10-03)",
+  "reads": false,
+  "what_the_eye_sees": "Hero at 300 px: this is the best attempt so far. A scaled reptile coils round the finger with its head at 1 o'clock, and the tail now visibly thins down the right side and runs up into the jaws, so the bite finally reads. A dark eye shows on the head. But I still can't name a lizard. The head is a boxy block, and behind it is a stack of vertical slats that reads as a radiator grille, not a neck with spiny occipitals. The foreleg at about 11 o'clock and the hind leg at about 8 o'clock show as two small pale lumps lying along the inner edge of the band. Neither one breaks the outer silhouette, and at this size no knee or toes can be seen, so they read as burrs or clasps rather than legs. The body girdles are still even, square-topped blocks that read as crocodile or dragon armour. A jeweller without a caption would say 'dragon ouroboros' or 'snake ring', and might add 'with some lumps'. Face at 300 px: this view still fails outright. The head from above is a parallel-sided rectangle tiled with kite-shaped plates. It has a fringe of fins on both flanks at the back and two flat round discs sticking out sideways near the front, which read as washers or bolt heads rather than eyes. The snout is a rounded bullet. Behind the head (left of frame) is a squared block with chevrons and two tubular stubs on each side, which reads as a clamp or a buckle. The thin tail on the right is ribbed like a spring. The whole view looks like a piece of hardware, such as a hose clamp or a spark plug, not a lizard's head. Nobody would name an animal from it.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the head a lizard's head in plan: a triangle, not a parallel-sided slab. Replace the washer-disc eyes and the slatted neck.",
+      "where": "Lizard head part, theta about 93-125 deg: the crown plates, both side flanks, the eye discs near the snout, and the vertical-slat collar between the head and the nape (about 120-135 deg)",
+      "by_how_much": "In plan, taper the flanks in straight lines. Make the head widest at the jaw hinge or back of the head (about 1.35x the band) and narrow it to about 0.5x the band at the snout, so the snout is less than 40% of the hinge width. Today the flanks are parallel and the snout is about 70% of the hinge width. Remove the flat round eye discs. Make each eye a domed bulge 0.3-0.4 mm proud of the flank outline, at about 60% of the head length back from the snout, under a brow ridge, with a small ear pit behind it. Replace the vertical slats behind the head with 3-4 spiny occipital scales, pointing back and outward, that break the outline by 0.4-0.6 mm. Then pinch a neck to about 0.8x the head width. Cut a 0.3 mm mouth line along each flank from the snout to the hinge. Acceptance: face-300 shows a wedge-shaped head with eye bumps and a spiky back edge on its outline and a narrower neck behind it. Nobody would call it a clamp, a plug or a buckle."
+    },
+    {
+      "priority": 2,
+      "what": "Make the legs read as legs: thicker and bent, with toes splayed, and pushed out past the outer silhouette.",
+      "where": "Foreleg parts at about 135-150 deg (11 o'clock in hero) and hind-leg parts at about 230-250 deg (8 o'clock in hero), on both side faces. In face view these are the tubular stubs either side of the block behind the head.",
+      "by_how_much": "Today each leg lies on the inner edge of the band like a pale peg, with thin toes. Thicken the upper limb to about 1.4 mm, with a clear 60-90 deg elbow or knee. Rotate each leg so the foot plants outward on the side face, standing 0.7-1.0 mm proud of the side outline, so that the leg breaks the hero silhouette. Make the foot 3-4 toes at least 0.6 mm thick, splayed over a 1.5-2 mm span. In face view, angle the forelegs out at about 45 deg from the body behind the neck, not as straight tubes alongside it. Acceptance: in hero-300 the foreleg shows as a bent limb with a foot on the band's outline next to the head, and the hind leg the same at about 8 o'clock. In face-300 two limbs splay out behind the neck."
+    },
+    {
+      "priority": 3,
+      "what": "Make the girdles spiny and graded, not square crenellations, and dress the bitten tail as a tail, not a spring.",
+      "where": "Girdle tiling, theta 125 deg through the palm to about 78 deg; the tail tip at 78-93 deg",
+      "by_how_much": "Round each girdle's flat top into a loaf with a radius of at least half its height. Split it across the crown into 3-5 scales, offset by half a scale from one girdle to the next. Raise the trailing-edge spines to 0.4-0.6 mm, pointing tailward, so the outer edge of the hero bristles. Keep the pitch falling visibly from 2.6 mm at the nape to 1.0 mm at the tail. On the last 15 deg of the tail, replace the ribbed rings with small overlapping scales whose spines are 0.2 mm or less. Acceptance: in hero-300 the outer edge is spiny rather than stepped, and the scales visibly shrink toward the jaws. In face-300 the tail on the right no longer reads as a spring."
+    }
+  ]
+}
