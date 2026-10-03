@@ -286,7 +286,10 @@ That is expected for most Vepres rings. Say so in each README line.
 
 ## Rubus — *the bramble cane*
 
-- **Status:** Not started. **Buildable now.**
+- **Status:** Cut at round 3 on 2026-10-02 (6.3, 6.6, 6.7), revived on 2026-10-03.
+  - **Extension, 2026-10-03:** Logan granted Rubus two more reviewed rounds (rounds 4 and 5) after the crisp-edge fix (#248). A reviewer applies a five-round cap to this ring, not three.
+  - **Process, 2026-10-03 (Logan):** Rubus is judged as **lost wax**: 0.8 mm minimum section, no pull rule. Two-part Delft sand failed three block-out read tests (see `cloud-report.md`), so the sand field, ray-release and clamp gates do not apply; a sand pull is reported only as a bonus.
+  - The build notes below are the original sand plan, kept for the record.
   - P3 and P4 have landed, and the prickle probe is clean.
   - The side-face layers want P5 (batch 16). Until it lands, hold the keys to the no-spill rule below.
   - C-B1 `CurveLayer::phase` is optional.
