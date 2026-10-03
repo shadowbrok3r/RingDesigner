@@ -19,7 +19,7 @@ pub fn step_of(c: &EvaluatedComponent, body: brep::Body) -> Result<String> {
     let mut local = c.clone();
     local.body = body;
     local.made = None;
-    let e = Evaluated { components: vec![local], features: Vec::new(), band: None, planes: Vec::new() };
+    let e = Evaluated { components: vec![local], features: Vec::new(), band: None, planes: Vec::new(), frames: Default::default() };
     cad::step::export_with(&e, &c.name, &|_| true, &[])
 }
 
