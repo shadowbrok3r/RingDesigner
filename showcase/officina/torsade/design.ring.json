@@ -1,0 +1,838 @@
+{
+  "format_version": 5,
+  "name": "Torsade — a rope-edged collet",
+  "size": 8.10862207660166,
+  "profile": {
+    "style": "Flat",
+    "width_mm": 4.4,
+    "thickness_mm": 1.8,
+    "crown_mm": 0.3,
+    "shape_a": 8.0,
+    "shape_b": 1.0,
+    "crest_bias": 0.0,
+    "edge_round_mm": 0.05,
+    "comfort_fit_mm": 0.25,
+    "side_draft_deg": 0.0,
+    "flange": {
+      "enabled": false,
+      "v_pos": 0.0,
+      "extent_mm": 1.2,
+      "thickness_mm": 0.8,
+      "edge_round_mm": 0.15
+    },
+    "drop_curve": {
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "len": 0,
+      "monotone": true
+    },
+    "morph": null
+  },
+  "shank": {
+    "kind": "Uniform",
+    "amount": 0.5,
+    "waves": 1,
+    "head": {
+      "outline": "Oval",
+      "theta_deg": 90.0,
+      "length_mm": 12.0,
+      "rise_mm": 0.3,
+      "shoulder_deg": 43.0,
+      "swell_deg": null,
+      "body_fair": 1.0,
+      "table_flat": 1.0,
+      "table_dome_mm": 0.0,
+      "hollow_mm": 0.0,
+      "rim_round_mm": 0.6,
+      "dome": 0.0,
+      "loft": 0.0,
+      "loft_frontal_mm": 2.0,
+      "loft_lateral_mm": 2.0,
+      "crest_round_mm": 0.0
+    },
+    "extra_heads": [],
+    "keys": [],
+    "custom_outlines": []
+  },
+  "layers": {
+    "layers": []
+  },
+  "build": {
+    "theta_steps": 512,
+    "profile_steps": 192,
+    "min_wall_mm": 0.5,
+    "adaptive": false,
+    "refine": null,
+    "soften_mm": 0.0
+  },
+  "draft": {
+    "parting_z_mm": 0.0,
+    "min_draft_deg": 3.0,
+    "auto_parting": true,
+    "min_section_mm": 0.8,
+    "min_detail_mm": 0.15,
+    "process": "LostWax",
+    "sand": null
+  },
+  "manufacturing": {
+    "component": null,
+    "recipe": {
+      "name": "Investment casting starting recipe / Gold 18k",
+      "process": "LostWax",
+      "sand": null,
+      "alloy": "Gold 18k",
+      "shrink_pct": 1.3,
+      "min_draft_deg": 0.0,
+      "min_section_mm": 0.8,
+      "min_detail_mm": 0.2,
+      "min_sand_web_mm": 0.6,
+      "sand_margin_mm": 5.0,
+      "calibration_note": "Uncalibrated starting allowance. Confirm with the caster's alloy, pattern material, mold, and measured trials."
+    },
+    "pull": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "parting_mm": 0.0,
+    "auto_parting": true,
+    "bore": "Molded",
+    "flask": {
+      "width_mm": 70.0,
+      "length_mm": 70.0,
+      "cope_mm": 20.0,
+      "drag_mm": 20.0
+    },
+    "radial_stock_mm": 0.0,
+    "axial_stock_mm": 0.0,
+    "bore_stock_mm": 0.0,
+    "sample_pitch_mm": 0.1,
+    "tolerance_mm": 0.02,
+    "channels": [
+      {
+        "kind": "Gate",
+        "start": [
+          0.0,
+          -11.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          -22.0,
+          0.0
+        ],
+        "diameter_mm": 3.2
+      },
+      {
+        "kind": "Sprue",
+        "start": [
+          0.0,
+          -22.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          -30.0,
+          0.0
+        ],
+        "diameter_mm": 5.0
+      }
+    ],
+    "bench_notes": "Investment cast in one piece with the collet. Clean investment from the rope's strand grooves with a soft brush. Polish the side faces and the bore, keep the ropes bright, and burnish the collet's lip over the cabochon."
+  },
+  "cad": {
+    "features": [
+      {
+        "id": 1,
+        "name": "Band",
+        "enabled": true,
+        "operation": "Band",
+        "component": {
+          "role": "Shank",
+          "material": "Gold 18k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 2,
+        "name": "Plane over the arris",
+        "enabled": true,
+        "operation": {
+          "Plane": {
+            "base": "parting",
+            "offset_mm": 2.05
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 18k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 3,
+        "name": "Path",
+        "enabled": true,
+        "operation": {
+          "Sketch": {
+            "sketch": {
+              "name": "Path",
+              "plane": {
+                "origin": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "x": [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                "y": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "on_face": {
+                  "feature": 2,
+                  "face": {
+                    "ordinal": 0
+                  }
+                }
+              },
+              "points": [
+                {
+                  "id": 1,
+                  "xy": [
+                    0.0,
+                    0.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 2,
+                  "xy": [
+                    -2.9631015750327396,
+                    10.333563231336928
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 3,
+                  "xy": [
+                    2.963101575032741,
+                    10.333563231336928
+                  ],
+                  "fixed": false
+                }
+              ],
+              "entities": [
+                {
+                  "id": 4,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 1,
+                      "start": 2,
+                      "end": 3
+                    }
+                  }
+                }
+              ],
+              "constraints": [],
+              "next_id": 5,
+              "grid_mm": 0.5
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 18k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 4,
+        "name": "Plane across the path",
+        "enabled": true,
+        "operation": {
+          "Plane": {
+            "base": {
+              "section": {
+                "theta_deg": 106.0
+              }
+            },
+            "offset_mm": 0.0
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 18k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 5,
+        "name": "Section",
+        "enabled": true,
+        "operation": {
+          "Sketch": {
+            "sketch": {
+              "name": "Section",
+              "plane": {
+                "origin": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "x": [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                "y": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "on_face": {
+                  "feature": 4,
+                  "face": {
+                    "ordinal": 0
+                  }
+                }
+              },
+              "points": [
+                {
+                  "id": 1,
+                  "xy": [
+                    10.301604936135696,
+                    2.357971919916264
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 2,
+                  "xy": [
+                    10.7074860256324,
+                    1.507692523803835
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 3,
+                  "xy": [
+                    11.240909038231903,
+                    2.2843355562799
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 4,
+                  "xy": [
+                    10.259090961768097,
+                    2.2843355562799004
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 5,
+                  "xy": [
+                    10.7925139743676,
+                    1.507692523803835
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 6,
+                  "xy": [
+                    11.198395063864304,
+                    2.3579719199162636
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 7,
+                  "xy": [
+                    10.75,
+                    2.32
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 9,
+                  "xy": [
+                    10.201961588610295,
+                    2.3664101243421007
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 11,
+                  "xy": [
+                    10.516173140978202,
+                    1.9149999999999998
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 13,
+                  "xy": [
+                    10.75,
+                    1.4171797513157984
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 15,
+                  "xy": [
+                    10.983826859021798,
+                    1.9149999999999996
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 17,
+                  "xy": [
+                    11.298038411389705,
+                    2.3664101243421003
+                  ],
+                  "fixed": false
+                }
+              ],
+              "entities": [
+                {
+                  "id": 8,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 7,
+                      "start": 6,
+                      "end": 1
+                    }
+                  }
+                },
+                {
+                  "id": 10,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 9,
+                      "start": 4,
+                      "end": 1
+                    }
+                  }
+                },
+                {
+                  "id": 12,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 11,
+                      "start": 4,
+                      "end": 2
+                    }
+                  }
+                },
+                {
+                  "id": 14,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 13,
+                      "start": 5,
+                      "end": 2
+                    }
+                  }
+                },
+                {
+                  "id": 16,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 15,
+                      "start": 5,
+                      "end": 3
+                    }
+                  }
+                },
+                {
+                  "id": 18,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 17,
+                      "start": 6,
+                      "end": 3
+                    }
+                  }
+                }
+              ],
+              "constraints": [],
+              "next_id": 19,
+              "grid_mm": 0.5
+            }
+          }
+        },
+        "component": {
+          "role": "Other",
+          "material": "Gold 18k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 6,
+        "name": "Rope",
+        "enabled": true,
+        "operation": {
+          "Twist": {
+            "sketch": {
+              "feature": 5
+            },
+            "path": {
+              "name": "Path",
+              "plane": {
+                "origin": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "x": [
+                  1.0,
+                  0.0,
+                  0.0
+                ],
+                "y": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "on_face": {
+                  "feature": 2,
+                  "face": {
+                    "ordinal": 0
+                  }
+                }
+              },
+              "points": [
+                {
+                  "id": 1,
+                  "xy": [
+                    0.0,
+                    0.0
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 2,
+                  "xy": [
+                    -2.9631015750327396,
+                    10.333563231336928
+                  ],
+                  "fixed": false
+                },
+                {
+                  "id": 3,
+                  "xy": [
+                    2.963101575032741,
+                    10.333563231336928
+                  ],
+                  "fixed": false
+                }
+              ],
+              "entities": [
+                {
+                  "id": 4,
+                  "construction": false,
+                  "geometry": {
+                    "Arc": {
+                      "center": 1,
+                      "start": 2,
+                      "end": 3
+                    }
+                  }
+                }
+              ],
+              "constraints": [],
+              "next_id": 5,
+              "grid_mm": 0.5
+            },
+            "degrees": 3600.0,
+            "end_scale": 1.0
+          }
+        },
+        "component": {
+          "role": "Shank",
+          "material": "Gold 18k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 7,
+        "name": "Mirror across the band",
+        "enabled": true,
+        "operation": {
+          "Pattern": {
+            "source": 6,
+            "kind": {
+              "mirror": {
+                "plane": "band"
+              }
+            }
+          }
+        },
+        "component": {
+          "role": "Shank",
+          "material": "Gold 18k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 8,
+        "name": "Collet foot",
+        "enabled": true,
+        "operation": {
+          "Cylinder": {
+            "radius_mm": 4.7,
+            "height_mm": 1.6000000000000014
+          }
+        },
+        "component": {
+          "role": "Setting",
+          "material": "Gold 18k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 90.0,
+            "across_mm": 0.0,
+            "height_mm": -0.15000000000000036,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 9,
+        "name": "Round cabochon 7.0",
+        "enabled": true,
+        "operation": {
+          "Builder": {
+            "key": "stone",
+            "on": null,
+            "params": {
+              "cut": "Round",
+              "form": "Cabochon",
+              "l_mm": 7.0,
+              "w_mm": 7.0
+            }
+          }
+        },
+        "component": {
+          "role": "Stone",
+          "material": "Silver 925",
+          "manufacturing": null,
+          "visible": true,
+          "reference": true,
+          "stone_id": "Round cabochon 7 mm",
+          "bench_notes": "",
+          "placement": {
+            "kind": "ring",
+            "theta_deg": 90.0,
+            "across_mm": 0.0,
+            "height_mm": 1.0000000000000004,
+            "spin_deg": 0.0,
+            "tilt_deg": 0.0,
+            "cant_deg": 0.0
+          },
+          "attach": "separate",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      },
+      {
+        "id": 10,
+        "name": "Collet",
+        "enabled": true,
+        "operation": {
+          "Builder": {
+            "key": "head.bezel",
+            "on": 9,
+            "params": {}
+          }
+        },
+        "component": {
+          "role": "Setting",
+          "material": "Gold 18k",
+          "manufacturing": null,
+          "visible": true,
+          "reference": false,
+          "stone_id": null,
+          "bench_notes": "",
+          "placement": {
+            "kind": "free"
+          },
+          "attach": "join",
+          "stage": "cast",
+          "blend_mm": 0.0
+        }
+      }
+    ],
+    "outputs": [
+      1,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "joints": [],
+    "through": null
+  },
+  "drawn": [],
+  "embedded": [],
+  "texts": [],
+  "svgs": [],
+  "recipes": []
+}

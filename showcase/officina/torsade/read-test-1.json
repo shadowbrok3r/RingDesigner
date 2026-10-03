@@ -1,0 +1,12 @@
+{
+  "ring": "torsade",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": true,
+  "what_the_eye_sees": "A round cabochon in a plain, tall bezel cup on a flat band whose two top edges carry fine twisted wire, running all the way round and stopping at the bezel. A jeweller says 'cab solitaire on a band with rope-twist edges' at once, which is the concept line (ropes on both arrises, butting into the collet). Weak points at 300 px: the twist is so tight it reads as knurled or milled wire rather than rope, most of all in the face view near the bezel, where it starts to comb. The collet is plain and heavy, so the stone cup takes the eye and the rope looks like trim rather than the subject. The flat crest between the two ropes is a wide, bare strip that throws slab-like highlights in the hero.",
+  "changes": [
+    "Rope twist (feature 6 Twist, both arrises via the feature 7 mirror): coarsen it so each strand reads as rope at 300 px. Drop degrees from 7200 to about 4000 (the documented fallback is 3600) and raise the diamond section from 1.1 to about 1.3 mm, keeping the 0.4 mm proud of the crest and past the side face. Acceptance: in face-300 the individual strand crests are countable and do not comb within 2 mm of the bezel.",
+  "Collet (feature 9 head.bezel at theta 90): make the rope the subject. Lower the bezel wall by about 0.4 to 0.5 mm and thin the lip so the cup reads lighter, and make the rope ends at theta 68 and 112 visibly butt into the wall at mid-height with a small seam blend (about 0.1 mm), not tuck under the lip. Acceptance: in hero-300 both rope ends are seen meeting the collet wall, and the cup's outer diameter reads no more than about 1.3 times the band width in face-300.",
+    "Crest between the ropes (feature 1 Band, all theta): break the flat strip with a gentle crown of about 0.15 to 0.2 mm (side faces and bore stay plain), so the hero shows a rolling highlight instead of flat slab patches. Acceptance: hero-300 shows no flat-sheet reflection blocks on the crest between the ropes."
+  ]
+}
