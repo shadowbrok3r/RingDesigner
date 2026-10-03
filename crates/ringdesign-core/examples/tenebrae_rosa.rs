@@ -34,8 +34,8 @@ const MIN_SECTION_MM: f64 = 0.8;
 /// Lights round the rose.
 const LIGHTS: usize = 8;
 /// The rose net: the hub circle, the circle the petals' heads touch, and the radius the mullions stop and the heads spring at, mm.
-const R_HUB: f64 = 3.0;
-const R_OUT: f64 = 7.9;
+const R_HUB: f64 = 3.2;
+const R_OUT: f64 = 7.7;
 /// Radius each light's pointed head rises to, below the cusped rim, mm.
 const R_APEX: f64 = 6.3;
 /// Each head's arcs are struck from a centre this share of the springing span across: 1 is an equilateral arch.
@@ -57,6 +57,8 @@ const SPOKE_ID: Id = 80;
 /// How far each spoke stands over the tracery, and its width (inside the mullion's bar), mm.
 const SPOKE_RISE_MM: f64 = 0.3;
 const SPOKE_W_MM: f64 = 0.85;
+/// The spokes' sides lean in toward their tops, so each reads as a moulded bar, degrees.
+const SPOKE_DRAFT_DEG: f64 = 0.0;
 /// Radius of the round terminal each lobe cusp ends in, mm.
 const TERMINAL_MM: f64 = 0.45;
 /// How far each terminal stands proud of the cusp's tip, mm.
@@ -70,11 +72,11 @@ const LIGHT_SINK_MM: f64 = 1.9;
 /// The raised tracery runs this far into the table under it, mm.
 const TRACERY_FOOT_MM: f64 = 0.1;
 /// The outer order's width outside the net's outer circle, mm.
-const RING_MM: f64 = 0.55;
+const RING_MM: f64 = 0.5;
 /// Spandrels are picked this far inside the outer circle, mm.
 const SPANDREL_PICK_MM: f64 = 0.8;
 /// How far each of the sixteen rim cusps bows in from the rim, mm.
-const CUSP_SAG_MM: f64 = knob_const(0.45);
+const CUSP_SAG_MM: f64 = knob_const(0.55);
 /// How deep the petals sink below the table, mm.
 const PETAL_SINK_MM: f64 = 0.5;
 /// How far below the table the spandrels are sunk, mm.
@@ -127,16 +129,17 @@ const WITH_ARCADES: bool = false;
 const ARCADE_W_MM: f64 = 1.0;
 const ARCADE_SINK_MM: f64 = 0.35;
 const ARCADE_Y_MM: f64 = 11.4;
+const _ARCADE_Y_ALT: f64 = 0.0;
 const ARCADE_AT: [f64; 5] = [-4.6, -2.3, 0.0, 2.3, 4.6];
 /// The cut arcade: its lancets' centres round the ring, the plane it is drawn on outside the cheek and the plane its floor
 /// reaches along the finger, mm.
 const ARCADE_X: [f64; 3] = [-1.85, 0.0, 1.85];
-const ARCADE_PLANE_MM: f64 = 9.85;
+const ARCADE_PLANE_MM: f64 = 9.7;
 /// How far the arcade cuts in from its plane, square to the cheek, and the cheek's lean from upright, mm and degrees.
 const ARCADE_CUT_MM: f64 = 0.95;
 /// The gallery panel: its face's plane along the finger, how far it runs back into the cheek, its half width and the
 /// margin it keeps round the lancets, mm.
-const PANEL_FACE_MM: f64 = 9.6;
+const PANEL_FACE_MM: f64 = 9.45;
 const PANEL_DEPTH_MM: f64 = 2.0;
 const PANEL_HALF_W_MM: f64 = 3.2;
 const PANEL_MARGIN_MM: f64 = 0.9;
@@ -145,9 +148,14 @@ const ARCADE_LEAN_DEG: f64 = 6.2;
 /// The shoulder oculi are moulded rings standing on the shoulder, which is too thin to pierce: their rise, how far
 /// their foot runs into the shoulder, and the ring's width round the light, mm.
 const OCULUS_RISE_MM: f64 = 0.4;
+/// The drilled oculi start this far from the finger's axis and run this far in, mm.
+const OCULUS_FROM_MM: f64 = 14.5;
+/// The shoulder oculi stay off: the stock's shoulders over its hollowed head are too thin to pierce or sink at 0.8 mm.
+const WITH_OCULI: bool = false;
+const OCULUS_DRILL_MM: f64 = 6.5;
 const OCULUS_SINK_MM: f64 = 0.6;
 const OCULUS_RING_MM: f64 = 0.85;
-const OCULI: [(f64, f64); 4] = [(44.0, 2.0), (53.0, 1.8), (62.0, 1.5), (71.0, 1.2)];
+const OCULI: [(f64, f64); 4] = [(46.0, 1.6), (55.0, 1.4), (64.0, 1.2), (73.0, 0.9)];
 
 const RUBY: [f32; 3] = [0.45, 0.01, 0.04];
 const SAPPHIRE: [f32; 3] = [0.02, 0.06, 0.45];
@@ -192,7 +200,9 @@ fn base() -> Result<RingDesign> {
     let preset = PRESETS.iter().find(|p| p.id == STOCK).context("no stock 001")?;
     let mut d = RingDesign::default();
     ImportedBase::attach(&mut d, preset.load()?)?;
-    d.imported_base.as_mut().unwrap().sand_envelope = false;
+    // The stock's undercuts filled toward the parting line: its shank edges stop in knife edges under the 0.8 mm
+    // section, and its head is hollowed underneath; the envelope keeps the stock inside and squares both.
+    d.imported_base.as_mut().unwrap().sand_envelope = std::env::var("ROSA_NO_ENV").is_err();
     d.name = "Rosa — the west rose".into();
     d.profile.apply_style(ProfileStyle::Flat);
     d.profile.width_mm = FACE_MM;
@@ -560,7 +570,7 @@ fn panel_sketch(plane: Id) -> Sketch {
     let ids: Vec<Id> = [[-hx, lo], [hx, lo], [hx, hi], [-hx, hi]].iter().map(|p| s.point(*p)).collect();
     s.entity(Geometry::Polyline { points: ids, closed: true });
     let lean = knob("ROSA_LEAN", ARCADE_LEAN_DEG).to_radians();
-    s.plane.origin = [0.0, ARCADE_Y_MM, 0.0];
+    s.plane.origin = [0.0, knob("ROSA_AY", ARCADE_Y_MM), 0.0];
     s.plane.x = [1.0, 0.0, 0.0];
     s.plane.y = [0.0, lean.cos(), lean.sin()];
     s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
@@ -579,7 +589,7 @@ fn arcade_sketch(plane: Id) -> Sketch {
     }
     // Leaned with the cheek, so the cut stands square to the wall and its floor runs parallel to it.
     let lean = knob("ROSA_LEAN", ARCADE_LEAN_DEG).to_radians();
-    s.plane.origin = [0.0, ARCADE_Y_MM, 0.0];
+    s.plane.origin = [0.0, knob("ROSA_AY", ARCADE_Y_MM), 0.0];
     s.plane.x = [1.0, 0.0, 0.0];
     s.plane.y = [0.0, lean.cos(), lean.sin()];
     s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
@@ -643,11 +653,25 @@ fn spokes(plane: Id) -> Sketch {
         let m = (light_deg(k) - half_bay_deg()).to_radians();
         let (d, n) = ([m.cos(), m.sin()], [-m.sin(), m.cos()]);
         let at = |r: f64, side: f64| [d[0] * r + n[0] * side * h, d[1] * r + n[1] * side * h];
-        let (r0, r1) = (R_HUB - 0.1, R_OUT - 0.1);
+        let (r0, r1) = (0.5 * RUBY_MM + SEAT_CLEAR_MM + COLLET_WALL_MM - 0.02, R_OUT + CUSP_SAG_MM + 0.5 * RING_MM);
         let ids: Vec<Id> = [at(r0, -1.0), at(r1, -1.0), at(r1, 1.0), at(r0, 1.0)].iter().map(|p| s.point(*p)).collect();
         s.entity(Geometry::Polyline { points: ids, closed: true });
     }
     s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
+    s
+}
+
+/// A shoulder oculus `w` across at `theta_deg`: a circle on a plane square to the radius outside the band, so the hole is
+/// drilled straight at the finger's axis and meets the bore square.
+fn oculus_hole(theta_deg: f64, w: f64) -> Sketch {
+    let mut s = Sketch::default();
+    s.name = "Oculus".into();
+    let (c, r) = (s.point([0.0, 0.0]), s.point([0.5 * w, 0.0]));
+    s.entity(Geometry::Circle { center: c, rim: r });
+    let (sn, cs) = theta_deg.to_radians().sin_cos();
+    s.plane.origin = [OCULUS_FROM_MM * cs, OCULUS_FROM_MM * sn, 0.0];
+    s.plane.x = [0.0, 0.0, 1.0];
+    s.plane.y = [-sn, cs, 0.0];
     s
 }
 
@@ -691,7 +715,7 @@ fn collet_ring(name: &str, plane: Id, g: Gem, at: f64, deg: f64, inner_mm: f64, 
     s.name = name.into();
     for grow in [outer_mm, inner_mm] {
         let pts = plan_outline(g, grow, at, deg);
-        let ids: Vec<Id> = pts.iter().step_by(2).map(|p| s.point(*p)).collect();
+        let ids: Vec<Id> = pts.iter().map(|p| s.point(*p)).collect();
         s.entity(Geometry::Polyline { points: ids, closed: true });
     }
     s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
@@ -728,7 +752,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     let mut doc = Document::default();
     let none = Component::default;
     doc.append(feature(1, "Cushion signet, factory 001 at a 19 mm face", Operation::Band, Component { role: ComponentRole::Shank, ..none() }))?;
-    doc.append(feature(2, "Table, lifted clear of the metal", table_plane(LIFT_MM), none()))?;
+    doc.append(feature(2, "Work plane over the table", table_plane(LIFT_MM), none()))?;
     let rose = traced_rose(2)?;
     let lights = rose.lights;
     let rose_lands = rose.lands;
@@ -760,7 +784,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     doc.append(feature(
         SPOKE_ID + 2,
         "Raise the spokes over the tracery",
-        Operation::Extrude { sketch: Profile::Feature { feature: SPOKE_ID + 1 }, height_mm: -(SPOKE_RISE_MM + OVERLAP_MM), draft_deg: 0.0 },
+        Operation::Extrude { sketch: Profile::Feature { feature: SPOKE_ID + 1 }, height_mm: -(SPOKE_RISE_MM + OVERLAP_MM), draft_deg: knob("ROSA_SD", SPOKE_DRAFT_DEG) },
         Component { attach: Attach::Join, stage: Stage::Cast, ..none() },
     ))?;
     doc.append(feature(CORNER_ID, "Corner boss height", table_plane(CORNER_RISE_MM), none()))?;
@@ -797,21 +821,23 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     }
     // The nave's oculi down each shoulder, pierced along the surface and mirrored through the crown.
     let first_oculus = id;
-    for (k, (off, w)) in OCULI.iter().enumerate() {
+    for (k, (off, w)) in OCULI.iter().enumerate().filter(|_| WITH_OCULI) {
         doc.append(feature(
             id,
-            &format!("Oculus of the nave, {}: a moulded ring", k + 1),
-            Operation::Extrude { sketch: Profile::Inline(oculus_ring(*w)), height_mm: -(OCULUS_RISE_MM + OCULUS_SINK_MM), draft_deg: 0.0 },
-            Component { attach: Attach::Join, stage: Stage::Cast, placement: Placement::ring(90.0 - off, OCULUS_RISE_MM), ..none() },
+            &format!("Pierce oculus of the nave {} toward the finger", k + 1),
+            Operation::Extrude { sketch: Profile::Inline(oculus_hole(90.0 - off, *w)), height_mm: OCULUS_DRILL_MM, draft_deg: 0.0 },
+            cut(),
         ))?;
         id += 1;
     }
+    if WITH_OCULI {
     doc.append(feature(
         id,
         "Mirror the oculi through the crown",
         Operation::Pattern { sources: cad::pattern::Sources((first_oculus..id).collect()), kind: PatternKind::Mirror { plane: cad::MirrorPlane::Section { theta_deg: 90.0 } } },
-        Component { attach: Attach::Join, stage: Stage::Cast, ..none() },
+        cut(),
     ))?;
+    }
     // The gallery of kings: a blind arcade of pointed lancets cut into each cheek along the finger, mirrored across the band.
     id += 1;
     doc.append(feature(id, "The near cheek's panel face", Operation::Plane { base: PlaneBase::Parting, offset_mm: PANEL_FACE_MM }, none()))?;
@@ -834,7 +860,7 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     doc.append(feature(
         id + 2,
         "Cut the gallery arcade into the cheek",
-        Operation::Extrude { sketch: Profile::Feature { feature: id + 1 }, height_mm: -ARCADE_CUT_MM, draft_deg: 0.0 },
+        Operation::Extrude { sketch: Profile::Feature { feature: id + 1 }, height_mm: -knob("ROSA_AC", ARCADE_CUT_MM), draft_deg: 0.0 },
         cut(),
     ))?;
     doc.append(feature(
@@ -931,7 +957,11 @@ fn antiqued(m: &mesh::Mesh, table_y: f64) -> (mesh::Mesh, mesh::Mesh) {
         let y = (a[1] + b[1] + c[1]) / 3.0;
         let r = ((a[0] + b[0] + c[0]) / 3.0).hypot((a[2] + b[2] + c[2]) / 3.0);
         // Everything sunk under the table inside the rose: the spandrels' floors and walls, the pilots.
-        r < R_OUT + CUSP_SAG_MM + RING_MM - 0.05 && y < table_y + TRACERY_MM - 0.05 && y > table_y - 3.0
+        let x = (a[0] + b[0] + c[0]) / 3.0;
+        let z = ((a[2] + b[2] + c[2]) / 3.0).abs();
+        // The gallery's lancets: their floors and walls behind the panel's face.
+        let lancet = x.abs() < PANEL_HALF_W_MM - 0.3 && (y - ARCADE_Y_MM).abs() < 0.5 * ARCADE_H_MM + 0.05 && z > 8.0 && z < PANEL_FACE_MM - 0.15;
+        lancet || (r < R_OUT + CUSP_SAG_MM + RING_MM - 0.05 && y < table_y + TRACERY_MM - 0.05 && y > table_y - 3.0)
     };
     let mut bright = mesh::Mesh { vertices: m.vertices.clone(), normals: m.normals.clone(), ..mesh::Mesh::default() };
     let mut dark = bright.clone();
@@ -1150,8 +1180,10 @@ fn main() -> Result<()> {
             println!("    z {zr:5.1}: {}", row.join(" "));
         }
     }
-    let coarse = BuildParams { theta_steps: 384, profile_steps: 160, ..params };
-    let thin_mesh = mesh::try_build(&d, &lib, coarse)?.mesh;
+    // The measure takes up to 250k faces: the ring is measured as built when it is under that, else on a 384 × 160 build.
+    let as_built = built.mesh.faces.len() <= 250_000;
+    let coarse = if as_built { params } else { BuildParams { theta_steps: 384, profile_steps: 160, ..params } };
+    let thin_mesh = if as_built { built.mesh.clone() } else { mesh::try_build(&d, &lib, coarse)?.mesh };
     let thickness = cad::measure::thickness(&thin_mesh, MIN_SECTION_MM);
     if std::env::var("ROSA_MAP").is_ok() {
         let m = &thin_mesh;
