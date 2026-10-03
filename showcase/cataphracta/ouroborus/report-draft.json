@@ -6,97 +6,128 @@
   },
   "bore_mm": 18.59999905109489,
   "build": {
-    "author_s": 2.4077948989999998,
-    "build_s": 8.77498415,
+    "author_s": 1.973195328,
+    "build_s": 4.99112823,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 757428
+    "triangles": 605992
   },
   "coarse_384x192": {
     "degenerate_faces": 0,
     "made_part_crossings": [
       [
-        "Serpent head",
+        "Head",
+        0
+      ],
+      [
+        "Foreleg, near",
+        0
+      ],
+      [
+        "Foreleg, far",
+        0
+      ],
+      [
+        "Hind leg, near",
+        0
+      ],
+      [
+        "Hind leg, far",
         0
       ]
     ],
     "notes": [],
-    "obstructions": [],
-    "parts_joined": 1,
-    "release_0075": {
-      "deepest_mm": 0.0,
-      "obstructions": 0,
-      "unresolved": 0
-    },
-    "release_0100": {
-      "deepest_mm": 0.0,
-      "obstructions": 0,
-      "unresolved": 0
-    },
+    "parts_joined": 5,
     "self_crossings": 0,
     "stamped": 0,
-    "triangles": 433982,
+    "triangles": 296460,
     "watertight": true
   },
   "cold_reload_identical": null,
   "composition": {
-    "band_half_w_at_snout_mm": 0.51,
-    "crest_r_at_snout_mm": 10.811955487102896,
-    "head_faces": 395200,
-    "head_least_half_width_mm": 0.0055378529932926515,
-    "head_min_draft_deg": 0.0002743664934307755,
-    "head_undercut_facets": 0,
-    "head_volume_mm3": 133.7319405356644,
+    "head_faces": 153600,
+    "head_least_half_width_mm": 0.010516790713514116,
+    "head_length_mm": 10.4,
+    "head_ratio": 1.4054054054054055,
+    "head_volume_mm3": 150.52188437860605,
+    "head_width_mm": 7.4,
+    "leg_faces": [
+      13612,
+      13612,
+      14596,
+      14596
+    ],
     "whorls": [
-      47,
+      49,
       [
-        1.6175860046143191,
-        5.797948627044297
+        1.5515620860586326,
+        7.296957699593772
       ],
-      1.009962224779119
+      0.9992632140027657
     ]
   },
   "design": {
-    "bytes": 3909223,
+    "bytes": 2091686,
     "stamps": 0
   },
   "dfm_findings": [],
   "draft": {
-    "min_detail_mm": 0.4,
-    "min_draft_deg": 2.5,
-    "min_section_mm": 0.6,
-    "process": "Sand (two-part)",
-    "sand": "Some(Petrobond)"
+    "min_detail_mm": 0.15,
+    "min_draft_deg": 0.0,
+    "min_section_mm": 0.8,
+    "process": "Lost wax"
   },
   "draft_clamp": {
     "groups": 0,
-    "note": "no clamped group on the block-out",
-    "worst_mm": 0.0
+    "note": "lost wax: no clamp"
   },
   "field": {
-    "band_drag_percent": 0.9538745685977482,
-    "band_verdict": "Castable",
-    "drag_percent": 1.755306118486542,
     "notes": [
-      "Field-sampled: the surface itself carries no undercut at this parting.",
-      "Judged with the ring as built: 1 CAD part (1 joined, 0 cut) at the parting plane z = +0.00 mm — 112.1 mm² of part surface, none of it locking."
+      "Lost wax: 0.07% of the surface would undercut a two-part pull (worst 1.3 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 38–38° on the crest: 0.1 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 198–198° on the crest: 0.1 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 232–232° on the crest: 0.1 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 248–248° on the crest: 0.1 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 270–270° on the crest: 0.1 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 349–349° on the crest: 0.0 mm² leaning to 1° — caused by \"Whorls\"; muting it clears it.",
+      "Measured with the ring as built: 5 CAD parts (5 joined, 0 cut), 282.7 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 9.1 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near\" (#3) would undercut a two-part pull over 0.0 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far\" (#4) would undercut a two-part pull over 0.0 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near\" (#5) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far\" (#6) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "parts": [
       {
-        "marginal_mm2": 5.571419142351945,
-        "name": "Serpent head",
-        "note": "Stored mesh \"Serpent head\" (#2): 112.1 mm² judged, no undercut.",
-        "silhouette_mm2": 0.0,
-        "total_mm2": 112.11952909387256,
-        "undercut_mm2": 0.0,
-        "vertical_mm2": 2.9439737376201305,
-        "worst_draft_deg": -0.13785170329149266
+        "name": "Head",
+        "note": "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 9.1 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 171.23167332163172
+      },
+      {
+        "name": "Foreleg, near",
+        "note": "Lost wax: Stored mesh \"Foreleg, near\" (#3) would undercut a two-part pull over 0.0 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 27.70822037895737
+      },
+      {
+        "name": "Foreleg, far",
+        "note": "Lost wax: Stored mesh \"Foreleg, far\" (#4) would undercut a two-part pull over 0.0 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 27.548673180294767
+      },
+      {
+        "name": "Hind leg, near",
+        "note": "Lost wax: Stored mesh \"Hind leg, near\" (#5) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 28.281663195320654
+      },
+      {
+        "name": "Hind leg, far",
+        "note": "Lost wax: Stored mesh \"Hind leg, far\" (#6) would undercut a two-part pull over 0.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 27.929994843198646
       }
     ],
-    "thinnest_wall_mm": 0.9197934777463495,
-    "undercut_percent": 0.0,
-    "verdict": "Castable",
-    "worst_draft_deg": -0.13785170329149266
+    "process": "Lost wax",
+    "thinnest_wall_mm": 1.1412015366796062,
+    "undercut_percent": 0.799189685118055,
+    "verdict": "Castable"
   },
   "gates": [
     {
@@ -104,11 +135,11 @@
       "pass": true
     },
     {
-      "gate": "the head part closed and uncrossed, as made and as placed",
+      "gate": "every made part closed and uncrossed, as made and as placed",
       "pass": true
     },
     {
-      "gate": "solids and parts notes empty, every stamp resolved, the head joined",
+      "gate": "solids and parts notes empty, every stamp resolved, all five parts joined",
       "pass": true
     },
     {
@@ -116,15 +147,7 @@
       "pass": true
     },
     {
-      "gate": "field verdict Castable (sand, Petrobond), the head judged in",
-      "pass": true
-    },
-    {
-      "gate": "ray release 0 obstructions, 0 unresolved at 0.100 and 0.075 mm",
-      "pass": true
-    },
-    {
-      "gate": "every draft-clamp bite at most 0.05 mm",
+      "gate": "lost-wax verdict Castable, the parts judged in, thinnest wall at or above the 0.8 mm fill",
       "pass": true
     },
     {
@@ -140,7 +163,7 @@
       "pass": true
     },
     {
-      "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+      "gate": "investment pattern watertight, 0 degenerates, 0 crossings",
       "pass": true
     },
     {
@@ -153,53 +176,96 @@
     }
   ],
   "gates_passed": true,
-  "head_part": {
-    "faces": 395200,
-    "facets_leaning_back": 0,
-    "least_draft_off_parting_deg": 0.0002743664934307755,
-    "open_edges": 0,
-    "self_crossings": 0,
-    "volume_mm3": 133.7319405356644
-  },
   "layers": [
     "Whorls",
-    "Dorsal keel"
+    "Flank whorls"
+  ],
+  "made_parts": [
+    {
+      "faces": 153600,
+      "name": "Head",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 150.52188437860605
+    },
+    {
+      "faces": 13612,
+      "name": "Foreleg, near",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 15.018409586159017
+    },
+    {
+      "faces": 13612,
+      "name": "Foreleg, far",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 15.018409586159017
+    },
+    {
+      "faces": 14596,
+      "name": "Hind leg, near",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 15.827943213633512
+    },
+    {
+      "faces": 14596,
+      "name": "Hind leg, far",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 15.827943213633512
+    }
   ],
   "main": {
     "degenerate_faces": 0,
     "made_part_crossings": [
       [
-        "Serpent head",
+        "Head",
+        0
+      ],
+      [
+        "Foreleg, near",
+        0
+      ],
+      [
+        "Foreleg, far",
+        0
+      ],
+      [
+        "Hind leg, near",
+        0
+      ],
+      [
+        "Hind leg, far",
         0
       ]
     ],
     "notes": [],
-    "obstructions": [],
-    "parts_joined": 1,
-    "release_0075": {
-      "deepest_mm": 0.0,
-      "obstructions": 0,
-      "unresolved": 0
-    },
-    "release_0100": {
-      "deepest_mm": 0.0,
-      "obstructions": 0,
-      "unresolved": 0
-    },
+    "parts_joined": 5,
     "self_crossings": 0,
     "stamped": 0,
-    "triangles": 757428,
+    "triangles": 605992,
     "watertight": true
   },
   "name": "Ouroborus — the girdled wheel",
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 757428,
+    "triangles": 605992,
     "watertight": true
   },
-  "process": "Sand (two-part)",
-  "sand": "Petrobond",
+  "process": "Lost wax",
+  "process_note": "Lost wax, per Logan's rule of 2026-10-03: 0.8 mm minimum section, no pull rule. The sand pull is recorded below as a bonus only.",
+  "release": {
+    "applies": false,
+    "bonus_petrobond_0100": {
+      "deepest_mm": 1.5403818702177512,
+      "obstructions": 49,
+      "unresolved": 0
+    },
+    "note": "No pull rule in lost wax."
+  },
   "size": "US 8.6",
   "slug": "ouroborus",
   "stage": "block-out",
