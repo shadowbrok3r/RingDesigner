@@ -278,6 +278,7 @@ fn main() {
         profile: WireProfile::Flat,
         taper: 0.0,
         mirror_v: false,
+        ..Default::default()
     };
     d.layers.layers.push(LayerEntry::new("Collars", Layer::Curve(collar)));
     finish(&dir, "P-bolt-ring", "eight beveled shafts, flat collars across the band", WHITE, d, &mut lib);

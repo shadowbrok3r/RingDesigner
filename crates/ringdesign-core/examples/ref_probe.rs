@@ -152,9 +152,9 @@ fn main() {
         Operation::Loft { sections: vec![Sketch::rectangle(10.0.into(), 8.0).into(), top(8.0.into(), 6.0.into(), 12.0).into()] },
     ]);
     sweep("sweep circle on a 3-station path", vec![
-        Operation::Sweep { sketch: Sketch::circle(1.0).into(), path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]] },
-        Operation::Sweep { sketch: Sketch::circle(0.5).into(), path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]] },
-        Operation::Sweep { sketch: Sketch::circle(1.0).into(), path: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 9.0], [4.0, 0.0, 12.0]] },
+        Operation::sweep(Sketch::circle(1.0), vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]]),
+        Operation::sweep(Sketch::circle(0.5), vec![[0.0, 0.0, 0.0], [0.0, 0.0, 5.0], [2.0, 0.0, 8.0]]),
+        Operation::sweep(Sketch::circle(1.0), vec![[0.0, 0.0, 0.0], [0.0, 0.0, 9.0], [4.0, 0.0, 12.0]]),
     ]);
     // A boolean's edge list depends on where the cut lands: the case a stored ordinal fears most.
     let boolean = |offset: f64| {

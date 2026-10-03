@@ -67,7 +67,7 @@ fn post_band(stage: ringdesign_core::cad::Stage) -> ringdesign_core::RingDesign 
     d.profile.width_mm = 6.0;
     let mut doc = Document::default();
     doc.append(Feature { id: 0, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
-    let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.5, height_mm: 0.6, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+    let placement = Placement::Ring { theta_deg: 90.0, across_mm: 1.5, height_mm: 0.6, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
     doc.append(Feature { id: 3, name: "Post".into(), enabled: true, operation: Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }, component: Component { attach: Attach::Join, stage, placement, ..Default::default() } }).unwrap();
     d.cad = Some(doc);
     d

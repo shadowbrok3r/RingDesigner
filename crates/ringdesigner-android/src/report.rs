@@ -274,7 +274,7 @@ mod tests {
         let mut d = templates::all().iter().find(|t| t.name == "Court band").unwrap().design();
         let mut doc = Document::default();
         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
-        let post = |attach, theta, across| Component { attach, placement: Placement::Ring { theta_deg: theta, across_mm: across, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 }, ..Component::default() };
+        let post = |attach, theta, across| Component { attach, placement: Placement::Ring { theta_deg: theta, across_mm: across, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false }, ..Component::default() };
         let cylinder = || Operation::Cylinder { radius_mm: 0.6, height_mm: 1.5 };
         doc.append(Feature { id: 2, name: "On the line".into(), enabled: true, operation: cylinder(), component: post(Attach::Join, 90.0, 0.0) }).unwrap();
         doc.append(Feature { id: 3, name: "Off the line".into(), enabled: true, operation: cylinder(), component: post(Attach::Join, 150.0, 1.5) }).unwrap();

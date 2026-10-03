@@ -1514,7 +1514,9 @@ pub struct SeatPadLayer {
     /// Superellipse exponent of the rim in plan: 2 is an ellipse, 6 a
     /// rounded rectangle for the step cuts, 1.5 the pointed ends of a
     /// marquise. Read from the stone by [`fit_stone`](Self::fit_stone).
-    /// Floored at 1, which keeps the plan convex.
+    /// Floored at 1, which keeps the plan convex. A pad carrying a stone
+    /// with a true girdle ([`GemCut::girdle`](crate::gem::GemCut::girdle))
+    /// follows that girdle's stock outline instead.
     #[serde(default = "default_plan_pow")]
     pub plan_pow: f64,
     /// How far the girdle sits below the pad's top, mm — how deep the stone
@@ -1672,9 +1674,12 @@ pub fn plan_half_extents_mm(ra: f64, rb: f64, n: f64, rot_deg: f64) -> (f64, f64
 }
 
 /// The stone's own half-extents in the chart, mm — its girdle plan turned
-/// by the seat that holds it.
+/// by the seat that holds it, the true girdle for a cut that carries one.
 pub fn gem_half_extents_mm(gem: crate::gem::Gem, rot_deg: f64) -> (f64, f64) {
-    plan_half_extents_mm(gem.l_mm * 0.5, gem.w_mm * 0.5, gem.cut.plan_pow(), rot_deg)
+    match gem.cut.girdle() {
+        Some(g) => g.half_extents_mm(gem.l_mm * 0.5, gem.w_mm * 0.5, rot_deg),
+        None => plan_half_extents_mm(gem.l_mm * 0.5, gem.w_mm * 0.5, gem.cut.plan_pow(), rot_deg),
+    }
 }
 
 impl SeatPadLayer {
@@ -1735,11 +1740,23 @@ impl SeatPadLayer {
         (du * cos + dv * sin, -du * sin + dv * cos)
     }
 
+    /// The stone's true girdle, whose [`stock`](crate::girdle::Girdle::stock) outline replaces the superellipse.
+    fn girdle(&self) -> Option<&'static crate::girdle::Girdle> {
+        self.gem.and_then(|g| g.cut.girdle())
+    }
+
     /// Rim radius in the direction of a pad-frame offset, mm — the plan
     /// outline's own radius along that ray, and a constant for a round pad.
+    pub fn rim_radius_mm(&self, a: f64, b: f64) -> f64 {
+        self.rim_mm(a, b)
+    }
+
     fn rim_mm(&self, a: f64, b: f64) -> f64 {
         let (ra, rb) = self.semi_axes_mm();
-        superellipse_radius_mm(a, b, ra, rb, self.plan_pow)
+        match self.girdle() {
+            Some(g) => g.stock().radius_mm(a, b, ra, rb),
+            None => superellipse_radius_mm(a, b, ra, rb, self.plan_pow),
+        }
     }
 
     /// The furthest the rim reaches from the seat centre, mm. A bound, and
@@ -1747,6 +1764,9 @@ impl SeatPadLayer {
     /// its corners past the long semi-axis, out to the box diagonal.
     fn plan_reach_mm(&self) -> f64 {
         let (ra, rb) = self.semi_axes_mm();
+        if let Some(g) = self.girdle() {
+            return g.stock().reach_mm(ra, rb);
+        }
         if self.plan_pow <= 2.0 + 1e-12 {
             ra
         } else {
@@ -1759,7 +1779,10 @@ impl SeatPadLayer {
     /// against.
     pub fn half_extents_mm(&self) -> (f64, f64) {
         let (ra, rb) = self.semi_axes_mm();
-        plan_half_extents_mm(ra, rb, self.plan_pow, self.rot_deg)
+        match self.girdle() {
+            Some(g) => g.stock().half_extents_mm(ra, rb, self.rot_deg),
+            None => plan_half_extents_mm(ra, rb, self.plan_pow, self.rot_deg),
+        }
     }
 
     /// Metal mm per chart mm at the pad's own station: `u` by the reference
@@ -1948,9 +1971,29 @@ impl SeatPadLayer {
         let step = std::f64::consts::TAU / n as f64;
         // A square plan is claimed at its corners, a round one on its axes.
         let phase = if self.plan_pow > 2.5 { 0.5 * step } else { 0.0 };
+        // On a true girdle, at its claw angles.
+        let mut claws = [(0.0, 0.0); 8];
+        let count = match self.girdle() {
+            Some(g) => {
+                let (ra, rb) = self.semi_axes_mm();
+                let angles = g.claw_angles(n as usize, ra, rb);
+                for (slot, psi) in claws.iter_mut().zip(&angles) {
+                    let p = g.unit_point(*psi);
+                    let (x, y) = (p[0] * ra, p[1] * rb);
+                    let l = x.hypot(y).max(1e-12);
+                    *slot = (y / l, x / l);
+                }
+                angles.len().min(8)
+            }
+            None => {
+                for (k, slot) in claws.iter_mut().enumerate().take(n as usize) {
+                    *slot = (k as f64 * step + phase).sin_cos();
+                }
+                n as usize
+            }
+        };
         let mut prong: f64 = 0.0;
-        for k in 0..n {
-            let (sin, cos) = (k as f64 * step + phase).sin_cos();
+        for &(sin, cos) in &claws[..count] {
             let seat_r = (self.rim_mm(cos, sin) - prong_r * 0.6).max(0.2);
             let dp = ((a - seat_r * cos).powi(2) + (b - seat_r * sin).powi(2)).sqrt();
             let t = (dp / prong_r).clamp(0.0, 1.0);
@@ -4433,6 +4476,48 @@ mod tests {
             "a gypsy-mound row locks: {:.3}%",
             cast.undercut_fraction() * 100.0
         );
+    }
+
+    /// A pad's stock holds its true-girdle stone in every style, size and turn, and fields clean on a crest.
+    #[test]
+    fn a_true_girdle_stands_inside_its_own_stock() {
+        use crate::gem::{Gem, GemCut};
+        for cut in GemCut::ALL.iter().copied().filter(|c| c.has_true_girdle()) {
+            for w in [3.0, 5.0, 8.0] {
+                let gem = Gem::calibrated(cut, w);
+                let girdle = cut.girdle().unwrap();
+                for &style in SeatStyle::ALL {
+                    let mut pad = SeatPadLayer { style, ..Default::default() };
+                    pad.fit_stone(gem);
+                    let margin = (0..1440)
+                        .map(|k| {
+                            let (s, c) = (std::f64::consts::TAU * k as f64 / 1440.0).sin_cos();
+                            pad.rim_radius_mm(c, s) - girdle.radius_mm(c, s, gem.l_mm * 0.5, gem.w_mm * 0.5)
+                        })
+                        .fold(f64::MAX, f64::min);
+                    let half_stock = 0.5 * (pad.diameter_mm - gem.w_mm);
+                    assert!(margin > 0.6 * half_stock, "{cut:?} {w} {style:?}: {margin:.3} mm of stock at the thinnest, of {half_stock:.2}");
+                    for rot in [0.0, 30.0, 90.0] {
+                        let (turned, stone) = (SeatPadLayer { rot_deg: rot, ..pad }.half_extents_mm(), gem_half_extents_mm(gem, rot));
+                        assert!(turned.0 > stone.0 && turned.1 > stone.1, "{cut:?} {w} {style:?} {rot}: {turned:?} against {stone:?}");
+                    }
+                }
+            }
+        }
+        let lib = AlphaLibrary::builtin();
+        for cut in GemCut::ALL.iter().copied().filter(|c| c.has_true_girdle()) {
+            for rot_deg in [0.0, 90.0] {
+                let mut d = crate::RingDesign::default();
+                d.profile.apply_style(crate::ProfileStyle::LowDome);
+                d.profile.width_mm = 6.0;
+                d.profile.thickness_mm = 2.4;
+                let mut pad = SeatPadLayer { v_mm: d.field_context().crest_v_mm, style: SeatStyle::GypsyMound, rot_deg, ..Default::default() };
+                pad.fit_stone(Gem::calibrated(cut, 3.0));
+                d.layers.layers.push(LayerEntry::new("Seat", Layer::SeatPad(pad)));
+                let f = crate::castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
+                assert!(f.undercut_fraction() < 1e-4, "{cut:?} at {rot_deg}: {:.4}% undercut at {:.1} degrees", f.undercut_fraction() * 100.0, f.worst_draft_deg);
+            }
+        }
     }
 
     /// A stone is not a circle, and its stock should not be either. The pad

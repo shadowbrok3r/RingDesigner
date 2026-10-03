@@ -1297,7 +1297,7 @@ fn knob(ks: &KnobSeat, ac: &Aculeus, hd: &Head, neck_deg: f64) -> Result<(csg::S
     let base = (over_max + 0.8).max(2.4);
     sec.push(Station { s: 1.0, o: 0.25, z: -base });
     sec.push(Station { s: 0.0, o: 0.0, z: -base });
-    let local = setting::sweep(&Plan { a: KNOB_A_MM, b: KNOB_B_MM, pow: 2.0 }, &sec, 96);
+    let local = setting::sweep(&Plan::superellipse(KNOB_A_MM, KNOB_B_MM, 2.0), &sec, 96);
     ensure!(dot3(cross3(lx, ly), lz) > 0.99, "The knob's frame is not right-handed");
     let world = |p: P3| add3(add3(add3(top, lx, p[0]), ly, p[1]), lz, p[2]);
     let solid = csg::Solid {
@@ -1538,6 +1538,7 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, hd: &Head, neck_deg: f64) -> Re
             spin_deg: 90.0,
             tilt_deg: 0.0,
             cant_deg: 0.0,
+            level: false,
         },
     ))?;
     doc.append(builders::feature_on(

@@ -179,7 +179,7 @@ pub fn outline(shape: Shape, l: f64, w: f64, g: f64) -> Vec<[f64; 2]> {
     match shape {
         Shape::Round | Shape::Oval | Shape::Marquise => {
             let pow = if shape == Shape::Marquise { GemCut::Marquise.plan_pow() } else { GemCut::Oval.plan_pow() };
-            let plan = Plan { a: 0.5 * l, b: 0.5 * w, pow };
+            let plan = Plan::superellipse(0.5 * l, 0.5 * w, pow);
             let n = ((plan.perimeter() / SAMPLE_MM).round() as usize).clamp(48, 192);
             (0..n)
                 .map(|i| {
@@ -1472,14 +1472,14 @@ pub fn pierce_at(design: &RingDesign, theta_deg: f64, across_mm: f64, hit: Optio
             ensure!(s >= WINDOW_MIN_MM, "The side face here is {room:.2} mm across, too narrow to pierce");
             let r_c = r_hit.clamp(r_in + keep + 0.5 * s, r_out - keep - 0.5 * s);
             let crest = bore.crossings(theta_deg, 0.0).last().copied().ok_or_else(|| anyhow!("The band has no crest at {theta_deg:.0}°"))?;
-            let placement = Placement::Ring { theta_deg, across_mm: 0.0, height_mm: hundredth(r_c - crest), spin_deg: 0.0, tilt_deg: 0.0, cant_deg: -90.0 * side };
+            let placement = Placement::Ring { theta_deg, across_mm: 0.0, height_mm: hundredth(r_c - crest), spin_deg: 0.0, tilt_deg: 0.0, cant_deg: -90.0 * side, level: false };
             (placement, s, -90.0 * side)
         }
         None => {
             let edge = (across_mm - lo).min(hi - across_mm);
             let s = (0.35 * (hi - lo)).min(2.0 * (edge - keep - 0.05));
             ensure!(s >= WINDOW_MIN_MM, "Too near the band's edge to pierce here: {edge:.2} mm from it");
-            (Placement::Ring { theta_deg, across_mm, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 }, s, 90.0)
+            (Placement::Ring { theta_deg, across_mm, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false }, s, 90.0)
         }
     };
     let s = s.min(3.0);
