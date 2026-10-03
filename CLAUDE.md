@@ -1161,7 +1161,14 @@ pins both directions. On top of that:
   along its inward normal and returns the thinnest section and the area
   under the floor — a claw's diameter, a collet's wall, a point as a little
   area to except by name. With `up`, the part's axis, faces turned toward
-  its ends are not read.
+  its ends are not read. It is a fold over `dfm::face_sections`, each
+  face's own read, which a ring that names its faces (toes, spines, hide)
+  folds by name. Relief is not a section: `dfm::part_sections_relief` sets
+  apart a short ray that runs within `max_deg` of the base surface's tangent
+  plane and leaves near it — a tubercle's or a scale's own chord — reading
+  the base off a skin field (the part without its relief) or off the mesh's
+  normals averaged over a radius, so pebbled hide over a thick body no
+  longer reads 0.000 mm while a thin fin on it still reads its 0.3.
 
   A **CAD cut's lands** are asked for, never volunteered:
   `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
@@ -3387,7 +3394,18 @@ and `trapezoid`, met to the ring through a `Stock` field, meshed by
 `tetra_mesh`, `relax`ed, `clean_decimate`d to a budget (backing off until
 `csg::self_crossings` reads zero) and `settle`d — sliver collapse, edge-flip
 polish, fold-corner smoothing, each kept only while the mesh stays closed and
-uncrossed. A hollow is `Heights::first_air` eroded by a ball of the wall,
+uncrossed. A relax that folds a thin crease through itself is
+undone only round the fold (`relax_clean`), and a decimation that cannot
+come clean says where it crossed (`clean_decimate_or_sites`) so the field
+can be mended there, rather than handing back the raw mesh. A stored part
+whose component sets `fillet_into_band` (mm; 0 is off, unwritten, and the
+key fences graph format 2) grows out of the band as built instead of
+sitting on it: `sculpt::fillet_into` unites it with the band's signed
+distance by `smin` over its box, the stock sunk 2% of the radius so the
+fillet's foot crosses the band rather than lying on it, then curving down
+before the clip to the part's footprint so the clipped foot lies buried
+deeper than a decimation moves a crease. Only a joined part grows, and a
+fillet that will not decimate clean leaves the part as stored, said. A hollow is `Heights::first_air` eroded by a ball of the wall,
 kept by `open_shells` where it opens into the bore; `packed` refuses an open
 or crossing mesh. On Fenrir's own wolf the hollow and every stage up to
 fold-corner smoothing are bit for bit the example's. That one changed: it

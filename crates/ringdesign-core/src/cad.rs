@@ -302,6 +302,13 @@ pub struct Component {
     pub stage: Stage,
     /// Radius of the seam bead laid along a `Join`/`Cut` junction; 0 lays none.
     pub blend_mm: f64,
+    /// Radius of the fillet a joined stored part grows out of the band with, the two united as fields
+    /// ([`crate::sculpt::fillet_into`]); 0 grows none and is not written.
+    #[serde(skip_serializing_if = "is_zero_mm")]
+    pub fillet_into_band: f64,
+}
+fn is_zero_mm(v: &f64) -> bool {
+    *v == 0.0
 }
 /// How a component's solid meets the band once both are built.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -346,6 +353,7 @@ struct ComponentWire {
     attach: Attach,
     stage: Stage,
     blend_mm: f64,
+    fillet_into_band: f64,
     ring_anchor_deg: Option<f64>,
     anchor_height_mm: f64,
 }
@@ -364,6 +372,7 @@ impl Default for ComponentWire {
             attach: c.attach,
             stage: c.stage,
             blend_mm: c.blend_mm,
+            fillet_into_band: c.fillet_into_band,
             ring_anchor_deg: None,
             anchor_height_mm: 0.0,
         }
@@ -387,6 +396,7 @@ impl From<ComponentWire> for Component {
             attach: w.attach,
             stage: w.stage,
             blend_mm: w.blend_mm,
+            fillet_into_band: w.fillet_into_band,
         }
     }
 }
@@ -1272,6 +1282,7 @@ impl Default for Component {
             attach: Attach::Separate,
             stage: Stage::Cast,
             blend_mm: 0.0,
+            fillet_into_band: 0.0,
         }
     }
 }
@@ -2438,7 +2449,12 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
             f.operation,
             Operation::Builder { .. } | Operation::Pattern { .. } | Operation::Plane { base: PlaneBase::Tangent { .. }, .. }
         );
-        if f.component.placement != Placement::Free || reads_surface {
+        // A stored part grown into the band reads the band, and its radius.
+        let grows = f.component.fillet_into_band != 0.0 && matches!(f.operation, Operation::Stored { .. });
+        if grows {
+            f.component.fillet_into_band.to_bits().hash(&mut h);
+        }
+        if f.component.placement != Placement::Free || reads_surface || grows {
             surface_epoch.hash(&mut h);
             design.inner_radius_mm().to_bits().hash(&mut h);
             design.profile.thickness_mm.to_bits().hash(&mut h);

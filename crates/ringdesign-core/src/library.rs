@@ -123,6 +123,7 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     if value.get("SeatRun").and_then(|run| run.get("bare")).and_then(serde_json::Value::as_bool) == Some(true) { return true; }
     if value.get("Group").and_then(|group| group.get("clamp")).is_some_and(|clamp| !clamp.is_null()) { return true; }
     if value.get("fine_cap").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
+    if value.get("fillet_into_band").and_then(serde_json::Value::as_f64).is_some_and(|r| r != 0.0) { return true; }
     if value.get("space").and_then(serde_json::Value::as_str) == Some("Hide") { return true; }
     if value.get("mask").and_then(serde_json::Value::as_str).is_some_and(|m| m.starts_with(crate::skin::REGION_PREFIX)) { return true; }
     if value.get("taper").is_some() && value.get("law").is_some_and(|law| law == "Cosine" || law.get("Spiral").is_some()) { return true; }
