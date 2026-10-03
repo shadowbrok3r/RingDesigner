@@ -234,7 +234,7 @@ pub fn feather_loft(spec: &FeatherSpec) -> cad::Operation; // Loft through five 
 
 ## Basiliscus — *king of serpents*
 
-- **Status:** cut at 7.2 after round 3; revived (branch `claude/bestiarium-basiliscus-revival`) with a sculpted crowned head as a stored part. Revival round 4 scored 7.3 (revise), round 5 scored 7.4 (cut).
+- **Status:** cut at 7.2 after round 3; revived (branch `claude/bestiarium-basiliscus-revival`) with a sculpted crowned head as a stored part. Revival round 4 scored 7.3 (revise), round 5 scored 7.4 (cut). Revival round 6 (granted) scored 7.4: cut, final.
 - **Extension:** Logan granted revival round 6 on 2026-10-03.
 - **Process decision (2026-10-03):** judged as lost wax: 0.8 mm minimum section, no pull rule. The sand gates do not apply; any sand pull is reported as a bonus only.
 

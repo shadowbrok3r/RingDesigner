@@ -1,13 +1,13 @@
 # Bestiarium revival: Basiliscus — cloud report
 
 Branch `claude/bestiarium-basiliscus-revival`, cut from `claude/bestiarium-basiliscus`. I merged `origin/master`
-three times: at the start (`ad39165`), before round 4's final renders (`f741ef7`, the crisp renders of PR #248),
-and at the start of round 5 (`d6fc2f9`).
+four times: at the start (`ad39165`), before round 4's final renders (`f741ef7`, the crisp renders of PR #248),
+at the start of round 5 (`d6fc2f9`), and at `2e11632` for round 6 (`ccba240`).
 - Example: `crates/ringdesign-core/examples/bestiarium_basiliscus.rs`.
 - Outputs: `showcase/bestiarium/basiliscus/`.
 - Nothing was pushed to master or any other branch, nothing was tagged, and no `src/` file was edited.
 
-## Verdict: cut at 7.4
+## Verdict: cut at 7.4 after revival round 6 (final)
 
 | Round | Verdict | Score | Reviewer's main reasons |
 |---|---|---|---|
@@ -15,23 +15,29 @@ and at the start of round 5 (`d6fc2f9`).
 | 2 | revise | 6.8 | Body lost its scales; chopped wall slabs; crown a bar with pins |
 | 3 | cut | 7.2 | Head blocky at 3/4; crown balls on pyramids; bare polished walls; ruled scutes |
 | **4 (revival)** | **revise** | **7.3** | Round 3's cut reasons largely fixed: the head is sculpted and the walls carry scales. Still failing: ruled palm scutes and planks past the morph, frond-like hackles with stepped ends, a gecko-like head, a seam at the neck, braille-like pits, and sheared corner scales |
-| **5 (revival, last)** | **cut** | **7.4** | The best Basiliscus yet. For the first time the 3/4 view names a crowned snake, the field is clean and the neck seam is gone. Still under the bar: the hackles read as fronds with stepped ends; the crown points read as pawns (balls on stalks) with decimation facets; the skull reads smooth with no plates; the coil and boss walls streak; the corner wall scales shear; the palm scutes still read as bars |
+| **5 (revival)** | **cut** | **7.4** | The best Basiliscus yet. For the first time the 3/4 view names a crowned snake, the field is clean and the neck seam is gone. Still under the bar: the hackles read as fronds with stepped ends; the crown points read as pawns (balls on stalks) with decimation facets; the skull reads smooth with no plates; the coil and boss walls streak; the corner wall scales shear; the palm scutes still read as bars |
+| **6 (granted by Logan, 2026-10-03)** | **cut** | **7.4** | Real work was seen: whole feathers tapering to a point, crown points with side petals and a seated pearl, round corner scales, and both 300 px reads still name a crowned serpent. The round-5 faults still show in the renders: the shoulder hackles render as terraced, combed slabs and read as fern fronds face-on; the crown points read as lumpy pawns, with torn petal slits and band facets; the skull plates do not read; the coil and boss walls still streak; the palm scutes still read as ruled bars; a plank with grooves remains past the morph; the wall scales stack into columns beside the shield wall |
 
-- The reviews are `review-round4.json` and `review-round5.json`. The earlier ones are in `previous/` on the seed
+- The reviews are `review-round4.json`, `review-round5.json` and `review-round6.json`. The earlier ones are in `previous/` on the seed
   branch.
-- Ship needed 7.5. Under TASK.md the reviewer's verdict stands, so the ring is cut.
+- Ship needed 7.5. The reviewer's verdict stands, so the ring is cut. Round 6 was the extra round Logan granted; no
+  round remains.
+- Before round 6's review, the Basiliscus section of `docs/collections/bestiarium.md` recorded the extension ("Logan
+  granted revival round 6 on 2026-10-03") and the process decision: lost wax, 0.8 mm minimum section, no pull rule.
+  The reviewer judged it on that basis. **Sand pull, as a bonus:** not claimed. The plan is upright, so a sand master
+  would mirror the chief onto the point, and the field reports about 12% undercut. The ring does not pull from sand.
 
-## Gates (round 5, final build)
+## Gates (round 6, final build)
 
 Every gate was green at draft and at export. The reviewer checked each one against the JSON files.
 
 | Gate | Draft 768 x 320 | Export 1536 x 448 |
 |---|---|---|
-| Watertight, 0 degenerate faces, 0 self-crossings, notes empty, bore clear | pass (545,250 triangles) | pass (1,790,518 triangles, under 2 M) |
-| The same at 384 x 192 | pass (226,336 triangles) | pass |
+| Watertight, 0 degenerate faces, 0 self-crossings, notes empty, bore clear | pass (551,886 triangles) | pass (1,799,310 triangles, under 2 M) |
+| The same at 384 x 192 | pass (232,398 triangles) | pass |
 | Every made part closed and uncrossed (the seat and the sculpted head) | pass | pass |
 | Casting pattern watertight, 0 degenerate faces, 0 crossings | pass | pass |
-| Lost wax Castable at 0.8 mm fill (thinnest wall 1.669 mm) | pass | pass |
+| Lost wax Castable at 0.8 mm fill (thinnest wall 1.681 mm) | pass | pass |
 | Land census: every section at or above 0.8 mm, or named | pass | pass |
 | 0 DFM findings | pass | pass |
 | One stone in report and preview, no warnings or crowding | pass | pass |
@@ -48,12 +54,12 @@ each is the narrowest chord through the feature over 40 directions.
 | Boss rim at the bright-cut bevel | 0.630 | named: chamfer recut and burnished over the stone |
 | Painted body to the tail's tip | 0.800 | at or above 0.8 |
 | Crown band height | 1.152 | at or above 0.8 |
-| Crown points, plate at mid-height | 1.085 | at or above 0.8 |
-| Crown points, waist under the pearl | 0.932 | at or above 0.8 |
-| Crown points, side petal | 0.668 | named: investment detail |
-| Crown pearls | 0.947 | at or above 0.8 |
+| Crown points, plate at mid-height | 1.041 | at or above 0.8 |
+| Crown points, waist under the pearl | 0.858 | at or above 0.8 |
+| Crown points, side petal | 0.679 | named: investment detail |
+| Crown pearls | 0.930 | at or above 0.8 |
 | Fang near its tip | 0.718 | named: investment detail |
-| Tongue stem | 0.602 | named: investment detail |
+| Tongue stem | 0.567 | named: investment detail |
 | Tongue tines near their ends | 0.399 | named: investment detail |
 | Bordure beads and rim beads | 0.440 | named: burnished |
 
@@ -62,11 +68,11 @@ each is the narrowest chord through the feature over 40 directions.
 Run with `collection_templates bestiarium … --only basiliscus --verify-export`, class `painted`; the result is in
 `template-gate.json`.
 - **design.set patches:** 0 (the limit is 4).
-- **Graph size:** 2,750,332 bytes against the 3,000,000-byte budget for a painted ring, so no size review is needed.
-  The graph has 56 nodes.
+- **Graph size:** 2,750,820 bytes against the 3,000,000-byte budget for a painted ring, so no size review is needed.
+  The graph has 56 nodes. (Round 5 was 2,750,332.)
 - **Cold source:** identical.
 - **Cold design and graph reloads:** passed.
-- **Export mesh parity:** passed (1,790,518 identical triangles).
+- **Export mesh parity:** passed (1,799,310 identical triangles).
 - **Round 4 note:** the first run came to 3,432,917 bytes, over budget. I re-decimated the head from 135k to about
   80k faces to bring it under.
 
@@ -110,7 +116,35 @@ meshes. I also added `contact-300.png`.
 **Format:** the design is written at format 6. `crisp_relief` is off on purpose: on this unmirrored stock it outlined
 the wall scales on the right-hand wall, and the scales read better without it.
 
+## What round 6 changed
+
+- **Hackles.** No feather rooted at or before the table's edge is drawn any more, so every row starts with a whole
+  feather and none is cut into a slab there. The vane opens over its first quarter and narrows straight to a point over
+  its last third. Each shaft curves about 10°, and rows overlap by 30% with the free end lifted. The midrib and notches
+  are gone, the edges roll over 0.45 mm, the layer height is down from 0.75 to 0.55 mm, and the graver barbs are down
+  from 0.035 to 0.02 mm. The relief mask at the stock's fold, z = −3.05, θ 38–72, had to stay: removing it gave
+  self-crossings at θ 48–50.
+- **Crown and skull.**
+  - Each point is now a lanceolate middle petal narrowing to the pearl's own width, with the pearl seated half-sunk on
+    its tip and two curled side petals. The band's front is domed.
+  - The head shields are deeper: 0.12 mm domes and V-grooves.
+  - The throat is slimmer, and scales from the temples run down it.
+  - I tried a decimation that keeps curvature (11° turn limit, low cost cap). It crossed itself, so the build fell back
+    to the standard one; the head is 89k faces.
+- **Coil.** The coil now meets the field through a 0.32 mm concave fillet instead of a steep cosine flank. The neck's
+  swell is cut from 1.5× to 1.28×, and its scales start within 0.9 mm of the head.
+- **Walls and band.**
+  - Wall scales fade to polish over 1.5 mm at true corners of the table's edge (a turn of more than 50°).
+  - Keeled dorsal scales now carry over the rim and down the band's side past the morph.
+  - The palm scutes' lips roll over 0.24 mm.
+- **Renders.** The renders are framed close-ups. `crisp_relief` stays off: it outlined the right-hand wall's scales,
+  and the graph lift cannot carry it yet.
+
 ## What I could not do
+
+After round 6 the reviewer still saw every one of the four faults below: the hackles, the crown and skull read, the
+coil-wall streaks, and the bars and planks. The fillet I added did not show at grazing light, and the head plates did
+not read on the 89k-face mesh.
 
 - **Hackles.** They were the P1 item in rounds 3, 4 and 5, and I did not redraw them. I only softened their edges (a
   0.36 mm roll), thinned the midrib to 0.035 mm, raised the lift and eased the sickle to 10°. The truncation near
