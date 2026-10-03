@@ -1,0 +1,61 @@
+{
+  "ring": "Lanterna — the octagon lantern",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.6,
+  "summary": "Cut at 6.6 (round 1: 5.8, round 2: 6.2, Caiman: 7, ship: 7.5). Every gate recorded in report.json and verification.json is green for lost wax, and the template gate has now been run (1 design.set patch, 282,443 bytes against a 300,000 budget, cold design, graph and mesh identical). This is the best Lanterna so far. The head is now a raised, hollow octagonal lantern with chamfered piers and two set-offs. Each wall carries a pointed tracery plate with two lancets and a cusped quatrefoil in its head, and the keyholes are gone. stones.png and hero.png read as a Gothic lantern or chapter-house tower, and the face still reads as a star vault round a boss. It still falls short of 7.5 on four counts. (1) The pinnacles are still blunt posts with ball tips. The Twist exists, but end_scale is 0.656 and spirelet_taper_over_root_two is 1.08, against the ≤ 0.2 asked for in rounds 1 and 2. The crockets were removed instead of being made leaves, so at 300 px the crown reads as eight candles or prongs. (2) The stained glass shrank instead of growing. The 8 citrine lamps in the spec were dropped (1 stone instead of 9), and the amethyst is still about 3 mm (0.134 ct) against the spec's 5.0 Asscher. Its collet is a thick plain washer that hides the stone. (3) The new shank arcade is ten separate square tiles with tiny notches, and the clasping buttress is still a saw-tooth stair-step (side.png, reverse.png, shoulder.png). This is the flat, blocky CAD that house rule 10 fails by name. (4) The long-wall arcade is five small notch-headed slots on a flat slab that reads as vents. The roof rim is still a flat square bar. Density and legibility outside the lantern are below Caiman's, whose surface is worked edge to edge. Round 3 is the last round and the ring is below 7.5, so it is cut.",
+  "strengths": [
+    "The lantern now reads as a Gothic building at 300 px: a hollow octagon with pointed two-light windows, quatrefoil heads and chamfered, stepped piers (hero-300, stones.png).",
+    "Window tracery is crisp: two-centred lancet heads, a cusped quatrefoil (cusp angle 101.5°), and measured lands of at least 0.83 mm.",
+    "The face (face.png) still holds the star vault of ribs and tiercerons in pierced bays round the boss, framed by the octagonal rim with eight pinnacle feet.",
+    "The silhouette is the most distinct in the collection, a tower crown on a signet. The factory 015 octagon keeps its hard wall-to-face angles (bare-vs-finished.png).",
+    "Engineering is clean: watertight, 0 crossings on 37 made parts, 68 of 68 features Ok, measured thickness minimum 0.829, template gate passed, and the cut lands are now measured and recorded."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "The lantern head, buttresses and shank arcade (159°–213° and mirrored) carry one building theme, and the palm is plain as the spec says. The shank tiles are crude (see 'No flat, blocky CAD') but on theme."},
+    {"item": "Reads as its Gothic subject at 300 px without the caption", "result": "pass", "reason": "hero-300 reads as a Gothic tower or lantern with pointed windows, and face-300 reads as a vaulted octagon with a central stone. The ball-tipped spirelets pull it toward a castle rook or a candle crown, but the subject is named."},
+    {"item": "Figurative motifs have true outlines", "result": "fail", "reason": "The wall windows are crisp, but the long-wall arcade lancets and the shank tile lancets are tiny square-shouldered notches that render as stair-steps (hero.png lower left, shoulder.png, reverse.png). The buttress is a saw-tooth of rectangular steps."},
+    {"item": "Stones in made settings, à jour, visible, coloured as stained glass", "result": "fail", "reason": "The one amethyst sits in a made collet with a through bur and reads purple, but it is about 3 mm under a heavy washer rim. The spec's eight citrine lamps were removed, not enlarged (stones 1 = preview 1, spec 9), so the lantern has no lit glass in its walls."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "The piers improved (chamfers, set-offs), but the shank arcade is ten flat square boxes with gaps between them. The buttress is stepped triangles, the long-wall arcade is a flat slab plate, and the roof rim is a square bar with no moulding. side.png reads as a cog or gear tooth band."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "bare-vs-finished.png: the 015 octagon's table edges and wall angles stand under the lantern unrounded."},
+    {"item": "Distinct silhouette; custom head ≥ 13 mm; shoulder ornament not cut off", "result": "pass", "reason": "Tower crown unlike any other Tenebrae ring. The lantern spans the 16 mm table. Ornament runs from the head to about 213° on both sides. The pinnacles stand about 4.8 over the table, and snag risk is noted."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "Large (tower) and medium (piers, windows) forms exist, but the small scale is missing: no crockets, no rim moulding, no string course, smooth shank flanks between the tiles. Caiman's surface is worked edge to edge, and this ring is bare polished metal on most of the shank sides."}
+  ],
+  "gates": [
+    {"gate": "Watertight, 0 degenerate faces, 0 self-crossings (ring)", "claimed": "pass", "verified": "geometry: watertight true, boundary 0, non-manifold 0, degenerate 0, self_crossings 0 (export 1536 × 448)", "pass": true},
+    {"gate": "Every made part closed, 0 crossings, every feature Ok", "claimed": "pass", "verified": "made_parts: 37 parts, all 0 crossings; feature_status: 68 of 68 Ok", "pass": true},
+    {"gate": "Solids and parts notes empty", "claimed": "pass", "verified": "solids.notes [] and parts_notes []", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "bore radius 9.3, nearest vertex 9.3000001, vertices_inside 0", "pass": true},
+    {"gate": "Lost wax: cad::measure::thickness at 0.8 mm", "claimed": "pass", "verified": "limit 0.8, 384 rays, 0 below, 0 unresolved, sampled minimum 0.829; thin_samples_by_part []; strict screen clean; 0 samples on stock (bare stock census records 21 sub-section triangles on the factory edge rounds, before any part)", "pass": true},
+    {"gate": "Asserted CAD lands at 0.8 mm", "claimed": "pass", "verified": "cut_lands_measured (dfm::cut_lands with a 50 mm floor): least 0.83 mm (window #29, lights 1 to 3), then 1.20, 2.47 and 3.52. light_inset_from_bars_mm is now documented as an offset. Four land_widths values under 0.8 are unexplained: arcade_joint_between_bays_mm 0.194, tracery_plate_point_under_cornice_mm 0.167, rim_over_girdle_mm 0.35 and side_arcade_frame_to_table_mm 0.507. They read as gaps or overlaps, not sections. A 0.19 mm slot between shank tiles would be a fragile investment fin, so they need a note, but no measured section is under 0.8.", "pass": true},
+    {"gate": "Sand field Castable and ray release at 0.100 and 0.075 mm", "claimed": "n/a (lost wax)", "verified": "Replaced by the thickness gate and the asserted lands, per review.md", "pass": true},
+    {"gate": "Draft-clamp bites ≤ 0.05 mm", "claimed": "n/a (lost wax)", "verified": "No sand draft clamp in the lost-wax process", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings []", "pass": true},
+    {"gate": "Stone count equals the preview", "claimed": "pass", "verified": "stones.reported 1 = previewed 1, tight_pairs 0. The gate passes, but the spec's 9 stones are now 1.", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "pass", "verified": "cold_reload_identical true at export; null in the draft block, as expected", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "77,136 triangles", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "pattern watertight true, 0 degenerates, 0 crossings, 77,136 triangles", "pass": true},
+    {"gate": "Template gate (≤ 4 design.set patches within budget)", "claimed": "pass", "verified": "verification.json: template_gate_passed true, 1 design.set patch (/manufacturing), 282,443 bytes ≤ 300,000 (procedural class; under the 1 MB stock budget too), cold design and graph reload true, source identical, vertices, faces and normals identical, open times recorded (first_build 1,412 ms)", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P0", "zone": "Corner pinnacles: Twist #41, knop #42, pattern #43", "change": "Only if the ring is revived. Set the Twist end_scale from 0.656 to 0.10–0.15 on the 1.4 square section, so each spirelet comes to a point with visible spiral facets. Shrink the knop to ⌀0.6–0.8. Add four hooked-leaf crockets per spirelet (C-T3 crocket outline, Extrude +0.3 on the shaft faces). Round 1 and round 2 both carried this item, and it is still open.", "acceptance": "hero-300 shows eight pointed, twisted spires with leaf bumps, and nothing reads as a candle or a prong. land_widths spirelet_taper_over_root_two ≤ 0.2 and tip width ≤ 0.25 mm before the knop."},
+    {"number": 2, "priority": "P0", "zone": "Stones: amethyst #67–#68 and the eight wall lamps", "change": "Restore the stained glass. Set the amethyst to a 4.5–5.0 Asscher and slim its collet to a ≤ 0.4 mm proud lip. Put the eight citrines (Round 2.0, à jour) back in the quatrefoil heads of the wall windows, so every wall carries lit glass.", "acceptance": "stones 9 = preview 9, tight_pairs 0. In hero-300 the amethyst reads as the main glass and amber shows in at least three window heads."},
+    {"number": 3, "priority": "P0", "zone": "Shank arcade #48–#63 (θ 159–213° and mirrored) and buttress #45–#47", "change": "Replace the ten separate square tiles with one continuous blind arcade that hugs the band: pointed blind lancets (≥ 0.8 × 2.2 mm, cut 0.3) under a 0.3 mm rolled arcade moulding, fading out by about 215°. Close the 0.194 mm joints between bays. Give the buttress sloped 45° weatherings and a gabled cap instead of square steps, blend_mm 0.2–0.3.", "acceptance": "In side.png and reverse.png the shank shows no gear-tooth or saw-tooth outline, and the arches read as pointed. land_widths has no unexplained value under 0.8."},
+    {"number": 4, "priority": "P1", "zone": "Long-wall arcade #64–#66, roof rim #8–#9", "change": "Rebuild the long-wall slab as an arcade of ≥ 5 pointed blind lancets, each at least 0.8 × 2.2 mm, with a moulded frame. Give the roof rim a roll or cavetto profile 0.3–0.4, or a pierced quatrefoil parapet between the pinnacles.", "acceptance": "In hero.png the long wall reads as pointed arches, not vents, and in stones.png the rim shows a lit curved profile."}
+  ],
+  "viewed_images": [
+    "showcase/tenebrae/lanterna/hero-300.png",
+    "showcase/tenebrae/lanterna/face-300.png",
+    "showcase/tenebrae/lanterna/hero.png",
+    "showcase/tenebrae/lanterna/face.png",
+    "showcase/tenebrae/lanterna/side.png",
+    "showcase/tenebrae/lanterna/shoulder.png",
+    "showcase/tenebrae/lanterna/stones.png",
+    "showcase/tenebrae/lanterna/palm.png",
+    "showcase/tenebrae/lanterna/reverse.png",
+    "showcase/tenebrae/lanterna/contact-300.png",
+    "showcase/tenebrae/lanterna/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
