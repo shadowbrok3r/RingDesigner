@@ -329,6 +329,7 @@ fn design(lib: &mut AlphaLibrary) -> RingDesign {
                 profile: WireProfile::Round,
                 taper: 0.0,
                 mirror_v: false,
+                ..Default::default()
             }),
         );
         e.window = Window::except(90.0, 80.0);
