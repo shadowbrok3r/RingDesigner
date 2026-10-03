@@ -1,0 +1,33 @@
+{
+  "ring": "phrynosoma",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "A spiky sunburst or a punk-maned beast head on a smooth signet. About eight cone spikes fan out in a half-circle on one side of the face, like a hedgehog's back, a thistle head or a lion's mane. On the other side a lumpy, melted-looking mass with a small pointed snout could be a bird or a dragon head in profile. The table, cheeks and shoulders are bare polished metal with soft blobby edges, and there are no plates, scales, granules or fringe anywhere. Nothing says lizard, and nothing says horned lizard. A jeweller would call it a spiked crest or a sun ring, not name the animal.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Turn the one-sided half-circle fan of horns into a horned lizard's crown: a near-straight row across the band at the rear edge of the head, mirrored about the ring's along-band centreline.",
+      "where": "Face table, on the rear (palmward-shoulder) edge of the head outline. The across-band occipital pair sits either side of the centreline, and the temporal horns sit outboard of them.",
+      "how_much": "Make the two central occipital horns clearly the longest, at 2.4 mm or more (at least 1.5x the temporals), angled back and slightly up. Use two temporal horns per side at 1.4 to 1.6 mm, stepping shorter outboard. Put no horns along the snout or front half. Acceptance: in face-300 the horns read as a symmetric comb on one edge of a head, with the longest pair in the middle, not as a radial sunburst."
+    },
+    {
+      "priority": 2,
+      "what": "Give the head a defined flat, wide wedge outline with a blunt snout, and cut the cephalic plates into the table. Right now the face is a smooth melted blob, and the small beak on the right reads as a bird.",
+      "where": "Table and cheeks of the face. The snout points along the ring, away from the horn row.",
+      "how_much": "Make the head roughly as wide as it is long, tapering to a blunt rounded snout about 40% of the rear width. Cut a midline row of large polygonal plates with flanking plates in 3 tiers (0.55 / 0.35 / 0.15 mm) and 0.35 mm V-joints, and put enlarged tubercles among granules on the cheeks. Remove the beak point. Acceptance: in face-300 the plate joints are visible as a mosaic and the outline reads as a flat reptile skull, not a lump."
+    },
+    {
+      "priority": 3,
+      "what": "Carry the hide down the shoulders so the body says lizard: add the pointed lateral fringe along each shoulder rim and a crest row of graded tubercles, in place of the bare polished shank.",
+      "where": "Both shoulders' walls and the parting-line crest, from the face down to the palm. Fine granules on the palm.",
+      "how_much": "Fringe scales that are pointed and palm-tipped, about 1.0 mm at the face grading to 0.5 mm. Crest tubercles 1.2 mm grading to 0.7 mm, 12 per shoulder. Acceptance: in hero-300 both shoulders show a serrated edge and beaded crest, with the same density as Caiman's shoulder granules, and no shoulder area reads as plain polished metal."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/phrynosoma/hero-300.png",
+    "showcase/cataphracta/phrynosoma/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}

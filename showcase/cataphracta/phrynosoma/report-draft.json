@@ -1,0 +1,381 @@
+{
+  "base": {
+    "bore_mm": 18.6,
+    "face_mm": [
+      17.0,
+      17.0
+    ],
+    "mirrored": false,
+    "sand_envelope": false,
+    "stock": "016 Star"
+  },
+  "bore": {
+    "nearest_vertex_mm": 9.300000190734863,
+    "radius_mm": 9.3,
+    "vertices_inside": 0
+  },
+  "bore_mm": 18.600000381469727,
+  "build": {
+    "author_s": 269.602630092,
+    "build_s": 2.800712984,
+    "profile_steps": 320,
+    "theta_steps": 768,
+    "triangles": 381614
+  },
+  "coarse_384x192": {
+    "degenerate_faces": 0,
+    "made_part_crossings": [
+      [
+        "Horned head",
+        0
+      ],
+      [
+        "Shoulder hide, crown side",
+        0
+      ],
+      [
+        "Shoulder hide, snout side",
+        0
+      ]
+    ],
+    "notes": [],
+    "parts_joined": 3,
+    "self_crossings": 0,
+    "triangles": 381614,
+    "watertight": true
+  },
+  "cold_reload_identical": null,
+  "composition": {
+    "horns": 6,
+    "notes": [],
+    "plates": 25,
+    "sculpts": [
+      {
+        "box_mm": [
+          [
+            -10.470685288025173,
+            11.90587490081787,
+            -8.056065758568216
+          ],
+          [
+            6.784999999999999,
+            22.49075894649713,
+            8.056065758568216
+          ]
+        ],
+        "faces": 242388,
+        "notes": [
+          "relax undone within 0.3 mm of 6 crossings"
+        ],
+        "part": "Horned head",
+        "raw_faces": 1742568,
+        "seconds": 268.575653868,
+        "volume_mm3": 341.78509037248716
+      },
+      {
+        "box_mm": [
+          [
+            -12.351345866944794,
+            -11.654894928968737,
+            -3.940460917895483
+          ],
+          [
+            -0.1947029345409601,
+            8.062819522347827,
+            3.917743204058099
+          ]
+        ],
+        "faces": 156750,
+        "notes": [],
+        "part": "Shoulder hide, crown side",
+        "raw_faces": 514900,
+        "seconds": 43.282774093,
+        "volume_mm3": 22.699815472315628
+      },
+      {
+        "box_mm": [
+          [
+            0.27831748637058373,
+            -11.654929920621283,
+            -3.958208527222771
+          ],
+          [
+            12.352216745474912,
+            8.063357483386316,
+            3.9787248072764103
+          ]
+        ],
+        "faces": 156948,
+        "notes": [],
+        "part": "Shoulder hide, snout side",
+        "raw_faces": 498156,
+        "seconds": 40.141274207,
+        "volume_mm3": 22.402085493009313
+      }
+    ],
+    "shoulders": [
+      {
+        "fringe_scales": 37,
+        "part": "Shoulder hide, crown side",
+        "tubercles": 12
+      },
+      {
+        "fringe_scales": 36,
+        "part": "Shoulder hide, snout side",
+        "tubercles": 12
+      }
+    ],
+    "table_dome_mm": 0.6379238734953105,
+    "table_top_mm": 14.850874900817871
+  },
+  "design": {
+    "bytes": 5627921
+  },
+  "dfm_findings": [],
+  "draft": {
+    "min_detail_mm": 0.15,
+    "min_draft_deg": 0.0,
+    "min_section_mm": 0.8,
+    "process": "Lost wax"
+  },
+  "field": {
+    "band_verdict": "Castable",
+    "notes": [
+      "Lost wax: 5.14% of the surface would undercut a two-part pull (worst 10.3 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 47–83° on the crest: 33.3 mm² leaning to 10° — no single layer explains it.",
+      "Undercut 97–128° on the crest: 33.2 mm² leaning to 10° — no single layer explains it.",
+      "Undercut 148–153° on the crest: 0.2 mm² leaning to 1° — no single layer explains it.",
+      "Measured with the ring as built: 3 CAD parts (3 joined, 0 cut), 454.3 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Horned head\" (#2) would undercut a two-part pull over 95.9 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder hide, crown side\" (#3) would undercut a two-part pull over 2.5 mm² (worst -60°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Shoulder hide, snout side\" (#4) would undercut a two-part pull over 2.2 mm² (worst -52°) — fine for investment, but this pattern cannot move to sand as-is."
+    ],
+    "thinnest_wall_mm": 1.5737574067894737,
+    "verdict": "Castable"
+  },
+  "gates": [
+    {
+      "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+      "pass": true
+    },
+    {
+      "gate": "the sculpted parts closed and uncrossed, as made and as placed",
+      "pass": true
+    },
+    {
+      "gate": "solids and parts notes empty, every part joined",
+      "pass": true
+    },
+    {
+      "gate": "nothing enters the finger hole",
+      "pass": true
+    },
+    {
+      "gate": "lost-wax field verdict Castable with the 0.8 mm fill",
+      "pass": true
+    },
+    {
+      "gate": "every section under 0.8 mm named with its bench treatment",
+      "pass": false
+    },
+    {
+      "gate": "zero DFM findings",
+      "pass": true
+    },
+    {
+      "gate": "stones reported equal the preview",
+      "pass": true
+    },
+    {
+      "gate": "gates hold at 384 x 192",
+      "pass": true
+    },
+    {
+      "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+      "pass": true
+    },
+    {
+      "gate": "export build within 2 million triangles",
+      "pass": true
+    },
+    {
+      "gate": "cold reload identical",
+      "pass": true
+    }
+  ],
+  "gates_passed": false,
+  "gates_that_apply": "lost wax (Logan, Fallback B): geometry, bore, field fill verdict at 0.8 mm, land widths, DFM, stones, 384 x 192, pattern, triangles, cold reload. The sand gates (ray release, draft-clamp bites, two-part Castable) do not apply; the two-part undercut is reported as a number.",
+  "land_widths": {
+    "band_thinnest_wall_mm": 1.5737574067894737,
+    "by_kind": [
+      {
+        "kind": "temporal horns",
+        "thinnest_at_xyz": [
+          -6.944004234402472,
+          17.555812000148496,
+          5.053801847564586
+        ],
+        "thinnest_mm": 0.3464397551001136,
+        "treatment": "horn point: the cone tapers under the fill floor over its last millimetre to a 0.3 mm rounded point; fed through its root (over the floor) from the skull and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.346 mm.",
+        "under_floor_mm2": 6.863981357177012
+      },
+      {
+        "kind": "skull plates and jaws",
+        "thinnest_at_xyz": [
+          0.7968880095482616,
+          15.151405627596988,
+          3.9996122767062205
+        ],
+        "thinnest_mm": 0.0044448997505695306,
+        "treatment": null,
+        "under_floor_mm2": 0.3216314671722233
+      },
+      {
+        "kind": "eyes",
+        "thinnest_at_xyz": [
+          1.6239901009934568,
+          15.5388153183417,
+          3.0269980610934217
+        ],
+        "thinnest_mm": 0.0004823462109400961,
+        "treatment": "relief on the skull's flank, judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.000 mm.",
+        "under_floor_mm2": 1.8075929187764486
+      },
+      {
+        "kind": "brow ridges",
+        "thinnest_at_xyz": [
+          1.3512544257459889,
+          16.80244917081717,
+          -3.706610778318752
+        ],
+        "thinnest_mm": 0.18951824360475775,
+        "treatment": "relief on the skull's flank, judged at the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.190 mm.",
+        "under_floor_mm2": 2.983066361267885
+      },
+      {
+        "kind": "occipital horns",
+        "thinnest_at_xyz": [
+          -9.343866822172888,
+          19.932149985899493,
+          2.475437615078733
+        ],
+        "thinnest_mm": 0.34275272934564743,
+        "treatment": "horn point: the cone tapers under the fill floor over its last millimetre to a 0.3 mm rounded point; fed through its root (over the floor) from the skull and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.343 mm.",
+        "under_floor_mm2": 4.3904419576165585
+      },
+      {
+        "kind": "lateral fringe",
+        "thinnest_at_xyz": [
+          -10.025731041705546,
+          1.9668050413904368,
+          2.3360356886460556
+        ],
+        "thinnest_mm": 0.09039070235740033,
+        "treatment": "a fringe scale: relief 0.3-0.45 mm thick lying on the shoulder's rim, fused to the shank over its root; its free point is judged at the 0.15 mm detail floor; a short-filled point is dressed with a file. Measured thinnest section: 0.090 mm.",
+        "under_floor_mm2": 70.32014963488913
+      },
+      {
+        "kind": "crest tubercles",
+        "thinnest_at_xyz": [
+          -2.3800308285995317,
+          -11.10797136350056,
+          0.34301323911489195
+        ],
+        "thinnest_mm": 0.8321120758839982,
+        "treatment": null,
+        "under_floor_mm2": 0.0
+      },
+      {
+        "kind": "lateral fringe",
+        "thinnest_at_xyz": [
+          8.50178235998495,
+          -4.849998977609275,
+          2.471708047220401
+        ],
+        "thinnest_mm": 0.0814162779433741,
+        "treatment": "a fringe scale: relief 0.3-0.45 mm thick lying on the shoulder's rim, fused to the shank over its root; its free point is judged at the 0.15 mm detail floor; a short-filled point is dressed with a file. Measured thinnest section: 0.081 mm.",
+        "under_floor_mm2": 69.28300403184404
+      },
+      {
+        "kind": "crest tubercles",
+        "thinnest_at_xyz": [
+          2.363228338286858,
+          -10.42620666867774,
+          -0.2813848436412256
+        ],
+        "thinnest_mm": 0.8279381962979206,
+        "treatment": null,
+        "under_floor_mm2": 0.0
+      }
+    ],
+    "detail_floor_mm": 0.15,
+    "floor_mm": 0.8,
+    "method": "one ray per face of the sculpted part along its inward normal (the buried floor skipped), gathered by the shape nearest each face; dfm::part_sections on the whole part for comparison",
+    "part_sections": [
+      {
+        "part": "Horned head",
+        "thinnest_mm": 0.000391264851754418,
+        "under_floor_mm2": 32.753971107656824
+      },
+      {
+        "part": "Shoulder hide, crown side",
+        "thinnest_mm": 0.09039070235740056,
+        "under_floor_mm2": 70.32014963488913
+      },
+      {
+        "part": "Shoulder hide, snout side",
+        "thinnest_mm": 0.08141627794337408,
+        "under_floor_mm2": 69.28300403184404
+      }
+    ],
+    "unnamed_under_floor": [
+      "skull plates and jaws: 0.322 mm2 under, thinnest 0.00"
+    ]
+  },
+  "main": {
+    "degenerate_faces": 0,
+    "made_part_crossings": [
+      [
+        "Horned head",
+        0
+      ],
+      [
+        "Shoulder hide, crown side",
+        0
+      ],
+      [
+        "Shoulder hide, snout side",
+        0
+      ]
+    ],
+    "notes": [],
+    "parts_joined": 3,
+    "self_crossings": 0,
+    "triangles": 381614,
+    "watertight": true
+  },
+  "name": "Phrynosoma — the horned crown",
+  "pattern": {
+    "degenerate_faces": 0,
+    "self_crossings": 0,
+    "triangles": 381614,
+    "watertight": true
+  },
+  "process": "Lost wax",
+  "sculpt": {
+    "open_edges": 0,
+    "parts": 3,
+    "self_crossings": 0
+  },
+  "size": "US 8.6",
+  "slug": "phrynosoma",
+  "stones": {
+    "previewed": 0,
+    "reported": 0
+  },
+  "two_part_undercut": {
+    "band_percent": 5.142513912518408,
+    "note": "reported only: lost wax judges fill and detail, never the pull",
+    "with_parts_percent": 9.539356766556248
+  }
+}

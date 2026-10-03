@@ -1,0 +1,33 @@
+{
+  "ring": "phrynosoma",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "A wavy six-lobed polished star signet with a spiky clump stuck in the middle. From above, the clump is a teardrop of overlapping cones that all point to the left, like a pine cone, a hedgehog or a thistle head, with a blunt lumpy end on the right. In the hero the same clump reads as a spiked dragon or a punk-maned beast head rising off one side of the face, with eight or so long spikes fanning out like a mane. The shoulders now carry a beaded row along each rim, which is new and helps the ring feel textured, but the star table around the clump, the cheeks and the walls are still bare, glossy metal with soft melted edges. There is no flat, wide head, no plate mosaic, and no row of horns on a back edge. A jeweller would call it a spiked dragon, hedgehog or thistle ring. Nobody would say horned lizard, and most would not say lizard at all.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Stop scattering cones over the whole head. Take every horn off the middle and front of the clump and put the crown on one straight rear edge: a symmetric comb across the band, with the two central occipital horns the longest.",
+      "where": "Face table. The horns go only on the rear (palmward-shoulder) edge of the head, mirrored about the along-band centreline. The middle and snout half of the head carry no cones at all.",
+      "how_much": "Six horns in total, or the two occipitals alone under the fallback. The occipitals are at least 2.4 mm and at least 1.5x the temporals, which step down to 1.4-1.6 mm outboard. Every horn sweeps back and out, away from the snout, with its roots touching along one line. Acceptance: in face-300 the horns form a single comb along one edge of a head, longest in the middle, and you can count them. They do not read as a teardrop or pine cone of overlapping spikes."
+    },
+    {
+      "priority": 2,
+      "what": "Give the head a readable reptile skull: a flat, wide, low wedge with a blunt rounded snout, its top cut into polygonal cephalic plates, set on the table rather than heaped up like a lump.",
+      "where": "Star table and cheeks. The head fills most of the table, with the snout pointing along the ring away from the horn comb. The bare polished lobes of the star around it become cheek tubercles among granules.",
+      "how_much": "Make the head about as wide as it is long, its top no more than about 1 mm proud of the table, and the snout about 40% of the rear width. Use 3 plate tiers (0.55 / 0.35 / 0.15 mm) with 0.35 mm V-joints, and cheek tubercles at 0.35 mm. Acceptance: in face-300 the plate joints show as a mosaic, the outline reads as a flat lizard skull, and no table area larger than about 2 mm reads as plain mirror metal."
+    },
+    {
+      "priority": 3,
+      "what": "Finish the body hide so the shank says lizard as well. Keep the new beaded crest and add the pointed lateral fringe on the shoulder walls, with granules down to the palm.",
+      "where": "Both shoulders' walls from the face to the palm, and the palm itself.",
+      "how_much": "Fringe scales pointed and palm-tipped, about 1.0 mm at the face grading to 0.5 mm. The crest beads should grade from 1.2 to 0.7 mm. Acceptance: in hero-300 each shoulder shows a serrated outer edge beside the beaded crest, at Caiman's shoulder density or better, and no wall reads as plain polished metal."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/phrynosoma/hero-300.png",
+    "showcase/cataphracta/phrynosoma/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
