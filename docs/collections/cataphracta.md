@@ -642,6 +642,8 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 
 ## Ouroborus — *the girdled wheel*
 
+> **Logan's confirmed subject (2026-10-03), overriding the concept below:** a **snake's head biting its own tail**: a real serpent head with closed jaws on the tail's tip, **with eyes** and head scales, poured in **Petrobond**. The "lizard" and "plates only: no eyes, no nostrils, no teeth" lines below are superseded; the girdled whorls and the keel on the body stand.
+
 - **Status:** not started.
   - Blocked on **P5**, which is **required**: the body runs both wider and narrower than the reference, so the reference-only gate spills.
   - Blocked on **C-R2's `Spiral` law**, also required.

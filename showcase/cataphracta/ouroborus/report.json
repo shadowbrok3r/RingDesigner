@@ -1,0 +1,210 @@
+{
+  "bore": {
+    "nearest_vertex_mm": 9.300006154335897,
+    "radius_mm": 9.3,
+    "vertices_inside": 0
+  },
+  "bore_mm": 18.600012308671793,
+  "build": {
+    "author_s": 2.396915666,
+    "build_s": 13.396347627,
+    "profile_steps": 448,
+    "theta_steps": 1536,
+    "triangles": 1587556
+  },
+  "coarse_384x192": {
+    "degenerate_faces": 0,
+    "made_part_crossings": [
+      [
+        "Serpent head",
+        0
+      ]
+    ],
+    "notes": [],
+    "obstructions": [],
+    "parts_joined": 1,
+    "release_0075": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "unresolved": 0
+    },
+    "release_0100": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "unresolved": 0
+    },
+    "self_crossings": 0,
+    "stamped": 0,
+    "triangles": 433982,
+    "watertight": true
+  },
+  "cold_reload_identical": true,
+  "composition": {
+    "band_half_w_at_snout_mm": 0.51,
+    "crest_r_at_snout_mm": 10.811955487102896,
+    "head_faces": 395200,
+    "head_least_half_width_mm": 0.0055378529932926515,
+    "head_min_draft_deg": 0.0002743664934307755,
+    "head_undercut_facets": 0,
+    "head_volume_mm3": 133.7319405356644,
+    "whorls": [
+      47,
+      [
+        1.6175860046143191,
+        5.797948627044297
+      ],
+      1.009962224779119
+    ]
+  },
+  "design": {
+    "bytes": 3909223,
+    "stamps": 0
+  },
+  "dfm_findings": [],
+  "draft": {
+    "min_detail_mm": 0.4,
+    "min_draft_deg": 2.5,
+    "min_section_mm": 0.6,
+    "process": "Sand (two-part)",
+    "sand": "Some(Petrobond)"
+  },
+  "draft_clamp": {
+    "groups": 0,
+    "note": "no clamped group on the block-out",
+    "worst_mm": 0.0
+  },
+  "field": {
+    "band_drag_percent": 0.9538745685977482,
+    "band_verdict": "Castable",
+    "drag_percent": 1.7551401606276047,
+    "notes": [
+      "Field-sampled: the surface itself carries no undercut at this parting.",
+      "Judged with the ring as built: 1 CAD part (1 joined, 0 cut) at the parting plane z = +0.00 mm — 112.1 mm² of part surface, none of it locking."
+    ],
+    "parts": [
+      {
+        "marginal_mm2": 5.569990413860196,
+        "name": "Serpent head",
+        "note": "Stored mesh \"Serpent head\" (#2): 112.1 mm² judged, no undercut.",
+        "silhouette_mm2": 0.0,
+        "total_mm2": 112.08439967477827,
+        "undercut_mm2": 0.0,
+        "vertical_mm2": 2.9432440198923304,
+        "worst_draft_deg": -0.2960067139338096
+      }
+    ],
+    "thinnest_wall_mm": 0.9197934777463495,
+    "undercut_percent": 0.0,
+    "verdict": "Castable",
+    "worst_draft_deg": -0.2960067139338096
+  },
+  "gates": [
+    {
+      "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+      "pass": true
+    },
+    {
+      "gate": "the head part closed and uncrossed, as made and as placed",
+      "pass": true
+    },
+    {
+      "gate": "solids and parts notes empty, every stamp resolved, the head joined",
+      "pass": true
+    },
+    {
+      "gate": "nothing enters the finger hole",
+      "pass": true
+    },
+    {
+      "gate": "field verdict Castable (sand, Petrobond), the head judged in",
+      "pass": true
+    },
+    {
+      "gate": "ray release 0 obstructions, 0 unresolved at 0.100 and 0.075 mm",
+      "pass": true
+    },
+    {
+      "gate": "every draft-clamp bite at most 0.05 mm",
+      "pass": true
+    },
+    {
+      "gate": "zero DFM findings",
+      "pass": true
+    },
+    {
+      "gate": "stones reported equal the preview",
+      "pass": true
+    },
+    {
+      "gate": "gates hold at 384 x 192",
+      "pass": true
+    },
+    {
+      "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
+      "pass": true
+    },
+    {
+      "gate": "export build within 2 million triangles",
+      "pass": true
+    },
+    {
+      "gate": "cold reload identical",
+      "pass": true
+    }
+  ],
+  "gates_passed": true,
+  "head_part": {
+    "faces": 395200,
+    "facets_leaning_back": 0,
+    "least_draft_off_parting_deg": 0.0002743664934307755,
+    "open_edges": 0,
+    "self_crossings": 0,
+    "volume_mm3": 133.7319405356644
+  },
+  "layers": [
+    "Whorls",
+    "Dorsal keel"
+  ],
+  "main": {
+    "degenerate_faces": 0,
+    "made_part_crossings": [
+      [
+        "Serpent head",
+        0
+      ]
+    ],
+    "notes": [],
+    "obstructions": [],
+    "parts_joined": 1,
+    "release_0075": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "unresolved": 0
+    },
+    "release_0100": {
+      "deepest_mm": 0.0,
+      "obstructions": 0,
+      "unresolved": 0
+    },
+    "self_crossings": 0,
+    "stamped": 0,
+    "triangles": 1587556,
+    "watertight": true
+  },
+  "name": "Ouroborus — the girdled wheel",
+  "pattern": {
+    "degenerate_faces": 0,
+    "self_crossings": 0,
+    "triangles": 1587556,
+    "watertight": true
+  },
+  "process": "Sand (two-part)",
+  "sand": "Petrobond",
+  "size": "US 8.6",
+  "slug": "ouroborus",
+  "stage": "block-out",
+  "stones": {
+    "previewed": 0,
+    "reported": 0
+  }
+}

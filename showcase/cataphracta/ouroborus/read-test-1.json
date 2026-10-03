@@ -1,0 +1,27 @@
+{
+  "ring": "ouroborus",
+  "mode": "read-test",
+  "attempt": 1,
+  "reads": false,
+  "what_the_eye_sees": "Hero at 300 px: a plain, smooth, polished bypass band with a squared, helmet-like cap on its end at about 1 o'clock. The cap has flat facets, horizontal ruled grooves and a round rivet where an eye might be. The thin end of the band slides under the cap and out the other side, so it reads as an overlapping bypass, not a mouth biting a tail. A generous jeweller might guess 'snake-head bypass ring', but nothing says lizard or ouroboros, and the guess comes from the ring trope, not from the form. Face at 300 px: a symmetric, faceted knuckle or buckle across the band, with a pinched collar and ruled bands. It looks like a visor, a sword grip or a machined clasp, and no animal can be named. The band has no hide at all: no girdles, no keel, no taper to a tail that the eye can see, so on both views the ring is about 90% blank polished metal. Next to Caiman and the Reptilia sheet it reads as an unfinished blank with a mechanical end cap.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the bite the read. The head's front must close over the tail tip at 90 deg, and the tail must visibly enter the mouth. Right now the tail runs under and past the head as a bypass.",
+      "where": "Bite zone, theta 80-100 deg; the 'Serpent head' part, snout end",
+      "by_how_much": "Bring the snout tip forward to about 86-88 deg so that it overhangs the tail. Cut a gape 1.2-1.5 mm high and 2.5-3 mm deep into the head's front. End the tail as a tapered point no more than 1.0 mm wide that disappears at least 1.5 mm into that gape, with no band showing beyond the head on the far side. Acceptance: in hero-300 and contact-300 the tail tip is seen going into the jaws, and no continuous band line runs past the head."
+    },
+    {
+      "priority": 2,
+      "what": "Sculpt the head as a lizard's head, not a squared visor. Taper it to a snout, swell the jaw and cheek behind the gape, and pinch a neck at the nape. Remove the round eye rivet, because the brief says plates only and no eyes. Let terraced cephalic plates and a brow ridge give the head its character instead.",
+      "where": "Head shield, theta 93-125 deg, crown and side faces",
+      "by_how_much": "In plan (face view), make the head width step from about 1.3x the band at the jaw (theta about 100 deg) to 0.5x at the snout tip, with the snout rounded and not cut square. Make a neck pinch at about 125 deg of at least 15% of the width. Remove the flat facets and the horizontal ruled grooves, and replace them with 3 terraced plate tiers stepping down from the crest, with risers of about 0.3 mm. Acceptance: face-300 shows a wedge-shaped head pointing along the ring with a visible neck, and not a symmetric knuckle or buckle."
+    },
+    {
+      "priority": 3,
+      "what": "Give the body its hide and taper, even at block-out. The whorled girdles and the knife keel are what tell a lizard's tail from a snake's or a plain band.",
+      "where": "Whorls and dorsal keel, theta 125 deg through the palm to 78 deg",
+      "by_how_much": "Grade the transverse sawtooth girdles from a 2.6 mm pitch at the nape to 1.0 mm at the tail tip, with a height of 0.55 mm and a steep 0.4 mm trailing drop. Run the 1.0 mm by 0.18 mm keel from the nape to the tail tip. Make the band's width visibly taper from the nape to the tail, to about 0.55x at 82 deg. Acceptance: in hero-300 the girdles read as distinct steps all the way round, and the band thins into a tail; no stretch of the band wider than 20 deg reads as plain polished metal."
+    }
+  ]
+}

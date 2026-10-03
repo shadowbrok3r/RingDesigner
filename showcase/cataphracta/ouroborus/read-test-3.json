@@ -1,0 +1,27 @@
+{
+  "ring": "ouroborus",
+  "mode": "read-test",
+  "attempt": 3,
+  "reads": false,
+  "what_the_eye_sees": "Hero at 300 px: this is the best attempt yet and, on its own, nearly passes. The layout is now the classic ouroboros: a small head at about 1 o'clock, with a round eye bead and a brow, where the coil closes on itself. A jeweller would very likely say 'snake ring' from this view, though some would say 'dragon' or 'crocodile'. The body pulls the guess away from snake. Its girdles are square-topped, castellated blocks of the same size all the way round, so the outer edge reads as a row of crenellations or crocodile scutes, not a serpent's scaled hide. The tail on the right climbs to the head as a thin, toothed strip, but at this size you cannot tell that it goes into the closed jaws rather than just meeting the head. Face at 300 px: this still fails. The head is longer than in attempt 2, but it is still a symmetric, rounded torpedo divided by straight ruled lines into a rectangular grid. It reads as a beetle, a helmet or a bullet, not a snake's head. No eyes show on its outline, there is no snout and no mouth line, and the pinch behind it looks like a collar. About a third of the frame between the head and the spiny tail strip is plain polished metal, and the tail strip looks like a zip or a spring. Shown both images without a caption, a jeweller names 'snake' from the hero, but the face view gives them nothing to confirm it. They could just as easily say 'dragon' or 'lizard'. The ring is close but does not read yet.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the face view a snake's head seen from above. Replace the ruled rectangular grid with serpent head plates, put the eyes on the outline, and add a mouth line that closes on the tail.",
+      "where": "The 'Serpent head' part / head shield, theta about 90-125 deg, crown and side faces; the bite at theta 85-95 deg",
+      "by_how_much": "Flatten the crown dome by about 30% so the head top reads as a plane. Remove all straight, full-width grooves. Cut the colubrid layout in relief, with plate edges 0.25-0.3 mm deep: a paired parietal at the back, paired supraoculars, one frontal, and prefrontals and internasals toward the snout. Push each eye out so it sits about 0.3-0.4 mm proud of the head's side outline under a supraocular brow, so that two eye bumps break the silhouette in face view. Cut a mouth line 0.3 mm deep along both flanks from the snout to the jaw hinge at about theta 110 deg. Make the tail visibly narrow to 1.0 mm or less and disappear under the upper jaw. Acceptance: face-300 shows a flat wedge head with two eye bumps on its outline, a rounded snout over a thin tail tip, and no grid. Nobody would call it a helmet or a beetle."
+    },
+    {
+      "priority": 2,
+      "what": "Give the girdles a snake's hide instead of castellated blocks. Round the square tops into overlapping scales, and make the grading visible.",
+      "where": "'Whorls' and 'Whorl spines' layers, theta 125 deg through the palm to about 85 deg",
+      "by_how_much": "Turn each girdle's square top into a loaf, rounded with a radius of at least half the girdle height, and cap the trailing drop at 0.4 mm. Split each girdle across the crown into 3-5 scales with cast relief lines about 0.15 mm deep, offset by half a scale from one girdle to the next so that the hide reads imbricate, not as a brick grid. Cut the side-face spines to no more than 0.3 mm proud, so the outer silhouette ripples rather than steps. Make the pitch fall visibly from 2.6 mm at the nape to 1.0 mm at the tail. Acceptance: in hero-300 the outer edge no longer reads as crenellations, the scales visibly shrink toward the mouth, and the body would not be taken for crocodile scutes."
+    },
+    {
+      "priority": 3,
+      "what": "Remove the plain polished stretch in the face view, and make the tail read as a tapering body, not a zip.",
+      "where": "The crown visible in face view between the jaw hinge (theta about 115-125 deg) and the tail strip (theta about 70-85 deg), including the neck",
+      "by_how_much": "Carry the graded scales over the whole visible crown, so that no stretch of more than about 20 deg in face-300 is bare metal. Pinch the neck to about 0.8x the jaw width over theta 125-135 deg, then let the body swell back. Replace the tail's spring-like ribbing with the smallest girdles at 1.0 mm pitch, tapering to a point. Acceptance: face-300 shows scaled hide from the neck to the tail tip, with no polished gap, and the tail tapers into the jaws."
+    }
+  ]
+}

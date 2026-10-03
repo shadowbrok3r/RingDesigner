@@ -1,0 +1,27 @@
+{
+  "ring": "ouroborus",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Hero at 300 px: this is much closer than attempt 1. There is now a head at about 1 o'clock, with a round eye bead and a rounded crown, and the band carries transverse ridges all the way round. A jeweller would probably guess 'serpent ring', but only from the head and the eye. The body does not back that guess up. The ridges are even, square-topped and the same size everywhere, and they break the outer silhouette into a regular row of teeth, so the band reads as a cog, a millipede or a ribbed worm, not a snake's hide. The bite does not read. The body on the right climbs up beside the head, and at this size you cannot see the tail tip going into closed jaws, so it looks like a head resting on a ribbed hoop, not a snake swallowing its tail. Face at 300 px: this view fails. The head is a bulbous, symmetric dome divided by straight ruled lines into a rectangular grid, with a pinched collar. It looks like a knight's helm, a beetle's carapace or a lamp, not a snake's head: it has no wedge, no snout and no eyes visible from above. A thin spiny strip leads away from it over a plain, wide polished band, so about half of the face view is blank metal. Shown only these two images with no caption, a jeweller might say 'snake' from the hero, but would not say it from the face, so the ring does not read yet.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Sculpt the head as a snake's head in plan: a long, flat-topped wedge with a rounded snout, not a domed helm. Replace the rectilinear grid with true serpent head scales, and put eyes where they show from above.",
+      "where": "The 'Serpent head' part (head shield), theta about 90-125 deg, crown and side faces",
+      "by_how_much": "In face view, make the head about 1.4x as long as it is wide. Make it widest at the jaw hinge (theta about 115 deg, about 1.35x the band) and taper it to a rounded snout about 0.55x the band at theta about 90 deg. Drop the crown height by about 30% so that it reads flat, not domed. Replace the straight ruled lines with the classic colubrid plate layout: two large paired parietals at the back, two supraoculars over the eyes, then the frontal plate and the prefrontals and internasals toward the snout. Use relief with plate edges about 0.25-0.3 mm deep, and no straight full-width grooves. Set the eyes at the sides under a supraocular brow that overhangs them by about 0.3 mm, so that both eyes show as bumps on the head's outline in face view. Pinch a neck behind the jaw at theta about 125-130 deg to about 0.8x the jaw width. Acceptance: face-300 shows an elongated, wedge-shaped head with two eye bumps on its outline and a visible neck, and nobody would call it a helmet or a beetle."
+    },
+    {
+      "priority": 2,
+      "what": "Make the bite unmistakable: the jaws close over the tail tip, and the tail can be seen going into the mouth.",
+      "where": "Bite zone, theta about 80-95 deg: the snout end of the head and the tail tip",
+      "by_how_much": "Cut a visible mouth line along both sides of the head from the snout back to the jaw hinge, about 0.3 mm deep and ending in an upturned corner at theta about 110 deg. Lift the upper jaw so that it overhangs the tail. Taper the tail to a point no wider than about 1.0 mm, and let it disappear at least 1.5 mm into the closed mouth, with the girdles shrinking to their smallest pitch right up to the lips. No band, ridge or spine line may run past the snout on the far side. Acceptance: in hero-300 and face-300, the tail visibly narrows into the jaws, there is a dark mouth line, and the head clearly bites rather than sits on the hoop."
+    },
+    {
+      "priority": 3,
+      "what": "Make the body read as a snake's scaled hide, not a gear: grade the girdles, round off the cog teeth in the silhouette, and put hide on the face-view band.",
+      "where": "'Whorls' and 'Whorl spines' layers, theta 125 deg through the palm to 85 deg; and the plain band that is visible in face view",
+      "by_how_much": "Grade the girdles visibly, from about 2.6 mm pitch at the nape to about 1.0 mm at the tail, so that the step from largest to smallest can be seen in hero-300. Round the girdles' square tops into an overlapping-scale loaf, with the drop at the back of each girdle no taller than about 0.4 mm. Cut each girdle into 3-5 scales across the crown with real relief lines about 0.15 mm deep, rather than the bench-only lines. On the side faces, reduce the spines so that the outer silhouette shows a fine overlapping ripple, not square teeth: no more than about 0.3 mm proud. Taper the band's width from the nape to the tail as the shank keys say (to about 0.55x at theta 82 deg). Acceptance: hero-300's outer edge no longer reads as a cog, the scales get visibly smaller toward the mouth, and no stretch of more than about 20 deg in face-300 is plain polished metal."
+    }
+  ]
+}
