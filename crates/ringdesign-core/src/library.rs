@@ -67,6 +67,7 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || design.imported_base.as_ref().is_some_and(|base| crate::imported_base::PresetSource::of(&base.source).is_some())
         || design.graph.as_ref().is_some_and(template_features_in_json)
         || design.shank.bypass_fair_deg != 0.0
+        || design.crisp_relief
     {
         FORMAT_VERSION
     } else {
@@ -123,6 +124,11 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     if value.get("SeatRun").and_then(|run| run.get("bare")).and_then(serde_json::Value::as_bool) == Some(true) { return true; }
     if value.get("Group").and_then(|group| group.get("clamp")).is_some_and(|clamp| !clamp.is_null()) { return true; }
     if value.get("fine_cap").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
+    if value.get("crisp_relief").and_then(serde_json::Value::as_bool) == Some(true) { return true; }
+    if value.get("Pillow").is_some() { return true; }
+    if value.get("kind").and_then(serde_json::Value::as_str) == Some("design.set")
+        && value.get("inputs").and_then(|i| i.get("pointer")).and_then(serde_json::Value::as_str) == Some("/crisp_relief")
+        && value.get("inputs").and_then(|i| i.get("value")).and_then(serde_json::Value::as_bool) == Some(true) { return true; }
     if value.get("space").and_then(serde_json::Value::as_str) == Some("Hide") { return true; }
     if value.get("mask").and_then(serde_json::Value::as_str).is_some_and(|m| m.starts_with(crate::skin::REGION_PREFIX)) { return true; }
     if value.get("taper").is_some() && value.get("law").is_some_and(|law| law == "Cosine" || law.get("Spiral").is_some()) { return true; }
