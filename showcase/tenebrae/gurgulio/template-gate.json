@@ -1,17 +1,17 @@
 {
   "template_class": "painted",
-  "template_bytes": 1555960,
+  "template_bytes": 1920633,
   "size_budget_bytes": 3000000,
   "design_set_patches": [],
-  "nodes": 18,
+  "nodes": 30,
   "source_identical": true,
   "vertices_faces_normals_identical": true,
   "cold_design_reload": true,
   "cold_graph_reload": true,
   "export_geometry_verified": true,
   "template_gate_passed": true,
-  "triangles": 1386618,
+  "triangles": 1475984,
   "design_set_patch_count": 0,
-  "open_ms_first_build": 9218.596828000002,
+  "open_ms_first_build": 9336.991916,
   "note": "Class painted: the stored sculpt is most of the graph (procedural would be 300 KB; Moloch, also a sculpt, ran painted)."
 }

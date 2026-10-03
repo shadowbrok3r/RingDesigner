@@ -846,7 +846,8 @@ fn pinnacle_parts(doc: &mut Document, ids: &mut impl FnMut() -> Id, at: Placemen
 - **The figure:** one sculpted part (`sculpt.rs`: a distance field meshed, decimated and settled), the parapet and the gargoyle together, stored and grown out of the band with `fillet_into_band`. It faces along the finger toward the fingertip, so the hero camera meets its face and the face camera sees the crouch, the wings and the spout from above.
 - **Process:** lost wax, Silver 925, `CastProcess::LostWax` with `min_section_mm` raised to 0.8 (Logan, 2026-10-03: where the process is in question, judge it as lost wax, 0.8 mm minimum section, no pull rule). The figure is investment work: it cannot pull from two-part sand, and the report says so rather than claiming the bonus. Every horn, ear, claw and tooth is sized against the 0.8 mm floor first.
 - **Stones:** none. Gurgulio is the collection's beast, not a window.
-- **Gates:** lost wax's set: `cad::measure::thickness` at 0.8, `dfm::cut_lands` at 0.8, the part's own sections (`dfm::part_sections`) against 0.8, 0 DFM findings, the bore clear, the pattern closed, the cold reload identical.
+- **Gates:** lost wax's set: the wall census `cad::measure::thickness(&built.mesh, 0.8)` on the finished ring at both builds (master #261; no wall zone of a real 0.05–0.8 mm section, per the lead's interim rule; edges reported as read), `dfm::cut_lands` at 0.8, 0 DFM findings, the bore clear, the pattern closed, the cold reload identical at both builds.
+- **Theme face to palm:** the parapet and its beast at the crown; a lead gutter sunk along the crown's centre line all round (the spout's source); a blind lancet arcade standing on both side walls from the parapet to the palm.
 - **Extra rounds:** none granted.
 
 ## Packaging (the Reptilia format)
