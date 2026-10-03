@@ -23,6 +23,9 @@ fn apply(_: &mut EvalCtx<'_>, _: &Node, inputs: &Inputs) -> Result<Outputs, Node
     if !inputs.get("draft").is_null() {
         design.draft = unwrap(inputs.get("draft")).ok_or_else(|| NodeError::input("draft", "expected casting criteria"))?;
     }
+    if !inputs.get("crisp_relief").is_null() {
+        design.crisp_relief = inputs.bool("crisp_relief")?;
+    }
     Ok(Outputs::one("design", design))
 }
 
@@ -53,10 +56,11 @@ pub fn register(reg: &mut Registry) {
     .field(PinSpec::item("min_detail_mm", ValueKind::Number).doc("Smallest detail the process reproduces, mm."))
     .build();
     let apply = NodeSpec::new("design.settings", "Apply build and casting settings", Category::Band)
-        .doc("Carry mesh resolution and casting criteria into the design without changing its geometry fields.")
+        .doc("Carry mesh resolution, crisp relief and casting criteria into the design, leaving its band, layers and parts alone.")
         .input(PinSpec::item("design", ValueKind::Design).doc("The design to edit."))
         .input(PinSpec::item("build", ValueKind::Json).optional().doc("Mesh build settings; keep the design's settings when unset."))
         .input(PinSpec::item("draft", ValueKind::Json).optional().doc("Casting criteria; keep the design's criteria when unset."))
+        .input(PinSpec::item("crisp_relief", ValueKind::Bool).optional().doc("Average relief over each build cell so walls across the grid lie straight; keep the design's setting when unset."))
         .output(PinSpec::item("design", ValueKind::Design).doc("The design with its settings."))
         .eval(apply);
     for spec in [build, draft, apply] {
