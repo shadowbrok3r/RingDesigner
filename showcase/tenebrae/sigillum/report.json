@@ -5,12 +5,12 @@
     "degenerate_faces": 0,
     "pass": true,
     "self_crossings": 0,
-    "triangles": 1367600,
+    "triangles": 1368634,
     "watertight": true
   },
   "cold_reload_identical": true,
   "deepest_bench_cut_mm": 0.95,
-  "design_bytes": 957141,
+  "design_bytes": 1187960,
   "design_format": 6,
   "draft": {
     "bore_margin_mm": -4.7445255546563203e-7,
@@ -19,7 +19,7 @@
       768,
       320
     ],
-    "build_s": 7.570403339,
+    "build_s": 8.806967476,
     "cad": {
       "features": [],
       "made_parts": [],
@@ -32,11 +32,11 @@
     "dfm_findings": [],
     "field_notes": [
       "Field-sampled: the surface itself carries no undercut at this parting.",
-      "Cut at the bench after casting, and so not judged here: Seal field, Quatrefoil rule 1, 1, Quatrefoil rule 1, 2, Quatrefoil rule 1, 3, Quatrefoil rule 1, 4, Quatrefoil rule 2, 1, Quatrefoil rule 2, 2, Quatrefoil rule 2, 3, Quatrefoil rule 2, 4, Quatrefoil rule 3, 1, Quatrefoil rule 3, 2, Quatrefoil rule 3, 3, Quatrefoil rule 3, 4, Quatrefoil rule 4, 1, Quatrefoil rule 4, 2, Quatrefoil rule 4, 3, Quatrefoil rule 4, 4, Quatrefoil rule 5, 1, Quatrefoil rule 5, 2, Quatrefoil rule 5, 3, Quatrefoil rule 5, 4, Quatrefoil rule 6, 1, Quatrefoil rule 6, 2, Quatrefoil rule 6, 3, Quatrefoil rule 6, 4, Quatrefoil rule 7, 1, Quatrefoil rule 7, 2, Quatrefoil rule 7, 3, Quatrefoil rule 7, 4, Quatrefoil rule 8, 1, Quatrefoil rule 8, 2, Quatrefoil rule 8, 3, Quatrefoil rule 8, 4, Seal fleur, centre petal, Seal fleur, band, Seal fleur, foot, Seal fleur, right petal, Seal fleur, right spike, Seal fleur, left petal, Seal fleur, left spike, Cusped border, foil 1, 1, Cusped border, foil 1, 2, Cusped border, foil 1, 3, Cusped border, foil 1, 4, Cusped border, foil 2, 1, Cusped border, foil 2, 2, Cusped border, foil 2, 3, Cusped border, foil 2, 4, Cusped border, foil 3, 1, Cusped border, foil 3, 2, Cusped border, foil 3, 3, Cusped border, foil 3, 4, Cusped border, foil 4, 1, Cusped border, foil 4, 2, Cusped border, foil 4, 3, Cusped border, foil 4, 4, Cusped border, foil 5, 1, Cusped border, foil 5, 2, Cusped border, foil 5, 3, Cusped border, foil 5, 4, Cusped border, foil 6, 1, Cusped border, foil 6, 2, Cusped border, foil 6, 3, Cusped border, foil 6, 4, Cusped border, foil 7, 1, Cusped border, foil 7, 2, Cusped border, foil 7, 3, Cusped border, foil 7, 4, Cusped border, foil 8, 1, Cusped border, foil 8, 2, Cusped border, foil 8, 3, Cusped border, foil 8, 4, Cusped border, foil 9, 1, Cusped border, foil 9, 2, Cusped border, foil 9, 3, Cusped border, foil 9, 4, Cusped border, foil 10, 1, Cusped border, foil 10, 2, Cusped border, foil 10, 3, Cusped border, foil 10, 4, Cusped border, foil 11, 1, Cusped border, foil 11, 2, Cusped border, foil 11, 3, Cusped border, foil 11, 4, Cusped border, foil 12, 1, Cusped border, foil 12, 2, Cusped border, foil 12, 3, Cusped border, foil 12, 4, Cusped border, circle, 1, Cusped border, circle, 2, Cusped border, circle, 3, Cusped border, circle, 4, Cusped border, circle, 5, Cusped border, circle, 6, Cusped border, circle, 7, Cusped border, circle, 8, Cusped border, circle, 9, Cusped border, circle, 10, Cusped border, circle, 11, Cusped border, circle, 12, Cusped border, circle, 13, Cusped border, circle, 14, Cusped border, circle, 15, Cusped border, circle, 16, Cusped border, circle, 17, Cusped border, circle, 18, Cusped border, circle, 19, Cusped border, circle, 20, Cusped border, circle, 21, Cusped border, circle, 22, Cusped border, circle, 23, Cusped border, circle, 24, Cusped border, circle, 25, Cusped border, circle, 26, Cusped border, circle, 27, Cusped border, circle, 28, Cusped border, circle, 29, Cusped border, circle, 30, Cusped border, circle, 31, Cusped border, circle, 32, Cusped border, circle, 33, Cusped border, circle, 34, Cusped border, circle, 35, Cusped border, circle, 36, Cusped border, circle, 37, Cusped border, circle, 38, Cusped border, circle, 39, Cusped border, circle, 40, Cusped border, circle, 41, Cusped border, circle, 42, Legend, cross, Legend, s 2 cut 1, Legend, s 2 cut 2, Legend, s 2 cut 3, Legend, s 2 cut 4, Legend, s 2 cut 5, Legend, i 3 cut 1, Legend, i 3 cut 2, Legend, g 4 cut 1, Legend, g 4 cut 2, Legend, g 4 cut 3, Legend, g 4 cut 4, Legend, g 4 cut 5, Legend, i 5 cut 1, Legend, i 5 cut 2, Legend, l 6 cut 1, Legend, l 7 cut 1, Legend, u 8 cut 1, Legend, u 8 cut 2, Legend, u 8 cut 3, Legend, m 9 cut 1, Legend, m 9 cut 2, Legend, m 9 cut 3, Legend, m 9 cut 4, Legend, m 9 cut 5, Legend, c 11 cut 1, Legend, c 11 cut 2, Legend, c 11 cut 3, Legend, a 12 cut 1, Legend, a 12 cut 2, Legend, a 12 cut 3, Legend, a 12 cut 4, Legend, a 12 cut 5, Legend, p 13 cut 1, Legend, p 13 cut 2, Legend, p 13 cut 3, Legend, p 13 cut 4, Legend, i 14 cut 1, Legend, i 14 cut 2, Legend, t 15 cut 1, Legend, t 15 cut 2, Legend, t 15 cut 3, Legend, u 16 cut 1, Legend, u 16 cut 2, Legend, u 16 cut 3, Legend, l 17 cut 1, Legend, i 18 cut 1, Legend, i 18 cut 2, Legend, e 20 cut 1, Legend, e 20 cut 2, Legend, e 20 cut 3, Legend, e 20 cut 4, Legend, e 20 cut 5, Legend, c 21 cut 1, Legend, c 21 cut 2, Legend, c 21 cut 3, Legend, c 22 cut 1, Legend, c 22 cut 2, Legend, c 22 cut 3, Legend, l 23 cut 1, Legend, e 24 cut 1, Legend, e 24 cut 2, Legend, e 24 cut 3, Legend, e 24 cut 4, Legend, e 24 cut 5, Legend, s 25 cut 1, Legend, s 25 cut 2, Legend, s 25 cut 3, Legend, s 25 cut 4, Legend, s 25 cut 5, Legend, i 26 cut 1, Legend, i 26 cut 2, Legend, e 27 cut 1, Legend, e 27 cut 2, Legend, e 27 cut 3, Legend, e 27 cut 4, Legend, e 27 cut 5, Legend, c 29 cut 1, Legend, c 29 cut 2, Legend, c 29 cut 3, Legend, a 30 cut 1, Legend, a 30 cut 2, Legend, a 30 cut 3, Legend, a 30 cut 4, Legend, a 30 cut 5, Legend, t 31 cut 1, Legend, t 31 cut 2, Legend, t 31 cut 3, Legend, h 32 cut 1, Legend, h 32 cut 2, Legend, h 32 cut 3, Legend, e 33 cut 1, Legend, e 33 cut 2, Legend, e 33 cut 3, Legend, e 33 cut 4, Legend, e 33 cut 5, Legend, d 34 cut 1, Legend, d 34 cut 2, Legend, d 34 cut 3, Legend, d 34 cut 4, Legend, r 35 cut 1, Legend, r 35 cut 2, Legend, a 36 cut 1, Legend, a 36 cut 2, Legend, a 36 cut 3, Legend, a 36 cut 4, Legend, a 36 cut 5, Legend, l 37 cut 1, Legend, i 38 cut 1, Legend, i 38 cut 2, Legend, s 39 cut 1, Legend, s 39 cut 2, Legend, s 39 cut 3, Legend, s 39 cut 4, Legend, s 39 cut 5, Shoulder window, right, arch, Shoulder window, right, sill, Shoulder window, right, left light, Shoulder window, right, right light, Shoulder window, right, mullion, Shoulder window, right, oculus, Shoulder window, left, arch, Shoulder window, left, sill, Shoulder window, left, left light, Shoulder window, left, right light, Shoulder window, left, mullion, Shoulder window, left, oculus."
+      "Cut at the bench after casting, and so not judged here: Seal field, Quatrefoil rule 1, 1, Quatrefoil rule 1, 2, Quatrefoil rule 1, 3, Quatrefoil rule 1, 4, Quatrefoil rule 2, 1, Quatrefoil rule 2, 2, Quatrefoil rule 2, 3, Quatrefoil rule 2, 4, Quatrefoil rule 3, 1, Quatrefoil rule 3, 2, Quatrefoil rule 3, 3, Quatrefoil rule 3, 4, Quatrefoil rule 4, 1, Quatrefoil rule 4, 2, Quatrefoil rule 4, 3, Quatrefoil rule 4, 4, Quatrefoil rule 5, 1, Quatrefoil rule 5, 2, Quatrefoil rule 5, 3, Quatrefoil rule 5, 4, Quatrefoil rule 6, 1, Quatrefoil rule 6, 2, Quatrefoil rule 6, 3, Quatrefoil rule 6, 4, Quatrefoil rule 7, 1, Quatrefoil rule 7, 2, Quatrefoil rule 7, 3, Quatrefoil rule 7, 4, Quatrefoil rule 8, 1, Quatrefoil rule 8, 2, Quatrefoil rule 8, 3, Quatrefoil rule 8, 4, Seal fleur, centre petal, Seal fleur, band, Seal fleur, foot, Seal fleur, right petal, Seal fleur, right spike, Seal fleur, left petal, Seal fleur, left spike, Cusped border, foil 1, 1, Cusped border, foil 1, 2, Cusped border, foil 1, 3, Cusped border, foil 1, 4, Cusped border, foil 2, 1, Cusped border, foil 2, 2, Cusped border, foil 2, 3, Cusped border, foil 2, 4, Cusped border, foil 3, 1, Cusped border, foil 3, 2, Cusped border, foil 3, 3, Cusped border, foil 3, 4, Cusped border, foil 4, 1, Cusped border, foil 4, 2, Cusped border, foil 4, 3, Cusped border, foil 4, 4, Cusped border, foil 5, 1, Cusped border, foil 5, 2, Cusped border, foil 5, 3, Cusped border, foil 5, 4, Cusped border, foil 6, 1, Cusped border, foil 6, 2, Cusped border, foil 6, 3, Cusped border, foil 6, 4, Cusped border, foil 7, 1, Cusped border, foil 7, 2, Cusped border, foil 7, 3, Cusped border, foil 7, 4, Cusped border, foil 8, 1, Cusped border, foil 8, 2, Cusped border, foil 8, 3, Cusped border, foil 8, 4, Cusped border, foil 9, 1, Cusped border, foil 9, 2, Cusped border, foil 9, 3, Cusped border, foil 9, 4, Cusped border, foil 10, 1, Cusped border, foil 10, 2, Cusped border, foil 10, 3, Cusped border, foil 10, 4, Cusped border, foil 11, 1, Cusped border, foil 11, 2, Cusped border, foil 11, 3, Cusped border, foil 11, 4, Cusped border, foil 12, 1, Cusped border, foil 12, 2, Cusped border, foil 12, 3, Cusped border, foil 12, 4, Cusped border, point 1, Cusped border, point 2, Cusped border, point 3, Cusped border, point 4, Cusped border, point 5, Cusped border, point 6, Cusped border, point 7, Cusped border, point 8, Cusped border, point 9, Cusped border, point 10, Cusped border, point 11, Cusped border, point 12, Cusped border, circle, 1, Cusped border, circle, 2, Cusped border, circle, 3, Cusped border, circle, 4, Cusped border, circle, 5, Cusped border, circle, 6, Cusped border, circle, 7, Cusped border, circle, 8, Cusped border, circle, 9, Cusped border, circle, 10, Cusped border, circle, 11, Cusped border, circle, 12, Cusped border, circle, 13, Cusped border, circle, 14, Cusped border, circle, 15, Cusped border, circle, 16, Cusped border, circle, 17, Cusped border, circle, 18, Cusped border, circle, 19, Cusped border, circle, 20, Cusped border, circle, 21, Cusped border, circle, 22, Cusped border, circle, 23, Cusped border, circle, 24, Cusped border, circle, 25, Cusped border, circle, 26, Cusped border, circle, 27, Cusped border, circle, 28, Cusped border, circle, 29, Cusped border, circle, 30, Cusped border, circle, 31, Cusped border, circle, 32, Cusped border, circle, 33, Cusped border, circle, 34, Cusped border, circle, 35, Cusped border, circle, 36, Cusped border, circle, 37, Cusped border, circle, 38, Cusped border, circle, 39, Cusped border, circle, 40, Cusped border, circle, 41, Cusped border, circle, 42, Legend, cross, Legend, s 2 cut 1, Legend, s 2 cut 2, Legend, s 2 cut 3, Legend, s 2 cut 4, Legend, s 2 cut 5, Legend, i 3 cut 1, Legend, i 3 cut 2, Legend, g 4 cut 1, Legend, g 4 cut 2, Legend, g 4 cut 3, Legend, g 4 cut 4, Legend, g 4 cut 5, Legend, i 5 cut 1, Legend, i 5 cut 2, Legend, l 6 cut 1, Legend, l 7 cut 1, Legend, u 8 cut 1, Legend, u 8 cut 2, Legend, u 8 cut 3, Legend, m 9 cut 1, Legend, m 9 cut 2, Legend, m 9 cut 3, Legend, m 9 cut 4, Legend, m 9 cut 5, Legend, c 11 cut 1, Legend, c 11 cut 2, Legend, c 11 cut 3, Legend, a 12 cut 1, Legend, a 12 cut 2, Legend, a 12 cut 3, Legend, a 12 cut 4, Legend, a 12 cut 5, Legend, p 13 cut 1, Legend, p 13 cut 2, Legend, p 13 cut 3, Legend, p 13 cut 4, Legend, i 14 cut 1, Legend, i 14 cut 2, Legend, t 15 cut 1, Legend, t 15 cut 2, Legend, t 15 cut 3, Legend, u 16 cut 1, Legend, u 16 cut 2, Legend, u 16 cut 3, Legend, l 17 cut 1, Legend, i 18 cut 1, Legend, i 18 cut 2, Legend, e 20 cut 1, Legend, e 20 cut 2, Legend, e 20 cut 3, Legend, e 20 cut 4, Legend, e 20 cut 5, Legend, c 21 cut 1, Legend, c 21 cut 2, Legend, c 21 cut 3, Legend, c 22 cut 1, Legend, c 22 cut 2, Legend, c 22 cut 3, Legend, l 23 cut 1, Legend, e 24 cut 1, Legend, e 24 cut 2, Legend, e 24 cut 3, Legend, e 24 cut 4, Legend, e 24 cut 5, Legend, s 25 cut 1, Legend, s 25 cut 2, Legend, s 25 cut 3, Legend, s 25 cut 4, Legend, s 25 cut 5, Legend, i 26 cut 1, Legend, i 26 cut 2, Legend, e 27 cut 1, Legend, e 27 cut 2, Legend, e 27 cut 3, Legend, e 27 cut 4, Legend, e 27 cut 5, Legend, c 29 cut 1, Legend, c 29 cut 2, Legend, c 29 cut 3, Legend, a 30 cut 1, Legend, a 30 cut 2, Legend, a 30 cut 3, Legend, a 30 cut 4, Legend, a 30 cut 5, Legend, t 31 cut 1, Legend, t 31 cut 2, Legend, t 31 cut 3, Legend, h 32 cut 1, Legend, h 32 cut 2, Legend, h 32 cut 3, Legend, e 33 cut 1, Legend, e 33 cut 2, Legend, e 33 cut 3, Legend, e 33 cut 4, Legend, e 33 cut 5, Legend, d 34 cut 1, Legend, d 34 cut 2, Legend, d 34 cut 3, Legend, d 34 cut 4, Legend, r 35 cut 1, Legend, r 35 cut 2, Legend, a 36 cut 1, Legend, a 36 cut 2, Legend, a 36 cut 3, Legend, a 36 cut 4, Legend, a 36 cut 5, Legend, l 37 cut 1, Legend, i 38 cut 1, Legend, i 38 cut 2, Legend, s 39 cut 1, Legend, s 39 cut 2, Legend, s 39 cut 3, Legend, s 39 cut 4, Legend, s 39 cut 5, Shoulder window, right, left light, Shoulder window, right, right light, Shoulder window, right, oculus, Shoulder window, right, hood, Shoulder window, left, left light, Shoulder window, left, right light, Shoulder window, left, oculus, Shoulder window, left, hood, Shank arcade, right 1, Shank arcade, right 2, Shank arcade, right 3, Shank arcade, right 4, Shank arcade, right 5, Shank arcade, right 6, Shank arcade, right 7, Shank arcade, right 8, Shank arcade, right 9, Shank arcade, right 10, Shank arcade, right 11, Shank arcade, right 12, Shank arcade, right 13, Shank arcade, right 14, Shank arcade, left 1, Shank arcade, left 2, Shank arcade, left 3, Shank arcade, left 4, Shank arcade, left 5, Shank arcade, left 6, Shank arcade, left 7, Shank arcade, left 8, Shank arcade, left 9, Shank arcade, left 10, Shank arcade, left 11, Shank arcade, left 12, Shank arcade, left 13, Shank arcade, left 14."
     ],
     "field_verdict": "Castable",
-    "grams_925": 17.405402192460407,
-    "min_angle_deg": 0.00010382393049983189,
+    "grams_925": 17.22340734950804,
+    "min_angle_deg": 0.00009567980364124339,
     "non_manifold_edges": 0,
     "parting_monotone": [],
     "parts_cut": 0,
@@ -47,27 +47,27 @@
     "release_0075_obstructions": 0,
     "release_0075_unresolved": 0,
     "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
-    "release_0100_low_draft_area_mm2": 401.0641727518103,
+    "release_0100_low_draft_area_mm2": 400.6823068123503,
     "release_0100_notes": [
-      "401.06 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "400.68 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
       "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
     ],
     "release_0100_obstructions": 0,
     "release_0100_sand_findings": [
       "Sand slot about 0.40 mm wide; inspect its support and depth at [0.05, 9.48, 0.00]",
-      "Sand slot about 0.60 mm wide; inspect its support and depth at [-8.33, 8.88, 4.04]",
-      "Sand slot about 0.30 mm wide; inspect its support and depth at [8.43, 8.98, 4.04]",
-      "Sand slot about 0.50 mm wide; inspect its support and depth at [-6.93, 7.88, 4.04]",
-      "Sand slot about 0.20 mm wide; inspect its support and depth at [6.73, 7.98, 4.04]"
+      "Sand slot about 0.20 mm wide; inspect its support and depth at [-8.33, 8.88, 4.04]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [8.43, 8.88, 4.04]",
+      "Sand slot about 0.60 mm wide; inspect its support and depth at [-7.23, 7.98, 4.04]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [6.73, 7.98, 4.04]"
     ],
     "release_0100_unresolved": 0,
     "self_crossings": 0,
     "solids_notes": [],
-    "stamps_struck": 279,
+    "stamps_struck": 315,
     "stones_previewed": 0,
     "stones_reported": 0,
     "thinnest_wall_mm": 1.4649834128981514,
-    "triangles": 568746,
+    "triangles": 568010,
     "undercut_percent": 0.0,
     "watertight": true,
     "worst_draft_deg": -0.4099372341160631
@@ -79,7 +79,7 @@
       1536,
       448
     ],
-    "build_s": 21.670634742,
+    "build_s": 24.425240903,
     "cad": {
       "features": [],
       "made_parts": [],
@@ -92,11 +92,11 @@
     "dfm_findings": [],
     "field_notes": [
       "Field-sampled: the surface itself carries no undercut at this parting.",
-      "Cut at the bench after casting, and so not judged here: Seal field, Quatrefoil rule 1, 1, Quatrefoil rule 1, 2, Quatrefoil rule 1, 3, Quatrefoil rule 1, 4, Quatrefoil rule 2, 1, Quatrefoil rule 2, 2, Quatrefoil rule 2, 3, Quatrefoil rule 2, 4, Quatrefoil rule 3, 1, Quatrefoil rule 3, 2, Quatrefoil rule 3, 3, Quatrefoil rule 3, 4, Quatrefoil rule 4, 1, Quatrefoil rule 4, 2, Quatrefoil rule 4, 3, Quatrefoil rule 4, 4, Quatrefoil rule 5, 1, Quatrefoil rule 5, 2, Quatrefoil rule 5, 3, Quatrefoil rule 5, 4, Quatrefoil rule 6, 1, Quatrefoil rule 6, 2, Quatrefoil rule 6, 3, Quatrefoil rule 6, 4, Quatrefoil rule 7, 1, Quatrefoil rule 7, 2, Quatrefoil rule 7, 3, Quatrefoil rule 7, 4, Quatrefoil rule 8, 1, Quatrefoil rule 8, 2, Quatrefoil rule 8, 3, Quatrefoil rule 8, 4, Seal fleur, centre petal, Seal fleur, band, Seal fleur, foot, Seal fleur, right petal, Seal fleur, right spike, Seal fleur, left petal, Seal fleur, left spike, Cusped border, foil 1, 1, Cusped border, foil 1, 2, Cusped border, foil 1, 3, Cusped border, foil 1, 4, Cusped border, foil 2, 1, Cusped border, foil 2, 2, Cusped border, foil 2, 3, Cusped border, foil 2, 4, Cusped border, foil 3, 1, Cusped border, foil 3, 2, Cusped border, foil 3, 3, Cusped border, foil 3, 4, Cusped border, foil 4, 1, Cusped border, foil 4, 2, Cusped border, foil 4, 3, Cusped border, foil 4, 4, Cusped border, foil 5, 1, Cusped border, foil 5, 2, Cusped border, foil 5, 3, Cusped border, foil 5, 4, Cusped border, foil 6, 1, Cusped border, foil 6, 2, Cusped border, foil 6, 3, Cusped border, foil 6, 4, Cusped border, foil 7, 1, Cusped border, foil 7, 2, Cusped border, foil 7, 3, Cusped border, foil 7, 4, Cusped border, foil 8, 1, Cusped border, foil 8, 2, Cusped border, foil 8, 3, Cusped border, foil 8, 4, Cusped border, foil 9, 1, Cusped border, foil 9, 2, Cusped border, foil 9, 3, Cusped border, foil 9, 4, Cusped border, foil 10, 1, Cusped border, foil 10, 2, Cusped border, foil 10, 3, Cusped border, foil 10, 4, Cusped border, foil 11, 1, Cusped border, foil 11, 2, Cusped border, foil 11, 3, Cusped border, foil 11, 4, Cusped border, foil 12, 1, Cusped border, foil 12, 2, Cusped border, foil 12, 3, Cusped border, foil 12, 4, Cusped border, circle, 1, Cusped border, circle, 2, Cusped border, circle, 3, Cusped border, circle, 4, Cusped border, circle, 5, Cusped border, circle, 6, Cusped border, circle, 7, Cusped border, circle, 8, Cusped border, circle, 9, Cusped border, circle, 10, Cusped border, circle, 11, Cusped border, circle, 12, Cusped border, circle, 13, Cusped border, circle, 14, Cusped border, circle, 15, Cusped border, circle, 16, Cusped border, circle, 17, Cusped border, circle, 18, Cusped border, circle, 19, Cusped border, circle, 20, Cusped border, circle, 21, Cusped border, circle, 22, Cusped border, circle, 23, Cusped border, circle, 24, Cusped border, circle, 25, Cusped border, circle, 26, Cusped border, circle, 27, Cusped border, circle, 28, Cusped border, circle, 29, Cusped border, circle, 30, Cusped border, circle, 31, Cusped border, circle, 32, Cusped border, circle, 33, Cusped border, circle, 34, Cusped border, circle, 35, Cusped border, circle, 36, Cusped border, circle, 37, Cusped border, circle, 38, Cusped border, circle, 39, Cusped border, circle, 40, Cusped border, circle, 41, Cusped border, circle, 42, Legend, cross, Legend, s 2 cut 1, Legend, s 2 cut 2, Legend, s 2 cut 3, Legend, s 2 cut 4, Legend, s 2 cut 5, Legend, i 3 cut 1, Legend, i 3 cut 2, Legend, g 4 cut 1, Legend, g 4 cut 2, Legend, g 4 cut 3, Legend, g 4 cut 4, Legend, g 4 cut 5, Legend, i 5 cut 1, Legend, i 5 cut 2, Legend, l 6 cut 1, Legend, l 7 cut 1, Legend, u 8 cut 1, Legend, u 8 cut 2, Legend, u 8 cut 3, Legend, m 9 cut 1, Legend, m 9 cut 2, Legend, m 9 cut 3, Legend, m 9 cut 4, Legend, m 9 cut 5, Legend, c 11 cut 1, Legend, c 11 cut 2, Legend, c 11 cut 3, Legend, a 12 cut 1, Legend, a 12 cut 2, Legend, a 12 cut 3, Legend, a 12 cut 4, Legend, a 12 cut 5, Legend, p 13 cut 1, Legend, p 13 cut 2, Legend, p 13 cut 3, Legend, p 13 cut 4, Legend, i 14 cut 1, Legend, i 14 cut 2, Legend, t 15 cut 1, Legend, t 15 cut 2, Legend, t 15 cut 3, Legend, u 16 cut 1, Legend, u 16 cut 2, Legend, u 16 cut 3, Legend, l 17 cut 1, Legend, i 18 cut 1, Legend, i 18 cut 2, Legend, e 20 cut 1, Legend, e 20 cut 2, Legend, e 20 cut 3, Legend, e 20 cut 4, Legend, e 20 cut 5, Legend, c 21 cut 1, Legend, c 21 cut 2, Legend, c 21 cut 3, Legend, c 22 cut 1, Legend, c 22 cut 2, Legend, c 22 cut 3, Legend, l 23 cut 1, Legend, e 24 cut 1, Legend, e 24 cut 2, Legend, e 24 cut 3, Legend, e 24 cut 4, Legend, e 24 cut 5, Legend, s 25 cut 1, Legend, s 25 cut 2, Legend, s 25 cut 3, Legend, s 25 cut 4, Legend, s 25 cut 5, Legend, i 26 cut 1, Legend, i 26 cut 2, Legend, e 27 cut 1, Legend, e 27 cut 2, Legend, e 27 cut 3, Legend, e 27 cut 4, Legend, e 27 cut 5, Legend, c 29 cut 1, Legend, c 29 cut 2, Legend, c 29 cut 3, Legend, a 30 cut 1, Legend, a 30 cut 2, Legend, a 30 cut 3, Legend, a 30 cut 4, Legend, a 30 cut 5, Legend, t 31 cut 1, Legend, t 31 cut 2, Legend, t 31 cut 3, Legend, h 32 cut 1, Legend, h 32 cut 2, Legend, h 32 cut 3, Legend, e 33 cut 1, Legend, e 33 cut 2, Legend, e 33 cut 3, Legend, e 33 cut 4, Legend, e 33 cut 5, Legend, d 34 cut 1, Legend, d 34 cut 2, Legend, d 34 cut 3, Legend, d 34 cut 4, Legend, r 35 cut 1, Legend, r 35 cut 2, Legend, a 36 cut 1, Legend, a 36 cut 2, Legend, a 36 cut 3, Legend, a 36 cut 4, Legend, a 36 cut 5, Legend, l 37 cut 1, Legend, i 38 cut 1, Legend, i 38 cut 2, Legend, s 39 cut 1, Legend, s 39 cut 2, Legend, s 39 cut 3, Legend, s 39 cut 4, Legend, s 39 cut 5, Shoulder window, right, arch, Shoulder window, right, sill, Shoulder window, right, left light, Shoulder window, right, right light, Shoulder window, right, mullion, Shoulder window, right, oculus, Shoulder window, left, arch, Shoulder window, left, sill, Shoulder window, left, left light, Shoulder window, left, right light, Shoulder window, left, mullion, Shoulder window, left, oculus."
+      "Cut at the bench after casting, and so not judged here: Seal field, Quatrefoil rule 1, 1, Quatrefoil rule 1, 2, Quatrefoil rule 1, 3, Quatrefoil rule 1, 4, Quatrefoil rule 2, 1, Quatrefoil rule 2, 2, Quatrefoil rule 2, 3, Quatrefoil rule 2, 4, Quatrefoil rule 3, 1, Quatrefoil rule 3, 2, Quatrefoil rule 3, 3, Quatrefoil rule 3, 4, Quatrefoil rule 4, 1, Quatrefoil rule 4, 2, Quatrefoil rule 4, 3, Quatrefoil rule 4, 4, Quatrefoil rule 5, 1, Quatrefoil rule 5, 2, Quatrefoil rule 5, 3, Quatrefoil rule 5, 4, Quatrefoil rule 6, 1, Quatrefoil rule 6, 2, Quatrefoil rule 6, 3, Quatrefoil rule 6, 4, Quatrefoil rule 7, 1, Quatrefoil rule 7, 2, Quatrefoil rule 7, 3, Quatrefoil rule 7, 4, Quatrefoil rule 8, 1, Quatrefoil rule 8, 2, Quatrefoil rule 8, 3, Quatrefoil rule 8, 4, Seal fleur, centre petal, Seal fleur, band, Seal fleur, foot, Seal fleur, right petal, Seal fleur, right spike, Seal fleur, left petal, Seal fleur, left spike, Cusped border, foil 1, 1, Cusped border, foil 1, 2, Cusped border, foil 1, 3, Cusped border, foil 1, 4, Cusped border, foil 2, 1, Cusped border, foil 2, 2, Cusped border, foil 2, 3, Cusped border, foil 2, 4, Cusped border, foil 3, 1, Cusped border, foil 3, 2, Cusped border, foil 3, 3, Cusped border, foil 3, 4, Cusped border, foil 4, 1, Cusped border, foil 4, 2, Cusped border, foil 4, 3, Cusped border, foil 4, 4, Cusped border, foil 5, 1, Cusped border, foil 5, 2, Cusped border, foil 5, 3, Cusped border, foil 5, 4, Cusped border, foil 6, 1, Cusped border, foil 6, 2, Cusped border, foil 6, 3, Cusped border, foil 6, 4, Cusped border, foil 7, 1, Cusped border, foil 7, 2, Cusped border, foil 7, 3, Cusped border, foil 7, 4, Cusped border, foil 8, 1, Cusped border, foil 8, 2, Cusped border, foil 8, 3, Cusped border, foil 8, 4, Cusped border, foil 9, 1, Cusped border, foil 9, 2, Cusped border, foil 9, 3, Cusped border, foil 9, 4, Cusped border, foil 10, 1, Cusped border, foil 10, 2, Cusped border, foil 10, 3, Cusped border, foil 10, 4, Cusped border, foil 11, 1, Cusped border, foil 11, 2, Cusped border, foil 11, 3, Cusped border, foil 11, 4, Cusped border, foil 12, 1, Cusped border, foil 12, 2, Cusped border, foil 12, 3, Cusped border, foil 12, 4, Cusped border, point 1, Cusped border, point 2, Cusped border, point 3, Cusped border, point 4, Cusped border, point 5, Cusped border, point 6, Cusped border, point 7, Cusped border, point 8, Cusped border, point 9, Cusped border, point 10, Cusped border, point 11, Cusped border, point 12, Cusped border, circle, 1, Cusped border, circle, 2, Cusped border, circle, 3, Cusped border, circle, 4, Cusped border, circle, 5, Cusped border, circle, 6, Cusped border, circle, 7, Cusped border, circle, 8, Cusped border, circle, 9, Cusped border, circle, 10, Cusped border, circle, 11, Cusped border, circle, 12, Cusped border, circle, 13, Cusped border, circle, 14, Cusped border, circle, 15, Cusped border, circle, 16, Cusped border, circle, 17, Cusped border, circle, 18, Cusped border, circle, 19, Cusped border, circle, 20, Cusped border, circle, 21, Cusped border, circle, 22, Cusped border, circle, 23, Cusped border, circle, 24, Cusped border, circle, 25, Cusped border, circle, 26, Cusped border, circle, 27, Cusped border, circle, 28, Cusped border, circle, 29, Cusped border, circle, 30, Cusped border, circle, 31, Cusped border, circle, 32, Cusped border, circle, 33, Cusped border, circle, 34, Cusped border, circle, 35, Cusped border, circle, 36, Cusped border, circle, 37, Cusped border, circle, 38, Cusped border, circle, 39, Cusped border, circle, 40, Cusped border, circle, 41, Cusped border, circle, 42, Legend, cross, Legend, s 2 cut 1, Legend, s 2 cut 2, Legend, s 2 cut 3, Legend, s 2 cut 4, Legend, s 2 cut 5, Legend, i 3 cut 1, Legend, i 3 cut 2, Legend, g 4 cut 1, Legend, g 4 cut 2, Legend, g 4 cut 3, Legend, g 4 cut 4, Legend, g 4 cut 5, Legend, i 5 cut 1, Legend, i 5 cut 2, Legend, l 6 cut 1, Legend, l 7 cut 1, Legend, u 8 cut 1, Legend, u 8 cut 2, Legend, u 8 cut 3, Legend, m 9 cut 1, Legend, m 9 cut 2, Legend, m 9 cut 3, Legend, m 9 cut 4, Legend, m 9 cut 5, Legend, c 11 cut 1, Legend, c 11 cut 2, Legend, c 11 cut 3, Legend, a 12 cut 1, Legend, a 12 cut 2, Legend, a 12 cut 3, Legend, a 12 cut 4, Legend, a 12 cut 5, Legend, p 13 cut 1, Legend, p 13 cut 2, Legend, p 13 cut 3, Legend, p 13 cut 4, Legend, i 14 cut 1, Legend, i 14 cut 2, Legend, t 15 cut 1, Legend, t 15 cut 2, Legend, t 15 cut 3, Legend, u 16 cut 1, Legend, u 16 cut 2, Legend, u 16 cut 3, Legend, l 17 cut 1, Legend, i 18 cut 1, Legend, i 18 cut 2, Legend, e 20 cut 1, Legend, e 20 cut 2, Legend, e 20 cut 3, Legend, e 20 cut 4, Legend, e 20 cut 5, Legend, c 21 cut 1, Legend, c 21 cut 2, Legend, c 21 cut 3, Legend, c 22 cut 1, Legend, c 22 cut 2, Legend, c 22 cut 3, Legend, l 23 cut 1, Legend, e 24 cut 1, Legend, e 24 cut 2, Legend, e 24 cut 3, Legend, e 24 cut 4, Legend, e 24 cut 5, Legend, s 25 cut 1, Legend, s 25 cut 2, Legend, s 25 cut 3, Legend, s 25 cut 4, Legend, s 25 cut 5, Legend, i 26 cut 1, Legend, i 26 cut 2, Legend, e 27 cut 1, Legend, e 27 cut 2, Legend, e 27 cut 3, Legend, e 27 cut 4, Legend, e 27 cut 5, Legend, c 29 cut 1, Legend, c 29 cut 2, Legend, c 29 cut 3, Legend, a 30 cut 1, Legend, a 30 cut 2, Legend, a 30 cut 3, Legend, a 30 cut 4, Legend, a 30 cut 5, Legend, t 31 cut 1, Legend, t 31 cut 2, Legend, t 31 cut 3, Legend, h 32 cut 1, Legend, h 32 cut 2, Legend, h 32 cut 3, Legend, e 33 cut 1, Legend, e 33 cut 2, Legend, e 33 cut 3, Legend, e 33 cut 4, Legend, e 33 cut 5, Legend, d 34 cut 1, Legend, d 34 cut 2, Legend, d 34 cut 3, Legend, d 34 cut 4, Legend, r 35 cut 1, Legend, r 35 cut 2, Legend, a 36 cut 1, Legend, a 36 cut 2, Legend, a 36 cut 3, Legend, a 36 cut 4, Legend, a 36 cut 5, Legend, l 37 cut 1, Legend, i 38 cut 1, Legend, i 38 cut 2, Legend, s 39 cut 1, Legend, s 39 cut 2, Legend, s 39 cut 3, Legend, s 39 cut 4, Legend, s 39 cut 5, Shoulder window, right, left light, Shoulder window, right, right light, Shoulder window, right, oculus, Shoulder window, right, hood, Shoulder window, left, left light, Shoulder window, left, right light, Shoulder window, left, oculus, Shoulder window, left, hood, Shank arcade, right 1, Shank arcade, right 2, Shank arcade, right 3, Shank arcade, right 4, Shank arcade, right 5, Shank arcade, right 6, Shank arcade, right 7, Shank arcade, right 8, Shank arcade, right 9, Shank arcade, right 10, Shank arcade, right 11, Shank arcade, right 12, Shank arcade, right 13, Shank arcade, right 14, Shank arcade, left 1, Shank arcade, left 2, Shank arcade, left 3, Shank arcade, left 4, Shank arcade, left 5, Shank arcade, left 6, Shank arcade, left 7, Shank arcade, left 8, Shank arcade, left 9, Shank arcade, left 10, Shank arcade, left 11, Shank arcade, left 12, Shank arcade, left 13, Shank arcade, left 14."
     ],
     "field_verdict": "Castable",
-    "grams_925": 17.406250526622607,
-    "min_angle_deg": 0.00015661336690736728,
+    "grams_925": 17.224256210366626,
+    "min_angle_deg": 0.00006040109140043924,
     "non_manifold_edges": 0,
     "parting_monotone": [],
     "parts_cut": 0,
@@ -107,28 +107,27 @@
     "release_0075_obstructions": 0,
     "release_0075_unresolved": 0,
     "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
-    "release_0100_low_draft_area_mm2": 401.4693616601116,
+    "release_0100_low_draft_area_mm2": 401.0874963172431,
     "release_0100_notes": [
-      "401.47 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
-      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow.",
-      "Some faces have negative draft without a resolved interval obstruction; inspect at finer sampling"
+      "401.09 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
     ],
     "release_0100_obstructions": 0,
     "release_0100_sand_findings": [
       "Sand slot about 0.40 mm wide; inspect its support and depth at [0.05, 9.48, 0.00]",
-      "Sand slot about 0.60 mm wide; inspect its support and depth at [-8.33, 8.88, 4.04]",
-      "Sand slot about 0.30 mm wide; inspect its support and depth at [8.43, 8.98, 4.04]",
-      "Sand slot about 0.50 mm wide; inspect its support and depth at [-6.93, 7.88, 4.04]",
-      "Sand slot about 0.20 mm wide; inspect its support and depth at [6.73, 7.98, 4.04]"
+      "Sand slot about 0.20 mm wide; inspect its support and depth at [-8.33, 8.88, 4.04]",
+      "Sand slot about 0.40 mm wide; inspect its support and depth at [8.43, 8.88, 4.04]",
+      "Sand slot about 0.60 mm wide; inspect its support and depth at [-7.23, 7.98, 4.04]",
+      "Sand slot about 0.10 mm wide; inspect its support and depth at [6.73, 7.98, 4.04]"
     ],
     "release_0100_unresolved": 0,
     "self_crossings": 0,
     "solids_notes": [],
-    "stamps_struck": 279,
+    "stamps_struck": 315,
     "stones_previewed": 0,
     "stones_reported": 0,
     "thinnest_wall_mm": 1.4649834128981514,
-    "triangles": 1410622,
+    "triangles": 1351038,
     "undercut_percent": 0.0,
     "watertight": true,
     "worst_draft_deg": -0.4099372341160631
@@ -170,18 +169,48 @@
       15.6
     ],
     "roundels": [
-      "Shoulder roundel 1, right 1 at 46.76 deg, v 16.537: wall 9.90 to 12.96 mm from the axis, 2.40 across",
-      "Shoulder roundel 1, right 2 at 40.96 deg, v 16.295: wall 9.90 to 12.25 mm from the axis, 1.85 across",
-      "Shoulder roundel 1, right 3 at 34.98 deg, v 16.295: wall 9.90 to 11.67 mm from the axis, 1.27 across",
-      "Shoulder roundel 1, left 1 at 133.24 deg, v 16.562: wall 9.90 to 12.93 mm from the axis, 2.40 across",
-      "Shoulder roundel 1, left 2 at 139.04 deg, v 16.319: wall 9.90 to 12.23 mm from the axis, 1.83 across",
-      "Shoulder roundel 1, left 3 at 145.02 deg, v 16.295: wall 9.90 to 11.66 mm from the axis, 1.26 across",
-      "Shoulder roundel 2, right 1 at 46.76 deg, v 2.082: wall 9.90 to 12.96 mm from the axis, 2.40 across",
-      "Shoulder roundel 2, right 2 at 40.96 deg, v 2.300: wall 9.90 to 12.25 mm from the axis, 1.85 across",
-      "Shoulder roundel 2, right 3 at 34.98 deg, v 2.300: wall 9.90 to 11.68 mm from the axis, 1.28 across",
-      "Shoulder roundel 2, left 1 at 133.24 deg, v 2.034: wall 9.90 to 12.93 mm from the axis, 2.40 across",
-      "Shoulder roundel 2, left 2 at 139.04 deg, v 2.276: wall 9.90 to 12.23 mm from the axis, 1.83 across",
-      "Shoulder roundel 2, left 3 at 145.02 deg, v 2.300: wall 9.90 to 11.66 mm from the axis, 1.26 across"
+      "Shoulder roundel 1, right 1 at 46.76 deg, v 16.537: wall 9.90 to 12.96 mm from the axis, 2.26 across",
+      "Shoulder roundel 1, right 2 at 40.96 deg, v 16.295: wall 9.90 to 12.25 mm from the axis, 1.55 across",
+      "Shoulder roundel 1, right 3 at 34.98 deg, v 16.295: wall 9.90 to 11.67 mm from the axis, 0.97 across",
+      "Shoulder roundel 1, left 1 at 133.24 deg, v 16.562: wall 9.90 to 12.93 mm from the axis, 2.23 across",
+      "Shoulder roundel 1, left 2 at 139.04 deg, v 16.319: wall 9.90 to 12.23 mm from the axis, 1.53 across",
+      "Shoulder roundel 1, left 3 at 145.02 deg, v 16.295: wall 9.90 to 11.66 mm from the axis, 0.96 across",
+      "Shoulder roundel 2, right 1 at 46.76 deg, v 2.082: wall 9.90 to 12.96 mm from the axis, 2.26 across",
+      "Shoulder roundel 2, right 2 at 40.96 deg, v 2.300: wall 9.90 to 12.25 mm from the axis, 1.55 across",
+      "Shoulder roundel 2, right 3 at 34.98 deg, v 2.300: wall 9.90 to 11.68 mm from the axis, 0.98 across",
+      "Shoulder roundel 2, left 1 at 133.24 deg, v 2.034: wall 9.90 to 12.93 mm from the axis, 2.23 across",
+      "Shoulder roundel 2, left 2 at 139.04 deg, v 2.276: wall 9.90 to 12.23 mm from the axis, 1.53 across",
+      "Shoulder roundel 2, left 3 at 145.02 deg, v 2.300: wall 9.90 to 11.66 mm from the axis, 0.96 across"
+    ],
+    "shank_arcade": [
+      "Shank arcade, right 1 at 22.50 deg, 1.00 x 2.60 mm",
+      "Shank arcade, right 2 at 14.59 deg, 0.98 x 2.55 mm",
+      "Shank arcade, right 3 at 7.56 deg, 0.96 x 2.50 mm",
+      "Shank arcade, right 4 at 0.53 deg, 0.94 x 2.44 mm",
+      "Shank arcade, right 5 at 354.55 deg, 0.92 x 2.39 mm",
+      "Shank arcade, right 6 at 346.64 deg, 0.90 x 2.34 mm",
+      "Shank arcade, right 7 at 339.96 deg, 0.88 x 2.29 mm",
+      "Shank arcade, right 8 at 333.28 deg, 0.86 x 2.24 mm",
+      "Shank arcade, right 9 at 327.13 deg, 0.84 x 2.19 mm",
+      "Shank arcade, right 10 at 320.98 deg, 0.83 x 2.15 mm",
+      "Shank arcade, right 11 at 314.82 deg, 0.81 x 2.10 mm",
+      "Shank arcade, right 12 at 308.50 deg, 0.79 x 2.05 mm",
+      "Shank arcade, right 13 at 302.17 deg, 0.77 x 2.01 mm",
+      "Shank arcade, right 14 at 294.96 deg, 0.75 x 1.96 mm",
+      "Shank arcade, left 1 at 157.50 deg, 1.00 x 2.60 mm",
+      "Shank arcade, left 2 at 165.41 deg, 0.98 x 2.55 mm",
+      "Shank arcade, left 3 at 172.44 deg, 0.96 x 2.50 mm",
+      "Shank arcade, left 4 at 179.47 deg, 0.94 x 2.44 mm",
+      "Shank arcade, left 5 at 185.45 deg, 0.92 x 2.39 mm",
+      "Shank arcade, left 6 at 193.01 deg, 0.90 x 2.34 mm",
+      "Shank arcade, left 7 at 200.04 deg, 0.88 x 2.29 mm",
+      "Shank arcade, left 8 at 206.72 deg, 0.86 x 2.24 mm",
+      "Shank arcade, left 9 at 212.87 deg, 0.84 x 2.19 mm",
+      "Shank arcade, left 10 at 219.02 deg, 0.83 x 2.15 mm",
+      "Shank arcade, left 11 at 225.18 deg, 0.81 x 2.10 mm",
+      "Shank arcade, left 12 at 231.50 deg, 0.79 x 2.05 mm",
+      "Shank arcade, left 13 at 237.83 deg, 0.77 x 2.01 mm",
+      "Shank arcade, left 14 at 245.04 deg, 0.75 x 1.96 mm"
     ],
     "table_crown_mm": 14.446300983428955,
     "table_sag_at_field_edge_mm": 0.6257150806486607,
@@ -212,7 +241,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 1, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -222,7 +251,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 1, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -232,7 +261,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 1, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -242,7 +271,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 1, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -252,7 +281,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 2, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -262,7 +291,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 2, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -272,7 +301,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 2, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -282,7 +311,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 2, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -292,7 +321,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 3, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -302,7 +331,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 3, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -312,7 +341,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 3, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -322,7 +351,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 3, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -332,7 +361,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 4, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -342,7 +371,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 4, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -352,7 +381,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 4, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -362,7 +391,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 4, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -372,7 +401,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 5, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -382,7 +411,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 5, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -392,7 +421,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 5, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -402,7 +431,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 5, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -412,7 +441,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 6, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -422,7 +451,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 6, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -432,7 +461,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 6, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -442,7 +471,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 6, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -452,7 +481,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 7, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -462,7 +491,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 7, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -472,7 +501,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 7, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -482,7 +511,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 7, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -492,7 +521,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 8, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -502,7 +531,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 8, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -512,7 +541,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 8, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -522,7 +551,7 @@
       "bench": true,
       "cut": true,
       "name": "Quatrefoil rule 8, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -532,7 +561,7 @@
       "bench": true,
       "cut": true,
       "name": "Seal fleur, centre petal",
-      "sink_mm": 0.95,
+      "sink_mm": 0.6,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -542,7 +571,7 @@
       "bench": true,
       "cut": true,
       "name": "Seal fleur, band",
-      "sink_mm": 0.85,
+      "sink_mm": 0.6,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -552,7 +581,7 @@
       "bench": true,
       "cut": true,
       "name": "Seal fleur, foot",
-      "sink_mm": 0.85,
+      "sink_mm": 0.6,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -572,7 +601,7 @@
       "bench": true,
       "cut": true,
       "name": "Seal fleur, right spike",
-      "sink_mm": 0.85,
+      "sink_mm": 0.6,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -592,7 +621,7 @@
       "bench": true,
       "cut": true,
       "name": "Seal fleur, left spike",
-      "sink_mm": 0.85,
+      "sink_mm": 0.6,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -602,7 +631,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 1, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -612,7 +641,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 1, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -622,7 +651,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 1, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -632,7 +661,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 1, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -642,7 +671,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 2, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -652,7 +681,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 2, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -662,7 +691,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 2, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -672,7 +701,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 2, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -682,7 +711,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 3, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -692,7 +721,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 3, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -702,7 +731,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 3, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -712,7 +741,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 3, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -722,7 +751,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 4, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -732,7 +761,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 4, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -742,7 +771,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 4, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -752,7 +781,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 4, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -762,7 +791,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 5, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -772,7 +801,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 5, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -782,7 +811,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 5, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -792,7 +821,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 5, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -802,7 +831,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 6, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -812,7 +841,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 6, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -822,7 +851,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 6, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -832,7 +861,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 6, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -842,7 +871,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 7, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -852,7 +881,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 7, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -862,7 +891,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 7, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -872,7 +901,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 7, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -882,7 +911,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 8, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -892,7 +921,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 8, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -902,7 +931,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 8, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -912,7 +941,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 8, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -922,7 +951,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 9, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -932,7 +961,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 9, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -942,7 +971,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 9, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -952,7 +981,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 9, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -962,7 +991,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 10, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -972,7 +1001,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 10, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -982,7 +1011,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 10, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -992,7 +1021,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 10, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1002,7 +1031,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 11, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1012,7 +1041,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 11, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1022,7 +1051,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 11, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1032,7 +1061,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 11, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1042,7 +1071,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 12, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1052,7 +1081,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 12, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1062,7 +1091,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 12, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1072,7 +1101,127 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, foil 12, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 1",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 2",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 3",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 4",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 5",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 6",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 7",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 8",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 9",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 10",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 11",
+      "sink_mm": 0.2,
+      "theta_deg": 90.0,
+      "tier": 0,
+      "v_mm": 9.29768708087874
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Cusped border, point 12",
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1082,7 +1231,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1092,7 +1241,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1102,7 +1251,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1112,7 +1261,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1122,7 +1271,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1132,7 +1281,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 6",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1142,7 +1291,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 7",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1152,7 +1301,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 8",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1162,7 +1311,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 9",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1172,7 +1321,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 10",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1182,7 +1331,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 11",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1192,7 +1341,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 12",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1202,7 +1351,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 13",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1212,7 +1361,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 14",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1222,7 +1371,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 15",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1232,7 +1381,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 16",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1242,7 +1391,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 17",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1252,7 +1401,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 18",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1262,7 +1411,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 19",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1272,7 +1421,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 20",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1282,7 +1431,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 21",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1292,7 +1441,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 22",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1302,7 +1451,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 23",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1312,7 +1461,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 24",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1322,7 +1471,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 25",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1332,7 +1481,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 26",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1342,7 +1491,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 27",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1352,7 +1501,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 28",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1362,7 +1511,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 29",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1372,7 +1521,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 30",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1382,7 +1531,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 31",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1392,7 +1541,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 32",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1402,7 +1551,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 33",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1412,7 +1561,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 34",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1422,7 +1571,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 35",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1432,7 +1581,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 36",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1442,7 +1591,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 37",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1452,7 +1601,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 38",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1462,7 +1611,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 39",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1472,7 +1621,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 40",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1482,7 +1631,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 41",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1492,7 +1641,7 @@
       "bench": true,
       "cut": true,
       "name": "Cusped border, circle, 42",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1502,7 +1651,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, cross",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1512,7 +1661,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 2 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1522,7 +1671,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 2 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1532,7 +1681,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 2 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1542,7 +1691,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 2 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1552,7 +1701,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 2 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1562,7 +1711,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 3 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1572,7 +1721,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 3 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1582,7 +1731,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, g 4 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1592,7 +1741,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, g 4 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1602,7 +1751,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, g 4 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1612,7 +1761,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, g 4 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1622,7 +1771,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, g 4 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1632,7 +1781,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 5 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1642,7 +1791,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 5 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1652,7 +1801,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, l 6 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1662,7 +1811,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, l 7 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1672,7 +1821,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, u 8 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1682,7 +1831,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, u 8 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1692,7 +1841,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, u 8 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1702,7 +1851,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, m 9 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1712,7 +1861,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, m 9 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1722,7 +1871,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, m 9 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1732,7 +1881,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, m 9 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1742,7 +1891,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, m 9 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1752,7 +1901,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 11 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1762,7 +1911,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 11 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1772,7 +1921,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 11 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1782,7 +1931,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 12 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1792,7 +1941,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 12 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1802,7 +1951,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 12 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1812,7 +1961,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 12 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1822,7 +1971,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 12 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1832,7 +1981,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, p 13 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1842,7 +1991,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, p 13 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1852,7 +2001,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, p 13 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1862,7 +2011,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, p 13 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1872,7 +2021,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 14 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1882,7 +2031,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 14 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1892,7 +2041,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, t 15 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1902,7 +2051,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, t 15 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1912,7 +2061,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, t 15 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1922,7 +2071,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, u 16 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1932,7 +2081,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, u 16 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1942,7 +2091,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, u 16 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1952,7 +2101,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, l 17 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1962,7 +2111,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 18 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1972,7 +2121,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 18 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1982,7 +2131,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 20 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -1992,7 +2141,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 20 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2002,7 +2151,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 20 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2012,7 +2161,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 20 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2022,7 +2171,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 20 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2032,7 +2181,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 21 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2042,7 +2191,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 21 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2052,7 +2201,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 21 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2062,7 +2211,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 22 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2072,7 +2221,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 22 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2082,7 +2231,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 22 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2092,7 +2241,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, l 23 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2102,7 +2251,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 24 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2112,7 +2261,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 24 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2122,7 +2271,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 24 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2132,7 +2281,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 24 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2142,7 +2291,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 24 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2152,7 +2301,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 25 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2162,7 +2311,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 25 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2172,7 +2321,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 25 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2182,7 +2331,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 25 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2192,7 +2341,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 25 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2202,7 +2351,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 26 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2212,7 +2361,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 26 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2222,7 +2371,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 27 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2232,7 +2381,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 27 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2242,7 +2391,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 27 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2252,7 +2401,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 27 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2262,7 +2411,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 27 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2272,7 +2421,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 29 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2282,7 +2431,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 29 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2292,7 +2441,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, c 29 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2302,7 +2451,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 30 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2312,7 +2461,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 30 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2322,7 +2471,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 30 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2332,7 +2481,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 30 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2342,7 +2491,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 30 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2352,7 +2501,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, t 31 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2362,7 +2511,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, t 31 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2372,7 +2521,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, t 31 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2382,7 +2531,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, h 32 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2392,7 +2541,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, h 32 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2402,7 +2551,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, h 32 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2412,7 +2561,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 33 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2422,7 +2571,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 33 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2432,7 +2581,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 33 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2442,7 +2591,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 33 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2452,7 +2601,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, e 33 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2462,7 +2611,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, d 34 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2472,7 +2621,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, d 34 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2482,7 +2631,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, d 34 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2492,7 +2641,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, d 34 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2502,7 +2651,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, r 35 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2512,7 +2661,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, r 35 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2522,7 +2671,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 36 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2532,7 +2681,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 36 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2542,7 +2691,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 36 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2552,7 +2701,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 36 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2562,7 +2711,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, a 36 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2572,7 +2721,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, l 37 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2582,7 +2731,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 38 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2592,7 +2741,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, i 38 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2602,7 +2751,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 39 cut 1",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2612,7 +2761,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 39 cut 2",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2622,7 +2771,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 39 cut 3",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2632,7 +2781,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 39 cut 4",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2642,7 +2791,7 @@
       "bench": true,
       "cut": true,
       "name": "Legend, s 39 cut 5",
-      "sink_mm": 0.1,
+      "sink_mm": 0.2,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 9.29768708087874
@@ -2652,7 +2801,7 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 1, 1",
-      "sink_mm": 0.45,
+      "sink_mm": 0.5,
       "theta_deg": 108.984375,
       "tier": 0,
       "v_mm": 15.714059749517846
@@ -2662,7 +2811,7 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 1, 2",
-      "sink_mm": 0.45,
+      "sink_mm": 0.5,
       "theta_deg": 99.66796875,
       "tier": 0,
       "v_mm": 15.835123383951727
@@ -2672,7 +2821,7 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 1, 3",
-      "sink_mm": 0.45,
+      "sink_mm": 0.5,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 15.81091065706495
@@ -2682,7 +2831,7 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 1, 4",
-      "sink_mm": 0.45,
+      "sink_mm": 0.5,
       "theta_deg": 80.33203125,
       "tier": 0,
       "v_mm": 15.859336110838504
@@ -2692,7 +2841,7 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 1, 5",
-      "sink_mm": 0.45,
+      "sink_mm": 0.5,
       "theta_deg": 71.015625,
       "tier": 0,
       "v_mm": 15.714059749517846
@@ -2702,7 +2851,7 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 2, 1",
-      "sink_mm": 0.45,
+      "sink_mm": 0.5,
       "theta_deg": 108.984375,
       "tier": 0,
       "v_mm": 2.8813144995263844
@@ -2712,7 +2861,7 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 2, 2",
-      "sink_mm": 0.45,
+      "sink_mm": 0.5,
       "theta_deg": 99.66796875,
       "tier": 0,
       "v_mm": 2.7360381382057266
@@ -2722,7 +2871,7 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 2, 3",
-      "sink_mm": 0.45,
+      "sink_mm": 0.5,
       "theta_deg": 90.0,
       "tier": 0,
       "v_mm": 2.7844635919792795
@@ -2732,7 +2881,7 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 2, 4",
-      "sink_mm": 0.45,
+      "sink_mm": 0.5,
       "theta_deg": 80.33203125,
       "tier": 0,
       "v_mm": 2.760250865092503
@@ -2742,7 +2891,7 @@
       "bench": false,
       "cut": true,
       "name": "Chapter-house arcade 2, 5",
-      "sink_mm": 0.45,
+      "sink_mm": 0.5,
       "theta_deg": 71.015625,
       "tier": 0,
       "v_mm": 2.8813144995263844
@@ -2871,28 +3020,8 @@
       "along_pull": false,
       "bench": true,
       "cut": true,
-      "name": "Shoulder window, right, arch",
-      "sink_mm": 0.32,
-      "theta_deg": 37.08984375,
-      "tier": 0,
-      "v_mm": 9.346112578295667
-    },
-    {
-      "along_pull": false,
-      "bench": true,
-      "cut": true,
-      "name": "Shoulder window, right, sill",
-      "sink_mm": 0.37,
-      "theta_deg": 37.08984375,
-      "tier": 0,
-      "v_mm": 9.346112578295667
-    },
-    {
-      "along_pull": false,
-      "bench": true,
-      "cut": true,
       "name": "Shoulder window, right, left light",
-      "sink_mm": 0.26,
+      "sink_mm": 0.30000000000000004,
       "theta_deg": 37.08984375,
       "tier": 0,
       "v_mm": 9.346112578295667
@@ -2902,17 +3031,7 @@
       "bench": true,
       "cut": true,
       "name": "Shoulder window, right, right light",
-      "sink_mm": 0.23,
-      "theta_deg": 37.08984375,
-      "tier": 0,
-      "v_mm": 9.346112578295667
-    },
-    {
-      "along_pull": false,
-      "bench": true,
-      "cut": true,
-      "name": "Shoulder window, right, mullion",
-      "sink_mm": 0.29000000000000004,
+      "sink_mm": 0.30000000000000004,
       "theta_deg": 37.08984375,
       "tier": 0,
       "v_mm": 9.346112578295667
@@ -2922,7 +3041,7 @@
       "bench": true,
       "cut": true,
       "name": "Shoulder window, right, oculus",
-      "sink_mm": 0.22,
+      "sink_mm": 0.35,
       "theta_deg": 37.08984375,
       "tier": 0,
       "v_mm": 9.346112578295667
@@ -2931,28 +3050,18 @@
       "along_pull": false,
       "bench": true,
       "cut": true,
-      "name": "Shoulder window, left, arch",
-      "sink_mm": 0.32,
-      "theta_deg": 143.26171875,
+      "name": "Shoulder window, right, hood",
+      "sink_mm": 0.45,
+      "theta_deg": 37.08984375,
       "tier": 0,
-      "v_mm": 9.27347439763534
-    },
-    {
-      "along_pull": false,
-      "bench": true,
-      "cut": true,
-      "name": "Shoulder window, left, sill",
-      "sink_mm": 0.37,
-      "theta_deg": 143.26171875,
-      "tier": 0,
-      "v_mm": 9.27347439763534
+      "v_mm": 9.346112578295667
     },
     {
       "along_pull": false,
       "bench": true,
       "cut": true,
       "name": "Shoulder window, left, left light",
-      "sink_mm": 0.26,
+      "sink_mm": 0.30000000000000004,
       "theta_deg": 143.26171875,
       "tier": 0,
       "v_mm": 9.27347439763534
@@ -2962,17 +3071,7 @@
       "bench": true,
       "cut": true,
       "name": "Shoulder window, left, right light",
-      "sink_mm": 0.23,
-      "theta_deg": 143.26171875,
-      "tier": 0,
-      "v_mm": 9.27347439763534
-    },
-    {
-      "along_pull": false,
-      "bench": true,
-      "cut": true,
-      "name": "Shoulder window, left, mullion",
-      "sink_mm": 0.29000000000000004,
+      "sink_mm": 0.30000000000000004,
       "theta_deg": 143.26171875,
       "tier": 0,
       "v_mm": 9.27347439763534
@@ -2982,10 +3081,300 @@
       "bench": true,
       "cut": true,
       "name": "Shoulder window, left, oculus",
-      "sink_mm": 0.22,
+      "sink_mm": 0.35,
       "theta_deg": 143.26171875,
       "tier": 0,
       "v_mm": 9.27347439763534
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shoulder window, left, hood",
+      "sink_mm": 0.45,
+      "theta_deg": 143.26171875,
+      "tier": 0,
+      "v_mm": 9.27347439763534
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 1",
+      "sink_mm": 0.4,
+      "theta_deg": 22.5,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 2",
+      "sink_mm": 0.4,
+      "theta_deg": 14.58984375,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 3",
+      "sink_mm": 0.4,
+      "theta_deg": 7.55859375,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 4",
+      "sink_mm": 0.4,
+      "theta_deg": 0.52734375,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 5",
+      "sink_mm": 0.4,
+      "theta_deg": 354.55078125,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 6",
+      "sink_mm": 0.4,
+      "theta_deg": 346.640625,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 7",
+      "sink_mm": 0.4,
+      "theta_deg": 339.9609375,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 8",
+      "sink_mm": 0.4,
+      "theta_deg": 333.28125,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 9",
+      "sink_mm": 0.4,
+      "theta_deg": 327.12890625,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 10",
+      "sink_mm": 0.4,
+      "theta_deg": 320.9765625,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 11",
+      "sink_mm": 0.4,
+      "theta_deg": 314.82421875,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 12",
+      "sink_mm": 0.4,
+      "theta_deg": 308.49609375,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 13",
+      "sink_mm": 0.4,
+      "theta_deg": 302.16796875,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, right 14",
+      "sink_mm": 0.4,
+      "theta_deg": 294.9609375,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 1",
+      "sink_mm": 0.4,
+      "theta_deg": 157.5,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 2",
+      "sink_mm": 0.4,
+      "theta_deg": 165.41015625,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 3",
+      "sink_mm": 0.4,
+      "theta_deg": 172.44140625,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 4",
+      "sink_mm": 0.4,
+      "theta_deg": 179.47265625,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 5",
+      "sink_mm": 0.4,
+      "theta_deg": 185.44921875,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 6",
+      "sink_mm": 0.4,
+      "theta_deg": 193.0078125,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 7",
+      "sink_mm": 0.4,
+      "theta_deg": 200.0390625,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 8",
+      "sink_mm": 0.4,
+      "theta_deg": 206.71875,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 9",
+      "sink_mm": 0.4,
+      "theta_deg": 212.87109375,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 10",
+      "sink_mm": 0.4,
+      "theta_deg": 219.0234375,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 11",
+      "sink_mm": 0.4,
+      "theta_deg": 225.17578125,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 12",
+      "sink_mm": 0.4,
+      "theta_deg": 231.50390625,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 13",
+      "sink_mm": 0.4,
+      "theta_deg": 237.83203125,
+      "tier": 0,
+      "v_mm": 9.297687124522115
+    },
+    {
+      "along_pull": false,
+      "bench": true,
+      "cut": true,
+      "name": "Shank arcade, left 14",
+      "sink_mm": 0.4,
+      "theta_deg": 245.0390625,
+      "tier": 0,
+      "v_mm": 9.297687124522115
     }
   ],
   "stock": "Factory 017 Tonneau through the sand master (the section's fallback)",
