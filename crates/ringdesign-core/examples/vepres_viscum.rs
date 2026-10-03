@@ -37,7 +37,7 @@ const STOCK_FACE: (f64, f64) = (16.0, 12.0);
 /// Whether the stock comes through its sand master (the envelope on): stamps strike only there.
 const STOCK_SAND_MASTER: bool = true;
 /// Moonstone's milky white with a cold blue sheen: the berry.
-const MOONSTONE_TINT: [f32; 3] = [0.97, 0.95, 0.89];
+const MOONSTONE_TINT: [f32; 3] = [0.98, 0.96, 0.9];
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, refine: None, ..BuildParams::default() }
@@ -79,6 +79,8 @@ fn stock() -> Result<RingDesign> {
     ImportedBase::attach(&mut d, if sand { ringdesign_core::imported_base::sand_master(preset.load()?)? } else { preset.load()? })?;
     d.imported_base.as_mut().unwrap().sand_envelope = sand;
     d.name = "Viscum \u{2014} the golden bough".into();
+    // Stamp and bark walls laid straight across the cells (#248), carried through the graph lift since #260.
+    d.crisp_relief = std::env::var("VISCUM_SOFT").is_err();
     d.profile.apply_style(ProfileStyle::Flat);
     d.shank.head.length_mm = face[0];
     d.profile.width_mm = face[1];
@@ -353,8 +355,8 @@ const UNDER_ROUND_MM: f64 = 0.12;
 /// Rings from the spine out to the margin, top first then bottom: the outline shrunk across by `t` and along by a
 /// matching share, so the contours nest like offsets. Closed by a ladder across the spine top and bottom.
 fn pillow(map: &Depth, pl: &Pillow) -> Result<csg::Solid> {
-    const TOP: [f64; 14] = [0.06, 0.16, 0.28, 0.4, 0.52, 0.63, 0.73, 0.81, 0.875, 0.925, 0.96, 0.982, 0.995, 1.0];
-    const BOTTOM: [f64; 6] = [1.0, 0.99, 0.965, 0.9, 0.7, 0.35];
+    const TOP: [f64; 11] = [0.08, 0.24, 0.4, 0.55, 0.68, 0.79, 0.88, 0.94, 0.975, 0.994, 1.0];
+    const BOTTOM: [f64; 4] = [1.0, 0.975, 0.85, 0.45];
     let n = pl.around - pl.around % 2;
     let l = pl.spine.len();
     let wmax = (0..=200).map(|k| (pl.half)(k as f64 / 200.0)).fold(0.0, f64::max);
@@ -621,7 +623,7 @@ fn resample(path: &[P2], step: f64) -> Vec<P2> {
 
 /// How much a stem thins from base to tip, and how much it swells into a joint, as shares of its radius.
 const STEM_TAPER: f64 = 0.25;
-const JOINT_SWELL: f64 = 0.32;
+const JOINT_SWELL: f64 = 0.0;
 
 /// The trench round a face leaf: its radius, how far its centre stands out from the leaf's margin, and the share
 /// of the leaf's length from the stalk where it begins.
@@ -751,7 +753,7 @@ impl Sprig {
         let half = leaf_half(width);
         let top = leaf_top(crown);
         let sink = self.unique(sink);
-        let solid = pillow(map, &Pillow { spine: Spine::new(bezier(base, mid, tip)), half: &half, top: &top, ground: Ground::Drape { sink }, around: 112 })?;
+        let solid = pillow(map, &Pillow { spine: Spine::new(bezier(base, mid, tip)), half: &half, top: &top, ground: Ground::Drape { sink }, around: 72 })?;
         self.parts.push((name.into(), solid, 0.3));
         Ok(())
     }
@@ -854,12 +856,20 @@ impl Sprig {
         };
         let top = |_s: f64, t: f64, w: f64| 0.12 + w * (1.0 - t * t).max(0.0).sqrt();
         let sink = self.unique(sink);
-        let solid = pillow(map, &Pillow { spine, half: &half, top: &top, ground: Ground::Bridge { sink, reach: 0.9 * radius }, around: 64 })?;
+        let solid = pillow(map, &Pillow { spine, half: &half, top: &top, ground: Ground::Bridge { sink, reach: 0.9 * radius }, around: 32 })?;
         self.parts.push((name.into(), solid, 0.3));
         Ok(())
     }
-    /// A joint: the stems meeting there swell into it, so it needs no part of its own.
-    fn node(&mut self, _map: &Depth, _name: &str, _at: P2, _heading_deg: f64, _radius: f64, _sink: f64) -> Result<()> {
+    /// A joint: one smooth swollen ellipsoid along the stem, wider and higher than the stems that end inside it.
+    fn node(&mut self, map: &Depth, name: &str, at: P2, heading_deg: f64, radius: f64, sink: f64) -> Result<()> {
+        let d = dir2(heading_deg);
+        let reach = 1.25 * radius;
+        let spine = Spine::new(vec![add2(at, d, -reach), add2(at, d, reach)]);
+        let half = move |s: f64| radius * (1.0 - (2.0 * s - 1.0).powi(2)).max(0.0).sqrt();
+        let top = |_s: f64, t: f64, w: f64| 0.12 + w * (1.0 - t * t).max(0.0).sqrt();
+        let sink = self.unique(sink);
+        let solid = pillow(map, &Pillow { spine, half: &half, top: &top, ground: Ground::Bridge { sink, reach: 0.6 * radius }, around: 32 })?;
+        self.parts.push((name.into(), solid, 0.0));
         Ok(())
     }
     fn berry(&mut self, map: &Depth, name: &str, at: P2, d_mm: f64) -> Result<()> {
@@ -889,7 +899,7 @@ impl Sprig {
             rim + (crown - edge) * (1.0 - t * t).max(0.0).sqrt()
         };
         let sink = self.unique(0.45);
-        let solid = pillow(map, &Pillow { spine, half: &half, top: &top, ground: Ground::Free { rest: &rest, under: 0.5, sink, gap: 1.0 }, around: 96 })?;
+        let solid = pillow(map, &Pillow { spine, half: &half, top: &top, ground: Ground::Free { rest: &rest, under: 0.5, sink, gap: 1.0 }, around: 40 })?;
         self.parts.push((format!("{name} mound"), solid, 0.0));
         let h = rest(at[0], at[1]) + crown + 0.08;
         let girdle = map.frame.world(at[0], at[1], h);
@@ -990,16 +1000,17 @@ fn chart_at(a: &Atlas, p: P3) -> (f64, f64) {
 /// The face's sprig on the cushion's table, mm (x round the ring, z along the finger), drawn as Viscum grows:
 /// every stem segment ends in a joint that forks in two. The joints: the stalk's entry at the table's edge from
 /// shoulder A, then the forks and the tips.
-const FACE_JOINTS: [P2; 5] = [[-6.3, 0.0], [-4.7, 0.1], [-2.5, 0.15], [0.6, 2.55], [0.75, -2.5]];
-/// The stem segments between joints, and each one's radius at its base, mm.
-const FACE_STEMS: [(usize, usize, f64); 4] = [(0, 1, 0.58), (1, 2, 0.55), (2, 3, 0.5), (2, 4, 0.5)];
-/// Each joint's reach, kept clear of berries and leaves, mm (the entry has none).
-const FACE_KNOBS: [f64; 5] = [0.0, 0.75, 0.8, 0.65, 0.65];
-/// The opposite leaf pairs: joint, the two headings (degrees), length and width, mm. The first stands on the
-/// stalk before the fork, turned off square so it never reads as a cross; the others crown the two tips.
-const FACE_PAIRS: [(usize, f64, f64, f64, f64); 3] = [(1, 116.0, -64.0, 3.7, 1.65), (3, 14.0, 50.0, 4.2, 1.8), (4, -14.0, -50.0, 4.2, 1.8)];
+const FACE_JOINTS: [P2; 7] = [[-6.3, 0.0], [-4.9, 0.05], [-2.5, 0.15], [0.2, 3.0], [0.3, -2.95], [-3.9, 1.6], [-3.75, -1.55]];
+/// The stem segments between joints, and each one's radius at its base, mm. The first joint forks three ways:
+/// the stalk runs on, and two short tines each carry a leaf pair, so no joint bears a cross of leaves.
+const FACE_STEMS: [(usize, usize, f64); 6] = [(0, 1, 0.58), (1, 2, 0.55), (2, 3, 0.5), (2, 4, 0.5), (1, 5, 0.42), (1, 6, 0.42)];
+/// Each joint's swollen node, mm (the entry has none): about 1.35 times the stems ending in it.
+const FACE_KNOBS: [f64; 7] = [0.0, 0.8, 0.75, 0.62, 0.62, 0.55, 0.55];
+/// The opposite leaf pairs: joint, the two headings (degrees), length and width, mm, each pair splayed in a V
+/// about its tine.
+const FACE_PAIRS: [(usize, f64, f64, f64, f64); 4] = [(5, 142.0, 64.0, 3.3, 1.5), (6, -142.0, -64.0, 3.3, 1.5), (3, 0.0, 70.0, 3.4, 1.5), (4, 0.0, -70.0, 3.4, 1.5)];
 /// The bunches: a joint, the heading the bunch lies along from it, and its three berries, mm.
-const FACE_BUNCHES: [(usize, f64, [f64; 3]); 3] = [(2, 0.0, [1.65, 1.5, 1.45]), (3, 30.0, [1.3, 1.25, 1.2]), (4, -30.0, [1.3, 1.25, 1.2])];
+const FACE_BUNCHES: [(usize, f64, [f64; 3]); 3] = [(2, 0.0, [1.65, 1.5, 1.45]), (3, 35.0, [1.18, 1.12, 1.07]), (4, -35.0, [1.18, 1.12, 1.07])];
 /// The whole sprig turned about the table's centre and grown.
 const FACE_TURN_DEG: f64 = 0.0;
 const FACE_SCALE: f64 = 1.0;
@@ -1059,6 +1070,12 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
         (hi[2] - lo[2]).signum()
     };
     let table_top = face.depth(0.0, 0.0).context("no table")?;
+    if std::env::var("VISCUM_TABLE").is_ok() {
+        for yy in [-5.0f64, -4.5, -4.0, -3.5, -3.0, 3.0, 3.5, 4.0, 4.5, 5.0] {
+            let row: Vec<String> = [-7.0f64, -5.0, -3.0, -1.0, 1.0, 3.0, 5.0, 7.0].iter().map(|x| face.depth(*x, yy).map_or("--".into(), |d| format!("{:.2}", table_top - d))).collect();
+            eprintln!("  y {yy}: {}", row.join(" "));
+        }
+    }
     // Plan to table: turned and grown about the table's centre; the entry stays on the head's centre line.
     let place = |p: P2| -> P2 {
         let (sn, cs) = FACE_TURN_DEG.to_radians().sin_cos();
@@ -1159,7 +1176,16 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
                     len2(sub2(c, add2(w[0], ab, t))) >= r + extra
                 })
             }
-        }) && face.depth(c[0], c[1]).is_some_and(|y| y > table_top - 1.2)
+        }) && (0..8).all(|k| {
+            // The whole mound on the table, nowhere near its falling edge: the cushion may fall away gently
+            // under it, but a step 0.8 mm further out means the bevel.
+            let u = dir2(45.0 * k as f64);
+            let (p, q) = (add2(c, u, r), add2(c, u, r + 0.8));
+            match (face.depth(p[0], p[1]), face.depth(q[0], q[1])) {
+                (Some(a), Some(b)) => a > table_top - 1.0 && (a - b).abs() < 0.25,
+                _ => false,
+            }
+        })
     };
     // A tight triangle along a heading from a joint: one berry nearest it, two beyond side by side.
     let triangle = |from: P2, heading: f64, sizes: [f64; 3], rim: f64| -> Option<Vec<(P2, f64)>> {
@@ -1180,6 +1206,10 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
                 let c1 = add2(add2(from, u, dist + fwd), n, lat);
                 let c2 = add2(add2(from, u, dist + fwd), n, -lat);
                 let spots = vec![(c0, sizes[0]), (c1, sizes[1]), (c2, sizes[2])];
+                if std::env::var("VISCUM_DEBUG_FIT").is_ok() && swing == 0 && (dist * 20.0).round() as i64 % 10 == 0 {
+                    let tag: Vec<String> = spots.iter().map(|(c, d)| format!("({:.1},{:.1}):{}", c[0], c[1], clear(*c, 0.5 * d + rim) as u8)).collect();
+                    eprintln!("    fit h {h:.0} d {dist:.1} {}", tag.join(" "));
+                }
                 if spots.iter().all(|(c, d)| clear(*c, 0.5 * d + rim)) {
                     best = Some((dist + 0.02 * (swing as f64).abs(), spots));
                     break;
@@ -1198,11 +1228,11 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
         };
         for (c, dmm) in bunch {
             n_berry += 1;
-            sprig.mounded_berry(&face, &format!("Face berry {n_berry}"), c, dmm, 0.25)?;
+            sprig.mounded_berry(&face, &format!("Face berry {n_berry}"), c, dmm, std::env::var("VISCUM_FRIM").ok().and_then(|v| v.parse().ok()).unwrap_or(0.25))?;
             keep_clear.borrow_mut().push((vec![c, c], 0.5 * dmm + 0.25 + BERRY_GAP_MM));
         }
     }
-    let face_bunch_end = 6.4;
+    let face_bunch_end = 7.7;
     // The bough, one piece a side on the crest: out from under the knot along the crease, over the head's end and
     // down the shoulder. At each node a pair of leaves splays toward the palm and a berry sits in each axil,
     // between the bough and its leaf.
@@ -1226,7 +1256,7 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
             // The stem in to the node, from under the last bunch (or from the face).
             let pts: Vec<P2> = (0..=80).map(|i| [lerp(from, node, i as f64 / 80.0), 0.0]).collect();
             sprig.stem(&crest, &format!("Shoulder bough {unit}"), pts, BOUGH_R * (1.0 - 0.12 * n_k as f64), 0.45)?;
-            let knob_r = 0.62 * scale.max(0.8);
+            let knob_r = 0.82 * scale.max(0.8);
             sprig.node(&crest, &format!("Shoulder node {unit}"), [node, 0.0], 0.0, knob_r, 0.5)?;
             if sizes.len() == 2 {
                 // The last joint: its two berries astride it, and its leaf pair trailing on toward the palm.
@@ -1253,14 +1283,14 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
             // The fork: two short twigs splayed toward the palm, each ending in a joint that bears one leaf of the
             // pair, and the bunch of berries held in the crotch between them.
             let branch = 2.6 * scale;
-            let (leaf_len, leaf_w) = (3.3 * scale, 1.5 * scale);
+            let (leaf_len, leaf_w) = (3.4 * scale, 1.65 * scale);
             let mut keep_clear: Vec<(Vec<P2>, f64)> = Vec::new();
             for (b_k, across) in [1.0f64, -1.0].into_iter().enumerate() {
                 let h = toward + across * SHOULDER_FORK_DEG;
                 let tip = add2([node, 0.0], dir2(h), branch);
                 let twig = bezier(add2([node, 0.0], dir2(h), 0.3), add2(add2([node, 0.0], dir2(h), 0.5 * branch), dir2(h + 90.0), -0.12 * across), tip);
                 sprig.stem(&crest, &format!("Shoulder twig {unit}.{}", b_k + 1), twig.clone(), 0.4 * scale.max(0.8), 0.42)?;
-                sprig.node(&crest, &format!("Shoulder joint {unit}.{}", b_k + 1), tip, h, 0.48 * scale.max(0.8), 0.48)?;
+                sprig.node(&crest, &format!("Shoulder joint {unit}.{}", b_k + 1), tip, h, 0.58 * scale.max(0.8), 0.48)?;
                 let lh = h + across * SHOULDER_LEAF_TURN_DEG;
                 let base = add2(tip, dir2(lh), 0.3);
                 // As long as the shank's crest holds it: a leaf stays on the outer face, never over the edge.
@@ -1325,7 +1355,7 @@ fn author(blockout: bool) -> Result<(RingDesign, AlphaLibrary, Placed)> {
     // Parts: every sculpted piece joined to the stock with a small seam bead.
     let doc = d.cad.get_or_insert_with(Document::default);
     if doc.band().is_none() {
-        doc.append(Feature { id: 1, name: "Factory 003 Clover".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
+        doc.append(Feature { id: 1, name: "Factory 017 Tonneau".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
     }
     let mut next = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
     let skip = std::env::var("VISCUM_SKIP").unwrap_or_default();
@@ -1467,10 +1497,11 @@ fn oak_bark(d: &mut RingDesign) {
     t.rotation_deg = 90.0;
     t.feather_mm = 0.6;
     t.continuous = true;
+    t.contrast = 1.5;
     t.offset_u = std::env::var("VISCUM_BARK_OFF").ok().and_then(|v| v.parse().ok()).unwrap_or(BARK_OFFSET);
     // The bark stays clear of the shoulders' sprays, where the bough's units stand: on the head's cheeks, and on
     // the walls from beyond the last unit round the palm.
-    for (name, region, centre, span) in [("Oak bark, walls", "wall", 270.0, 100.0), ("Oak bark, cheeks", "cheek", 90.0, 76.0)] {
+    for (name, region, centre, span) in [("Oak bark, walls", "wall", 270.0, 140.0), ("Oak bark, cheeks", "cheek", 90.0, 76.0)] {
         let mut e = LayerEntry::new(name, Layer::Tiling(t.clone()));
         e.window = Window { enabled: true, theta_deg: centre, span_deg: span, fade_deg: 5.0, invert: false, v_gate: Default::default() };
         e.blend = if std::env::var("VISCUM_BARK_ADD").is_ok() { Blend::Add } else { Blend::Subtract };
@@ -1483,7 +1514,7 @@ fn oak_bark(d: &mut RingDesign) {
 }
 
 /// How deep the bark's furrows cut, mm.
-const BARK_DEPTH_MM: f64 = 0.2;
+const BARK_DEPTH_MM: f64 = 0.3;
 /// The bark's lattice shift round the ring, a share of a cell.
 const BARK_OFFSET: f64 = 0.0;
 
@@ -1591,7 +1622,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         let mut cells: std::collections::BTreeMap<(i32, i32, i32), Vec<[u32; 3]>> = Default::default();
         for f in &m.faces {
             let c = f.iter().fold([0.0f64; 3], |a, &i| { let v = m.vertices[i as usize]; [a[0] + v.0 as f64 / 3.0, a[1] + v.1 as f64 / 3.0, a[2] + v.2 as f64 / 3.0] });
-            cells.entry(((c[0] / 2.0).floor() as i32, (c[1] / 2.0).floor() as i32, (c[2] / 2.0).floor() as i32)).or_default().push(*f);
+            cells.entry(((c[0] / 0.5).floor() as i32, (c[1] / 0.5).floor() as i32, (c[2] / 0.5).floor() as i32)).or_default().push(*f);
         }
         for (k, fs) in &cells {
             let mut idx = std::collections::HashMap::new();
@@ -1602,7 +1633,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
             }
             let n = csg::self_crossings(&sol);
             if n > 0 {
-                eprintln!("  crossings {n} near ({}, {}, {}) mm", k.0 * 2 + 1, k.1 * 2 + 1, k.2 * 2 + 1);
+                eprintln!("  crossings {n} near ({:.2}, {:.2}, {:.2}) mm", 0.5 * k.0 as f64 + 0.25, 0.5 * k.1 as f64 + 0.25, 0.5 * k.2 as f64 + 0.25);
             }
         }
     }
@@ -1711,7 +1742,13 @@ fn save_rgb(path: &Path, rgb: &[u8], w: usize, h: usize) -> Result<()> {
 
 fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: mesh::BuildResult, edge: usize) -> Result<()> {
     let fin = render::finished_from(d, lib, built);
-    let parts = fin.parts(render::GOLD);
+    // Berries are smooth fruit, not faceted stones: shade them from their vertex normals.
+    let parts: Vec<render::Part> = fin.parts(render::GOLD).into_iter().map(|mut p| {
+        if p.gem {
+            p.smooth = true;
+        }
+        p
+    }).collect();
     for (name, yaw, pitch) in VIEWS {
         render::write_png_parts(out.join(format!("{name}.png")), &parts, yaw, pitch, edge)?;
     }
@@ -1839,7 +1876,7 @@ fn main() -> Result<()> {
         for (k, (m, tint)) in fin.stones.iter().enumerate() {
             let file = if k == 0 { "reference-moonstone.stl".to_string() } else { format!("reference-moonstone-{k}.stl") };
             stl::write_stl(out.join(&file), m, "Viscum reference stone")?;
-            materials.push(json!({ "mesh": file, "name": "Moonstone", "tint": tint, "ior": 1.52, "dispersion": 0.012, "roughness": 0.18, "transmission": 0.35 }));
+            materials.push(json!({ "mesh": file, "name": "Moonstone", "tint": tint, "ior": 1.52, "dispersion": 0.012, "roughness": 0.18, "transmission": 0.62, "subsurface": 0.5 }));
         }
         std::fs::write(out.join("stones.json"), serde_json::to_vec_pretty(&json!({ "stones": materials }))?)?;
     }
