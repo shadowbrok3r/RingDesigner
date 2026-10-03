@@ -1,53 +1,87 @@
-# Core: CAD operations that stop failing on Gothic geometry
+# Cataphracta: Chamaeleo, cloud report
 
-Branch `claude/core-cad-robust`, off master `8e5a59a`, with master merged in up to `60b3881` (crisp edges, Gothic clusters, frame timing, relief sculpt, true stone plans). One code commit, three merges and this report. The last merge's conflicts were in `twist.rs`, where master's closed and scaled sweep keeps its form and the cap's `fill` takes the label that `cad::draft` and `cad::turn` share, and in CLAUDE.md, where master's twisted-sweep text comes first and the new doctrine bullet follows it.
+Branch `claude/cataphracta-chamaeleo`: `f337575` (block-out, read tests 1 and 2), `a55dc47` (merge of master `2e11632`), `4f9b152` (block-out attempt 3, read test 3), then this report. Nothing was pushed to master and nothing was tagged.
 
-**The rule behind every fix:** each one is a fallback that runs only where the kernel failed. If the kernel already built a body, the core still uses that body, so no existing result moves. The core suite and golden test pass unchanged, and the graph and template tests are below. No new option, no serde field and no format change were needed, so nothing is fenced. `cadkernel` is not forked; every fix is in `cad.rs`, the new `cad/draft.rs` and `cad/turn.rs`, `cad/twist.rs` (two helpers made `pub(super)`) and `sketch/region.rs`.
+## Outcome
 
-## Per request
+**Stopped at the block-out: three read tests failed.** Per TASK.md, the subject needs rethinking, not detailing. No review round was run, so **0 of 3 review rounds were used** and there is no review score. The template gate was not run, because it follows the last round and no round started.
 
-| # | Request | Status | What changed |
+| Read test | Design | `reads` | What the reviewer saw |
 |---|---|---|---|
-| 3 | Revolved arcs do not tessellate | **Fixed** | There were two separate defects. (a) "N nonmanifold edges": the kernel covers a revolved arc's torus seam with a zero-width strip, every triangle laid twice, once each way. `tessellate_traced` now removes opposite twin triangles wherever some edge has more than two faces (`cancel_twins`). The volume is unchanged and the body stays the kernel's. (b) "Kernel could not tessellate 1 faces": the kernel drops a torus face (on Ogiva's arch it is the comfort arc), and whether it does depends on the chord (on one arch it failed at 0.04 mm, passed at 0.015 and failed again at 0.012). Retrying cannot be relied on, so a revolve that has arcs and fails to tessellate becomes our own mesh (`cad::turn`). It is sampled at a quarter of the chord, with full and part turns, holes on full turns, and points on the axis shared. |
-| 4 | Drafted extrusion refuses Béziers and inset-dropping outlines | **Fixed** | When the kernel's tapered extrude refuses a region with no holes, `cad::draft` builds it. The outline is walked to the chord, and the far end is a mitred inset that removes each edge as the wavefront collapses it. Each side face is planar. A draft that would carry a notch's root across the outline (a split event) is refused by name: "the draft closes the outline across a neck or notch". |
-| 7 | Brep − Brep gives `NoClosedForm` (`CutRefused` here) | **Fixed** | When `brep::combine` fails, the Boolean goes through `csg` on the operands tessellated at the export chord, the same path a mesh operand already took. The 500-face refusal before the kernel stays as it was. |
-| 2 | Loft through non-parallel sections has open seams | **Fixed** | The kernel splits a ruled face's straight edge where its planar neighbour leaves it whole, so the seam has T-junctions. `split_t_junctions` fans each open edge's triangle through the open corners lying on it, within 1e-6 mm. No vertex moves. |
-| 6 | Loft only runs along the section normal | **Fixed, differently** | Measured: what decides success is the sections' winding relative to the direction the loft runs, not their order. On the probe's fanned planes, the order the report found working has (c1 − c0) · n0 **> 0**, so the literal rule ("reverse when > 0") would reverse the order that works. Instead, when the kernel refuses a polygon loft, `wound_sections` winds every section about the first-to-last centre line and lines each one up with the section before it. Either order now gives the same solid. |
-| 1 | Loft winding read off the first corner | **Fixed** | The same `wound_sections` pass also starts every section together where the first and last sections are convex at their second corner. The kernel's `polygon_normal` reads that corner through the first fan triangle, so it is the one that matters, not the first corner itself. |
-| 5 | Mirrored outlines in one sketch fail the drafted extrude | **Fixed** | Measured cause: the halves overlap or touch at the centre line, and the sketch refuses "loops may nest but not touch". The extrude itself does not fail. Now a **Sketch feature** whose loops meet extrudes each loop alone (straight, kernel-drafted or `cad::draft`) and joins the loops by `csg`. Inline profiles still refuse several loops, as their tests pin. Each loop is drafted on its own, so halves that only touch leave a draft groove along the line where they meet. Overlap them by at least the draft's inset (height × tan(draft)), as Ogiva's `FINIAL_OVERLAP_MM` did. |
+| 1 | The head in profile, struck on the parting line: a domed head plate, a cranium tier whose lower edge is the mouth, a casque tier, and a ringed turret eye (three cone tiers) holding the alexandrite cabochon as its pupil. Delft. | false | "An abstract stepped signet with a cabochon". The ringed eye read as "a target or a single eye", with no helmet in the silhouette. Changes: casque on the line, 1.8 mm high and 4 mm wide; remove the concentric rings; a 5 mm cushion boss; a tail coil 3.6 to 5 mm in radius on each cheek; granules on the table. |
+| 2 | The plan above, in Delft: casque (Dome, 0.25 + 1.55 mm) on two closed temporal-crest tiers, a 5 × 4 cushion on a boss at along −4, granules cut at the bench on the table flanks, cast granules on the cheeks in a C-R1 clamped group, a dorsal keel and cones, and a tail curling on each cheek. | false | "A tribal or industrial signet": a stud-framed plate, a bullet-shaped boss, and "rivet rows". Changes: a broad helmet casque 1.8 to 2.0 mm high; a tail 4 to 5 mm in radius; open crest steps instead of a closed frame; pebbled granules; bigger cones. |
+| 3 | Judged as **lost wax** (Logan, 2026-10-03). Broad domed casque (0.35 + 1.65 mm, 2.8 to 4 mm wide); two 0.3 mm temporal steps each side, beside it rather than under it; bench-cut granules on the flanks; coil grown to 2.1 mm in radius at the cheek's tallest corner; cones 0.6 + 0.9 mm. | false | "A carved cartouche, like a Maya glyph or a robot mask … perhaps a beetle, a fish or a dinosaur toy, but not a chameleon." The casque reads as a flat pill, the tail as a scroll, and the texture as pits and drips. |
 
-Every fallback part is a mesh value, as `cad::twist` is. Fillet, press-pull and sketch-on-face refuse it by name: "a drafted extrusion's mesh", "a revolution's mesh", "a mesh of loops extruded and joined".
+The reviews are in `showcase/cataphracta/chamaeleo/read-test-{1,2,3}.json`. The renders in that folder are attempt 3's draft set. The attempt 1 and 2 renders were overwritten by later runs; the attempt 1 code is in `f337575`'s history.
 
-## Tests
+## Why it does not read, and what I would rethink
 
-New tests in `cad::robust_tests` and `cad::draft::tests`, each built from the report's kind of geometry:
+- **The table is the only place both cameras look, and the factory table limits the subject.** In two-part sand, every form on the table must step down away from the parting line. That ruled out a plan-view head with its turret eyes, cast granules, and a coil on the table. The profile head (attempt 1) obeyed the rule, but its eye then had to sit on the line in the middle of the head. That gave the "target" read, and the turret's concentric steps are a target.
+- **The tail cannot be big.** The 001 cheek at 17 × 14.5 is a crescent over the bore, 1.9 mm tall at its middle. The largest circle it holds has a radius of 1.78 mm (measured from the atlas; side faces with |n_z| > 0.85). All three reviews asked for a coil 3.6 to 5 mm in radius at the centre of the cheek. That is physically absent on this base, so the tail never reaches the size that names a chameleon.
+- **Recommendation:** lost wax (now allowed) on a **taller procedural or keyed head**, or on a stock whose cheeks are not a thin crescent. Sculpt the head as a part (`sculpt.rs`), not as stacked plates: a real casque silhouette that rises above the table, turret eyes standing out on both sides, and the tail coiled on a side face at least 9 mm tall. The plates-on-a-flat-table approach reads as a glyph three times running.
 
-- `a_revolved_sketch_arc_closes_and_holds_its_volume` (3a): a domed band section, closed at preview and export, volume within 0.4% / 0.15% of Pappus, and still the kernel's body.
-- `a_pointed_arch_revolves_whole_and_in_part` (3b): Ogiva's arch (comfort arc, jambs, two head arcs). It asserts the kernel's own tessellation still fails, then checks the full turn against a fine-walked Pappus within 0.5% / 0.2%, and the half turn either way within 0.5% of half.
-- `a_brep_cut_the_kernel_refuses_is_resolved_by_csg` (7): a revolved ring less a lancet niche. It asserts `brep::combine` still refuses, then checks the volume against the analytic ring less the niche's foot.
-- `a_loft_through_fanned_sections_closes_listed_either_way` (2, 6): five fanned sections, both orders, preview and export, all closed with identical volumes.
-- `a_loft_section_may_start_on_a_concave_corner` (1): asserts `brep::loft` still refuses, then checks the volume is exactly 10.
-- `mirrored_loops_that_meet_extrude_together` (5): straight volume exactly the union's 9.0, drafted below it, closed.
-- `a_bezier_outline_drafts`, `an_inset_that_drops_a_piece_drafts`, `a_draft_the_kernel_takes_is_still_its_body` (4): each asserts `brep::extrude_tapered` still refuses. Checked: the first-order draft volume, the mirrored run, the collapsed tip (5 far corners), the filled notch on the grown rectangle, the named refusal of a split, and that a draft the kernel accepts stays its body.
+## Gates (attempt 3, lost wax)
 
-Reproduced on unmodified master first, with a scratch probe that was not committed: domed revolve "0 open and 16 nonmanifold edges"; arch "Kernel could not tessellate 1 faces"; ring − niche "CutRefused"; Bézier and notch drafts "unsupported or degenerate geometry"; fanned loft "68 open edges" in one order and "unsupported" in the other; overlapping halves "loops may nest but not touch". Tests that cannot fail on master by construction instead assert the kernel's own refusal in place.
+Lost wax judges fill and detail. The sand items are reported as a bonus and gate nothing.
 
-Results:
-- `cargo test -p ringdesign-core`: 848 passed, 0 failed, 16 ignored; golden 1 passed. After merging master up to `60b3881`: 912 passed, 0 failed, 17 ignored; golden and the other integration test both pass.
-- `cargo test -p ringdesign-graph` (templates byte for byte, showcase, bestiarium, imported bases, cad edits): all passed before the merges (140) and after them (152, including the new `gothic_clusters`), 0 failed.
+| Gate | Draft 768 × 320 | 384 × 192 | Export 1536 × 448 |
+|---|---|---|---|
+| Watertight, 0 degenerate faces, 0 self-crossings | yes, 0, 0 | yes, 0, 0 | yes, 0, 0 |
+| Solids notes empty, every stamp struck | yes (13 of 13) | yes | **no**: "Tail, fingertip: could not be joined (two cuts cross inside a face)" |
+| Bore margin (≥ −0.01 mm) | −0.00007 | −0.00018 | −0.00002 |
+| Field verdict (lost wax), thinnest wall ≥ 0.8 mm | Castable, 1.296 mm | Castable, 1.296 mm | Castable, 1.296 mm |
+| DFM findings | 0 | 0 | 0 |
+| Stones reported = preview; metal inside the stone | 1 = 1; 0 | 1 = 1; 0 | 1 = 1; 0 |
+| Triangles | 503,008 | 172,672 | 1,350,252 (≤ 2 M) |
+| Casting pattern closed | — | — | watertight, 0 degenerate, 0 crossings (1,346,420 triangles) |
+| Cold reload with an empty library (`--verify`) | — | — | identical |
+| **Bonus: Delft pull** | blocked: 2 obstructions at 0.100 mm, 3 at 0.075 mm, deepest 1.03 mm; two-part undercut 0.015% | same | blocked; 7 of 13 stamps fail `parting_monotone` (the off-line crests, cones and tails) |
 
-**Merge note.** Master (from `779a3d6`) brought its own seam repair, `zip_chord_seams`, which splits open edges at the other side's samples within the chord. The merged `tessellate_traced` runs master's `stitch_chord_gaps` and then `zip_chord_seams` exactly as master does. Only what those two leave open goes on to `cancel_twins` and `split_t_junctions`, followed by one more stitch. So whatever master's pass already closes is closed byte for byte as master closes it, and my passes see only what it cannot close: the doubled seams, and T-junctions it reverts.
+The export tail join is a fragile boolean that moves with resolution. It passed at draft and 384, and passed at export in an earlier configuration, but it is not fixed. Attempt 2 (Delft) was green on every sand gate at draft and 384: Castable, release 0 and 0 at both steps, clamp bites 0.000, DFM 0, monotone all true. It still failed its read.
 
-## For a ring author
+**Step 0, the bare base:** 001 through the sand master at 17 × 14.5 is watertight, has 0 degenerates and pulls 0 and 0. In Delft it fields "Castable with care", 0.098% at −1.75° on the shoulder crest at 20–40° and 130°. In attempt 2, the knife keel down both shoulders lifted it to Castable. In lost wax the bare base reads Castable.
 
-Draw what you mean and stop working around the kernel:
+**Template gate:** not run. TASK.md runs it after the last round, and none started.
 
-- **Revolves:** use real sketch arcs, not chord-walked polylines.
-- **Drafted extrusions:** Béziers and sharp crocket tips are fine. A draft that would close a neck is refused by name; draft less or widen the neck.
-- **Mirrored outlines:** they may share one Sketch feature. Overlap the halves by at least height × tan(draft), or a groove stays where they meet.
-- **Lofts:** list fanned sections in either order, and start a section on any corner.
-- **Booleans:** a Brep minus a Brep the kernel cannot close now resolves through csg.
+## What each part is (attempt 3)
 
-Each of these comes back as a mesh rather than a kernel body only where the kernel failed. So fillet before the step that falls back, not after it, and check `Value::mesh_words` in any refusal you see.
+- **Alexandrite:** a 5 × 4 cushion (`Gem { l_mm: 5.0, ..calibrated(Cushion, 4.0) }`), tinted [0.18, 0.50, 0.38], on a boss 0.8 mm high (crown 0.85, skirt 0.4) at along −4. Flush, through, with a drill mark; a top-level `Max` entry.
+- **Casque:** a stamp from the occiput's station, `Dome { 1.65 }` over 0.35 mm eaves, a shield from along −0.9 to +7.6, 2.8 mm wide at the brow and 4.0 mm over the occiput.
+- **Temporal crests:** four `Pillow` strips at 0.3 mm, two a side, the upper resting 0.25 mm in from the lower. In lost wax they need not cross the line.
+- **Granules:** my own seeded largest-fit packing (`hide_tile`: radii 0.7, 0.5 and 0.33, lands 0.25). They are cast on the cheeks where |n_z| > 0.97, with masks drawn as SVG in the chart so they travel in the design. On the table they are cut at the bench (lands 0.35 mm deep), because the sand master's envelope fills a cast granule's shadow along the finger into a "drip".
+- **Keel and dorsal crest:** knife `CurveLayer`s on the parting line down both shoulders (13.2 to 36 mm along), and eight graded cone stamps (`stamp_row`, `PartingLine`) on the occiput's shoulder.
+- **Tail:** one stroke per cheek, 0.95 mm tapering to 0.42 mm, running along the crescent and coiling 1.6 turns at the cheek's tallest corner. Along the pull, 0.8 mm high.
 
-What remains: a part turn of a section with holes that the kernel cannot tessellate is still refused. A revolve with arcs now pays one extra tessellation in `body_for`, about the cost of one tessellation, so up to about 0.6 s at export on a large arch.
+## Enablers used
+
+- **C-R1** (clamped group): attempt 2, cheek granules. Bites 0.000 after masking to faces square to the pull. Dropped in lost wax.
+- **C-R4**: hide-space tilings and `##region:` masks (attempt 2); replaced by atlas-drawn SVG masks.
+- **C-R7**: `granule_voronoi`, tried and replaced, because it packs too sparsely (below).
+- **#248**: `StampTop::Pillow` (crests). `crisp_relief` was tried and changed nothing, because the drips were the envelope. It is left off, since the template lift cannot carry it yet.
+- **Not used:** C-B2, C-V1 to C-V5, C-T5 to C-T7, #255, #258, #259.
+
+## Core changes wanted
+
+1. **`granule_voronoi` packs sparsely.** About 18 granules land in a 5 × 5 tile, because it throws each radius in turn and the large ones jam first. Choose the largest radius that fits each throw (`reptile.rs`, in `scatter`):
+   ```rust
+   for _ in 0..60_000 {
+       let c = [next() * w, next() * h];
+       let room = placed.iter().map(|(q, rq)| wrap_dist(c, *q, w, h) - rq - land).fold(f64::MAX, f64::min);
+       if let Some(r) = radii.iter().map(|k| k * base).find(|r| *r <= room) { placed.push((c, r)); }
+   }
+   ```
+   Draw consecutive coordinates from SplitMix64, not an LCG: consecutive LCG pairs lie on lattice planes.
+2. **The sand envelope runs whatever the process is.** In lost wax it still fills every relief's shadow along the pull. In `imported_base.rs`, where the mesh build reads `sand_envelope`:
+   ```rust
+   let envelope = base.sand_envelope && design.draft.process != CastProcess::LostWax;
+   ```
+   Without the envelope, though, the 001 sand master self-crosses (364 crossings at draft). The master's own section also needs closing without it.
+3. **DFM squashes hide-space cells.** `tiling_finest_mm_remapped` multiplies the cell height by `station_stretch` even when `t.space == ChartSpace::Hide`, whose cells are already true millimetres:
+   ```rust
+   let ch = if t.space == ChartSpace::Hide { ch } else { ch * v_scale.clamp(0.05, 8.0) };
+   ```
+4. **`parting_monotone` cannot pass a ridge off a symmetric station.** A stamp framed 5 mm from the head's centre has `frame.x[2] ≈ 0.004`, so its ridge sits 0.02 mm off the line at its far end. That fails the 1e-7 fall test until the frame is turned by hundredths of a degree. `frame_on` could project `x` onto the parting plane, as it already does for `y` across the line.
+
+## Process note
+
+Logan's 2026-10-03 rule, which judges the ring as lost wax, is recorded in the Chamaeleo section of `docs/collections/cataphracta.md`, with the stop. No extra rounds were granted or used.
