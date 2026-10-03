@@ -57,7 +57,7 @@ const TIP_MM: f64 = 0.14;
 /// A cone's root sphere is buried to this share of its radius, so the flank runs straight into the skin with no ball
 /// under it.
 const ROOT_SINK: f64 = 0.72;
-const LEAN_DEG: f64 = 38.0;
+const LEAN_DEG: f64 = 26.0;
 const THORN_BLEND_MM: f64 = 0.22;
 
 // The skin's granules: lattice pitch, bump radius and height.
@@ -68,8 +68,8 @@ const TUBERCLE_PITCH_MM: f64 = 0.8;
 const TUBERCLE_GROOVE_MM: f64 = 0.2;
 const TUBERCLE_MM: f64 = 0.2;
 /// The head's flat scales: cell pitch and height, mm.
-const HEAD_SCALE_PITCH_MM: f64 = 0.85;
-const HEAD_SCALE_MM: f64 = 0.1;
+const HEAD_SCALE_PITCH_MM: f64 = 1.15;
+const HEAD_SCALE_MM: f64 = 0.13;
 /// Round 2's loose granules, off.
 const BALL_GRANULES: bool = false;
 
@@ -105,8 +105,8 @@ fn band() -> RingDesign {
     CastProcess::LostWax.apply(&mut d.draft);
     d.draft.min_section_mm = MIN_SECTION_MM;
     d.draft.min_draft_deg = 0.0;
-    // The ripples' lee faces lie straight across the build grid instead of stepping row by row (design format 6).
-    d.crisp_relief = true;
+    // `crisp_relief` stays off: the template graph cannot yet carry it (its design node fails upstream), and the
+    // ripples' lee faces are gentle enough (0.22 mm over 0.24 mm) not to step at the export grid.
     d
 }
 
@@ -271,7 +271,7 @@ impl Kind {
             ),
             Kind::Minor => Some("minor thorn: relief cast on the body, judged at the 0.15 mm detail floor; its point is left as cast and lightly burnished"),
             Kind::Toe => Some("toe: a slender keeled crest lying on the crown and fused into the band along its whole length; fed from the foot and left as cast"),
-            Kind::Claw => Some("claw: a 0.3 mm point, 0.42 mm across at its base, lying on the crown at the end of each toe and fused into the band along its length, its point pressed into the sand; like a thorn's point it is under the fill floor by design, fed from the toe, and a short-filled point is built back with a laser tack"),
+            Kind::Claw => Some("claw: a 0.3 mm point, 0.42 mm across at its base, lying on the crown at the end of each toe and fused into the band along its length; like a thorn's point it is under the fill floor by design, fed from the toe and the band it lies on, and a short-filled point is built back with a laser tack"),
             Kind::Granule => Some("granule: a 0.5-0.7 mm bead of hide relief on the body, over the 0.15 mm detail floor; left as cast"),
             Kind::Hide => Some("hide tubercle: 0.2 mm pebbled relief on the thick body, read here where a face's ray crosses a tubercle's own flank and leaves within the relief layer; cast as relief over the 0.15 mm detail floor and left as cast"),
             Kind::Limb => Some("wrist where the toes leave the limb: fed along the limb from the body and left as cast"),
@@ -453,7 +453,7 @@ impl<'a> Lizard<'a> {
             let on_limb = ((trunk - limb) / 0.4).clamp(0.0, 1.0);
             let wrist = ((toe - 0.3) / 0.9).clamp(0.0, 1.0);
             let round = (1.0 - on_limb) * TUBERCLE_MM * tubercles(p, TUBERCLE_PITCH_MM, TUBERCLE_GROOVE_MM, 0.45) + on_limb * wrist * 0.07 * tubercles(p, 0.45, 0.1, 0.45);
-            let skin = (1.0 - on_head) * round + on_head * HEAD_SCALE_MM * tubercles(p, HEAD_SCALE_PITCH_MM, 0.09, 0.0);
+            let skin = (1.0 - on_head) * round + on_head * HEAD_SCALE_MM * tubercles(p, HEAD_SCALE_PITCH_MM, 0.1, 0.0);
             f -= fade * skin;
         }
         f.max(self.bore_r + BORE_CLEAR_MM - p[0].hypot(p[1]))
@@ -546,7 +546,7 @@ const TAIL_FROM: f64 = -7.4;
 const TAIL_LEN: f64 = 15.5;
 fn tail_at(t: f64) -> (P3, f64) {
     let x = TAIL_FROM - TAIL_LEN * t;
-    let r = 1.4 * (1.0 - t).powf(0.9) + 0.5 * t;
+    let r = 1.4 * (1.0 - t).powf(0.9) + 0.45 * t;
     ([x, 0.1 * r - 0.05, 0.15 * (2.4 * t).sin()], r)
 }
 
@@ -584,7 +584,7 @@ fn leg_joints(crest: &Crest, x0: f64, dir: f64, s: f64) -> (P3, P3, P3) {
     let (xe, xw) = (x0 + dir * 1.5, x0 + dir * if dir > 0.0 { 2.9 } else { 2.5 });
     // The hind hands rest a little further in from the edge, room for the outer toes between the tail and the edge.
     let ww = crest.half_w_at_x(xw) - if dir < 0.0 { FOOT_IN_MM + 0.2 } else { FOOT_IN_MM };
-    ([x0, 0.6, 3.0 * s], [xe, 0.85, (crest.half_w_at_x(xe) - 0.95) * s], [xw, crest.top_h(xw, ww * s) + 0.3, ww * s])
+    ([x0, 0.6, 3.0 * s], [xe, 1.15, (crest.half_w_at_x(xe) - 0.95) * s], [xw, crest.top_h(xw, ww * s) + 0.3, ww * s])
 }
 
 /// How far in from the band's edge each hand rests on the crown, mm.
@@ -632,7 +632,7 @@ fn body_prims(crest: &Crest) -> Vec<Prim> {
         egg(Kind::Head, [8.75, 1.05, 1.0], [0.85, 0.4, 0.5], 0.0, 0.6),
         egg(Kind::Head, [8.75, 1.05, -1.0], [0.85, 0.4, 0.5], 0.0, 0.6),
         // The snout, blunt and dipped to meet the band.
-        egg(Kind::Head, [10.15, 0.4, 0.0], [0.75, 0.55, 0.8], 0.0, 0.5),
+        egg(Kind::Head, [10.1, 0.45, 0.0], [0.85, 0.55, 0.85], 0.0, 0.8),
     ];
     // What the toes must keep clear of: the trunk, hump, head and tail, without the legs.
     let core: Vec<Prim> = v.iter().copied().chain((0..=26).map(|k| {
@@ -769,15 +769,16 @@ fn major_plans() -> Vec<Plan> {
     }
     // The great shoulder and hip spines.
     pair(&mut out, 1.9, 2.1, 1.8, Kind::Major, 0.45);
-    pair(&mut out, -4.3, 2.1, 1.65, Kind::Major, 0.45);
-    for (x, len) in [(3.4, 1.3), (0.2, 1.45), (-2.2, 1.4), (-5.4, 1.1)] {
+    pair(&mut out, -4.3, 2.0, 1.0, Kind::Major, 0.1);
+    for (x, len) in [(3.4, 1.3), (0.2, 1.45), (-2.2, 1.3), (-5.4, 0.8)] {
         pair(&mut out, x, 0.8, len, Kind::Major, 0.12);
     }
-    for (x, len) in [(-0.9, 1.35), (-2.6, 1.25)] {
-        pair(&mut out, x, 2.55, len, Kind::Major, 0.4);
+    for (x, len) in [(-0.9, 1.35), (-2.6, 1.2)] {
+        pair(&mut out, x, 2.55, len, Kind::Major, 0.15);
     }
-    for (x, len) in [(0.6, 0.95), (-1.9, 1.0), (-5.2, 0.85)] {
-        pair(&mut out, x, 3.45, len, Kind::Major, 0.7);
+    // The flank row stands up off the flank, not out over the cheek.
+    for (x, len) in [(0.6, 0.9), (-1.9, 0.85), (-5.2, 0.55)] {
+        pair(&mut out, x, 3.45, len, Kind::Major, 0.2);
     }
     out
 }
@@ -830,7 +831,7 @@ fn tail_thorn(liz: &Lizard, q: P3, t: f64, len: f64) -> Option<(Prim, P3, f64)> 
 }
 
 /// How far a tail thorn rises off the tail's line, degrees.
-const TAIL_THORN_OFF_DEG: f64 = 28.0;
+const TAIL_THORN_OFF_DEG: f64 = 22.0;
 
 /// A horn bent back over the brow: a stout cone up and out, then a second leaning back to the point.
 fn horn(liz: &Lizard, x: f64, w: f64, len: f64) -> Option<[Prim; 2]> {
@@ -840,9 +841,11 @@ fn horn(liz: &Lizard, x: f64, w: f64, len: f64) -> Option<[Prim; 2]> {
     let theta = p[1].atan2(p[0]);
     let back = [theta.sin(), -theta.cos(), 0.0];
     let out = [0.0, 0.0, w.signum()];
-    let d1 = unit(add(add(n, mul(back, 0.35)), mul(out, 0.55)));
+    // Up off the ring, not off the head's steep flank, so neither horn juts sideways like a snout cone.
+    let up = unit([p[0], p[1], 0.0]);
+    let d1 = unit(add(add(up, mul(back, 0.45)), mul(out, 0.22)));
     let knee = add(p, mul(d1, 0.55 * len));
-    let d2 = unit(add(add(n, mul(back, 1.2)), mul(out, 0.5)));
+    let d2 = unit(add(add(up, mul(back, 1.3)), mul(out, 0.18)));
     let tip = add(knee, mul(d2, 0.55 * len));
     let root = 0.42 * len;
     Some([
@@ -910,11 +913,15 @@ fn build_lizard<'a>(frame: Frame<'a>, bore_r: f64) -> Lizard<'a> {
     for k in 0..13 {
         let t = (k as f64 + 0.5) / 13.5;
         let (c, r) = tail_at(t);
-        let len = 0.7 - 0.35 * t;
+        // The last stretch is a bare rounded taper: no thorn stands at the tip.
+        if t > 0.8 {
+            continue;
+        }
+        let len = 0.55 - 0.25 * t;
         let turn = if k % 2 == 0 { 0.0 } else { 0.5 };
         for j in [-1.0, 0.0, 1.0] {
-            let phi = ((j + turn) * 38.0f64).to_radians();
-            if phi.abs() > 0.75 {
+            let phi = ((j + turn) * 30.0f64).to_radians();
+            if phi.abs() > 0.55 {
                 continue;
             }
             let q = [c[0], c[1] + TAIL_FLAT * r * phi.cos(), c[2] + r * phi.sin()];
@@ -932,7 +939,7 @@ fn build_lizard<'a>(frame: Frame<'a>, bore_r: f64) -> Lizard<'a> {
     for s in [1.0, -1.0] {
         for (x0, dir) in LEGS {
             let (sh, el, wr) = leg_joints(liz.frame.crest, x0, dir, s);
-            for (from, to, ra, rb, t, len) in [(sh, el, LIMB_R.0, LIMB_R.1, 0.35, 0.45), (sh, el, LIMB_R.0, LIMB_R.1, 0.7, 0.42), (el, wr, LIMB_R.1, LIMB_R.2, 0.45, 0.38)] {
+            for (from, to, ra, rb, t, len) in [(sh, el, LIMB_R.0, LIMB_R.1, 0.4, 0.42), (el, wr, LIMB_R.1, LIMB_R.2, 0.4, 0.36)] {
                 let c: P3 = std::array::from_fn(|k| from[k] + (to[k] - from[k]) * t);
                 let r = ra + (rb - ra) * t;
                 let q = add(c, mul(unit([0.0, 0.9, 0.35 * s]), r));
@@ -1143,22 +1150,23 @@ fn sculpt_solid(liz: &mut Lizard, comp: &mut Composition) -> csg::Solid {
 /// about a crest is a smooth function of `s`, so it is seamless at the joins: where it lies (the spacing to the next
 /// crest wanders between 1.0 and 1.8 mm), how it wavers, and how tall it stands (some crests sink away and pick up
 /// again). The profile is a dune ripple's: a long gentle windward slope, a rounded crest and a short steep lee, drawn
-/// as nested bands of ink so the height climbs in fine even steps under a light blur. Faint micro-ripples lie in the
-/// troughs.
+/// as nested bands of ink so the height climbs in fine even steps under a light blur.
 fn ripples_svg(w: f64, h: f64) -> String {
     use std::fmt::Write;
     let tau = std::f64::consts::TAU;
     // The spacing to the next crest, and the crest line's place across the tile at `s`, mm.
-    let spacing = |s: f64| 1.4 + 0.28 * (tau * 0.37 * s + 0.4).sin() + 0.12 * (tau * 1.13 * s + 2.2).sin();
+    let spacing = |s: f64| 1.7 + 0.18 * (tau * 0.37 * s + 0.4).sin() + 0.06 * (tau * 1.13 * s + 2.2).sin();
     let place = |s: f64| {
         // The integral of the spacing, so neighbouring crests sit one spacing apart.
-        1.4 * s - 0.28 / (tau * 0.37) * ((tau * 0.37 * s + 0.4).cos() - 0.4f64.cos()) - 0.12 / (tau * 1.13) * ((tau * 1.13 * s + 2.2).cos() - 2.2f64.cos())
+        1.7 * s - 0.18 / (tau * 0.37) * ((tau * 0.37 * s + 0.4).cos() - 0.4f64.cos()) - 0.06 / (tau * 1.13) * ((tau * 1.13 * s + 2.2).cos() - 2.2f64.cos())
     };
-    let waver = |s: f64| 0.09 * (tau * 1.31 * s + 0.3).sin() + 0.04 * (tau * 2.71 * s + 1.7).sin();
+    // Close to whole cycles per crest, so neighbouring crests sway nearly in step: one coherent sinuous field, as
+    // wind ripples run, rather than lines drifting across each other like grain.
+    let waver = |s: f64| 0.16 * (tau * 2.06 * s + 0.3).sin() + 0.05 * (tau * 1.03 * s + 1.7).sin();
     // The crest's height, 0..1: it rises and falls along the crest, and sinks away where the crest breaks.
-    let breaks = [0.31, 1.62, 2.47, 3.83, 4.36, 5.71, 6.94, 7.52, 8.68];
+    let breaks = [0.31, 2.47, 4.36, 6.94];
     let tall = |s: f64| {
-        let base = 0.78 + 0.16 * (tau * 0.83 * s + 1.1).sin() + 0.06 * (tau * 2.3 * s).sin();
+        let base = 0.86 + 0.12 * (tau * 0.83 * s + 1.1).sin();
         let gap = breaks.iter().map(|&b| { let d = ((s - b) / 0.075).powi(2); (-d).exp() }).fold(0.0, f64::max);
         (base * (1.0 - gap)).clamp(0.0, 1.0)
     };
@@ -1173,29 +1181,9 @@ fn ripples_svg(w: f64, h: f64) -> String {
         lo
     };
     let (i0, i1) = ((s_of(-2.5) - 1.0).floor() as i64, (s_of(h + 2.5) + 1.0).ceil() as i64);
-    const LEVELS: usize = 18;
-    const STEP_MM: f64 = 0.04;
+    const LEVELS: usize = 14;
+    const STEP_MM: f64 = 0.1;
     let mut body = String::new();
-    // The micro-ripples first, under the crests' bands.
-    for i in i0..=i1 {
-        let at = |u: f64, i: i64| {
-            let s = i as f64 + u / w;
-            (place(s) + waver(s), spacing(s), tall(s))
-        };
-        for k in 1..=3 {
-            let mut d = String::new();
-            let mut u = -0.2;
-            let mut first = true;
-            while u <= w + 0.2 {
-                let (y, gap, _) = at(u, i);
-                let y = y + gap * (0.22 + 0.24 * (k - 1) as f64);
-                let _ = write!(d, "{}{u:.3} {y:.3}", if first { "M" } else { " L" });
-                first = false;
-                u += STEP_MM;
-            }
-            let _ = write!(body, r##"<path d="{d}" fill="none" stroke="#000" stroke-opacity="0.13" stroke-width="0.16"/>"##);
-        }
-    }
     // Each crest as nested bands: level j covers where the profile stands at least (j - 0.5) / LEVELS of the crest, and
     // its opacity makes the stack's ink exactly j / LEVELS there.
     for i in i0..=i1 {
@@ -1210,8 +1198,8 @@ fn ripples_svg(w: f64, h: f64) -> String {
                 if a > level {
                     // Windward reach on the low side, lee on the high side: height = a (1 - (d / reach)^p).
                     let share = 1.0 - level / a;
-                    let wind = 0.6 * gap * share.powf(1.0 / 1.7);
-                    let lee = 0.17 * gap * share.powf(1.0 / 1.5);
+                    let wind = 0.62 * gap * share.powf(1.0 / 1.7);
+                    let lee = 0.14 * gap * share.powf(1.0 / 1.6);
                     runs.last_mut().unwrap().push((u, y - wind, y + lee));
                 } else if !runs.last().unwrap().is_empty() {
                     runs.push(Vec::new());
@@ -1221,10 +1209,10 @@ fn ripples_svg(w: f64, h: f64) -> String {
             for run in runs.iter().filter(|r| r.len() > 1) {
                 let mut d = String::new();
                 for (k, (u, top, _)) in run.iter().enumerate() {
-                    let _ = write!(d, "{}{u:.3} {top:.3}", if k == 0 { "M" } else { " L" });
+                    let _ = write!(d, "{}{u:.2} {top:.2}", if k == 0 { "M" } else { " L" });
                 }
                 for (u, _, bottom) in run.iter().rev() {
-                    let _ = write!(d, " L{u:.3} {bottom:.3}");
+                    let _ = write!(d, " L{u:.2} {bottom:.2}");
                 }
                 let _ = write!(body, r##"<path d="{d}Z" fill="#000" fill-opacity="{opacity:.4}"/>"##);
             }

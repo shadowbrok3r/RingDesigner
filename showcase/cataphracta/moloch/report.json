@@ -6,11 +6,11 @@
   },
   "bore_mm": 18.599999036082675,
   "build": {
-    "author_s": 191.600516854,
-    "build_s": 4.690459849,
+    "author_s": 218.823694838,
+    "build_s": 4.658871834,
     "profile_steps": 448,
     "theta_steps": 1536,
-    "triangles": 1402610
+    "triangles": 1402980
   },
   "coarse_384x192": {
     "degenerate_faces": 0,
@@ -23,7 +23,7 @@
     "notes": [],
     "parts_joined": 1,
     "self_crossings": 0,
-    "triangles": 274410,
+    "triangles": 274554,
     "watertight": true
   },
   "cold_reload_identical": true,
@@ -42,12 +42,14 @@
       230000,
       0.002
     ],
-    "dropped": [],
-    "past_cheek_mm": -0.2722221607874733,
+    "dropped": [
+      "relax undone within 0.3 mm of 7 crossings"
+    ],
+    "past_cheek_mm": -0.26330259278198653,
     "sculpt_box_mm": [
       [
         -8.04868206668999,
-        -8.30797403825439,
+        -8.305191663422729,
         -10.0
       ],
       [
@@ -56,13 +58,13 @@
         10.0
       ]
     ],
-    "sculpt_faces": 202640,
-    "sculpt_raw_faces": 746456,
-    "sculpt_s": 187.710313098,
-    "sculpt_volume_mm3": 397.42863896843124,
+    "sculpt_faces": 204142,
+    "sculpt_raw_faces": 753764,
+    "sculpt_s": 214.86572085,
+    "sculpt_volume_mm3": 397.2157728864467,
     "thorn_lengths_mm": [
-      0.3078148566543142,
-      1.6778703347862511
+      0.2829626652375273,
+      1.7395013560704284
     ],
     "thorns_by_kind": [
       [
@@ -79,16 +81,16 @@
       ],
       [
         "minor thorns",
-        42
+        62
       ],
       [
         "tail thorns",
-        23
+        17
       ]
     ]
   },
   "design": {
-    "bytes": 3658109
+    "bytes": 2812186
   },
   "dfm_findings": [],
   "draft": {
@@ -100,12 +102,12 @@
   "field": {
     "band_verdict": "Castable",
     "notes": [
-      "Lost wax: 9.89% of the surface would undercut a two-part pull (worst 34.9 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Undercut 0–358° on the crest: 119.1 mm² leaning to 33° — no single layer explains it.",
-      "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 389.1 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Thorny devil\" (#2) would undercut a two-part pull over 113.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: 10.46% of the surface would undercut a two-part pull (worst 32.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 0–358° on the crest: 124.6 mm² leaning to 30° — caused by \"Sand ripples\"; muting it clears it.",
+      "Measured with the ring as built: 1 CAD part (1 joined, 0 cut), 396.8 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Thorny devil\" (#2) would undercut a two-part pull over 109.8 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
-    "thinnest_wall_mm": 1.6606335562223808,
+    "thinnest_wall_mm": 1.6593735818636794,
     "verdict": "Castable"
   },
   "gates": [
@@ -161,160 +163,160 @@
   "gates_passed": true,
   "gates_that_apply": "lost wax: geometry, bore, field fill verdict at 0.8 mm, land widths, DFM, stones, 384 x 192, pattern, triangles, cold reload. The sand gates (ray release, draft-clamp bites, two-part Castable, parting_monotone) do not apply; the two-part undercut is reported as a number.",
   "land_widths": {
-    "band_thinnest_wall_mm": 1.6606335562223808,
+    "band_thinnest_wall_mm": 1.6593735818636794,
     "by_kind": [
       {
         "kind": "body",
         "thinnest_at_deg_r_z": [
-          89.44989094653683,
-          10.606752664803352,
-          -1.410917366221037
+          66.52315695844804,
+          13.913112437640883,
+          1.2979396306525903
         ],
-        "thinnest_mm": 0.8003326734523749,
+        "thinnest_mm": 0.800515032447717,
         "treatment": null,
         "under_floor_mm2": 0.0
       },
       {
         "kind": "nuchal hump",
         "thinnest_at_deg_r_z": [
-          100.78598045821006,
-          14.36852260199567,
-          1.2355154575492129
+          97.01009784138213,
+          13.0700678360044,
+          -1.8541458673219116
         ],
-        "thinnest_mm": 0.8019056232492574,
+        "thinnest_mm": 0.8091658682377247,
         "treatment": null,
         "under_floor_mm2": 0.0
       },
       {
         "kind": "head and neck",
         "thinnest_at_deg_r_z": [
-          109.0411119773065,
-          11.386493233700332,
-          0.6366924891264761
+          114.74816158837464,
+          11.750385416680038,
+          -1.2140892815580115
         ],
-        "thinnest_mm": 0.8012434019116587,
+        "thinnest_mm": 0.8000989535918559,
         "treatment": null,
         "under_floor_mm2": 0.0
       },
       {
         "kind": "limbs",
         "thinnest_at_deg_r_z": [
-          95.95978699025999,
-          12.853811224212668,
-          4.288804475528498
+          41.19265259286806,
+          11.46929880860721,
+          2.5293308341471423
         ],
-        "thinnest_mm": 0.8004043432276025,
+        "thinnest_mm": 0.8000419623839081,
         "treatment": null,
         "under_floor_mm2": 0.0
       },
       {
         "kind": "toes",
         "thinnest_at_deg_r_z": [
-          30.438627421132264,
-          11.187777714962857,
-          -3.0061432522986964
+          111.1469938952571,
+          11.208672659776552,
+          -3.00531383613801
         ],
-        "thinnest_mm": 0.6305825707592321,
-        "treatment": "toe: a slender keeled crest lying on the crown and fused into the band along its whole length; fed from the foot and left as cast. Measured thinnest section: 0.631 mm.",
-        "under_floor_mm2": 0.07003062243845061
+        "thinnest_mm": 0.6528837297644573,
+        "treatment": "toe: a slender keeled crest lying on the crown and fused into the band along its whole length; fed from the foot and left as cast. Measured thinnest section: 0.653 mm.",
+        "under_floor_mm2": 0.026854409902861864
       },
       {
         "kind": "claws",
         "thinnest_at_deg_r_z": [
-          29.16734329016091,
-          11.18195885705873,
-          3.160475842558875
+          30.98986074082593,
+          11.073790189965921,
+          3.6098999604892903
         ],
-        "thinnest_mm": 0.05042115928940724,
-        "treatment": "claw: a 0.3 mm point, 0.42 mm across at its base, lying on the crown at the end of each toe and fused into the band along its length, its point pressed into the sand; like a thorn's point it is under the fill floor by design, fed from the toe, and a short-filled point is built back with a laser tack. Measured thinnest section: 0.050 mm.",
-        "under_floor_mm2": 1.822118130878676
+        "thinnest_mm": 0.009455566511692031,
+        "treatment": "claw: a 0.3 mm point, 0.42 mm across at its base, lying on the crown at the end of each toe and fused into the band along its length; like a thorn's point it is under the fill floor by design, fed from the toe and the band it lies on, and a short-filled point is built back with a laser tack. Measured thinnest section: 0.009 mm.",
+        "under_floor_mm2": 1.840168183645066
       },
       {
         "kind": "tail",
         "thinnest_at_deg_r_z": [
-          -8.44623351509181,
-          11.223562765419121,
-          -0.7816091897993377
+          -37.22294333094834,
+          11.18912605174313,
+          -0.2935699471690133
         ],
-        "thinnest_mm": 0.8005478274859193,
+        "thinnest_mm": 0.8001430623532166,
         "treatment": null,
         "under_floor_mm2": 0.0
       },
       {
         "kind": "hump spines",
         "thinnest_at_deg_r_z": [
-          98.98560374856201,
-          14.92661935772786,
-          -0.685597841705506
+          98.94304221955643,
+          14.918952345229982,
+          -0.6886105959415576
         ],
-        "thinnest_mm": 0.01514872056379722,
-        "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to its rounded point (a 0.28 mm tip sphere); the thinnest reading is a ray leaving a facet on the point's flank, stated below as measured; fed through its root (over the floor) from the body and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.015 mm.",
-        "under_floor_mm2": 3.376763590467032
+        "thinnest_mm": 0.0350522041965581,
+        "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to its rounded point (a 0.28 mm tip sphere); the thinnest reading is a ray leaving a facet on the point's flank, stated below as measured; fed through its root (over the floor) from the body and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.035 mm.",
+        "under_floor_mm2": 3.432126752597027
       },
       {
         "kind": "brow horns",
         "thinnest_at_deg_r_z": [
-          115.9506144158802,
-          13.219969083364646,
-          -0.6181991659731516
+          116.9400178165953,
+          12.851802450962541,
+          -1.1592423617257737
         ],
-        "thinnest_mm": 0.009070117796617667,
-        "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to its rounded point (a 0.28 mm tip sphere); the thinnest reading is a ray leaving a facet on the point's flank, stated below as measured; fed through its root (over the floor) from the body and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.009 mm.",
-        "under_floor_mm2": 2.427901884841042
+        "thinnest_mm": 0.0030894670439884303,
+        "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to its rounded point (a 0.28 mm tip sphere); the thinnest reading is a ray leaving a facet on the point's flank, stated below as measured; fed through its root (over the floor) from the body and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.003 mm.",
+        "under_floor_mm2": 2.5926582261387057
       },
       {
         "kind": "major thorns",
         "thinnest_at_deg_r_z": [
-          71.73453135968538,
-          12.811697149972252,
-          3.697560627578193
+          65.4425657727228,
+          13.577279358410928,
+          -3.0938291030793565
         ],
-        "thinnest_mm": 0.0025449830432226106,
-        "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to its rounded point (a 0.28 mm tip sphere); the thinnest reading is a ray leaving a facet on the point's flank, stated below as measured; fed through its root (over the floor) from the body and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.003 mm.",
-        "under_floor_mm2": 18.173873399178827
+        "thinnest_mm": 0.0012408558894335456,
+        "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to its rounded point (a 0.28 mm tip sphere); the thinnest reading is a ray leaving a facet on the point's flank, stated below as measured; fed through its root (over the floor) from the body and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.001 mm.",
+        "under_floor_mm2": 18.204235886480042
       },
       {
         "kind": "minor thorns",
         "thinnest_at_deg_r_z": [
-          105.76860369783769,
-          13.298439244481314,
-          -1.4070384508757101
+          55.313800493351316,
+          13.793415860135983,
+          1.5154025744205368
         ],
-        "thinnest_mm": 0.0029440934337578487,
-        "treatment": "minor thorn: relief cast on the body, judged at the 0.15 mm detail floor; its point is left as cast and lightly burnished. Measured thinnest section: 0.003 mm.",
-        "under_floor_mm2": 10.980462295198825
+        "thinnest_mm": 0.00011975086812056774,
+        "treatment": "minor thorn: relief cast on the body, judged at the 0.15 mm detail floor; its point is left as cast and lightly burnished. Measured thinnest section: 0.000 mm.",
+        "under_floor_mm2": 16.986603736490334
       },
       {
         "kind": "tail thorns",
         "thinnest_at_deg_r_z": [
-          31.047697893518976,
-          12.608167193828185,
-          0.9134087418168129
+          1.906868757212259,
+          12.074169149468432,
+          0.8585489102178316
         ],
-        "thinnest_mm": 0.0006557001184753971,
-        "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to its rounded point (a 0.28 mm tip sphere); the thinnest reading is a ray leaving a facet on the point's flank, stated below as measured; fed through its root (over the floor) from the body and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.001 mm.",
-        "under_floor_mm2": 2.051308940913265
+        "thinnest_mm": 0.0033479326320574165,
+        "treatment": "thorn point: the cone's last 0.6 mm tapers under the fill floor to its rounded point (a 0.28 mm tip sphere); the thinnest reading is a ray leaving a facet on the point's flank, stated below as measured; fed through its root (over the floor) from the body and invested point up; a short-filled point is built back with a laser tack and filed to shape. Measured thinnest section: 0.003 mm.",
+        "under_floor_mm2": 0.7089531078382431
       },
       {
         "kind": "hide tubercles",
         "thinnest_at_deg_r_z": [
-          29.64389124117408,
-          12.389073524025877,
-          0.9705711329230501
+          67.39882198586483,
+          13.940468508515316,
+          -1.7154424352952558
         ],
-        "thinnest_mm": 0.0005596403018151121,
-        "treatment": "hide tubercle: 0.2 mm pebbled relief on the thick body, read here where a face's ray crosses a tubercle's own flank and leaves within the relief layer; cast as relief over the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.001 mm.",
-        "under_floor_mm2": 16.339103910534703
+        "thinnest_mm": 0.0001169389366361318,
+        "treatment": "hide tubercle: 0.2 mm pebbled relief on the thick body, read here where a face's ray crosses a tubercle's own flank and leaves within the relief layer; cast as relief over the 0.15 mm detail floor and left as cast. Measured thinnest section: 0.000 mm.",
+        "under_floor_mm2": 20.536148984259498
       }
     ],
     "detail_floor_mm": 0.15,
     "floor_mm": 0.8,
     "method": "dfm::part_sections on the sculpted part (one ray per face along its inward normal), and the same per face gathered by the shape nearest each face",
     "part_sections": {
-      "area_mm2": 609.9835402153167,
+      "area_mm2": 622.8542122343268,
       "part": "Thorny devil",
-      "thinnest_mm": 0.0005596403018130233,
-      "under_floor_mm2": 55.24156277445098
+      "thinnest_mm": 0.00011693893663489226,
+      "under_floor_mm2": 64.3277492873517
     },
     "unnamed_under_floor": []
   },
@@ -329,23 +331,23 @@
     "notes": [],
     "parts_joined": 1,
     "self_crossings": 0,
-    "triangles": 1402610,
+    "triangles": 1402980,
     "watertight": true
   },
   "name": "Moloch — the thorn idol",
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 1402610,
+    "triangles": 1402980,
     "watertight": true
   },
   "process": "Lost wax",
   "sculpt": {
-    "faces": 202640,
+    "faces": 204142,
     "open_edges": 0,
-    "raw_faces": 746456,
+    "raw_faces": 753764,
     "self_crossings": 0,
-    "volume_mm3": 397.42863896843124
+    "volume_mm3": 397.2157728864467
   },
   "size": "US 8.6",
   "slug": "moloch",
@@ -354,10 +356,10 @@
     "reported": 0
   },
   "two_part_undercut": {
-    "band_percent": 9.88993153728505,
+    "band_percent": 10.462604852307733,
     "note": "reported only: lost wax judges fill and detail, never the pull",
-    "parts_area_mm2": 389.13839013613836,
-    "parts_undercut_mm2": 113.3819864957259,
-    "with_parts_percent": 14.61910537831344
+    "parts_area_mm2": 396.8210870019824,
+    "parts_undercut_mm2": 109.94606007462302,
+    "with_parts_percent": 14.75216608084257
   }
 }
