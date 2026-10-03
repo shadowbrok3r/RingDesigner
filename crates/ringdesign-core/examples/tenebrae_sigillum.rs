@@ -194,7 +194,7 @@ fn blade(p0: [f64; 2], p1: [f64; 2], w: f64, at: f64, blunt: f64) -> Vec<[f64; 2
     let (dx, dy) = (p1[0] - p0[0], p1[1] - p0[1]);
     let l = dx.hypot(dy);
     let (d, n) = ([dx / l, dy / l], [-dy / l, dx / l]);
-    let n_steps = ((l / 0.05).ceil() as usize).max(16);
+    let n_steps = ((l / 0.1).ceil() as usize).max(10);
     let half = |t: f64| {
         let u = if t < at { t / at } else { 1.0 - (t - at) / (1.0 - at) };
         let u = u.clamp(0.0, 1.0);
@@ -271,7 +271,8 @@ fn fleur(height: f64, depth: f64) -> Vec<Part> {
     // Each part is a modelled hollow: shallow at its walls, falling to a spine or a point, so its two sides catch the
     // light apart in any view.
     let wall = depth - FLEUR_MODEL_MM;
-    let spine = |a: [f64; 2], b: [f64; 2]| StampTop::Ridge { rise_mm: FLEUR_MODEL_MM, from: fitp(a), to: fitp(b), end_mm: 0.5 * FLEUR_MODEL_MM };
+    // A pillowed hollow: creaseless, deepest along the part's middle.
+    let spine = |_a: [f64; 2], _b: [f64; 2]| StampTop::Pillow { crown_mm: FLEUR_MODEL_MM };
     let part = |name: &str, outline: Vec<[f64; 2]>, top: StampTop| Part { name: format!("Seal fleur, {name}"), outline: fit(outline), depth: wall, top };
     let mut parts = vec![
         part("centre petal", blade([0.0, -0.3], [0.0, hi], 1.5, 0.42, 0.6), spine([0.0, -0.1], [0.0, 3.0])),
@@ -452,7 +453,7 @@ fn legend(text: &str, r_in: f64, r_out: f64, depth: f64) -> Vec<Part> {
 
 /// A band `w` wide along the arc about `c` of radius `r` from `a0` to `a1` (radians). Counter-clockwise.
 fn arc_band(c: [f64; 2], r: f64, a0: f64, a1: f64, w: f64) -> Vec<[f64; 2]> {
-    let n = (((a1 - a0).abs() * r / 0.06).ceil() as usize).max(12);
+    let n = (((a1 - a0).abs() * r / 0.15).ceil() as usize).max(6);
     let mut out = arc(c, r + 0.5 * w, a0, a1, n);
     out.extend(arc(c, r - 0.5 * w, a1, a0, n));
     out.dedup();
@@ -635,15 +636,15 @@ fn lancet(w: f64, h: f64) -> Vec<[f64; 2]> {
     let base = -0.5 * h;
     let spring = 0.5 * h - rise;
     let mut pts = vec![[-half, base], [half, base]];
-    let n = 16;
+    let n = 4;
     for k in 1..n {
         pts.push([half, base + (spring - base) * k as f64 / n as f64]);
     }
     // Right flank: centred on the far side, from the right springing up to the point.
     let top = rise.atan2(rho - half);
-    pts.extend(arc([half - rho, spring], rho, 0.0, top, 24));
+    pts.extend(arc([half - rho, spring], rho, 0.0, top, 12));
     // Left flank, from the point down to the left springing.
-    pts.extend(arc([rho - half, spring], rho, PI - top, PI, 24).into_iter().skip(1));
+    pts.extend(arc([rho - half, spring], rho, PI - top, PI, 12).into_iter().skip(1));
     for k in 1..n {
         pts.push([-half, spring + (base - spring) * k as f64 / n as f64]);
     }

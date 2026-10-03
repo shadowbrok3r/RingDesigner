@@ -5,21 +5,21 @@
     "degenerate_faces": 0,
     "pass": true,
     "self_crossings": 0,
-    "triangles": 1369982,
+    "triangles": 1367112,
     "watertight": true
   },
   "cold_reload_identical": true,
   "deepest_bench_cut_mm": 0.95,
-  "design_bytes": 1129431,
+  "design_bytes": 705970,
   "design_format": 6,
   "draft": {
-    "bore_margin_mm": -4.7445255546563203e-7,
+    "bore_margin_mm": -4.7445255546563203E-7,
     "boundary_edges": 0,
     "build": [
       768,
       320
     ],
-    "build_s": 9.268732857,
+    "build_s": 6.8482373469999995,
     "cad": {
       "features": [],
       "made_parts": [],
@@ -35,7 +35,7 @@
       "Cut at the bench after casting, and so not judged here: Seal field, Quatrefoil rule 1, 1, Quatrefoil rule 1, 2, Quatrefoil rule 1, 3, Quatrefoil rule 1, 4, Quatrefoil rule 2, 1, Quatrefoil rule 2, 2, Quatrefoil rule 2, 3, Quatrefoil rule 2, 4, Quatrefoil rule 3, 1, Quatrefoil rule 3, 2, Quatrefoil rule 3, 3, Quatrefoil rule 3, 4, Quatrefoil rule 4, 1, Quatrefoil rule 4, 2, Quatrefoil rule 4, 3, Quatrefoil rule 4, 4, Quatrefoil rule 5, 1, Quatrefoil rule 5, 2, Quatrefoil rule 5, 3, Quatrefoil rule 5, 4, Quatrefoil rule 6, 1, Quatrefoil rule 6, 2, Quatrefoil rule 6, 3, Quatrefoil rule 6, 4, Quatrefoil rule 7, 1, Quatrefoil rule 7, 2, Quatrefoil rule 7, 3, Quatrefoil rule 7, 4, Quatrefoil rule 8, 1, Quatrefoil rule 8, 2, Quatrefoil rule 8, 3, Quatrefoil rule 8, 4, Seal fleur, centre petal, Seal fleur, band, Seal fleur, foot, Seal fleur, right petal, Seal fleur, right spike, Seal fleur, left petal, Seal fleur, left spike, Cusped border, foil 1, 1, Cusped border, foil 1, 2, Cusped border, foil 1, 3, Cusped border, foil 1, 4, Cusped border, foil 2, 1, Cusped border, foil 2, 2, Cusped border, foil 2, 3, Cusped border, foil 2, 4, Cusped border, foil 3, 1, Cusped border, foil 3, 2, Cusped border, foil 3, 3, Cusped border, foil 3, 4, Cusped border, foil 4, 1, Cusped border, foil 4, 2, Cusped border, foil 4, 3, Cusped border, foil 4, 4, Cusped border, foil 5, 1, Cusped border, foil 5, 2, Cusped border, foil 5, 3, Cusped border, foil 5, 4, Cusped border, foil 6, 1, Cusped border, foil 6, 2, Cusped border, foil 6, 3, Cusped border, foil 6, 4, Cusped border, foil 7, 1, Cusped border, foil 7, 2, Cusped border, foil 7, 3, Cusped border, foil 7, 4, Cusped border, foil 8, 1, Cusped border, foil 8, 2, Cusped border, foil 8, 3, Cusped border, foil 8, 4, Cusped border, foil 9, 1, Cusped border, foil 9, 2, Cusped border, foil 9, 3, Cusped border, foil 9, 4, Cusped border, foil 10, 1, Cusped border, foil 10, 2, Cusped border, foil 10, 3, Cusped border, foil 10, 4, Cusped border, foil 11, 1, Cusped border, foil 11, 2, Cusped border, foil 11, 3, Cusped border, foil 11, 4, Cusped border, foil 12, 1, Cusped border, foil 12, 2, Cusped border, foil 12, 3, Cusped border, foil 12, 4, Cusped border, point 1, Cusped border, point 2, Cusped border, point 3, Cusped border, point 4, Cusped border, point 5, Cusped border, point 6, Cusped border, point 7, Cusped border, point 8, Cusped border, point 9, Cusped border, point 10, Cusped border, point 11, Cusped border, point 12, Cusped border, circle, 1, Cusped border, circle, 2, Cusped border, circle, 3, Cusped border, circle, 4, Cusped border, circle, 5, Cusped border, circle, 6, Cusped border, circle, 7, Cusped border, circle, 8, Cusped border, circle, 9, Cusped border, circle, 10, Cusped border, circle, 11, Cusped border, circle, 12, Cusped border, circle, 13, Cusped border, circle, 14, Cusped border, circle, 15, Cusped border, circle, 16, Cusped border, circle, 17, Cusped border, circle, 18, Cusped border, circle, 19, Cusped border, circle, 20, Cusped border, circle, 21, Cusped border, circle, 22, Cusped border, circle, 23, Cusped border, circle, 24, Cusped border, circle, 25, Cusped border, circle, 26, Cusped border, circle, 27, Cusped border, circle, 28, Cusped border, circle, 29, Cusped border, circle, 30, Cusped border, circle, 31, Cusped border, circle, 32, Cusped border, circle, 33, Cusped border, circle, 34, Cusped border, circle, 35, Cusped border, circle, 36, Cusped border, circle, 37, Cusped border, circle, 38, Cusped border, circle, 39, Cusped border, circle, 40, Cusped border, circle, 41, Cusped border, circle, 42, Legend, cross, Legend, s 2 cut 1, Legend, s 2 cut 2, Legend, s 2 cut 3, Legend, s 2 cut 4, Legend, s 2 cut 5, Legend, i 3 cut 1, Legend, i 3 cut 2, Legend, g 4 cut 1, Legend, g 4 cut 2, Legend, g 4 cut 3, Legend, g 4 cut 4, Legend, g 4 cut 5, Legend, i 5 cut 1, Legend, i 5 cut 2, Legend, l 6 cut 1, Legend, l 7 cut 1, Legend, u 8 cut 1, Legend, u 8 cut 2, Legend, u 8 cut 3, Legend, m 9 cut 1, Legend, m 9 cut 2, Legend, m 9 cut 3, Legend, m 9 cut 4, Legend, m 9 cut 5, Legend, c 11 cut 1, Legend, c 11 cut 2, Legend, c 11 cut 3, Legend, a 12 cut 1, Legend, a 12 cut 2, Legend, a 12 cut 3, Legend, a 12 cut 4, Legend, a 12 cut 5, Legend, p 13 cut 1, Legend, p 13 cut 2, Legend, p 13 cut 3, Legend, p 13 cut 4, Legend, i 14 cut 1, Legend, i 14 cut 2, Legend, t 15 cut 1, Legend, t 15 cut 2, Legend, t 15 cut 3, Legend, u 16 cut 1, Legend, u 16 cut 2, Legend, u 16 cut 3, Legend, l 17 cut 1, Legend, i 18 cut 1, Legend, i 18 cut 2, Legend, e 20 cut 1, Legend, e 20 cut 2, Legend, e 20 cut 3, Legend, e 20 cut 4, Legend, e 20 cut 5, Legend, c 21 cut 1, Legend, c 21 cut 2, Legend, c 21 cut 3, Legend, c 22 cut 1, Legend, c 22 cut 2, Legend, c 22 cut 3, Legend, l 23 cut 1, Legend, e 24 cut 1, Legend, e 24 cut 2, Legend, e 24 cut 3, Legend, e 24 cut 4, Legend, e 24 cut 5, Legend, s 25 cut 1, Legend, s 25 cut 2, Legend, s 25 cut 3, Legend, s 25 cut 4, Legend, s 25 cut 5, Legend, i 26 cut 1, Legend, i 26 cut 2, Legend, e 27 cut 1, Legend, e 27 cut 2, Legend, e 27 cut 3, Legend, e 27 cut 4, Legend, e 27 cut 5, Legend, c 29 cut 1, Legend, c 29 cut 2, Legend, c 29 cut 3, Legend, a 30 cut 1, Legend, a 30 cut 2, Legend, a 30 cut 3, Legend, a 30 cut 4, Legend, a 30 cut 5, Legend, t 31 cut 1, Legend, t 31 cut 2, Legend, t 31 cut 3, Legend, h 32 cut 1, Legend, h 32 cut 2, Legend, h 32 cut 3, Legend, e 33 cut 1, Legend, e 33 cut 2, Legend, e 33 cut 3, Legend, e 33 cut 4, Legend, e 33 cut 5, Legend, d 34 cut 1, Legend, d 34 cut 2, Legend, d 34 cut 3, Legend, d 34 cut 4, Legend, r 35 cut 1, Legend, r 35 cut 2, Legend, a 36 cut 1, Legend, a 36 cut 2, Legend, a 36 cut 3, Legend, a 36 cut 4, Legend, a 36 cut 5, Legend, l 37 cut 1, Legend, i 38 cut 1, Legend, i 38 cut 2, Legend, s 39 cut 1, Legend, s 39 cut 2, Legend, s 39 cut 3, Legend, s 39 cut 4, Legend, s 39 cut 5, Shoulder window, right, left light, Shoulder window, right, right light, Shoulder window, right, oculus, Shoulder window, right, hood, Shoulder window, left, left light, Shoulder window, left, right light, Shoulder window, left, oculus, Shoulder window, left, hood, Shank arcade, right 1, Shank arcade, right 2, Shank arcade, right 3, Shank arcade, right 4, Shank arcade, right 5, Shank arcade, right 6, Shank arcade, right 7, Shank arcade, right 8, Shank arcade, right 9, Shank arcade, right 10, Shank arcade, right 11, Shank arcade, right 12, Shank arcade, right 13, Shank arcade, right 14, Shank arcade, left 1, Shank arcade, left 2, Shank arcade, left 3, Shank arcade, left 4, Shank arcade, left 5, Shank arcade, left 6, Shank arcade, left 7, Shank arcade, left 8, Shank arcade, left 9, Shank arcade, left 10, Shank arcade, left 11, Shank arcade, left 12, Shank arcade, left 13, Shank arcade, left 14."
     ],
     "field_verdict": "Castable",
-    "grams_925": 17.165457118738022,
+    "grams_925": 17.16186936429209,
     "min_angle_deg": 0.00009567980364124339,
     "non_manifold_edges": 0,
     "parting_monotone": [],
@@ -47,9 +47,9 @@
     "release_0075_obstructions": 0,
     "release_0075_unresolved": 0,
     "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
-    "release_0100_low_draft_area_mm2": 398.18704387312783,
+    "release_0100_low_draft_area_mm2": 398.2380036765461,
     "release_0100_notes": [
-      "398.19 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "398.24 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
       "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
     ],
     "release_0100_obstructions": 0,
@@ -67,19 +67,19 @@
     "stones_previewed": 0,
     "stones_reported": 0,
     "thinnest_wall_mm": 1.4649834128981514,
-    "triangles": 575062,
+    "triangles": 544146,
     "undercut_percent": 0.0,
     "watertight": true,
     "worst_draft_deg": -0.4099372341160631
   },
   "export": {
-    "bore_margin_mm": -4.819586632009987e-7,
+    "bore_margin_mm": -4.819586632009987E-7,
     "boundary_edges": 0,
     "build": [
       1536,
       448
     ],
-    "build_s": 26.30906143,
+    "build_s": 19.741193993,
     "cad": {
       "features": [],
       "made_parts": [],
@@ -95,7 +95,7 @@
       "Cut at the bench after casting, and so not judged here: Seal field, Quatrefoil rule 1, 1, Quatrefoil rule 1, 2, Quatrefoil rule 1, 3, Quatrefoil rule 1, 4, Quatrefoil rule 2, 1, Quatrefoil rule 2, 2, Quatrefoil rule 2, 3, Quatrefoil rule 2, 4, Quatrefoil rule 3, 1, Quatrefoil rule 3, 2, Quatrefoil rule 3, 3, Quatrefoil rule 3, 4, Quatrefoil rule 4, 1, Quatrefoil rule 4, 2, Quatrefoil rule 4, 3, Quatrefoil rule 4, 4, Quatrefoil rule 5, 1, Quatrefoil rule 5, 2, Quatrefoil rule 5, 3, Quatrefoil rule 5, 4, Quatrefoil rule 6, 1, Quatrefoil rule 6, 2, Quatrefoil rule 6, 3, Quatrefoil rule 6, 4, Quatrefoil rule 7, 1, Quatrefoil rule 7, 2, Quatrefoil rule 7, 3, Quatrefoil rule 7, 4, Quatrefoil rule 8, 1, Quatrefoil rule 8, 2, Quatrefoil rule 8, 3, Quatrefoil rule 8, 4, Seal fleur, centre petal, Seal fleur, band, Seal fleur, foot, Seal fleur, right petal, Seal fleur, right spike, Seal fleur, left petal, Seal fleur, left spike, Cusped border, foil 1, 1, Cusped border, foil 1, 2, Cusped border, foil 1, 3, Cusped border, foil 1, 4, Cusped border, foil 2, 1, Cusped border, foil 2, 2, Cusped border, foil 2, 3, Cusped border, foil 2, 4, Cusped border, foil 3, 1, Cusped border, foil 3, 2, Cusped border, foil 3, 3, Cusped border, foil 3, 4, Cusped border, foil 4, 1, Cusped border, foil 4, 2, Cusped border, foil 4, 3, Cusped border, foil 4, 4, Cusped border, foil 5, 1, Cusped border, foil 5, 2, Cusped border, foil 5, 3, Cusped border, foil 5, 4, Cusped border, foil 6, 1, Cusped border, foil 6, 2, Cusped border, foil 6, 3, Cusped border, foil 6, 4, Cusped border, foil 7, 1, Cusped border, foil 7, 2, Cusped border, foil 7, 3, Cusped border, foil 7, 4, Cusped border, foil 8, 1, Cusped border, foil 8, 2, Cusped border, foil 8, 3, Cusped border, foil 8, 4, Cusped border, foil 9, 1, Cusped border, foil 9, 2, Cusped border, foil 9, 3, Cusped border, foil 9, 4, Cusped border, foil 10, 1, Cusped border, foil 10, 2, Cusped border, foil 10, 3, Cusped border, foil 10, 4, Cusped border, foil 11, 1, Cusped border, foil 11, 2, Cusped border, foil 11, 3, Cusped border, foil 11, 4, Cusped border, foil 12, 1, Cusped border, foil 12, 2, Cusped border, foil 12, 3, Cusped border, foil 12, 4, Cusped border, point 1, Cusped border, point 2, Cusped border, point 3, Cusped border, point 4, Cusped border, point 5, Cusped border, point 6, Cusped border, point 7, Cusped border, point 8, Cusped border, point 9, Cusped border, point 10, Cusped border, point 11, Cusped border, point 12, Cusped border, circle, 1, Cusped border, circle, 2, Cusped border, circle, 3, Cusped border, circle, 4, Cusped border, circle, 5, Cusped border, circle, 6, Cusped border, circle, 7, Cusped border, circle, 8, Cusped border, circle, 9, Cusped border, circle, 10, Cusped border, circle, 11, Cusped border, circle, 12, Cusped border, circle, 13, Cusped border, circle, 14, Cusped border, circle, 15, Cusped border, circle, 16, Cusped border, circle, 17, Cusped border, circle, 18, Cusped border, circle, 19, Cusped border, circle, 20, Cusped border, circle, 21, Cusped border, circle, 22, Cusped border, circle, 23, Cusped border, circle, 24, Cusped border, circle, 25, Cusped border, circle, 26, Cusped border, circle, 27, Cusped border, circle, 28, Cusped border, circle, 29, Cusped border, circle, 30, Cusped border, circle, 31, Cusped border, circle, 32, Cusped border, circle, 33, Cusped border, circle, 34, Cusped border, circle, 35, Cusped border, circle, 36, Cusped border, circle, 37, Cusped border, circle, 38, Cusped border, circle, 39, Cusped border, circle, 40, Cusped border, circle, 41, Cusped border, circle, 42, Legend, cross, Legend, s 2 cut 1, Legend, s 2 cut 2, Legend, s 2 cut 3, Legend, s 2 cut 4, Legend, s 2 cut 5, Legend, i 3 cut 1, Legend, i 3 cut 2, Legend, g 4 cut 1, Legend, g 4 cut 2, Legend, g 4 cut 3, Legend, g 4 cut 4, Legend, g 4 cut 5, Legend, i 5 cut 1, Legend, i 5 cut 2, Legend, l 6 cut 1, Legend, l 7 cut 1, Legend, u 8 cut 1, Legend, u 8 cut 2, Legend, u 8 cut 3, Legend, m 9 cut 1, Legend, m 9 cut 2, Legend, m 9 cut 3, Legend, m 9 cut 4, Legend, m 9 cut 5, Legend, c 11 cut 1, Legend, c 11 cut 2, Legend, c 11 cut 3, Legend, a 12 cut 1, Legend, a 12 cut 2, Legend, a 12 cut 3, Legend, a 12 cut 4, Legend, a 12 cut 5, Legend, p 13 cut 1, Legend, p 13 cut 2, Legend, p 13 cut 3, Legend, p 13 cut 4, Legend, i 14 cut 1, Legend, i 14 cut 2, Legend, t 15 cut 1, Legend, t 15 cut 2, Legend, t 15 cut 3, Legend, u 16 cut 1, Legend, u 16 cut 2, Legend, u 16 cut 3, Legend, l 17 cut 1, Legend, i 18 cut 1, Legend, i 18 cut 2, Legend, e 20 cut 1, Legend, e 20 cut 2, Legend, e 20 cut 3, Legend, e 20 cut 4, Legend, e 20 cut 5, Legend, c 21 cut 1, Legend, c 21 cut 2, Legend, c 21 cut 3, Legend, c 22 cut 1, Legend, c 22 cut 2, Legend, c 22 cut 3, Legend, l 23 cut 1, Legend, e 24 cut 1, Legend, e 24 cut 2, Legend, e 24 cut 3, Legend, e 24 cut 4, Legend, e 24 cut 5, Legend, s 25 cut 1, Legend, s 25 cut 2, Legend, s 25 cut 3, Legend, s 25 cut 4, Legend, s 25 cut 5, Legend, i 26 cut 1, Legend, i 26 cut 2, Legend, e 27 cut 1, Legend, e 27 cut 2, Legend, e 27 cut 3, Legend, e 27 cut 4, Legend, e 27 cut 5, Legend, c 29 cut 1, Legend, c 29 cut 2, Legend, c 29 cut 3, Legend, a 30 cut 1, Legend, a 30 cut 2, Legend, a 30 cut 3, Legend, a 30 cut 4, Legend, a 30 cut 5, Legend, t 31 cut 1, Legend, t 31 cut 2, Legend, t 31 cut 3, Legend, h 32 cut 1, Legend, h 32 cut 2, Legend, h 32 cut 3, Legend, e 33 cut 1, Legend, e 33 cut 2, Legend, e 33 cut 3, Legend, e 33 cut 4, Legend, e 33 cut 5, Legend, d 34 cut 1, Legend, d 34 cut 2, Legend, d 34 cut 3, Legend, d 34 cut 4, Legend, r 35 cut 1, Legend, r 35 cut 2, Legend, a 36 cut 1, Legend, a 36 cut 2, Legend, a 36 cut 3, Legend, a 36 cut 4, Legend, a 36 cut 5, Legend, l 37 cut 1, Legend, i 38 cut 1, Legend, i 38 cut 2, Legend, s 39 cut 1, Legend, s 39 cut 2, Legend, s 39 cut 3, Legend, s 39 cut 4, Legend, s 39 cut 5, Shoulder window, right, left light, Shoulder window, right, right light, Shoulder window, right, oculus, Shoulder window, right, hood, Shoulder window, left, left light, Shoulder window, left, right light, Shoulder window, left, oculus, Shoulder window, left, hood, Shank arcade, right 1, Shank arcade, right 2, Shank arcade, right 3, Shank arcade, right 4, Shank arcade, right 5, Shank arcade, right 6, Shank arcade, right 7, Shank arcade, right 8, Shank arcade, right 9, Shank arcade, right 10, Shank arcade, right 11, Shank arcade, right 12, Shank arcade, right 13, Shank arcade, right 14, Shank arcade, left 1, Shank arcade, left 2, Shank arcade, left 3, Shank arcade, left 4, Shank arcade, left 5, Shank arcade, left 6, Shank arcade, left 7, Shank arcade, left 8, Shank arcade, left 9, Shank arcade, left 10, Shank arcade, left 11, Shank arcade, left 12, Shank arcade, left 13, Shank arcade, left 14."
     ],
     "field_verdict": "Castable",
-    "grams_925": 17.166308734921742,
+    "grams_925": 17.162719215598536,
     "min_angle_deg": 0.00006040109140043924,
     "non_manifold_edges": 0,
     "parting_monotone": [],
@@ -107,9 +107,9 @@
     "release_0075_obstructions": 0,
     "release_0075_unresolved": 0,
     "release_0100": "Review, 0 obstructions (deepest 0.000 mm), 0 unresolved",
-    "release_0100_low_draft_area_mm2": 398.59215422422255,
+    "release_0100_low_draft_area_mm2": 398.6464012398699,
     "release_0100_notes": [
-      "398.59 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
+      "398.65 mm² carries less than 3.0° draft, including bore walls; review drag and pattern finish",
       "Sample spacing 0.100 × 0.100 mm; obstruction tolerance 0.020 mm. Features between samples may be missed. This checks rigid withdrawal, not sand strength or metal flow."
     ],
     "release_0100_obstructions": 0,
@@ -127,7 +127,7 @@
     "stones_previewed": 0,
     "stones_reported": 0,
     "thinnest_wall_mm": 1.4649834128981514,
-    "triangles": 1359002,
+    "triangles": 1328448,
     "undercut_percent": 0.0,
     "watertight": true,
     "worst_draft_deg": -0.4099372341160631
@@ -3379,5 +3379,37 @@
   ],
   "stock": "Factory 017 Tonneau through the sand master (the section's fallback)",
   "stock_fallback_why": "005 Rosette's head is a domed four-lobed pillow: 1.1 mm of sag 4 mm off its crown and 0.67 mm of envelope fill at 16 x 18.7, so it has no table to cut a seal in. 017 is a true signet table (0.011 mm fill); 16 x 15.6 is the largest face 017 resizes to (130% of its native 12 mm width).",
-  "table_over_bore_mm": 5.146300983428954
+  "table_over_bore_mm": 5.146300983428954,
+  "template_gate": {
+    "template_class": "stock",
+    "design_set_patches": 1,
+    "patches": [
+      {
+        "graph": "Sigillum — the chapter seal",
+        "node": 430,
+        "pointer": "/manufacturing"
+      }
+    ],
+    "template_bytes": 874982,
+    "size_budget_bytes": 1000000,
+    "nodes": 431,
+    "source_identical": true,
+    "cold_design_reload": true,
+    "cold_graph_reload": true,
+    "vertices_faces_normals_identical": true,
+    "triangles": 1328448,
+    "open_ms": {
+      "bake": 0.21154,
+      "bake_again": 0.000408,
+      "detail": 34.960854,
+      "detail_again": 1.782189,
+      "evaluate": 104.016054,
+      "first_build": 2195.094734,
+      "read": 17.940649,
+      "rebuild": 4.107551,
+      "unpack": null,
+      "verdict": 9.671592
+    },
+    "template_gate_passed": true
+  }
 }
