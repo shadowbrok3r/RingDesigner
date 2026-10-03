@@ -1,0 +1,31 @@
+{
+  "ring": "rosa-mortua",
+  "mode": "read-test",
+  "attempt": 2,
+  "reads": false,
+  "what_the_eye_sees": "Little has changed since attempt 1. In the hero it is still a gold band edged with a dense, even row of short, straight, saw-tooth spikes, and they run on down both sides toward the palm. The outline reads as a sawblade, a sun-ray crown or a dragon's spine, not a rose stem with a few hooked prickles. On top sit two red stones. The pear lies flat in a pronged cup with a few small flicks at its sides, so it looks like a flower-shaped or leaf-trimmed bezel, not a closed bud held in long sepals. The round stone sits in claws with one or two thin curling wires above it. That is the first hint of a hip's dried crown, but at 300 px it reads as stray prongs or a tendril, not a ragged five-point crown. To the left of the pear are a few small leaf-like blades, but they are the same size and sharpness as the spikes and do not read as a three-leaflet rose leaf. A jeweller would say 'thorny band with a ruby pear and a round garnet', or maybe 'berries on a thorn stem', and would name the rose only if told.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "Prickles on both arms, the whole band (the hero outline)",
+      "change": "Attempt 1's first change has not been made. Remove the continuous spike row. Keep 7 prickles per arm on the shoulders only (roughly 25 to 80 degrees from the top on each side) and leave the lower 120 degrees, palm included, smooth and round. Make each prickle about 2x wider at the root than it is now, and hook the tip 40 to 60 degrees down the stem. Grade them 1.0 to 0.6 toward the palm and alternate them ±25 degrees round the stem so they are spaced irregularly, not as a crown.",
+      "acceptance": "In hero-300 you can count the prickles (no more than 14), each shows a visible hook, the band's lower half is a plain smooth stem, and the outline no longer reads as a sawblade or gear."
+    },
+    {
+      "priority": 2,
+      "where": "Bud head on arm A (the pear, face view)",
+      "change": "Replace the low pronged cup and side flicks with five long, narrow sepals that rise about two thirds of the pear's height and close round it. Stand the pear up 30 to 45 degrees, point up and out, so the tip clears the sepal tips. Add a swollen receptacle about 1.5x the stem width where the sepals meet the arm.",
+      "acceptance": "In face-300 the pear's point stands above its sepal tips and the head reads as a closed rosebud on a stalk, not as a gem in a decorative bezel."
+    },
+    {
+      "priority": 3,
+      "where": "Hip crown on arm B and the leaf below the bud",
+      "change": "Bring the hip's dried crown up to five full wisps, each about 1.5 mm proud of the cabochon's top and about 0.7 mm thick so they hold at 300 px, curling outward evenly round the stone. Remove plain claws that compete with them. Make the leaf below the bud one clear compound leaf: three leaflets 5 to 6 mm long with a toothed edge on a visible petiole, lying flat against the shoulder in the face view, and clearly larger and softer than the prickles.",
+      "acceptance": "In face-300 the round stone wears a ragged five-point crown that reads as a rose hip, and beside the bud there is a three-leaflet leaf that cannot be mistaken for more spikes."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/rosa-mortua/hero-300.png",
+    "showcase/vepres/rosa-mortua/face-300.png"
+  ]
+}
