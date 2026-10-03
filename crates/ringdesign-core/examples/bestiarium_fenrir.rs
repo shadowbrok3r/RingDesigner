@@ -666,7 +666,7 @@ impl Wolf {
         let mut d = smin(smin(Self::cranium(s), Self::cheek(s), 1.5), Self::jowl(s), 0.9);
         d = smin(d, Self::upper_jaw(s), 0.7);
         d = smin(d, Self::brow(s), 0.5);
-        d = smin(d, Self::muzzle(s), 0.6);
+        d = smin(d, Self::muzzle(s), 1.0);
         // The muzzle's underside carried down solid to the table between the jaws, so no pocket closes under it.
         d = smin(d, ellipsoid(sub(s, [0.0, 3.6, 0.2]), [1.7, 2.5, 0.95]), 0.6);
         d = smin(d, Self::nose(s), 0.4);
@@ -848,7 +848,10 @@ impl Wolf {
         }
         let g = self.stock.at(p);
         // A skirt just under the stock's surface near the head, so the head meets the stock tangentially.
-        let d = smin(d, (g + 0.12).max(d - 0.9), 0.45);
+        let d = smin(d, (g + 0.12).max(d - 1.2), 0.45);
+        // Where the head hangs a hair off the stock (the throat over the apex wall), a shell over the stock within
+        // 0.4 mm of the head closes the slit, which would cast as a fin.
+        let d = smin(d, (g - 0.15).max(d - 0.4), 0.3);
         let d = smax(d, -(g + BURY_MM), 0.3);
         smax(d, self.bore + BORE_CLEAR_MM - p[0].hypot(p[1]), 0.2)
     }
