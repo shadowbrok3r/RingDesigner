@@ -515,6 +515,8 @@ fn rose_lights(lights: u32, r_in: f64, r_out: f64, bar: f64) -> Sketch          
 
 ## Sigillum — *the chapter seal*
 
+- **Logan granted extension rounds 4 and 5 on 2026-10-03.** Rounds 1 to 3 ended in a cut at 6.9 (6.3, 6.8, 6.9) on factory 017 Tonneau.
+- **Process decision (Logan's rule, 2026-10-03):** judged as lost wax, with a 0.8 mm minimum section and no pull rule, on factory 017 Tonneau. 005 Rosette's sand master fields NotCastable bare, while 017 fields 0.0000%. The Delft sand verdict is still measured and reported as a bonus. The seal, the cheek arcade, the roundels, the shoulder windows and the shank lights are cut at the bench after the pour, so the casting is plain stock.
 - **Status:** Not started. Blocked on C-T6 (the legend). C-T5 needs verifying (see its section). The cast part and the quatrefoil and fleur can be built now.
 - **Concept:** A cathedral chapter's seal ring on the rosette stock, whose cusped frame is the seal's own cusped border. The seal is **cut at the bench**, which is what a seal is: mirrored intaglio with drafted walls, so wax releases the impression. What can be cast is cast, along the pull: the chapter-house arcade in the cheeks and quatrefoil roundels down the shoulders' side faces. This is the collection's honest sand-plus-bench ring.
 - **Theme face to palm:**

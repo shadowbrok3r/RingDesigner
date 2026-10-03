@@ -42,12 +42,16 @@ const ALLOY: &str = "Silver 925";
 /// on one level sill, the centre light the tallest and each one out from it a step lower, as a chapter house grades them.
 const LANCET_W: f64 = 1.3;
 const LANCETS: usize = 5;
-const LANCET_PITCH: f64 = 2.0;
+const LANCET_PITCH: f64 = 2.2;
 /// Each light stands from just above the wall's foot to `HEAD_Y` (mm up from the finger axis), under the table's edge.
-const HEAD_Y: f64 = 13.25;
+const HEAD_Y: f64 = 12.9;
 const SILL_CLEAR_MM: f64 = 0.2;
+/// Metal kept between the wall's foot and the bore: lost wax's 0.8 mm section and a little over.
+const LANCET_BORE_LAND_MM: f64 = 0.9;
 /// Each light out from the centre stands this much lower at its head.
 const HEAD_STEP_MM: f64 = 0.15;
+/// Longest edge any outline keeps, mm.
+const OUTLINE_STEP_MM: f64 = 0.4;
 const ARCADE_SINK_MM: f64 = 0.5;
 /// The lancet's head: each flank struck at this many spans' radius, an acute Early English point.
 const ACUTE: f64 = 1.4;
@@ -61,6 +65,20 @@ fn export_params() -> BuildParams {
 
 /// The ring's own Delft pour: z = 0 parting, opposed z withdrawal, sterling silver.
 fn setup() -> mf::Setup {
+    let mut s = sand_setup();
+    // Logan's rule (2026-10-03): judged as lost wax, 0.8 mm minimum section and no pull rule. The Delft pour is
+    // still measured, as a bonus.
+    s.recipe.process = castability::CastProcess::LostWax;
+    s.recipe.sand = None;
+    s.recipe.name = "Sigillum / lost wax / Silver 925".into();
+    s.recipe.min_draft_deg = 0.0;
+    s.recipe.min_detail_mm = 0.15;
+    s.recipe.min_section_mm = 0.8;
+    s
+}
+
+/// The same ring poured in Delft sand, z = 0 parting, opposed z withdrawal.
+fn sand_setup() -> mf::Setup {
     let mut s = mf::Setup::default();
     s.recipe = mf::Recipe::sand(SandProcess::DelftClay);
     s.recipe.name = "Sigillum / Delft clay / Silver 925".into();
@@ -86,7 +104,7 @@ fn stock(face: (f64, f64)) -> Result<RingDesign> {
     let preset = PRESETS.iter().find(|p| p.id == id).context("no stock")?;
     let mut d = RingDesign::default();
     ImportedBase::attach(&mut d, sand_master(preset.load()?)?)?;
-    d.imported_base.as_mut().unwrap().sand_envelope = true;
+    d.imported_base.as_mut().unwrap().sand_envelope = std::env::var("SIG_NOENV").is_err();
     d.name = "Sigillum \u{2014} the chapter seal".into();
     d.profile.apply_style(ProfileStyle::Flat);
     d.profile.width_mm = face.1;
@@ -104,6 +122,19 @@ fn stock(face: (f64, f64)) -> Result<RingDesign> {
     d.draft.min_draft_deg = s.recipe.min_draft_deg;
     d.manufacturing = Some(s);
     Ok(d)
+}
+
+/// The design as the Delft pour would judge it.
+fn as_sand(d: &RingDesign) -> RingDesign {
+    let mut d = d.clone();
+    let s = sand_setup();
+    d.draft.process = s.recipe.process;
+    d.draft.sand = s.recipe.sand;
+    d.draft.min_detail_mm = s.recipe.min_detail_mm;
+    d.draft.min_section_mm = s.recipe.min_section_mm;
+    d.draft.min_draft_deg = s.recipe.min_draft_deg;
+    d.manufacturing = Some(s);
+    d
 }
 
 /// The worst sand the envelope must add anywhere round the ring, mm, and where (`stock_spike`'s measure).
@@ -190,6 +221,11 @@ fn quatrefoil_field(reach: f64, cusp: f64) -> Vec<[f64; 2]> {
 /// A blade from `p0` to `p1`, `w` across at its widest a share `at` of the way along, pointed at its tip and at its
 /// root unless `blunt` holds the root open that wide. Counter-clockwise.
 fn blade(p0: [f64; 2], p1: [f64; 2], w: f64, at: f64, blunt: f64) -> Vec<[f64; 2]> {
+    blade_tip(p0, p1, w, at, blunt, true)
+}
+
+/// [`blade`], its tip a straight sharp point or, unless `sharp`, rounded like its root.
+fn blade_tip(p0: [f64; 2], p1: [f64; 2], w: f64, at: f64, blunt: f64, sharp: bool) -> Vec<[f64; 2]> {
     let (dx, dy) = (p1[0] - p0[0], p1[1] - p0[1]);
     let l = dx.hypot(dy);
     let (d, n) = ([dx / l, dy / l], [-dy / l, dx / l]);
@@ -198,7 +234,9 @@ fn blade(p0: [f64; 2], p1: [f64; 2], w: f64, at: f64, blunt: f64) -> Vec<[f64; 2
         let u = if t < at { t / at } else { 1.0 - (t - at) / (1.0 - at) };
         let u = u.clamp(0.0, 1.0);
         let base = if t < at { 0.5 * blunt * (1.0 - t / at) } else { 0.0 };
-        (0.5 * w * (u * (2.0 - u)).sqrt()).max(base)
+        // Rounded below its widest, then a straight taper to a sharp point.
+        let shape = if t < at || !sharp { (u * (2.0 - u)).sqrt() } else { u.powf(0.85) };
+        (0.5 * w * shape).max(base)
     };
     let at_t = |t: f64, side: f64| [p0[0] + d[0] * l * t + side * n[0] * half(t), p0[1] + d[1] * l * t + side * n[1] * half(t)];
     let first = if blunt > 0.0 { 0 } else { 1 };
@@ -268,11 +306,11 @@ fn fleur(height: f64, depth: f64) -> Vec<Part> {
     let spine = |_a: [f64; 2], _b: [f64; 2]| StampTop::Pillow { crown_mm: FLEUR_MODEL_MM };
     let part = |name: &str, outline: Vec<[f64; 2]>, top: StampTop| Part { name: format!("Seal fleur, {name}"), outline: fit(outline), depth: wall, top };
     let mut parts = vec![
-        part("centre petal", blade([0.0, -0.3], [0.0, hi], 1.5, 0.42, 0.6), spine([0.0, -0.1], [0.0, 3.0])),
+        part("centre petal", blade([0.0, -0.75], [0.0, hi], 1.5, 0.42, 0.9), spine([0.0, -0.1], [0.0, 3.0])),
         part("band", bar(-1.95, 1.95, -1.1, -0.3, 0.2), spine([-1.6, -0.7], [1.6, -0.7])),
         // The foot stands clear of the band by a land, as the spikes do.
         // The foot hangs from the band's underside, one figure with it.
-        part("foot", blade([0.0, -0.95], [0.0, lo], 1.0, 0.3, 0.8), spine([0.0, -1.5], [0.0, lo + 0.2])),
+        part("foot", blade_tip([0.0, -0.95], [0.0, lo], 1.0, 0.3, 0.8, false), spine([0.0, -1.5], [0.0, lo + 0.2])),
     ];
     for (side, name) in [(1.0f64, "right"), (-1.0, "left")] {
         let flip = |q: [f64; 2]| [side * q[0], q[1]];
@@ -284,171 +322,225 @@ fn fleur(height: f64, depth: f64) -> Vec<Part> {
             q
         };
         // The side petal springs from the band beside the centre petal's foot and curls out and down.
-        parts.push(part(&format!("{name} petal"), m(curl([1.95, -0.15], 1.05, 178.0, 2.0, 0.95)), StampTop::Pillow { crown_mm: FLEUR_MODEL_MM }));
-        parts.push(part(&format!("{name} spike"), m(blade([0.5, -0.95], [1.55, -2.3], 0.65, 0.3, 0.6)), spine(flip([0.7, -1.5]), flip([1.45, -2.2]))));
+        parts.push(part(&format!("{name} petal"), m(curl([1.95, -0.15], 1.05, 188.0, 2.0, 0.8)), StampTop::Pillow { crown_mm: FLEUR_MODEL_MM }));
+        parts.push(part(&format!("{name} spike"), m(blade_tip([0.5, -0.95], [1.55, -2.3], 0.65, 0.3, 0.6, false)), spine(flip([0.7, -1.5]), flip([1.45, -2.2]))));
     }
     parts
 }
 
-/// A broad-nib hairline from `p0` to `p1`: the nib swept along it, never thinner than `min_w`.
-fn nib_stroke(p0: [f64; 2], p1: [f64; 2], nib: [f64; 2], min_w: f64) -> Vec<[f64; 2]> {
-    let (dx, dy) = (p1[0] - p0[0], p1[1] - p0[1]);
-    let l = dx.hypot(dy).max(1e-9);
-    let n = [-dy / l, dx / l];
-    // Where the stroke runs along the nib it would thin to nothing: hold it at `min_w`.
-    let across = nib[0] * n[0] + nib[1] * n[1];
-    let nib = if across.abs() < min_w {
-        let add = min_w - across.abs();
-        let sgn = if across < 0.0 { -1.0 } else { 1.0 };
-        [nib[0] + sgn * n[0] * add, nib[1] + sgn * n[1] * add]
-    } else {
-        nib
-    };
-    let h = [0.5 * nib[0], 0.5 * nib[1]];
-    let mut out = vec![[p0[0] - h[0], p0[1] - h[1]], [p1[0] - h[0], p1[1] - h[1]], [p1[0] + h[0], p1[1] + h[1]], [p0[0] + h[0], p0[1] + h[1]]];
-    if signed_area(&out) < 0.0 {
-        out.reverse();
+/// A closed loop with points nearer than `gap` to the last kept dropped, then thinned (Douglas-Peucker) to within
+/// `tol` of itself: a slice's slivers gone, its curves kept.
+fn simplify(l: &[[f64; 2]], tol: f64, gap: f64) -> Vec<[f64; 2]> {
+    let mut pts: Vec<[f64; 2]> = Vec::new();
+    for p in l {
+        if pts.last().is_none_or(|q: &[f64; 2]| (p[0] - q[0]).hypot(p[1] - q[1]) >= gap) {
+            pts.push(*p);
+        }
     }
+    while pts.len() > 3 && (pts[0][0] - pts[pts.len() - 1][0]).hypot(pts[0][1] - pts[pts.len() - 1][1]) < gap {
+        pts.pop();
+    }
+    fn dp(p: &[[f64; 2]], tol: f64, out: &mut Vec<[f64; 2]>) {
+        let (a, b) = (p[0], p[p.len() - 1]);
+        let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+        let l = dx.hypot(dy).max(1e-12);
+        let (mut worst, mut at) = (0.0, 0);
+        for (i, q) in p.iter().enumerate().take(p.len() - 1).skip(1) {
+            let d = ((q[0] - a[0]) * dy - (q[1] - a[1]) * dx).abs() / l;
+            if d > worst {
+                (worst, at) = (d, i);
+            }
+        }
+        if worst > tol {
+            dp(&p[..=at], tol, out);
+            dp(&p[at..], tol, out);
+        } else {
+            out.push(a);
+        }
+    }
+    // Split the loop at its farthest point from the start, so both halves are open runs.
+    let far = (0..pts.len()).max_by(|i, j| {
+        let d = |k: usize| (pts[k][0] - pts[0][0]).hypot(pts[k][1] - pts[0][1]);
+        d(*i).total_cmp(&d(*j))
+    }).unwrap_or(0);
+    let mut out = Vec::new();
+    let mut first = pts[..=far].to_vec();
+    if first.len() >= 2 { dp(&first, tol, &mut out); } else { out.extend(first.drain(..)); }
+    let mut second = pts[far..].to_vec();
+    second.push(pts[0]);
+    if second.len() >= 2 { dp(&second, tol, &mut out); }
     out
 }
 
-/// A Textura stem at `x` from `y0` to `y1`, `w` wide, standing on a lozenge foot turned out to the right and capped
-/// by a lozenge head turned out to the left, the broken pen-turns of a blackletter minim. Counter-clockwise.
-fn stem(x: f64, y0: f64, y1: f64, w: f64) -> Vec<[f64; 2]> {
-    let h = 0.5 * w;
-    vec![
-        [x - h, y0 + 0.35 * w],
-        [x + 0.1 * w, y0 - 0.5 * w],
-        [x + h + 0.3 * w, y0 + 0.05 * w],
-        [x + h, y0 + 0.45 * w],
-        [x + h, y1 - 0.35 * w],
-        [x - 0.1 * w, y1 + 0.5 * w],
-        [x - h - 0.3 * w, y1 - 0.05 * w],
-        [x - h, y1 - 0.45 * w],
-    ]
-}
-
-/// One cut of a Textura letter, in x-heights from the letter's left and its baseline.
-enum Pen {
-    /// A minim stem from `y0` to `y1` with its lozenge foot and head.
-    Stem(f64, f64, f64),
-    /// A hairline or a broken bow.
-    Hair([f64; 2], [f64; 2]),
-    /// A lozenge, the dot of an i.
-    Dot(f64, f64),
-}
-
-/// A Textura quadrata minuscule as pen cuts, and its advance, in x-heights. Only the letters the legend needs.
-fn textura(c: char) -> (f64, Vec<Pen>) {
-    use Pen::*;
-    match c {
-        'i' => (0.42, vec![Stem(0.2, 0.0, 1.0), Dot(0.2, 1.38)]),
-        'l' => (0.42, vec![Stem(0.2, 0.0, 1.5)]),
-        'u' => (0.9, vec![Stem(0.2, 0.0, 1.0), Stem(0.68, 0.0, 1.0), Hair([0.2, -0.02], [0.68, 0.16])]),
-        'm' => (1.36, vec![Stem(0.2, 0.0, 1.0), Stem(0.66, 0.0, 1.0), Stem(1.12, 0.0, 1.0), Hair([0.2, 0.86], [0.66, 1.04]), Hair([0.66, 0.86], [1.12, 1.04])]),
-        's' => (0.82, vec![Hair([0.64, 0.96], [0.24, 1.04]), Stem(0.2, 0.56, 0.92), Hair([0.2, 0.54], [0.64, 0.44]), Stem(0.64, 0.08, 0.44), Hair([0.64, -0.04], [0.16, 0.06])]),
-        'g' => (0.9, vec![Stem(0.2, 0.08, 0.92), Stem(0.68, -0.32, 0.96), Hair([0.2, 0.96], [0.68, 1.04]), Hair([0.2, 0.02], [0.68, 0.1]), Hair([0.68, -0.4], [0.18, -0.34])]),
-        'c' => (0.76, vec![Stem(0.2, 0.08, 0.92), Hair([0.2, 0.96], [0.62, 1.04]), Hair([0.2, 0.0], [0.62, 0.08])]),
-        'a' => (0.9, vec![Stem(0.68, 0.0, 0.92), Hair([0.18, 0.88], [0.68, 1.04]), Stem(0.2, 0.06, 0.48), Hair([0.2, 0.52], [0.68, 0.62]), Hair([0.2, 0.0], [0.68, 0.06])]),
-        'p' => (0.9, vec![Stem(0.2, -0.42, 1.0), Hair([0.2, 1.0], [0.68, 0.92]), Stem(0.68, 0.1, 0.9), Hair([0.68, 0.06], [0.2, 0.0])]),
-        't' => (0.66, vec![Stem(0.24, 0.0, 1.28), Hair([0.0, 0.94], [0.56, 0.98]), Hair([0.24, -0.02], [0.56, 0.14])]),
-        'e' => (0.8, vec![Stem(0.2, 0.08, 0.92), Hair([0.2, 0.96], [0.64, 1.04]), Hair([0.64, 1.0], [0.64, 0.66]), Hair([0.62, 0.62], [0.2, 0.5]), Hair([0.2, 0.0], [0.64, 0.08])]),
-        'h' => (0.92, vec![Stem(0.2, 0.0, 1.5), Hair([0.2, 0.86], [0.68, 1.04]), Stem(0.68, 0.0, 0.96)]),
-        'r' => (0.72, vec![Stem(0.2, 0.0, 1.0), Hair([0.2, 0.86], [0.62, 1.04])]),
-        'd' => (0.92, vec![Stem(0.2, 0.08, 0.92), Hair([0.2, 0.96], [0.68, 1.04]), Hair([0.2, 0.0], [0.68, 0.06]), Stem(0.68, 0.0, 1.5)]),
-        _ => (0.45, vec![]),
-    }
-}
-
-/// The cross pattée that opens the legend, `size` across, centred on the origin. Counter-clockwise.
-fn cross_pattee(size: f64) -> Vec<[f64; 2]> {
-    let (inner, end, flare) = (0.09 * size, 0.5 * size, 0.27 * size);
-    let mut pts = Vec::new();
-    for k in 0..4 {
-        let a = PI * 0.5 * k as f64;
-        let (e, f) = ([a.cos(), a.sin()], [-a.sin(), a.cos()]);
-        let corner = |u: f64, v: f64| [e[0] * u + f[0] * v, e[1] * u + f[1] * v];
-        pts.push(corner(inner, -inner));
-        // The arm's sides curve in as they flare.
-        for j in 1..6 {
-            let t = j as f64 / 6.0;
-            pts.push(corner(inner + (end - inner) * t, -(inner + (flare - inner) * t * t)));
+/// The union of overlapping counter-clockwise outlines as closed loops, the largest first: each outline stood up as
+/// a prism, the prisms united by the kernel's boolean, and the union sliced through its middle.
+fn union_outline(polys: &[Vec<[f64; 2]>]) -> Result<Vec<Vec<[f64; 2]>>> {
+    let prism = |poly: &Vec<[f64; 2]>| -> Result<csg::Solid> {
+        let n = poly.len();
+        let key = |p: [f64; 2]| ((p[0] * 1e7).round() as i64, (p[1] * 1e7).round() as i64);
+        let index: std::collections::HashMap<(i64, i64), u32> = poly.iter().enumerate().map(|(i, p)| (key(*p), i as u32)).collect();
+        let mut s = csg::Solid::default();
+        s.v.extend(poly.iter().map(|p| [p[0], p[1], -0.5]));
+        s.v.extend(poly.iter().map(|p| [p[0], p[1], 0.5]));
+        for t in ringdesign_core::sketch::fill::triangulate(&[poly.clone()]) {
+            let ids: Vec<u32> = t.iter().map(|p| index.get(&key(*p)).copied()).collect::<Option<_>>().context("a cap point off the outline")?;
+            let ccw = (t[1][0] - t[0][0]) * (t[2][1] - t[0][1]) - (t[2][0] - t[0][0]) * (t[1][1] - t[0][1]) > 0.0;
+            let (a, b, c) = if ccw { (ids[0], ids[1], ids[2]) } else { (ids[0], ids[2], ids[1]) };
+            s.f.push([a + n as u32, b + n as u32, c + n as u32]);
+            s.f.push([a, c, b]);
         }
-        pts.push(corner(end, -flare));
-        pts.push(corner(end, flare));
-        for j in (1..6).rev() {
-            let t = j as f64 / 6.0;
-            pts.push(corner(inner + (end - inner) * t, inner + (flare - inner) * t * t));
+        for i in 0..n as u32 {
+            let j = (i + 1) % n as u32;
+            s.f.push([i, j, j + n as u32]);
+            s.f.push([i, j + n as u32, i + n as u32]);
+        }
+        Ok(s)
+    };
+    let solids: Vec<csg::Solid> = polys.iter().map(prism).collect::<Result<_>>()?;
+    let u = csg::union_all(&solids).map_err(|e| anyhow::anyhow!("union: {e:?}"))?;
+    // Slice at z = 0: each triangle crossing it gives one segment, chained into loops by their shared ends.
+    let mut segs: Vec<([f64; 2], [f64; 2])> = Vec::new();
+    for f in &u.f {
+        let p = f.map(|i| u.v[i as usize]);
+        let mut pts = Vec::new();
+        for k in 0..3 {
+            let (a, b) = (p[k], p[(k + 1) % 3]);
+            if (a[2] < 0.0) != (b[2] < 0.0) {
+                let t = a[2] / (a[2] - b[2]);
+                pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+            }
+        }
+        if pts.len() == 2 {
+            // Oriented so the solid lies to the left: along the face normal crossed with +z.
+            let (e1, e2) = ([p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]], [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]]);
+            let nrm = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2]];
+            let dir = [pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]];
+            // The outward normal points right of the walk on a counter-clockwise loop.
+            if dir[0] * nrm[1] - dir[1] * nrm[0] > 0.0 { segs.push((pts[1], pts[0])) } else { segs.push((pts[0], pts[1])) }
         }
     }
-    pts.dedup();
-    pts
-}
-
-/// The legend round the rim between radii `r_in` and `r_out`, in Textura minuscules reading clockwise from the
-/// top with the letters' heads outward, as the wax reads it: each stem, hairline and lozenge one graver's V-cut.
-fn legend(text: &str, r_in: f64, r_out: f64, depth: f64) -> Vec<Part> {
-    // Descenders to ascenders span the band.
-    let (desc, asc) = (0.5, 1.6);
-    let x = (r_out - r_in) / (desc + asc);
-    let base = r_in + desc * x;
-    let mid = 0.5 * (r_in + r_out);
-    let cross_adv = (desc + asc) * 0.95;
-    let glyphs: Vec<(char, f64, Vec<Pen>)> = text
-        .chars()
-        .map(|c| {
-            let (adv, pens) = if c == '\u{2720}' { (cross_adv, vec![]) } else { textura(c) };
-            (c, adv, pens)
-        })
-        .collect();
-    // Tracking closes the circle, measured on the x-height's middle.
-    let r_track = base + 0.5 * x;
-    let used: f64 = glyphs.iter().map(|g| g.1 * x).sum();
-    let gap = (2.0 * PI * r_track - used) / glyphs.len() as f64;
-    let w = 0.2 * x;
-    let nib = [0.14 * x, 0.19 * x];
-    let mut parts = Vec::new();
-    let mut along = 0.0;
-    for (k, (c, adv, pens)) in glyphs.into_iter().enumerate() {
-        let adv_mm = adv * x;
-        // The glyph's centre, clockwise from the top.
-        let phi = (along + 0.5 * adv_mm) / r_track;
-        along += adv_mm + gap;
-        let u = [phi.sin(), phi.cos()];
-        let t = [phi.cos(), -phi.sin()];
-        // Letter space (x-heights from the left and up from the baseline) onto the seal.
-        let place = |p: [f64; 2]| {
-            let (a, b) = (p[0] * x - 0.5 * adv_mm, p[1] * x);
-            [(base + b) * u[0] + a * t[0], (base + b) * u[1] + a * t[1]]
-        };
-        let vee = |p0: [f64; 2], p1: [f64; 2]| StampTop::Ridge { rise_mm: depth - V_WALL_MM, from: place(p0), to: place(p1), end_mm: depth - V_WALL_MM };
-        if c == '\u{2720}' {
-            let size = (r_out - r_in) * 0.92;
-            let cross: Vec<[f64; 2]> = cross_pattee(size).iter().map(|p| [mid * u[0] + p[0] * t[0] + p[1] * u[0], mid * u[1] + p[0] * t[1] + p[1] * u[1]]).collect();
-            parts.push(Part { name: "Legend, cross".into(), outline: cross, depth: V_WALL_MM, top: StampTop::Cone { apex_mm: depth - V_WALL_MM, at: [mid * u[0], mid * u[1]], tip_mm: 0.05 } });
+    let key = |p: [f64; 2]| ((p[0] * 1e6).round() as i64, (p[1] * 1e6).round() as i64);
+    let mut next: std::collections::HashMap<(i64, i64), usize> = segs.iter().enumerate().map(|(i, s)| (key(s.0), i)).collect();
+    let mut loops = Vec::new();
+    let mut used = vec![false; segs.len()];
+    for start in 0..segs.len() {
+        if used[start] {
             continue;
         }
-        for (j, pen) in pens.iter().enumerate() {
-            let name = format!("Legend, {c} {k} cut {}", j + 1);
-            let (outline, top) = match *pen {
-                Pen::Stem(sx, y0, y1) => (stem(sx, y0, y1, STEM_X).iter().map(|p| place(*p)).collect::<Vec<_>>(), vee([sx, y0], [sx, y1])),
-                Pen::Hair(a, b) => (nib_stroke(a, b, [nib[0] / x, nib[1] / x], 0.09).iter().map(|p| place(*p)).collect(), vee(a, b)),
-                Pen::Dot(dx, dy) => {
-                    let s = 0.16;
-                    let d: Vec<[f64; 2]> = [[dx, dy - s], [dx + s, dy], [dx, dy + s], [dx - s, dy]].iter().map(|p| place(*p)).collect();
-                    (d, StampTop::Cone { apex_mm: depth - V_WALL_MM, at: place([dx, dy]), tip_mm: 0.02 })
-                }
-            };
-            let _ = w;
-            parts.push(Part { name, outline, depth: V_WALL_MM, top });
+        let mut l = Vec::new();
+        let mut i = start;
+        while !used[i] {
+            used[i] = true;
+            l.push(segs[i].0);
+            match next.remove(&key(segs[i].1)) {
+                Some(j) => i = j,
+                None => break,
+            }
+        }
+        let l = simplify(&l, std::env::var("SIG_TOL").ok().and_then(|v| v.parse().ok()).unwrap_or(0.003), std::env::var("SIG_GAP").ok().and_then(|v| v.parse().ok()).unwrap_or(0.02));
+        if l.len() >= 3 {
+            loops.push(l);
         }
     }
-    parts
+    loops.sort_by(|a, b| signed_area(b).abs().total_cmp(&signed_area(a).abs()));
+    Ok(loops)
+}
+
+/// One glyph region as one closed outline: each counter joined to the outline by a keyhole, so the cut leaves a
+/// hairline of metal across the stroke where the counter's island holds on. Counter-clockwise.
+fn keyholed(mut outer: Vec<[f64; 2]>, holes: Vec<Vec<[f64; 2]>>) -> Vec<[f64; 2]> {
+    if signed_area(&outer) < 0.0 {
+        outer.reverse();
+    }
+    for mut hole in holes {
+        if signed_area(&hole) > 0.0 {
+            hole.reverse();
+        }
+        let d2 = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2);
+        let (mut bi, mut bj, mut best) = (0, 0, f64::MAX);
+        for (i, a) in outer.iter().enumerate() {
+            for (j, b) in hole.iter().enumerate() {
+                let dd = d2(*a, *b);
+                if dd < best {
+                    (bi, bj, best) = (i, j, dd);
+                }
+            }
+        }
+        let n = hole.len();
+        let mut merged: Vec<[f64; 2]> = outer[..=bi].to_vec();
+        // Round the counter from the bridge's foot, stopping one point short, and back out beside the way in.
+        merged.extend((0..n).map(|k| hole[(bj + k) % n]));
+        merged.extend(outer[bi + 1..].iter().copied());
+        outer = merged;
+    }
+    outer
+}
+
+/// The legend in real Textura (UnifrakturMaguntia through `sketch::text`), reading clockwise from the cross at
+/// the top with the letters standing outward, as the wax reads it, fitted between radii `r_in` and `r_out` with
+/// its tracking opened until it closes the circle. One pillowed cut per glyph region.
+fn textura_legend(text: &str, r_in: f64, r_out: f64, depth: f64) -> Result<Vec<Part>> {
+    use ringdesign_core::sketch::text::{TextAlign, TextArc, TextLayout};
+    let lay = |cap: f64, radius: f64, tracking: f64| -> Result<Vec<(Vec<Vec<[f64; 2]>>, [f64; 2])>> {
+        let mut l = TextLayout::new(ringdesign_core::text::TextFont::Textura, text, cap);
+        l.arc = Some(TextArc { radius_mm: radius, start_deg: 90.0 + LEGEND_LEAD_DEG, clockwise: true });
+        l.align = TextAlign::Start;
+        l.tracking = tracking;
+        let mut out = Vec::new();
+        for sk in l.parts()? {
+            for r in sk.profile_regions()? {
+                let inside = r.inside().unwrap_or([0.0, 0.0]);
+                out.push((r.polygons(LEGEND_CHORD_MM), inside));
+            }
+        }
+        Ok(out)
+    };
+    let extent = |g: &[(Vec<Vec<[f64; 2]>>, [f64; 2])]| {
+        let rs = g.iter().flat_map(|x| x.0.iter()).flatten().map(|p| p[0].hypot(p[1]));
+        rs.fold((f64::MAX, f64::MIN), |(lo, hi), r| (lo.min(r), hi.max(r)))
+    };
+    // How far round the circle the text runs, clockwise from the start, degrees.
+    let sweep = |g: &[(Vec<Vec<[f64; 2]>>, [f64; 2])]| {
+        let start = 90.0 + LEGEND_LEAD_DEG;
+        g.iter().flat_map(|x| x.0.iter()).flatten().map(|p| (start - p[1].atan2(p[0]).to_degrees()).rem_euclid(360.0)).filter(|a| *a < 359.0).fold(0.0, f64::max)
+    };
+    // Fit the band: size the cap to the band's depth, then set the baseline so the text sits in it.
+    let (mut cap, mut radius) = (1.0, 0.5 * (r_in + r_out));
+    for _ in 0..3 {
+        let g = lay(cap, radius, 0.0)?;
+        let (lo, hi) = extent(&g);
+        cap *= (r_out - r_in) / (hi - lo);
+        radius += 0.5 * (r_in + r_out) - 0.5 * (lo + hi);
+    }
+    // Open the tracking until the legend runs round to just short of the cross again.
+    let (mut t0, mut t1) = (0.0, 0.6);
+    for _ in 0..24 {
+        let t = 0.5 * (t0 + t1);
+        // A layout that would run past one turn is refused: too far as well.
+        let short = lay(cap, radius, t).map_or(false, |g| sweep(&g) < 360.0 - 2.0 * LEGEND_LEAD_DEG - LEGEND_GAP_DEG);
+        if short { t0 = t } else { t1 = t }
+    }
+    let g = lay(cap, radius, t0)?;
+    Ok(g
+        .into_iter()
+        .enumerate()
+        .map(|(k, (mut loops, _inside))| {
+            let outer = loops.remove(0);
+            // A gable floor whose ridge runs out along the radius through the glyph's middle: every stroke either
+            // side of it tilts, so the letter reads head-on as well as raked.
+            let n = outer.len() as f64;
+            let c = outer.iter().fold([0.0, 0.0], |a, p| [a[0] + p[0] / n, a[1] + p[1] / n]);
+            let r = c[0].hypot(c[1]).max(1e-9);
+            let u = [c[0] / r, c[1] / r];
+            let (from, to) = ([u[0] * (r_in - 0.3), u[1] * (r_in - 0.3)], [u[0] * (r_out + 0.3), u[1] * (r_out + 0.3)]);
+            Part { name: format!("Legend, glyph {}", k + 1), outline: keyholed(outer, loops), depth: depth - LEGEND_PILLOW_MM, top: StampTop::Ridge { rise_mm: LEGEND_PILLOW_MM, from, to, end_mm: LEGEND_PILLOW_MM } }
+        })
+        .collect())
 }
 
 /// A band `w` wide along the arc about `c` of radius `r` from `a0` to `a1` (radians). Counter-clockwise.
 fn arc_band(c: [f64; 2], r: f64, a0: f64, a1: f64, w: f64) -> Vec<[f64; 2]> {
-    let n = (((a1 - a0).abs() * r / 0.1).ceil() as usize).max(6);
+    let n = (((a1 - a0).abs() * r / 0.2).ceil() as usize).max(6);
     let mut out = arc(c, r + 0.5 * w, a0, a1, n);
     out.extend(arc(c, r - 0.5 * w, a1, a0, n));
     out.dedup();
@@ -549,8 +641,24 @@ fn mirrored(p: &[[f64; 2]]) -> Vec<[f64; 2]> {
     out
 }
 
+/// An outline with every edge longer than `step` split evenly, so its walls drape onto a curved surface.
+fn densify(outline: &[[f64; 2]], step: f64) -> Vec<[f64; 2]> {
+    let n = outline.len();
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let (a, b) = (outline[i], outline[(i + 1) % n]);
+        let k = ((a[0] - b[0]).hypot(a[1] - b[1]) / step).ceil().max(1.0) as usize;
+        out.extend((0..k).map(|j| {
+            let t = j as f64 / k as f64;
+            [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
+        }));
+    }
+    out
+}
+
 /// A bench intaglio cut: struck into the table after the pour, never in the pattern.
 fn intaglio(name: &str, at: (f64, f64), rot_deg: f64, outline: Vec<[f64; 2]>, depth: f64, top: StampTop) -> Stamp {
+    let outline = densify(&outline, if name == "Seal fleur" { std::env::var("SIG_FSTEP").ok().and_then(|v| v.parse().ok()).unwrap_or(OUTLINE_STEP_MM) } else { OUTLINE_STEP_MM });
     Stamp {
         name: name.into(),
         theta_deg: at.0,
@@ -570,8 +678,8 @@ fn intaglio(name: &str, at: (f64, f64), rot_deg: f64, outline: Vec<[f64; 2]>, de
 }
 
 /// The seal's geometry, how the wax reads it: the quatrefoil field, the fleur, the legend and its frame, mm.
-const FIELD_REACH_MM: f64 = 4.35;
-const FIELD_CUSP_MM: f64 = 2.8;
+const FIELD_REACH_MM: f64 = 4.1;
+const FIELD_CUSP_MM: f64 = 2.75;
 const FIELD_DEPTH_MM: f64 = 0.40;
 const FLEUR_MM: f64 = 6.3;
 const FLEUR_DEPTH_MM: f64 = 0.95;
@@ -579,20 +687,25 @@ const FLEUR_DEPTH_MM: f64 = 0.95;
 const FLEUR_MODEL_MM: f64 = 0.35;
 const LEGEND: &str = "\u{2720} sigillum capituli ecclesie cathedralis";
 /// The legend's band, from the quatrefoil's points out to the border's cusps.
-const LEGEND_IN_MM: f64 = 4.7;
-const LEGEND_OUT_MM: f64 = 5.85;
-const LEGEND_DEPTH_MM: f64 = 0.55;
+const LEGEND_IN_MM: f64 = 4.45;
+const LEGEND_OUT_MM: f64 = 5.55;
+const LEGEND_DEPTH_MM: f64 = 0.40;
+/// How far each glyph's floor dishes below its walls, so a letter catches the light in any view.
+const LEGEND_PILLOW_MM: f64 = 0.24;
+/// Chord to which the glyphs' curves are walked, mm.
+const LEGEND_CHORD_MM: f64 = 0.06;
+/// The cross's lead past the top, and the gap left before it at the legend's end, degrees.
+const LEGEND_LEAD_DEG: f64 = 4.0;
+const LEGEND_GAP_DEG: f64 = 3.0;
 const BORDER_RADIUS_MM: f64 = 6.42;
 const BORDER_BULGE_MM: f64 = 0.7;
 const BORDER_LOBES: usize = 12;
 /// How far each cusp's point runs in past the circle through the cusps.
-const CUSP_POINT_MM: f64 = 0.55;
+const CUSP_POINT_MM: f64 = 0.8;
 const RULE_MM: f64 = 0.3;
 const RULE_DEPTH_MM: f64 = 0.5;
 /// A graver's V-cut stands this tall at its walls; its spine runs to the cut's full depth.
 const V_WALL_MM: f64 = 0.3;
-/// A Textura stem's width, in x-heights.
-const STEM_X: f64 = 0.3;
 
 fn seal_parts(with_legend: bool) -> Vec<Part> {
     let mut parts = vec![Part { name: "Seal field".into(), outline: quatrefoil_field(FIELD_REACH_MM, FIELD_CUSP_MM), depth: FIELD_DEPTH_MM, top: StampTop::Flat }];
@@ -601,10 +714,23 @@ fn seal_parts(with_legend: bool) -> Vec<Part> {
         // Just outside the field's wall, so the rule's walls and the field's never meet edge on edge.
         rule(&format!("Quatrefoil rule {}", k + 1), c, r + 0.5 * RULE_MM + 0.04, a0, a1, RULE_MM, RULE_DEPTH_MM, &mut parts);
     }
-    parts.extend(fleur(FLEUR_MM, FLEUR_DEPTH_MM));
+    // The fleur cut as one figure: its petals, band and foot united into a single outline, one modelled hollow.
+    let pieces = fleur(FLEUR_MM, FLEUR_DEPTH_MM);
+    let band = pieces.iter().find(|p| p.name.ends_with("band")).map(|p| p.outline.clone());
+    let mut loops = union_outline(&pieces.iter().map(|p| p.outline.clone()).collect::<Vec<_>>()).expect("the fleur unites");
+    if std::env::var("SIG_DEBUG").is_ok() {
+        std::fs::write("/tmp/claude-0/fleur.json", serde_json::to_string(&loops).unwrap()).ok();
+        eprintln!("fleur union: {} loops, sizes {:?}, crossing {:?}, check {:?}, area {:.3}", loops.len(), loops.iter().map(|l| l.len()).collect::<Vec<_>>(), ringdesign_core::outline::self_crossing(&loops[0]), ringdesign_core::outline::check(&loops[0]), signed_area(&loops[0]));
+    }
+    let outer = loops.remove(0);
+    parts.push(Part { name: "Seal fleur".into(), outline: keyholed(outer, loops), depth: FLEUR_DEPTH_MM - FLEUR_MODEL_MM, top: StampTop::Pillow { crown_mm: FLEUR_MODEL_MM } });
+    // The band laid across it as its own flat strap, a little deeper, so the bar reads across the figure.
+    if let Some(band) = band {
+        parts.push(Part { name: "Seal fleur, band".into(), outline: band, depth: FLEUR_DEPTH_MM + 0.08, top: StampTop::Flat });
+    }
     parts.extend(frame(BORDER_RADIUS_MM, BORDER_BULGE_MM, BORDER_LOBES, RULE_MM, RULE_DEPTH_MM));
     if with_legend {
-        parts.extend(legend(LEGEND, LEGEND_IN_MM, LEGEND_OUT_MM, LEGEND_DEPTH_MM));
+        parts.extend(textura_legend(LEGEND, LEGEND_IN_MM, LEGEND_OUT_MM, LEGEND_DEPTH_MM).expect("the Textura legend lays out"));
     }
     parts
 }
@@ -627,8 +753,13 @@ fn seal(d: &mut RingDesign, a: &Atlas, with_legend: bool) -> Result<()> {
 /// spans apart, the point at +y. Counter-clockwise from the sill's left corner.
 fn lancet(w: f64, h: f64) -> Vec<[f64; 2]> {
     let half = 0.5 * w;
-    let rho = ACUTE * w;
-    let rise = (rho * rho - (rho - half) * (rho - half)).sqrt();
+    let mut rho = ACUTE * w;
+    let mut rise = (rho * rho - (rho - half) * (rho - half)).sqrt();
+    // A short light keeps a jamb: its head eases toward equilateral, never below a semicircle.
+    if rise > h - 0.2 {
+        rise = (h - 0.2).max(half * 1.02);
+        rho = (rise * rise + half * half) / (2.0 * half);
+    }
     let base = -0.5 * h;
     let spring = 0.5 * h - rise;
     let mut pts = vec![[-half, base], [half, base]];
@@ -676,13 +807,13 @@ fn arcades(d: &mut RingDesign, a: &Atlas, rot: f64, placed: &mut Vec<String>) ->
         let foot_at = |x: f64| {
             a.samples
                 .iter()
-                .filter(|s| s.p[2] * side > 0.0 && a.cheek(s) > 0.9 && (s.p[0] - x).abs() < 0.5 * LANCET_W + 0.1)
+                .filter(|s| s.p[2] * side > 0.0 && s.n[2] * side > 0.9 && s.p[0].hypot(s.p[1]) > a.bore + LANCET_BORE_LAND_MM && (s.p[0] - x).abs() < 0.5 * LANCET_W + 0.1)
                 .map(|s| s.p[1])
                 .fold(f64::MAX, f64::min)
         };
         let xs: Vec<f64> = (0..LANCETS).map(|k| (k as f64 - 0.5 * (LANCETS - 1) as f64) * LANCET_PITCH).collect();
         let sill = xs.iter().map(|x| foot_at(*x)).fold(f64::MIN, f64::max) + SILL_CLEAR_MM;
-        ensure!(sill < HEAD_Y - 1.6, "no wall under the arcade");
+        ensure!(sill < HEAD_Y - 1.2, "no wall under the arcade: sill {sill:.2}, feet {:?}", (0..LANCETS).map(|k| foot_at((k as f64 - 0.5 * (LANCETS - 1) as f64) * LANCET_PITCH)).collect::<Vec<_>>());
         for (k, x) in xs.into_iter().enumerate() {
             let step = (k as f64 - 0.5 * (LANCETS - 1) as f64).abs();
             let h = HEAD_Y - HEAD_STEP_MM * step - sill;
@@ -698,8 +829,9 @@ fn arcades(d: &mut RingDesign, a: &Atlas, rot: f64, placed: &mut Vec<String>) ->
                 sink_mm: ARCADE_SINK_MM,
                 draft_deg: 4.0,
                 cut: true,
-                bench: false,
-                along_pull: true,
+                // Lost wax: cut at the bench with the seal, so the poured form is plain stock and every recess is crisp.
+                bench: true,
+                along_pull: false,
                 fine_cap: true,
                 tier: 0,
                 // A dished floor, deepest at the light's heart: it faces the pull everywhere and catches the light.
@@ -721,21 +853,21 @@ fn roundel(d: f64) -> Vec<[f64; 2]> {
     let (rho, c) = (0.245 * d, 0.255 * d);
     let m = 0.5 * (c + (2.0 * rho * rho - c * c).sqrt());
     let (a0, a1) = ((-m).atan2(m - c), m.atan2(m - c));
-    let foil = arc([c, 0.0], rho, a0, a1, 32);
+    let foil = arc([c, 0.0], rho, a0, a1, 18);
     let mut pts = Vec::new();
     for q in 0..4 {
         let (sn, co) = (PI * 0.5 * q as f64).sin_cos();
-        pts.extend(foil.iter().take(32).map(|p| [p[0] * co - p[1] * sn, p[0] * sn + p[1] * co]));
+        pts.extend(foil.iter().take(18).map(|p| [p[0] * co - p[1] * sn, p[0] * sn + p[1] * co]));
     }
     pts
 }
 
 /// The shoulders' side faces past each end of the head: ring angles and the roundel struck at each, graded down
 /// the shoulder.
-const ROUNDEL_MM: [f64; 3] = [2.0, 1.6, 1.2];
-const ROUNDEL_FIRST_DEG: f64 = 45.0;
+const ROUNDEL_MM: [f64; 3] = [1.8, 1.4, 1.0];
+const ROUNDEL_FIRST_DEG: f64 = 46.5;
 /// The pier of polished wall left between two roundels, mm.
-const ROUNDEL_PIER_MM: f64 = 0.45;
+const ROUNDEL_PIER_MM: f64 = 0.35;
 const ROUNDEL_SINK_MM: f64 = 0.35;
 
 /// Three graded roundels on each shoulder's side faces, struck along the pull at mid-wall, as wide as the wall allows.
@@ -774,11 +906,11 @@ fn shoulder_roundels(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) ->
                 let r = |s: &&ringdesign_core::skin::Sample| s.p[0].hypot(s.p[1]);
                 let (lo, hi) = (wall.iter().map(r).fold(f64::MAX, f64::min), wall.iter().map(r).fold(f64::MIN, f64::max));
                 // A full land on the bore side, where the comfort roll begins, and a lesser one under the crown.
-                let (lo, hi) = (lo + 0.6, hi - 0.25);
+                let (lo, hi) = (lo + 0.4, hi - 0.35);
                 let mid = 0.5 * (lo + hi);
                 let at = wall.iter().min_by(|p, q| ((r(p) - mid).abs() + (p.theta - theta).abs() * 0.1).total_cmp(&((r(q) - mid).abs() + (q.theta - theta).abs() * 0.1))).unwrap();
                 let dia = dia.min(hi - lo);
-                if dia < 0.8 {
+                if dia < 0.7 {
                     break;
                 }
                 d.stamps.push(Stamp {
@@ -793,8 +925,8 @@ fn shoulder_roundels(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) ->
                     sink_mm: ROUNDEL_SINK_MM,
                     draft_deg: 4.0,
                     cut: true,
-                    bench: false,
-                    along_pull: true,
+                    bench: true,
+                    along_pull: false,
                     fine_cap: true,
                     tier: 0,
                     top: StampTop::Pillow { crown_mm: 0.15 },
@@ -838,16 +970,18 @@ fn path_band(pts: &[[f64; 2]], w: f64) -> Vec<[f64; 2]> {
     out
 }
 
-/// A pointed arch's centre line from its left springing over its point to its right springing, `width` across, its
-/// flanks struck at `width` (equilateral), springing at `spring`, `down` below the springing on each side first.
-fn arch_path(cx: f64, width: f64, spring: f64, down: f64) -> Vec<[f64; 2]> {
+
+/// Half a window's frame on the `side` (-1 left, +1 right): from just past the sill's middle out along the sill,
+/// up the jamb, and over the flank to just past the point.
+fn frame_half(side: f64, width: f64, spring: f64, sill: f64) -> Vec<[f64; 2]> {
     let half = 0.5 * width;
     let top = (0.866 * width).atan2(half);
-    let mut pts = vec![[cx - half, spring - down]];
-    // Up the left flank (centred on the right springing) to the point, then down the right one.
-    pts.extend(arc([cx + half, spring], width, PI, PI - top, 12));
-    pts.extend(arc([cx - half, spring], width, top, 0.0, 12).into_iter().skip(1));
-    pts.push([cx + half, spring - down]);
+    let mut pts = vec![[-side * 0.2, sill], [side * half, sill]];
+    // Up the flank, struck from the far springing, to a little past the point.
+    let c = [-side * half, spring];
+    let a0 = if side > 0.0 { 0.0 } else { PI };
+    let a1 = if side > 0.0 { top + 0.06 } else { PI - top - 0.06 };
+    pts.extend(arc(c, width, a0, a1, 14));
     pts.dedup_by(|a, b| (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-6);
     pts
 }
@@ -878,9 +1012,10 @@ fn window(name: &str, width: f64, height: f64, w: f64, depth: f64) -> Vec<Part> 
         light("left light", -cx),
         light("right light", cx),
         Part { name: format!("{name}, oculus"), outline: roundel(o_d).into_iter().map(|p| [p[0], p[1] + o_lo + 0.5 * o_d]).collect(), depth: depth - 0.1, top: StampTop::Pillow { crown_mm: 0.1 } },
-        Part { name: format!("{name}, hood"), outline: path_band(&arch_path(0.0, width, spring, spring - sill - 0.1), w), depth, top: StampTop::Flat },
-        // The sill the hood's feet and both lights stand on, closing the window.
-        Part { name: format!("{name}, sill"), outline: path_band(&[[-0.5 * width - 0.6 * w, sill + 0.1], [0.5 * width + 0.6 * w, sill + 0.1]], w), depth: depth + 0.05, top: StampTop::Flat },
+        // The hood and the sill its feet stand on, a closed frame round the lights: two halves, each a jamb, a flank
+        // and half the sill, lapping at the point and at the sill's middle at their own depths.
+        Part { name: format!("{name}, frame left"), outline: path_band(&frame_half(-1.0, width, spring, sill + 0.1), w), depth, top: StampTop::Flat },
+        Part { name: format!("{name}, frame right"), outline: path_band(&frame_half(1.0, width, spring, sill + 0.1), w), depth: depth + 0.04, top: StampTop::Flat },
     ]
 }
 
@@ -925,6 +1060,7 @@ const SHANK_ARCADE: (f64, f64, f64) = (22.0, -58.0, 1.0);
 const SHANK_ARCH_MM: (f64, f64) = (1.2, 2.2);
 /// The polished land kept between a light and the crown's edge, mm.
 const SHANK_EDGE_LAND_MM: f64 = 0.45;
+const SHANK_RULE_MM: f64 = 0.2;
 /// The bar left standing between two lights, mm.
 const SHANK_BAR_MM: f64 = 0.55;
 const SHANK_DEPTH_MM: f64 = 0.4;
@@ -983,6 +1119,11 @@ fn shank_arcade(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) -> Resu
             let mut s = intaglio(&format!("Shank arcade, {sh} {k}"), at, rot, outline, SHANK_DEPTH_MM, StampTop::Pillow { crown_mm: 0.18 });
             s.bench = true;
             d.stamps.push(s);
+            // The arcade's sill: one graved line under every light, each run lapping the next at its own depth.
+            let run = 0.5 * (w + SHANK_BAR_MM) + 0.12;
+            let y = -0.5 * h - 0.28;
+            let rail: Vec<[f64; 2]> = path_band(&[[-run, y], [run, y]], SHANK_RULE_MM).into_iter().map(map).collect();
+            d.stamps.push(intaglio(&format!("Shank sill, {sh} {k}"), at, rot, rail, if k % 2 == 0 { 0.26 } else { 0.3 }, StampTop::Flat));
             placed.push(format!("Shank arcade, {sh} {k} at {:.2} deg, {:.2} x {:.2} mm, crown {:.2} mm across", at.0, w, h, 2.0 * half));
             // The next arch a span and a land on, in degrees at this radius.
             let r = a.point(at.0, at.1);
@@ -1076,6 +1217,54 @@ fn bore_margin(d: &RingDesign, m: &mesh::Mesh) -> f64 {
     m.vertices.iter().map(|v| (v.0 as f64).hypot(v.1 as f64) - r).fold(f64::MAX, f64::min)
 }
 
+/// Metal section by rays: from the middle of every sampled well-shaped triangle, straight in along its inward
+/// normal to the first surface met. Triangles thinner than 5 degrees at a corner, the boolean's slivers along a cut's
+/// rim, are not sampled, and a ray ignores what it meets in its first 0.01 mm. The thinnest few, mm, and where.
+fn section_by_rays(m: &mesh::Mesh, samples: usize) -> Vec<(f64, [f64; 3])> {
+    let p = |i: u32| { let v = m.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] };
+    let sub = |a: [f64; 3], b: [f64; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    let cross = |a: [f64; 3], b: [f64; 3]| [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    let tris: Vec<[[f64; 3]; 3]> = m.faces.iter().map(|f| [p(f[0]), p(f[1]), p(f[2])]).collect();
+    let angle_ok = |t: &[[f64; 3]; 3]| (0..3).all(|k| {
+        let (a, b) = (sub(t[(k + 1) % 3], t[k]), sub(t[(k + 2) % 3], t[k]));
+        let c = dot(a, b) / (dot(a, a).sqrt() * dot(b, b).sqrt()).max(1e-30);
+        c.clamp(-1.0, 1.0).acos().to_degrees() > 5.0
+    });
+    let stride = (tris.len() / samples).max(1);
+    let mut out: Vec<(f64, [f64; 3])> = tris
+        .iter()
+        .step_by(stride)
+        .filter(|t| angle_ok(t))
+        .map(|t| {
+            let n = cross(sub(t[1], t[0]), sub(t[2], t[0]));
+            let l = dot(n, n).sqrt().max(1e-30);
+            let d = [-n[0] / l, -n[1] / l, -n[2] / l];
+            let o = [(t[0][0] + t[1][0] + t[2][0]) / 3.0, (t[0][1] + t[1][1] + t[2][1]) / 3.0, (t[0][2] + t[1][2] + t[2][2]) / 3.0];
+            let mut best = f64::MAX;
+            for q in &tris {
+                let (e1, e2) = (sub(q[1], q[0]), sub(q[2], q[0]));
+                let h = cross(d, e2);
+                let a = dot(e1, h);
+                if a.abs() < 1e-12 { continue; }
+                let f = 1.0 / a;
+                let s0 = sub(o, q[0]);
+                let u = f * dot(s0, h);
+                if !(0.0..=1.0).contains(&u) { continue; }
+                let qv = cross(s0, e1);
+                let v = f * dot(d, qv);
+                if v < 0.0 || u + v > 1.0 { continue; }
+                let tt = f * dot(e2, qv);
+                if tt > 0.01 && tt < best { best = tt; }
+            }
+            (best, o)
+        })
+        .collect();
+    out.sort_by(|a, b| a.0.total_cmp(&b.0));
+    out.truncate(5);
+    out
+}
+
 /// Every CAD feature's status, and each made part's self-crossings.
 fn cad_gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Value, bool)> {
     if d.cad.is_none() {
@@ -1113,9 +1302,18 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
     let (cad, cad_ok) = cad_gates(d, lib, params)?;
     let mut field = castability::attributed_field_report(d, lib, &d.draft, 256, 128);
     castability::judge_parts(&mut field, d, &built);
-    let (inspection, fine) = pull(d, lib, params)?;
+    // The lost-wax section gate, on what is poured: the casting pattern, without the seal and the other bench cuts
+    // engraved after it, sampled over a mesh the measure can take whole.
+    let thin = mesh::try_build_pattern(d, lib, BuildParams { theta_steps: 384, profile_steps: 160, refine: None, ..BuildParams::default() })?;
+    let thickness = ringdesign_core::cad::measure::thickness(&thin.mesh, 0.8);
+    let thick_ok = thickness.rays > 0 && thickness.below_limit == 0;
+    // The bonus: the same ring judged as the Delft pour.
+    let sand = as_sand(d);
+    let mut sand_field = castability::attributed_field_report(&sand, lib, &sand.draft, 256, 128);
+    castability::judge_parts(&mut sand_field, &sand, &built);
+    let (inspection, fine) = pull(&sand, lib, params)?;
     let coarse_release = &inspection.release;
-    let monotone: Vec<(String, bool)> = d.stamps.iter().filter(|s| !s.bench && !s.along_pull).map(|s| (s.name.clone(), s.parting_monotone(d).is_ok())).collect();
+    let monotone: Vec<(String, bool)> = d.stamps.iter().filter(|s| !s.bench && !s.along_pull).map(|s| (s.name.clone(), s.parting_monotone(&sand).is_ok())).collect();
     let findings: Vec<String> = dfm::findings_in(d, lib).iter().map(|f| format!("{}: {}", f.label, f.message)).collect();
     let stones = ringdesign_core::stones::report(d, field.parting_z_mm);
     let reported = stones.as_ref().map_or(0, |s| s.stone_count as usize);
@@ -1129,11 +1327,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         && cad_ok
         && margin >= -0.01
         && castable
-        && coarse_release.obstructions.is_empty()
-        && coarse_release.unresolved_rays == 0
-        && fine.obstructions.is_empty()
-        && fine.unresolved_rays == 0
-        && monotone.iter().all(|(_, ok)| *ok)
+        && thick_ok
         && findings.is_empty()
         && reported == 0
         && previewed == 0
@@ -1155,6 +1349,16 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> Result<(Val
         "parts_cut": built.parts.cut,
         "stamps_struck": built.solids.stamped,
         "bore_margin_mm": margin,
+        "process": "Lost wax (Logan's rule, 2026-10-03): 0.8 mm minimum section, no pull rule",
+        "thickness_0p8": { "sampled_min_mm": thickness.sampled_min_mm, "rays": thickness.rays, "unresolved": thickness.unresolved, "below_limit": thickness.below_limit, "note": thickness.note, "build": [384, 160], "mesh": "casting pattern (bench engraving left out)" },
+        "sand_bonus": {
+            "field_verdict": sand_field.verdict.label(),
+            "undercut_percent": sand_field.undercut_fraction() * 100.0,
+            "release_0100": release_line(coarse_release),
+            "release_0075": release_line(&fine),
+            "parting_monotone_all": monotone.iter().all(|(_, ok)| *ok),
+            "pulls_from_delft": sand_field.verdict == castability::Verdict::Castable && coarse_release.obstructions.is_empty() && coarse_release.unresolved_rays == 0 && fine.obstructions.is_empty() && fine.unresolved_rays == 0,
+        },
         "field_verdict": field.verdict.label(),
         "field_notes": field.notes,
         "undercut_percent": field.undercut_fraction() * 100.0,
@@ -1258,6 +1462,17 @@ fn main() -> Result<()> {
     println!("Sigillum");
     let (d, lib, placed) = author(blockout)?;
     println!("  placed {}", serde_json::to_string(&placed)?);
+    if args.iter().any(|a| a == "--thick") {
+        let mut d = d.clone();
+        if std::env::var("SIG_BARE").is_ok() {
+            d.stamps.clear();
+        }
+        let thin = mesh::try_build_pattern(&d, &lib, BuildParams { theta_steps: 384, profile_steps: 160, refine: None, ..BuildParams::default() })?;
+        let t = ringdesign_core::cad::measure::thickness(&thin.mesh, 0.8);
+        println!("  faces {} thickness min {:?} at {:?}, below {} of {}", thin.mesh.faces.len(), t.sampled_min_mm, t.point, t.below_limit, t.rays);
+        println!("  section by rays: {:?}", section_by_rays(&thin.mesh, 3000));
+        return Ok(());
+    }
     if args.iter().any(|a| a == "--cross") {
         let params = if draft { draft_params() } else { export_params() };
         let built = mesh::try_build(&d, &lib, params)?;
@@ -1326,7 +1541,7 @@ fn main() -> Result<()> {
         "slug": "sigillum",
         "stage": if blockout { "block-out" } else { "full" },
         "process": d.draft.process.label(),
-        "sand": "Delft clay, 3.0 deg draft, 0.8 mm section, 0.30 mm detail",
+        "process_rule": "Judged as lost wax under Logan's rule of 2026-10-03 (0.8 mm minimum section, no pull rule); the Delft pour (3.0 deg draft, 0.8 mm section, 0.30 mm detail) is reported in each block's sand_bonus.",
         "alloy": ALLOY,
         "size": d.size.display(),
         "bore_mm": BORE_MM,
@@ -1336,7 +1551,7 @@ fn main() -> Result<()> {
         "table_over_bore_mm": placed.table_crown_mm - BORE_MM * 0.5,
         "deepest_bench_cut_mm": FLEUR_DEPTH_MM,
         "metal_under_deepest_cut_mm": placed.table_crown_mm - BORE_MM * 0.5 - FLEUR_DEPTH_MM,
-        "release_status_why": "Review, not Clear, with 0 obstructions and 0 unresolved rays: the factory table and bore walls carry under the sand's 3 deg draft; the bare stock reports the same.",
+        "release_status_why": "Sand bonus only. Review, not Clear, with 0 obstructions and 0 unresolved rays: the factory table and bore walls carry under the sand's 3 deg draft; the bare stock reports the same.",
         "placed": placed,
         "features": d.cad.as_ref().map(|c| c.features.iter().map(|f| json!({ "id": f.id, "name": f.name, "stage": format!("{:?}", f.component.stage), "attach": format!("{:?}", f.component.attach) })).collect::<Vec<_>>()),
         "stamps": d.stamps.iter().map(|s| json!({ "name": s.name, "theta_deg": s.theta_deg, "v_mm": s.v_mm, "bench": s.bench, "cut": s.cut, "tier": s.tier, "along_pull": s.along_pull, "sink_mm": s.sink_mm })).collect::<Vec<_>>(),
