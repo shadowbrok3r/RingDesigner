@@ -25,8 +25,13 @@ const MIN_SECTION_MM: f64 = 0.8;
 const MIN_DETAIL_MM: f64 = 0.15;
 /// Meridian samples the valve and the split share, foot to where the split opens.
 const SHARED_ROWS: usize = 80;
+/// Which way the capsule leans in the table's frame: straight back, away from the hero.
+const LEAN_BEARING_DEG: f64 = 90.0;
+/// The seeds in the open splits: which split, how far up its floor (share of its run) and how far off its middle
+/// (share of its half-angle).
+const IN_SPLIT: [(usize, f64, f64); 4] = [(0, 0.5, 0.0), (1, 0.56, 0.0), (2, 0.5, 0.0), (3, 0.56, 0.0)];
 /// The leaves: where each springs from on the table (table frame), its bearing (degrees) and its length wanted.
-const LEAVES: [([f64; 2], f64, f64); 4] = [([2.0, 6.2], 165.0, 10.0), ([-1.2, 1.6], 140.0, 8.5), ([-3.0, -0.4], 198.0, 9.0), ([4.6, -0.6], 318.0, 6.5)];
+const LEAVES: [([f64; 2], f64, f64); 5] = [([2.0, 6.2], 165.0, 10.0), ([-1.2, 1.6], 140.0, 8.5), ([-3.0, -0.4], 198.0, 9.0), ([5.6, -2.6], 295.0, 8.0), ([5.6, 1.2], 345.0, 5.5)];
 /// The trumpet flower: length, mouth across, and any bend of its bell off the table (0 lies straight).
 const FLOWER_LEN_MM: f64 = 18.5;
 const FLOWER_MOUTH_MM: f64 = 10.0;
@@ -43,7 +48,7 @@ const CAPSULE_AT: [f64; 2] = [3.5, 3.5];
 const FLOWER_FROM: [f64; 2] = CAPSULE_AT;
 /// How deep the splits run under the crown, and half the clear gap they hold between the valves' lips.
 const SPLIT_DEPTH_MM: f64 = 4.0;
-const HALF_GAP_MM: f64 = 0.85;
+const HALF_GAP_MM: f64 = 1.0;
 
 /// Black spinel, the seeds.
 const SPINEL_TINT: [f32; 3] = [0.03, 0.03, 0.04];
@@ -53,10 +58,8 @@ const PAD_R_MM: f64 = 0.98;
 const PAD_H_MM: f64 = 1.0;
 const PAD_PROUD_MM: f64 = 0.05;
 const SEED_OVER_PAD_MM: f64 = 0.25;
-/// How far each seed's axis is turned up off its split's floor toward the crown.
-const SEED_LIFT: f64 = 0.0;
 /// The seeds spilled on the table in front of the capsule, in the table's frame, and how far their pads stand proud.
-const SPILLED: [[f64; 2]; 6] = [[2.0, -2.4], [0.2, -3.8], [2.6, -4.6], [-1.4, -5.5], [1.1, -6.4], [-0.4, -7.9]];
+const SPILLED: [[f64; 2]; 4] = [[2.3, -0.6], [0.9, -2.4], [1.9, -4.3], [0.2, -5.6]];
 const SPILLED_PAD_PROUD_MM: f64 = 0.35;
 
 fn draft_params() -> BuildParams {
@@ -284,20 +287,26 @@ struct Shape {
     scale: f64,
     /// How many valves have split, a quarter turn apart from `split_at`.
     splits: usize,
+    /// The egg's height over its reference, after `scale`: above 1 it stands taller than round.
+    stretch: f64,
+    /// How far the egg leans, degrees, sheared over its base so its foot stays flat.
+    lean_deg: f64,
 }
 
 const SHAPE: Shape = Shape {
     egg_r: 4.5,
     tip_z: 9.0,
-    split_z: 4.0,
+    split_z: 6.0,
     gape: 0.8,
     lip_mm: 0.5,
     frill_r: 4.9,
     frill_lobe: 0.45,
     sunk_mm: 0.9,
-    split_at: -0.75 * PI,
-    scale: 0.85,
-    splits: 2,
+    split_at: 0.25 * PI,
+    scale: 0.78,
+    splits: 4,
+    stretch: 1.3,
+    lean_deg: 22.0,
 };
 
 /// The meridian of a valve's middle and of a split's floor, sampled alike: (r, z) from the buried foot to the axis
@@ -318,28 +327,23 @@ fn meridians(s: &Shape) -> (Vec<[f64; 2]>, Vec<[f64; 2]>) {
         [r + 0.1, 0.62],
         [r - 0.45, 0.95],
         [r - 0.5, 1.45],
-        [r - 0.12, 2.8],
-        [r, 4.0],
-        [r - 0.02, s.split_z],
     ];
-    // The valve: on up the egg and over its blunt, rounded crown to the axis.
-    let valve: Vec<[f64; 2]> = vec![
-        [r - 0.12, s.split_z + 1.2],
-        [r - 0.45, s.split_z + 2.4],
-        [r - 1.05, s.split_z + 3.45],
-        [r - 1.9, h - 0.62],
-        [r - 2.9, h - 0.16],
-        [r - 3.8, h - 0.02],
-        [0.0, h],
-    ];
-    // The split's floor: in from the slit on the side to a near-level floor four millimetres under the crown, where
-    // the seeds lie on the placenta's arms.
+    // The egg's outline from its waist over its blunt crown to the axis; the splits open from `split_z` up.
+    let egg: Vec<[f64; 2]> = vec![[r - 0.2, 2.1], [r, 3.7], [r - 0.12, 5.0], [r - 0.45, 6.2], [r - 1.05, 7.2], [r - 1.9, h - 0.62], [r - 2.9, h - 0.16], [r - 3.8, h - 0.02], [0.0, h]];
+    let k = egg.iter().position(|p| p[1] > s.split_z).unwrap_or(egg.len() - 1).max(1);
+    let t = (s.split_z - egg[k - 1][1]) / (egg[k][1] - egg[k - 1][1]);
+    let r_s = egg[k - 1][0] + (egg[k][0] - egg[k - 1][0]) * t;
+    let mut shared = shared;
+    shared.extend(egg.iter().filter(|p| p[1] < s.split_z - 0.25));
+    shared.push([r_s, s.split_z]);
+    // The valve: on up the egg and over its crown.
+    let valve: Vec<[f64; 2]> = egg.iter().copied().filter(|p| p[1] > s.split_z + 0.25).collect();
+    // The split's floor: in and down from where the valves part to a level floor four millimetres under the crown,
+    // where the seeds lie on the placenta's arms.
     let split: Vec<[f64; 2]> = vec![
-        [r - 0.35, s.split_z + 0.2],
-        [r - 0.9, s.split_z + 0.45],
-        [r - 1.6, floor_z - 0.35],
-        [r - 2.4, floor_z - 0.15],
-        [r - 3.2, floor_z - 0.05],
+        [r_s - 0.35, s.split_z - 0.05],
+        [r_s - 0.9, 0.5 * (s.split_z + floor_z)],
+        [0.45 * r_s, floor_z - 0.1],
         [0.7, floor_z],
         [0.35, floor_z + 0.03],
         [0.0, floor_z + 0.05],
@@ -355,7 +359,8 @@ fn meridians(s: &Shape) -> (Vec<[f64; 2]>, Vec<[f64; 2]>) {
     a.extend(resample(&v, 181).into_iter().skip(1));
     b.extend(resample(&w, 181).into_iter().skip(1));
     let k = s.scale;
-    (a.into_iter().map(|p| [p[0] * k, p[1] * k]).collect(), b.into_iter().map(|p| [p[0] * k, p[1] * k]).collect())
+    let z = k * s.stretch;
+    (a.into_iter().map(|p| [p[0] * k, p[1] * z]).collect(), b.into_iter().map(|p| [p[0] * k, p[1] * z]).collect())
 }
 
 /// A polyline smoothed by Catmull-Rom and resampled to `n` points by its own length, ends kept.
@@ -415,13 +420,13 @@ impl Capsule {
         Self { shape, valve, split, halves, around }
     }
     /// How far into its split a bearing `phi` lies at meridian sample `i`: 1 on the floor, 0 on a valve's face; the
-    /// split's section is a V from the floor up to the lips.
+    /// split's floor runs flat across its middle half and rises to the lips.
     fn into_split(&self, i: usize, phi: f64) -> f64 {
         let (half, _) = self.half(i);
         if half <= 0.0 {
             return 0.0;
         }
-        (1.0 - self.off(phi) / half).max(0.0).powf(0.75)
+        1.0 - smooth(0.5 * half, half, self.off(phi))
     }
     /// A split's half-angle at meridian sample `i`, radians, and the band its lip flares over.
     fn half(&self, i: usize) -> (f64, f64) {
@@ -577,34 +582,37 @@ struct CapsuleReport {
     slivers_cleaned: usize,
 }
 
-/// The four seed places in each split, in the capsule frame: (point on the split floor, the floor's outward normal).
+/// The seeds inside the capsule's open splits, in its frame as it leans: (point on a split's floor, the floor's
+/// outward normal there, bearing).
 fn seed_places(c: &Capsule) -> Vec<(P3, P3, f64)> {
+    let m = c.valve.len();
     let mut out = Vec::new();
-    let m = c.split.len();
-    // The split floor's own normal in its meridian plane.
-    let floor_at = |r_want: f64| -> (usize, [f64; 2]) {
-        let i = (1..m - 1)
-            .filter(|&i| c.split[i][1] > (c.shape.split_z + 0.2) * c.shape.scale && c.into_split(i, c.shape.split_at) > 0.99)
-            .min_by(|&a, &b| (c.split[a][0] - r_want).abs().total_cmp(&(c.split[b][0] - r_want).abs()))
-            .unwrap_or(m / 2);
-        let d = [c.split[i + 1][0] - c.split[i - 1][0], c.split[i + 1][1] - c.split[i - 1][1]];
-        // Outward and up: the run (inward and up) turned a quarter clockwise in (r, z).
-        let n = [d[1], -d[0]];
-        let l = n[0].hypot(n[1]).max(1e-9);
-        (i, [n[0] / l, n[1] / l])
-    };
-    for k in 0..c.shape.splits {
-        let phi = c.shape.split_at + k as f64 * PI / 2.0;
-        for r_want in [(c.shape.egg_r - 1.55) * c.shape.scale] {
-            let (i, n) = floor_at(r_want);
-            let [r, z] = c.split[i];
-            let p = [r * phi.cos(), r * phi.sin(), z];
-            // Turned up off the ramp toward the crown, so the seed faces the face camera.
-            let normal = unit3(add3([n[0] * phi.cos(), n[0] * phi.sin(), n[1]], [0.0, 0.0, 1.0], SEED_LIFT));
-            out.push((p, normal, phi));
-        }
+    for (split, along, side) in IN_SPLIT {
+        let i = SHARED_ROWS + ((m - SHARED_ROWS) as f64 * along) as usize;
+        let (half, _) = c.half(i);
+        let phi = c.shape.split_at + split as f64 * PI / 2.0 + side * half;
+        let (p, n) = c.at(i as f64 / (m - 1) as f64, phi);
+        out.push((leaned(&c.shape, p), leaned_normal(&c.shape, p, n), phi));
     }
     out
+}
+
+/// The capsule's lean: heights over its waist slide toward `LEAN_BEARING_DEG` by a shear that eases in over 2 mm, so the foot
+/// stays flat on the table and no vertical line folds.
+fn lean_by(shape: &Shape, z: f64) -> (f64, f64) {
+    let (z0, w, t) = (0.9 * shape.scale, 2.0, shape.lean_deg.to_radians().tan());
+    let h = (z - z0).max(0.0);
+    if h < w { (t * h * h / (2.0 * w), t * h / w) } else { (t * (h - 0.5 * w), t) }
+}
+
+fn leaned(shape: &Shape, p: P3) -> P3 {
+    let (d, b) = (lean_by(shape, p[2]).0, LEAN_BEARING_DEG.to_radians());
+    [p[0] + d * b.cos(), p[1] + d * b.sin(), p[2]]
+}
+
+fn leaned_normal(shape: &Shape, p: P3, n: P3) -> P3 {
+    let (g, b) = (lean_by(shape, p[2]).1, LEAN_BEARING_DEG.to_radians());
+    unit3([n[0], n[1], n[2] - g * (n[0] * b.cos() + n[1] * b.sin())])
 }
 
 /// The whole capsule in its own frame: the split egg and its rows of spines, one closed solid.
@@ -650,7 +658,7 @@ fn capsule(shape: Shape, blockout: bool) -> Result<(csg::Solid, CapsuleReport, C
     // An even, unruled coat of spines: candidates on a fine grid over the egg, taken in a fixed shuffled order and
     // kept where no kept spine stands nearer than the spacing, never in or at the lip of a split.
     let mut parts = vec![body];
-    let spacing = 1.75;
+    let spacing = 1.55;
     let mut candidates: Vec<(u64, usize, f64)> = Vec::new();
     let mut z = 1.7 * shape.scale;
     while z < shape.tip_z * shape.scale - 0.4 {
@@ -671,7 +679,7 @@ fn capsule(shape: Shape, blockout: bool) -> Result<(csg::Solid, CapsuleReport, C
         let r = c.valve[i][0];
         let z = c.valve[i][1];
         let root = 0.42;
-        let clear = (root + 0.5) / r;
+        let clear = (root + 0.35) / r;
         if [-clear, 0.0, clear].iter().any(|d| c.into_split(i, phi + d) > 0.0) {
             continue;
         }
@@ -705,6 +713,9 @@ fn capsule(shape: Shape, blockout: bool) -> Result<(csg::Solid, CapsuleReport, C
         }
     };
     let slivers = csg::clean(&mut solid, 2e-5);
+    for v in &mut solid.v {
+        *v = leaned(&shape, *v);
+    }
     ensure!(solid.open_edges() == (0, 0), "The spined capsule does not close");
     ensure!(csg::self_crossings(&solid) == 0, "The spined capsule crosses itself");
     let report = CapsuleReport { shape, rows: report_rows, spines, triangles: solid.f.len(), volume_mm3: solid.volume(), slivers_cleaned: slivers };
@@ -776,7 +787,7 @@ fn leaf(len: f64, wid: f64, twist: f64, edge: f64) -> csg::Solid {
         let f = k - k.floor();
         let size = 0.75 + 0.25 * (2.3 * k.floor() + 1.7 * side).sin().abs();
         let fade = smooth(0.08, 0.25, u) * (1.0 - smooth(0.82, 0.97, u));
-        1.0 - fade * 0.22 * size * (2.0 * f - 1.0).abs().powf(0.85)
+        1.0 - fade * 0.36 * size * (2.0 * f - 1.0).abs().powf(0.85)
     };
     let half = move |u: f64, v: f64| 0.5 * wid * env(u) * tooth(u, v.signum());
     // Vein stations: where each tooth's point lies, and where its vein leaves the midrib.
@@ -1119,7 +1130,7 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Re
         doc.append(feature(id, &name, stored_op(&in_part(&solid), "flower", json!({ "bearing_deg": FLOWER_BEARING_DEG, "length_mm": len, "mouth_mm": mouth, "girth": girth, "wall_mm": 0.85, "bend_from_mm": lift_from, "bend_deg": FLOWER_BEND_DEG }))?, Component { placement: flat.clone(), ..joined(0.0) }))?;
         id += 1;
     }
-    // Four broad sinuate leaves under and round the flower and the capsule, at uneven angles, curling over the edge.
+    // Five broad sinuate leaves under and round the flower and the capsule, at uneven angles, curling over the edge.
     for (k, (at, deg, want)) in LEAVES.into_iter().enumerate() {
         let bearing = deg.to_radians();
         let edge = table_run_from(&skin, t.top_mm, at, bearing, 0.0, 0.3);
@@ -1133,10 +1144,10 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Re
         doc.append(feature(id, &name, stored_op(&in_part(&solid), "leaf", json!({ "bearing_deg": deg, "at_mm": at, "length_mm": len, "width_mm": wid, "table_edge_mm": edge }))?, Component { placement: flat.clone(), ..joined(0.0) }))?;
         id += 1;
     }
-    // A seed in each of the capsule's splits, on a pad sunk in its split's floor, where the bur opens its seat and
+    // Four seeds in the capsule's cracked crown, one in each split, each on a pad sunk in its split's floor, where the bur opens its seat and
     // three thorn claws stand.
     let mut places: Vec<(P3, P3, f64, f64)> = seed_places(&c).into_iter().map(|(p, n, phi)| (shift(p), n, phi, PAD_PROUD_MM)).collect();
-    // The rest spilled on the table in front of the capsule, on pads standing on it.
+    // The rest spilled on the table, one against the capsule's foot and three beyond, on pads.
     for (k, [x, y]) in SPILLED.into_iter().enumerate() {
         ensure!(on_table(&skin, t.top_mm, x, y, 1.2), "Spilled seed {} is off the table", k + 1);
         places.push(([x, y, 0.0], [0.0, 0.0, 1.0], 0.0, SPILLED_PAD_PROUD_MM));
@@ -1189,7 +1200,7 @@ fn parts(d: &mut RingDesign, lib: &AlphaLibrary, t: Table, blockout: bool) -> Re
         let seat = ringdesign_core::cad::FaceSeat::on(c_pad, face, None, SEED_OVER_PAD_MM)?;
         let mut params = builders::stone_params(spinel());
         seat.write(&mut params);
-        let name = if k < SHAPE.splits { format!("Seed {} (split, {:.0} deg)", k + 1, phi.to_degrees()) } else { format!("Seed {} (spilled)", k + 1) };
+        let name = if k < IN_SPLIT.len() { format!("Seed {} (in the pod, {:.0} deg)", k + 1, phi.to_degrees()) } else { format!("Seed {} (spilled)", k + 1) };
         let stone_id = id;
         doc.append(Feature {
             id,
@@ -1589,7 +1600,7 @@ fn main() -> Result<()> {
         "capsule": cap,
         "seeds": seeds,
         "foliage": foliage,
-        "placement_note": "Placement::Free from the capsule's seated frame (C-V1 Relative not on master); the capsule and seeds do not follow a resize.",
+        "placement_note": "The capsule is seated by Placement::Ring at the table's centre; the flower, leaves and every seed pad stand Placement::Relative to it (C-V1), so the head follows a resize. The stored meshes keep their own size.",
         "design_bytes": text.len(),
         "design_format": serde_json::from_str::<Value>(&text)?.get("format_version").cloned(),
         "draft": draft_gates,
