@@ -326,7 +326,7 @@ impl Frames for Built<'_> {
         self.bare.foot(origin)
     }
     fn seat(&self, p: &Placement) -> Option<Motion> {
-        p.frame_on(self.design, self.surface).ok()
+        p.seat_with(self.design, self.surface, &|id| self.e.frame_of(id)).ok()
     }
     fn built(&self, id: Id) -> bool {
         self.e.status_of(id).is_some_and(cad::FeatureStatus::is_ok)
@@ -399,11 +399,13 @@ struct Analytic<'a> {
     uniform: bool,
     sections: RefCell<HashMap<i64, Rc<ProfileLoop>>>,
     seated: Rc<RefCell<Seated>>,
+    /// Relative placements being seated, one inside another.
+    nested: std::cell::Cell<u32>,
 }
 
 impl<'a> Analytic<'a> {
     fn new(design: &'a RingDesign) -> Self {
-        Self { design, reference: Default::default(), uniform: uniform(design), sections: RefCell::default(), seated: seated_for(design) }
+        Self { design, reference: Default::default(), uniform: uniform(design), sections: RefCell::default(), seated: seated_for(design), nested: Default::default() }
     }
 
     fn doc(&self) -> Option<&'a Document> {
@@ -530,25 +532,40 @@ impl<'a> Analytic<'a> {
 
     /// [`Placement::frame_on`] with the bare band's section for the surface; `frame()` where the parts are the ring.
     fn seated(&self, p: &Placement) -> anyhow::Result<Motion> {
-        let Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } = *p else { return p.frame(self.design) };
-        if !self.design.band_is_procedural() {
-            return p.frame(self.design);
+        match *p {
+            Placement::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level } => {
+                if !self.design.band_is_procedural() {
+                    return p.frame(self.design);
+                }
+                p.validate()?;
+                let Some((hit, z)) = self.hit(theta_deg, across_mm) else { return p.frame(self.design) };
+                match cad::ring_seat(hit, z, cad::RingLean { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level }) {
+                    Some(seat) => Ok(seat),
+                    None => p.frame(self.design),
+                }
+            }
+            Placement::Side { theta_deg, radius_mm, face, height_mm, spin_deg, tilt_deg } => {
+                if !self.design.band_is_procedural() {
+                    return p.frame(self.design);
+                }
+                p.validate()?;
+                let section = self.at(theta_deg);
+                let high = cad::side_is_high(face, &section)?;
+                match cad::side_on_section(&section, theta_deg, radius_mm, high) {
+                    Some(foot) => Ok(cad::side_seat(foot, high, theta_deg, height_mm, spin_deg, tilt_deg)),
+                    None => p.frame(self.design),
+                }
+            }
+            Placement::Relative { part, .. } => {
+                let depth = self.nested.get();
+                anyhow::ensure!(depth < MAX_CARRY_DEPTH, "Parts placed relative to one another run deeper than {MAX_CARRY_DEPTH}");
+                self.nested.set(depth + 1);
+                let host = self.doc().and_then(|d| d.feature(part)).map(|_| self.frame_of(part, depth + 1).unwrap_or(Motion::IDENTITY));
+                self.nested.set(depth);
+                p.seat_with(self.design, None, &|_| host)
+            }
+            Placement::Free => p.frame(self.design),
         }
-        anyhow::ensure!([theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg].iter().all(|v| v.is_finite()), "Invalid ring placement");
-        let Some((hit, z)) = self.hit(theta_deg, across_mm) else { return p.frame(self.design) };
-        let along = [0.0, 0.0, -1.0];
-        let d = dot(along, z);
-        let x: [f64; 3] = std::array::from_fn(|k| along[k] - z[k] * d);
-        let len = norm(x);
-        if len < 1e-6 {
-            return p.frame(self.design);
-        }
-        let x = x.map(|v| v / len);
-        let y = cross(z, x);
-        let lean = nalgebra::Rotation3::from_euler_angles(tilt_deg.to_radians(), cant_deg.to_radians(), spin_deg.to_radians());
-        let l = lean.matrix();
-        let col = |i: usize| -> [f64; 3] { std::array::from_fn(|k| x[k] * l[(0, i)] + y[k] * l[(1, i)] + z[k] * l[(2, i)]) };
-        Ok(Motion { x_axis: col(0), y_axis: col(1), z_axis: col(2), origin: std::array::from_fn(|k| hit[k] + z[k] * height_mm) })
     }
 
     /// The frame feature `id` stands in, as the evaluation would record it; `None` for a part standing free.
@@ -623,7 +640,7 @@ impl<'a> Analytic<'a> {
         let mut open = vec![part];
         while let Some(id) = open.pop() {
             if keep.insert(id) {
-                open.extend(doc.feature(id).map(|f| f.operation.sources()).unwrap_or_default());
+                open.extend(doc.feature(id).map(|f| f.sources()).unwrap_or_default());
             }
         }
         let pruned = Document {
@@ -655,6 +672,23 @@ fn moved(m: &Motion, f: &Motion) -> Motion {
         t.y_axis = cross(t.z_axis, t.x_axis);
     }
     t
+}
+
+/// Stone `g` standing in `s` carried by a pattern's motion `m`: a copy an array along a path scales keeps a square frame and
+/// sets the stone scaled with it.
+fn carried_by(m: &Motion, g: Gem, s: &Motion) -> (Gem, Motion) {
+    let k = pattern::scale_of(m);
+    if k == 1.0 {
+        return (g, moved(m, s));
+    }
+    let mut t = pattern::then(m, s);
+    for axis in [&mut t.x_axis, &mut t.y_axis, &mut t.z_axis] {
+        *axis = axis.map(|v| v / k);
+    }
+    if t.reflects() {
+        t.y_axis = cross(t.z_axis, t.x_axis);
+    }
+    (Gem { w_mm: g.w_mm * k, l_mm: g.l_mm * k, ..g }, t)
 }
 
 /// `m` read in the frame `c` carries the world to: `c ∘ m ∘ c⁻¹`.
@@ -820,7 +854,7 @@ fn carried(doc: &Document, frames: &dyn Frames, f: &Feature, depth: u32) -> (Vec
             let Some(first) = sources.first().filter(|_| !inner.is_empty()) else { return (Vec::new(), over) };
             let copies = frames.copies(f, first, kind);
             let over = over || copies.len().saturating_mul(inner.len()) > MAX_CAD_STONES;
-            (copies.iter().flat_map(|m| inner.iter().map(move |(g, s)| (*g, moved(m, s)))).take(MAX_CAD_STONES).collect(), over)
+            (copies.iter().flat_map(|m| inner.iter().map(move |(g, s)| carried_by(m, *g, s))).take(MAX_CAD_STONES).collect(), over)
         }
         _ => (Vec::new(), false),
     }
@@ -1287,7 +1321,7 @@ mod tests {
         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Default::default() }).unwrap();
         let lift = builders::stand_off_mm("claw4", gem);
         for (id, theta, across) in [(2, 90.0, 0.0), (3, 55.0, 0.0), (4, 90.0, 2.5)] {
-            doc.append(builders::stone_feature(id, gem, Placement::Ring { theta_deg: theta, across_mm: across, height_mm: lift, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 })).unwrap();
+            doc.append(builders::stone_feature(id, gem, Placement::Ring { theta_deg: theta, across_mm: across, height_mm: lift, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false })).unwrap();
         }
         d.cad = Some(doc);
         let analytic = set_stones(&d);

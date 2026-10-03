@@ -39,8 +39,9 @@ pub fn node(key: &str) -> Option<Icon> {
     // lands; the table below only names what differs inside a family.
     match key {
         k if k.starts_with("solid.") || k.starts_with("frame.") => return solid(k),
-        k if k.starts_with("cad.op.") => return Some(Icon::CadSketch),
+        k if k.starts_with("cad.op.") || k.starts_with("sketch.gothic.") => return Some(Icon::CadSketch),
         k if k.starts_with("stamp.outline.") => return Some(Icon::Stamp),
+        k if k.starts_with("path.") => return path(k),
         _ => {}
     }
     Some(match key {
@@ -112,7 +113,7 @@ pub fn node(key: &str) -> Option<Icon> {
         "design.info" => Icon::NodeInfo,
         "design.resize" => Icon::Scale,
         "cad.source" => Icon::CadBand,
-        "cad.feature" | "sketch.tracery" => Icon::CadSketch,
+        "cad.feature" | "cad.features" | "sketch.tracery" => Icon::CadSketch,
 
         // --- sinks --------------------------------------------------------
         "gate.castable" => Icon::NodeGate,
@@ -178,6 +179,17 @@ pub fn node(key: &str) -> Option<Icon> {
         "cad.inspect" => Icon::Search,
         "manufacturing.inspect" => Icon::Mould,
 
+        _ => return None,
+    })
+}
+
+/// Paths read as what they make: a sweep, an array, or the line itself.
+fn path(key: &str) -> Option<Icon> {
+    Some(match key {
+        "path.arc" | "path.crest" => Icon::Path,
+        "path.helix" | "path.wreath" | "path.climb" => Icon::Wire,
+        "path.sweep" => Icon::CadSweep,
+        "path.along" => Icon::Pattern,
         _ => return None,
     })
 }

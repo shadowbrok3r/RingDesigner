@@ -388,6 +388,28 @@ pub fn relax(mesh: &mut Solid, field: Field, rounds: usize) {
     }
 }
 
+/// [`relax`], then the unrelaxed positions put back round each crossing it made, within 0.3, 0.6 and 1.2 mm of it and
+/// then everywhere, until none is left: a relax that folds a thin crease through itself is undone only there. Returns
+/// how many vertices were put back.
+pub fn relax_clean(mesh: &mut Solid, field: Field, rounds: usize) -> usize {
+    let before = mesh.v.clone();
+    relax(mesh, field, rounds);
+    let mut restored = 0;
+    for reach in [0.3, 0.6, 1.2, f64::INFINITY] {
+        let sites = crossing_sites(mesh);
+        if sites.is_empty() {
+            break;
+        }
+        for (v, orig) in mesh.v.iter_mut().zip(&before) {
+            if *v != *orig && sites.iter().any(|s| len(sub(*v, *s)) < reach) {
+                *v = *orig;
+                restored += 1;
+            }
+        }
+    }
+    restored
+}
+
 // --- Decimation ------------------------------------------------------------------------------------------------------
 
 /// Quadric edge-collapse decimation of a closed manifold to `target` faces, never past `max_cost` or a collapse that
@@ -628,6 +650,22 @@ pub fn clean_decimate(raw: &Solid, target: usize) -> Solid {
         log::debug!("decimation {k}: {crossings} crossings, backing off");
     }
     decimate(raw, raw.f.len(), 0.0, 0.0, 0.0, 180.0)
+}
+
+/// [`clean_decimate`], or where its first try crossed itself when no try is clean, so a caller can mend the field there
+/// rather than fall back to the raw mesh.
+pub fn clean_decimate_or_sites(raw: &Solid, target: usize) -> std::result::Result<Solid, Vec<P3>> {
+    let mut first = None;
+    for (k, cap) in [2e-3, 1e-3, 5e-4, 2e-4].into_iter().enumerate() {
+        let nets = decimate(raw, target + 20_000 * k, cap, 2.0 + k as f64, 18.0, 35.0);
+        if csg::self_crossings(&nets) == 0 {
+            return Ok(nets);
+        }
+        if k == 0 {
+            first = Some(crossing_sites(&nets));
+        }
+    }
+    Err(first.unwrap_or_default())
 }
 
 // --- Polish ----------------------------------------------------------------------------------------------------------
@@ -1026,6 +1064,117 @@ pub fn crossing_sites(s: &Solid) -> Vec<P3> {
         }
     }
     points
+}
+
+// --- Growing a part out of the stock ---------------------------------------------------------------------------------
+
+/// Signed distance to a closed mesh, negative inside: the nearest face out to `reach_mm` (further reads `±reach_mm`),
+/// the side by which way the first face meets three skew rays, the majority deciding.
+pub struct MeshField {
+    mesh: Mesh,
+    bvh: crate::interaction::bvh::Bvh,
+    reach: f64,
+}
+
+impl MeshField {
+    pub fn of(s: &Solid, reach_mm: f64) -> Self {
+        Self::of_mesh(Mesh { vertices: s.v.iter().map(|p| Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: s.f.clone(), ..Default::default() }, reach_mm)
+    }
+
+    pub fn of_mesh(mesh: Mesh, reach_mm: f64) -> Self {
+        let bvh = crate::interaction::bvh::Bvh::build(&mesh);
+        Self { mesh, bvh, reach: reach_mm }
+    }
+
+    /// Whether `p` is inside the mesh.
+    pub fn inside(&self, p: P3) -> bool {
+        const RAYS: [P3; 3] = [[0.5773, 0.5774, 0.5774], [-0.6412, 0.2113, 0.7377], [0.1531, -0.8122, -0.5631]];
+        let votes = RAYS
+            .iter()
+            .filter(|d| {
+                self.bvh.ray(&self.mesh, p, **d).is_some_and(|(f, _)| {
+                    self.mesh.triangle(&self.mesh.faces[f]).is_some_and(|(a, b, c)| dot(cross(sub(b, a), sub(c, a)), **d) > 0.0)
+                })
+            })
+            .count();
+        votes >= 2
+    }
+
+    /// The signed distance at `p`.
+    pub fn at(&self, p: P3) -> f64 {
+        let d = self.bvh.nearest(&self.mesh, p, self.reach).map_or(self.reach, |(_, q)| len(sub(p, q)));
+        if self.inside(p) { -d } else { d }
+    }
+}
+
+/// How far below the stock's surface a fillet's foot is joined, and how far inside the part its top, as a share of its
+/// radius: the fillet then crosses both across a shallow angle the union can trace, never along them.
+pub const FILLET_SINK: f64 = 0.02;
+
+/// How far past the fillet's foot the stock under a grown part curves down out of reach, mm: enough that the clipped
+/// collar's rim lies deeper than a decimation moves a crease.
+pub const FILLET_DIVE_MM: f64 = 0.2;
+
+/// How fast the collar's copy of the part sinks into the part above the fillet, per mm of height: slow enough that the
+/// fillet's top meets the part within a few degrees, fast enough that the copy is well inside it where the collar ends.
+const FILLET_TUCK: f64 = 0.15;
+
+/// `part` grown out of the stock with a fillet of `blend_mm`, the part's own mesh kept as it is. A collar is meshed at
+/// `step_mm` round the part's foot: `smin(part, stock, blend_mm)` with the stock sunk a little and the part tucked a
+/// little inside itself, so the fillet crosses both rather than lying on either; past the fillet's foot the stock
+/// curves down into the metal ([`FILLET_DIVE_MM`]) before the collar is clipped to the part's footprint, and above
+/// the fillet it ends inside the part. The collar is relaxed ([`relax_clean`]), decimated ([`clean_decimate_or_sites`])
+/// and united with the part. `stock` is negative inside the metal. `None` when the part does not come within the
+/// fillet's reach of the stock; an error when the collar will not come clean or unite.
+pub fn fillet_into(part: &Solid, stock: Field, blend_mm: f64, step_mm: f64) -> Result<Option<Solid>> {
+    let k = blend_mm;
+    let sink = FILLET_SINK * k;
+    let (foot, dive) = (k + sink, FILLET_DIVE_MM);
+    let clip = foot + dive + 2.0 * step_mm;
+    // Above this height over the stock the part stands as stored.
+    let top = foot + sink + 2.0 * step_mm;
+    let pad = clip + 2.0 * step_mm;
+    let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
+    for p in &part.v {
+        for k in 0..3 {
+            lo[k] = lo[k].min(p[k] - pad);
+            hi[k] = hi[k].max(p[k] + pad);
+        }
+    }
+    let own = MeshField::of(part, pad + step_mm);
+    // A quadratic easing into a straight line `rate` steep, from `start` on, over `w`.
+    let ease = |x: f64, start: f64, w: f64, rate: f64| {
+        let u = (x - start).max(0.0);
+        rate * if u < w { u * u / (2.0 * w) } else { u - 0.5 * w }
+    };
+    let field = |p: P3| {
+        let b = stock(p);
+        if b >= top {
+            return b - top;
+        }
+        let a = own.at(p);
+        if a >= clip {
+            return a - clip;
+        }
+        let tuck = sink + ease(b, 0.5 * k, 0.5 * k, FILLET_TUCK);
+        let down = ease(a, foot, dive, 1.0);
+        smin(a + tuck, b + sink + down, k).max(a - clip).max(b - top)
+    };
+    let mut collar = tetra_mesh(lo, hi, step_mm, &field);
+    if collar.f.is_empty() {
+        return Ok(None);
+    }
+    relax_clean(&mut collar, &field, 2);
+    let collar = clean_decimate_or_sites(&collar, collar.f.len() / 4).map_err(|sites| {
+        let at = sites.first().map_or_else(String::new, |p| format!(", first at ({:.2}, {:.2}, {:.2})", p[0], p[1], p[2]));
+        anyhow::anyhow!("its fillet crosses itself at {} sites{at}", sites.len())
+    })?;
+    let grown = csg::combine(part, &collar, csg::Op::Union).map_err(|e| anyhow::anyhow!("its fillet would not unite with it ({e})"))?;
+    let (bad, volume) = closure(&grown);
+    ensure!(bad == 0 && volume > 0.0, "grown into the band it does not close: {bad} open edges");
+    let crossings = csg::self_crossings(&grown);
+    ensure!(crossings == 0, "grown into the band it crosses itself {crossings} times");
+    Ok(Some(grown))
 }
 
 // --- Hollows ---------------------------------------------------------------------------------------------------------
@@ -1493,5 +1642,86 @@ mod tests {
         assert!(Heights::new(0.0, 0.0, 0.1, 1, 4, vec![0.0; 4]).is_none());
         assert!(Heights::new(0.0, 0.0, 0.1, 3, 3, vec![0.0; 4]).is_none());
         assert!(Heights::new(0.0, 0.0, 0.0, 2, 2, vec![0.0; 4]).is_none());
+    }
+
+
+    /// `b` appended to `a` as a second shell, wound the other way when `void`.
+    fn with_shell(a: &Solid, b: &Solid, void: bool) -> Solid {
+        let mut both = a.clone();
+        let base = a.v.len() as u32;
+        both.v.extend(&b.v);
+        both.f.extend(b.f.iter().map(|t| if void { [t[0] + base, t[2] + base, t[1] + base] } else { t.map(|x| x + base) }));
+        both
+    }
+
+    /// A relax that pulls a ball's skin through a bead sitting just under it folds the mesh through itself; the clean
+    /// relax puts back only the vertices round the crossing, and changes nothing where nothing folds.
+    #[test]
+    fn a_clean_relax_undoes_only_its_own_folds() {
+        let ball = tetra_mesh([-1.3; 3], [1.3; 3], 0.08, &sphere(1.0));
+        let bead = tetra_mesh([-0.2, -0.2, 0.75], [0.2, 0.2, 1.1], 0.02, &|p: P3| ellipsoid(sub(p, [0.0, 0.0, 0.9]), [0.095; 3]));
+        let raw = with_shell(&ball, &bead, false);
+        assert!(crossing_sites(&raw).is_empty());
+        let pull = sphere(0.985);
+        let mut folded = raw.clone();
+        relax(&mut folded, &pull, 2);
+        assert!(!crossing_sites(&folded).is_empty(), "the plain relax should fold here");
+        let mut clean = raw.clone();
+        let restored = relax_clean(&mut clean, &pull, 2);
+        assert!(crossing_sites(&clean).is_empty());
+        let moved = folded.v.iter().zip(&raw.v).filter(|(a, b)| a != b).count();
+        assert!(restored > 0 && restored < moved / 4, "{restored} put back of {moved} moved");
+        // Far from the bead the clean relax is the plain one.
+        assert!(clean.v.iter().zip(&folded.v).all(|(c, f)| c[2] > 0.4 || c == f));
+        let (mut plain, mut again) = (raw_blob(), raw_blob());
+        relax(&mut plain, &blob, 3);
+        assert_eq!(relax_clean(&mut again, &blob, 3), 0);
+        assert!(same(&plain, &again));
+    }
+
+    /// Two balls meshed through each other cannot be decimated clean: `clean_decimate` hands back the raw mesh, still
+    /// crossing, where `clean_decimate_or_sites` says where it crosses; a clean try comes back as `clean_decimate`
+    /// gives it.
+    #[test]
+    fn a_decimation_that_crosses_says_where() {
+        let a = tetra_mesh([-1.5; 3], [1.5; 3], 0.08, &sphere(1.0));
+        let moved = Solid { v: a.v.iter().map(|p| add(*p, [1.0, 0.013, 0.007])).collect(), f: a.f.clone() };
+        let raw = with_shell(&a, &moved, false);
+        assert!(csg::self_crossings(&clean_decimate(&raw, 2_000)) > 0, "the plain fallback still crosses");
+        let sites = clean_decimate_or_sites(&raw, 2_000).expect_err("two balls through each other should not decimate clean");
+        // On the circle where they meet: radius sqrt(3)/2 in the plane x = 0.5.
+        assert!(!sites.is_empty());
+        for p in &sites {
+            assert!((p[0] - 0.5).abs() < 0.1 && ((p[1] - 0.0065).hypot(p[2] - 0.0035) - 0.866).abs() < 0.1, "{p:?}");
+        }
+        let blob = raw_blob();
+        assert!(same(&clean_decimate_or_sites(&blob, 6_000).unwrap(), &clean_decimate(&blob, 6_000)));
+    }
+
+    /// A part grown out of a slab of stock: closed, uncrossed, the part's own mesh kept above the fillet, the collar's
+    /// rim buried in the stock, and a fillet's worth of metal at the junction where the plain union has a crease.
+    #[test]
+    fn a_part_grows_out_of_the_stock_with_a_fillet() {
+        let stock = |p: P3| p[2];
+        let post = tetra_mesh([-1.0, -1.0, -0.5], [1.0, 1.0, 2.0], 0.05, &|p: P3| round_cone(p, [0.0, 0.0, -0.3], [0.0, 0.0, 1.4], 0.6, 0.4));
+        let post = clean_decimate(&post, 3_000);
+        let grown = fillet_into(&post, &stock, 0.4, 0.05).unwrap().unwrap();
+        let (bad, _) = closure(&grown);
+        assert_eq!((bad, csg::self_crossings(&grown)), (0, 0));
+        // Above the collar the post is its own mesh, vertex for vertex.
+        let high = |s: &Solid| { let mut v: Vec<[u64; 3]> = s.v.iter().filter(|p| p[2] > 0.7).map(|p| p.map(f64::to_bits)).collect(); v.sort(); v };
+        assert_eq!(high(&grown), high(&post));
+        // Every vertex is on the post, on the fillet within its reach, or under the stock's surface.
+        let own = MeshField::of(&post, 2.0);
+        for p in &grown.v {
+            assert!(own.at(*p) < 0.4 + FILLET_DIVE_MM + 0.25 && (own.at(*p) < 0.03 || p[2] < 0.42), "{p:?}");
+            assert!(p[2] < -1e-3 || p[0].hypot(p[1]) < 0.6 + 0.45, "{p:?} at {} from the post", own.at(*p));
+        }
+        // At the foot, 0.05 mm off the stock and 0.05 mm out from the post, the grown part has metal and the post has none.
+        let r = 0.6 - 0.2 * 0.3 / 1.7 + 0.05;
+        let field = MeshField::of(&grown, 2.0);
+        assert!(own.at([r, 0.0, 0.05]) > 0.0 && field.at([r, 0.0, 0.05]) < 0.0);
+        // Out of the stock's reach nothing grows.
+        assert!(fillet_into(&post, &|p: P3| p[2] + 3.0, 0.4, 0.05).unwrap().is_none());
     }
 }

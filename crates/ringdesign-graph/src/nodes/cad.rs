@@ -45,6 +45,89 @@ fn feature(_: &mut EvalCtx<'_>, n: &Node, i: &Inputs) -> Result<Outputs, NodeErr
         .map_err(|e| NodeError::new(e.to_string()))?;
     Ok(Outputs::one("design", d))
 }
+/// What a `cad.features` node's settings hold: the name, component and operation every feature it appends starts from.
+#[derive(serde::Deserialize, Default)]
+struct FeaturesBase {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    operation: Option<Operation>,
+    #[serde(default)]
+    component: ringdesign_core::cad::Component,
+}
+/// The id of feature `k` a `cad.features` node appends: the node's id in the high bits, so no node's own id and no other such
+/// node's features can take it.
+pub fn features_id(node: NodeId, k: usize) -> Option<Id> {
+    (node.0 < 1 << 43 && k + 1 < 1 << 20).then(|| node.0 << 20 | (k as u64 + 1))
+}
+fn features(_: &mut EvalCtx<'_>, n: &Node, i: &Inputs) -> Result<Outputs, NodeError> {
+    let mut d = match i.get("design") {
+        Value::Design(d) => (**d).clone(),
+        _ => return Err(NodeError::input("design", "Connect a source design")),
+    };
+    let base: FeaturesBase = match &n.params {
+        serde_json::Value::Null => FeaturesBase::default(),
+        params => serde_json::from_value(params.clone()).map_err(|e| NodeError::new(format!("CAD features: {e}")))?,
+    };
+    let parse = |pin: &str, v: &Value| v.to_json_any().ok_or_else(|| NodeError::input(pin, "expected JSON"));
+    let operations = i.list("operation");
+    let placements = i.list("placement");
+    let count = operations.len().max(placements.len());
+    if count == 0 && base.operation.is_none() {
+        return Err(NodeError::input("operation", "Wire a list of operations, or of placements for the operation in the settings"));
+    }
+    let count = count.max(1);
+    let item = |list: &[Value], k: usize| list.get(k.min(list.len().saturating_sub(1))).cloned();
+    let name = match i.get("name") {
+        Value::Null => base.name.clone().unwrap_or_else(|| "Part".into()),
+        v => v.as_text().ok_or_else(|| NodeError::input("name", "expected text"))?.to_string(),
+    };
+    let attach = match i.get("attach") {
+        Value::Null => None,
+        v => Some(serde_json::from_value::<ringdesign_core::cad::Attach>(serde_json::json!(v.as_text().unwrap_or_default().to_lowercase())).map_err(|_| NodeError::input("attach", "separate, join or cut"))?),
+    };
+    let enabled = i.bool("enabled")?;
+    let doc = d.cad.get_or_insert_with(Document::default);
+    let mut ids = Vec::with_capacity(count);
+    for k in 0..count {
+        let id = features_id(n.id, k).ok_or_else(|| NodeError::new("CAD features: too many features for one node"))?;
+        let operation = match item(&operations, k) {
+            Some(v) => serde_json::from_value(parse("operation", &v)?).map_err(|e| NodeError::input("operation", format!("item {k}: {e}")))?,
+            None => base.operation.clone().expect("checked"),
+        };
+        let mut component = base.component.clone();
+        if let Some(v) = item(&placements, k) {
+            component.placement = serde_json::from_value(parse("placement", &v)?).map_err(|e| NodeError::input("placement", format!("item {k}: {e}")))?;
+        }
+        if let Some(attach) = attach {
+            component.attach = attach;
+        }
+        if let Some(blend) = i.get("blend_mm").as_number() {
+            component.blend_mm = blend;
+        }
+        let f = Feature { id, name: if count > 1 { format!("{name}, {}", k + 1) } else { name.clone() }, enabled, operation, component };
+        doc.append(f).map_err(|e| NodeError::new(e.to_string()))?;
+        ids.push(Value::Int(id as i64));
+    }
+    Ok(Outputs::one("design", d).with("ids", ids))
+}
+/// The numeric placement pins, each patching the coordinate of that name.
+const PLACEMENT_NUMBERS: [&str; 7] = ["theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg", "radius_mm"];
+/// Every placement pin beside `placement` and `blend_mm`, with the kind it reads.
+const PLACEMENT_PINS: [(&str, ValueKind); 12] = [
+    ("theta_deg", ValueKind::Number),
+    ("height_mm", ValueKind::Number),
+    ("across_mm", ValueKind::Number),
+    ("spin_deg", ValueKind::Number),
+    ("cant_deg", ValueKind::Number),
+    ("tilt_deg", ValueKind::Number),
+    ("radius_mm", ValueKind::Number),
+    ("level", ValueKind::Bool),
+    ("part", ValueKind::Int),
+    ("at", ValueKind::Json),
+    ("rotation_deg", ValueKind::Json),
+    ("face", ValueKind::Text),
+];
 fn component_inputs(f: &mut Feature, i: &Inputs) -> Result<(), NodeError> {
     if !i.get("placement").is_null() {
         f.component.placement = serde_json::from_value(i.get("placement").to_json_any().ok_or_else(|| NodeError::input("placement", "expected placement JSON"))?)
@@ -52,11 +135,39 @@ fn component_inputs(f: &mut Feature, i: &Inputs) -> Result<(), NodeError> {
     }
     if let Some(blend) = i.get("blend_mm").as_number() { f.component.blend_mm = blend; }
     let mut placement = serde_json::to_value(&f.component.placement).map_err(|e| NodeError::new(e.to_string()))?;
-    for pin in ["theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"] {
+    for pin in PLACEMENT_NUMBERS {
         if let Some(value) = i.get(pin).as_number() {
             let target = placement.get_mut(pin).ok_or_else(|| NodeError::input(pin, "this placement does not carry that coordinate"))?;
             *target = serde_json::json!(value);
         }
+    }
+    let kind = placement.get("kind").and_then(serde_json::Value::as_str).unwrap_or_default().to_string();
+    let mut set = |pin: &str, owner: &str, value: serde_json::Value| -> Result<(), NodeError> {
+        if kind != owner {
+            return Err(NodeError::input(pin, format!("only a {owner} placement carries {pin}")));
+        }
+        placement[pin] = value;
+        Ok(())
+    };
+    if let Some(level) = i.get("level").as_bool() {
+        if level || kind == "ring" {
+            set("level", "ring", serde_json::json!(level))?;
+        }
+    }
+    if !i.get("part").is_null() {
+        let part = i.get("part").as_int().filter(|id| *id >= 0).ok_or_else(|| NodeError::input("part", "expected a feature identity"))?;
+        set("part", "relative", serde_json::json!(part))?;
+    }
+    for pin in ["at", "rotation_deg"] {
+        if !i.get(pin).is_null() {
+            let v = i.get(pin).to_json_any().ok_or_else(|| NodeError::input(pin, "expected [x, y, z]"))?;
+            let xyz: [f64; 3] = serde_json::from_value(v).map_err(|e| NodeError::input(pin, format!("expected [x, y, z]: {e}")))?;
+            set(pin, "relative", serde_json::json!(xyz))?;
+        }
+    }
+    if !i.get("face").is_null() {
+        let face = i.text("face")?;
+        set("face", "side", serde_json::json!(face))?;
     }
     f.component.placement = serde_json::from_value(placement).map_err(|e| NodeError::new(e.to_string()))?;
     Ok(())
@@ -134,10 +245,31 @@ pub fn register(reg: &mut Registry) {
         .input(PinSpec::item("operation", ValueKind::Json).optional().doc("Operation recipe; uses the feature settings when absent."))
         .input(PinSpec::item("placement", ValueKind::Json).optional().doc("Placement recipe; uses the feature settings when absent."))
         .input(PinSpec::item("enabled", ValueKind::Bool).default(true).doc("Suppress the feature without deleting it."));
-    for (pin, doc) in [("blend_mm", "Junction blend radius, mm."), ("theta_deg", "Angle around the ring, degrees."), ("height_mm", "Height over the surface, mm."), ("across_mm", "Offset across the band, mm."), ("spin_deg", "Turn in the tangent plane, degrees."), ("cant_deg", "Cant from the tangent plane, degrees."), ("tilt_deg", "Tilt from the placement frame, degrees.")] {
+    for (pin, doc) in [("blend_mm", "Junction blend radius, mm."), ("theta_deg", "Angle around the ring, degrees."), ("height_mm", "Height over the surface, mm."), ("across_mm", "Offset across the band, mm."), ("spin_deg", "Turn in the tangent plane, degrees."), ("cant_deg", "Cant from the tangent plane, degrees."), ("tilt_deg", "Tilt from the placement frame, degrees."), ("radius_mm", "A side-face placement's distance from the finger's axis, mm.")] {
         feature_spec = feature_spec.input(PinSpec::item(pin, ValueKind::Number).optional().doc(doc));
     }
+    feature_spec = feature_spec
+        .input(PinSpec::item("level", ValueKind::Bool).optional().doc("Seat a ring placement square to the finger: x along it, y and z in the plane across the band."))
+        .input(PinSpec::item("part", ValueKind::Int).optional().doc("The part a relative placement stands in."))
+        .input(PinSpec::item("at", ValueKind::Json).optional().doc("A relative placement's offset in its part's frame, [x, y, z] mm."))
+        .input(PinSpec::item("rotation_deg", ValueKind::Json).optional().doc("A relative placement's turn about its part's x, y and z, [x, y, z] degrees."))
+        .input(PinSpec::select("face", ["Low", "High", "Wider"].map(String::from).to_vec()).optional().doc("The side face a side placement stands on."));
     reg.register(feature_spec.output(PinSpec::item("design", ValueKind::Design).doc("Design with appended feature.")).eval(feature)).expect("unique");
+    reg.register(
+        NodeSpec::new("cad.features", "CAD features", Category::Assembly)
+            .doc("Append one CAD feature per list item to one design, where a list on a CAD feature's operation makes one design per item: the operations and placements wired in, matched longest-list, the rest from the node's settings. Feature k's id is this node's id times 2^20 plus k + 1.")
+            .input(PinSpec::item("design", ValueKind::Design).doc("Previous feature or nominal design."))
+            .input(PinSpec::list("operation", ValueKind::Json).doc("One operation per feature; empty takes the settings' operation for every placement."))
+            .input(PinSpec::list("placement", ValueKind::Json).doc("One placement per feature, such as a crest path's; empty keeps the settings' placement."))
+            .input(PinSpec::item("name", ValueKind::Text).optional().doc("What the features are called, each numbered after it."))
+            .input(PinSpec::select("attach", vec!["separate".into(), "join".into(), "cut".into()]).optional().doc("How every feature meets the band; the settings' when unset."))
+            .input(PinSpec::item("blend_mm", ValueKind::Number).optional().doc("Junction blend radius, mm."))
+            .input(PinSpec::item("enabled", ValueKind::Bool).default(true).doc("Suppress the features without deleting them."))
+            .output(PinSpec::item("design", ValueKind::Design).doc("Design with the features appended."))
+            .output(PinSpec::list("ids", ValueKind::Int).doc("The appended features' ids, in order."))
+            .eval(features),
+    )
+    .expect("unique");
     reg.register(
         NodeSpec::new("sketch.library", "Library sketch", Category::Assembly)
             .doc("A sketch from the library by name, as a Sketch feature's operation: the bundled Gothic outlines, tracery nets and artwork (gothic/...), or the user's own. Wire it into a CAD feature, or through Tracery first for a net.")
@@ -620,8 +752,7 @@ fn chain_feature(g: &Graph, n: &Node) -> Result<Feature, GraphError> {
     f.enabled &= pin;
     if let Some((_, operation)) = builder { f.operation = operation; }
     let mut inputs = Inputs::default();
-    for pin in ["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"] {
-        let kind = if pin == "placement" { ValueKind::Json } else { ValueKind::Number };
+    for (pin, kind) in [("placement", ValueKind::Json), ("blend_mm", ValueKind::Number)].into_iter().chain(PLACEMENT_PINS) {
         inputs.values.insert(pin.into(), literal_input(g, n, pin, kind)?);
     }
     component_inputs(&mut f, &inputs).map_err(|e| unreadable(n.id, e))?;
@@ -895,11 +1026,35 @@ fn write_component_inputs(n: &mut Node, f: &Feature) -> Result<(), GraphError> {
     if n.inputs.get("blend_mm").is_some_and(|v| *v != Literal::Null) {
         n.inputs.insert("blend_mm".into(), Literal::Number(f.component.blend_mm));
     }
-    for pin in ["theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg"] {
+    for pin in PLACEMENT_NUMBERS {
         if n.inputs.get(pin).is_some_and(|v| *v != Literal::Null) {
             if let Some(value) = placement.get(pin).and_then(serde_json::Value::as_f64) {
                 n.inputs.insert(pin.into(), Literal::Number(value));
             } else {
+                n.inputs.remove(pin);
+            }
+        }
+    }
+    let kind = placement.get("kind").and_then(serde_json::Value::as_str);
+    for (pin, owner) in [("level", "ring"), ("part", "relative"), ("at", "relative"), ("rotation_deg", "relative"), ("face", "side")] {
+        if !n.inputs.get(pin).is_some_and(|v| *v != Literal::Null) {
+            continue;
+        }
+        let held = (kind == Some(owner)).then(|| placement.get(pin)).flatten();
+        match (pin, held) {
+            ("level", _) if kind == Some("ring") => {
+                n.inputs.insert(pin.into(), Literal::Bool(held.and_then(serde_json::Value::as_bool).unwrap_or(false)));
+            }
+            ("part", Some(v)) => {
+                n.inputs.insert(pin.into(), v.as_i64().map_or(Literal::Null, Literal::Int));
+            }
+            ("face", Some(v)) => {
+                n.inputs.insert(pin.into(), v.as_str().map_or(Literal::Null, |t| Literal::Text(t.into())));
+            }
+            (_, Some(v)) => {
+                n.inputs.insert(pin.into(), Literal::Json(v.clone()));
+            }
+            _ => {
                 n.inputs.remove(pin);
             }
         }
@@ -1388,5 +1543,66 @@ mod tests {
         assert!((span - 1.5 * 7.5).abs() < 1e-6, "a rosette 7.5 mm across, hexagons of 1.5 mm a side, scaled 1.5: {span}");
         let why = &r.status[&missing].errors[0].1;
         assert!(why.contains("no sketch called \"gothic/nothing\"") && why.contains("gothic/fleur-de-lis"), "{why}");
+    }
+    #[test]
+    fn level_relative_and_side_placements_are_driven_by_their_own_pins() {
+        use ringdesign_core::cad::Placement;
+        use ringdesign_core::field::SideFacePick;
+        use serde_json::json;
+        let reg = Registry::builtin();
+        let lib = ringdesign_core::AlphaLibrary::builtin();
+        let bytes = |d: &Document| serde_json::to_string(d).unwrap();
+        let mut g = start(&RingDesign::default()).unwrap();
+        let capsule = append(&mut g, Operation::Cylinder { radius_mm: 1.5, height_mm: 2.0 }).unwrap();
+        g.set_input(capsule, "placement", Literal::Json(serde_json::to_value(Placement::ring(90.0, 0.8)).unwrap())).unwrap();
+        g.set_input(capsule, "level", Literal::Bool(true)).unwrap();
+        let spine = append(&mut g, Operation::Cylinder { radius_mm: 0.3, height_mm: 1.2 }).unwrap();
+        g.set_input(spine, "placement", Literal::Json(json!({"kind": "relative", "part": capsule.0}))).unwrap();
+        g.set_input(spine, "at", Literal::Json(json!([0.6, -0.2, 1.4]))).unwrap();
+        g.set_input(spine, "rotation_deg", Literal::Json(json!([10.0, 35.0, -20.0]))).unwrap();
+        let post = append(&mut g, Operation::Cylinder { radius_mm: 0.5, height_mm: 0.5 }).unwrap();
+        g.set_input(post, "placement", Literal::Json(json!({"kind": "side", "theta_deg": 30.0, "radius_mm": 9.0}))).unwrap();
+        g.set_input(post, "radius_mm", Literal::Number(10.0)).unwrap();
+        g.set_input(post, "face", Literal::Text("Low".into())).unwrap();
+        g.set_input(post, "height_mm", Literal::Number(0.25)).unwrap();
+        let doc = evaluated_document(&g, &reg, &lib);
+        assert_eq!(doc.feature(capsule.0).unwrap().component.placement, Placement::Ring { theta_deg: 90.0, across_mm: 0.0, height_mm: 0.8, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: true });
+        assert_eq!(doc.feature(spine.0).unwrap().component.placement, Placement::Relative { part: capsule.0, at: [0.6, -0.2, 1.4], rotation_deg: [10.0, 35.0, -20.0] });
+        assert_eq!(doc.feature(post.0).unwrap().component.placement, Placement::Side { theta_deg: 30.0, radius_mm: 10.0, face: SideFacePick::Low, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0 });
+        assert_eq!(bytes(&document(&g).unwrap()), bytes(&doc), "the chain reader reads every new pin as the evaluation does");
+        assert_eq!(crate::file::graph_version_for(&g), crate::file::GRAPH_FORMAT_VERSION);
+        // Edits through the funnel keep each literal pin in step with the feature.
+        let mut expected = doc.clone();
+        for edit in [
+            CadEdit::Placement { id: spine.0, placement: Placement::Relative { part: capsule.0, at: [0.0, 0.0, 2.0], rotation_deg: [0.0; 3] } },
+            CadEdit::Placement { id: capsule.0, placement: Placement::ring(100.0, 0.8) },
+            CadEdit::Placement { id: post.0, placement: Placement::Side { theta_deg: 45.0, radius_mm: 10.5, face: SideFacePick::High, height_mm: 0.25, spin_deg: 0.0, tilt_deg: 0.0 } },
+        ] {
+            expected.apply(&edit).unwrap();
+            apply_edit(&mut g, &edit).unwrap();
+            assert_eq!(bytes(&document(&g).unwrap()), bytes(&expected));
+            assert_eq!(bytes(&evaluated_document(&g, &reg, &lib)), bytes(&expected));
+        }
+        let pin = |n: NodeId, name: &str| g.node(n).unwrap().inputs.get(name).cloned();
+        assert_eq!((pin(capsule, "level"), pin(spine, "at"), pin(post, "face")), (Some(Literal::Bool(false)), Some(Literal::Json(json!([0.0, 0.0, 2.0]))), Some(Literal::Text("High".into()))));
+        // A switch the placement does not carry is refused by name, and an off level on any placement is no switch at all.
+        let mut f: Feature = serde_json::from_value(g.node(post).unwrap().params.clone()).unwrap();
+        let mut inputs = Inputs::default();
+        inputs.values.insert("level".into(), Value::Bool(true));
+        assert!(component_inputs(&mut f, &inputs).unwrap_err().to_string().contains("only a ring placement carries level"));
+        inputs.values.insert("level".into(), Value::Bool(false));
+        component_inputs(&mut f, &inputs).unwrap();
+        inputs.values.insert("part".into(), Value::Int(1));
+        assert!(component_inputs(&mut f, &inputs).unwrap_err().to_string().contains("only a relative placement carries part"));
+    }
+    #[test]
+    fn a_ring_of_parts_alone_carrying_a_fillet_writes_its_graph_at_the_fenced_version() {
+        let mut g = start(&RingDesign::default()).unwrap();
+        let post = append(&mut g, Operation::Cylinder { radius_mm: 1.0, height_mm: 2.0 }).unwrap();
+        assert_eq!(crate::file::graph_version_for(&g), crate::file::PLAIN_GRAPH_FORMAT_VERSION);
+        let mut f: Feature = serde_json::from_value(g.node(post).unwrap().params.clone()).unwrap();
+        f.component.blend_mm = 0.3;
+        g.node_mut(post).unwrap().params = serde_json::to_value(&f).unwrap();
+        assert_eq!(crate::file::graph_version_for(&g), crate::file::GRAPH_FORMAT_VERSION);
     }
 }

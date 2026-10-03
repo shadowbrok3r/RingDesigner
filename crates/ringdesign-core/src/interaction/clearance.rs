@@ -3,8 +3,7 @@ use crate::{
     stones::{self, StoneFrame},
 };
 
-/// Display envelopes follow the same superellipse approximation as the stone
-/// census. They are not exact collision solids for every fancy-cut pavilion.
+/// Display envelopes follow the stone census's girdle; not exact collision solids for every fancy-cut pavilion.
 pub struct Envelope {
     pub label: String,
     pub centre: [f64; 3],
@@ -43,8 +42,7 @@ fn outline(f: &StoneFrame, margin: f64, depth: f64) -> Vec<[f64; 3]> {
         .map(|i| {
             let angle = std::f64::consts::TAU * i as f64 / 48.0;
             let (s, c) = angle.sin_cos();
-            let r =
-                crate::field::superellipse_radius_mm(c, s, f.semi.0, f.semi.1, f.plan_pow) + margin;
+            let r = f.radius_toward(c, s) + margin;
             std::array::from_fn(|j| {
                 f.girdle[j] + r * (c * f.long[j] + s * f.short[j]) - depth * f.normal[j]
             })
@@ -63,6 +61,7 @@ mod tests {
             short: [0.0, 1.0, 0.0],
             semi: (2.0, 1.0),
             plan_pow: 2.0,
+            table: None,
             reach: 2.0,
             pavilion: 1.5,
         };

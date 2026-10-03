@@ -446,6 +446,7 @@ fn main() {
         profile: WireProfile::Flat,
         taper: 0.0,
         mirror_v: false,
+        ..Default::default()
     };
     d.layers.layers.push(LayerEntry::new("Straps", Layer::Curve(collars)));
     finish(&dir, "06-dune", "three waves sliding the band under flat straps", ROSE, 1.05, None, d, &mut lib);
