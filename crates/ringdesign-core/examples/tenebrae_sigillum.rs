@@ -288,7 +288,7 @@ fn fleur(height: f64, depth: f64) -> Vec<Part> {
             }
             q
         };
-        parts.push(part(&format!("{name} petal"), m(curl([2.0, 0.0], 1.05, 160.0, 2.0, 0.95)), StampTop::Flat).with_depth(depth));
+        parts.push(part(&format!("{name} petal"), m(curl([2.0, 0.0], 1.05, 160.0, 2.0, 0.95)), StampTop::Pillow { crown_mm: FLEUR_MODEL_MM }));
         parts.push(part(&format!("{name} spike"), m(blade([0.65, -1.45], [1.55, -2.3], 0.6, 0.3, 0.55)), spine(flip([0.7, -1.5]), flip([1.45, -2.2]))));
     }
     parts
@@ -700,9 +700,10 @@ fn arcades(d: &mut RingDesign, a: &Atlas, rot: f64, placed: &mut Vec<String>) ->
                 cut: true,
                 bench: false,
                 along_pull: true,
-                fine_cap: false,
+                fine_cap: true,
                 tier: 0,
-                top: StampTop::Flat,
+                // A dished floor, deepest at the light's heart: it faces the pull everywhere and catches the light.
+                top: StampTop::Pillow { crown_mm: 0.2 },
             };
             // Stand every light upright, its point straight up from the finger, wherever the wall turns.
             let f = s.frame(d, &ctx);
@@ -712,6 +713,13 @@ fn arcades(d: &mut RingDesign, a: &Atlas, rot: f64, placed: &mut Vec<String>) ->
         }
     }
     Ok(())
+}
+
+/// A circle of radius `r`. Counter-clockwise.
+fn circle(r: f64) -> Vec<[f64; 2]> {
+    let mut pts = arc([0.0, 0.0], r, 0.0, 2.0 * PI, 64);
+    pts.pop();
+    pts
 }
 
 /// A roundel's cusped quatrefoil, `d` across: four round foils on the axes meeting in cusps. Counter-clockwise.
@@ -731,8 +739,10 @@ fn roundel(d: f64) -> Vec<[f64; 2]> {
 
 /// The shoulders' side faces past each end of the head: ring angles and the roundel struck at each, graded down
 /// the shoulder.
-const ROUNDELS: [(f64, f64); 3] = [(47.0, 2.4), (41.0, 2.0), (35.0, 1.6)];
+const ROUNDELS: [(f64, f64); 3] = [(44.5, 2.4), (39.0, 2.0), (33.5, 1.6)];
 const ROUNDEL_SINK_MM: f64 = 0.35;
+/// The smallest roundel whose quatrefoil leaves Delft sand room between its foils.
+const ROUNDEL_FOILED_MM: f64 = 2.5;
 
 /// Three graded roundels on each shoulder's side faces, struck along the pull at mid-wall, as wide as the wall allows.
 fn shoulder_roundels(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) -> Result<()> {
@@ -763,15 +773,19 @@ fn shoulder_roundels(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) ->
                 ensure!(!wall.is_empty(), "no side face at {theta} deg");
                 let r = |s: &&ringdesign_core::skin::Sample| s.p[0].hypot(s.p[1]);
                 let (lo, hi) = (wall.iter().map(r).fold(f64::MAX, f64::min), wall.iter().map(r).fold(f64::MIN, f64::max));
+                // A full land on the bore side, where the comfort roll begins, and a lesser one under the crown.
+                let (lo, hi) = (lo + 0.6, hi - 0.3);
                 let mid = 0.5 * (lo + hi);
                 let at = wall.iter().min_by(|p, q| ((r(p) - mid).abs() + (p.theta - theta).abs() * 0.1).total_cmp(&((r(q) - mid).abs() + (q.theta - theta).abs() * 0.1))).unwrap();
-                let dia = dia.min(hi - lo - 0.8);
+                let dia = dia.min(hi - lo);
                 d.stamps.push(Stamp {
                     name: format!("Shoulder roundel {}, {sh} {}", side_k + 1, k + 1),
                     theta_deg: at.theta,
                     v_mm: at.v,
                     rot_deg: 45.0,
-                    outline: roundel(dia),
+                    // Under 2 mm a quatrefoil's foils pinch the sand between them below Delft's 0.30 mm detail: the
+                    // smaller roundels are plain oculi.
+                    outline: if dia >= ROUNDEL_FOILED_MM { roundel(dia) } else { circle(0.5 * dia) },
                     height_mm: 0.1,
                     sink_mm: ROUNDEL_SINK_MM,
                     draft_deg: 4.0,
@@ -780,7 +794,7 @@ fn shoulder_roundels(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) ->
                     along_pull: true,
                     fine_cap: true,
                     tier: 0,
-                    top: StampTop::Dome { crown_mm: 0.15 },
+                    top: StampTop::Pillow { crown_mm: 0.15 },
                 });
                 placed.push(format!("Shoulder roundel {}, {sh} {} at {:.2} deg, v {:.3}: wall {:.2} to {:.2} mm from the axis, {:.2} across", side_k + 1, k + 1, at.theta, at.v, lo, hi, dia));
             }
@@ -859,7 +873,7 @@ fn window(name: &str, width: f64, height: f64, w: f64, depth: f64) -> Vec<Part> 
     vec![
         light("left light", -cx),
         light("right light", cx),
-        Part { name: format!("{name}, oculus"), outline: roundel(o_d).into_iter().map(|p| [p[0], p[1] + o_lo + 0.5 * o_d]).collect(), depth: depth - 0.1, top: StampTop::Dome { crown_mm: 0.1 } },
+        Part { name: format!("{name}, oculus"), outline: roundel(o_d).into_iter().map(|p| [p[0], p[1] + o_lo + 0.5 * o_d]).collect(), depth: depth - 0.1, top: StampTop::Pillow { crown_mm: 0.1 } },
         Part { name: format!("{name}, hood"), outline: path_band(&arch_path(0.0, width, spring, spring - sill - 0.1), w), depth, top: StampTop::Flat },
     ]
 }
@@ -942,7 +956,7 @@ fn shank_arcade(d: &mut RingDesign, a: &Atlas, placed: &mut Vec<String>) -> Resu
             let map = |p: [f64; 2]| [p[1], -p[0]];
             let outline: Vec<[f64; 2]> = lancet(w, h).into_iter().map(map).collect();
             k += 1;
-            let mut s = intaglio(&format!("Shank arcade, {sh} {k}"), at, rot, outline, SHANK_DEPTH_MM, StampTop::Flat);
+            let mut s = intaglio(&format!("Shank arcade, {sh} {k}"), at, rot, outline, SHANK_DEPTH_MM, StampTop::Pillow { crown_mm: 0.18 });
             s.bench = true;
             d.stamps.push(s);
             placed.push(format!("Shank arcade, {sh} {k} at {:.2} deg, {:.2} x {:.2} mm", at.0, w, h));
@@ -1179,8 +1193,13 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, built: mesh::BuildRes
         }
     }
     save_rgb(&out.join("contact-300.png"), &sheet, cols * 300, rows * 300)?;
-    // The seal close up, raking light across the table.
-    render::write_png_parts(out.join("stones.png"), &parts, 0.25, 1.25, edge)?;
+    // Close-ups framed on a point of the whole ring, never a cropped mesh: the seal under a raking light, the cheek's
+    // arcade, and the shoulder's window over its roundels.
+    let crown = fin.metal.vertices.iter().map(|v| v.1 as f64).fold(0.0, f64::max);
+    render::write_png_framed(out.join("stones.png"), &parts, render::yaw_facing(90.0) + 0.25, 1.2, render::Framing::new([0.0, crown - 0.3, 0.0], 8.5), edge)?;
+    render::write_png_framed(out.join("cheek-close.png"), &parts, 0.15, 0.3, render::Framing::new([0.0, 12.1, -7.6], 6.0), edge)?;
+    let w = WINDOW_THETA_DEG.to_radians();
+    render::write_png_framed(out.join("shoulder-close.png"), &parts, render::yaw_facing(WINDOW_THETA_DEG) - 0.35, 0.75, render::Framing::new([12.0 * w.cos(), 12.0 * w.sin(), 1.8], 6.0), edge)?;
     // Bare stock against the finished ring, at the hero's angle.
     let mut bare = d.clone();
     bare.imported_base.as_mut().unwrap().bare = true;
