@@ -3,6 +3,7 @@
 //! Unsupported operations return located errors, never substitute geometry.
 use crate::{
     AlphaLibrary, BuildParams, Mesh, RingDesign, Vec3,
+    field::SideFacePick,
     manufacturing::Setup,
     sketch::{Id, Sketch},
 };
@@ -412,8 +413,36 @@ pub enum Placement {
         tilt_deg: f64,
         #[serde(default)]
         cant_deg: f64,
+        /// Drops the surface normal's part along the finger, so x runs along it and y and z lie in the plane `z = across_mm`.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        level: bool,
+    },
+    /// In the frame part `part` was seated by: moved by `at` along its axes, then turned by `rotation_deg` about its x, y and z as tilt, cant and spin turn.
+    Relative {
+        part: Id,
+        #[serde(default)]
+        at: [f64; 3],
+        #[serde(default)]
+        rotation_deg: [f64; 3],
+    },
+    /// On a side face at `theta_deg`, `radius_mm` from the finger's axis: z along the finger out of the face, x out along the radius, then spun about z and tilted round the ring.
+    Side {
+        theta_deg: f64,
+        radius_mm: f64,
+        #[serde(default)]
+        face: SideFacePick,
+        #[serde(default)]
+        height_mm: f64,
+        #[serde(default)]
+        spin_deg: f64,
+        #[serde(default)]
+        tilt_deg: f64,
     },
 }
+/// Samples in a section read for a side-face placement.
+const SIDE_SECTION_STEPS: usize = 192;
+/// Turn from the finger's axis within which a section's surface counts as side face, degrees.
+const SIDE_FACE_TURN_DEG: f64 = 90.0 - crate::field::SIDE_FACE_MIN_DRAFT_DEG;
 impl Placement {
     pub fn ring(theta_deg: f64, height_mm: f64) -> Self {
         Self::Ring {
@@ -423,23 +452,51 @@ impl Placement {
             spin_deg: 0.0,
             tilt_deg: 0.0,
             cant_deg: 0.0,
+            level: false,
         }
     }
     pub fn theta_deg(&self) -> Option<f64> {
         match self {
-            Self::Ring { theta_deg, .. } => Some(*theta_deg),
-            Self::Free => None,
+            Self::Ring { theta_deg, .. } | Self::Side { theta_deg, .. } => Some(*theta_deg),
+            Self::Free | Self::Relative { .. } => None,
         }
+    }
+    /// The features the placement reads: the part a relative placement stands in.
+    pub fn sources(&self) -> Vec<Id> {
+        match self {
+            Self::Relative { part, .. } => vec![*part],
+            _ => Vec::new(),
+        }
+    }
+    /// A level ring seat, a relative placement or a side-face one, which a format-5 build places otherwise or not at all.
+    pub fn is_extended(&self) -> bool {
+        matches!(self, Self::Ring { level: true, .. } | Self::Relative { .. } | Self::Side { .. })
+    }
+    /// Refuses numbers that are not finite, a side placement off the axis, and one standing on both faces.
+    pub fn validate(&self) -> Result<()> {
+        match *self {
+            Self::Free => {}
+            Self::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, .. } => ensure!(
+                [theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg].iter().all(|v| v.is_finite()),
+                "Invalid ring placement"
+            ),
+            Self::Relative { at, rotation_deg, .. } => {
+                ensure!(at.iter().chain(&rotation_deg).all(|v| v.is_finite()), "A placement relative to a part needs finite numbers")
+            }
+            Self::Side { theta_deg, radius_mm, face, height_mm, spin_deg, tilt_deg } => {
+                ensure!([theta_deg, radius_mm, height_mm, spin_deg, tilt_deg].iter().all(|v| v.is_finite()), "Invalid side-face placement");
+                ensure!(radius_mm > 0.0, "A part on a side face stands a radius out from the finger's axis, not {radius_mm} mm");
+                ensure!(face != SideFacePick::Both, "A part stands on one side face: Low, High or the Wider");
+            }
+        }
+        Ok(())
     }
     /// The rigid motion that takes the built part to where it stands.
     pub fn frame(&self, design: &RingDesign) -> Result<brep::Placement> {
         match *self {
             Self::Free => Ok(brep::Placement::IDENTITY),
-            Self::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } => {
-                ensure!(
-                    [theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg].iter().all(|v| v.is_finite()),
-                    "Invalid ring placement"
-                );
+            Self::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, .. } => {
+                self.validate()?;
                 let a = theta_deg.to_radians();
                 let r = design.inner_radius_mm() + design.profile.thickness_mm + height_mm;
                 // The part's z goes radial and its x runs along the finger; the leans turn it in place first.
@@ -458,57 +515,192 @@ impl Placement {
                     origin: [r * a.cos(), r * a.sin(), across_mm],
                 })
             }
+            Self::Side { theta_deg, radius_mm, face, height_mm, spin_deg, tilt_deg } => {
+                self.validate()?;
+                let section = design.section_at(theta_deg, SIDE_SECTION_STEPS, None, None);
+                let high = side_is_high(face, &section)?;
+                let foot = side_on_section(&section, theta_deg, radius_mm, high).unwrap_or_else(|| {
+                    let (s, c) = theta_deg.to_radians().sin_cos();
+                    let z = 0.5 * design.profile.width_mm;
+                    [radius_mm * c, radius_mm * s, if high { z } else { -z }]
+                });
+                Ok(side_seat(foot, high, theta_deg, height_mm, spin_deg, tilt_deg))
+            }
+            Self::Relative { part, .. } => {
+                anyhow::bail!("A part placed relative to #{part} stands in the frame that part was seated by; evaluate the document to place it")
+            }
         }
     }
-    /// [`Placement::frame`] seated on the built surface: a radial ray in the finger's plane at
+    /// [`Placement::frame`] seated on the built surface: a ring placement's radial ray in the finger's plane at
     /// `theta_deg`, `across_mm` along the finger, meets `surface`, and the part stands `height_mm`
-    /// out along the surface normal there with z along it and x along the finger. Without a
-    /// surface, or where the ray misses, it is `frame()` bit for bit.
+    /// out along the surface normal there with z along it and x along the finger; a side placement's ray
+    /// runs along the finger onto its face. Without a surface, or where the ray misses, it is `frame()` bit for bit.
     pub fn frame_on(&self, design: &RingDesign, surface: Option<&Mesh>) -> Result<brep::Placement> {
-        let Self::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg } = *self else {
-            return self.frame(design);
-        };
-        let Some(mesh) = surface else {
-            return self.frame(design);
-        };
-        ensure!(
-            [theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg].iter().all(|v| v.is_finite()),
-            "Invalid ring placement"
-        );
-        let Some((hit, normal)) = surface_hit(mesh, theta_deg, across_mm) else {
-            return self.frame(design);
-        };
-        let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-        let z = normal;
-        // x runs along the finger as `frame()` has it, squared up to the normal.
-        let along = [0.0, 0.0, -1.0];
-        let d = dot(along, z);
-        let x: [f64; 3] = std::array::from_fn(|k| along[k] - z[k] * d);
-        let len = crate::mesh::norm(x);
-        if len < 1e-6 {
-            return self.frame(design);
+        match *self {
+            Self::Ring { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level } => {
+                let Some(mesh) = surface else {
+                    return self.frame(design);
+                };
+                self.validate()?;
+                let Some((hit, normal)) = surface_hit(mesh, theta_deg, across_mm) else {
+                    return self.frame(design);
+                };
+                match ring_seat(hit, normal, RingLean { theta_deg, across_mm, height_mm, spin_deg, tilt_deg, cant_deg, level }) {
+                    Some(seat) => Ok(seat),
+                    None => self.frame(design),
+                }
+            }
+            Self::Side { theta_deg, radius_mm, face, height_mm, spin_deg, tilt_deg } => {
+                let Some(mesh) = surface else {
+                    return self.frame(design);
+                };
+                self.validate()?;
+                let high = side_is_high(face, &design.section_at(theta_deg, SIDE_SECTION_STEPS, None, None))?;
+                match side_hit(mesh, theta_deg, radius_mm, high) {
+                    Some(foot) => Ok(side_seat(foot, high, theta_deg, height_mm, spin_deg, tilt_deg)),
+                    None => self.frame(design),
+                }
+            }
+            Self::Free | Self::Relative { .. } => self.frame(design),
         }
-        let x = x.map(|v| v / len);
-        let y = crate::mesh::cross(z, x);
-        let lean = nalgebra::Rotation3::from_euler_angles(
-            tilt_deg.to_radians(),
-            cant_deg.to_radians(),
-            spin_deg.to_radians(),
-        );
-        let l = lean.matrix();
-        let col = |i: usize| -> [f64; 3] { std::array::from_fn(|k| x[k] * l[(0, i)] + y[k] * l[(1, i)] + z[k] * l[(2, i)]) };
-        Ok(brep::Placement {
-            x_axis: col(0),
-            y_axis: col(1),
-            z_axis: col(2),
-            origin: std::array::from_fn(|k| hit[k] + z[k] * height_mm),
-        })
+    }
+    /// [`Placement::frame_on`], a relative placement composed on the frame `host` gives the part it stands in.
+    pub fn seat_with(&self, design: &RingDesign, surface: Option<&Mesh>, host: &dyn Fn(Id) -> Option<brep::Placement>) -> Result<brep::Placement> {
+        match *self {
+            Self::Relative { part, at, rotation_deg } => {
+                self.validate()?;
+                let frame = host(part).ok_or_else(|| anyhow::anyhow!("Part #{part}, which this part stands relative to, has not built before it"))?;
+                Ok(compose(&frame, &rotate_place(at, rotation_deg)?))
+            }
+            _ => self.frame_on(design, surface),
+        }
     }
     /// A part-local point in world millimetres.
     pub fn world(&self, design: &RingDesign, p: [f64; 3]) -> Result<[f64; 3]> {
         let f = self.frame(design)?;
         Ok(std::array::from_fn(|k| f.origin[k] + f.x_axis[k] * p[0] + f.y_axis[k] * p[1] + f.z_axis[k] * p[2]))
     }
+}
+/// A ring placement's numbers, as [`ring_seat`] reads them.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RingLean {
+    pub theta_deg: f64,
+    pub across_mm: f64,
+    pub height_mm: f64,
+    pub spin_deg: f64,
+    pub tilt_deg: f64,
+    pub cant_deg: f64,
+    pub level: bool,
+}
+/// A ring seat at `hit` on a surface facing `normal`: z along it, levelled when asked, x along the finger squared to it; `None` where the normal runs along the finger.
+pub(crate) fn ring_seat(hit: [f64; 3], normal: [f64; 3], p: RingLean) -> Option<brep::Placement> {
+    let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    let (mut hit, mut z) = (hit, normal);
+    if p.level {
+        let l = normal[0].hypot(normal[1]);
+        let (s, c) = p.theta_deg.to_radians().sin_cos();
+        z = if l > 1e-9 { [normal[0] / l, normal[1] / l, 0.0] } else { [c, s, 0.0] };
+        hit[2] = p.across_mm;
+    }
+    // x runs along the finger as `frame()` has it, squared up to the normal.
+    let along = [0.0, 0.0, -1.0];
+    let d = dot(along, z);
+    let x: [f64; 3] = std::array::from_fn(|k| along[k] - z[k] * d);
+    let len = crate::mesh::norm(x);
+    if len < 1e-6 {
+        return None;
+    }
+    let x = x.map(|v| v / len);
+    let y = crate::mesh::cross(z, x);
+    let lean = nalgebra::Rotation3::from_euler_angles(
+        p.tilt_deg.to_radians(),
+        p.cant_deg.to_radians(),
+        p.spin_deg.to_radians(),
+    );
+    let l = lean.matrix();
+    let col = |i: usize| -> [f64; 3] { std::array::from_fn(|k| x[k] * l[(0, i)] + y[k] * l[(1, i)] + z[k] * l[(2, i)]) };
+    Some(brep::Placement {
+        x_axis: col(0),
+        y_axis: col(1),
+        z_axis: col(2),
+        origin: std::array::from_fn(|k| hit[k] + z[k] * p.height_mm),
+    })
+}
+/// A side seat at `foot`: z along the finger out of the high or low face, x out along the radius at `theta_deg`, spun and tilted, `height_mm` off the face.
+pub(crate) fn side_seat(foot: [f64; 3], high: bool, theta_deg: f64, height_mm: f64, spin_deg: f64, tilt_deg: f64) -> brep::Placement {
+    let z = [0.0, 0.0, if high { 1.0 } else { -1.0 }];
+    let (s, c) = theta_deg.to_radians().sin_cos();
+    let x = [c, s, 0.0];
+    let y = crate::mesh::cross(z, x);
+    let lean = nalgebra::Rotation3::from_euler_angles(tilt_deg.to_radians(), 0.0, spin_deg.to_radians());
+    let l = lean.matrix();
+    let col = |i: usize| -> [f64; 3] { std::array::from_fn(|k| x[k] * l[(0, i)] + y[k] * l[(1, i)] + z[k] * l[(2, i)]) };
+    brep::Placement { x_axis: col(0), y_axis: col(1), z_axis: col(2), origin: std::array::from_fn(|k| foot[k] + z[k] * height_mm) }
+}
+/// Whether `face` names the high (+Z) side of `section`: the wider of the two faces square to the finger, the high one on a tie.
+pub(crate) fn side_is_high(face: SideFacePick, section: &crate::profile::ProfileLoop) -> Result<bool> {
+    match face {
+        SideFacePick::Low => Ok(false),
+        SideFacePick::High => Ok(true),
+        SideFacePick::Both => anyhow::bail!("A part stands on one side face: Low, High or the Wider"),
+        SideFacePick::Wider => {
+            let square = SIDE_FACE_TURN_DEG.to_radians().cos();
+            let (mut low, mut high) = (0.0, 0.0);
+            let n = section.pts.len();
+            for i in 0..n {
+                let (a, b) = (&section.pts[i], &section.pts[(i + 1) % n]);
+                let (nr, nz) = (0.5 * (a.nr + b.nr), 0.5 * (a.nz + b.nz));
+                if !(a.surface && b.surface) || nz.abs() < square * nr.hypot(nz) {
+                    continue;
+                }
+                let length = (b.r - a.r).hypot(b.z - a.z);
+                if nz > 0.0 { high += length } else { low += length }
+            }
+            Ok(high >= low - 1e-9)
+        }
+    }
+}
+/// Where the high or low face of `section`, the band's own at `theta_deg`, crosses `radius_mm`: its highest or lowest crossing.
+pub(crate) fn side_on_section(section: &crate::profile::ProfileLoop, theta_deg: f64, radius_mm: f64, high: bool) -> Option<[f64; 3]> {
+    let n = section.pts.len();
+    let mut best: Option<f64> = None;
+    for i in 0..n {
+        let (a, b) = (&section.pts[i], &section.pts[(i + 1) % n]);
+        if (a.r - radius_mm) * (b.r - radius_mm) > 0.0 || (b.r - a.r).abs() < 1e-12 {
+            continue;
+        }
+        let t = ((radius_mm - a.r) / (b.r - a.r)).clamp(0.0, 1.0);
+        let z = a.z + (b.z - a.z) * t;
+        if best.is_none_or(|w| if high { z > w } else { z < w }) {
+            best = Some(z);
+        }
+    }
+    let (s, c) = theta_deg.to_radians().sin_cos();
+    best.map(|z| [radius_mm * c, radius_mm * s, z])
+}
+/// Where a ray along the finger at `theta_deg`, `radius_mm` out, first meets the surface from above the high face or below the low one.
+pub fn side_hit(mesh: &Mesh, theta_deg: f64, radius_mm: f64, high: bool) -> Option<[f64; 3]> {
+    let (lo, hi) = mesh.bounds()?;
+    let up = if high { 1.0 } else { -1.0 };
+    let far = f64::from(if high { hi.2 } else { lo.2 }) + up;
+    let (sin, cos) = theta_deg.to_radians().sin_cos();
+    let direction = [0.0, 0.0, -up as f32];
+    // A ray along a swept vertex line can slip between its faces, so the later tries step off it.
+    for (dr, side) in [(0.0, 0.0), (1e-4, 0.0), (-1e-4, 0.0), (0.0, 1e-4), (1e-3, -1e-3)] {
+        let r = radius_mm + dr;
+        let origin = [(r * cos - side * sin) as f32, (r * sin + side * cos) as f32, far as f32];
+        let Some((face, p)) = crate::interaction::picking::raycast(mesh, origin, direction) else {
+            continue;
+        };
+        let (a, b, c) = mesh.triangle(&mesh.faces[face])?;
+        let facet = crate::mesh::cross(crate::mesh::sub(b, a), crate::mesh::sub(c, a));
+        if facet[2] * up <= 0.0 {
+            continue;
+        }
+        let p = p.map(f64::from);
+        return Some([radius_mm * cos, radius_mm * sin, p[2]]);
+    }
+    None
 }
 /// A stone's seat on a planar face of the part its builder's `on` names: offsets along [`FaceSeat::axes`], girdle height off it, spin about its normal.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -1284,6 +1476,14 @@ pub struct Feature {
     #[serde(default)]
     pub component: Component,
 }
+impl Feature {
+    /// Every feature this one reads: its operation's sources, then the part its placement stands in.
+    pub fn sources(&self) -> Vec<Id> {
+        let mut out = self.operation.sources();
+        out.extend(self.component.placement.sources());
+        out
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Joint {
     pub a: Id,
@@ -1472,11 +1672,17 @@ pub struct Evaluated {
     pub band: Option<Id>,
     /// Every work plane built, in document order.
     pub planes: Vec<WorkPlane>,
+    /// The frame each feature was seated by, work planes' included; a part built free has none.
+    pub frames: BTreeMap<Id, brep::Placement>,
 }
 impl Evaluated {
     /// The work plane feature `id` built.
     pub fn plane(&self, id: Id) -> Option<&WorkPlane> {
         self.planes.iter().find(|p| p.id == id)
+    }
+    /// The frame feature `id` stands in: the one it was seated by, the world's for a feature that built free.
+    pub fn frame_of(&self, id: Id) -> Option<brep::Placement> {
+        self.frames.get(&id).copied().or_else(|| self.status_of(id).is_some_and(FeatureStatus::is_ok).then_some(brep::Placement::IDENTITY))
     }
     /// The status the evaluation gave feature `id`.
     pub fn status_of(&self, id: Id) -> Option<&FeatureStatus> {
@@ -2098,6 +2304,20 @@ fn in_plane_line(plane: &cadkernel::space::Plane, pivot: [f64; 3], axis: [f64; 3
     let at = along(pivot);
     Ok((std::array::from_fn(|k| plane.origin[k] + at[k]), along(axis)))
 }
+/// Whether `design`'s document places a part level, relative to another part or on a side face; its graph is read by [`crate::library::template_features_in_json`].
+pub fn placements_extended(design: &RingDesign) -> bool {
+    design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| f.component.placement.is_extended()))
+}
+/// Whether `v` itself is a placement a format-5 build reads otherwise: a level ring seat, or one relative to a part or on a side face.
+pub fn extended_placement_json(v: &serde_json::Value) -> bool {
+    let has = |key: &str| v.get(key).is_some();
+    match v.get("kind").and_then(serde_json::Value::as_str) {
+        Some("ring") => has("theta_deg") && v.get("level").and_then(serde_json::Value::as_bool) == Some(true),
+        Some("relative") => has("part"),
+        Some("side") => has("theta_deg") && has("radius_mm"),
+        _ => false,
+    }
+}
 /// Whether `design` carries a revolution whose line is read in its sketch's plane, in its document or anywhere in its graph.
 pub fn turns_in_plane(design: &RingDesign) -> bool {
     let in_document = design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| matches!(f.operation, Operation::Revolve { in_plane: true, .. })));
@@ -2427,11 +2647,15 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
     for f in &doc.features {
         let mut h = std::hash::DefaultHasher::new();
         serde_json::to_vec(&(f.enabled, &f.operation, &f.component.placement)).unwrap_or_default().hash(&mut h);
-        for s in f.operation.sources() {
+        for s in f.sources() {
             match sigs.get(&s) {
                 Some(v) => (1u8, *v).hash(&mut h),
                 None => (0u8, s).hash(&mut h),
             }
+        }
+        // A side placement hashes the band's size, section and shank.
+        if matches!(f.component.placement, Placement::Side { .. }) {
+            serde_json::to_vec(&(design.size, &design.profile, &design.shank)).unwrap_or_default().hash(&mut h);
         }
         // Builders, patterns and tangent planes read the surface and the bore below it.
         let reads_surface = matches!(
@@ -2460,8 +2684,8 @@ fn signatures(doc: &Document, design: &RingDesign, params: BuildParams, surface_
 }
 
 /// The first source that failed, was skipped, or was suppressed without passing a body through, named.
-fn skipped_by(op: &Operation, status: &BTreeMap<Id, FeatureStatus>, doc: &Document, passed: impl Fn(Id) -> bool) -> Option<String> {
-    for s in op.sources() {
+fn skipped_by(f: &Feature, status: &BTreeMap<Id, FeatureStatus>, doc: &Document, passed: impl Fn(Id) -> bool) -> Option<String> {
+    for s in f.sources() {
         let why = match status.get(&s) {
             Some(FeatureStatus::Failed(_)) => "failed",
             Some(FeatureStatus::Skipped(_)) => "was skipped",
@@ -2545,7 +2769,7 @@ fn build_feature(
         ensure!(faults.is_empty(), "generated invalid topology: {faults:?}");
     }
     if f.component.placement != Placement::Free {
-        let seat = f.component.placement.frame_on(design, ctx.surface)?;
+        let seat = f.component.placement.seat_with(design, ctx.surface, &|id| host_frame(id, values, frames))?;
         (value, frame) = match value {
             Value::Brep(body) => (Value::Brep(maybe(brep::transform(&body, &seat), "Ring placement")?), Some(seat)),
             // A mesh's own frame, a stone's, moves with it.
@@ -2558,6 +2782,11 @@ fn build_feature(
 /// The seat frame turned a quarter about its normal, so a stone's length runs round the ring at `spin` zero.
 fn stone_frame(seat: &brep::Placement) -> brep::Placement {
     brep::Placement { x_axis: seat.y_axis, y_axis: seat.x_axis.map(|v| -v), z_axis: seat.z_axis, origin: seat.origin }
+}
+
+/// The frame feature `id` stands in so far in an evaluation: the one it was seated by, the world's for a part built free.
+pub(crate) fn host_frame(id: Id, values: &BTreeMap<Id, Value>, frames: &BTreeMap<Id, brep::Placement>) -> Option<brep::Placement> {
+    frames.get(&id).copied().or_else(|| values.contains_key(&id).then_some(brep::Placement::IDENTITY))
 }
 
 /// How far over a stone's girdle plane a floor probe starts down, mm.
@@ -2644,8 +2873,8 @@ impl Ground {
 fn seat_at(frame: &brep::Placement, placement: &Placement, design: &RingDesign, surface: Option<&Mesh>) -> builders::Seat {
     let dropped = surface.and_then(|mesh| Ground::new(mesh, frame, 1.0, -PROBE_ABOVE_MM).floor([0.0, 0.0]));
     let surface_z = dropped.unwrap_or(match placement {
-        Placement::Ring { height_mm, .. } => -height_mm,
-        Placement::Free => 0.0,
+        Placement::Ring { height_mm, .. } | Placement::Side { height_mm, .. } => -height_mm,
+        Placement::Free | Placement::Relative { .. } => 0.0,
     });
     seat_over(frame, surface_z, design)
 }
@@ -2708,7 +2937,7 @@ fn build_made(
         let gem = builders::gem_of(settings)?;
         let frame = match &f.component.placement {
             Placement::Free => brep::Placement::IDENTITY,
-            p => stone_frame(&p.frame_on(design, ctx.surface)?),
+            p => stone_frame(&p.seat_with(design, ctx.surface, &|id| host_frame(id, values, frames))?),
         };
         (gem, frame, seat_at(&frame, &f.component.placement, design, ctx.surface))
     };
@@ -2817,7 +3046,7 @@ pub fn evaluate_memo(
                 }
             }
             report.status = FeatureStatus::Suppressed;
-        } else if let Some(why) = skipped_by(&f.operation, &status, doc, |s| values.contains_key(&s) || sketches.contains_key(&s) || frames.contains_key(&s)) {
+        } else if let Some(why) = skipped_by(f, &status, doc, |s| values.contains_key(&s) || sketches.contains_key(&s) || frames.contains_key(&s)) {
             report.status = FeatureStatus::Skipped(why);
         } else if let Operation::Plane { base, offset_mm } = &f.operation {
             // A work plane builds a frame and no body.
@@ -2933,6 +3162,7 @@ pub fn evaluate_memo(
         features: reports,
         band,
         planes,
+        frames,
     })
 }
 
@@ -3566,7 +3796,7 @@ mod tests {
         assert!((0..3).all(|k| (out[k] - origin[k] - radial[k]).abs() < 1e-12));
         let along = Placement::ring(theta, 0.0).world(&d, [1.0, 0.0, 0.0]).unwrap();
         assert!((along[2] - origin[2] + 1.0).abs() < 1e-12);
-        let spun = Placement::Ring { theta_deg: theta, across_mm: 0.5, height_mm: 0.0, spin_deg: 90.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let spun = Placement::Ring { theta_deg: theta, across_mm: 0.5, height_mm: 0.0, spin_deg: 90.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         let x = spun.world(&d, [1.0, 0.0, 0.0]).unwrap();
         let o = spun.world(&d, [0.0; 3]).unwrap();
         assert!((o[2] - 0.5).abs() < 1e-12);
@@ -3745,7 +3975,7 @@ mod tests {
         // No surface, or a ray that misses, is the reference frame exactly.
         let c = seat.frame_on(&court, None).unwrap();
         assert!(a.origin == c.origin && a.x_axis == c.x_axis && a.y_axis == c.y_axis && a.z_axis == c.z_axis);
-        let off = Placement::Ring { theta_deg: 90.0, across_mm: 40.0, height_mm: 0.4, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0 };
+        let off = Placement::Ring { theta_deg: 90.0, across_mm: 40.0, height_mm: 0.4, spin_deg: 0.0, tilt_deg: 0.0, cant_deg: 0.0, level: false };
         assert_eq!(off.frame_on(&court, Some(&built.mesh)).unwrap().origin, off.frame(&court).unwrap().origin);
         // Evaluating with the surface in the context seats the body there.
         let mut d = court.clone();
@@ -4494,5 +4724,298 @@ mod sketch_tests {
         assert_eq!(doc.outputs, vec![2, 1, 3]);
         doc.apply(&CadEdit::Remove { id: 2 }).unwrap();
         assert_eq!(doc.outputs, vec![1, 3], "removing what stands on the box leaves the box");
+    }
+}
+
+#[cfg(test)]
+mod placement_kind_tests {
+    use super::*;
+    use crate::cad::edit::CadEdit;
+    use crate::cad::pattern::{inverse, then};
+    use crate::field::SideFacePick;
+    use crate::library::{self, FORMAT_VERSION, PLAIN_FORMAT_VERSION};
+    use crate::profile::{ProfileStyle, ShankKey, ShankKind};
+
+    fn params() -> BuildParams {
+        BuildParams { theta_steps: 256, profile_steps: 128, ..BuildParams::default() }
+    }
+    fn court() -> RingDesign {
+        crate::templates::all().iter().find(|t| t.name == "Court band").unwrap().design()
+    }
+    fn ring(theta_deg: f64, across_mm: f64, height_mm: f64, tilt_deg: f64, level: bool) -> Placement {
+        Placement::Ring { theta_deg, across_mm, height_mm, spin_deg: 0.0, tilt_deg, cant_deg: 0.0, level }
+    }
+    fn part(id: Id, name: &str, operation: Operation, placement: Placement) -> Feature {
+        Feature { id, name: name.into(), enabled: true, operation, component: Component { placement, attach: Attach::Join, ..Component::default() } }
+    }
+    /// The design's parts on its band, the `Band` anchor first.
+    fn with_parts(mut d: RingDesign, features: Vec<Feature>) -> RingDesign {
+        let mut doc = Document::default();
+        doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() }).unwrap();
+        for f in features {
+            doc.append(f).unwrap();
+        }
+        d.cad = Some(doc);
+        d
+    }
+    fn near(a: [f64; 3], b: [f64; 3], tol: f64) -> bool {
+        (0..3).all(|k| (a[k] - b[k]).abs() <= tol)
+    }
+    fn same_frame(a: &brep::Placement, b: &brep::Placement, tol: f64) -> bool {
+        near(a.origin, b.origin, tol) && near(a.x_axis, b.x_axis, tol) && near(a.y_axis, b.y_axis, tol) && near(a.z_axis, b.z_axis, tol)
+    }
+
+    #[test]
+    fn a_level_seat_lies_square_to_the_finger_and_changes_nothing_where_the_normal_is_level() {
+        let lib = AlphaLibrary::builtin();
+        let d = court();
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        let mesh = &built.mesh;
+        // On the symmetric crest the swept normal is already level, so the levelled seat is the raw one to a few microns.
+        let raw = ring(90.0, 0.0, -0.3, 0.0, false).frame_on(&d, Some(mesh)).unwrap();
+        let level = ring(90.0, 0.0, -0.3, 0.0, true).frame_on(&d, Some(mesh)).unwrap();
+        assert!(raw.z_axis[2].abs() < 1e-4, "the crest's normal lies across the finger: {:?}", raw.z_axis);
+        assert_eq!(level.x_axis, [0.0, 0.0, -1.0]);
+        assert_eq!((level.y_axis[2], level.z_axis[2], level.origin[2]), (0.0, 0.0, 0.0));
+        assert!(same_frame(&raw, &level, 2e-4), "{raw:?} against {level:?}");
+        // Off the crest the dome leans along the finger; a levelled seat leans round the ring in the plane z = across.
+        let raw = ring(90.0, 1.2, 0.0, 0.0, false).frame_on(&d, Some(mesh)).unwrap();
+        let leaned = ring(90.0, 1.2, 0.0, 38.0, true).frame_on(&d, Some(mesh)).unwrap();
+        assert!(raw.z_axis[2] > 0.05, "the dome's normal leans along the finger: {:?}", raw.z_axis);
+        assert_eq!(leaned.x_axis, [0.0, 0.0, -1.0]);
+        assert_eq!((leaned.y_axis[2], leaned.z_axis[2], leaned.origin[2]), (0.0, 0.0, 1.2));
+        let upright = ring(90.0, 1.2, 0.0, 0.0, true).frame_on(&d, Some(mesh)).unwrap();
+        let turn = (0..3).map(|k| upright.z_axis[k] * leaned.z_axis[k]).sum::<f64>().acos().to_degrees();
+        assert!((turn - 38.0).abs() < 1e-9, "the tilt turns z round the ring by 38°: {turn}");
+        // With no surface the reference seat is already level, so `level` changes nothing bit for bit.
+        for tilt in [0.0, 25.0] {
+            let (a, b) = (ring(37.0, 0.4, 0.2, tilt, false).frame(&d).unwrap(), ring(37.0, 0.4, 0.2, tilt, true).frame(&d).unwrap());
+            assert!(a.origin == b.origin && a.x_axis == b.x_axis && a.y_axis == b.y_axis && a.z_axis == b.z_axis);
+        }
+        // A spur seated level joins watertight and stands where its seat does.
+        let spur = Operation::Extrude { sketch: crate::sketch::Sketch::circle(0.5).into(), height_mm: 2.6, draft_deg: 7.0 };
+        let d = with_parts(court(), vec![part(2, "spur", spur, ring(60.0, 0.0, -0.4, 38.0, true))]);
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        assert!(built.report.validation.watertight && built.parts.notes.is_empty(), "{:?} {:?}", built.report.validation, built.parts.notes);
+        let frame = built.parts.evaluated.as_ref().unwrap().components[0].frame;
+        assert!(frame.x_axis == [0.0, 0.0, -1.0] && frame.z_axis[2] == 0.0 && frame.origin[2] == 0.0, "{frame:?}");
+    }
+
+    #[test]
+    fn a_level_seat_is_the_raw_seat_on_the_mirrored_012_master() {
+        let preset = crate::imported_base::PRESETS.iter().find(|p| p.id == "012").unwrap();
+        let mut d = RingDesign::default();
+        crate::imported_base::ImportedBase::attach(&mut d, crate::imported_base::sand_master(preset.load().unwrap()).unwrap()).unwrap();
+        d.imported_base.as_mut().unwrap().sand_envelope = true;
+        let built = crate::mesh::try_build(&d, &AlphaLibrary::default(), params()).unwrap();
+        // Prunus's spur stations on the parting line: the shoulders, the table and the shank.
+        for (theta, tilt) in [(45.0, 38.0), (135.0, -30.0), (90.0, 0.0), (0.0, 38.0)] {
+            let raw = ring(theta, 0.0, -0.4, tilt, false).frame_on(&d, Some(&built.mesh)).unwrap();
+            let level = ring(theta, 0.0, -0.4, tilt, true).frame_on(&d, Some(&built.mesh)).unwrap();
+            assert_eq!((level.x_axis, level.z_axis[2], level.origin[2]), ([0.0, 0.0, -1.0], 0.0, 0.0), "{theta}°");
+            let turn = (0..3).map(|k| raw.z_axis[k] * level.z_axis[k]).sum::<f64>().min(1.0).acos().to_degrees();
+            let moved = (0..3).map(|k| (raw.origin[k] - level.origin[k]).powi(2)).sum::<f64>().sqrt();
+            eprintln!("012 master at {theta}°: the raw normal tips {turn:.4}° off level, the seat moves {moved:.5} mm");
+            assert!(turn < 0.1 && moved < 2e-3, "{theta}°: the mirrored master's normal is level already, to {turn:.4}° and {moved:.5} mm");
+        }
+    }
+
+    #[test]
+    fn a_ring_placement_writes_level_only_when_it_is_set() {
+        let plain = serde_json::to_string(&ring(90.0, 0.0, 0.4, 0.0, false)).unwrap();
+        assert!(!plain.contains("level"), "{plain}");
+        let set = ring(90.0, 0.0, 0.4, 0.0, true);
+        let text = serde_json::to_string(&set).unwrap();
+        assert!(text.ends_with(r#""level":true}"#), "{text}");
+        assert_eq!(serde_json::from_str::<Placement>(&text).unwrap(), set);
+        assert_eq!(serde_json::from_str::<Placement>(r#"{"kind":"ring","theta_deg":90.0}"#).unwrap(), Placement::ring(90.0, 0.0));
+        let relative: Placement = serde_json::from_str(r#"{"kind":"relative","part":4}"#).unwrap();
+        assert_eq!(relative, Placement::Relative { part: 4, at: [0.0; 3], rotation_deg: [0.0; 3] });
+        let side: Placement = serde_json::from_str(r#"{"kind":"side","theta_deg":30.0,"radius_mm":10.5}"#).unwrap();
+        assert_eq!(side, Placement::Side { theta_deg: 30.0, radius_mm: 10.5, face: SideFacePick::Wider, height_mm: 0.0, spin_deg: 0.0, tilt_deg: 0.0 });
+        assert_eq!((Placement::Free.sources(), relative.sources(), side.sources()), (vec![], vec![4], vec![]));
+    }
+
+    /// A capsule seated on the top of the Court band at `bore` and a spine standing in its frame.
+    fn capsule_and_spine(bore: f64) -> RingDesign {
+        let mut d = court();
+        d.size = crate::resize::size_from_bore(bore).unwrap();
+        with_parts(d, vec![
+            part(2, "capsule", Operation::Cylinder { radius_mm: 1.5, height_mm: 2.0 }, Placement::ring(90.0, 0.8)),
+            part(3, "spine", Operation::Cylinder { radius_mm: 0.3, height_mm: 1.2 }, Placement::Relative { part: 2, at: [0.6, -0.2, 1.4], rotation_deg: [10.0, 35.0, -20.0] }),
+        ])
+    }
+
+    #[test]
+    fn a_relative_part_follows_its_part_when_the_ring_is_resized() {
+        let lib = AlphaLibrary::builtin();
+        let local = rotate_place([0.6, -0.2, 1.4], [10.0, 35.0, -20.0]).unwrap();
+        let mut seen = Vec::new();
+        for bore in [16.5, 19.5] {
+            let d = capsule_and_spine(bore);
+            let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+            assert!(built.report.validation.watertight && built.parts.notes.is_empty(), "{:?} {:?}", built.report.validation, built.parts.notes);
+            let e = built.parts.evaluated.as_ref().unwrap();
+            let host = e.frame_of(2).unwrap();
+            let spine = e.components.iter().find(|c| c.id == 3).unwrap();
+            assert!(same_frame(&spine.frame, &compose(&host, &local), 1e-12), "the spine stands where the capsule's frame carries it");
+            assert!(same_frame(&e.frame_of(3).unwrap(), &spine.frame, 0.0));
+            seen.push((host, spine.frame));
+        }
+        let ((h0, s0), (h1, s1)) = (seen[0], seen[1]);
+        let moved = (0..3).map(|k| (h1.origin[k] - h0.origin[k]).powi(2)).sum::<f64>().sqrt();
+        assert!(moved > 1.0, "the capsule moved with the bore: {moved:.3} mm");
+        assert!(same_frame(&then(&inverse(&h0), &s0), &then(&inverse(&h1), &s1), 1e-9), "and the spine with it, the same in the capsule's frame");
+        // With no evaluation to read the capsule from, a relative placement says so.
+        let relative = Placement::Relative { part: 2, at: [0.0; 3], rotation_deg: [0.0; 3] };
+        assert!(relative.frame(&court()).unwrap_err().to_string().contains("#2"));
+        assert!(Placement::Relative { part: 2, at: [f64::NAN, 0.0, 0.0], rotation_deg: [0.0; 3] }.validate().is_err());
+    }
+
+    #[test]
+    fn a_relative_part_reads_its_part_as_a_source_for_order_removal_skips_and_the_cache() {
+        let lib = AlphaLibrary::builtin();
+        let d = capsule_and_spine(18.0);
+        let doc = d.cad.clone().unwrap();
+        assert_eq!((doc.sources_of(3), doc.dependents(2)), (vec![2], vec![3]));
+        assert_eq!(doc.feature(3).unwrap().sources(), vec![2]);
+        let refused = |edit: CadEdit| doc.clone().apply(&edit).unwrap_err().to_string();
+        assert!(refused(CadEdit::Remove { id: 2 }).contains("#3 spine"));
+        assert!(refused(CadEdit::Move { id: 3, after: Some(1) }).contains("#2 capsule"));
+        let on = |part: Id| Placement::Relative { part, at: [0.0; 3], rotation_deg: [0.0; 3] };
+        assert!(refused(CadEdit::Placement { id: 3, placement: on(3) }).contains("itself"));
+        assert!(refused(CadEdit::Placement { id: 2, placement: on(3) }).contains("cycle"));
+        assert!(refused(CadEdit::Placement { id: 2, placement: on(9) }).contains("#9"));
+        let early = part(4, "early", Operation::Sphere { radius_mm: 0.3 }, on(2));
+        assert!(refused(CadEdit::Add { feature: early.clone(), after: Some(1) }).contains("would come after it"));
+        let mut grown = doc.clone();
+        grown.apply(&CadEdit::Add { feature: early, after: None }).unwrap();
+        grown.apply(&CadEdit::Move { id: 2, after: Some(1) }).unwrap();
+        // A capsule that fails skips the spine standing in it, by name.
+        let mut broken = d.clone();
+        broken.cad.as_mut().unwrap().feature_mut(2).unwrap().operation = Operation::Cylinder { radius_mm: -1.0, height_mm: 2.0 };
+        let e = evaluate(&broken, &lib, params()).unwrap();
+        assert!(matches!(e.status_of(3), Some(FeatureStatus::Skipped(why)) if why.contains("#2 capsule")), "{:?}", e.status_of(3));
+        // A cached build after the capsule moves rebuilds the spine where the capsule now stands.
+        let never = std::sync::atomic::AtomicBool::new(false);
+        let cache = Mutex::new(Cache::default());
+        crate::mesh::try_build_memo(&d, &lib, params(), &never, Memo::new(&cache)).unwrap();
+        let mut moved = d.clone();
+        moved.cad.as_mut().unwrap().feature_mut(2).unwrap().component.placement = Placement::ring(120.0, 0.8);
+        let cached = crate::mesh::try_build_memo(&moved, &lib, params(), &never, Memo::new(&cache)).unwrap();
+        let plain = crate::mesh::try_build(&moved, &lib, params()).unwrap();
+        assert!(cached.mesh.vertices == plain.mesh.vertices && cached.mesh.faces == plain.mesh.faces);
+    }
+
+    #[test]
+    fn a_stone_standing_relative_to_a_part_is_recorded_where_the_build_sets_it() {
+        let lib = AlphaLibrary::builtin();
+        let gem = crate::gem::Gem::calibrated(crate::gem::GemCut::Round, 1.5);
+        let mut d = capsule_and_spine(18.0);
+        let seed = builders::stone_feature(4, gem, Placement::Relative { part: 2, at: [0.0, 0.0, 1.0], rotation_deg: [0.0, 0.0, 0.0] });
+        d.cad.as_mut().unwrap().append(seed).unwrap();
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        let e = built.parts.evaluated.as_ref().unwrap();
+        let set = e.components.iter().find(|c| c.id == 4).unwrap().frame;
+        assert!(near(set.origin, e.frame_of(2).unwrap().point([0.0, 0.0, 1.0]), 1e-12), "the girdle sits a millimetre up the capsule's axis");
+        let on_paper = crate::setstone::set_stones(&d);
+        let built_record = crate::setstone::set_stones_built(&d, &built);
+        for record in [&on_paper, &built_record] {
+            let stone = record.iter().find(|s| matches!(s.source, crate::setstone::StoneSource::Cad { feature: 4, .. })).expect("the stone is recorded");
+            assert!(near(stone.frame.unwrap().origin, set.origin, 0.03), "{:?} against {:?}", stone.frame.unwrap().origin, set.origin);
+        }
+    }
+
+    /// A flat-sided band 6 mm wide whose width swells toward the top, so its side faces stand at a height that varies round the ring.
+    fn swelling() -> RingDesign {
+        let mut d = RingDesign::default();
+        d.profile.width_mm = 6.0;
+        d.profile.thickness_mm = 2.4;
+        d.profile.apply_style(ProfileStyle::Flat);
+        d.profile.flatten_sides();
+        d.shank.kind = ShankKind::Keyframes;
+        d.shank.amount = 1.0;
+        d.shank.keys = vec![
+            ShankKey { theta_deg: 90.0, width_scale: 1.3, thickness_scale: 1.0, crown_scale: 1.0 },
+            ShankKey { theta_deg: 270.0, width_scale: 0.85, thickness_scale: 1.0, crown_scale: 1.0 },
+        ];
+        d
+    }
+
+    #[test]
+    fn a_side_placement_stands_square_on_its_face_and_a_ring_array_reseats_every_copy() {
+        let lib = AlphaLibrary::builtin();
+        let d = swelling();
+        let built = crate::mesh::try_build(&d, &lib, params()).unwrap();
+        let r = d.inner_radius_mm() + 1.0;
+        let side = |theta_deg: f64, face: SideFacePick, height_mm: f64| Placement::Side { theta_deg, radius_mm: r, face, height_mm, spin_deg: 0.0, tilt_deg: 0.0 };
+        let face_z = |theta_deg: f64, high: bool| side_on_section(&d.section_at(theta_deg, 192, None, None), theta_deg, r, high).unwrap()[2];
+        let (s, c) = 30f64.to_radians().sin_cos();
+        let high = side(30.0, SideFacePick::High, 0.25).frame_on(&d, Some(&built.mesh)).unwrap();
+        assert_eq!(high.z_axis, [0.0, 0.0, 1.0]);
+        assert!(near(high.x_axis, [c, s, 0.0], 1e-12) && near(high.y_axis, [-s, c, 0.0], 1e-12), "{high:?}");
+        assert!((high.origin[0].hypot(high.origin[1]) - r).abs() < 1e-9);
+        assert!((high.origin[2] - 0.25 - face_z(30.0, true)).abs() < 0.02, "{:?} on a face at {}", high.origin, face_z(30.0, true));
+        let low = side(30.0, SideFacePick::Low, 0.25).frame_on(&d, Some(&built.mesh)).unwrap();
+        assert_eq!(low.z_axis, [0.0, 0.0, -1.0]);
+        assert!((low.origin[2] + 0.25 - face_z(30.0, false)).abs() < 0.02, "{:?}", low.origin);
+        assert!(face_z(30.0, true) > 3.0 && face_z(30.0, false) < -3.0, "the faces stand either side of the mid-plane");
+        // The wider of two even faces is the high one, and the reference seat off the band's own section agrees with the surface's.
+        let wider = side(30.0, SideFacePick::Wider, 0.25).frame_on(&d, Some(&built.mesh)).unwrap();
+        assert!(same_frame(&wider, &high, 0.0));
+        assert!(same_frame(&side(30.0, SideFacePick::High, 0.25).frame(&d).unwrap(), &high, 0.02));
+        assert!(side(30.0, SideFacePick::Both, 0.25).validate().is_err() && side(30.0, SideFacePick::Both, 0.25).frame(&d).is_err());
+        // A post standing on the face joins watertight, and a ring array drops every copy onto the face at its own angle.
+        let post = Operation::Cylinder { radius_mm: 0.5, height_mm: 0.5 };
+        let source = side(30.0, SideFacePick::High, 0.25 - 0.1);
+        let kind = PatternKind::Ring { count: 4, span_deg: 360.0 };
+        let array = part(3, "posts", Operation::Pattern { sources: 2.into(), kind: kind.clone() }, Placement::Free);
+        let with = with_parts(d.clone(), vec![part(2, "post", post, source.clone()), array]);
+        let built = crate::mesh::try_build(&with, &lib, params()).unwrap();
+        assert!(built.report.validation.watertight && built.parts.notes.is_empty(), "{:?} {:?}", built.report.validation, built.parts.notes);
+        let e = built.parts.evaluated.as_ref().unwrap();
+        let seat = e.frame_of(2).unwrap();
+        let copies = pattern::copy_motions(&with, built.band.as_deref(), e, 2, &kind).unwrap();
+        assert_eq!(copies.len(), 3);
+        let mut spread = Vec::new();
+        for (k, m) in copies.iter().enumerate() {
+            let theta = 30.0 + 90.0 * (k + 1) as f64;
+            let foot = m.point(seat.point([0.0, 0.0, -0.15]));
+            assert!((foot[2] - face_z(theta, true)).abs() < 0.03, "copy {k} at {theta}°: foot {:.3} on a face at {:.3}", foot[2], face_z(theta, true));
+            assert!(near(m.vector(seat.z_axis), [0.0, 0.0, 1.0], 1e-9));
+            spread.push(face_z(theta, true));
+        }
+        assert!(spread.iter().fold(0.0_f64, |m, z| m.max((z - face_z(30.0, true)).abs())) > 0.2, "the faces stand at different heights, so a rigid turn would miss them: {spread:?}");
+    }
+
+    #[test]
+    fn extended_placements_fence_the_design_and_any_graph_carrying_them() {
+        let post = || Operation::Cylinder { radius_mm: 0.5, height_mm: 1.0 };
+        let r = court().inner_radius_mm() + 1.0;
+        let cases = [
+            (Placement::Free, false),
+            (ring(90.0, 0.0, 0.5, 0.0, false), false),
+            (ring(90.0, 0.0, 0.5, 0.0, true), true),
+            (Placement::Relative { part: 2, at: [0.0, 0.0, 1.0], rotation_deg: [0.0; 3] }, true),
+            (Placement::Side { theta_deg: 0.0, radius_mm: r, face: SideFacePick::High, height_mm: 0.5, spin_deg: 0.0, tilt_deg: 0.0 }, true),
+        ];
+        for (placement, extended) in cases {
+            let d = with_parts(court(), vec![part(2, "host", post(), Placement::ring(90.0, 0.5)), part(3, "post", post(), placement.clone())]);
+            assert_eq!(library::format_version_for(&d), if extended { FORMAT_VERSION } else { PLAIN_FORMAT_VERSION }, "{placement:?}");
+            let text = library::design_json(&d).unwrap();
+            assert_eq!(library::read_design(&text, PLAIN_FORMAT_VERSION).is_err(), extended, "{placement:?}");
+            assert_eq!(library::load_design_str(&text).unwrap().cad.unwrap().features[2].component.placement, placement);
+            assert_eq!(text.contains("\"level\""), matches!(placement, Placement::Ring { level: true, .. }));
+            let feature = serde_json::to_value(&d.cad.as_ref().unwrap().features[2]).unwrap();
+            let graph = serde_json::json!({"nodes":[{"id":5,"kind":"cad.feature","params":feature,"inputs":{}}]});
+            assert_eq!(library::template_features_in_json(&graph), extended, "{placement:?}");
+            assert_eq!(library::format_version_for(&RingDesign { graph: Some(graph), ..RingDesign::default() }) == FORMAT_VERSION, extended);
+        }
+        for (pin, value) in [("level", serde_json::json!(true)), ("part", serde_json::json!(2)), ("at", serde_json::json!([0.0, 0.0, 1.0])), ("rotation_deg", serde_json::json!([0.0, 30.0, 0.0])), ("radius_mm", serde_json::json!(10.0)), ("face", serde_json::json!("Low"))] {
+            let graph = serde_json::json!({"nodes":[{"id":5,"kind":"cad.feature","inputs":{pin: value}}]});
+            assert!(library::template_features_in_json(&graph), "{pin}");
+        }
+        let unset = serde_json::json!({"nodes":[{"id":5,"kind":"cad.feature","inputs":{"level": false}}]});
+        assert!(!library::template_features_in_json(&unset), "a level pin left off stays plain");
     }
 }
