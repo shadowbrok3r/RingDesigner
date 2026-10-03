@@ -3400,12 +3400,17 @@ come clean says where it crossed (`clean_decimate_or_sites`) so the field
 can be mended there, rather than handing back the raw mesh. A stored part
 whose component sets `fillet_into_band` (mm; 0 is off, unwritten, and the
 key fences graph format 2) grows out of the band as built instead of
-sitting on it: `sculpt::fillet_into` unites it with the band's signed
-distance by `smin` over its box, the stock sunk 2% of the radius so the
-fillet's foot crosses the band rather than lying on it, then curving down
-before the clip to the part's footprint so the clipped foot lies buried
-deeper than a decimation moves a crease. Only a joined part grows, and a
-fillet that will not decimate clean leaves the part as stored, said. A hollow is `Heights::first_air` eroded by a ball of the wall,
+sitting on it. `sculpt::fillet_into` keeps the part's own mesh and unites
+it with a collar meshed round its foot: `smin` of the part, tucked a
+little inside itself, and the band's signed distance, sunk 2% of the
+radius, so the fillet crosses both rather than lying along either; past
+the foot the band curves down before the clip to the part's footprint, so
+the collar's rim lies buried deeper than a decimation moves a crease, and
+above the fillet the collar ends inside the part. Remeshing the whole
+part instead softened Moloch's hide to the fillet's step; the collar
+leaves every vertex clear of the band bit for bit. Only a joined part
+grows, and a collar that will not come clean or unite leaves the part as
+stored, said. A hollow is `Heights::first_air` eroded by a ball of the wall,
 kept by `open_shells` where it opens into the bore; `packed` refuses an open
 or crossing mesh. On Fenrir's own wolf the hollow and every stage up to
 fold-corner smoothing are bit for bit the example's. That one changed: it

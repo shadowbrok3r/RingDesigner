@@ -1107,25 +1107,32 @@ impl MeshField {
     }
 }
 
-/// How far below the stock's surface a fillet's foot is joined, as a share of its radius: the fillet then meets the
-/// stock across a shallow crossing the join can trace, never along it.
+/// How far below the stock's surface a fillet's foot is joined, and how far inside the part its top, as a share of its
+/// radius: the fillet then crosses both across a shallow angle the union can trace, never along them.
 pub const FILLET_SINK: f64 = 0.02;
 
 /// How far past the fillet's foot the stock under a grown part curves down out of reach, mm: enough that the clipped
-/// foot's rim lies deeper than a decimation moves a crease.
+/// collar's rim lies deeper than a decimation moves a crease.
 pub const FILLET_DIVE_MM: f64 = 0.2;
 
-/// `part` grown out of the stock with a fillet of `blend_mm`: `smin(part, stock + sink, blend_mm)` over the part's box,
-/// clipped to the part's footprint so only the fillet and a buried foot come with it, meshed at `step_mm`, relaxed
-/// ([`relax_clean`]) and decimated to about `faces` ([`clean_decimate_or_sites`]). Past the fillet's foot the stock it
-/// joins curves down into the metal ([`FILLET_DIVE_MM`]) before the clip, so the foot's rim is buried. `stock` is
-/// negative inside the metal; the result is closed and does not cross itself, or is the sites where its decimation
-/// crossed.
-pub fn fillet_into(part: &Solid, stock: Field, blend_mm: f64, step_mm: f64, faces: usize) -> std::result::Result<Solid, Vec<P3>> {
+/// How fast the collar's copy of the part sinks into the part above the fillet, per mm of height: slow enough that the
+/// fillet's top meets the part within a few degrees, fast enough that the copy is well inside it where the collar ends.
+const FILLET_TUCK: f64 = 0.15;
+
+/// `part` grown out of the stock with a fillet of `blend_mm`, the part's own mesh kept as it is. A collar is meshed at
+/// `step_mm` round the part's foot: `smin(part, stock, blend_mm)` with the stock sunk a little and the part tucked a
+/// little inside itself, so the fillet crosses both rather than lying on either; past the fillet's foot the stock
+/// curves down into the metal ([`FILLET_DIVE_MM`]) before the collar is clipped to the part's footprint, and above
+/// the fillet it ends inside the part. The collar is relaxed ([`relax_clean`]), decimated ([`clean_decimate_or_sites`])
+/// and united with the part. `stock` is negative inside the metal. `None` when the part does not come within the
+/// fillet's reach of the stock; an error when the collar will not come clean or unite.
+pub fn fillet_into(part: &Solid, stock: Field, blend_mm: f64, step_mm: f64) -> Result<Option<Solid>> {
     let k = blend_mm;
     let sink = FILLET_SINK * k;
     let (foot, dive) = (k + sink, FILLET_DIVE_MM);
     let clip = foot + dive + 2.0 * step_mm;
+    // Above this height over the stock the part stands as stored.
+    let top = foot + sink + 2.0 * step_mm;
     let pad = clip + 2.0 * step_mm;
     let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
     for p in &part.v {
@@ -1135,19 +1142,39 @@ pub fn fillet_into(part: &Solid, stock: Field, blend_mm: f64, step_mm: f64, face
         }
     }
     let own = MeshField::of(part, pad + step_mm);
+    // A quadratic easing into a straight line `rate` steep, from `start` on, over `w`.
+    let ease = |x: f64, start: f64, w: f64, rate: f64| {
+        let u = (x - start).max(0.0);
+        rate * if u < w { u * u / (2.0 * w) } else { u - 0.5 * w }
+    };
     let field = |p: P3| {
+        let b = stock(p);
+        if b >= top {
+            return b - top;
+        }
         let a = own.at(p);
         if a >= clip {
             return a - clip;
         }
-        // Level to the foot, then a quadratic turning into a 45° dive.
-        let u = (a - foot).max(0.0);
-        let down = if u < dive { u * u / (2.0 * dive) } else { u - 0.5 * dive };
-        smin(a, stock(p) + sink + down, k).max(a - clip)
+        let tuck = sink + ease(b, 0.5 * k, 0.5 * k, FILLET_TUCK);
+        let down = ease(a, foot, dive, 1.0);
+        smin(a + tuck, b + sink + down, k).max(a - clip).max(b - top)
     };
-    let mut raw = tetra_mesh(lo, hi, step_mm, &field);
-    relax_clean(&mut raw, &field, 2);
-    clean_decimate_or_sites(&raw, faces.max(1))
+    let mut collar = tetra_mesh(lo, hi, step_mm, &field);
+    if collar.f.is_empty() {
+        return Ok(None);
+    }
+    relax_clean(&mut collar, &field, 2);
+    let collar = clean_decimate_or_sites(&collar, collar.f.len() / 4).map_err(|sites| {
+        let at = sites.first().map_or_else(String::new, |p| format!(", first at ({:.2}, {:.2}, {:.2})", p[0], p[1], p[2]));
+        anyhow::anyhow!("its fillet crosses itself at {} sites{at}", sites.len())
+    })?;
+    let grown = csg::combine(part, &collar, csg::Op::Union).map_err(|e| anyhow::anyhow!("its fillet would not unite with it ({e})"))?;
+    let (bad, volume) = closure(&grown);
+    ensure!(bad == 0 && volume > 0.0, "grown into the band it does not close: {bad} open edges");
+    let crossings = csg::self_crossings(&grown);
+    ensure!(crossings == 0, "grown into the band it crosses itself {crossings} times");
+    Ok(Some(grown))
 }
 
 // --- Hollows ---------------------------------------------------------------------------------------------------------
@@ -1671,28 +1698,30 @@ mod tests {
         assert!(same(&clean_decimate_or_sites(&blob, 6_000).unwrap(), &clean_decimate(&blob, 6_000)));
     }
 
-    /// A part grown out of a slab of stock: closed, uncrossed, its foot buried in the stock, and a fillet's worth of
-    /// metal at the junction where the plain union has a crease.
+    /// A part grown out of a slab of stock: closed, uncrossed, the part's own mesh kept above the fillet, the collar's
+    /// rim buried in the stock, and a fillet's worth of metal at the junction where the plain union has a crease.
     #[test]
     fn a_part_grows_out_of_the_stock_with_a_fillet() {
         let stock = |p: P3| p[2];
         let post = tetra_mesh([-1.0, -1.0, -0.5], [1.0, 1.0, 2.0], 0.05, &|p: P3| round_cone(p, [0.0, 0.0, -0.3], [0.0, 0.0, 1.4], 0.6, 0.4));
         let post = clean_decimate(&post, 3_000);
-        let grown = fillet_into(&post, &stock, 0.4, 0.05, 4_000).unwrap();
+        let grown = fillet_into(&post, &stock, 0.4, 0.05).unwrap().unwrap();
         let (bad, _) = closure(&grown);
         assert_eq!((bad, csg::self_crossings(&grown)), (0, 0));
+        // Above the collar the post is its own mesh, vertex for vertex.
+        let high = |s: &Solid| { let mut v: Vec<[u64; 3]> = s.v.iter().filter(|p| p[2] > 0.7).map(|p| p.map(f64::to_bits)).collect(); v.sort(); v };
+        assert_eq!(high(&grown), high(&post));
         // Every vertex is on the post, on the fillet within its reach, or under the stock's surface.
         let own = MeshField::of(&post, 2.0);
         for p in &grown.v {
             assert!(own.at(*p) < 0.4 + FILLET_DIVE_MM + 0.25 && (own.at(*p) < 0.03 || p[2] < 0.42), "{p:?}");
+            assert!(p[2] < -1e-3 || p[0].hypot(p[1]) < 0.6 + 0.45, "{p:?} at {} from the post", own.at(*p));
         }
         // At the foot, 0.05 mm off the stock and 0.05 mm out from the post, the grown part has metal and the post has none.
         let r = 0.6 - 0.2 * 0.3 / 1.7 + 0.05;
         let field = MeshField::of(&grown, 2.0);
         assert!(own.at([r, 0.0, 0.05]) > 0.0 && field.at([r, 0.0, 0.05]) < 0.0);
-        // The grown part rises above the stock only near the post.
-        for p in &grown.v {
-            assert!(p[2] < -1e-3 || p[0].hypot(p[1]) < 0.6 + 0.45, "{p:?} at {} from the post", own.at(*p));
-        }
+        // Out of the stock's reach nothing grows.
+        assert!(fillet_into(&post, &|p: P3| p[2] + 3.0, 0.4, 0.05).unwrap().is_none());
     }
 }

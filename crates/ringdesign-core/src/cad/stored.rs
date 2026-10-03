@@ -486,14 +486,17 @@ fn grown_into_band(f: &Feature, placed: &builders::Made, ctx: &BuildCtx, notes: 
     let band = crate::sculpt::MeshField::of_mesh(surface.clone(), blend + 1.0);
     let stock = |p: csg::P3| band.at(p);
     ctx.check()?;
-    match crate::sculpt::fillet_into(solid, &stock, blend, step, solid.f.len() + solid.f.len() / 4) {
-        Ok(grown) => {
+    match crate::sculpt::fillet_into(solid, &stock, blend, step) {
+        Ok(Some(grown)) => {
             let named = Named { patch: vec![0; grown.f.len()], solid: grown, names: vec!["Face 0".into()] };
             Ok(Some(builders::Made::of(STORED, named, None)?))
         }
-        Err(sites) => {
-            let at = sites.first().map_or_else(String::new, |p| format!(", first at ({:.2}, {:.2}, {:.2})", p[0], p[1], p[2]));
-            notes.push(format!("{}: its fillet into the band crosses itself at {} sites{at}; it stands as stored", f.name, sites.len()));
+        Ok(None) => {
+            notes.push(format!("{} does not come within {blend} mm of the band; it stands as stored", f.name));
+            Ok(None)
+        }
+        Err(e) => {
+            notes.push(format!("{}: {e}; it stands as stored", f.name));
             Ok(None)
         }
     }
@@ -790,6 +793,11 @@ mod tests {
             let stored = crate::sculpt::MeshField::of(&plain, 2.0);
             let reach = part.v.iter().map(|p| stored.at(*p)).fold(f64::MIN, f64::max);
             assert!(reach < 0.4 * (1.0 + crate::sculpt::FILLET_SINK) + crate::sculpt::FILLET_DIVE_MM + 0.25, "{what}: the grown part reaches {reach} mm past the stored one");
+            // The stored mesh stands as it was above the fillet: every vertex of it well clear of the band is kept.
+            let bare = crate::mesh::try_build(&band, &AlphaLibrary::builtin(), params()).unwrap();
+            let band = crate::sculpt::MeshField::of_mesh(bare.mesh, 2.0);
+            let kept = |s: &csg::Solid| s.v.iter().filter(|p| band.at(**p) > 1.0).map(|p| p.map(f64::to_bits)).collect::<std::collections::BTreeSet<_>>();
+            assert!(kept(&plain).is_subset(&kept(&part)), "{what}");
         }
     }
 
