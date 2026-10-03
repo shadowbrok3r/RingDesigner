@@ -596,7 +596,7 @@ impl Wolf {
         let a = ang.clamp(-90.0, -CORNER_DEG);
         let l = lower_lip(a);
         let rho = s[0].hypot(s[1] - MOON_U);
-        let jaw = smax(Self::lip(s, a, l, jaw_out(a) - 1.05, -1.3, 0.9, 0.45), (ang + CORNER_DEG - 4.0).to_radians() * rho, 0.6);
+        let jaw = smax(Self::lip(s, a, l, jaw_out(a) - 0.45, -1.35, 0.6, 0.45), (ang + CORNER_DEG - 4.0).to_radians() * rho, 0.6);
         let chin = ellipsoid(sub(s, [0.0, MOON_U - 5.95, -0.3]), [1.2, 0.8, 0.9]);
         smin(jaw, chin, 0.8)
     }
@@ -613,7 +613,7 @@ impl Wolf {
     }
     /// The throat under the chin, hanging over the apex wall, its lowest point a millimetre and more over the finger.
     fn throat(s: P3) -> f64 {
-        ellipsoid(sub(s, [0.0, MOON_U - 4.95, -1.95]), [3.7, 1.6, 1.7])
+        ellipsoid(sub(s, [0.0, MOON_U - 4.85, -1.95]), [3.7, 1.6, 1.7])
     }
     /// A pricked ear: a leaf standing up from the crown's corner, its section a stadium rounded 0.5 mm at the edges and
     /// bowed so the back is convex and the front cupped, twisting outward toward its point, which curls back; a deeper
@@ -634,7 +634,7 @@ impl Wolf {
         let (ts, tc) = (13.0 * t).to_radians().sin_cos();
         let (x, z) = (tc * x - ts * z, ts * x + tc * z);
         let half = (1.75 * (1.0 - t).powf(0.85)).max(0.02);
-        let thick = 0.66 * (1.0 - 0.3 * t) * (1.0 - 0.8 * t.powi(6));
+        let thick = 0.7 * (1.0 - 0.3 * t) * (1.0 - 0.75 * t.powi(8));
         // Bowed across: the edges swept forward of the middle, and the point curling back.
         let bow = 0.16 * (x / half.max(0.3)).clamp(-1.3, 1.3).powi(2) - 0.25 * t * t;
         let z = z - bow;
@@ -732,10 +732,10 @@ impl Wolf {
         let off_lips = smooth(lip + lerp(0.1, -0.35, behind), lip + lerp(1.3, 0.45, behind), rho).max(smooth(CORNER_DEG, CORNER_DEG - 7.0, ang.abs()));
         let off_face = off_lips * smooth(1.8, 3.4, fs[0]) * smooth(1.3, 2.7, (fs[0] - Self::EYE.0).hypot(fs[1] - Self::EYE.1));
         let cheeks = 0.38 * cheek_fur(fs) * off_face * (1.0 - smooth(STOP_U - 1.9, STOP_U + 0.3, fs[1])) * smooth(MOON_U - 1.5, MOON_U + 1.0, fs[1]);
-        let jaw = 0.24 * jaw_fur(fs) * off_lips * (1.0 - smooth(MOON_U - 0.5, MOON_U + 1.5, fs[1])) * smooth(-1.4, -0.6, fs[2]);
+        let jaw = 0.2 * jaw_fur(fs) * off_lips * (1.0 - smooth(MOON_U - 0.5, MOON_U + 1.5, fs[1])) * smooth(-1.4, -0.6, fs[2]);
         let crown = 0.26 * crown_fur(f) * smooth(STOP_U - 0.1, STOP_U + 1.3, fs[1]) * (1.0 - smooth(3.0, 4.6, fs[0])) * smooth(-0.4, 1.0, fs[2]) * smooth(0.1, 1.0, Self::ear(fs));
         // The throat's locks run up over the jaw fur's lower edge by a millimetre, so no line parts them.
-        let throat = 0.34 * throat_fur(f) * smooth(0.4, -0.5, fs[2]) * (1.0 - smooth(MOON_U - 5.0, MOON_U - 3.5, fs[1]));
+        let throat = 0.26 * throat_fur(f) * smooth(0.4, -0.5, fs[2]) * (1.0 - smooth(MOON_U - 5.0, MOON_U - 3.5, fs[1]));
         // No fur on undersides turned down toward the stock, where locks would overhang and leave slits.
         // Along the jowls' outer foot, where the skin turns tightly round past the stock's edge, the locks lie lower.
         let foot = 1.0 - 0.65 * (1.0 - smooth(-0.3, 0.7, f[2])) * smooth(7.6, 8.4, fs[0]);
