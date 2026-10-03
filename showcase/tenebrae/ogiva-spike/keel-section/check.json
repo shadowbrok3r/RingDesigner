@@ -1,0 +1,80 @@
+{
+  "check": {
+    "bore": {
+      "nearest_vertex_mm": 9.300251960754395,
+      "radius_mm": 9.3,
+      "vertices_inside": 0
+    },
+    "dfm_findings": [],
+    "geometry": {
+      "bounds_mm": [
+        28.75908088684082,
+        28.75908088684082,
+        4.199999809265137
+      ],
+      "degenerate_faces": 0,
+      "features_not_ok": [],
+      "grams": 11.452659184417382,
+      "parts_notes": [],
+      "self_crossings": 0,
+      "solids_notes": [],
+      "triangles": 42240,
+      "volume_mm3": 1105.469033244921,
+      "watertight": true
+    },
+    "info": {
+      "section": {
+        "head_radius_mm": 6.300000000000001,
+        "keel": {
+          "comfort": 0.12,
+          "foot": 0.3,
+          "jamb": 0.5,
+          "share": 1.5,
+          "step": 0.25,
+          "step_below": 0.9,
+          "width": 4.2
+        },
+        "keel_angle_deg": 90.12270458506896,
+        "keel_flank_draft_deg": 44.93864770746552,
+        "keel_r_mm": 14.379540335056966,
+        "thickness_mm": 4.959540335056966
+      }
+    },
+    "option": "keel-section",
+    "revision": false,
+    "sand": {
+      "field_notes": [
+        "CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply"
+      ],
+      "field_verdict": "Castable with care",
+      "release_0_100": {
+        "area_mm2": -0.0,
+        "deepest_mm": 0.0,
+        "obstructions": 0,
+        "status": "Review",
+        "unresolved_rays": 0,
+        "worst": []
+      },
+      "undercut_percent": 0.0
+    },
+    "wax": {
+      "below_limit": 5,
+      "rays": 384,
+      "sampled_min_mm": 0.443318683051308,
+      "thickness_limit_mm": 0.8,
+      "worst_point": [
+        -12.88274065653483,
+        -6.353251775105794,
+        -0.011477534969647726
+      ]
+    }
+  },
+  "renders": [
+    "hero.png",
+    "face.png",
+    "hero-300.png",
+    "face-300.png",
+    "side.png",
+    "section.png"
+  ]
+}

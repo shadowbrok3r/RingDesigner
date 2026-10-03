@@ -1,0 +1,106 @@
+{
+  "check": {
+    "bore": {
+      "nearest_vertex_mm": 9.302579790431663,
+      "radius_mm": 9.3,
+      "vertices_inside": 0
+    },
+    "dfm_findings": [],
+    "geometry": {
+      "bounds_mm": [
+        23.200000762939453,
+        26.91440200805664,
+        6.700005531311035
+      ],
+      "degenerate_faces": 1,
+      "features_not_ok": [],
+      "grams": 8.051870392303965,
+      "parts_notes": [],
+      "self_crossings": 0,
+      "solids_notes": [],
+      "triangles": 31846,
+      "volume_mm3": 777.207566824707,
+      "watertight": true
+    },
+    "info": {
+      "apex_over_bore_mm": 6.752558883257649,
+      "arch": {
+        "apex_y": 16.05255888325765,
+        "corner": 2.4,
+        "half_span": 11.0,
+        "radius": 22.0,
+        "sill_y": -11.0,
+        "spring_y": -3.0,
+        "width": 6.0
+      },
+      "imposts": {
+        "height_mm": 1.1,
+        "project_mm": 0.6,
+        "proud_mm": 0.35
+      },
+      "keel": {
+        "flank_draft_deg": 37.30394827798343,
+        "inset_mm": 0.8,
+        "keel_angle_deg": 105.39210344403314,
+        "rise_mm": 1.05
+      },
+      "orders": [
+        {
+          "chamfer_draft_deg": 35.0,
+          "floor_z": 2.45,
+          "inside_outline_mm": 1.4,
+          "what": "outer order"
+        },
+        {
+          "chamfer_draft_deg": 35.0,
+          "floor_z": 2.0,
+          "inside_outline_mm": 2.2,
+          "what": "inner order"
+        },
+        {
+          "chamfer_draft_deg": 12.0,
+          "floor_z": 1.5,
+          "inside_outline_mm": 3.0,
+          "what": "mouth over the finger"
+        }
+      ],
+      "side_wall_at_axis_mm": 1.4944947177033683,
+      "sill_under_bore_mm": 1.6999999999999993
+    },
+    "option": "arch",
+    "revision": false,
+    "sand": {
+      "field_notes": [
+        "CAD solids require mesh-space manufacturing inspection; band-field measurements do not apply"
+      ],
+      "field_verdict": "Castable with care",
+      "release_0_100": {
+        "area_mm2": -0.0,
+        "deepest_mm": 0.0,
+        "obstructions": 0,
+        "status": "Review",
+        "unresolved_rays": 0,
+        "worst": []
+      },
+      "undercut_percent": 0.0
+    },
+    "wax": {
+      "below_limit": 93,
+      "rays": 384,
+      "sampled_min_mm": 0.004354201434915339,
+      "thickness_limit_mm": 0.8,
+      "worst_point": [
+        -10.996683120727539,
+        -5.5997233390808105,
+        -0.007999385707080364
+      ]
+    }
+  },
+  "renders": [
+    "hero.png",
+    "face.png",
+    "hero-300.png",
+    "face-300.png",
+    "side.png"
+  ]
+}
