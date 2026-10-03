@@ -4,26 +4,26 @@
   "capsule": {
     "rows": [
       {
-        "count": 5,
-        "length_mm": 0.9907216494845361,
+        "count": 7,
+        "length_mm": 1.6167893961708393,
         "root_mm": 0.84,
         "z_mm": 0.0
       },
       {
-        "count": 7,
-        "length_mm": 1.00279823269514,
+        "count": 9,
+        "length_mm": 1.572737686139748,
         "root_mm": 0.84,
         "z_mm": 2.0
       },
       {
-        "count": 0,
-        "length_mm": 0.0,
+        "count": 8,
+        "length_mm": 1.670103092783505,
         "root_mm": 0.84,
         "z_mm": 4.0
       },
       {
-        "count": 0,
-        "length_mm": 0.0,
+        "count": 6,
+        "length_mm": 1.5512027491408933,
         "root_mm": 0.84,
         "z_mm": 6.0
       }
@@ -34,20 +34,21 @@
       "frill_r": 4.9,
       "gape": 0.8,
       "lip_mm": 0.5,
-      "scale": 0.7,
-      "split_at": 0.0,
+      "scale": 0.85,
+      "split_at": -2.356194490192345,
       "split_z": 4.0,
+      "splits": 2,
       "sunk_mm": 0.9,
       "tip_z": 9.0
     },
-    "slivers_cleaned": 58,
-    "spines": 12,
-    "triangles": 249268,
-    "volume_mm3": 165.98953550065505
+    "slivers_cleaned": 128,
+    "spines": 30,
+    "triangles": 255252,
+    "volume_mm3": 328.82462662927503
   },
   "casting_pattern": null,
   "cold_reload_identical": null,
-  "design_bytes": 3568997,
+  "design_bytes": 3971187,
   "design_format": 6,
   "draft": {
     "bore_margin_mm": -8.918060068197065e-8,
@@ -56,11 +57,16 @@
       768,
       320
     ],
-    "build_s": 2.817491799,
+    "build_s": 3.331673345,
     "crowding": [
-      "Seed 5 (spilled) to Seed 6 (spilled): 0.45 / 0.45 mm",
-      "Seed 7 (spilled) to Seed 8 (spilled): 0.52 / 0.52 mm",
-      "Seed 6 (spilled) to Seed 7 (spilled): 0.60 / 0.60 mm"
+      "Seed 7 (spilled) to Seed 8 (spilled): 0.62 / 0.62 mm",
+      "Seed 3 (spilled) to Seed 5 (spilled): 0.78 / 0.78 mm",
+      "Seed 3 (spilled) to Seed 4 (spilled): 0.78 / 0.78 mm",
+      "Seed 4 (spilled) to Seed 6 (spilled): 0.83 / 0.83 mm",
+      "Seed 5 (spilled) to Seed 7 (spilled): 0.84 / 0.84 mm",
+      "Seed 4 (spilled) to Seed 5 (spilled): 1.03 / 1.03 mm",
+      "Seed 6 (spilled) to Seed 8 (spilled): 1.10 / 1.10 mm",
+      "Seed 6 (spilled) to Seed 7 (spilled): 1.16 / 1.16 mm"
     ],
     "degenerate_faces": 0,
     "dfm_findings": [],
@@ -71,36 +77,41 @@
       "Undercut 119–169° on the crest: 29.5 mm² leaning to 36° — no single layer explains it.",
       "Undercut 182–182° on the crest: 0.1 mm² leaning to 1° — no single layer explains it.",
       "Undercut 358–358° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
-      "Measured with the ring as built: 28 CAD parts (20 joined, 8 cut), 740.0 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Thorn-apple capsule\" (#2) would undercut a two-part pull over 90.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Datura flower\" (#3) would undercut a two-part pull over 202.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Datura leaf 1\" (#4) would undercut a two-part pull over 17.7 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Datura leaf 2\" (#5) would undercut a two-part pull over 13.4 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Cylinder \"Seed pad 1\" (#6) would undercut a two-part pull over 0.0 mm² (worst -13°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Cylinder \"Seed pad 3\" (#8) would undercut a two-part pull over 0.0 mm² (worst -13°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Cylinder \"Seed pad 5\" (#10) would undercut a two-part pull over 1.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Cylinder \"Seed pad 6\" (#11) would undercut a two-part pull over 1.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Cylinder \"Seed pad 7\" (#12) would undercut a two-part pull over 0.9 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Cylinder \"Seed pad 8\" (#13) would undercut a two-part pull over 0.8 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Seed seat 1\" (#15) would undercut a two-part pull over 1.1 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Claw head \"Seed thorns 1\" (#16) would undercut a two-part pull over 0.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Seed seat 2\" (#18) would undercut a two-part pull over 1.3 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Claw head \"Seed thorns 2\" (#19) would undercut a two-part pull over 0.2 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Seed seat 3\" (#21) would undercut a two-part pull over 1.1 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Seed seat 4\" (#24) would undercut a two-part pull over 1.3 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Claw head \"Seed thorns 4\" (#25) would undercut a two-part pull over 0.1 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Seed seat 5\" (#27) would undercut a two-part pull over 0.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Claw head \"Seed thorns 5\" (#28) would undercut a two-part pull over 0.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Seed seat 6\" (#30) would undercut a two-part pull over 0.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Claw head \"Seed thorns 6\" (#31) would undercut a two-part pull over 0.7 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Seed seat 7\" (#33) would undercut a two-part pull over 0.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Claw head \"Seed thorns 7\" (#34) would undercut a two-part pull over 0.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Seat bur \"Seed seat 8\" (#36) would undercut a two-part pull over 0.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Claw head \"Seed thorns 8\" (#37) would undercut a two-part pull over 0.8 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Measured with the ring as built: 30 CAD parts (22 joined, 8 cut), 964.4 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Thorn-apple capsule\" (#2) would undercut a two-part pull over 114.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura flower\" (#3) would undercut a two-part pull over 191.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura leaf 1\" (#4) would undercut a two-part pull over 18.7 mm² (worst -61°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura leaf 2\" (#5) would undercut a two-part pull over 20.5 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura leaf 3\" (#6) would undercut a two-part pull over 17.4 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Datura leaf 4\" (#7) would undercut a two-part pull over 12.8 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Cylinder \"Seed pad 1\" (#8) would undercut a two-part pull over 0.0 mm² (worst -49°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Cylinder \"Seed pad 2\" (#9) would undercut a two-part pull over 0.0 mm² (worst -49°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Cylinder \"Seed pad 3\" (#10) would undercut a two-part pull over 1.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Cylinder \"Seed pad 4\" (#11) would undercut a two-part pull over 1.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Cylinder \"Seed pad 5\" (#12) would undercut a two-part pull over 1.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Cylinder \"Seed pad 6\" (#13) would undercut a two-part pull over 1.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Cylinder \"Seed pad 7\" (#14) would undercut a two-part pull over 1.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Cylinder \"Seed pad 8\" (#15) would undercut a two-part pull over 1.0 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Seed seat 1\" (#17) would undercut a two-part pull over 1.3 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 1\" (#18) would undercut a two-part pull over 0.1 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Seed seat 2\" (#20) would undercut a two-part pull over 1.3 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 2\" (#21) would undercut a two-part pull over 0.1 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Seed seat 3\" (#23) would undercut a two-part pull over 0.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 3\" (#24) would undercut a two-part pull over 0.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Seed seat 4\" (#26) would undercut a two-part pull over 0.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 4\" (#27) would undercut a two-part pull over 0.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Seed seat 5\" (#29) would undercut a two-part pull over 0.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 5\" (#30) would undercut a two-part pull over 0.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Seed seat 6\" (#32) would undercut a two-part pull over 0.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 6\" (#33) would undercut a two-part pull over 0.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Seed seat 7\" (#35) would undercut a two-part pull over 0.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 7\" (#36) would undercut a two-part pull over 0.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Seat bur \"Seed seat 8\" (#38) would undercut a two-part pull over 0.7 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Claw head \"Seed thorns 8\" (#39) would undercut a two-part pull over 0.9 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "field_process": "Lost wax",
     "field_verdict": "Castable",
-    "grams_18k": 30.930734398300384,
+    "grams_18k": 33.5820881482336,
     "made_parts": [
       [
         "Thorn-apple capsule",
@@ -116,6 +127,14 @@
       ],
       [
         "Datura leaf 2",
+        0
+      ],
+      [
+        "Datura leaf 3",
+        0
+      ],
+      [
+        "Datura leaf 4",
         0
       ],
       [
@@ -151,7 +170,7 @@
         0
       ],
       [
-        "Seed 1 (0 deg)",
+        "Seed 1 (split, -135 deg)",
         0
       ],
       [
@@ -163,7 +182,7 @@
         0
       ],
       [
-        "Seed 2 (90 deg)",
+        "Seed 2 (split, -45 deg)",
         0
       ],
       [
@@ -175,7 +194,7 @@
         0
       ],
       [
-        "Seed 3 (180 deg)",
+        "Seed 3 (spilled)",
         0
       ],
       [
@@ -187,7 +206,7 @@
         0
       ],
       [
-        "Seed 4 (270 deg)",
+        "Seed 4 (spilled)",
         0
       ],
       [
@@ -248,14 +267,14 @@
       ]
     ],
     "metal_in_stones": [],
-    "min_angle_deg": 0.0016284711211216425,
+    "min_angle_deg": 0.0025304181584959976,
     "non_manifold_edges": 0,
     "parts_cut": 8,
-    "parts_joined": 20,
+    "parts_joined": 22,
     "parts_notes": [],
     "pass": true,
     "self_crossings": 0,
-    "shells": 2,
+    "shells": 1,
     "solids_notes": [],
     "stamps": 0,
     "stamps_struck": 0,
@@ -264,44 +283,60 @@
     "stones_reported": 8,
     "thinnest_wall_mm": 1.5800248089114177,
     "thinnest_wall_theta_deg": 246.09375,
-    "triangles": 334454,
-    "undercut_percent_reported_only": 18.067349345888246,
-    "volume_mm3": 1985.2846212002812,
+    "triangles": 362056,
+    "undercut_percent_reported_only": 18.657169987084057,
+    "volume_mm3": 2155.461370233222,
     "watertight": true
   },
   "export": null,
   "foliage": [
     {
-      "bearing_deg": 220.0,
+      "bearing_deg": 205.0,
       "from_mm": 0.0,
-      "length_mm": 17.49999999999998,
+      "length_mm": 13.599999999999968,
       "name": "Datura flower: table run",
       "triangles": 0,
       "width_mm": 0.0
     },
     {
-      "bearing_deg": 220.0,
+      "bearing_deg": 205.0,
       "from_mm": 0.0,
-      "length_mm": 20.0,
+      "length_mm": 18.5,
       "name": "Datura flower",
-      "triangles": 70720,
+      "triangles": 72850,
       "width_mm": 10.0
     },
     {
-      "bearing_deg": 152.0,
-      "from_mm": 0.6,
-      "length_mm": 7.399999999999999,
+      "bearing_deg": 165.0,
+      "from_mm": 0.0,
+      "length_mm": 10.0,
       "name": "Datura leaf 1",
       "triangles": 17808,
-      "width_mm": 5.179999999999999
+      "width_mm": 6.6000000000000005
     },
     {
-      "bearing_deg": 282.0,
-      "from_mm": 0.6,
-      "length_mm": 6.4,
+      "bearing_deg": 140.0,
+      "from_mm": 0.0,
+      "length_mm": 8.5,
       "name": "Datura leaf 2",
       "triangles": 17808,
-      "width_mm": 4.4799999999999995
+      "width_mm": 5.61
+    },
+    {
+      "bearing_deg": 198.0,
+      "from_mm": 0.0,
+      "length_mm": 8.399999999999995,
+      "name": "Datura leaf 3",
+      "triangles": 17808,
+      "width_mm": 5.543999999999997
+    },
+    {
+      "bearing_deg": 318.0,
+      "from_mm": 0.0,
+      "length_mm": 6.5,
+      "name": "Datura leaf 4",
+      "triangles": 17808,
+      "width_mm": 4.29
     }
   ],
   "gates_passed": true,
@@ -311,10 +346,46 @@
   "process_note": "Lost wax: spines radiate from a dome, so in two-part sand only about a quarter of them would release.",
   "seeds": [
     {
-      "name": "Seed 1 (0 deg)",
+      "name": "Seed 1 (split, -135 deg)",
       "normal": [
-        0.2548327031501465,
-        0.9669851567657021,
+        -0.18019393246556398,
+        0.9669851567657032,
+        0.180193932465564
+      ],
+      "pad_face": 1,
+      "pad_mm": [
+        1.96,
+        1.0
+      ],
+      "world": [
+        1.665691695180181,
+        16.545789800747816,
+        -1.6656916951801803
+      ]
+    },
+    {
+      "name": "Seed 2 (split, -45 deg)",
+      "normal": [
+        0.180193932465564,
+        0.9669851567657032,
+        0.18019393246556398
+      ],
+      "pad_face": 1,
+      "pad_mm": [
+        1.96,
+        1.0
+      ],
+      "world": [
+        5.334308304819819,
+        16.545789800747816,
+        -1.665691695180181
+      ]
+    },
+    {
+      "name": "Seed 3 (spilled)",
+      "normal": [
+        0.0,
+        1.0,
         -0.0
       ],
       "pad_face": 1,
@@ -323,17 +394,17 @@
         1.0
       ],
       "world": [
-        6.149811822607776,
-        15.8507514218999,
-        3.4
+        2.0,
+        12.917143440246582,
+        2.4
       ]
     },
     {
-      "name": "Seed 2 (90 deg)",
+      "name": "Seed 4 (spilled)",
       "normal": [
-        1.5604002711544728e-17,
-        0.9669851567657021,
-        -0.2548327031501465
+        0.0,
+        1.0,
+        -0.0
       ],
       "pad_face": 1,
       "pad_mm": [
@@ -341,45 +412,9 @@
         1.0
       ],
       "world": [
-        4.0,
-        15.8507514218999,
-        1.250188177392223
-      ]
-    },
-    {
-      "name": "Seed 3 (180 deg)",
-      "normal": [
-        -0.2548327031501465,
-        0.9669851567657021,
-        -3.1208005423089456e-17
-      ],
-      "pad_face": 1,
-      "pad_mm": [
-        1.96,
-        1.0
-      ],
-      "world": [
-        1.850188177392223,
-        15.8507514218999,
-        3.3999999999999995
-      ]
-    },
-    {
-      "name": "Seed 4 (270 deg)",
-      "normal": [
-        -4.681200813463417e-17,
-        0.9669851567657021,
-        0.2548327031501465
-      ],
-      "pad_face": 1,
-      "pad_mm": [
-        1.96,
-        1.0
-      ],
-      "world": [
-        3.9999999999999996,
-        15.8507514218999,
-        5.549811822607777
+        0.2,
+        12.917143440246582,
+        3.8
       ]
     },
     {
@@ -395,9 +430,9 @@
         1.0
       ],
       "world": [
-        -0.3225860556151776,
+        2.6,
         12.917143440246582,
-        1.8267073407019232
+        4.6
       ]
     },
     {
@@ -413,9 +448,9 @@
         1.0
       ],
       "world": [
-        -0.28363720179450524,
+        -1.4,
         12.917143440246582,
-        3.774769693814929
+        5.5
       ]
     },
     {
@@ -431,9 +466,9 @@
         1.0
       ],
       "world": [
-        0.0989787576804404,
+        1.1,
         12.917143440246582,
-        5.837628615472742
+        6.4
       ]
     },
     {
@@ -449,9 +484,9 @@
         1.0
       ],
       "world": [
-        1.774339090220539,
+        -0.4,
         12.917143440246582,
-        6.961802003856989
+        7.9
       ]
     }
   ],
