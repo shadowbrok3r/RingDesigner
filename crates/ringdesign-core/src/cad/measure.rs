@@ -1,100 +1,111 @@
-//! Measurements on evaluated triangles. Surface-normal rays screen local wall
-//! thickness; sparse samples and tessellation do not establish an exact minimum.
-use crate::{
-    Mesh,
-    mesh::{cross, norm, sub},
-};
+//! Measurements on evaluated triangles: the wall [`census`] and plane [`section`]s.
+use crate::Mesh;
 use serde::Serialize;
 
+mod census;
+
+/// Every surface sample's section along its inward normal, each reading under the floor classed edge or wall.
 #[derive(Clone, Debug, Serialize)]
 pub struct Thickness {
+    /// The thinnest section read anywhere, edges included, mm.
     pub sampled_min_mm: Option<f64>,
+    /// Where it was read.
     pub point: Option<[f64; 3]>,
+    /// Surface samples read.
     pub rays: usize,
+    /// Samples whose ray found no way out of the metal, or crossed it inconsistently.
     pub unresolved: usize,
+    /// Samples under the floor classed as wall: the count a gate reads.
     pub below_limit: usize,
     pub limit_mm: f64,
     pub note: &'static str,
-}
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
-    a.iter().zip(b).map(|(a, b)| a * b).sum()
+    /// Samples under the floor classed as edge.
+    pub edge_below_limit: usize,
+    /// Samples on a face inside another shell, which is no surface of the metal and is not read.
+    pub internal: usize,
+    /// Whether the mesh was read at all.
+    pub assessed: bool,
+    /// Surface area the samples stand for, mm².
+    pub area_mm2: f64,
+    /// Spacing of the samples, mm.
+    pub pitch_mm: f64,
+    /// Furthest a section may stay under the floor from the edge it closes at and still read as an edge, mm.
+    pub edge_reach_mm: f64,
+    /// Surface area reading under the floor as wall, mm².
+    pub wall_area_mm2: f64,
+    /// Surface area reading under the floor as edge, mm².
+    pub edge_area_mm2: f64,
+    /// Wall zones, largest first, at most [`MAX_ZONES`].
+    pub walls: Vec<ThinZone>,
+    /// Edge zones, largest first, at most [`MAX_ZONES`].
+    pub edges: Vec<ThinZone>,
 }
 
-fn hit(
-    origin: [f64; 3],
-    direction: [f64; 3],
-    a: [f64; 3],
-    b: [f64; 3],
-    c: [f64; 3],
-) -> Option<f64> {
-    let e1 = sub(b, a);
-    let e2 = sub(c, a);
-    let h = cross(direction, e2);
-    let det = dot(e1, h);
-    if det.abs() < 1e-12 {
-        return None;
+/// Zones of each kind a [`Thickness`] lists; the totals count every one.
+pub const MAX_ZONES: usize = 64;
+
+impl Thickness {
+    /// Read, every sample resolved, and no wall under the floor: the lost-wax wall gate.
+    pub fn clean(&self) -> bool {
+        self.assessed && self.unresolved == 0 && self.below_limit == 0
     }
-    let s = sub(origin, a);
-    let u = dot(s, h) / det;
-    if !(-1e-8..=1.0 + 1e-8).contains(&u) {
-        return None;
-    }
-    let q = cross(s, e1);
-    let v = dot(direction, q) / det;
-    if v < -1e-8 || u + v > 1.0 + 1e-8 {
-        return None;
-    }
-    let t = dot(e2, q) / det;
-    (t > 1e-5).then_some(t)
 }
+
+/// Why a section is under the floor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ThinKind {
+    /// The section closes at a free edge and reaches the floor within the edge reach of it.
+    Edge,
+    /// The section stays under the floor beyond the edge reach of any free edge.
+    Wall,
+}
+
+/// One connected run of samples under the floor, all of one kind.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ThinZone {
+    pub kind: ThinKind,
+    /// Surface area under the floor, mm²; both faces of a sheet count.
+    pub area_mm2: f64,
+    /// The zone's thinnest section, mm.
+    pub thinnest_mm: f64,
+    /// Where it was read, on the surface.
+    pub point: [f64; 3],
+    pub samples: usize,
+    /// For an edge, the furthest from its free edge a sample's section reached the floor, mm.
+    pub depth_mm: Option<f64>,
+    /// Longest side of the box round the zone's mid-surface points, mm.
+    pub span_mm: f64,
+}
+
+/// What [`census`] reads and how finely.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CensusOptions {
+    /// The section floor, mm.
+    pub floor_mm: f64,
+    /// Sample spacing, mm; `None` is a floor's eighth held to 0.02-0.1.
+    pub pitch_mm: Option<f64>,
+    /// Edge reach, mm; `None` is one floor.
+    pub edge_reach_mm: Option<f64>,
+}
+
+impl CensusOptions {
+    pub fn floor(floor_mm: f64) -> Self {
+        Self { floor_mm, pitch_mm: None, edge_reach_mm: None }
+    }
+}
+
+/// [`census`] at `limit_mm` with the default pitch and edge reach; `below_limit` counts wall samples only.
 pub fn thickness(mesh: &Mesh, limit_mm: f64) -> Thickness {
-    let mut r = Thickness {
-        sampled_min_mm: None,
-        point: None,
-        rays: 0,
-        unresolved: 0,
-        below_limit: 0,
-        limit_mm,
-        note: "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-    };
-    if !mesh.validate().watertight || mesh.faces.len() > 250_000 {
-        r.note = "Thickness not assessed: invalid mesh or sampling work limit exceeded";
-        return r;
-    }
-    let stride = mesh.faces.len().div_ceil(384).max(1);
-    let triangles: Vec<_> = mesh.faces.iter().filter_map(|f| mesh.triangle(f)).collect();
-    for (index, (a, b, c)) in triangles.iter().enumerate().step_by(stride) {
-        let normal = cross(sub(*b, *a), sub(*c, *a));
-        let length = norm(normal);
-        if length < 1e-12 {
-            continue;
-        }
-        let center = std::array::from_fn(|i| (a[i] + b[i] + c[i]) / 3.0);
-        let inward = normal.map(|v| -v / length);
-        r.rays += 1;
-        let nearest = triangles
-            .iter()
-            .enumerate()
-            .filter(|(j, _)| *j != index)
-            .filter_map(|(_, (a, b, c))| hit(center, inward, *a, *b, *c))
-            .min_by(f64::total_cmp);
-        if let Some(value) = nearest {
-            if value < limit_mm {
-                r.below_limit += 1;
-            }
-            if r.sampled_min_mm.is_none_or(|old| value < old) {
-                r.sampled_min_mm = Some(value);
-                r.point = Some(center);
-            }
-        } else {
-            r.unresolved += 1;
-        }
-    }
-    r
+    census(mesh, &CensusOptions::floor(limit_mm))
 }
 
-/// Intersect actual triangles with an axis-aligned plane. Returned segment
-/// coordinates use the other two cyclic axes, in millimeters.
+/// Area-sampled sections of a closed mesh, each reading under the floor classed by a march along its mid-surface.
+pub fn census(mesh: &Mesh, options: &CensusOptions) -> Thickness {
+    census::run(mesh, options)
+}
+
+/// Segments where the triangles cross an axis-aligned plane, in the other two cyclic axes, mm.
 pub fn section(mesh: &Mesh, axis: usize, offset: f64) -> Vec<[[f64; 2]; 2]> {
     if axis > 2 || !offset.is_finite() {
         return Vec::new();

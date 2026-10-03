@@ -1170,6 +1170,36 @@ pins both directions. On top of that:
   normals averaged over a radius, so pebbled hide over a thick body no
   longer reads 0.000 mm while a thin fin on it still reads its 0.3.
 
+  A **whole ring's wall** is `cad::measure::thickness(mesh, floor)`, the
+  census (`measure::census` with `CensusOptions` for the pitch and the
+  edge reach). It samples by area — every face bisected along its longest
+  edge to half the pitch (a floor's eighth, held to 0.02–0.1 mm), one
+  sample per pitch cell and facing — and reads each along its inward
+  normal through `interaction::bvh`, with no face cap: the 1.57 M-face
+  band in 0.47 s, Aile's 1.29 M-face export in 0.53 s. A reading under the
+  floor is then classed by marching the section's mid-surface from its
+  midpoint, in four opposite pairs of directions square to it and
+  re-centred on every new section, until the march leaves the metal,
+  meets a section at the floor, or has run the reach (one floor). It is an
+  **edge** when some line leaves the metal one way and reaches the floor
+  the other within the reach — a knife, a point, a lip, fed from the body
+  behind it — and a **wall** otherwise: a web never meets a free edge, and
+  a fin or a long taper stays thin past the reach. Sections are read
+  square to the mid-surface, so at one floor a wedge or a cone passes from
+  a 53° included angle and a lip at most a floor tall; a sharper point is
+  thin over more than a floor of its length, which is a wall, and a brief
+  that wants feather points widens `edge_reach_mm` and says so.
+  `below_limit` counts wall samples only and `Thickness::clean()` is the
+  gate; every edge is listed as a zone with its point, area, thinnest
+  section and depth, never dropped. A mesh of several shells is read by
+  winding, so a face inside another shell is skipped rather than read as
+  the 0.01 mm a face-by-face ray gives at a 0.01 mm overlap. Aile's round-3
+  0.01 mm readings were none of that: all 63 faces under 0.05 mm leave
+  through a neighbour sharing a vertex or an edge, across a 20–70° convex
+  crease at the wing-root seam, and the census files them as edges of
+  0.0003–0.003 mm² — while the hand-made lip exception had been covering a
+  collet body the census reads as a 0.779 mm wall over 5.6 mm².
+
   A **CAD cut's lands** are asked for, never volunteered:
   `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
   `manufacturing_check { cut_land_mm }`) reports, per Cut extrusion, the

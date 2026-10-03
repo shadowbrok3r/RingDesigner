@@ -404,11 +404,12 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
         ));
         let w = &v.walls[index];
         ui.label(format!(
-            "Sampled wall {}; {} below {:.2} mm",
+            "Sampled wall {}; under {:.2} mm: {} wall, {} edge samples",
             w.sampled_min_mm
                 .map_or("unassessed".into(), |v| format!("{v:.3} mm")),
+            w.limit_mm,
             w.below_limit,
-            w.limit_mm
+            w.edge_below_limit
         ));
         ui.weak(w.note);
     }
