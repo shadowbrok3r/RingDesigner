@@ -1,0 +1,26 @@
+{
+  "stones": [
+    {
+      "cut": "oval cabochon 1.8 x 2.3",
+      "ior": 1.79,
+      "mesh": "reference-garnet.stl",
+      "name": "Garnet",
+      "tint": [
+        0.30000001192092896,
+        0.019999999552965164,
+        0.029999999329447746
+      ]
+    },
+    {
+      "cut": "oval cabochon 1.8 x 2.3",
+      "ior": 1.77,
+      "mesh": "reference-sapphire.stl",
+      "name": "Sapphire",
+      "tint": [
+        0.019999999552965164,
+        0.05999999865889549,
+        0.44999998807907104
+      ]
+    }
+  ]
+}

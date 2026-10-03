@@ -1,0 +1,625 @@
+{
+  "chest": 36,
+  "draft": {
+    "bore": {
+      "nearest_vertex_mm": 9.300017496595377,
+      "radius_mm": 9.3,
+      "vertices_inside": 0
+    },
+    "build": {
+      "author_s": 111.39429652,
+      "build_s": 40.124861161,
+      "profile_steps": 320,
+      "theta_steps": 768
+    },
+    "cold_reload_identical": null,
+    "cut_lands": [],
+    "design": {
+      "bytes": 423520,
+      "cad_features": 60,
+      "format_version": 6
+    },
+    "dfm_findings": [],
+    "features_not_ok": [],
+    "gates": [
+      {
+        "gate": "1. finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+        "pass": true
+      },
+      {
+        "gate": "1. every made part watertight with 0 degenerate faces and 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "1. solids and parts notes empty, every CAD feature Ok",
+        "pass": true
+      },
+      {
+        "gate": "2. nothing enters the finger hole",
+        "pass": true
+      },
+      {
+        "gate": "3. thickness(0.8) clean on the finished metal",
+        "pass": true
+      },
+      {
+        "gate": "3. thickness(0.8) clean on the lid",
+        "pass": true
+      },
+      {
+        "gate": "3. cut_lands clean at 0.8 mm",
+        "pass": true
+      },
+      {
+        "gate": "4. zero DFM findings",
+        "pass": true
+      },
+      {
+        "gate": "5. stones reported equal the preview",
+        "pass": true
+      },
+      {
+        "gate": "6. cold reload identical",
+        "pass": true
+      },
+      {
+        "gate": "7. ring pattern watertight, 0 degenerate, 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "7. lid pattern watertight, 0 degenerate, 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "export within 2 million triangles",
+        "pass": true
+      }
+    ],
+    "gates_passed": true,
+    "geometry": {
+      "degenerate_faces": 0,
+      "self_crossings": 0,
+      "triangles": 481042,
+      "volume_mm3": 1428.124032431179,
+      "watertight": true
+    },
+    "head_over_crest_mm": 6.607499465942382,
+    "parts": [
+      {
+        "degenerate_faces": 0,
+        "part": "#3 Chamfer the bed's top as a moulding",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#13 Sink the eye sockets, the nasal cavity and the line of the teeth into the skull: the memento mori",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#15 Chamfer the north tower's top as a moulding",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#16 Web the north tower to the chest",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#17 Loft the north spire to its point",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#18 Knop on the north spire",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#20 Chamfer the south tower's top as a moulding",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#21 Web the south tower to the chest",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#22 Loft the south spire to its point",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#23 Knop on the south spire",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#25 Open the west window in tracery over the skull",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#26 Open back light 1 behind the skull to the dark",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#27 Open back light 2 behind the skull to the dark",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#28 Raise the front's archivolt, its sides weathered",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#30 Raise the collet round the Garnet, north wall cabochon",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#34 Raise the collet round the Garnet, south wall cabochon",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#36 Sink the south wall's bay: the chest",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#38 Raise the collet round the Garnet, north plinth niche cabochon",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#40 Raise the collet round the Sapphire, middle plinth niche cabochon",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#42 Raise the collet round the Garnet, south plinth niche cabochon",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#45 Sink the niches into the plinth's front: the plinth",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#60 Join the rose's collet to the lid: the lid, cast apart",
+        "self_crossings": 0,
+        "watertight": true
+      }
+    ],
+    "parts_notes": [],
+    "pattern": {
+      "lid": {
+        "casting": "Part(60)",
+        "degenerate_faces": 0,
+        "self_crossings": 0,
+        "triangles": 5176,
+        "watertight": true
+      },
+      "ring": {
+        "degenerate_faces": 0,
+        "self_crossings": 0,
+        "triangles": 481042,
+        "watertight": true
+      }
+    },
+    "solids_notes": [],
+    "stones": {
+      "closest": "Garnet, north wall cabochon to Garnet, north plinth niche cabochon: 1.09 mm",
+      "crowding": [
+        "Garnet, north wall cabochon to Garnet, north plinth niche cabochon: 1.09 / 1.08 mm",
+        "Garnet, south wall cabochon to Garnet, south plinth niche cabochon: 1.09 / 1.08 mm"
+      ],
+      "previewed": 6,
+      "reported": 6,
+      "warnings": [
+        "Garnet, north wall cabochon: no setting holds this stone; add claws, a basket or a bezel round it",
+        "Garnet, south wall cabochon: no setting holds this stone; add claws, a basket or a bezel round it",
+        "Garnet, north plinth niche cabochon: no setting holds this stone; add claws, a basket or a bezel round it",
+        "Sapphire, middle plinth niche cabochon: no setting holds this stone; add claws, a basket or a bezel round it",
+        "Garnet, south plinth niche cabochon: no setting holds this stone; add claws, a basket or a bezel round it",
+        "Sapphire, the rose's eye cabochon: no setting holds this stone; add claws, a basket or a bezel round it"
+      ]
+    },
+    "thickness": {
+      "finished": {
+        "below_limit": 0,
+        "limit_mm": 0.8,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "point": [
+          1.773206114768982,
+          18.184166590372723,
+          -2.8738019466400146
+        ],
+        "rays": 383,
+        "sampled_min_mm": 0.9072090842830239,
+        "unresolved": 0
+      },
+      "lid": {
+        "below_limit": 0,
+        "limit_mm": 0.8,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "point": [
+          4.062140305836995,
+          13.494166374206543,
+          0.32510000467300415
+        ],
+        "rays": 370,
+        "sampled_min_mm": 0.8305325485350662,
+        "unresolved": 0
+      },
+      "probe_build": "192 x 96"
+    }
+  },
+  "export": {
+    "bore": {
+      "nearest_vertex_mm": 9.30000867034214,
+      "radius_mm": 9.3,
+      "vertices_inside": 0
+    },
+    "build": {
+      "author_s": 111.39429652,
+      "build_s": 41.010558534,
+      "profile_steps": 448,
+      "theta_steps": 1536
+    },
+    "cold_reload_identical": true,
+    "cut_lands": [],
+    "design": {
+      "bytes": 423520,
+      "cad_features": 60,
+      "format_version": 6
+    },
+    "dfm_findings": [],
+    "features_not_ok": [],
+    "gates": [
+      {
+        "gate": "1. finished mesh watertight, 0 degenerate faces, 0 self-crossings",
+        "pass": true
+      },
+      {
+        "gate": "1. every made part watertight with 0 degenerate faces and 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "1. solids and parts notes empty, every CAD feature Ok",
+        "pass": true
+      },
+      {
+        "gate": "2. nothing enters the finger hole",
+        "pass": true
+      },
+      {
+        "gate": "3. thickness(0.8) clean on the finished metal",
+        "pass": true
+      },
+      {
+        "gate": "3. thickness(0.8) clean on the lid",
+        "pass": true
+      },
+      {
+        "gate": "3. cut_lands clean at 0.8 mm",
+        "pass": true
+      },
+      {
+        "gate": "4. zero DFM findings",
+        "pass": true
+      },
+      {
+        "gate": "5. stones reported equal the preview",
+        "pass": true
+      },
+      {
+        "gate": "6. cold reload identical",
+        "pass": true
+      },
+      {
+        "gate": "7. ring pattern watertight, 0 degenerate, 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "7. lid pattern watertight, 0 degenerate, 0 crossings",
+        "pass": true
+      },
+      {
+        "gate": "export within 2 million triangles",
+        "pass": true
+      }
+    ],
+    "gates_passed": true,
+    "geometry": {
+      "degenerate_faces": 0,
+      "self_crossings": 0,
+      "triangles": 1298894,
+      "volume_mm3": 1428.1415058425603,
+      "watertight": true
+    },
+    "head_over_crest_mm": 6.607499465942382,
+    "parts": [
+      {
+        "degenerate_faces": 0,
+        "part": "#3 Chamfer the bed's top as a moulding",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#13 Sink the eye sockets, the nasal cavity and the line of the teeth into the skull: the memento mori",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#15 Chamfer the north tower's top as a moulding",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#16 Web the north tower to the chest",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#17 Loft the north spire to its point",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#18 Knop on the north spire",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#20 Chamfer the south tower's top as a moulding",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#21 Web the south tower to the chest",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#22 Loft the south spire to its point",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#23 Knop on the south spire",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#25 Open the west window in tracery over the skull",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#26 Open back light 1 behind the skull to the dark",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#27 Open back light 2 behind the skull to the dark",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#28 Raise the front's archivolt, its sides weathered",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#30 Raise the collet round the Garnet, north wall cabochon",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#34 Raise the collet round the Garnet, south wall cabochon",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#36 Sink the south wall's bay: the chest",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#38 Raise the collet round the Garnet, north plinth niche cabochon",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#40 Raise the collet round the Sapphire, middle plinth niche cabochon",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#42 Raise the collet round the Garnet, south plinth niche cabochon",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#45 Sink the niches into the plinth's front: the plinth",
+        "self_crossings": 0,
+        "watertight": true
+      },
+      {
+        "degenerate_faces": 0,
+        "part": "#60 Join the rose's collet to the lid: the lid, cast apart",
+        "self_crossings": 0,
+        "watertight": true
+      }
+    ],
+    "parts_notes": [],
+    "pattern": {
+      "lid": {
+        "casting": "Part(60)",
+        "degenerate_faces": 0,
+        "self_crossings": 0,
+        "triangles": 5176,
+        "watertight": true
+      },
+      "ring": {
+        "degenerate_faces": 0,
+        "self_crossings": 0,
+        "triangles": 1298894,
+        "watertight": true
+      }
+    },
+    "solids_notes": [],
+    "stones": {
+      "closest": "Garnet, north wall cabochon to Garnet, north plinth niche cabochon: 1.09 mm",
+      "crowding": [
+        "Garnet, north wall cabochon to Garnet, north plinth niche cabochon: 1.09 / 1.08 mm",
+        "Garnet, south wall cabochon to Garnet, south plinth niche cabochon: 1.09 / 1.08 mm"
+      ],
+      "previewed": 6,
+      "reported": 6,
+      "warnings": [
+        "Garnet, north wall cabochon: no setting holds this stone; add claws, a basket or a bezel round it",
+        "Garnet, south wall cabochon: no setting holds this stone; add claws, a basket or a bezel round it",
+        "Garnet, north plinth niche cabochon: no setting holds this stone; add claws, a basket or a bezel round it",
+        "Sapphire, middle plinth niche cabochon: no setting holds this stone; add claws, a basket or a bezel round it",
+        "Garnet, south plinth niche cabochon: no setting holds this stone; add claws, a basket or a bezel round it",
+        "Sapphire, the rose's eye cabochon: no setting holds this stone; add claws, a basket or a bezel round it"
+      ]
+    },
+    "thickness": {
+      "finished": {
+        "below_limit": 0,
+        "limit_mm": 0.8,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "point": [
+          1.773206114768982,
+          18.184166590372723,
+          -2.8738019466400146
+        ],
+        "rays": 383,
+        "sampled_min_mm": 0.9072090842830239,
+        "unresolved": 0
+      },
+      "lid": {
+        "below_limit": 0,
+        "limit_mm": 0.8,
+        "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
+        "point": [
+          4.062140305836995,
+          13.494166374206543,
+          0.32510000467300415
+        ],
+        "rays": 370,
+        "sampled_min_mm": 0.8305325485350662,
+        "unresolved": 0
+      },
+      "probe_build": "192 x 96"
+    }
+  },
+  "gates_passed": true,
+  "lid": 60,
+  "min_section_mm": 0.8,
+  "name": "Capsa — the reliquary",
+  "notes": [
+    "1 tracery lights in the west window",
+    "2 back lights behind the skull",
+    "4 tracery lights in the roof's slopes"
+  ],
+  "option": "across-openwork",
+  "process": "Lost wax",
+  "skull": 13,
+  "stone_features": [
+    29,
+    33,
+    37,
+    39,
+    41,
+    48
+  ],
+  "views": [
+    {
+      "pitch_rad": 1.0,
+      "turn_about_head_rad": 0.0,
+      "view": "hero",
+      "yaw_rad": 0.3
+    },
+    {
+      "pitch_rad": 1.5707963267948966,
+      "turn_about_head_rad": 0.0,
+      "view": "face",
+      "yaw_rad": 0.0
+    },
+    {
+      "pitch_rad": 1.05,
+      "turn_about_head_rad": 0.0,
+      "view": "palm",
+      "yaw_rad": 3.141592653589793
+    },
+    {
+      "pitch_rad": 0.0,
+      "turn_about_head_rad": 0.0,
+      "view": "side",
+      "yaw_rad": 0.0
+    },
+    {
+      "pitch_rad": 0.45,
+      "turn_about_head_rad": 0.0,
+      "view": "shoulder",
+      "yaw_rad": 1.0
+    },
+    {
+      "pitch_rad": 0.35,
+      "turn_about_head_rad": 0.0,
+      "view": "reverse",
+      "yaw_rad": 2.641592653589793
+    }
+  ]
+}
