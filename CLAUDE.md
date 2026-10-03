@@ -2428,6 +2428,27 @@ What the runtime settled while being built, each pinned by a test:
   evaluates to the code template **byte for byte** (pinned). The file
   layer lists user-dir clusters and presets first and the bundled ones
   behind them, so a user file of the same name shadows a bundled one.
+- **The Gothic clusters draw their tracery exactly** (C-T2;
+  `graphs/clusters/{wheel-window,pointed-arch-section,rose-tracery,lancet-arcade}.cluster.json`,
+  built by `templates::build_gothic_cluster`, listed in `GOTHIC_CLUSTERS`).
+  Each wraps a native node over `sketch::gothic` and hands out `sketch_op`,
+  a Sketch feature's operation for a `cad.feature`'s `operation` pin:
+  `sketch.gothic.lights` (lights radiating between a sill and an apex
+  radius, a bar apart, Pointed, Round, Trefoil or each a whole Mouchette),
+  `sketch.gothic.arch` (the blunt-lancet section a ring revolves from) and
+  `sketch.gothic.arcade` (lancet bays on a sill, as niche loops and as one
+  stamp outline). Nothing is split or offset, so an example that calls
+  `sketch::gothic` and the template's cluster draw the same sketch byte for
+  byte. The wheel and the section take the bore from `band.size`, so a
+  resize moves the architecture; the rose's lights stand half a bar inside
+  its net circles. A pointed head too tall for its light springs from the
+  sill as a drop arch; a head that cannot fit is refused by name. The arch
+  section is one polyline of short chords: the kernel cannot tessellate a
+  revolved comfort arc. Trefoil cusps and mouchette tails refuse a draft
+  and cut straight. Two drafted halves of one window meeting at the parting
+  plane, mirrored, fail csg's coincidence check, drafted or not; a sand
+  wheel sinks blind drafted lights from each side face, a wax wheel
+  pierces straight through.
 - **The lift is exact by construction** (`lift.rs`, `Graph::from_design`):
   it wires the nodes a person would, evaluates them, diffs the result
   against the design field by field, and carries whatever the nodes cannot
@@ -2624,6 +2645,18 @@ already agreed. Mandrel's own MCP (`generate`, `get_options`,
   0.9: every gap 0.9 ± 1e-6). A branched sketch that carries several depths
   sweeps its cells by `Profile::Regions`; one Sketch feature per depth is
   still the plainer way. The graph reaches it as `sketch.tracery`.
+- **A drafted arc's seams are zipped closed.** The kernel tapers an
+  extrusion by lofting to an offset profile, and the lofted wall samples a
+  shared arc at other points than the planar cap does. Where the old
+  three-edge stitch leaves the mesh open, `zip_chord_seams` splits each open
+  edge at the other side's samples within the chord tolerance (each sample
+  to its nearest edge, no vertex moved) and keeps the result only if it
+  closes. The stitch now leaves a gap lying inside the face beside it (a
+  concave arc's, where the gap triangle folds over the cap) to the zip: on a
+  wheel's concave sills it laid 0.5 mm² of down-facing slivers that the sand
+  verdict read as undercut. Both run only on a mesh the kernel left open:
+  a part the kernel tessellates closed is unchanged, and only a part the
+  old stitch closed with a fold now closes differently.
 
 ## Python: `crates/ringdesign-py`
 
