@@ -1,0 +1,33 @@
+{
+  "ring": "phrynosoma",
+  "mode": "read-test",
+  "attempt": 5,
+  "reads": true,
+  "what_the_eye_sees": "In face-300 this is a flat, wide reptile head seen from above, and it now names itself. A row of horns runs across the wide back edge, and the two tallest sit either side of a notch on the midline, with shorter horns stepping down outboard. Two round eyes with brow ridges sit at the widest part, which is the single biggest gain since attempt 4: it makes the plate mosaic a face rather than a shield. A symmetric mosaic of polygonal skull plates fills the table, with larger plates down the centre, and the outline tapers to a blunt, rounded snout. The arrowhead point and the mid-flank bolts are gone. A jeweller's first words would be 'horned toad' or 'horned lizard'. In hero-300 the same head reads as a lizard head with a spiked crown on a granulated shank, and the eyes still carry it. Three things keep it from being an unmistakable read, as opposed to a likely one. First, the horns are still thin and stand almost upright, so at the hero angle they look like a picket of needles or a tiara rather than stout horns swept back over the neck. Second, the flanks show only one or two small spikes a side, not a toothed fringe, so the outline is a smooth rounded box and edges toward 'toad' or 'frog'. Third, the head outline is nearly parallel-sided down to a round nose, where a horned lizard's skull is a wider, flatter wedge.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Make the horns stout and lay them back. Keep the six-horn layout and the midline notch, which now work.",
+      "where": "The horn comb on the rear edge of the head: the occipital pair and both temporals per side.",
+      "how_much": "Make the root diameter at least 40% of the horn's length (occipitals about 1.0-1.1 mm at the root for 2.4-2.8 mm long). Tilt every horn back to 30-40 degrees from the face plane, away from the snout and out over the shank, and splay them 10-25 degrees outward. Acceptance: in hero-300 the horns read as thick, backswept thorns lying over the shoulder, not as an upright picket or tiara, and in face-300 they project at least 1.5 mm beyond the plate outline in plan view."
+    },
+    {
+      "priority": 2,
+      "what": "Add the lateral fringe that attempt 4 asked for: a counted, toothed edge down both flanks in place of the one or two stray spikes.",
+      "where": "Both flanks of the head outline, from just below the outer temporal horn, past the eyes, to about 75% of the way to the snout.",
+      "how_much": "Use 8-10 pointed fringe scales per side, pointing outward and slightly back. They are 1.0 mm at the rear, grade to 0.5 mm, and stand at least 0.6 mm proud of the plate edge in plan view. Acceptance: in face-300 both flanks show a serrated edge you can count, and the outline no longer reads as a smooth rounded box or a toad."
+    },
+    {
+      "priority": 3,
+      "what": "Turn the near-parallel outline into a flat wedge that is wider at the back and narrows to a blunt snout.",
+      "where": "The head outline on the table: the rear corners at the horn row and the snout end at the bottom of face-300.",
+      "how_much": "Widen the rear edge until it is at least 1.6x the snout width. Keep the snout blunt and rounded at about 35-40% of the rear width, with a tip radius of at least 1.5 mm. Keep the eyes and brows on the widest part. Acceptance: in face-300 the head outline tapers visibly from the horn row to the nose, a wide, flat, triangular skull rather than a rounded square."
+    }
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/phrynosoma/hero-300.png",
+    "showcase/cataphracta/phrynosoma/face-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
