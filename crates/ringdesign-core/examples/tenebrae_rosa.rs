@@ -35,7 +35,9 @@ const MIN_SECTION_MM: f64 = 0.8;
 const LIGHTS: usize = 8;
 /// The rose net: the hub circle, the circle the petals' heads touch, and the radius the mullions stop and the heads spring at, mm.
 const R_HUB: f64 = 3.0;
-const R_OUT: f64 = 8.5;
+const R_OUT: f64 = 7.9;
+/// Radius each light's pointed head rises to, below the cusped rim, mm.
+const R_APEX: f64 = 6.3;
 /// Each head's arcs are struck from a centre this share of the springing span across: 1 is an equilateral arch.
 const ARCH: f64 = 1.0;
 /// Tracery bar between neighbouring lights, mm.
@@ -47,13 +49,23 @@ const TRACERY_MM: f64 = 0.9;
 /// The tracery's walls lean out toward the table by this much, so each bar reads as a moulding, degrees.
 const TRACERY_DRAFT_DEG: f64 = 0.0;
 /// The ruby's feature: the part the lights are arrayed round.
-const RUBY_ID: Id = 8;
+const RUBY_ID: Id = 9;
+/// The corner trefoils' sketch; its cut follows it.
+const CORNER_ID: Id = 90;
+/// Corner trefoils: across, their centres' distance from the table's centre on the diagonals, and how proud they stand, mm.
+const CORNER_MM: f64 = 1.9;
+const CORNER_AT_MM: f64 = 10.3;
+const CORNER_RISE_MM: f64 = 0.6;
+/// How deep the lancet lights sink: deep enough to read as dark glass, mm.
+const LIGHT_SINK_MM: f64 = 3.0;
 /// The raised tracery runs this far into the table under it, mm.
 const TRACERY_FOOT_MM: f64 = 0.1;
 /// The outer order's width outside the net's outer circle, mm.
-const RING_MM: f64 = 0.5;
+const RING_MM: f64 = 0.55;
 /// Spandrels are picked this far inside the outer circle, mm.
-const SPANDREL_PICK_MM: f64 = 0.75;
+const SPANDREL_PICK_MM: f64 = 0.8;
+/// How far each of the sixteen rim cusps bows in from the rim, mm.
+const CUSP_SAG_MM: f64 = 0.7;
 /// How deep the petals sink below the table, mm.
 const PETAL_SINK_MM: f64 = 0.5;
 /// How far below the table the spandrels are sunk, mm.
@@ -191,7 +203,7 @@ fn len2(a: [f64; 2]) -> f64 {
 fn r_spring() -> f64 {
     let hb = half_bay_deg().to_radians();
     let arch = knob("ROSA_ARCH", ARCH);
-    R_OUT / (hb.cos() + hb.sin() * (4.0 * arch - 1.0).sqrt())
+    R_APEX / (hb.cos() + hb.sin() * (4.0 * arch - 1.0).sqrt())
 }
 
 /// How far each sapphire stands in from midway along its petal, so its collet's foot runs into the oculus moulding, mm.
@@ -200,7 +212,7 @@ const HUB_BITE_MM: f64 = 0.013;
 /// Where each sapphire is centred: midway between its petal light's sill and its apex (drawn in a full bar from the
 /// outer circle), less the bite into the moulding, mm.
 fn light_at_mm() -> f64 {
-    knob("ROSA_AT", 0.5 * (R_HUB + 0.5 * BAR_MM + R_OUT - BAR_MM) - knob("ROSA_BITE", HUB_BITE_MM))
+    knob("ROSA_AT", 0.5 * (R_HUB + R_APEX) - knob("ROSA_BITE", HUB_BITE_MM))
 }
 
 /// Sketch angle of light `k`'s axis, degrees: the first points along +y (along the finger).
@@ -230,9 +242,24 @@ fn rose_net(plane: Id) -> Net {
     s.name = "Rose net".into();
     let o = s.point([0.0, 0.0]);
     let mut curves = Vec::new();
-    for r in [R_HUB, R_OUT] {
-        let rim = s.point([r, 0.0]);
-        curves.push(s.entity(Geometry::Circle { center: o, rim }));
+    let rim = s.point([R_HUB, 0.0]);
+    curves.push(s.entity(Geometry::Circle { center: o, rim }));
+    // The outer order's inner edge: sixteen lobes bowed out past the rim, meeting in sixteen cusps that point at the oculus.
+    let n = 2 * LIGHTS;
+    let step = TAU / n as f64;
+    for i in 0..n {
+        let (a0, a1) = (light_deg(0).to_radians() + step * i as f64, light_deg(0).to_radians() + step * (i + 1) as f64);
+        let (p0, p1) = ([R_OUT * a0.cos(), R_OUT * a0.sin()], [R_OUT * a1.cos(), R_OUT * a1.sin()]);
+        let half = 0.5 * len2(sub2(p1, p0));
+        let rho = (half * half + CUSP_SAG_MM * CUSP_SAG_MM) / (2.0 * CUSP_SAG_MM);
+        let mid = 0.5 * (a0 + a1);
+        let chord = R_OUT * (0.5 * step).cos();
+        let c = [(chord + CUSP_SAG_MM - rho) * mid.cos(), (chord + CUSP_SAG_MM - rho) * mid.sin()];
+        let ang = |p: [f64; 2]| (p[1] - c[1]).atan2(p[0] - c[0]);
+        let sweep = (ang(p1) - ang(p0)).rem_euclid(TAU);
+        let (from, to) = if sweep < std::f64::consts::PI { (p0, p1) } else { (p1, p0) };
+        let (cc, sa, ea) = (s.point(c), s.point(from), s.point(to));
+        curves.push(s.entity(Geometry::Arc { center: cc, start: sa, end: ea }));
     }
     let hb = half_bay_deg();
     for k in 0..LIGHTS {
@@ -242,7 +269,7 @@ fn rose_net(plane: Id) -> Net {
     }
     for k in 0..LIGHTS {
         let phi = light_deg(k);
-        let (sr, sl, apex) = (polar(r_spring(), phi - hb), polar(r_spring(), phi + hb), polar(R_OUT, phi));
+        let (sr, sl, apex) = (polar(r_spring(), phi - hb), polar(r_spring(), phi + hb), polar(R_APEX, phi));
         let chord = { let d = sub2(sl, sr); let l = len2(d); [d[0] / l, d[1] / l] };
         // Right arc: counter-clockwise from the right springer up to the apex; the left mirrors it.
         let cr = head_centre(sr, apex, chord);
@@ -263,7 +290,8 @@ fn petal_at(k: usize) -> [f64; 2] {
 /// Spandrel `j`: the half on light `j / 2`'s clockwise side for even `j`, its anticlockwise side for odd.
 fn spandrel_at(j: usize) -> [f64; 2] {
     let side = if j % 2 == 0 { -1.0 } else { 1.0 };
-    polar(R_OUT - SPANDREL_PICK_MM, light_deg(j / 2) + side * 0.72 * half_bay_deg())
+    let _ = side;
+    polar(R_APEX + SPANDREL_PICK_MM, light_deg(j))
 }
 /// A point on the tracery's bars: halfway along the first mullion.
 fn bar_at() -> [f64; 2] {
@@ -385,12 +413,12 @@ fn traced_rose(plane: Id) -> Result<Rose> {
     let petals = (0..LIGHTS).map(|k| pick(petal_at(k))).collect::<Result<Vec<_>>>()?;
     let region_at = |at: [f64; 2]| regions.iter().find(|r| r.contains(at)).context("no region");
     let lands = measure(&sketch, region_at(petal_at(0))?, &[region_at(spandrel_at(0))?, region_at(spandrel_at(1))?]);
-    let spandrels = (0..2 * LIGHTS).map(|j| pick(spandrel_at(j))).collect::<Result<Vec<_>>>()?;
+    let spandrels = (0..LIGHTS).map(|j| pick(spandrel_at(j))).collect::<Result<Vec<_>>>()?;
     // The outer order: a circle a ring's width outside the net, so the bars between the lights are one region.
     let mut bar_sketch = sketch.clone();
     bar_sketch.name = "Tracery bars".into();
     let o = bar_sketch.point([0.0, 0.0]);
-    let rim = bar_sketch.point([R_OUT + RING_MM, 0.0]);
+    let rim = bar_sketch.point([R_OUT + CUSP_SAG_MM + RING_MM, 0.0]);
     bar_sketch.entity(Geometry::Circle { center: o, rim });
     let regions = bar_sketch.sweep_regions()?;
     let bars = regions.iter().find_map(|r| RegionRef::at(r, bar_at())).context("no tracery region")?;
@@ -409,7 +437,7 @@ fn traced_rose(plane: Id) -> Result<Rose> {
             let pts: Vec<String> = c.iter().map(|p| format!("{:.3},{:.3}", p[0], -p[1])).collect();
             svg += &format!("<polyline fill='none' stroke='#0a0' stroke-width='0.05' points='{}'/>", pts.join(" "));
         }
-        for at in (0..LIGHTS).map(petal_at).chain((0..2 * LIGHTS).map(spandrel_at)).chain([bar_at()]) {
+        for at in (0..LIGHTS).map(petal_at).chain((0..LIGHTS).map(spandrel_at)).chain([bar_at()]) {
             svg += &format!("<circle cx='{:.3}' cy='{:.3}' r='0.12' fill='blue'/>", at[0], -at[1]);
         }
         svg += "</svg>";
@@ -522,6 +550,24 @@ fn arcade_sketch(plane: Id) -> Sketch {
     s
 }
 
+/// A trefoil in each of the cushion's four corners, a lobe pointing at the rose.
+fn corner_trefoils(plane: Id) -> Sketch {
+    use ringdesign_core::cad::builders::cutters::{Shape, outline};
+    let mut s = Sketch::default();
+    s.name = "Corner trefoils".into();
+    let foil = outline(Shape::Trefoil, CORNER_MM, CORNER_MM, 0.0);
+    for k in 0..4 {
+        let a = (45.0 + 90.0 * k as f64).to_radians();
+        let (sn, cs) = a.sin_cos();
+        let c = [CORNER_AT_MM * cs, CORNER_AT_MM * sn];
+        // The outline's lobe points along −x: turned to point back at the centre.
+        let ids: Vec<Id> = foil.iter().map(|p| s.point([c[0] + p[0] * cs - p[1] * sn, c[1] + p[0] * sn + p[1] * cs])).collect();
+        s.entity(Geometry::Polyline { points: ids, closed: true });
+    }
+    s.plane.on_face = Some(FaceAnchor { feature: plane, face: cad::FaceRef::bare(0) });
+    s
+}
+
 fn ruby() -> Gem {
     Gem { preview_tint: Some(RUBY), ..Gem::calibrated(GemCut::Round, RUBY_MM) }
 }
@@ -597,7 +643,6 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     let mut bar_sketch = rose.bar_sketch;
     bar_sketch.plane.on_face = Some(FaceAnchor { feature: 4, face: cad::FaceRef::bare(0) });
     doc.append(feature(5, "The bars between the lights, inside the outer order", Operation::Sketch { sketch: bar_sketch }, none()))?;
-    let _ = &rose.petals;
     doc.append(feature(
         6,
         "Raise the tracery: the oculus order, eight mullions, the heads and the outer order",
@@ -606,9 +651,23 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     ))?;
     doc.append(feature(
         7,
-        "Sink the sixteen spandrels deep",
+        "Sink the eight cusped spandrels deep",
         Operation::Extrude { sketch: Profile::Regions { feature: 3, regions: rose.spandrels }, height_mm: -(LIFT_MM + SPANDREL_MM), draft_deg: 0.0 },
         cut(),
+    ))?;
+    doc.append(feature(
+        RUBY_ID - 1,
+        "Sink the eight lancet lights deep",
+        Operation::Extrude { sketch: Profile::Regions { feature: 3, regions: rose.petals.clone() }, height_mm: -(LIFT_MM + LIGHT_SINK_MM), draft_deg: 0.0 },
+        cut(),
+    ))?;
+    doc.append(feature(CORNER_ID, "Corner boss height", table_plane(CORNER_RISE_MM), none()))?;
+    doc.append(feature(CORNER_ID + 1, "Four corner trefoils", Operation::Sketch { sketch: corner_trefoils(CORNER_ID) }, none()))?;
+    doc.append(feature(
+        CORNER_ID + 2,
+        "Raise the corner trefoils as carved bosses",
+        Operation::Extrude { sketch: Profile::Feature { feature: CORNER_ID + 1 }, height_mm: -(CORNER_RISE_MM + TRACERY_FOOT_MM), draft_deg: 0.0 },
+        Component { attach: Attach::Join, stage: Stage::Cast, ..none() },
     ))?;
     let r = ruby();
     doc.append(builders::stone_feature(RUBY_ID, r, Placement::ring(90.0, RUBY_GIRDLE_MM)))?;
@@ -616,29 +675,10 @@ fn author() -> Result<(RingDesign, usize, Lands)> {
     let mut next: Id = RUBY_ID + 2;
     collet(&mut doc, &mut next, "Oculus collet", r, 0.0, 90.0, RUBY_GIRDLE_MM, 0.0, MOULD_STEP_MM)?;
     let s = sapphire();
-    let first = next;
-    doc.append(builders::stone_feature(
-        first,
-        s,
-        Placement::Ring { theta_deg: 90.0, across_mm: light_at_mm(), height_mm: LIGHT_GIRDLE_MM, spin_deg: knob("ROSA_SPIN", -90.0), tilt_deg: 0.0, cant_deg: 0.0, level: false },
-    ))?;
-    doc.append(builders::feature_on(first + 1, "First light's seat", builders::BUR, first, json!({"through": false})))?;
-    next = first + 2;
-    let (lip, foot) = collet(&mut doc, &mut next, "First light's collet", s, light_at_mm(), light_deg(0), LIGHT_GIRDLE_MM, 0.0, 0.0)?;
-    let about = PatternKind::About { part: RUBY_ID, count: LIGHTS as u32, span_deg: 360.0 };
-    let array = |sources: Vec<Id>| Operation::Pattern { sources: cad::pattern::Sources(sources), kind: about.clone() };
-    doc.append(feature(next, "Eight sapphire lights round the oculus", array(vec![first]), builders::component(builders::STONE)))?;
-    doc.append(feature(next + 1, "Their eight seats", array(vec![first + 1]), builders::component(builders::BUR)))?;
-    doc.append(feature(
-        next + 2,
-        "Their eight collets",
-        array(vec![lip, foot]),
-        Component { attach: Attach::Join, stage: Stage::Cast, role: ComponentRole::Setting, blend_mm: knob("ROSA_CB", 0.0), ..none() },
-    ))?;
     // Each pilot is drilled toward the finger's axis, so it meets the bore square and leaves no knife edge there.
     let table = table_y()?;
-    let mut id = next + 3;
-    let at = [[0.0, 0.0]].into_iter().chain((0..LIGHTS).map(|k| polar(light_at_mm(), light_deg(k))));
+    let mut id = next;
+    let at = [[0.0, 0.0]].into_iter();
     for (k, [x, y]) in at.enumerate() {
         let r = if k == 0 { 0.52 * 0.5 * r.l_mm + PILOT_GROW_MM } else { 0.52 * 0.5 * s.l_mm + PILOT_GROW_MM };
         let lean = (x / table).atan().to_degrees();
@@ -776,7 +816,7 @@ fn antiqued(m: &mesh::Mesh, table_y: f64) -> (mesh::Mesh, mesh::Mesh) {
         let y = (a[1] + b[1] + c[1]) / 3.0;
         let r = ((a[0] + b[0] + c[0]) / 3.0).hypot((a[2] + b[2] + c[2]) / 3.0);
         // Everything sunk under the table inside the rose: the spandrels' floors and walls, the pilots.
-        r < R_OUT + RING_MM - 0.05 && y < table_y + TRACERY_MM - 0.05 && y > table_y - 3.0
+        r < R_OUT + CUSP_SAG_MM + RING_MM - 0.05 && y < table_y + TRACERY_MM - 0.05 && y > table_y - 3.0
     };
     let mut bright = mesh::Mesh { vertices: m.vertices.clone(), normals: m.normals.clone(), ..mesh::Mesh::default() };
     let mut dark = bright.clone();

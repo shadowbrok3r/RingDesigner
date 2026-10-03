@@ -8,14 +8,14 @@
     ],
     "stock": "001"
   },
-  "cad_features": 44,
-  "design_bytes": 514342,
+  "cad_features": 29,
+  "design_bytes": 556286,
   "draft": {
     "build": [
       768,
       320
     ],
-    "build_s": 1.395680365,
+    "build_s": 0.980022077,
     "gates": {
       "bore_radius_mm": 9.3,
       "cold_reload_identical": null,
@@ -55,191 +55,116 @@
         },
         {
           "id": 7,
-          "name": "Sink the sixteen spandrels deep",
+          "name": "Sink the eight cusped spandrels deep",
           "status": "Ok"
         },
         {
           "id": 8,
-          "name": "Round 3.5 mm",
+          "name": "Sink the eight lancet lights deep",
+          "status": "Ok"
+        },
+        {
+          "id": 90,
+          "name": "Corner boss height",
+          "status": "Ok"
+        },
+        {
+          "id": 91,
+          "name": "Four corner trefoils",
+          "status": "Ok"
+        },
+        {
+          "id": 92,
+          "name": "Raise the corner trefoils as carved bosses",
           "status": "Ok"
         },
         {
           "id": 9,
-          "name": "Oculus seat",
+          "name": "Round 3.5 mm",
           "status": "Ok"
         },
         {
           "id": 10,
-          "name": "Oculus collet: lip height",
+          "name": "Oculus seat",
           "status": "Ok"
         },
         {
           "id": 11,
-          "name": "Oculus collet: lip ring",
+          "name": "Oculus collet: lip height",
           "status": "Ok"
         },
         {
           "id": 12,
-          "name": "Oculus collet: raise the lip to the bearing",
+          "name": "Oculus collet: lip ring",
           "status": "Ok"
         },
         {
           "id": 13,
-          "name": "Oculus collet: bearing height",
+          "name": "Oculus collet: raise the lip to the bearing",
           "status": "Ok"
         },
         {
           "id": 14,
-          "name": "Oculus collet: bearing ring",
+          "name": "Oculus collet: bearing height",
           "status": "Ok"
         },
         {
           "id": 15,
-          "name": "Oculus collet: stand the bearing on the metal",
+          "name": "Oculus collet: bearing ring",
           "status": "Ok"
         },
         {
           "id": 16,
-          "name": "Pear 3 × 1.8",
+          "name": "Oculus collet: stand the bearing on the metal",
           "status": "Ok"
         },
         {
           "id": 17,
-          "name": "First light's seat",
-          "status": "Ok"
-        },
-        {
-          "id": 18,
-          "name": "First light's collet: lip height",
-          "status": "Ok"
-        },
-        {
-          "id": 19,
-          "name": "First light's collet: lip ring",
-          "status": "Ok"
-        },
-        {
-          "id": 20,
-          "name": "First light's collet: raise the lip to the bearing",
-          "status": "Ok"
-        },
-        {
-          "id": 21,
-          "name": "First light's collet: bearing height",
-          "status": "Ok"
-        },
-        {
-          "id": 22,
-          "name": "First light's collet: bearing ring",
-          "status": "Ok"
-        },
-        {
-          "id": 23,
-          "name": "First light's collet: stand the bearing on the metal",
-          "status": "Ok"
-        },
-        {
-          "id": 24,
-          "name": "Eight sapphire lights round the oculus",
-          "status": "Ok"
-        },
-        {
-          "id": 25,
-          "name": "Their eight seats",
-          "status": "Ok"
-        },
-        {
-          "id": 26,
-          "name": "Their eight collets",
-          "status": "Ok"
-        },
-        {
-          "id": 27,
           "name": "Drill the oculus pilot to the finger",
           "status": "Ok"
         },
         {
-          "id": 28,
-          "name": "Drill light 1's pilot to the finger",
-          "status": "Ok"
-        },
-        {
-          "id": 29,
-          "name": "Drill light 2's pilot to the finger",
-          "status": "Ok"
-        },
-        {
-          "id": 30,
-          "name": "Drill light 3's pilot to the finger",
-          "status": "Ok"
-        },
-        {
-          "id": 31,
-          "name": "Drill light 4's pilot to the finger",
-          "status": "Ok"
-        },
-        {
-          "id": 32,
-          "name": "Drill light 5's pilot to the finger",
-          "status": "Ok"
-        },
-        {
-          "id": 33,
-          "name": "Drill light 6's pilot to the finger",
-          "status": "Ok"
-        },
-        {
-          "id": 34,
-          "name": "Drill light 7's pilot to the finger",
-          "status": "Ok"
-        },
-        {
-          "id": 35,
-          "name": "Drill light 8's pilot to the finger",
-          "status": "Ok"
-        },
-        {
-          "id": 36,
+          "id": 18,
           "name": "Oculus of the nave, 1",
           "status": "Ok"
         },
         {
-          "id": 37,
+          "id": 19,
           "name": "Oculus of the nave, 2",
           "status": "Ok"
         },
         {
-          "id": 38,
+          "id": 20,
           "name": "Oculus of the nave, 3",
           "status": "Ok"
         },
         {
-          "id": 39,
+          "id": 21,
           "name": "Oculus of the nave, 4",
           "status": "Ok"
         },
         {
-          "id": 40,
+          "id": 22,
           "name": "Mirror the oculi through the crown",
           "status": "Ok"
         },
         {
-          "id": 41,
+          "id": 23,
           "name": "Outside the near cheek",
           "status": "Ok"
         },
         {
-          "id": 42,
+          "id": 24,
           "name": "Gallery arcade: three lancets",
           "status": "Ok"
         },
         {
-          "id": 43,
+          "id": 25,
           "name": "Cut the gallery arcade into the cheek",
           "status": "Ok"
         },
         {
-          "id": 44,
+          "id": 26,
           "name": "The same arcade in the far cheek",
           "status": "Ok"
         }
@@ -248,31 +173,20 @@
         "Lost wax: 0.26% of the surface would undercut a two-part pull (worst 2.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
         "Undercut 16–54° on the crest: 3.6 mm² leaning to 2° — no single layer explains it.",
         "Undercut 153–162° on the crest: 0.4 mm² leaning to 1° — no single layer explains it.",
-        "Measured with the ring as built: 26 CAD parts (6 joined, 20 cut), 1071.4 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Extrude \"Raise the tracery: the oculus order, eight mullions, the heads and the outer order\" (#6) would undercut a two-part pull over 32.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Sink the sixteen spandrels deep\" (#7) would undercut a two-part pull over 108.5 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Seat bur \"Oculus seat\" (#9) would undercut a two-part pull over 1.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Oculus collet: raise the lip to the bearing\" (#12) would undercut a two-part pull over 5.4 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Oculus collet: stand the bearing on the metal\" (#15) would undercut a two-part pull over 2.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Seat bur \"First light's seat\" (#17) would undercut a two-part pull over 0.0 mm² (worst -11°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"First light's collet: raise the lip to the bearing\" (#20) would undercut a two-part pull over 2.2 mm² (worst -59°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"First light's collet: stand the bearing on the metal\" (#23) would undercut a two-part pull over 0.6 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array round a part \"Their eight seats\" (#25) would undercut a two-part pull over 1.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array round a part \"Their eight collets\" (#26) would undercut a two-part pull over 20.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill the oculus pilot to the finger\" (#27) would undercut a two-part pull over 22.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 1's pilot to the finger\" (#28) would undercut a two-part pull over 10.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 2's pilot to the finger\" (#29) would undercut a two-part pull over 12.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 3's pilot to the finger\" (#30) would undercut a two-part pull over 20.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 4's pilot to the finger\" (#31) would undercut a two-part pull over 11.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 5's pilot to the finger\" (#32) would undercut a two-part pull over 10.5 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 6's pilot to the finger\" (#33) would undercut a two-part pull over 11.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 7's pilot to the finger\" (#34) would undercut a two-part pull over 21.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Extrude \"Drill light 8's pilot to the finger\" (#35) would undercut a two-part pull over 12.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Piercing \"Oculus of the nave, 1\" (#36) would undercut a two-part pull over 39.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Piercing \"Oculus of the nave, 2\" (#37) would undercut a two-part pull over 26.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Piercing \"Oculus of the nave, 3\" (#38) would undercut a two-part pull over 18.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Piercing \"Oculus of the nave, 4\" (#39) would undercut a two-part pull over 12.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Mirror \"Mirror the oculi through the crown\" (#40) would undercut a two-part pull over 98.6 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Measured with the ring as built: 15 CAD parts (4 joined, 11 cut), 1298.9 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Extrude \"Raise the tracery: the oculus order, eight mullions, the heads and the outer order\" (#6) would undercut a two-part pull over 27.8 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Sink the eight cusped spandrels deep\" (#7) would undercut a two-part pull over 214.5 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Sink the eight lancet lights deep\" (#8) would undercut a two-part pull over 114.7 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Raise the corner trefoils as carved bosses\" (#92) would undercut a two-part pull over 8.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Seat bur \"Oculus seat\" (#10) would undercut a two-part pull over 1.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Oculus collet: raise the lip to the bearing\" (#13) would undercut a two-part pull over 5.4 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Oculus collet: stand the bearing on the metal\" (#16) would undercut a two-part pull over 2.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Extrude \"Drill the oculus pilot to the finger\" (#17) would undercut a two-part pull over 22.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Oculus of the nave, 1\" (#18) would undercut a two-part pull over 43.2 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Oculus of the nave, 2\" (#19) would undercut a two-part pull over 26.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Oculus of the nave, 3\" (#20) would undercut a two-part pull over 18.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Piercing \"Oculus of the nave, 4\" (#21) would undercut a two-part pull over 12.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Mirror \"Mirror the oculi through the crown\" (#22) would undercut a two-part pull over 102.0 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "field_verdict": "Castable",
       "investment_min_section_mm": 0.8,
@@ -282,7 +196,15 @@
           0
         ],
         [
-          "Sink the sixteen spandrels deep",
+          "Sink the eight cusped spandrels deep",
+          0
+        ],
+        [
+          "Sink the eight lancet lights deep",
+          0
+        ],
+        [
+          "Raise the corner trefoils as carved bosses",
           0
         ],
         [
@@ -302,67 +224,7 @@
           0
         ],
         [
-          "Pear 3 × 1.8",
-          0
-        ],
-        [
-          "First light's seat",
-          0
-        ],
-        [
-          "First light's collet: raise the lip to the bearing",
-          0
-        ],
-        [
-          "First light's collet: stand the bearing on the metal",
-          0
-        ],
-        [
-          "Eight sapphire lights round the oculus",
-          0
-        ],
-        [
-          "Their eight seats",
-          0
-        ],
-        [
-          "Their eight collets",
-          20
-        ],
-        [
           "Drill the oculus pilot to the finger",
-          0
-        ],
-        [
-          "Drill light 1's pilot to the finger",
-          0
-        ],
-        [
-          "Drill light 2's pilot to the finger",
-          0
-        ],
-        [
-          "Drill light 3's pilot to the finger",
-          0
-        ],
-        [
-          "Drill light 4's pilot to the finger",
-          0
-        ],
-        [
-          "Drill light 5's pilot to the finger",
-          0
-        ],
-        [
-          "Drill light 6's pilot to the finger",
-          0
-        ],
-        [
-          "Drill light 7's pilot to the finger",
-          0
-        ],
-        [
-          "Drill light 8's pilot to the finger",
           0
         ],
         [
@@ -405,44 +267,44 @@
       "solids_notes": [],
       "stamps_unresolved": 0,
       "stones_crowding": {
-        "carats": 0.4080303700000001,
-        "closest": "Round 3.5 mm / Eight sapphire lights round the oculus",
-        "closest_gap_mm": 2.239049917790873,
+        "carats": 0.16215325,
+        "closest": null,
+        "closest_gap_mm": null,
         "fill_floor_mm": 0.8,
         "note": null,
         "tight_pairs": 0
       },
-      "stones_previewed": 9,
-      "stones_reported": 9,
+      "stones_previewed": 1,
+      "stones_reported": 1,
       "thickness": {
-        "below_limit": 44,
+        "below_limit": 22,
         "build": [
           384,
           160
         ],
-        "faces": 57278,
+        "faces": 40378,
         "limit_mm": 0.8,
         "note": "Up to 384 surface-normal samples on the display mesh; small unsampled features and oblique walls require section inspection",
-        "rays": 382,
-        "sampled_min_mm": 0.02454775318581277,
+        "rays": 381,
+        "sampled_min_mm": 0.024809089142361147,
         "unresolved": 0
       },
       "thinnest_wall_mm": 1.878189115992754,
-      "triangles": 65012,
+      "triangles": 46224,
       "vertices_inside_bore": 0,
       "watertight": true
     },
     "gates_passed": false,
     "lands": {
       "bar_mm": 1.0,
-      "collet_in_petal_mm": -0.5667614972721599,
-      "collet_over_bar_mm": 0.5667614972721599,
-      "collet_to_spandrel_mm": 0.6197836783657545,
-      "pilot_to_pilot_mm": 3.7969999999999997,
+      "collet_in_petal_mm": -1.4847330849231648,
+      "collet_over_bar_mm": 1.4847330849231648,
+      "collet_to_spandrel_mm": 0.003941768912725685,
+      "pilot_to_pilot_mm": 2.947,
       "ruby_collet_to_petal_mm": 0.6999999999999993,
-      "spandrel_to_table_edge_mm": 1.644964097866401
+      "spandrel_to_table_edge_mm": 1.6750351247124318
     },
-    "traced_lights": 25
+    "traced_lights": 17
   },
   "draft_settings": {
     "auto_parting": false,
@@ -887,7 +749,7 @@
     },
     "traced_lights": 25
   },
-  "grams_gold_18k": 36.37916081471162,
+  "grams_gold_18k": 34.1185339454263,
   "name": "Rosa — the west rose",
   "process": "Lost wax",
   "size": "US 8.6"
