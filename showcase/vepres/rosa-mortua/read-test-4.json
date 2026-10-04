@@ -1,0 +1,31 @@
+{
+  "ring": "rosa-mortua",
+  "mode": "read-test",
+  "attempt": 4,
+  "reads": true,
+  "what_the_eye_sees": "A gold flower on a thorned stem. This is the first attempt where a jeweller would say 'rose' without being told. In the hero the band is a round stem with hooked prickles, broad at the root and leaning down the stem. There are about seven on the left shoulder and a row down the right arm, and the lower-left of the band is a plain smooth stem. The prickles are the strongest rose cue on the ring. At the top sits an open bloom of crumpled, ruffled petals with a red stone at its heart, and beside it a red round stone held in a cup of curling sepal points that reads as a rose hip. Thorns, an open flower and a hip together name the rose. The read rests on the thorns, though. On its own the bloom reads as a generic gem-centred flower (a camellia, a peony or a daisy cluster), not a rose. The petals lie in one flat radial ring round a plain round collet whose metal rim shows clearly. There is no nested, spiralling cup of inner petals, which is what makes a rose a rose. The petals look crumpled like foil more than dried and curled, so 'dead' only half comes through. To the left of the bloom in the face view, a smeared, shapeless gold blob runs down the arm (the leaf, presumably) and reads as nothing. The hip's collet is still a tall plain can under the sepals.",
+  "changes": [
+    {
+      "priority": 1,
+      "where": "The bloom round the ruby (face and hero views)",
+      "change": "Give the bloom a rose's nested spiral. Add an inner ring of 3 to 4 cupped petals that rise about 1.5 to 2 mm above the collet rim and overlap each other in one direction, so they wrap the ruby's girdle and hide the plain collet wall. Let the outer row of 5 petals reflex outward and droop 20 to 35 degrees below the bloom's plane, each with a curled-back, ragged edge, so the head reads as withered rather than crumpled foil. Keep the ruby's table visible, at about 40 percent of the bloom's diameter.",
+      "acceptance": "In face-300 no smooth collet rim shows round the ruby. Overlapping inner petals visibly spiral round it, the outer petals curl back and down, and covering the thorns and the hip, the head alone still reads as a rose, not a generic flower."
+    },
+    {
+      "priority": 2,
+      "where": "Leaf on the left arm beside the bloom (face view, left of centre)",
+      "change": "Replace the smeared blob with a crisp, recognisable leaf, or drop it. If kept, make it a three-leaflet compound rose leaf: oval leaflets 5 to 6 mm long and about 2.2 mm wide, toothed at the edge, on a visible petiole, standing clear of the arm by at least 0.5 mm so its outline casts a shadow. If it is the withered leaf, curl it with a clear bite out of one edge and a sharp outline.",
+      "acceptance": "In face-300 the shape left of the bloom shows separate leaflets with clean outlines, or there is nothing there. No smeared or shapeless metal remains on that arm."
+    },
+    {
+      "priority": 3,
+      "where": "Hip on arm B, and the right-arm prickles from about 120 to 160 degrees in the hero",
+      "change": "Lower the hip's collet by about a third so the garnet's red dome stands above it, and let the five sepal wisps arch over the dome's shoulder about 1 to 1.5 mm. Thin out the prickles on the lower right arm: none below about 4 o'clock, at most 7 per arm, graded down toward the palm, so the lower third of the band is plain stem on both sides.",
+      "acceptance": "In face-300 the hip shows a red dome crowned by curling sepals, not a stone in a can. In hero-300 the lower third of the band carries no prickles on either side."
+    }
+  ],
+  "viewed_images": [
+    "showcase/vepres/rosa-mortua/hero-300.png",
+    "showcase/vepres/rosa-mortua/face-300.png"
+  ]
+}
