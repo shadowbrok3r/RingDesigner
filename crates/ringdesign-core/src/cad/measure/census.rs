@@ -23,10 +23,14 @@ const PROBES: usize = 16;
 const CONVERGING: f64 = 0.05;
 /// Least cosine, 60°, between a march and the line its sample's faces converge on for the march to read relief.
 const RELIEF_LINE: f64 = 0.5;
-/// Turn, in radians, of the second ray a march casts when its first finds no way out.
-const GRAZE: f64 = 1e-6;
+/// Least included angle of relief, degrees: its section is at least this wedge's from its free edge and widens as fast between any two stations.
+const RELIEF_DEG: f64 = 20.0;
+/// Least section, in floors, at relief's last station under the floor.
+const RELIEF_BASE: f64 = 0.7;
+/// Least section, in floors, along the crest where relief reaches the floor.
+const RELIEF_CREST: f64 = 1.5;
 /// Halvings that place where a march's section reaches the floor.
-const BISECTIONS: usize = 3;
+const BISECTIONS: usize = 6;
 /// Crossings closer than this along a ray are one surface hit, mm.
 const SAME_HIT_MM: f64 = 1e-7;
 /// Bisected pieces of surface binned between two reads of the cancel flag.
@@ -34,7 +38,7 @@ const PIECES_PER_CHECK: usize = 1 << 16;
 /// Samples read, or thin samples gathered into zones, between two reads of the cancel flag.
 const SAMPLES_PER_CHECK: usize = 2048;
 
-const NOTE: &str = "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge and reaches the floor within the edge reach of it, and on the way is either everywhere at least floor / reach of its distance from that edge or flares from it like a wedge, at any angle, into metal at least a floor deep along the line its faces converge on (relief); it is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.";
+const NOTE: &str = "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge and reaches the floor within the edge reach of it, and on the way is either everywhere at least floor / reach of its distance from that edge, or is relief: it is at every station at least as wide as a 20° wedge from that edge and widens as fast between every two stations, is at least 0.7 of the floor thick at its last station under it, and meets a body at least a floor deep along the line its faces converge on that runs on along its crest for 1.5 floors. It is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.";
 const NOT_ASSESSED: &str = "Thickness not assessed: the mesh is empty or not watertight, or the floor is not a positive length";
 
 fn add(a: P3, b: P3) -> P3 {
@@ -319,7 +323,7 @@ impl<'a> Probe<'a> {
         let (mut m, mut a, mut u, mut went, mut last) = (start, axis, dir, 0.0, first);
         while went < limit - 1e-9 {
             let step = self.step.min(limit - went);
-            match self.leave(m, u).or_else(|| self.leave(m, unit(add(u, scale(a, GRAZE)))?)) {
+            match self.leave(m, u) {
                 Some((t, _)) if t <= step => return Walk::Closed(went + t),
                 Some(_) => {}
                 None => return Walk::Thin,
@@ -378,35 +382,36 @@ impl<'a> Probe<'a> {
         self.fed(c, first) && closed.iter().all(|&(w, s)| self.fed(c - w, s)) && body.iter().all(|&(w, s)| self.fed(c + w, s))
     }
 
-    /// Whether a march pair's sections, from its free edge at `c` to the floor, never narrow by more than half a step and fit a wedge whose apex lies within the run's length past that edge.
-    fn flared(&self, c: f64, first: f64, closed: &[(f64, f64)], body: &[(f64, f64)]) -> bool {
-        let run: Vec<(f64, f64)> =
-            closed.iter().rev().map(|&(w, s)| (c - w, s)).chain(std::iter::once((c, first))).chain(body.iter().map(|&(w, s)| (c + w, s))).collect();
-        let Some(&(last, _)) = run.last().filter(|_| run.len() >= 2) else { return false };
-        let mut widest = 0.0f64;
-        for &(_, s) in &run {
-            if s < widest - 0.5 * self.step {
+    /// Whether a march pair's sections, from its free edge at `c` to the floor, are each at least as wide as a `RELIEF_DEG` wedge from that edge, widen between every two stations at least as that wedge does, both within half a step, and end at least `RELIEF_BASE` floors thick.
+    fn flares(&self, c: f64, first: f64, closed: &[(f64, f64)], body: &[(f64, f64)]) -> bool {
+        let rate = 2.0 * (0.5 * RELIEF_DEG).to_radians().tan();
+        let run = closed.iter().rev().map(|&(w, s)| (c - w, s)).chain(std::iter::once((c, first))).chain(body.iter().map(|&(w, s)| (c + w, s)));
+        let (mut stations, mut last, mut widest) = (0, 0.0, f64::NEG_INFINITY);
+        for (x, s) in run {
+            if s < rate * (x - 0.5 * self.step) {
                 return false;
             }
-            widest = widest.max(s);
+            // Section less the wedge's own widening, which may fall no more than half a step below its best so far.
+            let ahead = s - rate * x;
+            if ahead < widest - 0.5 * self.step {
+                return false;
+            }
+            (stations, last, widest) = (stations + 1, s, widest.max(ahead));
         }
-        let n = run.len() as f64;
-        let (mx, ms) = run.iter().fold((0.0, 0.0), |(x, s), p| (x + p.0 / n, s + p.1 / n));
-        let (cov, var) = run.iter().fold((0.0, 0.0), |(cv, v), p| (cv + (p.0 - mx) * (p.1 - ms), v + (p.0 - mx) * (p.0 - mx)));
-        if !(var > 0.0 && cov > 0.0) {
-            return false;
-        }
-        let slope = cov / var;
-        ms - slope * mx <= slope * last
+        stations >= 2 && last >= RELIEF_BASE * self.floor
     }
 
-    /// Edge if every station is fed, or the run flares from its free edge into metal at least a floor deep along `below` from where it reaches the floor.
-    fn judge(&self, c: f64, first: f64, closed: &[(f64, f64)], body: &[(f64, f64)], point: P3, below: Option<P3>) -> bool {
+    /// Edge if every station is fed, or the run flares into metal at least a floor deep along `below`, running on along `crest` for `RELIEF_CREST` floors where it reaches the floor.
+    fn judge(&self, c: f64, first: f64, closed: &[(f64, f64)], body: &[(f64, f64)], point: P3, below: Option<P3>, crest: P3) -> bool {
         self.tapered(c, first, closed, body)
-            || below.is_some_and(|d| self.flared(c, first, closed, body) && self.leave(point, d).is_some_and(|(t, _)| t >= self.floor))
+            || below.is_some_and(|d| {
+                self.flares(c, first, closed, body)
+                    && self.leave(point, d).is_some_and(|(t, _)| t >= self.floor)
+                    && self.section(point, crest).is_some_and(|(l, _, _)| l >= RELIEF_CREST * self.floor)
+            })
     }
 
-    /// Edge if a line through the mid-surface point leaves the metal one way and meets the floor the other within the reach, fed all the way or flaring into a body.
+    /// Edge if a line through the mid-surface point leaves the metal one way and meets the floor the other within the reach, fed all the way or flaring into a body as relief.
     fn classify(&self, s: &Sample, t: f64, far: usize) -> Thin {
         let inward = scale(s.n, -1.0);
         let n_far = self.normal(far);
@@ -437,11 +442,11 @@ impl<'a> Probe<'a> {
             let back = scale(u, -1.0);
             let depth = match self.walk(mid, axis, u, first, limit, &mut out) {
                 Walk::Closed(c) => match self.walk(mid, axis, back, first, limit - c, &mut home) {
-                    Walk::Body { at, point } => self.judge(c, first, &out, &home, point, below(u)).then_some(c + at),
+                    Walk::Body { at, point } => self.judge(c, first, &out, &home, point, below(u), e2).then_some(c + at),
                     _ => None,
                 },
                 Walk::Body { at, point } => match self.walk(mid, axis, back, first, limit - at, &mut home) {
-                    Walk::Closed(c) => self.judge(c, first, &home, &out, point, below(back)).then_some(c + at),
+                    Walk::Closed(c) => self.judge(c, first, &home, &out, point, below(back), e2).then_some(c + at),
                     _ => None,
                 },
                 Walk::Thin => None,
