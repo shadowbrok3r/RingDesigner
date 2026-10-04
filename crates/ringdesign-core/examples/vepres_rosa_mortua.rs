@@ -9,7 +9,7 @@
 use anyhow::{Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign,
-    cad::{self, Attach, Component, ComponentRole, Document, Feature, FeatureStatus, Operation, PatternKind, Placement, Stage, TwistPath, SurfaceKind, builders, stored},
+    cad::{self, pattern::{Along, AlongPath}, Attach, Component, ComponentRole, Document, Feature, FeatureStatus, Operation, PatternKind, Placement, Stage, TwistPath, SurfaceKind, builders, stored},
     castability, csg, dfm,
     gem::{Gem, GemCut},
     library, mesh,
@@ -48,7 +48,7 @@ const BLOOM_DEG: f64 = 97.0;
 const HIP_DEG: f64 = 38.0;
 /// How far each stone is lifted to stand on its arm's stem.
 const BLOOM_LIFT_MM: f64 = 0.9;
-const HIP_LIFT_MM: f64 = 0.0;
+const HIP_LIFT_MM: f64 = 1.2;
 /// The hip stands on the low side of the band, where arm B's stem leads it.
 const HIP_Z_MM: f64 = -0.3;
 /// Arm B's stem stops this far short of the hip, under its collet's rim, clear of the stone.
@@ -58,6 +58,11 @@ const HIP_STEM_GAP_DEG: f64 = 9.0;
 const STEM_R_MM: f64 = 1.05;
 const STEM_PROUD_MM: f64 = 0.75;
 const STEM_BURIED_R_MM: f64 = 0.6;
+/// Growth nodes on the plain stem round the palm: where, their bead radius, how proud and how far across.
+const NODE_DEG: [f64; 3] = [238.0, 272.0, 306.0];
+const NODE_R_MM: f64 = 0.32;
+const NODE_PROUD_MM: f64 = 0.16;
+const NODE_HALF_MM: f64 = 1.45;
 const STEM_FROM_DEG: [f64; 2] = [42.0, 35.0];
 const STEM_BLEND_MM: f64 = 0.0;
 /// The ruby at the heart of the bloom, in a low collet.
@@ -66,21 +71,21 @@ const HEART_LIP: f64 = 0.3;
 /// Four rings of petals: (count, rise over the horizontal, length, width, foot under the girdle, droop at the tip,
 /// skew). The innermost ring wraps the ruby's girdle in a spiral, each petal skewed so one edge laps over its
 /// neighbour; the next cups it; the third has opened; the outer one hangs dead, reflexed below the bloom's plane.
-const PETAL_RINGS: [(usize, f64, f64, f64, f64, f64, f64); 4] = [(4, 104.0, 2.7, 5.2, -0.9, 0.0, 0.12), (5, 70.0, 3.0, 4.2, -1.1, 15.0, 0.08), (6, 38.0, 3.6, 4.4, -1.35, 30.0, 0.1), (7, 0.0, 4.0, 4.6, -1.6, 30.0, 0.0)];
+const PETAL_RINGS: [(usize, f64, f64, f64, f64, f64, f64); 4] = [(4, 104.0, 3.0, 5.2, -0.9, 0.0, 0.14), (5, 70.0, 3.0, 4.2, -1.1, 15.0, 0.08), (6, 38.0, 3.6, 4.0, -1.35, 30.0, 0.14), (7, -4.0, 4.0, 4.6, -1.6, 38.0, 0.0)];
 const PETAL_START_DEG: f64 = 20.0;
 const PETAL_FOOT_OUT_MM: f64 = 0.3;
 /// Cupped toward the heart at the foot; the margins roll back toward the tip, as a dried petal's do.
 const PETAL_CUP_MM: f64 = 0.4;
 const PETAL_REFLEX_MM: f64 = 0.65;
 /// Dried: a low crinkle across the blade.
-const PETAL_CRINKLE_MM: f64 = 0.12;
+const PETAL_CRINKLE_MM: f64 = 0.25;
 /// How ragged the outer petals' dried edges are, as a share of the blade.
 const PETAL_TEAR: f64 = 0.06;
 /// How far the inner rings curve round the collet across their width (share of their half-width, at the margin).
 const PETAL_WRAP: f64 = 0.3;
 /// The section floor through the blade; it thins only at the free margin.
 const PETAL_T_MM: f64 = 1.0;
-const PETAL_EDGE_MM: f64 = 0.8;
+const PETAL_EDGE_MM: f64 = 0.55;
 const RECEPTACLE_FOOT_Z: f64 = -2.75;
 /// Five dried sepals under the bloom, long and reflexed.
 const SEPALS: usize = 5;
@@ -88,26 +93,31 @@ const SEPAL_LEN_MM: f64 = 4.4;
 const SEPAL_W_MM: f64 = 1.5;
 const SEPAL_T_MM: f64 = 1.05;
 /// The hip: a garnet cabochon in a collet, on its swollen body, crowned by its dried sepals.
-const HIP_WALL_MM: f64 = 1.0;
+const HIP_WALL_MM: f64 = 0.85;
+/// The hip's fruit: its neck (never narrower than the collet, whose wall runs down to the stem) and belly radii, and how
+/// far over the girdle its lip draws in round the collet.
+const HIP_URN_NECK_MM: f64 = 4.0;
+const HIP_URN_BELLY_MM: f64 = 4.9;
+const HIP_URN_LIP_Z_MM: f64 = 0.15;
 const HIP_LIP: f64 = 0.3;
 /// The hip's body under the stone: semi-axes and how far its centre stands under the girdle.
 const HIP_BODY: (f64, f64, f64, f64) = (2.6, 2.6, 1.0, 1.25);
 /// The dried sepal crown on the hip: five wisps, each a lens `WISP_W x WISP_T` leaning `WISP_IN` in over the dome as
 /// it rises `WISP_RISE`, then curling out over `WISP_CURL_DEG` on a `WISP_BEND` radius, turning and tapering.
 const WISPS: u32 = 5;
-const WISP_W_MM: f64 = 1.15;
+const WISP_W_MM: f64 = 1.45;
 const WISP_IN_MM: f64 = 0.6;
-const WISP_T_MM: f64 = 1.0;
+const WISP_T_MM: f64 = 0.85;
 const WISP_RISE_MM: f64 = 1.9;
 const WISP_BEND_MM: f64 = 0.9;
 const WISP_CURL_DEG: f64 = 110.0;
-const WISP_TWIST_DEG: f64 = 50.0;
+const WISP_TWIST_DEG: f64 = 60.0;
 const WISP_END: f64 = 0.82;
-const WISP_ROOT_Z_MM: f64 = 0.2;
-const WISP_ROOT_OUT_MM: f64 = 0.75;
+const WISP_ROOT_Z_MM: f64 = 0.05;
+const WISP_ROOT_OUT_MM: f64 = 0.9;
 /// The leaf, below the bloom down arm A's far side: where its rachis starts, how far across, the rachis's run, each
 /// leaflet's (length, width), the laterals' spread; its sink, drape, thickness and teeth.
-const LEAF_DEG: f64 = 134.0;
+const LEAF_DEG: f64 = 131.0;
 const LEAF_Z_MM: f64 = -0.2;
 const LEAF_RACHIS_MM: f64 = 2.0;
 const LEAF_TERMINAL: (f64, f64) = (6.0, 3.2);
@@ -116,24 +126,30 @@ const LEAF_SPREAD_DEG: f64 = 50.0;
 const LEAF_SINK_MM: f64 = 0.12;
 const DRAPE_Z_MM: (f64, f64) = (-0.8, 0.45);
 const DRAPE_SLOPE: f64 = 0.2;
-const LEAF_T_MM: f64 = 0.95;
-const LEAF_TOOTH: f64 = 0.12;
+const LEAF_T_MM: f64 = 1.0;
+const LEAF_TOOTH: f64 = 0.1;
+/// Leaflet rows along the blade (eight a tooth), the cup at the margin and the midrib's depth.
+const LEAF_ROWS: usize = 50;
+const LEAF_CUP_MM: f64 = 0.35;
+const LEAF_RIB_MM: f64 = 0.15;
 /// Five prickles on each arm's shoulder, degrees from the top, spaced unevenly; the palm's lower third stays smooth.
 const PRICKLES: usize = 5;
-const PRICKLE_OFFS_DEG: [[f64; PRICKLES]; 2] = [[72.0, 82.0, 92.0, 102.0, 112.0], [86.0, 96.0, 106.0, 116.0, 126.0]];
+/// Each arm's row along the crest, degrees, run in increasing theta: arm A from its palm end up toward the hip, arm B
+/// from under the leaf down toward the palm.
+const PRICKLE_ROW_DEG: [(f64, f64); 2] = [(-14.0, 16.0), (168.0, 197.0)];
 /// The smallest prickle's scale, at the palm end.
-const PRICKLE_LAST_SCALE: f64 = 0.8;
+const PRICKLE_LAST_SCALE: f64 = 0.72;
 const PRICKLE_SINK_MM: f64 = 0.3;
 const PRICKLE_BLEND_MM: f64 = 0.0;
 /// How far each prickle's foot flares where it meets the stem, as a share of its section.
 const PRICKLE_FLARE: f64 = 0.45;
 const PRICKLE_SPIN_DEG: f64 = 25.0;
-const PRICKLE_SIDES: usize = 24;
+const PRICKLE_SIDES: usize = 16;
 /// A rose prickle: a broad flattened foot (round the ring, across), a short rise, then hooked down the stem.
-const PRICKLE_FOOT_MM: (f64, f64) = (3.0, 1.8);
-const PRICKLE_RISE_MM: f64 = 1.0;
-const PRICKLE_BEND_MM: f64 = 1.5;
-const PRICKLE_HOOK_DEG: f64 = 70.0;
+const PRICKLE_FOOT_MM: (f64, f64) = (2.6, 1.5);
+const PRICKLE_RISE_MM: f64 = 0.55;
+const PRICKLE_BEND_MM: f64 = 1.7;
+const PRICKLE_HOOK_DEG: f64 = 62.0;
 /// Alternate prickles stand this far either side of the crest, canted with it.
 const PRICKLE_ACROSS_MM: f64 = 0.55;
 const PRICKLE_CANT_DEG: f64 = 0.0;
@@ -151,7 +167,7 @@ fn ruby() -> Gem {
 }
 
 fn garnet() -> Gem {
-    Gem { preview_tint: Some([0.40, 0.04, 0.07]), ..Gem::cabochon(GemCut::Round, 6.0) }
+    Gem { preview_tint: Some([0.28, 0.03, 0.05]), ..Gem::cabochon(GemCut::Round, 6.0) }
 }
 
 /// The stem: a procedural bypass, HighDome 3.6 x 2.7, lost wax.
@@ -216,6 +232,21 @@ fn ellipse_on(plane: Workplane, a: f64, b: f64, name: &str) -> Sketch {
         .collect();
     s.entity(Geometry::Polyline { points, closed: true });
     s
+}
+
+/// A rose prickle at `scale` as a twisted sweep: an elliptic foot `PRICKLE_FOOT_MM` (round the ring, across) carried
+/// up `PRICKLE_RISE_MM` and round a `PRICKLE_BEND_MM` hook of `PRICKLE_HOOK_DEG` down the stem, under a scale law that
+/// flares the foot into the bark (its own fillet, no seam bead), holds the body broad and closes to a point only in
+/// its last floor of length.
+fn prickle(scale: f64) -> Operation {
+    Operation::Twist {
+        sketch: ellipse_on(Workplane::default(), PRICKLE_FOOT_MM.0 * scale, PRICKLE_FOOT_MM.1 * scale, "Prickle foot").into(),
+        path: TwistPath::Sketch(hook_path(PRICKLE_RISE_MM * scale + PRICKLE_SINK_MM, PRICKLE_BEND_MM * scale, PRICKLE_HOOK_DEG)),
+        degrees: 0.0,
+        end_scale: 0.12,
+        scale: vec![[0.0, 1.0 + PRICKLE_FLARE], [0.12, 1.0], [0.62, 0.74], [1.0, 0.1]],
+        closed: false,
+    }
 }
 
 /// A rose prickle at `scale` in its seat's frame (z out of the stem, y round the ring): an elliptic section
@@ -528,7 +559,7 @@ fn petal(gem: Gem, at: &PetalAt) -> csg::Solid {
         let ang = (at.rise_deg - at.droop_deg * reach * reach).to_radians();
         (o0 + (o1 - o0) * k, z0 + (z1 - z0) * k, ang)
     };
-    sheet(20, 24, true, |u, v| {
+    sheet(16, 20, true, |u, v| {
         let x = 2.0 * u - 1.0;
         // A rounded tip, its dried edge torn a little: the sides stop short of the middle, unevenly.
         let outer = at.ring as f64 / (PETAL_RINGS.len() - 1) as f64;
@@ -545,13 +576,14 @@ fn petal(gem: Gem, at: &PetalAt) -> csg::Solid {
         // The inner rings wrap the collet's circle along their whole height; the outer ones cup only at the foot.
         let wrap = PETAL_WRAP * (1.0 - outer).powi(2);
         let cup = wrap + PETAL_CUP_MM * (1.0 - reach) - PETAL_REFLEX_MM * (0.4 + 0.6 * outer) * smooth01((reach - 0.35) / 0.65);
-        let crinkle = PETAL_CRINKLE_MM * reach * ((7.0 * x + seed).sin() * (5.0 * reach + seed).cos());
+        // Two or three broad dried folds across the blade, not a crumple.
+        let crinkle = PETAL_CRINKLE_MM * reach * ((2.3 * x + seed).sin() * (2.6 * reach + 0.7 * seed).cos());
         // Skewed: one edge stands out and the other tucks in, so a ring of them laps round like a spiral.
         let q = add3(add3(along, across, half * x), up, cup * half * x * x + crinkle - at.skew * half * x);
         // Thinning only near the free margin: within about a floor of the tip and the sides.
         let to_tip = at.length * (1.0 - reach);
         let to_side = half * (1.0 - x.abs());
-        let edge = smooth01(to_tip.min(to_side) / 0.7);
+        let edge = smooth01(to_tip.min(to_side) / 0.75);
         (q, up, PETAL_EDGE_MM + (PETAL_T_MM - PETAL_EDGE_MM) * edge)
     })
 }
@@ -668,9 +700,9 @@ fn stem_proud(theta: f64, from: f64, to: f64) -> f64 {
 
 /// The stem of arm A (to the bloom) or arm B (to the hip) as a tube over the band: buried where it parts from the
 /// other arm, standing proud over the top, and leading under its stone.
-fn stem_tube(d: &RingDesign, arm_a: bool) -> (csg::Solid, Vec<P3>) {
+fn stem_tube(d: &RingDesign, arm_a: bool) -> (Operation, Vec<P3>) {
     let (from, to) = stem_run(arm_a);
-    let n = 60;
+    let n = 36;
     let mut path = Vec::new();
     let mut radius = Vec::new();
     for i in 0..=n {
@@ -695,7 +727,10 @@ fn stem_tube(d: &RingDesign, arm_a: bool) -> (csg::Solid, Vec<P3>) {
         let t = p[1].to_radians();
         *p = [r * t.cos(), r * t.sin(), p[2]];
     }
-    (tube(&path, &radius, 20), path)
+    // Its buried start closes to a rounded point in the bark rather than a cut end.
+    radius[0] *= 0.25;
+    radius[1] *= 0.7;
+    (twist_tube(if arm_a { "Stem section, arm A" } else { "Stem section, arm B" }, &path, &radius, STEM_R_MM), path)
 }
 
 /// Where each arm's stem runs, degrees: arm A from its shoulder over the top to under the bloom, arm B from its
@@ -708,6 +743,77 @@ fn stem_run(arm_a: bool) -> (f64, f64) {
 fn stem_z(d: &RingDesign, theta: f64, arm_a: bool) -> f64 {
     let z = arm_z(d, theta, arm_a);
     if arm_a { z } else { z + (HIP_Z_MM - z) * smooth01((72.0 - theta) / (72.0 - HIP_DEG - HIP_STEM_GAP_DEG)) }
+}
+
+/// A round tube through `points` as a parametric twisted sweep (C-V3's points path, smoothed): its section a circle
+/// of `radius[0]`'s scale 1 at `r_mm`, scaled along the run by `radius / r_mm` read as a law over arc length. Light
+/// in the template: the points and the law, never a mesh.
+fn twist_tube(name: &str, points: &[P3], radius: &[f64], r_mm: f64) -> Operation {
+    let mut run = vec![0.0];
+    for w in points.windows(2) {
+        let d = sub3(w[1], w[0]);
+        run.push(run.last().unwrap() + dot(d, d).sqrt());
+    }
+    let total = run.last().copied().unwrap_or(1.0).max(1e-9);
+    // Knots thinned to the law's useful resolution: every few points, and always both ends.
+    let mut scale: Vec<[f64; 2]> = Vec::new();
+    for (i, (&s, &r)) in run.iter().zip(radius).enumerate() {
+        if i % 3 == 0 || i + 1 == run.len() {
+            let share = s / total;
+            if scale.last().is_none_or(|k| share > k[0] + 1e-6) {
+                scale.push([share, r / r_mm]);
+            }
+        }
+    }
+    let t0 = unit3(sub3(points[1], points[0]));
+    let seed = if t0[2].abs() < 0.9 { [0.0, 0.0, 1.0] } else { [1.0, 0.0, 0.0] };
+    let x = unit3(cross3(seed, t0));
+    let y = cross3(t0, x);
+    let mut section = ellipse_on(Workplane { origin: points[0], x, y, ..Default::default() }, 2.0 * r_mm, 2.0 * r_mm, name);
+    section.name = name.into();
+    Operation::Twist { sketch: section.into(), path: TwistPath::Points { points: points.to_vec(), smooth: true }, degrees: 0.0, end_scale: 1.0, scale, closed: false }
+}
+
+/// The hip's urn in its stone frame: a fruit swelling from a narrow neck in the stem to a full belly and drawing in
+/// to a lip round the garnet's collet, hollow over the stone's base so the cabochon stands clear (a revolve).
+fn hip_urn(gem: Gem, foot_z: f64) -> csg::Solid {
+    let r = 0.5 * gem.w_mm;
+    let lip = r + HIP_WALL_MM + 0.08;
+    // It stops just under the collet, its rim buried in the collet's wall, so the collet alone carries the stone.
+    let profile = vec![
+        (0.3, foot_z),
+        (0.3, -0.25),
+        (r - 0.4, -0.3),
+        // Up inside the collet's wall, so the urn swallows it to just under its lip and no plain can shows.
+        (r + 0.15, -0.25),
+        (r + 0.15, HIP_URN_LIP_Z_MM - 0.1),
+        (r + HIP_WALL_MM + 0.3, HIP_URN_LIP_Z_MM),
+        // A rose hip's swollen ovoid: broadest a third of the way down, drawing in to a narrow neck at the stem.
+        (HIP_URN_BELLY_MM - 0.35, HIP_URN_LIP_Z_MM - 0.15 + 0.12 * foot_z),
+        (HIP_URN_BELLY_MM, 0.32 * foot_z),
+        (HIP_URN_BELLY_MM - 0.3, 0.52 * foot_z),
+        (0.5 * (HIP_URN_BELLY_MM + HIP_URN_NECK_MM), 0.74 * foot_z),
+        (HIP_URN_NECK_MM + 0.15, 0.9 * foot_z),
+        (HIP_URN_NECK_MM, foot_z),
+    ];
+    let _ = lip;
+    revolve(&profile, 1.0, 1.0, 48)
+}
+
+/// A growth node on the plain stem at `theta`: a low ring of bark swelling across the crown from flank to flank,
+/// as a twisted sweep along the section outline, tapered into the stem at both ends.
+fn node_ring(d: &RingDesign, theta: f64) -> Operation {
+    let t = theta.to_radians();
+    let n = 13;
+    let points: Vec<P3> = (0..n)
+        .map(|i| {
+            let z = -NODE_HALF_MM + 2.0 * NODE_HALF_MM * i as f64 / (n - 1) as f64;
+            let r = surface_r(d, theta, z) + NODE_PROUD_MM - NODE_R_MM;
+            [r * t.cos(), r * t.sin(), z]
+        })
+        .collect();
+    let radius: Vec<f64> = (0..n).map(|i| { let s = i as f64 / (n - 1) as f64; NODE_R_MM * (0.35 + 0.65 * (PI * s).sin().powf(0.5)) }).collect();
+    twist_tube("Node section", &points, &radius, NODE_R_MM)
 }
 
 // --- The leaf -------------------------------------------------------------------------------------------
@@ -753,20 +859,23 @@ impl Chart<'_> {
 /// to its midrib and lifted off the band so its margin stands clear.
 fn leaflet(ch: &Chart<'_>, s0: f64, z0: f64, heading: f64, len: f64, width: f64, teeth: f64, sink: f64) -> csg::Solid {
     let (hs, hc) = heading.sin_cos();
-    sheet(10, 22, false, |u, v| {
+    sheet(8, LEAF_ROWS, false, |u, v| {
         let x = 2.0 * u - 1.0;
-        // Ovate, pointed: widest at two-fifths, a serrated margin whose teeth lean toward the tip.
+        // Ovate, pointed: widest at two-fifths; a smooth serrate margin whose rounded teeth lean toward the tip,
+        // sampled finely enough that no tooth steps.
         let body = (PI * v.powf(0.75)).sin().max(0.0);
-        let tooth = 1.0 - LEAF_TOOTH * (teeth * v).fract();
-        let half = 0.5 * width * body.max(0.08) * if v > 0.12 && v < 0.96 { tooth } else { 1.0 };
+        let phase = (teeth * v).fract();
+        let tooth = 1.0 - LEAF_TOOTH * (0.5 - 0.5 * (PI * phase.powf(0.7)).cos()) * smooth01((v - 0.1) / 0.1) * smooth01((0.95 - v) / 0.08);
+        let half = 0.5 * width * body.max(0.08) * tooth;
         let (along, side) = (len * v, half * x);
         let (s, z) = (s0 + along * hc - side * hs, z0 + along * hs + side * hc);
-        // Domed: thickest on its midrib, thinning to its margin; its underside sunk a constant
-        // `LEAF_SINK_MM` into the band so it grows out of it, never grazing it.
-        // Full thickness through the blade, thinning only within a floor of the margin and the tip.
+        // Cupped: the margins lift; a sunken midrib runs down the middle of the top face.
+        let cup = LEAF_CUP_MM * x * x * body;
+        let rib = LEAF_RIB_MM * (-(x / 0.16).powi(2)).exp() * smooth01(v / 0.1) * smooth01((1.0 - v) / 0.2);
         let to_edge = (half * (1.0 - x.abs())).min(len * (1.0 - v));
-        let t = 0.88 * LEAF_T_MM + 0.12 * LEAF_T_MM * smooth01(to_edge / 0.7);
-        let (p, n) = ch.at(s, z, 0.5 * t - sink);
+        let t = 0.88 * LEAF_T_MM + 0.12 * LEAF_T_MM * smooth01(to_edge / 0.7) - rib;
+        // The midrib sinks the top face only: the mid-surface drops half of it as the section thins by all of it.
+        let (p, n) = ch.at(s, z, 0.5 * t - sink + cup - 0.5 * rib);
         (p, n, t)
     })
 }
@@ -779,14 +888,15 @@ fn leaf(d: &RingDesign) -> Vec<(String, csg::Solid)> {
     let s0 = radius * LEAF_DEG.to_radians();
     let z0 = LEAF_Z_MM;
     // It lies along the crest beyond the bud, pointing down the stem toward the palm.
-    let mut out = vec![("Leaf, terminal leaflet".to_string(), leaflet(&ch, s0 + LEAF_RACHIS_MM, z0, 0.0, LEAF_TERMINAL.0, LEAF_TERMINAL.1, 9.0, LEAF_SINK_MM))];
+    let mut out = vec![("Leaf, terminal leaflet".to_string(), leaflet(&ch, s0 + LEAF_RACHIS_MM, z0, 0.0, LEAF_TERMINAL.0, LEAF_TERMINAL.1, 7.0, LEAF_SINK_MM))];
     // Each leaflet sunk a little differently, so where their feet overlap no two faces lie on one another.
     for (name, sign) in [("upper", 1.0), ("lower", -1.0)] {
-        out.push((format!("Leaf, {name} lateral leaflet"), leaflet(&ch, s0 + 0.35 * LEAF_RACHIS_MM, z0 + sign * 0.2, sign * LEAF_SPREAD_DEG.to_radians(), LEAF_LATERAL.0, LEAF_LATERAL.1, 7.0, LEAF_SINK_MM + 0.035 * (1.0 + sign))));
+        out.push((format!("Leaf, {name} lateral leaflet"), leaflet(&ch, s0 + 0.35 * LEAF_RACHIS_MM, z0 + sign * 0.2, sign * LEAF_SPREAD_DEG.to_radians(), LEAF_LATERAL.0, LEAF_LATERAL.1, 6.0, LEAF_SINK_MM + 0.035 * (1.0 + sign))));
     }
     // The rachis: a tapering stalk along the crest from the stem to the terminal leaflet.
     let path: Vec<P3> = (0..=16).map(|k| ch.at(s0 - 0.8 + (LEAF_RACHIS_MM + 1.3) * k as f64 / 16.0, z0, 0.2).0).collect();
-    let radius_at: Vec<f64> = (0..=16).map(|k| 0.42 - 0.12 * k as f64 / 16.0).collect();
+    // Tapered into the stem at its foot and into the terminal leaflet at its end: no cut tube end shows.
+    let radius_at: Vec<f64> = (0..=16).map(|k| { let t = k as f64 / 16.0; (0.5 - 0.06 * t) * (0.3 + 0.7 * smooth01(t / 0.2)) * (0.4 + 0.6 * smooth01((1.0 - t) / 0.25)) }).collect();
     out.push(("Leaf, rachis".to_string(), tube(&path, &radius_at, 16)));
     out
 }
@@ -817,12 +927,13 @@ fn parts(d: &mut RingDesign, with_leaf: bool) -> Result<serde_json::Value> {
     d.cad = Some(doc);
     let (tube_a, path_a) = stem_tube(d, true);
     let (tube_b, path_b) = stem_tube(d, false);
+    let nodes: Vec<(f64, Operation)> = NODE_DEG.iter().map(|&t| (t, node_ring(d, t))).collect();
     let doc = d.cad.as_mut().unwrap();
     let free = |blend: f64| joined(Placement::Free, blend);
     // Seated in a stone's own frame (C-V1): the part follows its stone when the stone moves or resizes.
     let on = |part: Id| joined(Placement::Relative { part, at: [0.0; 3], rotation_deg: [0.0; 3] }, 0.0);
-    doc.append(feature(6, "Stem of arm A", stored_op(&tube_a, "stem", json!({"arm": "A", "radius_mm": STEM_R_MM, "proud_mm": STEM_PROUD_MM}))?, free(STEM_BLEND_MM)))?;
-    doc.append(feature(7, "Stem of arm B", stored_op(&tube_b, "stem", json!({"arm": "B", "radius_mm": STEM_R_MM, "proud_mm": STEM_PROUD_MM}))?, free(STEM_BLEND_MM)))?;
+    doc.append(feature(6, "Stem of arm A", tube_a, free(STEM_BLEND_MM)))?;
+    doc.append(feature(7, "Stem of arm B", tube_b, free(STEM_BLEND_MM)))?;
     doc.append(feature(8, "Receptacle", stored_op(&receptacle(heart), "receptacle", json!({"under": "bloom"}))?, on(2)))?;
     let mut id: Id = 9;
     // One petal per ring, then the ring patterned about the ruby's own axis (the collet is round, so every copy
@@ -859,13 +970,18 @@ fn parts(d: &mut RingDesign, with_leaf: bool) -> Result<serde_json::Value> {
     // The section stands square to the lean.
     let across = [ex[0] * lean_c + ez[0] * lean_s, ex[1] * lean_c + ez[1] * lean_s, ex[2] * lean_c + ez[2] * lean_s];
     let section = ellipse_on(Workplane { origin: root, x: across, y: ey, ..Default::default() }, WISP_W_MM, WISP_T_MM, "Wisp lens");
-    doc.append(feature(id, "Hip's dried sepal", Operation::Twist { sketch: section.into(), path: TwistPath::Sketch(path), degrees: WISP_TWIST_DEG, end_scale: WISP_END, scale: Vec::new(), closed: false }, on(4)))?;
+    doc.append(feature(id, "Hip's dried sepal", Operation::Twist { sketch: section.into(), path: TwistPath::Sketch(path), degrees: WISP_TWIST_DEG, end_scale: WISP_END, scale: vec![[0.0, 1.0], [0.8, 1.0], [1.0, 0.3]], closed: false }, on(4)))?;
     doc.append(feature(id + 1, "Hip's dried crown", Operation::Pattern { sources: id.into(), kind: PatternKind::About { part: 4, count: WISPS, span_deg: 360.0 } }, free(0.0)))?;
     id += 2;
-    // The hip's body: the swollen fruit under the cabochon, its top clear of the stone's base.
-    let hip_body = ellipsoid([0.0, 0.0, -HIP_BODY.3], (HIP_BODY.0, HIP_BODY.1, HIP_BODY.2));
-    doc.append(feature(id, "Hip body", stored_op(&hip_body, "hip body", json!({"semi_axes_mm": [HIP_BODY.0, HIP_BODY.1, HIP_BODY.2]}))?, on(4)))?;
+    // The hip's fruit: an urn from a narrow neck in arm B's stem, swelling and drawing in round the collet.
+    let urn_foot = -(builders::stand_off_mm(builders::BEZEL, hip) + HIP_LIFT_MM + 0.9);
+    doc.append(feature(id, "Hip urn", stored_op(&hip_urn(hip, urn_foot), "hip urn", json!({"neck_mm": HIP_URN_NECK_MM, "belly_mm": HIP_URN_BELLY_MM, "lip_z_mm": HIP_URN_LIP_Z_MM}))?, on(4)))?;
     id += 1;
+    // Growth nodes down the plain stem, where it runs bare round the palm.
+    for (theta, op) in nodes {
+        doc.append(feature(id, &format!("Node at {theta:.0} deg"), op, free(0.0)))?;
+        id += 1;
+    }
     if with_leaf {
         for (name, solid) in leaf(d) {
             let doc = d.cad.as_mut().unwrap();
@@ -873,32 +989,28 @@ fn parts(d: &mut RingDesign, with_leaf: bool) -> Result<serde_json::Value> {
             id += 1;
         }
     }
-    // Prickles: five on each arm's shoulder, graded toward the palm and alternately spun; those on a stem stand on it.
+    // Prickles: on each arm's shoulder one prickle at the row's first station, then an array along the crest (C-V2)
+    // that grades it 1.0 to `PRICKLE_LAST_SCALE` toward the palm and leans every other copy the other way.
     let mut placed = Vec::new();
     let mut id = 60;
     for arm_a in [true, false] {
-        for k in 0..PRICKLES {
-            let arm = usize::from(!arm_a);
-            let off = PRICKLE_OFFS_DEG[arm][k];
-            let theta = if arm_a { TOP_DEG - off } else { TOP_DEG + off };
-            let z = arm_z(d, theta, arm_a);
-            let (from, to) = stem_run(arm_a);
-            let on_stem = if arm_a { theta > from } else { theta < from };
-            let lift = if on_stem { stem_proud(theta, from, to).max(0.0) } else { 0.0 };
-            let scale = 1.0 + (PRICKLE_LAST_SCALE - 1.0) * k as f64 / (PRICKLES - 1) as f64;
-            let base_spin = if arm_a { 180.0 } else { 0.0 };
-            let side = if k % 2 == 0 { 1.0 } else { -1.0 };
-            let spin = base_spin + side * PRICKLE_SPIN_DEG;
-            let doc = d.cad.as_mut().unwrap();
-            doc.append(feature(
-                id,
-                &format!("Prickle, arm {} {}", if arm_a { "A" } else { "B" }, k + 1),
-                stored_op(&prickle_solid(scale), "prickle", json!({"scale": scale, "foot_mm": [PRICKLE_FOOT_MM.0, PRICKLE_FOOT_MM.1], "hook_deg": PRICKLE_HOOK_DEG}))?,
-                joined(Placement::Ring { theta_deg: theta.rem_euclid(360.0), across_mm: z + side * PRICKLE_ACROSS_MM, height_mm: lift, spin_deg: spin, tilt_deg: 0.0, cant_deg: side * PRICKLE_CANT_DEG, level: false }, PRICKLE_BLEND_MM),
-            ))?;
-            placed.push(json!({"id": id, "arm": if arm_a { "A" } else { "B" }, "theta_deg": theta.rem_euclid(360.0), "across_mm": z, "scale": scale, "spin_deg": spin, "on_stem": on_stem}));
-            id += 1;
-        }
+        let (from, to) = PRICKLE_ROW_DEG[usize::from(!arm_a)];
+        // The source stands at the row's start; on arm A that is the palm end, so it is the smallest.
+        let (first, scale) = if arm_a { (PRICKLE_LAST_SCALE, [1.0, 1.0 / PRICKLE_LAST_SCALE]) } else { (1.0, [1.0, PRICKLE_LAST_SCALE]) };
+        // Hooks lean down the stem toward the palm: against the row's run on arm A, with it on arm B.
+        let spin = if arm_a { 180.0 - PRICKLE_SPIN_DEG } else { -PRICKLE_SPIN_DEG };
+        let name = if arm_a { "A" } else { "B" };
+        let doc = d.cad.as_mut().unwrap();
+        doc.append(feature(
+            id,
+            &format!("Prickle, arm {name}"),
+            prickle(first),
+            joined(Placement::Ring { theta_deg: from.rem_euclid(360.0), across_mm: 0.0, height_mm: -PRICKLE_SINK_MM, spin_deg: spin, tilt_deg: 0.0, cant_deg: 0.0, level: false }, 0.0),
+        ))?;
+        let along = Along { path: AlongPath::Crest { from_deg: from, to_deg: to }, count: PRICKLES as u32, scale, alternate_deg: 2.0 * PRICKLE_SPIN_DEG, ..Along::default() };
+        doc.append(feature(id + 1, &format!("Prickles down arm {name}"), Operation::Pattern { sources: id.into(), kind: PatternKind::Along(along) }, joined(Placement::Free, 0.0)))?;
+        placed.push(json!({"arm": name, "row_deg": [from, to], "count": PRICKLES, "scale": scale, "first_scale": first, "spin_deg": spin, "alternate_deg": 2.0 * PRICKLE_SPIN_DEG}));
+        id += 2;
     }
     let ends = |p: &[P3]| json!([p[0], p[p.len() - 1]]);
     Ok(json!({"bloom": {"theta_deg": BLOOM_DEG, "across_mm": bloom_z, "petals": petal_layout().len()}, "hip": {"theta_deg": HIP_DEG, "across_mm": HIP_Z_MM}, "stems": {"a": ends(&path_a), "b": ends(&path_b)}, "prickles": placed}))
@@ -1115,6 +1227,14 @@ fn renders(out: &Path, d: &RingDesign, lib: &AlphaLibrary, finished: &render::Fi
     }
     if let Some(c) = girdle(4) {
         render::write_png_framed(out.join("hip-close.png"), &parts, render::yaw_facing(HIP_DEG), 0.75, render::Framing::new(c, 6.0), edge)?;
+    }
+    if let Ok(spot) = std::env::var("ROSA_SPOT") {
+        let v: Vec<f64> = spot.split(',').filter_map(|x| x.parse().ok()).collect();
+        if v.len() == 3 {
+            let th = v[1].atan2(v[0]).to_degrees();
+            render::write_png_framed(out.join("spot.png"), &parts, render::yaw_facing(th), 0.3, render::Framing::new([v[0], v[1], v[2]], 2.0), edge)?;
+            render::write_png_framed(out.join("spot2.png"), &parts, render::yaw_facing(th) + 1.2, 0.9, render::Framing::new([v[0], v[1], v[2]], 2.0), edge)?;
+        }
     }
     let lt = (LEAF_DEG + 12.0).to_radians();
     let lr = surface_r(d, LEAF_DEG + 12.0, 0.0);
