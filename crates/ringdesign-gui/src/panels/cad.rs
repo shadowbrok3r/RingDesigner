@@ -404,11 +404,12 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
         ));
         let w = &v.walls[index];
         ui.label(format!(
-            "Sampled wall {}; {} below {:.2} mm",
+            "Sampled wall {}; under {:.2} mm: {} wall, {} edge samples",
             w.sampled_min_mm
                 .map_or("unassessed".into(), |v| format!("{v:.3} mm")),
+            w.limit_mm,
             w.below_limit,
-            w.limit_mm
+            w.edge_below_limit
         ));
         ui.weak(w.note);
     }
@@ -482,15 +483,17 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
                     .components
                     .iter()
                     .map(|c| {
-                        cad::measure::thickness(
+                        cad::measure::thickness_until(
                             &c.mesh,
                             c.settings
                                 .manufacturing
                                 .as_ref()
                                 .map_or(d.draft.min_section_mm, |s| s.recipe.min_section_mm),
+                            &cancel,
                         )
+                        .ok_or_else(|| anyhow::anyhow!(ringdesign_graph::eval::CANCELLED))
                     })
-                    .collect();
+                    .collect::<anyhow::Result<_>>()?;
                 let gems = built.as_ref().map_or_else(Vec::new, |b| ringdesign_core::gems::built_vertices(&d, &lib, b));
                 Ok(View {
                     design: d,

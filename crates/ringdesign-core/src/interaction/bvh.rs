@@ -176,6 +176,37 @@ impl Bvh {
         hit.map(|f| (f, best))
     }
 
+    /// Every face the ray crosses and its distance, unsorted, into a cleared `out`; [`Bvh::ray`]'s test.
+    pub fn ray_all(&self, mesh: &Mesh, origin: [f64; 3], direction: [f64; 3], out: &mut Vec<(usize, f64)>) {
+        out.clear();
+        if self.nodes.is_empty() || !origin.iter().chain(&direction).all(|v| v.is_finite()) {
+            return;
+        }
+        if enter(&self.nodes[0], origin, direction, f64::INFINITY).is_none() {
+            return;
+        }
+        let mut stack = [0u32; STACK];
+        let mut depth = 1;
+        while depth > 0 {
+            depth -= 1;
+            let node = &self.nodes[stack[depth] as usize];
+            if node.count > 0 {
+                for &f in &self.order[node.first as usize..(node.first + node.count) as usize] {
+                    if let Some(t) = triangle_ray(mesh, f as usize, origin, direction) {
+                        out.push((f as usize, t));
+                    }
+                }
+                continue;
+            }
+            for child in [node.first, node.first + 1] {
+                if depth < STACK && enter(&self.nodes[child as usize], origin, direction, f64::INFINITY).is_some() {
+                    stack[depth] = child;
+                    depth += 1;
+                }
+            }
+        }
+    }
+
     /// The face nearest `point` within `max_mm`, and the closest point on it.
     pub fn nearest(&self, mesh: &Mesh, point: [f64; 3], max_mm: f64) -> Option<(usize, [f64; 3])> {
         if self.nodes.is_empty() || !point.iter().all(|v| v.is_finite()) || !(max_mm > 0.0) {
@@ -460,6 +491,24 @@ pub(crate) mod tests {
         let (a, b, c) = m.triangle(&m.faces[face]).unwrap();
         let y = (a[1] + b[1] + c[1]) / 3.0;
         assert!((t - 40.0 - y).abs() < 0.2, "t {t} face at y {y}");
+    }
+
+    #[test]
+    fn every_crossing_agrees_with_the_brute_force() {
+        let m = ring(96, 48);
+        let bvh = Bvh::build(&m);
+        let mut out = Vec::new();
+        let mut crossed = 0;
+        for (o, d) in random_rays(&m, 400, 13) {
+            bvh.ray_all(&m, o, d, &mut out);
+            let mut got: Vec<usize> = out.iter().map(|h| h.0).collect();
+            let mut want: Vec<usize> = (0..m.faces.len()).filter(|&f| triangle_ray(&m, f, o, d).is_some()).collect();
+            got.sort_unstable();
+            want.sort_unstable();
+            assert_eq!(got, want);
+            crossed += got.len();
+        }
+        assert!(crossed > 400, "{crossed} crossings");
     }
 
     #[test]

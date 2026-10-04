@@ -201,10 +201,13 @@ pub fn sheet(d: &RingDesign, setup: &Setup, i: &Inspection, diagnostic: bool) ->
     if let Some(wall) = &i.local_wall {
         let _ = write!(
             h,
-            "<p>Local wall samples: minimum {:?} mm; {} below {:.3} mm; {} unresolved. {}</p>",
+            "<p>Local wall samples: minimum {:?} mm; under {:.3} mm, {} wall samples over {:.2} mm² and {} edge samples over {:.2} mm²; {} unresolved. {}</p>",
             wall.sampled_min_mm,
-            wall.below_limit,
             wall.limit_mm,
+            wall.below_limit,
+            wall.wall_area_mm2,
+            wall.edge_below_limit,
+            wall.edge_area_mm2,
             wall.unresolved,
             escape(wall.note)
         );
