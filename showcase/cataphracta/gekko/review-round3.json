@@ -1,0 +1,134 @@
+{
+  "ring": "Gekko — the tokay",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.7,
+  "summary": "Cut at 6.7, up 0.1 from round 2's 6.6. The ship bar is 7.5, Caiman scores 7, and Basiliscus was cut at 7.2. Every gate in report.json is green under the lost-wax rule, and the template is 2,498,642 bytes with 0 patches, under the painted class's 3 MB. The read still holds at 300 px: a jeweller says 'gecko' from the splayed toe pads and the long tail. Round 3 fixed one of round 2's seven items cleanly: the face margin is now a clean polished land with a crisp step. The other six are partly done or not done. The head is still a smooth bulb. Oval lid pads now sit on the eyes, but there is no brow, no jaw line and no skull plane, and the nostrils are two torn pits. The eyes are still balls stuck to the head's corners, the lower one at the jaw like a knuckle, and both pupils are still notched, torn cuts (stones.png). The 11 spots are still domed, bevel-ringed rivets on a smooth sausage torso with no shoulder or hip masses. The shoulder crowns are still large bare polished areas. The new side-face hide is two staggered rows of flat hexagonal prisms that read as CAD tiles, not tokay tubercles, and they start well below the face. Seen from the palm, the lamellae are still broken arcs. Side-on and from the reverse they still read as square-cut gear teeth. The silhouette is still factory 017, the same outline as Varanus's tile. This is a clean, castable novelty signet, not a dark-mythology cast. It sits below Caiman's density and craft, and round 3 is the last round.",
+  "strengths": [
+    "It reads at 300 px. The splayed, five-toed pads, the bent limbs and the S-curved tail name a gecko with no caption (hero-300.png, face-300.png).",
+    "The face margin is now a clean, uniform polished land with one crisp step to the ground. The round 2 streaks at the upper right are gone (hero.png, stones.png).",
+    "The pebbled ground cells have clean, closed rims, sized well against the figure, and they fill the face evenly.",
+    "The factory 017 stock keeps its hard wall-to-face angles everywhere (bare-vs-finished.png).",
+    "The gates are clean. Draft and export are watertight, with 0 degenerate faces and 0 self-crossings, both parts uncrossed, Castable, 0 DFM findings, 0 bore intrusions, an identical cold reload, 215,436 triangles, and a closed casting pattern. The template gate passed at 2.50 MB with 0 patches."
+  ],
+  "checklist": [
+    {
+      "item": "One theme face to palm, nothing scattered",
+      "result": "fail",
+      "reason": "The face carries a figurative tokay on pebbles. The side faces carry hex-prism tiles that start several mm below the face, with bare polished shoulders between. The palm carries broken arc plates. The three zones do not join into one hide (hero.png, shoulder.png, reverse.png)."
+    },
+    {
+      "item": "The hide reads as this specific animal at 300 px without the caption",
+      "result": "pass",
+      "reason": "The toe pads and the silhouette say 'gecko' at 300 px. The spots help weakly, though they read more as rivets than tokay spotting."
+    },
+    {
+      "item": "Figurative motifs have true outlines, crisp, no combing, smearing or stair-steps",
+      "result": "fail",
+      "reason": "The pupils are torn, notched slots and the nostrils are ragged pits (stones.png). The palm lamellae are broken arcs with stepped, square drops (palm.png, side.png). The tubercles are faceted hex prisms with stair-stepped edges (shoulder.png)."
+    },
+    {
+      "item": "Stones, where the ring carries one, sit in made settings and are visible",
+      "result": "pass",
+      "reason": "There are no stones, by design. Reported 0 equals previewed 0."
+    },
+    {
+      "item": "No flat, blocky or mechanical CAD; forms are sculpted",
+      "result": "fail",
+      "reason": "The head is a featureless bulb, and the torso is a smooth tube with uniform domed rivets. The tubercles are identical hexagonal prisms. The lamellae are square-cut teeth (side.png, reverse.png). Only the limbs and toes read as modelled forms."
+    },
+    {
+      "item": "Factory stock keeps its hard wall-to-face angles",
+      "result": "pass",
+      "reason": "The 017 wall-to-face edge is intact all round (bare-vs-finished.png, face.png)."
+    },
+    {
+      "item": "A silhouette distinct from the other Cataphracta rings and from the Reptilia tiles",
+      "result": "fail",
+      "reason": "Round 2's item 7 was not done. Nothing breaks the 017 outline. At the hero angle the profile matches Varanus's factory 017 tile, and only the surface differs."
+    },
+    {
+      "item": "Large, medium and small forms; density and legibility at least Caiman's",
+      "result": "fail",
+      "reason": "It has a large form (the figure), a medium form (the limbs and spots) and a small form (the pebbles) on the face only. The shoulders, the upper flanks and most of the outer shank are bare polish. Caiman is textured over every surface, and Gekko falls well short of its density."
+    }
+  ],
+  "gates": [
+    {"gate": "watertight, 0 degenerate faces", "claimed": "watertight, 0 degenerate at draft and export", "verified": "report.json draft.geometry and export.geometry: watertight true, degenerate_faces 0", "pass": true},
+    {"gate": "0 self-crossings on ring and every made part", "claimed": "0", "verified": "self_crossings 0; made_part_crossings Tokay 0, Eyes 0 (draft and export)", "pass": true},
+    {"gate": "empty solids notes", "claimed": "empty", "verified": "geometry.notes [] at draft and export", "pass": true},
+    {"gate": "nothing inside the finger hole", "claimed": "0 vertices inside", "verified": "finger_hole.vertices_inside 0, nearest margin about 1e-7 mm", "pass": true},
+    {"gate": "field verdict Castable", "claimed": "Castable (lost wax)", "verified": "field.verdict Castable, with_part_verdict Castable, at draft and export. Sand undercut 0.03% band and 5.1% with the part, recorded as numbers only per Logan's lost-wax rule", "pass": true},
+    {"gate": "ray release 0 obstructions / 0 unresolved at 0.100 and 0.075 mm", "claimed": "not applicable (lost wax, no two-part pull)", "verified": "ray_release.applies false with its reason, consistent with the 2026-10-03 process decision in the collection doc and with the round 2 acceptance", "pass": true},
+    {"gate": "draft-clamp bite <= 0.05 mm", "claimed": "no clamped layers", "verified": "draft_clamp.applies false, clamped_layers 0; layers []", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "0", "verified": "dfm_findings [] at draft and export", "pass": true},
+    {"gate": "stone count equals preview", "claimed": "0 = 0", "verified": "stones reported 0, previewed 0", "pass": true},
+    {"gate": "lost-wax wall census", "claimed": "no real wall of 0.05-0.8 mm over 0.02 mm2", "verified": "only two wall specks, 0.0094 and 0.0014 mm2 (0.60 and 0.57 mm), both under the 0.02 mm2 speck limit; the edge entries are listed, not gating", "pass": true},
+    {"gate": "cold reload identical", "claimed": "identical", "verified": "cold_reload.identical true, 107,712 vertices, 215,436 faces", "pass": true},
+    {"gate": "export within 2 million triangles", "claimed": "215,436", "verified": "export.build.triangles 215,436 at 1536 x 448 (same count as draft because the 017 stock comes from a stored surface; build_note records it)", "pass": true},
+    {"gate": "casting pattern closed", "claimed": "watertight, 0 degenerate, 0 crossings", "verified": "casting_pattern at draft and export: watertight true, 0, 0", "pass": true},
+    {"gate": "template gate: <= 4 design.set patches within class budget", "claimed": "passed, painted class", "verified": "template-verification.json: 0 patches, template_bytes 2,498,642 under the 3,000,000 painted budget, source identical, vertices/faces/normals identical, template_gate_passed true", "pass": true}
+  ],
+  "punch_list": [
+    {
+      "number": 1,
+      "priority": "high",
+      "zone": "Tokay head and eyes (right end of the face, stored parts 'Tokay' and 'Eyes')",
+      "change": "This is round 1's item 3 and round 2's item 1, still not done. Sculpt the skull: broaden the rear to 1.4x the neck, add a raised brow (0.2-0.3 mm) over each eye and a jaw line from the snout to below each eye, and replace the torn nostril pits with clean 0.3 mm dimples. Re-seat the eyes mirror-symmetric on the head's rear-upper corners, half sunk, each breaking the outline by about 0.4 mm. Replace the notched pupils with a clean 0.25 mm wide, 0.12 mm deep vertical groove that has smooth ends.",
+      "acceptance": "In stones.png both eyes sit symmetric on the head's outline, with unbroken pupil grooves and no notches or tears. The brow, jaw and nostrils show. In face-300.png the head reads as a broad gecko head, not a bulb."
+    },
+    {
+      "number": 2,
+      "priority": "high",
+      "zone": "Torso spots and body form (face centre)",
+      "change": "Replace the 11 bevel-ringed domes with 12-16 flat-topped, irregular spots, 0.8-1.6 mm across and 0.15-0.25 mm proud, with no ring or bevel. Model shoulder and hip swells over the limb roots, a spine ridge and a waist taper.",
+      "acceptance": "In face.png no spot reads as a rivet or button. The torso shows distinct shoulder and hip masses and a spine line."
+    },
+    {
+      "number": 3,
+      "priority": "high",
+      "zone": "Shoulder crowns and upper flanks (about 20-70 deg and 110-160 deg)",
+      "change": "Fill the bare shoulders with granules graded from the face's cell size down to half by 200/340 deg. Start the side rows at the face's wall. Replace the hex prisms with rounded, slightly conical tubercles (0.5-0.8 mm across, 0.3-0.4 mm high) over a fine granular ground.",
+      "acceptance": "In hero.png, shoulder.png and reverse.png no polished area larger than 3 x 3 mm remains outside the bore, and no tubercle shows a flat hexagonal top or faceted wall."
+    },
+    {
+      "number": 4,
+      "priority": "medium",
+      "zone": "Palm lamellae (about 220-320 deg)",
+      "change": "Close every arc into one continuous crescent from wall to wall. Round each trailing drop with a 0.15-0.2 mm radius and lower it to about 0.3 mm.",
+      "acceptance": "In palm.png every crescent is unbroken. In side.png and reverse.png the palm profile is a soft scalloped edge, not square teeth."
+    },
+    {
+      "number": 5,
+      "priority": "low",
+      "zone": "Silhouette at a face corner or a shoulder",
+      "change": "Break the 017 outline once: lap the forward toe fans 1.0-1.5 mm over the face edge onto the wall, or carry the tail tip down a shoulder.",
+      "acceptance": "Beside the Varanus tile at the same angle, the hero-300 outline differs visibly at a corner or shoulder."
+    }
+  ],
+  "punch_list_note": "Round 3 was the last round, so the verdict is cut. The punch list records what a restart or a later master would need. It is not a fourth round.",
+  "prior_punch_items": {
+    "round2_1_head_and_eyes": "Partly done. Lid pads were added, but there is no brow, jaw or skull planes, the eyes are still asymmetric balls (the lower one at the jaw), and the pupils and nostrils are still torn.",
+    "round2_2_spots_and_body": "Not done. There are 11 domed, bevel-ringed spots, and the torso is still a smooth tube with no shoulder or hip masses.",
+    "round2_3_shoulder_crowns": "Not done. The shoulders are still bare polish, and the side rows start several mm below the face.",
+    "round2_4_tubercle_rows": "Partly done. The rows are now two staggered rows, but of flat hexagonal prisms rather than conical tubercles, with no granular ground between.",
+    "round2_5_lamellae": "Partly done. The plates are softer on top, but the arcs are still broken and the drops still read as square teeth side-on.",
+    "round2_6_margin_band": "Done. The margin is a clean polished land with a crisp step.",
+    "round2_7_silhouette": "Not done. The outline is unchanged from factory 017."
+  },
+  "viewed_images": [
+    "showcase/cataphracta/gekko/hero-300.png",
+    "showcase/cataphracta/gekko/face-300.png",
+    "showcase/cataphracta/gekko/contact-300.png",
+    "showcase/cataphracta/gekko/hero.png",
+    "showcase/cataphracta/gekko/face.png",
+    "showcase/cataphracta/gekko/stones.png",
+    "showcase/cataphracta/gekko/shoulder.png",
+    "showcase/cataphracta/gekko/side.png",
+    "showcase/cataphracta/gekko/palm.png",
+    "showcase/cataphracta/gekko/reverse.png",
+    "showcase/cataphracta/gekko/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
