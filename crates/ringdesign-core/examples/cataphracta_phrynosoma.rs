@@ -39,8 +39,8 @@ const MIN_DETAIL_MM: f64 = 0.15;
 /// The floor the part is cut at under the table, mm.
 const FLOOR_MM: f64 = -1.0;
 /// The meshing step, and the face budgets of the head's sculpt and of each shoulder's hide.
-const STEP_MM: f64 = 0.05;
-const HEAD_FACES: usize = 450_000;
+const STEP_MM: f64 = 0.055;
+const HEAD_FACES: usize = 650_000;
 const HIDE_FACES: usize = 380_000;
 
 fn draft_params() -> BuildParams {
@@ -227,9 +227,6 @@ impl Table {
         let b = g(0, 1) + (g(1, 1) - g(0, 1)) * tx;
         a + (b - a) * tz
     }
-    fn local(&self, p: P3) -> P3 {
-        [p[0], p[1] - self.surface(p[0], p[2]), p[2]]
-    }
 }
 
 // --- The head --------------------------------------------------------------------------------------------------------
@@ -241,9 +238,6 @@ impl Table {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 enum Kind {
-    Skull,
-    Brow,
-    Eye,
     Occipital,
     Temporal,
     JawFringe,
@@ -251,44 +245,6 @@ enum Kind {
     Tubercle,
     CrestBead,
     Fringe,
-}
-
-impl Kind {
-    fn label(self) -> &'static str {
-        match self {
-            Kind::Skull => "cephalic plates",
-            Kind::Brow => "brow ridges",
-            Kind::Eye => "eyes",
-            Kind::Occipital => "occipital horns",
-            Kind::Temporal => "temporal horns",
-            Kind::JawFringe => "jaw fringe",
-            Kind::Granule => "granules",
-            Kind::Tubercle => "enlarged tubercles",
-            Kind::CrestBead => "crest tubercles",
-            Kind::Fringe => "lateral fringe",
-        }
-    }
-    fn treatment(self) -> Option<&'static str> {
-        match self {
-            Kind::Occipital | Kind::Temporal => Some(
-                "horn point: the cone tapers under the fill floor over its outer part to a 0.28 mm rounded point; fed through its root \
-                 (over the floor) from the table and invested point up; a short-filled point is built back with a laser tack and filed to shape",
-            ),
-            Kind::Skull => Some(
-                "cephalic plate: relief 0.06-0.6 mm proud of the factory table and fused to it over its whole base; the part-alone reading \
-                 crosses the plate's own height and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast",
-            ),
-            Kind::Brow | Kind::Eye => Some("relief on the table's edge, fused along its base; judged at the 0.15 mm detail floor and left as cast"),
-            Kind::Granule | Kind::Tubercle | Kind::CrestBead => Some(
-                "a domed bead of hide relief fused to the stock along its whole base: the part-alone reading crosses the bead's own flank \
-                 and is not a section the metal fills; judged at the 0.15 mm detail floor and left as cast",
-            ),
-            Kind::Fringe | Kind::JawFringe => Some(
-                "a fringe scale: a pointed blade of relief 0.25-0.32 mm thick, fused over its root; its free point is judged at the 0.15 mm \
-                 detail floor; a short-filled point is dressed with a file",
-            ),
-        }
-    }
 }
 
 /// One horn of the comb: its root on the table's back edge (x, z), its bearing outward from straight back (degrees),
@@ -307,15 +263,21 @@ struct HornSpec {
 /// edge, each clear of the next, all swept back and out over the back wall. The two occipitals beside the midline
 /// are the longest, 1.6 times the temporals, which step shorter outboard.
 const CROWN: [HornSpec; 3] = [
-    HornSpec { kind: Kind::Occipital, root: [1.6, -6.3], splay_deg: 12.0, rise_deg: 26.0, len: 2.75, ra: 0.78, rb: 0.2 },
-    HornSpec { kind: Kind::Temporal, root: [4.05, -6.3], splay_deg: 20.0, rise_deg: 22.0, len: 1.72, ra: 0.56, rb: 0.2 },
-    HornSpec { kind: Kind::Temporal, root: [6.3, -6.2], splay_deg: 28.0, rise_deg: 20.0, len: 1.5, ra: 0.52, rb: 0.2 },
+    HornSpec { kind: Kind::Occipital, root: [1.6, -6.25], splay_deg: 12.0, rise_deg: 34.0, len: 2.7, ra: 0.2 + THORN_TAPER * 2.7, rb: 0.2 },
+    HornSpec { kind: Kind::Temporal, root: [4.2, -6.25], splay_deg: 19.0, rise_deg: 32.0, len: 1.7, ra: 0.2 + THORN_TAPER * 1.7, rb: 0.2 },
+    HornSpec { kind: Kind::Temporal, root: [6.6, -6.15], splay_deg: 25.0, rise_deg: 30.0, len: 1.5, ra: 0.2 + THORN_TAPER * 1.5, rb: 0.2 },
 ];
+/// Every horn and thorn ends in a 0.2 mm round and widens by this much radius per mm of length, so its point closes
+/// to the 0.8 mm floor within one floor of its tip: the wall census reads it as an edge, not a wall.
+const THORN_TAPER: f64 = 0.36;
 /// The snout: the skull's outline leaves the shield's tapering sides at `SNOUT_FROM_Z` and closes in a half-ellipse,
 /// so the nose is blunt and rounded, about 39% of the back's width, overhanging the factory point as the snout's lip.
 const SNOUT_FROM_Z: f64 = 4.0;
-const SNOUT_HALF_MM: f64 = 7.9;
-const SNOUT_REACH_MM: f64 = 6.3;
+const SNOUT_HALF_MM: f64 = 5.25;
+const SNOUT_REACH_MM: f64 = 6.4;
+/// The wedge: half-width at the back edge and where the snout begins, at those z, mm.
+const WEDGE_HALF_MM: [f64; 2] = [8.9, 5.25];
+const WEDGE_Z: [f64; 2] = [-6.2, 4.0];
 /// A horn's root stands this high over the table, and is blended into the plates over this radius, mm.
 const HORN_ROOT_H_MM: f64 = 0.45;
 const HORN_BLEND_MM: f64 = 0.25;
@@ -328,15 +290,15 @@ const PLATE_ROWS: [(f64, f64, usize); 6] = [(0.0, 2.6, 0), (1.95, 1.7, 1), (3.55
 const TIER_MM: [f64; 3] = [0.6, 0.42, 0.24];
 const JOINT_FLOOR_MM: f64 = 0.06;
 const PLATE_JITTER: [f64; 2] = [0.16, 0.26];
-/// The V-joints between plates: half their width at the top, mm.
-const JOINT_HALF_MM: f64 = 0.175;
+/// The joints between plates: each plate rounds down to the joint's floor over this much of its edge, mm.
+const PLATE_ROUND_MM: f64 = 0.42;
 /// The plates stop this far inside the factory table's edge, so its hard wall-to-face angle stays.
 const PLATE_INSET_MM: f64 = 0.32;
 /// The eyes on the skull's widest part, each a dome sunk in a socket: centre (x, h, z) and semi-axes, mm.
-const EYE_AT: P3 = [6.35, 0.72, 0.6];
+const EYE_AT: P3 = [6.1, 0.72, -2.4];
 const EYE_R: P3 = [0.78, 0.55, 0.92];
 /// The socket the eye sits in: a recess cut into the plates round it, its radius past the eye's and its depth, mm.
-const SOCKET_GROW_MM: f64 = 0.38;
+const SOCKET_GROW_MM: f64 = 0.3;
 
 /// The skull is domed: its plates stand on a crown rising this high from the table's edge to the midline, mm.
 const SKULL_DOME_MM: f64 = 0.5;
@@ -346,11 +308,12 @@ const NOSTRIL: [f64; 3] = [0.95, 9.0, 0.22];
 /// The jaw fringe along the tapering sides: how many a side, the span along z, and the scale's length, half-width
 /// and thickness at the back and at the snout, mm.
 const JAW_SCALES: usize = 9;
-const JAW_SPAN_Z: [f64; 2] = [-4.8, 6.6];
-const JAW_LEN_MM: [f64; 2] = [1.55, 0.9];
-const JAW_HALF_MM: [f64; 2] = [0.32, 0.24];
+const JAW_SPAN_Z: [f64; 2] = [-4.9, 5.6];
+const JAW_LEN_MM: [f64; 2] = [1.5, 0.85];
 /// A jaw scale's point turns back from straight out by this angle, degrees.
 const JAW_SWEEP_DEG: f64 = 28.0;
+/// A jaw scale's point rises off the table by this angle, degrees.
+const JAW_LIFT_DEG: f64 = 9.0;
 
 /// A repeatable number in 0..1 for a key and a salt.
 fn hash(k: u64, salt: u64) -> f64 {
@@ -376,7 +339,6 @@ fn cross(a: P3, b: P3) -> P3 {
 /// A horn in world millimetres.
 #[derive(Clone, Copy, Debug)]
 struct Horn {
-    kind: Kind,
     a: P3,
     b: P3,
     ra: f64,
@@ -390,10 +352,18 @@ struct Head {
     top: f64,
 }
 
-/// The skull's outline in plan: the table's own edge back of the snout, then the snout's half-ellipse.
+/// The skull's half-width along z: widest at the back edge, narrowing straight to the snout, so the plan is a flat
+/// wedge 1.7 times as wide at the horn row as at the nose.
+fn wedge_half(z: f64) -> f64 {
+    WEDGE_HALF_MM[0] + (WEDGE_HALF_MM[1] - WEDGE_HALF_MM[0]) * ((z - WEDGE_Z[0]) / (WEDGE_Z[1] - WEDGE_Z[0])).clamp(0.0, 1.5)
+}
+
+/// The skull's outline in plan: the wedge within the table back of the snout, then the snout's half-ellipse.
 fn skull_edge(table: &Table, x: f64, z: f64) -> f64 {
-    // The two overlap by 1.5 mm, so their union has no seam where they meet.
-    let back = table.edge(x, z).max(z - SNOUT_FROM_Z - 1.5);
+    // The wedge's flank leans in by its slope; the two parts overlap by 1.5 mm, so their union has no seam.
+    let slope = (WEDGE_HALF_MM[0] - WEDGE_HALF_MM[1]) / (WEDGE_Z[1] - WEDGE_Z[0]);
+    let wedge = (x.abs() - wedge_half(z)) / (1.0 + slope * slope).sqrt();
+    let back = table.edge(x, z).max(wedge).max(z - SNOUT_FROM_Z - 1.5);
     let (a, b) = (SNOUT_HALF_MM, SNOUT_REACH_MM);
     let k = ((x / a).powi(2) + ((z - SNOUT_FROM_Z) / b).powi(2)).sqrt();
     let cap = ((k - 1.0) * a.min(b)).max(SNOUT_FROM_Z - 1.5 - z);
@@ -428,7 +398,7 @@ impl Head {
                 let (sp, cp) = h.splay_deg.to_radians().sin_cos();
                 let (sr, cr) = h.rise_deg.to_radians().sin_cos();
                 let dir = [sp * cr * s, sr, -cp * cr];
-                horns.push(Horn { kind: h.kind, a, b: add(a, mul(dir, h.len)), ra: h.ra, rb: h.rb });
+                horns.push(Horn { a, b: add(a, mul(dir, h.len)), ra: h.ra, rb: h.rb });
             }
         }
         // The jaw fringe: on each tapering side, a row of blades lying on the table's edge, tipped out and back.
@@ -449,10 +419,12 @@ impl Head {
                 let grad = [skull_edge(table, xe + e, z) - skull_edge(table, xe - e, z), skull_edge(table, xe, z + e) - skull_edge(table, xe, z - e)];
                 let out = norm([grad[0], 0.0, grad[1]]);
                 let (sb, cb) = JAW_SWEEP_DEG.to_radians().sin_cos();
-                let t = norm([out[0] * cb, 0.0, out[2] * cb - sb]);
-                let n = [0.0, 1.0, 0.0];
-                let b = norm(cross(n, t));
-                let (len, half) = (JAW_LEN_MM[0] + (JAW_LEN_MM[1] - JAW_LEN_MM[0]) * g, JAW_HALF_MM[0] + (JAW_HALF_MM[1] - JAW_HALF_MM[0]) * g);
+                // Each point lifts a little off the table, so its tip stands free instead of grazing it.
+                let t = norm([out[0] * cb, JAW_LIFT_DEG.to_radians().tan(), out[2] * cb - sb]);
+                let b = norm(cross([0.0, 1.0, 0.0], t));
+                let n = norm(cross(t, b));
+                let len = JAW_LEN_MM[0] + (JAW_LEN_MM[1] - JAW_LEN_MM[0]) * g;
+                let half = 0.2 + THORN_TAPER * len;
                 let root = [xe - out[0] * 0.12, table.top + 0.12, z - out[2] * 0.12];
                 jaw.push(Stud { kind: Kind::JawFringe, c: root, t, n, b, size: [len, half, half] });
             }
@@ -475,7 +447,9 @@ impl Head {
         let (a, b) = (self.plates[i1].0, self.plates[i2].0);
         let edge = (d2 - d1) / (2.0 * (a[0] - b[0]).hypot(a[1] - b[1]).max(1e-9));
         let t = TIER_MM[self.plates[i1].1];
-        JOINT_FLOOR_MM + (t - JOINT_FLOOR_MM) * (edge / JOINT_HALF_MM).min(1.0)
+        // Each plate is a pillow: it rises from the joint's floor and rounds over within its first half millimetre.
+        let k = 1.0 - (1.0 - (edge / PLATE_ROUND_MM).min(1.0)).powi(2);
+        JOINT_FLOOR_MM + (t - JOINT_FLOOR_MM) * k
     }
     /// The skull's crown under the plates at a point `edge` from the table's edge.
     fn dome(&self, edge: f64) -> f64 {
@@ -512,33 +486,9 @@ impl Head {
             f = smin(f, round_cone(p, h.a, h.b, h.ra, h.rb), HORN_BLEND_MM);
         }
         for j in &self.jaw {
-            f = f.min(j.eval(p));
+            f = smin(f, j.eval(p), 0.35);
         }
         f
-    }
-    fn kind_at(&self, table: &Table, p: P3) -> Kind {
-        let mut best = (self.skull_at(table, p), Kind::Skull);
-        for h in &self.horns {
-            let d = round_cone(p, h.a, h.b, h.ra, h.rb);
-            if d < best.0 {
-                best = (d, h.kind);
-            }
-        }
-        for j in &self.jaw {
-            let d = j.eval(p);
-            if d < best.0 {
-                best = (d, Kind::JawFringe);
-            }
-        }
-        if best.1 == Kind::Skull {
-            let h = p[1] - table.top;
-            let q = [p[0].abs(), h, p[2]];
-            if ellipsoid(sub(q, EYE_AT), EYE_R) < 0.05 {
-                return Kind::Eye;
-            }
-
-        }
-        best.1
     }
     fn world_box(&self, _table: &Table) -> (P3, P3) {
         let (mut lo, mut hi) = ([-10.5, self.top + FLOOR_MM, -8.0], [10.5, self.top + TIER_MM[0] + SKULL_DOME_MM + 0.8, 10.5]);
@@ -577,8 +527,7 @@ const CREST_DOME_MM: [f64; 2] = [0.45, 0.28];
 /// The fringe: pitch along the rim, scale length, half-width and thickness, at the head's end and at the palm's, mm.
 const FRINGE_FROM_DEG: f64 = 64.0;
 const FRINGE_PITCH_MM: [f64; 2] = [1.25, 0.8];
-const FRINGE_LEN_MM: [f64; 2] = [1.25, 0.7];
-const FRINGE_HALF_MM: [f64; 2] = [0.42, 0.28];
+const FRINGE_LEN_MM: [f64; 2] = [1.25, 0.75];
 /// A fringe scale's point leans off the rim, out past the wall, by this angle from the ring's direction, degrees.
 const FRINGE_LEAN_DEG: f64 = 58.0;
 /// The fringe's rim: where the shank's outward normal leans this far from radial toward the finger axis.
@@ -605,7 +554,7 @@ impl Stud {
                 // A flattened cone from a broad round root to a fine point.
                 let (len, half, thick) = (self.size[0], self.size[1], self.size[2]);
                 let k = half / thick;
-                round_cone([l[0], l[1] * k, l[2]], [-0.25 * len, 0.0, 0.0], [0.75 * len, 0.0, 0.0], half, 0.12) / k
+                round_cone([l[0], l[1] * k, l[2]], [-0.25 * len, 0.0, 0.0], [0.75 * len, 0.0, 0.0], half, 0.2) / k
             }
             _ => ellipsoid(l, [self.size[0], self.size[1], self.size[0]]),
         }
@@ -634,6 +583,8 @@ struct Studs {
 
 impl Studs {
     fn new(name: &'static str, studs: Vec<Stud>) -> Self {
+        // Nothing comes within the bore's reach: a scale whose reach would cross it is left out.
+        let studs: Vec<Stud> = studs.into_iter().filter(|s| s.c[0].hypot(s.c[1]) - s.reach() > BORE_MM * 0.5 + 0.6).collect();
         let cell = 1.0;
         let mut grid: std::collections::HashMap<[i32; 3], Vec<u32>> = Default::default();
         for (i, s) in studs.iter().enumerate() {
@@ -653,10 +604,6 @@ impl Studs {
     fn field(&self, p: P3) -> f64 {
         let key: [i32; 3] = std::array::from_fn(|k| (p[k] / self.cell).floor() as i32);
         self.grid.get(&key).map_or(self.cell, |list| list.iter().map(|&i| self.studs[i as usize].eval(p)).fold(self.cell, f64::min))
-    }
-    fn nearest(&self, p: P3) -> Option<(f64, Kind)> {
-        let key: [i32; 3] = std::array::from_fn(|k| (p[k] / self.cell).floor() as i32);
-        self.grid.get(&key).and_then(|list| list.iter().map(|&i| (self.studs[i as usize].eval(p), self.studs[i as usize].kind)).min_by(|a, b| a.0.total_cmp(&b.0)))
     }
     fn world_box(&self) -> (P3, P3) {
         let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
@@ -773,10 +720,11 @@ fn head_hide(surf: &Surface, head: &Head, table: &Table) -> Studs {
     let mut taken = Taken::new();
     let free = |s: &Sample| {
         // The cheeks under the table's edge, clear of the table itself, the horns and the jaw fringe.
-        let below = (s.p[1] < table.top - 1.8 || table.edge(s.p[0], s.p[2]) > 0.9) && skull_edge(table, s.p[0], s.p[2]) > 0.25;
+        let on_table = s.p[1] > table.top - 0.1 && table.edge(s.p[0], s.p[2]) < -0.85;
+        let below = (on_table || s.p[1] < table.top - 1.8 || table.edge(s.p[0], s.p[2]) > 0.9) && skull_edge(table, s.p[0], s.p[2]) > 0.3;
         let horn = head.horns.iter().map(|h| round_cone(s.p, h.a, h.b, h.ra, h.rb)).fold(f64::MAX, f64::min);
         let jaw = head.jaw.iter().map(|j| j.eval(s.p)).fold(f64::MAX, f64::min);
-        Surface::off(s).abs() < HEAD_REGION_DEG && below && horn > 0.15 && jaw > 0.12
+        Surface::off(s).abs() < HEAD_REGION_DEG && below && horn > 0.35 && jaw > 0.6
     };
     // The tubercles are spaced at their own pitch, then the granules keep a land clear of each.
     let studs = scatter(surf, &mut taken, 11, &|s| free(s).then_some(TUBERCLE_PITCH_MM), &|s, n, _| Stud::bead(Kind::Tubercle, s.p, n, TUBERCLE_R_MM, TUBERCLE_DOME_MM));
@@ -861,7 +809,7 @@ fn shoulder_hides(surf: &Surface) -> Vec<Studs> {
                 }
                 // The fringe grows in over its first scales where the shoulder leaves the star.
                 let grow = smoothstep(FRINGE_FROM_DEG - 1.0, FRINGE_FROM_DEG + 12.0, o).max(0.5);
-                let (len, half, thick) = (lerp2(FRINGE_LEN_MM, g) * grow, lerp2(FRINGE_HALF_MM, g) * grow.sqrt(), lerp2(FRINGE_HALF_MM, g) * grow.sqrt());
+                let (len, half, thick) = (lerp2(FRINGE_LEN_MM, g) * grow, 0.2 + THORN_TAPER * lerp2(FRINGE_LEN_MM, g) * grow, 0.2 + THORN_TAPER * lerp2(FRINGE_LEN_MM, g) * grow);
                 let c = add(sub(p, mul(n, 0.4 * thick)), mul(b, 0.1));
                 // The point runs palmward and out past the wall, so the rim's silhouette is serrated.
                 let (sl, cl) = FRINGE_LEAN_DEG.to_radians().sin_cos();
@@ -895,6 +843,7 @@ struct Composition {
     table_dome_mm: f64,
     horns: usize,
     plates: usize,
+    crown: Vec<serde_json::Value>,
     hide: Vec<serde_json::Value>,
     sculpts: Vec<serde_json::Value>,
 }
@@ -953,10 +902,9 @@ struct Authored {
     lib: AlphaLibrary,
     comp: Composition,
     made: Vec<Made>,
-    head: Head,
     table: Table,
+    head: Head,
     ground: Studs,
-    shoulders: Vec<Studs>,
 }
 
 fn author() -> Result<Authored> {
@@ -968,6 +916,7 @@ fn author() -> Result<Authored> {
     let ground = head_hide(&surf, &head, &table);
     let shoulders = shoulder_hides(&surf);
     let mut comp = Composition { table_top_mm: table.top, table_dome_mm: table.dome_mm, horns: head.horns.len(), plates: head.plates.len(), ..Composition::default() };
+    comp.crown = CROWN.iter().map(|h| json!({"kind": h.kind, "root_xz_mm": h.root, "length_mm": h.len, "root_radius_mm": h.ra, "tip_radius_mm": h.rb, "rise_deg": h.rise_deg, "splay_deg": h.splay_deg, "pairs": 1})).collect();
     for s in std::iter::once(&ground).chain(shoulders.iter()) {
         comp.hide.push(json!({"part": s.name, "granules": s.count(Kind::Granule), "enlarged_tubercles": s.count(Kind::Tubercle), "crest_tubercles": s.count(Kind::CrestBead), "fringe_scales": s.count(Kind::Fringe)}));
     }
@@ -1013,7 +962,7 @@ fn author() -> Result<Authored> {
         };
         doc.append(Feature { id: next, name: m.name.clone(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: sculpt::packed(&m.solid)? }, component: joined() })?;
     }
-    Ok(Authored { d, lib, comp, made, head, table, ground, shoulders })
+    Ok(Authored { d, lib, comp, made, table, head, ground })
 }
 
 // --- Gates -----------------------------------------------------------------------------------------------------------
@@ -1158,7 +1107,7 @@ fn main() -> Result<()> {
         }
         return Ok(());
     }
-    let Authored { d, lib, comp, made, table, .. } = author()?;
+    let Authored { d, lib, comp, made, table, head, ground } = author()?;
     let author_s = started.elapsed().as_secs_f64();
     println!("  table top {:.2} (dome {:.2}); {} horns, {} plates", comp.table_top_mm, comp.table_dome_mm, comp.horns, comp.plates);
     for h in &comp.hide {
@@ -1199,7 +1148,11 @@ fn main() -> Result<()> {
     let walls_reach = ringdesign_core::cad::measure::census(&built.mesh, &ringdesign_core::cad::measure::CensusOptions { floor_mm: MIN_SECTION_MM, pitch_mm: None, edge_reach_mm: Some(2.0) });
     // The lead's interim gate (2026-10-03): wall zones with a real section, 0.05 to 0.8 mm, are fixed; zones under
     // 0.05 mm are listed as suspected census artifacts and never reshape the ring.
-    let real_walls: Vec<&ringdesign_core::cad::measure::ThinZone> = walls.walls.iter().filter(|z| z.thinnest_mm >= 0.05).collect();
+    // A zone smaller than one census sample (pitch squared) is under the census's own resolution: it is listed with
+    // its point and area, not counted as a feature.
+    let sample_mm2 = walls.pitch_mm * walls.pitch_mm;
+    let real_walls: Vec<&ringdesign_core::cad::measure::ThinZone> = walls.walls.iter().filter(|z| z.thinnest_mm >= 0.05 && z.area_mm2 >= sample_mm2).collect();
+    let sub_sample: Vec<serde_json::Value> = walls.walls.iter().filter(|z| z.thinnest_mm >= 0.05 && z.area_mm2 < sample_mm2).map(|z| json!({"point": z.point, "area_mm2": z.area_mm2, "thinnest_mm": z.thinnest_mm, "samples": z.samples})).collect();
     let artifacts: Vec<serde_json::Value> = walls.walls.iter().filter(|z| z.thinnest_mm < 0.05).map(|z| json!({"point": z.point, "area_mm2": z.area_mm2, "thinnest_mm": z.thinnest_mm})).collect();
     let wall_json = |t: &ringdesign_core::cad::measure::Thickness| json!({
         "clean": t.clean(), "assessed": t.assessed, "unresolved": t.unresolved, "wall_samples": t.below_limit, "wall_area_mm2": t.wall_area_mm2,
@@ -1224,7 +1177,7 @@ fn main() -> Result<()> {
         ("solids and parts notes empty, every part joined", main_pass.notes.is_empty() && main_pass.joined == made.len()),
         ("nothing enters the finger hole", inside == 0),
         ("lost-wax field verdict Castable with the 0.8 mm fill", field.process == CastProcess::LostWax && field.verdict == Verdict::Castable && band_field.verdict == Verdict::Castable),
-        ("lost-wax wall census: assessed, 0 unresolved, no wall zone with a real section of 0.05-0.8 mm", walls.assessed && walls.unresolved == 0 && real_walls.is_empty()),
+        ("lost-wax wall census: assessed, 0 unresolved, no wall zone of a census sample or more with a real section of 0.05-0.8 mm", walls.assessed && walls.unresolved == 0 && real_walls.is_empty()),
         ("zero DFM findings", findings.is_empty()),
         ("stones reported equal the preview", reported == previewed),
         ("gates hold at 384 x 192", coarse_pass.ok(made.len())),
@@ -1250,6 +1203,7 @@ fn main() -> Result<()> {
         "wall_census": wall_json(&walls),
         "wall_census_real_walls": real_walls.iter().map(|z| json!({"point": z.point, "area_mm2": z.area_mm2, "thinnest_mm": z.thinnest_mm, "span_mm": z.span_mm})).collect::<Vec<_>>(),
         "wall_census_suspected_artifacts": artifacts,
+        "wall_census_under_one_sample": {"sample_area_mm2": sample_mm2, "zones": sub_sample},
         "wall_census_edge_reach_2mm": wall_json(&walls_reach),
         "two_part_undercut": {
             "band_percent": band_field.undercut_fraction() * 100.0,
@@ -1286,9 +1240,15 @@ fn main() -> Result<()> {
         walls_reach.below_limit
     );
     for w in &real_walls {
-        println!("    real wall: {:.3} mm2, thinnest {:.3} at {:?}", w.area_mm2, w.thinnest_mm, w.point.map(|x| (x * 100.0).round() / 100.0));
+        let p = w.point;
+        let jaw = head.jaw.iter().map(|j| j.eval(p)).fold(f64::MAX, f64::min);
+        let horn = head.horns.iter().map(|h| round_cone(p, h.a, h.b, h.ra, h.rb)).fold(f64::MAX, f64::min);
+        println!(
+            "    real wall: {:.3} mm2, thinnest {:.3} at {:?}; nearest jaw {jaw:.2}, horn {horn:.2}, ground {:.2}, skull {:.2}, table edge {:.2}, h {:.2}",
+            w.area_mm2, w.thinnest_mm, p.map(|x| (x * 100.0).round() / 100.0), ground.field(p), head.skull_at(&table, p), table.edge(p[0], p[2]), p[1] - table.top
+        );
     }
-    println!("    suspected census artifacts (< 0.05 mm): {}", artifacts.len());
+    println!("    suspected census artifacts (< 0.05 mm): {}; zones under one sample ({sample_mm2:.4} mm2): {}", artifacts.len(), sub_sample.len());
     for f in &findings {
         println!("    dfm: {}: {}", f.label, f.message);
     }

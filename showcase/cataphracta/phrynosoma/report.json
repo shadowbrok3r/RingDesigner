@@ -16,10 +16,10 @@
   },
   "bore_mm": 18.60000038148239,
   "build": {
-    "author_s": 1243.484845058,
-    "build_s": 25.19881706,
-    "profile_steps": 320,
-    "theta_steps": 768,
+    "author_s": 1245.382934774,
+    "build_s": 26.492826308,
+    "profile_steps": 448,
+    "theta_steps": 1536,
     "triangles": 684968
   },
   "coarse_384x192": {
@@ -44,7 +44,7 @@
     "triangles": 684968,
     "watertight": true
   },
-  "cold_reload_identical": null,
+  "cold_reload_identical": true,
   "composition": {
     "crown": [
       {
@@ -134,7 +134,7 @@
         ],
         "part": "Horned head",
         "raw_faces": 2360308,
-        "seconds": 1236.697190638,
+        "seconds": 1238.389223172,
         "volume_mm3": 371.14878693799824
       },
       {
@@ -154,7 +154,7 @@
         "notes": [],
         "part": "Shoulder hide, crown side",
         "raw_faces": 785464,
-        "seconds": 85.594671978,
+        "seconds": 86.727945587,
         "volume_mm3": 29.864254485097312
       },
       {
@@ -174,7 +174,7 @@
         "notes": [],
         "part": "Shoulder hide, snout side",
         "raw_faces": 795104,
-        "seconds": 91.720683998,
+        "seconds": 88.096776843,
         "volume_mm3": 29.669152224606886
       }
     ],
