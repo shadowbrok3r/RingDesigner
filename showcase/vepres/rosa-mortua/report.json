@@ -6,11 +6,11 @@
     "vertices_inside": 0
   },
   "build": {
-    "author_s": 111.515145698,
-    "build_s": 9.137737335,
+    "author_s": 111.313058232,
+    "build_s": 8.034010896,
     "profile_steps": 448,
     "theta_steps": 1536,
-    "triangles": 1314642
+    "triangles": 1315744
   },
   "census_note": "Per the lead's 2026-10-04 note, census walls do not block a review on their own: every zone is listed under wall_census with its point, area and the part it lies on.",
   "coarse": {
@@ -25,7 +25,7 @@
   },
   "cold_reload_identical": true,
   "design": {
-    "bytes": 250369,
+    "bytes": 251175,
     "cad_features": 32,
     "format_version": 6
   },
@@ -47,11 +47,11 @@
       "vertices_inside": 0
     },
     "build": {
-      "author_s": 110.949505172,
-      "build_s": 3.617603261,
+      "author_s": 111.160541749,
+      "build_s": 3.47972985,
       "profile_steps": 320,
       "theta_steps": 768,
-      "triangles": 522700
+      "triangles": 522478
     },
     "census_note": "Per the lead's 2026-10-04 note, census walls do not block a review on their own: every zone is listed under wall_census with its point, area and the part it lies on.",
     "coarse": {
@@ -66,7 +66,7 @@
     },
     "cold_reload_identical": null,
     "design": {
-      "bytes": 250369,
+      "bytes": 251175,
       "cad_features": 32,
       "format_version": 6
     },
@@ -217,37 +217,37 @@
         "Lost wax: 0.10% of the surface would undercut a two-part pull (worst 2.1 deg) — fine for investment, but this pattern cannot move to sand as-is.",
         "Undercut 36–36° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
         "Undercut 144–144° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
-        "Measured with the ring as built: 29 CAD parts (29 joined, 0 cut), 1185.1 mm² of part surface; under lost wax they are reported, never gating.",
-        "Lost wax: Bezel \"Heart collet\" (#3) would undercut a two-part pull over 39.6 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Bezel \"Hip collet\" (#5) would undercut a two-part pull over 28.5 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Measured with the ring as built: 29 CAD parts (29 joined, 0 cut), 1222.0 mm² of part surface; under lost wax they are reported, never gating.",
+        "Lost wax: Bezel \"Heart collet\" (#3) would undercut a two-part pull over 39.1 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Bezel \"Hip collet\" (#5) would undercut a two-part pull over 28.2 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Twisted sweep \"Stem of arm A\" (#6) would undercut a two-part pull over 1.8 mm² (worst -34°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Twisted sweep \"Stem of arm B\" (#7) would undercut a two-part pull over 2.9 mm² (worst -34°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Receptacle\" (#8) would undercut a two-part pull over 14.2 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Petal, ring 1\" (#9) would undercut a two-part pull over 8.2 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array round a part \"Petal ring 1\" (#10) would undercut a two-part pull over 24.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Petal, ring 2\" (#11) would undercut a two-part pull over 8.3 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array round a part \"Petal ring 2\" (#12) would undercut a two-part pull over 28.5 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Petal, ring 3\" (#13) would undercut a two-part pull over 11.4 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array round a part \"Petal ring 3\" (#14) would undercut a two-part pull over 49.3 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Petal, ring 4\" (#15) would undercut a two-part pull over 14.0 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array round a part \"Petal ring 4\" (#16) would undercut a two-part pull over 85.9 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Dried sepal\" (#17) would undercut a two-part pull over 3.1 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array round a part \"Dried sepals\" (#18) would undercut a two-part pull over 14.9 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Twisted sweep \"Hip's dried sepal\" (#19) would undercut a two-part pull over 5.4 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array round a part \"Hip's dried crown\" (#20) would undercut a two-part pull over 17.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Hip urn\" (#21) would undercut a two-part pull over 28.4 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf, terminal leaflet\" (#25) would undercut a two-part pull over 6.2 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Stored mesh \"Leaf, upper lateral leaflet\" (#26) would undercut a two-part pull over 11.5 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Receptacle\" (#8) would undercut a two-part pull over 14.1 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Petal, ring 1\" (#9) would undercut a two-part pull over 8.7 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array round a part \"Petal ring 1\" (#10) would undercut a two-part pull over 26.5 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Petal, ring 2\" (#11) would undercut a two-part pull over 9.0 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array round a part \"Petal ring 2\" (#12) would undercut a two-part pull over 31.4 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Petal, ring 3\" (#13) would undercut a two-part pull over 13.9 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array round a part \"Petal ring 3\" (#14) would undercut a two-part pull over 57.5 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Petal, ring 4\" (#15) would undercut a two-part pull over 14.4 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array round a part \"Petal ring 4\" (#16) would undercut a two-part pull over 91.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Dried sepal\" (#17) would undercut a two-part pull over 2.7 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array round a part \"Dried sepals\" (#18) would undercut a two-part pull over 13.1 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Twisted sweep \"Hip's dried sepal\" (#19) would undercut a two-part pull over 6.4 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array round a part \"Hip's dried crown\" (#20) would undercut a two-part pull over 21.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Hip urn\" (#21) would undercut a two-part pull over 25.8 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf, terminal leaflet\" (#25) would undercut a two-part pull over 6.8 mm² (worst -51°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Stored mesh \"Leaf, upper lateral leaflet\" (#26) would undercut a two-part pull over 10.8 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Stored mesh \"Leaf, lower lateral leaflet\" (#27) would undercut a two-part pull over 11.8 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
         "Lost wax: Stored mesh \"Leaf, rachis\" (#28) would undercut a two-part pull over 0.7 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Twisted sweep \"Prickle, arm A\" (#60) would undercut a two-part pull over 0.7 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array along a path \"Prickles down arm A\" (#61) would undercut a two-part pull over 2.5 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Twisted sweep \"Prickle, arm B\" (#62) would undercut a two-part pull over 0.6 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "Lost wax: Array along a path \"Prickles down arm B\" (#63) would undercut a two-part pull over 2.2 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is."
+        "Lost wax: Twisted sweep \"Prickle, arm A\" (#60) would undercut a two-part pull over 0.6 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array along a path \"Prickles down arm A\" (#61) would undercut a two-part pull over 1.3 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Twisted sweep \"Prickle, arm B\" (#62) would undercut a two-part pull over 0.8 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "Lost wax: Array along a path \"Prickles down arm B\" (#63) would undercut a two-part pull over 1.8 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is."
       ],
       "thinnest_wall_mm": 2.0096326929371067,
       "thinnest_wall_theta_deg": 56.25,
-      "undercut_percent_reported_only": 21.724078305606078,
+      "undercut_percent_reported_only": 22.407132080975494,
       "verdict": "Castable"
     },
     "gates": [
@@ -279,7 +279,7 @@
       {
         "blocking": false,
         "gate": "lost-wax wall census: no real wall of 0.02 mm² or more between 0.05 and 0.8 mm (thinner zones and specks listed)",
-        "pass": false
+        "pass": true
       },
       {
         "blocking": true,
@@ -318,7 +318,7 @@
       "self_crossings": 0,
       "watertight": true
     },
-    "grams_18k": 18.11521606951267,
+    "grams_18k": 18.426690312104306,
     "layers": [],
     "made_parts": [
       [
@@ -454,7 +454,7 @@
     "pattern": {
       "degenerate_faces": 0,
       "self_crossings": 0,
-      "triangles": 522700,
+      "triangles": 522478,
       "watertight": true
     },
     "placed": {
@@ -471,30 +471,30 @@
         {
           "alternate_deg": 50.0,
           "arm": "A",
-          "count": 5,
-          "first_scale": 0.72,
+          "count": 4,
+          "first_scale": 0.8,
           "row_deg": [
-            -14.0,
-            16.0
+            1.5,
+            21.0
           ],
           "scale": [
             1.0,
-            1.3888888888888888
+            1.25
           ],
           "spin_deg": 155.0
         },
         {
           "alternate_deg": 50.0,
           "arm": "B",
-          "count": 5,
+          "count": 4,
           "first_scale": 1.0,
           "row_deg": [
-            168.0,
-            197.0
+            157.0,
+            179.0
           ],
           "scale": [
             1.0,
-            0.72
+            0.8
           ],
           "spin_deg": -25.0
         }
@@ -551,1022 +551,1113 @@
     },
     "wall_census": {
       "assessed": true,
-      "edge_area_mm2": 103.00434738188895,
-      "edge_samples": 19178,
+      "edge_area_mm2": 78.8321570350423,
+      "edge_samples": 15533,
       "edges": [
         {
-          "area_mm2": 13.854370497645284,
-          "depth_mm": 0.8492825603349303,
+          "area_mm2": 13.950303962018188,
+          "depth_mm": 0.8476494126585736,
           "kind": "edge",
+          "part": "Leaf, terminal leaflet",
           "point": [
-            -10.23784143726031,
-            6.176802302400271,
-            -4.406388476490974
+            -11.641662438710531,
+            6.014307816823323,
+            0.07891236618161201
           ],
-          "samples": 2637,
-          "span_mm": 8.410174694319897,
-          "thinnest_mm": 0.0040199434236221614
+          "samples": 2685,
+          "span_mm": 9.061583406795496,
+          "thinnest_mm": 0.0007394439508140802
         },
         {
-          "area_mm2": 9.752377805958748,
-          "depth_mm": 0.795794184017926,
+          "area_mm2": 9.149160907572881,
+          "depth_mm": 0.5850715211385051,
           "kind": "edge",
+          "part": "Petal, ring 1",
           "point": [
-            -5.40953869620959,
-            15.308695395787558,
-            0.5674621602132296
+            -5.454377849896749,
+            14.847908973693848,
+            0.30116739869117737
           ],
-          "samples": 1525,
-          "span_mm": 6.985070760372375,
-          "thinnest_mm": 0.07806196715532589
+          "samples": 1474,
+          "span_mm": 7.423782967998335,
+          "thinnest_mm": 0.0026879093021680606
         },
         {
-          "area_mm2": 4.485672522781944,
-          "depth_mm": 0.8386521281160216,
+          "area_mm2": 3.403862345062404,
+          "depth_mm": 0.6253507627681463,
           "kind": "edge",
+          "part": "Dried sepals",
           "point": [
-            -1.3701577881971996,
-            10.913082520167032,
-            7.296116590499878
+            -1.8159077564875286,
+            11.900260925292969,
+            5.89147933324178
           ],
-          "samples": 789,
-          "span_mm": 4.548870741066775,
-          "thinnest_mm": 0.0019738440428338304
+          "samples": 636,
+          "span_mm": 3.3185836907801,
+          "thinnest_mm": 0.0006090078339999835
         },
         {
-          "area_mm2": 4.041635664247403,
-          "depth_mm": 0.8384466381905611,
+          "area_mm2": 3.3264235019867874,
+          "depth_mm": 0.8384398931615261,
           "kind": "edge",
+          "part": "Dried sepals",
           "point": [
-            -6.080357571442922,
-            12.32295846939087,
-            -4.187787592411041
+            -5.5136180718739825,
+            13.841641346613565,
+            -2.460359255472819
           ],
-          "samples": 787,
-          "span_mm": 3.05220441594777,
-          "thinnest_mm": 0.0025293517714425335
+          "samples": 684,
+          "span_mm": 2.8848490996431195,
+          "thinnest_mm": 0.00106430082205832
         },
         {
-          "area_mm2": 3.2259059841416593,
-          "depth_mm": 0.7764015749913055,
+          "area_mm2": 2.549701769448267,
+          "depth_mm": 0.8086335540231933,
           "kind": "edge",
+          "part": "Dried sepals",
           "point": [
-            4.5644599596659345,
-            13.153306007385254,
-            2.865686575571696
+            4.066797415415446,
+            13.306865374247232,
+            2.8868557612101235
           ],
-          "samples": 609,
-          "span_mm": 3.378373218359913,
-          "thinnest_mm": 0.0003380806809175314
+          "samples": 454,
+          "span_mm": 2.383484095527619,
+          "thinnest_mm": 0.002745972215258715
         },
         {
-          "area_mm2": 2.6113013986100677,
-          "depth_mm": 0.7099631684876306,
+          "area_mm2": 2.244089292086738,
+          "depth_mm": 0.8277633661262722,
           "kind": "edge",
+          "part": "Dried sepals",
           "point": [
-            4.642373998959859,
-            14.728595813115438,
-            -0.2399488034619329
+            1.6931089758872986,
+            14.900198777516684,
+            -3.194471021493276
           ],
-          "samples": 451,
-          "span_mm": 3.190606108701694,
-          "thinnest_mm": 0.03978450124949935
+          "samples": 491,
+          "span_mm": 3.11578555602133,
+          "thinnest_mm": 0.002808938890090595
         },
         {
-          "area_mm2": 2.425862303126388,
-          "depth_mm": 0.7232704158295556,
+          "area_mm2": 2.052730999203121,
+          "depth_mm": 0.42284409816594437,
           "kind": "edge",
-          "point": [
-            -0.6329234739144644,
-            14.666710694630941,
-            -2.490832567214966
-          ],
-          "samples": 452,
-          "span_mm": 2.612245757725229,
-          "thinnest_mm": 0.006240481492484896
-        },
-        {
-          "area_mm2": 2.2229035790069736,
-          "depth_mm": 0.7309135933005032,
-          "kind": "edge",
-          "point": [
-            -1.835186133782069,
-            13.216958284378052,
-            -6.159014930327733
-          ],
-          "samples": 422,
-          "span_mm": 3.212461976208562,
-          "thinnest_mm": 0.004319465671445646
-        },
-        {
-          "area_mm2": 2.2052263318501324,
-          "depth_mm": 0.7841244141340347,
-          "kind": "edge",
-          "point": [
-            4.025313158830007,
-            13.162979364395142,
-            -2.9336767494678497
-          ],
-          "samples": 397,
-          "span_mm": 3.1125024646082577,
-          "thinnest_mm": 0.006143583566042038
-        },
-        {
-          "area_mm2": 2.081251208346573,
-          "depth_mm": 0.7357325593476269,
-          "kind": "edge",
-          "point": [
-            14.133910735448202,
-            6.8654186725616455,
-            -4.6194162766138716
-          ],
-          "samples": 363,
-          "span_mm": 4.4437690203873785,
-          "thinnest_mm": 0.37234121222375416
-        },
-        {
-          "area_mm2": 1.8319904838563381,
-          "depth_mm": 0.6243263402632526,
-          "kind": "edge",
-          "point": [
-            1.8530528247356415,
-            13.311598459879557,
-            3.5422035455703735
-          ],
-          "samples": 319,
-          "span_mm": 2.327326164561781,
-          "thinnest_mm": 0.018165668216250864
-        },
-        {
-          "area_mm2": 1.8165937316109257,
-          "depth_mm": 0.6957611736785133,
-          "kind": "edge",
-          "point": [
-            -5.2850180466969805,
-            14.120317419370016,
-            -0.5048168525099754
-          ],
-          "samples": 310,
-          "span_mm": 2.7377744764825236,
-          "thinnest_mm": 0.02150874614725653
-        },
-        {
-          "area_mm2": 1.805700690544108,
-          "depth_mm": 0.7666866591574313,
-          "kind": "edge",
-          "point": [
-            15.962158759435018,
-            8.261576970418295,
-            -0.07452293795843919
-          ],
-          "samples": 339,
-          "span_mm": 2.167022976724194,
-          "thinnest_mm": 0.3665985233537277
-        },
-        {
-          "area_mm2": 1.7165093747883962,
-          "depth_mm": 0.7259445488092733,
-          "kind": "edge",
-          "point": [
-            10.699491024017334,
-            10.12167223294576,
-            -5.813181201616923
-          ],
-          "samples": 304,
-          "span_mm": 2.0883616386722803,
-          "thinnest_mm": 0.40654121348937455
-        },
-        {
-          "area_mm2": 1.6512448579369954,
-          "depth_mm": 0.7802456840974088,
-          "kind": "edge",
-          "point": [
-            13.641793251037598,
-            12.156699657440186,
-            1.3243645032246907
-          ],
-          "samples": 313,
-          "span_mm": 2.300096201018887,
-          "thinnest_mm": 0.358276332424189
-        },
-        {
-          "area_mm2": 1.6121000884146652,
-          "depth_mm": 0.7764027586184273,
-          "kind": "edge",
-          "point": [
-            -7.786768635114034,
-            10.187731981277466,
-            1.7400767852862675
-          ],
-          "samples": 272,
-          "span_mm": 2.720641194846918,
-          "thinnest_mm": 0.008638923799694402
-        },
-        {
-          "area_mm2": 1.6108585888508127,
-          "depth_mm": 0.7362450327100432,
-          "kind": "edge",
-          "point": [
-            10.457768360773722,
-            13.531779885292053,
-            -2.382180800040563
-          ],
-          "samples": 293,
-          "span_mm": 2.0685675179204885,
-          "thinnest_mm": 0.34093226860104436
-        },
-        {
-          "area_mm2": 1.5933376083087532,
-          "depth_mm": 0.7764027911223051,
-          "kind": "edge",
-          "point": [
-            -3.9199984967708588,
-            9.374749998251596,
-            6.315903733174006
-          ],
-          "samples": 307,
-          "span_mm": 2.600278612218533,
-          "thinnest_mm": 0.004319482683568025
-        },
-        {
-          "area_mm2": 1.5461746123728677,
-          "depth_mm": 0.845978556219163,
-          "kind": "edge",
-          "point": [
-            -5.371307174364726,
-            12.171680847803751,
-            4.3372730414072675
-          ],
-          "samples": 284,
-          "span_mm": 2.2796918291903276,
-          "thinnest_mm": 0.03182419687662821
-        },
-        {
-          "area_mm2": 1.3592835632437414,
-          "depth_mm": 0.8212350562231416,
-          "kind": "edge",
-          "point": [
-            -7.963559404015541,
-            11.561107238133749,
-            -0.7613659097502629
-          ],
-          "samples": 250,
-          "span_mm": 2.3500651324915913,
-          "thinnest_mm": 0.0294263750670984
-        },
-        {
-          "area_mm2": 1.326787489431091,
-          "depth_mm": 0.5672586911288142,
-          "kind": "edge",
-          "point": [
-            1.2708293199539185,
-            13.333406925201416,
-            3.834617773691813
-          ],
-          "samples": 235,
-          "span_mm": 2.723881737611002,
-          "thinnest_mm": 0.016166122727341154
-        },
-        {
-          "area_mm2": 1.281879453449858,
-          "depth_mm": 0.8342824646978817,
-          "kind": "edge",
-          "point": [
-            -3.1000840167204538,
-            13.608350396156311,
-            6.571197350819905
-          ],
-          "samples": 223,
-          "span_mm": 2.4366919902657083,
-          "thinnest_mm": 0.011626760066718544
-        },
-        {
-          "area_mm2": 1.1555033480860974,
-          "depth_mm": 0.6898374218147318,
-          "kind": "edge",
-          "point": [
-            -4.1369514266649885,
-            15.827294826507568,
-            -4.9931061665217085
-          ],
-          "samples": 216,
-          "span_mm": 2.105021234513893,
-          "thinnest_mm": 0.004799810205985989
-        },
-        {
-          "area_mm2": 1.1348748515724913,
-          "depth_mm": 0.7156908648093543,
-          "kind": "edge",
-          "point": [
-            -6.118470937013626,
-            15.224635978539785,
-            -1.6746188799540203
-          ],
-          "samples": 253,
-          "span_mm": 1.6015446511938345,
-          "thinnest_mm": 0.030531841471604818
-        },
-        {
-          "area_mm2": 1.1200096193314955,
-          "depth_mm": 0.7295839602308374,
-          "kind": "edge",
-          "point": [
-            -3.5534917985399566,
-            11.650173823038736,
-            6.946278899908066
-          ],
-          "samples": 190,
-          "span_mm": 1.9601630744007683,
-          "thinnest_mm": 0.028155757485448105
-        },
-        {
-          "area_mm2": 1.1001191126858498,
-          "depth_mm": 0.7210591235360886,
-          "kind": "edge",
-          "point": [
-            1.0558391883969307,
-            13.976560284694036,
-            -5.273556470870972
-          ],
-          "samples": 191,
-          "span_mm": 1.2883941631278368,
-          "thinnest_mm": 0.029426471355517278
-        },
-        {
-          "area_mm2": 1.0442753917345677,
-          "depth_mm": 0.6652177171510447,
-          "kind": "edge",
-          "point": [
-            -6.11231929063797,
-            14.397692879041037,
-            -3.7457170287768045
-          ],
-          "samples": 170,
-          "span_mm": 2.432518587277377,
-          "thinnest_mm": 0.029492246680671082
-        },
-        {
-          "area_mm2": 1.027178350929787,
-          "depth_mm": 0.5912234932285518,
-          "kind": "edge",
-          "point": [
-            -8.043089101711908,
-            12.467175791660944,
-            2.1252581427494683
-          ],
-          "samples": 181,
-          "span_mm": 2.0501854717097947,
-          "thinnest_mm": 0.04530240902759383
-        },
-        {
-          "area_mm2": 1.0052594195432971,
-          "depth_mm": 0.7460090404598401,
-          "kind": "edge",
-          "point": [
-            -5.376357674598694,
-            14.533225536346436,
-            0.22868488853176436
-          ],
-          "samples": 214,
-          "span_mm": 1.938757683201639,
-          "thinnest_mm": 0.00022585163662626104
-        },
-        {
-          "area_mm2": 1.001907783954818,
-          "depth_mm": 0.8067210594719192,
-          "kind": "edge",
-          "point": [
-            1.951511303583781,
-            14.406154553095499,
-            -5.431572318077087
-          ],
-          "samples": 204,
-          "span_mm": 1.181741952117667,
-          "thinnest_mm": 0.005601724105261735
-        },
-        {
-          "area_mm2": 0.9557991683041309,
-          "depth_mm": 0.47450535164003776,
-          "kind": "edge",
-          "point": [
-            2.238395551840464,
-            16.712737202644348,
-            -1.8912203932801883
-          ],
-          "samples": 213,
-          "span_mm": 2.1398676757006427,
-          "thinnest_mm": 0.003875700491191843
-        },
-        {
-          "area_mm2": 0.9365900683189011,
-          "depth_mm": 0.6970715933870838,
-          "kind": "edge",
-          "point": [
-            -6.515396277109782,
-            12.609771887461344,
-            4.828758815924327
-          ],
-          "samples": 160,
-          "span_mm": 1.750916375594537,
-          "thinnest_mm": 0.013752587364528316
-        },
-        {
-          "area_mm2": 0.9003001835407016,
-          "depth_mm": 0.8493947943769722,
-          "kind": "edge",
-          "point": [
-            13.294286330540976,
-            -3.853793740272522,
-            0.29621052742004395
-          ],
-          "samples": 171,
-          "span_mm": 1.0412784143379388,
-          "thinnest_mm": 0.21984906192782855
-        },
-        {
-          "area_mm2": 0.824339246747575,
-          "depth_mm": 0.5984637254885332,
-          "kind": "edge",
-          "point": [
-            2.157655874888102,
-            15.237854242324829,
-            0.8454477886358897
-          ],
-          "samples": 170,
-          "span_mm": 1.6110466766905023,
-          "thinnest_mm": 0.008194166159652076
-        },
-        {
-          "area_mm2": 0.8180408937949314,
-          "depth_mm": 0.8444187635591807,
-          "kind": "edge",
-          "point": [
-            -13.077449639638266,
-            -4.543807029724121,
-            -0.2934315701325734
-          ],
-          "samples": 152,
-          "span_mm": 1.0499920682211736,
-          "thinnest_mm": 0.2141393620520823
-        },
-        {
-          "area_mm2": 0.717055619514006,
-          "depth_mm": 0.5512914692512032,
-          "kind": "edge",
-          "point": [
-            -2.0620563626289368,
-            16.009981234868366,
-            -2.46146297454834
-          ],
-          "samples": 166,
-          "span_mm": 2.2095678514507013,
-          "thinnest_mm": 0.0021776744732188266
-        },
-        {
-          "area_mm2": 0.6704583503884596,
-          "depth_mm": 0.577229136383279,
-          "kind": "edge",
-          "point": [
-            4.048315703868866,
-            14.317400018374125,
-            3.4424179047346115
-          ],
-          "samples": 103,
-          "span_mm": 1.7420312360788763,
-          "thinnest_mm": 0.013752372130224321
-        },
-        {
-          "area_mm2": 0.6267540556341973,
-          "depth_mm": 0.8298677943125935,
-          "kind": "edge",
-          "point": [
-            13.825764973958334,
-            -2.153131624062856,
-            -0.3246078739563624
-          ],
-          "samples": 116,
-          "span_mm": 0.7964470876208856,
-          "thinnest_mm": 0.241222130434358
-        },
-        {
-          "area_mm2": 0.6258691723769327,
-          "depth_mm": 0.6361086940482036,
-          "kind": "edge",
-          "point": [
-            -0.725764898583293,
-            12.673717578252157,
-            7.107375919818878
-          ],
-          "samples": 100,
-          "span_mm": 1.3650324043081525,
-          "thinnest_mm": 0.013752774924030507
-        },
-        {
-          "area_mm2": 0.5856838008298059,
-          "depth_mm": 0.517924694902651,
-          "kind": "edge",
-          "point": [
-            2.920487011472384,
-            15.927489519119263,
-            -2.726539929707845
-          ],
-          "samples": 91,
-          "span_mm": 1.4891464271576056,
-          "thinnest_mm": 0.027505063055408445
-        },
-        {
-          "area_mm2": 0.5804035200524679,
-          "depth_mm": 0.7556404117805192,
-          "kind": "edge",
-          "point": [
-            14.049476464589437,
-            -0.4309776946902275,
-            0.390028436978658
-          ],
-          "samples": 100,
-          "span_mm": 0.6694869414745681,
-          "thinnest_mm": 0.2510618036569653
-        },
-        {
-          "area_mm2": 0.5729483536068569,
-          "depth_mm": 0.8323835060192357,
-          "kind": "edge",
-          "point": [
-            -13.64517339070638,
-            -2.938423275947571,
-            0.34675588955481845
-          ],
-          "samples": 101,
-          "span_mm": 0.7850246355535053,
-          "thinnest_mm": 0.23948611284058063
-        },
-        {
-          "area_mm2": 0.5448588142711321,
-          "depth_mm": 0.5599170843538832,
-          "kind": "edge",
-          "point": [
-            -0.15052137492845455,
-            13.713950912157694,
-            6.257230192422867
-          ],
-          "samples": 99,
-          "span_mm": 1.4678093679394744,
-          "thinnest_mm": 0.030533560751969023
-        },
-        {
-          "area_mm2": 0.5189748089053161,
-          "depth_mm": 0.4154800239534693,
-          "kind": "edge",
-          "point": [
-            1.3971831500530243,
-            17.16523067156474,
-            0.5263496289650599
-          ],
-          "samples": 90,
-          "span_mm": 1.6895063596262518,
-          "thinnest_mm": 0.5687032130404853
-        },
-        {
-          "area_mm2": 0.5088908070577361,
-          "depth_mm": 0.4171119698177229,
-          "kind": "edge",
-          "point": [
-            -0.5433529491225878,
-            15.600599964459738,
-            5.130055586496989
-          ],
-          "samples": 85,
-          "span_mm": 1.7498274324335827,
-          "thinnest_mm": 0.569843692851054
-        },
-        {
-          "area_mm2": 0.49530172226517494,
-          "depth_mm": 0.41205018821441536,
-          "kind": "edge",
-          "point": [
-            -3.4540602366129556,
-            17.162180105845135,
-            -1.5604520291090012
-          ],
-          "samples": 101,
-          "span_mm": 1.7747164251349599,
-          "thinnest_mm": 0.5690827664177202
-        },
-        {
-          "area_mm2": 0.47350545103776265,
-          "depth_mm": 0.5192837189093739,
-          "kind": "edge",
-          "point": [
-            2.3201654106378555,
-            14.574291070302328,
-            4.728270659844081
-          ],
-          "samples": 91,
-          "span_mm": 1.7474253067895524,
-          "thinnest_mm": 0.006133085702055695
-        },
-        {
-          "area_mm2": 0.4587034415969722,
-          "depth_mm": 0.4154788830121614,
-          "kind": "edge",
-          "point": [
-            -5.437910775343577,
-            15.603057344754538,
-            3.0149258971214294
-          ],
-          "samples": 83,
-          "span_mm": 1.7581057450193673,
-          "thinnest_mm": 0.5685797039313678
-        },
-        {
-          "area_mm2": 0.4375496937832249,
-          "depth_mm": 0.783443869796779,
-          "kind": "edge",
-          "point": [
-            14.133464336395264,
-            1.3731719553470612,
-            -0.4232027158141136
-          ],
-          "samples": 81,
-          "span_mm": 0.5598014619886382,
-          "thinnest_mm": 0.2714975410992277
-        },
-        {
-          "area_mm2": 0.42830327544247565,
-          "depth_mm": 0.7779117915411877,
-          "kind": "edge",
-          "point": [
-            -14.036319414774576,
-            -1.3266069889068604,
-            -0.25642848511536914
-          ],
-          "samples": 74,
-          "span_mm": 0.5684319990369185,
-          "thinnest_mm": 0.2503198199128345
-        },
-        {
-          "area_mm2": 0.37660241576887304,
-          "depth_mm": 0.42184269333915625,
-          "kind": "edge",
+          "part": "Hip collet",
           "point": [
             9.345746030410131,
             10.948781371116638,
             -1.8258924633264542
           ],
-          "samples": 60,
-          "span_mm": 2.6681930468993293,
+          "samples": 409,
+          "span_mm": 5.678755022606369,
           "thinnest_mm": 0.40257105735280724
         },
         {
-          "area_mm2": 0.375507977944438,
-          "depth_mm": 0.7631961432513239,
+          "area_mm2": 2.026318648026001,
+          "depth_mm": 0.7357239221733232,
           "kind": "edge",
+          "part": "Hip's dried crown",
           "point": [
-            14.040481567382812,
-            3.156013866265615,
-            0.30255355685949326
+            13.844943602879843,
+            12.638651450475058,
+            1.1360593537489574
           ],
-          "samples": 79,
-          "span_mm": 0.48582612922798374,
-          "thinnest_mm": 0.25699897028114765
+          "samples": 370,
+          "span_mm": 2.337848947635452,
+          "thinnest_mm": 0.3798087103753044
         },
         {
-          "area_mm2": 0.3556741329514754,
-          "depth_mm": 0.6917443718029684,
+          "area_mm2": 1.9148661974986556,
+          "depth_mm": 0.8241571908597258,
           "kind": "edge",
+          "part": "Hip's dried sepal",
           "point": [
-            -14.23064657052358,
-            2.183468778928121,
-            -0.2896669879555702
+            8.397164980570475,
+            11.580147743225098,
+            -1.802522083123525
           ],
-          "samples": 71,
-          "span_mm": 0.5013092391942395,
-          "thinnest_mm": 0.2999677197430102
+          "samples": 359,
+          "span_mm": 2.801217090257298,
+          "thinnest_mm": 0.12324105888109162
         },
         {
-          "area_mm2": 0.35516599484731237,
-          "depth_mm": 0.4217640218779305,
+          "area_mm2": 1.8561863263811356,
+          "depth_mm": 0.7182463146062006,
           "kind": "edge",
+          "part": "Hip's dried crown",
           "point": [
-            10.120396852493286,
-            11.250679949919382,
-            -0.14292864268645644
+            14.709589918454489,
+            7.090617656707764,
+            -4.829965015252431
           ],
-          "samples": 70,
-          "span_mm": 2.1187528534973477,
-          "thinnest_mm": 0.40257405440566324
+          "samples": 317,
+          "span_mm": 2.1936722026646596,
+          "thinnest_mm": 0.3409332288880736
         },
         {
-          "area_mm2": 0.3503045720997477,
-          "depth_mm": 0.774421540968643,
+          "area_mm2": 1.8534990727188692,
+          "depth_mm": 0.7802435966265743,
           "kind": "edge",
+          "part": "Hip's dried crown",
           "point": [
-            -14.270714004834494,
-            0.4826364777982235,
-            0.39655332267284393
+            16.333587010701496,
+            8.27837904294332,
+            -0.34994831681251526
           ],
-          "samples": 65,
-          "span_mm": 0.4670457464106102,
-          "thinnest_mm": 0.2661349905357027
+          "samples": 359,
+          "span_mm": 2.1658396186181754,
+          "thinnest_mm": 0.3582757912979811
         },
         {
-          "area_mm2": 0.34490559075105925,
-          "depth_mm": 0.421764059328351,
+          "area_mm2": 1.8355862928586828,
+          "depth_mm": 0.721936792280018,
           "kind": "edge",
+          "part": "Hip's dried crown",
           "point": [
-            13.247562050819397,
-            6.702918330828349,
-            -0.9193563122923175
+            11.007130146026611,
+            10.469653606414795,
+            -6.13465158144633
           ],
-          "samples": 78,
-          "span_mm": 3.2248232129145338,
-          "thinnest_mm": 0.40257249286482255
+          "samples": 303,
+          "span_mm": 2.0486662381117426,
+          "thinnest_mm": 0.372341388127027
         },
         {
-          "area_mm2": 0.3326325706833006,
-          "depth_mm": 0.40780226980648626,
+          "area_mm2": 0.972361678926429,
+          "depth_mm": 0.3022959037622969,
           "kind": "edge",
+          "part": "Petal ring 4",
           "point": [
-            2.973019669453303,
-            15.818137923876444,
-            3.628301501274109
+            -8.319290320078531,
+            10.439112027486166,
+            2.9953008691469827
           ],
-          "samples": 60,
-          "span_mm": 1.294650034860541,
-          "thinnest_mm": 0.581211441669347
+          "samples": 162,
+          "span_mm": 2.002876861699331,
+          "thinnest_mm": 0.002652317307689866
         },
         {
-          "area_mm2": 0.3311711974422529,
-          "depth_mm": 0.40643695361336557,
+          "area_mm2": 0.8451087220214005,
+          "depth_mm": 0.2622624489174174,
           "kind": "edge",
+          "part": "Petal ring 4",
           "point": [
-            -4.522547642389934,
-            16.938003540039062,
-            -2.356582204500834
+            -5.4471531709035235,
+            12.25201940536499,
+            3.059227625528971
+          ],
+          "samples": 154,
+          "span_mm": 2.5733555216467163,
+          "thinnest_mm": 0.005991921076514712
+        },
+        {
+          "area_mm2": 0.7785888540623944,
+          "depth_mm": 0.4702328936773583,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            -1.1260993033647537,
+            15.032822489738464,
+            -3.2414444983005524
+          ],
+          "samples": 155,
+          "span_mm": 2.7656689277071487,
+          "thinnest_mm": 0.021796421027217936
+        },
+        {
+          "area_mm2": 0.7458178960880728,
+          "depth_mm": 0.6016086703085657,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            -5.594372222820918,
+            14.21934605638186,
+            -0.540902798374494
+          ],
+          "samples": 152,
+          "span_mm": 2.2729074950713786,
+          "thinnest_mm": 0.015215796813622165
+        },
+        {
+          "area_mm2": 0.707201470026462,
+          "depth_mm": 0.6485706752859145,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            4.64526383082072,
+            14.63391500711441,
+            -0.32477276944943395
+          ],
+          "samples": 146,
+          "span_mm": 2.477365240985339,
+          "thinnest_mm": 0.015943430480923268
+        },
+        {
+          "area_mm2": 0.6787234134544721,
+          "depth_mm": 0.5641619927873508,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            1.8887361039717991,
+            13.401911775271097,
+            3.730298345287641
+          ],
+          "samples": 135,
+          "span_mm": 2.453215447042492,
+          "thinnest_mm": 0.00923914799875372
+        },
+        {
+          "area_mm2": 0.6771559221136142,
+          "depth_mm": 0.5657560102220195,
+          "kind": "edge",
+          "part": "Petal ring 2",
+          "point": [
+            -4.308988243341446,
+            16.472952365875244,
+            -3.356240153312683
+          ],
+          "samples": 173,
+          "span_mm": 2.2774853401271105,
+          "thinnest_mm": 0.006448294306743536
+        },
+        {
+          "area_mm2": 0.6540485310229772,
+          "depth_mm": 0.7062953219073868,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            2.1621306737264,
+            14.824924548467001,
+            -1.0915906230608623
+          ],
+          "samples": 113,
+          "span_mm": 2.2359291063186837,
+          "thinnest_mm": 0.012766500637820177
+        },
+        {
+          "area_mm2": 0.6207990633668524,
+          "depth_mm": 0.8251960543450213,
+          "kind": "edge",
+          "part": "Prickle, arm A",
+          "point": [
+            13.931427478790283,
+            -0.3177539010842641,
+            0.24803725009163222
+          ],
+          "samples": 107,
+          "span_mm": 0.6999585605238945,
+          "thinnest_mm": 0.23846080611996998
+        },
+        {
+          "area_mm2": 0.6205560671071341,
+          "depth_mm": 0.6794969398471683,
+          "kind": "edge",
+          "part": "Petal, ring 4",
+          "point": [
+            -4.607849210500717,
+            9.395432849725088,
+            5.408086995283763
+          ],
+          "samples": 127,
+          "span_mm": 1.7197799575797732,
+          "thinnest_mm": 0.004301089598704914
+        },
+        {
+          "area_mm2": 0.6044611388472689,
+          "depth_mm": 0.6111284681103989,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            -1.1670246918996174,
+            12.975036144256592,
+            -5.8054424325625105
+          ],
+          "samples": 130,
+          "span_mm": 2.002707555777676,
+          "thinnest_mm": 0.004009091531666152
+        },
+        {
+          "area_mm2": 0.5882526982352421,
+          "depth_mm": 0.6205395131810848,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            1.042200542986393,
+            9.881109396616617,
+            6.010376532872518
+          ],
+          "samples": 110,
+          "span_mm": 2.3535968426216765,
+          "thinnest_mm": 0.008018357970008024
+        },
+        {
+          "area_mm2": 0.5791175981243999,
+          "depth_mm": 0.5529527725973395,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            4.040707275271416,
+            12.872908592224121,
+            -2.4748145838578544
+          ],
+          "samples": 128,
+          "span_mm": 2.3132093304374983,
+          "thinnest_mm": 0.00860220899084088
+        },
+        {
+          "area_mm2": 0.5468793221768176,
+          "depth_mm": 0.8328975761329328,
+          "kind": "edge",
+          "part": "Prickles down arm B",
+          "point": [
+            -13.998509248097738,
+            -0.3964458331465721,
+            0.24270689114928246
+          ],
+          "samples": 104,
+          "span_mm": 0.689490189292148,
+          "thinnest_mm": 0.23789068687519221
+        },
+        {
+          "area_mm2": 0.4992625256116412,
+          "depth_mm": 0.8163622902053526,
+          "kind": "edge",
+          "part": "Prickles down arm A",
+          "point": [
+            14.05426812171936,
+            1.249121904373169,
+            -0.26110321780045825
+          ],
+          "samples": 94,
+          "span_mm": 0.6182837845230797,
+          "thinnest_mm": 0.23552773647957648
+        },
+        {
+          "area_mm2": 0.4798395716968058,
+          "depth_mm": 0.5850144456880702,
+          "kind": "edge",
+          "part": "Petal ring 2",
+          "point": [
+            -0.33929525734856725,
+            16.28628361225128,
+            -3.5238825927178064
+          ],
+          "samples": 113,
+          "span_mm": 1.791249794961951,
+          "thinnest_mm": 0.015307177396361027
+        },
+        {
+          "area_mm2": 0.45323066775790816,
+          "depth_mm": 0.5562832991662668,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            3.76169582704703,
+            11.21877113978068,
+            4.057353059450786
+          ],
+          "samples": 114,
+          "span_mm": 1.6828575937263324,
+          "thinnest_mm": 0.010170008740772181
+        },
+        {
+          "area_mm2": 0.45048721854386914,
+          "depth_mm": 0.5426962716779963,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            4.75864656517903,
+            12.576315050323805,
+            -0.8026813610146443
+          ],
+          "samples": 100,
+          "span_mm": 1.5545881366357264,
+          "thinnest_mm": 0.012498182511154147
+        },
+        {
+          "area_mm2": 0.4436578332513095,
+          "depth_mm": 0.6463173871673358,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            3.2281509240468345,
+            13.645732482274374,
+            3.17280121644338
+          ],
+          "samples": 88,
+          "span_mm": 1.6831507798966978,
+          "thinnest_mm": 0.004004393340399561
+        },
+        {
+          "area_mm2": 0.439945066303669,
+          "depth_mm": 0.6374738586856009,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            -4.5464844306310015,
+            12.78470093011856,
+            -4.983289311329524
+          ],
+          "samples": 105,
+          "span_mm": 1.6351199886839582,
+          "thinnest_mm": 0.010170020447317388
+        },
+        {
+          "area_mm2": 0.4378718389366081,
+          "depth_mm": 0.4959505595122523,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            2.813043703635534,
+            12.739553372065226,
+            5.576492269833882
+          ],
+          "samples": 85,
+          "span_mm": 2.130493423194337,
+          "thinnest_mm": 0.019614935606985875
+        },
+        {
+          "area_mm2": 0.43748597197031536,
+          "depth_mm": 0.6374745116572639,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            -7.650341212749481,
+            11.175598243872324,
+            -0.7467313607533773
+          ],
+          "samples": 86,
+          "span_mm": 2.264677516032654,
+          "thinnest_mm": 0.010169963664982958
+        },
+        {
+          "area_mm2": 0.43621922154960224,
+          "depth_mm": 0.6763486868016376,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            2.475539724032084,
+            15.045292536417643,
+            0.062111290326962866
+          ],
+          "samples": 90,
+          "span_mm": 1.5943810383401633,
+          "thinnest_mm": 0.03135900230211464
+        },
+        {
+          "area_mm2": 0.42365813695091226,
+          "depth_mm": 0.0,
+          "kind": "edge",
+          "part": "Prickles down arm B",
+          "point": [
+            -11.870641390482584,
+            2.046633720397949,
+            -0.7970542709032694
+          ],
+          "samples": 85,
+          "span_mm": 4.597386886326786,
+          "thinnest_mm": 0.06636311760470627
+        },
+        {
+          "area_mm2": 0.42170538227423005,
+          "depth_mm": 0.7629468346021235,
+          "kind": "edge",
+          "part": "Prickles down arm B",
+          "point": [
+            -14.042395750681559,
+            1.3888668417930603,
+            -0.37898172438144684
+          ],
+          "samples": 87,
+          "span_mm": 0.5573677657040901,
+          "thinnest_mm": 0.2522590768537126
+        },
+        {
+          "area_mm2": 0.4033947668554851,
+          "depth_mm": 0.7475248856770971,
+          "kind": "edge",
+          "part": "Prickles down arm A",
+          "point": [
+            13.93591340382894,
+            2.782216191291809,
+            0.2867136485874653
+          ],
+          "samples": 75,
+          "span_mm": 0.521434787924298,
+          "thinnest_mm": 0.27820475866939076
+        },
+        {
+          "area_mm2": 0.402496071289349,
+          "depth_mm": 0.7054476133872242,
+          "kind": "edge",
+          "part": "Prickles down arm B",
+          "point": [
+            -13.927748759587606,
+            3.176533361275991,
+            0.4024069309234619
+          ],
+          "samples": 72,
+          "span_mm": 0.4541173811923378,
+          "thinnest_mm": 0.2670914636475889
+        },
+        {
+          "area_mm2": 0.4005323900747083,
+          "depth_mm": 0.8396921334294825,
+          "kind": "edge",
+          "part": "Petal ring 2",
+          "point": [
+            -6.245423346757889,
+            13.432749807834625,
+            4.240747133890788
+          ],
+          "samples": 93,
+          "span_mm": 1.420558465689342,
+          "thinnest_mm": 0.016813148373251575
+        },
+        {
+          "area_mm2": 0.4003223547948179,
+          "depth_mm": 0.4631238982387159,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            -7.82529694835345,
+            12.385329365730286,
+            2.313450117905935
+          ],
+          "samples": 80,
+          "span_mm": 1.8414590471316001,
+          "thinnest_mm": 0.019615458461772373
+        },
+        {
+          "area_mm2": 0.39446319667341295,
+          "depth_mm": 0.4774625350689816,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            0.1621169289574027,
+            15.42381896575292,
+            -5.011410683393478
+          ],
+          "samples": 67,
+          "span_mm": 2.213016746146568,
+          "thinnest_mm": 0.015943395093065627
+        },
+        {
+          "area_mm2": 0.39355611710838584,
+          "depth_mm": 0.5010033511448957,
+          "kind": "edge",
+          "part": "Petal, ring 3",
+          "point": [
+            -5.939091662565867,
+            14.378093600273132,
+            -4.234039743741353
+          ],
+          "samples": 86,
+          "span_mm": 1.8790851811689286,
+          "thinnest_mm": 0.01900720985483242
+        },
+        {
+          "area_mm2": 0.381205581657775,
+          "depth_mm": 0.5666453051700309,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            -3.476880113283793,
+            11.543747305870056,
+            6.923884232838948
+          ],
+          "samples": 73,
+          "span_mm": 2.5199061271011565,
+          "thinnest_mm": 0.01594331500290495
+        },
+        {
+          "area_mm2": 0.374563211103951,
+          "depth_mm": 0.6976604102274949,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            1.9526260147492092,
+            13.95477302869161,
+            4.649619301160176
           ],
           "samples": 69,
-          "span_mm": 1.0011256126581651,
-          "thinnest_mm": 0.5830017560050761
+          "span_mm": 1.2343193474996044,
+          "thinnest_mm": 0.02469596456740819
         },
         {
-          "area_mm2": 0.3304232173049427,
-          "depth_mm": 0.4217640819001967,
+          "area_mm2": 0.35578301428043835,
+          "depth_mm": 0.7612646614155424,
           "kind": "edge",
+          "part": "Prickle, arm B",
           "point": [
-            13.131544023752213,
-            8.226142118374506,
-            0.8876592479646206
+            -13.52958651383718,
+            4.818353235721588,
+            -0.3026216421276331
           ],
-          "samples": 71,
-          "span_mm": 2.540981968767656,
-          "thinnest_mm": 0.4025729715443477
+          "samples": 65,
+          "span_mm": 0.42033131391086886,
+          "thinnest_mm": 0.28159889596626053
         },
         {
-          "area_mm2": 0.3159189241822988,
-          "depth_mm": 0.3990073799968097,
+          "area_mm2": 0.28658611915301685,
+          "depth_mm": 0.7196651178467054,
           "kind": "edge",
+          "part": "Petal ring 4",
           "point": [
-            -7.008302827676137,
-            14.827123125394186,
-            2.820283164580663
+            -5.761554419994354,
+            12.022905985514322,
+            4.605308711528778
+          ],
+          "samples": 61,
+          "span_mm": 1.1095785864647763,
+          "thinnest_mm": 0.024304753395676216
+        },
+        {
+          "area_mm2": 0.2837788788665878,
+          "depth_mm": 0.41045542650317846,
+          "kind": "edge",
+          "part": "Petal ring 2",
+          "point": [
+            -7.3393502831459045,
+            14.460908432801565,
+            1.7565704782803853
+          ],
+          "samples": 60,
+          "span_mm": 2.1489132581980845,
+          "thinnest_mm": 0.003874197670995743
+        },
+        {
+          "area_mm2": 0.2767514294620635,
+          "depth_mm": 0.38408811641396967,
+          "kind": "edge",
+          "part": "band",
+          "point": [
+            -3.855764071146647,
+            8.571965058644613,
+            1.942151129245758
+          ],
+          "samples": 76,
+          "span_mm": 3.1526825288698483,
+          "thinnest_mm": 0.04605656844213606
+        },
+        {
+          "area_mm2": 0.2767514294620633,
+          "depth_mm": 0.38408811641396967,
+          "kind": "edge",
+          "part": "band",
+          "point": [
+            3.855764071146647,
+            8.571965058644613,
+            -1.942151129245758
+          ],
+          "samples": 76,
+          "span_mm": 3.1526825288698483,
+          "thinnest_mm": 0.04605656844213606
+        },
+        {
+          "area_mm2": 0.27583544637250806,
+          "depth_mm": 0.39354597039546796,
+          "kind": "edge",
+          "part": "band",
+          "point": [
+            4.065030495325725,
+            8.474873701731363,
+            2.3601890802383423
+          ],
+          "samples": 63,
+          "span_mm": 2.6826804559301305,
+          "thinnest_mm": 0.04597346441181967
+        },
+        {
+          "area_mm2": 0.27583544637250806,
+          "depth_mm": 0.39354597039546796,
+          "kind": "edge",
+          "part": "band",
+          "point": [
+            -4.065030495325725,
+            8.474873701731363,
+            -2.3601890802383423
+          ],
+          "samples": 63,
+          "span_mm": 2.6826804559301305,
+          "thinnest_mm": 0.04597346441181968
+        },
+        {
+          "area_mm2": 0.26702680070606105,
+          "depth_mm": 0.6462169875759967,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            -0.1269732746295631,
+            12.15561286608378,
+            6.428642302751541
+          ],
+          "samples": 59,
+          "span_mm": 1.07959571446783,
+          "thinnest_mm": 0.02889600668574125
+        },
+        {
+          "area_mm2": 0.26040004669679334,
+          "depth_mm": 0.4146897285804451,
+          "kind": "edge",
+          "part": "Petal ring 2",
+          "point": [
+            2.616686373949051,
+            16.286661028862,
+            -1.3302035232384999
+          ],
+          "samples": 76,
+          "span_mm": 1.6485250727565064,
+          "thinnest_mm": 0.0034761131666172294
+        },
+        {
+          "area_mm2": 0.25571555265718016,
+          "depth_mm": 0.7920650191261892,
+          "kind": "edge",
+          "part": "Petal ring 2",
+          "point": [
+            -1.191207582441469,
+            15.910236651698748,
+            -2.386101814607779
+          ],
+          "samples": 45,
+          "span_mm": 0.9906531443643676,
+          "thinnest_mm": 0.01783547606753186
+        },
+        {
+          "area_mm2": 0.2461165870594822,
+          "depth_mm": 0.4950812462793684,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            -8.014084190130234,
+            13.49530796209971,
+            -1.0099038456877072
           ],
           "samples": 55,
-          "span_mm": 1.169533366439702,
-          "thinnest_mm": 0.5772498482390022
+          "span_mm": 1.546265459923065,
+          "thinnest_mm": 0.003957376866694235
         },
         {
-          "area_mm2": 0.30579489920815817,
-          "depth_mm": 0.45697242451756753,
+          "area_mm2": 0.23860401041225604,
+          "depth_mm": 0.6024718335742499,
           "kind": "edge",
+          "part": "Petal ring 3",
           "point": [
-            -5.042504032452901,
-            16.231443405151367,
-            -4.761078139146169
+            -5.1040496826171875,
+            11.811880350112915,
+            5.422936717669169
           ],
-          "samples": 55,
-          "span_mm": 0.822577642600872,
-          "thinnest_mm": 0.5602186267739417
+          "samples": 49,
+          "span_mm": 1.0973478930452423,
+          "thinnest_mm": 0.00024522676622211855
         },
         {
-          "area_mm2": 0.3052408975131819,
-          "depth_mm": 0.4658298396488522,
+          "area_mm2": 0.23725898167016635,
+          "depth_mm": 0.4485884498754399,
           "kind": "edge",
+          "part": "Petal ring 3",
           "point": [
-            -8.813893040021261,
-            14.162195126215616,
-            0.8131325393915176
+            -6.336654007434845,
+            11.845766067504883,
+            5.620251188675563
           ],
-          "samples": 70,
-          "span_mm": 0.7438811351490727,
-          "thinnest_mm": 0.5602202211711426
+          "samples": 54,
+          "span_mm": 1.9363583470767578,
+          "thinnest_mm": 0.00442106889758566
         },
         {
-          "area_mm2": 0.3003350928769713,
-          "depth_mm": 0.39547854331683174,
+          "area_mm2": 0.23564050279646812,
+          "depth_mm": 0.43365597023864233,
           "kind": "edge",
+          "part": "Petal ring 2",
           "point": [
-            5.539162794748942,
-            12.765372435251871,
-            2.0866417487462363
+            -0.0692021402452762,
+            13.547036727269491,
+            6.217874656120936
           ],
-          "samples": 57,
-          "span_mm": 1.3623829876912747,
-          "thinnest_mm": 0.023019931185023688
+          "samples": 48,
+          "span_mm": 1.4634376368687159,
+          "thinnest_mm": 0.015306285873458043
         },
         {
-          "area_mm2": 0.291840127915203,
-          "depth_mm": 0.45525315210770134,
+          "area_mm2": 0.23487550551715441,
+          "depth_mm": 0.5527006911376169,
           "kind": "edge",
+          "part": "Petal ring 3",
           "point": [
-            -5.634513874848683,
-            12.828000744183859,
-            6.905855417251587
+            4.4188392162323,
+            13.800787846247355,
+            3.3018650114536285
+          ],
+          "samples": 52,
+          "span_mm": 1.4106208851468618,
+          "thinnest_mm": 0.007914895656264584
+        },
+        {
+          "area_mm2": 0.23475856176411775,
+          "depth_mm": 0.6732237338875608,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            -2.8762642989555993,
+            12.97806884845098,
+            6.0577269196510315
+          ],
+          "samples": 46,
+          "span_mm": 1.183837665686318,
+          "thinnest_mm": 0.024695561315806976
+        },
+        {
+          "area_mm2": 0.23454776155800874,
+          "depth_mm": 0.42818373321070236,
+          "kind": "edge",
+          "part": "Petal ring 4",
+          "point": [
+            -8.048462470372518,
+            10.556624094645182,
+            3.357819974422455
+          ],
+          "samples": 54,
+          "span_mm": 3.0751814189056352,
+          "thinnest_mm": 0.031970216757776795
+        },
+        {
+          "area_mm2": 0.2336220142126097,
+          "depth_mm": 0.5861713795487088,
+          "kind": "edge",
+          "part": "Petal ring 3",
+          "point": [
+            2.3049072275559106,
+            15.942497114340464,
+            -1.4652180448174477
           ],
           "samples": 53,
-          "span_mm": 0.8399883164780508,
-          "thinnest_mm": 0.5631208948695099
+          "span_mm": 0.8248171962434769,
+          "thinnest_mm": 0.025411513516331617
+        },
+        {
+          "area_mm2": 0.23093322555712198,
+          "depth_mm": 0.4970738507799802,
+          "kind": "edge",
+          "part": "Petal, ring 3",
+          "point": [
+            -3.9567526330550513,
+            15.36766525109609,
+            -5.338140606880188
+          ],
+          "samples": 45,
+          "span_mm": 1.7595874970038965,
+          "thinnest_mm": 0.005537211181336532
         }
       ],
       "floor_mm": 0.8,
-      "rays": 277855,
-      "real_walls": [
-        {
-          "area_mm2": 0.1437564555879089,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            -5.291500528653462,
-            12.2213343779246,
-            4.053740680217743
-          ],
-          "samples": 26,
-          "span_mm": 0.7332007157160891,
-          "thinnest_mm": 0.5719293325141365
-        },
-        {
-          "area_mm2": 0.09696117014325714,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            -4.5792467296123505,
-            14.174107690652212,
-            -3.330971116820971
-          ],
-          "samples": 16,
-          "span_mm": 0.5360307080539215,
-          "thinnest_mm": 0.056121209754598035
-        },
-        {
-          "area_mm2": 0.08982992620531122,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            13.228091716766357,
-            -3.842410405476888,
-            0.32693332930405933
-          ],
-          "samples": 12,
-          "span_mm": 0.19709248915002675,
-          "thinnest_mm": 0.2514938421785092
-        },
-        {
-          "area_mm2": 0.04222531519798883,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            -12.949901262919107,
-            -4.543938914934794,
-            -0.3333779995640119
-          ],
-          "samples": 4,
-          "span_mm": 0.1377016735601435,
-          "thinnest_mm": 0.30438040842178443
-        },
-        {
-          "area_mm2": 0.030920822050075396,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            -0.23195952363312244,
-            12.363177061080933,
-            5.791797200838725
-          ],
-          "samples": 8,
-          "span_mm": 0.23475204985576498,
-          "thinnest_mm": 0.5934198703110094
-        }
-      ],
+      "rays": 283198,
+      "real_walls": [],
       "rule": "Walls between 0.05 and 0.8 mm across a made feature are fixed; zones under 0.05 mm are suspected census artifacts and zones under 0.02 mm² are specks that fill from the metal round them (the lead's 2026-10-04 notes); both are listed, not reshaped for. Edges are reported as read.",
-      "sampled_min_mm": 0.000007557625117006848,
+      "sampled_min_mm": 0.000008560816156651888,
       "specks_under_0_02_mm2": [
         {
-          "area_mm2": 0.019617512643403317,
+          "area_mm2": 0.017843438820661167,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Dried sepal",
           "point": [
-            -5.060994426409404,
-            13.841986735661825,
-            -0.34254535287618637
-          ],
-          "samples": 6,
-          "span_mm": 0.2279164709071928,
-          "thinnest_mm": 0.07203722741983654
-        },
-        {
-          "area_mm2": 0.018461454999846257,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            -5.035671194394429,
-            12.206228852272034,
-            2.4489463766415915
+            -5.040280143419902,
+            12.205273111661276,
+            2.4469919403394065
           ],
           "samples": 2,
-          "span_mm": 0.10550085777523677,
-          "thinnest_mm": 0.7599603246053127
+          "span_mm": 0.11067118585579516,
+          "thinnest_mm": 0.7680554801664851
         },
         {
-          "area_mm2": 0.013562125289588951,
+          "area_mm2": 0.01651676955173477,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal ring 3",
           "point": [
-            -3.870423525571823,
-            13.135905186335245,
-            4.845519632101059
+            -0.8250338037808737,
+            12.206445932388306,
+            4.608676950136821
           ],
-          "samples": 2,
-          "span_mm": 0.06590751277017004,
-          "thinnest_mm": 0.7526232712720364
+          "samples": 5,
+          "span_mm": 0.30003330983132237,
+          "thinnest_mm": 0.17812448888405302
         },
         {
-          "area_mm2": 0.012094631963404328,
+          "area_mm2": 0.014147109495414513,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal ring 3",
           "point": [
-            -3.7713659703731537,
-            13.740289429823557,
-            -2.3404940962791443
+            3.6980023781458535,
+            13.757760047912598,
+            1.5972559650739033
           ],
           "samples": 4,
-          "span_mm": 0.23569249540726922,
-          "thinnest_mm": 0.2640977190938658
+          "span_mm": 0.1423861177879271,
+          "thinnest_mm": 0.07182633872131709
         },
         {
-          "area_mm2": 0.011579090692781074,
+          "area_mm2": 0.011399631806018778,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Heart collet",
           "point": [
-            -5.248400966326396,
-            12.341751416524252,
-            1.943186640739441
+            -0.3465401791036129,
+            15.26483698685964,
+            -0.9505267863472303
           ],
           "samples": 1,
           "span_mm": 0.0,
-          "thinnest_mm": 0.7791730622032731
+          "thinnest_mm": 0.4714751782368728
         },
         {
-          "area_mm2": 0.011230545854445073,
+          "area_mm2": 0.011147763318156607,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal ring 4",
           "point": [
-            14.116696437199911,
-            6.84108304977417,
-            -4.589972058931987
+            -6.252978225549062,
+            13.547557632128397,
+            -3.7347011168797812
+          ],
+          "samples": 1,
+          "span_mm": 0.0,
+          "thinnest_mm": 0.6072826055573094
+        },
+        {
+          "area_mm2": 0.01109468028588349,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Dried sepals",
+          "point": [
+            4.937880357106526,
+            13.244642237822214,
+            1.8641403342286746
+          ],
+          "samples": 1,
+          "span_mm": 0.0,
+          "thinnest_mm": 0.16118419019091243
+        },
+        {
+          "area_mm2": 0.010923491006356891,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Petal ring 3",
+          "point": [
+            1.5624261250098546,
+            14.83165693283081,
+            -3.0998978118101754
           ],
           "samples": 3,
-          "span_mm": 0.09853415098946261,
-          "thinnest_mm": 0.38819143668397976
+          "span_mm": 0.079985350932132,
+          "thinnest_mm": 0.10785961355786862
         },
         {
-          "area_mm2": 0.010974126025518265,
+          "area_mm2": 0.010807601198285362,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Dried sepal",
           "point": [
-            -4.472497721513112,
-            14.844802796840668,
-            -0.05172478733584285
+            -5.251354853312175,
+            12.341858943303427,
+            1.9436625788609188
+          ],
+          "samples": 1,
+          "span_mm": 0.0,
+          "thinnest_mm": 0.786335356139691
+        },
+        {
+          "area_mm2": 0.010537563108584749,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Dried sepals",
+          "point": [
+            2.052112857500712,
+            13.215398828188578,
+            2.0590669016043344
+          ],
+          "samples": 1,
+          "span_mm": 0.0,
+          "thinnest_mm": 0.7370271524225405
+        },
+        {
+          "area_mm2": 0.0104010977426371,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Petal ring 3",
+          "point": [
+            -6.267638603846232,
+            12.429155508677164,
+            2.0138625701268515
           ],
           "samples": 3,
-          "span_mm": 0.1260205834182937,
-          "thinnest_mm": 0.7012037097558954
+          "span_mm": 0.03628774683102698,
+          "thinnest_mm": 0.05550331849150958
         },
         {
-          "area_mm2": 0.010612488387116835,
+          "area_mm2": 0.010167545342146722,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal, ring 4",
           "point": [
-            -1.7066963464021683,
-            12.09726091225942,
-            4.757838646570842
+            -1.783765474955241,
+            12.046815713246664,
+            4.749628285566966
+          ],
+          "samples": 1,
+          "span_mm": 0.0,
+          "thinnest_mm": 0.13684644427142728
+        },
+        {
+          "area_mm2": 0.009919841611435571,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Hip's dried crown",
+          "point": [
+            16.24436553319295,
+            8.23778748512268,
+            -0.2761138553420703
           ],
           "samples": 2,
-          "span_mm": 0.004157922431046401,
-          "thinnest_mm": 0.13484780046912678
+          "span_mm": 0.025098867038870765,
+          "thinnest_mm": 0.3881958604708623
         },
         {
-          "area_mm2": 0.009080503213642203,
+          "area_mm2": 0.009905279341064268,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Hip's dried sepal",
+          "point": [
+            10.637089093526205,
+            13.74111302693685,
+            -2.3376654982566833
+          ],
+          "samples": 1,
+          "span_mm": 0.0,
+          "thinnest_mm": 0.43485647423636636
+        },
+        {
+          "area_mm2": 0.008098882594038743,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Receptacle",
+          "point": [
+            -3.7718501587708793,
+            13.732832034428915,
+            -2.345175862312317
+          ],
+          "samples": 3,
+          "span_mm": 0.2242544865554148,
+          "thinnest_mm": 0.28849616254635296
+        },
+        {
+          "area_mm2": 0.007633183645220516,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Petal, ring 3",
           "point": [
             -4.435521364212036,
             13.55757212638855,
@@ -1577,238 +1668,116 @@
           "thinnest_mm": 0.7983252884425349
         },
         {
-          "area_mm2": 0.008950798753856688,
+          "area_mm2": 0.0065277968751412474,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Hip's dried crown",
           "point": [
-            -9.677098989486694,
-            5.838733494281769,
-            -4.267853021621704
-          ],
-          "samples": 6,
-          "span_mm": 0.13180461537240706,
-          "thinnest_mm": 0.0546032470714525
-        },
-        {
-          "area_mm2": 0.008748947407501408,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            10.360291798909506,
-            13.44071356455485,
-            -2.1649312376976013
-          ],
-          "samples": 2,
-          "span_mm": 0.009871223765788528,
-          "thinnest_mm": 0.3881928380917938
-        },
-        {
-          "area_mm2": 0.008285700895704294,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            -0.35503416570524376,
-            15.852187116940817,
-            -1.1823839048544567
-          ],
-          "samples": 2,
-          "span_mm": 0.0815635994538253,
-          "thinnest_mm": 0.7016348215763245
-        },
-        {
-          "area_mm2": 0.008103568080612298,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            0.4752425942569971,
-            16.656427065531414,
-            -1.6781770636638005
+            13.763429244359335,
+            12.628582080205282,
+            1.150392750898997
           ],
           "samples": 1,
           "span_mm": 0.0,
-          "thinnest_mm": 0.7005056572286209
+          "thinnest_mm": 0.3875743881383035
         },
         {
-          "area_mm2": 0.007892422224792193,
+          "area_mm2": 0.006466771814890328,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Dried sepals",
           "point": [
-            2.240047961473465,
-            13.435229182243347,
-            1.2837058852116268
+            -5.127307156721751,
+            13.917327006657919,
+            -3.6531113386154175
           ],
           "samples": 1,
           "span_mm": 0.0,
-          "thinnest_mm": 0.2817948640800357
+          "thinnest_mm": 0.7905626763766145
         },
         {
-          "area_mm2": 0.0074854112951301364,
+          "area_mm2": 0.0060187136194567534,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Dried sepals",
           "point": [
-            0.8561461058755716,
-            14.838260451952616,
-            2.923270101348559
-          ],
-          "samples": 2,
-          "span_mm": 0.07831497686982836,
-          "thinnest_mm": 0.6958409433097063
-        },
-        {
-          "area_mm2": 0.006492221283780704,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            13.455063581466675,
-            12.331685463587442,
-            1.2350807686646779
+            -5.422082364559174,
+            13.821003039677938,
+            -3.958327054977417
           ],
           "samples": 1,
           "span_mm": 0.0,
-          "thinnest_mm": 0.4366771599744534
+          "thinnest_mm": 0.796605513370905
         },
         {
-          "area_mm2": 0.005523729310915217,
+          "area_mm2": 0.004398003849512055,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal ring 1",
           "point": [
-            -5.4247685472170515,
-            13.820281505584717,
-            -3.9628694653511047
+            1.9653413246075313,
+            14.74098559220632,
+            -1.1598724673191707
           ],
           "samples": 1,
           "span_mm": 0.0,
-          "thinnest_mm": 0.7959833808238612
+          "thinnest_mm": 0.2037873342915376
         },
         {
-          "area_mm2": 0.005398729283925436,
+          "area_mm2": 0.0036408917330743606,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Hip's dried crown",
           "point": [
-            -10.294199526309967,
-            7.960218856732051,
-            -0.33498291360835236
-          ],
-          "samples": 1,
-          "span_mm": 0.0,
-          "thinnest_mm": 0.7700831099080883
-        },
-        {
-          "area_mm2": 0.004450557359629862,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            -3.337160353859266,
-            14.044586221377054,
-            3.9493677665789924
-          ],
-          "samples": 1,
-          "span_mm": 0.0,
-          "thinnest_mm": 0.675372863580471
-        },
-        {
-          "area_mm2": 0.004351169084363036,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            -6.375326454639435,
-            12.960877060890198,
-            -4.361782391866048
-          ],
-          "samples": 2,
-          "span_mm": 0.08217315985963758,
-          "thinnest_mm": 0.6817837907755662
-        },
-        {
-          "area_mm2": 0.003849442104766211,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            10.720602035522461,
-            10.18300199508667,
-            -5.843260486920674
-          ],
-          "samples": 1,
-          "span_mm": 0.0,
-          "thinnest_mm": 0.3881932178061412
-        },
-        {
-          "area_mm2": 0.0037347812175495443,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            0.8557071822384993,
-            14.763333439826965,
-            2.4522680193185806
-          ],
-          "samples": 1,
-          "span_mm": 0.0,
-          "thinnest_mm": 0.7785350242103105
-        },
-        {
-          "area_mm2": 0.002882198227737142,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            -0.9243949353694916,
-            15.162827491760254,
-            -2.271252751350403
-          ],
-          "samples": 2,
-          "span_mm": 0.009988333035746422,
-          "thinnest_mm": 0.14702203074819756
-        },
-        {
-          "area_mm2": 0.002565886915030043,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            15.900325536727905,
-            8.248062054316202,
-            0.0023998847852150598
+            14.699137846628824,
+            7.0324117342631025,
+            -4.709215005238851
           ],
           "samples": 3,
-          "span_mm": 0.03994465053340335,
-          "thinnest_mm": 0.3875738975638396
+          "span_mm": 0.07786205535647905,
+          "thinnest_mm": 0.43667251624727665
         },
         {
-          "area_mm2": 0.001975331123412574,
+          "area_mm2": 0.00201761363630897,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Heart collet",
           "point": [
-            5.934616133570671,
-            12.133932540814081,
-            2.1184059170385203
+            0.5247409200916687,
+            14.313478608926138,
+            2.714365874727567
           ],
           "samples": 1,
           "span_mm": 0.0,
-          "thinnest_mm": 0.20180777195529706
+          "thinnest_mm": 0.4813403909299314
         },
         {
-          "area_mm2": 0.001121484452335049,
+          "area_mm2": 0.0017686699351725857,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Hip's dried crown",
           "point": [
-            -8.506418069203695,
-            10.404120683670044,
-            3.328550636768341
+            10.988789558410645,
+            10.43437147140503,
+            -6.121449152628581
+          ],
+          "samples": 2,
+          "span_mm": 0.047356491315042604,
+          "thinnest_mm": 0.38819284186187214
+        },
+        {
+          "area_mm2": 0.0006904139449590721,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Leaf, terminal leaflet",
+          "point": [
+            -11.494043906529745,
+            6.181413571039836,
+            -0.19875083801647028
           ],
           "samples": 1,
           "span_mm": 0.0,
-          "thinnest_mm": 0.7138094815636546
-        },
-        {
-          "area_mm2": 0.00025416648201906074,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            0.7610038941105207,
-            14.213071783383688,
-            -2.008840029438337
-          ],
-          "samples": 1,
-          "span_mm": 0.0,
-          "thinnest_mm": 0.23172631988159423
+          "thinnest_mm": 0.6343968267182963
         }
       ],
       "suspected_census_artifacts": [
@@ -1816,6 +1785,7 @@
           "area_mm2": 7.714404281533188,
           "depth_mm": null,
           "kind": "wall",
+          "part": "band",
           "point": [
             -3.57327938079834,
             8.693632284800211,
@@ -1829,6 +1799,7 @@
           "area_mm2": 7.714404281533186,
           "depth_mm": null,
           "kind": "wall",
+          "part": "band",
           "point": [
             3.57327938079834,
             8.693632284800211,
@@ -1839,269 +1810,331 @@
           "thinnest_mm": 0.04537713272194446
         },
         {
-          "area_mm2": 1.5720209311537356,
+          "area_mm2": 1.846619783149737,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Prickle, arm B",
           "point": [
-            -11.380437731742859,
-            4.169189035892487,
-            0.7567527269323667
+            -10.373111605644226,
+            6.264433264732361,
+            0.7466618319352468
           ],
-          "samples": 237,
-          "span_mm": 2.207079365858342,
-          "thinnest_mm": 0.00028567880046423346
+          "samples": 314,
+          "span_mm": 2.179616473166109,
+          "thinnest_mm": 0.00004755295062106373
         },
         {
-          "area_mm2": 1.1179671590948075,
+          "area_mm2": 1.2461786490519193,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Prickles down arm B",
           "point": [
-            -11.960269331932068,
-            1.239793414870898,
-            -1.1326132665077846
+            -11.929970264434814,
+            1.9688009123007457,
+            1.019359176357587
           ],
-          "samples": 170,
-          "span_mm": 1.9953644048681503,
-          "thinnest_mm": 0.00012035597572119367
+          "samples": 191,
+          "span_mm": 2.1876650783927896,
+          "thinnest_mm": 0.0005282595567749897
         },
         {
-          "area_mm2": 1.0735554419788196,
+          "area_mm2": 0.8809162116386425,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Prickle, arm B",
           "point": [
-            -12.041948318481445,
-            -0.24477388865003982,
-            1.0497955878575642
+            -11.604171395301819,
+            3.3884424765904746,
+            -1.1003961240251858
           ],
-          "samples": 154,
-          "span_mm": 2.0073210314965935,
-          "thinnest_mm": 0.0007957726202116014
+          "samples": 136,
+          "span_mm": 1.602910976731784,
+          "thinnest_mm": 0.0004070130433020542
         },
         {
-          "area_mm2": 0.729079629884695,
+          "area_mm2": 0.7305151580554322,
           "depth_mm": null,
           "kind": "wall",
+          "part": "band",
           "point": [
-            -11.988708714644114,
-            -1.4706607535481453,
-            -0.9855471601088842
+            -11.989892224470774,
+            1.2456693823138874,
+            -1.0731321660180886
           ],
-          "samples": 101,
-          "span_mm": 1.5405939302022238,
-          "thinnest_mm": 0.001826211894473326
+          "samples": 97,
+          "span_mm": 1.519788859087741,
+          "thinnest_mm": 0.0015686025789444168
         },
         {
-          "area_mm2": 0.523651620375783,
+          "area_mm2": 0.5767292462807355,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Prickles down arm A",
           "point": [
-            -11.750978211561838,
-            -2.843824396530787,
-            0.9586723111569881
+            11.47344720363617,
+            3.356551786263784,
+            -1.1439693917830784
           ],
-          "samples": 75,
-          "span_mm": 1.2498445936218294,
-          "thinnest_mm": 0.002406466188917281
+          "samples": 97,
+          "span_mm": 0.8454733640460734,
+          "thinnest_mm": 0.0008079930769188433
         },
         {
-          "area_mm2": 0.5232342309954084,
+          "area_mm2": 0.5477759276297087,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Prickles down arm B",
           "point": [
-            11.896340350310007,
-            0.9991156483689944,
-            -1.165839207669099
+            -12.070024609565735,
+            -0.4521377773101752,
+            1.0031995574633281
           ],
           "samples": 79,
-          "span_mm": 1.253013381158632,
-          "thinnest_mm": 0.002116116533094633
+          "span_mm": 1.2613130299295405,
+          "thinnest_mm": 0.0014479264483235746
         },
         {
-          "area_mm2": 0.49426492135289146,
+          "area_mm2": 0.4591845333063816,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Prickles down arm A",
+          "point": [
+            11.06362134218216,
+            4.462416683634122,
+            1.2072023898363113
+          ],
+          "samples": 77,
+          "span_mm": 1.167804539338702,
+          "thinnest_mm": 0.00006255559638732006
+        },
+        {
+          "area_mm2": 0.42469843104369037,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Prickle, arm A",
+          "point": [
+            11.985319058100382,
+            0.7508628691236178,
+            -0.9876576513051987
+          ],
+          "samples": 66,
+          "span_mm": 1.0082090687635987,
+          "thinnest_mm": 0.0016827966761933748
+        },
+        {
+          "area_mm2": 0.39682432345105256,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Dried sepals",
           "point": [
             -0.5259751603007317,
             9.756183783213297,
             7.726765190561612
           ],
-          "samples": 65,
-          "span_mm": 0.7222533193399361,
+          "samples": 53,
+          "span_mm": 0.6261919582497244,
           "thinnest_mm": 0.011871923536230672
         },
         {
-          "area_mm2": 0.4256487925254952,
+          "area_mm2": 0.3694203838755903,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Prickles down arm A",
           "point": [
-            11.753787716229757,
-            1.952021300792694,
-            1.12315088758866
+            11.613038122653961,
+            2.830128476023674,
+            1.1196230401595433
           ],
-          "samples": 72,
-          "span_mm": 1.1268020146899684,
-          "thinnest_mm": 0.0007776421274473242
+          "samples": 61,
+          "span_mm": 0.8740156939811823,
+          "thinnest_mm": 0.00005333179087276055
         },
         {
-          "area_mm2": 0.3230864421597157,
+          "area_mm2": 0.2822831880552687,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Prickle, arm A",
           "point": [
-            11.36431360244751,
-            3.4727938969930015,
-            -1.2028566747903824
+            12.014747381210327,
+            -0.34807406427959603,
+            1.003438875079155
           ],
-          "samples": 53,
-          "span_mm": 0.6415039684868762,
-          "thinnest_mm": 0.0030490699575865146
+          "samples": 36,
+          "span_mm": 0.8943317178271623,
+          "thinnest_mm": 0.0017331353389760384
         },
         {
-          "area_mm2": 0.32233646264730986,
+          "area_mm2": 0.250989307145584,
           "depth_mm": null,
           "kind": "wall",
-          "point": [
-            -11.377376079559326,
-            -4.12241859237353,
-            -0.9045696419974169
-          ],
-          "samples": 50,
-          "span_mm": 0.9044354511648485,
-          "thinnest_mm": 0.001303138245124281
-        },
-        {
-          "area_mm2": 0.3026570258679488,
-          "depth_mm": null,
-          "kind": "wall",
+          "part": "Dried sepals",
           "point": [
             -6.274864623943965,
             12.846035540103912,
             -5.226415624221166
           ],
-          "samples": 55,
-          "span_mm": 0.5153153571635842,
+          "samples": 46,
+          "span_mm": 0.4649189664757589,
           "thinnest_mm": 0.023746198499372848
         },
         {
-          "area_mm2": 0.2985771711700488,
+          "area_mm2": 0.1505867626385644,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal ring 3",
           "point": [
-            -0.547398621837298,
-            12.203218221664429,
-            5.340254028638204
-          ],
-          "samples": 64,
-          "span_mm": 1.5048642336110163,
-          "thinnest_mm": 0.02510382022326417
-        },
-        {
-          "area_mm2": 0.2154526374644,
-          "depth_mm": null,
-          "kind": "wall",
-          "point": [
-            11.95641396443049,
-            -0.7398208094139894,
-            1.0269751884043217
+            -0.5061931721866131,
+            12.100069920221964,
+            5.72771954536438
           ],
           "samples": 31,
-          "span_mm": 0.6654745093415747,
-          "thinnest_mm": 0.0020435246788228605
+          "span_mm": 0.9776705471825382,
+          "thinnest_mm": 0.030766050796417223
         },
         {
-          "area_mm2": 0.15193281788701377,
+          "area_mm2": 0.11235988443794866,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal ring 4",
           "point": [
-            2.1795599088072777,
-            14.053547640641531,
-            -5.735177705685298
+            -6.507727702458699,
+            11.162198225657145,
+            1.7727029124895732
           ],
-          "samples": 34,
-          "span_mm": 0.4127742762350022,
-          "thinnest_mm": 0.023742275916838283
+          "samples": 28,
+          "span_mm": 0.8347100398280283,
+          "thinnest_mm": 0.03509492165650858
         },
         {
-          "area_mm2": 0.05850653426854005,
+          "area_mm2": 0.11114497695994106,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal ring 4",
           "point": [
-            11.799707094828287,
-            -2.181217302878698,
-            -0.9557165031631788
+            -7.623608469963074,
+            9.963141282399496,
+            1.771445502837499
           ],
-          "samples": 10,
-          "span_mm": 0.22174252897079594,
-          "thinnest_mm": 0.0011364291259739429
+          "samples": 27,
+          "span_mm": 1.1640304448764398,
+          "thinnest_mm": 0.02576494111724842
         },
         {
-          "area_mm2": 0.031077080771647773,
+          "area_mm2": 0.07042695585565519,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal, ring 3",
           "point": [
-            -10.512273788452148,
-            6.329899072647095,
-            3.647416611512502
+            -4.690236568450928,
+            14.201513608296713,
+            -3.5035361846288047
           ],
-          "samples": 9,
-          "span_mm": 0.3677732765564792,
-          "thinnest_mm": 0.005443483274529465
+          "samples": 18,
+          "span_mm": 0.5246319873737555,
+          "thinnest_mm": 0.012550211525586006
         },
         {
-          "area_mm2": 0.030218893264804498,
+          "area_mm2": 0.058853609737652676,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Leaf, upper lateral leaflet",
           "point": [
-            -10.354401191075643,
-            6.244712730248769,
-            -4.433004379272461
+            -8.644314606984457,
+            8.656165361404419,
+            3.6474257906277976
           ],
-          "samples": 10,
-          "span_mm": 0.3096556899580527,
-          "thinnest_mm": 0.012059830270895903
+          "samples": 15,
+          "span_mm": 0.37269093339584947,
+          "thinnest_mm": 0.005376089568309857
         },
         {
-          "area_mm2": 0.009976980171699497,
+          "area_mm2": 0.03617068967444946,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Leaf, lower lateral leaflet",
           "point": [
-            -9.674738218386969,
-            5.843141908446948,
-            3.8626411532362304
+            -8.581634218494097,
+            8.617970814307531,
+            -4.442350313067436
+          ],
+          "samples": 11,
+          "span_mm": 0.35459096077155383,
+          "thinnest_mm": 0.004157624639861682
+        },
+        {
+          "area_mm2": 0.024696760109577574,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Leaf, upper lateral leaflet",
+          "point": [
+            -7.978879908720653,
+            8.015144228935242,
+            3.871871563295523
+          ],
+          "samples": 6,
+          "span_mm": 0.17036001077083673,
+          "thinnest_mm": 0.01497550018460129
+        },
+        {
+          "area_mm2": 0.016645632706448442,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Leaf, lower lateral leaflet",
+          "point": [
+            -7.995364084839821,
+            8.034757802883783,
+            -4.276961371302605
           ],
           "samples": 7,
-          "span_mm": 0.12539033371417396,
-          "thinnest_mm": 0.015987450527071095
+          "span_mm": 0.14581644288298,
+          "thinnest_mm": 0.0033714792387624457
         },
         {
-          "area_mm2": 0.00515966791434105,
+          "area_mm2": 0.005989382436217602,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal ring 2",
           "point": [
-            -10.337063997983932,
-            6.548866232236226,
-            -4.269845227400462
+            -5.944417754809062,
+            13.337637265523275,
+            4.066126187642415
+          ],
+          "samples": 2,
+          "span_mm": 0.15430542278221182,
+          "thinnest_mm": 0.03258112186223409
+        },
+        {
+          "area_mm2": 0.003975653314551306,
+          "depth_mm": null,
+          "kind": "wall",
+          "part": "Petal ring 4",
+          "point": [
+            -7.664794623851776,
+            11.351729094982147,
+            -0.559221193815271
           ],
           "samples": 1,
           "span_mm": 0.0,
-          "thinnest_mm": 0.0215862620989802
+          "thinnest_mm": 0.020349018195001393
         },
         {
-          "area_mm2": 0.0009910134592154961,
+          "area_mm2": 0.001473994128723943,
           "depth_mm": null,
           "kind": "wall",
+          "part": "Petal ring 4",
           "point": [
-            -7.542102654774983,
-            14.18607763449351,
-            -1.1022738590836525
+            4.595537960529327,
+            11.403506487607956,
+            2.366698811451594
           ],
           "samples": 1,
           "span_mm": 0.0,
-          "thinnest_mm": 0.013752713648025971
+          "thinnest_mm": 0.016845724689261397
         }
       ],
       "unresolved": 0,
-      "wall_area_mm2": 24.251176731232047,
-      "wall_samples": 3390
+      "wall_area_mm2": 24.235340762026034,
+      "wall_samples": 3433
     }
   },
   "features": [
@@ -2241,37 +2274,37 @@
       "Lost wax: 0.10% of the surface would undercut a two-part pull (worst 2.1 deg) — fine for investment, but this pattern cannot move to sand as-is.",
       "Undercut 36–36° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
       "Undercut 144–144° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
-      "Measured with the ring as built: 29 CAD parts (29 joined, 0 cut), 1185.1 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Bezel \"Heart collet\" (#3) would undercut a two-part pull over 39.6 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Hip collet\" (#5) would undercut a two-part pull over 28.5 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Measured with the ring as built: 29 CAD parts (29 joined, 0 cut), 1222.0 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Bezel \"Heart collet\" (#3) would undercut a two-part pull over 39.1 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Hip collet\" (#5) would undercut a two-part pull over 28.2 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Twisted sweep \"Stem of arm A\" (#6) would undercut a two-part pull over 1.8 mm² (worst -34°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Twisted sweep \"Stem of arm B\" (#7) would undercut a two-part pull over 2.9 mm² (worst -34°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Receptacle\" (#8) would undercut a two-part pull over 14.2 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal, ring 1\" (#9) would undercut a two-part pull over 8.2 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array round a part \"Petal ring 1\" (#10) would undercut a two-part pull over 24.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal, ring 2\" (#11) would undercut a two-part pull over 8.3 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array round a part \"Petal ring 2\" (#12) would undercut a two-part pull over 28.5 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal, ring 3\" (#13) would undercut a two-part pull over 11.4 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array round a part \"Petal ring 3\" (#14) would undercut a two-part pull over 49.3 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal, ring 4\" (#15) would undercut a two-part pull over 14.0 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array round a part \"Petal ring 4\" (#16) would undercut a two-part pull over 85.9 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Dried sepal\" (#17) would undercut a two-part pull over 3.1 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array round a part \"Dried sepals\" (#18) would undercut a two-part pull over 14.9 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Hip's dried sepal\" (#19) would undercut a two-part pull over 5.4 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array round a part \"Hip's dried crown\" (#20) would undercut a two-part pull over 17.3 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hip urn\" (#21) would undercut a two-part pull over 28.4 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf, terminal leaflet\" (#25) would undercut a two-part pull over 6.2 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf, upper lateral leaflet\" (#26) would undercut a two-part pull over 11.5 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Receptacle\" (#8) would undercut a two-part pull over 14.1 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal, ring 1\" (#9) would undercut a two-part pull over 8.7 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Petal ring 1\" (#10) would undercut a two-part pull over 26.5 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal, ring 2\" (#11) would undercut a two-part pull over 9.0 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Petal ring 2\" (#12) would undercut a two-part pull over 31.4 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal, ring 3\" (#13) would undercut a two-part pull over 13.9 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Petal ring 3\" (#14) would undercut a two-part pull over 57.5 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal, ring 4\" (#15) would undercut a two-part pull over 14.4 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Petal ring 4\" (#16) would undercut a two-part pull over 91.9 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Dried sepal\" (#17) would undercut a two-part pull over 2.7 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Dried sepals\" (#18) would undercut a two-part pull over 13.1 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Hip's dried sepal\" (#19) would undercut a two-part pull over 6.4 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Hip's dried crown\" (#20) would undercut a two-part pull over 21.6 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hip urn\" (#21) would undercut a two-part pull over 25.8 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf, terminal leaflet\" (#25) would undercut a two-part pull over 6.8 mm² (worst -51°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf, upper lateral leaflet\" (#26) would undercut a two-part pull over 10.8 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Stored mesh \"Leaf, lower lateral leaflet\" (#27) would undercut a two-part pull over 11.8 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Stored mesh \"Leaf, rachis\" (#28) would undercut a two-part pull over 0.7 mm² (worst -67°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A\" (#60) would undercut a two-part pull over 0.7 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array along a path \"Prickles down arm A\" (#61) would undercut a two-part pull over 2.5 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B\" (#62) would undercut a two-part pull over 0.6 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array along a path \"Prickles down arm B\" (#63) would undercut a two-part pull over 2.2 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: Twisted sweep \"Prickle, arm A\" (#60) would undercut a two-part pull over 0.6 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array along a path \"Prickles down arm A\" (#61) would undercut a two-part pull over 1.3 mm² (worst -44°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm B\" (#62) would undercut a two-part pull over 0.8 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array along a path \"Prickles down arm B\" (#63) would undercut a two-part pull over 1.8 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "thinnest_wall_mm": 2.0096326929371067,
     "thinnest_wall_theta_deg": 56.25,
-    "undercut_percent_reported_only": 21.724959639855037,
+    "undercut_percent_reported_only": 22.40714349898214,
     "verdict": "Castable"
   },
   "gates": [
@@ -2303,7 +2336,7 @@
     {
       "blocking": false,
       "gate": "lost-wax wall census: no real wall of 0.02 mm² or more between 0.05 and 0.8 mm (thinner zones and specks listed)",
-      "pass": false
+      "pass": true
     },
     {
       "blocking": true,
@@ -2342,7 +2375,7 @@
     "self_crossings": 0,
     "watertight": true
   },
-  "grams_18k": 18.115417968390393,
+  "grams_18k": 18.426879758115554,
   "layers": [],
   "made_parts": [
     [
@@ -2478,7 +2511,7 @@
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 1314642,
+    "triangles": 1315744,
     "watertight": true
   },
   "placed": {
@@ -2495,30 +2528,30 @@
       {
         "alternate_deg": 50.0,
         "arm": "A",
-        "count": 5,
-        "first_scale": 0.72,
+        "count": 4,
+        "first_scale": 0.8,
         "row_deg": [
-          -14.0,
-          16.0
+          1.5,
+          21.0
         ],
         "scale": [
           1.0,
-          1.3888888888888888
+          1.25
         ],
         "spin_deg": 155.0
       },
       {
         "alternate_deg": 50.0,
         "arm": "B",
-        "count": 5,
+        "count": 4,
         "first_scale": 1.0,
         "row_deg": [
-          168.0,
-          197.0
+          157.0,
+          179.0
         ],
         "scale": [
           1.0,
-          0.72
+          0.8
         ],
         "spin_deg": -25.0
       }
@@ -2575,1022 +2608,1113 @@
   },
   "wall_census": {
     "assessed": true,
-    "edge_area_mm2": 102.97726164973173,
-    "edge_samples": 19160,
+    "edge_area_mm2": 78.77958451092644,
+    "edge_samples": 15497,
     "edges": [
       {
-        "area_mm2": 13.854548806005255,
-        "depth_mm": 0.8492825603349303,
+        "area_mm2": 13.94997987005014,
+        "depth_mm": 0.8476494126585736,
         "kind": "edge",
+        "part": "Leaf, terminal leaflet",
         "point": [
-          -10.23784143726031,
-          6.176802302400271,
-          -4.406388476490974
+          -11.641655762990316,
+          6.014405250549316,
+          0.07900723504523437
         ],
-        "samples": 2637,
-        "span_mm": 8.410174694319897,
-        "thinnest_mm": 0.0040199434236221614
+        "samples": 2685,
+        "span_mm": 9.061579126951791,
+        "thinnest_mm": 0.0005761458535193339
       },
       {
-        "area_mm2": 9.752994811143319,
-        "depth_mm": 0.7957743194304974,
+        "area_mm2": 9.152048782820119,
+        "depth_mm": 0.5850693623469911,
         "kind": "edge",
+        "part": "Petal, ring 1",
         "point": [
-          -5.4095582365989685,
-          15.308779637018839,
-          0.5674757518572733
+          -5.4543964465459185,
+          14.847994645436605,
+          0.30117933948834735
         ],
-        "samples": 1525,
-        "span_mm": 6.985072314278931,
-        "thinnest_mm": 0.07805928832109629
+        "samples": 1474,
+        "span_mm": 7.423782192731756,
+        "thinnest_mm": 0.00268792675412011
       },
       {
-        "area_mm2": 4.485168180329252,
-        "depth_mm": 0.8386522862405952,
+        "area_mm2": 3.3941860221013416,
+        "depth_mm": 0.6449817919142475,
         "kind": "edge",
+        "part": "Dried sepals",
         "point": [
-          -1.370163341363271,
-          10.91315213839213,
-          7.296111822128296
+          -1.8159164190292358,
+          11.900334676106771,
+          5.891478697458903
         ],
-        "samples": 789,
-        "span_mm": 4.548869604937163,
-        "thinnest_mm": 0.0019738489106800035
+        "samples": 635,
+        "span_mm": 3.3185761550149144,
+        "thinnest_mm": 0.0006086988174541399
       },
       {
-        "area_mm2": 4.030788870617881,
-        "depth_mm": 0.8384496174540992,
+        "area_mm2": 3.327353109668868,
+        "depth_mm": 0.8384395024713935,
         "kind": "edge",
+        "part": "Dried sepals",
         "point": [
-          -6.135582864284515,
-          12.263281027475992,
-          -4.137998362382253
+          -5.513635238011678,
+          13.841736714045206,
+          -2.460351129372915
         ],
-        "samples": 786,
-        "span_mm": 3.0521985254464727,
-        "thinnest_mm": 0.002529354744022267
+        "samples": 684,
+        "span_mm": 2.88485301067061,
+        "thinnest_mm": 0.0010642950394243401
       },
       {
-        "area_mm2": 3.2264489869245687,
-        "depth_mm": 0.7764005286734215,
+        "area_mm2": 2.5591571302635034,
+        "depth_mm": 0.8086319702592453,
         "kind": "edge",
+        "part": "Dried sepals",
         "point": [
-          4.564446608225505,
-          13.153407096862793,
-          2.865687529246012
+          4.066783905029297,
+          13.306964556376139,
+          2.886857509613037
         ],
-        "samples": 610,
-        "span_mm": 3.378379465498726,
-        "thinnest_mm": 0.0003381352624249114
+        "samples": 453,
+        "span_mm": 2.3834843365388974,
+        "thinnest_mm": 0.0027465010354923705
       },
       {
-        "area_mm2": 2.6109114286415105,
-        "depth_mm": 0.7099644185821619,
+        "area_mm2": 2.244296438958979,
+        "depth_mm": 0.8277699357297394,
         "kind": "edge",
+        "part": "Dried sepals",
         "point": [
-          4.642355442047119,
-          14.728708346684774,
-          -0.23994194095333418
+          1.6930887401103973,
+          14.900315761566162,
+          -3.194462219874064
         ],
-        "samples": 452,
-        "span_mm": 3.1906283259381087,
-        "thinnest_mm": 0.039783847440161474
+        "samples": 492,
+        "span_mm": 3.1157858770445195,
+        "thinnest_mm": 0.002808916920479714
       },
       {
-        "area_mm2": 2.4260615804630787,
-        "depth_mm": 0.723269929504886,
+        "area_mm2": 2.0637795923528395,
+        "depth_mm": 0.4228444152303381,
         "kind": "edge",
-        "point": [
-          -0.6329428354899088,
-          14.666818459828695,
-          -2.49082350730896
-        ],
-        "samples": 451,
-        "span_mm": 2.612244357860041,
-        "thinnest_mm": 0.006240722320936114
-      },
-      {
-        "area_mm2": 2.2236906224013135,
-        "depth_mm": 0.7309143672178554,
-        "kind": "edge",
-        "point": [
-          -1.8352036476135254,
-          13.217076579729715,
-          -6.159011105696361
-        ],
-        "samples": 423,
-        "span_mm": 3.212466494076215,
-        "thinnest_mm": 0.004319499076035254
-      },
-      {
-        "area_mm2": 2.2058086752946853,
-        "depth_mm": 0.7841244934942402,
-        "kind": "edge",
-        "point": [
-          4.025297413269679,
-          13.16310042142868,
-          -2.93367529908816
-        ],
-        "samples": 397,
-        "span_mm": 3.11250694732931,
-        "thinnest_mm": 0.006143621943908032
-      },
-      {
-        "area_mm2": 2.102201453926066,
-        "depth_mm": 0.7379745904810275,
-        "kind": "edge",
-        "point": [
-          14.133469184239706,
-          6.865100582440694,
-          -4.619839986165364
-        ],
-        "samples": 367,
-        "span_mm": 4.443722611485118,
-        "thinnest_mm": 0.3723392489591491
-      },
-      {
-        "area_mm2": 1.9944859455321802,
-        "depth_mm": 0.7802467679994144,
-        "kind": "edge",
-        "point": [
-          13.641944964726767,
-          12.15687870979309,
-          1.3235474129517872
-        ],
-        "samples": 387,
-        "span_mm": 4.6254186698399575,
-        "thinnest_mm": 0.35827635390599805
-      },
-      {
-        "area_mm2": 1.8352247506132033,
-        "depth_mm": 0.6243265852834743,
-        "kind": "edge",
-        "point": [
-          1.853039542833964,
-          13.311690409978231,
-          3.542206366856893
-        ],
-        "samples": 320,
-        "span_mm": 2.327329512974781,
-        "thinnest_mm": 0.01816699016687559
-      },
-      {
-        "area_mm2": 1.8175850342261637,
-        "depth_mm": 0.6957615959555484,
-        "kind": "edge",
-        "point": [
-          -7.5421202679475146,
-          14.186163385709127,
-          -1.1022633935014408
-        ],
-        "samples": 311,
-        "span_mm": 2.737772902748958,
-        "thinnest_mm": 0.013752501177337237
-      },
-      {
-        "area_mm2": 1.796869137426857,
-        "depth_mm": 0.7666935901551273,
-        "kind": "edge",
-        "point": [
-          15.962191025416056,
-          8.261655886967977,
-          -0.07525915466248989
-        ],
-        "samples": 338,
-        "span_mm": 2.166989205534481,
-        "thinnest_mm": 0.3666023135263923
-      },
-      {
-        "area_mm2": 1.7307157742235693,
-        "depth_mm": 0.7259129270033241,
-        "kind": "edge",
-        "point": [
-          10.801241715749105,
-          10.299734512964884,
-          -5.872629523277283
-        ],
-        "samples": 308,
-        "span_mm": 2.088298492028816,
-        "thinnest_mm": 0.3690713408316219
-      },
-      {
-        "area_mm2": 1.6347427708888056,
-        "depth_mm": 0.7362352568284632,
-        "kind": "edge",
-        "point": [
-          10.457514444986979,
-          13.531622290611267,
-          -2.3827741841475167
-        ],
-        "samples": 298,
-        "span_mm": 2.0685481744666454,
-        "thinnest_mm": 0.3409258924237481
-      },
-      {
-        "area_mm2": 1.6119211145729364,
-        "depth_mm": 0.77640223738272,
-        "kind": "edge",
-        "point": [
-          -7.786774853865306,
-          10.187806288401285,
-          1.74007248878479
-        ],
-        "samples": 272,
-        "span_mm": 2.7206611580594977,
-        "thinnest_mm": 0.008638869130692796
-      },
-      {
-        "area_mm2": 1.5886943733507206,
-        "depth_mm": 0.7764014706611182,
-        "kind": "edge",
-        "point": [
-          -3.920000637571017,
-          9.37481681505839,
-          6.3158946832021075
-        ],
-        "samples": 306,
-        "span_mm": 2.6003097306770275,
-        "thinnest_mm": 0.004319446634898523
-      },
-      {
-        "area_mm2": 1.5468855950933007,
-        "depth_mm": 0.8459749109094092,
-        "kind": "edge",
-        "point": [
-          -5.371317187945048,
-          12.171751578648886,
-          4.3372749487559
-        ],
-        "samples": 284,
-        "span_mm": 2.2796871716650937,
-        "thinnest_mm": 0.03182129463699781
-      },
-      {
-        "area_mm2": 1.3592835775092098,
-        "depth_mm": 0.8212411699848228,
-        "kind": "edge",
-        "point": [
-          -7.963570386171341,
-          11.561191240946451,
-          -0.761365066592892
-        ],
-        "samples": 248,
-        "span_mm": 2.3500688757160835,
-        "thinnest_mm": 0.029426691643910347
-      },
-      {
-        "area_mm2": 1.3269517394969896,
-        "depth_mm": 0.5672617737068102,
-        "kind": "edge",
-        "point": [
-          1.270816147327423,
-          13.33349641164144,
-          3.834620992342631
-        ],
-        "samples": 235,
-        "span_mm": 2.7238794245876754,
-        "thinnest_mm": 0.016158928780967228
-      },
-      {
-        "area_mm2": 1.2817562698097316,
-        "depth_mm": 0.8342816337120333,
-        "kind": "edge",
-        "point": [
-          -3.1000966131687164,
-          13.608418107032776,
-          6.571203500032425
-        ],
-        "samples": 223,
-        "span_mm": 2.436692363576295,
-        "thinnest_mm": 0.011626921683349301
-      },
-      {
-        "area_mm2": 1.1350147448537111,
-        "depth_mm": 0.7156908140817355,
-        "kind": "edge",
-        "point": [
-          -6.133239308993022,
-          15.265933990478516,
-          -1.7298765107989311
-        ],
-        "samples": 253,
-        "span_mm": 1.6015389446041417,
-        "thinnest_mm": 0.030533144053532534
-      },
-      {
-        "area_mm2": 1.1244536949208934,
-        "depth_mm": 0.6898380037366079,
-        "kind": "edge",
-        "point": [
-          -3.076114594936371,
-          15.781802753607431,
-          -4.825087050596873
-        ],
-        "samples": 206,
-        "span_mm": 1.9357559857951343,
-        "thinnest_mm": 0.013752232201150573
-      },
-      {
-        "area_mm2": 1.1200094373899179,
-        "depth_mm": 0.7295833381219866,
-        "kind": "edge",
-        "point": [
-          -3.5534994254509606,
-          11.650238672892252,
-          6.946277966101964
-        ],
-        "samples": 190,
-        "span_mm": 1.9601547369067687,
-        "thinnest_mm": 0.028155049860206158
-      },
-      {
-        "area_mm2": 1.1001192784364613,
-        "depth_mm": 0.7210686634509464,
-        "kind": "edge",
-        "point": [
-          1.0558202614386876,
-          13.976682384808859,
-          -5.273550773660342
-        ],
-        "samples": 191,
-        "span_mm": 1.2883991768690644,
-        "thinnest_mm": 0.029426363627930482
-      },
-      {
-        "area_mm2": 1.043506857668514,
-        "depth_mm": 0.6652151650505155,
-        "kind": "edge",
-        "point": [
-          -6.112338423728943,
-          14.397792140642801,
-          -3.7457065085570016
-        ],
-        "samples": 170,
-        "span_mm": 2.432533915618208,
-        "thinnest_mm": 0.02949152445167483
-      },
-      {
-        "area_mm2": 1.027178450535485,
-        "depth_mm": 0.5912248362682017,
-        "kind": "edge",
-        "point": [
-          -8.043100888530413,
-          12.467248270908991,
-          2.125262496372064
-        ],
-        "samples": 181,
-        "span_mm": 2.050191048086183,
-        "thinnest_mm": 0.045301738342250174
-      },
-      {
-        "area_mm2": 1.0058620806357994,
-        "depth_mm": 0.7460081077208814,
-        "kind": "edge",
-        "point": [
-          -5.376375317573547,
-          14.533311446507772,
-          0.22869561985135078
-        ],
-        "samples": 214,
-        "span_mm": 1.9387569107388787,
-        "thinnest_mm": 0.0002256949645523883
-      },
-      {
-        "area_mm2": 1.0018535518441825,
-        "depth_mm": 0.8067213503806506,
-        "kind": "edge",
-        "point": [
-          1.951491246620814,
-          14.406280279159546,
-          -5.431565602620442
-        ],
-        "samples": 204,
-        "span_mm": 1.1817420604119153,
-        "thinnest_mm": 0.005601668120039468
-      },
-      {
-        "area_mm2": 0.9550487141561653,
-        "depth_mm": 0.47450543261517125,
-        "kind": "edge",
-        "point": [
-          2.2383712828159332,
-          16.712849736213684,
-          -1.8912050773700078
-        ],
-        "samples": 212,
-        "span_mm": 2.1398620802429136,
-        "thinnest_mm": 0.003875679187701111
-      },
-      {
-        "area_mm2": 0.9365899120969547,
-        "depth_mm": 0.6970826424157806,
-        "kind": "edge",
-        "point": [
-          -6.439134369293849,
-          12.54218461116155,
-          5.026788741350174
-        ],
-        "samples": 160,
-        "span_mm": 1.7509153224009184,
-        "thinnest_mm": 0.013752261807708117
-      },
-      {
-        "area_mm2": 0.9005411473363971,
-        "depth_mm": 0.8493946694430929,
-        "kind": "edge",
-        "point": [
-          13.294313987096151,
-          -3.8538037737210593,
-          0.2962006504336993
-        ],
-        "samples": 171,
-        "span_mm": 1.041280236446151,
-        "thinnest_mm": 0.2198479388956511
-      },
-      {
-        "area_mm2": 0.8321406984709416,
-        "depth_mm": 0.8444166268942109,
-        "kind": "edge",
-        "point": [
-          -13.07736325263977,
-          -4.543844064076741,
-          -0.29391755908727646
-        ],
-        "samples": 154,
-        "span_mm": 1.0499723648856518,
-        "thinnest_mm": 0.2141407559770256
-      },
-      {
-        "area_mm2": 0.8238671118850457,
-        "depth_mm": 0.598463181778057,
-        "kind": "edge",
-        "point": [
-          2.1956311464309692,
-          15.302626291910807,
-          0.8569463044404984
-        ],
-        "samples": 170,
-        "span_mm": 1.6110475442267176,
-        "thinnest_mm": 0.008197816411087409
-      },
-      {
-        "area_mm2": 0.7173533076151616,
-        "depth_mm": 0.551368696889786,
-        "kind": "edge",
-        "point": [
-          -2.0620789726575217,
-          16.010086059570312,
-          -2.4614482522010803
-        ],
-        "samples": 166,
-        "span_mm": 2.2095844399806546,
-        "thinnest_mm": 0.002179401021253622
-      },
-      {
-        "area_mm2": 0.6704582810586756,
-        "depth_mm": 0.5772410591770964,
-        "kind": "edge",
-        "point": [
-          4.048299918572108,
-          14.317497452100119,
-          3.442423423131307
-        ],
-        "samples": 103,
-        "span_mm": 1.7420284150546719,
-        "thinnest_mm": 0.01375252282185125
-      },
-      {
-        "area_mm2": 0.6272240221872812,
-        "depth_mm": 0.8298683861951008,
-        "kind": "edge",
-        "point": [
-          13.825797239939371,
-          -2.15312922000885,
-          -0.32461750755707425
-        ],
-        "samples": 117,
-        "span_mm": 0.7964454709409585,
-        "thinnest_mm": 0.2412212765305701
-      },
-      {
-        "area_mm2": 0.6258691361830762,
-        "depth_mm": 0.636113917863287,
-        "kind": "edge",
-        "point": [
-          -0.7257749158889055,
-          12.673789262771606,
-          7.107377797365189
-        ],
-        "samples": 100,
-        "span_mm": 1.3650370274059227,
-        "thinnest_mm": 0.013752309817623163
-      },
-      {
-        "area_mm2": 0.5865722498277491,
-        "depth_mm": 0.5179227645718384,
-        "kind": "edge",
-        "point": [
-          2.920464446147283,
-          15.927606562773386,
-          -2.7265278349320092
-        ],
-        "samples": 91,
-        "span_mm": 1.4891531216777512,
-        "thinnest_mm": 0.02750433014814184
-      },
-      {
-        "area_mm2": 0.58083064833235,
-        "depth_mm": 0.7556411648635628,
-        "kind": "edge",
-        "point": [
-          14.049511830012003,
-          -0.43098067740599316,
-          0.39001720647017163
-        ],
-        "samples": 100,
-        "span_mm": 0.6694875877126725,
-        "thinnest_mm": 0.25106189797192263
-      },
-      {
-        "area_mm2": 0.5720531830861204,
-        "depth_mm": 0.832383134468895,
-        "kind": "edge",
-        "point": [
-          -13.64504893620809,
-          -2.9388495087623596,
-          0.3464706266919772
-        ],
-        "samples": 100,
-        "span_mm": 0.7851022120857829,
-        "thinnest_mm": 0.23948567122141803
-      },
-      {
-        "area_mm2": 0.544858856841632,
-        "depth_mm": 0.5599175487884079,
-        "kind": "edge",
-        "point": [
-          -0.15053436113521457,
-          13.714027563730875,
-          6.257235437631607
-        ],
-        "samples": 99,
-        "span_mm": 1.4678170845173195,
-        "thinnest_mm": 0.03053290186927324
-      },
-      {
-        "area_mm2": 0.5192378811252842,
-        "depth_mm": 0.41547967215699666,
-        "kind": "edge",
-        "point": [
-          1.3971590002377827,
-          17.165332396825153,
-          0.5263670235872269
-        ],
-        "samples": 90,
-        "span_mm": 1.6895053881289663,
-        "thinnest_mm": 0.5687027306557054
-      },
-      {
-        "area_mm2": 0.5091300904072202,
-        "depth_mm": 0.41711242885408395,
-        "kind": "edge",
-        "point": [
-          -0.5433711061875025,
-          15.600680033365885,
-          5.130067964394887
-        ],
-        "samples": 85,
-        "span_mm": 1.7498277589544733,
-        "thinnest_mm": 0.5698435732126573
-      },
-      {
-        "area_mm2": 0.4956122586637673,
-        "depth_mm": 0.4120500197501186,
-        "kind": "edge",
-        "point": [
-          -3.454085389773051,
-          17.162277460098267,
-          -1.5604323794444401
-        ],
-        "samples": 101,
-        "span_mm": 1.7747160386522678,
-        "thinnest_mm": 0.569083825555165
-      },
-      {
-        "area_mm2": 0.473505682643299,
-        "depth_mm": 0.5192841329412163,
-        "kind": "edge",
-        "point": [
-          2.320149466395378,
-          14.574379682540894,
-          4.72827825943629
-        ],
-        "samples": 91,
-        "span_mm": 1.7474485113943141,
-        "thinnest_mm": 0.006132993293648652
-      },
-      {
-        "area_mm2": 0.459023719602665,
-        "depth_mm": 0.41547877319292004,
-        "kind": "edge",
-        "point": [
-          -5.437930206457774,
-          15.603132685025534,
-          3.0149406095345817
-        ],
-        "samples": 83,
-        "span_mm": 1.7581040671337294,
-        "thinnest_mm": 0.5685794186541568
-      },
-      {
-        "area_mm2": 0.4375496405281772,
-        "depth_mm": 0.7834454631173562,
-        "kind": "edge",
-        "point": [
-          14.133500099182129,
-          1.3731841444969177,
-          -0.42321351418892544
-        ],
-        "samples": 81,
-        "span_mm": 0.5597998901112493,
-        "thinnest_mm": 0.2714970477937252
-      },
-      {
-        "area_mm2": 0.42887041777248774,
-        "depth_mm": 0.777909753288222,
-        "kind": "edge",
-        "point": [
-          -14.03625750541687,
-          -1.3266746997833252,
-          -0.2569924754401048
-        ],
-        "samples": 75,
-        "span_mm": 0.5766423117853876,
-        "thinnest_mm": 0.250319496692373
-      },
-      {
-        "area_mm2": 0.3758647882986857,
-        "depth_mm": 0.7631953931979636,
-        "kind": "edge",
-        "point": [
-          14.040520668029785,
-          3.1560206909974418,
-          0.3025401613364617
-        ],
-        "samples": 79,
-        "span_mm": 0.48582644276913634,
-        "thinnest_mm": 0.2569995583636291
-      },
-      {
-        "area_mm2": 0.3740486144960708,
-        "depth_mm": 0.42184279280517467,
-        "kind": "edge",
+        "part": "Hip collet",
         "point": [
           9.434857934713364,
           9.632820775111517,
           -3.4047706772883735
         ],
-        "samples": 61,
-        "span_mm": 2.6680341712068385,
+        "samples": 411,
+        "span_mm": 5.7143950828930965,
         "thinnest_mm": 0.4025721625676898
       },
       {
-        "area_mm2": 0.3549168792729575,
-        "depth_mm": 0.6917453450446207,
+        "area_mm2": 2.0312789459458127,
+        "depth_mm": 0.7357384011451812,
         "kind": "edge",
+        "part": "Hip's dried crown",
         "point": [
-          -14.230598648389181,
-          2.1833751797676086,
-          -0.2903236684699853
+          13.845071792602539,
+          12.638816038767496,
+          1.1351799567540486
         ],
-        "samples": 71,
-        "span_mm": 0.5013292016509725,
-        "thinnest_mm": 0.29996929146488044
+        "samples": 369,
+        "span_mm": 2.337699909797635,
+        "thinnest_mm": 0.37981103875617905
       },
       {
-        "area_mm2": 0.3501204123905329,
-        "depth_mm": 0.7744213434942271,
+        "area_mm2": 1.887412491369601,
+        "depth_mm": 0.824157950070395,
         "kind": "edge",
+        "part": "Hip's dried sepal",
         "point": [
-          -14.270692984263102,
-          0.48210718979438144,
-          0.39621323347091675
+          8.396987279256185,
+          11.580023606618246,
+          -1.8027313947677612
         ],
-        "samples": 65,
-        "span_mm": 0.46708239632348286,
-        "thinnest_mm": 0.2661351222587489
+        "samples": 356,
+        "span_mm": 2.801146165882386,
+        "thinnest_mm": 0.1233060430964301
       },
       {
-        "area_mm2": 0.3455732940848055,
-        "depth_mm": 0.4217641835555928,
+        "area_mm2": 1.858896456254135,
+        "depth_mm": 0.7182330145783236,
         "kind": "edge",
+        "part": "Hip's dried crown",
         "point": [
-          10.532687475283941,
-          11.115450849135717,
-          0.36372702723989886
+          14.709124604860941,
+          7.090286115805308,
+          -4.830468952655792
+        ],
+        "samples": 320,
+        "span_mm": 2.1935463175512044,
+        "thinnest_mm": 0.3409257770352002
+      },
+      {
+        "area_mm2": 1.8453271246293106,
+        "depth_mm": 0.7802418216841666,
+        "kind": "edge",
+        "part": "Hip's dried crown",
+        "point": [
+          16.333590825398762,
+          8.278438170750936,
+          -0.35072554151217145
+        ],
+        "samples": 359,
+        "span_mm": 2.1621094817353192,
+        "thinnest_mm": 0.35827243346132776
+      },
+      {
+        "area_mm2": 1.832965500469319,
+        "depth_mm": 0.7219443024779094,
+        "kind": "edge",
+        "part": "Hip's dried crown",
+        "point": [
+          11.006499290466309,
+          10.469183762868246,
+          -6.135045131047566
+        ],
+        "samples": 304,
+        "span_mm": 2.0486352333572047,
+        "thinnest_mm": 0.37234263352444613
+      },
+      {
+        "area_mm2": 0.9733919931568878,
+        "depth_mm": 0.30229590272233847,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          -8.319296995798746,
+          10.43917989730835,
+          2.99529763062795
+        ],
+        "samples": 162,
+        "span_mm": 2.002885921841589,
+        "thinnest_mm": 0.002652320962764599
+      },
+      {
+        "area_mm2": 0.845108758290968,
+        "depth_mm": 0.26208027672069806,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          -5.447163899739583,
+          12.252094745635986,
+          3.0592299699783325
+        ],
+        "samples": 154,
+        "span_mm": 2.5733514948629015,
+        "thinnest_mm": 0.005991730382283141
+      },
+      {
+        "area_mm2": 0.7799296399121349,
+        "depth_mm": 0.4702330044246348,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          -1.1261199514071147,
+          15.032932122548422,
+          -3.2414338688055673
+        ],
+        "samples": 156,
+        "span_mm": 2.765667629754231,
+        "thinnest_mm": 0.02179617348919975
+      },
+      {
+        "area_mm2": 0.7458946623538623,
+        "depth_mm": 0.6016099550129348,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          -5.59438968449831,
+          14.21943475306034,
+          -0.5408931433533629
+        ],
+        "samples": 152,
+        "span_mm": 2.272909512663352,
+        "thinnest_mm": 0.015215780956692472
+      },
+      {
+        "area_mm2": 0.7069223409824437,
+        "depth_mm": 0.6554467164286253,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          4.645245711008708,
+          14.634027540683746,
+          -0.3247662757445748
+        ],
+        "samples": 146,
+        "span_mm": 2.477366175614004,
+        "thinnest_mm": 0.01594318225511479
+      },
+      {
+        "area_mm2": 0.678723860792352,
+        "depth_mm": 0.5641637070846416,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          1.88872275998195,
+          13.402003308137258,
+          3.7303014397621155
+        ],
+        "samples": 135,
+        "span_mm": 2.453218587851692,
+        "thinnest_mm": 0.009239186731849817
+      },
+      {
+        "area_mm2": 0.6772786432706719,
+        "depth_mm": 0.5657720581895944,
+        "kind": "edge",
+        "part": "Petal ring 2",
+        "point": [
+          -4.309012532234192,
+          16.473053614298504,
+          -3.356222778558731
+        ],
+        "samples": 174,
+        "span_mm": 2.2774857038893175,
+        "thinnest_mm": 0.006448010674768986
+      },
+      {
+        "area_mm2": 0.6546863124050831,
+        "depth_mm": 0.6378594775207501,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          2.1621116002400718,
+          14.825034141540527,
+          -1.0915822982788086
+        ],
+        "samples": 113,
+        "span_mm": 2.2359272373271137,
+        "thinnest_mm": 0.012766605791575554
+      },
+      {
+        "area_mm2": 0.6216214431943861,
+        "depth_mm": 0.679496838148017,
+        "kind": "edge",
+        "part": "Petal, ring 4",
+        "point": [
+          -4.607852101325989,
+          9.39550151427587,
+          5.4080784519513445
+        ],
+        "samples": 128,
+        "span_mm": 1.7197834644366559,
+        "thinnest_mm": 0.0043010715104773375
+      },
+      {
+        "area_mm2": 0.6207991220246644,
+        "depth_mm": 0.8251969475868649,
+        "kind": "edge",
+        "part": "Prickle, arm A",
+        "point": [
+          13.931443611780802,
+          -0.3177555700143178,
+          0.24811024218797684
+        ],
+        "samples": 107,
+        "span_mm": 0.6999588413269712,
+        "thinnest_mm": 0.2384609800533724
+      },
+      {
+        "area_mm2": 0.6044388550862265,
+        "depth_mm": 0.6214626536699449,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          -1.1670413961013157,
+          12.975155353546143,
+          -5.805439531803131
+        ],
+        "samples": 129,
+        "span_mm": 2.002705556730913,
+        "thinnest_mm": 0.004009091544633719
+      },
+      {
+        "area_mm2": 0.5865858493243122,
+        "depth_mm": 0.6205402676058502,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          1.0421969791253407,
+          9.881190021832785,
+          6.010367035865784
+        ],
+        "samples": 110,
+        "span_mm": 2.3535977189123747,
+        "thinnest_mm": 0.008018225652879872
+      },
+      {
+        "area_mm2": 0.578837759646079,
+        "depth_mm": 0.5870114544630548,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          4.040692046284676,
+          12.873027861118317,
+          -2.4748145391543708
+        ],
+        "samples": 128,
+        "span_mm": 2.31321132169165,
+        "thinnest_mm": 0.008602175138332127
+      },
+      {
+        "area_mm2": 0.5467240570790742,
+        "depth_mm": 0.8328974212981339,
+        "kind": "edge",
+        "part": "Prickles down arm B",
+        "point": [
+          -13.998207012812296,
+          -0.3974759380022685,
+          0.24213455617427826
+        ],
+        "samples": 103,
+        "span_mm": 0.6896786101695984,
+        "thinnest_mm": 0.23788886391879752
+      },
+      {
+        "area_mm2": 0.4989042931249292,
+        "depth_mm": 0.8163634730659304,
+        "kind": "edge",
+        "part": "Prickles down arm A",
+        "point": [
+          14.054289102554321,
+          1.2490607996781666,
+          -0.26105305552482605
+        ],
+        "samples": 94,
+        "span_mm": 0.6182931446367301,
+        "thinnest_mm": 0.2355294063953971
+      },
+      {
+        "area_mm2": 0.47983898088144916,
+        "depth_mm": 0.5850106412306562,
+        "kind": "edge",
+        "part": "Petal ring 2",
+        "point": [
+          -0.3393191231880337,
+          16.286396145820618,
+          -3.523867761095365
+        ],
+        "samples": 113,
+        "span_mm": 1.7912157556057755,
+        "thinnest_mm": 0.01530704311154311
+      },
+      {
+        "area_mm2": 0.45266160984298026,
+        "depth_mm": 0.5562833808186203,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          3.7616882224877677,
+          11.21886545419693,
+          4.057347297668457
+        ],
+        "samples": 114,
+        "span_mm": 1.682863719878167,
+        "thinnest_mm": 0.010170049151667594
+      },
+      {
+        "area_mm2": 0.4470233281342193,
+        "depth_mm": 0.5426968500699684,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          4.758633238573869,
+          12.57642950117588,
+          -0.802682570181787
+        ],
+        "samples": 99,
+        "span_mm": 1.539874516187362,
+        "thinnest_mm": 0.01249816390486931
+      },
+      {
+        "area_mm2": 0.4433615482681382,
+        "depth_mm": 0.6463155072716182,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          3.228136638800303,
+          13.645828803380331,
+          3.172804594039917
+        ],
+        "samples": 88,
+        "span_mm": 1.6831487740684086,
+        "thinnest_mm": 0.004004177779590631
+      },
+      {
+        "area_mm2": 0.4413285518576187,
+        "depth_mm": 0.6374734587979347,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          -7.6503512263298035,
+          11.175682326157888,
+          -0.7467320735255877
+        ],
+        "samples": 86,
+        "span_mm": 2.264678541204063,
+        "thinnest_mm": 0.010170043298244292
+      },
+      {
+        "area_mm2": 0.43951625309443054,
+        "depth_mm": 0.5334403180545049,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          -4.546500166257222,
+          12.784808774789175,
+          -4.983285496632258
+        ],
+        "samples": 104,
+        "span_mm": 1.6351237574777704,
+        "thinnest_mm": 0.010169997348383931
+      },
+      {
+        "area_mm2": 0.4378714813092651,
+        "depth_mm": 0.5395783497442022,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          2.8130327463150024,
+          12.73964011669159,
+          5.576492458581924
+        ],
+        "samples": 85,
+        "span_mm": 2.130488954961958,
+        "thinnest_mm": 0.019615089259451945
+      },
+      {
+        "area_mm2": 0.4362193297555544,
+        "depth_mm": 0.6763474954683873,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          2.4755204617977142,
+          15.045398394266764,
+          0.06212030599514643
+        ],
+        "samples": 90,
+        "span_mm": 1.5943799587773833,
+        "thinnest_mm": 0.03135905940276968
+      },
+      {
+        "area_mm2": 0.4292195407602647,
+        "depth_mm": 0.0,
+        "kind": "edge",
+        "part": "Prickles down arm B",
+        "point": [
+          -11.870083491007486,
+          2.046879152456919,
+          -0.797859455148379
+        ],
+        "samples": 83,
+        "span_mm": 4.5943933510324175,
+        "thinnest_mm": 0.06556665388456588
+      },
+      {
+        "area_mm2": 0.423305844885938,
+        "depth_mm": 0.7629438899368348,
+        "kind": "edge",
+        "part": "Prickles down arm B",
+        "point": [
+          -14.042074044545492,
+          1.3885831634203594,
+          -0.38020673642555874
+        ],
+        "samples": 85,
+        "span_mm": 0.5574188806368809,
+        "thinnest_mm": 0.2522595363502283
+      },
+      {
+        "area_mm2": 0.4033947785352795,
+        "depth_mm": 0.7475238303708762,
+        "kind": "edge",
+        "part": "Prickles down arm A",
+        "point": [
+          13.935931841532389,
+          2.7822185754776,
+          0.28679877892136574
+        ],
+        "samples": 75,
+        "span_mm": 0.5214394418979964,
+        "thinnest_mm": 0.2782029028552948
+      },
+      {
+        "area_mm2": 0.40280098678866805,
+        "depth_mm": 0.7054472702972534,
+        "kind": "edge",
+        "part": "Prickles down arm B",
+        "point": [
+          -13.927776654561361,
+          3.1753009855747223,
+          0.4017394383748372
+        ],
+        "samples": 73,
+        "span_mm": 0.45423379509438444,
+        "thinnest_mm": 0.26709223326045967
+      },
+      {
+        "area_mm2": 0.40032252513404176,
+        "depth_mm": 0.4631227065411336,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          -7.825308819611867,
+          12.385401864846548,
+          2.3134541312853494
+        ],
+        "samples": 79,
+        "span_mm": 1.8414533246281213,
+        "thinnest_mm": 0.019615178469303572
+      },
+      {
+        "area_mm2": 0.4002899639411324,
+        "depth_mm": 0.8396654384550793,
+        "kind": "edge",
+        "part": "Petal ring 2",
+        "point": [
+          -6.245436728000641,
+          13.43281857172648,
+          4.240753908952077
+        ],
+        "samples": 93,
+        "span_mm": 1.4205542102686537,
+        "thinnest_mm": 0.016812816634923844
+      },
+      {
+        "area_mm2": 0.394463003235345,
+        "depth_mm": 0.4774625734770282,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          0.16209451636920372,
+          15.423938274383545,
+          -5.011398822069168
         ],
         "samples": 67,
-        "span_mm": 2.118617290456619,
-        "thinnest_mm": 0.4025721971723943
+        "span_mm": 2.2130307309976804,
+        "thinnest_mm": 0.01594361156532297
       },
       {
-        "area_mm2": 0.3445812761844036,
-        "depth_mm": 0.4217640953190043,
+        "area_mm2": 0.3935561419920185,
+        "depth_mm": 0.50100433937727,
         "kind": "edge",
+        "part": "Petal, ring 3",
         "point": [
-          13.073654959599176,
-          6.529105976223946,
-          -1.4364250587920349
+          -5.939111232757568,
+          14.378194769223532,
+          -4.234029670556386
         ],
-        "samples": 78,
-        "span_mm": 3.224616586258626,
-        "thinnest_mm": 0.40257421043102737
+        "samples": 86,
+        "span_mm": 1.8790787364159796,
+        "thinnest_mm": 0.01900699459493907
       },
       {
-        "area_mm2": 0.33235797224733055,
-        "depth_mm": 0.4078029365231729,
+        "area_mm2": 0.38120582374301804,
+        "depth_mm": 0.5666443336207266,
         "kind": "edge",
+        "part": "Petal ring 3",
         "point": [
-          2.9730002780755362,
-          15.818232297897339,
-          3.6283132433891296
+          -3.4768872459729514,
+          11.543813089529673,
+          6.923883239428203
         ],
-        "samples": 60,
-        "span_mm": 1.2946480898990251,
-        "thinnest_mm": 0.58121159127782
+        "samples": 73,
+        "span_mm": 2.5199067387481553,
+        "thinnest_mm": 0.015943303090614466
       },
       {
-        "area_mm2": 0.3311711882456098,
-        "depth_mm": 0.40643579675300345,
+        "area_mm2": 0.37471141499053773,
+        "depth_mm": 0.6976581262836778,
         "kind": "edge",
+        "part": "Petal ring 3",
         "point": [
-          -4.52257243792216,
-          16.938101927439373,
-          -2.356563001871109
+          1.9526117195685704,
+          13.954860746860504,
+          4.64962453643481
         ],
         "samples": 69,
-        "span_mm": 1.0011252777324318,
-        "thinnest_mm": 0.5829999636220625
+        "span_mm": 1.2343069661364172,
+        "thinnest_mm": 0.024695907196908746
       },
       {
-        "area_mm2": 0.3160453331480251,
-        "depth_mm": 0.3990077035768276,
+        "area_mm2": 0.3677034120045439,
+        "depth_mm": 0.7612605878702661,
         "kind": "edge",
+        "part": "Prickle, arm B",
         "point": [
-          -7.008320450782776,
-          14.827195644378662,
-          2.8202957808971405
+          -13.52938183148702,
+          4.817978461583455,
+          -0.3040114448716243
+        ],
+        "samples": 66,
+        "span_mm": 0.42043725265331755,
+        "thinnest_mm": 0.28159947001803576
+      },
+      {
+        "area_mm2": 0.2865860581274911,
+        "depth_mm": 0.7196743901890614,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          -5.7615639468034106,
+          12.022974928220114,
+          4.605310440063477
+        ],
+        "samples": 61,
+        "span_mm": 1.1095832104420111,
+        "thinnest_mm": 0.02430459809304425
+      },
+      {
+        "area_mm2": 0.28377909100177456,
+        "depth_mm": 0.8131981810183015,
+        "kind": "edge",
+        "part": "Petal ring 2",
+        "point": [
+          -7.339366992314656,
+          14.46098385254542,
+          1.7565819025039673
+        ],
+        "samples": 60,
+        "span_mm": 2.148911483372351,
+        "thinnest_mm": 0.0038741366783397358
+      },
+      {
+        "area_mm2": 0.26702669030209913,
+        "depth_mm": 0.6458208749132999,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          -0.12698231249426803,
+          12.155689179897308,
+          6.428641885519028
+        ],
+        "samples": 59,
+        "span_mm": 1.0795966711193383,
+        "thinnest_mm": 0.028895981812479845
+      },
+      {
+        "area_mm2": 0.26086240741453526,
+        "depth_mm": 0.7408107192895664,
+        "kind": "edge",
+        "part": "Petal ring 2",
+        "point": [
+          2.616663550337156,
+          16.286771655082703,
+          -1.330189889917771
+        ],
+        "samples": 76,
+        "span_mm": 1.6485172214307182,
+        "thinnest_mm": 0.003476082832366741
+      },
+      {
+        "area_mm2": 0.2557154252052923,
+        "depth_mm": 0.7920661209900883,
+        "kind": "edge",
+        "part": "Petal ring 2",
+        "point": [
+          -1.1912343533088763,
+          15.846459224820137,
+          -2.3620585637787976
+        ],
+        "samples": 45,
+        "span_mm": 0.9906554111094508,
+        "thinnest_mm": 0.017835516966796125
+      },
+      {
+        "area_mm2": 0.24611665681896058,
+        "depth_mm": 0.4950798826104885,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          -8.014099528392157,
+          13.495392044385275,
+          -1.0098957692583401
         ],
         "samples": 55,
-        "span_mm": 1.1695320642737501,
-        "thinnest_mm": 0.5772490216834136
+        "span_mm": 1.546273877490136,
+        "thinnest_mm": 0.003957450023204344
       },
       {
-        "area_mm2": 0.3090191666772547,
-        "depth_mm": 0.39547885356680695,
+        "area_mm2": 0.2386041329175446,
+        "depth_mm": 0.6024730193322898,
         "kind": "edge",
+        "part": "Petal ring 3",
         "point": [
-          5.539150317509969,
-          12.765479246775309,
-          2.0866408745447793
+          -5.104058186213176,
+          11.8119478225708,
+          5.422937115033467
         ],
-        "samples": 58,
-        "span_mm": 1.3623815573691687,
-        "thinnest_mm": 0.02301973450167445
+        "samples": 49,
+        "span_mm": 1.0973506430477986,
+        "thinnest_mm": 0.00024483859322717245
       },
       {
-        "area_mm2": 0.3057946036560601,
-        "depth_mm": 0.45696776543891676,
+        "area_mm2": 0.23668020480180074,
+        "depth_mm": 0.4730054740841206,
         "kind": "edge",
+        "part": "Petal ring 3",
         "point": [
-          -5.042528351147969,
-          16.23154838879903,
-          -4.761060992876689
-        ],
-        "samples": 55,
-        "span_mm": 0.8225773868341442,
-        "thinnest_mm": 0.5602208206835192
-      },
-      {
-        "area_mm2": 0.30558324449340996,
-        "depth_mm": 0.4658316522374047,
-        "kind": "edge",
-        "point": [
-          -8.81390937169393,
-          14.162270585695902,
-          0.8131435066461563
-        ],
-        "samples": 70,
-        "span_mm": 0.7438790299947291,
-        "thinnest_mm": 0.5602197360504927
-      },
-      {
-        "area_mm2": 0.2925013014619595,
-        "depth_mm": 0.12600128257410317,
-        "kind": "edge",
-        "point": [
-          -6.05836804707845,
-          12.504852294921875,
-          1.9591226975123088
-        ],
-        "samples": 71,
-        "span_mm": 1.9382031049603565,
-        "thinnest_mm": 0.002703277637873869
-      },
-      {
-        "area_mm2": 0.2918399008459559,
-        "depth_mm": 0.4552481564224111,
-        "kind": "edge",
-        "point": [
-          -5.634524544080098,
-          12.82806146144867,
-          6.905859887599945
+          -6.336663077274959,
+          11.845829983552298,
+          5.620252172152202
         ],
         "samples": 54,
-        "span_mm": 0.8399890348544128,
-        "thinnest_mm": 0.5631207292271196
+        "span_mm": 1.936347214827138,
+        "thinnest_mm": 0.004420975789386931
+      },
+      {
+        "area_mm2": 0.2360641960045728,
+        "depth_mm": 0.4915690761690681,
+        "kind": "edge",
+        "part": "Petal ring 2",
+        "point": [
+          -0.06921472512961675,
+          13.547113378842672,
+          6.217879235744476
+        ],
+        "samples": 48,
+        "span_mm": 1.4634389107620922,
+        "thinnest_mm": 0.015306139416648748
+      },
+      {
+        "area_mm2": 0.23492572865284142,
+        "depth_mm": 0.42818471309995654,
+        "kind": "edge",
+        "part": "Petal ring 4",
+        "point": [
+          -8.048468589782715,
+          10.556692361831665,
+          3.357817053794861
+        ],
+        "samples": 54,
+        "span_mm": 3.0751721069867175,
+        "thinnest_mm": 0.03197009817028402
+      },
+      {
+        "area_mm2": 0.23475847237268335,
+        "depth_mm": 0.6732152809683092,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          -2.876275504628817,
+          12.97813872496287,
+          6.057730724414189
+        ],
+        "samples": 46,
+        "span_mm": 1.1838362625066097,
+        "thinnest_mm": 0.0246957523067462
+      },
+      {
+        "area_mm2": 0.2346034831509914,
+        "depth_mm": 0.4089746632849502,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          4.41882445414861,
+          13.800886193911234,
+          3.3018686026334763
+        ],
+        "samples": 52,
+        "span_mm": 1.4106048724933875,
+        "thinnest_mm": 0.00791475857003542
+      },
+      {
+        "area_mm2": 0.2337241214078724,
+        "depth_mm": 0.5861752610576723,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          2.30488520860672,
+          15.942608098189035,
+          -1.4652056023478508
+        ],
+        "samples": 53,
+        "span_mm": 0.8248186161586983,
+        "thinnest_mm": 0.025411416023055813
+      },
+      {
+        "area_mm2": 0.2307742643316291,
+        "depth_mm": 0.49707492343119736,
+        "kind": "edge",
+        "part": "Petal, ring 3",
+        "point": [
+          -3.9567750295003257,
+          15.367774983247122,
+          -5.338127285242081
+        ],
+        "samples": 45,
+        "span_mm": 1.7595890099631775,
+        "thinnest_mm": 0.005537246815120776
+      },
+      {
+        "area_mm2": 0.22902421123266892,
+        "depth_mm": 0.43943341352611315,
+        "kind": "edge",
+        "part": "Petal ring 3",
+        "point": [
+          3.1027799993753433,
+          15.514664967854818,
+          -3.236651892463366
+        ],
+        "samples": 48,
+        "span_mm": 2.124774888849967,
+        "thinnest_mm": 0.00395739329405315
+      },
+      {
+        "area_mm2": 0.22618598608773527,
+        "depth_mm": 0.3954501765515889,
+        "kind": "edge",
+        "part": "band",
+        "point": [
+          3.931687593460083,
+          8.537676175435385,
+          -1.9181991219520569
+        ],
+        "samples": 58,
+        "span_mm": 1.7890088792109387,
+        "thinnest_mm": 0.05330552408297861
+      },
+      {
+        "area_mm2": 0.2261859860877352,
+        "depth_mm": 0.3954501765515888,
+        "kind": "edge",
+        "part": "band",
+        "point": [
+          -3.931687593460083,
+          8.537676175435385,
+          1.9181991219520569
+        ],
+        "samples": 58,
+        "span_mm": 1.7890088792109387,
+        "thinnest_mm": 0.05330552408297861
+      },
+      {
+        "area_mm2": 0.21711770554792922,
+        "depth_mm": 0.3905765021197925,
+        "kind": "edge",
+        "part": "band",
+        "point": [
+          -4.064944426218669,
+          8.474699020385742,
+          -2.357259829839071
+        ],
+        "samples": 48,
+        "span_mm": 1.2123884812751737,
+        "thinnest_mm": 0.05532511593430452
       }
     ],
     "floor_mm": 0.8,
-    "rays": 277980,
-    "real_walls": [
-      {
-        "area_mm2": 0.14375649165020501,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -5.291511019070943,
-          12.221406698226929,
-          4.053742627302806
-        ],
-        "samples": 26,
-        "span_mm": 0.7331984451670244,
-        "thinnest_mm": 0.5719326605615479
-      },
-      {
-        "area_mm2": 0.09696112904682572,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -4.579265455404918,
-          14.174208780129751,
-          -3.330962066849073
-        ],
-        "samples": 16,
-        "span_mm": 0.536036892086047,
-        "thinnest_mm": 0.0561213254759209
-      },
-      {
-        "area_mm2": 0.08982990743448536,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          13.21321988105774,
-          -3.9022201895713806,
-          0.19476247082153955
-        ],
-        "samples": 12,
-        "span_mm": 0.1970919277136396,
-        "thinnest_mm": 0.2514934257085846
-      },
-      {
-        "area_mm2": 0.04222536958163817,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -12.949802875518799,
-          -4.543967247009277,
-          -0.33382537215948105
-        ],
-        "samples": 4,
-        "span_mm": 0.13770297585138902,
-        "thinnest_mm": 0.3043801183388726
-      },
-      {
-        "area_mm2": 0.030920833973586564,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -0.23196938758095106,
-          12.36325486501058,
-          5.791797478993733
-        ],
-        "samples": 8,
-        "span_mm": 0.2347504002188352,
-        "thinnest_mm": 0.593421788154972
-      }
-    ],
+    "rays": 283303,
+    "real_walls": [],
     "rule": "Walls between 0.05 and 0.8 mm across a made feature are fixed; zones under 0.05 mm are suspected census artifacts and zones under 0.02 mm² are specks that fill from the metal round them (the lead's 2026-10-04 notes); both are listed, not reshaped for. Edges are reported as read.",
-    "sampled_min_mm": 0.000007622368240527811,
+    "sampled_min_mm": 0.000049603889464989786,
     "specks_under_0_02_mm2": [
       {
-        "area_mm2": 0.019617452135495116,
+        "area_mm2": 0.017843436695005304,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Dried sepal",
         "point": [
-          -5.061010917027791,
-          13.842076301574707,
-          -0.34253738820552826
-        ],
-        "samples": 6,
-        "span_mm": 0.22791589452464756,
-        "thinnest_mm": 0.07203604466942683
-      },
-      {
-        "area_mm2": 0.01846145466732436,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -5.035682161649068,
-          12.206307490666708,
-          2.4489482839902244
+          -5.0402911106745405,
+          12.205351829528809,
+          2.4469939271608987
         ],
         "samples": 2,
-        "span_mm": 0.10551685548015444,
-        "thinnest_mm": 0.7599605783732125
+        "span_mm": 0.11067129317557267,
+        "thinnest_mm": 0.7680560966765947
       },
       {
-        "area_mm2": 0.013562163644687136,
+        "area_mm2": 0.01651672656934813,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Petal ring 3",
         "point": [
-          -3.870435823996862,
-          13.135977844397226,
-          4.845524489879608
+          -0.8250438421964645,
+          12.20652667681376,
+          4.608676910400391
         ],
-        "samples": 2,
-        "span_mm": 0.06590737237291089,
-        "thinnest_mm": 0.7526243833124464
+        "samples": 5,
+        "span_mm": 0.30003537677923653,
+        "thinnest_mm": 0.1781185145208122
       },
       {
-        "area_mm2": 0.012094639339639487,
+        "area_mm2": 0.014147105459530926,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Petal ring 3",
         "point": [
-          -3.771383066972097,
-          13.740389068921408,
-          -2.3404871275027594
+          3.697987119356791,
+          13.75786304473877,
+          1.5972595810890198
         ],
         "samples": 4,
-        "span_mm": 0.2357243776629545,
-        "thinnest_mm": 0.2640976593949977
+        "span_mm": 0.14238539827538332,
+        "thinnest_mm": 0.07182662241706238
       },
       {
-        "area_mm2": 0.011579091297779998,
+        "area_mm2": 0.011399629369057827,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Heart collet",
         "point": [
-          -5.248412728309631,
-          12.34183152516683,
-          1.9431891838709514
+          -0.3465603260944287,
+          15.264939665794373,
+          -0.9505156675974528
         ],
         "samples": 1,
         "span_mm": 0.0,
-        "thinnest_mm": 0.7791735368229364
+        "thinnest_mm": 0.4714748502716621
       },
       {
-        "area_mm2": 0.011230560145985443,
+        "area_mm2": 0.011147770418985755,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Petal ring 4",
         "point": [
-          14.116258223851522,
-          6.840767582257588,
-          -4.590391953786214
+          -6.252995391686757,
+          13.547656059265137,
+          -3.7346936662991843
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.6072833163962067
+      },
+      {
+        "area_mm2": 0.010923483810543158,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Petal ring 3",
+        "point": [
+          1.5624060134092967,
+          14.831772367159525,
+          -3.099889099597931
         ],
         "samples": 3,
-        "span_mm": 0.09854037179293318,
-        "thinnest_mm": 0.38818961254317286
+        "span_mm": 0.07998524121576445,
+        "thinnest_mm": 0.10785993445393255
       },
       {
-        "area_mm2": 0.01092088598416196,
+        "area_mm2": 0.010807606794240377,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Dried sepal",
         "point": [
-          -4.4725163877010345,
-          14.844892164071402,
-          -0.05171331173429886
+          -5.251366535822551,
+          12.341938773790995,
+          1.9436651319265366
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7863356844168787
+      },
+      {
+        "area_mm2": 0.010537562103506844,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Dried sepals",
+        "point": [
+          2.0520992477734885,
+          13.215496301651001,
+          2.0590692857901254
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7370257162921643
+      },
+      {
+        "area_mm2": 0.010401098675891092,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Petal ring 3",
+        "point": [
+          -6.267650286356608,
+          12.429232756296793,
+          2.0138659278551736
         ],
         "samples": 3,
-        "span_mm": 0.12602083973073697,
-        "thinnest_mm": 0.7012042701825685
+        "span_mm": 0.03628799705821528,
+        "thinnest_mm": 0.05550321644261904
       },
       {
-        "area_mm2": 0.010609805748811254,
+        "area_mm2": 0.010167525865254382,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Petal, ring 4",
         "point": [
-          -1.7067060122887294,
-          12.097339113553366,
-          4.757838765780131
+          -1.7837750315666199,
+          12.046893239021301,
+          4.749628305435181
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.13684695404996752
+      },
+      {
+        "area_mm2": 0.009919871026778389,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Hip's dried crown",
+        "point": [
+          16.244376977284748,
+          8.237851937611898,
+          -0.2768781657020251
         ],
         "samples": 2,
-        "span_mm": 0.004157849501018163,
-        "thinnest_mm": 0.13484755012836863
+        "span_mm": 0.03564230328927209,
+        "thinnest_mm": 0.38819500658131145
       },
       {
-        "area_mm2": 0.009080538100671127,
+        "area_mm2": 0.009905224030461079,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Hip's dried sepal",
+        "point": [
+          10.63683851559957,
+          13.740960597991943,
+          -2.338295658429464
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.43485857641936265
+      },
+      {
+        "area_mm2": 0.009823420341014862,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Dried sepals",
+        "point": [
+          -0.43392910187443096,
+          11.842852115631104,
+          6.140902707974116
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.1274590927876734
+      },
+      {
+        "area_mm2": 0.008098892133353956,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Receptacle",
+        "point": [
+          -3.7718672454357147,
+          13.7329314549764,
+          -2.3451689183712006
+        ],
+        "samples": 3,
+        "span_mm": 0.2242527070919227,
+        "thinnest_mm": 0.2884967595042736
+      },
+      {
+        "area_mm2": 0.007633191066555572,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Petal, ring 3",
         "point": [
           -4.435537576675415,
           13.557668010393778,
@@ -3601,238 +3725,116 @@
         "thinnest_mm": 0.7983248303273885
       },
       {
-        "area_mm2": 0.008950798753856688,
+        "area_mm2": 0.0064667784729187045,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Dried sepals",
         "point": [
-          -9.677098989486694,
-          5.838733494281769,
-          -4.267853021621704
+          -5.127325097719829,
+          13.91742773850759,
+          -3.653103083372116
         ],
-        "samples": 6,
-        "span_mm": 0.13180461537240706,
-        "thinnest_mm": 0.0546032470714525
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7905619237861896
       },
       {
-        "area_mm2": 0.008748991245719534,
+        "area_mm2": 0.006018712610112801,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Dried sepals",
         "point": [
-          10.360061168670654,
-          13.440573612848917,
-          -2.165506680806478
+          -5.422100265820821,
+          13.821104129155477,
+          -3.958318909009298
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7966061996494069
+      },
+      {
+        "area_mm2": 0.005924449289602284,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Hip's dried crown",
+        "point": [
+          13.763558864593506,
+          12.628747622172037,
+          1.1495228310426076
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.38757539737364627
+      },
+      {
+        "area_mm2": 0.004398002243277155,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Petal ring 1",
+        "point": [
+          1.9653223653634389,
+          14.741095304489136,
+          -1.159864366054535
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.20379532347061705
+      },
+      {
+        "area_mm2": 0.002198509508654836,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Hip's dried crown",
+        "point": [
+          10.988160133361816,
+          10.433903058369955,
+          -6.121837933858235
         ],
         "samples": 2,
-        "span_mm": 0.00987096075554561,
-        "thinnest_mm": 0.38819183437473326
+        "span_mm": 0.0473543274945456,
+        "thinnest_mm": 0.38819292053106796
       },
       {
-        "area_mm2": 0.00828570357133485,
+        "area_mm2": 0.001441154172491054,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Heart collet",
         "point": [
-          -0.3550558652107914,
-          15.85229096810023,
-          -1.1823706378539403
-        ],
-        "samples": 2,
-        "span_mm": 0.08156364826680229,
-        "thinnest_mm": 0.7016344719486275
-      },
-      {
-        "area_mm2": 0.00810360054000419,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          0.47521867665151757,
-          16.656535545984905,
-          -1.6781611343224843
+          0.5247248585025469,
+          14.313569943110148,
+          2.7143731117248535
         ],
         "samples": 1,
         "span_mm": 0.0,
-        "thinnest_mm": 0.7005037493061226
+        "thinnest_mm": 0.48134020330460847
       },
       {
-        "area_mm2": 0.007892429452730243,
+        "area_mm2": 0.0006904139449590721,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Leaf, terminal leaflet",
         "point": [
-          2.24003333846728,
-          13.435330271720886,
-          1.2837090641260147
+          -11.494043906529745,
+          6.181413571039836,
+          -0.19875083801647028
         ],
         "samples": 1,
         "span_mm": 0.0,
-        "thinnest_mm": 0.28179421540513505
+        "thinnest_mm": 0.6343966796457807
       },
       {
-        "area_mm2": 0.007485437803684668,
+        "area_mm2": 0.00026051449591620946,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Hip's dried crown",
         "point": [
-          0.8561288180450598,
-          14.838352024555206,
-          2.9232790023088455
-        ],
-        "samples": 2,
-        "span_mm": 0.07831466684040578,
-        "thinnest_mm": 0.6958408835079948
-      },
-      {
-        "area_mm2": 0.006492226039337693,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          13.455204168955484,
-          12.331855853398642,
-          1.234268883864085
+          14.394070625305176,
+          6.9901243050893145,
+          -4.731974045435588
         ],
         "samples": 1,
         "span_mm": 0.0,
-        "thinnest_mm": 0.43667149657073334
-      },
-      {
-        "area_mm2": 0.005523718182982472,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -5.424786448478699,
-          13.820382595062256,
-          -3.9628613392512
-        ],
-        "samples": 1,
-        "span_mm": 0.0,
-        "thinnest_mm": 0.7959838964383471
-      },
-      {
-        "area_mm2": 0.005398729283925436,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -10.294199526309967,
-          7.960218856732051,
-          -0.33498291360835236
-        ],
-        "samples": 1,
-        "span_mm": 0.0,
-        "thinnest_mm": 0.7700832337110352
-      },
-      {
-        "area_mm2": 0.00445057210777631,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -3.3371752152840295,
-          14.044663468996683,
-          3.9493758380413055
-        ],
-        "samples": 1,
-        "span_mm": 0.0,
-        "thinnest_mm": 0.6753727779677244
-      },
-      {
-        "area_mm2": 0.004351154382289977,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -6.375342508157094,
-          12.960977792739868,
-          -4.361777285734813
-        ],
-        "samples": 2,
-        "span_mm": 0.08217419472101994,
-        "thinnest_mm": 0.6817800398407369
-      },
-      {
-        "area_mm2": 0.003849469218644909,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          10.72000503540039,
-          10.182554801305136,
-          -5.843599637349446
-        ],
-        "samples": 1,
-        "span_mm": 0.0,
-        "thinnest_mm": 0.3881918750218384
-      },
-      {
-        "area_mm2": 0.0037347674356441795,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          0.8556898186604182,
-          14.763426919778189,
-          2.452276627222697
-        ],
-        "samples": 1,
-        "span_mm": 0.0,
-        "thinnest_mm": 0.778534587375118
-      },
-      {
-        "area_mm2": 0.0028821728483651764,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -0.9244155089060465,
-          15.162934303283691,
-          -2.271241823832194
-        ],
-        "samples": 2,
-        "span_mm": 0.009958200635125314,
-        "thinnest_mm": 0.1471365861916136
-      },
-      {
-        "area_mm2": 0.00256586456374619,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          15.900366942087809,
-          8.248147567113241,
-          0.0016713996107379596
-        ],
-        "samples": 3,
-        "span_mm": 0.0399482621762548,
-        "thinnest_mm": 0.38757167066496356
-      },
-      {
-        "area_mm2": 0.0019753272121920767,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          5.93460517625014,
-          12.134039352337519,
-          2.118402407815059
-        ],
-        "samples": 1,
-        "span_mm": 0.0,
-        "thinnest_mm": 0.20181342874571442
-      },
-      {
-        "area_mm2": 0.0011214819636348595,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          -8.50642458597819,
-          10.404187440872192,
-          3.328547418117523
-        ],
-        "samples": 1,
-        "span_mm": 0.0,
-        "thinnest_mm": 0.7138109096280467
-      },
-      {
-        "area_mm2": 0.00025416612193607745,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          0.7609858686725298,
-          14.213180939356485,
-          -2.0088333835204444
-        ],
-        "samples": 1,
-        "span_mm": 0.0,
-        "thinnest_mm": 0.23172857686502052
+        "thinnest_mm": 0.46560746041806306
       }
     ],
     "suspected_census_artifacts": [
@@ -3840,6 +3842,7 @@
         "area_mm2": 7.58156105307208,
         "depth_mm": null,
         "kind": "wall",
+        "part": "band",
         "point": [
           -2.339804172515869,
           9.103655497233072,
@@ -3853,6 +3856,7 @@
         "area_mm2": 7.581561053072071,
         "depth_mm": null,
         "kind": "wall",
+        "part": "band",
         "point": [
           2.339804172515869,
           9.103655497233072,
@@ -3863,256 +3867,345 @@
         "thinnest_mm": 0.03979141979084452
       },
       {
-        "area_mm2": 1.592811828852921,
+        "area_mm2": 1.8482970087179509,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Prickle, arm B",
         "point": [
-          -11.380792021751404,
-          4.1692837079366045,
-          0.7567704866329829
+          -10.37375315030416,
+          6.2647634744644165,
+          0.7467070370912552
         ],
-        "samples": 241,
-        "span_mm": 2.2061828013844345,
-        "thinnest_mm": 0.00028617621954726835
+        "samples": 313,
+        "span_mm": 2.1806550958805255,
+        "thinnest_mm": 0.000049603889464989786
       },
       {
-        "area_mm2": 1.1328733234816968,
+        "area_mm2": 1.245166050436051,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Prickles down arm B",
         "point": [
-          -11.960180322329203,
-          1.2397453685601552,
-          -1.1325801660617192
+          -11.92840313911438,
+          1.970840334892273,
+          1.0216025461753209
         ],
-        "samples": 172,
-        "span_mm": 2.0089230545430894,
-        "thinnest_mm": 0.00010046563626502285
+        "samples": 189,
+        "span_mm": 2.1966273712933653,
+        "thinnest_mm": 0.0005238423926272559
       },
       {
-        "area_mm2": 1.0762908482161242,
+        "area_mm2": 0.8578705070684632,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Prickle, arm B",
         "point": [
-          -12.042312105496725,
-          -0.24546946212649345,
-          1.0499287545681
+          -11.603224078814188,
+          3.3882994055747986,
+          -1.10032869130373
         ],
-        "samples": 153,
-        "span_mm": 2.001431907334453,
-        "thinnest_mm": 0.0007257990599174759
+        "samples": 134,
+        "span_mm": 1.6085468181353382,
+        "thinnest_mm": 0.0004336111551513012
       },
       {
-        "area_mm2": 0.727929175883299,
+        "area_mm2": 0.7275447620503509,
         "depth_mm": null,
         "kind": "wall",
+        "part": "band",
         "point": [
-          -11.98830666144689,
-          -1.473119926949342,
-          -0.9853470201293627
+          -11.989083548386892,
+          1.2455852006872494,
+          -1.072956965615352
         ],
-        "samples": 103,
-        "span_mm": 1.5438857607710468,
-        "thinnest_mm": 0.0018126921885670748
+        "samples": 97,
+        "span_mm": 1.515288836555494,
+        "thinnest_mm": 0.0015686190154502364
       },
       {
-        "area_mm2": 0.5270409668258283,
+        "area_mm2": 0.5766227898171004,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Prickles down arm A",
         "point": [
-          -11.750893652439117,
-          -2.8442874203125634,
-          0.9586822452644507
+          11.473576068878174,
+          3.3563521405061087,
+          -1.14398289223512
         ],
-        "samples": 75,
-        "span_mm": 1.2543938978800648,
-        "thinnest_mm": 0.0023388585647833274
+        "samples": 97,
+        "span_mm": 0.845456935946133,
+        "thinnest_mm": 0.0007961806427403867
       },
       {
-        "area_mm2": 0.5260590616452243,
+        "area_mm2": 0.5476917543155619,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Prickles down arm B",
         "point": [
-          11.896372636159262,
-          0.9991193239887556,
-          -1.165836714208126
+          -12.069946686426798,
+          -0.4519932897140582,
+          1.0032803441087406
         ],
-        "samples": 80,
-        "span_mm": 1.2530116709376435,
-        "thinnest_mm": 0.0021161355547891954
+        "samples": 79,
+        "span_mm": 1.2634586562484373,
+        "thinnest_mm": 0.0014479494257882155
       },
       {
-        "area_mm2": 0.49398392140882,
+        "area_mm2": 0.4663844254218453,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Prickles down arm A",
+        "point": [
+          11.063453455766043,
+          4.462741573651631,
+          1.2072846107184887
+        ],
+        "samples": 77,
+        "span_mm": 1.1679810684595102,
+        "thinnest_mm": 0.00006734989766921469
+      },
+      {
+        "area_mm2": 0.430561449144405,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Prickle, arm A",
+        "point": [
+          11.985398570696512,
+          0.7504893491665522,
+          -0.9876486733555794
+        ],
+        "samples": 67,
+        "span_mm": 1.0083101757730617,
+        "thinnest_mm": 0.00167979662081211
+      },
+      {
+        "area_mm2": 0.39682414728920806,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Dried sepals",
         "point": [
           -0.5259777040531238,
           9.756254384915033,
           7.726755777994792
         ],
-        "samples": 65,
-        "span_mm": 0.7222519757871257,
+        "samples": 53,
+        "span_mm": 0.6261907234788096,
         "thinnest_mm": 0.011871891195695752
       },
       {
-        "area_mm2": 0.4253415619192102,
+        "area_mm2": 0.37950433856401605,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Prickles down arm A",
         "point": [
-          11.75380136569341,
-          1.95221592237552,
-          1.1231654870013397
+          11.61320541302363,
+          2.8294074485699334,
+          1.1196254541476567
         ],
-        "samples": 72,
-        "span_mm": 1.125117346950788,
-        "thinnest_mm": 0.0008180182185415037
+        "samples": 61,
+        "span_mm": 0.882964857630891,
+        "thinnest_mm": 0.00022842400899011155
       },
       {
-        "area_mm2": 0.3236711719020467,
+        "area_mm2": 0.28321232244319633,
         "depth_mm": null,
         "kind": "wall",
+        "part": "band",
         "point": [
-          11.364266494909922,
-          3.473075042168299,
-          -1.2028497631351154
+          12.02644912401835,
+          -0.8507973402738571,
+          0.8432345911860466
         ],
-        "samples": 53,
-        "span_mm": 0.6408836866289604,
-        "thinnest_mm": 0.00312539110776756
+        "samples": 36,
+        "span_mm": 0.896007101855942,
+        "thinnest_mm": 0.0008928232204063433
       },
       {
-        "area_mm2": 0.31750003348960043,
+        "area_mm2": 0.25025471671373795,
         "depth_mm": null,
         "kind": "wall",
-        "point": [
-          -11.377122064431509,
-          -4.122332329551379,
-          -0.9045017311970392
-        ],
-        "samples": 50,
-        "span_mm": 0.8318136656077155,
-        "thinnest_mm": 0.0013031452011757864
-      },
-      {
-        "area_mm2": 0.3016400545577141,
-        "depth_mm": null,
-        "kind": "wall",
+        "part": "Dried sepals",
         "point": [
           -6.274880796670914,
           12.8461394906044,
           -5.2264109055201216
         ],
-        "samples": 55,
-        "span_mm": 0.5153156779015973,
+        "samples": 46,
+        "span_mm": 0.4649208242586873,
         "thinnest_mm": 0.02374615800717502
       },
       {
-        "area_mm2": 0.2993929584849409,
+        "area_mm2": 0.15058668999944105,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Petal ring 3",
         "point": [
-          -0.5474082479874293,
-          12.20329737663269,
-          5.340253949165344
-        ],
-        "samples": 65,
-        "span_mm": 1.504862070715049,
-        "thinnest_mm": 0.02510374789629302
-      },
-      {
-        "area_mm2": 0.21590346071821725,
-        "depth_mm": null,
-        "kind": "wall",
-        "point": [
-          11.956452270348867,
-          -0.7398165464401245,
-          1.0269776694476604
+          -0.5062024084230264,
+          12.10014808177948,
+          5.727719008922577
         ],
         "samples": 31,
-        "span_mm": 0.6606019685546513,
-        "thinnest_mm": 0.002043728815420256
+        "span_mm": 0.9776686391795755,
+        "thinnest_mm": 0.030765768116606987
       },
       {
-        "area_mm2": 0.15160488514333337,
+        "area_mm2": 0.11239615268678789,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Petal ring 4",
         "point": [
-          2.1795404429237046,
-          14.053674598534903,
-          -5.735172202189763
+          -6.507763822873433,
+          11.162219127019247,
+          1.7727414468924205
         ],
-        "samples": 34,
-        "span_mm": 0.41277256116397565,
-        "thinnest_mm": 0.02374239120248831
+        "samples": 28,
+        "span_mm": 0.8346649357772353,
+        "thinnest_mm": 0.034964551885404406
       },
       {
-        "area_mm2": 0.05650740449715039,
+        "area_mm2": 0.1112169225649948,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Petal ring 4",
         "point": [
-          11.799737334251404,
-          -2.1812058687210083,
-          -0.9557156016429266
+          -7.6236246426900225,
+          9.963152011235556,
+          1.7714358468850453
         ],
-        "samples": 9,
-        "span_mm": 0.22172182802474483,
-        "thinnest_mm": 0.0011381725164319539
+        "samples": 27,
+        "span_mm": 1.1642745153003655,
+        "thinnest_mm": 0.02563539338186792
       },
       {
-        "area_mm2": 0.031077080771647773,
+        "area_mm2": 0.07021187375085686,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Petal, ring 3",
         "point": [
-          -10.512273788452148,
-          6.329899072647095,
-          3.647416611512502
+          -4.690255324045817,
+          14.201615333557129,
+          -3.503527045249939
         ],
-        "samples": 9,
-        "span_mm": 0.3677732765564792,
-        "thinnest_mm": 0.005443483274529465
+        "samples": 18,
+        "span_mm": 0.5246311597794584,
+        "thinnest_mm": 0.012551281959815476
       },
       {
-        "area_mm2": 0.030218893264804498,
+        "area_mm2": 0.058853609737652676,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Leaf, upper lateral leaflet",
         "point": [
-          -10.354401191075643,
-          6.244712730248769,
-          -4.433004379272461
+          -8.644314606984457,
+          8.656165361404419,
+          3.6474257906277976
         ],
-        "samples": 10,
-        "span_mm": 0.3096556899580527,
-        "thinnest_mm": 0.012059830270895903
+        "samples": 15,
+        "span_mm": 0.37269093339584947,
+        "thinnest_mm": 0.005376089568309857
       },
       {
-        "area_mm2": 0.009976980171699497,
+        "area_mm2": 0.03617068967444946,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Leaf, lower lateral leaflet",
         "point": [
-          -9.674738218386969,
-          5.843141908446948,
-          3.8626411532362304
+          -8.581634218494097,
+          8.617970814307531,
+          -4.442350313067436
+        ],
+        "samples": 11,
+        "span_mm": 0.35459096077155383,
+        "thinnest_mm": 0.004157624639861682
+      },
+      {
+        "area_mm2": 0.024696760109577574,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Leaf, upper lateral leaflet",
+        "point": [
+          -7.978879908720653,
+          8.015144228935242,
+          3.871871563295523
+        ],
+        "samples": 6,
+        "span_mm": 0.17036001077083673,
+        "thinnest_mm": 0.01497550018460129
+      },
+      {
+        "area_mm2": 0.016645632706448442,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Leaf, lower lateral leaflet",
+        "point": [
+          -7.995364084839821,
+          8.034757802883783,
+          -4.276961371302605
         ],
         "samples": 7,
-        "span_mm": 0.12539033371417396,
-        "thinnest_mm": 0.015987450527071095
+        "span_mm": 0.14581644288298,
+        "thinnest_mm": 0.0033714792387624457
       },
       {
-        "area_mm2": 0.00515966791434105,
+        "area_mm2": 0.00598936276925871,
         "depth_mm": null,
         "kind": "wall",
+        "part": "Petal ring 2",
         "point": [
-          -10.337063997983932,
-          6.548866232236226,
-          -4.269845227400462
+          -5.9444306294123335,
+          13.33770751953125,
+          4.06613286336263
+        ],
+        "samples": 2,
+        "span_mm": 0.15430106770408258,
+        "thinnest_mm": 0.03258592683797225
+      },
+      {
+        "area_mm2": 0.0032048449521887234,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Petal ring 4",
+        "point": [
+          4.479836131135623,
+          13.159840494394302,
+          -1.190014412626624
         ],
         "samples": 1,
         "span_mm": 0.0,
-        "thinnest_mm": 0.0215862620989802
+        "thinnest_mm": 0.03916607849418017
+      },
+      {
+        "area_mm2": 0.0018409279413609625,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Dried sepals",
+        "point": [
+          5.240033209323883,
+          13.136521180470785,
+          1.9924755493799846
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.009240374833396944
+      },
+      {
+        "area_mm2": 0.0010720245691818414,
+        "depth_mm": null,
+        "kind": "wall",
+        "part": "Petal ring 2",
+        "point": [
+          -6.119322846333186,
+          15.309261778990427,
+          -2.0423625657955804
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.033628285719377544
       }
     ],
     "unresolved": 0,
-    "wall_area_mm2": 24.021022318771895,
-    "wall_samples": 3381
+    "wall_area_mm2": 23.962612948685734,
+    "wall_samples": 3412
   },
   "template_gate": {
     "passed": true,
@@ -4120,7 +4213,7 @@
     "patch_pointers": [
       "/manufacturing"
     ],
-    "graph_bytes": 258057,
+    "graph_bytes": 258863,
     "class": "procedural",
     "budget_bytes": 300000,
     "source_identical": true,
@@ -4128,7 +4221,7 @@
     "cold_graph_reload": true,
     "mesh_parity": true,
     "export_geometry_verified": true,
-    "first_build_ms": 1973.7448120000001,
+    "first_build_ms": 1996.1399640000002,
     "note": "crisp_relief is off (the ring has no height-field relief), so the lift carries the design whole."
   }
 }

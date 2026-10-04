@@ -60,8 +60,8 @@ const STEM_PROUD_MM: f64 = 0.75;
 const STEM_BURIED_R_MM: f64 = 0.6;
 /// Growth nodes on the plain stem round the palm: where, their bead radius, how proud and how far across.
 const NODE_DEG: [f64; 3] = [238.0, 272.0, 306.0];
-const NODE_R_MM: f64 = 0.32;
-const NODE_PROUD_MM: f64 = 0.16;
+const NODE_R_MM: f64 = 0.5;
+const NODE_PROUD_MM: f64 = 0.27;
 const NODE_HALF_MM: f64 = 1.45;
 const STEM_FROM_DEG: [f64; 2] = [42.0, 35.0];
 const STEM_BLEND_MM: f64 = 0.0;
@@ -71,21 +71,21 @@ const HEART_LIP: f64 = 0.3;
 /// Four rings of petals: (count, rise over the horizontal, length, width, foot under the girdle, droop at the tip,
 /// skew). The innermost ring wraps the ruby's girdle in a spiral, each petal skewed so one edge laps over its
 /// neighbour; the next cups it; the third has opened; the outer one hangs dead, reflexed below the bloom's plane.
-const PETAL_RINGS: [(usize, f64, f64, f64, f64, f64, f64); 4] = [(4, 104.0, 3.0, 5.2, -0.9, 0.0, 0.14), (5, 70.0, 3.0, 4.2, -1.1, 15.0, 0.08), (6, 38.0, 3.6, 4.0, -1.35, 30.0, 0.14), (7, -4.0, 4.0, 4.6, -1.6, 38.0, 0.0)];
+const PETAL_RINGS: [(usize, f64, f64, f64, f64, f64, f64); 4] = [(4, 104.0, 3.0, 5.2, -0.9, 0.0, 0.14), (5, 70.0, 3.0, 4.2, -1.1, 15.0, 0.08), (6, 32.0, 3.8, 4.0, -1.4, 26.0, 0.04), (7, -10.0, 4.0, 4.6, -1.6, 42.0, 0.0)];
 const PETAL_START_DEG: f64 = 20.0;
 const PETAL_FOOT_OUT_MM: f64 = 0.3;
 /// Cupped toward the heart at the foot; the margins roll back toward the tip, as a dried petal's do.
 const PETAL_CUP_MM: f64 = 0.4;
 const PETAL_REFLEX_MM: f64 = 0.65;
 /// Dried: a low crinkle across the blade.
-const PETAL_CRINKLE_MM: f64 = 0.25;
+const PETAL_CRINKLE_MM: f64 = 0.14;
 /// How ragged the outer petals' dried edges are, as a share of the blade.
 const PETAL_TEAR: f64 = 0.06;
 /// How far the inner rings curve round the collet across their width (share of their half-width, at the margin).
 const PETAL_WRAP: f64 = 0.3;
 /// The section floor through the blade; it thins only at the free margin.
 const PETAL_T_MM: f64 = 1.0;
-const PETAL_EDGE_MM: f64 = 0.55;
+const PETAL_EDGE_MM: f64 = 0.9;
 const RECEPTACLE_FOOT_Z: f64 = -2.75;
 /// Five dried sepals under the bloom, long and reflexed.
 const SEPALS: usize = 5;
@@ -98,7 +98,7 @@ const HIP_WALL_MM: f64 = 0.85;
 /// far over the girdle its lip draws in round the collet.
 const HIP_URN_NECK_MM: f64 = 4.0;
 const HIP_URN_BELLY_MM: f64 = 4.9;
-const HIP_URN_LIP_Z_MM: f64 = 0.15;
+const HIP_URN_LIP_Z_MM: f64 = 0.6;
 const HIP_LIP: f64 = 0.3;
 /// The hip's body under the stone: semi-axes and how far its centre stands under the girdle.
 const HIP_BODY: (f64, f64, f64, f64) = (2.6, 2.6, 1.0, 1.25);
@@ -113,11 +113,11 @@ const WISP_BEND_MM: f64 = 0.9;
 const WISP_CURL_DEG: f64 = 110.0;
 const WISP_TWIST_DEG: f64 = 60.0;
 const WISP_END: f64 = 0.82;
-const WISP_ROOT_Z_MM: f64 = 0.05;
-const WISP_ROOT_OUT_MM: f64 = 0.9;
+const WISP_ROOT_Z_MM: f64 = 0.5;
+const WISP_ROOT_OUT_MM: f64 = 1.0;
 /// The leaf, below the bloom down arm A's far side: where its rachis starts, how far across, the rachis's run, each
 /// leaflet's (length, width), the laterals' spread; its sink, drape, thickness and teeth.
-const LEAF_DEG: f64 = 131.0;
+const LEAF_DEG: f64 = 117.0;
 const LEAF_Z_MM: f64 = -0.2;
 const LEAF_RACHIS_MM: f64 = 2.0;
 const LEAF_TERMINAL: (f64, f64) = (6.0, 3.2);
@@ -133,12 +133,12 @@ const LEAF_ROWS: usize = 50;
 const LEAF_CUP_MM: f64 = 0.35;
 const LEAF_RIB_MM: f64 = 0.15;
 /// Five prickles on each arm's shoulder, degrees from the top, spaced unevenly; the palm's lower third stays smooth.
-const PRICKLES: usize = 5;
+const PRICKLES: usize = 4;
 /// Each arm's row along the crest, degrees, run in increasing theta: arm A from its palm end up toward the hip, arm B
 /// from under the leaf down toward the palm.
-const PRICKLE_ROW_DEG: [(f64, f64); 2] = [(-14.0, 16.0), (168.0, 197.0)];
+const PRICKLE_ROW_DEG: [(f64, f64); 2] = [(1.5, 21.0), (157.0, 179.0)];
 /// The smallest prickle's scale, at the palm end.
-const PRICKLE_LAST_SCALE: f64 = 0.72;
+const PRICKLE_LAST_SCALE: f64 = 0.8;
 const PRICKLE_SINK_MM: f64 = 0.3;
 const PRICKLE_BLEND_MM: f64 = 0.0;
 /// How far each prickle's foot flares where it meets the stem, as a share of its section.
@@ -167,7 +167,7 @@ fn ruby() -> Gem {
 }
 
 fn garnet() -> Gem {
-    Gem { preview_tint: Some([0.28, 0.03, 0.05]), ..Gem::cabochon(GemCut::Round, 6.0) }
+    Gem { preview_tint: Some([0.22, 0.04, 0.03]), ..Gem::cabochon(GemCut::Round, 6.0) }
 }
 
 /// The stem: a procedural bypass, HighDome 3.6 x 2.7, lost wax.
@@ -786,10 +786,12 @@ fn hip_urn(gem: Gem, foot_z: f64) -> csg::Solid {
         (r - 0.4, -0.3),
         // Up inside the collet's wall, so the urn swallows it to just under its lip and no plain can shows.
         (r + 0.15, -0.25),
-        (r + 0.15, HIP_URN_LIP_Z_MM - 0.1),
-        (r + HIP_WALL_MM + 0.3, HIP_URN_LIP_Z_MM),
-        // A rose hip's swollen ovoid: broadest a third of the way down, drawing in to a narrow neck at the stem.
-        (HIP_URN_BELLY_MM - 0.35, HIP_URN_LIP_Z_MM - 0.15 + 0.12 * foot_z),
+        (r + 0.15, HIP_URN_LIP_Z_MM - 0.15),
+        // The lip closes on the collet's wall just under its rim, then the fruit swells out in one convex curve: no
+        // ledge, no step.
+        (r + HIP_WALL_MM + 0.02, HIP_URN_LIP_Z_MM),
+        (r + HIP_WALL_MM + 0.35, HIP_URN_LIP_Z_MM - 0.35),
+        (HIP_URN_BELLY_MM - 0.3, 0.12 * foot_z),
         (HIP_URN_BELLY_MM, 0.32 * foot_z),
         (HIP_URN_BELLY_MM - 0.3, 0.52 * foot_z),
         (0.5 * (HIP_URN_BELLY_MM + HIP_URN_NECK_MM), 0.74 * foot_z),
@@ -1344,6 +1346,16 @@ fn main() -> Result<()> {
             }
         }
         println!("    bore intruders: {owners:?}");
+        let m = &built.mesh;
+        for f in &m.faces {
+            let [a, b, c] = f.map(|i| { let v = m.vertices[i as usize]; [v.0 as f64, v.1 as f64, v.2 as f64] });
+            let area = 0.5 * dot(cross3(sub3(b, a), sub3(c, a)), cross3(sub3(b, a), sub3(c, a))).sqrt();
+            let longest = [sub3(b, a), sub3(c, b), sub3(a, c)].iter().map(|e| dot(*e, *e).sqrt()).fold(0.0, f64::max);
+            if area < 1e-9 || (longest > 0.0 && area / (longest * longest) < 1e-7) {
+                let owner = m.origin.get(f[0] as usize).and_then(|o| o.checked_sub(mesh::SOLID_VERTEX + built.parts.first as u32)).and_then(|j| built.parts.features.get(j as usize)).and_then(|id| d.cad.as_ref()?.feature(*id)).map(|f| f.name.clone()).unwrap_or_else(|| "band".into());
+                println!("    thin face at {:?} on {owner}, area {area:.2e}", a.map(|x| (x * 100.0).round() / 100.0));
+            }
+        }
     }
     let mut field = castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
     castability::judge_parts(&mut field, &d, &built);
@@ -1351,7 +1363,6 @@ fn main() -> Result<()> {
     // 0.8 mm must be fixed; zones under 0.05 mm are listed as suspected census artifacts, never reshaped for.
     println!("  field {} thinnest wall {:.2} mm at {:.0} deg", field.verdict.label(), field.thinnest_wall_mm, field.thinnest_wall_theta_deg);
     let census = cad::measure::thickness(&built.mesh, MIN_SECTION_MM);
-    let zone = |z: &cad::measure::ThinZone| json!({"thinnest_mm": z.thinnest_mm, "point": z.point, "area_mm2": z.area_mm2, "span_mm": z.span_mm, "samples": z.samples, "depth_mm": z.depth_mm, "kind": z.kind});
     let real_walls: Vec<_> = census.walls.iter().filter(|z| z.thinnest_mm >= ARTIFACT_MM && z.area_mm2 >= SPECK_MM2).collect();
     let specks: Vec<_> = census.walls.iter().filter(|z| z.thinnest_mm >= ARTIFACT_MM && z.area_mm2 < SPECK_MM2).collect();
     let artifacts: Vec<_> = census.walls.iter().filter(|z| z.thinnest_mm < ARTIFACT_MM).collect();
@@ -1367,6 +1378,7 @@ fn main() -> Result<()> {
         }
         name
     };
+    let zone = |z: &cad::measure::ThinZone| json!({"thinnest_mm": z.thinnest_mm, "point": z.point, "area_mm2": z.area_mm2, "span_mm": z.span_mm, "samples": z.samples, "depth_mm": z.depth_mm, "kind": z.kind, "part": owner_near(z.point)});
     for z in &real_walls {
         println!("    real wall {:.3} mm at ({:.2}, {:.2}, {:.2}) over {:.2} mm² on {}", z.thinnest_mm, z.point[0], z.point[1], z.point[2], z.area_mm2, owner_near(z.point));
     }
