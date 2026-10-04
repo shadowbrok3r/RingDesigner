@@ -12,15 +12,15 @@ use anyhow::{Result, ensure};
 use ringdesign_core::{
     AlphaLibrary, BuildParams, ProfileStyle, RingDesign,
     imported_base::{ImportedBase, PRESETS, SurfaceChart},
-    cad::{Attach, Component, Document, Feature, Operation, Placement, stored},
+    cad::{Attach, Component, Document, Feature, Operation, Placement, measure, stored},
     castability::{self, CastProcess, Verdict},
     csg, dfm,
-    field::{Blend, Layer, LayerEntry, SIDE_FACE_MIN_DRAFT_DEG, SideFacePick, VGate},
+    field::{Layer, LayerEntry},
     manufacturing as mf, mesh,
     render,
     sculpt::{self, ellipsoid, round_cone, smin},
     reptile::svg::{self as rsvg, Params},
-    skin::{self, Atlas},
+    setting::{RowPath, Stamp, StampRow, StampTop, stamp_row},
     stl,
     svg::SvgAlpha,
 };
@@ -47,7 +47,7 @@ const SINK_MM: f64 = 0.45;
 const STEP_MM: f64 = 0.05;
 /// The investment's fill floor, mm.
 const MIN_SECTION_MM: f64 = 0.8;
-const FACES: usize = 420_000;
+const FACES: usize = 210_000;
 
 fn params(draft: bool) -> BuildParams {
     let (t, p) = if draft { (768, 320) } else { (1536, 448) };
@@ -103,10 +103,6 @@ fn dot(a: P3, b: P3) -> f64 {
 fn norm(a: P3) -> f64 {
     dot(a, a).sqrt()
 }
-fn wrap180(a: f64) -> f64 {
-    (a + 180.0).rem_euclid(360.0) - 180.0
-}
-
 /// Deterministic jitter in 0..1.
 fn hash(k: usize, salt: u64) -> f64 {
     let mut x = (k as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ salt.wrapping_mul(0xBF58_476D_1CE4_E5B9);
@@ -126,6 +122,8 @@ struct Ground {
     nx: usize,
     nz: usize,
     y: Vec<f64>,
+    /// How far each grid point stands inside the flat face from its edge, mm; 0 off the face.
+    inset: Vec<f64>,
 }
 
 impl Ground {
@@ -144,7 +142,40 @@ impl Ground {
                 }
             }
         }
-        Ok(Self { x0, z0, step, nx, nz, y })
+        // The flat face, and each of its points' distance in from its edge (a two-pass chamfer).
+        let face = y[(nx / 2) * nz + nz / 2];
+        let mut inset: Vec<f64> = y.iter().map(|h| if (h - face).abs() < 0.005 { f64::MAX } else { 0.0 }).collect();
+        let (a, b) = (step, step * std::f64::consts::SQRT_2);
+        for i in 0..nx {
+            for j in 0..nz {
+                let mut v = inset[i * nz + j];
+                if i > 0 { v = v.min(inset[(i - 1) * nz + j] + a); }
+                if j > 0 { v = v.min(inset[i * nz + j - 1] + a); }
+                if i > 0 && j > 0 { v = v.min(inset[(i - 1) * nz + j - 1] + b); }
+                if i > 0 && j + 1 < nz { v = v.min(inset[(i - 1) * nz + j + 1] + b); }
+                inset[i * nz + j] = v;
+            }
+        }
+        for i in (0..nx).rev() {
+            for j in (0..nz).rev() {
+                let mut v = inset[i * nz + j];
+                if i + 1 < nx { v = v.min(inset[(i + 1) * nz + j] + a); }
+                if j + 1 < nz { v = v.min(inset[i * nz + j + 1] + a); }
+                if i + 1 < nx && j + 1 < nz { v = v.min(inset[(i + 1) * nz + j + 1] + b); }
+                if i + 1 < nx && j > 0 { v = v.min(inset[(i + 1) * nz + j - 1] + b); }
+                inset[i * nz + j] = v;
+            }
+        }
+        Ok(Self { x0, z0, step, nx, nz, y, inset })
+    }
+    /// How far plan `x`, `z` stands inside the flat face from its edge, mm, bilinear; 0 off it.
+    fn inset(&self, x: f64, z: f64) -> f64 {
+        let fx = ((x - self.x0) / self.step).clamp(0.0, (self.nx - 1) as f64 - 1e-9);
+        let fz = ((z - self.z0) / self.step).clamp(0.0, (self.nz - 1) as f64 - 1e-9);
+        let (i, j) = (fx.floor() as usize, fz.floor() as usize);
+        let (tx, tz) = (fx - i as f64, fz - j as f64);
+        let g = |a: usize, b: usize| self.inset[a * self.nz + b];
+        (g(i, j) * (1.0 - tx) + g(i + 1, j) * tx) * (1.0 - tz) + (g(i, j + 1) * (1.0 - tx) + g(i + 1, j + 1) * tx) * tz
     }
     /// The ground's height at plan `x`, `z`, bilinear.
     fn s(&self, x: f64, z: f64) -> f64 {
@@ -188,8 +219,6 @@ enum Kind {
     Toe,
     Pad,
     Tail,
-    Eye,
-    Hide,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -238,16 +267,16 @@ struct Spot {
 
 /// The tokay's measurements, frame mm.
 const HEAD_X: f64 = 6.2;
-const EYE_X: f64 = 5.1;
-const EYE_W: f64 = 2.95;
-const EYE_R: f64 = 0.82;
+const EYE_X: f64 = 5.6;
+const EYE_W: f64 = 2.85;
+const EYE_R: f64 = 0.8;
 const VENT_X: f64 = -6.2;
 /// Front and hind limbs: where each leaves the body.
 const LEGS: [(f64, f64); 2] = [(2.2, 1.0), (-4.0, -1.0)];
 /// The skin's granules: lattice pitch and height; the spots' height.
 const GRANULE_PITCH_MM: f64 = 0.5;
 const GRANULE_MM: f64 = 0.0;
-const SPOT_MM: f64 = 0.22;
+const SPOT_MM: f64 = 0.2;
 
 struct Gekko<'a> {
     frame: Frame<'a>,
@@ -262,8 +291,8 @@ struct Gekko<'a> {
 /// The tail's centre line and radius at a share `t` of its length from the vent: off the face's end and down the
 /// shoulder, swinging to one side and curling its tip back.
 fn tail_at(g: &Ground, t: f64) -> (P3, f64) {
-    let r = 1.45 * (1.0 - t).powf(0.9) + 0.4 * t;
-    let pts: [(f64, f64); 7] = [(VENT_X, 0.0), (-7.4, -0.6), (-8.3, -0.2), (-8.6, 0.8), (-8.3, 1.8), (-8.4, 2.8), (-8.8, 3.4)];
+    let r = 1.45 * (1.0 - t).powf(1.0) + 0.4 * t;
+    let pts: [(f64, f64); 7] = [(VENT_X, 0.0), (-7.4, -0.8), (-8.3, -0.6), (-8.6, 0.4), (-8.2, 1.4), (-7.9, 2.4), (-8.2, 3.2)];
     let n = pts.len() - 1;
     let f = (t.clamp(0.0, 1.0) * n as f64).min(n as f64 - 1e-9);
     let i = f.floor() as usize;
@@ -273,17 +302,6 @@ fn tail_at(g: &Ground, t: f64) -> (P3, f64) {
     let cr = |a: f64, b: f64, c: f64, d: f64| 0.5 * ((2.0 * b) + (-a + c) * u + (2.0 * a - 5.0 * b + 4.0 * c - d) * u * u + (-a + 3.0 * b - 3.0 * c + d) * u * u * u);
     let _ = g;
     ([cr(p0.0, p1.0, p2.0, p3.0), -0.35 * r, cr(p0.1, p1.1, p2.1, p3.1)], r)
-}
-
-/// The tail's rings: raised bands round it at a pitch, 0..1, nothing on its root.
-const RING_PITCH_MM: f64 = 1.0;
-const RING_MM: f64 = 0.09;
-fn tail_rings(x: f64) -> f64 {
-    if x > VENT_X - 1.2 {
-        return 0.0;
-    }
-    let f = ((VENT_X - 1.2 - x) / RING_PITCH_MM).fract();
-    smoothstep(0.05, 0.25, f) * (1.0 - smoothstep(0.45, 0.65, f))
 }
 
 fn body_prims(crest: &Ground) -> Vec<Prim> {
@@ -302,6 +320,11 @@ fn body_prims(crest: &Ground) -> Vec<Prim> {
         egg(Kind::Head, [4.7, -0.7, -2.3], [1.3, 1.5, 1.35], 0.0, 0.3),
         // The hips.
         egg(Kind::Body, [VENT_X + 1.3, -0.7, 0.0], [1.9, 2.2, 2.4], 0.0, 0.5),
+        // The shoulder girdle's and the pelvis's swells over the limb roots.
+        egg(Kind::Body, [2.0, -0.5, 1.75], [1.25, 1.65, 1.05], 0.0, 0.45),
+        egg(Kind::Body, [2.0, -0.5, -1.75], [1.25, 1.65, 1.05], 0.0, 0.45),
+        egg(Kind::Body, [-4.2, -0.5, 1.75], [1.3, 1.7, 1.1], 0.0, 0.45),
+        egg(Kind::Body, [-4.2, -0.5, -1.75], [1.3, 1.7, 1.1], 0.0, 0.45),
     ];
     // The tail: a chain of rounded cones from the vent down the crest.
     let n = 30;
@@ -321,8 +344,8 @@ fn body_prims(crest: &Ground) -> Vec<Prim> {
         out.push(limb(Kind::Limb, wr, ft, 0.42, 0.44, 0.08));
         out.push(egg(Kind::Limb, ft, [0.62, 0.36, 0.62], 0.0, 0.12));
         for (root, tip) in &l.toes {
-            out.push(limb(Kind::Toe, *root, *tip, 0.38, 0.34, 0.08));
-            out.push(egg(Kind::Pad, *tip, [0.46, 0.4, 0.46], 0.0, 0.06));
+            out.push(limb(Kind::Toe, *root, *tip, 0.47, 0.43, 0.08));
+            out.push(egg(Kind::Pad, *tip, [0.48, 0.42, 0.48], 0.0, 0.06));
         }
     }
     out
@@ -338,7 +361,6 @@ struct LimbPlan {
 /// The four limbs in the tokay's sprawl seen from above: the upper arm out and back, the forearm out and forward,
 /// the hand's toes fanned forward; the thigh out and forward, the shin out and back, the foot's toes fanned back.
 fn limb_plans(crest: &Ground) -> Vec<LimbPlan> {
-    let _ = crest;
     let on = |x: f64, w: f64, lift: f64| [x, lift, w];
     let mut out = Vec::new();
     for s in [1.0, -1.0] {
@@ -352,10 +374,14 @@ fn limb_plans(crest: &Ground) -> Vec<LimbPlan> {
             for k in 0..5 {
                 let j = k as f64 - 2.0;
                 // Fanned about a line out and toward the head (forelimb) or the tail (hind limb).
-                let a = (40.0 * j + 28.0 * dir).to_radians();
-                let len = [1.45, 1.65, 1.75, 1.65, 1.45][k];
-                let x = (ft[0] + a.sin() * len).clamp(-9.0, 9.0);
-                let w = (ft[2].abs() + a.cos() * len).min(6.6 - 0.04 * x * x / 4.0);
+                let a = (46.0 * j + 28.0 * dir).to_radians();
+                // Each toe ends with its pad at least 0.75 mm inside the flat face, never over the factory's wall.
+                let mut len: f64 = [1.45, 1.65, 1.75, 1.65, 1.45][k];
+                let tip = |len: f64| (ft[0] + a.sin() * len, ft[2].abs() + a.cos() * len);
+                while len > 0.9 && crest.inset(tip(len).0, tip(len).1 * s) < 0.75 {
+                    len -= 0.02;
+                }
+                let (x, w) = tip(len);
                 let root = on(ft[0] + a.sin() * 0.3, (ft[2].abs() + a.cos() * 0.3) * s, 0.3);
                 toes.push((root, on(x, w * s, 0.32)));
             }
@@ -367,14 +393,18 @@ fn limb_plans(crest: &Ground) -> Vec<LimbPlan> {
 
 /// The tokay's spots: rows down both flanks and on the head's and tail's sides, each a smooth raised disc.
 fn spots() -> Vec<Spot> {
-    // Two loose rows of flat-topped spots down the back, 1.0-1.4 mm across, staggered, from the shoulders to the hips.
-    let mut out = Vec::new();
-    for k in 0..5 {
-        for (row, s) in [(0, 1.0), (1, -1.0)] {
-            let x = 2.4 - 1.95 * k as f64 - 0.95 * row as f64 + 0.3 * (hash(k * 2 + row, 31) - 0.5);
-            let w = s * (1.05 + 0.3 * (hash(k * 2 + row, 32) - 0.5));
-            out.push(Spot { x, w, r: 0.5 + 0.2 * hash(k * 2 + row, 34) });
+    // Two loose rows of flat-topped spots down the back and a scatter on the flanks, of mixed sizes, never in ranks.
+    let mut out: Vec<Spot> = Vec::new();
+    let mut tries = 0usize;
+    while out.len() < 15 && tries < 5000 {
+        tries += 1;
+        let x = VENT_X + 0.5 + (3.2 - VENT_X - 0.5) * hash(tries, 41);
+        let w = 2.2 * (2.0 * hash(tries, 42) - 1.0);
+        let r = 0.4 + 0.38 * hash(tries, 43);
+        if w.abs() < 0.35 || out.iter().any(|o| (o.x - x).hypot(o.w - w) < o.r + r + 0.55) {
+            continue;
         }
+        out.push(Spot { x, w, r });
     }
     out
 }
@@ -389,7 +419,7 @@ impl<'a> Gekko<'a> {
             let m = 0.5 * (lo + hi);
             if gek.body_at([EYE_X, m, EYE_W]) > 0.0 { hi = m } else { lo = m }
         }
-        gek.eye_h = lo + 0.7 - EYE_R;
+        gek.eye_h = lo + 0.65 - EYE_R;
         gek
     }
 
@@ -404,6 +434,18 @@ impl<'a> Gekko<'a> {
             }
             let v = s.eval(q);
             f = if f == f64::MAX { v } else { smin(f, v, s.blend) };
+        }
+        // Brow ridges over the eyes, the skull's planes between them.
+        for side in [1.0, -1.0] {
+            let brow = ellipsoid(sub(q, [EYE_X + 0.1, 0.8, (EYE_W - 0.75) * side]), [0.95, 0.32, 0.45]);
+            f = smin(f, brow, 0.25);
+        }
+        // Two nostrils at the snout's tip, only into the skin.
+        if f > -0.3 && f < 0.3 {
+            for side in [1.0, -1.0] {
+                let n = norm(sub(q, [HEAD_X + 2.7, 0.75, 0.5 * side])) - 0.17;
+                f = f.max(-n);
+            }
         }
         // The mouth: a line cut along each side of the head from the snout round to the jaw's angle, only into the skin.
         if q[0] > 5.6 && q[0] < HEAD_X + 3.6 && q[2].abs() > 0.6 && f > -0.3 {
@@ -423,19 +465,18 @@ impl<'a> Gekko<'a> {
             let c = [EYE_X, self.eye_h, EYE_W * s];
             let d = sub(q, c);
             let ball = norm(d) - EYE_R;
-            // The eye looks up and out; its pupil is an upright slit, a narrow lens across the ball's face from brow
-            // to cheek, and a lid rings the ball.
+            // The eye looks up and out. Its pupil is an upright groove 0.25 mm wide and 0.12 deep down the middle of
+            // its face; a smooth lid rim 0.2 mm round rings its base.
             let look = [0.0, 0.55, 0.835 * s];
             let up = [0.0, 0.835, -0.55 * s];
             let (fa, fv) = (dot(d, look), dot(d, up));
-            let half = 0.09 * (1.0 - (fv / (0.55 * EYE_R)).powi(2)).max(0.0).sqrt();
-            let slit = (d[0].abs() - half).max(0.55 * EYE_R - fa).max(fv.abs() - 0.55 * EYE_R);
-            // The lid: a fine groove round the ball a little behind its equator.
-            let ring_c = sub(d, mul(look, 0.1 * EYE_R));
+            let (gw, gd) = groove_dims(); let groove = (d[0].abs() - gw).max(EYE_R - gd - norm(d)).max(0.3 * EYE_R - fa).max(fv.abs() - 0.6 * EYE_R);
+            let eye = ball.max(-groove);
+            let ring_c = sub(d, mul(look, -0.05 * EYE_R));
             let along = dot(ring_c, look);
             let across = norm(sub(ring_c, mul(look, along)));
-            let lid = (across - EYE_R).hypot(along) - 0.08;
-            f = f.min(ball.max(-slit).max(-lid));
+            let lid = (across - 0.95 * EYE_R).hypot(along) - 0.1;
+            f = f.min(smin(eye, lid, 0.06));
         }
         f
     }
@@ -445,13 +486,21 @@ impl<'a> Gekko<'a> {
     fn hide(&self, q: P3, p: P3) -> (f64, f64) {
         let (mut spot, spine) = (0.0f64, 0.0f64);
         for s in &self.spots {
-            let d = (q[0] - s.x).hypot(q[2] - s.w);
+            let (dx, dw) = (q[0] - s.x, q[2] - s.w);
+            let ang = dw.atan2(dx);
+            let wobble = 1.0 + 0.08 * (2.0 * ang + 7.0 * s.x).sin() + 0.04 * (3.0 * ang + 3.0 * s.w).sin();
+            let d = dx.hypot(dw) / wobble;
             if d < s.r + 0.25 {
-                let v = 1.0 - smoothstep(s.r - 0.3, s.r + 0.1, d);
+                let v = 1.0 - smoothstep(s.r - 0.16, s.r + 0.14, d);
                 spot = spot.max(v);
             }
         }
         (SPOT_MM * spot + GRANULE_MM * granules(p) * (1.0 - spot.max(spine)), SPOT_MM * spine)
+    }
+
+    /// The eyes alone, in world mm.
+    fn eyes_world(&self, p: P3) -> f64 {
+        self.eyes_at(self.frame.local(p))
     }
 
     /// The sculpt: the body with its hide (granules and smooth spots, the tail's rings), the eyes set into the head,
@@ -464,9 +513,9 @@ impl<'a> Gekko<'a> {
             let toe_near = self.prims.iter().filter(|s| matches!(s.kind, Kind::Toe | Kind::Pad)).map(|s| s.eval(q)).fold(f64::MAX, f64::min);
             let fade = smoothstep(0.05, 0.3, toe_near) * smoothstep(0.05, 0.3, eyes);
             let (flank, spine) = self.hide(q, p);
-            f -= (flank + spine + RING_MM * tail_rings(q[0])) * fade;
+            f -= (flank + spine) * fade;
         }
-        f = smin(f, eyes, 0.1);
+        let _ = eyes;
         // The face's ground: a pebbled plate over the face, inset from its rim, the gecko grown out of it.
         if q[1] < 0.5 {
             f = smin(f, self.ground_plate(q, f), 0.12);
@@ -476,32 +525,19 @@ impl<'a> Gekko<'a> {
 
     /// The pebbled plate on the face: granules `CROWN_GRANULE_MM` high over the face, stopping `RIM_MM` short of its rim.
     fn ground_plate(&self, q: P3, figure: f64) -> f64 {
-        // The plate's rim: a superellipse 18.6 x 13.2 mm, half a millimetre inside the face's own outline all round.
-        let (a, b) = (9.3, 6.6);
-        let k = ((q[0].abs() / a).powi(4) + (q[2].abs() / b).powi(4)).powf(0.25);
-        let rim = (k - 1.0) * b;
+        // The plate covers the whole flat face to within 0.05 mm of its edge, so the face shows nowhere: a polished
+        // border a millimetre wide, the pebbling inside it, and at the very edge the plate's top runs down under the
+        // face's own plane, meeting the factory's wall at its hard corner.
+        let inset = self.frame.crest.inset(q[0], q[2]);
+        let rim = 0.05 - inset;
         if rim > 0.3 {
             return rim;
         }
-        // A quiet halo: the granules sink to nothing close to the figure, so its outline stays crisp.
-        let top = 0.02 + CROWN_GRANULE_MM * crown_granules(q[0], q[2]) * smoothstep(0.2, 0.7, figure);
+        // A quiet halo: the granules sink to half their height within a millimetre of the figure.
+        let halo = 0.5 + 0.5 * smoothstep(0.15, 1.0, figure);
+        let field = smoothstep(0.9, 1.5, inset);
+        let top = 0.03 + CROWN_GRANULE_MM * crown_granules(q[0], q[2]) * halo * field - 0.11 * (1.0 - smoothstep(0.08, 0.3, inset));
         (q[1] - top).max(-q[1] - SINK_MM).max(rim)
-    }
-
-    /// Which shape is nearest the surface at a frame point.
-    fn kind_at(&self, q: P3) -> Kind {
-        let mut best = (self.eyes_at(q).abs(), Kind::Eye);
-        let plate = self.ground_plate(q, self.body_at(q)).abs();
-        if plate < best.0 {
-            best = (plate, Kind::Hide);
-        }
-        for s in &self.prims {
-            let v = s.eval(q).abs();
-            if v < best.0 {
-                best = (v, s.kind);
-            }
-        }
-        best.1
     }
 
     /// The sculpt's box in world mm.
@@ -567,7 +603,7 @@ fn granules(p: P3) -> f64 {
 
 #[derive(Default, serde::Serialize)]
 struct Composition {
-    lamella_faces: usize,
+    lamellae: usize,
     face_y_mm: f64,
     prims: usize,
     spots: usize,
@@ -625,8 +661,8 @@ fn sculpt_solid(gek: &Gekko, comp: &mut Composition) -> csg::Solid {
 
 /// The crown's granules, 0..1, at `along` mm round the ring and `z` mm across: an irregular pebbling of low domed
 /// cells, each parted from its neighbours by a groove (Worley's second-minus-first distance), as a tokay's hide is.
-const CROWN_GRANULE_MM: f64 = 0.11;
-const CROWN_PITCH_MM: f64 = 0.62;
+const CROWN_GRANULE_MM: f64 = 0.13;
+const CROWN_PITCH_MM: f64 = 0.8;
 fn crown_granules(along: f64, z: f64) -> f64 {
     let g = CROWN_PITCH_MM;
     let (ci, cj) = ((along / g).floor() as i64, (z / g).floor() as i64);
@@ -646,130 +682,143 @@ fn crown_granules(along: f64, z: f64) -> f64 {
             }
         }
     }
-    let t = smoothstep(0.06, 0.4, f2 - f1);
-    t * (1.0 - (f1 / (0.75 * g)).min(1.0).powi(2)).sqrt()
+    let t = smoothstep(0.08, 0.36, f2 - f1);
+    t * (0.55 + 0.45 * (1.0 - (f1 / (0.8 * g)).min(1.0).powi(2)))
 }
 
 
-/// The shank's outer surface seen from the finger's axis: its radius over a grid in ring angle and `z`, read by
-/// casting inward onto the built bare mesh, for the palm's lamellae.
-struct Shank {
-    t0: f64,
-    dt: f64,
-    z0: f64,
-    dz: f64,
-    nt: usize,
-    nz: usize,
-    r: Vec<f64>,
-}
 
-impl Shank {
-    fn of(d: &RingDesign, from_deg: f64, to_deg: f64) -> Result<Self> {
-        use ringdesign_core::interaction::bvh::Bvh;
-        let built = mesh::try_build(d, &AlphaLibrary::default(), BuildParams { theta_steps: 1536, profile_steps: 448, refine: None, ..BuildParams::default() })?;
-        let bvh = Bvh::build(&built.mesh);
-        let (dt, z0, dz) = (0.2, -6.0, 0.04);
-        let nt = ((to_deg - from_deg) / dt) as usize + 1;
-        let nz = (12.0 / dz) as usize + 1;
-        let mut r = vec![-1.0; nt * nz];
-        for i in 0..nt {
-            let th = (from_deg + i as f64 * dt).to_radians();
-            for j in 0..nz {
-                let z = z0 + j as f64 * dz;
-                let o = [30.0 * th.cos(), 30.0 * th.sin(), z];
-                if let Some((_, t)) = bvh.ray(&built.mesh, o, [-th.cos(), -th.sin(), 0.0]) {
-                    r[i * nz + j] = 30.0 - t;
-                }
-            }
-        }
-        Ok(Self { t0: from_deg, dt, z0, dz, nt, nz, r })
-    }
-    fn at(&self, theta: f64, z: f64) -> f64 {
-        let ft = ((theta - self.t0) / self.dt).clamp(0.0, (self.nt - 1) as f64 - 1e-9);
-        let fz = ((z - self.z0) / self.dz).clamp(0.0, (self.nz - 1) as f64 - 1e-9);
-        let (i, j) = (ft.floor() as usize, fz.floor() as usize);
-        let (a, b) = (ft - i as f64, fz - j as f64);
-        let g = |x: usize, y: usize| self.r[x * self.nz + y];
-        (g(i, j) * (1.0 - a) + g(i + 1, j) * a) * (1.0 - b) + (g(i, j + 1) * (1.0 - a) + g(i + 1, j + 1) * a) * b
-    }
-    /// Half the shank's width at `theta`: how far along the finger its outer surface still faces out.
-    fn half_w(&self, theta: f64) -> f64 {
-        let f = ((theta - self.t0) / self.dt).clamp(0.0, (self.nt - 1) as f64 - 1e-9);
-        let i = f.floor() as usize;
-        let t = f - i as f64;
-        self.half_w_at(i) * (1.0 - t) + self.half_w_at(i + 1) * t
-    }
-    fn half_w_at(&self, i: usize) -> f64 {
-        let rmax = (0..self.nz).map(|j| self.r[i * self.nz + j]).fold(0.0, f64::max);
-        (0..self.nz).filter(|&j| self.r[i * self.nz + j] > rmax - 0.9).map(|j| (self.z0 + j as f64 * self.dz).abs()).fold(0.0, f64::max)
-    }
-}
 
-/// The palm: the tokay's lamellae, plates across the shank that vary only along the ring, each a gentle loaf rising to
-/// a trailing drop that faces away from the palm's centre, their pitch graded from 0.9 mm at 270 degrees to 1.45 mm
-/// where they fade out on the shoulders; at the centre the split lamella, a chevron pointing round the ring.
-const LAMELLA_MM: f64 = 0.36;
-const LAMELLA_SPAN_DEG: f64 = 68.0;
-fn lamella_solid(sh: &Shank, bore_r: f64) -> csg::Solid {
-    let r_ref = sh.at(270.0, 0.0);
-    // The joints round the ring, out from the palm's centre either way.
-    let mut joints = vec![0.0f64];
-    let mut a = 0.0;
-    while a < LAMELLA_SPAN_DEG {
-        let pitch = 0.9 + 0.55 * smoothstep(0.0, LAMELLA_SPAN_DEG, a);
-        a += (pitch / r_ref).to_degrees();
-        joints.push(a);
-    }
-    let field = |p: P3| {
-        let theta = p[1].atan2(p[0]).to_degrees().rem_euclid(360.0);
-        let off = theta - 270.0;
-        let d = off.abs();
-        if d > LAMELLA_SPAN_DEG + 3.0 {
-            return 1.0;
-        }
-        let h = p[0].hypot(p[1]) - sh.at(theta, p[2]);
-        let hw = sh.half_w(theta) - 0.5;
-        // Which plate, and how far along it from its inner joint (toward the palm's centre) to its outer.
-        let k = joints.partition_point(|j| *j <= d).max(1) - 1;
-        let (j0, j1) = (joints[k], joints[(k + 1).min(joints.len() - 1)]);
-        let len = (j1 - j0).max(1e-6);
-        let u = ((d - j0) / len).clamp(0.0, 1.0);
-        // The chevron: the centre plate's joints bend back from the band's middle.
-        let bend = if k == 0 { 0.0 } else { 0.0 };
-        let _ = bend;
-        if d > LAMELLA_SPAN_DEG {
-            return 1.0;
-        }
-        let fade = 1.0 - 0.45 * smoothstep(LAMELLA_SPAN_DEG - 20.0, LAMELLA_SPAN_DEG, d);
-        let across = 1.0 - 0.35 * (p[2] / hw.max(0.5)).powi(4).min(1.0);
-        let loaf = LAMELLA_MM * fade * across * (0.45 + 0.55 * (u / 0.75 * PI * 0.5).min(PI * 0.5).sin());
-        let gap = (u - 0.9).max(0.0);
-        let _ = gap;
-        let top = h - loaf;
-        let edge = p[2].abs() - hw;
-        // Each plate takes three quarters of its pitch; the joint between is open to the shank.
-        let arcgap = ((u - 0.76) * len).to_radians() * r_ref;
-        top.max(-h - 0.3).max(edge).max(arcgap).max(bore_r + BORE_CLEAR_MM - p[0].hypot(p[1]))
-    };
-    let r_out = r_ref + 1.0;
-    let lo = [-r_out, -r_out - 0.5, -6.0];
-    let hi = [r_out, -(r_ref - 2.0) * (LAMELLA_SPAN_DEG + 4.0).to_radians().cos().max(0.0) + 0.5, 6.0];
-    let mut raw = sculpt::tetra_mesh(lo, [hi[0], hi[1].min(-1.0), hi[2]], 0.04, &field);
-    sculpt::relax(&mut raw, &field, 2);
-    for target in [160_000, 220_000, 300_000] {
-        let s = sculpt::settle(sculpt::clean_decimate(&raw, target), &field, &|_| false);
-        if stored_crossings(&s) == 0 {
-            return s;
-        }
-    }
-    raw
-}
 
 /// Crossings once the mesh is stored, its vertices rounded to the stored grid as a stored part keeps them.
 fn stored_crossings(s: &csg::Solid) -> usize {
     let q = ringdesign_core::cad::stored::QUANTUM_MM;
     let r = csg::Solid { v: s.v.iter().map(|p| p.map(|c| (c / q).round() * q)).collect(), f: s.f.clone() };
     csg::self_crossings(&r)
+}
+
+/// The shank's hide, struck as stamps (relief the field would also hold, but a field layer on this stock dips the bore
+/// by 0.011 mm; see the report): the palm's lamellae, crescent plates graded 0.9 to 1.45 mm with the split chevron at
+/// 270 degrees; and rows of domed tubercles down both side faces of the shank.
+const LAMELLA_MM: f64 = 0.36;
+const LAMELLA_SPAN_DEG: f64 = 68.0;
+fn shank_stamps(d: &mut RingDesign) -> Result<usize> {
+    let bare = mesh::try_build(d, &AlphaLibrary::default(), params(true))?;
+    let near = |theta: f64, tol: f64| bare.mesh.vertices.iter().filter(move |v| { let t = (v.1 as f64).atan2(v.0 as f64).to_degrees().rem_euclid(360.0); (t - theta).abs() < tol });
+    let outer_r = near(270.0, 1.0).map(|v| (v.0 as f64).hypot(v.1 as f64)).fold(0.0, f64::max);
+    let half_w_at = |theta: f64| {
+        let rmax = near(theta, 1.0).map(|v| (v.0 as f64).hypot(v.1 as f64)).fold(0.0, f64::max);
+        near(theta, 1.0).filter(|v| (v.0 as f64).hypot(v.1 as f64) > rmax - 0.7).map(|v| (v.2 as f64).abs()).fold(0.0, f64::max)
+    };
+    let ctx = d.field_context();
+    let stamp = |name: String, theta: f64, outline: Vec<[f64; 2]>, height: f64, top: StampTop| Stamp {
+        name,
+        theta_deg: theta,
+        v_mm: ctx.crest_v_mm,
+        rot_deg: 0.0,
+        outline,
+        height_mm: height,
+        sink_mm: 0.3,
+        draft_deg: 0.0,
+        cut: false,
+        bench: false,
+        along_pull: false,
+        tier: 0,
+        top,
+        fine_cap: true,
+    };
+    let mut out = Vec::new();
+    // The split lamella: a chevron pointing round the ring, its arms back along both halves of the band, each arm
+    // 0.7 mm thick under 0.38 mm of relief, so it stands no taller than it is thick.
+    let hw0 = half_w_at(270.0) - 0.45;
+    out.push(stamp("Lamella, split".into(), 270.0, ringdesign_core::outline::rounded_polygon(&[[-0.6, -hw0], [0.1, -hw0], [0.75, 0.0], [0.1, hw0], [-0.6, hw0], [0.05, 0.0]], 0.1), 0.3, StampTop::Pillow { crown_mm: 0.08 }));
+    for side in [1.0f64, -1.0] {
+        let mut a = 0.9f64;
+        let mut k = 0;
+        while a < LAMELLA_SPAN_DEG {
+            let pitch = 0.9 + 0.55 * smoothstep(0.0, LAMELLA_SPAN_DEG, a);
+            let step = (pitch / outer_r).to_degrees();
+            let theta = 270.0 + side * (a + 0.5 * step);
+            let hw = half_w_at(theta) - 0.45;
+            if hw > 1.0 {
+                // A crescent: both edges bowed the same way, round the ring away from the palm's centre.
+                let (half_l, sag) = (0.5 * (pitch - 0.3), 0.3);
+                let n = 16;
+                let mut o = Vec::new();
+                for i in 0..=n {
+                    let z = -hw + 2.0 * hw * i as f64 / n as f64;
+                    o.push([side * (half_l + sag * (1.0 - (z / hw).powi(2))), z]);
+                }
+                for i in (0..=n).rev() {
+                    let z = -hw + 2.0 * hw * i as f64 / n as f64;
+                    o.push([side * (-half_l + sag * (1.0 - (z / hw).powi(2))), z]);
+                }
+                if side < 0.0 {
+                    o.reverse();
+                }
+                let o = ringdesign_core::outline::rounded_polygon(&o, 0.08);
+                k += 1;
+                let h = LAMELLA_MM * (1.0 - 0.4 * smoothstep(LAMELLA_SPAN_DEG - 20.0, LAMELLA_SPAN_DEG, a));
+                out.push(stamp(format!("Lamella, {} {k}", if side > 0.0 { "right" } else { "left" }), theta, o, h, StampTop::Taper { axis_deg: if side > 0.0 { 180.0 } else { 0.0 }, tip_mm: 0.1 }));
+            }
+            a += step;
+        }
+    }
+    let n = out.len();
+    d.stamps.extend(out);
+    // The shoulders: staggered rows of domed tubercles over the shank's outer crown, from the head's walls down to
+    // where the lamellae begin, larger toward the head.
+    let hw = half_w_at(180.0) - 0.5;
+    for (from, to) in [(142.0, 200.0), (340.0, 398.0)] {
+        for (k, frac) in [-0.72, -0.25, 0.25, 0.72].into_iter().enumerate() {
+            let size = 1.15 - 0.15 * (k % 2) as f64;
+            let shift = if k % 2 == 1 { 0.5 } else { 0.0 };
+            let r_sh = outer_r;
+            let pitch = 1.45;
+            let count = ((to - from) as f64).to_radians() * r_sh / pitch;
+            let step = (to - from) / count;
+            let row = StampRow {
+                stamp: stamp("Tubercle".into(), 0.0, ringdesign_core::outline::circle(size), 0.3, StampTop::Dome { crown_mm: 0.16 }),
+                path: RowPath::ChartV { v_mm: ctx.crest_v_mm + frac * hw },
+                from_deg: from + shift * step,
+                to_deg: to - (1.0 - shift) * step,
+                count: count.floor() as u32,
+                taper: 0.15,
+                fold_clear_mm: 0.0,
+                mirror_shoulders: false,
+            };
+            let mut struck = stamp_row(d, &row);
+            for (j, st) in struck.iter_mut().enumerate() {
+                st.name = format!("Tubercle, {from:.0} {k} {j}");
+                // Toward the head the tubercles are larger.
+                let _ = &st;
+            }
+            d.stamps.extend(struck);
+        }
+    }
+    Ok(n)
+}
+
+/// The eyes, meshed apart at a finer step so the lids and pupils keep clean edges, and joined to the head.
+fn eye_solid(gek: &Gekko) -> csg::Solid {
+    let field = |p: P3| gek.eyes_world(p);
+    let c = gek.frame.world([EYE_X, gek.eye_h, 0.0]);
+    let pad = EYE_R + 0.4;
+    let lo = [c[0] - pad, c[1] - pad, -EYE_W - pad];
+    let hi = [c[0] + pad, c[1] + pad, EYE_W + pad];
+    let mut raw = sculpt::tetra_mesh(lo, hi, 0.02, &field);
+    sculpt::relax(&mut raw, &field, 3);
+    for target in [32_000, 24_000, 40_000, 20_000, 48_000] {
+        let s = sculpt::settle(sculpt::clean_decimate(&raw, target), &field, &|_| false);
+        let x = stored_crossings(&s);
+        if std::env::var_os("GEKKO_EYES").is_some() {
+            println!("  eyes at {target}: {} faces, {x} crossings as stored", s.f.len());
+        }
+        if x == 0 {
+            return s;
+        }
+    }
+    raw
 }
 
 fn joined() -> Component {
@@ -783,7 +832,6 @@ struct Authored {
     lib: AlphaLibrary,
     comp: Composition,
     solid: csg::Solid,
-    census: Census,
 }
 
 fn author() -> Result<Authored> {
@@ -795,6 +843,8 @@ fn author() -> Result<Authored> {
         std::process::exit(0);
     }
     let mut comp = Composition { face_y_mm: crest.s(0.0, 0.0), ..Composition::default() };
+    comp.lamellae = shank_stamps(&mut d)?;
+    println!("  {} stamps ({} lamellae)", d.stamps.len(), comp.lamellae);
     let gek = Gekko::new(Frame { crest: &crest }, d.inner_radius_mm());
     if std::env::var_os("GEKKO_PROBE").is_some() {
         for l in &gek.limbs {
@@ -808,19 +858,39 @@ fn author() -> Result<Authored> {
     }
     comp.prims = gek.prims.len();
     comp.spots = gek.spots.len();
+    if let Ok(h) = std::env::var("GEKKO_TESTLAYER") {
+        let ctx = d.field_context();
+        d.svgs.push(SvgAlpha { name: "Test".into(), svg: rsvg::tubercle_rows(&Params::new(1.3, 3.0, 0.42, 0.9)), invert: false });
+        let mut t = ringdesign_core::tiling::TilingLayer::default_for("Test", &ctx);
+        t.height_mm = h.parse().unwrap_or(0.0);
+        let mut e = LayerEntry::new("Test", Layer::Tiling(t));
+        e.window = ringdesign_core::field::Window::around(270.0, 60.0);
+        d.layers.layers.push(e);
+    }
+    if let Ok(at) = std::env::var("GEKKO_AT") {
+        for t in at.split(';') {
+            let w: Vec<f64> = t.split(',').map(|x| x.trim().parse().unwrap()).collect();
+            let q = gek.frame.local([w[0], w[1], w[2]]);
+            let mut near: Vec<(f64, String)> = gek.prims.iter().map(|s| (s.eval(q), format!("{:?}", s.kind))).collect();
+            near.sort_by(|a, b| a.0.total_cmp(&b.0));
+            println!("  at {w:?} local {q:.3?} body {:.3} field {:.3} inset {:.3} nearest {:?}", gek.body_at(q), gek.field(w.clone().try_into().unwrap()), crest.inset(q[0], q[2]), &near[..4]);
+        }
+        std::process::exit(0);
+    }
+    if std::env::var_os("GEKKO_EYES").is_some() {
+        let eyes = eye_solid(&gek);
+        println!("  eyes {} faces", eyes.f.len());
+        std::process::exit(0);
+    }
     if std::env::var_os("GEKKO_NOSCULPT").is_some() {
-        let lam = lamella_solid(&Shank::of(&d, 195.0, 345.0)?, d.inner_radius_mm());
-        println!("  lamellae {} faces, stored crossings {}", lam.f.len(), stored_crossings(&lam));
         d.bake_all(&mut lib);
-        return Ok(Authored { d, lib, comp, solid: csg::Solid { v: Vec::new(), f: Vec::new() }, census: Vec::new() });
+        return Ok(Authored { d, lib, comp, solid: csg::Solid { v: Vec::new(), f: Vec::new() } });
     }
     let solid = sculpt_solid(&gek, &mut comp);
     println!("  sculpt {} raw faces -> {}, {:.1} mm3, {:.1} s {:?}", comp.raw_faces, comp.faces, comp.volume_mm3, comp.sculpt_s, comp.notes);
     let packed = sculpt::packed(&solid)?;
-    let shank = Shank::of(&d, 195.0, 345.0)?;
-    let lam = lamella_solid(&shank, d.inner_radius_mm());
-    comp.lamella_faces = lam.f.len();
-    println!("  lamellae {} faces, crossings {}", lam.f.len(), csg::self_crossings(&lam));
+    let eyes = eye_solid(&gek);
+    println!("  eyes {} faces", eyes.f.len());
     let doc = d.cad.get_or_insert_with(Document::default);
     if doc.band().is_none() {
         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
@@ -833,11 +903,10 @@ fn author() -> Result<Authored> {
         digest: String::new(),
     };
     doc.append(Feature { id: next, name: "Tokay".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: packed }, component: joined() })?;
-    let recipe = stored::Recipe { kernel: "sculpt".into(), op: "lamellae".into(), params: json!({"height_mm": LAMELLA_MM, "span_deg": LAMELLA_SPAN_DEG, "pitch_mm": [0.9, 1.45]}), digest: String::new() };
-    doc.append(Feature { id: next + 1, name: "Lamellae".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: sculpt::packed(&lam)? }, component: joined() })?;
+    let recipe = stored::Recipe { kernel: "sculpt".into(), op: "tokay eyes".into(), params: json!({"eye_r_mm": EYE_R, "step_mm": 0.02}), digest: String::new() };
+    doc.append(Feature { id: next + 1, name: "Eyes".into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh: sculpt::packed(&eyes)? }, component: joined() })?;
     d.bake_all(&mut lib);
-    let census = land_census(&gek, &solid);
-    Ok(Authored { d, lib, comp, solid, census })
+    Ok(Authored { d, lib, comp, solid })
 }
 
 // --- Gates -----------------------------------------------------------------------------------------------------------
@@ -865,80 +934,6 @@ fn part_crossings(built: &mesh::BuildResult) -> Vec<(String, usize)> {
             (c.name.clone(), n)
         })
         .collect()
-}
-
-impl Kind {
-    fn label(self) -> &'static str {
-        match self {
-            Kind::Body => "body",
-            Kind::Head => "head and neck",
-            Kind::Limb => "limbs",
-            Kind::Toe => "toes",
-            Kind::Pad => "toe pads",
-            Kind::Tail => "tail",
-            Kind::Eye => "eyes",
-            Kind::Hide => "hide relief",
-        }
-    }
-    /// How a section under the fill floor on this kind is met, or `None` where none is allowed.
-    fn treatment(self) -> Option<&'static str> {
-        match self {
-            Kind::Toe => Some("toe: a finger lying on the crown and fused into it along its length, fed from the foot; the reading across it is the toe alone, not the metal the wax fills, which runs on into the band; a short-filled tip is built back with a laser tack"),
-            Kind::Pad => Some("toe pad: a flattened disc lying on the crown, fused to it over its whole underside; the reading is across the disc's own edge, which the band behind it feeds"),
-            Kind::Limb => Some("limb: where a wrist or ankle narrows into its foot, lying on the crown and fused to it"),
-            Kind::Tail => Some("tail tip: fed along the tail from the body; the rounded end is dressed with a file"),
-            Kind::Eye => Some("eyelid: a 0.17 mm rim round each eye, relief on the head over the 0.15 mm detail floor; the slit pupil is relief cut into the ball"),
-            Kind::Hide => Some("hide relief: the face's pebbled ground (0.11 mm granules on a 0.02 mm plate over the solid face), the body's spots and the tail's rings, read where a face's ray crosses a granule's own flank or runs out through the ground plate into the face; all relief on solid metal, over the 0.15 mm detail floor"),
-            _ => None,
-        }
-    }
-}
-
-type Census = Vec<(Kind, f64, f64, P3)>;
-
-/// The sculpt's sections face by face (as `dfm::part_sections` reads them), gathered by the shape nearest each face:
-/// the thinnest, and the area under the fill floor. A face on the body whose ray leaves the metal within the hide's
-/// height of the smooth body crossed a granule or spot, which is relief, not a section.
-fn land_census(gek: &Gekko, solid: &csg::Solid) -> Census {
-    use ringdesign_core::interaction::bvh::Bvh;
-    let m = mesh::Mesh { vertices: solid.v.iter().map(|p| mesh::Vec3(p[0] as f32, p[1] as f32, p[2] as f32)).collect(), faces: solid.f.clone(), ..Default::default() };
-    let bvh = Bvh::build(&m);
-    const IN: f64 = 1e-4;
-    let mut out: std::collections::BTreeMap<u8, (Kind, f64, f64, P3)> = Default::default();
-    for f in &solid.f {
-        let [a, b, c] = f.map(|i| solid.v[i as usize]);
-        let (e1, e2) = (sub(b, a), sub(c, a));
-        let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
-        let twice = norm(n);
-        if !(twice > 1e-14) {
-            continue;
-        }
-        let centre = mul(add(add(a, b), c), 1.0 / 3.0);
-        // Faces sunk in the band never show; their sections are the band's.
-        if gek.frame.crest.band_sd(centre) < -0.05 {
-            continue;
-        }
-        let inward = mul(n, -1.0 / twice);
-        let o = add(centre, mul(inward, IN));
-        let Some((_, t)) = bvh.ray(&m, o, inward) else { continue };
-        let section = t + IN;
-        let q = gek.frame.local(centre);
-        let mut kind = gek.kind_at(q);
-        let exit = add(o, mul(inward, t));
-        let exit_q = gek.frame.local(exit);
-        if section < MIN_SECTION_MM && matches!(kind, Kind::Body | Kind::Head | Kind::Limb | Kind::Tail) && (gek.body_at(exit_q) > -0.3 || exit_q[1] < 0.45) {
-            kind = Kind::Hide;
-        }
-        let e = out.entry(kind as u8).or_insert((kind, f64::MAX, 0.0, [0.0; 3]));
-        if section < e.1 {
-            e.1 = section;
-            e.3 = centre;
-        }
-        if section < MIN_SECTION_MM {
-            e.2 += 0.5 * twice;
-        }
-    }
-    out.into_values().collect()
 }
 
 /// The geometry gates at one build size.
@@ -978,7 +973,7 @@ struct Gated {
     pattern: mesh::BuildResult,
 }
 
-fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, census: &Census) -> Result<Gated> {
+fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str) -> Result<Gated> {
     let t = Instant::now();
     let built = mesh::try_build(d, lib, p)?;
     let build_ms = ms(t);
@@ -997,14 +992,22 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, census
     let preview = ringdesign_core::gems::built_meshes(d, lib, &built).len();
     let pattern = mesh::try_build_pattern(d, lib, p)?;
     let (pw, pd, px) = geometry(&pattern.mesh);
-    let unnamed: Vec<String> = census.iter().filter(|c| c.2 > 0.0 && c.0.treatment().is_none()).map(|c| format!("{}: {:.3} mm2 under, thinnest {:.2}", c.0.label(), c.2, c.1)).collect();
+    let t = Instant::now();
+    let walls = measure::thickness(&built.mesh, MIN_SECTION_MM);
+    let census_ms = ms(t);
+    // The lead's interim gate (2026-10-03): a wall zone whose thinnest reading is a real section, 0.05 mm up to the
+    // floor, fails; one thinner than 0.05 mm is listed as a suspected census artifact and does not reshape the ring.
+    const ARTIFACT_MM: f64 = 0.05;
+    let real_walls: Vec<&measure::ThinZone> = walls.walls.iter().filter(|z| z.thinnest_mm >= ARTIFACT_MM).collect();
+    let artifacts: Vec<Value> = walls.walls.iter().filter(|z| z.thinnest_mm < ARTIFACT_MM).map(|z| json!({"point": z.point, "area_mm2": z.area_mm2, "thinnest_mm": z.thinnest_mm, "span_mm": z.span_mm})).collect();
+    let walls_ok = walls.assessed && walls.unresolved == 0 && real_walls.is_empty() && walls.walls.len() < measure::MAX_ZONES;
     let list = [
         ("finished mesh watertight, 0 degenerate faces, 0 self-crossings", pass.watertight && pass.degenerate == 0 && pass.crossings == 0),
         ("the sculpted parts uncrossed as placed", pass.parts.iter().all(|p| p.1 == 0)),
-        ("solids and parts notes empty, the tokay and the lamellae joined", pass.notes.is_empty() && pass.joined == 2),
+        ("solids and parts notes empty, every stamp resolved, the tokay and its eyes joined", pass.notes.is_empty() && pass.joined == 2 && built.solids.stamped == d.stamps.len()),
         ("nothing enters the finger hole", inside == 0),
         ("lost-wax field verdict Castable with the 0.8 mm fill, band and with the part judged", field.process == CastProcess::LostWax && field.verdict == Verdict::Castable && band_field.verdict == Verdict::Castable && band_field.thinnest_wall_mm >= MIN_SECTION_MM),
-        ("every section under 0.8 mm named with its treatment", unnamed.is_empty()),
+        ("lost-wax wall census of the finished ring: assessed, 0 unresolved, no wall zone with a real section of 0.05-0.8 mm (thinner zones listed as suspected census artifacts)", walls_ok),
         ("zero DFM findings", dfm.is_empty()),
         ("stones reported equal the preview", stones == preview),
         ("within 2 million triangles", pass.triangles <= 2_000_000),
@@ -1016,6 +1019,10 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, census
         println!("  {} {g}", if *ok { "pass" } else { "FAIL" });
     }
     println!("  field {} / with part {} (thinnest wall {:.2} mm); two-part undercut {:.3}% band, {:.3}% with the part", band_field.verdict.label(), field.verdict.label(), band_field.thinnest_wall_mm, band_field.undercut_fraction() * 100.0, field.undercut_fraction() * 100.0);
+    println!("  walls: assessed {}, {} samples, {} unresolved, {} wall ({:.3} mm2), {} edge ({:.3} mm2), thinnest {:?} ({census_ms:.0} ms)", walls.assessed, walls.rays, walls.unresolved, walls.below_limit, walls.wall_area_mm2, walls.edge_below_limit, walls.edge_area_mm2, walls.sampled_min_mm);
+    for z in walls.walls.iter().take(8) {
+        println!("    wall {:.3} mm2 thinnest {:.3} at [{:.2}, {:.2}, {:.2}] span {:.2}", z.area_mm2, z.thinnest_mm, z.point[0], z.point[1], z.point[2], z.span_mm);
+    }
     for f in &dfm {
         println!("  dfm: {}: {}", f.label, f.message);
     }
@@ -1031,7 +1038,7 @@ fn gates(d: &RingDesign, lib: &AlphaLibrary, p: BuildParams, label: &str, census
         "dfm_findings": dfm.iter().map(|f| json!({ "label": f.label, "message": f.message })).collect::<Vec<_>>(),
         "stones": { "reported": stones, "previewed": preview },
         "casting_pattern": { "watertight": pw, "degenerate_faces": pd, "self_crossings": px, "triangles": pattern.mesh.faces.len() },
-        "unnamed_under_floor": unnamed,
+        "wall_census": { "call": "cad::measure::thickness(&built.mesh, 0.8) on the finished ring's own mesh, default pitch and edge reach", "gate": "the lead's interim rule of 2026-10-03: every wall zone whose thinnest reading is 0.05-0.8 mm fails; thinner zones are suspected census artifacts, listed, not reshaped", "passed": walls_ok, "strict_clean": walls.clean(), "real_wall_zones": real_walls.len(), "suspected_census_artifacts": artifacts, "ms": census_ms, "census": walls },
         "gates": list.iter().map(|(g, ok)| json!({ "gate": g, "pass": ok })).collect::<Vec<_>>(),
         "gates_passed": passed,
     });
@@ -1100,15 +1107,15 @@ fn renders(out: &Path, lib: &AlphaLibrary, built: &mesh::BuildResult, p: BuildPa
 fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
     std::fs::create_dir_all(out)?;
     let started = Instant::now();
-    let Authored { mut d, lib, comp, solid, census } = author()?;
+    let Authored { mut d, lib, comp, solid } = author()?;
     let comp_face_y = comp.face_y_mm;
     let p = params(draft);
     d.build = p;
     let mut blocks = serde_json::Map::new();
-    let main = gates(&d, &lib, p, if draft { "draft 768 x 320" } else { "export 1536 x 448" }, &census)?;
+    let main = gates(&d, &lib, p, if draft { "draft 768 x 320" } else { "export 1536 x 448" })?;
     let mut passed = main.passed;
     if !draft {
-        let dr = gates(&d, &lib, params(true), "draft 768 x 320", &census)?;
+        let dr = gates(&d, &lib, params(true), "draft 768 x 320")?;
         passed &= dr.passed;
         blocks.insert("draft".into(), dr.json);
         blocks.insert("export".into(), main.json.clone());
@@ -1135,29 +1142,24 @@ fn write(out: &Path, draft: bool, verify: bool, block_out: bool) -> Result<()> {
     }
     let (open_edges, _) = sculpt::closure(&solid);
     let sculpt_crossings = csg::self_crossings(&solid);
-    let (part_min, part_under) = dfm::part_sections(&solid, None, MIN_SECTION_MM);
-    for c in &census {
-        println!("    lands {}: thinnest {:.3}, {:.3} mm2 under", c.0.label(), c.1, c.2);
-    }
     let bytes = std::fs::metadata(out.join("design.ring.json")).map_or(0, |m| m.len());
     let report = json!({
         "ring": d.name,
         "slug": SLUG,
         "stage": if block_out { "block-out" } else { "full" },
         "process": d.draft.process.label(),
+        "gates_that_apply": "Lost wax (Logan's rule of 2026-10-03): geometry, made parts uncrossed, notes and stamps, bore, the lost-wax field verdict at the 0.8 mm fill, the wall census of the finished ring (cad::measure::thickness at 0.8 mm, judged by the lead's interim rule: real walls of 0.05-0.8 mm fail, thinner zones listed as suspected artifacts), DFM, stones, 2 M triangles, casting pattern, 384 x 192, cold reload, template gate. The sand gates do not apply and are recorded as such below.",
+        "ray_release": { "applies": false, "why": "lost wax has no two-part pull; the two-part undercut is reported as a number in each build block (two_part_undercut)" },
+        "draft_clamp": { "applies": false, "clamped_layers": 0, "why": "no field layer and no clamp: the face's ground and the figure are one sculpted part, the shank's hide is stamps" },
+        "build_note": "The factory 017 stock is built from its stored surface: its triangle count does not change with the build's theta and profile steps, so the draft, export and 384 x 192 builds report the same count; each is built at its own steps and gated separately.",
         "process_decision": "Lost wax by Logan's rule of 2026-10-03 (recorded in the Gekko section of docs/collections/cataphracta.md): 0.8 mm minimum section, no pull rule. The two-part sand undercut is reported as a number only.",
         "draft_rules": { "min_draft_deg": d.draft.min_draft_deg, "min_section_mm": d.draft.min_section_mm, "min_detail_mm": d.draft.min_detail_mm },
         "size": d.size.display(),
         "bore_mm": BORE_MM,
         "layers": d.layers.layers.iter().map(|e| e.name.clone()).collect::<Vec<_>>(),
         "sculpt": { "open_edges": open_edges, "self_crossings": sculpt_crossings, "composition": comp },
-        "land_widths": {
-            "floor_mm": MIN_SECTION_MM,
-            "method": "dfm::part_sections on the sculpted part alone (one ray per face along its inward normal), and the same per face gathered by the shape nearest each face; faces sunk in the band are left out",
-            "part_sections": { "thinnest_mm": part_min, "under_floor_mm2": part_under },
-            "by_kind": census.iter().map(|c| json!({"kind": c.0.label(), "thinnest_mm": c.1, "under_floor_mm2": c.2, "treatment": if c.2 > 0.0 { c.0.treatment().map(|t| format!("{t}. Measured thinnest section: {:.3} mm.", c.1)) } else { None }})).collect::<Vec<_>>(),
-        },
         "design_bytes": bytes,
+        "template_class": { "class": "painted", "budget_bytes": 3_000_000, "why": "declared in the collection manifest: the default for an imported base, stock (1 MB), budgets the factory surface alone; this ring also carries the tokay and the pebbled face as one stored sculpt plus its eyes, about 10 bytes a face, which weighs what a painted atlas does. The template gate itself runs after the last round (template-verification.json)." },
         "draft": blocks.get("draft"),
         "export": blocks.get("export"),
         "coarse_384x192": blocks.get("coarse_384x192"),
@@ -1180,4 +1182,10 @@ fn main() -> Result<()> {
     let flag = |f: &str| args.iter().any(|a| a == f);
     let out = args.iter().find(|a| !a.starts_with("--")).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("showcase/cataphracta").join(SLUG));
     write(&out, flag("--draft"), flag("--verify"), flag("--block-out"))
+}
+
+/// The slit pupil's half-width and depth, mm.
+fn groove_dims() -> (f64, f64) {
+    let get = |k: &str, d: f64| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+    (get("GEKKO_GW", 0.145), get("GEKKO_GD", 0.13))
 }
