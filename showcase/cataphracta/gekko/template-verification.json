@@ -1,13 +1,13 @@
 {
   "authoring_ms": {
-    "graph_creation": 63.307959999999994,
-    "source_read": 17.363269
+    "graph_creation": 62.922501000000004,
+    "source_read": 15.657892
   },
   "cold_design_reload": true,
   "cold_graph_reload": true,
   "design_set_patches": [],
   "detail_findings": 0,
-  "editable_design_bytes": 3236628,
+  "editable_design_bytes": 2741548,
   "editable_graph_reload": true,
   "export_geometry_verified": true,
   "exposed_control_policy": "explicit_allowlist",
@@ -17,27 +17,27 @@
     "refine": null,
     "theta_steps": 1536
   },
-  "nodes": 119,
+  "nodes": 113,
   "open_ms": {
-    "bake": 0.007532,
-    "bake_again": 0.000445,
-    "detail": 304.085801,
-    "detail_again": 2.460078,
-    "evaluate": 39.195288000000005,
-    "first_build": 2186.478953,
-    "read": 18.832921,
-    "rebuild": 4.188994,
+    "bake": 0.005229,
+    "bake_again": 0.000253,
+    "detail": 210.667674,
+    "detail_again": 1.9138549999999999,
+    "evaluate": 50.437423,
+    "first_build": 1844.60954,
+    "read": 9.135096,
+    "rebuild": 3.520092,
     "unpack": null,
-    "verdict": 21.905625
+    "verdict": 23.42377
   },
   "size_budget_bytes": 3000000,
   "size_review_required": false,
   "source_identical": true,
   "source_method": "lift",
-  "template_bytes": 2752225,
+  "template_bytes": 2498642,
   "template_class": "painted",
   "template_gate_passed": true,
   "timing_context": "Uncompressed graph and an empty library; process caches may be warm after source verification; preview 384x144; verdict 192x128.",
-  "triangles": 242628,
+  "triangles": 215436,
   "vertices_faces_normals_identical": true
 }
