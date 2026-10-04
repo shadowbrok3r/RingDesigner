@@ -6,11 +6,11 @@
   },
   "bore_mm": 18.59999905109489,
   "build": {
-    "author_s": 2.907386825,
-    "build_s": 8.388101391,
+    "author_s": 2.783105451,
+    "build_s": 7.540016861,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 605924
+    "triangles": 594310
   },
   "coarse_384x192": {
     "degenerate_faces": 0,
@@ -152,16 +152,16 @@
     "parts_joined": 33,
     "self_crossings": 0,
     "stamped": 0,
-    "triangles": 295970,
+    "triangles": 283170,
     "watertight": true
   },
   "cold_reload_identical": null,
   "composition": {
     "head_faces": 153600,
-    "head_least_half_width_mm": 0.009992030924345113,
+    "head_least_half_width_mm": 0.009934368444286521,
     "head_length_mm": 10.600000000000001,
     "head_ratio": 1.4133333333333336,
-    "head_volume_mm3": 137.87101191814935,
+    "head_volume_mm3": 117.58695496983967,
     "head_width_mm": 7.5,
     "limb_faces": 55552,
     "limb_parts": 32,
@@ -175,7 +175,7 @@
     ]
   },
   "design": {
-    "bytes": 2114688,
+    "bytes": 2116780,
     "stamps": 0
   },
   "dfm_findings": [],
@@ -191,12 +191,13 @@
   },
   "field": {
     "notes": [
-      "Lost wax: 2.40% of the surface would undercut a two-part pull (worst 42.9 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: 2.49% of the surface would undercut a two-part pull (worst 42.9 deg) — fine for investment, but this pattern cannot move to sand as-is.",
       "Undercut 353–4° on the crest: 1.0 mm² leaning to 31° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 11–16° on the crest: 0.7 mm² leaning to 22° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 22–31° on the crest: 0.7 mm² leaning to 21° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 38–47° on the crest: 0.5 mm² leaning to 42° — caused by \"Whorls\"; muting it clears it.",
-      "Undercut 54–63° on the crest: 0.4 mm² leaning to 48° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 54–63° on the crest: 0.4 mm² leaning to 47° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 122–124° on the crest: 0.9 mm² leaning to 27° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 130–133° on the crest: 0.3 mm² leaning to 8° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 142–144° on the crest: 1.2 mm² leaning to 19° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 153–155° on the crest: 0.8 mm² leaning to 14° — caused by \"Whorls\"; muting it clears it.",
@@ -223,211 +224,209 @@
       "Undercut 322–322° on the crest: 0.5 mm² leaning to 31° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 328–328° on the crest: 0.6 mm² leaning to 30° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 335–346° on the crest: 1.1 mm² leaning to 34° — caused by \"Whorls\"; muting it clears it.",
-      "Measured with the ring as built: 33 CAD parts (33 joined, 0 cut), 217.3 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 14.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, near: upper arm\" (#3) would undercut a two-part pull over 1.9 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, near: forearm\" (#4) would undercut a two-part pull over 0.3 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, near: hand\" (#5) would undercut a two-part pull over 0.3 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, near: toe 1\" (#6) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, near: toe 2\" (#7) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, near: toe 3\" (#8) would undercut a two-part pull over 0.0 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, near: toe 4\" (#9) would undercut a two-part pull over 0.2 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, near: toe 5\" (#10) would undercut a two-part pull over 0.1 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, far: upper arm\" (#11) would undercut a two-part pull over 1.8 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, far: forearm\" (#12) would undercut a two-part pull over 0.3 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, far: hand\" (#13) would undercut a two-part pull over 0.3 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, far: toe 1\" (#14) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, far: toe 2\" (#15) would undercut a two-part pull over 0.1 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, far: toe 3\" (#16) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, far: toe 4\" (#17) would undercut a two-part pull over 0.2 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, far: toe 5\" (#18) would undercut a two-part pull over 0.1 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, near: thigh\" (#19) would undercut a two-part pull over 2.0 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, near: shin\" (#20) would undercut a two-part pull over 0.3 mm² (worst -46°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, near: foot\" (#21) would undercut a two-part pull over 0.2 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, near: toe 1\" (#22) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, near: toe 2\" (#23) would undercut a two-part pull over 0.2 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, near: toe 3\" (#24) would undercut a two-part pull over 0.0 mm² (worst -19°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, near: toe 4\" (#25) would undercut a two-part pull over 0.2 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, near: toe 5\" (#26) would undercut a two-part pull over 0.1 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, far: thigh\" (#27) would undercut a two-part pull over 2.0 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, far: shin\" (#28) would undercut a two-part pull over 0.3 mm² (worst -46°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, far: foot\" (#29) would undercut a two-part pull over 0.2 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Measured with the ring as built: 33 CAD parts (33 joined, 0 cut), 206.8 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 13.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: upper arm\" (#3) would undercut a two-part pull over 1.8 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: forearm\" (#4) would undercut a two-part pull over 0.5 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: hand\" (#5) would undercut a two-part pull over 0.2 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: toe 2\" (#7) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: toe 3\" (#8) would undercut a two-part pull over 0.1 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: toe 4\" (#9) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: toe 5\" (#10) would undercut a two-part pull over 0.2 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: upper arm\" (#11) would undercut a two-part pull over 1.8 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: forearm\" (#12) would undercut a two-part pull over 0.4 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: hand\" (#13) would undercut a two-part pull over 0.2 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: toe 2\" (#15) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: toe 3\" (#16) would undercut a two-part pull over 0.1 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: toe 4\" (#17) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: toe 5\" (#18) would undercut a two-part pull over 0.1 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: thigh\" (#19) would undercut a two-part pull over 1.9 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: shin\" (#20) would undercut a two-part pull over 0.5 mm² (worst -56°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: foot\" (#21) would undercut a two-part pull over 0.1 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: toe 1\" (#22) would undercut a two-part pull over 0.1 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: toe 2\" (#23) would undercut a two-part pull over 0.2 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: toe 3\" (#24) would undercut a two-part pull over 0.1 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: toe 4\" (#25) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: toe 5\" (#26) would undercut a two-part pull over 0.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: thigh\" (#27) would undercut a two-part pull over 1.9 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: shin\" (#28) would undercut a two-part pull over 0.5 mm² (worst -56°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: foot\" (#29) would undercut a two-part pull over 0.1 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
       "Lost wax: Stored mesh \"Hind leg, far: toe 1\" (#30) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, far: toe 2\" (#31) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, far: toe 3\" (#32) would undercut a two-part pull over 0.0 mm² (worst -7°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, far: toe 4\" (#33) would undercut a two-part pull over 0.1 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, far: toe 5\" (#34) would undercut a two-part pull over 0.1 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: Stored mesh \"Hind leg, far: toe 2\" (#31) would undercut a two-part pull over 0.2 mm² (worst -58°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: toe 3\" (#32) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: toe 4\" (#33) would undercut a two-part pull over 0.1 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: toe 5\" (#34) would undercut a two-part pull over 0.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "parts": [
       {
         "name": "Head",
-        "note": "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 14.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 159.45528876326796
+        "note": "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 13.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 138.73697443897476
       },
       {
         "name": "Foreleg, near: upper arm",
-        "note": "Lost wax: Stored mesh \"Foreleg, near: upper arm\" (#3) would undercut a two-part pull over 1.9 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 3.9468973868881387
+        "note": "Lost wax: Stored mesh \"Foreleg, near: upper arm\" (#3) would undercut a two-part pull over 1.8 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 5.001622515475362
       },
       {
         "name": "Foreleg, near: forearm",
-        "note": "Lost wax: Stored mesh \"Foreleg, near: forearm\" (#4) would undercut a two-part pull over 0.3 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 5.16154212235293
+        "note": "Lost wax: Stored mesh \"Foreleg, near: forearm\" (#4) would undercut a two-part pull over 0.5 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 6.228226415303303
       },
       {
         "name": "Foreleg, near: hand",
-        "note": "Lost wax: Stored mesh \"Foreleg, near: hand\" (#5) would undercut a two-part pull over 0.3 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 1.662835555961658
+        "note": "Lost wax: Stored mesh \"Foreleg, near: hand\" (#5) would undercut a two-part pull over 0.2 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.043935176362737
       },
       {
         "name": "Foreleg, near: toe 1",
-        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 1\" (#6) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.6092600353594327
+        "note": "Stored mesh \"Foreleg, near: toe 1\" (#6): 0.4 mm² judged, clean but for 0.0005 mm² of facet noise at -7.2°.",
+        "total_mm2": 0.3521216547199484
       },
       {
         "name": "Foreleg, near: toe 2",
-        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 2\" (#7) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.7385548217866479
+        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 2\" (#7) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.6763596576781633
       },
       {
         "name": "Foreleg, near: toe 3",
-        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 3\" (#8) would undercut a two-part pull over 0.0 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.8375965337342451
+        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 3\" (#8) would undercut a two-part pull over 0.1 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.9876837463599668
       },
       {
         "name": "Foreleg, near: toe 4",
-        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 4\" (#9) would undercut a two-part pull over 0.2 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 1.3647281455431168
+        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 4\" (#9) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.3787274877330373
       },
       {
         "name": "Foreleg, near: toe 5",
-        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 5\" (#10) would undercut a two-part pull over 0.1 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.7119415527343278
+        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 5\" (#10) would undercut a two-part pull over 0.2 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.75194752046538
       },
       {
         "name": "Foreleg, far: upper arm",
-        "note": "Lost wax: Stored mesh \"Foreleg, far: upper arm\" (#11) would undercut a two-part pull over 1.8 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 3.9325523009281302
+        "note": "Lost wax: Stored mesh \"Foreleg, far: upper arm\" (#11) would undercut a two-part pull over 1.8 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 5.029810176198406
       },
       {
         "name": "Foreleg, far: forearm",
-        "note": "Lost wax: Stored mesh \"Foreleg, far: forearm\" (#12) would undercut a two-part pull over 0.3 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 5.067090090566272
+        "note": "Lost wax: Stored mesh \"Foreleg, far: forearm\" (#12) would undercut a two-part pull over 0.4 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 6.134022384537587
       },
       {
         "name": "Foreleg, far: hand",
-        "note": "Lost wax: Stored mesh \"Foreleg, far: hand\" (#13) would undercut a two-part pull over 0.3 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 1.6324178117948411
+        "note": "Lost wax: Stored mesh \"Foreleg, far: hand\" (#13) would undercut a two-part pull over 0.2 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.0221468359732626
       },
       {
         "name": "Foreleg, far: toe 1",
-        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 1\" (#14) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.5561704298969227
+        "note": "Stored mesh \"Foreleg, far: toe 1\" (#14): 0.3 mm² judged, clean but for 0.0009 mm² of facet noise at -7.2°.",
+        "total_mm2": 0.3326447803603583
       },
       {
         "name": "Foreleg, far: toe 2",
-        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 2\" (#15) would undercut a two-part pull over 0.1 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.711804577028804
+        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 2\" (#15) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.6355733913387264
       },
       {
         "name": "Foreleg, far: toe 3",
-        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 3\" (#16) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.808084933949517
+        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 3\" (#16) would undercut a two-part pull over 0.1 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.9815361000098555
       },
       {
         "name": "Foreleg, far: toe 4",
-        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 4\" (#17) would undercut a two-part pull over 0.2 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 1.3007718226305613
+        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 4\" (#17) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.3088259839381033
       },
       {
         "name": "Foreleg, far: toe 5",
-        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 5\" (#18) would undercut a two-part pull over 0.1 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.691335070050702
+        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 5\" (#18) would undercut a two-part pull over 0.1 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.7154038658108626
       },
       {
         "name": "Hind leg, near: thigh",
-        "note": "Lost wax: Stored mesh \"Hind leg, near: thigh\" (#19) would undercut a two-part pull over 2.0 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 3.8835520680224986
+        "note": "Lost wax: Stored mesh \"Hind leg, near: thigh\" (#19) would undercut a two-part pull over 1.9 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 4.325151346105688
       },
       {
         "name": "Hind leg, near: shin",
-        "note": "Lost wax: Stored mesh \"Hind leg, near: shin\" (#20) would undercut a two-part pull over 0.3 mm² (worst -46°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 3.7812360350729715
+        "note": "Lost wax: Stored mesh \"Hind leg, near: shin\" (#20) would undercut a two-part pull over 0.5 mm² (worst -56°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 7.246236719789974
       },
       {
         "name": "Hind leg, near: foot",
-        "note": "Lost wax: Stored mesh \"Hind leg, near: foot\" (#21) would undercut a two-part pull over 0.2 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 1.9087922525761305
+        "note": "Lost wax: Stored mesh \"Hind leg, near: foot\" (#21) would undercut a two-part pull over 0.1 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.3300643486300776
       },
       {
         "name": "Hind leg, near: toe 1",
-        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 1\" (#22) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.6246394694738728
+        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 1\" (#22) would undercut a two-part pull over 0.1 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.7462892886652004
       },
       {
         "name": "Hind leg, near: toe 2",
-        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 2\" (#23) would undercut a two-part pull over 0.2 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.9469039281294744
+        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 2\" (#23) would undercut a two-part pull over 0.2 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.1188380567621437
       },
       {
         "name": "Hind leg, near: toe 3",
-        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 3\" (#24) would undercut a two-part pull over 0.0 mm² (worst -19°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.9474989048997952
+        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 3\" (#24) would undercut a two-part pull over 0.1 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.0266853048612135
       },
       {
         "name": "Hind leg, near: toe 4",
-        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 4\" (#25) would undercut a two-part pull over 0.2 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 1.4761643903898454
+        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 4\" (#25) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.5183535477493095
       },
       {
         "name": "Hind leg, near: toe 5",
-        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 5\" (#26) would undercut a two-part pull over 0.1 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.6484149455014858
+        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 5\" (#26) would undercut a two-part pull over 0.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.6368747004811296
       },
       {
         "name": "Hind leg, far: thigh",
-        "note": "Lost wax: Stored mesh \"Hind leg, far: thigh\" (#27) would undercut a two-part pull over 2.0 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 3.8948180955342915
+        "note": "Lost wax: Stored mesh \"Hind leg, far: thigh\" (#27) would undercut a two-part pull over 1.9 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 4.337462406482217
       },
       {
         "name": "Hind leg, far: shin",
-        "note": "Lost wax: Stored mesh \"Hind leg, far: shin\" (#28) would undercut a two-part pull over 0.3 mm² (worst -46°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 3.6764727035990004
+        "note": "Lost wax: Stored mesh \"Hind leg, far: shin\" (#28) would undercut a two-part pull over 0.5 mm² (worst -56°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 7.118289589607663
       },
       {
         "name": "Hind leg, far: foot",
-        "note": "Lost wax: Stored mesh \"Hind leg, far: foot\" (#29) would undercut a two-part pull over 0.2 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 1.8818435589041125
+        "note": "Lost wax: Stored mesh \"Hind leg, far: foot\" (#29) would undercut a two-part pull over 0.1 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.3184513421267297
       },
       {
         "name": "Hind leg, far: toe 1",
         "note": "Lost wax: Stored mesh \"Hind leg, far: toe 1\" (#30) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.5666553688736777
+        "total_mm2": 0.6853533392346065
       },
       {
         "name": "Hind leg, far: toe 2",
-        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 2\" (#31) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.9046378054851095
+        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 2\" (#31) would undercut a two-part pull over 0.2 mm² (worst -58°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.0687461742333106
       },
       {
         "name": "Hind leg, far: toe 3",
-        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 3\" (#32) would undercut a two-part pull over 0.0 mm² (worst -7°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.9091295613937646
+        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 3\" (#32) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.9956140112839899
       },
       {
         "name": "Hind leg, far: toe 4",
-        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 4\" (#33) would undercut a two-part pull over 0.1 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 1.3996250970438586
+        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 4\" (#33) would undercut a two-part pull over 0.1 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.4261251262209031
       },
       {
         "name": "Hind leg, far: toe 5",
-        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 5\" (#34) would undercut a two-part pull over 0.1 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 0.6209558886516664
+        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 5\" (#34) would undercut a two-part pull over 0.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.6058750658461082
       }
     ],
     "process": "Lost wax",
     "thinnest_wall_mm": 1.0809105752497352,
-    "undercut_percent": 4.302293630210509,
+    "undercut_percent": 4.314534791571467,
     "verdict": "Castable"
   },
   "gates": [
@@ -487,231 +486,231 @@
       "name": "Head",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 137.87101191814935
+      "volume_mm3": 117.58695496983967
     },
     {
       "faces": 1736,
       "name": "Foreleg, near: upper arm",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 9.161834966719754
+      "volume_mm3": 11.917642611019799
     },
     {
       "faces": 1736,
       "name": "Foreleg, near: forearm",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 6.117372214505174
+      "volume_mm3": 6.634316931101074
     },
     {
       "faces": 1736,
       "name": "Foreleg, near: hand",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 1.2741995573995077
+      "volume_mm3": 1.6191165682378512
     },
     {
       "faces": 1736,
       "name": "Foreleg, near: toe 1",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.4025568592198562
+      "volume_mm3": 0.510038206767159
     },
     {
       "faces": 1736,
       "name": "Foreleg, near: toe 2",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.45154838700756766
+      "volume_mm3": 0.5741232447337677
     },
     {
       "faces": 1736,
       "name": "Foreleg, near: toe 3",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.5462984415534822
+      "volume_mm3": 0.6543228905349385
     },
     {
       "faces": 1736,
       "name": "Foreleg, near: toe 4",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.5861778489505728
+      "volume_mm3": 0.6426207749736246
     },
     {
       "faces": 1736,
       "name": "Foreleg, near: toe 5",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.36551786824404336
+      "volume_mm3": 0.4048812064398864
     },
     {
       "faces": 1736,
       "name": "Foreleg, far: upper arm",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 9.161834966719798
+      "volume_mm3": 11.917642611020037
     },
     {
       "faces": 1736,
       "name": "Foreleg, far: forearm",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 6.117372214505087
+      "volume_mm3": 6.634316931101099
     },
     {
       "faces": 1736,
       "name": "Foreleg, far: hand",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 1.274199557399372
+      "volume_mm3": 1.6191165682377682
     },
     {
       "faces": 1736,
       "name": "Foreleg, far: toe 1",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.4025568592199882
+      "volume_mm3": 0.5100382067672024
     },
     {
       "faces": 1736,
       "name": "Foreleg, far: toe 2",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.45154838700781386
+      "volume_mm3": 0.5741232447338509
     },
     {
       "faces": 1736,
       "name": "Foreleg, far: toe 3",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.546298441553468
+      "volume_mm3": 0.6543228905350285
     },
     {
       "faces": 1736,
       "name": "Foreleg, far: toe 4",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.5861778489505629
+      "volume_mm3": 0.6426207749734225
     },
     {
       "faces": 1736,
       "name": "Foreleg, far: toe 5",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.36551786824393817
+      "volume_mm3": 0.40488120643993986
     },
     {
       "faces": 1736,
       "name": "Hind leg, near: thigh",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 8.504951594839211
+      "volume_mm3": 9.553175010364123
     },
     {
       "faces": 1736,
       "name": "Hind leg, near: shin",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 6.22224752782436
+      "volume_mm3": 7.63377320275861
     },
     {
       "faces": 1736,
       "name": "Hind leg, near: foot",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 1.3422683794562933
+      "volume_mm3": 1.6585717474111175
     },
     {
       "faces": 1736,
       "name": "Hind leg, near: toe 1",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.4093887763087309
+      "volume_mm3": 0.5075452787118362
     },
     {
       "faces": 1736,
       "name": "Hind leg, near: toe 2",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.48624653621219593
+      "volume_mm3": 0.5979045997872592
     },
     {
       "faces": 1736,
       "name": "Hind leg, near: toe 3",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.6046745223994764
+      "volume_mm3": 0.6990330992815232
     },
     {
       "faces": 1736,
       "name": "Hind leg, near: toe 4",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.6140621262992457
+      "volume_mm3": 0.6766912838691026
     },
     {
       "faces": 1736,
       "name": "Hind leg, near: toe 5",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.35643035816167656
+      "volume_mm3": 0.39212095605441244
     },
     {
       "faces": 1736,
       "name": "Hind leg, far: thigh",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 8.504951594839115
+      "volume_mm3": 9.553175010364056
     },
     {
       "faces": 1736,
       "name": "Hind leg, far: shin",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 6.222247527824452
+      "volume_mm3": 7.633773202758557
     },
     {
       "faces": 1736,
       "name": "Hind leg, far: foot",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 1.3422683794562829
+      "volume_mm3": 1.658571747410877
     },
     {
       "faces": 1736,
       "name": "Hind leg, far: toe 1",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.4093887763086805
+      "volume_mm3": 0.5075452787117272
     },
     {
       "faces": 1736,
       "name": "Hind leg, far: toe 2",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.4862465362122802
+      "volume_mm3": 0.5979045997872143
     },
     {
       "faces": 1736,
       "name": "Hind leg, far: toe 3",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.6046745223994032
+      "volume_mm3": 0.6990330992815361
     },
     {
       "faces": 1736,
       "name": "Hind leg, far: toe 4",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.6140621262991853
+      "volume_mm3": 0.6766912838691868
     },
     {
       "faces": 1736,
       "name": "Hind leg, far: toe 5",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 0.35643035816162283
+      "volume_mm3": 0.39212095605444275
     }
   ],
   "main": {
@@ -854,14 +853,14 @@
     "parts_joined": 33,
     "self_crossings": 0,
     "stamped": 0,
-    "triangles": 605924,
+    "triangles": 594310,
     "watertight": true
   },
   "name": "Ouroborus — the girdled wheel",
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 605924,
+    "triangles": 594310,
     "watertight": true
   },
   "process": "Lost wax",
@@ -869,8 +868,8 @@
   "release": {
     "applies": false,
     "bonus_petrobond_0100": {
-      "deepest_mm": 1.8117652964021946,
-      "obstructions": 125,
+      "deepest_mm": 2.105325183355534,
+      "obstructions": 138,
       "unresolved": 0
     },
     "note": "No pull rule in lost wax."

@@ -89,16 +89,16 @@ const PLAN: [(f64, f64); 13] = [
 /// Height of the dorsal crest over the bore: low at the snout, flat over the skull.
 const CREST: [(f64, f64); 11] = [
     (0.0, 1.95),
-    (0.3, 2.35),
-    (0.8, 2.7),
-    (1.8, 3.05),
-    (3.2, 3.35),
-    (4.8, 3.45),
-    (6.6, 3.5),
-    (8.4, 3.5),
-    (9.6, 3.4),
-    (10.4, 3.32),
-    (11.2, 3.1),
+    (0.3, 2.25),
+    (0.8, 2.5),
+    (1.8, 2.75),
+    (3.2, 2.95),
+    (4.8, 3.05),
+    (6.6, 3.1),
+    (8.4, 3.1),
+    (9.6, 3.05),
+    (10.4, 3.0),
+    (11.2, 2.95),
 ];
 /// The dorsal fall from the crest to the canthus: a flat skull rounding over at its edges.
 const DOME: [(f64, f64); 4] = [(0.0, 0.2), (3.0, 0.25), (7.0, 0.3), (11.2, 0.3)];
@@ -129,7 +129,7 @@ const BURY_FROM: f64 = 10.0;
 /// The spiny occipital scales at the back corners of the skull, raking back and out over the neck: first spine's
 /// root, pitch, and each spine's reach, mm. Each spine rises
 /// slowly toward its point and drops back steeply behind it, so the points rake back over the neck.
-const SPINES: (f64, f64, [f64; 4]) = (8.4, 0.55, [0.35, 0.5, 0.6, 0.55]);
+const SPINES: (f64, f64, [f64; 4]) = (8.4, 0.55, [0.25, 0.35, 0.42, 0.38]);
 /// The gape line's height at the snout and its sag to the mouth's corner.
 const LIP_H: f64 = 1.85;
 const LIP_SAG: f64 = 0.22;
@@ -150,10 +150,10 @@ const GAPE_MM: f64 = 0.45;
 const GAPE_W: f64 = 0.24;
 
 /// The eye, a smooth dome: centre along the head and over the bore, radius, and how far it bulges past the wall.
-const EYE_S: f64 = 5.0;
-const EYE_H: f64 = 2.7;
-const EYE_R: f64 = 0.95;
-const EYE_BULGE: f64 = 0.75;
+const EYE_S: f64 = 6.2;
+const EYE_H: f64 = 2.45;
+const EYE_R: f64 = 0.78;
+const EYE_BULGE: f64 = 0.5;
 /// The orbit groove round the eye: width and depth.
 const ORBIT: (f64, f64) = (0.28, 0.12);
 /// The brow: how far the supraocular overhangs the eye, and its reach along the head.
@@ -179,36 +179,39 @@ const fn bone(name: &'static str, a: [f64; 3], b: [f64; 3], r: (f64, f64)) -> Bo
     Bone { name, a, b, r }
 }
 
-/// A foreleg splayed from behind the neck: the upper arm runs out and back from the shoulder, buried in the body, to an
-/// elbow that rises over the band's shoulder and stands out past its outline about 45° back in plan; the forearm drops
-/// from the elbow to a hand pad planted on the flank, whose five clawed toes spread over it, gripping.
+/// A foreleg splayed from behind the neck, posed as a lizard holds it: the upper arm runs out and back from the
+/// shoulder, buried in the body, to an elbow that rises over the band's shoulder and stands out past its outline; the
+/// forearm comes forward and down from the elbow to a hand pad planted on the flank below the neck, whose five clawed
+/// toes spread forward over it, gripping. In plan the limb is a "<", elbow back.
 const FORELEG: [Bone; 8] = [
-    bone("upper arm", [-0.4, 2.1, -1.5], [1.2, 3.5, 1.3], (1.0, 0.8)),
-    bone("forearm", [1.2, 3.5, 1.3], [2.6, 1.05, 0.5], (0.75, 0.6)),
-    bone("hand", [2.6, 1.05, 0.5], [3.05, 1.0, 0.38], (0.6, 0.55)),
-    bone("toe 1", [3.0, 1.05, 0.4], [3.6, 2.05, 0.22], (0.34, 0.25)),
-    bone("toe 2", [3.0, 1.05, 0.4], [4.25, 1.75, 0.22], (0.34, 0.25)),
-    bone("toe 3", [3.0, 1.05, 0.4], [4.6, 1.1, 0.22], (0.34, 0.25)),
-    bone("toe 4", [3.0, 1.05, 0.4], [4.4, 0.45, 0.22], (0.34, 0.25)),
-    bone("toe 5", [3.0, 1.05, 0.4], [3.55, 0.36, 0.22], (0.32, 0.25)),
+    bone("upper arm", [-0.3, 2.1, -1.5], [1.1, 3.2, 2.0], (1.1, 0.9)),
+    bone("forearm", [1.1, 3.2, 2.0], [-0.4, 1.1, 0.55], (0.85, 0.68)),
+    bone("hand", [-0.4, 1.1, 0.55], [-0.85, 1.05, 0.42], (0.65, 0.6)),
+    bone("toe 1", [-0.8, 1.05, 0.45], [-1.4, 2.1, 0.24], (0.36, 0.27)),
+    bone("toe 2", [-0.8, 1.05, 0.45], [-2.05, 1.8, 0.24], (0.36, 0.27)),
+    bone("toe 3", [-0.8, 1.05, 0.45], [-2.45, 1.12, 0.24], (0.36, 0.27)),
+    bone("toe 4", [-0.8, 1.05, 0.45], [-2.2, 0.46, 0.24], (0.36, 0.27)),
+    bone("toe 5", [-0.8, 1.05, 0.45], [-1.35, 0.36, 0.24], (0.34, 0.27)),
 ];
-/// A hind leg splayed at the hip: the thigh out and back to a knee past the outline, the shin down to a foot planted
-/// on the flank, five long clawed toes.
+/// A hind leg splayed at the hip: the thigh out and forward to a knee past the outline, the shin back and down to a
+/// foot planted on the flank, five long clawed toes raking tailward. In plan the limb is a ">", knee forward.
 const HINDLEG: [Bone; 8] = [
-    bone("thigh", [-0.4, 1.9, -1.5], [1.2, 3.3, 1.2], (1.0, 0.8)),
-    bone("shin", [1.2, 3.3, 1.2], [2.7, 0.95, 0.5], (0.75, 0.6)),
-    bone("foot", [2.7, 0.95, 0.5], [3.2, 0.9, 0.38], (0.6, 0.55)),
-    bone("toe 1", [3.15, 0.95, 0.4], [3.8, 1.95, 0.22], (0.34, 0.25)),
-    bone("toe 2", [3.15, 0.95, 0.4], [4.55, 1.65, 0.22], (0.34, 0.25)),
-    bone("toe 3", [3.15, 0.95, 0.4], [4.95, 1.0, 0.22], (0.34, 0.25)),
-    bone("toe 4", [3.15, 0.95, 0.4], [4.65, 0.38, 0.22], (0.34, 0.25)),
-    bone("toe 5", [3.15, 0.95, 0.4], [3.7, 0.33, 0.22], (0.32, 0.25)),
+    bone("thigh", [-0.3, 1.9, -1.5], [-1.0, 3.1, 1.9], (1.1, 0.9)),
+    bone("shin", [-1.0, 3.1, 1.9], [1.0, 0.95, 0.55], (0.85, 0.68)),
+    bone("foot", [1.0, 0.95, 0.55], [1.5, 0.9, 0.42], (0.65, 0.6)),
+    bone("toe 1", [1.45, 0.95, 0.45], [2.1, 2.0, 0.24], (0.36, 0.27)),
+    bone("toe 2", [1.45, 0.95, 0.45], [2.85, 1.7, 0.24], (0.36, 0.27)),
+    bone("toe 3", [1.45, 0.95, 0.45], [3.25, 1.02, 0.24], (0.36, 0.27)),
+    bone("toe 4", [1.45, 0.95, 0.45], [2.95, 0.4, 0.24], (0.36, 0.27)),
+    bone("toe 5", [1.45, 0.95, 0.45], [2.0, 0.34, 0.24], (0.34, 0.27)),
 ];
 /// The limbs' roots round the ring, degrees: the shoulders behind the neck, the hips where the tail begins.
-const FORE_DEG: f64 = 128.0;
+const FORE_DEG: f64 = 132.0;
 const HIND_DEG: f64 = 228.0;
 /// Each capsule's sides round, stations along, and rings in each end cap.
 const CAPSULE: (usize, usize, usize) = (28, 16, 8);
+/// The fillet where each shoulder and hip meets the body, mm.
+const ROOT_FILLET_MM: f64 = 0.0;
 
 // --- The body's hide -----------------------------------------------------------------------------------------------
 
@@ -224,7 +227,7 @@ const WHORL_BOW: f64 = 0.32;
 const TEETH: f64 = 5.0;
 const TOOTH: f64 = 0.28;
 /// The whorls run from the nape round to the tail's tip: the window's centre and span, and its fade, degrees.
-const WHORL_WINDOW: (f64, f64, f64) = (274.0, 288.0, 8.0);
+const WHORL_WINDOW: (f64, f64, f64) = (267.5, 301.0, 6.0);
 /// The flank spines on the side faces, one per girdle on its trailing edge: height, mm.
 const SPINE_MM: f64 = 0.5;
 /// The girdles' continuation down the flanks, lower than on the back so the legs stand clear of it, mm.
@@ -827,15 +830,15 @@ fn hide(d: &mut RingDesign, lib: &mut AlphaLibrary, art: &Path, comp: &mut Compo
     Ok(())
 }
 
-fn joined() -> Component {
-    Component { attach: Attach::Join, placement: Placement::Free, blend_mm: 0.0, ..Component::default() }
+fn joined(blend_mm: f64) -> Component {
+    Component { attach: Attach::Join, placement: Placement::Free, blend_mm, ..Component::default() }
 }
 
-fn stored_part(doc: &mut Document, name: &str, op: &str, params: serde_json::Value, solid: &csg::Solid) -> Result<()> {
+fn stored_part(doc: &mut Document, name: &str, op: &str, params: serde_json::Value, solid: &csg::Solid, blend_mm: f64) -> Result<()> {
     let next = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
     let recipe = stored::Recipe { kernel: "sections".into(), op: op.into(), params, digest: String::new() };
     let mesh = sculpt::packed(solid).map_err(|e| anyhow::anyhow!("{name}: {e}"))?;
-    doc.append(Feature { id: next, name: name.into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh }, component: joined() })?;
+    doc.append(Feature { id: next, name: name.into(), enabled: true, operation: Operation::Stored { recipe, sources: Vec::new(), mesh }, component: joined(blend_mm) })?;
     Ok(())
 }
 
@@ -873,9 +876,9 @@ fn author(art: &Path) -> Result<(RingDesign, AlphaLibrary, Composition, Vec<csg:
     if doc.band().is_none() {
         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
     }
-    stored_part(doc, "Head", "lizard head", json!({"snout_deg": SNOUT_DEG, "r_ref_mm": R_REF, "length_mm": HEAD_LEN, "stations": STATIONS, "section_points": SECTION_PTS}), &solids[0])?;
+    stored_part(doc, "Head", "lizard head", json!({"snout_deg": SNOUT_DEG, "r_ref_mm": R_REF, "length_mm": HEAD_LEN, "stations": STATIONS, "section_points": SECTION_PTS}), &solids[0], 0.0)?;
     for (name, solid) in names.iter().zip(&solids).skip(1) {
-        stored_part(doc, name, "limb capsule", json!({"fore_deg": FORE_DEG, "hind_deg": HIND_DEG, "capsule": [CAPSULE.0, CAPSULE.1, CAPSULE.2]}), solid)?;
+        stored_part(doc, name, "limb capsule", json!({"fore_deg": FORE_DEG, "hind_deg": HIND_DEG, "capsule": [CAPSULE.0, CAPSULE.1, CAPSULE.2]}), solid, if name.ends_with("upper arm") || name.ends_with("thigh") { ROOT_FILLET_MM } else { 0.0 })?;
     }
     Ok((d, lib, comp, solids, names))
 }
