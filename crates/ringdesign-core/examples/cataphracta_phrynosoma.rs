@@ -265,9 +265,9 @@ struct HornSpec {
 /// edge, each clear of the next, all swept back and out over the back wall. The two occipitals beside the midline
 /// are the longest, 1.6 times the temporals, which step shorter outboard.
 const CROWN: [HornSpec; 3] = [
-    HornSpec { kind: Kind::Occipital, root: [1.6, -6.25], splay_deg: 12.0, rise_deg: 34.0, len: 2.7, ra: 0.28 + THORN_TAPER * 2.7, rb: 0.28 },
-    HornSpec { kind: Kind::Temporal, root: [4.2, -6.25], splay_deg: 19.0, rise_deg: 32.0, len: 1.7, ra: 0.28 + THORN_TAPER * 1.7, rb: 0.28 },
-    HornSpec { kind: Kind::Temporal, root: [6.6, -6.15], splay_deg: 25.0, rise_deg: 30.0, len: 1.5, ra: 0.28 + THORN_TAPER * 1.5, rb: 0.28 },
+    HornSpec { kind: Kind::Occipital, root: [1.6, -6.25], splay_deg: 12.0, rise_deg: 40.0, len: 2.7, ra: 0.28 + THORN_TAPER * 2.7, rb: 0.28 },
+    HornSpec { kind: Kind::Temporal, root: [4.2, -6.25], splay_deg: 19.0, rise_deg: 38.0, len: 1.7, ra: 0.28 + THORN_TAPER * 1.7, rb: 0.28 },
+    HornSpec { kind: Kind::Temporal, root: [6.6, -6.15], splay_deg: 25.0, rise_deg: 38.0, len: 1.5, ra: 0.28 + THORN_TAPER * 1.5, rb: 0.28 },
 ];
 /// Every horn and thorn ends in a 0.2 mm round and widens by this much radius per mm of length, so its point closes
 /// to the 0.8 mm floor within one floor of its tip: the wall census reads it as an edge, not a wall.
@@ -299,6 +299,8 @@ const JOINT_FLOOR_MM: f64 = 0.14;
 /// Each plate's top is crowned this much toward its middle, mm.
 const PLATE_CROWN_MM: f64 = 0.07;
 const PLATE_JITTER: [f64; 2] = [0.16, 0.26];
+/// The midline's last plate sits here, just inside the back edge between the occipitals, mm of z.
+const MIDLINE_BACK_Z: f64 = -5.15;
 /// The joints between plates: each plate rounds down to the joint's floor over this much of its edge, mm.
 const PLATE_ROUND_MM: f64 = 0.42;
 /// The plates stop this far inside the factory table's edge, so its hard wall-to-face angle stays.
@@ -323,6 +325,8 @@ const JAW_LEN_MM: [f64; 2] = [1.5, 0.85];
 const JAW_SWEEP_DEG: f64 = 28.0;
 /// A jaw scale's point rises off the table by this angle, degrees.
 const JAW_LIFT_DEG: f64 = 9.0;
+/// A jaw scale's root stands this far outside the skull's outline, mm.
+const JAW_ROOT_OUT_MM: f64 = 0.38;
 
 /// A repeatable number in 0..1 for a key and a salt.
 fn hash(k: u64, salt: u64) -> f64 {
@@ -400,6 +404,8 @@ impl Head {
                 k += 1;
             }
         }
+        // The midline's last plate, just behind the horn notch, so the column runs whole from the notch to the snout.
+        plates.push(([0.0, MIDLINE_BACK_Z], 0));
         let mut horns = Vec::new();
         for h in &CROWN {
             for s in [-1.0, 1.0] {
@@ -435,7 +441,8 @@ impl Head {
                 let n = norm(cross(t, b));
                 let len = JAW_LEN_MM[0] + (JAW_LEN_MM[1] - JAW_LEN_MM[0]) * g;
                 let half = 0.2 + THORN_TAPER * len;
-                let root = [xe - out[0] * 0.12, table.top + 0.12, z - out[2] * 0.12];
+                // The root stands on the margin just outside the plates' foot, so a clean groove parts it from them.
+                let root = [xe + out[0] * JAW_ROOT_OUT_MM, table.top + 0.12, z + out[2] * JAW_ROOT_OUT_MM];
                 jaw.push(Stud { kind: Kind::JawFringe, c: root, t, n, b, size: [len, half, half] });
             }
         }
@@ -457,8 +464,9 @@ impl Head {
         let (a, b) = (self.plates[i1].0, self.plates[i2].0);
         let edge = (d2 - d1) / (2.0 * (a[0] - b[0]).hypot(a[1] - b[1]).max(1e-9));
         let t = TIER_MM[self.plates[i1].1];
-        // Each plate is a pillow: it rises from the joint's floor and rounds over within its first half millimetre.
-        let k = 1.0 - (1.0 - (edge / PLATE_ROUND_MM).min(1.0)).powi(2);
+        // Each plate is a pillow: it rises from the joint's rounded floor and rounds over within its first half
+        // millimetre, with no crease anywhere for the mesh to saw.
+        let k = smoothstep(0.0, PLATE_ROUND_MM, edge);
         // The crown is radial about the plate's seed, so the top is a smooth dome with no ridge along its medial axis.
         let pitch = PLATE_ROWS[self.plates[i1].1.min(PLATE_ROWS.len() - 1)].1;
         JOINT_FLOOR_MM + (t - JOINT_FLOOR_MM) * k + PLATE_CROWN_MM * (1.0 - d1 / (0.36 * pitch * pitch)).max(0.0)
@@ -476,7 +484,9 @@ impl Head {
         // Far off the table's relief the plates cannot be nearest: a bound is enough.
         let far = (h - 2.0).max(FLOOR_MM - 0.3 - h).max(edge - 1.4);
         if far > 0.0 {
-            return far;
+            // Off the relief the true distance is at least this much, and kept past the horns' blend radius, so the
+            // stand-in never fuses with a horn as a collar.
+            return far.max(HORN_BLEND_MM + 0.05);
         }
         let top = self.plates_at(p[0], p[2]) + self.dome(edge);
         let mut f = (h - top).max(edge + PLATE_INSET_MM - SKIRT_LEAN * (SKIRT_H_MM - h).clamp(0.0, SKIRT_H_MM)).max(FLOOR_MM - h);
@@ -498,7 +508,7 @@ impl Head {
             f = smin(f, round_cone(p, h.a, h.b, h.ra, h.rb), HORN_BLEND_MM);
         }
         for j in &self.jaw {
-            f = smin(f, j.eval(p), 0.35);
+            f = smin(f, j.eval(p), 0.12);
         }
         f
     }
@@ -519,7 +529,9 @@ impl Head {
 // --- The hide: granules, tubercles, the crest and the fringe ---------------------------------------------------------
 
 /// The head's ground beads (the table's margin round the skull), sized by their pitch: a granule's radius and dome.
-const GROUND_PITCH_MM: f64 = 0.5;
+const GROUND_PITCH_MM: f64 = 0.56;
+/// The factory edge keeps a polished lip this wide round the table, mm.
+const MARGIN_LIP_MM: f64 = 0.3;
 const GRANULE_R: f64 = 0.4;
 const GRANULE_DOME: f64 = 0.3;
 /// A bead's base is sunk this far under the stock's surface, mm.
@@ -740,12 +752,12 @@ fn head_hide(surf: &Surface, head: &Head, table: &Table) -> Studs {
     let mut taken = Taken::new();
     let free = |s: &Sample| {
         // On the table, clear of its edge, the horns and the jaw fringe.
-        let on_table = s.p[1] > table.top - 0.1 && table.edge(s.p[0], s.p[2]) < -0.42;
+        let on_table = s.p[1] > table.top - 0.1 && table.edge(s.p[0], s.p[2]) < -(MARGIN_LIP_MM + 0.25);
         // The cheeks carry the granule field; this ground is the table's margin round the skull.
         let below = on_table && skull_edge(table, s.p[0], s.p[2]) > 0.22;
         let horn = head.horns.iter().map(|h| round_cone(s.p, h.a, h.b, h.ra, h.rb)).fold(f64::MAX, f64::min);
         let jaw = head.jaw.iter().map(|j| j.eval(s.p)).fold(f64::MAX, f64::min);
-        Surface::off(s).abs() < HEAD_REGION_DEG && below && horn > 0.35 && jaw > 0.6
+        Surface::off(s).abs() < HEAD_REGION_DEG && below && horn > 0.35 && jaw > 0.12
     };
     let mut studs = Vec::new();
     let granules = scatter(surf, &mut taken, 12, &|s| free(s).then_some(GROUND_PITCH_MM), &|s, n, pitch| Stud::bead(Kind::Granule, s.p, n, GRANULE_R * pitch, GRANULE_DOME * pitch));
