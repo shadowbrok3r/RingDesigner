@@ -723,3 +723,16 @@ fn relief_on_a_band_under_the_floor_is_a_wall_by_any_march() {
     assert!(!thin.clean(), "{thin:?}");
     assert!(thin.edge_area_mm2 < 0.15 * thick.edge_area_mm2, "{} mm² of edge against {} on the thick band: {:?}", thin.edge_area_mm2, thick.edge_area_mm2, thin.edges);
 }
+
+#[test]
+fn a_fold_thinner_than_a_hundredth_is_mesh_noise_reported_apart() {
+    // A flap 5 µm thick and 0.3 mm tall off a 2 mm block: a fold of the mesh, not metal.
+    let fold = at_floor(&fin_block(0.005, 0.3, 0.0));
+    assert!(fold.clean() && fold.walls.is_empty(), "{fold:?}");
+    assert!(fold.noise_below_limit > 0 && fold.noise_area_mm2 > 0.8 * 2.0 * 6.0 * 0.3, "{fold:?}");
+    assert!(fold.noise.iter().all(|z| z.kind == ThinKind::Noise && z.point[2] > 2.0 - 1e-6), "{:?}", fold.noise);
+    assert_eq!(serde_json::to_value(&fold).unwrap()["noise"][0]["kind"], "noise");
+    // At 20 µm it is metal, and a wall.
+    let flap = at_floor(&fin_block(0.02, 0.3, 0.0));
+    assert!(!flap.clean() && flap.noise_below_limit == 0 && flap.wall_area_mm2 > 0.8 * 2.0 * 6.0 * 0.3, "{flap:?}");
+}

@@ -29,6 +29,8 @@ const RELIEF_DEG: f64 = 20.0;
 const RELIEF_BASE: f64 = 0.7;
 /// Least section, in floors, along the crest where relief reaches the floor.
 const RELIEF_CREST: f64 = 1.5;
+/// Thickest section, mm, a reading and every march from it may stay under to be a fold of the mesh rather than metal.
+const MESH_NOISE_MM: f64 = 0.01;
 /// Halvings that place where a march's section reaches the floor.
 const BISECTIONS: usize = 6;
 /// Crossings closer than this along a ray are one surface hit, mm.
@@ -38,7 +40,7 @@ const PIECES_PER_CHECK: usize = 1 << 16;
 /// Samples read, or thin samples gathered into zones, between two reads of the cancel flag.
 const SAMPLES_PER_CHECK: usize = 2048;
 
-const NOTE: &str = "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge and reaches the floor within the edge reach of it, and on the way is either everywhere at least floor / reach of its distance from that edge, or is relief: it is at every station at least as wide as a 20° wedge from that edge and widens as fast between every two stations, is at least 0.7 of the floor thick at its last station under it, and meets a body at least a floor deep along the line its faces converge on that runs on along its crest for 1.5 floors. It is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.";
+const NOTE: &str = "Area census: one sample per pitch-sized cell of surface, each read along its inward normal to where it leaves the metal. A reading under the floor is an edge where its section closes at a free edge and reaches the floor within the edge reach of it, and on the way is either everywhere at least floor / reach of its distance from that edge, or is relief: it is at every station at least as wide as a 20° wedge from that edge and widens as fast between every two stations, is at least 0.7 of the floor thick at its last station under it, and meets a body at least a floor deep along the line its faces converge on that runs on along its crest for 1.5 floors. A reading whose section and every march from it stay under 0.01 mm is mesh noise, a fold of the surface rather than metal: counted and zoned apart, and not gated. It is a wall otherwise. Gate on walls and unresolved samples; at most 64 zones of each kind are listed, largest first, and the counts and areas cover every sample.";
 const NOT_ASSESSED: &str = "Thickness not assessed: the mesh is empty or not watertight, or the floor is not a positive length";
 
 fn add(a: P3, b: P3) -> P3 {
@@ -436,26 +438,46 @@ impl<'a> Probe<'a> {
             (d.abs() > RELIEF_LINE).then(|| scale(e1, -d.signum()))
         };
         let (mut out, mut home) = (Vec::new(), Vec::new());
+        // The widest thin section any march has met.
+        let mut widest = first.max(t);
+        let thickest = |widest: f64, stations: &[(f64, f64)]| stations.iter().fold(widest, |w, &(_, s)| w.max(s));
         for k in 0..DIRECTIONS / 2 {
             let angle = k as f64 * std::f64::consts::TAU / DIRECTIONS as f64;
             let u = add(scale(e1, angle.cos()), scale(e2, angle.sin()));
             let back = scale(u, -1.0);
-            let depth = match self.walk(mid, axis, u, first, limit, &mut out) {
-                Walk::Closed(c) => match self.walk(mid, axis, back, first, limit - c, &mut home) {
-                    Walk::Body { at, point } => self.judge(c, first, &out, &home, point, below(u), e2).then_some(c + at),
-                    _ => None,
-                },
-                Walk::Body { at, point } => match self.walk(mid, axis, back, first, limit - at, &mut home) {
-                    Walk::Closed(c) => self.judge(c, first, &home, &out, point, below(back), e2).then_some(c + at),
-                    _ => None,
-                },
-                Walk::Thin => None,
+            let first_walk = self.walk(mid, axis, u, first, limit, &mut out);
+            widest = thickest(widest, &out);
+            let depth = match first_walk {
+                Walk::Closed(c) => {
+                    let w = self.walk(mid, axis, back, first, limit - c, &mut home);
+                    widest = thickest(widest, &home);
+                    match w {
+                        Walk::Body { at, point } => self.judge(c, first, &out, &home, point, below(u), e2).then_some(c + at),
+                        _ => None,
+                    }
+                }
+                Walk::Body { at, point } => {
+                    let w = self.walk(mid, axis, back, first, limit - at, &mut home);
+                    widest = thickest(widest, &home);
+                    match w {
+                        Walk::Closed(c) => self.judge(c, first, &home, &out, point, below(back), e2).then_some(c + at),
+                        _ => None,
+                    }
+                }
+                Walk::Thin => {
+                    if widest < MESH_NOISE_MM {
+                        self.walk(mid, axis, back, first, limit, &mut home);
+                        widest = thickest(widest, &home);
+                    }
+                    None
+                }
             };
             if let Some(d) = depth.filter(|d| *d <= limit) {
                 return Thin { kind: ThinKind::Edge, mid, depth: Some(d) };
             }
         }
-        Thin { kind: ThinKind::Wall, mid, depth: None }
+        let kind = if widest < MESH_NOISE_MM { ThinKind::Noise } else { ThinKind::Wall };
+        Thin { kind, mid, depth: None }
     }
 
     fn measure(&self, s: &Sample) -> Outcome {
@@ -572,6 +594,7 @@ pub(super) fn run(mesh: &Mesh, options: &CensusOptions, cancel: Option<&AtomicBo
         limit_mm: floor,
         note: NOT_ASSESSED,
         edge_below_limit: 0,
+        noise_below_limit: 0,
         internal: 0,
         assessed: false,
         area_mm2: 0.0,
@@ -579,8 +602,10 @@ pub(super) fn run(mesh: &Mesh, options: &CensusOptions, cancel: Option<&AtomicBo
         edge_reach_mm: reach,
         wall_area_mm2: 0.0,
         edge_area_mm2: 0.0,
+        noise_area_mm2: 0.0,
         walls: Vec::new(),
         edges: Vec::new(),
+        noise: Vec::new(),
     };
     if !(floor > 0.0 && floor.is_finite()) || mesh.faces.is_empty() {
         return Some(r);
@@ -631,6 +656,7 @@ pub(super) fn run(mesh: &Mesh, options: &CensusOptions, cancel: Option<&AtomicBo
                 if let Some(c) = class {
                     match c.kind {
                         ThinKind::Edge => r.edge_below_limit += 1,
+                        ThinKind::Noise => r.noise_below_limit += 1,
                         ThinKind::Wall => r.below_limit += 1,
                     }
                     thin.push(ThinRead { kind: c.kind, mid: c.mid, point: s.p, t, area: s.area, depth: c.depth });
@@ -641,6 +667,7 @@ pub(super) fn run(mesh: &Mesh, options: &CensusOptions, cancel: Option<&AtomicBo
     let link = 3.0 * pitch;
     (r.walls, r.wall_area_mm2) = zones(&thin, ThinKind::Wall, link, cancel)?;
     (r.edges, r.edge_area_mm2) = zones(&thin, ThinKind::Edge, link, cancel)?;
+    (r.noise, r.noise_area_mm2) = zones(&thin, ThinKind::Noise, link, cancel)?;
     r.assessed = true;
     r.note = NOTE;
     Some(r)

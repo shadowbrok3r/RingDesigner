@@ -1294,6 +1294,23 @@ pins both directions. On top of that:
   (1.0 mm²) passed; `lipped_band` is the same lip on a 0.7 mm band, which
   a slanting march reads as 1.0 mm.
 
+  **A fold of the mesh is not metal either.** A reading whose section, and
+  every march from it, stays under 0.01 mm until it leaves the metal or
+  meets the floor is mesh noise (`ThinKind::Noise`): counted, measured and
+  zoned apart in `noise_below_limit`, `noise_area_mm2` and `noise`, named
+  in the note, and never gated by `clean()`. Four of the twenty factory
+  stocks failed the gate bare on it. 006 Square folds back on itself by
+  1–2 µm along the palm's bore edge, under a strip of slivers 2.5–3 µm
+  tall, and read sections of 0.2–4 µm there (24 samples bare, 75 on
+  Ilex); 009 Drop, 012 Cushion and 013 Round carry sheets 1–24 nm apart
+  (352, 336 and 336 samples). All four now read no wall, and 006 is clean;
+  009, 012 and 013 still leave 27, 6 and 6 unresolved samples, rays their
+  near-coincident sheets turn back, which want the stock source cleaned.
+  Cleaning at import was tried first: `csg::clean` at 5 µm cures 006 and
+  none of the others, and at 10 µm it starts to wall 020. Moloch's 28
+  sculpt folds under 0.01 mm read as noise too; its 0.05–0.1 mm flaps
+  stay walls.
+
   A **CAD cut's lands** are asked for, never volunteered:
   `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
   `manufacturing_check { cut_land_mm }`) reports, per Cut extrusion, the

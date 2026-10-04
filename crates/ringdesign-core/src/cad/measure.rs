@@ -22,6 +22,8 @@ pub struct Thickness {
     pub note: &'static str,
     /// Samples under the floor classed as edge.
     pub edge_below_limit: usize,
+    /// Samples under the floor classed as mesh noise, which `clean` does not gate on.
+    pub noise_below_limit: usize,
     /// Samples on a face inside another shell, which is no surface of the metal and is not read.
     pub internal: usize,
     /// Whether the mesh was read at all.
@@ -36,10 +38,14 @@ pub struct Thickness {
     pub wall_area_mm2: f64,
     /// Surface area reading under the floor as edge, mm².
     pub edge_area_mm2: f64,
+    /// Surface area reading as mesh noise, mm².
+    pub noise_area_mm2: f64,
     /// The [`MAX_ZONES`] largest wall zones, largest first; `below_limit` and `wall_area_mm2` count every wall sample.
     pub walls: Vec<ThinZone>,
     /// The [`MAX_ZONES`] largest edge zones, largest first; `edge_below_limit` and `edge_area_mm2` count every edge sample.
     pub edges: Vec<ThinZone>,
+    /// The [`MAX_ZONES`] largest mesh-noise zones, largest first; `noise_below_limit` and `noise_area_mm2` count every noise sample.
+    pub noise: Vec<ThinZone>,
 }
 
 /// Zones of each kind a [`Thickness`] lists at most; its counts and areas cover every sample.
@@ -60,6 +66,8 @@ pub enum ThinKind {
     Edge,
     /// The section stays under the floor beyond the edge reach of any free edge, or on the way is thinner than an edge may be and stands on its body rather than flaring into it: a web, a sheet, a fin, a pin, a needle.
     Wall,
+    /// The section and every march from it stay under 0.01 mm until they leave the metal or meet the floor: a fold of the mesh, no metal a caster could fill.
+    Noise,
 }
 
 /// One connected run of samples under the floor, all of one kind.
