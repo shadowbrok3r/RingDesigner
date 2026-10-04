@@ -1,0 +1,63 @@
+{
+  "ring": "Cataphracta Phrynosoma (phrynosoma), the horned crown",
+  "round": 3,
+  "verdict": "cut",
+  "score": 7.2,
+  "summary": "Cut at 7.2 (round 1: 6.7, round 2: 7.1, Caiman: 7, ship bar: 7.5; this was the last round). Every gate is green and matches the JSON. The template gate is current: written at 05:25, after the design at 05:23. It has 1 design.set patch and 2,908,155 of 3,000,000 painted bytes, and its 925,926 triangles equal report.json build.triangles. The ring is judged as lost wax under Logan's 2026-10-03 ruling, so the sand gates do not apply. This round fixed the horns. All six are now single smooth cones with no torn collars. The wall census near the comb is clean (all edge zones there are 0.60 to 0.66 mm thick), and the rises are now 40/38/38 degrees, as asked. Face-on at 300 px it still reads, with no caption, as a horned lizard's head. The comb is distinct from every Cataphracta and Reptilia ring, and the shank is covered face to palm at density at or above Caiman's. Two of the three P1/P2 finish items from round 2 were not done, and they are the reason this ring is cut. (1) The plate mosaic is still not jewellery-clean. head.png and stones.png show serrated, crinkled joint rims. The outer plate columns are streaky, smeared metal where they meet the fringe spikes. A boxy, hinge-like block sits on the midline just behind the central horn notch (hero.png, stones.png, bare-vs-finished.png). A second rectangular notch sits mid-table in stones.png. The plate tops are flat, faceted plateaus. (2) The polished margin round the head is unchanged: about 1 to 1.5 mm of mirror with a single row of evenly spaced pin beads. At hero and face scale it reads as a riveted heraldic shield, not as hide. The census's knife-thin edge zones at the table's back edge (x ±6.5 to 7.6, y 12.9, 0.0002 to 0.03 mm) sit on that margin. Smaller faults: the bare patch at the fold under the table front is still in side.png, and the granule skirts are still sawtoothed at full resolution (shoulder.png). Dozens of 0.002 to 0.008 mm edge zones down both shank walls (x ±9 to 11.4) are consistent with that skirting. The census rule does not gate them, but they are finish faults. The horns lean back only slightly at the hero angle. On the calibration scale it sits with Basiliscus (7.2): it reads, every gate is green, but the focal sculpt's finish is below the bar.",
+  "strengths": [
+    "Without a caption, face-300 and hero-300 read as a horned lizard's head. The six-horn comb is on the back edge, domed eyes sit at the widest point, a spike fringe runs down each flank, and a mirrored plate mosaic tapers to the snout.",
+    "The horns are fixed. All six are clean, continuous cones with single rounded tips (tip radius 0.28 mm), with no collar or seam. Every wall-census zone in the comb box is 0.60 mm or more.",
+    "The silhouette is unlike any other Cataphracta or Reptilia ring. A horn comb standing above a shield table is unique on both sheets.",
+    "Face-to-palm coverage is complete. Close-set granules, a pointed fringe on the band edges and larger tubercles on the shoulders cover the shank. palm.png and reverse.png show no bare outer surface, and the density beats Caiman's shank.",
+    "The factory 004 Shield keeps its hard wall-to-face angle and its crisp point (bare-vs-finished.png, shoulder.png).",
+    "All gates are green and current, including the template gate (1 patch, 2.91 of 3.0 MB, triangles equal to the build)."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "Lizard hide runs continuously from the head through the shoulders to the palm, with no orphaned motifs. The polished, beaded margin round the head is the only off-theme element."},
+    {"item": "Hide reads as this animal at 300 px without the caption", "result": "pass", "reason": "In face-300 and hero-300 the horn comb, the eyes, the flank fringe and the head plates name a horned lizard. The margin's rivet row pulls the read slightly toward an armoured shield."},
+    {"item": "Figurative motifs have true outlines, crisp, no combing, smearing or stair-steps", "result": "fail", "reason": "Horns, eyes and fringe spikes are crisp. The plate mosaic is not. Joint rims are serrated and crinkled (head.png, the right-hand columns). The outer columns are streaky, smeared metal where they meet the fringe (head.png, left and right). There is a boxy hinge-like block on the midline behind the horn notch (hero.png, stones.png) and a rectangular notch mid-table (stones.png)."},
+    {"item": "Stones in made settings and visible", "result": "pass", "reason": "Not applicable: no stones by design. The preview and the report both count 0."},
+    {"item": "No flat, blocky or mechanical CAD; forms sculpted", "result": "fail", "reason": "The plate tops are flat, faceted plateaus with streaked highlights. The midline block behind the comb is plainly a mechanical box. The margin's evenly spaced pin beads are mechanical."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "The shield's edge and point are crisp and unbroken in bare-vs-finished.png and shoulder.png."},
+    {"item": "Silhouette distinct from the other Cataphracta rings and the Reptilia tiles", "result": "pass", "reason": "The six-horn comb over a shield table is unique on both sheets."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "pass", "reason": "Large: the comb and the shield. Medium: the eyes, plates and fringe spikes. Small: the granules. Coverage density beats Caiman's. Legibility of the head plates is held back by their finish faults."}
+  ],
+  "gates": [
+    {"gate": "Finished mesh watertight, 0 degenerate faces, 0 self-crossings", "claimed": "pass", "verified": "main: watertight true, degenerate_faces 0, self_crossings 0, 925,926 triangles", "pass": true},
+    {"gate": "Made parts closed and uncrossed", "claimed": "pass", "verified": "made_part_crossings: Horned head 0, Granules seam at 0 0, Granules seam at 180 0; sculpt open_edges 0, self_crossings 0", "pass": true},
+    {"gate": "Solids and parts notes empty, every part joined", "claimed": "pass", "verified": "main.notes [], parts_joined 3, every sculpt's notes []", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "bore: vertices_inside 0, nearest vertex 9.2997 mm at radius 9.3", "pass": true},
+    {"gate": "Field verdict Castable (lost wax, 0.8 mm fill)", "claimed": "pass", "verified": "field.verdict Castable, band_verdict Castable, thinnest wall 1.336 mm", "pass": true},
+    {"gate": "Lost-wax wall census", "claimed": "pass", "verified": "assessed true, unresolved 0, suspected_artifacts []; every real-wall zone is under the speck rule. The edge zones are not gated; the thinnest are at the shank walls and the back of the table margin (0.0002 to 0.008 mm) and are logged as finish faults.", "pass": true},
+    {"gate": "Ray release / draft-clamp bites (sand)", "claimed": "not applicable: lost wax (Logan, Fallback B, 2026-10-03)", "verified": "Process Lost wax; the two-part undercut (6.04%) is reported only, as Logan's ruling allows", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings []", "pass": true},
+    {"gate": "Stone count equals preview", "claimed": "pass", "verified": "stones previewed 0, reported 0", "pass": true},
+    {"gate": "Gates hold at 384 x 192", "claimed": "pass", "verified": "coarse: watertight, 0 degenerates, 0 crossings, notes []", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "pass", "verified": "cold_reload_identical true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "925,926 triangles", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "pattern: watertight true, 0 degenerates, 0 self-crossings", "pass": true},
+    {"gate": "Template gate", "claimed": "pass", "verified": "template-verification.json 05:25 (after design 05:23): passed true, 1 design.set patch, 2,908,155 of 3,000,000 painted bytes, source and mesh identical, 925,926 triangles equal to the build", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "P1", "zone": "Horned head plate mosaic: the midline just behind the central horn notch (the boxy hinge block) and the mid-table rectangular notch", "change": "Delete the box-like block and the notch, and fill both with whole domed plates continuous with the midline column.", "acceptance": "In hero.png, stones.png and bare-vs-finished.png the midline column is unbroken from the horn notch to the snout, with no rectangular block or notch."},
+    {"number": 2, "priority": "P1", "zone": "Plate joint rims everywhere, and the outer plate columns where the table fringe spikes join (both sides)", "change": "Clean every joint rim to a single smooth curve with no serration. Give each plate a 0.05 to 0.10 mm domed top in place of the faceted plateau. Give each fringe spike a drafted root that meets the plate behind it along a crisp groove of 0.3 mm or more.", "acceptance": "At full resolution in head.png and stones.png no rim is sawtoothed, no plate top shows streaked facets, and there is no smeared metal between the spikes and the outer plates."},
+    {"number": 3, "priority": "P2", "zone": "Polished margin and pin-bead row round the head (all round, 1 to 1.5 mm)", "change": "Replace the rivet row with 2 to 3 rows of graded 0.4 to 0.6 mm granules, or carry the outer plates out to a 0.3 mm polished lip at the factory edge.", "acceptance": "In face.png and hero.png no polished band wider than 0.5 mm and no evenly spaced rivet row shows. The census's knife-thin edge zones at y 12.9, x ±6.5 to 7.6 are gone."},
+    {"number": 4, "priority": "P3", "zone": "Shank granule skirts and the fold under the table front", "change": "Clean the serrated granule skirts, and fill the bare patch about 2 mm wide at the midline fold under the table front.", "acceptance": "In shoulder.png the granule bases show no sawtooth. In side.png no bare patch wider than 1 mm shows at the fold. The census edge zones under 0.01 mm at x ±9 to 11.4 are gone."}
+  ],
+  "viewed_images": [
+    "showcase/cataphracta/phrynosoma/hero-300.png",
+    "showcase/cataphracta/phrynosoma/face-300.png",
+    "showcase/cataphracta/phrynosoma/hero.png",
+    "showcase/cataphracta/phrynosoma/face.png",
+    "showcase/cataphracta/phrynosoma/head.png",
+    "showcase/cataphracta/phrynosoma/stones.png",
+    "showcase/cataphracta/phrynosoma/shoulder.png",
+    "showcase/cataphracta/phrynosoma/side.png",
+    "showcase/cataphracta/phrynosoma/palm.png",
+    "showcase/cataphracta/phrynosoma/reverse.png",
+    "showcase/cataphracta/phrynosoma/bare-vs-finished.png",
+    "showcase/cataphracta/phrynosoma/contact-300.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
