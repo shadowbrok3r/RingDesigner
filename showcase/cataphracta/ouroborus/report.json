@@ -6,11 +6,11 @@
   },
   "bore_mm": 18.600015706538674,
   "build": {
-    "author_s": 2.336016676,
-    "build_s": 12.013381116,
+    "author_s": 2.802380907,
+    "build_s": 14.788632343,
     "profile_steps": 448,
     "theta_steps": 1536,
-    "triangles": 1384528
+    "triangles": 1389402
   },
   "coarse_384x192": {
     "degenerate_faces": 0,
@@ -20,43 +20,151 @@
         0
       ],
       [
-        "Foreleg, near",
+        "Foreleg, near: upper arm",
         0
       ],
       [
-        "Foreleg, far",
+        "Foreleg, near: forearm",
         0
       ],
       [
-        "Hind leg, near",
+        "Foreleg, near: hand",
         0
       ],
       [
-        "Hind leg, far",
+        "Foreleg, near: toe 1",
+        0
+      ],
+      [
+        "Foreleg, near: toe 2",
+        0
+      ],
+      [
+        "Foreleg, near: toe 3",
+        0
+      ],
+      [
+        "Foreleg, near: toe 4",
+        0
+      ],
+      [
+        "Foreleg, near: toe 5",
+        0
+      ],
+      [
+        "Foreleg, far: upper arm",
+        0
+      ],
+      [
+        "Foreleg, far: forearm",
+        0
+      ],
+      [
+        "Foreleg, far: hand",
+        0
+      ],
+      [
+        "Foreleg, far: toe 1",
+        0
+      ],
+      [
+        "Foreleg, far: toe 2",
+        0
+      ],
+      [
+        "Foreleg, far: toe 3",
+        0
+      ],
+      [
+        "Foreleg, far: toe 4",
+        0
+      ],
+      [
+        "Foreleg, far: toe 5",
+        0
+      ],
+      [
+        "Hind leg, near: thigh",
+        0
+      ],
+      [
+        "Hind leg, near: shin",
+        0
+      ],
+      [
+        "Hind leg, near: foot",
+        0
+      ],
+      [
+        "Hind leg, near: toe 1",
+        0
+      ],
+      [
+        "Hind leg, near: toe 2",
+        0
+      ],
+      [
+        "Hind leg, near: toe 3",
+        0
+      ],
+      [
+        "Hind leg, near: toe 4",
+        0
+      ],
+      [
+        "Hind leg, near: toe 5",
+        0
+      ],
+      [
+        "Hind leg, far: thigh",
+        0
+      ],
+      [
+        "Hind leg, far: shin",
+        0
+      ],
+      [
+        "Hind leg, far: foot",
+        0
+      ],
+      [
+        "Hind leg, far: toe 1",
+        0
+      ],
+      [
+        "Hind leg, far: toe 2",
+        0
+      ],
+      [
+        "Hind leg, far: toe 3",
+        0
+      ],
+      [
+        "Hind leg, far: toe 4",
+        0
+      ],
+      [
+        "Hind leg, far: toe 5",
         0
       ]
     ],
     "notes": [],
-    "parts_joined": 5,
+    "parts_joined": 33,
     "self_crossings": 0,
     "stamped": 0,
-    "triangles": 292952,
+    "triangles": 283170,
     "watertight": true
   },
   "cold_reload_identical": true,
   "composition": {
     "head_faces": 153600,
-    "head_least_half_width_mm": 0.010123838676459685,
-    "head_length_mm": 10.100000000000001,
-    "head_ratio": 1.364864864864865,
-    "head_volume_mm3": 157.16495506415635,
-    "head_width_mm": 7.4,
-    "leg_faces": [
-      16736,
-      16736,
-      17264,
-      17264
-    ],
+    "head_least_half_width_mm": 0.009934368444286521,
+    "head_length_mm": 10.600000000000001,
+    "head_ratio": 1.4133333333333336,
+    "head_volume_mm3": 117.58695496983967,
+    "head_width_mm": 7.5,
+    "limb_faces": 55552,
+    "limb_parts": 32,
     "whorls": [
       48,
       [
@@ -67,7 +175,7 @@
     ]
   },
   "design": {
-    "bytes": 2295010,
+    "bytes": 2116780,
     "stamps": 0
   },
   "dfm_findings": [],
@@ -88,7 +196,7 @@
       "Undercut 11–16° on the crest: 0.7 mm² leaning to 22° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 22–31° on the crest: 0.7 mm² leaning to 21° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 38–47° on the crest: 0.5 mm² leaning to 42° — caused by \"Whorls\"; muting it clears it.",
-      "Undercut 54–63° on the crest: 0.4 mm² leaning to 44° — caused by \"Whorls\"; muting it clears it.",
+      "Undercut 54–63° on the crest: 0.4 mm² leaning to 47° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 122–124° on the crest: 0.9 mm² leaning to 27° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 130–133° on the crest: 0.3 mm² leaning to 8° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 142–144° on the crest: 1.2 mm² leaning to 19° — caused by \"Whorls\"; muting it clears it.",
@@ -116,43 +224,209 @@
       "Undercut 322–322° on the crest: 0.5 mm² leaning to 31° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 328–328° on the crest: 0.6 mm² leaning to 30° — caused by \"Whorls\"; muting it clears it.",
       "Undercut 335–346° on the crest: 1.1 mm² leaning to 34° — caused by \"Whorls\"; muting it clears it.",
-      "Measured with the ring as built: 5 CAD parts (5 joined, 0 cut), 310.5 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 15.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, near\" (#3) would undercut a two-part pull over 0.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Foreleg, far\" (#4) would undercut a two-part pull over 0.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, near\" (#5) would undercut a two-part pull over 0.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hind leg, far\" (#6) would undercut a two-part pull over 0.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Measured with the ring as built: 33 CAD parts (33 joined, 0 cut), 206.7 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 13.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: upper arm\" (#3) would undercut a two-part pull over 1.8 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: forearm\" (#4) would undercut a two-part pull over 0.5 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: hand\" (#5) would undercut a two-part pull over 0.2 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: toe 2\" (#7) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: toe 3\" (#8) would undercut a two-part pull over 0.1 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: toe 4\" (#9) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, near: toe 5\" (#10) would undercut a two-part pull over 0.1 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: upper arm\" (#11) would undercut a two-part pull over 1.8 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: forearm\" (#12) would undercut a two-part pull over 0.4 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: hand\" (#13) would undercut a two-part pull over 0.2 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: toe 2\" (#15) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: toe 3\" (#16) would undercut a two-part pull over 0.1 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: toe 4\" (#17) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Foreleg, far: toe 5\" (#18) would undercut a two-part pull over 0.1 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: thigh\" (#19) would undercut a two-part pull over 1.9 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: shin\" (#20) would undercut a two-part pull over 0.5 mm² (worst -56°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: foot\" (#21) would undercut a two-part pull over 0.1 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: toe 1\" (#22) would undercut a two-part pull over 0.1 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: toe 2\" (#23) would undercut a two-part pull over 0.2 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: toe 3\" (#24) would undercut a two-part pull over 0.0 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: toe 4\" (#25) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, near: toe 5\" (#26) would undercut a two-part pull over 0.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: thigh\" (#27) would undercut a two-part pull over 1.9 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: shin\" (#28) would undercut a two-part pull over 0.5 mm² (worst -56°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: foot\" (#29) would undercut a two-part pull over 0.1 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: toe 1\" (#30) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: toe 2\" (#31) would undercut a two-part pull over 0.2 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: toe 3\" (#32) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: toe 4\" (#33) would undercut a two-part pull over 0.1 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hind leg, far: toe 5\" (#34) would undercut a two-part pull over 0.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "parts": [
       {
         "name": "Head",
-        "note": "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 15.4 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 189.66297454011843
+        "note": "Lost wax: Stored mesh \"Head\" (#2) would undercut a two-part pull over 13.3 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 138.70493775851963
       },
       {
-        "name": "Foreleg, near",
-        "note": "Lost wax: Stored mesh \"Foreleg, near\" (#3) would undercut a two-part pull over 0.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 30.055567395979875
+        "name": "Foreleg, near: upper arm",
+        "note": "Lost wax: Stored mesh \"Foreleg, near: upper arm\" (#3) would undercut a two-part pull over 1.8 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 5.0018570732029985
       },
       {
-        "name": "Foreleg, far",
-        "note": "Lost wax: Stored mesh \"Foreleg, far\" (#4) would undercut a two-part pull over 0.0 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 29.886946662379433
+        "name": "Foreleg, near: forearm",
+        "note": "Lost wax: Stored mesh \"Foreleg, near: forearm\" (#4) would undercut a two-part pull over 0.5 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 6.211309911151581
       },
       {
-        "name": "Hind leg, near",
-        "note": "Lost wax: Stored mesh \"Hind leg, near\" (#5) would undercut a two-part pull over 0.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 30.55667297411368
+        "name": "Foreleg, near: hand",
+        "note": "Lost wax: Stored mesh \"Foreleg, near: hand\" (#5) would undercut a two-part pull over 0.2 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.04046379606136
       },
       {
-        "name": "Hind leg, far",
-        "note": "Lost wax: Stored mesh \"Hind leg, far\" (#6) would undercut a two-part pull over 0.0 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-        "total_mm2": 30.341675174316997
+        "name": "Foreleg, near: toe 1",
+        "note": "Stored mesh \"Foreleg, near: toe 1\" (#6): 0.3 mm² judged, clean but for 0.0004 mm² of facet noise at -7.2°.",
+        "total_mm2": 0.34825624220550955
+      },
+      {
+        "name": "Foreleg, near: toe 2",
+        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 2\" (#7) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.6686207094341471
+      },
+      {
+        "name": "Foreleg, near: toe 3",
+        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 3\" (#8) would undercut a two-part pull over 0.1 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.9853909154205955
+      },
+      {
+        "name": "Foreleg, near: toe 4",
+        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 4\" (#9) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.3667669435876697
+      },
+      {
+        "name": "Foreleg, near: toe 5",
+        "note": "Lost wax: Stored mesh \"Foreleg, near: toe 5\" (#10) would undercut a two-part pull over 0.1 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.7459344503325431
+      },
+      {
+        "name": "Foreleg, far: upper arm",
+        "note": "Lost wax: Stored mesh \"Foreleg, far: upper arm\" (#11) would undercut a two-part pull over 1.8 mm² (worst -41°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 5.0245482218329105
+      },
+      {
+        "name": "Foreleg, far: forearm",
+        "note": "Lost wax: Stored mesh \"Foreleg, far: forearm\" (#12) would undercut a two-part pull over 0.4 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 6.13519106829768
+      },
+      {
+        "name": "Foreleg, far: hand",
+        "note": "Lost wax: Stored mesh \"Foreleg, far: hand\" (#13) would undercut a two-part pull over 0.2 mm² (worst -43°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.0222555722375979
+      },
+      {
+        "name": "Foreleg, far: toe 1",
+        "note": "Stored mesh \"Foreleg, far: toe 1\" (#14): 0.3 mm² judged, clean but for 0.0007 mm² of facet noise at -7.3°.",
+        "total_mm2": 0.3348099244971228
+      },
+      {
+        "name": "Foreleg, far: toe 2",
+        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 2\" (#15) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.6374850111364955
+      },
+      {
+        "name": "Foreleg, far: toe 3",
+        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 3\" (#16) would undercut a two-part pull over 0.1 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.9811864066670007
+      },
+      {
+        "name": "Foreleg, far: toe 4",
+        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 4\" (#17) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.309470093762594
+      },
+      {
+        "name": "Foreleg, far: toe 5",
+        "note": "Lost wax: Stored mesh \"Foreleg, far: toe 5\" (#18) would undercut a two-part pull over 0.1 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.716627765356292
+      },
+      {
+        "name": "Hind leg, near: thigh",
+        "note": "Lost wax: Stored mesh \"Hind leg, near: thigh\" (#19) would undercut a two-part pull over 1.9 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 4.329753768579028
+      },
+      {
+        "name": "Hind leg, near: shin",
+        "note": "Lost wax: Stored mesh \"Hind leg, near: shin\" (#20) would undercut a two-part pull over 0.5 mm² (worst -56°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 7.227770413578236
+      },
+      {
+        "name": "Hind leg, near: foot",
+        "note": "Lost wax: Stored mesh \"Hind leg, near: foot\" (#21) would undercut a two-part pull over 0.1 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.329416667613297
+      },
+      {
+        "name": "Hind leg, near: toe 1",
+        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 1\" (#22) would undercut a two-part pull over 0.1 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.7376145861166091
+      },
+      {
+        "name": "Hind leg, near: toe 2",
+        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 2\" (#23) would undercut a two-part pull over 0.2 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.1156761664312773
+      },
+      {
+        "name": "Hind leg, near: toe 3",
+        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 3\" (#24) would undercut a two-part pull over 0.0 mm² (worst -32°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.020767406244281
+      },
+      {
+        "name": "Hind leg, near: toe 4",
+        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 4\" (#25) would undercut a two-part pull over 0.2 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.4992539923954344
+      },
+      {
+        "name": "Hind leg, near: toe 5",
+        "note": "Lost wax: Stored mesh \"Hind leg, near: toe 5\" (#26) would undercut a two-part pull over 0.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.6328015751463825
+      },
+      {
+        "name": "Hind leg, far: thigh",
+        "note": "Lost wax: Stored mesh \"Hind leg, far: thigh\" (#27) would undercut a two-part pull over 1.9 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 4.340736664730799
+      },
+      {
+        "name": "Hind leg, far: shin",
+        "note": "Lost wax: Stored mesh \"Hind leg, far: shin\" (#28) would undercut a two-part pull over 0.5 mm² (worst -56°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 7.122326323750554
+      },
+      {
+        "name": "Hind leg, far: foot",
+        "note": "Lost wax: Stored mesh \"Hind leg, far: foot\" (#29) would undercut a two-part pull over 0.1 mm² (worst -47°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.318515760956729
+      },
+      {
+        "name": "Hind leg, far: toe 1",
+        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 1\" (#30) would undercut a two-part pull over 0.1 mm² (worst -45°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.6886684169075339
+      },
+      {
+        "name": "Hind leg, far: toe 2",
+        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 2\" (#31) would undercut a two-part pull over 0.2 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.0724799794116244
+      },
+      {
+        "name": "Hind leg, far: toe 3",
+        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 3\" (#32) would undercut a two-part pull over 0.0 mm² (worst -20°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.9955493609165955
+      },
+      {
+        "name": "Hind leg, far: toe 4",
+        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 4\" (#33) would undercut a two-part pull over 0.1 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 1.4269969089666397
+      },
+      {
+        "name": "Hind leg, far: toe 5",
+        "note": "Lost wax: Stored mesh \"Hind leg, far: toe 5\" (#34) would undercut a two-part pull over 0.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+        "total_mm2": 0.6061031058941567
       }
     ],
     "process": "Lost wax",
     "thinnest_wall_mm": 1.0809105752497352,
-    "undercut_percent": 3.14227440428281,
+    "undercut_percent": 4.309975479801176,
     "verdict": "Castable"
   },
   "gates": [
@@ -165,7 +439,7 @@
       "pass": true
     },
     {
-      "gate": "solids and parts notes empty, every stamp resolved, all five parts joined",
+      "gate": "solids and parts notes empty, every stamp resolved, every made part joined",
       "pass": true
     },
     {
@@ -212,35 +486,231 @@
       "name": "Head",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 157.16495506415635
+      "volume_mm3": 117.58695496983967
     },
     {
-      "faces": 16736,
-      "name": "Foreleg, near",
+      "faces": 1736,
+      "name": "Foreleg, near: upper arm",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 16.603386780951546
+      "volume_mm3": 11.917642611019799
     },
     {
-      "faces": 16736,
-      "name": "Foreleg, far",
+      "faces": 1736,
+      "name": "Foreleg, near: forearm",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 16.603386780951546
+      "volume_mm3": 6.634316931101074
     },
     {
-      "faces": 17264,
-      "name": "Hind leg, near",
+      "faces": 1736,
+      "name": "Foreleg, near: hand",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 17.178267374467822
+      "volume_mm3": 1.6191165682378512
     },
     {
-      "faces": 17264,
-      "name": "Hind leg, far",
+      "faces": 1736,
+      "name": "Foreleg, near: toe 1",
       "open_edges": 0,
       "self_crossings": 0,
-      "volume_mm3": 17.178267374467822
+      "volume_mm3": 0.510038206767159
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, near: toe 2",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.5741232447337677
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, near: toe 3",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.6543228905349385
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, near: toe 4",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.6426207749736246
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, near: toe 5",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.4048812064398864
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, far: upper arm",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 11.917642611020037
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, far: forearm",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 6.634316931101099
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, far: hand",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 1.6191165682377682
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, far: toe 1",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.5100382067672024
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, far: toe 2",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.5741232447338509
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, far: toe 3",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.6543228905350285
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, far: toe 4",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.6426207749734225
+    },
+    {
+      "faces": 1736,
+      "name": "Foreleg, far: toe 5",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.40488120643993986
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, near: thigh",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 9.553175010364123
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, near: shin",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 7.63377320275861
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, near: foot",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 1.6585717474111175
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, near: toe 1",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.5075452787118362
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, near: toe 2",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.5979045997872592
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, near: toe 3",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.6990330992815232
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, near: toe 4",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.6766912838691026
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, near: toe 5",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.39212095605441244
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, far: thigh",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 9.553175010364056
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, far: shin",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 7.633773202758557
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, far: foot",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 1.658571747410877
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, far: toe 1",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.5075452787117272
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, far: toe 2",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.5979045997872143
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, far: toe 3",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.6990330992815361
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, far: toe 4",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.6766912838691868
+    },
+    {
+      "faces": 1736,
+      "name": "Hind leg, far: toe 5",
+      "open_edges": 0,
+      "self_crossings": 0,
+      "volume_mm3": 0.39212095605444275
     }
   ],
   "main": {
@@ -251,34 +721,146 @@
         0
       ],
       [
-        "Foreleg, near",
+        "Foreleg, near: upper arm",
         0
       ],
       [
-        "Foreleg, far",
+        "Foreleg, near: forearm",
         0
       ],
       [
-        "Hind leg, near",
+        "Foreleg, near: hand",
         0
       ],
       [
-        "Hind leg, far",
+        "Foreleg, near: toe 1",
+        0
+      ],
+      [
+        "Foreleg, near: toe 2",
+        0
+      ],
+      [
+        "Foreleg, near: toe 3",
+        0
+      ],
+      [
+        "Foreleg, near: toe 4",
+        0
+      ],
+      [
+        "Foreleg, near: toe 5",
+        0
+      ],
+      [
+        "Foreleg, far: upper arm",
+        0
+      ],
+      [
+        "Foreleg, far: forearm",
+        0
+      ],
+      [
+        "Foreleg, far: hand",
+        0
+      ],
+      [
+        "Foreleg, far: toe 1",
+        0
+      ],
+      [
+        "Foreleg, far: toe 2",
+        0
+      ],
+      [
+        "Foreleg, far: toe 3",
+        0
+      ],
+      [
+        "Foreleg, far: toe 4",
+        0
+      ],
+      [
+        "Foreleg, far: toe 5",
+        0
+      ],
+      [
+        "Hind leg, near: thigh",
+        0
+      ],
+      [
+        "Hind leg, near: shin",
+        0
+      ],
+      [
+        "Hind leg, near: foot",
+        0
+      ],
+      [
+        "Hind leg, near: toe 1",
+        0
+      ],
+      [
+        "Hind leg, near: toe 2",
+        0
+      ],
+      [
+        "Hind leg, near: toe 3",
+        0
+      ],
+      [
+        "Hind leg, near: toe 4",
+        0
+      ],
+      [
+        "Hind leg, near: toe 5",
+        0
+      ],
+      [
+        "Hind leg, far: thigh",
+        0
+      ],
+      [
+        "Hind leg, far: shin",
+        0
+      ],
+      [
+        "Hind leg, far: foot",
+        0
+      ],
+      [
+        "Hind leg, far: toe 1",
+        0
+      ],
+      [
+        "Hind leg, far: toe 2",
+        0
+      ],
+      [
+        "Hind leg, far: toe 3",
+        0
+      ],
+      [
+        "Hind leg, far: toe 4",
+        0
+      ],
+      [
+        "Hind leg, far: toe 5",
         0
       ]
     ],
     "notes": [],
-    "parts_joined": 5,
+    "parts_joined": 33,
     "self_crossings": 0,
     "stamped": 0,
-    "triangles": 1384528,
+    "triangles": 1389402,
     "watertight": true
   },
   "name": "Ouroborus — the girdled wheel",
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 1384528,
+    "triangles": 1389402,
     "watertight": true
   },
   "process": "Lost wax",
@@ -286,8 +868,8 @@
   "release": {
     "applies": false,
     "bonus_petrobond_0100": {
-      "deepest_mm": 2.1245324657880107,
-      "obstructions": 132,
+      "deepest_mm": 2.0983748061728122,
+      "obstructions": 126,
       "unresolved": 0
     },
     "note": "No pull rule in lost wax."
@@ -298,5 +880,1244 @@
   "stones": {
     "previewed": 0,
     "reported": 0
+  },
+  "wall_census": {
+    "edge_area_mm2": 13.598518976055557,
+    "edge_samples": 3010,
+    "edges": [
+      {
+        "area_mm2": 2.0784923025754254,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          4.0972676277160645,
+          10.424893140792847,
+          0.2706741789976756
+        ],
+        "samples": 449,
+        "span_mm": 2.4579576286352047,
+        "theta_deg": 68.5438182582858,
+        "thinnest_mm": 0.00025506900208836395
+      },
+      {
+        "area_mm2": 1.7461106781747064,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          1.7535057266553242,
+          11.25463722149531,
+          1.8489874688287575
+        ],
+        "samples": 342,
+        "span_mm": 2.7235858096348036,
+        "theta_deg": 81.14434596033016,
+        "thinnest_mm": 0.00002557048695349402
+      },
+      {
+        "area_mm2": 1.6000120731091305,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          -4.270549992720286,
+          10.606133421262106,
+          3.191135346889496
+        ],
+        "samples": 389,
+        "span_mm": 4.14902190628586,
+        "theta_deg": 111.93213621945597,
+        "thinnest_mm": 0.0010376845282022756
+      },
+      {
+        "area_mm2": 1.468175034044773,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          -0.5048024952411652,
+          12.007134278615316,
+          -2.4676549633344016
+        ],
+        "samples": 342,
+        "span_mm": 3.7100100439989316,
+        "theta_deg": 92.40740456094262,
+        "thinnest_mm": 0.002876524786685225
+      },
+      {
+        "area_mm2": 1.355852113728406,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          1.7535056223471959,
+          11.254637122154236,
+          -1.8478974687556426
+        ],
+        "samples": 249,
+        "span_mm": 2.550561426386505,
+        "theta_deg": 81.14434640183639,
+        "thinnest_mm": 0.000024134783968310828
+      },
+      {
+        "area_mm2": 1.258068706920038,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -3.949276606241862,
+          -8.589184919993082,
+          2.453070084253947
+        ],
+        "samples": 248,
+        "span_mm": 1.8812254493995169,
+        "theta_deg": 245.30719697062696,
+        "thinnest_mm": 0.5372496506866293
+      },
+      {
+        "area_mm2": 0.79528560416026,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.695014874140422,
+          8.721486568450928,
+          2.100821614265442
+        ],
+        "samples": 158,
+        "span_mm": 1.1408647538003507,
+        "theta_deg": 118.29479575335081,
+        "thinnest_mm": 0.5375087556439287
+      },
+      {
+        "area_mm2": 0.6488554627345733,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -3.9492199420928955,
+          -8.589101473490397,
+          -2.453330079714457
+        ],
+        "samples": 121,
+        "span_mm": 1.2331886193312958,
+        "theta_deg": 245.30729771787512,
+        "thinnest_mm": 0.5372523725710354
+      },
+      {
+        "area_mm2": 0.6404664475810121,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.694941520690918,
+          8.721296628316244,
+          -2.1010216077168784
+        ],
+        "samples": 134,
+        "span_mm": 1.1167958993207634,
+        "theta_deg": 118.29494293898101,
+        "thinnest_mm": 0.5375258104527026
+      },
+      {
+        "area_mm2": 0.26890725773583607,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.778306802113851,
+          -9.671754995981852,
+          -2.5861566066741943
+        ],
+        "samples": 59,
+        "span_mm": 0.9618299908178498,
+        "theta_deg": 243.7084384090253,
+        "thinnest_mm": 0.5391847905388187
+      },
+      {
+        "area_mm2": 0.20876807974912226,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          3.060653646787008,
+          9.477835973103842,
+          -0.5662683347860972
+        ],
+        "samples": 36,
+        "span_mm": 1.0289283280170727,
+        "theta_deg": 72.10330624062176,
+        "thinnest_mm": 0.0024331390793949754
+      },
+      {
+        "area_mm2": 0.09205027597511357,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -2.155418356259664,
+          11.860828081766764,
+          -2.7060115734736123
+        ],
+        "samples": 15,
+        "span_mm": 1.254882562083182,
+        "theta_deg": 100.29972213561508,
+        "thinnest_mm": 0.5700327563402597
+      },
+      {
+        "area_mm2": 0.06340065743652498,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          -3.822807510693868,
+          11.722629070281982,
+          0.29178998867670697
+        ],
+        "samples": 16,
+        "span_mm": 0.28729383384933055,
+        "theta_deg": 108.06140442967353,
+        "thinnest_mm": 0.010820513369288864
+      },
+      {
+        "area_mm2": 0.047446911392229285,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          1.8540447801351547,
+          11.650890946388245,
+          1.7448772564530373
+        ],
+        "samples": 3,
+        "span_mm": 0.12327269452921708,
+        "theta_deg": 80.95814807971644,
+        "thinnest_mm": 0.15685955444192656
+      },
+      {
+        "area_mm2": 0.044429497509785296,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          -3.8239875038464866,
+          11.726292371749878,
+          -0.2937849884231885
+        ],
+        "samples": 10,
+        "span_mm": 0.19927778759417825,
+        "theta_deg": 108.0613398276964,
+        "thinnest_mm": 0.015507661560133156
+      },
+      {
+        "area_mm2": 0.041236367758042076,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -5.328046003977458,
+          8.098878224690756,
+          -1.66972819964091
+        ],
+        "samples": 8,
+        "span_mm": 0.5513029119647364,
+        "theta_deg": 123.33990078170464,
+        "thinnest_mm": 0.6099035349988224
+      },
+      {
+        "area_mm2": 0.036414111127523414,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -2.944546659787496,
+          11.742026964823404,
+          2.768988251686096
+        ],
+        "samples": 4,
+        "span_mm": 0.28142185685566856,
+        "theta_deg": 104.07775190671798,
+        "thinnest_mm": 0.7781050889688155
+      },
+      {
+        "area_mm2": 0.031788235314928893,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -5.55784289042155,
+          7.95415719350179,
+          -1.6837186415990193
+        ],
+        "samples": 12,
+        "span_mm": 1.0603753008392616,
+        "theta_deg": 124.94332269220841,
+        "thinnest_mm": 0.552878289969836
+      },
+      {
+        "area_mm2": 0.031602368672645216,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -5.441997528076172,
+          8.241451263427734,
+          -1.763803243637085
+        ],
+        "samples": 7,
+        "span_mm": 0.5808111087634886,
+        "theta_deg": 123.43759248633347,
+        "thinnest_mm": 0.6245538233853279
+      },
+      {
+        "area_mm2": 0.03071122854011965,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -2.2429816325505576,
+          11.857788244883219,
+          2.717664957046509
+        ],
+        "samples": 3,
+        "span_mm": 0.20453447687272241,
+        "theta_deg": 100.71133302266543,
+        "thinnest_mm": 0.5756152190133353
+      },
+      {
+        "area_mm2": 0.027149316787990208,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          1.8333633144696553,
+          11.546415567398071,
+          -1.7540294006466866
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 80.97777857179847,
+        "thinnest_mm": 0.2232404079483642
+      },
+      {
+        "area_mm2": 0.026134570794173258,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          1.8542795777320862,
+          11.652394513289133,
+          -1.739652045071125
+        ],
+        "samples": 2,
+        "span_mm": 0.05083267254659618,
+        "theta_deg": 80.95816951609928,
+        "thinnest_mm": 0.16354242870257435
+      },
+      {
+        "area_mm2": 0.02591607520175302,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.350920120875041,
+          11.033471743265787,
+          -3.557308236757914
+        ],
+        "samples": 5,
+        "span_mm": 0.13686762177735057,
+        "theta_deg": 111.5212151745573,
+        "thinnest_mm": 0.4381592042216836
+      },
+      {
+        "area_mm2": 0.024316656297757706,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.950459639231364,
+          -8.24981721242269,
+          2.356920083363851
+        ],
+        "samples": 4,
+        "span_mm": 0.3017562639022513,
+        "theta_deg": 239.03333625832704,
+        "thinnest_mm": 0.5563537722719395
+      },
+      {
+        "area_mm2": 0.024106265837351527,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.678267439206441,
+          8.292371908823648,
+          2.0323249995708466
+        ],
+        "samples": 5,
+        "span_mm": 0.4354568932565517,
+        "theta_deg": 119.43017764716745,
+        "thinnest_mm": 0.5401009690750616
+      },
+      {
+        "area_mm2": 0.02387234915492846,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          1.7252168332537015,
+          10.875876049200693,
+          1.1589587734391291
+        ],
+        "samples": 2,
+        "span_mm": 0.12631079043815774,
+        "theta_deg": 80.98639546288396,
+        "thinnest_mm": 0.1223598639054476
+      },
+      {
+        "area_mm2": 0.023669862585377798,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          -3.550095876057943,
+          11.547905604044596,
+          -2.743333339691162
+        ],
+        "samples": 10,
+        "span_mm": 0.5893924532169681,
+        "theta_deg": 107.08865075895893,
+        "thinnest_mm": 0.005496331463260466
+      },
+      {
+        "area_mm2": 0.02254031277516017,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          -1.223693350950877,
+          12.101738293965658,
+          -0.14814500013987222
+        ],
+        "samples": 13,
+        "span_mm": 0.8865511062771466,
+        "theta_deg": 95.77396064323304,
+        "thinnest_mm": 0.009879366299435609
+      },
+      {
+        "area_mm2": 0.022514167453866377,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.7108527819315595,
+          -8.347487131754557,
+          -2.353452523549398
+        ],
+        "samples": 4,
+        "span_mm": 0.2754151232480435,
+        "theta_deg": 240.56205851095808,
+        "thinnest_mm": 0.654924906980633
+      },
+      {
+        "area_mm2": 0.022388942923712733,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -1.7461899717648823,
+          11.944334983825684,
+          -2.6758766571680703
+        ],
+        "samples": 3,
+        "span_mm": 0.12623522714023716,
+        "theta_deg": 98.31737763082727,
+        "thinnest_mm": 0.7362603562507606
+      },
+      {
+        "area_mm2": 0.02062061289462607,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -5.219367980957031,
+          8.187931378682455,
+          -1.8245540857315063
+        ],
+        "samples": 5,
+        "span_mm": 0.4596069260777176,
+        "theta_deg": 122.51532993044079,
+        "thinnest_mm": 0.5767464835635349
+      },
+      {
+        "area_mm2": 0.020070020046493324,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          1.758382057150205,
+          11.038287818431854,
+          -1.3494387144843738
+        ],
+        "samples": 2,
+        "span_mm": 0.11241921076738937,
+        "theta_deg": 80.94892030852918,
+        "thinnest_mm": 0.2578946480978118
+      },
+      {
+        "area_mm2": 0.019789268911043954,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          1.6474756648143132,
+          10.350028912226358,
+          1.6491202438871067
+        ],
+        "samples": 4,
+        "span_mm": 0.16234651946553136,
+        "theta_deg": 80.95576515914743,
+        "thinnest_mm": 0.40942449078369275
+      },
+      {
+        "area_mm2": 0.019058481972316233,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.95020866394043,
+          -8.249639193216959,
+          -2.3569157918294272
+        ],
+        "samples": 3,
+        "span_mm": 0.29800687792398683,
+        "theta_deg": 239.03407237183262,
+        "thinnest_mm": 0.5557191292543311
+      },
+      {
+        "area_mm2": 0.01812816432861408,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -3.153900067011515,
+          10.822551409403482,
+          -3.454813321431478
+        ],
+        "samples": 3,
+        "span_mm": 0.16800251513031128,
+        "theta_deg": 106.24714053245222,
+        "thinnest_mm": 0.5900323123763666
+      },
+      {
+        "area_mm2": 0.017428978776389124,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          -1.818218340476354,
+          12.025397618611654,
+          0.9597891718149185
+        ],
+        "samples": 5,
+        "span_mm": 0.10249188751419025,
+        "theta_deg": 98.59789428423016,
+        "thinnest_mm": 0.009946842896923267
+      },
+      {
+        "area_mm2": 0.015232258863063418,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -1.870081643263499,
+          11.86997683842977,
+          2.651658376057943
+        ],
+        "samples": 5,
+        "span_mm": 0.5200681848056652,
+        "theta_deg": 98.95319766999046,
+        "thinnest_mm": 0.5260525486355855
+      },
+      {
+        "area_mm2": 0.01434174013210169,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.637725830078125,
+          -8.476344108581543,
+          -2.4582765897115073
+        ],
+        "samples": 4,
+        "span_mm": 0.23747335382945423,
+        "theta_deg": 241.31527663946696,
+        "thinnest_mm": 0.6358892318693088
+      },
+      {
+        "area_mm2": 0.014001041387579887,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -0.3221291775504748,
+          12.071420987447103,
+          2.5642967422803244
+        ],
+        "samples": 2,
+        "span_mm": 0.0838124256722329,
+        "theta_deg": 91.52859081017654,
+        "thinnest_mm": 0.056002368206869914
+      },
+      {
+        "area_mm2": 0.013468444478274704,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          -0.7860216498374939,
+          10.990295251210531,
+          -2.328946669896444
+        ],
+        "samples": 5,
+        "span_mm": 0.16877392672726543,
+        "theta_deg": 94.09080649661163,
+        "thinnest_mm": 0.003474266289058302
+      },
+      {
+        "area_mm2": 0.012958425582805803,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -5.219980557759603,
+          8.188247362772623,
+          1.8238985935846965
+        ],
+        "samples": 3,
+        "span_mm": 0.30981151189538725,
+        "theta_deg": 122.51737560455946,
+        "thinnest_mm": 0.5770230599039416
+      },
+      {
+        "area_mm2": 0.012563514909298211,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          1.4010016520818074,
+          11.2592613697052,
+          -2.0108833412329354
+        ],
+        "samples": 5,
+        "span_mm": 0.23695443061944954,
+        "theta_deg": 82.90708312743291,
+        "thinnest_mm": 0.0037431011390558614
+      },
+      {
+        "area_mm2": 0.012044217026164428,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          1.6638216773668926,
+          11.852128664652506,
+          1.5491833488146465
+        ],
+        "samples": 2,
+        "span_mm": 0.04267671593078326,
+        "theta_deg": 82.00894272980324,
+        "thinnest_mm": 0.49124394434979923
+      },
+      {
+        "area_mm2": 0.011917586021182956,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.958109140396118,
+          -9.639308214187622,
+          -2.8420958717664084
+        ],
+        "samples": 2,
+        "span_mm": 0.025307750527439055,
+        "theta_deg": 242.78036007579286,
+        "thinnest_mm": 0.5582112686703392
+      },
+      {
+        "area_mm2": 0.011664818048403242,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.654323259989421,
+          8.643980344136557,
+          -2.1456466913223267
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 118.30009959943999,
+        "thinnest_mm": 0.5643292901803979
+      },
+      {
+        "area_mm2": 0.011664711890424997,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.654479900995891,
+          8.64456033706665,
+          2.1454400221506753
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 118.2992998025573,
+        "thinnest_mm": 0.564335442915575
+      },
+      {
+        "area_mm2": 0.010600680263871357,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -5.151365518569946,
+          -8.34182627995809,
+          -2.377846837043762
+        ],
+        "samples": 5,
+        "span_mm": 0.5890109183234937,
+        "theta_deg": 238.30323883754812,
+        "thinnest_mm": 0.5802784377666959
+      },
+      {
+        "area_mm2": 0.010432291734792137,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -3.8761549393335977,
+          11.653966744740805,
+          -0.5473824938138326
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 108.39732715121029,
+        "thinnest_mm": 0.47766865780381446
+      },
+      {
+        "area_mm2": 0.01032496819282334,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          6.25117301940918,
+          8.274444103240967,
+          -1.3660725553830464
+        ],
+        "samples": 4,
+        "span_mm": 0.13684047141824696,
+        "theta_deg": 52.929700285002724,
+        "thinnest_mm": 0.055271603501087334
+      },
+      {
+        "area_mm2": 0.010194417811554625,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -3.876271605491638,
+          11.654286702473959,
+          0.5472724884748459
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 108.39737251031208,
+        "thinnest_mm": 0.4750807892675115
+      },
+      {
+        "area_mm2": 0.01012777512808237,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.768136660257976,
+          -9.831985314687094,
+          2.652008334795634
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 244.1283897015515,
+        "thinnest_mm": 0.5838532143874721
+      },
+      {
+        "area_mm2": 0.009962192993350386,
+        "class": "suspected census artifact",
+        "kind": "Edge",
+        "point": [
+          -0.657149980465571,
+          11.00422477722168,
+          -2.211289922396342
+        ],
+        "samples": 3,
+        "span_mm": 0.3143482211262366,
+        "theta_deg": 93.41752900650178,
+        "thinnest_mm": 0.005413184492850798
+      },
+      {
+        "area_mm2": 0.009600369326306632,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          1.8004325007398922,
+          11.388737380504608,
+          1.697617309788863
+        ],
+        "samples": 4,
+        "span_mm": 0.43703964799830386,
+        "theta_deg": 81.01652186001189,
+        "thinnest_mm": 0.32456867162051833
+      },
+      {
+        "area_mm2": 0.00943260788364737,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -2.2429949839909873,
+          11.858011563618978,
+          -2.7173399527867637
+        ],
+        "samples": 2,
+        "span_mm": 0.07936418133234513,
+        "theta_deg": 100.71119824956162,
+        "thinnest_mm": 0.5848575180115172
+      },
+      {
+        "area_mm2": 0.009401710772011065,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.238661686579387,
+          11.466560204823812,
+          -2.541393240292867
+        ],
+        "samples": 3,
+        "span_mm": 0.07776109485672755,
+        "theta_deg": 110.2870426497047,
+        "thinnest_mm": 0.6249729489471335
+      },
+      {
+        "area_mm2": 0.008963692304426058,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -3.938518524169922,
+          -8.959083398183187,
+          -2.347071091334025
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 246.26914410846388,
+        "thinnest_mm": 0.5752997041939474
+      },
+      {
+        "area_mm2": 0.008872121276529085,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          6.25905458132426,
+          8.28486172358195,
+          1.3660725553830464
+        ],
+        "samples": 3,
+        "span_mm": 0.08142384283164983,
+        "theta_deg": 52.929650695460026,
+        "thinnest_mm": 0.09711564267606594
+      },
+      {
+        "area_mm2": 0.008850316248433347,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          1.7065595885117848,
+          10.759956439336142,
+          -1.4529120872418086
+        ],
+        "samples": 2,
+        "span_mm": 0.23937041533121395,
+        "theta_deg": 80.98779357371542,
+        "thinnest_mm": 0.20437318301977167
+      },
+      {
+        "area_mm2": 0.008703945808443407,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -5.1237568855285645,
+          8.722322781880697,
+          1.8682520786921184
+        ],
+        "samples": 2,
+        "span_mm": 0.043073554395750335,
+        "theta_deg": 120.43126781363294,
+        "thinnest_mm": 0.575313349411675
+      },
+      {
+        "area_mm2": 0.008605660343399473,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          1.6488162726163864,
+          10.348122457663218,
+          -1.6534237538774808
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 80.94688738867578,
+        "thinnest_mm": 0.426028829826994
+      },
+      {
+        "area_mm2": 0.008287181095926258,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.594833612442017,
+          8.548012415568033,
+          1.6989982724189758
+        ],
+        "samples": 3,
+        "span_mm": 0.1531183579810893,
+        "theta_deg": 118.25946978725017,
+        "thinnest_mm": 0.6306364984561177
+      },
+      {
+        "area_mm2": 0.007898880305742095,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -4.823084990183513,
+          10.838058471679688,
+          2.5208067496617637
+        ],
+        "samples": 3,
+        "span_mm": 0.06661680757235722,
+        "theta_deg": 113.98972136867788,
+        "thinnest_mm": 0.5565619781521971
+      },
+      {
+        "area_mm2": 0.007886207734531596,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          7.772946675618489,
+          7.142101605733235,
+          1.6082131465276082
+        ],
+        "samples": 4,
+        "span_mm": 0.060308056388882036,
+        "theta_deg": 42.578068214291704,
+        "thinnest_mm": 0.1918562579212371
+      },
+      {
+        "area_mm2": 0.007634488461500975,
+        "class": "real section under the floor",
+        "kind": "Edge",
+        "point": [
+          -5.581428448359172,
+          -9.532065073649088,
+          -2.6388866106669107
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 239.64921699396027,
+        "thinnest_mm": 0.5696408949696192
+      }
+    ],
+    "limit_mm": 0.8,
+    "note": "Lead's interim lost-wax gate: zones whose thinnest reading is 0.05-0.8 mm across a made feature are real and must be fixed; zones under 0.05 mm are suspected census artifacts and do not block.",
+    "point": [
+      1.7535056223471959,
+      11.254637122154236,
+      -1.8478974687556426
+    ],
+    "rays": 160213,
+    "real_wall_zones": 21,
+    "sampled_min_mm": 0.000024134783968310828,
+    "unresolved": 0,
+    "wall_area_mm2": 5.988829414570211,
+    "wall_samples": 866,
+    "walls": [
+      {
+        "area_mm2": 4.432353943177089,
+        "class": "suspected census artifact",
+        "kind": "Wall",
+        "point": [
+          4.132092177867889,
+          10.232044955094656,
+          -0.019484628302355606
+        ],
+        "samples": 613,
+        "span_mm": 2.289905403709694,
+        "theta_deg": 68.00925438840547,
+        "thinnest_mm": 0.0001351728112136516
+      },
+      {
+        "area_mm2": 0.6485844534760049,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          2.5506633520126343,
+          9.65497636795044,
+          1.1537232995033264
+        ],
+        "samples": 93,
+        "span_mm": 0.7248229709348257,
+        "theta_deg": 75.20161665767009,
+        "thinnest_mm": 0.20075733256574005
+      },
+      {
+        "area_mm2": 0.6370983816864323,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          2.7400916814804077,
+          9.60611867904663,
+          -1.058211624622345
+        ],
+        "samples": 92,
+        "span_mm": 0.7293005470069676,
+        "theta_deg": 74.07949709528037,
+        "thinnest_mm": 0.17102106585537666
+      },
+      {
+        "area_mm2": 0.051782248987186565,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -4.75119161605835,
+          -8.252553462982178,
+          2.829071601231893
+        ],
+        "samples": 13,
+        "span_mm": 0.34798417048756836,
+        "theta_deg": 240.06994066781436,
+        "thinnest_mm": 0.5455837686432468
+      },
+      {
+        "area_mm2": 0.0451634595075073,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          2.9481815894444785,
+          10.81588331858317,
+          -0.8550800184408823
+        ],
+        "samples": 10,
+        "span_mm": 0.3938623877249905,
+        "theta_deg": 74.75279412728614,
+        "thinnest_mm": 0.5854581956757973
+      },
+      {
+        "area_mm2": 0.032895555748332805,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -4.751108328501384,
+          -8.25284194946289,
+          -2.8291732470194497
+        ],
+        "samples": 9,
+        "span_mm": 0.34376939061108125,
+        "theta_deg": 240.07124099354326,
+        "thinnest_mm": 0.545584054679512
+      },
+      {
+        "area_mm2": 0.029892186474519578,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          2.8448533614476523,
+          10.768558661142984,
+          0.6529633402824402
+        ],
+        "samples": 7,
+        "span_mm": 0.3544887961286447,
+        "theta_deg": 75.20160427190456,
+        "thinnest_mm": 0.6045224744149945
+      },
+      {
+        "area_mm2": 0.016874176199136795,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -5.443375031153361,
+          8.130972703297934,
+          1.6763294339179993
+        ],
+        "samples": 6,
+        "span_mm": 0.10237376174736923,
+        "theta_deg": 123.80079428859104,
+        "thinnest_mm": 0.5419161395982659
+      },
+      {
+        "area_mm2": 0.0128852759260148,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -1.934166689713796,
+          11.922013600667318,
+          2.6970932483673096
+        ],
+        "samples": 3,
+        "span_mm": 0.29203869548195094,
+        "theta_deg": 99.21508730585523,
+        "thinnest_mm": 0.44728054484660906
+      },
+      {
+        "area_mm2": 0.011802267410360159,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          2.849043329556783,
+          10.756001472473145,
+          -0.06819333384434383
+        ],
+        "samples": 3,
+        "span_mm": 0.19499268323565655,
+        "theta_deg": 75.16422903746087,
+        "thinnest_mm": 0.6463804233770584
+      },
+      {
+        "area_mm2": 0.010775398157614004,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          1.6537149747212727,
+          11.145559787750244,
+          -1.747076690196991
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 81.56035040483201,
+        "thinnest_mm": 0.7016909800492174
+      },
+      {
+        "area_mm2": 0.010363304285007946,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -2.0524450540542603,
+          11.169665177663168,
+          2.9573450088500977
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 100.41204769966639,
+        "thinnest_mm": 0.7507185516735241
+      },
+      {
+        "area_mm2": 0.010100564361856874,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          1.6644399960835774,
+          11.117781480153402,
+          1.660046676794688
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 81.48550069972511,
+        "thinnest_mm": 0.7495913740136112
+      },
+      {
+        "area_mm2": 0.009707017423464281,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -2.3823282718658447,
+          11.79179843266805,
+          -2.700269937515259
+        ],
+        "samples": 2,
+        "span_mm": 0.04921713796969307,
+        "theta_deg": 101.42187145930922,
+        "thinnest_mm": 0.7505300760369055
+      },
+      {
+        "area_mm2": 0.0082247958482315,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -0.3434999982515971,
+          12.130135218302408,
+          2.550945003827413
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 91.62206286707746,
+        "thinnest_mm": 0.0698178115018003
+      },
+      {
+        "area_mm2": 0.004119763299221781,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -0.5577516555786133,
+          11.962545077006022,
+          -2.548510034879049
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 92.66947285257564,
+        "thinnest_mm": 0.6725639990428905
+      },
+      {
+        "area_mm2": 0.0037162374170401336,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          2.640501697858175,
+          10.183318456013998,
+          -0.06576333505411942
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 75.46353048929814,
+        "thinnest_mm": 0.16240491944209134
+      },
+      {
+        "area_mm2": 0.003532214091691721,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -5.044632116953532,
+          9.411850929260254,
+          1.9580130974451702
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 118.1907409802025,
+        "thinnest_mm": 0.5578547853662745
+      },
+      {
+        "area_mm2": 0.0033526630624862003,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -5.2811652819315595,
+          8.11864948272705,
+          -2.1263466676076255
+        ],
+        "samples": 2,
+        "span_mm": 0.04286256336359351,
+        "theta_deg": 123.0439217014784,
+        "thinnest_mm": 0.5463742316903712
+      },
+      {
+        "area_mm2": 0.0020119237480021954,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -3.4350900252660117,
+          11.617823123931885,
+          -2.797040104866028
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 106.47158657426489,
+        "thinnest_mm": 0.7748842412669986
+      },
+      {
+        "area_mm2": 0.0019361743046322098,
+        "class": "suspected census artifact",
+        "kind": "Wall",
+        "point": [
+          -0.29855751246213913,
+          12.074423631032309,
+          -2.612745781739553
+        ],
+        "samples": 3,
+        "span_mm": 0.05546599177305778,
+        "theta_deg": 91.4164320388909,
+        "thinnest_mm": 0.009100820227469678
+      },
+      {
+        "area_mm2": 0.001431185132667273,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          -4.167225003242493,
+          11.376008987426758,
+          -2.5290191769599915
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 110.11863917740833,
+        "thinnest_mm": 0.6454536762220313
+      },
+      {
+        "area_mm2": 0.0002262248457033763,
+        "class": "real section under the floor",
+        "kind": "Wall",
+        "point": [
+          2.854843338330587,
+          11.010001500447592,
+          1.3095266620318096
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "theta_deg": 75.46360173954835,
+        "thinnest_mm": 0.566593500827638
+      }
+    ]
   }
 }

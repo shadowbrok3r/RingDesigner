@@ -1056,6 +1056,13 @@ fn main() -> Result<()> {
         println!("  384x192: {}", c.line());
     }
     let (least_r, inside) = bore_intrusion(&d, &built.mesh);
+    // The lost-wax wall census, read as the lead's interim gate: real walls 0.05-0.8 mm must be fixed; thinner zones are
+    // listed as suspected census artifacts and do not block on their own.
+    let census = ringdesign_core::cad::measure::thickness(&built.mesh, MIN_SECTION_MM);
+    let zone = |z: &ringdesign_core::cad::measure::ThinZone| json!({"kind": format!("{:?}", z.kind), "thinnest_mm": z.thinnest_mm, "area_mm2": z.area_mm2, "span_mm": z.span_mm, "samples": z.samples, "point": z.point,
+        "theta_deg": z.point[1].atan2(z.point[0]).to_degrees().rem_euclid(360.0), "class": if z.thinnest_mm < 0.05 { "suspected census artifact" } else { "real section under the floor" }});
+    let real_walls = census.walls.iter().filter(|z| z.thinnest_mm >= 0.05).count();
+    println!("  wall census at {MIN_SECTION_MM} mm: {} wall samples ({:.2} mm²) in {} zones, {} real (0.05-0.8 mm); {} edge samples; thinnest {:?}", census.below_limit, census.wall_area_mm2, census.walls.len(), real_walls, census.edge_below_limit, census.sampled_min_mm);
     let made: Vec<(usize, usize)> = solids.iter().map(|s| (sculpt::closure(s).0, csg::self_crossings(s))).collect();
     let mut field = castability::attributed_field_report(&d, &lib, &d.draft, 256, 128);
     castability::judge_parts(&mut field, &d, &built);
@@ -1108,6 +1115,10 @@ fn main() -> Result<()> {
         "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
         "field": {"verdict": field.verdict.label(), "process": field.process.label(), "thinnest_wall_mm": field.thinnest_wall_mm, "undercut_percent": field.undercut_fraction() * 100.0, "notes": field.notes,
             "parts": field.parts.iter().map(|p| json!({"name": p.name, "total_mm2": p.total_area_mm2, "note": p.note})).collect::<Vec<_>>()},
+        "wall_census": {"limit_mm": census.limit_mm, "rays": census.rays, "unresolved": census.unresolved, "sampled_min_mm": census.sampled_min_mm, "point": census.point,
+            "wall_samples": census.below_limit, "wall_area_mm2": census.wall_area_mm2, "edge_samples": census.edge_below_limit, "edge_area_mm2": census.edge_area_mm2,
+            "real_wall_zones": real_walls, "walls": census.walls.iter().map(&zone).collect::<Vec<_>>(), "edges": census.edges.iter().map(&zone).collect::<Vec<_>>(),
+            "note": "Lead's interim lost-wax gate: zones whose thinnest reading is 0.05-0.8 mm across a made feature are real and must be fixed; zones under 0.05 mm are suspected census artifacts and do not block."},
         "release": {"applies": false, "note": "No pull rule in lost wax.", "bonus_petrobond_0100": {"obstructions": main_pass.sand_release_01.0, "unresolved": main_pass.sand_release_01.1, "deepest_mm": main_pass.sand_release_01.2}},
         "draft_clamp": {"groups": 0, "note": "lost wax: no clamp"},
         "dfm_findings": findings.iter().map(|f| format!("{}: {}", f.label, f.message)).collect::<Vec<_>>(),
