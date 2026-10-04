@@ -1,62 +1,99 @@
 # Cataphracta — Ouroborus, the girdled wheel: second cloud lane report (lost wax)
 
-**Outcome: stopped at the block-out.** All three of this lane's read tests (4, 5 and 6) came back `reads: false`. Under TASK.md's rule the ring stops here: the subject needs rethinking, not detailing. That makes six failed read tests across both lanes.
+**Outcome: stopped at the block-out, twice.**
+- This lane's first three read tests (4, 5 and 6, with flank-relief legs) all came back `reads: false`.
+- Logan then granted one more block-out with real limbs (2026-10-04). Its three read tests (7, 8 and 9) also came back `reads: false`.
+- Across both lanes that makes nine read tests, none of which read. The ring stops here.
 
-- **Review rounds used:** 0. No full review ran, so there is no review verdict or score.
-- **Gates:** every gate is green at draft (768 × 320), at 384 × 192, and at export (1536 × 448 with `--verify`).
-- **Template gate:** now passes. The graph is 2,206,296 bytes against the 3 MB painted budget; it was 3.89 MB.
-
-| Item | Value |
+| | |
 |---|---|
-| Branch | `claude/cataphracta-ouroborus-2`, from `claude/cataphracta-ouroborus` with master `2e11632` merged in. Nothing was pushed to master or any other branch, and nothing was tagged. |
-| Author file | `crates/ringdesign-core/examples/cataphracta_ouroborus.rs`, rewritten for the lizard. |
-| Artwork | `crates/ringdesign-core/examples/cataphracta/art/ouroborus/` (`whorl.svg`, `whorl-spine.svg`) |
+| Review rounds used | 0. No full review ran, so there is no review verdict or score. |
+| Gates | Every gate in the lost-wax set is green at draft (768 × 320), at 384 × 192, and at export (1536 × 448 with `--verify`). |
+| Wall census | 21 small real wall zones, recorded below and not fixed, because no detailing round ran. |
+| Template gate | Passes: 2,032,843 bytes against the 3 MB painted budget. |
+| Branch | `claude/cataphracta-ouroborus-2`, with master `2e11632`, then `803a93e`, merged in. Nothing was pushed to master or any other branch, and nothing was tagged. |
+| Author file | `crates/ringdesign-core/examples/cataphracta_ouroborus.rs` |
 | Outputs | `showcase/cataphracta/ouroborus/` |
 | Subject | *Ouroborus cataphractus*, the armadillo girdled lizard, biting its tail. |
-| Process | **Lost wax**, under Logan's rule of 2026-10-03: 0.8 mm minimum section, no pull rule. It was Petrobond. |
+| Process | Lost wax (Logan's rule of 2026-10-03): 0.8 mm minimum section, no pull rule. |
 
-I recorded both the subject and the process in the ring's section of `docs/collections/cataphracta.md`, where the old note said "snake's head". I also marked the section's original sand build steps (the "Serpent head" part and the "Head shield" group) as superseded, and set the status to "stopped at the block-out". No extra rounds were granted, so no extension line was added.
+The ring's section of `docs/collections/cataphracta.md` records:
+- the lizard subject;
+- lost wax;
+- the 2026-10-04 extension, as a dated line written before read test 7;
+- its outcome.
 
-## Read tests (an independent reviewer each time; full text in `read-test-{1..6}.json`)
+No round extension was granted, and the doc says so.
 
-Attempts 1–3 are the first lane's, built as a serpent in Petrobond. Attempts 4–6 are this lane's, built as a lizard in lost wax.
+## Read tests (an independent reviewer each time; full text in `read-test-{1..9}.json`)
 
-| # | reads | What the eye saw (condensed) | Top changes asked |
+| # | Build | reads | What the eye saw (condensed) |
 |---|---|---|---|
-| 1 | false | Hero: a plain bypass band with a helmet-like cap. Face: a faceted knuckle. | A real bite; a wedge head; graded girdles. |
-| 2 | false | Hero: "serpent ring", but the girdles read as a cog. Face: a knight's helm or a beetle. | A head 1.4× as long as wide; a mouth line; rounded girdles. |
-| 3 | false | Hero: nearly passes as "snake ring", with castellated girdles. Face: a beetle, helmet or bullet. | A flat wedge head with eye bumps; imbricate girdles; hide all over. |
-| **4** | **false** | Hero: "snake ring" from the ouroboros layout, with square-topped girdles. Face: a turtle carapace, with a "flat-ended ruled cylinder" read as a pipe fitting at the bite. | Remove the "cylinder at the bite"; a flat wedge head with eye bumps; scaled, offset girdles. |
-| **5** | **false** | Hero: "snake ring or dragon ouroboros". The legs read as "a stray burr", and the girdles as crocodile scutes. Face: a turtle shell or beetle, with a "pipe pushed into a clamp" in front. | A flat triangular head with large shields, a spiny occipital row and a neck; legs that break the silhouette; a thin tail into the jaws. |
-| **6** | **false** | Hero: "the best attempt so far … the bite finally reads", but "dragon ouroboros or snake ring". The legs are "two small pale lumps" inside the silhouette, and the neck slats read as a radiator grille. Face: "a hose clamp or a spark plug". The eyes read as washers, and the shoulders and forelegs as a buckle. | Taper the head's plan to a snout under 40% of the hinge width; domed eyes; occipital spines instead of slats; legs splayed past the silhouette, and at 45° in plan. |
+| 1–3 | First lane: a serpent, Petrobond | false | Hero: from a bypass band up to "nearly snake ring". Face: a knuckle, helm, beetle or bullet. |
+| 4 | Lizard, flank-relief legs | false | Hero: "snake ring". Face: a turtle carapace with a "pipe fitting" at the bite. |
+| 5 | Head wider than the body, eyes on the outline, toothed girdles | false | Hero: "snake or dragon ouroboros"; the legs are "a stray burr". Face: a turtle shell or beetle, "a pipe pushed into a clamp". |
+| 6 | Large-shield flat head, spiny temple rim, bigger feet | false | Hero: "the bite finally reads", but it is still a dragon or snake. Face: "a hose clamp or a spark plug". |
+| **7** | **Real limbs:** capsule bones splayed about 45° in plan past the outline, hands gripping the flank | **false** | Hero: the bite reads; the limbs are "pale pegs and nubs". Face: "pencil-thin" struts, "a bracket, a tripod or a beetle's legs". |
+| **8** | Limbs 2× thicker, elbows and knees rising over the band's shoulder, five-toed hands; triangular head | **false** | Hero: "a thin diagonal bar" and "an X-shaped strut". Face: "a clevis … a beetle's mouthparts". The head is "a shield or lantern", and the temple spines read as a crest comb. |
+| **9** | Limbs posed elbow-back with the hand forward, and knee-forward with the foot back; flat crown; eye set back; girdles to the nape | **false** | Hero: the limbs are "hinge pins or the pins of a hinged bangle clasp", and the head is "a squared block". Face: "a coffin- or lantern-shaped shield", with the tail "like a spring". |
 
-### What the six tests show
+### What the nine tests show
 
-1. **The hero improved; the face view never read.** By attempt 6 the hero shows a reptile coiled round the finger, with a head, an eye, a thin tail visibly running into the jaws, and bristling girdles. Every face view was named as hardware or a shell: a helmet, a beetle, a turtle, a clamp, a spark plug.
-   - The face camera looks straight down on the head, foreshortened by the ring's curve.
-   - The body beside the head (neck, shoulders, forelegs) is seen end-on at a grazing angle, as a squared block. Two reviewers read that block as the thing in the jaws, so they read the head backwards: the occipital spines at the wide back corners looked like open jaws.
-2. **Side-face legs are invisible at 300 px.** The legs are height fields lying along the flank. They stand 1.3–1.75 mm proud of the flank, but they stay inside the outer silhouette in the hero, and from above they show as rounded "barrels".
-   - The reviewers asked for legs that break the silhouette, and that splay at about 45° in plan behind the neck.
-   - That is a different construction: limbs standing out sideways from the band, not relief on its flank.
-3. **The reviewers kept citing "colubrid", "Serpent head" and "Head shield"**, the old snake note and the old sand plan, even after I corrected the doc before attempt 5. Their changes still treated the subject as half-snake.
+- **The bite is solved.** From attempt 6 on, every reviewer saw the tail thin and run into the jaws.
+- **The limbs never read as limbs at 300 px.** Built as straight capsule bones, they read as rods, struts, prongs or pins, however thick or however posed.
+  - My own 1000–1600 px renders (`foreleg.png`, `hero.png`) show a bent arm with a five-toed hand. At 300 px the cylindrical, polished bones and their round caps dominate, and the elbow joint reads as a knob.
+  - A limb needs organic form: a muscled taper, a wrist, knuckles, and a smooth blend into the shoulder.
+  - The 0.5 mm shoulder fillet (`Component::blend_mm`) ran for over 10 minutes against a 30-second draft build. I dropped it, and the reviewer of test 9 asked for it again.
+- **The head never left "box, shield, coffin, lantern" in either view.** The sectioned head is a constant-topology sweep. However the plan is tapered, a flat crown with near-vertical side walls reads as a block from the side, and as a tiled shield from above.
+- **Reviewers kept repeating girdle asks across tests 4–9:** loaf tops, graded pitch, bristling edges, a smaller tail tip. That suggests the girdles' grade and spines don't read at 300 px either. The flank spines are 0.5 mm, and the grade runs 2.6 → 1.0 mm.
 
-## Gates (block-out 6 as committed)
+## Gates (block-out 9 as committed)
 
 | Gate | Draft 768 × 320 | 384 × 192 | Export 1536 × 448 |
 |---|---|---|---|
 | Watertight / degenerate faces / self-crossings | yes / 0 / 0 | yes / 0 / 0 | yes / 0 / 0 |
-| Made parts (head and four legs): open edges / crossings, as made and as placed | 0 / 0 | 0 | 0 / 0 |
-| Solids and parts notes; parts joined | [] ; 5 of 5 | [] ; 5 | [] ; 5 of 5 |
+| 33 made parts (the head and 32 limb capsules) closed and uncrossed, as made and as placed | pass | pass | pass |
+| Solids and parts notes; parts joined | [] ; 33 of 33 | [] ; 33 | [] ; 33 of 33 |
 | Bore: nearest vertex against 9.300 mm | 9.300, 0 inside | — | 9.300, 0 inside |
-| Field, **lost wax**, parts judged in | **Castable**, thinnest wall 1.08 mm (≥ 0.8) | — | **Castable**, thinnest wall 1.08 mm |
-| DFM findings | 0 | — | 0 |
-| Stones reported / previewed | 0 / 0 | — | 0 / 0 |
-| Investment pattern (`mf::prepare`) | closed, 0 / 0 | — | closed, 0 / 0 |
-| Triangles (budget 2 M) | 600,072 | 292,952 | 1,384,528 |
-| Cold reload, empty library | — | — | **identical** |
+| Field, lost wax, parts judged in | Castable, thinnest wall 1.08 mm | — | Castable, thinnest wall 1.08 mm |
+| DFM findings / stones | 0 / 0 = 0 | — | 0 / 0 = 0 |
+| Investment pattern | closed, 0 / 0 | — | closed, 0 / 0 |
+| Triangles (budget 2 M) | about 600 k | 283,170 | 1,389,402 |
+| Cold reload, empty library | — | — | identical |
 
-- **Ray release and draft clamp:** these do not apply in lost wax (no pull rule).
-- **Sand bonus, which this design does not earn:** judged as a Petrobond pour, the ray release at 0.100 mm finds 132–143 obstructions, up to 2.12 mm deep. The head and legs undercut freely.
+- **Ray release and draft clamp:** these do not apply in lost wax.
+- **Sand bonus, not earned:** judged as Petrobond, 126 obstructions, up to 2.1 mm deep.
+
+### Lost-wax wall census
+
+`cad::measure::thickness(&built.mesh, 0.8)` at export, read as the lead's interim gate. It is recorded in `report.json` under `wall_census`.
+
+| Measure | Value |
+|---|---|
+| Rays | 160,213, 0 unresolved |
+| Wall samples | 866 (5.99 mm²) |
+| Edge samples | 3,010 (13.6 mm²) |
+| Wall zones | 23 |
+
+**Suspected census artifacts (under 0.05 mm):**
+
+| Thinnest | Area | Where |
+|---|---|---|
+| 0.000 mm | 4.43 mm² | at 68°, r 11.03, z −0.02: the snout tip on the tail |
+| 0.009 mm | 0.00 mm² | at 91°, r 12.08, z −2.61 |
+
+**Real sections under 0.8 mm, recorded and not fixed:**
+
+| Where | Thinnest | Area |
+|---|---|---|
+| The gape's lips round the tail, 74–75° | 0.17 mm and 0.20 mm | about 0.65 mm² each |
+| Further lip spots at 75° | 0.16–0.65 mm | — |
+| Hind-leg toes at 240° | 0.55 mm | — |
+| Brow and eye rims at 92–110° | 0.07–0.78 mm | each under 0.01 mm² |
+| Spine and toe tips at 118–124° | 0.54–0.56 mm | — |
+
+- These would be the first fix in a detailing round: a thicker waist inside the gape, and blunter tips. No round ran, so they stand as found.
+- Per the lead's note, they are reported and do not block on their own.
 
 ## Template gate
 
@@ -64,89 +101,73 @@ Attempts 1–3 are the first lane's, built as a serpent in Petrobond. Attempts 4
 
 | Item | Result |
 |---|---|
-| Nodes | 44 |
-| `design.set` patches | **1** (`/manufacturing`) |
-| Graph size | **2,206,296 bytes** against the 3,000,000 budget, so `template_gate_passed: true` |
+| Nodes | 72 |
+| `design.set` patches | **1** |
+| Graph size | **2,032,843 bytes** against the 3,000,000 budget, so `template_gate_passed: true` |
 | Lifted source | identical |
-| Mesh parity | 1,384,528 triangles; vertices, faces and normals identical |
+| Mesh parity | 1,389,402 triangles, identical |
 | Cold design and graph reloads | pass |
-| First build | 1.6 s |
+| First build | 2.5 s |
 
-The size fix: the head's stored mesh fell from 395 k to 154 k faces (240 stations × 160 section points). The four legs are about 17 k faces each.
-
-`crisp_relief` is left **off**, because the graph lift cannot carry it yet.
+`crisp_relief` is left off, because the lift cannot carry it yet.
 
 ## Enablers and master moves
 
 - **Used:**
-  - C-R2's `Spiral` grade on the girdles, with the seam hidden in the jaws.
-  - C-R7's `whorl_spine` for the flank spines.
-  - P5's station-aware `VGate::SideFaces` for the flank whorls and spines.
-  - #248's framed close-ups (`render::write_png_framed` with `Framing`) for `stones.png`, `head-top.png` and `foreleg.png`; no cropped meshes.
-- **Not used:**
-  - C-B2 / #257 (stone plans): there is no stone.
-  - C-V1–C-V5 and C-T5–C-T7: nothing in a block-out called for them.
-  - #255 (Textura and marks), #258 (patterns along a path) and #259 (CAD fallbacks).
-  - `crisp_relief`: see the template gate above.
-- **Master merges:** I merged master `2e11632` once, before the first build. The only conflict was `cloud-report.md`, and I kept the branch's copy. No rounds ran after the block-out, so there were no further merges.
+  - C-R2's `Spiral` grade on the girdles.
+  - C-R7's `whorl_spine`.
+  - P5's station-aware `VGate::SideFaces`.
+  - #248's framed close-ups (`render::write_png_framed`).
+  - Master #262's wall census (`cad::measure::thickness`).
+- **Tried and dropped:** `Component::blend_mm` for the shoulder fillets, as above.
+- **Not used:** C-B2 / #257 (there is no stone), C-V1–C-V5, C-T5–C-T7, #255, #258 and #259.
 
-## What each layer and part is, and why
+## What each layer and part is
 
 - **Base:**
-  - Profile: `ProfileStyle::Flat`, 3.4 × 2.8 reference (the tail tip's width), crown 1.0, `flatten_sides()`, comfort 0.15, bore 18.6.
+  - Profile: `Flat` 3.4 × 2.8 reference, crown 1.0, flat sides, bore 18.6.
   - Fifteen keys, giving these widths:
 
     | Where | Width |
     |---|---|
-    | Tail tip inside the jaws (74°) | 0.95 mm |
-    | Lips (66°) | 1.0 mm |
-    | Neck behind the head (114–126°) | 3.4 mm |
-    | Body (150–228°) | 4.8–5.1 mm |
-    | Mid-tail (300°) | 3.9 mm |
-    | Tail (40°) | 2.1 mm |
+    | Tail tip inside the jaws | 0.95 mm |
+    | Neck | 3.4 mm |
+    | Body | 4.8–5.1 mm |
+    | Tail | tapering round to the jaws |
 
-  - The crown scale falls toward the tail so its section stays above the 0.8 mm fill (thinnest wall 1.08 mm).
-- **"Head"** (a made part, stored sectioned solid, joined):
-  - Placement and size: the snout is at 68°, so the face camera at 90° looks onto the middle of the skull. The skull is 10.1 mm to the back of the temple spines and 7.4 mm across the jaws (ratio 1.36). The plan is a straight-flanked triangle.
-  - Crown: a flat crown that rounds over at its edges.
-  - Shields: seven large ones (internasal, paired prefrontals, frontal, supraoculars, interparietal, parietals), cut as 0.28 mm V sutures. Lost wax lets the sutures run in any direction.
-  - Spines: a spiny temporal and occipital rim of five backward-raking spines a side, standing 0.4–0.75 mm proud.
-  - Face: a domed eye 0.95 mm in radius with a round pupil, under a brow; an oval ear pit behind the jaw; a nostril.
-  - Mouth: a 0.45 mm mouth line with an upturned corner, and a 1.15 mm gape round the tail for its first 2–3 mm.
-  - The back sinks into the neck over the last 2.2 mm.
-- **"Foreleg, near/far"** at 140° and **"Hind leg, near/far"** at 226° (made parts, joined):
-  - Each is a height field over the flank (bones as capsules), standing up to 1.75 mm proud, closed by a slab buried 0.3 mm under the flank.
-  - Shape: a fat upper limb back from the shoulder, the lower limb bent down to the bore, a broad hand or foot, and four splayed tapering toes.
-- **"Whorls"** (tiling, `Spiral` grade 2.6 → 1.0 mm, nape to the jaws, gated to the crown, 0.6 mm):
-  - Alpha: `whorl.svg`, two girdles per tile. Each girdle is a rounded loaf rising to a U-shaped free edge that bows tailward, and the edge is toothed into five spiny scale points.
-  - Alternate girdles are offset by half a point, so the hide reads imbricate.
-  - A 0.07 mm blur rounds the trailing edge.
-  - The fills stay above the 0.5 iso, so DFM sees no slivers.
-  - The window fades out by 60°, which leaves the tail tip smooth into the jaws.
-- **"Flank whorls"** (the same lattice at 0.35 mm, `VGate::SideFaces(Both)`) and **"Whorl spines"** (C-R7 `whorl_spine`, one spine per girdle on both flanks, 0.4 mm): the girdles carried down the sides.
+- **"Head"** (a stored sectioned solid, snout at 68°):
+  - Shape: 10.6 × 7.5 mm (ratio 1.41), a triangle widest at the occipital edge. The crown is flat and rounds over at its edges.
+  - Seven large shields cut as 0.28 mm sutures.
+  - Four small occipital spines at the back corners, on the upper rim only.
+  - A smooth domed eye at 6.2 mm from the snout, under a brow; an ear pit; a nostril.
+  - A 0.45 mm mouth line, and a 1.15 mm gape round the tail.
+  - The back sinks into the neck.
+- **Limbs** (32 stored capsules, joined; tapered cones between tangent spherical caps):
+  - Each foreleg (root at 132°): an upper arm out and back to an elbow over the band's shoulder, standing about 2 mm past the flank; a forearm forward and down to a hand pad on the flank under the neck; five clawed toes fanned forward.
+  - Each hind leg (root at 228°) mirrors it: knee forward, foot back, toes raking tailward.
+- **"Whorls," "Flank whorls" and "Whorl spines":**
+  - The girdles run nape to jaws on a `Spiral` grade from 2.6 to 1.0 mm.
+  - On the crown each is a rounded loaf with a U-shaped, toothed, spiny free edge, offset half a point girdle to girdle.
+  - The girdles continue lower down the flanks, with C-R7 spines at 0.5 mm.
 
-## What I could not do
+## Rethink (for whoever picks this up)
 
-- **Make the face view read.** In both lanes, three different head designs (serpent, plated lizard, large-shield lizard) all read as hardware from directly above.
-- **Make side-face legs read at 300 px.**
-
-### Rethink (for whoever picks this up)
-
-1. **Build the legs as limbs, not flank relief.** In lost wax there is no pull rule.
-   - Splay the forelegs outward from behind the neck at about 45° in plan, past the band's outline, with the elbow out and the hand gripping the flank.
-   - The hind legs can do the same at the hips.
-   - From above, four splayed limbs are the one thing that says "lizard" before any surface. That needs a swept or lofted limb part, not a height field.
-2. **Turn the face view's framing problem around.** Put the forelegs and the head both inside the face camera's useful span: the head's back at about 100°, the forelegs at 105–125°, the snout at about 55°, and the tail entering from the right.
-   - Or, as the first lane suggested, a face view framed at an angle for this ring.
-3. **Shrink what flanks the head in the face view.** The shoulders, seen end-on, became the "clamp" every time. A narrower neck and shoulders, with the limbs carrying the width, would remove it.
-4. **Finish the brief's cleanup.** Strip the remaining sand-era build steps from the ring's doc section, so reviewers stop citing "Serpent head", "Head shield" and "colubrid".
+1. **Sculpt the limbs, don't assemble them.** A swept limb with a muscled profile is the next try. It would run from a shoulder blended into the body, through a wrist, into a broad hand with knuckled, tapering, clawed fingers. It would be one closed sculpt per limb, built like the head's sections, or a sculpted stored mesh. Capsule bones read as hardware at every thickness tried.
+2. **Rebuild the head with a rounded, cheeked side profile:**
+   - jaw muscles bulging behind the eye;
+   - a downturned snout;
+   - an overhanging brow;
+   - side walls that lean in, rather than near-vertical walls under a flat crown.
+3. **Fix the gape's thin lips** (0.17–0.20 mm at 74–75°) before any detailing round.
+4. **Make the shoulder fillet affordable.** If `blend_mm` on stored parts can't be made faster, sculpt the fillet into each limb's root directly.
 
 ## Core changes wanted
 
-None are required. One would help the template budget of any stored sculpt:
+None are required. Two would help:
 
 ```rust
-// sculpt.rs: a stored part's packed mesh is the dominant template cost; let `packed` take a face budget and
-// decimate the closed sectioned solid before encoding (the same `decimate` + `settle` chain sculpt parts use).
+// sculpt.rs: let a stored part's packed mesh take a face budget (decimate + settle before encoding).
 pub fn packed_within(s: &Solid, max_faces: usize) -> Result<Packed>;
+// cad: a cheap root fillet for joined stored parts, local to the contact ring instead of a global blend.
+pub struct Component { /* … */ pub root_fillet_mm: f64 }
 ```
