@@ -9,14 +9,19 @@
 //! palm. Every part is a distance field meshed by `sculpt` and joined to the factory stock.
 use anyhow::{Result, ensure};
 use ringdesign_core::{
-    AlphaLibrary, BuildParams, RingDesign,
+    Alpha, AlphaLibrary, BuildParams, RingDesign,
     cad::{Attach, Component, Document, Feature, Operation, Placement, stored},
     castability::{self, CastProcess, Verdict},
     csg, dfm,
     imported_base::{ImportedBase, PRESETS, SurfaceChart},
     library, manufacturing as mf, mesh, render,
     sculpt::{self, ellipsoid, round_cone, smax, smin},
+    field::{Layer, LayerEntry, Window},
+    outline,
+    setting::{Stamp, StampTop},
     skin::{Atlas, Sample},
+    svg::SvgAlpha,
+    tiling::TilingLayer,
     stl,
 };
 use serde_json::json;
@@ -40,8 +45,8 @@ const MIN_DETAIL_MM: f64 = 0.15;
 const FLOOR_MM: f64 = -1.0;
 /// The meshing step, and the face budgets of the head's sculpt and of each shoulder's hide.
 const STEP_MM: f64 = 0.055;
-const HEAD_FACES: usize = 650_000;
-const HIDE_FACES: usize = 380_000;
+const HEAD_FACES: usize = 215_000;
+const SEAM_FACES: usize = 14_000;
 
 fn draft_params() -> BuildParams {
     BuildParams { theta_steps: 768, profile_steps: 320, ..BuildParams::default() }
@@ -242,9 +247,6 @@ enum Kind {
     Temporal,
     JawFringe,
     Granule,
-    Tubercle,
-    CrestBead,
-    Fringe,
 }
 
 /// One horn of the comb: its root on the table's back edge (x, z), its bearing outward from straight back (degrees),
@@ -263,9 +265,9 @@ struct HornSpec {
 /// edge, each clear of the next, all swept back and out over the back wall. The two occipitals beside the midline
 /// are the longest, 1.6 times the temporals, which step shorter outboard.
 const CROWN: [HornSpec; 3] = [
-    HornSpec { kind: Kind::Occipital, root: [1.6, -6.25], splay_deg: 12.0, rise_deg: 34.0, len: 2.7, ra: 0.2 + THORN_TAPER * 2.7, rb: 0.2 },
-    HornSpec { kind: Kind::Temporal, root: [4.2, -6.25], splay_deg: 19.0, rise_deg: 32.0, len: 1.7, ra: 0.2 + THORN_TAPER * 1.7, rb: 0.2 },
-    HornSpec { kind: Kind::Temporal, root: [6.6, -6.15], splay_deg: 25.0, rise_deg: 30.0, len: 1.5, ra: 0.2 + THORN_TAPER * 1.5, rb: 0.2 },
+    HornSpec { kind: Kind::Occipital, root: [1.6, -6.25], splay_deg: 12.0, rise_deg: 34.0, len: 2.7, ra: 0.28 + THORN_TAPER * 2.7, rb: 0.28 },
+    HornSpec { kind: Kind::Temporal, root: [4.2, -6.25], splay_deg: 19.0, rise_deg: 32.0, len: 1.7, ra: 0.28 + THORN_TAPER * 1.7, rb: 0.28 },
+    HornSpec { kind: Kind::Temporal, root: [6.6, -6.15], splay_deg: 25.0, rise_deg: 30.0, len: 1.5, ra: 0.28 + THORN_TAPER * 1.5, rb: 0.28 },
 ];
 /// Every horn and thorn ends in a 0.2 mm round and widens by this much radius per mm of length, so its point closes
 /// to the 0.8 mm floor within one floor of its tip: the wall census reads it as an edge, not a wall.
@@ -274,9 +276,14 @@ const THORN_TAPER: f64 = 0.36;
 /// so the nose is blunt and rounded, about 39% of the back's width, overhanging the factory point as the snout's lip.
 const SNOUT_FROM_Z: f64 = 4.0;
 const SNOUT_HALF_MM: f64 = 5.25;
-const SNOUT_REACH_MM: f64 = 6.4;
+const SNOUT_REACH_MM: f64 = 5.0;
 /// The wedge: half-width at the back edge and where the snout begins, at those z, mm.
 const WEDGE_HALF_MM: [f64; 2] = [8.9, 5.25];
+/// The skull keeps this far inside the factory table's edge everywhere, mm.
+const SNOUT_INSET_MM: f64 = 0.8;
+/// The skull's foot is drafted: over its lowest `SKIRT_H_MM` its wall leans out by `SKIRT_LEAN` mm per mm.
+const SKIRT_H_MM: f64 = 0.6;
+const SKIRT_LEAN: f64 = 0.6;
 const WEDGE_Z: [f64; 2] = [-6.2, 4.0];
 /// A horn's root stands this high over the table, and is blended into the plates over this radius, mm.
 const HORN_ROOT_H_MM: f64 = 0.45;
@@ -288,7 +295,9 @@ const HORN_BLEND_MM: f64 = 0.25;
 /// joints' floor stays a skin over it, so the plates never meet the table face to face.
 const PLATE_ROWS: [(f64, f64, usize); 6] = [(0.0, 2.6, 0), (1.95, 1.7, 1), (3.55, 1.45, 1), (5.0, 1.25, 2), (6.35, 1.1, 2), (7.6, 1.0, 2)];
 const TIER_MM: [f64; 3] = [0.6, 0.42, 0.24];
-const JOINT_FLOOR_MM: f64 = 0.06;
+const JOINT_FLOOR_MM: f64 = 0.14;
+/// Each plate's top is crowned this much toward its middle, mm.
+const PLATE_CROWN_MM: f64 = 0.07;
 const PLATE_JITTER: [f64; 2] = [0.16, 0.26];
 /// The joints between plates: each plate rounds down to the joint's floor over this much of its edge, mm.
 const PLATE_ROUND_MM: f64 = 0.42;
@@ -367,7 +376,8 @@ fn skull_edge(table: &Table, x: f64, z: f64) -> f64 {
     let (a, b) = (SNOUT_HALF_MM, SNOUT_REACH_MM);
     let k = ((x / a).powi(2) + ((z - SNOUT_FROM_Z) / b).powi(2)).sqrt();
     let cap = ((k - 1.0) * a.min(b)).max(SNOUT_FROM_Z - 1.5 - z);
-    back.min(cap)
+    // Never nearer the factory table's edge than SNOUT_INSET_MM, so the shield's point stays crisp past the nose.
+    back.min(cap).max(table.edge(x, z) + SNOUT_INSET_MM)
 }
 
 impl Head {
@@ -449,7 +459,9 @@ impl Head {
         let t = TIER_MM[self.plates[i1].1];
         // Each plate is a pillow: it rises from the joint's floor and rounds over within its first half millimetre.
         let k = 1.0 - (1.0 - (edge / PLATE_ROUND_MM).min(1.0)).powi(2);
-        JOINT_FLOOR_MM + (t - JOINT_FLOOR_MM) * k
+        // The crown is radial about the plate's seed, so the top is a smooth dome with no ridge along its medial axis.
+        let pitch = PLATE_ROWS[self.plates[i1].1.min(PLATE_ROWS.len() - 1)].1;
+        JOINT_FLOOR_MM + (t - JOINT_FLOOR_MM) * k + PLATE_CROWN_MM * (1.0 - d1 / (0.36 * pitch * pitch)).max(0.0)
     }
     /// The skull's crown under the plates at a point `edge` from the table's edge.
     fn dome(&self, edge: f64) -> f64 {
@@ -467,7 +479,7 @@ impl Head {
             return far;
         }
         let top = self.plates_at(p[0], p[2]) + self.dome(edge);
-        let mut f = (h - top).max(edge + PLATE_INSET_MM).max(FLOOR_MM - h);
+        let mut f = (h - top).max(edge + PLATE_INSET_MM - SKIRT_LEAN * (SKIRT_H_MM - h).clamp(0.0, SKIRT_H_MM)).max(FLOOR_MM - h);
         for s in [-1.0, 1.0] {
             let q = [p[0], h, p[2]];
             let eye = [s * EYE_AT[0], EYE_AT[1], EYE_AT[2]];
@@ -506,32 +518,40 @@ impl Head {
 
 // --- The hide: granules, tubercles, the crest and the fringe ---------------------------------------------------------
 
-/// The hide's beads over the stock, sized by their pitch: a granule's radius and dome, and an enlarged tubercle's.
-const GRANULE_PITCH_MM: [f64; 2] = [0.72, 0.6];
+/// The head's ground beads (the table's margin round the skull), sized by their pitch: a granule's radius and dome.
+const GROUND_PITCH_MM: f64 = 0.5;
 const GRANULE_R: f64 = 0.4;
 const GRANULE_DOME: f64 = 0.3;
-const TUBERCLE_PITCH_MM: f64 = 2.1;
-const TUBERCLE_R_MM: f64 = 0.55;
-const TUBERCLE_DOME_MM: f64 = 0.4;
 /// A bead's base is sunk this far under the stock's surface, mm.
 const BEAD_SINK_MM: f64 = 0.2;
 /// The head's own region of the stock, degrees off the head's centre either way; the shoulders run from there to the
 /// palm.
-const HEAD_REGION_DEG: f64 = 48.0;
-/// The crest tubercles: how many a shoulder, the span of ring angle they run over (degrees off the head's centre),
-/// their radius and dome at the head's end and at the palm's, mm.
-const CREST_BEADS: usize = 12;
-const CREST_SPAN_DEG: [f64; 2] = [56.0, 168.0];
-const CREST_R_MM: [f64; 2] = [0.6, 0.35];
-const CREST_DOME_MM: [f64; 2] = [0.45, 0.28];
-/// The fringe: pitch along the rim, scale length, half-width and thickness, at the head's end and at the palm's, mm.
-const FRINGE_FROM_DEG: f64 = 64.0;
-const FRINGE_PITCH_MM: [f64; 2] = [1.25, 0.8];
-const FRINGE_LEN_MM: [f64; 2] = [1.25, 0.75];
-/// A fringe scale's point leans off the rim, out past the wall, by this angle from the ring's direction, degrees.
-const FRINGE_LEAN_DEG: f64 = 58.0;
-/// The fringe's rim: where the shank's outward normal leans this far from radial toward the finger axis.
-const RIM_RADIAL: f64 = 0.62;
+const HEAD_REGION_DEG: f64 = 40.0;
+/// The granule field: pitch and height, mm.
+const GRANULE_PITCH_MM: f64 = 0.8;
+const GRANULE_MM: f64 = 0.28;
+/// The granule field stays this far off the bore, mm, and this far either side of the factory mesh's seams at 0 and
+/// 180 degrees, where relief laid across the source's long triangles folds; the seams' strips carry sculpted granules.
+const GRANULE_BORE_CLEAR_MM: f64 = 1.2;
+const SEAM_DEG: f64 = 6.0;
+/// The granules keep off any edge where the stock turns more than this within two atlas rows or columns, degrees.
+const EDGE_TURN_DEG: f64 = 22.0;
+/// The crest: how many tubercles a shoulder, their diameter and dome at the head's end, and the scale the last loses.
+const CREST_COUNT: u32 = 11;
+const CREST_SPAN_DEG: [f64; 2] = [HEAD_REGION_DEG + 9.3, 170.0];
+const CREST_DIA_MM: f64 = 1.6;
+const CREST_DOME_MM: f64 = 0.65;
+const CREST_TAPER: f64 = 0.44;
+/// The fringe: how many scales a side face, their length and width at the head's end, the cone's rise, where on the
+/// side face they sit (0 low, 1 high) and the scale the last loses.
+const FRINGE_COUNT: u32 = 16;
+const FRINGE_SPAN_DEG: [f64; 2] = [HEAD_REGION_DEG + 4.0, 172.0];
+const FRINGE_L_MM: f64 = 1.5;
+const FRINGE_W_MM: f64 = 1.05;
+const FRINGE_APEX_MM: f64 = 0.55;
+const FRINGE_TAPER: f64 = 0.5;
+/// The fringe sits on the outer face just inside each rim: where the outward normal leans this far from radial.
+const RIM_RADIAL: f64 = 0.88;
 
 /// One scale of the hide in its own surface frame: `t` along its length, `n` out of the surface, `b` across.
 #[derive(Clone, Copy, Debug)]
@@ -550,7 +570,7 @@ impl Stud {
         let d = sub(p, self.c);
         let l = [dot(d, self.t), dot(d, self.n), dot(d, self.b)];
         match self.kind {
-            Kind::Fringe | Kind::JawFringe => {
+            Kind::JawFringe => {
                 // A flattened cone from a broad round root to a fine point.
                 let (len, half, thick) = (self.size[0], self.size[1], self.size[2]);
                 let k = half / thick;
@@ -561,7 +581,7 @@ impl Stud {
     }
     fn reach(&self) -> f64 {
         match self.kind {
-            Kind::Fringe | Kind::JawFringe => 0.75 * self.size[0] + self.size[1],
+            Kind::JawFringe => 0.75 * self.size[0] + self.size[1],
             _ => self.size[0].max(self.size[1]),
         }
     }
@@ -719,122 +739,18 @@ fn scatter(surf: &Surface, taken: &mut Taken, salt: u64, keep: &dyn Fn(&Sample) 
 fn head_hide(surf: &Surface, head: &Head, table: &Table) -> Studs {
     let mut taken = Taken::new();
     let free = |s: &Sample| {
-        // The cheeks under the table's edge, clear of the table itself, the horns and the jaw fringe.
-        let on_table = s.p[1] > table.top - 0.1 && table.edge(s.p[0], s.p[2]) < -0.85;
-        let below = (on_table || s.p[1] < table.top - 1.8 || table.edge(s.p[0], s.p[2]) > 0.9) && skull_edge(table, s.p[0], s.p[2]) > 0.3;
+        // On the table, clear of its edge, the horns and the jaw fringe.
+        let on_table = s.p[1] > table.top - 0.1 && table.edge(s.p[0], s.p[2]) < -0.42;
+        // The cheeks carry the granule field; this ground is the table's margin round the skull.
+        let below = on_table && skull_edge(table, s.p[0], s.p[2]) > 0.22;
         let horn = head.horns.iter().map(|h| round_cone(s.p, h.a, h.b, h.ra, h.rb)).fold(f64::MAX, f64::min);
         let jaw = head.jaw.iter().map(|j| j.eval(s.p)).fold(f64::MAX, f64::min);
         Surface::off(s).abs() < HEAD_REGION_DEG && below && horn > 0.35 && jaw > 0.6
     };
-    // The tubercles are spaced at their own pitch, then the granules keep a land clear of each.
-    let studs = scatter(surf, &mut taken, 11, &|s| free(s).then_some(TUBERCLE_PITCH_MM), &|s, n, _| Stud::bead(Kind::Tubercle, s.p, n, TUBERCLE_R_MM, TUBERCLE_DOME_MM));
-    let mut studs = studs;
-    let mut taken = Taken::new();
-    for t in &studs {
-        taken.put(add(t.c, mul(t.n, BEAD_SINK_MM)), TUBERCLE_R_MM + 0.12 - 0.5 * GRANULE_PITCH_MM[0]);
-    }
-    let granules = scatter(surf, &mut taken, 12, &|s| free(s).then_some(GRANULE_PITCH_MM[0]), &|s, n, pitch| Stud::bead(Kind::Granule, s.p, n, GRANULE_R * pitch, GRANULE_DOME * pitch));
+    let mut studs = Vec::new();
+    let granules = scatter(surf, &mut taken, 12, &|s| free(s).then_some(GROUND_PITCH_MM), &|s, n, pitch| Stud::bead(Kind::Granule, s.p, n, GRANULE_R * pitch, GRANULE_DOME * pitch));
     studs.extend(granules);
     Studs::new("Head ground", studs)
-}
-
-/// Each shoulder's hide: a graded row of domed tubercles on the crest line, a fringe of pointed scales along each rim
-/// tipped toward the palm and out past the wall, and granules over the rest down to the palm.
-fn shoulder_hides(surf: &Surface) -> Vec<Studs> {
-    let a = &surf.a;
-    // Per column: the crest point (the outer surface at z = 0) and the two rims.
-    struct Col {
-        off: f64,
-        crest: (P3, P3),
-        rims: [(P3, P3); 2],
-    }
-    let mut cols = Vec::new();
-    for x in 0..a.width {
-        let col: Vec<&Sample> = (1..a.height - 1).map(|y| a.at(x, y)).filter(|s| surf.outer(s)).collect();
-        let outer: Vec<&&Sample> = col.iter().filter(|s| surf.radial(s) > 0.3).collect();
-        let Some(crest) = outer.iter().min_by(|p, q| p.p[2].abs().total_cmp(&q.p[2].abs())) else { continue };
-        let rim = |sign: f64| outer.iter().filter(|s| s.p[2] * sign > 0.0).min_by(|p, q| (surf.radial(p) - RIM_RADIAL).abs().total_cmp(&(surf.radial(q) - RIM_RADIAL).abs())).map(|s| (s.p, norm(surf.n(s))));
-        let (Some(r0), Some(r1)) = (rim(-1.0), rim(1.0)) else { continue };
-        cols.push(Col { off: Surface::off(crest), crest: (crest.p, norm(surf.n(crest))), rims: [r0, r1] });
-    }
-    let mut out = Vec::new();
-    for (side, name) in [(-1.0, "Shoulder hide, crown side"), (1.0, "Shoulder hide, snout side")] {
-        // The columns on this shoulder, ordered from the head toward the palm; off is signed toward -x as negative.
-        let on_side = |off: f64| if side < 0.0 { off > 0.0 } else { off < 0.0 };
-        let mut line: Vec<(f64, &Col)> = cols.iter().filter(|c| on_side(c.off)).map(|c| (c.off.abs(), c)).filter(|(o, _)| *o >= HEAD_REGION_DEG - 4.0).collect();
-        line.sort_by(|p, q| p.0.total_cmp(&q.0));
-        let grade = |o: f64| ((o - HEAD_REGION_DEG) / (180.0 - HEAD_REGION_DEG)).clamp(0.0, 1.0);
-        let lerp2 = |v: [f64; 2], g: f64| v[0] + (v[1] - v[0]) * g;
-        let frame = |i: usize, pick: &dyn Fn(&Col) -> (P3, P3)| -> (P3, P3, P3, P3) {
-            let (p, n) = pick(line[i].1);
-            let (q, _) = pick(line[(i + 1).min(line.len() - 1)].1);
-            let (o, _) = pick(line[i.saturating_sub(1)].1);
-            let t = sub(q, o);
-            let t = norm(sub(t, mul(n, dot(t, n))));
-            let b = norm(cross(n, t));
-            (p, t, n, b)
-        };
-        let mut studs = Vec::new();
-        let mut taken = Taken::new();
-        // The crest tubercles at even angles.
-        for k in 0..CREST_BEADS {
-            let o = CREST_SPAN_DEG[0] + (CREST_SPAN_DEG[1] - CREST_SPAN_DEG[0]) * k as f64 / (CREST_BEADS - 1) as f64;
-            let i = line.iter().position(|(x, _)| *x >= o).unwrap_or(line.len() - 1);
-            let (p, _, n, _) = frame(i, &|c: &Col| c.crest);
-            let g = ((o - CREST_SPAN_DEG[0]) / (CREST_SPAN_DEG[1] - CREST_SPAN_DEG[0])).clamp(0.0, 1.0);
-            let r = lerp2(CREST_R_MM, g);
-            studs.push(Stud::bead(Kind::CrestBead, p, n, r, lerp2(CREST_DOME_MM, g)));
-            taken.put(p, r + 0.1);
-        }
-        // The fringe along each rim, stepped by its graded pitch.
-        for rim in 0..2 {
-            let pick = move |c: &Col| c.rims[rim];
-            let mut next = 0.0;
-            let mut walked = 0.0;
-            for i in 0..line.len() {
-                if i > 0 {
-                    let (p, q) = (pick(line[i].1).0, pick(line[i - 1].1).0);
-                    walked += dot(sub(p, q), sub(p, q)).sqrt();
-                }
-                let o = line[i].0;
-                if o < FRINGE_FROM_DEG || o > 176.0 || walked < next {
-                    continue;
-                }
-                let g = grade(o);
-                next = walked + lerp2(FRINGE_PITCH_MM, g);
-                let (p, t, n, mut b) = frame(i, &pick);
-                // `b` points off the crest, toward the wall the rim falls to.
-                if dot(b, [0.0, 0.0, p[2].signum()]) < 0.0 {
-                    b = mul(b, -1.0);
-                }
-                // The fringe grows in over its first scales where the shoulder leaves the star.
-                let grow = smoothstep(FRINGE_FROM_DEG - 1.0, FRINGE_FROM_DEG + 12.0, o).max(0.5);
-                let (len, half, thick) = (lerp2(FRINGE_LEN_MM, g) * grow, 0.2 + THORN_TAPER * lerp2(FRINGE_LEN_MM, g) * grow, 0.2 + THORN_TAPER * lerp2(FRINGE_LEN_MM, g) * grow);
-                let c = add(sub(p, mul(n, 0.4 * thick)), mul(b, 0.1));
-                // The point runs palmward and out past the wall, so the rim's silhouette is serrated.
-                let (sl, cl) = FRINGE_LEAN_DEG.to_radians().sin_cos();
-                let tip = norm(add(mul(t, cl), mul(b, sl)));
-                let across = norm(cross(n, tip));
-                studs.push(Stud { kind: Kind::Fringe, c, t: tip, n, b: across, size: [len, half, thick] });
-                taken.put(p, 0.55 * len);
-                taken.put(add(p, mul(tip, 0.45 * len)), 0.35 * len);
-            }
-        }
-        // Granules over the rest of the shoulder, finer toward the palm.
-        let granules = scatter(
-            surf,
-            &mut taken,
-            if side < 0.0 { 21 } else { 22 },
-            &|s| {
-                let o = Surface::off(s);
-                (on_side(o) && o.abs() >= HEAD_REGION_DEG).then(|| lerp2(GRANULE_PITCH_MM, grade(o.abs())))
-            },
-            &|s, n, pitch| Stud::bead(Kind::Granule, s.p, n, GRANULE_R * pitch, GRANULE_DOME * pitch),
-        );
-        studs.extend(granules);
-        out.push(Studs::new(name, studs));
-    }
-    out
 }
 
 #[derive(Default, serde::Serialize)]
@@ -907,46 +823,204 @@ struct Authored {
     ground: Studs,
 }
 
+/// A bead's height profile, (1 - r^2)^1.2: a round top meeting its ground at a low angle, as SVG gradient stops, black ink at the opacity of the height: one bead per tile.
+fn bead_svg(w: f64, h: f64, r_frac: f64) -> String {
+    let stops: String = [(0.0, 1.0), (0.15, 0.973), (0.3, 0.893), (0.45, 0.762), (0.55, 0.649), (0.65, 0.517), (0.75, 0.371), (0.85, 0.215), (0.92, 0.106), (1.0, 0.0)]
+        .iter()
+        .map(|(o, a)| format!(r##"<stop offset="{o}" stop-color="#000" stop-opacity="{a}"/>"##))
+        .collect();
+    // An ellipse filling the cell's share: the chart squeezes the cell, the surface stretches it back to a circle.
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.4}" height="{h:.4}" viewBox="0 0 {w:.4} {h:.4}"><defs><radialGradient id="b" cx="0.5" cy="0.5" r="0.5">{stops}</radialGradient></defs><ellipse cx="{:.4}" cy="{:.4}" rx="{:.4}" ry="{:.4}" fill="url(#b)"/></svg>"##,
+        w * 0.5,
+        h * 0.5,
+        r_frac * w * 0.5,
+        r_frac * h * 0.5
+    )
+}
+
+/// The hide off the head, all of it live layers and struck stamps: one granule field from the head's cheeks round
+/// both shoulders to the palm, a graded crest of domed tubercles on the parting line, and a palm-tipped fringe of
+/// pointed scales along the top of each side face.
+fn hide_layers(d: &mut RingDesign, lib: &mut AlphaLibrary, comp: &mut Composition, surf: &Surface, table: &Table) -> Result<Vec<(P3, f64)>> {
+    let ctx = d.field_context();
+    // The granules: one bead a tile, staggered, over the whole band off the head's table: a painted mask holds them
+    // under the table's edge by 0.9 mm, so none sits on the factory's hard edge or under the skull's plates.
+    let envf = |k: &str, d: f64| std::env::var(k).ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(d);
+    let a = Atlas::of(d, 1024, 256)?;
+    let bore = d.inner_radius_mm();
+    let clear = envf("PHRYNO_BCLEAR", GRANULE_BORE_CLEAR_MM);
+    let seam = envf("PHRYNO_SEAM", SEAM_DEG);
+    // The crest and the fringe, struck at atlas samples: per column the crest point (the outer surface at z = 0) and
+    // the two rims (where the outward normal leans RIM_RADIAL from radial).
+    let stamp = |name: String, s: &Sample, rot: f64, outline: Vec<[f64; 2]>, top: StampTop| Stamp {
+        name, theta_deg: s.theta, v_mm: s.v, rot_deg: rot, outline, height_mm: 0.08, sink_mm: 0.25, draft_deg: 4.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top,
+    };
+    let column = |theta: f64| -> Option<(Sample, Sample, Sample)> {
+        let x = ((theta.rem_euclid(360.0)) / 360.0 * surf.a.width as f64).round() as usize % surf.a.width;
+        let col: Vec<&Sample> = (1..surf.a.height - 1).map(|y| surf.a.at(x, y)).filter(|s| surf.outer(s) && surf.radial(s) > 0.3).collect();
+        let crest = **col.iter().min_by(|p, q| p.p[2].abs().total_cmp(&q.p[2].abs()))?;
+        let rim = |sign: f64| col.iter().filter(|s| s.p[2] * sign > 0.0).min_by(|p, q| (surf.radial(p) - RIM_RADIAL).abs().total_cmp(&(surf.radial(q) - RIM_RADIAL).abs())).map(|s| **s);
+        Some((crest, rim(-1.0)?, rim(1.0)?))
+    };
+    let mut crest = 0;
+    let mut fringe = 0;
+    let mut sites = Vec::new();
+    for side in [1.0, -1.0] {
+        let rot = if side > 0.0 { 0.0 } else { 180.0 };
+        let label = if side > 0.0 { "crown side" } else { "snout side" };
+        for k in 0..CREST_COUNT {
+            let g = k as f64 / (CREST_COUNT - 1) as f64;
+            let off = CREST_SPAN_DEG[0] + (CREST_SPAN_DEG[1] - CREST_SPAN_DEG[0]) * g;
+            let Some((c, _, _)) = column(90.0 + side * off) else { continue };
+            let k_size = 1.0 - CREST_TAPER * g;
+            d.stamps.push(stamp(format!("Crest tubercle, {label} {}", k + 1), &c, rot, outline::circle(CREST_DIA_MM * k_size), StampTop::Dome { crown_mm: CREST_DOME_MM * k_size }));
+            sites.push((c.p, 0.5 * CREST_DIA_MM * k_size));
+            crest += 1;
+        }
+        for k in 0..FRINGE_COUNT {
+            let g = k as f64 / (FRINGE_COUNT - 1) as f64;
+            let off = FRINGE_SPAN_DEG[0] + (FRINGE_SPAN_DEG[1] - FRINGE_SPAN_DEG[0]) * g;
+            let Some((_, lo, hi)) = column(90.0 + side * off) else { continue };
+            let k_size = 1.0 - FRINGE_TAPER * g;
+            for (r, rim) in [("low", lo), ("high", hi)] {
+                let (l, w) = (FRINGE_L_MM * k_size, FRINGE_W_MM * k_size);
+                d.stamps.push(stamp(
+                    format!("Fringe, {label}, {r} rim {}", k + 1),
+                    &rim,
+                    rot,
+                    outline::rounded_triangle(w, l, 0.12),
+                    StampTop::Cone { apex_mm: FRINGE_APEX_MM * k_size, at: [l * 0.2, 0.0], tip_mm: 0.05 },
+                ));
+                fringe += 1;
+                sites.push((rim.p, 0.6 * l));
+            }
+        }
+    }
+    let off_table = a.paint("Off the table", |s| {
+        // The factory mesh's seams at 0 and 180 degrees fold any relief laid across them: a bead column is left out.
+        let t = s.p[1].atan2(s.p[0]).to_degrees();
+        let from_seam = t.abs().min(180.0 - t.abs());
+        // Off the stock's hard edges: where the surface turns more than EDGE_TURN_DEG within two rows or columns, a
+        // bead would hang over the corner as a thin lip.
+        let (x, y) = (s.i % a.width, s.i / a.width);
+        let turn = [(2i64, 0i64), (-2, 0), (0, 2), (0, -2)]
+            .iter()
+            .filter_map(|(dx, dy)| {
+                let (nx, ny) = ((x as i64 + dx).rem_euclid(a.width as i64) as usize, y as i64 + dy);
+                (ny > 0 && ny < a.height as i64 - 1).then(|| a.at(nx, ny as usize).n)
+            })
+            .map(|n| dot(n, s.n).clamp(-1.0, 1.0).acos().to_degrees())
+            .fold(0.0, f64::max);
+        // Clear under every struck stamp, so a tubercle or a fringe scale stands on smooth ground, ringed by beads.
+        let under = sites.iter().map(|(c, r)| dot(sub(s.p, *c), sub(s.p, *c)).sqrt() - r).fold(f64::MAX, f64::min);
+        smoothstep(0.05, 0.25, under)
+            * (1.0 - smoothstep(table.top - 1.15, table.top - 0.9, s.p[1]))
+            * smoothstep(bore + clear - 0.3, bore + clear, s.p[0].hypot(s.p[1]))
+            * smoothstep(seam - 1.0, seam, from_seam)
+            * (1.0 - smoothstep(EDGE_TURN_DEG - 6.0, EDGE_TURN_DEG, turn))
+    });
+    lib.insert(Alpha::from_png16(off_table.name.clone(), &off_table.to_png16()?)?);
+    let (pitch, height) = (envf("PHRYNO_GPITCH", GRANULE_PITCH_MM), envf("PHRYNO_GHEIGHT", GRANULE_MM));
+    // The chart squeezes a section into the band's span, so each stretch of the ring has its own layer, its rows
+    // counted for that stretch's section: the head (sections 19-26 mm), the shoulders (9-19) and the shank (7.3-8.6).
+    let mut cells = Vec::new();
+    for (name, section_mm, window) in [
+        ("Granules, head", 23.0, Window { enabled: true, theta_deg: 90.0, span_deg: 90.0, fade_deg: 4.0, ..Window::default() }),
+        ("Granules, shoulder, crown side", 13.0, Window { enabled: true, theta_deg: 150.0, span_deg: 30.0, fade_deg: 4.0, ..Window::default() }),
+        ("Granules, shoulder, snout side", 13.0, Window { enabled: true, theta_deg: 30.0, span_deg: 30.0, fade_deg: 4.0, ..Window::default() }),
+        ("Granules, shank", 7.6, Window { enabled: true, theta_deg: 270.0, span_deg: 210.0, fade_deg: 4.0, ..Window::default() }),
+    ] {
+        let mut t = TilingLayer::default_for(name, &ctx);
+        t.v_center_mm = 0.5 * ctx.band_v_len_mm;
+        t.v_span_mm = ctx.band_v_len_mm;
+        t.rows = (section_mm / pitch).round().max(1.0) as u32;
+        t.repeats_around = (ctx.circumference_mm / pitch).round() as u32;
+        t.stagger = 0.5;
+        t.height_mm = height;
+        t.feather_mm = 0.0;
+        let (cw, ch) = t.cell_size(&ctx);
+        d.svgs.push(SvgAlpha { name: name.into(), svg: bead_svg(cw, ch, envf("PHRYNO_GFRAC", 0.86)), invert: false });
+        cells.push(json!({"layer": name, "rows": t.rows, "repeats_around": t.repeats_around, "section_mm": section_mm}));
+        let mut e = LayerEntry::new(name, Layer::Tiling(t));
+        e.mask = Some("Off the table".into());
+        e.window = window;
+        if std::env::var("PHRYNO_NO_GRANULES").is_err() {
+            d.layers.layers.push(e);
+        }
+    }
+    d.bake_all(lib);
+    let (cw, ch) = (pitch, pitch);
+    comp.hide.push(json!({"layer": "Granules", "pitch_mm": [cw, ch], "height_mm": GRANULE_MM, "mask": "Off the table: everywhere 0.9 mm or more under the table"}));
+    if std::env::var("PHRYNO_NO_STAMPS").is_ok() {
+        d.stamps.clear();
+    }
+    comp.hide.push(json!({"stamps": "Crest tubercle", "count": crest, "diameter_mm": CREST_DIA_MM, "dome_mm": CREST_DOME_MM, "taper": CREST_TAPER}));
+    comp.hide.push(json!({"stamps": "Fringe", "count": fringe, "length_mm": FRINGE_L_MM, "width_mm": FRINGE_W_MM, "apex_mm": FRINGE_APEX_MM, "taper": FRINGE_TAPER}));
+    Ok(sites)
+}
+
+/// The granules on the strip the field leaves at one of the factory mesh's seams: beads the field's size, sculpted,
+/// clear of the stamps struck there.
+fn seam_granules(surf: &Surface, table: &Table, sites: &[(P3, f64)], centre_deg: f64, name: &'static str) -> Studs {
+    let mut taken = Taken::new();
+    for (p, r) in sites {
+        taken.put(*p, (*r - 0.15).max(0.1));
+    }
+    let r = 0.43 * GRANULE_PITCH_MM;
+    let keep = |s: &Sample| {
+        let t = s.p[1].atan2(s.p[0]).to_degrees();
+        let off = ((t - centre_deg + 540.0).rem_euclid(360.0) - 180.0).abs();
+        (off < SEAM_DEG + 0.2 && s.p[0].hypot(s.p[1]) > surf.bore + GRANULE_BORE_CLEAR_MM && s.p[1] < table.top - 0.9).then_some(GRANULE_PITCH_MM)
+    };
+    let studs = scatter(surf, &mut taken, 31 + centre_deg as u64, &keep, &|s, n, _| Stud::bead(Kind::Granule, s.p, n, r, GRANULE_MM));
+    Studs::new(name, studs)
+}
+
 fn author() -> Result<Authored> {
     let mut d = base()?;
-    let lib = AlphaLibrary::builtin();
+    let mut lib = AlphaLibrary::builtin();
     let table = Table::of(&d)?;
     let head = Head::new(&table);
     let surf = Surface::of(&d)?;
     let ground = head_hide(&surf, &head, &table);
-    let shoulders = shoulder_hides(&surf);
     let mut comp = Composition { table_top_mm: table.top, table_dome_mm: table.dome_mm, horns: head.horns.len(), plates: head.plates.len(), ..Composition::default() };
     comp.crown = CROWN.iter().map(|h| json!({"kind": h.kind, "root_xz_mm": h.root, "length_mm": h.len, "root_radius_mm": h.ra, "tip_radius_mm": h.rb, "rise_deg": h.rise_deg, "splay_deg": h.splay_deg, "pairs": 1})).collect();
-    for s in std::iter::once(&ground).chain(shoulders.iter()) {
-        comp.hide.push(json!({"part": s.name, "granules": s.count(Kind::Granule), "enlarged_tubercles": s.count(Kind::Tubercle), "crest_tubercles": s.count(Kind::CrestBead), "fringe_scales": s.count(Kind::Fringe)}));
+    comp.hide.push(json!({"part": ground.name, "granules": ground.count(Kind::Granule)}));
+    let sites = hide_layers(&mut d, &mut lib, &mut comp, &surf, &table)?;
+    let seams = [seam_granules(&surf, &table, &sites, 0.0, "Granules, seam at 0"), seam_granules(&surf, &table, &sites, 180.0, "Granules, seam at 180")];
+    for s in &seams {
+        comp.hide.push(json!({"part": s.name, "granules": s.count(Kind::Granule)}));
     }
-    let head_field = |p: P3| head.field(&table, p).min(ground.field(p));
-    let (mut hlo, mut hhi) = head.world_box(&table);
-    let (glo, ghi) = ground.world_box();
-    for k in 0..3 {
-        hlo[k] = hlo[k].min(glo[k]);
-        hhi[k] = hhi[k].max(ghi[k]);
-    }
-    // The three sculpts mesh side by side.
-    let (made_head, made_hide) = std::thread::scope(|scope| {
-        let h = scope.spawn(|| sculpt_solid("Horned head", hlo, hhi, HEAD_FACES, &head_field));
-        let parts: Vec<_> = shoulders
-            .iter()
-            .map(|s| {
-                scope.spawn(move || {
-                    let (lo, hi) = s.world_box();
-                    let f = |p: P3| s.field(p);
-                    sculpt_solid(s.name, lo, hi, HIDE_FACES, &f)
+    let mut made = Vec::new();
+    if std::env::var("PHRYNO_NO_SCULPT").is_err() {
+        let head_field = |p: P3| head.field(&table, p).min(ground.field(p));
+        let (mut hlo, mut hhi) = head.world_box(&table);
+        let (glo, ghi) = ground.world_box();
+        for k in 0..3 {
+            hlo[k] = hlo[k].min(glo[k]);
+            hhi[k] = hhi[k].max(ghi[k]);
+        }
+        let (head_made, seam_made) = std::thread::scope(|scope| {
+            let h = scope.spawn(|| sculpt_solid("Horned head", hlo, hhi, HEAD_FACES, &head_field));
+            let parts: Vec<_> = seams
+                .iter()
+                .map(|s| {
+                    scope.spawn(move || {
+                        let (lo, hi) = s.world_box();
+                        let f = |p: P3| s.field(p);
+                        sculpt_solid(s.name, lo, hi, SEAM_FACES, &f)
+                    })
                 })
-            })
-            .collect();
-        (h.join().unwrap(), parts.into_iter().map(|p| p.join().unwrap()).collect::<Vec<_>>())
-    });
-    let mut made = vec![Made { name: "Horned head".into(), solid: made_head.0 }];
-    comp.sculpts.push(made_head.1);
-    for (s, (solid, info)) in shoulders.iter().zip(made_hide) {
-        made.push(Made { name: s.name.into(), solid });
-        comp.sculpts.push(info);
+                .collect();
+            (h.join().unwrap(), parts.into_iter().map(|p| p.join().unwrap()).collect::<Vec<_>>())
+        });
+        made.push(Made { name: "Horned head".into(), solid: head_made.0 });
+        comp.sculpts.push(head_made.1);
+        for (s, (solid, info)) in seams.iter().zip(seam_made) {
+            made.push(Made { name: s.name.into(), solid });
+            comp.sculpts.push(info);
+        }
     }
     let doc = d.cad.get_or_insert_with(Document::default);
     if doc.band().is_none() {
@@ -956,7 +1030,7 @@ fn author() -> Result<Authored> {
         let next = doc.features.iter().map(|f| f.id).max().unwrap_or(0) + 1;
         let recipe = stored::Recipe {
             kernel: "sculpt".into(),
-            op: if m.name == "Horned head" { "horned lizard head and its ground".into() } else { "shoulder hide".into() },
+            op: if m.name == "Horned head" { "horned lizard head".into() } else { "seam granules".into() },
             params: json!({"stock": STOCK, "step_mm": STEP_MM, "horns": head.horns.len()}),
             digest: String::new(),
         };
@@ -1091,6 +1165,24 @@ fn main() -> Result<()> {
     if std::env::var("PHRYNO_TABLE").is_ok() {
         let d = base()?;
         let a = Atlas::of(&d, 1440, 320)?;
+        if std::env::var("PHRYNO_SECTIONS").is_ok() {
+            let ctx = d.field_context();
+            for t in (0..360).step_by(15) {
+                let x = (t as f64 / 360.0 * a.width as f64).round() as usize % a.width;
+                let len: f64 = (1..a.height).map(|y| { let (p, q) = (a.at(x, y).p, a.at(x, y - 1).p); ((p[0]-q[0]).powi(2)+(p[1]-q[1]).powi(2)+(p[2]-q[2]).powi(2)).sqrt() }).sum();
+                println!("theta {t}: section {len:.2} mm (band_v_len {:.2})", ctx.band_v_len_mm);
+            }
+            return Ok(());
+        }
+        if let Ok(t) = std::env::var("PHRYNO_COLUMN") {
+            let t: f64 = t.parse()?;
+            let x = (t.rem_euclid(360.0) / 360.0 * a.width as f64).round() as usize % a.width;
+            for y in 0..a.height {
+                let s = a.at(x, y);
+                println!("row {y}: r {:.3} z {:.3} v {:.3} n [{:.2} {:.2} {:.2}]", s.p[0].hypot(s.p[1]), s.p[2], s.v, s.n[0], s.n[1], s.n[2]);
+            }
+            return Ok(());
+        }
         for z in [5.0, 6.0, 7.0, 8.0, 9.0, 9.8] {
             let ys: Vec<f64> = a.samples.iter().filter(|s| s.p[0].abs() < 0.4 && (s.p[2] - z).abs() < 0.25).map(|s| s.p[1]).collect();
             let lo = ys.iter().copied().fold(f64::MAX, f64::min);
@@ -1122,6 +1214,19 @@ fn main() -> Result<()> {
     let build_s = t.elapsed().as_secs_f64();
     let main_pass = Pass::of(&built);
     println!("  {}x{}: {} ({build_s:.1} s)", params.theta_steps, params.profile_steps, main_pass.line());
+    if let Ok(at) = std::env::var("PHRYNO_LOOK") {
+        let v: Vec<f64> = at.split(',').filter_map(|x| x.parse().ok()).collect();
+        let t = v[0].to_radians();
+        let c = [v[1] * t.cos(), v[1] * t.sin(), v[2]];
+        let parts = vec![render::Part::metal(&built.mesh, render::GOLD)];
+        render::write_png_framed(out.join("look.png"), &parts, render::yaw_facing(v[0]), 0.35, render::Framing::new(c, v[3]), 1000)?;
+    }
+    if std::env::var("PHRYNO_SITES").is_ok() {
+        for p in sculpt::crossing_sites(&solid_of(&built.mesh)).iter().take(40) {
+            let r = p[0].hypot(p[1]);
+            println!("    crossing at theta {:.1} r {:.2} z {:.2}", p[1].atan2(p[0]).to_degrees(), r, p[2]);
+        }
+    }
     let skip_gates = std::env::var("PHRYNO_RENDER_ONLY").is_ok();
     if skip_gates {
         renders(&out, &lib, &built, &table, if draft { 1000 } else { 1600 }, params)?;
@@ -1148,11 +1253,13 @@ fn main() -> Result<()> {
     let walls_reach = ringdesign_core::cad::measure::census(&built.mesh, &ringdesign_core::cad::measure::CensusOptions { floor_mm: MIN_SECTION_MM, pitch_mm: None, edge_reach_mm: Some(2.0) });
     // The lead's interim gate (2026-10-03): wall zones with a real section, 0.05 to 0.8 mm, are fixed; zones under
     // 0.05 mm are listed as suspected census artifacts and never reshape the ring.
-    // A zone smaller than one census sample (pitch squared) is under the census's own resolution: it is listed with
-    // its point and area, not counted as a feature.
-    let sample_mm2 = walls.pitch_mm * walls.pitch_mm;
-    let real_walls: Vec<&ringdesign_core::cad::measure::ThinZone> = walls.walls.iter().filter(|z| z.thinnest_mm >= 0.05 && z.area_mm2 >= sample_mm2).collect();
-    let sub_sample: Vec<serde_json::Value> = walls.walls.iter().filter(|z| z.thinnest_mm >= 0.05 && z.area_mm2 < sample_mm2).map(|z| json!({"point": z.point, "area_mm2": z.area_mm2, "thinnest_mm": z.thinnest_mm, "samples": z.samples})).collect();
+    // A speck does not block, by the lead's ruling of 2026-10-04: "a single sample or two, a speck about 0.15 mm
+    // across, which fills from the metal round it", under 0.02 mm2. A zone under 0.02 mm2, or under 0.15 mm across, is
+    // listed with its point, area and span.
+    let sample_mm2 = 0.02;
+    let speck = |z: &&ringdesign_core::cad::measure::ThinZone| z.area_mm2 < sample_mm2 || z.span_mm < 0.15;
+    let real_walls: Vec<&ringdesign_core::cad::measure::ThinZone> = walls.walls.iter().filter(|z| z.thinnest_mm >= 0.05 && !speck(z)).collect();
+    let sub_sample: Vec<serde_json::Value> = walls.walls.iter().filter(|z| z.thinnest_mm >= 0.05 && speck(z)).map(|z| json!({"point": z.point, "area_mm2": z.area_mm2, "span_mm": z.span_mm, "thinnest_mm": z.thinnest_mm, "samples": z.samples})).collect();
     let artifacts: Vec<serde_json::Value> = walls.walls.iter().filter(|z| z.thinnest_mm < 0.05).map(|z| json!({"point": z.point, "area_mm2": z.area_mm2, "thinnest_mm": z.thinnest_mm})).collect();
     let wall_json = |t: &ringdesign_core::cad::measure::Thickness| json!({
         "clean": t.clean(), "assessed": t.assessed, "unresolved": t.unresolved, "wall_samples": t.below_limit, "wall_area_mm2": t.wall_area_mm2,
@@ -1177,7 +1284,7 @@ fn main() -> Result<()> {
         ("solids and parts notes empty, every part joined", main_pass.notes.is_empty() && main_pass.joined == made.len()),
         ("nothing enters the finger hole", inside == 0),
         ("lost-wax field verdict Castable with the 0.8 mm fill", field.process == CastProcess::LostWax && field.verdict == Verdict::Castable && band_field.verdict == Verdict::Castable),
-        ("lost-wax wall census: assessed, 0 unresolved, no wall zone of a census sample or more with a real section of 0.05-0.8 mm", walls.assessed && walls.unresolved == 0 && real_walls.is_empty()),
+        ("lost-wax wall census: assessed, 0 unresolved, no wall zone past a speck (0.02 mm2 and 0.15 mm across) with a real section of 0.05-0.8 mm", walls.assessed && walls.unresolved == 0 && real_walls.is_empty()),
         ("zero DFM findings", findings.is_empty()),
         ("stones reported equal the preview", reported == previewed),
         ("gates hold at 384 x 192", coarse_pass.ok(made.len())),
@@ -1203,7 +1310,7 @@ fn main() -> Result<()> {
         "wall_census": wall_json(&walls),
         "wall_census_real_walls": real_walls.iter().map(|z| json!({"point": z.point, "area_mm2": z.area_mm2, "thinnest_mm": z.thinnest_mm, "span_mm": z.span_mm})).collect::<Vec<_>>(),
         "wall_census_suspected_artifacts": artifacts,
-        "wall_census_under_one_sample": {"sample_area_mm2": sample_mm2, "zones": sub_sample},
+        "wall_census_specks": {"rule": "under 0.02 mm2, or under 0.15 mm across (the lead, 2026-10-04)", "zones": sub_sample},
         "wall_census_edge_reach_2mm": wall_json(&walls_reach),
         "two_part_undercut": {
             "band_percent": band_field.undercut_fraction() * 100.0,
@@ -1248,7 +1355,7 @@ fn main() -> Result<()> {
             w.area_mm2, w.thinnest_mm, p.map(|x| (x * 100.0).round() / 100.0), ground.field(p), head.skull_at(&table, p), table.edge(p[0], p[2]), p[1] - table.top
         );
     }
-    println!("    suspected census artifacts (< 0.05 mm): {}; zones under one sample ({sample_mm2:.4} mm2): {}", artifacts.len(), sub_sample.len());
+    println!("    suspected census artifacts (< 0.05 mm): {}; specks under {sample_mm2} mm2: {}", artifacts.len(), sub_sample.len());
     for f in &findings {
         println!("    dfm: {}: {}", f.label, f.message);
     }
