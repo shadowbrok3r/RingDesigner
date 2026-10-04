@@ -1,31 +1,23 @@
 {
   "alloy_for_weight": "Gold 18k",
   "bore": {
-    "nearest_vertex_mm": 8.7547680666088,
+    "nearest_vertex_mm": 9.299999525547445,
     "radius_mm": 9.3,
-    "vertices_inside": 206
+    "vertices_inside": 0
   },
   "build": {
-    "author_s": 0.49508357,
-    "build_s": 17.112903733,
+    "author_s": 61.599093979,
+    "build_s": 3.321773285,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 652040
+    "triangles": 518704
   },
+  "census_note": "Per the lead's 2026-10-04 note, census walls do not block a review on their own: every zone is listed under wall_census with its point, area and the part it lies on.",
   "coarse": {
     "degenerate_faces": 0,
     "notes": [
       [],
-      [
-        "Heart collet, Hip collet, Stem of arm A, Stem of arm B, Receptacle, Petal 1, Petal 2, Petal 3, Petal 4, Petal 5, Petal 6, Petal 7, Petal 8, Petal 9, Petal 10, Petal 11, Petal 12, Petal 13, Petal 14, Petal 15, Petal 16, Petal 17, Petal 18, Dried sepal 1, Dried sepal 2, Dried sepal 3, Dried sepal 4, Dried sepal 5, Hip's dried sepal, Hip's dried crown, Hip body, Prickle, arm A 1, Prickle, arm A 2, Prickle, arm A 3, Prickle, arm A 4, Prickle, arm A 5: could not be united with each other (the solids meet degenerately (two cuts cross inside a face)); joined one by one",
-        "Stem of arm B: could not be joined to the band (the solids meet degenerately (two cuts cross inside a face))",
-        "Prickle, arm A 1: its fillet could not be laid (the bead folds at 2 of 171 stations at its smallest radius, first at 25.8° round the ring, r 11.91 z 0.64 mm in its section, point (10.73, 5.18, 0.64) mm)",
-        "Prickle, arm A 1: its fillet could not be laid (the bead folds at 4 of 64 stations at its smallest radius, first at 23.3° round the ring, r 12.58 z 1.24 mm in its section, point (11.55, 4.98, 1.24) mm)",
-        "Prickle, arm A 2: its fillet could not be laid (the bead folds at 16 of 175 stations at its smallest radius, first at 12.2° round the ring, r 11.99 z 0.18 mm in its section, point (11.72, 2.54, 0.18) mm)",
-        "Prickle, arm A 3: its fillet could not be laid (the bead folds at 4 of 146 stations at its smallest radius, first at 7.4° round the ring, r 11.96 z 0.37 mm in its section, point (11.86, 1.54, 0.37) mm)",
-        "Prickle, arm B 3: its fillet could not be laid (the bead folds at 3 of 246 stations at its smallest radius, first at 161.9° round the ring, r 12.00 z 0.03 mm in its section, point (-11.41, 3.72, 0.03) mm)",
-        "Prickle, arm B 1: its fillet pinches to 0.02 mm at 71 of 261 stations, smallest at 145.5° round the ring, r 11.98 z 0.18 mm in its section, point (-9.87, 6.78, 0.18) mm"
-      ]
+      []
     ],
     "self_crossings": 0,
     "stamped": 0,
@@ -33,8 +25,8 @@
   },
   "cold_reload_identical": null,
   "design": {
-    "bytes": 1622327,
-    "cad_features": 44,
+    "bytes": 264472,
+    "cad_features": 35,
     "format_version": 6
   },
   "dfm_findings": [],
@@ -149,42 +141,6 @@
       "Ok"
     ],
     [
-      "#26",
-      "Ok"
-    ],
-    [
-      "#27",
-      "Ok"
-    ],
-    [
-      "#28",
-      "Ok"
-    ],
-    [
-      "#29",
-      "Ok"
-    ],
-    [
-      "#30",
-      "Ok"
-    ],
-    [
-      "#31",
-      "Ok"
-    ],
-    [
-      "#32",
-      "Ok"
-    ],
-    [
-      "#33",
-      "Ok"
-    ],
-    [
-      "#34",
-      "Ok"
-    ],
-    [
       "#60",
       "Ok"
     ],
@@ -229,116 +185,117 @@
     "min_detail_mm": 0.15,
     "min_section_mm": 0.8,
     "notes": [
-      "Lost wax: 0.48% of the surface would undercut a two-part pull (worst 1.6 deg) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Thinnest wall 0.29 mm at 86 deg is under the 0.8 mm an investment pour reliably fills.",
-      "Undercut 38–38° on the lower shoulder: 0.0 mm² leaning to 1° — no single layer explains it.",
-      "Undercut 50–54° on the lower shoulder: 0.1 mm² leaning to 2° — no single layer explains it.",
-      "Undercut 126–130° on the upper shoulder: 0.1 mm² leaning to 2° — no single layer explains it.",
-      "Undercut 142–142° on the upper shoulder: 0.0 mm² leaning to 1° — no single layer explains it.",
-      "Measured with the ring as built: 41 CAD parts (41 joined, 0 cut), 951.1 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Bezel \"Heart collet\" (#3) would undercut a two-part pull over 37.5 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Hip collet\" (#5) would undercut a two-part pull over 46.0 mm² (worst -72°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Stem of arm A\" (#6) would undercut a two-part pull over 3.2 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Receptacle\" (#8) would undercut a two-part pull over 10.6 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 1\" (#9) would undercut a two-part pull over 8.1 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 2\" (#10) would undercut a two-part pull over 7.2 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 3\" (#11) would undercut a two-part pull over 8.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 4\" (#12) would undercut a two-part pull over 7.8 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 5\" (#13) would undercut a two-part pull over 7.3 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 6\" (#14) would undercut a two-part pull over 14.0 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 7\" (#15) would undercut a two-part pull over 11.1 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 8\" (#16) would undercut a two-part pull over 13.6 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 9\" (#17) would undercut a two-part pull over 9.5 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 10\" (#18) would undercut a two-part pull over 12.7 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 11\" (#19) would undercut a two-part pull over 13.0 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 12\" (#20) would undercut a two-part pull over 13.1 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 13\" (#21) would undercut a two-part pull over 10.9 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 14\" (#22) would undercut a two-part pull over 12.6 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 15\" (#23) would undercut a two-part pull over 13.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 16\" (#24) would undercut a two-part pull over 14.5 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 17\" (#25) would undercut a two-part pull over 10.6 mm² (worst -38°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Petal 18\" (#26) would undercut a two-part pull over 14.0 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Dried sepal 1\" (#27) would undercut a two-part pull over 4.4 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Dried sepal 2\" (#28) would undercut a two-part pull over 4.5 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Dried sepal 3\" (#29) would undercut a two-part pull over 3.8 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Dried sepal 4\" (#30) would undercut a two-part pull over 2.3 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Dried sepal 5\" (#31) would undercut a two-part pull over 3.7 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Hip's dried sepal\" (#32) would undercut a two-part pull over 5.4 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array round a part \"Hip's dried crown\" (#33) would undercut a two-part pull over 20.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hip body\" (#34) would undercut a two-part pull over 5.7 mm² (worst -21°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A 1\" (#60) would undercut a two-part pull over 6.9 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A 2\" (#61) would undercut a two-part pull over 4.6 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A 3\" (#62) would undercut a two-part pull over 4.6 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A 4\" (#63) would undercut a two-part pull over 3.6 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A 5\" (#64) would undercut a two-part pull over 2.6 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B 1\" (#65) would undercut a two-part pull over 5.1 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B 2\" (#66) would undercut a two-part pull over 4.9 mm² (worst -70°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B 3\" (#67) would undercut a two-part pull over 1.7 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B 4\" (#68) would undercut a two-part pull over 3.0 mm² (worst -72°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B 5\" (#69) would undercut a two-part pull over 2.0 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Lost wax: 0.10% of the surface would undercut a two-part pull (worst 2.1 deg) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Undercut 36–36° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
+      "Undercut 144–144° on the crest: 0.0 mm² leaning to 1° — no single layer explains it.",
+      "Measured with the ring as built: 32 CAD parts (32 joined, 0 cut), 1222.4 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Bezel \"Heart collet\" (#3) would undercut a two-part pull over 39.3 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Hip collet\" (#5) would undercut a two-part pull over 52.9 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Stem of arm A\" (#6) would undercut a two-part pull over 1.8 mm² (worst -27°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Stem of arm B\" (#7) would undercut a two-part pull over 3.5 mm² (worst -28°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Receptacle\" (#8) would undercut a two-part pull over 14.3 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal, ring 1\" (#9) would undercut a two-part pull over 6.7 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Petal ring 1\" (#10) would undercut a two-part pull over 21.6 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal, ring 2\" (#11) would undercut a two-part pull over 8.3 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Petal ring 2\" (#12) would undercut a two-part pull over 29.3 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal, ring 3\" (#13) would undercut a two-part pull over 12.8 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Petal ring 3\" (#14) would undercut a two-part pull over 54.5 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal, ring 4\" (#15) would undercut a two-part pull over 15.0 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Petal ring 4\" (#16) would undercut a two-part pull over 88.1 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Dried sepal\" (#17) would undercut a two-part pull over 3.8 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Dried sepals\" (#18) would undercut a two-part pull over 15.7 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Hip's dried sepal\" (#19) would undercut a two-part pull over 5.3 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Hip's dried crown\" (#20) would undercut a two-part pull over 17.2 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hip body\" (#21) would undercut a two-part pull over 6.8 mm² (worst -23°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf, terminal leaflet\" (#22) would undercut a two-part pull over 3.3 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf, upper lateral leaflet\" (#23) would undercut a two-part pull over 10.4 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf, lower lateral leaflet\" (#24) would undercut a two-part pull over 10.5 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Leaf, rachis\" (#25) would undercut a two-part pull over 0.6 mm² (worst -34°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Prickle, arm A 1\" (#60) would undercut a two-part pull over 7.1 mm² (worst -61°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Prickle, arm A 2\" (#61) would undercut a two-part pull over 6.6 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Prickle, arm A 3\" (#62) would undercut a two-part pull over 6.4 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Prickle, arm A 4\" (#63) would undercut a two-part pull over 5.5 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Prickle, arm A 5\" (#64) would undercut a two-part pull over 5.0 mm² (worst -64°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Prickle, arm B 1\" (#65) would undercut a two-part pull over 7.4 mm² (worst -58°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Prickle, arm B 2\" (#66) would undercut a two-part pull over 7.0 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Prickle, arm B 3\" (#67) would undercut a two-part pull over 6.4 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Prickle, arm B 4\" (#68) would undercut a two-part pull over 5.5 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Prickle, arm B 5\" (#69) would undercut a two-part pull over 5.0 mm² (worst -57°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
-    "thinnest_wall_mm": 0.2920315724416849,
-    "thinnest_wall_theta_deg": 85.78125,
-    "undercut_percent_reported_only": 23.014329922176973,
-    "verdict": "Castable with care"
+    "thinnest_wall_mm": 2.0096326929371067,
+    "thinnest_wall_theta_deg": 56.25,
+    "undercut_percent_reported_only": 24.4232653736821,
+    "verdict": "Castable"
   },
   "gates": [
     {
+      "blocking": true,
       "gate": "finished mesh watertight, 0 degenerate faces, 0 self-crossings",
       "pass": true
     },
     {
+      "blocking": true,
       "gate": "every CAD part closed without crossings",
-      "pass": false
+      "pass": true
     },
     {
+      "blocking": true,
       "gate": "solids and parts notes empty, every stamp resolved, every feature Ok",
-      "pass": false
+      "pass": true
     },
     {
+      "blocking": true,
       "gate": "nothing enters the finger hole",
-      "pass": false
+      "pass": true
     },
     {
+      "blocking": true,
       "gate": "lost-wax verdict Castable, thinnest wall at the 0.8 mm section",
+      "pass": true
+    },
+    {
+      "blocking": false,
+      "gate": "lost-wax wall census: no real wall of 0.02 mm² or more between 0.05 and 0.8 mm (thinner zones and specks listed)",
       "pass": false
     },
     {
-      "gate": "every part's ray-sampled wall at its floor (0.8 mm bodies, 0.15 mm pointed details)",
-      "pass": false
-    },
-    {
+      "blocking": true,
       "gate": "zero DFM findings",
       "pass": true
     },
     {
+      "blocking": true,
       "gate": "stones reported equal the preview, no metal inside a stone, crowding clean",
-      "pass": false
+      "pass": true
     },
     {
+      "blocking": true,
       "gate": "gates hold at 384 x 192",
-      "pass": false
+      "pass": true
     },
     {
+      "blocking": true,
       "gate": "casting pattern watertight, 0 degenerates, 0 crossings",
       "pass": true
     },
     {
+      "blocking": true,
       "gate": "export build within the 2 million triangle budget",
       "pass": true
     },
     {
+      "blocking": true,
       "gate": "cold reload identical",
       "pass": true
     }
   ],
-  "gates_passed": false,
+  "gates_passed": true,
   "geometry": {
     "degenerate_faces": 0,
     "self_crossings": 0,
     "watertight": true
   },
-  "grams_18k": 13.82874599848618,
+  "grams_18k": 17.156107637695744,
   "layers": [],
   "made_parts": [
     [
@@ -363,102 +320,50 @@
     ],
     [
       "Stem of arm B",
-      37
+      0
     ],
     [
       "Receptacle",
       0
     ],
     [
-      "Petal 1",
+      "Petal, ring 1",
       0
     ],
     [
-      "Petal 2",
+      "Petal ring 1",
       0
     ],
     [
-      "Petal 3",
+      "Petal, ring 2",
       0
     ],
     [
-      "Petal 4",
+      "Petal ring 2",
       0
     ],
     [
-      "Petal 5",
+      "Petal, ring 3",
       0
     ],
     [
-      "Petal 6",
+      "Petal ring 3",
       0
     ],
     [
-      "Petal 7",
+      "Petal, ring 4",
       0
     ],
     [
-      "Petal 8",
+      "Petal ring 4",
       0
     ],
     [
-      "Petal 9",
+      "Dried sepal",
       0
     ],
     [
-      "Petal 10",
-      0
-    ],
-    [
-      "Petal 11",
-      0
-    ],
-    [
-      "Petal 12",
-      0
-    ],
-    [
-      "Petal 13",
-      0
-    ],
-    [
-      "Petal 14",
-      0
-    ],
-    [
-      "Petal 15",
-      0
-    ],
-    [
-      "Petal 16",
-      0
-    ],
-    [
-      "Petal 17",
-      0
-    ],
-    [
-      "Petal 18",
-      0
-    ],
-    [
-      "Dried sepal 1",
-      0
-    ],
-    [
-      "Dried sepal 2",
-      0
-    ],
-    [
-      "Dried sepal 3",
-      0
-    ],
-    [
-      "Dried sepal 4",
-      0
-    ],
-    [
-      "Dried sepal 5",
+      "Dried sepals",
       0
     ],
     [
@@ -471,6 +376,22 @@
     ],
     [
       "Hip body",
+      0
+    ],
+    [
+      "Leaf, terminal leaflet",
+      0
+    ],
+    [
+      "Leaf, upper lateral leaflet",
+      0
+    ],
+    [
+      "Leaf, lower lateral leaflet",
+      0
+    ],
+    [
+      "Leaf, rachis",
       0
     ],
     [
@@ -516,29 +437,19 @@
   ],
   "name": "Rosa mortua",
   "notes": {
-    "parts": [
-      "Heart collet, Hip collet, Stem of arm A, Stem of arm B, Receptacle, Petal 1, Petal 2, Petal 3, Petal 4, Petal 5, Petal 6, Petal 7, Petal 8, Petal 9, Petal 10, Petal 11, Petal 12, Petal 13, Petal 14, Petal 15, Petal 16, Petal 17, Petal 18, Dried sepal 1, Dried sepal 2, Dried sepal 3, Dried sepal 4, Dried sepal 5, Hip's dried sepal, Hip's dried crown, Hip body, Prickle, arm A 1, Prickle, arm A 2, Prickle, arm A 3, Prickle, arm A 4, Prickle, arm A 5: could not be united with each other (the solids meet degenerately (two cuts cross inside a face)); joined one by one",
-      "Stem of arm B: could not be joined to the band (the solids meet degenerately (two cuts cross inside a face))",
-      "Prickle, arm A 1: its fillet could not be laid (the bead folds at 2 of 171 stations at its smallest radius, first at 25.8° round the ring, r 11.91 z 0.64 mm in its section, point (10.72, 5.19, 0.64) mm)",
-      "Prickle, arm A 1: its fillet could not be laid (the bead folds at 3 of 63 stations at its smallest radius, first at 23.3° round the ring, r 12.58 z 1.20 mm in its section, point (11.56, 4.97, 1.20) mm)",
-      "Prickle, arm A 2: its fillet could not be laid (the bead folds at 15 of 175 stations at its smallest radius, first at 12.2° round the ring, r 11.99 z 0.18 mm in its section, point (11.72, 2.54, 0.18) mm)",
-      "Prickle, arm A 3: its fillet could not be laid (the bead folds at 7 of 146 stations at its smallest radius, first at 7.5° round the ring, r 11.95 z 0.40 mm in its section, point (11.85, 1.56, 0.40) mm)",
-      "Prickle, arm A 4: its fillet pinches to 0.02 mm at 27 of 118 stations, smallest at 356.8° round the ring, r 11.99 z -0.20 mm in its section, point (11.97, -0.67, -0.20) mm",
-      "Prickle, arm B 1: its fillet pinches to 0.02 mm at 74 of 261 stations, smallest at 145.5° round the ring, r 11.98 z 0.18 mm in its section, point (-9.87, 6.78, 0.18) mm",
-      "Prickle, arm B 3: its fillet pinches to 0.02 mm at 63 of 246 stations, smallest at 162.6° round the ring, r 11.97 z 0.24 mm in its section, point (-11.43, 3.58, 0.24) mm"
-    ],
+    "parts": [],
     "solids": []
   },
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 652040,
+    "triangles": 518704,
     "watertight": true
   },
   "placed": {
     "bloom": {
-      "across_mm": 0.81,
-      "petals": 18,
+      "across_mm": 0.5670000000000001,
+      "petals": 22,
       "theta_deg": 97.0
     },
     "hip": {
@@ -547,422 +458,126 @@
     },
     "prickles": [
       {
-        "across_mm": 0.29798476825132386,
+        "across_mm": 0.17998848000000006,
         "arm": "A",
         "id": 60,
         "on_stem": false,
         "scale": 1.0,
         "spin_deg": 205.0,
-        "theta_deg": 20.0
+        "theta_deg": 18.0
       },
       {
-        "across_mm": 0.1478140319628726,
+        "across_mm": 0.06304593605997501,
         "arm": "A",
         "id": 61,
         "on_stem": false,
-        "scale": 0.9,
+        "scale": 0.95,
         "spin_deg": 155.0,
-        "theta_deg": 12.0
+        "theta_deg": 8.0
       },
       {
-        "across_mm": 0.038503173368239434,
+        "across_mm": 0.007079085581007913,
         "arm": "A",
         "id": 62,
         "on_stem": false,
-        "scale": 0.8,
+        "scale": 0.9,
         "spin_deg": 205.0,
-        "theta_deg": 3.0
+        "theta_deg": 358.0
       },
       {
-        "across_mm": 0.0013847852918426845,
+        "across_mm": 0.0,
         "arm": "A",
         "id": 63,
         "on_stem": false,
-        "scale": 0.7,
+        "scale": 0.8500000000000001,
         "spin_deg": 155.0,
-        "theta_deg": 354.0
+        "theta_deg": 348.0
       },
       {
         "across_mm": 0.0,
         "arm": "A",
         "id": 64,
         "on_stem": false,
-        "scale": 0.6,
+        "scale": 0.8,
         "spin_deg": 205.0,
-        "theta_deg": 346.0
+        "theta_deg": 338.0
       },
       {
-        "across_mm": -0.7199343770571788,
+        "across_mm": -0.03284064000000001,
         "arm": "B",
         "id": 65,
         "on_stem": false,
         "scale": 1.0,
         "spin_deg": 25.0,
-        "theta_deg": 138.0
+        "theta_deg": 176.0
       },
       {
-        "across_mm": -0.5726207011840306,
+        "across_mm": -0.0009693497042898791,
         "arm": "B",
         "id": 66,
         "on_stem": false,
-        "scale": 0.9,
+        "scale": 0.95,
         "spin_deg": -25.0,
-        "theta_deg": 147.0
+        "theta_deg": 186.0
       },
       {
-        "across_mm": -0.36170151096566905,
+        "across_mm": -0.0,
         "arm": "B",
         "id": 67,
         "on_stem": false,
-        "scale": 0.8,
+        "scale": 0.9,
         "spin_deg": 25.0,
-        "theta_deg": 157.0
+        "theta_deg": 196.0
       },
       {
-        "across_mm": -0.18158947143452134,
+        "across_mm": -0.0,
         "arm": "B",
         "id": 68,
         "on_stem": false,
-        "scale": 0.7,
+        "scale": 0.8500000000000001,
         "spin_deg": -25.0,
-        "theta_deg": 166.0
+        "theta_deg": 206.0
       },
       {
-        "across_mm": -0.04691520000000001,
+        "across_mm": -0.0,
         "arm": "B",
         "id": 69,
         "on_stem": false,
-        "scale": 0.6,
+        "scale": 0.8,
         "spin_deg": 25.0,
-        "theta_deg": 176.0
+        "theta_deg": 216.0
       }
     ],
     "stems": {
       "a": [
         [
-          6.56065523048974,
-          7.286345804461508,
-          0.778966695115131
+          7.389628350608342,
+          8.20701372612223,
+          0.5452766865805917
         ],
         [
-          -0.6070610112575144,
-          11.583414133595145,
-          0.81
+          -0.6238797173664895,
+          11.904334163771228,
+          0.5670000000000001
         ]
       ],
       "b": [
         [
-          -6.56065523048974,
-          7.286345804461508,
-          -0.778966695115131
+          -6.353761498625815,
+          9.074111819577245,
+          -0.565148740108288
         ],
         [
-          8.633504567717003,
-          7.773642429236263,
-          -0.30000000000000004
+          7.728134475317188,
+          8.28740959819317,
+          -0.3
         ]
       ]
     }
   },
   "process": "Lost wax",
-  "ray_walls": [
-    {
-      "below_floor": 0,
-      "part": "Round 5.5 mm",
-      "rays": 9429,
-      "sampled_min_mm": 0.7458450663340268,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 3481,
-      "part": "Heart collet",
-      "rays": 21689,
-      "sampled_min_mm": 0.08672501392896223,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 0,
-      "part": "Round cabochon 6 mm",
-      "rays": 12055,
-      "sampled_min_mm": 0.11205605777423183,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 5804,
-      "part": "Hip collet",
-      "rays": 19283,
-      "sampled_min_mm": 0.402571366465068,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 0,
-      "part": "Stem of arm A",
-      "rays": 9265,
-      "sampled_min_mm": 0.2614265720388739,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 68,
-      "part": "Stem of arm B",
-      "rays": 18214,
-      "sampled_min_mm": 0.0006893141743309285,
-      "unresolved": 56
-    },
-    {
-      "below_floor": 2,
-      "part": "Receptacle",
-      "rays": 13523,
-      "sampled_min_mm": 0.49630543315924824,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 696,
-      "part": "Petal 1",
-      "rays": 4091,
-      "sampled_min_mm": 0.0027009321772272572,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 980,
-      "part": "Petal 2",
-      "rays": 4007,
-      "sampled_min_mm": 0.0017452156702558901,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 681,
-      "part": "Petal 3",
-      "rays": 3836,
-      "sampled_min_mm": 0.002711106775521815,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 933,
-      "part": "Petal 4",
-      "rays": 3968,
-      "sampled_min_mm": 0.0014724437973331482,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 726,
-      "part": "Petal 5",
-      "rays": 4070,
-      "sampled_min_mm": 0.0029785181562743054,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1386,
-      "part": "Petal 6",
-      "rays": 5420,
-      "sampled_min_mm": 0.001573883248257953,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1179,
-      "part": "Petal 7",
-      "rays": 5667,
-      "sampled_min_mm": 0.0015247023932458317,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1374,
-      "part": "Petal 8",
-      "rays": 5572,
-      "sampled_min_mm": 0.0030142070047263748,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1753,
-      "part": "Petal 9",
-      "rays": 5458,
-      "sampled_min_mm": 0.002072648848770799,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1445,
-      "part": "Petal 10",
-      "rays": 5064,
-      "sampled_min_mm": 0.002072113918152939,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1225,
-      "part": "Petal 11",
-      "rays": 5139,
-      "sampled_min_mm": 0.0032599294648456567,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1986,
-      "part": "Petal 12",
-      "rays": 5954,
-      "sampled_min_mm": 0.0032935700528200166,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1871,
-      "part": "Petal 13",
-      "rays": 5981,
-      "sampled_min_mm": 0.0015866687141802677,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1734,
-      "part": "Petal 14",
-      "rays": 6092,
-      "sampled_min_mm": 0.0028298618511119057,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1564,
-      "part": "Petal 15",
-      "rays": 5930,
-      "sampled_min_mm": 0.0015164005802783143,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1579,
-      "part": "Petal 16",
-      "rays": 5967,
-      "sampled_min_mm": 0.001499283453696248,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1584,
-      "part": "Petal 17",
-      "rays": 5975,
-      "sampled_min_mm": 0.002933033754487179,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1516,
-      "part": "Petal 18",
-      "rays": 5864,
-      "sampled_min_mm": 0.0018305576952841018,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 480,
-      "part": "Dried sepal 1",
-      "rays": 2255,
-      "sampled_min_mm": 0.025345390492352016,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 448,
-      "part": "Dried sepal 2",
-      "rays": 2164,
-      "sampled_min_mm": 0.025347547503962838,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 470,
-      "part": "Dried sepal 3",
-      "rays": 2200,
-      "sampled_min_mm": 0.02537833043403937,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 485,
-      "part": "Dried sepal 4",
-      "rays": 2285,
-      "sampled_min_mm": 0.025360406361612874,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 486,
-      "part": "Dried sepal 5",
-      "rays": 2324,
-      "sampled_min_mm": 0.02534688572726708,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 1106,
-      "part": "Hip's dried sepal",
-      "rays": 2185,
-      "sampled_min_mm": 0.01903445645301547,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 0,
-      "part": "Hip body",
-      "rays": 8862,
-      "sampled_min_mm": 2.4272333610977928,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 206,
-      "part": "Prickle, arm A 1",
-      "rays": 3441,
-      "sampled_min_mm": 0.01034315635027081,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 229,
-      "part": "Prickle, arm A 2",
-      "rays": 2794,
-      "sampled_min_mm": 0.004703797738791866,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 251,
-      "part": "Prickle, arm A 3",
-      "rays": 2254,
-      "sampled_min_mm": 0.008472542315201241,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 277,
-      "part": "Prickle, arm A 4",
-      "rays": 1805,
-      "sampled_min_mm": 0.007537371526282636,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 310,
-      "part": "Prickle, arm A 5",
-      "rays": 1386,
-      "sampled_min_mm": 0.006602013905730212,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 200,
-      "part": "Prickle, arm B 1",
-      "rays": 3384,
-      "sampled_min_mm": 0.010342802779559058,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 218,
-      "part": "Prickle, arm B 2",
-      "rays": 2727,
-      "sampled_min_mm": 0.009407778032087977,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 246,
-      "part": "Prickle, arm B 3",
-      "rays": 2192,
-      "sampled_min_mm": 0.00847253425789349,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 288,
-      "part": "Prickle, arm B 4",
-      "rays": 1707,
-      "sampled_min_mm": 0.007537103582648709,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 299,
-      "part": "Prickle, arm B 5",
-      "rays": 1270,
-      "sampled_min_mm": 0.006602209614804007,
-      "unresolved": 0
-    }
-  ],
   "size": "US 8.6",
-  "stage": "block-out",
+  "stage": "full",
   "stamps": {
     "count": 0,
     "resolved": 0
@@ -977,11 +592,1577 @@
       ],
       [
         "Round cabochon 6 mm",
-        50
+        0
       ]
     ],
     "previewed": 2,
     "reported": 2
   },
-  "wall_exceptions": "Prickles, sepal claws, the collet's lip and the dried sepals taper to points or edges by design; they are judged at the 0.15 mm investment detail floor, as Manticora's aculeus was. The stem and every other body sample at or above the 0.8 mm section; ring and About arrays are rigid copies measured on their sources."
+  "wall_census": {
+    "assessed": true,
+    "edge_area_mm2": 55.675920416327024,
+    "edge_samples": 11325,
+    "edges": [
+      {
+        "area_mm2": 11.09480245976591,
+        "depth_mm": 0.7731226208252832,
+        "kind": "edge",
+        "point": [
+          -5.254063129425049,
+          14.308621247609457,
+          -0.5950531363487244
+        ],
+        "samples": 1854,
+        "span_mm": 9.337590407729202,
+        "thinnest_mm": 0.0006379015264131601
+      },
+      {
+        "area_mm2": 3.5768747521241346,
+        "depth_mm": 0.8386522474047217,
+        "kind": "edge",
+        "point": [
+          -1.0262797077496846,
+          10.257494886716207,
+          7.608123739560445
+        ],
+        "samples": 635,
+        "span_mm": 5.382481670177967,
+        "thinnest_mm": 0.003943465204598449
+      },
+      {
+        "area_mm2": 2.7856600697625433,
+        "depth_mm": 0.8454336661837443,
+        "kind": "edge",
+        "point": [
+          -6.204523702462514,
+          12.587088108062744,
+          -4.212247351805369
+        ],
+        "samples": 538,
+        "span_mm": 2.9579414687463874,
+        "thinnest_mm": 0.003291969160725028
+      },
+      {
+        "area_mm2": 1.8705798805932767,
+        "depth_mm": 0.8112370414061691,
+        "kind": "edge",
+        "point": [
+          5.5253192981084185,
+          12.523406823476156,
+          2.550383687019348
+        ],
+        "samples": 395,
+        "span_mm": 3.033665513448534,
+        "thinnest_mm": 0.003943451556093573
+      },
+      {
+        "area_mm2": 1.8088496921273503,
+        "depth_mm": 0.6985813332043584,
+        "kind": "edge",
+        "point": [
+          -0.7435430288314819,
+          14.793557484944662,
+          -2.405869642893473
+        ],
+        "samples": 376,
+        "span_mm": 4.105624287372659,
+        "thinnest_mm": 0.003510157960581732
+      },
+      {
+        "area_mm2": 1.6975968036936173,
+        "depth_mm": 0.6855432145849011,
+        "kind": "edge",
+        "point": [
+          5.3155747056007385,
+          12.845938285191854,
+          -0.10157882934436202
+        ],
+        "samples": 347,
+        "span_mm": 3.1561148202991376,
+        "thinnest_mm": 0.014789726538191703
+      },
+      {
+        "area_mm2": 1.6914285100308906,
+        "depth_mm": 0.8402098710066518,
+        "kind": "edge",
+        "point": [
+          2.1890677213668823,
+          14.065651496251425,
+          -5.7398834228515625
+        ],
+        "samples": 351,
+        "span_mm": 2.632063804671423,
+        "thinnest_mm": 0.008271657897761539
+      },
+      {
+        "area_mm2": 1.1509338393795463,
+        "depth_mm": 0.4929951156396053,
+        "kind": "edge",
+        "point": [
+          4.010529428720474,
+          13.431315004825592,
+          -3.2060785591602325
+        ],
+        "samples": 255,
+        "span_mm": 3.530144252903911,
+        "thinnest_mm": 0.0047624921175442305
+      },
+      {
+        "area_mm2": 1.1080569588557136,
+        "depth_mm": 0.774620194705359,
+        "kind": "edge",
+        "point": [
+          -7.9435380299886065,
+          9.377766768137613,
+          0.14727737257877985
+        ],
+        "samples": 202,
+        "span_mm": 1.3819784759342397,
+        "thinnest_mm": 0.025457366687221608
+      },
+      {
+        "area_mm2": 1.0953200028487506,
+        "depth_mm": 0.6929066200497174,
+        "kind": "edge",
+        "point": [
+          3.3690187434355416,
+          10.965741117795309,
+          5.463228980700175
+        ],
+        "samples": 249,
+        "span_mm": 2.5110418289087395,
+        "thinnest_mm": 0.014789137621241379
+      },
+      {
+        "area_mm2": 0.9394548612170864,
+        "depth_mm": 0.8486715389784854,
+        "kind": "edge",
+        "point": [
+          -8.282512346903482,
+          10.066468238830566,
+          3.3099765181541443
+        ],
+        "samples": 167,
+        "span_mm": 1.10915663513366,
+        "thinnest_mm": 0.0026578136716338806
+      },
+      {
+        "area_mm2": 0.9206086756622217,
+        "depth_mm": 0.5689320360043026,
+        "kind": "edge",
+        "point": [
+          -4.627365509668986,
+          9.691870033740997,
+          6.080046643813451
+        ],
+        "samples": 191,
+        "span_mm": 2.3853636044109354,
+        "thinnest_mm": 0.004762499017432102
+      },
+      {
+        "area_mm2": 0.8817543654919883,
+        "depth_mm": 0.6213529408406495,
+        "kind": "edge",
+        "point": [
+          2.7334792812665305,
+          12.733315626780191,
+          5.810675581296285
+        ],
+        "samples": 167,
+        "span_mm": 2.4560084571214587,
+        "thinnest_mm": 0.01910625085230464
+      },
+      {
+        "area_mm2": 0.8595962134754072,
+        "depth_mm": 0.6727615298353,
+        "kind": "edge",
+        "point": [
+          -6.021935562292735,
+          14.451929807662964,
+          -3.906628042459488
+        ],
+        "samples": 163,
+        "span_mm": 2.595312344922341,
+        "thinnest_mm": 0.011705194132744484
+      },
+      {
+        "area_mm2": 0.8494773073080385,
+        "depth_mm": 0.641142859667288,
+        "kind": "edge",
+        "point": [
+          -5.6447049379348755,
+          12.231140375137329,
+          4.632564425468445
+        ],
+        "samples": 172,
+        "span_mm": 2.3206900976271285,
+        "thinnest_mm": 0.006657402090820105
+      },
+      {
+        "area_mm2": 0.830555678455346,
+        "depth_mm": 0.6574199739530745,
+        "kind": "edge",
+        "point": [
+          -7.895212550957997,
+          11.588395873705545,
+          -1.1280469050010045
+        ],
+        "samples": 166,
+        "span_mm": 2.354490776227821,
+        "thinnest_mm": 0.010454620456892641
+      },
+      {
+        "area_mm2": 0.8221682998218599,
+        "depth_mm": 0.5685883601769193,
+        "kind": "edge",
+        "point": [
+          -8.140632212162018,
+          10.42732185125351,
+          2.248946795860926
+        ],
+        "samples": 190,
+        "span_mm": 2.494416738884224,
+        "thinnest_mm": 0.005550045870993281
+      },
+      {
+        "area_mm2": 0.7743763559521967,
+        "depth_mm": 0.6383736392943369,
+        "kind": "edge",
+        "point": [
+          -4.0370743200182915,
+          11.67594804863135,
+          6.898498085637887
+        ],
+        "samples": 146,
+        "span_mm": 2.1438326626484145,
+        "thinnest_mm": 0.016405574122884473
+      },
+      {
+        "area_mm2": 0.7383021872573398,
+        "depth_mm": 0.6117047198651017,
+        "kind": "edge",
+        "point": [
+          -8.160269752144814,
+          12.570793181657791,
+          1.8958201358715694
+        ],
+        "samples": 145,
+        "span_mm": 1.9439685316792836,
+        "thinnest_mm": 0.016189656126292674
+      },
+      {
+        "area_mm2": 0.7344937876850469,
+        "depth_mm": 0.620053570421694,
+        "kind": "edge",
+        "point": [
+          2.5963042030731835,
+          16.313254356384277,
+          -1.178511346379916
+        ],
+        "samples": 167,
+        "span_mm": 2.3808912353600284,
+        "thinnest_mm": 0.0029700128026399313
+      },
+      {
+        "area_mm2": 0.7222285479324027,
+        "depth_mm": 0.6153543183461843,
+        "kind": "edge",
+        "point": [
+          -4.041328410307567,
+          13.2984432776769,
+          -5.551278432210286
+        ],
+        "samples": 160,
+        "span_mm": 2.113534664154169,
+        "thinnest_mm": 0.009413060855506788
+      },
+      {
+        "area_mm2": 0.7196436926781687,
+        "depth_mm": 0.8229634181313537,
+        "kind": "edge",
+        "point": [
+          -9.955685178438822,
+          5.335163474082947,
+          3.845917602380117
+        ],
+        "samples": 115,
+        "span_mm": 0.7962639662394242,
+        "thinnest_mm": 0.1948948902587077
+      },
+      {
+        "area_mm2": 0.6932586775199864,
+        "depth_mm": 0.8153202577799606,
+        "kind": "edge",
+        "point": [
+          -10.091614236434301,
+          5.402331506212552,
+          -4.30103458960851
+        ],
+        "samples": 112,
+        "span_mm": 0.7906734010744358,
+        "thinnest_mm": 0.20471151075988575
+      },
+      {
+        "area_mm2": 0.6032784936205464,
+        "depth_mm": 0.5537478238790174,
+        "kind": "edge",
+        "point": [
+          -2.0362362346301475,
+          16.134439811110497,
+          -3.343143162628015
+        ],
+        "samples": 128,
+        "span_mm": 1.6398681101561476,
+        "thinnest_mm": 0.015565346534345801
+      },
+      {
+        "area_mm2": 0.5667442714876312,
+        "depth_mm": 0.4750581524821556,
+        "kind": "edge",
+        "point": [
+          -6.445437004168828,
+          12.068319718043009,
+          5.256280968586604
+        ],
+        "samples": 122,
+        "span_mm": 2.422638448396759,
+        "thinnest_mm": 0.005121930363525594
+      },
+      {
+        "area_mm2": 0.5080356264965793,
+        "depth_mm": 0.5219117806578015,
+        "kind": "edge",
+        "point": [
+          -1.1464923086265724,
+          15.726508736610413,
+          -2.393489770591259
+        ],
+        "samples": 121,
+        "span_mm": 2.0095286384903064,
+        "thinnest_mm": 0.03432925664343331
+      },
+      {
+        "area_mm2": 0.4740247219773325,
+        "depth_mm": 0.5135484004829716,
+        "kind": "edge",
+        "point": [
+          3.625772545735041,
+          15.450889309247335,
+          1.553148274620374
+        ],
+        "samples": 115,
+        "span_mm": 1.9701074733213737,
+        "thinnest_mm": 0.027006500308337185
+      },
+      {
+        "area_mm2": 0.44415463743261413,
+        "depth_mm": 0.6296503173400555,
+        "kind": "edge",
+        "point": [
+          -3.984691301981608,
+          14.003697792689005,
+          4.786268830299377
+        ],
+        "samples": 102,
+        "span_mm": 2.8271806730051923,
+        "thinnest_mm": 0.0055669484763345035
+      },
+      {
+        "area_mm2": 0.4335902478680114,
+        "depth_mm": 0.42176406554441837,
+        "kind": "edge",
+        "point": [
+          10.622217148542404,
+          6.288592701156934,
+          -3.0140850817163787
+        ],
+        "samples": 94,
+        "span_mm": 2.8401100364867524,
+        "thinnest_mm": 0.40257365162292874
+      },
+      {
+        "area_mm2": 0.4001579645601239,
+        "depth_mm": 0.810659548444869,
+        "kind": "edge",
+        "point": [
+          2.7402040163675943,
+          14.781140724817911,
+          3.7452232241630554
+        ],
+        "samples": 65,
+        "span_mm": 1.2156476098267395,
+        "thinnest_mm": 0.02465196862681512
+      },
+      {
+        "area_mm2": 0.3894999832036208,
+        "depth_mm": 0.4217797740373123,
+        "kind": "edge",
+        "point": [
+          8.422769720355669,
+          10.050893833239874,
+          -1.7279657038549583
+        ],
+        "samples": 86,
+        "span_mm": 2.9212759229118745,
+        "thinnest_mm": 0.40257377791496135
+      },
+      {
+        "area_mm2": 0.384955165376957,
+        "depth_mm": 0.4217641450519373,
+        "kind": "edge",
+        "point": [
+          9.136418124039968,
+          10.595165024201075,
+          0.17186869122087955
+        ],
+        "samples": 87,
+        "span_mm": 2.761730659995205,
+        "thinnest_mm": 0.40257223463128256
+      },
+      {
+        "area_mm2": 0.3683934551846469,
+        "depth_mm": 0.5682602358880648,
+        "kind": "edge",
+        "point": [
+          -2.1053909063339233,
+          16.160152594248455,
+          -2.3790345390637717
+        ],
+        "samples": 91,
+        "span_mm": 1.9426934730867536,
+        "thinnest_mm": 0.0043623702627680495
+      },
+      {
+        "area_mm2": 0.359495520045591,
+        "depth_mm": 0.43558503597973447,
+        "kind": "edge",
+        "point": [
+          -0.16952782000104585,
+          13.58024271329244,
+          6.4256531198819475
+        ],
+        "samples": 68,
+        "span_mm": 1.7060667642188303,
+        "thinnest_mm": 0.027010465077303713
+      },
+      {
+        "area_mm2": 0.35000121387605565,
+        "depth_mm": 0.42180400883418,
+        "kind": "edge",
+        "point": [
+          12.407540092865625,
+          6.048380891482036,
+          -0.3641759821912274
+        ],
+        "samples": 78,
+        "span_mm": 2.616543419885188,
+        "thinnest_mm": 0.40257371810792403
+      },
+      {
+        "area_mm2": 0.34735179958057244,
+        "depth_mm": 0.464556381764099,
+        "kind": "edge",
+        "point": [
+          -1.42298769702514,
+          13.444388767083487,
+          6.641853411992391
+        ],
+        "samples": 62,
+        "span_mm": 0.8427191514978309,
+        "thinnest_mm": 0.05352475155089893
+      },
+      {
+        "area_mm2": 0.31086196263717575,
+        "depth_mm": 0.6898156625893367,
+        "kind": "edge",
+        "point": [
+          -12.29911502202352,
+          2.441990405321121,
+          -0.7352176780502001
+        ],
+        "samples": 62,
+        "span_mm": 0.8244838782012909,
+        "thinnest_mm": 0.0044888785621971785
+      },
+      {
+        "area_mm2": 0.30499806303792915,
+        "depth_mm": 0.42176402485093056,
+        "kind": "edge",
+        "point": [
+          12.43330493569374,
+          7.109872534871101,
+          1.0721589463452499
+        ],
+        "samples": 65,
+        "span_mm": 2.4197233654591894,
+        "thinnest_mm": 0.40257437269773655
+      },
+      {
+        "area_mm2": 0.30104937477718,
+        "depth_mm": 0.6738863979515302,
+        "kind": "edge",
+        "point": [
+          -1.1835218692819278,
+          12.362479825814566,
+          6.172995249430339
+        ],
+        "samples": 69,
+        "span_mm": 1.6489026631223123,
+        "thinnest_mm": 0.017952044177690946
+      },
+      {
+        "area_mm2": 0.2767514294620635,
+        "depth_mm": 0.38408811641396967,
+        "kind": "edge",
+        "point": [
+          -3.855764071146647,
+          8.571965058644613,
+          1.942151129245758
+        ],
+        "samples": 76,
+        "span_mm": 3.1526825288698483,
+        "thinnest_mm": 0.04605656844213606
+      },
+      {
+        "area_mm2": 0.2767514294620633,
+        "depth_mm": 0.38408811641396967,
+        "kind": "edge",
+        "point": [
+          3.855764071146647,
+          8.571965058644613,
+          -1.942151129245758
+        ],
+        "samples": 76,
+        "span_mm": 3.1526825288698483,
+        "thinnest_mm": 0.04605656844213606
+      },
+      {
+        "area_mm2": 0.27583544637250806,
+        "depth_mm": 0.39354597039546796,
+        "kind": "edge",
+        "point": [
+          4.065030495325725,
+          8.474873701731363,
+          2.3601890802383423
+        ],
+        "samples": 63,
+        "span_mm": 2.6826804559301305,
+        "thinnest_mm": 0.04597346441181967
+      },
+      {
+        "area_mm2": 0.27583544637250806,
+        "depth_mm": 0.39354597039546796,
+        "kind": "edge",
+        "point": [
+          -4.065030495325725,
+          8.474873701731363,
+          -2.3601890802383423
+        ],
+        "samples": 63,
+        "span_mm": 2.6826804559301305,
+        "thinnest_mm": 0.04597346441181968
+      },
+      {
+        "area_mm2": 0.2748175918767303,
+        "depth_mm": 0.4546844558203404,
+        "kind": "edge",
+        "point": [
+          -3.752050220966339,
+          15.47140371799469,
+          -5.136545280615489
+        ],
+        "samples": 48,
+        "span_mm": 1.5604699552928136,
+        "thinnest_mm": 0.008713767555713299
+      },
+      {
+        "area_mm2": 0.2528910703519929,
+        "depth_mm": 0.5342730493825408,
+        "kind": "edge",
+        "point": [
+          10.309685548146566,
+          9.935791691144308,
+          -5.451907773812612
+        ],
+        "samples": 48,
+        "span_mm": 0.7654151502136894,
+        "thinnest_mm": 0.08819508602954154
+      },
+      {
+        "area_mm2": 0.25212550701344155,
+        "depth_mm": 0.5210715970448458,
+        "kind": "edge",
+        "point": [
+          13.563852787017822,
+          6.627962231636047,
+          -4.35450275739034
+        ],
+        "samples": 52,
+        "span_mm": 0.7311612343394813,
+        "thinnest_mm": 0.11975626265481107
+      },
+      {
+        "area_mm2": 0.2509743037130895,
+        "depth_mm": 0.5226735187978919,
+        "kind": "edge",
+        "point": [
+          10.04413890838623,
+          13.030502955118815,
+          -1.7623895804087322
+        ],
+        "samples": 50,
+        "span_mm": 0.670428611666209,
+        "thinnest_mm": 0.1133138984123892
+      },
+      {
+        "area_mm2": 0.2505679523704664,
+        "depth_mm": 0.5393525196017783,
+        "kind": "edge",
+        "point": [
+          13.126500089963278,
+          11.715340455373129,
+          1.5063615689675014
+        ],
+        "samples": 51,
+        "span_mm": 0.7974169276202101,
+        "thinnest_mm": 0.12077522830566896
+      },
+      {
+        "area_mm2": 0.24721033876387924,
+        "depth_mm": 0.5479311365555811,
+        "kind": "edge",
+        "point": [
+          15.338223854700724,
+          7.649331410725911,
+          -0.03996949658418695
+        ],
+        "samples": 50,
+        "span_mm": 0.5736573258467177,
+        "thinnest_mm": 0.14616466361500108
+      },
+      {
+        "area_mm2": 0.23885516101582172,
+        "depth_mm": 0.7834250211425592,
+        "kind": "edge",
+        "point": [
+          4.813240468502045,
+          14.291755676269531,
+          2.670441190401713
+        ],
+        "samples": 49,
+        "span_mm": 1.24071492918719,
+        "thinnest_mm": 0.0087138419608938
+      },
+      {
+        "area_mm2": 0.21182309249768594,
+        "depth_mm": 0.45561454861726186,
+        "kind": "edge",
+        "point": [
+          3.0370965600013733,
+          15.653295576572418,
+          -3.1272028038899102
+        ],
+        "samples": 41,
+        "span_mm": 1.474316689523918,
+        "thinnest_mm": 0.005122286110839574
+      },
+      {
+        "area_mm2": 0.18657215692142715,
+        "depth_mm": 0.45765209542646484,
+        "kind": "edge",
+        "point": [
+          -0.5419937608142694,
+          12.286724269390106,
+          7.230461031198502
+        ],
+        "samples": 43,
+        "span_mm": 1.653918174226159,
+        "thinnest_mm": 0.004405618176981339
+      },
+      {
+        "area_mm2": 0.15991228470539595,
+        "depth_mm": 0.4554393751785645,
+        "kind": "edge",
+        "point": [
+          -8.165605157613754,
+          13.581770524382591,
+          -0.6297916838278373
+        ],
+        "samples": 43,
+        "span_mm": 1.232802978322301,
+        "thinnest_mm": 0.014195202214707332
+      },
+      {
+        "area_mm2": 0.1452687757766692,
+        "depth_mm": 0.4605354447964477,
+        "kind": "edge",
+        "point": [
+          -1.0861708770195644,
+          14.979735215504965,
+          -3.063324292500814
+        ],
+        "samples": 35,
+        "span_mm": 1.0758771976784989,
+        "thinnest_mm": 0.01863867964870983
+      },
+      {
+        "area_mm2": 0.14385512950781446,
+        "depth_mm": 0.6871860902428727,
+        "kind": "edge",
+        "point": [
+          0.966977808624506,
+          14.753550151983896,
+          4.609084114432335
+        ],
+        "samples": 27,
+        "span_mm": 0.747189377694732,
+        "thinnest_mm": 0.09801456981822443
+      },
+      {
+        "area_mm2": 0.1366998457532759,
+        "depth_mm": 0.5216381858457154,
+        "kind": "edge",
+        "point": [
+          12.764279842376709,
+          -5.839047133922577,
+          1.447693149248759
+        ],
+        "samples": 25,
+        "span_mm": 0.3748895398152481,
+        "thinnest_mm": 0.7081971684408696
+      },
+      {
+        "area_mm2": 0.13529794839172687,
+        "depth_mm": 0.5201937359830235,
+        "kind": "edge",
+        "point": [
+          -11.313174962997437,
+          -8.603858709335327,
+          1.4728126327196758
+        ],
+        "samples": 26,
+        "span_mm": 0.4251849826795784,
+        "thinnest_mm": 0.7038503919696979
+      },
+      {
+        "area_mm2": 0.130274714143265,
+        "depth_mm": 0.4678179592190762,
+        "kind": "edge",
+        "point": [
+          -1.7322316070397694,
+          12.164366364479065,
+          4.4715456167856855
+        ],
+        "samples": 21,
+        "span_mm": 0.3923224480253129,
+        "thinnest_mm": 0.011089341634583142
+      },
+      {
+        "area_mm2": 0.11950671224012012,
+        "depth_mm": 0.422269477131601,
+        "kind": "edge",
+        "point": [
+          -2.7121432522932687,
+          14.104076147079468,
+          5.062226086854935
+        ],
+        "samples": 33,
+        "span_mm": 2.620903011095301,
+        "thinnest_mm": 0.003926666595947975
+      },
+      {
+        "area_mm2": 0.11905293062605561,
+        "depth_mm": 0.0,
+        "kind": "edge",
+        "point": [
+          -0.6341160809000334,
+          11.511473814646402,
+          6.524191915988922
+        ],
+        "samples": 24,
+        "span_mm": 1.429741659013727,
+        "thinnest_mm": 0.6425976896201376
+      },
+      {
+        "area_mm2": 0.10652886733345536,
+        "depth_mm": 0.0,
+        "kind": "edge",
+        "point": [
+          12.117300550142923,
+          1.8495794981718063,
+          0.37806696568926174
+        ],
+        "samples": 13,
+        "span_mm": 0.6008720090709797,
+        "thinnest_mm": 0.33335604452079215
+      },
+      {
+        "area_mm2": 0.1057115886728517,
+        "depth_mm": 0.28962288805181025,
+        "kind": "edge",
+        "point": [
+          -4.7476391196250916,
+          12.31815481185913,
+          2.5616438388824463
+        ],
+        "samples": 26,
+        "span_mm": 0.48952113686017285,
+        "thinnest_mm": 0.0018776977316392717
+      },
+      {
+        "area_mm2": 0.10459471408561744,
+        "depth_mm": 0.4714091835797275,
+        "kind": "edge",
+        "point": [
+          -4.613699316978455,
+          13.636389891306559,
+          -1.6860590080420177
+        ],
+        "samples": 21,
+        "span_mm": 0.31638198213201285,
+        "thinnest_mm": 0.0006932585289915397
+      },
+      {
+        "area_mm2": 0.104025280227271,
+        "depth_mm": 0.4523592340827599,
+        "kind": "edge",
+        "point": [
+          -3.627287358045578,
+          16.74303428332011,
+          -1.5760163118441899
+        ],
+        "samples": 23,
+        "span_mm": 1.3276964695660598,
+        "thinnest_mm": 0.17643949384587906
+      }
+    ],
+    "floor_mm": 0.8,
+    "rays": 280608,
+    "real_walls": [
+      {
+        "area_mm2": 0.08295350192139754,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -0.6424739733338356,
+          11.780881881713867,
+          6.070330182711284
+        ],
+        "samples": 18,
+        "span_mm": 1.2344837060524192,
+        "thinnest_mm": 0.35163091013330083
+      },
+      {
+        "area_mm2": 0.08041676044178814,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -4.576534549395244,
+          14.175079663594564,
+          -3.329035997390747
+        ],
+        "samples": 15,
+        "span_mm": 0.5235306833289215,
+        "thinnest_mm": 0.05436311418520348
+      },
+      {
+        "area_mm2": 0.07672351688186854,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -10.048352162043253,
+          7.342029412587483,
+          0.08813614211976528
+        ],
+        "samples": 17,
+        "span_mm": 0.26495809968686856,
+        "thinnest_mm": 0.6171943563034988
+      },
+      {
+        "area_mm2": 0.05317938081222645,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -0.5375491281350454,
+          12.155126253763834,
+          5.353118181228638
+        ],
+        "samples": 8,
+        "span_mm": 0.6389346199542212,
+        "thinnest_mm": 0.08339975687944418
+      },
+      {
+        "area_mm2": 0.03152365750226086,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -0.9700175275405248,
+          15.091725905736288,
+          -3.5563185612360635
+        ],
+        "samples": 5,
+        "span_mm": 0.35315389907248895,
+        "thinnest_mm": 0.6649565894716218
+      },
+      {
+        "area_mm2": 0.02319931191785655,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -0.8171745191017786,
+          12.215190887451172,
+          4.6068909962972
+        ],
+        "samples": 8,
+        "span_mm": 0.3789426433893368,
+        "thinnest_mm": 0.16244951239813968
+      }
+    ],
+    "rule": "Walls between 0.05 and 0.8 mm across a made feature are fixed; zones under 0.05 mm are suspected census artifacts and zones under 0.02 mm² are specks that fill from the metal round them (the lead's 2026-10-04 notes); both are listed, not reshaped for. Edges are reported as read.",
+    "sampled_min_mm": 0.000024831221885269032,
+    "specks_under_0_02_mm2": [
+      {
+        "area_mm2": 0.011916486383608559,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -4.856587688128154,
+          13.952969312667847,
+          -3.363676150639852
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7852810201670658
+      },
+      {
+        "area_mm2": 0.010543161583934368,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -5.256368279457092,
+          12.341185967127482,
+          1.945810188849767
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7810690902789996
+      },
+      {
+        "area_mm2": 0.010329164964573942,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -3.7702400286992392,
+          13.740811745325724,
+          -2.3378899097442627
+        ],
+        "samples": 4,
+        "span_mm": 0.231708697224418,
+        "thinnest_mm": 0.25972292613361947
+      },
+      {
+        "area_mm2": 0.01023102223849435,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -4.450273315111796,
+          13.56004504362742,
+          -1.741987998286883
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.1825962657227489
+      },
+      {
+        "area_mm2": 0.009345269720926221,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -4.435521364212036,
+          13.55757212638855,
+          -1.9429513116677601
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7983252884425349
+      },
+      {
+        "area_mm2": 0.008124394547494907,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -5.048099080721538,
+          12.20460307598114,
+          2.4534996350606284
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7585253975713374
+      },
+      {
+        "area_mm2": 0.008013428345427813,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -10.730859826008478,
+          5.569767812887828,
+          -4.2695475568373995
+        ],
+        "samples": 2,
+        "span_mm": 0.029582565684416195,
+        "thinnest_mm": 0.2183505642622419
+      },
+      {
+        "area_mm2": 0.006540617888769622,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -5.059878587722778,
+          14.008821487426758,
+          -0.3994302699963252
+        ],
+        "samples": 2,
+        "span_mm": 0.08711949009857989,
+        "thinnest_mm": 0.15699369873779628
+      },
+      {
+        "area_mm2": 0.005539954879795544,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -10.736893316109976,
+          5.578215931852658,
+          3.875582021971544
+        ],
+        "samples": 2,
+        "span_mm": 0.028459844295843695,
+        "thinnest_mm": 0.21384467074907967
+      },
+      {
+        "area_mm2": 0.004663553110886232,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -0.3489721566438675,
+          15.682265917460123,
+          -1.2776521841684978
+        ],
+        "samples": 2,
+        "span_mm": 0.05931412890404708,
+        "thinnest_mm": 0.7467530116697725
+      },
+      {
+        "area_mm2": 0.0032946212281526567,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -1.3845781683921814,
+          12.488461176554361,
+          5.54644775390625
+        ],
+        "samples": 2,
+        "span_mm": 0.02646444370713752,
+        "thinnest_mm": 0.1631840380832308
+      },
+      {
+        "area_mm2": 0.002089663007239843,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -5.490562438964844,
+          13.792602380116781,
+          -4.038550357023875
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7957047207938988
+      },
+      {
+        "area_mm2": 0.0020894873386305256,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          0.9281369224190712,
+          14.683399677276611,
+          2.771189123392105
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7617639003964086
+      },
+      {
+        "area_mm2": 0.0005946350118304217,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          12.801271597544352,
+          6.3145976066589355,
+          1.9114678899447124
+        ],
+        "samples": 2,
+        "span_mm": 0.02814814694126433,
+        "thinnest_mm": 0.6305348213583924
+      },
+      {
+        "area_mm2": 0.0005684483902946324,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -3.0848074555397034,
+          13.71801628669103,
+          4.799817750851314
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7720789085369668
+      },
+      {
+        "area_mm2": 0.0005373277425347719,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          1.1205923110246658,
+          14.797545989354452,
+          4.50332631667455
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7645118617099363
+      },
+      {
+        "area_mm2": 0.0003950919798961931,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          0.7585428828994433,
+          14.214610576629639,
+          -2.00608758131663
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.22320334553074067
+      },
+      {
+        "area_mm2": 0.0002475083158883372,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -4.582063635190328,
+          14.79978640874227,
+          -0.015274614095687866
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.7785793318635061
+      },
+      {
+        "area_mm2": 0.00022851163987061565,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          8.303093115488688,
+          7.415255626042684,
+          -4.104026873906453
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.6352911817642569
+      }
+    ],
+    "suspected_census_artifacts": [
+      {
+        "area_mm2": 7.714404281533188,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -3.57327938079834,
+          8.693632284800211,
+          -2.359938462575277
+        ],
+        "samples": 996,
+        "span_mm": 7.464206327707275,
+        "thinnest_mm": 0.04537713272194447
+      },
+      {
+        "area_mm2": 7.714404281533186,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          3.57327938079834,
+          8.693632284800211,
+          2.359938462575277
+        ],
+        "samples": 996,
+        "span_mm": 7.464206327707275,
+        "thinnest_mm": 0.04537713272194446
+      },
+      {
+        "area_mm2": 1.9721746803472822,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -12.400587697823843,
+          0.1992497652924309,
+          -0.6091122987369696
+        ],
+        "samples": 279,
+        "span_mm": 2.4218658649564357,
+        "thinnest_mm": 0.00008582944908045737
+      },
+      {
+        "area_mm2": 1.9534937405468278,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -11.375872989495596,
+          1.5350860481460888,
+          1.3415305117766063
+        ],
+        "samples": 311,
+        "span_mm": 2.70844756403464,
+        "thinnest_mm": 0.00028024792400126554
+      },
+      {
+        "area_mm2": 1.8073001126653199,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          11.453438838322958,
+          0.9831156730651855,
+          -1.3240082661310832
+        ],
+        "samples": 285,
+        "span_mm": 2.478461147943112,
+        "thinnest_mm": 0.0007544764189609293
+      },
+      {
+        "area_mm2": 1.514207564857667,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -11.408262054125467,
+          -0.6499463592966398,
+          -1.4159112224976222
+        ],
+        "samples": 257,
+        "span_mm": 2.398079684828154,
+        "thinnest_mm": 0.00011193376065897555
+      },
+      {
+        "area_mm2": 1.490955143431809,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          12.456470787525177,
+          1.24083544810613,
+          0.9169686995446682
+        ],
+        "samples": 219,
+        "span_mm": 1.8966384183624208,
+        "thinnest_mm": 0.00003940875952607546
+      },
+      {
+        "area_mm2": 1.3499278570275848,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          10.230217297871908,
+          5.1145603855450945,
+          1.6045221736033757
+        ],
+        "samples": 225,
+        "span_mm": 2.3033698213662084,
+        "thinnest_mm": 0.00013837315221915884
+      },
+      {
+        "area_mm2": 1.3371787854453128,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -12.500067989031473,
+          -0.8106682170182467,
+          0.8457851062218348
+        ],
+        "samples": 195,
+        "span_mm": 1.85621823264629,
+        "thinnest_mm": 0.00011573820794177759
+      },
+      {
+        "area_mm2": 1.3345824033580298,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          12.43292643626531,
+          -1.2209394027789433,
+          -0.7420749167601267
+        ],
+        "samples": 193,
+        "span_mm": 1.9579779447577355,
+        "thinnest_mm": 0.0006094520212235325
+      },
+      {
+        "area_mm2": 1.233480331550934,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          12.099332253138224,
+          3.3672760128974915,
+          -0.7129162922501564
+        ],
+        "samples": 191,
+        "span_mm": 1.4366986206606334,
+        "thinnest_mm": 0.000391846749574232
+      },
+      {
+        "area_mm2": 1.232260589115866,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -12.236951986948648,
+          -2.538481672604879,
+          -0.7371037354071935
+        ],
+        "samples": 188,
+        "span_mm": 1.7583540829441366,
+        "thinnest_mm": 0.00004342098112678098
+      },
+      {
+        "area_mm2": 1.2161422252809693,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          12.157715916633606,
+          -1.983830600976944,
+          0.4124489525953929
+        ],
+        "samples": 185,
+        "span_mm": 1.8776955517693075,
+        "thinnest_mm": 0.0003112660318339994
+      },
+      {
+        "area_mm2": 1.1311336717160074,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -10.564445227384567,
+          -4.350369701782863,
+          1.540743379543225
+        ],
+        "samples": 187,
+        "span_mm": 2.056776035401718,
+        "thinnest_mm": 0.001644548052299902
+      },
+      {
+        "area_mm2": 1.1051131914040764,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          11.396020770072937,
+          0.9112184445063273,
+          1.5317471623420715
+        ],
+        "samples": 175,
+        "span_mm": 2.0063092394893918,
+        "thinnest_mm": 0.000024831221885269032
+      },
+      {
+        "area_mm2": 1.0820226012967158,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          11.585212310155233,
+          -4.167021453380585,
+          -0.40868716190258664
+        ],
+        "samples": 176,
+        "span_mm": 1.8536116449702922,
+        "thinnest_mm": 0.0009608677148760946
+      },
+      {
+        "area_mm2": 1.072038922843134,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -11.392192939917246,
+          -5.044074843327205,
+          0.712581180036068
+        ],
+        "samples": 167,
+        "span_mm": 1.599716861064369,
+        "thinnest_mm": 0.00006703261668878476
+      },
+      {
+        "area_mm2": 0.9666505249757985,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -9.66411860783895,
+          -7.62448247273763,
+          -0.4013350121676922
+        ],
+        "samples": 164,
+        "span_mm": 1.442657174285067,
+        "thinnest_mm": 0.0010378182311464952
+      },
+      {
+        "area_mm2": 0.7671339121078712,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          11.397082448005676,
+          -1.161443553864956,
+          -1.4654949083924294
+        ],
+        "samples": 134,
+        "span_mm": 1.6106413749107955,
+        "thinnest_mm": 0.00003612497592754703
+      },
+      {
+        "area_mm2": 0.7477271782607164,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -9.676839152971903,
+          -6.315006295839946,
+          -1.309035653869311
+        ],
+        "samples": 136,
+        "span_mm": 1.499876323713428,
+        "thinnest_mm": 0.00013568229192076507
+      },
+      {
+        "area_mm2": 0.5280181768389666,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -0.5259751603007317,
+          9.756183783213297,
+          7.726765190561612
+        ],
+        "samples": 69,
+        "span_mm": 0.7222533193096483,
+        "thinnest_mm": 0.011871923536230672
+      },
+      {
+        "area_mm2": 0.45531490223818655,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          10.681892464558283,
+          -3.9662322451670966,
+          1.4644480894009273
+        ],
+        "samples": 82,
+        "span_mm": 1.1504344778728681,
+        "thinnest_mm": 0.00021464773055634477
+      },
+      {
+        "area_mm2": 0.4289822831994949,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -8.995611349741617,
+          -6.987255459030469,
+          1.4751402946809928
+        ],
+        "samples": 82,
+        "span_mm": 0.9820688358427185,
+        "thinnest_mm": 0.00011950085888402166
+      },
+      {
+        "area_mm2": 0.39789931871916234,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -6.274864623943965,
+          12.846035540103912,
+          -5.226415624221166
+        ],
+        "samples": 72,
+        "span_mm": 0.6453002639468997,
+        "thinnest_mm": 0.023746198499372848
+      },
+      {
+        "area_mm2": 0.267915401581001,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          2.1795599088072777,
+          14.053547640641531,
+          -5.735177705685298
+        ],
+        "samples": 51,
+        "span_mm": 0.494430851560435,
+        "thinnest_mm": 0.023742275916838283
+      },
+      {
+        "area_mm2": 0.13097149038489858,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          5.922000179688136,
+          12.219235022862753,
+          2.097712241113186
+        ],
+        "samples": 19,
+        "span_mm": 0.3437151152142146,
+        "thinnest_mm": 0.02374251439170176
+      },
+      {
+        "area_mm2": 0.007425538567422495,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          3.820973590016365,
+          11.842040042082468,
+          4.2660537759462995
+        ],
+        "samples": 2,
+        "span_mm": 0.005915478713173883,
+        "thinnest_mm": 0.02156464431213322
+      },
+      {
+        "area_mm2": 0.0017359996036780036,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -6.651465038458507,
+          10.184999306996664,
+          4.289788802464803
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.020908973840741172
+      },
+      {
+        "area_mm2": 0.0015474854780996635,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -5.282932122548421,
+          14.332771301269531,
+          -0.6107061703999838
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.007945985108739145
+      },
+      {
+        "area_mm2": 0.00020954832828465672,
+        "depth_mm": null,
+        "kind": "wall",
+        "point": [
+          -3.88774166504542,
+          9.698456406593323,
+          6.894416968027751
+        ],
+        "samples": 1,
+        "span_mm": 0.0,
+        "thinnest_mm": 0.018071143740097037
+      }
+    ],
+    "unresolved": 0,
+    "wall_area_mm2": 41.40564062203318,
+    "wall_samples": 6138
+  }
 }
