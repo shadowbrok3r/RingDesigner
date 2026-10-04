@@ -476,6 +476,7 @@ That is expected for most Vepres rings. Say so in each README line.
   - 2026-10-03 block-out: three read tests failed (`showcase/vepres/rosa-mortua/read-test-{1,2,3}.json`); stopped before round 1 for a rethink of the subject (see `cloud-report.md` on `claude/vepres-rosa-mortua`).
   - 2026-10-04 (Logan): concept changed to **the withered open bloom**, a dead rose head with the ruby as its heart, petals dried, curled and drooping, on the bypass dome; the hip stays. Lost wax (a sand pass is a bonus). A fresh block-out with up to three more read tests (numbered 4 to 6), then the three reviewed rounds on a read. No extra rounds granted.
   - 2026-10-04 (lead): the lost-wax wall gate until the census fix lands: `cad::measure::thickness(&built.mesh, 0.8)` on the finished ring, read into `report.json`. A real wall of 0.02 mm² or more between 0.05 and 0.8 mm across a made feature is fixed; zones under 0.05 mm are listed as suspected census artifacts and zones under 0.02 mm² as specks, never reshaped for. Census walls do not block a review on their own.
+  - 2026-10-04 result: the bloom read at read test 4; reviewed rounds 6.0, 6.2, 6.4, so **cut** after round 3 with every gate green (template gate 1 patch, 258,863 B). The stem is HighDome 3.6 x 3.0 at bypass amount 0.7 (the 2.7 mm section and full bypass leave sub-floor walls at the crossing).
 
 - **Stones:**
   - Bud: ruby pear 7 × 5, `Gem::calibrated(GemCut::Pear, 5.0)` with `l_mm` 7. Until C-B2, the pear plan is an ellipse (`plan_pow` 2.0), so use an oval 7 × 5.

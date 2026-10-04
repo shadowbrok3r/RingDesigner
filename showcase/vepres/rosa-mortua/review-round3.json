@@ -1,0 +1,64 @@
+{
+  "ring": "rosa-mortua",
+  "round": 3,
+  "verdict": "cut",
+  "score": 6.4,
+  "summary": "Cut at 6.4. That is round 3, the last round, and below the 7.5 ship bar (round 1: 6.0, round 2: 6.2; Caiman: 7). For the first time every recorded gate is green on both the export and draft builds. wall_census.real_walls is now empty and every census entry names its part, so round 2's automatic revise is cleared. Two of the six round-2 punch items are closed (the census and the part names). The garnet is browner and now reads apart from the ruby in face.png. The bloom's skin is calmer, and ring 1 now wraps the heart in a partial one-way spiral. The rest of the art barely moved. The petals are still extruded slabs with vertical walls and faceted rims. A smooth collet rim still rings the ruby (bloom-close). There is no reflexed outer row in side.png. The hip is the same stepped turned 'flying saucer' (coned skirt, flat ledge, inner bezel), the item round 2 asked to drop. Its five sepals are still round tubes standing outside the bezel, and the front one ends in a flat-cut disc. The garnet dome still renders in stepped bands (hip-close). The leaflet teeth are still stair-stepped, the loft sections still band across the leaf faces, and the edges are still vertical walls (leaf-close). The prickles moved only partway: arm A to θ 1.5-21° and arm B to θ 157-179°, against the 60-15° and 125-170° asked for. In side.png and reverse.png they are still a tight comb of four blunt, rounded pegs at mid-height. The bypass crossing is still hidden under the bloom (bare-vs-finished). A seam step still shows near 6 o'clock (reverse.png). The three nodes now read as small hooked spurs, not swollen nodes. The ring names a rose at 300 px from the bloom alone. But the hip, prickles and leaf read as CAD parts and fall short of Caiman's worked density, let alone the 7.5 that Arachne and Manticora shipped at. It sits between Corvus (6.6) and round 2 here.",
+  "strengths": [
+    "Still names a rose at 300 px without a caption: an open many-petalled head round a red heart, with a leaf spray (hero-300, face-300, contact-300).",
+    "Every gate is recorded and green on both builds. real_walls is [], and every census zone now carries a part name, as round 2 asked.",
+    "The garnet tint moved to [0.22, 0.04, 0.03]. In face.png the hip now reads browner and darker than the ruby, so there are two distinct reds.",
+    "Petal faces have lost round 2's crumpled-foil noise. Ring 1 petals now curl round the heart in a partial one-way wrap (bloom-close, face.png).",
+    "Clear large / medium / small hierarchy on the face (bloom about 13 mm, hip about 8 mm, then leaf and prickles), and one theme from face to palm with a smooth bore."
+  ],
+  "checklist": [
+    {"item": "One theme face to palm, nothing scattered", "result": "pass", "reason": "Bloom and hip on the face, leaf and prickle rows on the shoulders, a plain stem with three spurs at the palm, smooth bore (palm.png, reverse.png). One rose stem throughout."},
+    {"item": "Reads as its plant at 300 px without the caption", "result": "pass", "reason": "The bloom plus the leaf spray name a rose in hero-300 and face-300. The read is still carried by the bloom alone: the hip reads as a stone in a spiked turned cup, and the prickle rows read as combs or legs in contact-300."},
+    {"item": "Figurative motifs have true outlines, crisp, no combing, smearing or stair-steps", "result": "fail", "reason": "In leaf-close the leaflet teeth are stair-stepped polylines on vertical walls, and the loft sections band across the faces. The petal rims are faceted with vertical extruded walls (bloom-close). The hip sepals show kinked, lumpy tips, and one ends flat-cut (hip-close). stamps.count is 0."},
+    {"item": "Stones sit in made settings, visible, coloured as the plant's fruit or buds", "result": "fail", "reason": "Both stones are visible in made bezels, and the garnet is now browner than the ruby. But the hip setting is still a stepped turned disc, not a fruit, and its sepals are round tubes outside the bezel, not lens sepals growing from an urn lip. The garnet dome still shows stepped facet bands (hip-close, shoulder.png). A plain collet rim still shows round the ruby."},
+    {"item": "No flat, blocky or mechanical CAD; forms are sculpted", "result": "fail", "reason": "The petals are extruded profiles with vertical walls. The hip is a lathe-turned stepped disc. The prickles are constant-section rounded pegs. A seam step remains near 6 o'clock in reverse.png."},
+    {"item": "Factory stock keeps its hard wall-to-face angles", "result": "pass", "reason": "Not applicable: a procedural Bypass HighDome stem, no factory stock."},
+    {"item": "A silhouette distinct from the other Vepres rings", "result": "pass", "reason": "An off-centre bloom and a spiked hip, with side prickle rows, is its own silhouette. The bypass crossing that should define it is still hidden under the bloom (bare-vs-finished)."},
+    {"item": "Large, medium and small forms; density and legibility at least Caiman's", "result": "fail", "reason": "The face is dense, but the lower half of the band is a polished tube with three small spurs (palm.png, side.png, reverse.png), and the prickles are one size of blunt peg in a comb. Caiman works its whole visible body with legible scale. This ring works about a third of it."}
+  ],
+  "gates": [
+    {"gate": "Finished mesh watertight, 0 degenerate faces, 0 self-crossings", "claimed": "pass", "verified": "geometry: watertight true, degenerate_faces 0, self_crossings 0 (export and draft_build)", "pass": true},
+    {"gate": "Every made part closed, 0 crossings", "claimed": "pass", "verified": "made_parts: all 31 entries 0 (stones, collets, both stems, receptacle, petal rings 1-4, dried sepals, hip sepal, crown and urn, 3 nodes, 3 leaflets, rachis, prickle rows)", "pass": true},
+    {"gate": "Solids and parts notes empty, every feature Ok", "claimed": "pass", "verified": "notes.parts [] and notes.solids []; all 32 features Ok", "pass": true},
+    {"gate": "Nothing inside the finger hole", "claimed": "pass", "verified": "bore.vertices_inside 0, nearest 9.29999 mm at radius 9.3", "pass": true},
+    {"gate": "Lost-wax verdict Castable, thinnest wall at least 0.8 mm", "claimed": "pass", "verified": "draft.process LostWax, min_section_mm 0.8; field.verdict 'Castable', thinnest_wall_mm 2.01 (export and draft)", "pass": true},
+    {"gate": "Lost-wax wall census: no real wall of 0.02 mm² or more between 0.05 and 0.8 mm", "claimed": "pass (non-blocking)", "verified": "wall_census.real_walls [] on both builds, unresolved 0; 23 specks (max 0.0178 mm²) and 26 suspected census artifacts, every one with a part name. Caveat for the record: the largest 'artifacts' are 7.58 mm² twice on 'band' at thinnest 0.04 mm (±2.34, 9.10, ±2.36), at the arm crossing, just under the 0.05 cutoff, and prickle-base zones at about 0 mm (up to 1.85 mm²). Round 2's 0.056 mm sliver near (-4.58, 14.17, -3.33) now reads as a 0.013 mm 'Petal, ring 3' artifact. These pass under the lead's rule, but the crossing crevice should be checked at the bench.", "pass": true},
+    {"gate": "Sand-only gates (ray release 0/0 at 0.100 and 0.075 mm, clamp bite at most 0.05 mm, parting_monotone)", "claimed": "n/a (lost wax)", "verified": "Lost wax; review.md replaces these with the 0.8 mm thinnest wall, which passes", "pass": true},
+    {"gate": "0 DFM findings", "claimed": "pass", "verified": "dfm_findings [] (export and draft)", "pass": true},
+    {"gate": "Stone count equals preview, no metal in stones, crowding clean", "claimed": "pass", "verified": "reported 2 = previewed 2; metal_inside 0 for 'Round 5.5 mm' and 'Round cabochon 6 mm'; crowding []", "pass": true},
+    {"gate": "Cold reload identical", "claimed": "pass", "verified": "cold_reload_identical true; verification.json vertices_faces_normals_identical true, export_geometry_verified true", "pass": true},
+    {"gate": "Export within 2 million triangles", "claimed": "pass", "verified": "build.triangles 1,315,744 at 1536 x 448", "pass": true},
+    {"gate": "Casting pattern closed", "claimed": "pass", "verified": "pattern watertight true, 0 degenerates, 0 crossings, 1,315,744 triangles (draft 522,478)", "pass": true},
+    {"gate": "Template gate: at most 4 design.set patches within class budget", "claimed": "pass", "verified": "verification.json template_gate_passed true; 1 patch (/manufacturing); 258,863 B within the 300,000 B procedural budget; source_identical, cold design and graph reload true. Not blocking: exposed_controls is still [], and the plan's own target of under 200 KB is missed.", "pass": true}
+  ],
+  "punch_list": [
+    {"number": 1, "priority": "high", "zone": "Hip on arm B, θ 38°: 'Hip collet', 'Hip urn', 'Hip's dried sepal' / 'Hip's dried crown', garnet (round 1 item 1, round 2 item 3; not done)", "change": "For any revival only: replace the stepped turned disc with one swept urn profile, from a 2.5 mm neck swelling to about 7.4 mm, closing over the girdle as its own lip, with no ledge. Make the five sepals flat lens sections (0.7 x 0.5 mm) that grow from that lip, taper to points (end_scale 0.4) and arch 1.0-1.5 mm over the dome. Tessellate the cabochon mesh at least 4x finer.", "acceptance": "In hip-close the hip outline is one continuous curve from neck to lip with no step, all 5 sepals end in points and grow from the lip, and the garnet dome shows no bands. With the bloom covered, the hip alone reads as a rose hip in face-300."},
+    {"number": 2, "priority": "high", "zone": "Bloom at θ 97°: 'Heart collet', 'Petal ring 1-4' (round 1 item 2, round 2 item 1; partly done)", "change": "Rebuild the petals as lofted cupped shells (at least 0.9 mm at the base, tapering to a 0.5 mm rounded rim, no vertical side wall). Raise ring 1 by 1.5 mm to hide the collet rim. Reflex ring 4 out and down 20-35° below the bloom plane.", "acceptance": "bloom-close shows no vertical petal wall, no faceted rim and no smooth collet metal round the ruby. In side.png the outer row droops below the inner rows."},
+    {"number": 3, "priority": "high", "zone": "Prickles 'Prickles down arm A' (θ 1.5-21°) and 'Prickles down arm B' (θ 157-179°) (round 2 item 4; partly done)", "change": "Replace the blunt pegs with broad-based hooked rose prickles (base about 2.0 x 1.2 mm, tip radius at most 0.15 mm, hooked 30-40° down the stem), spaced at least 1.5 base-lengths apart and graded 1.0 to 0.5. Move them to θ 60-15° and θ 125-170°.", "acceptance": "In side.png and contact-300 the rows read as spaced, hooked, graded prickles above the midline, not as combs or legs."},
+    {"number": 4, "priority": "medium", "zone": "Leaf on arm A: 3 leaflets and 'Leaf, rachis' (round 2 item 5; not done)", "change": "Sample at least 8 points per tooth, raise the loft section count until the faces stop banding, round the rims to 0.5 mm, and blend the rachis into the stem.", "acceptance": "leaf-close shows smooth toothed rims with no stair-steps, no banding and no flat-cut rachis end."},
+    {"number": 5, "priority": "medium", "zone": "Band: arm crossing θ 60-120°, seam near 6 o'clock, nodes at 238/272/306° (round 2 item 6; not done)", "change": "Open 1.0-1.5 mm of air between the arms under the bloom and hip (this also clears the 0.04 mm 'band' crevice in the census). Fair the seam step. Make the nodes low swollen rings 0.2-0.3 mm proud, and add 0.08-0.12 mm cane striation along the plain stem.", "acceptance": "In bare-vs-finished and side.png the two arms read as separate stems passing each other, reverse.png shows no seam step, and palm.png shows cane texture with swollen nodes."}
+  ],
+  "viewed_images": [
+    "showcase/vepres/rosa-mortua/hero-300.png",
+    "showcase/vepres/rosa-mortua/face-300.png",
+    "showcase/vepres/rosa-mortua/contact-300.png",
+    "showcase/vepres/rosa-mortua/bloom-close.png",
+    "showcase/vepres/rosa-mortua/hip-close.png",
+    "showcase/vepres/rosa-mortua/leaf-close.png",
+    "showcase/vepres/rosa-mortua/side.png",
+    "showcase/vepres/rosa-mortua/hero.png",
+    "showcase/vepres/rosa-mortua/face.png",
+    "showcase/vepres/rosa-mortua/palm.png",
+    "showcase/vepres/rosa-mortua/reverse.png",
+    "showcase/vepres/rosa-mortua/shoulder.png",
+    "showcase/vepres/rosa-mortua/stones.png",
+    "showcase/vepres/rosa-mortua/bare-vs-finished.png",
+    "showcase/stock-masterworks/caiman/hero.png",
+    "showcase/reptilia/renders/Reptilia-collection.png"
+  ]
+}
