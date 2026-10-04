@@ -149,13 +149,11 @@ const WAIST: f64 = 0.6;
 const GAPE_MM: f64 = 0.45;
 const GAPE_W: f64 = 0.24;
 
-/// The eye: centre along the head and over the bore, radius, and how far it bulges past the wall.
+/// The eye, a smooth dome: centre along the head and over the bore, radius, and how far it bulges past the wall.
 const EYE_S: f64 = 4.4;
 const EYE_H: f64 = 2.7;
 const EYE_R: f64 = 0.95;
-const EYE_BULGE: f64 = 0.85;
-/// The round pupil: radius and depth.
-const PUPIL: (f64, f64) = (0.34, 0.2);
+const EYE_BULGE: f64 = 0.6;
 /// The orbit groove round the eye: width and depth.
 const ORBIT: (f64, f64) = (0.28, 0.12);
 /// The brow: how far the supraocular overhangs the eye, and its reach along the head.
@@ -167,50 +165,48 @@ const EAR: (f64, f64, f64, f64, f64) = (8.7, 2.2, 0.3, 0.45, 0.2);
 
 // --- The legs ------------------------------------------------------------------------------------------------------
 
-/// One limb bone or toe of a leg: from `a` to `b` in (mm tailward of the leg's root at its own radius, mm over the
-/// bore), half-width `r` and height over the flank `h` at each end.
+/// One bone or toe of a limb, a tapered capsule from `a` to `b`. Each end is (mm tailward of the limb's root at its
+/// own radius, mm over the bore, mm out from the flank's surface, negative inside the body), with its radius.
 #[derive(Clone, Copy)]
 struct Bone {
-    a: [f64; 2],
-    b: [f64; 2],
+    name: &'static str,
+    a: [f64; 3],
+    b: [f64; 3],
     r: (f64, f64),
-    h: (f64, f64),
 }
 
-const fn bone(a: [f64; 2], b: [f64; 2], r: (f64, f64), h: (f64, f64)) -> Bone {
-    Bone { a, b, r, h }
+const fn bone(name: &'static str, a: [f64; 3], b: [f64; 3], r: (f64, f64)) -> Bone {
+    Bone { name, a, b, r }
 }
 
-/// A foreleg tucked back along the flank: a fat upper arm running back from the shoulder to the elbow, the forearm
-/// bent sharply down to the wrist by the bore, a broad hand, four long splayed toes fanning tailward.
-const FORELEG: [Bone; 8] = [
-    bone([0.0, 2.15], [2.0, 1.85], (1.0, 0.72), (1.75, 1.6)),
-    bone([2.0, 1.85], [3.0, 0.85], (0.68, 0.52), (1.55, 1.35)),
-    bone([3.0, 0.85], [3.4, 0.85], (0.55, 0.52), (1.3, 1.2)),
-    bone([3.4, 0.85], [4.1, 2.3], (0.32, 0.2), (1.1, 0.65)),
-    bone([3.4, 0.85], [5.0, 1.75], (0.32, 0.2), (1.1, 0.65)),
-    bone([3.4, 0.85], [5.2, 0.85], (0.32, 0.2), (1.1, 0.65)),
-    bone([3.4, 0.85], [4.6, 0.3], (0.28, 0.19), (1.0, 0.6)),
-    bone([3.4, 0.85], [3.0, 0.75], (0.4, 0.4), (1.2, 1.2)),
+/// A foreleg splayed from behind the neck: the upper arm runs out and back from the shoulder, buried in the body, to an
+/// elbow standing out past the band's outline about 45° back in plan; the forearm drops from the elbow to a hand
+/// pad planted on the flank, whose four clawed toes spread over it, gripping.
+const FORELEG: [Bone; 7] = [
+    bone("upper arm", [-0.5, 2.0, -1.4], [1.4, 2.4, 1.6], (0.98, 0.72)),
+    bone("forearm", [1.4, 2.4, 1.6], [2.75, 1.05, 0.42], (0.68, 0.5)),
+    bone("hand", [2.75, 1.05, 0.42], [3.15, 1.0, 0.3], (0.5, 0.45)),
+    bone("toe 1", [3.1, 1.05, 0.32], [3.85, 2.0, 0.2], (0.32, 0.2)),
+    bone("toe 2", [3.1, 1.05, 0.32], [4.55, 1.45, 0.2], (0.32, 0.2)),
+    bone("toe 3", [3.1, 1.05, 0.32], [4.65, 0.75, 0.2], (0.32, 0.2)),
+    bone("toe 4", [3.1, 1.05, 0.32], [3.95, 0.34, 0.18], (0.3, 0.19)),
 ];
-/// A hind leg folded along the tail: the thigh back from the hip to the knee, the shin bent down to the ankle, four
-/// long toes.
-const HINDLEG: [Bone; 8] = [
-    bone([0.0, 1.9], [2.1, 1.6], (1.05, 0.74), (1.75, 1.6)),
-    bone([2.1, 1.6], [3.2, 0.75], (0.62, 0.48), (1.5, 1.3)),
-    bone([3.2, 0.75], [3.6, 0.75], (0.52, 0.5), (1.25, 1.15)),
-    bone([3.6, 0.75], [4.4, 2.1], (0.32, 0.2), (1.05, 0.62)),
-    bone([3.6, 0.75], [5.4, 1.55], (0.32, 0.2), (1.05, 0.62)),
-    bone([3.6, 0.75], [5.6, 0.7], (0.32, 0.2), (1.05, 0.62)),
-    bone([3.6, 0.75], [4.8, 0.26], (0.28, 0.19), (0.95, 0.55)),
-    bone([3.6, 0.75], [3.2, 0.7], (0.4, 0.4), (1.15, 1.15)),
+/// A hind leg splayed at the hip: the thigh out and back to a knee past the outline, the shin down to a foot planted
+/// on the flank, four long clawed toes.
+const HINDLEG: [Bone; 7] = [
+    bone("thigh", [-0.5, 1.8, -1.4], [1.35, 2.2, 1.5], (1.0, 0.72)),
+    bone("shin", [1.35, 2.2, 1.5], [2.85, 0.95, 0.42], (0.66, 0.5)),
+    bone("foot", [2.85, 0.95, 0.42], [3.3, 0.9, 0.3], (0.5, 0.45)),
+    bone("toe 1", [3.25, 0.95, 0.32], [4.15, 1.9, 0.2], (0.32, 0.2)),
+    bone("toe 2", [3.25, 0.95, 0.32], [5.0, 1.35, 0.2], (0.32, 0.2)),
+    bone("toe 3", [3.25, 0.95, 0.32], [5.2, 0.7, 0.2], (0.32, 0.2)),
+    bone("toe 4", [3.25, 0.95, 0.32], [4.3, 0.3, 0.18], (0.3, 0.19)),
 ];
-/// The legs' roots round the ring, degrees: the shoulders just behind the head, the hips where the tail begins.
-const FORE_DEG: f64 = 140.0;
-const HIND_DEG: f64 = 226.0;
-/// The legs' height-field grid pitch, mm, and the margin of buried slab kept round each footprint.
-const LEG_GRID: f64 = 0.06;
-const LEG_MARGIN: f64 = 0.2;
+/// The limbs' roots round the ring, degrees: the shoulders behind the neck, the hips where the tail begins.
+const FORE_DEG: f64 = 128.0;
+const HIND_DEG: f64 = 228.0;
+/// Each capsule's sides round, stations along, and rings in each end cap.
+const CAPSULE: (usize, usize, usize) = (28, 16, 8);
 
 // --- The body's hide -----------------------------------------------------------------------------------------------
 
@@ -226,7 +222,7 @@ const WHORL_BOW: f64 = 0.32;
 const TEETH: f64 = 5.0;
 const TOOTH: f64 = 0.28;
 /// The whorls run from the nape round to the tail's tip: the window's centre and span, and its fade, degrees.
-const WHORL_WINDOW: (f64, f64, f64) = (268.0, 298.0, 8.0);
+const WHORL_WINDOW: (f64, f64, f64) = (274.0, 288.0, 8.0);
 /// The flank spines on the side faces, one per girdle on its trailing edge: height, mm.
 const SPINE_MM: f64 = 0.4;
 /// The girdles' continuation down the flanks, lower than on the back so the legs stand clear of it, mm.
@@ -389,6 +385,8 @@ struct Station {
     /// The side wall's half-width at the lip and the canthus, and how far its belly stands past that.
     side_w: f64,
     belly: f64,
+    /// The spiny rim's reach at this station, standing off the upper wall only.
+    spine: f64,
     lip: f64,
     /// How far the mouth gapes round the tail, 0 to 1, and the lower lip's height.
     open: f64,
@@ -415,10 +413,11 @@ fn spines(s: f64) -> f64 {
 impl Head<'_> {
     fn station(&self, s: f64) -> Station {
         let crest = pchip(&CREST, s);
-        let wall_w = pchip(&PLAN, s) + spines(s);
+        let wall_w = pchip(&PLAN, s);
+        let spine = spines(s);
         let belly = pchip(&TOP_INSET, s).min(0.3 * wall_w);
         let side_w = wall_w - belly;
-        let top_w = side_w + BROW.0 * vee(s - EYE_S, BROW.1);
+        let top_w = side_w + BROW.0 * vee(s - EYE_S, BROW.1) + spine;
         let lip = LIP_H - LIP_SAG * (s / MOUTH_CORNER).min(1.0).powi(2) + MOUTH_UPTURN.0 * smoothstep(MOUTH_CORNER - MOUTH_UPTURN.1, MOUTH_CORNER, s).powi(2);
         let chin = smoothstep(CHIN_S, CHIN_S + 0.9, s).sqrt();
         let jaw_w = (wall_w - JAW_INSET.min(0.1 * wall_w)) * chin;
@@ -426,7 +425,7 @@ impl Head<'_> {
         let lower_lip = lip - TAIL_GAPE * open;
         let bottom = (lower_lip - 0.1) + (JAW_BOTTOM - lower_lip + 0.1) * chin;
         let theta_deg = SNOUT_DEG + (s / R_REF).to_degrees();
-        let mut st = Station { s, crest, canthus: crest, top_w, side_w, belly, lip, open, lower_lip, jaw_w, bottom, theta_deg };
+        let mut st = Station { s, crest, canthus: crest, top_w, side_w, belly, spine, lip, open, lower_lip, jaw_w, bottom, theta_deg };
         st.canthus = self.dorsal(&st, top_w);
         st
     }
@@ -456,16 +455,13 @@ impl Head<'_> {
         let t = ((h - st.lip) / (st.canthus - st.lip).max(1e-6)).clamp(0.0, 1.0);
         let base = st.side_w + st.belly * (PI * t.powf(0.75)).sin().powf(0.6) * (1.0 - 0.5 * t);
         let brow = BROW.0 * vee(s - EYE_S, BROW.1) * smoothstep(0.6, 1.0, t);
-        let mut z = base + brow;
-        // The eye: a spherical cap bulging past the wall, ringed by its orbit, with a round pupil.
+        let mut z = base + brow + st.spine * smoothstep(0.5, 0.92, t);
+        // The eye: a spherical cap bulging past the wall, ringed by its orbit. The pupil is left to the polish.
         let (ds, dh) = (s - EYE_S, h - EYE_H);
         let d = ds.hypot(dh);
         let sphere = (EYE_R * EYE_R + EYE_BULGE * EYE_BULGE) / (2.0 * EYE_BULGE);
         if d < EYE_R {
             z += (sphere * sphere - d * d).sqrt() - (sphere - EYE_BULGE);
-            if d < PUPIL.0 {
-                z -= PUPIL.1 * (1.0 - (d / PUPIL.0).powi(2)).sqrt();
-            }
         }
         z -= ORBIT.1 * vee(d - EYE_R - ORBIT.0 * 0.5, ORBIT.0 * 0.5);
         // The ear opening: an oval pit behind the jaw.
@@ -633,145 +629,84 @@ fn signed_volume(s: &csg::Solid) -> f64 {
         .sum()
 }
 
-// --- The legs -----------------------------------------------------------------------------------------------------
+// --- The limbs ----------------------------------------------------------------------------------------------------
 
-/// One leg on one flank: a height field standing off the side face, built over a grid of cells round its footprint,
-/// with a slab buried under the flank round the footprint so the part closes inside the band.
-struct Leg<'a> {
-    bones: &'a [Bone],
-    root_deg: f64,
-    /// +1 for the flank at +z, -1 for the flank at -z.
-    side: f64,
-    bore_r: f64,
-    band: &'a BandShape,
+/// A point on a limb in world space: `p` = (mm tailward of the root, mm over the bore, mm out from the flank).
+fn limb_point(band: &BandShape, bore_r: f64, root_deg: f64, side: f64, p: [f64; 3]) -> P3 {
+    let r = bore_r + p[1];
+    let th = root_deg.to_radians() + p[0] / r;
+    let z = band.half_w(th.to_degrees(), p[1]) + p[2];
+    [r * th.cos(), r * th.sin(), side * z]
 }
 
-impl Leg<'_> {
-    /// Height over the flank at (s, h), and the distance outside the nearest bone's outline, mm.
-    fn field(&self, p: [f64; 2]) -> (f64, f64) {
-        let mut top = 0.0f64;
-        let mut out = f64::MAX;
-        for b in self.bones {
-            let ab = [b.b[0] - b.a[0], b.b[1] - b.a[1]];
-            let l2 = ab[0] * ab[0] + ab[1] * ab[1];
-            let t = (((p[0] - b.a[0]) * ab[0] + (p[1] - b.a[1]) * ab[1]) / l2).clamp(0.0, 1.0);
-            let q = [b.a[0] + ab[0] * t - p[0], b.a[1] + ab[1] * t - p[1]];
-            let d = q[0].hypot(q[1]);
-            let r = b.r.0 + (b.r.1 - b.r.0) * t;
-            let h = b.h.0 + (b.h.1 - b.h.0) * t;
-            out = out.min(d - r);
-            if d < r {
-                top = top.max((h + FLANK_MM + 0.1) * (1.0 - (d / r).powi(2)).powf(0.6));
-            }
-        }
-        (top, out)
+/// A closed tapered capsule from `a` (radius `ra`) to `b` (radius `rb`): a cone between two spherical caps, each cap
+/// meeting the cone where it is tangent, so the whole is smooth and convex.
+fn capsule(a: P3, b: P3, ra: f64, rb: f64) -> csg::Solid {
+    let (sides, along, cap) = CAPSULE;
+    let d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    let len = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+    let t = [d[0] / len, d[1] / len, d[2] / len];
+    let seed = if t[2].abs() < 0.9 { [0.0, 0.0, 1.0] } else { [1.0, 0.0, 0.0] };
+    let cross = |u: [f64; 3], v: [f64; 3]| [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    let n = cross(t, seed);
+    let nl = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+    let n = [n[0] / nl, n[1] / nl, n[2] / nl];
+    let bn = cross(t, n);
+    // The cone's half-angle: the tangent line between the two spheres.
+    let sin_phi = ((ra - rb) / len).clamp(-0.95, 0.95);
+    let phi = sin_phi.asin();
+    // Rings as (offset along the axis from a, radius), from a's pole round to b's pole.
+    let mut rings: Vec<(f64, f64)> = Vec::new();
+    for k in 1..=cap {
+        // From the pole (-90°) to the tangent latitude (phi) on sphere a.
+        let lat = -PI * 0.5 + (phi + PI * 0.5) * k as f64 / cap as f64;
+        rings.push((ra * lat.sin(), ra * lat.cos()));
     }
-
-    fn theta_deg(&self, p: [f64; 2]) -> f64 {
-        self.root_deg + (p[0] / (self.bore_r + p[1])).to_degrees()
+    let (s0, r0) = (ra * phi.sin(), ra * phi.cos());
+    let (s1, r1) = (len + rb * phi.sin(), rb * phi.cos());
+    for k in 1..along {
+        let f = k as f64 / along as f64;
+        rings.push((s0 + (s1 - s0) * f, r0 + (r1 - r0) * f));
     }
-
-    fn world(&self, p: [f64; 2], z: f64) -> P3 {
-        let th = self.theta_deg(p).to_radians();
-        let r = self.bore_r + p[1];
-        [r * th.cos(), r * th.sin(), self.side * z]
+    for k in 0..cap {
+        let lat = phi + (PI * 0.5 - phi) * k as f64 / cap as f64;
+        rings.push((len + rb * lat.sin(), rb * lat.cos()));
     }
-
-    fn solid(&self) -> csg::Solid {
-        let (mut s0, mut s1, mut h0, mut h1) = (f64::MAX, f64::MIN, f64::MAX, f64::MIN);
-        for b in self.bones {
-            for (q, r) in [(b.a, b.r.0), (b.b, b.r.1)] {
-                s0 = s0.min(q[0] - r);
-                s1 = s1.max(q[0] + r);
-                h0 = h0.min(q[1] - r);
-                h1 = h1.max(q[1] + r);
-            }
+    let mut v: Vec<P3> = Vec::new();
+    let mut f: Vec<[u32; 3]> = Vec::new();
+    let pole_a = [a[0] - t[0] * ra, a[1] - t[1] * ra, a[2] - t[2] * ra];
+    v.push(pole_a);
+    for &(off, rad) in &rings {
+        for k in 0..sides {
+            let ang = std::f64::consts::TAU * k as f64 / sides as f64;
+            let (c, sn) = (ang.cos() * rad, ang.sin() * rad);
+            v.push([a[0] + t[0] * off + n[0] * c + bn[0] * sn, a[1] + t[1] * off + n[1] * c + bn[1] * sn, a[2] + t[2] * off + n[2] * c + bn[2] * sn]);
         }
-        let m = LEG_MARGIN + LEG_GRID;
-        let (s0, s1, h0, h1) = (s0 - m, s1 + m, (h0 - m).max(0.08), h1 + m);
-        let (ni, nj) = (((s1 - s0) / LEG_GRID).ceil() as usize, ((h1 - h0) / LEG_GRID).ceil() as usize);
-        let node = |i: usize, j: usize| [s0 + i as f64 * LEG_GRID, h0 + j as f64 * LEG_GRID];
-        let fields: Vec<(f64, f64)> = (0..=nj).flat_map(|j| (0..=ni).map(move |i| (i, j))).map(|(i, j)| self.field(node(i, j))).collect();
-        let fat = |i: usize, j: usize| fields[j * (ni + 1) + i];
-        let inc: Vec<bool> = (0..nj).flat_map(|j| (0..ni).map(move |i| (i, j))).map(|(i, j)| [(i, j), (i + 1, j), (i, j + 1), (i + 1, j + 1)].iter().any(|&(a, b)| fat(a, b).1 < LEG_MARGIN)).collect();
-        let mut inc = inc;
-        // No two cells may touch only at a corner: fill one side of every such pair so the walls stay manifold.
-        loop {
-            let mut changed = false;
-            for j in 0..nj.saturating_sub(1) {
-                for i in 0..ni.saturating_sub(1) {
-                    let (a, b, c, e) = (inc[j * ni + i], inc[j * ni + i + 1], inc[(j + 1) * ni + i], inc[(j + 1) * ni + i + 1]);
-                    if (a && e && !b && !c) || (b && c && !a && !e) {
-                        inc[j * ni + i + 1] = true;
-                        inc[(j + 1) * ni + i] = true;
-                        changed = true;
-                    }
-                }
-            }
-            if !changed {
-                break;
-            }
-        }
-        let cell = |i: isize, j: isize| i >= 0 && j >= 0 && (i as usize) < ni && (j as usize) < nj && inc[j as usize * ni + i as usize];
-        let mut index = vec![u32::MAX; (ni + 1) * (nj + 1)];
-        let mut v: Vec<P3> = Vec::new();
-        let mut f: Vec<[u32; 3]> = Vec::new();
-        for j in 0..nj {
-            for i in 0..ni {
-                if !inc[j * ni + i] {
-                    continue;
-                }
-                for (a, b) in [(i, j), (i + 1, j), (i, j + 1), (i + 1, j + 1)] {
-                    let k = b * (ni + 1) + a;
-                    if index[k] == u32::MAX {
-                        let p = node(a, b);
-                        let base = self.band.half_w(self.theta_deg(p), p[1]);
-                        index[k] = v.len() as u32;
-                        v.push(self.world(p, base - 0.1 + fat(a, b).0));
-                        v.push(self.world(p, base - 0.32));
-                    }
-                }
-            }
-        }
-        let top = |a: usize, b: usize| index[b * (ni + 1) + a];
-        let bot = |a: usize, b: usize| index[b * (ni + 1) + a] + 1;
-        for j in 0..nj {
-            for i in 0..ni {
-                if !inc[j * ni + i] {
-                    continue;
-                }
-                f.push([top(i, j), top(i + 1, j), top(i + 1, j + 1)]);
-                f.push([top(i, j), top(i + 1, j + 1), top(i, j + 1)]);
-                f.push([bot(i, j), bot(i + 1, j + 1), bot(i + 1, j)]);
-                f.push([bot(i, j), bot(i, j + 1), bot(i + 1, j + 1)]);
-                let (ii, jj) = (i as isize, j as isize);
-                // Walls along every cell edge that borders an excluded cell, wound outward.
-                if !cell(ii, jj - 1) {
-                    f.push([top(i, j), bot(i, j), bot(i + 1, j)]);
-                    f.push([top(i, j), bot(i + 1, j), top(i + 1, j)]);
-                }
-                if !cell(ii, jj + 1) {
-                    f.push([top(i + 1, j + 1), bot(i + 1, j + 1), bot(i, j + 1)]);
-                    f.push([top(i + 1, j + 1), bot(i, j + 1), top(i, j + 1)]);
-                }
-                if !cell(ii - 1, jj) {
-                    f.push([top(i, j + 1), bot(i, j + 1), bot(i, j)]);
-                    f.push([top(i, j + 1), bot(i, j), top(i, j)]);
-                }
-                if !cell(ii + 1, jj) {
-                    f.push([top(i + 1, j), bot(i + 1, j), bot(i + 1, j + 1)]);
-                    f.push([top(i + 1, j), bot(i + 1, j + 1), top(i + 1, j + 1)]);
-                }
-            }
-        }
-        let mut solid = csg::Solid { v, f };
-        if signed_volume(&solid) < 0.0 {
-            for t in &mut solid.f {
-                t.swap(1, 2);
-            }
-        }
-        solid
     }
+    let pole_b = [b[0] + t[0] * rb, b[1] + t[1] * rb, b[2] + t[2] * rb];
+    let pb = v.len() as u32;
+    v.push(pole_b);
+    let at = |i: usize, k: usize| (1 + i * sides + k % sides) as u32;
+    for k in 0..sides {
+        f.push([0, at(0, k + 1), at(0, k)]);
+    }
+    for i in 0..rings.len() - 1 {
+        for k in 0..sides {
+            f.push([at(i, k), at(i, k + 1), at(i + 1, k + 1)]);
+            f.push([at(i, k), at(i + 1, k + 1), at(i + 1, k)]);
+        }
+    }
+    let last = rings.len() - 1;
+    for k in 0..sides {
+        f.push([pb, at(last, k), at(last, k + 1)]);
+    }
+    let mut solid = csg::Solid { v, f };
+    if signed_volume(&solid) < 0.0 {
+        for t in &mut solid.f {
+            t.swap(1, 2);
+        }
+    }
+    solid
 }
 
 /// What the author put down, for the report.
@@ -785,7 +720,8 @@ struct Composition {
     head_length_mm: f64,
     head_width_mm: f64,
     head_ratio: f64,
-    leg_faces: Vec<usize>,
+    limb_parts: usize,
+    limb_faces: usize,
     /// The whorls: count round the ring, the nominal cell, and the finest girdle's pitch, mm.
     whorls: Option<(u32, [f64; 2], f64)>,
 }
@@ -902,9 +838,7 @@ fn stored_part(doc: &mut Document, name: &str, op: &str, params: serde_json::Val
 }
 
 /// The made parts' names, in the order they are appended.
-const PARTS: [&str; 5] = ["Head", "Foreleg, near", "Foreleg, far", "Hind leg, near", "Hind leg, far"];
-
-fn author(art: &Path) -> Result<(RingDesign, AlphaLibrary, Composition, Vec<csg::Solid>)> {
+fn author(art: &Path) -> Result<(RingDesign, AlphaLibrary, Composition, Vec<csg::Solid>, Vec<String>)> {
     let mut d = band();
     let mut lib = AlphaLibrary::builtin();
     let mut comp = Composition::default();
@@ -920,24 +854,28 @@ fn author(art: &Path) -> Result<(RingDesign, AlphaLibrary, Composition, Vec<csg:
     comp.head_width_mm = 2.0 * PLAN.iter().map(|p| p.1).fold(0.0, f64::max);
     comp.head_ratio = comp.head_length_mm / comp.head_width_mm;
     let mut solids = vec![hs];
-    for (bones, root) in [(&FORELEG[..], FORE_DEG), (&HINDLEG[..], HIND_DEG)] {
-        for side in [1.0, -1.0] {
-            let leg = Leg { bones, root_deg: root, side, bore_r, band: &shape };
-            let s = leg.solid();
-            comp.leg_faces.push(s.f.len());
-            solids.push(s);
+    let mut names = vec!["Head".to_string()];
+    for (limb, bones, root) in [("Foreleg", &FORELEG[..], FORE_DEG), ("Hind leg", &HINDLEG[..], HIND_DEG)] {
+        for (flank, side) in [("near", 1.0), ("far", -1.0)] {
+            for b in bones {
+                let (pa, pb) = (limb_point(&shape, bore_r, root, side, b.a), limb_point(&shape, bore_r, root, side, b.b));
+                let s = capsule(pa, pb, b.r.0, b.r.1);
+                comp.limb_parts += 1;
+                comp.limb_faces += s.f.len();
+                solids.push(s);
+                names.push(format!("{limb}, {flank}: {}", b.name));
+            }
         }
     }
     let doc = d.cad.get_or_insert_with(Document::default);
     if doc.band().is_none() {
         doc.append(Feature { id: 1, name: "Procedural shank".into(), enabled: true, operation: Operation::Band, component: Component::default() })?;
     }
-    stored_part(doc, PARTS[0], "lizard head", json!({"snout_deg": SNOUT_DEG, "r_ref_mm": R_REF, "length_mm": HEAD_LEN, "stations": STATIONS, "section_points": SECTION_PTS}), &solids[0])?;
-    for (k, name) in PARTS[1..].iter().enumerate() {
-        let root = if k < 2 { FORE_DEG } else { HIND_DEG };
-        stored_part(doc, name, "lizard leg", json!({"root_deg": root, "side": if k % 2 == 0 { 1 } else { -1 }, "grid_mm": LEG_GRID}), &solids[k + 1])?;
+    stored_part(doc, "Head", "lizard head", json!({"snout_deg": SNOUT_DEG, "r_ref_mm": R_REF, "length_mm": HEAD_LEN, "stations": STATIONS, "section_points": SECTION_PTS}), &solids[0])?;
+    for (name, solid) in names.iter().zip(&solids).skip(1) {
+        stored_part(doc, name, "limb capsule", json!({"fore_deg": FORE_DEG, "hind_deg": HIND_DEG, "capsule": [CAPSULE.0, CAPSULE.1, CAPSULE.2]}), solid)?;
     }
-    Ok((d, lib, comp, solids))
+    Ok((d, lib, comp, solids, names))
 }
 
 // --- Gates --------------------------------------------------------------------------------------------------------
@@ -1061,8 +999,8 @@ fn pass(d: &RingDesign, lib: &AlphaLibrary, params: BuildParams, sand: bool) -> 
 }
 
 impl Pass {
-    fn ok(&self, stamps: usize) -> bool {
-        self.watertight && self.degenerate == 0 && self.crossings == 0 && self.stamped == stamps && self.notes.is_empty() && self.parts.iter().all(|p| p.1 == 0) && self.joined == PARTS.len()
+    fn ok(&self, stamps: usize, parts_expected: usize) -> bool {
+        self.watertight && self.degenerate == 0 && self.crossings == 0 && self.stamped == stamps && self.notes.is_empty() && self.parts.iter().all(|p| p.1 == 0) && self.joined == parts_expected
     }
     fn json(&self) -> serde_json::Value {
         json!({"triangles": self.triangles, "watertight": self.watertight, "degenerate_faces": self.degenerate, "self_crossings": self.crossings, "stamped": self.stamped, "notes": self.notes,
@@ -1090,11 +1028,11 @@ fn main() -> Result<()> {
     let started = std::time::Instant::now();
     let art = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/cataphracta/art").join(SLUG);
     std::fs::create_dir_all(&art)?;
-    let (d, lib, comp, solids) = author(&art)?;
+    let (d, lib, comp, solids, names) = author(&art)?;
     let author_s = started.elapsed().as_secs_f64();
     println!(
-        "  head {} faces, {:.1} mm3, least half-width {:.3}, {:.1} x {:.1} mm (ratio {:.2}); legs {:?} faces",
-        comp.head_faces, comp.head_volume_mm3, comp.head_least_half_width_mm, comp.head_length_mm, comp.head_width_mm, comp.head_ratio, comp.leg_faces
+        "  head {} faces, {:.1} mm3, least half-width {:.3}, {:.1} x {:.1} mm (ratio {:.2}); {} limb capsules, {} faces",
+        comp.head_faces, comp.head_volume_mm3, comp.head_least_half_width_mm, comp.head_length_mm, comp.head_width_mm, comp.head_ratio, comp.limb_parts, comp.limb_faces
     );
     let params = if draft { draft_params() } else { export_params() };
     if args.iter().any(|a| a == "--probe") {
@@ -1139,12 +1077,12 @@ fn main() -> Result<()> {
     let gates = [
         ("finished mesh watertight, 0 degenerate faces, 0 self-crossings", main_pass.watertight && main_pass.degenerate == 0 && main_pass.crossings == 0),
         ("every made part closed and uncrossed, as made and as placed", made.iter().all(|&(o, x)| o == 0 && x == 0) && main_pass.parts.iter().all(|p| p.1 == 0)),
-        ("solids and parts notes empty, every stamp resolved, all five parts joined", main_pass.notes.is_empty() && main_pass.stamped == stamps && main_pass.joined == PARTS.len()),
+        ("solids and parts notes empty, every stamp resolved, every made part joined", main_pass.notes.is_empty() && main_pass.stamped == stamps && main_pass.joined == names.len()),
         ("nothing enters the finger hole", inside == 0),
         ("lost-wax verdict Castable, the parts judged in, thinnest wall at or above the 0.8 mm fill", field.process == CastProcess::LostWax && field.verdict == Verdict::Castable && field.thinnest_wall_mm >= MIN_SECTION_MM),
         ("zero DFM findings", findings.is_empty()),
         ("stones reported equal the preview", reported == previewed),
-        ("gates hold at 384 x 192", coarse_pass.as_ref().is_none_or(|c| c.ok(stamps))),
+        ("gates hold at 384 x 192", coarse_pass.as_ref().is_none_or(|c| c.ok(stamps, names.len()))),
         ("investment pattern watertight, 0 degenerates, 0 crossings", pw && pd == 0 && px == 0),
         ("export build within 2 million triangles", main_pass.triangles <= 2_000_000),
         ("cold reload identical", cold != Some(false)),
@@ -1161,7 +1099,7 @@ fn main() -> Result<()> {
         "build": {"theta_steps": params.theta_steps, "profile_steps": params.profile_steps, "triangles": main_pass.triangles, "build_s": build_s, "author_s": author_s},
         "main": main_pass.json(),
         "coarse_384x192": coarse_pass.as_ref().map(|c| c.json()),
-        "made_parts": PARTS.iter().zip(&made).zip(&solids).map(|((n, (o, x)), s)| json!({"name": n, "open_edges": o, "self_crossings": x, "faces": s.f.len(), "volume_mm3": signed_volume(s)})).collect::<Vec<_>>(),
+        "made_parts": names.iter().zip(&made).zip(&solids).map(|((n, (o, x)), s)| json!({"name": n, "open_edges": o, "self_crossings": x, "faces": s.f.len(), "volume_mm3": signed_volume(s)})).collect::<Vec<_>>(),
         "bore": {"radius_mm": d.inner_radius_mm(), "nearest_vertex_mm": least_r, "vertices_inside": inside},
         "field": {"verdict": field.verdict.label(), "process": field.process.label(), "thinnest_wall_mm": field.thinnest_wall_mm, "undercut_percent": field.undercut_fraction() * 100.0, "notes": field.notes,
             "parts": field.parts.iter().map(|p| json!({"name": p.name, "total_mm2": p.total_area_mm2, "note": p.note})).collect::<Vec<_>>()},
