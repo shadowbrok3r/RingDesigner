@@ -1209,17 +1209,29 @@ pins both directions. On top of that:
   re-centred on every new section, until the march leaves the metal,
   meets a section at the floor, or has run the reach (one floor). It is an
   **edge** when some line leaves the metal one way and reaches the floor
-  the other within the reach, *and* the section at every station on the
-  way is at least `floor / reach` of its distance from that free edge
-  (half a step of slack, the floor's crossing bisected to an eighth of a
-  step) — a knife, a point, a lip, fed from the body behind it. Anything
-  else is a **wall**: a web never meets a free edge, a long taper stays
-  thin past the reach, and a fin, pin or lip taller than it is thick
-  starves before the body feeds it however short it is — reach alone
-  passed a 0.05 mm fin 0.7 mm tall. Sections are read square to the
-  mid-surface, so at one floor a wedge or a cone passes from a 53°
-  included angle and a parallel-faced lip only as tall as it is thick; a
-  sharper point is a wall, and a brief that wants feather points widens
+  the other within the reach, *and* the section on the way is either
+  **fed** — at every station at least `floor / reach` of its distance
+  from that free edge (half a step of slack, the floor's crossing
+  bisected to a 64th of a step): a knife, a point, a lip, fed from the
+  body behind it — or **relief**, a crest flaring into its body: its
+  section is at every station at least a 20° wedge's from the free edge
+  and widens between any two stations at least as fast (half a step of
+  slack), it is still 0.7 of the floor thick at its last station under
+  the floor, and where it reaches the floor the metal runs on at least a
+  floor along the line its two faces converge on and a floor and a half
+  along its crest. Anything else is a **wall**: a web never meets a free
+  edge, a long taper stays thin past the reach, a fin, pin or lip taller
+  than it is thick starves before the body feeds it however short it is —
+  reach alone passed a 0.05 mm fin 0.7 mm tall — a crest standing on its
+  body at a sharp root is a fin by another name, a needle or a cone is
+  round where it meets its body and keeps to the fed rule, and relief on a
+  web or a band under the floor stands on nothing that feeds it. Sections
+  are read square to the mid-surface, so the fed rule passes a wedge or a
+  cone from a 53° included angle and a parallel-faced lip only as tall as
+  it is thick; relief passes a crest from 20° that flares into a
+  floor-thick body within the reach, and nothing that stands on one. A
+  crest standing further than the reach is a wall, as a long taper is,
+  and a brief that wants feather points or deep relief widens
   `edge_reach_mm` and says so. The march sets off toward where the
   section's two faces converge, or, where they are parallel, toward the
   nearest straight way out of the metal (sixteen probes round the section,
@@ -1245,8 +1257,59 @@ pins both directions. On top of that:
   them as edges of 0.0003–0.003 mm² — while the hand-made lip exception had
   been covering a collet body the census reads as a 0.779 mm wall over
   5.6 mm², and the bezel's two 40° knife rims are walls of 1.31 mm² each,
-  0.024 mm at the tip: sharper than 53°, they starve before the body behind
-  them reaches the floor.
+  0.024 mm at the tip: sharper than 53° and standing on that band, they
+  are neither fed nor relief.
+
+  **Relief is not a wall**, and the census learned it on Basiliscus,
+  twice. A ring that passed every other gate read 3,246 wall samples
+  (15.3 mm², one zone 13.5 mm² over 10 mm at 0.0009 mm): its head's
+  painted crests and scale lips, 30–50° knives that flare into a 6 mm
+  head, their last section under the floor 0.62–0.80 mm thick. The first
+  reading of relief judged shape alone — a least-squares wedge through
+  the sections — and an adversarial sweep put 79 features through it that
+  the fed rule walls: 5° and 10° razors, 0.08–0.1 mm needles, 19–20°
+  drafted fins, a drafted fin round a 2 mm ring (88 mm², all edge), and
+  43 parallel fins whose root fillet or chamfer bunched the fit's
+  stations and dragged its slope up. Each clause now answers one of them:
+  the base is what tells a crest that grows into its body from one that
+  stands on it, the growth between every two stations is what a parallel
+  stretch above a fillet fails, the wedge from the free edge is what a
+  short sharp tip on a flared base fails, and the crest is what a cone
+  fails — where it reaches the floor a cone is round, about a floor along
+  its other axis, where Basiliscus's crests run on 1.6–12 mm. Every
+  verdict on that sweep and on 288 filleted and chamfered fins is now
+  master's. Basiliscus reads 527 samples (2.32 mm²): the deepest
+  1.07 mm² of the 72° crest, whose floor lies 0.86–0.9 mm below its edge
+  (clean at a 1.0 mm reach), a crown tine 0.53–0.6 mm across, and short
+  knives standing on the head. The floor's crossing is bisected to a 64th
+  of a step because a circular fillet's width grows like a square root at
+  its foot: an eighth of a step above it a 0.3 mm fillet has already lost
+  0.17 mm, and every filleted crest read as standing. Moloch keeps its
+  horns, 4.8 mm² of cones whose floor lies 1.15–1.2 mm in from the tip,
+  and the folds its sculpt left — flaps, a 0.2 mm nub on a 0.05 mm neck,
+  loose specks of 2–52 faces. The body under relief is read along the
+  line its faces converge on, never along the march that found it: a
+  march slanting round Aile's bezel reads 0.84 mm of metal past the
+  0.77 mm band under its rims, and read that way 116 rim samples
+  (1.0 mm²) passed; `lipped_band` is the same lip on a 0.7 mm band, which
+  a slanting march reads as 1.0 mm.
+
+  **A fold of the mesh is not metal either.** A reading whose section, and
+  every march from it, stays under 0.01 mm until it leaves the metal or
+  meets the floor is mesh noise (`ThinKind::Noise`): counted, measured and
+  zoned apart in `noise_below_limit`, `noise_area_mm2` and `noise`, named
+  in the note, and never gated by `clean()`. Four of the twenty factory
+  stocks failed the gate bare on it. 006 Square folds back on itself by
+  1–2 µm along the palm's bore edge, under a strip of slivers 2.5–3 µm
+  tall, and read sections of 0.2–4 µm there (24 samples bare, 75 on
+  Ilex); 009 Drop, 012 Cushion and 013 Round carry sheets 1–24 nm apart
+  (352, 336 and 336 samples). All four now read no wall, and 006 is clean;
+  009, 012 and 013 still leave 27, 6 and 6 unresolved samples, rays their
+  near-coincident sheets turn back, which want the stock source cleaned.
+  Cleaning at import was tried first: `csg::clean` at 5 µm cures 006 and
+  none of the others, and at 10 µm it starts to wall 020. Moloch's 28
+  sculpt folds under 0.01 mm read as noise too; its 0.05–0.1 mm flaps
+  stay walls.
 
   A **CAD cut's lands** are asked for, never volunteered:
   `dfm::cut_lands(design, built, floor)` (C-T4; `export --cut-land`, MCP
