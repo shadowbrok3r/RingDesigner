@@ -515,7 +515,9 @@ impl Alpha {
         }
         held.insert(key, None);
         drop(held);
-        let got = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.measure_features(&stopped)));
+        let got = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.measure_features(stop.as_deref())));
+        #[cfg(feature = "test-hooks")]
+        hooks::measured(stop.as_deref(), key);
         let mut held = cache.lock().unwrap_or_else(|e| e.into_inner());
         match got {
             Ok(Ok(got)) => {
@@ -552,8 +554,9 @@ impl Alpha {
         mum(h ^ P0, self.data.len() as u64 ^ P1)
     }
 
-    fn measure_features(&self, stopped: &(dyn Fn() -> bool + Sync)) -> Result<Option<(f64, f64)>, GaveUp> {
+    fn measure_features(&self, stop: Option<&std::sync::atomic::AtomicBool>) -> Result<Option<(f64, f64)>, GaveUp> {
         const LOST: f64 = 0.10;
+        let stopped = || stop.is_some_and(|s| s.load(std::sync::atomic::Ordering::Relaxed));
         let (w, h) = (self.width, self.height);
         let (bw, bh) = (w * 3, h * 3);
         let ink: Vec<bool> = (0..bw * bh).map(|i| self.data[(i / bw % h) * w + (i % bw % w)] >= 0.5).collect();
@@ -600,6 +603,8 @@ impl Alpha {
                     }
                 }
             }
+            #[cfg(feature = "test-hooks")]
+            hooks::opening_read(stop);
             if all == 0 { 1.0 } else { lost as f64 / all as f64 }
         };
         let feature = |phase: &[bool], d: &[f32], g: &mut Grids| -> f64 {
@@ -672,6 +677,68 @@ pub fn measuring_until<R>(stop: &Arc<std::sync::atomic::AtomicBool>, f: impl FnO
     }
     let _restore = Restore(MEASURE_STOP.with(|s| s.borrow_mut().replace(stop.clone())));
     f()
+}
+
+/// What other crates' tests reach into, built only under `test-hooks`.
+#[cfg(feature = "test-hooks")]
+pub mod hooks {
+    use std::sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    };
+
+    /// The armed flag, whether a measure running under it has raised it, and that measure's content key once it returns.
+    struct Armed {
+        flag: Arc<AtomicBool>,
+        raised: bool,
+        key: Option<u64>,
+    }
+
+    static ARMED: Mutex<Option<Armed>> = Mutex::new(None);
+
+    fn is(armed: &Armed, stop: Option<&AtomicBool>) -> bool {
+        stop.is_some_and(|s| std::ptr::eq(s, Arc::as_ptr(&armed.flag)))
+    }
+
+    /// Arms `stop`: a mask measure running under it raises it once it has read its first opening.
+    pub fn raise_mid_measure(stop: &Arc<AtomicBool>) {
+        *ARMED.lock().unwrap_or_else(|e| e.into_inner()) = Some(Armed { flag: stop.clone(), raised: false, key: None });
+    }
+
+    /// The content key of the mask whose measure raised the armed flag part way, once that measure returned; disarms it.
+    pub fn disarm() -> Option<u64> {
+        ARMED.lock().unwrap_or_else(|e| e.into_inner()).take().and_then(|a| a.key)
+    }
+
+    /// What the measure cache holds for `key`: `None` nothing, `Some(false)` a measure in flight, `Some(true)` a result.
+    pub fn cached(key: u64) -> Option<bool> {
+        let (cache, _) = super::MEASURED.get()?;
+        cache.lock().unwrap_or_else(|e| e.into_inner()).get(&key).map(Option::is_some)
+    }
+
+    /// Raises the armed flag if `stop` is it and no measure has raised it yet.
+    pub(super) fn opening_read(stop: Option<&AtomicBool>) {
+        let mut armed = ARMED.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(a) = armed.as_mut()
+            && !a.raised
+            && is(a, stop)
+        {
+            a.flag.store(true, Ordering::Relaxed);
+            a.raised = true;
+        }
+    }
+
+    /// Notes `key` as the mask whose measure raised the armed flag, if the measure under `stop` did.
+    pub(super) fn measured(stop: Option<&AtomicBool>, key: u64) {
+        let mut armed = ARMED.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(a) = armed.as_mut()
+            && a.raised
+            && a.key.is_none()
+            && is(a, stop)
+        {
+            a.key = Some(key);
+        }
+    }
 }
 
 /// Library name a mask's derived signed-distance field lands under.

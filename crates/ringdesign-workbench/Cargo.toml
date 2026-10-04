@@ -27,3 +27,4 @@ web-sys = { version = "0.3", features = ["Worker", "MessageEvent", "ErrorEvent"]
 
 [dev-dependencies]
 egui_kittest = "0.36"
+ringdesign-core = { path = "../ringdesign-core", default-features = false, features = ["test-hooks"] }

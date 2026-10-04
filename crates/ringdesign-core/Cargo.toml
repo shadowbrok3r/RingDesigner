@@ -9,6 +9,8 @@ default = ["parallel"]
 ## Rayon across the sweep, refinement and analysis. Off, everything runs
 ## serial — the wasm story, where threads need a whole worker setup.
 parallel = ["dep:rayon"]
+## Hooks other crates' tests reach into; off in every shipped build.
+test-hooks = []
 
 [dependencies]
 ringdesign-assets.workspace = true
