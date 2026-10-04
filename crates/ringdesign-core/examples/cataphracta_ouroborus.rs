@@ -69,22 +69,22 @@ const KEYS: [(f64, f64, f64, f64); 15] = [
 
 // --- The head's primary forms, along `s` mm from the snout's tip --------------------------------------------------
 
-/// Half-width at the widest of the side wall: a rounded snout, straight sides flaring to the angle of the jaws, then
-/// in to the neck. The skull is about 10.5 mm long and 7.4 mm across at the jaws.
+/// Half-width at the widest of the side wall: a narrow, rounded snout, straight sides flaring all the way back to the
+/// occipital edge, then a sharp step in to the neck. The skull is about 10.6 mm long and 7.5 mm across at the back.
 const PLAN: [(f64, f64); 13] = [
     (0.0, 0.0),
-    (0.25, 0.7),
-    (0.7, 1.12),
-    (1.6, 1.62),
-    (3.0, 2.25),
-    (4.6, 2.85),
-    (6.2, 3.3),
-    (7.6, 3.62),
-    (8.5, 3.7),
-    (9.3, 3.45),
-    (10.0, 2.85),
-    (10.6, 2.45),
-    (11.2, 2.15),
+    (0.25, 0.55),
+    (0.7, 0.9),
+    (1.6, 1.3),
+    (3.0, 1.9),
+    (4.6, 2.5),
+    (6.2, 3.0),
+    (7.6, 3.4),
+    (8.8, 3.7),
+    (9.6, 3.75),
+    (10.1, 3.0),
+    (10.6, 2.3),
+    (11.2, 2.0),
 ];
 /// Height of the dorsal crest over the bore: low at the snout, flat over the skull.
 const CREST: [(f64, f64); 11] = [
@@ -93,10 +93,10 @@ const CREST: [(f64, f64); 11] = [
     (0.8, 2.7),
     (1.8, 3.05),
     (3.2, 3.35),
-    (4.8, 3.55),
-    (6.6, 3.65),
-    (8.4, 3.68),
-    (9.6, 3.5),
+    (4.8, 3.45),
+    (6.6, 3.5),
+    (8.4, 3.5),
+    (9.6, 3.4),
     (10.4, 3.32),
     (11.2, 3.1),
 ];
@@ -126,10 +126,10 @@ const TOP_INSET: [(f64, f64); 4] = [(0.0, 0.1), (3.0, 0.14), (7.0, 0.2), (11.2, 
 /// The head's length from the snout's tip to where it sinks into the neck, and where that burial starts.
 const HEAD_LEN: f64 = 12.2;
 const BURY_FROM: f64 = 10.0;
-/// The spiny temporal and occipital rim on the plan, from behind the eye to the back of the skull: first spine's
+/// The spiny occipital scales at the back corners of the skull, raking back and out over the neck: first spine's
 /// root, pitch, and each spine's reach, mm. Each spine rises
 /// slowly toward its point and drops back steeply behind it, so the points rake back over the neck.
-const SPINES: (f64, f64, [f64; 5]) = (6.2, 0.78, [0.4, 0.55, 0.68, 0.75, 0.6]);
+const SPINES: (f64, f64, [f64; 4]) = (8.4, 0.55, [0.35, 0.5, 0.6, 0.55]);
 /// The gape line's height at the snout and its sag to the mouth's corner.
 const LIP_H: f64 = 1.85;
 const LIP_SAG: f64 = 0.22;
@@ -150,10 +150,10 @@ const GAPE_MM: f64 = 0.45;
 const GAPE_W: f64 = 0.24;
 
 /// The eye, a smooth dome: centre along the head and over the bore, radius, and how far it bulges past the wall.
-const EYE_S: f64 = 4.4;
+const EYE_S: f64 = 5.0;
 const EYE_H: f64 = 2.7;
 const EYE_R: f64 = 0.95;
-const EYE_BULGE: f64 = 0.6;
+const EYE_BULGE: f64 = 0.75;
 /// The orbit groove round the eye: width and depth.
 const ORBIT: (f64, f64) = (0.28, 0.12);
 /// The brow: how far the supraocular overhangs the eye, and its reach along the head.
@@ -180,27 +180,29 @@ const fn bone(name: &'static str, a: [f64; 3], b: [f64; 3], r: (f64, f64)) -> Bo
 }
 
 /// A foreleg splayed from behind the neck: the upper arm runs out and back from the shoulder, buried in the body, to an
-/// elbow standing out past the band's outline about 45° back in plan; the forearm drops from the elbow to a hand
-/// pad planted on the flank, whose four clawed toes spread over it, gripping.
-const FORELEG: [Bone; 7] = [
-    bone("upper arm", [-0.5, 2.0, -1.4], [1.4, 2.4, 1.6], (0.98, 0.72)),
-    bone("forearm", [1.4, 2.4, 1.6], [2.75, 1.05, 0.42], (0.68, 0.5)),
-    bone("hand", [2.75, 1.05, 0.42], [3.15, 1.0, 0.3], (0.5, 0.45)),
-    bone("toe 1", [3.1, 1.05, 0.32], [3.85, 2.0, 0.2], (0.32, 0.2)),
-    bone("toe 2", [3.1, 1.05, 0.32], [4.55, 1.45, 0.2], (0.32, 0.2)),
-    bone("toe 3", [3.1, 1.05, 0.32], [4.65, 0.75, 0.2], (0.32, 0.2)),
-    bone("toe 4", [3.1, 1.05, 0.32], [3.95, 0.34, 0.18], (0.3, 0.19)),
+/// elbow that rises over the band's shoulder and stands out past its outline about 45° back in plan; the forearm drops
+/// from the elbow to a hand pad planted on the flank, whose five clawed toes spread over it, gripping.
+const FORELEG: [Bone; 8] = [
+    bone("upper arm", [-0.4, 2.1, -1.5], [1.2, 3.5, 1.3], (1.0, 0.8)),
+    bone("forearm", [1.2, 3.5, 1.3], [2.6, 1.05, 0.5], (0.75, 0.6)),
+    bone("hand", [2.6, 1.05, 0.5], [3.05, 1.0, 0.38], (0.6, 0.55)),
+    bone("toe 1", [3.0, 1.05, 0.4], [3.6, 2.05, 0.22], (0.34, 0.25)),
+    bone("toe 2", [3.0, 1.05, 0.4], [4.25, 1.75, 0.22], (0.34, 0.25)),
+    bone("toe 3", [3.0, 1.05, 0.4], [4.6, 1.1, 0.22], (0.34, 0.25)),
+    bone("toe 4", [3.0, 1.05, 0.4], [4.4, 0.45, 0.22], (0.34, 0.25)),
+    bone("toe 5", [3.0, 1.05, 0.4], [3.55, 0.36, 0.22], (0.32, 0.25)),
 ];
 /// A hind leg splayed at the hip: the thigh out and back to a knee past the outline, the shin down to a foot planted
-/// on the flank, four long clawed toes.
-const HINDLEG: [Bone; 7] = [
-    bone("thigh", [-0.5, 1.8, -1.4], [1.35, 2.2, 1.5], (1.0, 0.72)),
-    bone("shin", [1.35, 2.2, 1.5], [2.85, 0.95, 0.42], (0.66, 0.5)),
-    bone("foot", [2.85, 0.95, 0.42], [3.3, 0.9, 0.3], (0.5, 0.45)),
-    bone("toe 1", [3.25, 0.95, 0.32], [4.15, 1.9, 0.2], (0.32, 0.2)),
-    bone("toe 2", [3.25, 0.95, 0.32], [5.0, 1.35, 0.2], (0.32, 0.2)),
-    bone("toe 3", [3.25, 0.95, 0.32], [5.2, 0.7, 0.2], (0.32, 0.2)),
-    bone("toe 4", [3.25, 0.95, 0.32], [4.3, 0.3, 0.18], (0.3, 0.19)),
+/// on the flank, five long clawed toes.
+const HINDLEG: [Bone; 8] = [
+    bone("thigh", [-0.4, 1.9, -1.5], [1.2, 3.3, 1.2], (1.0, 0.8)),
+    bone("shin", [1.2, 3.3, 1.2], [2.7, 0.95, 0.5], (0.75, 0.6)),
+    bone("foot", [2.7, 0.95, 0.5], [3.2, 0.9, 0.38], (0.6, 0.55)),
+    bone("toe 1", [3.15, 0.95, 0.4], [3.8, 1.95, 0.22], (0.34, 0.25)),
+    bone("toe 2", [3.15, 0.95, 0.4], [4.55, 1.65, 0.22], (0.34, 0.25)),
+    bone("toe 3", [3.15, 0.95, 0.4], [4.95, 1.0, 0.22], (0.34, 0.25)),
+    bone("toe 4", [3.15, 0.95, 0.4], [4.65, 0.38, 0.22], (0.34, 0.25)),
+    bone("toe 5", [3.15, 0.95, 0.4], [3.7, 0.33, 0.22], (0.32, 0.25)),
 ];
 /// The limbs' roots round the ring, degrees: the shoulders behind the neck, the hips where the tail begins.
 const FORE_DEG: f64 = 128.0;
@@ -224,7 +226,7 @@ const TOOTH: f64 = 0.28;
 /// The whorls run from the nape round to the tail's tip: the window's centre and span, and its fade, degrees.
 const WHORL_WINDOW: (f64, f64, f64) = (274.0, 288.0, 8.0);
 /// The flank spines on the side faces, one per girdle on its trailing edge: height, mm.
-const SPINE_MM: f64 = 0.4;
+const SPINE_MM: f64 = 0.5;
 /// The girdles' continuation down the flanks, lower than on the back so the legs stand clear of it, mm.
 const FLANK_MM: f64 = 0.35;
 
