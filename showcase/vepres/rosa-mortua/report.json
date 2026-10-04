@@ -1,26 +1,30 @@
 {
   "alloy_for_weight": "Gold 18k",
   "bore": {
-    "nearest_vertex_mm": 8.754816151530386,
+    "nearest_vertex_mm": 8.7547680666088,
     "radius_mm": 9.3,
-    "vertices_inside": 297
+    "vertices_inside": 206
   },
   "build": {
-    "author_s": 58.302521738,
-    "build_s": 40.737359997,
+    "author_s": 0.49508357,
+    "build_s": 17.112903733,
     "profile_steps": 320,
     "theta_steps": 768,
-    "triangles": 510726
+    "triangles": 652040
   },
   "coarse": {
     "degenerate_faces": 0,
     "notes": [
       [],
       [
-        "Prickle, arm A 3: its fillet could not be laid (the bead folds at 12 of 409 stations at its smallest radius, first at 35.8° round the ring, r 11.98 z 0.31 mm in its section, point (9.72, 7.00, 0.31) mm)",
-        "Prickle, arm B 3: its fillet could not be laid (the bead folds at 30 of 1291 stations at its smallest radius, first at 55.3° round the ring, r 11.85 z 0.98 mm in its section, point (6.74, 9.75, 0.98) mm)",
-        "Prickle, arm B 1: its fillet found no seam long enough to follow",
-        "Prickle, arm A 4: its fillet pinches to 0.02 mm at 43 of 119 stations, smallest at 7.7° round the ring, r 11.97 z 0.32 mm in its section, point (11.86, 1.61, 0.32) mm"
+        "Heart collet, Hip collet, Stem of arm A, Stem of arm B, Receptacle, Petal 1, Petal 2, Petal 3, Petal 4, Petal 5, Petal 6, Petal 7, Petal 8, Petal 9, Petal 10, Petal 11, Petal 12, Petal 13, Petal 14, Petal 15, Petal 16, Petal 17, Petal 18, Dried sepal 1, Dried sepal 2, Dried sepal 3, Dried sepal 4, Dried sepal 5, Hip's dried sepal, Hip's dried crown, Hip body, Prickle, arm A 1, Prickle, arm A 2, Prickle, arm A 3, Prickle, arm A 4, Prickle, arm A 5: could not be united with each other (the solids meet degenerately (two cuts cross inside a face)); joined one by one",
+        "Stem of arm B: could not be joined to the band (the solids meet degenerately (two cuts cross inside a face))",
+        "Prickle, arm A 1: its fillet could not be laid (the bead folds at 2 of 171 stations at its smallest radius, first at 25.8° round the ring, r 11.91 z 0.64 mm in its section, point (10.73, 5.18, 0.64) mm)",
+        "Prickle, arm A 1: its fillet could not be laid (the bead folds at 4 of 64 stations at its smallest radius, first at 23.3° round the ring, r 12.58 z 1.24 mm in its section, point (11.55, 4.98, 1.24) mm)",
+        "Prickle, arm A 2: its fillet could not be laid (the bead folds at 16 of 175 stations at its smallest radius, first at 12.2° round the ring, r 11.99 z 0.18 mm in its section, point (11.72, 2.54, 0.18) mm)",
+        "Prickle, arm A 3: its fillet could not be laid (the bead folds at 4 of 146 stations at its smallest radius, first at 7.4° round the ring, r 11.96 z 0.37 mm in its section, point (11.86, 1.54, 0.37) mm)",
+        "Prickle, arm B 3: its fillet could not be laid (the bead folds at 3 of 246 stations at its smallest radius, first at 161.9° round the ring, r 12.00 z 0.03 mm in its section, point (-11.41, 3.72, 0.03) mm)",
+        "Prickle, arm B 1: its fillet pinches to 0.02 mm at 71 of 261 stations, smallest at 145.5° round the ring, r 11.98 z 0.18 mm in its section, point (-9.87, 6.78, 0.18) mm"
       ]
     ],
     "self_crossings": 0,
@@ -29,8 +33,8 @@
   },
   "cold_reload_identical": null,
   "design": {
-    "bytes": 546581,
-    "cad_features": 32,
+    "bytes": 1622327,
+    "cad_features": 44,
     "format_version": 6
   },
   "dfm_findings": [],
@@ -133,43 +137,91 @@
       "Ok"
     ],
     [
-      "#40",
+      "#23",
       "Ok"
     ],
     [
-      "#41",
+      "#24",
       "Ok"
     ],
     [
-      "#42",
+      "#25",
       "Ok"
     ],
     [
-      "#43",
+      "#26",
       "Ok"
     ],
     [
-      "#44",
+      "#27",
       "Ok"
     ],
     [
-      "#45",
+      "#28",
       "Ok"
     ],
     [
-      "#46",
+      "#29",
       "Ok"
     ],
     [
-      "#47",
+      "#30",
       "Ok"
     ],
     [
-      "#48",
+      "#31",
       "Ok"
     ],
     [
-      "#49",
+      "#32",
+      "Ok"
+    ],
+    [
+      "#33",
+      "Ok"
+    ],
+    [
+      "#34",
+      "Ok"
+    ],
+    [
+      "#60",
+      "Ok"
+    ],
+    [
+      "#61",
+      "Ok"
+    ],
+    [
+      "#62",
+      "Ok"
+    ],
+    [
+      "#63",
+      "Ok"
+    ],
+    [
+      "#64",
+      "Ok"
+    ],
+    [
+      "#65",
+      "Ok"
+    ],
+    [
+      "#66",
+      "Ok"
+    ],
+    [
+      "#67",
+      "Ok"
+    ],
+    [
+      "#68",
+      "Ok"
+    ],
+    [
+      "#69",
       "Ok"
     ]
   ],
@@ -183,40 +235,51 @@
       "Undercut 50–54° on the lower shoulder: 0.1 mm² leaning to 2° — no single layer explains it.",
       "Undercut 126–130° on the upper shoulder: 0.1 mm² leaning to 2° — no single layer explains it.",
       "Undercut 142–142° on the upper shoulder: 0.0 mm² leaning to 1° — no single layer explains it.",
-      "Measured with the ring as built: 29 CAD parts (29 joined, 0 cut), 627.7 mm² of part surface; under lost wax they are reported, never gating.",
-      "Lost wax: Bezel \"Bud collet\" (#3) would undercut a two-part pull over 59.4 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Bezel \"Hip collet\" (#5) would undercut a two-part pull over 48.2 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Stem of arm A\" (#6) would undercut a two-part pull over 5.2 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Stem of arm B\" (#7) would undercut a two-part pull over 5.7 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Receptacle\" (#8) would undercut a two-part pull over 0.6 mm² (worst -13°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Bud sepal 1\" (#9) would undercut a two-part pull over 3.5 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Bud sepal 2\" (#10) would undercut a two-part pull over 5.2 mm² (worst -80°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Bud sepal 3\" (#11) would undercut a two-part pull over 4.9 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Bud sepal 4\" (#12) would undercut a two-part pull over 3.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Bud sepal 5\" (#13) would undercut a two-part pull over 4.4 mm² (worst -86°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Bud sepal 6\" (#14) would undercut a two-part pull over 4.1 mm² (worst -90°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Bud sepal 7\" (#15) would undercut a two-part pull over 4.1 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Dried sepal\" (#16) would undercut a two-part pull over 4.4 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Array round a part \"Dried sepal crown\" (#17) would undercut a two-part pull over 20.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Hip body\" (#18) would undercut a two-part pull over 1.1 mm² (worst -8°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf, terminal leaflet\" (#19) would undercut a two-part pull over 2.4 mm² (worst -12°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf, upper lateral leaflet\" (#20) would undercut a two-part pull over 8.4 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf, lower lateral leaflet\" (#21) would undercut a two-part pull over 8.1 mm² (worst -79°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Stored mesh \"Leaf, rachis\" (#22) would undercut a two-part pull over 0.7 mm² (worst -34°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A 1\" (#40) would undercut a two-part pull over 7.6 mm² (worst -69°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A 2\" (#41) would undercut a two-part pull over 3.6 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A 3\" (#42) would undercut a two-part pull over 4.8 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A 4\" (#43) would undercut a two-part pull over 3.1 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm A 5\" (#44) would undercut a two-part pull over 2.6 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B 1\" (#45) would undercut a two-part pull over 2.9 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B 2\" (#46) would undercut a two-part pull over 4.5 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B 3\" (#47) would undercut a two-part pull over 2.3 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B 4\" (#48) would undercut a two-part pull over 2.9 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
-      "Lost wax: Twisted sweep \"Prickle, arm B 5\" (#49) would undercut a two-part pull over 2.2 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is."
+      "Measured with the ring as built: 41 CAD parts (41 joined, 0 cut), 951.1 mm² of part surface; under lost wax they are reported, never gating.",
+      "Lost wax: Bezel \"Heart collet\" (#3) would undercut a two-part pull over 37.5 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Bezel \"Hip collet\" (#5) would undercut a two-part pull over 46.0 mm² (worst -72°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Stem of arm A\" (#6) would undercut a two-part pull over 3.2 mm² (worst -50°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Receptacle\" (#8) would undercut a two-part pull over 10.6 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 1\" (#9) would undercut a two-part pull over 8.1 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 2\" (#10) would undercut a two-part pull over 7.2 mm² (worst -68°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 3\" (#11) would undercut a two-part pull over 8.1 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 4\" (#12) would undercut a two-part pull over 7.8 mm² (worst -82°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 5\" (#13) would undercut a two-part pull over 7.3 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 6\" (#14) would undercut a two-part pull over 14.0 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 7\" (#15) would undercut a two-part pull over 11.1 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 8\" (#16) would undercut a two-part pull over 13.6 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 9\" (#17) would undercut a two-part pull over 9.5 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 10\" (#18) would undercut a two-part pull over 12.7 mm² (worst -78°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 11\" (#19) would undercut a two-part pull over 13.0 mm² (worst -62°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 12\" (#20) would undercut a two-part pull over 13.1 mm² (worst -66°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 13\" (#21) would undercut a two-part pull over 10.9 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 14\" (#22) would undercut a two-part pull over 12.6 mm² (worst -81°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 15\" (#23) would undercut a two-part pull over 13.7 mm² (worst -88°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 16\" (#24) would undercut a two-part pull over 14.5 mm² (worst -77°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 17\" (#25) would undercut a two-part pull over 10.6 mm² (worst -38°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Petal 18\" (#26) would undercut a two-part pull over 14.0 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Dried sepal 1\" (#27) would undercut a two-part pull over 4.4 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Dried sepal 2\" (#28) would undercut a two-part pull over 4.5 mm² (worst -65°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Dried sepal 3\" (#29) would undercut a two-part pull over 3.8 mm² (worst -87°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Dried sepal 4\" (#30) would undercut a two-part pull over 2.3 mm² (worst -48°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Dried sepal 5\" (#31) would undercut a two-part pull over 3.7 mm² (worst -54°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Hip's dried sepal\" (#32) would undercut a two-part pull over 5.4 mm² (worst -84°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Array round a part \"Hip's dried crown\" (#33) would undercut a two-part pull over 20.1 mm² (worst -89°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Stored mesh \"Hip body\" (#34) would undercut a two-part pull over 5.7 mm² (worst -21°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm A 1\" (#60) would undercut a two-part pull over 6.9 mm² (worst -71°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm A 2\" (#61) would undercut a two-part pull over 4.6 mm² (worst -76°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm A 3\" (#62) would undercut a two-part pull over 4.6 mm² (worst -73°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm A 4\" (#63) would undercut a two-part pull over 3.6 mm² (worst -85°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm A 5\" (#64) would undercut a two-part pull over 2.6 mm² (worst -74°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm B 1\" (#65) would undercut a two-part pull over 5.1 mm² (worst -83°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm B 2\" (#66) would undercut a two-part pull over 4.9 mm² (worst -70°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm B 3\" (#67) would undercut a two-part pull over 1.7 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm B 4\" (#68) would undercut a two-part pull over 3.0 mm² (worst -72°) — fine for investment, but this pattern cannot move to sand as-is.",
+      "Lost wax: Twisted sweep \"Prickle, arm B 5\" (#69) would undercut a two-part pull over 2.0 mm² (worst -75°) — fine for investment, but this pattern cannot move to sand as-is."
     ],
     "thinnest_wall_mm": 0.2920315724416849,
     "thinnest_wall_theta_deg": 85.78125,
-    "undercut_percent_reported_only": 17.087070549786468,
+    "undercut_percent_reported_only": 23.014329922176973,
     "verdict": "Castable with care"
   },
   "gates": [
@@ -226,7 +289,7 @@
     },
     {
       "gate": "every CAD part closed without crossings",
-      "pass": true
+      "pass": false
     },
     {
       "gate": "solids and parts notes empty, every stamp resolved, every feature Ok",
@@ -250,7 +313,7 @@
     },
     {
       "gate": "stones reported equal the preview, no metal inside a stone, crowding clean",
-      "pass": true
+      "pass": false
     },
     {
       "gate": "gates hold at 384 x 192",
@@ -275,15 +338,15 @@
     "self_crossings": 0,
     "watertight": true
   },
-  "grams_18k": 11.806978004382456,
+  "grams_18k": 13.82874599848618,
   "layers": [],
   "made_parts": [
     [
-      "Pear 7 × 5",
+      "Round 5.5 mm",
       0
     ],
     [
-      "Bud collet",
+      "Heart collet",
       0
     ],
     [
@@ -300,66 +363,114 @@
     ],
     [
       "Stem of arm B",
-      0
+      37
     ],
     [
       "Receptacle",
       0
     ],
     [
-      "Bud sepal 1",
+      "Petal 1",
       0
     ],
     [
-      "Bud sepal 2",
+      "Petal 2",
       0
     ],
     [
-      "Bud sepal 3",
+      "Petal 3",
       0
     ],
     [
-      "Bud sepal 4",
+      "Petal 4",
       0
     ],
     [
-      "Bud sepal 5",
+      "Petal 5",
       0
     ],
     [
-      "Bud sepal 6",
+      "Petal 6",
       0
     ],
     [
-      "Bud sepal 7",
+      "Petal 7",
       0
     ],
     [
-      "Dried sepal",
+      "Petal 8",
       0
     ],
     [
-      "Dried sepal crown",
+      "Petal 9",
+      0
+    ],
+    [
+      "Petal 10",
+      0
+    ],
+    [
+      "Petal 11",
+      0
+    ],
+    [
+      "Petal 12",
+      0
+    ],
+    [
+      "Petal 13",
+      0
+    ],
+    [
+      "Petal 14",
+      0
+    ],
+    [
+      "Petal 15",
+      0
+    ],
+    [
+      "Petal 16",
+      0
+    ],
+    [
+      "Petal 17",
+      0
+    ],
+    [
+      "Petal 18",
+      0
+    ],
+    [
+      "Dried sepal 1",
+      0
+    ],
+    [
+      "Dried sepal 2",
+      0
+    ],
+    [
+      "Dried sepal 3",
+      0
+    ],
+    [
+      "Dried sepal 4",
+      0
+    ],
+    [
+      "Dried sepal 5",
+      0
+    ],
+    [
+      "Hip's dried sepal",
+      0
+    ],
+    [
+      "Hip's dried crown",
       0
     ],
     [
       "Hip body",
-      0
-    ],
-    [
-      "Leaf, terminal leaflet",
-      0
-    ],
-    [
-      "Leaf, upper lateral leaflet",
-      0
-    ],
-    [
-      "Leaf, lower lateral leaflet",
-      0
-    ],
-    [
-      "Leaf, rachis",
       0
     ],
     [
@@ -406,119 +517,124 @@
   "name": "Rosa mortua",
   "notes": {
     "parts": [
-      "Prickle, arm A 3: its fillet could not be laid (the bead folds at 10 of 407 stations at its smallest radius, first at 25.5° round the ring, r 11.83 z 0.89 mm in its section, point (10.68, 5.08, 0.89) mm)",
-      "Prickle, arm B 3: its fillet could not be laid (the bead folds at 28 of 1292 stations at its smallest radius, first at 55.3° round the ring, r 11.85 z 0.98 mm in its section, point (6.74, 9.75, 0.98) mm)",
-      "Prickle, arm B 1: its fillet found no seam long enough to follow",
-      "Prickle, arm A 4: its fillet pinches to 0.02 mm at 53 of 119 stations, smallest at 12.7° round the ring, r 11.99 z 0.16 mm in its section, point (11.70, 2.64, 0.16) mm"
+      "Heart collet, Hip collet, Stem of arm A, Stem of arm B, Receptacle, Petal 1, Petal 2, Petal 3, Petal 4, Petal 5, Petal 6, Petal 7, Petal 8, Petal 9, Petal 10, Petal 11, Petal 12, Petal 13, Petal 14, Petal 15, Petal 16, Petal 17, Petal 18, Dried sepal 1, Dried sepal 2, Dried sepal 3, Dried sepal 4, Dried sepal 5, Hip's dried sepal, Hip's dried crown, Hip body, Prickle, arm A 1, Prickle, arm A 2, Prickle, arm A 3, Prickle, arm A 4, Prickle, arm A 5: could not be united with each other (the solids meet degenerately (two cuts cross inside a face)); joined one by one",
+      "Stem of arm B: could not be joined to the band (the solids meet degenerately (two cuts cross inside a face))",
+      "Prickle, arm A 1: its fillet could not be laid (the bead folds at 2 of 171 stations at its smallest radius, first at 25.8° round the ring, r 11.91 z 0.64 mm in its section, point (10.72, 5.19, 0.64) mm)",
+      "Prickle, arm A 1: its fillet could not be laid (the bead folds at 3 of 63 stations at its smallest radius, first at 23.3° round the ring, r 12.58 z 1.20 mm in its section, point (11.56, 4.97, 1.20) mm)",
+      "Prickle, arm A 2: its fillet could not be laid (the bead folds at 15 of 175 stations at its smallest radius, first at 12.2° round the ring, r 11.99 z 0.18 mm in its section, point (11.72, 2.54, 0.18) mm)",
+      "Prickle, arm A 3: its fillet could not be laid (the bead folds at 7 of 146 stations at its smallest radius, first at 7.5° round the ring, r 11.95 z 0.40 mm in its section, point (11.85, 1.56, 0.40) mm)",
+      "Prickle, arm A 4: its fillet pinches to 0.02 mm at 27 of 118 stations, smallest at 356.8° round the ring, r 11.99 z -0.20 mm in its section, point (11.97, -0.67, -0.20) mm",
+      "Prickle, arm B 1: its fillet pinches to 0.02 mm at 74 of 261 stations, smallest at 145.5° round the ring, r 11.98 z 0.18 mm in its section, point (-9.87, 6.78, 0.18) mm",
+      "Prickle, arm B 3: its fillet pinches to 0.02 mm at 63 of 246 stations, smallest at 162.6° round the ring, r 11.97 z 0.24 mm in its section, point (-11.43, 3.58, 0.24) mm"
     ],
     "solids": []
   },
   "pattern": {
     "degenerate_faces": 0,
     "self_crossings": 0,
-    "triangles": 510726,
+    "triangles": 652040,
     "watertight": true
   },
   "placed": {
-    "bud": {
+    "bloom": {
       "across_mm": 0.81,
-      "nod_deg": 25.0,
-      "theta_deg": 115.0
+      "petals": 18,
+      "theta_deg": 97.0
     },
     "hip": {
-      "across_mm": -0.81,
-      "theta_deg": 65.0
+      "across_mm": -0.3,
+      "theta_deg": 38.0
     },
     "prickles": [
       {
-        "across_mm": 0.69279169393705,
-        "arm": "A",
-        "id": 40,
-        "on_stem": false,
-        "scale": 1.0,
-        "spin_deg": 205.0,
-        "theta_deg": 40.0
-      },
-      {
-        "across_mm": 0.5326506195989766,
-        "arm": "A",
-        "id": 41,
-        "on_stem": false,
-        "scale": 0.9,
-        "spin_deg": 155.0,
-        "theta_deg": 31.0
-      },
-      {
         "across_mm": 0.29798476825132386,
         "arm": "A",
-        "id": 42,
+        "id": 60,
         "on_stem": false,
-        "scale": 0.8,
+        "scale": 1.0,
         "spin_deg": 205.0,
         "theta_deg": 20.0
       },
       {
         "across_mm": 0.1478140319628726,
         "arm": "A",
-        "id": 43,
+        "id": 61,
         "on_stem": false,
-        "scale": 0.7,
+        "scale": 0.9,
         "spin_deg": 155.0,
         "theta_deg": 12.0
       },
       {
-        "across_mm": 0.031033304884869405,
+        "across_mm": 0.038503173368239434,
         "arm": "A",
-        "id": 44,
+        "id": 62,
+        "on_stem": false,
+        "scale": 0.8,
+        "spin_deg": 205.0,
+        "theta_deg": 3.0
+      },
+      {
+        "across_mm": 0.0013847852918426845,
+        "arm": "A",
+        "id": 63,
+        "on_stem": false,
+        "scale": 0.7,
+        "spin_deg": 155.0,
+        "theta_deg": 354.0
+      },
+      {
+        "across_mm": 0.0,
+        "arm": "A",
+        "id": 64,
         "on_stem": false,
         "scale": 0.6,
         "spin_deg": 205.0,
-        "theta_deg": 2.0
+        "theta_deg": 346.0
       },
       {
-        "across_mm": -0.5120152317486762,
+        "across_mm": -0.7199343770571788,
         "arm": "B",
-        "id": 45,
+        "id": 65,
         "on_stem": false,
         "scale": 1.0,
         "spin_deg": 25.0,
-        "theta_deg": 150.0
+        "theta_deg": 138.0
       },
       {
-        "across_mm": -0.3402288162789314,
+        "across_mm": -0.5726207011840306,
         "arm": "B",
-        "id": 46,
+        "id": 66,
         "on_stem": false,
         "scale": 0.9,
         "spin_deg": -25.0,
-        "theta_deg": 158.0
+        "theta_deg": 147.0
       },
       {
-        "across_mm": -0.16432682006306898,
+        "across_mm": -0.36170151096566905,
         "arm": "B",
-        "id": 47,
+        "id": 67,
         "on_stem": false,
         "scale": 0.8,
         "spin_deg": 25.0,
-        "theta_deg": 167.0
+        "theta_deg": 157.0
       },
       {
-        "across_mm": -0.038503173368239434,
+        "across_mm": -0.18158947143452134,
         "arm": "B",
-        "id": 48,
+        "id": 68,
         "on_stem": false,
         "scale": 0.7,
         "spin_deg": -25.0,
-        "theta_deg": 177.0
+        "theta_deg": 166.0
       },
       {
-        "across_mm": -0.002644656988159695,
+        "across_mm": -0.04691520000000001,
         "arm": "B",
-        "id": 49,
+        "id": 69,
         "on_stem": false,
         "scale": 0.6,
         "spin_deg": 25.0,
-        "theta_deg": 185.0
+        "theta_deg": 176.0
       }
     ],
     "stems": {
@@ -529,8 +645,8 @@
           0.778966695115131
         ],
         [
-          -4.147320320216598,
-          10.804138813978655,
+          -0.6070610112575144,
+          11.583414133595145,
           0.81
         ]
       ],
@@ -541,9 +657,9 @@
           -0.778966695115131
         ],
         [
-          4.147320320216599,
-          10.804138813978655,
-          -0.81
+          8.633504567717003,
+          7.773642429236263,
+          -0.30000000000000004
         ]
       ]
     }
@@ -551,213 +667,297 @@
   "process": "Lost wax",
   "ray_walls": [
     {
-      "below_floor": 2,
-      "part": "Pear 7 × 5",
-      "rays": 296,
-      "sampled_min_mm": 0.6461457871876035,
+      "below_floor": 0,
+      "part": "Round 5.5 mm",
+      "rays": 9429,
+      "sampled_min_mm": 0.7458450663340268,
       "unresolved": 0
     },
     {
-      "below_floor": 122,
-      "part": "Bud collet",
-      "rays": 333,
-      "sampled_min_mm": 0.17896166056658902,
+      "below_floor": 3481,
+      "part": "Heart collet",
+      "rays": 21689,
+      "sampled_min_mm": 0.08672501392896223,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Round cabochon 6 mm",
-      "rays": 307,
-      "sampled_min_mm": 1.6184016156613232,
+      "rays": 12055,
+      "sampled_min_mm": 0.11205605777423183,
       "unresolved": 0
     },
     {
-      "below_floor": 135,
+      "below_floor": 5804,
       "part": "Hip collet",
-      "rays": 346,
-      "sampled_min_mm": 0.5604053544849716,
+      "rays": 19283,
+      "sampled_min_mm": 0.402571366465068,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Stem of arm A",
-      "rays": 384,
-      "sampled_min_mm": 2.092861431061568,
+      "rays": 9265,
+      "sampled_min_mm": 0.2614265720388739,
       "unresolved": 0
     },
     {
-      "below_floor": 0,
+      "below_floor": 68,
       "part": "Stem of arm B",
-      "rays": 384,
-      "sampled_min_mm": 2.0928680804442332,
-      "unresolved": 0
+      "rays": 18214,
+      "sampled_min_mm": 0.0006893141743309285,
+      "unresolved": 56
     },
     {
-      "below_floor": 0,
+      "below_floor": 2,
       "part": "Receptacle",
-      "rays": 380,
-      "sampled_min_mm": 3.0952648938217737,
+      "rays": 13523,
+      "sampled_min_mm": 0.49630543315924824,
       "unresolved": 0
     },
     {
-      "below_floor": 354,
-      "part": "Bud sepal 1",
-      "rays": 360,
-      "sampled_min_mm": 0.042573395475025665,
+      "below_floor": 696,
+      "part": "Petal 1",
+      "rays": 4091,
+      "sampled_min_mm": 0.0027009321772272572,
       "unresolved": 0
     },
     {
-      "below_floor": 354,
-      "part": "Bud sepal 2",
-      "rays": 360,
-      "sampled_min_mm": 0.04256966041806287,
+      "below_floor": 980,
+      "part": "Petal 2",
+      "rays": 4007,
+      "sampled_min_mm": 0.0017452156702558901,
       "unresolved": 0
     },
     {
-      "below_floor": 354,
-      "part": "Bud sepal 3",
-      "rays": 360,
-      "sampled_min_mm": 0.042576353791728694,
+      "below_floor": 681,
+      "part": "Petal 3",
+      "rays": 3836,
+      "sampled_min_mm": 0.002711106775521815,
       "unresolved": 0
     },
     {
-      "below_floor": 354,
-      "part": "Bud sepal 4",
-      "rays": 360,
-      "sampled_min_mm": 0.04258085917764235,
+      "below_floor": 933,
+      "part": "Petal 4",
+      "rays": 3968,
+      "sampled_min_mm": 0.0014724437973331482,
       "unresolved": 0
     },
     {
-      "below_floor": 354,
-      "part": "Bud sepal 5",
-      "rays": 360,
-      "sampled_min_mm": 0.04256193870446962,
+      "below_floor": 726,
+      "part": "Petal 5",
+      "rays": 4070,
+      "sampled_min_mm": 0.0029785181562743054,
       "unresolved": 0
     },
     {
-      "below_floor": 354,
-      "part": "Bud sepal 6",
-      "rays": 360,
-      "sampled_min_mm": 0.042579989655445176,
+      "below_floor": 1386,
+      "part": "Petal 6",
+      "rays": 5420,
+      "sampled_min_mm": 0.001573883248257953,
       "unresolved": 0
     },
     {
-      "below_floor": 354,
-      "part": "Bud sepal 7",
-      "rays": 360,
-      "sampled_min_mm": 0.04258088482932767,
+      "below_floor": 1179,
+      "part": "Petal 7",
+      "rays": 5667,
+      "sampled_min_mm": 0.0015247023932458317,
       "unresolved": 0
     },
     {
-      "below_floor": 337,
-      "part": "Dried sepal",
-      "rays": 355,
-      "sampled_min_mm": 0.16145960677813395,
+      "below_floor": 1374,
+      "part": "Petal 8",
+      "rays": 5572,
+      "sampled_min_mm": 0.0030142070047263748,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1753,
+      "part": "Petal 9",
+      "rays": 5458,
+      "sampled_min_mm": 0.002072648848770799,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1445,
+      "part": "Petal 10",
+      "rays": 5064,
+      "sampled_min_mm": 0.002072113918152939,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1225,
+      "part": "Petal 11",
+      "rays": 5139,
+      "sampled_min_mm": 0.0032599294648456567,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1986,
+      "part": "Petal 12",
+      "rays": 5954,
+      "sampled_min_mm": 0.0032935700528200166,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1871,
+      "part": "Petal 13",
+      "rays": 5981,
+      "sampled_min_mm": 0.0015866687141802677,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1734,
+      "part": "Petal 14",
+      "rays": 6092,
+      "sampled_min_mm": 0.0028298618511119057,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1564,
+      "part": "Petal 15",
+      "rays": 5930,
+      "sampled_min_mm": 0.0015164005802783143,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1579,
+      "part": "Petal 16",
+      "rays": 5967,
+      "sampled_min_mm": 0.001499283453696248,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1584,
+      "part": "Petal 17",
+      "rays": 5975,
+      "sampled_min_mm": 0.002933033754487179,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1516,
+      "part": "Petal 18",
+      "rays": 5864,
+      "sampled_min_mm": 0.0018305576952841018,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 480,
+      "part": "Dried sepal 1",
+      "rays": 2255,
+      "sampled_min_mm": 0.025345390492352016,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 448,
+      "part": "Dried sepal 2",
+      "rays": 2164,
+      "sampled_min_mm": 0.025347547503962838,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 470,
+      "part": "Dried sepal 3",
+      "rays": 2200,
+      "sampled_min_mm": 0.02537833043403937,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 485,
+      "part": "Dried sepal 4",
+      "rays": 2285,
+      "sampled_min_mm": 0.025360406361612874,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 486,
+      "part": "Dried sepal 5",
+      "rays": 2324,
+      "sampled_min_mm": 0.02534688572726708,
+      "unresolved": 0
+    },
+    {
+      "below_floor": 1106,
+      "part": "Hip's dried sepal",
+      "rays": 2185,
+      "sampled_min_mm": 0.01903445645301547,
       "unresolved": 0
     },
     {
       "below_floor": 0,
       "part": "Hip body",
-      "rays": 380,
-      "sampled_min_mm": 2.4811765110204873,
+      "rays": 8862,
+      "sampled_min_mm": 2.4272333610977928,
       "unresolved": 0
     },
     {
-      "below_floor": 353,
-      "part": "Leaf, terminal leaflet",
-      "rays": 377,
-      "sampled_min_mm": 0.08736415399444791,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 353,
-      "part": "Leaf, upper lateral leaflet",
-      "rays": 377,
-      "sampled_min_mm": 0.14533674960882736,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 355,
-      "part": "Leaf, lower lateral leaflet",
-      "rays": 377,
-      "sampled_min_mm": 0.14554173821478888,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 224,
-      "part": "Leaf, rachis",
-      "rays": 272,
-      "sampled_min_mm": 0.5992608817748403,
-      "unresolved": 0
-    },
-    {
-      "below_floor": 93,
+      "below_floor": 206,
       "part": "Prickle, arm A 1",
-      "rays": 271,
-      "sampled_min_mm": 0.1654892499671944,
+      "rays": 3441,
+      "sampled_min_mm": 0.01034315635027081,
       "unresolved": 0
     },
     {
-      "below_floor": 115,
+      "below_floor": 229,
       "part": "Prickle, arm A 2",
-      "rays": 271,
-      "sampled_min_mm": 0.15052594203489533,
+      "rays": 2794,
+      "sampled_min_mm": 0.004703797738791866,
       "unresolved": 0
     },
     {
-      "below_floor": 140,
+      "below_floor": 251,
       "part": "Prickle, arm A 3",
-      "rays": 271,
-      "sampled_min_mm": 0.13556244309692914,
+      "rays": 2254,
+      "sampled_min_mm": 0.008472542315201241,
       "unresolved": 0
     },
     {
-      "below_floor": 174,
+      "below_floor": 277,
       "part": "Prickle, arm A 4",
-      "rays": 271,
-      "sampled_min_mm": 0.12059838973262535,
+      "rays": 1805,
+      "sampled_min_mm": 0.007537371526282636,
       "unresolved": 0
     },
     {
-      "below_floor": 201,
+      "below_floor": 310,
       "part": "Prickle, arm A 5",
-      "rays": 271,
-      "sampled_min_mm": 0.18414351539601725,
+      "rays": 1386,
+      "sampled_min_mm": 0.006602013905730212,
       "unresolved": 0
     },
     {
-      "below_floor": 93,
+      "below_floor": 200,
       "part": "Prickle, arm B 1",
-      "rays": 271,
-      "sampled_min_mm": 0.16548642006219905,
+      "rays": 3384,
+      "sampled_min_mm": 0.010342802779559058,
       "unresolved": 0
     },
     {
-      "below_floor": 115,
+      "below_floor": 218,
       "part": "Prickle, arm B 2",
-      "rays": 271,
-      "sampled_min_mm": 0.1505237909271847,
+      "rays": 2727,
+      "sampled_min_mm": 0.009407778032087977,
       "unresolved": 0
     },
     {
-      "below_floor": 140,
+      "below_floor": 246,
       "part": "Prickle, arm B 3",
-      "rays": 271,
-      "sampled_min_mm": 0.13556118934686873,
+      "rays": 2192,
+      "sampled_min_mm": 0.00847253425789349,
       "unresolved": 0
     },
     {
-      "below_floor": 174,
+      "below_floor": 288,
       "part": "Prickle, arm B 4",
-      "rays": 271,
-      "sampled_min_mm": 0.12059526087445578,
+      "rays": 1707,
+      "sampled_min_mm": 0.007537103582648709,
       "unresolved": 0
     },
     {
-      "below_floor": 201,
+      "below_floor": 299,
       "part": "Prickle, arm B 5",
-      "rays": 271,
-      "sampled_min_mm": 0.1841435645437475,
+      "rays": 1270,
+      "sampled_min_mm": 0.006602209614804007,
       "unresolved": 0
     }
   ],
@@ -768,16 +968,16 @@
     "resolved": 0
   },
   "stones": {
-    "carats": 1.449080897391522,
+    "carats": 1.5249611473915219,
     "crowding": [],
     "metal_inside": [
       [
-        "Pear 7 × 5",
+        "Round 5.5 mm",
         0
       ],
       [
         "Round cabochon 6 mm",
-        0
+        50
       ]
     ],
     "previewed": 2,

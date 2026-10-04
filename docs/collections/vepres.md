@@ -474,6 +474,7 @@ That is expected for most Vepres rings. Say so in each README line.
 - **Process:** Lost wax. The sepal claws and wisps overhang, and the prickles ride arm crests that slide along the finger ("the crest wanders in v": 3% at 50°).
   - 2026-10-03 (Logan's rule): judged as lost wax, 0.8 mm minimum section, no pull rule; the process was never in question. No extra rounds granted.
   - 2026-10-03 block-out: three read tests failed (`showcase/vepres/rosa-mortua/read-test-{1,2,3}.json`); stopped before round 1 for a rethink of the subject (see `cloud-report.md` on `claude/vepres-rosa-mortua`).
+  - 2026-10-04 (Logan): concept changed to **the withered open bloom**, a dead rose head with the ruby as its heart, petals dried, curled and drooping, on the bypass dome; the hip stays. Lost wax (a sand pass is a bonus). A fresh block-out with up to three more read tests (numbered 4 to 6), then the three reviewed rounds on a read. No extra rounds granted.
 
 - **Stones:**
   - Bud: ruby pear 7 × 5, `Gem::calibrated(GemCut::Pear, 5.0)` with `l_mm` 7. Until C-B2, the pear plan is an ellipse (`plan_pow` 2.0), so use an oval 7 × 5.
