@@ -1,0 +1,28 @@
+{
+  "ring": "ouroborus",
+  "mode": "read-test",
+  "attempt": 9,
+  "subject": "Ouroborus cataphractus, the armadillo girdled lizard, biting its tail (Logan's confirmed subject, 2026-10-03)",
+  "reads": false,
+  "what_the_eye_sees": "Hero at 300 px: a scaled reptile coiled round the finger, with its head at about 12-1 o'clock where the coil closes. The bite still reads: the tail thins down the right side and runs up into the jaws. The head is a squared block with a sunken eye socket and a boxy snout, so it reads as a dragon or crested-serpent head, not a broad, flat lizard head. The limbs still do not read as limbs. At about 9 o'clock a thin, straight, horizontal rod sticks out past the left outline, ending in a knob. At about 4-5 o'clock a smaller peg sits on the right edge. Both are straight, with no elbow, no hand and no toes, so they look like hinge pins or the pins of a hinged bangle clasp, not legs. The girdles are still even, square-topped blocks all the way round, with little grading and no bristle on the outer edge, so the hide reads as crocodile or dragon armour. A jeweller without the caption would say 'dragon' or 'snake ouroboros ring', possibly 'hinged bangle', not 'lizard'. Face at 300 px: this view fails worst. The middle of the frame is a coffin- or lantern-shaped shield tiled with kite plates, widest across the middle, with short horizontal prongs standing out at its lower corners. Left of it is a squared, toothy block, and on the right the tail is a row of even ribs like a spring or a threaded rod. Nothing tapers from a broad back to a snout, and nothing is an elbow or a hand gripping the flank. The whole view reads as hardware, an insect or a buckle clamped onto a ribbed rod. The other contact-sheet views confirm it: the limbs are straight pins, and the head is a box. This is the last block-out attempt Logan granted (7-9), and none of the three read tests' top two changes (real bent limbs with hands, and a wedge head in plan) has landed. Nobody would name a lizard from these two views.",
+  "changes": [
+    {
+      "priority": 1,
+      "what": "Replace the straight pins with real bent limbs that have hands. Today each limb is one straight rod ending in a knob, which reads as a hinge pin. Each limb should run from a rounded shoulder or hip into a thick upper arm or thigh, bend at a clear elbow or knee, and end in a broad hand or foot with splayed toes clamped onto the flank.",
+      "where": "Forelegs behind the head (theta about 125-145 deg; the rod at 9 o'clock in hero-300 and the corner prongs of the shield in face-300) and hind legs at the hips (theta about 230-250 deg; the peg at 4-5 o'clock in hero-300). Both sides.",
+      "by_how_much": "Upper arm or thigh 1.4-1.6 mm thick and forearm or shin 1.1-1.2 mm, at least 3x today's rods. Bend the elbow or knee 70-100 deg, pointing outward and back, standing 1.0-1.5 mm proud of the side face. End each limb in 4-5 toes, each at least 0.5 mm thick, splayed over a 2.0-2.5 mm span, with the claws curled down onto the side face. Remove the knob ends, and blend each shoulder and hip into the body with a fillet of at least 0.5 mm. Acceptance: in hero-300 a bent leg with a visible splayed hand breaks the outline beside the head, and another does the same at the hips. Nobody calls them pins, rods, prongs or a clasp."
+    },
+    {
+      "priority": 2,
+      "what": "Re-cut the head as a flat triangular lizard's wedge, widest at the back and pointed at the snout. Today it is a squared block in hero-300 and a coffin-shaped shield in face-300.",
+      "where": "Lizard head part, theta about 93-125 deg: the plan outline of both flanks, the crown height, and the squared snout block.",
+      "by_how_much": "In plan, taper the flanks in straight lines from about 1.35x the band width at the occipital line (about 120 deg) to 0.45-0.5x at the snout (about 93 deg), so the head is about 1.4x as long as it is wide. Lower the crown by at least 40% so the top reads flat. Put 3-4 occipital spines on the back edge, pointing back and out and breaking the outline by 0.4-0.6 mm, and pinch a neck behind them to about 0.8x the head width. Add a domed eye bulge 0.3-0.4 mm proud of each flank, about 60% of the head length back from the snout. Acceptance: face-300 shows a flat triangle, broad and spiny at the back and pointed at the snout, with eye bumps on its outline. Nobody calls it a shield, a coffin or a lantern."
+    },
+    {
+      "priority": 3,
+      "what": "Grade the girdles and give them spines, and dress the tail as a tail rather than a spring.",
+      "where": "Girdle tiling from theta 125 deg through the palm to about 78 deg; the tail tip at 78-93 deg.",
+      "by_how_much": "Round each square girdle top into a loaf with a radius of at least half its height. Raise the trailing-edge spines to 0.4-0.6 mm, pointing tailward. Make the pitch fall visibly from 2.6 mm at the nape to 1.0 mm at the tail. On the last 15 deg of the tail, use small overlapping scales whose spines are 0.2 mm or less. Acceptance: in hero-300 the outer edge bristles and the scales shrink toward the jaws. In face-300 the tail no longer reads as a spring or a threaded rod."
+    }
+  ]
+}
