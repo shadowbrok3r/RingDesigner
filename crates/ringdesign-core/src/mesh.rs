@@ -2,7 +2,8 @@
 //!
 //! Both grid directions wrap — the cross-section is a closed loop and the sweep
 //! closes at 360° — so the result has torus topology and is watertight with no
-//! cap geometry and no special cases.
+//! cap geometry and no special cases. An open band sweeps its arc instead and
+//! closes each end with a flat cap of its own end section.
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -374,12 +375,17 @@ pub fn try_build_with(design: &RingDesign, lib: &AlphaLibrary, params: BuildPara
 
 /// The band as swept: an imported base's own build, else the procedural sweep.
 fn swept(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> anyhow::Result<BuildResult> {
-    if design.imported_base.is_some() { crate::imported_base::build(design, lib, params) } else { Ok(build_band(design, lib, params)) }
+    if design.imported_base.is_some() {
+        anyhow::ensure!(design.opening.is_none(), "An opening is cut in a swept band; an imported stock cannot open");
+        crate::imported_base::build(design, lib, params)
+    } else {
+        Ok(build_band(design, lib, params))
+    }
 }
 
-/// Whether two designs sweep the same band: the same base, size, section, shank and layers.
+/// Whether two designs sweep the same band: the same base, size, section, shank, layers and opening.
 fn same_band(a: &RingDesign, b: &RingDesign) -> bool {
-    let key = |d: &RingDesign| serde_json::to_vec(&(&d.imported_base, &d.size, &d.profile, &d.shank, &d.layers)).ok();
+    let key = |d: &RingDesign| serde_json::to_vec(&(&d.imported_base, &d.size, &d.profile, &d.shank, &d.layers, &d.opening)).ok();
     key(a).is_some_and(|k| key(b).is_some_and(|l| k == l))
 }
 
@@ -445,12 +451,25 @@ fn resolve_solids(design: &RingDesign, lib: &AlphaLibrary, built: &mut BuildResu
     built.solids = applied;
 }
 
+/// The swept grid an open band builds at in place of refinement: Export's 1024 x 320 at 0.02 mm, growing as the square root of the tolerance falls.
+pub fn open_refine_grid(tolerance_mm: f64) -> (usize, usize) {
+    let scale = (0.02 / if tolerance_mm.is_finite() { tolerance_mm.max(1e-4) } else { 0.02 }).sqrt();
+    (((1024.0 * scale) as usize).clamp(384, 2048), ((320.0 * scale) as usize).clamp(144, 640))
+}
+
 pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildParams) -> BuildResult {
     let started = BuildClock::start();
     SWEEPS.with(|s| s.set(s.get() + 1));
-    if let Some(rp) = params.refine {
-        return build_refined(design, lib, params, rp, started);
-    }
+    let arc = design.sweep_arc();
+    let closed = arc.is_closed();
+    let params = match params.refine {
+        Some(rp) if closed => return build_refined(design, lib, params, rp, started),
+        Some(rp) => {
+            let (theta_steps, profile_steps) = open_refine_grid(rp.tolerance_mm);
+            BuildParams { theta_steps, profile_steps, refine: None, ..params }
+        }
+        None => params,
+    };
 
     let n_theta = params.theta_steps.clamp(24, 4096);
     let n_prof = params.profile_steps.clamp(24, 1024);
@@ -470,17 +489,27 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
     // `None` is the whole equal-arc-length path, not a flat density: with
     // adaptive off the cross-section must not redistribute by curvature either.
     let field_v = params.adaptive.then_some(&spacing.v);
-    let cell_u = if design.crisp_relief { ctx.circumference_mm / n_theta as f64 } else { 0.0 };
+    // Each column's ring angle and share of the turn: the spacing's round a closed ring, even steps along an open arc.
+    let stations: Vec<(f64, f64)> = if closed {
+        spacing.theta.iter().map(|&frac| (frac * 360.0, frac)).collect()
+    } else {
+        arc.stations(arc.columns(n_theta))
+    };
+    let n_cols = stations.len();
+    let cell_u = match (design.crisp_relief, closed) {
+        (false, _) => 0.0,
+        (true, true) => ctx.circumference_mm / n_theta as f64,
+        (true, false) => ctx.circumference_mm * arc.span_deg / 360.0 / (n_cols - 1) as f64,
+    };
 
     // --- Sweep: one displaced cross-section per angular step. ---
     #[cfg(feature = "parallel")]
-    let theta_iter = (0..n_theta).into_par_iter();
+    let theta_iter = (0..n_cols).into_par_iter();
     #[cfg(not(feature = "parallel"))]
-    let theta_iter = 0..n_theta;
+    let theta_iter = 0..n_cols;
     let rings: Vec<RingSlice> = theta_iter
         .map(|i| {
-            let frac = spacing.theta[i];
-            let theta = frac * 360.0;
+            let (theta, frac) = stations[i];
             let (sin_t, cos_t) = theta.to_radians().sin_cos();
             let m = design.modulation_at(theta, inner_r, reference.crest_radius_mm);
             let loop_i =
@@ -515,9 +544,9 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
         })
         .collect();
 
-    // --- Triangulate the torus grid. ---
+    // --- Triangulate the torus grid, or the open arc's and its two caps. ---
     let p = n_prof;
-    let mut vertices: Vec<Vec3> = Vec::with_capacity(n_theta * p);
+    let mut vertices: Vec<Vec3> = Vec::with_capacity(n_cols * p);
     let mut max_relief = 0.0f64;
     let mut min_relief = 0.0f64;
     for slice in &rings {
@@ -527,9 +556,10 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
     }
 
     let idx = |i: usize, j: usize| -> u32 { (i * p + j) as u32 };
-    let mut faces: Vec<[u32; 3]> = Vec::with_capacity(n_theta * p * 2);
-    for i in 0..n_theta {
-        let i1 = (i + 1) % n_theta;
+    let cells = if closed { n_cols } else { n_cols - 1 };
+    let mut faces: Vec<[u32; 3]> = Vec::with_capacity(cells * p * 2);
+    for i in 0..cells {
+        let i1 = (i + 1) % n_cols;
         for j in 0..p {
             let j1 = (j + 1) % p;
             let a = idx(i, j);
@@ -541,8 +571,15 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
         }
     }
 
-    let normals = grid_normals(&vertices, n_theta, p);
-    let mesh = Mesh { vertices, normals, faces, ..Default::default() };
+    let mut normals = grid_normals(&vertices, n_cols, p, closed);
+    let mut corner_normals = Vec::new();
+    if !closed {
+        for (column, outward) in [(0, -1.0), (n_cols - 1, 1.0)] {
+            let theta = stations[column].0;
+            cap_end(&mut vertices, &mut normals, &mut faces, &mut corner_normals, column * p, p, theta, outward);
+        }
+    }
+    let mesh = Mesh { vertices, normals, faces, corner_normals, ..Default::default() };
 
     let bounds = mesh.bounds().unwrap_or_default();
     let bounds_mm = [
@@ -568,7 +605,62 @@ pub(crate) fn build_band(design: &RingDesign, lib: &AlphaLibrary, params: BuildP
         quality: mesh.quality(),
     };
 
+    let spacing = if closed { spacing } else { Spacing { theta: stations.iter().map(|s| s.1).collect(), v: spacing.v } };
     BuildResult { mesh, report, reference, spacing, solids: Default::default(), parts: Default::default(), band: None }
+}
+
+/// Close an open sweep's end: the `p`-vertex loop from `first` filled flat, facing `outward` along the ring (-1 start, 1 end), its normal kept as a crease.
+#[allow(clippy::too_many_arguments)]
+fn cap_end(
+    vertices: &mut Vec<Vec3>,
+    normals: &mut Vec<Vec3>,
+    faces: &mut Vec<[u32; 3]>,
+    corner_normals: &mut Vec<(u32, [Vec3; 3])>,
+    first: usize,
+    p: usize,
+    theta_deg: f64,
+    outward: f64,
+) {
+    let (sin_t, cos_t) = theta_deg.to_radians().sin_cos();
+    let flat = Vec3((-outward * sin_t) as f32, (outward * cos_t) as f32, 0.0);
+    let rz: Vec<[f64; 2]> = vertices[first..first + p]
+        .iter()
+        .map(|v| [(v.0 as f64).hypot(v.1 as f64), v.2 as f64])
+        .collect();
+    let area: f64 = (0..p)
+        .map(|j| {
+            let (a, b) = (rz[j], rz[(j + 1) % p]);
+            a[0] * b[1] - b[0] * a[1]
+        })
+        .sum();
+    let at = |j: u32| first as u32 + j;
+    // Counter-clockwise in (r, z) faces back along the ring; a loop wound the other way is followed as it runs.
+    let mut tris: Vec<[u32; 3]> = match crate::cad::twist::fill(&rz, "Open band") {
+        Ok(t) if area >= 0.0 => t.into_iter().map(|[a, b, c]| [at(a), at(b), at(c)]).collect(),
+        Ok(t) => t.into_iter().map(|[a, b, c]| [at(a), at(c), at(b)]).collect(),
+        Err(e) => {
+            log::warn!("open band cap fanned from its centre: {e}");
+            let (mut cr, mut cz) = (0.0, 0.0);
+            for q in &rz {
+                cr += q[0];
+                cz += q[1];
+            }
+            let (cr, cz) = (cr / p as f64, cz / p as f64);
+            let centre = vertices.len() as u32;
+            vertices.push(Vec3((cr * cos_t) as f32, (cr * sin_t) as f32, cz as f32));
+            normals.push(flat);
+            (0..p as u32).map(|j| [centre, at(j), at((j + 1) % p as u32)]).collect()
+        }
+    };
+    if outward > 0.0 {
+        for t in &mut tris {
+            t.swap(1, 2);
+        }
+    }
+    for t in tris {
+        corner_normals.push((faces.len() as u32, [flat; 3]));
+        faces.push(t);
+    }
 }
 
 /// Build by refining the `(u, s)` domain to a tolerance rather than sweeping a
@@ -657,7 +749,7 @@ fn tangent(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> [f64; 3] {
     std::array::from_fn(|k| h1 * h1 * ahead[k] + h2 * h2 * back[k])
 }
 
-pub(crate) fn grid_normals(vertices: &[Vec3], n_theta: usize, n_prof: usize) -> Vec<Vec3> {
+pub(crate) fn grid_normals(vertices: &[Vec3], n_theta: usize, n_prof: usize, closed: bool) -> Vec<Vec3> {
     debug_assert_eq!(vertices.len(), n_theta * n_prof);
     let at = |i: usize, j: usize| {
         let v = vertices[(i % n_theta) * n_prof + (j % n_prof)];
@@ -665,7 +757,12 @@ pub(crate) fn grid_normals(vertices: &[Vec3], n_theta: usize, n_prof: usize) -> 
     };
     let row = |i: usize| {
         (0..n_prof).map(move |j| {
-            let tu = tangent(at(i + n_theta - 1, j), at(i, j), at(i + 1, j));
+            // One-sided at an open sweep's two end columns.
+            let tu = match (closed, i) {
+                (false, 0) => sub(at(1, j), at(0, j)),
+                (false, last) if last + 1 == n_theta => sub(at(last, j), at(last - 1, j)),
+                _ => tangent(at(i + n_theta - 1, j), at(i, j), at(i + 1, j)),
+            };
             let ts = tangent(at(i, j + n_prof - 1), at(i, j), at(i, j + 1));
             // `e_theta x e_profile` points outward, matching the winding.
             let n = cross(tu, ts);

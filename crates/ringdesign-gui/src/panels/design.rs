@@ -116,6 +116,41 @@ fn ring(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             .color(theme::TEXT_DIM),
         );
     });
+
+    opening(app, ui);
+}
+
+/// The band left open into a cuff: a toggle, the gap across the bore and where it is centred.
+fn opening(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    use ringdesign_core::opening::{MIN_GAP_MM, Opening};
+    let bore = app.design.size.inner_diameter_mm();
+    let mut open = app.design.opening.is_some();
+    let toggled = ui
+        .checkbox(&mut open, "Open band")
+        .on_hover_text("A cuff: the band stops either side of a gap, each end a flat face standing along the pull.")
+        .changed();
+    if toggled && ui.is_enabled() {
+        app.design.opening = open.then(|| Opening::for_bore(bore));
+        app.mark_dirty();
+    }
+    let Some(o) = app.design.opening.as_mut() else { return };
+    let mut changed = ringdesign_workbench::controls::slider(ui, "Gap", egui::Slider::new(&mut o.gap_mm, MIN_GAP_MM..=(bore * 0.95).max(MIN_GAP_MM))
+            .clamping(egui::SliderClamping::Edits)
+            .suffix(" mm")
+            .fixed_decimals(1))
+        .on_hover_text("The opening's width, a chord across the bore.")
+        .changed();
+    changed |= ringdesign_workbench::controls::slider(ui, "Centred at", egui::Slider::new(&mut o.centre_deg, 0.0..=360.0)
+            .clamping(egui::SliderClamping::Edits)
+            .suffix("°")
+            .fixed_decimals(0))
+        .on_hover_text("Where the gap is centred; 270° is the back, opposite the top.")
+        .changed();
+    let arc = app.design.sweep_arc();
+    hint(ui, format!("The band runs {:.0}° of the ring, ending at {:.1}° and {:.1}°.", arc.span_deg, arc.start_deg, arc.end_deg()));
+    if changed && ui.is_enabled() {
+        app.mark_dirty();
+    }
 }
 
 // --- Profile ---------------------------------------------------------------
@@ -834,9 +869,13 @@ fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         let width = app.design.profile.width_mm;
         app.design.shank.apply_signet(width);
     }
+    if app.design.shank.kind == ShankKind::Crest && was != ShankKind::Crest {
+        let band = app.design.profile;
+        app.design.shank.apply_crest(&band);
+    }
     hint(ui, app.design.shank.kind.description());
 
-    let uniform = app.design.shank.kind == ShankKind::Uniform;
+    let uniform = matches!(app.design.shank.kind, ShankKind::Uniform | ShankKind::Crest);
     changed |= ui.add_enabled_ui(!uniform,|ui| ringdesign_workbench::controls::slider(ui,"Amount",
         egui::Slider::new(&mut app.design.shank.amount,0.0..=1.0).fixed_decimals(2))).inner.changed();
 
@@ -860,9 +899,40 @@ fn shank(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         changed |= shank_keys(app, ui);
     }
 
+    if app.design.shank.kind == ShankKind::Crest {
+        changed |= crest(app, ui);
+    }
+
     if changed {
         app.mark_dirty();
     }
+}
+
+/// The crest shank's lozenge: its width at the tip, how far and how it falls back to the band, and how proud it stands.
+fn crest(app: &mut RingDesignerApp, ui: &mut egui::Ui) -> bool {
+    use ringdesign_core::profile::CrestShank;
+    let band = app.design.profile;
+    let mut c = app.design.shank.crest.unwrap_or_else(|| CrestShank::for_band(&band));
+    let slider = ringdesign_workbench::controls::slider;
+    let mut changed = slider(ui, "Crest width", egui::Slider::new(&mut c.width_mm, band.width_mm..=(band.width_mm * 3.0).max(band.width_mm + 1.0)).clamping(egui::SliderClamping::Edits).suffix(" mm").fixed_decimals(2))
+        .on_hover_text("Width along the finger at the crest's tip; the band keeps its own width past the flank.")
+        .changed();
+    changed |= slider(ui, "Flank", egui::Slider::new(&mut c.half_deg, 5.0..=150.0).clamping(egui::SliderClamping::Edits).suffix("°").fixed_decimals(1))
+        .on_hover_text("Degrees from the tip at which the flank meets the band.")
+        .changed();
+    changed |= slider(ui, "Fall", egui::Slider::new(&mut c.pow, 0.5..=4.0).clamping(egui::SliderClamping::Edits).fixed_decimals(2))
+        .on_hover_text("How the flank falls from the tip: above 1 it meets the band tangent, below 1 it bellies out.")
+        .changed();
+    changed |= slider(ui, "Tip round", egui::Slider::new(&mut c.tip_deg, 0.0..=10.0).clamping(egui::SliderClamping::Edits).suffix("°").fixed_decimals(2))
+        .on_hover_text("Rounding of the point, degrees.")
+        .changed();
+    changed |= slider(ui, "Rise", egui::Slider::new(&mut c.rise_mm, 0.0..=(band.thickness_mm).max(0.5)).clamping(egui::SliderClamping::Edits).suffix(" mm").fixed_decimals(2))
+        .on_hover_text("Thickness added at the tip, outward.")
+        .changed();
+    if changed {
+        app.design.shank.crest = Some(c);
+    }
+    changed
 }
 
 /// Authored stations for the keyframed shank: a row per key, blended

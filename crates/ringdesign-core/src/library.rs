@@ -50,15 +50,15 @@ pub const DESIGN_EXT: &str = "ring.json";
 // side face, which an earlier build seats by the raw normal or cannot read; a ring of parts alone whose parts carry
 // a fillet, which an earlier build leaves unbeaded; a line array or an array along a path, which an earlier build
 // cannot parse; a part left to the bench with no mark, which an earlier build would mark; an inscription in the
-// Textura face, which an earlier build cannot name; and a bangle's size past US 20, which an earlier build would clamp
-// to a US 20 ring.
+// Textura face, which an earlier build cannot name; a bangle's size past US 20, which an earlier build would clamp
+// to a US 20 ring; and an open band or a crest shank, which an earlier build would close or cannot parse.
 // A design with none of these is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
 /// The version a design carrying none of the format-6 features is written at, so builds that read up to it still open the file.
 pub const PLAIN_FORMAT_VERSION: u32 = 5;
 
-/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a line array or an array along a path, a cut or a fillet on a ring of parts alone, a part placed level, relative to a part or on a side face, a stamp a format-5 build cannot strike, a bench part with no mark, a Textura inscription or a bangle's size.
+/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a line array or an array along a path, a cut or a fillet on a ring of parts alone, a part placed level, relative to a part or on a side face, a stamp a format-5 build cannot strike, a bench part with no mark, a Textura inscription, a bangle's size, an opening or a crest shank.
 pub fn format_version_for(design: &RingDesign) -> u32 {
     if crate::cad::stored::carried_by(design)
         || crate::cad::turns_in_plane(design)
@@ -82,6 +82,9 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| !f.component.mark))
         || design.texts.iter().any(|t| t.font == crate::text::TextFont::Textura)
         || design.size.0 > crate::sizing::MAX_RING_SIZE
+        || design.opening.is_some()
+        || design.shank.kind == crate::ShankKind::Crest
+        || design.shank.crest.is_some()
     {
         FORMAT_VERSION
     } else {
@@ -149,7 +152,9 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
         || (kind == "layer.seatrun" && pin == "bare") || (kind == "layer.group" && pin == "clamp")
         || (kind == "layer.tiling" && matches!(pin, "grade" | "space"))
         || (kind == "layer.curve" && matches!(pin, "widths" | "heights" | "beads"))
-        || (kind == "design.settings" && pin == "crisp_relief");
+        || (kind == "design.settings" && pin == "crisp_relief")
+        || (kind == "design.new" && matches!(pin, "open_gap_mm" | "open_centre_deg"))
+        || (kind == "shank" && pin == "crest");
     if value.get("source").is_some_and(|source| source.get("preset").is_some()) { return true; }
     // A line array or an array along a path, which an older reader cannot parse.
     if value.get("Pattern").and_then(|p| p.get("kind")).is_some_and(|k| k.get("line").is_some() || k.get("along").is_some()) { return true; }
@@ -175,6 +180,13 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     if value.get("attach").is_some() && value.get("stage").is_some() && value.get("mark").and_then(serde_json::Value::as_bool) == Some(false) { return true; }
     if value.get("font").and_then(serde_json::Value::as_str) == Some("Textura") { return true; }
     if bangle_size_json(value) { return true; }
+    // An open band, which an older reader would close; a crest shank, which it cannot parse.
+    if value.get("opening").is_some_and(|o| !o.is_null()) { return true; }
+    if value.get("kind").and_then(serde_json::Value::as_str) == Some("Crest") { return true; }
+    if value.get("crest").is_some_and(serde_json::Value::is_object) { return true; }
+    if value.get("kind").and_then(serde_json::Value::as_str) == Some("design.set")
+        && value.get("inputs").and_then(|i| i.get("pointer")).and_then(serde_json::Value::as_str).is_some_and(|p| p.starts_with("/opening"))
+        && value.get("inputs").and_then(|i| i.get("value")).is_some_and(|v| !v.is_null()) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
         if kind == "layer.curve" && value.get("inputs").and_then(|i| i.get("profile")).and_then(serde_json::Value::as_str) == Some("Tube") { return true; }
         if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps" | "cad.features" | "sketch.text")

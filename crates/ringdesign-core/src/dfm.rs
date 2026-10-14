@@ -1530,8 +1530,13 @@ fn worst_arc_ratio(
     let reference = ctx.band_v_len_mm.max(1e-9);
     // A hide wholly on stations thicker than the reference is judged there, not at the reference.
     let mut worst = if ink.is_some() { (f64::INFINITY, 0.0) } else { (1.0f64, 0.0f64) };
+    let arc = design.sweep_arc();
     for k in 0..STATIONS {
         let theta = k as f64 / STATIONS as f64 * 360.0;
+        // An open band's gap carries no metal to judge.
+        if !arc.contains(theta) {
+            continue;
+        }
         // The layer's own gate, read through the mask it actually uses: a
         // station the window keeps out cannot be the one that fails.
         let u = theta / 360.0 * ctx.circumference_mm;

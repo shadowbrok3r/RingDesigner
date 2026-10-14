@@ -1534,3 +1534,20 @@ fn the_size_family_switch_takes_a_bangle_by_its_bore() {
     assert_eq!(size.inner_diameter_mm(), 63.5);
     assert!(h.query_by_label_contains("Bangle 63.5 mm").is_some(), "the panel reads the bangle by its bore");
 }
+
+#[test]
+fn the_open_band_toggle_opens_a_cuff_and_the_section_keeps_to_its_metal() {
+    let mut h = harness([1600., 980.]);
+    h.run_steps(3);
+    h.get_by_label("Open band").click();
+    h.run_steps(2);
+    let opening = h.state().design.opening.expect("the band opened");
+    assert_eq!(opening.centre_deg, ringdesign_core::opening::back_deg());
+    assert!(h.query_by_label_contains("The band runs").is_some());
+    let pane = 0;
+    h.state_mut().panes[pane].section_theta_deg = opening.centre_deg;
+    h.state_mut().refresh_section(pane);
+    let theta = h.state().panes[pane].section_theta_deg;
+    assert!(h.state().design.sweep_arc().contains(theta), "{theta} is in the gap");
+    assert!(h.state().panes[pane].section.as_ref().is_some_and(|s| !s.points.is_empty()));
+}

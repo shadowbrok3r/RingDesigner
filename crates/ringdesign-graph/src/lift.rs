@@ -379,6 +379,10 @@ pub fn from_design(d: &RingDesign, reg: &Registry, lib: &AlphaLibrary) -> Result
     let design = g.add("design.new")?;
     g.set_input(design, "name", Literal::Text(d.name.clone()))?;
     g.set_input(design, "size", Literal::Number(d.size.0))?;
+    if let Some(o) = d.opening {
+        g.set_input(design, "open_gap_mm", Literal::Number(o.gap_mm))?;
+        g.set_input(design, "open_centre_deg", Literal::Number(o.centre_deg))?;
+    }
     g.connect(profile, "profile", design, "profile")?;
     if let Some(shank_out) = shank_out { g.connect(shank_out, "shank", design, "shank")?; }
     g.node_mut(profile).expect("added").label = Some("Band section".into());
@@ -547,6 +551,22 @@ mod tests {
         let (graph, got, want) = round_trip(&RingDesign::default(), &reg, &AlphaLibrary::default()).unwrap();
         assert_eq!(got, want);
         assert!(!graph.nodes.iter().any(|node| matches!(node.kind.as_str(), "head" | "shank")));
+    }
+
+    /// A cuff lifts with no patch, evaluates back byte for byte, is written at graph format 2, and closes again from its pin.
+    #[test]
+    fn a_cuff_lifts_with_its_opening_and_crest_on_the_nodes() {
+        let reg = Registry::builtin();
+        let cuff = ringdesign_core::opening::measured_cuff();
+        let (mut g, got, want) = round_trip(&cuff, &reg, &AlphaLibrary::default()).unwrap();
+        assert_eq!(got, want);
+        assert!(!g.nodes.iter().any(|n| n.kind == "design.set"), "the nodes carry it");
+        assert_eq!(crate::file::graph_version_for(&g), crate::file::GRAPH_FORMAT_VERSION);
+        let new = g.nodes.iter().find(|n| n.kind == "design.new").map(|n| n.id).unwrap();
+        g.set_input(new, "open_gap_mm", Literal::Number(0.0)).unwrap();
+        let out = crate::eval::evaluate_design(&mut Evaluator::new(), &g, &reg, &AlphaLibrary::default(), 0).unwrap();
+        assert!(out.design.opening.is_none(), "a zero gap closes the ring");
+        assert_eq!(out.design.shank.crest, cuff.shank.crest);
     }
 
     #[test]

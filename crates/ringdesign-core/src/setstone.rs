@@ -101,10 +101,12 @@ pub fn seat_stones(design: &RingDesign) -> Vec<SetStone> {
     seat_stones_in(design, &design.field_context())
 }
 
-/// The stones the layer stack's seats carry.
+/// The stones the layer stack's seats carry, less any that would stand in an open band's gap.
 fn seat_stones_in(design: &RingDesign, ctx: &FieldContext) -> Vec<SetStone> {
     let mut out = Vec::new();
     walk(ctx, &design.layers, "", &mut Vec::new(), &mut out);
+    let arc = design.sweep_arc();
+    out.retain(|st| arc.contains(st.theta_deg));
     out
 }
 

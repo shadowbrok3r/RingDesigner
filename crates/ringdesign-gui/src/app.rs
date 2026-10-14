@@ -1093,6 +1093,11 @@ impl RingDesignerApp {
         let Some(theta) = self.panes.get(pane).map(|p| p.section_theta_deg) else {
             return;
         };
+        // An open band's section never stands in its gap.
+        let theta = self.design.sweep_arc().clamp(theta);
+        if let Some(p) = self.panes.get_mut(pane) {
+            p.section_theta_deg = theta;
+        }
         let steps = self.preview_params.profile_steps.max(128);
         let s = castability::section_at(&self.design, &self.lib, theta, steps);
         if let Some(p) = self.panes.get_mut(pane) {

@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use ringdesign_core::library;
+use ringdesign_core::opening;
 use ringdesign_core::sizing::{self, RingSize};
 use ringdesign_core::{BandProfile, ProfileStyle, RingDesign, ShankStyle};
 
@@ -28,6 +29,13 @@ fn design_new(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, Node
         Value::Shank(s) => d.shank = (**s).clone(),
         Value::Null => {}
         other => return Err(NodeError::input("shank", format!("expected a shank, got {}", other.kind()))),
+    }
+    if let Some(gap) = i.get("open_gap_mm").as_number() {
+        if !gap.is_finite() {
+            return Err(NodeError::input("open_gap_mm", "must be a number of millimetres"));
+        }
+        let centre = i.get("open_centre_deg").as_number().filter(|c| c.is_finite()).unwrap_or_else(opening::back_deg);
+        d.opening = (gap > 0.0).then_some(opening::Opening { gap_mm: gap, centre_deg: centre });
     }
     Ok(Outputs::one("design", d))
 }
@@ -124,6 +132,8 @@ pub fn register(reg: &mut Registry) {
             .input(PinSpec::item("size", ValueKind::Number).default(7.0).widget(Widget::Slider { min: 3.0, max: 15.0 }).doc("US ring size; past 20 a bangle on the same scale, kept exact (wire band.size.fit for a bore in mm)."))
             .input(PinSpec::item("profile", ValueKind::Profile).optional().doc("The band section; the default band if unset."))
             .input(PinSpec::item("shank", ValueKind::Shank).optional().doc("The shank; uniform if unset."))
+            .input(PinSpec::item("open_gap_mm", ValueKind::Number).optional().widget(Widget::Mm { min: 0.0, max: 60.0 }).doc("A cuff's gap, a chord across the bore, mm; the band stops either side of it. 0 or unset closes the ring."))
+            .input(PinSpec::item("open_centre_deg", ValueKind::Number).optional().widget(Widget::Angle).doc("Where the gap is centred; 270° is the back, opposite the top."))
             .output(PinSpec::item("design", ValueKind::Design).doc("The design."))
             .eval(design_new),
         NodeSpec::new("band.size", "Ring size", Category::Band)

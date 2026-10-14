@@ -900,7 +900,7 @@ pub(super) fn section(profile: &[Curve], senses: &[bool], chord: f64, longest: f
 }
 
 /// Triangles filling a counter-clockwise simple polygon from its own points only, each counter-clockwise; `what` names the part in a refusal.
-pub(super) fn fill(ring: &[[f64; 2]], what: &str) -> Result<Vec<[u32; 3]>> {
+pub(crate) fn fill(ring: &[[f64; 2]], what: &str) -> Result<Vec<[u32; 3]>> {
     use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
     let n = ring.len();
     ensure!(n >= 3, "{what}: the section has {n} points round; a cap needs three");

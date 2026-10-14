@@ -1231,6 +1231,8 @@ pub enum ShankKind {
     Signet,
     /// Authored stations interpolated smoothly around the ring.
     Keyframes,
+    /// A pointed lozenge over the top, widening the band both ways along the finger.
+    Crest,
 }
 
 impl ShankKind {
@@ -1250,6 +1252,7 @@ impl ShankKind {
         ShankKind::Bypass,
         ShankKind::Signet,
         ShankKind::Keyframes,
+        ShankKind::Crest,
     ];
 
     pub fn label(self) -> &'static str {
@@ -1269,6 +1272,7 @@ impl ShankKind {
             ShankKind::Bypass => "Bypass",
             ShankKind::Signet => "Signet",
             ShankKind::Keyframes => "Keyframes",
+            ShankKind::Crest => "Crest",
         }
     }
 
@@ -1291,6 +1295,10 @@ impl ShankKind {
                                   face — a seam along the crest would be a valley no mould parts.",
             ShankKind::Keyframes => "Your own stations around the ring — width, thickness and \
                                      crown at each, blended smoothly and closing on itself.",
+            ShankKind::Crest => "A pointed lozenge over the top: the band widens to a crest \
+                                 that points up and down the finger and stands a little proud, \
+                                 then falls back to its own width — a cuff's front. Every section \
+                                 is the band's own, only wider, so it pulls.",
             ShankKind::Cathedral => "Shoulders swell toward the top of the ring.",
             ShankKind::Wave => {
                 "The band's edges wave along the finger while the crest stays level — one \
@@ -1718,6 +1726,55 @@ pub struct ShankStyle {
     /// format 6 then.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub bypass_fair_deg: f64,
+    /// Crest only: the lozenge's own measures; `None` takes [`CrestShank::for_band`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crest: Option<CrestShank>,
+}
+
+/// The crest shank's pointed lozenge, in millimetres and degrees from its tip at the top of the ring.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CrestShank {
+    /// Width along the finger at the tip, mm; the band keeps its own width past the flank.
+    pub width_mm: f64,
+    /// Degrees from the tip at which the flank would meet the band.
+    pub half_deg: f64,
+    /// Exponent of the flank's fall from tip to band.
+    pub pow: f64,
+    /// Rounding of the tip, degrees.
+    pub tip_deg: f64,
+    /// Thickness added at the tip, outward, mm.
+    pub rise_mm: f64,
+}
+
+/// Width and thickness of the cuff band the crest's defaults were measured on, mm.
+const CREST_BAND_MM: (f64, f64) = (32.45, 3.9);
+
+impl Default for CrestShank {
+    fn default() -> Self {
+        Self { width_mm: 50.0, half_deg: 59.25, pow: 1.58, tip_deg: 1.25, rise_mm: 0.4 }
+    }
+}
+
+impl CrestShank {
+    /// The measured cuff's crest in proportion to a band: its width and rise scaled by the band's own.
+    pub fn for_band(band: &BandProfile) -> Self {
+        let d = Self::default();
+        let scale = |mine: f64, theirs: f64, v: f64| if mine.is_finite() && mine > 0.0 { mine / theirs * v } else { v };
+        Self { width_mm: scale(band.width_mm, CREST_BAND_MM.0, d.width_mm), rise_mm: scale(band.thickness_mm, CREST_BAND_MM.1, d.rise_mm), ..d }
+    }
+
+    /// Share of the crest at `phi_deg` from its tip: 1 at the tip, falling to 0 where the flank meets the band.
+    pub fn share(&self, phi_deg: f64) -> f64 {
+        let held = |v: f64, lo: f64, hi: f64, fallback: f64| if v.is_finite() { v.clamp(lo, hi) } else { fallback };
+        let d = Self::default();
+        let tip = held(self.tip_deg, 0.0, 30.0, d.tip_deg);
+        let half = held(self.half_deg, 0.5, 180.0, d.half_deg);
+        let pow = held(self.pow, 0.2, 8.0, d.pow);
+        let phi = if phi_deg.is_finite() { phi_deg } else { 180.0 };
+        let soft = (phi * phi + tip * tip).sqrt() - tip;
+        (1.0 - soft / half).max(0.0).powf(pow)
+    }
 }
 
 fn default_waves() -> u32 {
@@ -1790,6 +1847,7 @@ impl Default for ShankStyle {
             extra_heads: Vec::new(),
             keys: Vec::new(),
             bypass_fair_deg: 0.0,
+            crest: None,
         }
     }
 }
@@ -1876,6 +1934,12 @@ impl ShankStyle {
         self.amount = SIGNET_TAPER;
         self.head.fit_length_to(band_width_mm);
         self.head.loft = 1.0;
+    }
+
+    /// Switch to the crest shank with the measured cuff's lozenge in proportion to `band`.
+    pub fn apply_crest(&mut self, band: &BandProfile) {
+        self.kind = ShankKind::Crest;
+        self.crest = Some(CrestShank::for_band(band));
     }
 
     /// Share of the head width left at a ring angle, and where that width sits
@@ -2755,6 +2819,18 @@ impl ShankStyle {
                     width_scale: (hi - lo) * 0.5,
                     z_center_frac: (hi + lo) * 0.5,
                     side_groove_mm: BYPASS_GROOVE_MM * k * both,
+                    ..ShankMod::identity()
+                }
+            }
+            ShankKind::Crest => {
+                let c = self.crest.unwrap_or_else(|| CrestShank::for_band(band));
+                let share = c.share(crate::field::wrap_delta(theta_deg - TOP_DEG, 360.0));
+                let (w, t) = (band.width_mm.max(1e-6), band.thickness_mm.max(1e-6));
+                let crest_w = if c.width_mm.is_finite() { c.width_mm } else { w };
+                let rise = if c.rise_mm.is_finite() { c.rise_mm } else { 0.0 };
+                ShankMod {
+                    width_scale: ((w + (crest_w - w) * share) / w).clamp(0.25, 12.0),
+                    thickness_scale: ((t + rise * share) / t).clamp(0.3, 4.0),
                     ..ShankMod::identity()
                 }
             }
@@ -4852,6 +4928,7 @@ mod tests {
             keys: Vec::new(),
             custom_outlines: Vec::new(),
             bypass_fair_deg: 0.0,
+            crest: None,
             head: SignetHead {
                 outline: SignetOutline::Round,
                 length_mm: 14.7,

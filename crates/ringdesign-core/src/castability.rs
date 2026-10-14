@@ -807,7 +807,8 @@ pub fn write_parting_svg(
         let cmd = if i == 0 { 'M' } else { 'L' };
         s.push_str(&format!("{cmd}{:.3},{:.3} ", cx + p[0], cy - p[1]));
     }
-    s.push_str("Z\"/>\n");
+    let closes = line_closes(line);
+    s.push_str(if closes { "Z\"/>\n" } else { "\"/>\n" });
     s.push_str(&format!(
         "<circle cx=\"{cx:.3}\" cy=\"{cy:.3}\" r=\"{bore_radius_mm:.3}\" fill=\"none\" \
          stroke=\"black\" stroke-width=\"0.15\" stroke-dasharray=\"1,1\"/>\n"
@@ -820,14 +821,27 @@ pub fn write_parting_svg(
         y0, w - pad, y0
     ));
     s.push_str("<path fill=\"none\" stroke=\"black\" stroke-width=\"0.25\" d=\"");
-    for (i, p) in line.iter().chain(line.first()).enumerate() {
-        let x = pad + i as f64 / line.len() as f64 * (w - 2.0 * pad);
+    let unrolled = line.len() - usize::from(!closes);
+    for (i, p) in line.iter().chain(line.first().filter(|_| closes)).enumerate() {
+        let x = pad + i as f64 / unrolled.max(1) as f64 * (w - 2.0 * pad);
         let cmd = if i == 0 { 'M' } else { 'L' };
         s.push_str(&format!("{cmd}{:.3},{:.3} ", x, y0 - p[2]));
     }
     s.push_str("\"/>\n</svg>\n");
     std::fs::write(path, s.as_bytes())?;
     Ok(s.len())
+}
+
+/// Whether a parting line runs the whole way round: its last step back to the first no longer than twice its others.
+fn line_closes(line: &[[f64; 3]]) -> bool {
+    let angle = |p: &[f64; 3]| p[1].atan2(p[0]);
+    let step = |a: &[f64; 3], b: &[f64; 3]| crate::field::wrap_delta((angle(b) - angle(a)).to_degrees(), 360.0).abs();
+    let steps: Vec<f64> = line.windows(2).map(|w| step(&w[0], &w[1])).collect();
+    let typical = steps.iter().copied().fold(0.0f64, f64::max);
+    match (line.first(), line.last()) {
+        (Some(first), Some(last)) if line.len() > 2 => step(last, first) <= 2.0 * typical + 1e-9,
+        _ => true,
+    }
 }
 
 pub fn section_at(
@@ -855,18 +869,45 @@ pub fn section_at_spaced(
     steps: usize,
     spacing: Option<&Spacing>,
 ) -> Section {
+    // An open band has no metal across its gap.
+    if !design.sweep_arc().contains(theta_deg) {
+        return Section { theta_deg, ..Default::default() };
+    }
     section_with(design, lib, theta_deg, steps, spacing, &design.reference_loop(), &design.field_context())
 }
 
-/// `t_n` sections evenly round the ring, against one reference loop, field context and spacing.
+/// `t_n` sections evenly round the ring, or along an open band's arc with both ends on it, against one reference loop, field context and spacing.
 fn ring_sections(design: &RingDesign, lib: &AlphaLibrary, t_n: usize, steps: usize, spacing: Option<&Spacing>) -> Vec<Section> {
     let (reference, ctx) = (design.reference_loop(), design.field_context());
-    let one = |i: usize| section_with(design, lib, i as f64 / t_n as f64 * 360.0, steps, spacing, &reference, &ctx);
+    let arc = design.sweep_arc();
+    let stations = arc.stations(t_n);
+    let one = |i: usize| {
+        let theta = if arc.is_closed() { i as f64 / t_n as f64 * 360.0 } else { stations[i].0 };
+        section_with(design, lib, theta, steps, spacing, &reference, &ctx)
+    };
     #[cfg(feature = "parallel")]
-    let sections = (0..t_n).into_par_iter().map(one).collect();
+    let sections = (0..stations.len()).into_par_iter().map(one).collect();
     #[cfg(not(feature = "parallel"))]
-    let sections = (0..t_n).map(one).collect();
+    let sections = (0..stations.len()).map(one).collect();
     sections
+}
+
+/// The sections either side of `i` along the sweep: wrapping round a closed ring, one-sided at an open band's two ends.
+fn neighbours(i: usize, n: usize, closed: bool) -> (usize, usize) {
+    if closed { ((i + n - 1) % n, (i + 1) % n) } else { (i.saturating_sub(1), (i + 1).min(n - 1)) }
+}
+
+/// Area of a section's own loop, mm²: an open band's end face.
+fn section_area(points: &[SectionPoint]) -> f64 {
+    let n = points.len();
+    (0..n)
+        .map(|i| {
+            let (a, b) = (&points[i], &points[(i + 1) % n]);
+            a.r * b.z - b.r * a.z
+        })
+        .sum::<f64>()
+        .abs()
+        * 0.5
 }
 
 /// [`section_at_spaced`] against the design's reference loop and field context, built once for many sections.
@@ -1200,6 +1241,7 @@ pub fn analyze_field(
     }
 
     let sections = ring_sections(design, lib, t_n, profile_steps, None);
+    let (t_n, closed) = (sections.len(), design.sweep_arc().is_closed());
     let p_n = sections[0].points.len();
     if p_n < 3 || sections.iter().any(|s| s.points.len() != p_n) {
         return empty;
@@ -1235,8 +1277,9 @@ pub fn analyze_field(
     let mut samples: Vec<(f64, f64, f64, bool)> = Vec::with_capacity(t_n * p_n);
     let (mut z_lo, mut z_hi) = (f64::MAX, f64::MIN);
     for i in 0..t_n {
+        let (back, ahead) = neighbours(i, t_n, closed);
         for j in 0..p_n {
-            let tu = sub(pt(i + 1, j), pt(i + t_n - 1, j));
+            let tu = sub(pt(ahead, j), pt(back, j));
             let ts = sub(pt(i, j + 1), pt(i, j + p_n - 1));
             let x = cross(tu, ts);
             let len = norm(x);
@@ -1288,6 +1331,10 @@ pub fn analyze_field(
         }
     }
     let worst_draft_deg = if worst == f64::MAX { 0.0 } else { worst };
+    // An open band's two end faces stand on radial planes: their normal runs round the ring, square to the pull.
+    let ends_mm2 = if closed { 0.0 } else { section_area(&sections[0].points) + section_area(&sections[t_n - 1].points) };
+    total_area += ends_mm2;
+    vertical_outer_area += ends_mm2;
     let frac = |a: f64| if total_area > 0.0 { a / total_area } else { 0.0 };
     let drag_frac = frac(marginal_area) + frac(vertical_outer_area);
     let noise =
@@ -1332,6 +1379,11 @@ pub fn analyze_field(
         ));
     } else {
         notes.push("Field-sampled: the surface itself carries no undercut at this parting.".into());
+    }
+    if !closed {
+        notes.push(format!(
+            "Open band: its two end faces stand parallel to the pull, {ends_mm2:.1} mm² of vertical wall judged with the rest, never an undercut."
+        ));
     }
     if !lost_wax && drag_frac > DRAG_FRACTION {
         notes.push(format!(
@@ -1579,6 +1631,7 @@ fn field_undercuts(
     p_n: usize,
 ) -> Vec<(f64, f64, f64, f64)> {
     let sections = ring_sections(design, lib, t_n, p_n, None);
+    let (t_n, closed) = (sections.len(), design.sweep_arc().is_closed());
     let rows = sections[0].points.len();
     if rows < 3 || sections.iter().any(|s| s.points.len() != rows) {
         return Vec::new();
@@ -1593,8 +1646,9 @@ fn field_undercuts(
     let n_surf = surface_rows.len().max(1) as f64;
     let mut out = Vec::new();
     for i in 0..t_n {
+        let (back, ahead) = neighbours(i, t_n, closed);
         for (k, &j) in surface_rows.iter().enumerate() {
-            let tu = sub(pt(i + 1, j), pt(i + t_n - 1, j));
+            let tu = sub(pt(ahead, j), pt(back, j));
             let ts = sub(pt(i, j + 1), pt(i, j + rows - 1));
             let x = cross(tu, ts);
             let len = norm(x);
