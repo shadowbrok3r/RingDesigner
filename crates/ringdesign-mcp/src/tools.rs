@@ -433,6 +433,10 @@ pub struct SetRingParams {
     pub name: Option<String>,
     /// US finger size, rounded to the nearest quarter. 0.5 to 20.
     pub size: Option<f64>,
+    /// Inside diameter in mm, kept exact: a bangle's bore (45 to 90 is usual, up to 120), or a finger ring's
+    /// measured bore. Replaces `size` when both are given.
+    #[serde(default)]
+    pub inner_diameter_mm: Option<f64>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -1623,7 +1627,7 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Set the design name and/or the US finger size; an omitted field keeps its value. Size is rounded to the nearest quarter (US 7 is a 17.35 mm bore, 54.5 mm inner circumference). Size changes the circumference, so anything positioned by an integer count around the ring — tiling repeats_around, milgrain beads_around, border rope_twists — stays seamless but its cells get wider or narrower."
+        description = "Set the design name and/or its size; an omitted field keeps its value. Size is a US finger size rounded to the nearest quarter (US 7 is a 17.35 mm bore, 54.5 mm inner circumference); inner_diameter_mm sets the bore in mm exactly instead, which is how a bangle or cuff is sized (63.5 mm is a medium bangle). Size changes the circumference, so anything positioned by an integer count around the ring — tiling repeats_around, milgrain beads_around, border rope_twists — stays seamless but its cells get wider or narrower."
     )]
     async fn set_ring(
         &self,
@@ -1633,7 +1637,16 @@ impl RingDesignServer {
             && (!size.is_finite() || !(0.5..=20.0).contains(&size))
         {
             return Err(ErrorData::invalid_params(
-                format!("size must be a US size between 0.5 and 20, got {size}"),
+                format!("size must be a US size between 0.5 and 20, got {size}; give a bangle as inner_diameter_mm"),
+                None,
+            ));
+        }
+        let bore_floor = RingSize(ringdesign_core::sizing::MIN_SIZE).inner_diameter_mm();
+        if let Some(mm) = p.inner_diameter_mm
+            && (!mm.is_finite() || !(bore_floor..=ringdesign_core::sizing::MAX_BORE_MM).contains(&mm))
+        {
+            return Err(ErrorData::invalid_params(
+                format!("inner_diameter_mm must be between {bore_floor:.2} and {} mm, got {mm}", ringdesign_core::sizing::MAX_BORE_MM),
                 None,
             ));
         }
@@ -1647,6 +1660,10 @@ impl RingDesignServer {
         if let Some(size) = p.size {
             d.size = RingSize::new(size);
             applied.push(format!("size={}", d.size.0));
+        }
+        if let Some(mm) = p.inner_diameter_mm {
+            d.size = RingSize::from_diameter_mm_exact(mm);
+            applied.push(format!("inner_diameter_mm={mm} ({})", d.size.display()));
         }
         let change = DesignChange {
             generation: e.generation(),
@@ -3139,12 +3156,18 @@ mod tests {
         let s = server();
         let g0 = s.engine.lock().generation();
         let a = s
-            .set_ring(Parameters(SetRingParams { name: Some("Vine".into()), size: Some(8.13) }))
+            .set_ring(Parameters(SetRingParams { name: Some("Vine".into()), size: Some(8.13), inner_diameter_mm: None }))
             .await
             .unwrap()
             .0;
         assert!(a.generation > g0);
         assert_eq!(s.engine.lock().design().size.0, 8.25, "size was not quartered");
+        let bangle = s.set_ring(Parameters(SetRingParams { inner_diameter_mm: Some(63.5), ..Default::default() })).await.unwrap().0;
+        assert!(bangle.generation > a.generation);
+        assert_eq!(s.engine.lock().design().size.inner_diameter_mm(), 63.5, "a bangle's bore is kept exact");
+        assert!(s.engine.lock().design().size.is_bangle());
+        assert!(s.set_ring(Parameters(SetRingParams { size: Some(63.9), ..Default::default() })).await.is_err(), "a US number past 20 is refused");
+        s.set_ring(Parameters(SetRingParams { size: Some(8.25), ..Default::default() })).await.unwrap();
 
         let b = add_tiling(&s, "Braid").await;
         assert!(b.generation > a.generation);

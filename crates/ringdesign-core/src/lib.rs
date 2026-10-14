@@ -79,7 +79,7 @@ pub use engine::{DesignEngine, SharedEngine};
 pub use field::{Blend, CustomOutline, FieldContext, Layer, LayerEntry, LayerStack, SideFaces, Uv, Window};
 pub use mesh::{BuildParams, BuildResult, Mesh, Report, Vec3, build};
 pub use profile::{BandProfile, ProfileLoop, ProfileSample, ProfileStyle, ShankKind, ShankStyle};
-pub use sizing::RingSize;
+pub use sizing::{RingSize, SizeFamily};
 
 use serde::{Deserialize, Serialize};
 

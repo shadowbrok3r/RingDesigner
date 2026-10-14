@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use ringdesign_core::library;
-use ringdesign_core::sizing::RingSize;
+use ringdesign_core::sizing::{self, RingSize};
 use ringdesign_core::{BandProfile, ProfileStyle, RingDesign, ShankStyle};
 
 use super::structs::{StructNode, enum_names};
@@ -15,8 +15,8 @@ fn design_new(_: &mut EvalCtx<'_>, _: &Node, i: &Inputs) -> Result<Outputs, Node
     let mut d = RingDesign::default();
     d.name = i.text("name")?.to_string();
     let size = i.number("size")?;
-    if !(1.0..=20.0).contains(&size) {
-        return Err(NodeError::input("size", format!("{size} is not a US ring size between 1 and 20")));
+    if !(1.0..=sizing::MAX_SIZE).contains(&size) {
+        return Err(NodeError::input("size", format!("{size} is not a US ring size between 1 and 20, nor a bangle up to {} mm", sizing::MAX_BORE_MM)));
     }
     d.size = RingSize(size);
     match i.get("profile") {
@@ -121,7 +121,7 @@ pub fn register(reg: &mut Registry) {
         NodeSpec::new("design.new", "New design", Category::Band)
             .doc("A ring design: a name, a US size, and optionally a band section and a shank. Layers come later in the chain.")
             .input(PinSpec::item("name", ValueKind::Text).default("Untitled").widget(Widget::TextLine).doc("The design's name."))
-            .input(PinSpec::item("size", ValueKind::Number).default(7.0).widget(Widget::Slider { min: 3.0, max: 15.0 }).doc("US ring size."))
+            .input(PinSpec::item("size", ValueKind::Number).default(7.0).widget(Widget::Slider { min: 3.0, max: 15.0 }).doc("US ring size; past 20 a bangle on the same scale, kept exact (wire band.size.fit for a bore in mm)."))
             .input(PinSpec::item("profile", ValueKind::Profile).optional().doc("The band section; the default band if unset."))
             .input(PinSpec::item("shank", ValueKind::Shank).optional().doc("The shank; uniform if unset."))
             .output(PinSpec::item("design", ValueKind::Design).doc("The design."))
@@ -135,8 +135,8 @@ pub fn register(reg: &mut Registry) {
             .output(PinSpec::item("label", ValueKind::Text).doc("The size as shown in the app."))
             .eval(size),
         NodeSpec::new("band.size.fit", "Size from diameter", Category::Band)
-            .doc("The US size a bore diameter corresponds to.")
-            .input(PinSpec::item("inner_diameter_mm", ValueKind::Number).default(17.35).widget(Widget::Mm { min: 10.0, max: 30.0 }).doc("Bore diameter, mm."))
+            .doc("The US size a bore diameter corresponds to: a finger's rounded to the nearest quarter, a bangle's kept exact.")
+            .input(PinSpec::item("inner_diameter_mm", ValueKind::Number).default(17.35).widget(Widget::Mm { min: 10.0, max: sizing::MAX_BORE_MM }).doc("Bore diameter, mm."))
             .output(PinSpec::item("size", ValueKind::Number).doc("US ring size."))
             .eval(size_fit),
         profile_node(),
@@ -219,8 +219,29 @@ mod tests {
         assert_eq!(design.size, RingSize(8.5));
         assert_eq!(design.profile.width_mm, 5.0);
         assert_eq!(design.inner_radius_mm(), RingSize(8.5).inner_diameter_mm() * 0.5);
-        g.set_input(d, "size", Literal::Number(40.0)).unwrap();
+        g.set_input(d, "size", Literal::Number(140.0)).unwrap();
         let r = run(&g);
         assert!(r.status[&d].errors[0].1.contains("US ring size"));
+    }
+
+    /// A bangle's bore reaches the design exactly, through the fit node or a size literal past 20.
+    #[test]
+    fn a_bangle_bore_reaches_the_design_exactly() {
+        let mut g = Graph::default();
+        let f = g.add("band.size.fit").unwrap();
+        g.set_input(f, "inner_diameter_mm", Literal::Number(63.5)).unwrap();
+        let d = g.add("design.new").unwrap();
+        g.connect(f, "size", d, "size").unwrap();
+        let r = run(&g);
+        let Some(Value::Design(design)) = r.value(d, "design") else { panic!("{:?}", r.status[&d]) };
+        assert_eq!(design.size, RingSize::from_diameter_mm_exact(63.5));
+        assert_eq!(design.inner_radius_mm() * 2.0, 63.5);
+        assert!(design.size.is_bangle());
+        g.set_input(d, "size", Literal::Number(design.size.0)).unwrap();
+        g.disconnect(d, "size");
+        let r = run(&g);
+        let Some(Value::Design(again)) = r.value(d, "design") else { panic!("{:?}", r.status[&d]) };
+        assert_eq!(again.size, design.size, "a literal carries the bangle bit for bit");
+        assert_eq!(crate::file::graph_version_for(&g), crate::file::GRAPH_FORMAT_VERSION, "and fences the graph");
     }
 }

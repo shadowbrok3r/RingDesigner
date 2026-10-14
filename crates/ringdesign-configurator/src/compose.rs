@@ -140,7 +140,7 @@ pub const PATTERNS: &[(&str, u32)] = &[
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
     pub base: Base,
-    /// US finger size.
+    /// US finger size; the kiosk sells finger rings only, so `compose` holds it to 3 to 13.
     pub size: f64,
     /// Index into [`ringdesign_core::metal::METALS`].
     pub metal: usize,

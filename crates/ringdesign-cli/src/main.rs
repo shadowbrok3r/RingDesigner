@@ -426,9 +426,12 @@ fn export(
 }
 
 /// A size as a filename chunk: `6`, `6.5`, `11.25`.
+/// A size for a file name: the US number, or a bangle's inside diameter in mm.
 fn fmt_size(v: f64) -> String {
-    let s = format!("{v:.2}");
-    s.trim_end_matches('0').trim_end_matches('.').to_string()
+    let size = RingSize(v);
+    let (value, unit) = if size.is_bangle() { (size.inner_diameter_mm(), "mm") } else { (v, "") };
+    let s = format!("{value:.2}");
+    format!("{}{unit}", s.trim_end_matches('0').trim_end_matches('.'))
 }
 
 /// `5:9:0.5` inclusive, or a comma list.

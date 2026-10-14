@@ -6,7 +6,7 @@ use ringdesign_core::field::{SIDE_FACE_MIN_DRAFT_DEG, SignetOutline};
 use ringdesign_core::profile::{
     EDGE_FLANGE_T, MIN_EDGE_MM, ProfileStyle, SQUARED_SIDE_FILLET_MM, ShankKind,
 };
-use ringdesign_core::sizing::RingSize;
+use ringdesign_core::sizing::{self, RingSize, SizeFamily};
 
 use ringdesign_core::refine::RefineParams;
 
@@ -60,15 +60,46 @@ fn ring(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         );
     });
 
-    let mut size = app.design.size.0;
-    let changed = ringdesign_workbench::controls::slider(ui, "Size", egui::Slider::new(&mut size, 3.0..=15.0)
-                .clamping(egui::SliderClamping::Never)
-                .step_by(0.25)
-                .fixed_decimals(2))
-        .changed();
-    if changed && ui.is_enabled() {
-        app.design.size = RingSize::new(size);
+    let family = app.design.size.family();
+    let picked = ringdesign_workbench::controls::row(ui, "Worn as", |ui| {
+        let mut picked = None;
+        for f in SizeFamily::ALL.into_iter().rev() {
+            if ui.selectable_label(family == f, f.label()).clicked() && f != family {
+                picked = Some(f);
+            }
+        }
+        picked
+    });
+    if let Some(f) = picked.filter(|_| ui.is_enabled()) {
+        app.design.size = f.default_size();
         app.mark_dirty();
+    }
+    match app.design.size.family() {
+        SizeFamily::Ring => {
+            let mut size = app.design.size.0;
+            let changed = ringdesign_workbench::controls::slider(ui, "Size", egui::Slider::new(&mut size, 3.0..=15.0)
+                        .clamping(egui::SliderClamping::Never)
+                        .step_by(0.25)
+                        .fixed_decimals(2))
+                .changed();
+            if changed && ui.is_enabled() {
+                app.design.size = RingSize::new(size);
+                app.mark_dirty();
+            }
+        }
+        SizeFamily::Bangle => {
+            let mut bore = app.design.size.inner_diameter_mm();
+            let changed = ringdesign_workbench::controls::slider(ui, "Bore", egui::Slider::new(&mut bore, sizing::BANGLE_MIN_MM..=sizing::BANGLE_MAX_MM)
+                        .clamping(egui::SliderClamping::Never)
+                        .suffix(" mm")
+                        .fixed_decimals(2))
+                .changed();
+            if changed && ui.is_enabled() {
+                let floor = RingSize(sizing::MAX_RING_SIZE).inner_diameter_mm() + 0.01;
+                app.design.size = RingSize::from_diameter_mm_exact(bore.clamp(floor, sizing::MAX_BORE_MM));
+                app.mark_dirty();
+            }
+        }
     }
 
     let s = app.design.size;
