@@ -495,8 +495,7 @@ mod template_source_tests {
         }
     }
 
-    /// A 63.5 mm bangle builds closed, keeps its bore exactly through the file, and is fenced at 6 so an older
-    /// build refuses it rather than opening a US 20 ring; a size literal or patch past US 20 fences a graph.
+    /// A 63.5 mm bangle builds closed, keeps its bore through the file, is written at 6, and fences a graph carrying its size.
     #[test]
     fn a_bangle_keeps_its_bore_through_the_file_and_fences_it() {
         let bangle = RingDesign { size: crate::RingSize::from_diameter_mm_exact(63.5), ..RingDesign::default() };

@@ -433,8 +433,7 @@ pub struct SetRingParams {
     pub name: Option<String>,
     /// US finger size, rounded to the nearest quarter. 0.5 to 20.
     pub size: Option<f64>,
-    /// Inside diameter in mm, kept exact: a bangle's bore (45 to 90 is usual, up to 120), or a finger ring's
-    /// measured bore. Replaces `size` when both are given.
+    /// Inside diameter in mm, kept exact: a bangle's bore (45 to 90 usual, up to 120) or a measured finger; wins over `size`.
     #[serde(default)]
     pub inner_diameter_mm: Option<f64>,
 }
