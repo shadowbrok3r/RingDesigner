@@ -425,7 +425,6 @@ fn export(
     Ok(())
 }
 
-/// A size as a filename chunk: `6`, `6.5`, `11.25`.
 /// A size for a file name: the US number, or a bangle's inside diameter in mm.
 fn fmt_size(v: f64) -> String {
     let size = RingSize(v);
