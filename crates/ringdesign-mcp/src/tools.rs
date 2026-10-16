@@ -436,6 +436,12 @@ pub struct SetRingParams {
     /// Inside diameter in mm, kept exact: a bangle's bore (45 to 90 usual, up to 120) or a measured finger; wins over `size`.
     #[serde(default)]
     pub inner_diameter_mm: Option<f64>,
+    /// Open the band into a cuff with a gap this wide across the bore, mm; 0 closes it again. An open band saves at format 6.
+    #[serde(default)]
+    pub open_gap_mm: Option<f64>,
+    /// Where the gap is centred, degrees; 270 (the default) is the back, opposite the top.
+    #[serde(default)]
+    pub open_centre_deg: Option<f64>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -467,9 +473,10 @@ pub struct SetProfileParams {
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 pub struct SetShankParams {
-    /// Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet.
+    /// Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, Signet, or Crest.
     /// Switching to Signet applies the signet defaults first (taper, face
-    /// fitted to the band, lofted body); explicit parameters still win.
+    /// fitted to the band, lofted body), and to Crest the measured cuff's
+    /// crest in proportion to the band; explicit parameters still win.
     pub kind: Option<String>,
     /// Strength of the modulation, 0 to 1. On Signet this is how far the shank
     /// narrows: 1 takes it to 16% of the head width.
@@ -479,6 +486,21 @@ pub struct SetShankParams {
     /// instead of stepping. 0 keeps the hard union; a non-zero value saves
     /// the design at format 6.
     pub bypass_fair_deg: Option<f64>,
+    /// Crest only: width along the finger at the tip, mm; switching to Crest first scales the measured 50 mm on 32.45 to this band.
+    #[serde(default)]
+    pub crest_width_mm: Option<f64>,
+    /// Crest only: degrees from the tip at which the flank meets the band (default 59.25).
+    #[serde(default)]
+    pub crest_half_deg: Option<f64>,
+    /// Crest only: exponent of the flank's fall, 0.2 to 8 (default 1.58); above 1 the flank meets the band tangent.
+    #[serde(default)]
+    pub crest_pow: Option<f64>,
+    /// Crest only: rounding of the tip, degrees (default 1.25).
+    #[serde(default)]
+    pub crest_tip_deg: Option<f64>,
+    /// Crest only: thickness added at the tip, mm (0.4 on the measured 3.9 mm band).
+    #[serde(default)]
+    pub crest_rise_mm: Option<f64>,
     /// Signet only: plan silhouette of the face — Oval, Round, Cushion,
     /// Rectangle, Hexagon, Octagon, Marquise, Shield, or Heart. The band's own
     /// width follows it.
@@ -1152,8 +1174,9 @@ fn layer_infos(design: &RingDesign) -> Vec<LayerInfo> {
 
 /// One-line headline of the design.
 fn one_line(d: &RingDesign) -> String {
+    let open = d.opening.map(|o| format!(" | open {:.1} mm gap", o.gap_mm)).unwrap_or_default();
     format!(
-        "{} | {} | {} {:.2} x {:.2} mm | {} shank | {} layer(s)",
+        "{} | {} | {} {:.2} x {:.2} mm | {} shank | {} layer(s){open}",
         d.name,
         d.size.display(),
         d.profile.style.label(),
@@ -1626,7 +1649,7 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Set the design name and/or its size; an omitted field keeps its value. Size is a US finger size rounded to the nearest quarter (US 7 is a 17.35 mm bore, 54.5 mm inner circumference); inner_diameter_mm sets the bore in mm exactly instead, which is how a bangle or cuff is sized (63.5 mm is a medium bangle). Size changes the circumference, so anything positioned by an integer count around the ring — tiling repeats_around, milgrain beads_around, border rope_twists — stays seamless but its cells get wider or narrower."
+        description = "Set the design name and/or its size; an omitted field keeps its value. Size is a US finger size rounded to the nearest quarter (US 7 is a 17.35 mm bore, 54.5 mm inner circumference); inner_diameter_mm sets the bore in mm exactly instead, which is how a bangle or cuff is sized (63.5 mm is a medium bangle); open_gap_mm opens the band into a cuff, the band stopping either side of a gap that wide across the bore, each end a flat face standing along the pull. Size changes the circumference, so anything positioned by an integer count around the ring — tiling repeats_around, milgrain beads_around, border rope_twists — stays seamless but its cells get wider or narrower."
     )]
     async fn set_ring(
         &self,
@@ -1651,6 +1674,30 @@ impl RingDesignServer {
         }
         let mut applied = Vec::new();
         let mut e = self.engine.lock();
+        // The opening is checked against the bore this call leaves, before anything changes.
+        let bore = match (p.inner_diameter_mm, p.size) {
+            (Some(mm), _) => RingSize::from_diameter_mm_exact(mm),
+            (None, Some(size)) => RingSize::new(size),
+            (None, None) => e.design().size,
+        }
+        .inner_diameter_mm();
+        let mut opening = e.design().opening;
+        if let Some(gap) = p.open_gap_mm {
+            if !gap.is_finite() || gap < 0.0 || gap >= bore {
+                return Err(ErrorData::invalid_params(format!("open_gap_mm must be from 0 to under the {bore:.2} mm bore, got {gap}"), None));
+            }
+            if gap > 0.0 && e.design().imported_base.is_some() {
+                return Err(ErrorData::invalid_params("an imported stock cannot open; only a swept band can", None));
+            }
+            let centre_deg = opening.map_or_else(ringdesign_core::opening::back_deg, |o| o.centre_deg);
+            opening = (gap > 0.0).then_some(ringdesign_core::opening::Opening { gap_mm: gap, centre_deg });
+        }
+        if let Some(centre) = p.open_centre_deg {
+            let Some(o) = opening.as_mut() else {
+                return Err(ErrorData::invalid_params("open_centre_deg places a gap; give open_gap_mm to open the band first", None));
+            };
+            put_range(&mut o.centre_deg, Some(centre), "open_centre_deg", 0.0, 360.0, &mut applied)?;
+        }
         let d = e.design_mut();
         if let Some(name) = p.name {
             applied.push(format!("name={name}"));
@@ -1664,6 +1711,10 @@ impl RingDesignServer {
             d.size = RingSize::from_diameter_mm_exact(mm);
             applied.push(format!("inner_diameter_mm={mm} ({})", d.size.display()));
         }
+        if let Some(gap) = p.open_gap_mm {
+            applied.push(if gap > 0.0 { format!("open_gap_mm={gap}") } else { "closed".into() });
+        }
+        d.opening = opening;
         let change = DesignChange {
             generation: e.generation(),
             applied,
@@ -1728,7 +1779,7 @@ impl RingDesignServer {
     }
 
     #[tool(
-        description = "Set the shank style and how hard it modulates. `kind` is Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet (see list_shank_styles); `amount` is 0 to 1, where 0 is no modulation. The shank scales the cross-section per ring angle — a tapered shank at amount 1 loses 45% of its width at the bottom of the finger. It does not move the height field: layers stay parameterized against the unmodulated cross-section, so a pattern narrows with the band instead of running off it. Signet is different in kind: it makes a head out of the band itself rather than adding anything to it. head_outline is the plan silhouette the band's width follows, head_length_mm the extent of the face around the ring (its extent across the band is the profile's width_mm, so set that to the head), head_rise_mm how far the table stands above the crest, head_shoulder_deg the arc the crest takes to fall back to the shank, head_swell_deg the much longer arc the band's *width* takes to come back to the shank, head_body_fair how far the body under the table rounds away from the face's outline, and head_table_flat 1 for a true plane to engrave. Two of those are easy to get wrong. The swell is the thing a signet reads as from the side and it is not the face: measured on a real 14.7 mm signet the face runs out at 31 degrees off the top while the body keeps widening to 75, so leave head_swell_deg near its 75 default unless you want a stubbier or longer sweep. And the face is a facet cut across a wider body, not a shape extruded down to the finger: at head_body_fair 0 a heart's dimple runs the whole depth of the ring and its lobes leave a crease down each flank, so leave it at 1 unless a prism is what you want. Do not add a signet table layer on top of this — the table is already the band's own crest. Castability: measured 0.000% undercut on every outline, because a band that widens and rises toward the top is single-valued in Z over (r, theta) and so releases by construction. The flat table is a vertical wall with respect to a +/-Z pull, which is fine — it is blank and hand-engraved, and design goes on the head's flanks, which face the pull. head_loft 1 swaps the prism for the factory-preset construction (one loose loft from the table's rim to the ring's equator, flank curling under the table, one smooth shoulder); it still fields 0.000% because every section stays a single-valued width over its radius. head_table_dome_mm on a lofted head is the smooth table: the loft starts at an apex that high over the table's centre, so a lobed plan reads as a lobed dome."
+        description = "Set the shank style and how hard it modulates. `kind` is Uniform, Tapered, ReverseTaper, Cathedral, EuroFlat, or Signet (see list_shank_styles); `amount` is 0 to 1, where 0 is no modulation. The shank scales the cross-section per ring angle — a tapered shank at amount 1 loses 45% of its width at the bottom of the finger. It does not move the height field: layers stay parameterized against the unmodulated cross-section, so a pattern narrows with the band instead of running off it. Signet is different in kind: it makes a head out of the band itself rather than adding anything to it. head_outline is the plan silhouette the band's width follows, head_length_mm the extent of the face around the ring (its extent across the band is the profile's width_mm, so set that to the head), head_rise_mm how far the table stands above the crest, head_shoulder_deg the arc the crest takes to fall back to the shank, head_swell_deg the much longer arc the band's *width* takes to come back to the shank, head_body_fair how far the body under the table rounds away from the face's outline, and head_table_flat 1 for a true plane to engrave. Two of those are easy to get wrong. The swell is the thing a signet reads as from the side and it is not the face: measured on a real 14.7 mm signet the face runs out at 31 degrees off the top while the body keeps widening to 75, so leave head_swell_deg near its 75 default unless you want a stubbier or longer sweep. And the face is a facet cut across a wider body, not a shape extruded down to the finger: at head_body_fair 0 a heart's dimple runs the whole depth of the ring and its lobes leave a crease down each flank, so leave it at 1 unless a prism is what you want. Do not add a signet table layer on top of this — the table is already the band's own crest. Castability: measured 0.000% undercut on every outline, because a band that widens and rises toward the top is single-valued in Z over (r, theta) and so releases by construction. The flat table is a vertical wall with respect to a +/-Z pull, which is fine — it is blank and hand-engraved, and design goes on the head's flanks, which face the pull. head_loft 1 swaps the prism for the factory-preset construction (one loose loft from the table's rim to the ring's equator, flank curling under the table, one smooth shoulder); it still fields 0.000% because every section stays a single-valued width over its radius. head_table_dome_mm on a lofted head is the smooth table: the loft starts at an apex that high over the table's centre, so a lobed plan reads as a lobed dome. Crest is a cuff's front: the band widens to a pointed lozenge over the top that points both ways along the finger and stands a little proud (crest_width_mm, crest_half_deg, crest_pow, crest_tip_deg, crest_rise_mm); every section is the band's own, only wider, so it fields 0.000% undercut on a flat band. Pair it with set_ring's inner_diameter_mm and open_gap_mm for an open cuff."
     )]
     async fn set_shank(
         &self,
@@ -1749,10 +1800,24 @@ impl RingDesignServer {
                 let width = d.profile.width_mm;
                 d.shank.apply_signet(width);
             }
+            if kind == ShankKind::Crest && was != kind {
+                let band = d.profile;
+                d.shank.apply_crest(&band);
+            }
             applied.push(format!("kind={kind:?}"));
         }
         put_range(&mut d.shank.amount, p.amount, "amount", 0.0, 1.0, &mut applied)?;
         put_range(&mut d.shank.bypass_fair_deg, p.bypass_fair_deg, "bypass_fair_deg", 0.0, 12.0, &mut applied)?;
+        let crest_asked = [p.crest_width_mm, p.crest_half_deg, p.crest_pow, p.crest_tip_deg, p.crest_rise_mm].iter().any(Option::is_some);
+        if crest_asked {
+            let band = d.profile;
+            let c = d.shank.crest.get_or_insert_with(|| ringdesign_core::profile::CrestShank::for_band(&band));
+            put_range(&mut c.width_mm, p.crest_width_mm, "crest_width_mm", 1.0, 200.0, &mut applied)?;
+            put_range(&mut c.half_deg, p.crest_half_deg, "crest_half_deg", 0.5, 180.0, &mut applied)?;
+            put_range(&mut c.pow, p.crest_pow, "crest_pow", 0.2, 8.0, &mut applied)?;
+            put_range(&mut c.tip_deg, p.crest_tip_deg, "crest_tip_deg", 0.0, 30.0, &mut applied)?;
+            put_range(&mut c.rise_mm, p.crest_rise_mm, "crest_rise_mm", 0.0, 10.0, &mut applied)?;
+        }
         if let Some(outline) = outline {
             d.shank.head.outline = outline;
             // Sized to the shape unless the call says otherwise, so an outline
@@ -3155,13 +3220,19 @@ mod tests {
         let s = server();
         let g0 = s.engine.lock().generation();
         let a = s
-            .set_ring(Parameters(SetRingParams { name: Some("Vine".into()), size: Some(8.13), inner_diameter_mm: None }))
+            .set_ring(Parameters(SetRingParams { name: Some("Vine".into()), size: Some(8.13), ..Default::default() }))
             .await
             .unwrap()
             .0;
         assert!(a.generation > g0);
         assert_eq!(s.engine.lock().design().size.0, 8.25, "size was not quartered");
-        let bangle = s.set_ring(Parameters(SetRingParams { inner_diameter_mm: Some(63.5), ..Default::default() })).await.unwrap().0;
+        let bangle = s.set_ring(Parameters(SetRingParams { inner_diameter_mm: Some(63.5), open_gap_mm: Some(31.0), ..Default::default() })).await.unwrap().0;
+        assert!(bangle.summary.contains("open 31.0 mm gap"), "{}", bangle.summary);
+        assert_eq!(s.engine.lock().design().opening.map(|o| o.gap_mm), Some(31.0));
+        assert!(s.set_ring(Parameters(SetRingParams { open_gap_mm: Some(70.0), ..Default::default() })).await.is_err(), "a gap wider than the bore");
+        s.set_ring(Parameters(SetRingParams { open_gap_mm: Some(0.0), ..Default::default() })).await.unwrap();
+        assert!(s.engine.lock().design().opening.is_none(), "0 closes it");
+        assert!(s.set_ring(Parameters(SetRingParams { open_centre_deg: Some(90.0), ..Default::default() })).await.is_err(), "no gap to place");
         assert!(bangle.generation > a.generation);
         assert_eq!(s.engine.lock().design().size.inner_diameter_mm(), 63.5, "a bangle's bore is kept exact");
         assert!(s.engine.lock().design().size.is_bangle());
@@ -3277,6 +3348,21 @@ mod tests {
         assert_eq!(stones.seats.len(), 1);
         assert!(stones.seats[0].stone.is_some());
         assert!(stones.seats[0].depth_available_mm > 0.0);
+    }
+
+    /// Switching to the crest scales the measured cuff's crest to the band, and a crest value set in the call wins.
+    #[tokio::test]
+    async fn the_crest_shank_takes_its_proportions_from_the_band() {
+        use ringdesign_core::profile::{CrestShank, ShankKind};
+        let s = server();
+        let band = s.engine.lock().design().profile;
+        let change = s.set_shank(Parameters(SetShankParams { kind: Some("crest".into()), crest_rise_mm: Some(0.3), ..SetShankParams::default() })).await.unwrap().0;
+        assert!(change.summary.contains("Crest shank"), "{}", change.summary);
+        let crest = s.engine.lock().design().shank.crest.expect("a crest");
+        assert_eq!(s.engine.lock().design().shank.kind, ShankKind::Crest);
+        assert_eq!(crest.width_mm, CrestShank::for_band(&band).width_mm);
+        assert_eq!(crest.rise_mm, 0.3);
+        assert!(s.set_shank(Parameters(SetShankParams { crest_pow: Some(20.0), ..SetShankParams::default() })).await.is_err());
     }
 
     /// The signet head is base geometry, so setting it has to change the band

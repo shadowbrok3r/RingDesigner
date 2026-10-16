@@ -577,7 +577,10 @@ bits, so it rejects most real-world STLs), F38, F39, F32≡F92≡F225 (piercing 
 hole whose axis is ±Z casts, a hole through the band's thickness is a horizontal core and does not),
 F46 (assembly: spinner, puzzle, ring guard, stacking set, matched pair), F53 (**open, adjustable and
 cuff rings are not a casting problem** — a C-shaped band with a domed section pulls fine; it is that
-`mesh::build` hard-wires a closed torus), F54≡F69 (free-standing prong heads, baskets, peg heads,
+`mesh::build` hard-wires a closed torus; **landed** (`m22-open-cuff`): `RingDesign::opening` sweeps an
+arc closed by two flat caps, the verdict judges the arc and the caps as walls, a refined request on
+an open band is swept at an equivalent grid until the quadtree learns pinned ends, and the crest
+shank gives a cuff its front), F54≡F69 (free-standing prong heads, baskets, peg heads,
 six-claw, tension — all need a void under the girdle that no single ±Z plane clears; these belong to
 lost wax, said out loud through M20's refusal registry), F106 (head and shank as different stock —
 the missing fourth signet construction), F107, F238 (the kernel has no loft and no sweep, the one

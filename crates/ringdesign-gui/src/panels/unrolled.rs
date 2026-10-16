@@ -728,6 +728,20 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     zone_label((crest_hi + ctx.band_v_len_mm) * 0.5, "side face - free");
     zone_label(ctx.crest_v_mm, "crest - needs draft");
 
+    // An open band's gap, shaded where no metal is swept.
+    let arc = app.design.sweep_arc();
+    if !arc.is_closed() {
+        let gap = painter.with_clip_rect(plot);
+        let x0 = x_of_u(ctx.u_of_theta(arc.end_deg()));
+        let w = ((360.0 - arc.span_deg) / 360.0) as f32 * full_w;
+        for k in [-1.0f32, 0.0, 1.0] {
+            let left = x0 + k * full_w;
+            let shade = egui::Rect::from_min_max(egui::pos2(left, plot.top()), egui::pos2(left + w, plot.bottom()));
+            gap.rect_filled(shade, 0.0, theme::VIEWPORT_BG.gamma_multiply(0.85));
+            gap.text(shade.center(), egui::Align2::CENTER_CENTER, "open - no metal", small.clone(), theme::TEXT_DIM);
+        }
+    }
+
     // --- Ring angle ruler ----------------------------------------------------
 
     let tick_stroke = egui::Stroke::new(1.0, theme::GRID);

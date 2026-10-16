@@ -51,7 +51,8 @@ fn shank_node() -> NodeSpec {
     .field_at(PinSpec::item("head_length_mm", ValueKind::Number).widget(Widget::Mm { min: 2.0, max: 40.0 }).doc("The face's length along the ring, mm."), "/head/length_mm")
     .field(PinSpec::list("keys", ValueKind::Json).doc("Authored shank stations, ordered around the ring."))
     .field(PinSpec::item("bypass_fair_deg", ValueKind::Number).widget(Widget::Slider { min: 0.0, max: 12.0 }).doc("Bypass only: degrees along the ring the arms' union is faired over, so each arm's tip ramps instead of stepping; 0 keeps the hard union."))
-    .sparse(&["bypass_fair_deg"])
+    .field(PinSpec::item("crest", ValueKind::Json).doc("Crest only: the lozenge as {width_mm, half_deg, pow, tip_deg, rise_mm}; unset fields keep the measured cuff's, unset whole it is that cuff's in proportion to the band."))
+    .sparse(&["bypass_fair_deg", "crest"])
     .hidden(&["extra_heads", "custom_outlines"])
     .build()
 }

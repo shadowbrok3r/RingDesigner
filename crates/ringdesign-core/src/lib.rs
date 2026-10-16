@@ -3,8 +3,9 @@
 //! # Model
 //!
 //! A ring is a closed cross-section profile swept 360° about the finger axis
-//! (Z), with every decorative element expressed as a scalar height field
-//! `h(u, v)` displacing that surface along its outward normal.
+//! (Z), or over an arc closed by two flat caps when it is open, with every
+//! decorative element expressed as a scalar height field `h(u, v)` displacing
+//! that surface along its outward normal.
 //!
 //! - `u` — arc distance around the ring at the crest radius (mm), wraps at the
 //!   circumference.
@@ -46,6 +47,7 @@ pub mod cad;
 pub mod resize;
 pub mod mesh;
 pub mod metal;
+pub mod opening;
 pub mod paint;
 pub mod pave;
 pub mod profile;
@@ -135,6 +137,9 @@ pub struct RingDesign {
     /// Relief averaged over each build cell, so walls running across the sweep grid stay straight.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub crisp_relief: bool,
+    /// A gap the band stops either side of, a cuff's; `None` closes the ring.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opening: Option<opening::Opening>,
 }
 
 /// One imported alpha embedded in the design file.
@@ -168,6 +173,7 @@ impl Default for RingDesign {
             stamps: Vec::new(),
             pins: Vec::new(),
             crisp_relief: false,
+            opening: None,
         }
     }
 }
@@ -675,6 +681,11 @@ impl RingDesign {
     /// Inner (finger-hole) radius in mm.
     pub fn inner_radius_mm(&self) -> f64 {
         self.size.inner_diameter_mm() * 0.5
+    }
+
+    /// The arc the band is swept over: the whole ring, or round to either side of its opening.
+    pub fn sweep_arc(&self) -> opening::SweepArc {
+        self.opening.map_or(opening::SweepArc::FULL, |o| o.arc(self.inner_radius_mm()))
     }
 
     /// Shank modulation plus the profile morph at a ring angle. Every

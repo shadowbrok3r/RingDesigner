@@ -754,5 +754,17 @@
     "max_relief_mm": 0.0,
     "triangles": 36864,
     "watertight": true
+  },
+  {
+    "name": "shank/Crest",
+    "verdict": "Castable",
+    "undercut_pct": 0.0,
+    "worst_draft_deg": -4.885791084432567e-13,
+    "thinnest_wall_mm": 1.5121094056123194,
+    "volume_mm3": 620.7879767938244,
+    "surface_area_mm2": 874.0450178413516,
+    "max_relief_mm": 0.0,
+    "triangles": 36864,
+    "watertight": true
   }
 ]

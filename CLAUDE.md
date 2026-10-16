@@ -102,7 +102,21 @@ toward a second style around the top (`ShankMod::drop_blend`, filled by
 `RingDesign::modulation_at`, which every modulated-section consumer goes
 through), and `SignetHead::table_dome_mm` puts a cabochon cap on a signet
 table — which also retires the zero-draft plane behind the refined-build
-phantom on such heads.
+phantom on such heads. **Crest** (`ShankStyle::crest`, a `CrestShank` in
+absolute mm and degrees) is a cuff's front: at φ from the top, `soft =
+√(φ² + tip²) − tip`, `share = max(0, 1 − soft/half_deg)^pow`, the width `W +
+(crest − W)·share` and the thickness `T + rise·share`, symmetric about the
+section's mid-plane so the lozenge points both up and down the finger. Its
+defaults are the trident bracelet's, measured (50 mm on a 32.45 x 3.9 band,
+59.25°, 1.58, 1.25°, 0.4 mm proud); unset, `CrestShank::for_band` scales
+them to the band, which is what switching to Crest applies. `amount` does
+not reach it. Every section is the band's own, only wider and thicker, and a
+band that only widens toward its crest stays single-valued in Z per section,
+so it pulls by construction: the field reads 0.0000% undercut on the flat
+cuff (`the_crest_shank_widens_to_its_tip_and_pulls`), and the golden corpus's
+`shank/Crest` row on the default band is Castable at 0.0%. A Flat section with no
+crown is a vertical wall all round, so under sand such a cuff turns Marginal
+on drag; the example judges it as lost wax, as its source was.
 
 - `u` — arc distance around the ring at the crest radius. **Wraps** at the
   circumference.
@@ -172,6 +186,31 @@ edges) but it is watertight by construction, not by repair.
 Face winding: for a CCW loop with tangent `(dr, dz)` the outward 2D normal is
 `(dz, −dr)`; sweeping in +θ makes `e_θ × e_profile` point outward, so triangles
 `(i,j)→(i+1,j)→(i+1,j+1)` are already wound correctly.
+
+**An open band is a cylinder with two caps, watertight by a different
+construction.** `RingDesign::opening` (`opening::Opening`: a gap given as a
+chord across the bore, centred at the back by default) turns the sweep into
+an arc (`SweepArc`) that runs from one side of the gap the long way round to
+the other. θ no longer wraps: the columns lie evenly along the arc with both
+ends on it, an odd count so one stands exactly opposite the gap — the top, on
+a cuff, where its crest's tip is. Each end section's own loop closes its end
+flat, a constrained Delaunay of exactly the loop's vertices
+(`cad::twist::fill`), so every boundary edge of the sweep is shared with one
+cap face; a fan from an added centre stands in only if that refuses (a loop
+that meets itself), which keeps the topology closed whatever the relief did.
+A CCW loop in `(r, z)` faces −e_θ, which is outward at the start; the end cap
+is the reverse. Grid normals go one-sided at the two end columns, and the
+caps keep their flat normal through `Mesh::corner_normals`, so each end reads
+as a crease. An imported stock cannot open and says so rather than building
+closed. Measured on the trident cuff (`examples/cuff_native.rs`, 1080 x 320):
+0 boundary, 0 non-manifold, 0 self-crossings, every section equal to
+cuff_base's swept-and-cut part to 1e-4 mm, 24,901 mm³ against its 24,901.
+The Design panel's "Open band" toggle sets the gap and its centre, MCP
+`set_ring` takes `open_gap_mm` and `open_centre_deg`, and graph `design.new`
+carries the same two pins, which the lift writes, so "Convert to graph" needs
+no patch. An opening — or a crest shank — writes the design at 6 and a graph
+carrying either (those pins, the shank node's `crest`, a `/opening` patch) at
+2: an older build would close the band, or cannot parse the kind.
 
 Three fidelity mechanisms sit on top of the sweep, all measured:
 
@@ -295,6 +334,15 @@ afford at all — and the per-axis splits buy a further ~30-36% off every row
 of the table at the same error. At loose tolerances the sweep is faster, being a trivial loop.
 **Sweep for the interactive preview, refine for export.**
 
+**An open band is never refined.** The quadtree's `u` wraps by construction,
+so `build_band` routes `BuildParams::refine` on an open band to the swept
+builder at `mesh::open_refine_grid` — Export's 1024 x 320 at 0.02 mm, growing
+as the square root of the tolerance falls, the rule `refine::column_steps`
+already follows — and the report carries no refine stats; `refine::build`
+called directly (the graph's refine sink, Python) sweeps the same way. Relief
+finer than that grid is not held to the tolerance; that is the limit until
+the tree learns two pinned boundary columns.
+
 One caveat with teeth: `castability::analyze` reads face normals, and an
 irregular mesh reports small spurious undercuts along the crest line, where the
 true surface is tangent to the pull and any facet noise crosses zero. On a
@@ -319,6 +367,18 @@ retired rule was "judge castability from a swept build" — nothing needs
 judging from any build now. Its sections share one reference loop and one
 field context and fan out through rayon (`ring_sections`): the Court band at
 192x128 is 5 ms, where rebuilding both per section cost 110.
+
+On an open band the verdict reads only the metal there is. `ring_sections`
+lays its stations along the arc with both ends on it, the θ differences go
+one-sided at the two end sections (each weighed the half cell it owns), and
+the two end faces join the surface as vertical wall: their normal runs round
+the ring, square to the pull, so a cap is never an undercut, and a note says
+how many mm² of it there are. The thinnest wall, the parting line, the
+modulus scan, undercut attribution and DFM's station scan all run the arc;
+`section_at` in the gap returns an empty section and the section pane snaps
+to the nearer end; the parting SVG leaves the plan open across the gap; the
+unrolled editor shades it; and a seat whose station falls in the gap sets no
+stone (`setstone`).
 
 `adaptive.rs` was the earlier attempt at the same goal by redistributing the
 same number of sample *lines*. It is kept, default off, and its module doc

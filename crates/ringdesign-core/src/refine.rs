@@ -456,13 +456,18 @@ pub struct RefineResult {
     pub relief: (f64, f64),
 }
 
-/// Refine the `(u, s)` domain to a tolerance and triangulate the result.
+/// Refine the `(u, s)` domain to a tolerance and triangulate the result; an open band is swept at [`crate::mesh::open_refine_grid`] instead.
 pub fn build(
     design: &RingDesign,
     lib: &AlphaLibrary,
     params: RefineParams,
     min_wall_mm: f64,
 ) -> RefineResult {
+    if !design.sweep_arc().is_closed() {
+        let (theta_steps, profile_steps) = crate::mesh::open_refine_grid(params.tolerance_mm);
+        let built = crate::mesh::build_band(design, lib, crate::BuildParams { theta_steps, profile_steps, min_wall_mm, ..Default::default() });
+        return RefineResult { mesh: built.mesh, stats: RefineStats::default(), relief: (built.report.max_relief_mm, built.report.min_relief_mm) };
+    }
     let ctx = design.field_context();
     let reference = design.reference_loop();
     let inner_r = design.inner_radius_mm();
