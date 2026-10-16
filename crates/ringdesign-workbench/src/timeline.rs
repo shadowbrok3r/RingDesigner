@@ -5,7 +5,7 @@
 //! window.
 use crate::{cad_tools, icons::Icon};
 use egui::{
-    Color32, CornerRadius, EventFilter, Key, Modifiers, Pos2, Rect, Response, Sense, Stroke, StrokeKind, TextEdit, Ui, Vec2, WidgetInfo, WidgetType,
+    Color32, CornerRadius, EventFilter, Key, Modifiers, Pos2, Rect, Response, Sense, Stroke, StrokeKind, TextEdit, Ui, Vec2, WidgetInfo, Role,
     text::{CCursor, CCursorRange, LayoutJob, TextWrapping},
 };
 use ringdesign_core::{
@@ -396,7 +396,7 @@ struct Strips {
 }
 
 fn strips_id() -> egui::Id {
-    egui::Id::new("cad-timeline-strips")
+    egui::Id::unique("cad-timeline-strips")
 }
 
 /// Takes a bare Delete pressed over a strip before the host's own shortcuts read the pass's keys.
@@ -497,9 +497,9 @@ fn chip(ui: &mut Ui, c: &Chip, vertical: bool) -> Response {
         }
     }
     let label = c.label();
-    response.widget_info(|| WidgetInfo::selected(WidgetType::SelectableLabel, true, c.selected, &label));
+    response.widget_info(|| WidgetInfo::selected(Role::Button, true, c.selected, &label));
     ui.interact(name_rect, response.id.with("name"), Sense::hover())
-        .widget_info(|| WidgetInfo::selected(WidgetType::Label, true, c.selected, &c.name));
+        .widget_info(|| WidgetInfo::selected(Role::Label, true, c.selected, &c.name));
     response
 }
 
@@ -588,7 +588,7 @@ fn marker(ui: &mut Ui, rolled: bool, vertical: bool) -> Response {
             painter.rect_filled(Rect::from_center_size(Pos2::new(rect.center().x, rect.top() + 3.0), Vec2::new(8.0, 6.0)), CornerRadius::same(2), color);
         }
     }
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, if rolled { "Rollback marker" } else { "End of the timeline" }));
+    response.widget_info(|| WidgetInfo::labeled(Role::Unknown, true, if rolled { "Rollback marker" } else { "End of the timeline" }));
     response.on_hover_text(if rolled {
         "Rollback marker: the features after it stay in the document but are not built. Drag it, or right-click a feature to roll back or return to the end."
     } else {
@@ -1062,7 +1062,7 @@ mod tests {
                     let actions = show(ui, &host.chips, host.rollback, host.vertical);
                     host.actions.extend(actions);
                     if let Some(at) = host.cover {
-                        egui::Area::new(egui::Id::new("cover")).fixed_pos(at).show(ui.ctx(), |ui| {
+                        egui::Area::new(egui::Id::unique("cover")).fixed_pos(at).show(ui.ctx(), |ui| {
                             ui.allocate_exact_size(Vec2::new(300.0, 80.0), Sense::hover());
                         });
                     }

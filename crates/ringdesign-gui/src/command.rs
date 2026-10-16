@@ -782,7 +782,7 @@ fn axis_hint(cmd: &dyn ViewCommand) -> Option<&'static str> {
 }
 
 fn menu_id(pane: usize) -> Id {
-    Id::new(("ring-add-menu", pane))
+    Id::unique(("ring-add-menu", pane))
 }
 
 /// The active Ring viewport's command input: held keys, the dimension bar, the pointer, clicks and the box drag.
@@ -1420,11 +1420,11 @@ fn gizmo_draw(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: R
     let hot = app.command.gizmo_hot;
     gizmo::paint(painter, &layout, hot, None);
     // Each handle a hover-only widget at its anchor, while an accessibility tree is being built.
-    if ui.ctx().accesskit_node_builder(ui.id(), |_| ()).is_some() {
+    if ui.ctx().accesskit_node_builder(ui.scope_id(), |_| ()).is_some() {
         for handle in layout.handles() {
             let (Some(at), label) = (layout.anchor(handle), label(handle)) else { continue };
-            let r = ui.interact(Rect::from_center_size(at, egui::Vec2::splat(12.0)), ui.id().with(("gizmo-handle", pane, label.as_str())), egui::Sense::hover());
-            r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, label.as_str()));
+            let r = ui.interact(Rect::from_center_size(at, egui::Vec2::splat(12.0)), ui.scope_id().with(("gizmo-handle", pane, label.as_str())), egui::Sense::hover());
+            r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Unknown, true, label.as_str()));
         }
     }
     if let Some(h) = hot {
@@ -1489,7 +1489,7 @@ fn rail(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Rect) {
     let top = (rect.center().y - height * 0.5).max(rect.top() + 8.0);
     let live = app.command.session.command().map(|c| c.key());
     let mut chosen = None;
-    egui::Area::new(Id::new(("tool-rail", pane)))
+    egui::Area::new(Id::unique(("tool-rail", pane)))
         .order(egui::Order::Middle)
         .fixed_pos(egui::pos2(rect.left() + 5.0, top))
         .constrain_to(rect)
@@ -1501,7 +1501,7 @@ fn rail(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Rect) {
                     let tip = rail_label(&c.title, c.key);
                     let button = egui::Button::image(c.icon.image(ui, 20.0)).selected(live == Some(c.key)).min_size(egui::vec2(side, side)).image_tint_follows_text_color(false);
                     let r = ui.add_enabled(why.is_none(), button);
-                    r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, why.is_none(), tip.as_str()));
+                    r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, why.is_none(), tip.as_str()));
                     let r = r.on_hover_text(&tip).on_disabled_hover_text(format!("{tip}\n{}", why.clone().unwrap_or_default()));
                     if r.clicked() {
                         chosen = Some(c.key);

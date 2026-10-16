@@ -203,7 +203,7 @@ pub fn show(ui: &mut egui::Ui, input: CanvasInput<'_>) -> CanvasOutput {
     if domain == Domain::Band {
         let (tex_w, tex_h) = (384usize, 96usize);
         let key = field_key(layers, ctx, win, tex_w, tex_h, domain);
-        let cache_id = ui.id().with("field_tex");
+        let cache_id = ui.scope_id().with("field_tex");
         let cached = ui.memory(|m| m.data.get_temp::<FieldTex>(cache_id));
         let tex = match cached {
             Some(c) if c.key == key => c.tex,

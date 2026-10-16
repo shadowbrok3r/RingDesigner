@@ -137,7 +137,7 @@ fn numeric_swipes_scroll_without_edits_but_tapping_still_types() {
                                 ui.label("Scroll this inspector");
                             }
                         });
-                    offset = scroll.state.offset.y;
+                    offset = scroll.state.clamped_offset().y;
                 });
             });
             (hit, offset, value)
@@ -367,7 +367,7 @@ fn a_focused_palette_shows_one_parameter_without_clamping_other_values() {
     let mut design = ringdesign_core::RingDesign::default();
     design.profile.width_mm = 25.0;
     let before = serde_json::to_value(&design).unwrap();
-    let key = egui::Id::new("focused-test");
+    let key = egui::Id::unique("focused-test");
     for _ in 0..2 {
         frame(&ctx, vec![], |root| {
             crate::editor::layout::begin(root.ctx());
@@ -427,7 +427,7 @@ fn stone_options_fit_a_narrow_floating_palette_with_submenu_open_or_closed() {
                         &mut at,
                         Some("×"),
                         |ui| {
-                            let key = egui::Id::new("narrow-stone-fields");
+                            let key = egui::Id::unique("narrow-stone-fields");
                             crate::editor::controls::begin_compact(
                                 ui,
                                 key,

@@ -26,7 +26,7 @@ pub struct Edit {
 }
 
 fn compact_id() -> egui::Id {
-    egui::Id::new("mobile-compact-fields")
+    egui::Id::unique("mobile-compact-fields")
 }
 
 /// A palette shows one parameter at a time. The remembered list is collected
@@ -87,7 +87,7 @@ pub fn field(
     let mut changed = false;
     // Explicit identity survives keyboard-driven panel changes and scrolling.
     ui.scope_builder(
-        egui::UiBuilder::new().id(ui.id().with(("mobile-field", label))),
+        egui::UiBuilder::new().scope_id(ui.scope_id().with(("mobile-field", label))),
         |ui| {
             ui.horizontal(|ui| {
                 let width = (ui.available_width() - 94.0).max(40.0);

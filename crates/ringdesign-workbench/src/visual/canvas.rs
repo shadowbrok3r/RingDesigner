@@ -391,7 +391,7 @@ impl Visual {
                 let screen_axis = project(along) - hp;
                 let grip = ui.interact(
                     Rect::from_center_size(hp, egui::vec2(44.0, 44.0)),
-                    ui.id().with("section-plane-handle"),
+                    ui.scope_id().with("section-plane-handle"),
                     egui::Sense::drag(),
                 );
                 self.section_dragging = grip.dragged() && !pointer.navigating;

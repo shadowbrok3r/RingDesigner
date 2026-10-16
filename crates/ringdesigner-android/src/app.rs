@@ -2046,7 +2046,7 @@ impl RingApp {
         };
         let index = self.ensure_drawing(name, w, h, wrap_y, repeats);
 
-        egui::Panel::top(egui::Id::new(("brush", name))).show(ui, |ui| {
+        egui::Panel::top(egui::Id::unique(("brush", name))).show(ui, |ui| {
             ui.columns(2, |columns| {
                 columns[0].label("Brush width");
                 columns[0].spacing_mut().slider_width =
@@ -2484,7 +2484,7 @@ impl RingApp {
         if self.driven_banner(ui) {
             return;
         }
-        egui::Panel::top(egui::Id::new("alpha_tools")).show(ui, |ui| {
+        egui::Panel::top(egui::Id::unique("alpha_tools")).show(ui, |ui| {
             ui.horizontal(|ui| {
                 let width = (ui.available_width() - 48.0).max(60.0);
                 let search = ui.add_sized(

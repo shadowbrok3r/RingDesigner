@@ -198,7 +198,7 @@ impl TransformTool {
                     }
                     let r = ui.interact(
                         Rect::from_center_size(p, egui::Vec2::splat(34.0)).intersect(rect),
-                        ui.id().with(("ornament-handle", i)),
+                        ui.scope_id().with(("ornament-handle", i)),
                         egui::Sense::drag(),
                     );
                     painter.rect_filled(

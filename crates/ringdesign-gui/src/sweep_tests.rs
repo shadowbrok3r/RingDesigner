@@ -454,7 +454,7 @@ fn submenu_item(h: &mut Harness<'static, RingDesignerApp>, at: Pos2, submenu: &s
     h.hover_at(at);
     h.run_steps(2);
     click_at(h, at, PointerButton::Secondary, Modifiers::NONE);
-    h.get_by_label(&format!("{submenu} ⏵")).click();
+    h.get_by_label(submenu).click();
     h.run_steps(3);
     h.get_by_label(item).click();
     h.run_steps(3);

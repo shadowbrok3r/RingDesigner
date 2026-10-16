@@ -158,7 +158,7 @@ pub fn draw(
                     egui::Rect::from_center_size(point, egui::vec2(44.0, 44.0)).intersect(rect);
                 let response = ui.interact(
                     hit,
-                    ui.id().with(("dimension-handle", parameter, i)),
+                    ui.scope_id().with(("dimension-handle", parameter, i)),
                     egui::Sense::click_and_drag(),
                 );
                 if response.clicked() {
@@ -211,7 +211,7 @@ pub fn draw(
             if ui
                 .interact(
                     bounds,
-                    ui.id().with("dimension-label"),
+                    ui.scope_id().with("dimension-label"),
                     egui::Sense::click(),
                 )
                 .clicked()

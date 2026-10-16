@@ -647,7 +647,7 @@ pub(crate) fn import_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
     let Some(p) = &app.importing else { return };
     let words = format!("Reading {} in {}… {:.1} s", p.file, p.reader, p.started.elapsed().as_secs_f64());
     let mut cancel = false;
-    egui::Area::new(egui::Id::new("part-import"))
+    egui::Area::new(egui::Id::unique("part-import"))
         .order(egui::Order::Foreground)
         .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -40.0))
         .show(ctx, |ui| {
@@ -667,10 +667,16 @@ pub(crate) fn import_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
 /// Widest the template plate stands.
 const TEMPLATE_PLATE_W: f32 = 420.0;
 
+/// The outer rect of view `i`'s `name` strip as laid out last frame.
+pub(crate) fn strip_rect(ctx: &egui::Context, name: &'static str, i: usize) -> Option<egui::Rect> {
+    let panel = ctx.data(|d| d.get_temp::<egui::Id>(egui::Id::unique((name, i))))?;
+    egui::containers::panel::PanelState::load(ctx, panel).map(|s| s.outer_rect)
+}
+
 /// The canvas of each view on screen: its tile less the strips its controls stand in, as laid out last frame.
 pub(crate) fn pane_canvases(app: &RingDesignerApp, ctx: &egui::Context) -> Vec<(usize, egui::Rect)> {
     let tiles = &app.viewport_layout.tree.tiles;
-    let strip = |name: &'static str, i: usize| egui::containers::panel::PanelState::load(ctx, egui::Id::new((name, i))).map(|s| s.outer_rect);
+    let strip = |name: &'static str, i: usize| strip_rect(ctx, name, i);
     tiles
         .iter()
         .filter_map(|(id, tile)| match tile {
@@ -724,7 +730,7 @@ pub(crate) fn template_plate(app: &mut RingDesignerApp, ctx: &egui::Context) {
     let building = progress.stage() == Stage::Building;
     let (at, pivot, width) = template_plate_spot(app, ctx);
     let mut cancel = false;
-    egui::Area::new(egui::Id::new("template-open"))
+    egui::Area::new(egui::Id::unique("template-open"))
         .order(egui::Order::Foreground)
         .pivot(pivot)
         .fixed_pos(at)

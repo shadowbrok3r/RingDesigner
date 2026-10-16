@@ -2,7 +2,7 @@
 name = "ringdesigner_android"
 # Its own, not the workspace's: the Android versionCode derives from it as
 # (1<<24)|(major<<16)|(minor<<8)|patch, and the phone only installs a strictly greater one.
-version = "0.31.0"
+version = "0.31.1"
 edition.workspace = true
 license.workspace = true
 publish = false
@@ -27,7 +27,7 @@ local-npu = ["dep:local-clip", "dep:local-sd"]
 # git dependency does not bring along.
 egui-mobile = { git = "https://github.com/shadowbrok3r/EguiMobile" }
 egui.workspace = true
-# Direct, not via egui-mobile, which does not re-export it. Must be the same 0.36 egui_glow the
+# Direct, not via egui-mobile, which does not re-export it. Must be the same 0.37 egui_glow the
 # runtime uses: two copies in the graph make the paint callback's downcast fail, and the only
 # symptom is a blank viewport and one `Unsupported render callback` warning.
 egui_glow.workspace = true
@@ -111,5 +111,5 @@ name = "android.permission.VIBRATE"
 
 [target.'cfg(target_os = "android")'.dependencies]
 android-activity = "0.6.1"
-# The framework repo's egui-0.36 fork of backdrop-blur (its patches/backdrop-blur); glow only.
+# The framework repo's egui-0.37 fork of backdrop-blur (its patches/backdrop-blur); glow only.
 backdrop-blur-egui = { git = "https://github.com/shadowbrok3r/EguiMobile", default-features = false, features = ["grab-pass"] }

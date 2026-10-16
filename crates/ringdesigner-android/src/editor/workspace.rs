@@ -68,7 +68,7 @@ pub fn splitter(
     available: egui::Vec2,
     landscape: bool,
 ) -> bool {
-    let id = egui::Id::new(("inspector-resize", landscape));
+    let id = egui::Id::unique(("inspector-resize", landscape));
     let (rect, response) = ui.allocate_exact_size(
         egui::vec2(ui.available_width(), 24.0),
         egui::Sense::click_and_drag(),
@@ -176,7 +176,7 @@ pub fn floating<R>(
     close_label: Option<&str>,
     content: impl FnOnce(&mut egui::Ui) -> R,
 ) -> Floating<R> {
-    let id = egui::Id::new(key);
+    let id = egui::Id::unique(key);
     let size = size.min(bounds.size()).max(egui::vec2(1.0, 1.0));
     let measured = ctx
         .data(|d| d.get_temp::<egui::Vec2>(id.with("measured")))

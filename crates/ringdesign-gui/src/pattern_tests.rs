@@ -133,8 +133,7 @@ fn press(h: &mut Harness<'static, RingDesignerApp>, key: Key) {
 /// Right-clicks at `at` and chooses `item` from `submenu`.
 fn menu(h: &mut Harness<'static, RingDesignerApp>, at: Pos2, submenu: &str, item: &str) {
     click_at(h, at, PointerButton::Secondary, Modifiers::NONE);
-    // A submenu's button carries egui's own arrow.
-    h.get_by_label(&format!("{submenu} ⏵")).click();
+    h.get_by_label(submenu).click();
     h.run_steps(3);
     h.get_by_label(item).click();
     h.run_steps(3);
@@ -315,7 +314,7 @@ fn press_pull_sizes_a_seated_box_from_its_top_pushes_a_side_through_the_kernel_a
     // The right-click on a face offers it beside the patterns.
     let at = top_of(&h, pane, pull.id);
     click_at(&mut h, at, PointerButton::Secondary, Modifiers::NONE);
-    assert!(h.query_by_label("Press-pull").is_some() && h.query_by_label("Pattern ⏵").is_some(), "the face's menu offers press-pull and the patterns");
+    assert!(h.query_by_label("Press-pull").is_some() && h.query_by_label("Pattern").is_some(), "the face's menu offers press-pull and the patterns");
     press(&mut h, Key::Escape);
 }
 

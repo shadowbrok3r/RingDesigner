@@ -10,7 +10,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         empty_state(app, ui);
         return;
     }
-    egui::Panel::top(egui::Id::new(("graph_bar", pane)))
+    egui::Panel::top(egui::Id::unique(("graph_bar", pane)))
         .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 3)))
         .show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {

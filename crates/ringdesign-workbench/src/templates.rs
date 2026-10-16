@@ -466,7 +466,7 @@ impl<T> Slot<T> {
         let building = told.stage() == Stage::Building;
         let width = (bounds.width() - 32.0).clamp(160.0, 420.0);
         let mut cancel = false;
-        egui::Area::new(egui::Id::new("template-open"))
+        egui::Area::new(egui::Id::unique("template-open"))
             .order(egui::Order::Foreground)
             .pivot(egui::Align2::CENTER_TOP)
             .fixed_pos(bounds.center_top() + egui::vec2(0.0, 64.0))
@@ -613,7 +613,7 @@ thumbnails! {
 }
 
 fn thumbnail(ui: &Ui, template: &Template) -> TextureHandle {
-    let id = egui::Id::new(("template-thumbnail", template.slug));
+    let id = egui::Id::unique(("template-thumbnail", template.slug));
     if let Some(texture) = ui.ctx().data(|data| data.get_temp::<TextureHandle>(id)) { return texture; }
     let image = image::load_from_memory(preview_bytes(template.slug).expect("template preview")).expect("valid bundled preview").into_rgba8();
     let texture = ui.ctx().load_texture(template.slug, egui::ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize], &image), egui::TextureOptions::LINEAR);

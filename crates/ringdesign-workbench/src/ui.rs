@@ -721,7 +721,7 @@ impl Workshop {
             vec2(110., 112. + 2. * ui.spacing().interact_size.y.max(28.)),
         );
         let nav = if !self.section && ui.clip_rect().contains_rect(navigator_bounds) {
-            Some(navigation::show_camera(ui, rect, ui.id().with("workshop-cube"),
+            Some(navigation::show_camera(ui, rect, ui.scope_id().with("workshop-cube"),
                 &mut self.navigation, [self.yaw,self.pitch,self.roll], 90.))
         } else { None };
         if let Some(action) = nav.as_ref().and_then(|nav|nav.action) {

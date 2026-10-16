@@ -416,7 +416,7 @@ fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     ui.spacing_mut().item_spacing.x = 3.0;
 
                     // Grip: drag a row anywhere in the stack.
-                    ui.dnd_drag_source(egui::Id::new(("layer-drag", i)), i, |ui| {
+                    ui.dnd_drag_source(egui::Id::unique(("layer-drag", i)), i, |ui| {
                         ui.label(
                             egui::RichText::new(icon::DOTS_SIX_VERTICAL).color(theme::TEXT_DIM),
                         );
@@ -1061,8 +1061,8 @@ fn tiling(
                 c = true;
             }
             if let Some(w) = t.warp.as_mut() {
-                let amp_id = egui::Id::new("warp_amp");
-                let waves_id = egui::Id::new("warp_waves");
+                let amp_id = egui::Id::unique("warp_amp");
+                let waves_id = egui::Id::unique("warp_waves");
                 let mut amp: f64 = ui.memory(|m| m.data.get_temp(amp_id)).unwrap_or(1.2);
                 let mut waves: i32 = ui.memory(|m| m.data.get_temp(waves_id)).unwrap_or(2);
                 let a = ui
@@ -1211,7 +1211,7 @@ fn tiling(
 
     ui.add_space(3.0);
     ui.horizontal(|ui| {
-        let deg_id = egui::Id::new("draft_bake_deg");
+        let deg_id = egui::Id::unique("draft_bake_deg");
         let mut deg: f64 = ui.memory(|m| m.data.get_temp(deg_id)).unwrap_or(55.0);
         if ui
             .button(format!("{} Bake wall limit", icon::TRIANGLE))

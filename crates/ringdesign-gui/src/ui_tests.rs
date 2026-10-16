@@ -278,6 +278,8 @@ fn file_menu_has_preview_collections_and_opens_the_selected_template() {
     assert_eq!(h.state().design.name, before);
     h.run_steps(1);
     assert!(h.state().opening.is_some());
+    // Steps past the plate's invisible sizing pass.
+    h.run_steps(1);
     assert!(h.query_all_by_label_contains("Opening Ecdysis — ventral scales — ").any(|n| n.accesskit_node().role() == egui::accesskit::Role::ProgressIndicator), "the plate says how far it has got");
     assert!(h.state().status.starts_with("Opening Ecdysis — ventral scales — "), "and so does the status line: {}", h.state().status);
     crate::interaction_tests::wait_for_template(&mut h);
@@ -803,7 +805,6 @@ fn a_design_file_saves_and_opens_off_the_ui_thread() {
 
 #[test]
 fn the_template_plate_stands_clear_of_every_views_controls() {
-    use egui::containers::panel::PanelState;
     for layout in [Layout::Single, Layout::Quad] {
         let mut h = claw_solitaire(crate::app::Workspace::default().preview_params);
         h.state_mut().set_layout(layout);
@@ -821,7 +822,7 @@ fn the_template_plate_stands_clear_of_every_views_controls() {
         assert_eq!(canvases.len(), layout.count(), "{layout:?}");
         for (i, canvas) in &canvases {
             for strip in ["pane_head", "viewport-footer", "viewport-timeline"] {
-                let rect = PanelState::load(&h.ctx, egui::Id::new((strip, *i))).expect(strip).outer_rect;
+                let rect = crate::export::strip_rect(&h.ctx, strip, *i).expect(strip);
                 assert!(!rect.intersects(plate), "{layout:?}: the plate {plate:?} covers pane {i}'s {strip} {rect:?}");
             }
             if canvas.intersects(plate) {
@@ -984,7 +985,7 @@ fn command_search_covers_viewport_navigation_in_split_layout() {
     h.run_steps(4);
     let heading = h.get_by_label("Command search").rect();
     let layer = h.ctx.layer_id_at(heading.center()).unwrap();
-    assert_eq!(layer.id, egui::Id::new("command-palette-modal"));
+    assert_eq!(layer.id, egui::Id::unique("command-palette-modal"));
     assert_eq!(layer.order, egui::Order::Foreground);
     h.key_press(egui::Key::Escape);
     h.run_steps(3);
@@ -1339,7 +1340,7 @@ fn the_part_edges_and_work_plane_switches_come_back_with_the_workspace() {
     h.run_steps(3);
     assert!(!h.state().show_part_edges, "the Display menu turned the edges off");
     // One store: nothing of the switch lives in egui's own data any more.
-    assert_eq!(h.ctx.data_mut(|d| d.get_persisted::<bool>(egui::Id::new("ring-viewport-part-edges"))), None);
+    assert_eq!(h.ctx.data_mut(|d| d.get_persisted::<bool>(egui::Id::unique("ring-viewport-part-edges"))), None);
     h.state_mut().command.planes.hidden = true;
     h.state_mut().show_wireframe = true;
     let mut storage = MemoryStorage::default();
@@ -1478,7 +1479,7 @@ fn the_cad_workspace_docks_the_report_beside_its_pane() {
 
 /// A CAD desktop's dock as a build before it docked the Report stored it: nothing on either side and no defaults mark.
 fn old_empty_cad_dock() -> serde_json::Value {
-    let empty = crate::dock::Dock { left: egui_tiles::Tree::empty("dock_left"), right: egui_tiles::Tree::empty("dock_right"), ..crate::dock::Dock::for_desktop(Desktop::Cad) };
+    let empty = crate::dock::Dock { left: egui_tiles::Tree::empty(egui::Id::unique("dock_left")), right: egui_tiles::Tree::empty(egui::Id::unique("dock_right")), ..crate::dock::Dock::for_desktop(Desktop::Cad) };
     let mut json = serde_json::to_value(&empty).unwrap();
     json.as_object_mut().unwrap().remove("defaults");
     json

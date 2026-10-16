@@ -5,7 +5,7 @@
 //! so nothing about a design ever lives only in the view. Positions are the
 //! one thing the view owns, and they are stored on the nodes.
 //!
-//! The vendored `egui-snarl` under `patches/` is the egui-0.36 repin; the
+//! The vendored `egui-snarl` under `patches/` is the egui-0.37 repin; the
 //! root `[patch.crates-io]` table reaches it, so exactly one egui is in the
 //! tree. [`editor`] is filled in by M3.2.
 

@@ -960,7 +960,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     } else {
         Vec::new()
     };
-    egui::Panel::left(ui.id().with("cad-inspector"))
+    egui::Panel::left(ui.scope_id().with("cad-inspector"))
         .resizable(true).default_size(280.).size_range(230.0..=460.)
         .frame(egui::Frame::new().inner_margin(8).fill(theme::PANEL))
         .show(ui, |ui| {
@@ -1104,7 +1104,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
         let mut redraw = false;
         let mut fit_all = false;
-        egui::Panel::bottom(ui.id().with("cad-view-footer"))
+        egui::Panel::bottom(ui.scope_id().with("cad-view-footer"))
             .frame(egui::Frame::new().inner_margin(6).fill(theme::PANEL)).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.menu_button((Icon::View.image(ui,18.), "View"), |ui| {
@@ -1540,9 +1540,9 @@ fn direct_handles(ui: &mut egui::Ui, rect: egui::Rect, state: &CadState, g: &mut
         }
         painter.line_segment([a, b], Stroke::new(1.0, theme::INFO));
         painter.circle_filled(b, 5.0, theme::INFO);
-        let grip_id = ui.id().with(("dimension_grip", id.0, spec.label));
+        let grip_id = ui.scope_id().with(("dimension_grip", id.0, spec.label));
         let response = ui.interact(egui::Rect::from_center_size(b, vec2(16.0, 16.0)), grip_id, egui::Sense::drag());
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, format!("Dimension grip: {}", spec.label)));
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Unknown, true, format!("Dimension grip: {}", spec.label)));
         if response.hovered() || response.dragged() {
             ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
             painter.text(b + vec2(10., -12.), egui::Align2::LEFT_BOTTOM, format!("{} {:.3} {}", spec.label, spec.value, spec.unit.suffix()), egui::FontId::proportional(12.), theme::TEXT);
@@ -1802,7 +1802,7 @@ fn edge_refs(ui: &mut egui::Ui, label: &str, list: &mut Vec<EdgeRef>) {
         for (i, r) in list.iter_mut().enumerate() {
             let name = format!("{label} {}", i + 1);
             let response = ui.add(egui::DragValue::new(&mut r.ordinal).range(0..=100000));
-            response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::DragValue, true, &name));
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::SpinButton, true, &name));
             if response.changed() {
                 r.signature = None;
             }
@@ -1820,7 +1820,7 @@ fn edge_refs(ui: &mut egui::Ui, label: &str, list: &mut Vec<EdgeRef>) {
 }
 fn face_ref(ui: &mut egui::Ui, name: &str, r: &mut FaceRef) {
     let response = ui.add(egui::DragValue::new(&mut r.ordinal).range(0..=100000).prefix(format!("{name} ")));
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::DragValue, true, name));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::SpinButton, true, name));
     if response.changed() {
         r.signature = None;
     }
@@ -2310,7 +2310,7 @@ fn sketch_canvas(ui: &mut egui::Ui, s: &mut Sketch, state: &mut CadState) {
         ui.available_size().max(vec2(200.0, 180.0)),
         egui::Sense::click_and_drag(),
     );
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, "Sketch canvas"));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Unknown, true, "Sketch canvas"));
     if std::mem::take(&mut state.delete_requested) {
         let mut points = std::mem::take(&mut state.shared.chosen_points);
         let mut entities = std::mem::take(&mut state.shared.chosen_entities);

@@ -228,7 +228,7 @@ pub fn example_button(ui: &mut egui::Ui, name: &str) -> egui::Response {
         "gallery" => ("Open gallery", include_bytes!("../assets/cad/gallery.png")),
         _ => return ui.button(name),
     };
-    let id = egui::Id::new(("cad-example", name));
+    let id = egui::Id::unique(("cad-example", name));
     let tex = ui
         .data_mut(|d| d.get_temp::<egui::TextureHandle>(id))
         .unwrap_or_else(|| {

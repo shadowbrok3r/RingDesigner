@@ -34,7 +34,7 @@ pub fn texture(ui: &Ui, alpha: &Alpha, overlay: bool, invert: bool, feather: f64
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     (w, h, &bytes).hash(&mut hash);
     let key = hash.finish();
-    let id = egui::Id::new("atelier-alpha-thumbnails");
+    let id = egui::Id::unique("atelier-alpha-thumbnails");
     if let Some(tex) = ui.data(|d| {
         d.get_temp::<Textures>(id)
             .and_then(|c| c.0.get(&key).cloned())
@@ -96,7 +96,7 @@ pub fn picker(
     );
     let safe = ui
         .ctx()
-        .data(|d| d.get_temp::<egui::Rect>(egui::Id::new("mobile-safe-content")))
+        .data(|d| d.get_temp::<egui::Rect>(egui::Id::unique("mobile-safe-content")))
         .unwrap_or_else(|| ui.ctx().content_rect())
         .shrink(6.0);
     let width = 260.0_f32.min(safe.width().max(40.0));
@@ -206,7 +206,7 @@ pub fn picker(
                                     }
                                     r.widget_info(|| {
                                         egui::WidgetInfo::labeled(
-                                            egui::WidgetType::Button,
+                                            egui::Role::Button,
                                             true,
                                             &a.name,
                                         )
@@ -272,7 +272,7 @@ pub fn preview(
         p.map(f64::to_bits).hash(&mut hash);
     }
     let key = hash.finish();
-    let cache = egui::Id::new("alpha-surface-preview");
+    let cache = egui::Id::unique("alpha-surface-preview");
     let world = ui
         .data(|data| data.get_temp::<(u64, Vec<[f64; 3]>)>(cache))
         .filter(|(k, _)| *k == key)

@@ -57,14 +57,14 @@ pub fn ui(ui: &mut egui::Ui, d: &mut RingDesign) -> bool {
                     if stock_row(ui,p,current==Some(i)).clicked(){chosen=Some(i);ui.close();}
                 }
             });
-        let key=ui.id().with("base-error");
+        let key=ui.scope_id().with("base-error");
         let mut error=ui.data(|m|m.get_temp::<String>(key).unwrap_or_default());
         if let Some(i)=chosen {
             match PRESETS[i].load().and_then(|s|ImportedBase::attach(d,s)) {Ok(())=>{changed=true;error.clear();},Err(e)=>error=e.to_string()}
         }
         ui.collapsing("Import a base file",|ui|{
             ui.label("Paste a .ringbase.json master. Units are mm; finger axis Z, face +Y. The CLI can package calibrated OBJ stock.");
-            let text_key=ui.id().with("base-text");let mut text=ui.data(|m|m.get_temp::<String>(text_key).unwrap_or_default());
+            let text_key=ui.scope_id().with("base-text");let mut text=ui.data(|m|m.get_temp::<String>(text_key).unwrap_or_default());
             egui::ScrollArea::vertical().id_salt("imported-base-text").max_height(110.0).show(ui,|ui| { ui.add(egui::TextEdit::multiline(&mut text).desired_rows(3).desired_width(f32::INFINITY)); });
             if ui.button("Import master").clicked(){match Source::from_json(&text).and_then(|s|ImportedBase::attach(d,s)){Ok(())=>{changed=true;text.clear();error.clear();},Err(e)=>error=e.to_string()}}
             ui.data_mut(|m|m.insert_temp(text_key,text));
@@ -93,7 +93,7 @@ pub fn ui(ui: &mut egui::Ui, d: &mut RingDesign) -> bool {
                 if ui.button("Validate deformation").clicked(){error=match base.validate_shape(d){Ok(())=>"Master topology and sampled deformation checks passed. Use casting checks for wall thickness and undercuts.".into(),Err(e)=>e.to_string()};}
             });
             ui.collapsing("Compare sections",|ui|{
-                let angle_key=ui.id().with("section-angle");let mut angle=ui.data(|m|m.get_temp::<f64>(angle_key).unwrap_or(65.0));
+                let angle_key=ui.scope_id().with("section-angle");let mut angle=ui.data(|m|m.get_temp::<f64>(angle_key).unwrap_or(65.0));
                 ui.add(egui::Slider::new(&mut angle,0.0..=360.0).text("Angle").suffix("°"));ui.data_mut(|m|m.insert_temp(angle_key,angle));
                 let mut master=d.clone();ImportedBase::reset(&mut master);
                 let a=master.section_at(angle,256,None,None);let b=d.section_at(angle,256,None,None);

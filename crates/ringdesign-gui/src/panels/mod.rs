@@ -34,11 +34,11 @@ pub fn render(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     shortcuts(app, ui);
     workflow_window(app, ui.ctx());
     crate::template_library::show(app, ui.ctx());
-    egui::Panel::top(egui::Id::new("toolbar")).show(ui, |ui| toolbar(app, ui));
-    egui::Panel::bottom(egui::Id::new("status")).show(ui, |ui| status_bar(app, ui));
+    egui::Panel::top(egui::Id::unique("toolbar")).show(ui, |ui| toolbar(app, ui));
+    egui::Panel::bottom(egui::Id::unique("status")).show(ui, |ui| status_bar(app, ui));
 
     if app.construction.open {
-        egui::Panel::left(egui::Id::new("construction-guide"))
+        egui::Panel::left(egui::Id::unique("construction-guide"))
             .exact_size(350.)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -102,7 +102,7 @@ fn dock_side(app: &mut RingDesignerApp, ui: &mut egui::Ui, side: Side) {
     if app.dock.tree(side).is_empty() {
         return;
     }
-    let id = egui::Id::new(("dock", app.desktop.label(), side.label()));
+    let id = egui::Id::unique(("dock", app.desktop.label(), side.label()));
     let panel = match side {
         Side::Left => egui::Panel::left(id),
         Side::Right => egui::Panel::right(id),
@@ -119,7 +119,7 @@ fn dock_side(app: &mut RingDesignerApp, ui: &mut egui::Ui, side: Side) {
             // the app, so it comes out for the duration of the call.
             let mut tree = std::mem::replace(
                 app.dock.tree_mut(side),
-                egui_tiles::Tree::empty(egui::Id::new(("dock_tmp", side.label()))),
+                egui_tiles::Tree::empty(egui::Id::unique(("dock_tmp", side.label()))),
             );
             let mut behavior = ToolBehavior {
                 app,
@@ -280,7 +280,7 @@ fn panes(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     }
     let desktop = app.desktop;
     let preset = app.layout;
-    let mut tree = std::mem::replace(&mut app.viewport_layout.tree, egui_tiles::Tree::empty("drawing-viewports"));
+    let mut tree = std::mem::replace(&mut app.viewport_layout.tree, egui_tiles::Tree::empty(egui::Id::unique("drawing-viewports")));
     let shown = tree.tiles.iter().filter(|(_, t)| matches!(t, egui_tiles::Tile::Pane(_))).count();
     let mut behavior = ViewportBehavior { app, shown, closed: None };
     tree.ui(&mut behavior, ui);
@@ -322,21 +322,21 @@ impl egui_tiles::Behavior<usize> for ViewportBehavior<'_> {
             && !app.palette_open && !ringdesign_graph_ui::alpha_picker::is_open(ui.ctx()) && !ringdesign_workbench::feedback::is_open(ui.ctx()) && !egui::Popup::is_any_open(ui.ctx()) {
             app.active_pane = i;
         }
-        egui::Panel::top(egui::Id::new(("pane_head", i)))
+        egui::Panel::top(strip(ui, "pane_head", i))
             .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 3)))
             .show(ui, |ui| head = pane_head(app, ui, i, closable));
         if app.panes[i].kind == PaneKind::Solid {
-            egui::Panel::bottom(egui::Id::new(("viewport-footer", i)))
+            egui::Panel::bottom(strip(ui, "viewport-footer", i))
                 .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 5)).stroke(egui::Stroke::new(1., theme::HAIRLINE)))
                 .show(ui, |ui| viewport_footer(app, ui, i));
             if timeline::shown(app) {
-                egui::Panel::bottom(egui::Id::new(("viewport-timeline", i)))
+                egui::Panel::bottom(strip(ui, "viewport-timeline", i))
                     .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 3)))
                     .show(ui, |ui| timeline::bar(app, ui, i));
             }
         }
         if app.panes[i].kind == PaneKind::Unrolled {
-            egui::Panel::top(egui::Id::new(("surface-context", i)))
+            egui::Panel::top(strip(ui, "surface-context", i))
                 .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(6))
                 .show(ui, |ui| surface_context(app, ui));
         }
@@ -368,6 +368,13 @@ impl egui_tiles::Behavior<usize> for ViewportBehavior<'_> {
     fn resize_stroke(&self, _: &egui::Style, state: egui_tiles::ResizeState) -> egui::Stroke {
         egui::Stroke::new(2., match state { egui_tiles::ResizeState::Idle => theme::HAIRLINE, egui_tiles::ResizeState::Hovering => theme::ACCENT_DIM, egui_tiles::ResizeState::Dragging => theme::ACCENT })
     }
+}
+
+/// The salt of view `i`'s `name` strip, recording the strip's panel id for [`crate::export::strip_rect`].
+fn strip(ui: &egui::Ui, name: &'static str, i: usize) -> egui::Id {
+    let salt = egui::Id::unique((name, i));
+    ui.data_mut(|d| d.insert_temp(salt, ui.scope_id().with(salt)));
+    salt
 }
 
 fn surface_context(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
@@ -423,7 +430,9 @@ fn pane_head(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize, closable: b
                         ui.close();
                     }
                 }
-            });
+            })
+            .response
+            .accessible_name("Pane view");
 
         if app.panes[i].kind != PaneKind::Solid {
             head.close |= head_right(app, ui, i, closable, false);
@@ -455,7 +464,9 @@ fn pane_head(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize, closable: b
                             ui.close();
                         }
                     }
-                });
+                })
+                .response
+                .accessible_name("Shading");
         }
         head.close |= head_right(app, ui, i, closable, true);
     });
@@ -933,7 +944,7 @@ fn command_palette(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         return;
     }
     let mut run: Option<Command> = None;
-    let id = egui::Id::new("command-palette-modal");
+    let id = egui::Id::unique("command-palette-modal");
     let modal = egui::Modal::new(id)
         .area(egui::Modal::default_area(id).anchor(egui::Align2::CENTER_TOP, egui::vec2(0., 80.)))
         .show(&ctx, |ui| {
@@ -1084,10 +1095,10 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 }
             }
         });
-        workspace.response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &workspace_label));
+        workspace.response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &workspace_label));
         ui.menu_button((Icon::Workshop.image(ui, 18.0), "Tools"), |ui| {
             if icons::button(ui, Icon::Guide, "Workflow guide", false, egui::vec2(0., 28.)).clicked() {
-                ui.data_mut(|d| d.insert_temp(egui::Id::new("workflow-open"), true)); ui.close();
+                ui.data_mut(|d| d.insert_temp(egui::Id::unique("workflow-open"), true)); ui.close();
             }
             if icons::button(ui, Icon::Shape, "Construction guide", app.construction.open, egui::vec2(0., 28.)).clicked() {
                 app.construction.open = !app.construction.open; ui.close();
@@ -1326,7 +1337,7 @@ fn layout_controls(app: &mut RingDesignerApp, ui: &mut egui::Ui, labels: bool) {
     let reset = icons::button(ui, Icon::Reset, if labels { "Default layout" } else { "" }, false, egui::vec2(if labels { 180. } else { 28. }, 28.));
     // Named even without its label, so the icon-only cluster still says what
     // it does to a reader and to anything driving the app.
-    reset.response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, "Default layout"));
+    reset.response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "Default layout"));
     if reset.clicked() {
         app.restore_default_layout();
     }
@@ -1591,7 +1602,7 @@ fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 }
 
 fn workflow_window(app: &mut RingDesignerApp, ctx: &egui::Context) {
-    let id = egui::Id::new("workflow-open");
+    let id = egui::Id::unique("workflow-open");
     let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
     let mut action = None;
     egui::Window::new("Jewelry workflow")
@@ -1623,13 +1634,13 @@ fn workflow_window(app: &mut RingDesignerApp, ctx: &egui::Context) {
             }
             Action::Checks => app.panes[app.active_pane].kind = PaneKind::Casting,
             Action::Export => {
-                ctx.data_mut(|d| d.insert_temp(egui::Id::new("guided-export"), true));
+                ctx.data_mut(|d| d.insert_temp(egui::Id::unique("guided-export"), true));
             }
         }
         open = false;
     }
     ctx.data_mut(|d| d.insert_temp(id, open));
-    let id = egui::Id::new("guided-export");
+    let id = egui::Id::unique("guided-export");
     let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
     egui::Window::new("Save & export")
         .frame(egui::Frame::window(&ctx.global_style()).fill(theme::FLOAT))

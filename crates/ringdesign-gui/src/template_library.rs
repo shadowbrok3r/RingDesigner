@@ -459,8 +459,8 @@ fn controls(ui: &mut egui::Ui, graph: &mut Graph, reg: &Registry) {
                             let node = graph.node_mut(id).expect("resolved node");
                             let mut value = node.inputs.get(&pin.name).cloned();
                             ui.horizontal(|ui| {
-                                ui.label("Default");
-                                if ringdesign_graph_ui::widgets::pin_widget(ui, &pin, &mut value) {
+                                let label = ui.label("Default").id;
+                                if ui.label_inputs_by(label, |ui| ringdesign_graph_ui::widgets::pin_widget(ui, &pin, &mut value)) {
                                     if let Some(v) = value {
                                         node.inputs.insert(pin.name.clone(), v);
                                     } else {
@@ -477,7 +477,7 @@ fn controls(ui: &mut egui::Ui, graph: &mut Graph, reg: &Registry) {
 }
 
 fn thumbnail(ui: &mut egui::Ui, entry: &Entry) {
-    let id = egui::Id::new(("personal-preview", &entry.path));
+    let id = egui::Id::unique(("personal-preview", &entry.path));
     let cached = ui.data(|d| d.get_temp::<Option<egui::TextureHandle>>(id));
     let texture = cached.unwrap_or_else(|| {
         let texture = (|| {

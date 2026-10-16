@@ -40,12 +40,12 @@ const FIELDS_PT: f32 = 44.0;
 
 /// The area the sketch's tools are drawn in.
 pub fn tools_area() -> egui::Id {
-    egui::Id::new("phone-sketch-tools")
+    egui::Id::unique("phone-sketch-tools")
 }
 
 /// The area the sketch's dimension fields are drawn in.
 pub fn fields_area() -> egui::Id {
-    egui::Id::new(BAR_ID).with("area")
+    egui::Id::unique(BAR_ID).with("area")
 }
 
 /// What the one finger on the ring is doing.
@@ -535,7 +535,7 @@ impl Cad {
                     }
                     let b = egui::Button::image(t.icon.image(ui, 22.0)).selected(t.on).min_size(egui::vec2(TOOL_PT, TOOL_PT)).frame_when_inactive(true);
                     let r = ui.add_enabled(t.enabled, b);
-                    r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, t.enabled, &t.name));
+                    r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, t.enabled, &t.name));
                     if r.clicked() {
                         asked.push(t.ask.clone());
                     }

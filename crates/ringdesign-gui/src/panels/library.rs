@@ -471,7 +471,7 @@ fn source_row(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     });
 
     ui.horizontal_wrapped(|ui| {
-        let size_id = egui::Id::new("library_builtin_size");
+        let size_id = egui::Id::unique("library_builtin_size");
         let mut size: usize = ui.memory(|m| m.data.get_temp(size_id)).unwrap_or(256);
 
         if ui
@@ -497,7 +497,9 @@ fn source_row(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 for s in SIZES {
                     ui.selectable_value(&mut size, s, format!("{s} px"));
                 }
-            });
+            })
+            .response
+            .accessible_name("Built-in tile size");
         ui.memory_mut(|m| m.data.insert_temp(size_id, size));
     });
 }

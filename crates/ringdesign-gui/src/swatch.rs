@@ -161,7 +161,7 @@ fn rgba_image(rgba: Vec<u8>) -> ColorImage {
 /// Textures live in egui's memory under their own key, so a chip is built
 /// once per choice for the life of the app.
 fn cached(ctx: &egui::Context, key: &str, build: impl FnOnce() -> ColorImage) -> TextureHandle {
-    let id = egui::Id::new(("swatch", key));
+    let id = egui::Id::unique(("swatch", key));
     if let Some(t) = ctx.data(|d| d.get_temp::<TextureHandle>(id)) {
         return t;
     }

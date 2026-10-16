@@ -200,7 +200,7 @@ impl RingApp {
                 }
                 match palette {
                     Palette::Properties => {
-                        let key = egui::Id::new((
+                        let key = egui::Id::unique((
                             "palette-fields",
                             self.editor.mode as u8,
                             self.editor.part as u8,

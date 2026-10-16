@@ -583,7 +583,7 @@ fn value(
     suffix: &str,
 ) {
     ui.scope_builder(
-        egui::UiBuilder::new().id(ui.id().with(("viewport-value", label))),
+        egui::UiBuilder::new().scope_id(ui.scope_id().with(("viewport-value", label))),
         |ui| {
             ui.horizontal(|ui| {
                 let width = ui.available_width();

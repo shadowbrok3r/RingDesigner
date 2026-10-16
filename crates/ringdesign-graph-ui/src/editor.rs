@@ -721,9 +721,9 @@ impl Editor {
                     }
                     let wired = self.graph.wire_into(e.node, &e.input).is_some();
                     let mut literal = node.inputs.get(&e.input).cloned();
-                    ui.add(egui::Label::new(&e.name).wrap_mode(egui::TextWrapMode::Extend)).on_hover_text(if e.doc.is_empty() { &pin.doc } else { &e.doc });
+                    let name = ui.add(egui::Label::new(&e.name).wrap_mode(egui::TextWrapMode::Extend)).on_hover_text(if e.doc.is_empty() { &pin.doc } else { &e.doc }).id;
                     let response = ui.push_id((e.node.0, &e.input), |ui| {
-                        ui.add_enabled_ui(self.editable && !wired, |ui| pin_widget(ui, &pin, &mut literal)).inner
+                        ui.label_inputs_by(name, |ui| ui.add_enabled_ui(self.editable && !wired, |ui| pin_widget(ui, &pin, &mut literal)).inner)
                     });
                     if wired {
                         response.response.on_hover_text("This input is driven by a wire; edit its source node.");
@@ -1057,6 +1057,7 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         ui.horizontal(|ui| {
             let label = ui.label(RichText::new(if spec.widget == ringdesign_graph::registry::Widget::Image { "Image" } else { &spec.name }).color(crate::style::INK));
             let label_w = label.rect.width();
+            let label_id = label.id;
             label.on_hover_text(format!("{}\n{}", spec.kind.label(), spec.doc));
             if pin.remotes.is_empty() && self.editable && self.inline_inputs {
                 // Temporarily move the literal; a PNG can contain megabytes.
@@ -1068,7 +1069,7 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
                 if let Some(w) = crate::widgets::widget_width(&spec, lit.as_ref()) {
                     ui.add_space((row - label_w - ui.spacing().item_spacing.x - w).max(0.0));
                 }
-                pin_widget(ui, &spec, &mut lit);
+                ui.label_inputs_by(label_id, |ui| pin_widget(ui, &spec, &mut lit));
                 if let Some(literal) = lit { card.inputs.insert(spec.name.clone(), literal); }
             }
         });

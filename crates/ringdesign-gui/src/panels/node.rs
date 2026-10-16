@@ -63,7 +63,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     ui.vertical(|ui| {
         for pin in &card.pins_in {
             ui.add_space(6.0);
-            ui.label(egui::RichText::new(pretty(&pin.name)).color(kind_color(pin.kind))).on_hover_text(format!("{}\n{}", pin.kind.label(), pin.doc));
+            let label = ui.label(egui::RichText::new(pretty(&pin.name)).color(kind_color(pin.kind))).on_hover_text(format!("{}\n{}", pin.kind.label(), pin.doc)).id;
             ui.horizontal_wrapped(|ui| {
             match wires.iter().find(|wire| wire.to == id && wire.input == pin.name) {
                 Some(w) => {
@@ -73,7 +73,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 None => {
                     let mut lit: Option<Literal> = card.inputs.get(&pin.name).cloned();
                     let spec = pin.clone();
-                    if pin_widget(ui, &spec, &mut lit) {
+                    if ui.label_inputs_by(label, |ui| pin_widget(ui, &spec, &mut lit)) {
                         if let Some(ed) = app.graph_ed.as_mut() {
                             if ed.set_input(id, &pin.name, lit) {
                                 app.graph_changed();

@@ -783,10 +783,10 @@ struct Host {
 }
 
 fn host_key() -> Id {
-    Id::new("sketch-mode-host")
+    Id::unique("sketch-mode-host")
 }
 fn claim_key() -> Id {
-    Id::new("sketch-mode-claimed")
+    Id::unique("sketch-mode-claimed")
 }
 
 const UNDO: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Z);
@@ -1230,7 +1230,7 @@ fn set_attach(app: &mut RingDesignerApp, attach: Attach) {
 fn tool_button(ui: &mut egui::Ui, icon: Icon, label: &str, tip: &str, selected: bool, enabled: bool) -> bool {
     let button = egui::Button::image(icon.image(ui, 20.0)).selected(selected).min_size(egui::vec2(30.0, 30.0)).image_tint_follows_text_color(false);
     let r = ui.add_enabled(enabled, button);
-    r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label));
+    r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
     r.on_hover_text(tip).on_disabled_hover_text(tip).clicked()
 }
 
@@ -1244,7 +1244,7 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: Rect
     let mut chosen_tool = None;
     let mut action: Option<&'static str> = None;
     let left = rect.left() + crate::command::RAIL_W + 6.0;
-    egui::Area::new(Id::new(("sketch-toolbar", pane)))
+    egui::Area::new(Id::unique(("sketch-toolbar", pane)))
         .order(egui::Order::Middle)
         .fixed_pos(egui::pos2(left, rect.top() + 6.0))
         .constrain_to(rect)
@@ -1384,7 +1384,7 @@ fn switch_plane(app: &mut RingDesignerApp, pane: usize, section: bool) {
 /// The question asked before unfinished strokes are dropped.
 fn ask(app: &mut RingDesignerApp, ui: &mut egui::Ui, rect: Rect) {
     let mut choice = None;
-    egui::Area::new(Id::new("sketch-leave-question"))
+    egui::Area::new(Id::unique("sketch-leave-question"))
         .order(egui::Order::Foreground)
         .fixed_pos(rect.center() - egui::vec2(170.0, 50.0))
         .show(ui.ctx(), |ui| {

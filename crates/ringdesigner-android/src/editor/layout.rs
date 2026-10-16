@@ -8,7 +8,7 @@ struct Bounds {
     clip: egui::Rect,
 }
 fn id() -> egui::Id {
-    egui::Id::new("mobile-layout-bounds")
+    egui::Id::unique("mobile-layout-bounds")
 }
 
 pub fn begin(ctx: &egui::Context) {

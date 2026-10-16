@@ -238,7 +238,7 @@ pub fn submenu<R>(ui: &mut egui::Ui, cat: Category, add: impl FnOnce(&mut egui::
     egui::containers::menu::SubMenuButton::from_button(
         egui::Button::image_and_text(icon.image(ui, 16.0), cat.label())
             .image_tint_follows_text_color(false)
-            .right_text(egui::containers::menu::SubMenuButton::RIGHT_ARROW)
+            .right_text(egui::containers::menu::SubMenuButton::arrow_atom(None))
             .min_size(egui::vec2(ui.available_width().min(210.0), 0.0)),
     )
     .ui(ui, add)

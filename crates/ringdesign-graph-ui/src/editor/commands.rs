@@ -2,7 +2,7 @@ use super::*;
 use ringdesign_graph::fragment::Fragment;
 
 fn clipboard_id() -> egui::Id {
-    egui::Id::new("ringdesigner-node-clipboard")
+    egui::Id::unique("ringdesigner-node-clipboard")
 }
 
 impl Editor {
@@ -123,7 +123,7 @@ impl Editor {
                 });
                 ui.menu_button("Groups", |ui| {
                     ui.weak("Frames organize nodes without changing their wires.");
-                    ui.text_edit_singleline(&mut self.group_name);
+                    ui.text_edit_singleline(&mut self.group_name).accessible_name("New group name");
                     if ui
                         .add_enabled(
                             !ids.is_empty() && !self.group_name.trim().is_empty(),
@@ -144,7 +144,7 @@ impl Editor {
                     for (index, group) in self.graph.groups.iter_mut().enumerate() {
                         ui.push_id(index, |ui| {
                             ui.horizontal(|ui| {
-                                if ui.text_edit_singleline(&mut group.name).changed() {
+                                if ui.text_edit_singleline(&mut group.name).accessible_name("Group name").changed() {
                                     changed = true;
                                 }
                                 if ui.small_button("Select group").clicked() {

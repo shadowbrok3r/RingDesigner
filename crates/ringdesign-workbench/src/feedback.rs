@@ -3,7 +3,7 @@ use egui::{Context, Id};
 
 const ISSUES: &str = "https://github.com/shadowbrok3r/RingDesigner/issues/new";
 fn id() -> Id {
-    Id::new("ringdesigner-feedback")
+    Id::unique("ringdesigner-feedback")
 }
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]

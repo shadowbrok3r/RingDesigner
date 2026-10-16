@@ -1378,7 +1378,7 @@ fn a_focused_dimension_field_asks_for_the_number_keypad_in_the_frame_it_holds_th
     let v = View { rect: RECT, camera: &camera, design: &d, lib: &lib, build: Some(&built), field: None, covered: &[], active: true, measuring: false, switches: Default::default() };
     b.cad.pressed = Some((at, n));
     b.cad.act(&v, MenuAction::AddPartHere { theta_deg: 90.0, height_mm: 0.0, label: "Cylinder" });
-    let radius = egui::Id::new("phone-ring-dimensions").with("radius");
+    let radius = egui::Id::unique("phone-ring-dimensions").with("radius");
     let kind = |b: &mut Bench, events: Vec<egui::Event>| {
         b.time += 0.1;
         let input = egui::RawInput { time: Some(b.time), screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(420.0, 800.0))), events, ..Default::default() };

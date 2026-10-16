@@ -141,7 +141,9 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                             app.mark_dirty();
                         }
                     }
-                });
+                })
+                .response
+                .accessible_name("Profile style");
             hint(ui, app.design.profile.style.casting_note());
 
             // The user's own profile library — sections saved by name, the
@@ -163,7 +165,9 @@ fn profile(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                             app.design.profile.apply_shape(&p);
                             app.mark_dirty();
                         }
-                    });
+                    })
+                    .response
+                    .accessible_name("Saved profiles");
             }
             ui.horizontal(|ui| {
                 let edit = egui::TextEdit::singleline(&mut app.profile_save_name)

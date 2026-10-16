@@ -615,8 +615,7 @@ fn face(h: &mut Harness<'static, RingDesignerApp>, pane: usize, yaw: f32) -> egu
 fn menu_row(h: &mut Harness<'static, RingDesignerApp>, at: egui::Pos2, submenu: Option<&str>, item: &str) {
     click_at(h, at, egui::PointerButton::Secondary, egui::Modifiers::NONE);
     if let Some(sub) = submenu {
-        // A submenu's button carries egui's own arrow.
-        h.get_by_label(&format!("{sub} ⏵")).click();
+        h.get_by_label(sub).click();
         h.run_steps(3);
     }
     h.get_by_label(item).click();
@@ -707,7 +706,7 @@ fn a_claw_head_on_a_seat_and_a_struck_stamp_answer_the_pointer_as_themselves() {
     assert_eq!(h.state().selection.items, [Sel::Stamp(0)]);
     click_at(&mut h, disc, egui::PointerButton::Secondary, egui::Modifiers::NONE);
     assert!(h.query_by_label("Stamp \"Disc\"").is_some());
-    for row in ["Edit stamp…", "Attach ⏵", "Stage ⏵", "Delete stamp"] {
+    for row in ["Edit stamp…", "Attach", "Stage", "Delete stamp"] {
         assert!(h.query_by_label(row).is_some(), "{row}");
     }
     h.key_press(egui::Key::Escape);
@@ -924,7 +923,7 @@ fn the_stamp_inspector_and_the_tool_inspector_open_apart() {
     h.state_mut().stamp_inspector = Some(1);
     h.run_steps(3);
     let view = h.query_all_by_label_contains("Ring viewport").next().expect("the Ring viewport").rect();
-    let area = |id: &str| h.ctx.memory(|m| m.area_rect(egui::Id::new(id))).unwrap_or_else(|| panic!("{id} is open"));
+    let area = |id: &str| h.ctx.memory(|m| m.area_rect(egui::Id::unique(id))).unwrap_or_else(|| panic!("{id} is open"));
     let (tool, stamp) = (area("direct-viewport-inspector"), area("stamp-inspector"));
     assert!(!tool.intersects(stamp), "{tool:?} and {stamp:?}");
     for r in [tool, stamp] {
@@ -1580,7 +1579,7 @@ fn the_cad_panes_fit_view_frames_the_chosen_part_else_all_the_metal_shown() {
     // Zoomed in by the wheel, then with the band chosen the menu's Fit view frames all the metal again.
     h.hover_at(canvas.center());
     h.run_steps(1);
-    h.event(egui::Event::MouseWheel { unit: egui::MouseWheelUnit::Point, delta: egui::vec2(0.0, 240.0), phase: egui::TouchPhase::Move, modifiers: egui::Modifiers::NONE });
+    h.event(egui::Event::MouseWheel { unit: egui::MouseWheelUnit::Point, delta: egui::vec2(0.0, 240.0), phase: egui::TouchPhase::Move, source: egui::MouseWheelSource::Unknown, modifiers: egui::Modifiers::NONE });
     let start = std::time::Instant::now();
     while h.state().cad.view_camera().0.zoom < 1.2 {
         h.run_steps(1);

@@ -44,12 +44,12 @@ const FOOT_PT: f32 = 48.0;
 
 /// The area the live command's words and its Done and Cancel stand in.
 pub fn caption_area() -> egui::Id {
-    egui::Id::new("phone-command-bar")
+    egui::Id::unique("phone-command-bar")
 }
 
 /// The area the dimension bar draws its fields in.
 pub fn fields_area() -> egui::Id {
-    egui::Id::new(BAR_ID).with("area")
+    egui::Id::unique(BAR_ID).with("area")
 }
 
 /// What a live command reads the ring against.

@@ -168,7 +168,7 @@ impl Layout {
                 )))
             }
         };
-        Tree::new("viewports", root, tiles)
+        Tree::new(egui::Id::unique("viewports"), root, tiles)
     }
 }
 

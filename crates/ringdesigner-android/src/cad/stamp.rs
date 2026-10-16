@@ -14,7 +14,7 @@ const CHROME_PT: f32 = 56.0;
 
 /// The window's id.
 pub fn id() -> egui::Id {
-    egui::Id::new("phone-stamp-window")
+    egui::Id::unique("phone-stamp-window")
 }
 
 /// What stands over the view: the floating tools, the rail's layer, and what the window never stands under.
@@ -257,12 +257,12 @@ mod tests {
         let mut pass = |view: Rect, events: Vec<egui::Event>| {
             let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(411.0, 900.0))), events, ..Default::default() };
             let mut out = ctx.run_ui(input, |ui| {
-                let tools = egui::Area::new(egui::Id::new("test-rail")).order(egui::Order::Foreground).movable(false).fixed_pos(pos2(4.0, vt + 8.0)).show(ui.ctx(), |ui| ui.add_sized([92.0, 340.0], egui::Button::new("Tools")));
+                let tools = egui::Area::new(egui::Id::unique("test-rail")).order(egui::Order::Foreground).movable(false).fixed_pos(pos2(4.0, vt + 8.0)).show(ui.ctx(), |ui| ui.add_sized([92.0, 340.0], egui::Button::new("Tools")));
                 taps_on_rail += usize::from(tools.inner.clicked());
                 rail = (tools.response.rect, tools.response.layer_id);
                 let mut floating = vec![rail.0];
                 if let Some(at) = palette.get() {
-                    let shown = egui::Area::new(egui::Id::new("test-palette")).order(egui::Order::Foreground).movable(false).fixed_pos(at).show(ui.ctx(), |ui| ui.add_sized([250.0, 80.0], egui::Button::new("Palette")));
+                    let shown = egui::Area::new(egui::Id::unique("test-palette")).order(egui::Order::Foreground).movable(false).fixed_pos(at).show(ui.ctx(), |ui| ui.add_sized([250.0, 80.0], egui::Button::new("Palette")));
                     taps_on_palette.set(taps_on_palette.get() + usize::from(shown.inner.clicked()));
                     floating.push(shown.response.rect);
                 }
@@ -307,11 +307,11 @@ mod tests {
         pass(short, vec![]);
         let (under, ..) = pass(short, vec![]);
         let order: Vec<egui::LayerId> = ctx.memory(|m| m.layer_ids().collect());
-        let (rail_at, window_at, palette_at) = (order.iter().position(|l| *l == layer), order.iter().position(|l| l.id == id()), order.iter().position(|l| l.id == egui::Id::new("test-palette")));
+        let (rail_at, window_at, palette_at) = (order.iter().position(|l| *l == layer), order.iter().position(|l| l.id == id()), order.iter().position(|l| l.id == egui::Id::unique("test-palette")));
         assert!(rail_at < window_at && window_at < palette_at, "{order:?}");
         let on_palette = at + vec2(125.0, 40.0);
         assert!(under.contains(on_palette), "{under:?}");
-        assert_eq!(ctx.layer_id_at(on_palette).map(|l| l.id), Some(egui::Id::new("test-palette")));
+        assert_eq!(ctx.layer_id_at(on_palette).map(|l| l.id), Some(egui::Id::unique("test-palette")));
         pass(short, tap(on_palette, true));
         let (_, _, taps, still) = pass(short, tap(on_palette, false));
         assert_eq!((taps_on_palette.get(), taps, still), (1, 1, true));

@@ -200,7 +200,7 @@ fn edges_again(source: &EvaluatedComponent, params: &serde_json::Value) -> Resul
 /// The CAD pane's OpenCascade tools for the chosen part.
 pub fn cad_pane(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let ctx = ui.ctx().clone();
-    let id = egui::Id::new("occt-pane");
+    let id = egui::Id::unique("occt-pane");
     let job: Shared = ctx.data_mut(|d| d.get_temp_mut_or_default::<Shared>(id).clone());
     let mut radius = ctx.data_mut(|d| *d.get_temp_mut_or(id.with("radius"), 0.3_f64));
     let mut wall = ctx.data_mut(|d| *d.get_temp_mut_or(id.with("wall"), 0.6_f64));
@@ -243,7 +243,7 @@ pub fn cad_pane(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let canvas = app.cad.canvas();
     let corner = canvas.map_or_else(|| ui.max_rect().right_bottom() + egui::vec2(-8.0, -44.0), |c| c.right_bottom() - egui::vec2(8.0, 8.0));
     // Anchored at the canvas's bottom-right corner.
-    egui::Area::new(ui.id().with("occt-pane")).order(egui::Order::Middle).fixed_pos(corner).pivot(egui::Align2::RIGHT_BOTTOM).show(&ctx, |ui| {
+    egui::Area::new(ui.scope_id().with("occt-pane")).order(egui::Order::Middle).fixed_pos(corner).pivot(egui::Align2::RIGHT_BOTTOM).show(&ctx, |ui| {
         egui::Frame::new().fill(theme::FLOAT.gamma_multiply(0.94)).corner_radius(4).inner_margin(6).show(ui, |ui| {
             // At most the canvas's width less the plate's gaps and margins.
             if let Some(c) = canvas {

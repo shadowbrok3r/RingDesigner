@@ -12,7 +12,7 @@ const BAR_PT: f32 = 96.0;
 
 /// The area the bar is drawn in.
 pub fn area() -> egui::Id {
-    egui::Id::new("phone-mode-bar")
+    egui::Id::unique("phone-mode-bar")
 }
 
 /// One of the bar's buttons: its mark, its words, whether it is ticked and whether it is offered.

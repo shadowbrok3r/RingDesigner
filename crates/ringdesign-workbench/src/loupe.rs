@@ -23,7 +23,7 @@ pub fn show(ui: &egui::Ui, viewport: Rect, contact: Pos2, reach: f32, obstacles:
     let rect = crate::navigation::loupe_rect(contact, viewport, obstacles, reach);
     let zoom = crate::navigation::loupe_zoom(rect, reach);
     let source = Rect::from_center_size(contact, rect.size() / zoom);
-    let id = ui.id().with("placement-loupe");
+    let id = ui.scope_id().with("placement-loupe");
     let gpu = ui.data_mut(|d| d.get_temp_mut_or_default::<Arc<Mutex<Gpu>>>(id).clone());
     let error = gpu.lock().ok().and_then(|g| g.error.clone());
     // Tooltip order draws after the viewport, its overlay, and floating tools.

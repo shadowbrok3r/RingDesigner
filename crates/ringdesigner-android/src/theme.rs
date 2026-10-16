@@ -166,7 +166,7 @@ pub fn apply(ctx: &egui::Context) {
 pub fn ambience(ctx: &egui::Context) {
     let rect = ctx.content_rect();
     let d = rect.width().min(rect.height()).max(1.0);
-    egui::Area::new(egui::Id::new("ringdesigner-ambience"))
+    egui::Area::new(egui::Id::unique("ringdesigner-ambience"))
         .order(egui::Order::Background)
         .fixed_pos(rect.min)
         .movable(false)
@@ -304,11 +304,11 @@ pub fn menu_width_cap(ctx: &egui::Context) -> f32 {
 /// egui-mobile applies Android insets to its root Ui. Popups are separate Areas
 /// and need the same bounds explicitly, including the keyboard's visible area.
 pub fn set_content_bounds(ctx: &egui::Context, rect: egui::Rect) {
-    ctx.data_mut(|d| d.insert_temp(egui::Id::new("mobile-safe-content"), rect));
+    ctx.data_mut(|d| d.insert_temp(egui::Id::unique("mobile-safe-content"), rect));
 }
 
 pub fn content_bounds(ctx: &egui::Context) -> egui::Rect {
-    ctx.data(|d| d.get_temp(egui::Id::new("mobile-safe-content")))
+    ctx.data(|d| d.get_temp(egui::Id::unique("mobile-safe-content")))
         .unwrap_or_else(|| ctx.content_rect())
 }
 

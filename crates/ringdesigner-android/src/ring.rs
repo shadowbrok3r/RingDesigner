@@ -353,7 +353,7 @@ fn first_finger(ui: &egui::Ui) -> Option<egui::Pos2> {
         (events, i.any_touches())
     });
     ui.ctx().data_mut(|d| {
-        let f = d.get_temp_mut_or_default::<Fingers>(egui::Id::new("ringdesigner-fingers"));
+        let f = d.get_temp_mut_or_default::<Fingers>(egui::Id::unique("ringdesigner-fingers"));
         // Every pane asks each pass; the pass's touches are counted once.
         if f.pass != Some(pass) {
             // A pass nobody asked about may have lifted or landed fingers: what is down is unknown, and

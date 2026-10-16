@@ -151,7 +151,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     // Everything keeps drawing through the same closures; zoom only changes
     // what they map, and the painter's clip does the cropping. `u` wraps —
     // the window can straddle the ring joint.
-    let view_id = ui.id().with("unrolled_view");
+    let view_id = ui.scope_id().with("unrolled_view");
     let mut view = ui
         .memory(|m| m.data.get_temp::<UnrolledView>(view_id))
         .unwrap_or_default();
@@ -204,7 +204,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             egui::pos2(plot.right() - 52.0, plot.top() + 4.0),
             egui::vec2(48.0, 18.0),
         );
-        let r = ui.interact(chip, ui.id().with("unrolled_fit"), egui::Sense::click());
+        let r = ui.interact(chip, ui.scope_id().with("unrolled_fit"), egui::Sense::click());
         painter.rect_filled(chip, 4.0, theme::PANEL.gamma_multiply(0.9));
         painter.text(
             chip.center(),
@@ -395,8 +395,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
     let knob_c = egui::pos2(plot.right() - 34.0, plot.bottom() - 34.0);
     let (mut v_lo, mut v_hi) = tile.as_ref().map_or((0.0, 0.0), |t| t.v_bounds());
-    let grab_id = ui.id().with("unrolled_grab");
-    let scroll_id = ui.id().with("unrolled_scroll");
+    let grab_id = ui.scope_id().with("unrolled_grab");
+    let scroll_id = ui.scope_id().with("unrolled_scroll");
 
     if response.drag_started() && !app.band_paint {
         let p = response.interact_pointer_pos().unwrap_or(plot.center());
@@ -649,7 +649,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let quality = if response.dragged() { 2 } else { 1 };
     let tex_w = (plot.width() as usize / 16 * 16).clamp(128, 512) / quality;
     let tex_h = (plot.height() as usize / 8 * 8).clamp(48, 192) / quality;
-    let cache_id = ui.id().with("unrolled_field");
+    let cache_id = ui.scope_id().with("unrolled_field");
     let key = field_key(app, &ctx, tex_w, tex_h);
     let cached = ui.memory(|m| m.data.get_temp::<FieldCache>(cache_id));
     let cache = match cached {
@@ -1387,7 +1387,7 @@ fn draw_strokes(painter: &egui::Painter, plot: egui::Rect, d: &ringdesign_core::
 /// The floating brush bar: mode toggle always, controls while painting.
 fn paint_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui, rect: egui::Rect) {
     let editable = app.surface_edit_reason().is_none();
-    egui::Area::new(ui.id().with("band_paint_bar"))
+    egui::Area::new(ui.scope_id().with("band_paint_bar"))
         .fixed_pos(rect.left_top() + egui::vec2(8.0, 24.0))
         .show(ui.ctx(), |ui| {
             if !editable { ui.disable(); }

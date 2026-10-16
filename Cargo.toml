@@ -19,7 +19,7 @@ members = [
     "crates/ringdesigner-android",
 ]
 # Vendored forks are reached through [patch.crates-io], not built as members.
-exclude = ["patches/egui-snarl", "patches/egui-scale", "patches/egui"]
+exclude = ["patches/egui-snarl", "patches/egui-scale", "patches/egui", "patches/egui_tiles"]
 
 [workspace.package]
 edition = "2024"
@@ -57,16 +57,18 @@ tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "sync", "ne
 hyper-util = { version = "0.1.20", features = ["tokio", "server-auto", "service"] }
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "bmp", "gif"] }
 
-eframe = { version = "0.36.2", default-features = false, features = [
+eframe = { version = "0.37.0", default-features = false, features = [
     "persistence",
+    "clipboard",
     "default_fonts",
     "glow",
     "x11",
     "wayland",
 ] }
-egui = { version = "0.36.2", features = ["rayon", "serde"] }
-egui_glow = "0.36.2"
-egui-phosphor = "0.12.0"
+# monochrome_emoji_fonts: the emoji fonts eframe's default_fonts no longer bundles.
+egui = { version = "0.37.0", features = ["rayon", "serde", "monochrome_emoji_fonts"] }
+egui_glow = "0.37.0"
+egui-phosphor = "0.14.0"
 egui_tiles = "0.17.0"
 egui-snarl = { version = "0.11.0", features = ["serde"] }
 rfd = "0.17.2"
@@ -80,13 +82,14 @@ embed-resource = "3"
 # the Mastertech `database` crate does it.
 dotenvy = "0.15"
 
-# Upstream egui-phosphor still pins egui 0.35; this fork tracks 0.36.
-# egui-snarl and egui-scale likewise, vendored under patches/ (see patches/README.md).
+# Upstream egui-phosphor still pins egui 0.36; this fork tracks 0.37.
+# egui-snarl, egui-scale and egui_tiles likewise, vendored under patches/ (see patches/README.md).
 [patch.crates-io]
 egui = { path = "patches/egui" }
-egui-phosphor = { git = "https://github.com/shadowbrok3r/egui-phosphor", branch = "egui-036" }
+egui-phosphor = { git = "https://github.com/shadowbrok3r/egui-phosphor", branch = "egui-037" }
 egui-snarl = { path = "patches/egui-snarl" }
 egui-scale = { path = "patches/egui-scale" }
+egui_tiles = { path = "patches/egui_tiles" }
 # For crates/ringdesigner-android: winit's implicit-only IME hides break egui-android's EditText
 # bridge, and the framework repo's fork skips them. A git dependency never brings its own root
 # [patch] table along, so the app's workspace has to carry it.

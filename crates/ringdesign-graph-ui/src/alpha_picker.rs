@@ -26,7 +26,7 @@ struct Preview {
 }
 
 fn state(ctx: &Context) -> Arc<Mutex<Picker>> {
-    ctx.data_mut(|data| data.get_temp_mut_or_default::<Arc<Mutex<Picker>>>(Id::new("graph-alpha-picker")).clone())
+    ctx.data_mut(|data| data.get_temp_mut_or_default::<Arc<Mutex<Picker>>>(Id::unique("graph-alpha-picker")).clone())
 }
 
 pub fn is_open(ctx: &Context) -> bool { state(ctx).lock().unwrap().request.is_some() }
@@ -68,7 +68,7 @@ impl Picker {
 }
 
 pub fn widget(ui: &mut Ui, pin: &PinSpec, literal: &mut Option<Literal>) -> bool {
-    let id = ui.id().with(&pin.name);
+    let id = ui.scope_id().with(&pin.name);
     let shared = state(ui.ctx());
     let mut picker = shared.lock().unwrap();
     let mut changed = false;
@@ -115,7 +115,7 @@ pub fn show_in(ctx: &Context, bounds: egui::Rect) {
     let mut choice = None;
     let mut close = false;
     let width = (bounds.width() - 40.).clamp(240., 520.);
-    let id = Id::new("choose-graph-alpha");
+    let id = Id::unique("choose-graph-alpha");
     let response = egui::Modal::new(id).area(egui::Modal::default_area(id).constrain_to(bounds)).show(ctx, |ui| {
         ui.set_width(width);
         let header_top = ui.cursor().top();
@@ -205,7 +205,8 @@ mod tests {
         assert_eq!(h.state(), &Some(Literal::Text(payload)));
         h.get_by_label("Choose alpha…").click();
         h.run_steps(3);
-        h.get_by_label("Chosen scales").click();
+        // The caption button follows the image button of the same name.
+        h.get_all_by_label("Chosen scales").last().unwrap().click();
         h.run_steps(3);
         assert_eq!(h.state(), &Some(Literal::Text(expected)));
         assert!(cache.lock().unwrap().request.is_none());
@@ -242,7 +243,7 @@ mod tests {
             h.get_by_label("Choose alpha…").click();
             h.run_steps(4);
             for i in 0..4 {
-                let rect = h.get_by_label(&format!("Tile {i}")).rect();
+                let rect = h.get_all_by_label(&format!("Tile {i}")).last().unwrap().rect();
                 assert!(rect.left() >= 0. && rect.right() <= width, "{width}: {rect:?}");
             }
         }
@@ -270,19 +271,19 @@ mod tests {
         h.run_steps(4);
         h.get_by_label("Choose alpha…").click();
         h.run_steps(4);
-        let dialog = h.ctx.memory(|m| m.area_rect(Id::new("choose-graph-alpha"))).unwrap();
-        let caption = h.get_by_label("Alpha 00").rect();
+        let dialog = h.ctx.memory(|m| m.area_rect(Id::unique("choose-graph-alpha"))).unwrap();
+        let caption = h.get_all_by_label("Alpha 00").last().unwrap().rect();
         assert!(caption.bottom() < dialog.bottom(), "caption clipped after reopening: {caption:?} in {dialog:?}");
         assert!(dialog.height() > 350., "gallery must regain its browsing height: {dialog:?}");
         let keyboard_bounds = egui::Rect::from_min_max(egui::pos2(0., 24.), egui::pos2(412., 390.));
         h.state_mut().1 = keyboard_bounds;
         h.run_steps(4);
-        let dialog = h.ctx.memory(|m| m.area_rect(Id::new("choose-graph-alpha"))).unwrap();
+        let dialog = h.ctx.memory(|m| m.area_rect(Id::unique("choose-graph-alpha"))).unwrap();
         assert!(keyboard_bounds.contains_rect(dialog), "dialog must respect the keyboard: {dialog:?}");
-        assert!(h.get_by_label("Alpha 00").rect().bottom() < dialog.bottom());
+        assert!(h.get_all_by_label("Alpha 00").last().unwrap().rect().bottom() < dialog.bottom());
         h.state_mut().1 = full_bounds;
         h.run_steps(4);
-        let dialog = h.ctx.memory(|m| m.area_rect(Id::new("choose-graph-alpha"))).unwrap();
+        let dialog = h.ctx.memory(|m| m.area_rect(Id::unique("choose-graph-alpha"))).unwrap();
         assert!(dialog.height() > 350., "gallery must grow again after keyboard dismissal");
     }
 }

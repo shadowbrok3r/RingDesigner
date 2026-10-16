@@ -47,13 +47,13 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
         return;
     }
-    let opts_id = egui::Id::new(("section_view_opts", pane));
+    let opts_id = egui::Id::unique(("section_view_opts", pane));
 
-    egui::Panel::top(egui::Id::new(("section_controls", pane)))
+    egui::Panel::top(egui::Id::unique(("section_controls", pane)))
         .frame(strip_frame())
         .show(ui, |ui| controls(app, ui, pane, opts_id));
 
-    egui::Panel::bottom(egui::Id::new(("section_readout", pane)))
+    egui::Panel::bottom(egui::Id::unique(("section_readout", pane)))
         .frame(strip_frame())
         .show(ui, |ui| readout(app, ui, pane));
 

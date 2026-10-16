@@ -81,8 +81,8 @@ fn cursor_to_end(ctx: &Context, id: Id, text: &str) {
 }
 
 impl DimensionBar {
-    pub fn new(id_salt: impl egui::AsId) -> Self {
-        Self { id: Id::new(id_salt), texts: Vec::new(), host: None, first: None }
+    pub fn new(id_salt: impl egui::AsIdSalt) -> Self {
+        Self { id: Id::unique(id_salt), texts: Vec::new(), host: None, first: None }
     }
     /// Names the widget that holds the keys for the tool, so a number typed while it has focus still starts the first field.
     pub fn set_host(&mut self, host: Option<Id>) {
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn a_number_typed_while_the_host_holds_the_keys_starts_the_first_field() {
-        let host = Id::new("viewport");
+        let host = Id::unique("viewport");
         let mut h = hosted(Some(host));
         h.ctx.memory_mut(|m| m.request_focus(host));
         h.run_steps(2);
@@ -526,7 +526,7 @@ mod tests {
 
     #[test]
     fn a_preferred_field_takes_the_first_typed_number_and_a_reset_forgets_it() {
-        let host = Id::new("viewport");
+        let host = Id::unique("viewport");
         let mut h = hosted(Some(host));
         h.state_mut().bar.prefer(Some("height"));
         h.ctx.memory_mut(|m| m.request_focus(host));

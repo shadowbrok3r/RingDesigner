@@ -65,8 +65,7 @@ fn names(h: &Harness<'static, RingDesignerApp>) -> Vec<String> {
 /// Right-clicks at `at` and chooses `item` from `submenu`.
 fn menu(h: &mut Harness<'static, RingDesignerApp>, at: Pos2, submenu: &str, item: &str) {
     click_at(h, at, PointerButton::Secondary, Modifiers::NONE);
-    // A submenu's button carries egui's own arrow.
-    h.get_by_label(&format!("{submenu} ⏵")).click();
+    h.get_by_label(submenu).click();
     h.run_steps(3);
     h.get_by_label(item).click();
     h.run_steps(3);

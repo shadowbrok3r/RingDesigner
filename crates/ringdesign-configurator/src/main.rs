@@ -867,7 +867,7 @@ impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         if self.workshop_open {
-            egui::Panel::top(egui::Id::new("workshop-header")).show(ui, |ui| {
+            egui::Panel::top(egui::Id::unique("workshop-header")).show(ui, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     if ui.add_sized([120.0,44.0], egui::Button::new("Guided design")).clicked() { self.workshop_open = false; }
                     ui.weak("Casting and CAD");
@@ -905,7 +905,7 @@ impl eframe::App for App {
         }
         self.poll(&ctx);
 
-        egui::Panel::top(egui::Id::new("steps")).show(ui, |ui| {
+        egui::Panel::top(egui::Id::unique("steps")).show(ui, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 ui.heading("Build a Ring");
@@ -920,7 +920,7 @@ impl eframe::App for App {
             ui.add_space(4.0);
         });
 
-        egui::Panel::left(egui::Id::new("choices"))
+        egui::Panel::left(egui::Id::unique("choices"))
             .default_size(360.0)
             .show(ui, |ui| {
                 egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {

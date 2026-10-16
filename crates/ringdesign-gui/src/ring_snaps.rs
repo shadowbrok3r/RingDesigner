@@ -94,7 +94,7 @@ pub fn measure(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: 
     for p in &app.visual.measurement.picks {
         painter.circle_filled(screen(p.at()), 4.0, theme::ACCENT);
     }
-    let accessible = ui.ctx().accesskit_node_builder(ui.id(), |_| ()).is_some();
+    let accessible = ui.ctx().accesskit_node_builder(ui.scope_id(), |_| ()).is_some();
     let readings = app.visual.measurement.readings();
     for (i, r) in readings.iter().enumerate() {
         let (a, b) = (screen(r.from), screen(r.to));
@@ -113,8 +113,8 @@ pub fn measure(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize, rect: 
         painter.rect_filled(tag.expand2(egui::vec2(5.0, 3.0)), 3.0, egui::Color32::from_black_alpha(200));
         painter.galley(tag.min, galley, theme::TEXT);
         if accessible {
-            let node = ui.interact(tag, ui.id().with(("measure-reading", pane, i)), egui::Sense::hover());
-            node.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, format!("Measure: {text}")));
+            let node = ui.interact(tag, ui.scope_id().with(("measure-reading", pane, i)), egui::Sense::hover());
+            node.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Unknown, true, format!("Measure: {text}")));
         }
     }
 }

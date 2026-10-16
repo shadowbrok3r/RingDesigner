@@ -79,8 +79,7 @@ fn names(h: &Harness<'static, RingDesignerApp>) -> Vec<String> {
 fn menu(h: &mut Harness<'static, RingDesignerApp>, at: Pos2, submenu: Option<&str>, item: &str) {
     click_at(h, at, PointerButton::Secondary, Modifiers::NONE);
     if let Some(sub) = submenu {
-        // A submenu's button carries egui's own arrow.
-        h.get_by_label(&format!("{sub} ⏵")).click();
+        h.get_by_label(sub).click();
         h.run_steps(3);
     }
     h.get_by_label(item).click();

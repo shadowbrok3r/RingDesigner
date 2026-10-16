@@ -1,6 +1,6 @@
 # Numeric touch policy
 
-Vendored from crates.io `egui` 0.36.2, under its original MIT / Apache-2.0 licenses.
+Vendored from crates.io `egui` 0.37.0, under its original MIT / Apache-2.0 licenses.
 
 The numeric interaction change is `style::Interaction::drag_value_dragging`, default
 `true`. RingDesigner's Android theme sets it to `false`: inactive numeric fields
@@ -25,7 +25,10 @@ All buttons, including `small_button`, use the theme's `interact_size.y` as thei
 minimum height. Small buttons retain compact text and horizontal padding without
 shrinking beside menu or icon buttons. RingDesigner uses 28 points on desktop
 and 32 points on Android; intentionally larger image/touch targets remain larger.
+Since 0.37 the default `ButtonStyle` (`theme/default_style.rs`) drops the floor for
+small buttons, so `Button::atom_ui` reapplies it after the styled minimum size.
 
-MenuButton reserves an 8-point custom atom for a painted downward triangle.
+MenuButton reserves an 8-point custom atom (keyed by an `IdSalt` since 0.37)
+for a painted downward triangle.
 The caret works with every font and does not change the accessible menu name.
 Submenu buttons keep their existing right arrow.

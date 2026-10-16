@@ -37,7 +37,7 @@ fn focusing(ctx: &egui::Context) -> Option<bool> {
         let mut seen = None;
         for e in &o.events {
             if let OutputEvent::Clicked(i) | OutputEvent::DoubleClicked(i) | OutputEvent::TripleClicked(i) | OutputEvent::FocusGained(i) = e {
-                let number = i.typ == egui::WidgetType::DragValue && i.value.is_some();
+                let number = i.role == egui::Role::SpinButton && i.value.is_some();
                 seen = Some(seen.unwrap_or(false) || number);
             }
         }
@@ -168,7 +168,7 @@ mod tests {
     fn a_field_on_a_dimension_bar_asks_for_numbers_and_one_elsewhere_does_not() {
         let ctx = egui::Context::default();
         let mut focus = Focus::default();
-        let bar = egui::Id::new("dims").with("area");
+        let bar = egui::Id::unique("dims").with("area");
         let (mut radius, mut note) = (String::from("1.5"), String::new());
         let (on_bar, said) = (Cell::new(true), Cell::new(false));
         let mut draw = |root: &mut egui::Ui| {

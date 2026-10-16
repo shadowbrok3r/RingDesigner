@@ -64,7 +64,7 @@ fn param(ui: &mut egui::Ui, p: &Param, params: &mut Value, auto: bool) {
                 let mut v = value.as_f64().unwrap_or(p.min);
                 let before = v;
                 let r = ui.add(egui::DragValue::new(&mut v).range(p.min..=p.max).speed(0.01).max_decimals(3));
-                r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::DragValue, true, &label));
+                r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::SpinButton, true, &label));
                 if v != before {
                     next = Some(json!(v));
                 }
@@ -74,7 +74,7 @@ fn param(ui: &mut egui::Ui, p: &Param, params: &mut Value, auto: bool) {
                 for n in (p.min as i64..=p.max as i64).rev() {
                     let r = ui.selectable_label(current == n, n.to_string());
                     let name = format!("{} {n}", p.label);
-                    r.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, current == n, &name));
+                    r.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, current == n, &name));
                     if r.clicked() && current != n {
                         next = Some(json!(n));
                     }
@@ -84,7 +84,7 @@ fn param(ui: &mut egui::Ui, p: &Param, params: &mut Value, auto: bool) {
                 let mut v = value.as_f64().unwrap_or(p.min).round() as i64;
                 let before = v;
                 let r = ui.add(egui::DragValue::new(&mut v).range(p.min as i64..=p.max as i64));
-                r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::DragValue, true, &label));
+                r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::SpinButton, true, &label));
                 if v != before {
                     next = Some(json!(v));
                 }
@@ -102,7 +102,7 @@ fn param(ui: &mut egui::Ui, p: &Param, params: &mut Value, auto: bool) {
             Kind::Flag => {
                 let mut v = value.as_bool().unwrap_or(false);
                 let r = ui.checkbox(&mut v, "");
-                r.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, true, v, &label));
+                r.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, true, v, &label));
                 if r.changed() {
                     next = Some(json!(v));
                 }

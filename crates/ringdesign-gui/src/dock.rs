@@ -101,11 +101,11 @@ impl Default for Dock {
             // Layers under Design: it is the one that gets edited most, and a
             // vertical split keeps both on screen.
             left: egui_tiles::Tree::new_vertical(
-                "dock_left",
+                egui::Id::unique("dock_left"),
                 vec![ToolKind::Design, ToolKind::Layers],
             ),
             right: egui_tiles::Tree::new_vertical(
-                "dock_right",
+                egui::Id::unique("dock_right"),
                 vec![ToolKind::Report, ToolKind::Library],
             ),
             left_width: 336.0,
@@ -126,8 +126,8 @@ impl Dock {
             _ => (vec![], vec![]),
         };
         Self {
-            left: if left.is_empty() { egui_tiles::Tree::empty("dock_left") } else { egui_tiles::Tree::new_vertical("dock_left", left) },
-            right: if right.is_empty() { egui_tiles::Tree::empty("dock_right") } else { egui_tiles::Tree::new_vertical("dock_right", right) },
+            left: if left.is_empty() { egui_tiles::Tree::empty(egui::Id::unique("dock_left")) } else { egui_tiles::Tree::new_vertical(egui::Id::unique("dock_left"), left) },
+            right: if right.is_empty() { egui_tiles::Tree::empty(egui::Id::unique("dock_right")) } else { egui_tiles::Tree::new_vertical(egui::Id::unique("dock_right"), right) },
             left_width: 336.0, right_width: if desktop == Desktop::Graph { 420.0 } else { 326.0 },
             defaults: DOCK_DEFAULTS,
         }
@@ -325,7 +325,7 @@ mod tests {
             json.as_object_mut().unwrap().remove("defaults");
             serde_json::from_value::<Dock>(json).unwrap()
         };
-        let empty = Dock { left: egui_tiles::Tree::empty("dock_left"), right: egui_tiles::Tree::empty("dock_right"), ..Dock::for_desktop(Desktop::Cad) };
+        let empty = Dock { left: egui_tiles::Tree::empty(egui::Id::unique("dock_left")), right: egui_tiles::Tree::empty(egui::Id::unique("dock_right")), ..Dock::for_desktop(Desktop::Cad) };
         let mut stored = old(&empty);
         assert_eq!(stored.defaults, 0);
         assert!(stored.catch_up(Desktop::Cad));

@@ -2,7 +2,7 @@ use super::*;
 use std::collections::BTreeSet;
 
 fn favorites_id() -> egui::Id {
-    egui::Id::new("ringdesigner-favorite-nodes")
+    egui::Id::unique("ringdesigner-favorite-nodes")
 }
 
 fn compatible(card: &NodeCard, snarl: &Snarl<NodeCard>, pins: &AnyPins<'_>) -> Option<usize> {

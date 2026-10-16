@@ -1,10 +1,15 @@
 //! Inspector rows share a left label and right value column.
 pub fn row<R>(ui: &mut egui::Ui, label: &str, value: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    labelled_row(ui, label, true, value)
+}
+
+/// `named`: false leaves the value widgets for the caller to name.
+fn labelled_row<R>(ui: &mut egui::Ui, label: &str, named: bool, value: impl FnOnce(&mut egui::Ui) -> R) -> R {
     ui.horizontal(|ui| {
-        ui.label(label);
+        let label = ui.label(label).id;
         ui.spacing_mut().interact_size.x = 84.;
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), value)
-            .inner
+        let value = |ui: &mut egui::Ui| ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), value).inner;
+        if named { ui.label_inputs_by(label, value) } else { value(ui) }
     })
     .inner
 }
@@ -16,8 +21,8 @@ pub fn named(
     name: &str,
     value: impl FnOnce(&mut egui::Ui) -> egui::Response,
 ) -> egui::Response {
-    let response = row(ui, label, value);
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::DragValue, true, name));
+    let response = labelled_row(ui, label, false, value);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::SpinButton, true, name));
     response
 }
 

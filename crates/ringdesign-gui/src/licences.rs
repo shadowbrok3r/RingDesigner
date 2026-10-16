@@ -19,7 +19,7 @@ const OPEN_LINES: usize = 6;
 
 /// Whether the window is open, kept per context.
 fn open_id() -> egui::Id {
-    egui::Id::new("licences-open")
+    egui::Id::unique("licences-open")
 }
 
 /// Opens the window in `ctx` on its next frame.

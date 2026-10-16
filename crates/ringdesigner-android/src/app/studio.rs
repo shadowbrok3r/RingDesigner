@@ -34,15 +34,15 @@ impl RingApp {
         let mut observed = overlays.clone();
         // Semantic changes can reuse the same floating Area. Their bounds also
         // keep the short settle alive while the content-height inspector reflows.
-        observed.push((egui::Id::new("viewport-layout"), view));
+        observed.push((egui::Id::unique("viewport-layout"), view));
         if let Some(sheet) = self.editor.sheet {
-            observed.push((egui::Id::new(("inspector-open", sheet as u8, self.editor.mode as u8)), view));
+            observed.push((egui::Id::unique(("inspector-open", sheet as u8, self.editor.mode as u8)), view));
         }
         if let Some(palette) = self.editor.palette {
-            observed.push((egui::Id::new(("palette-open", format!("{palette:?}"))), view));
+            observed.push((egui::Id::unique(("palette-open", format!("{palette:?}"))), view));
         }
         if !self.editor.workspace.rail_collapsed {
-            observed.push((egui::Id::new("rail-expanded"), view));
+            observed.push((egui::Id::unique("rail-expanded"), view));
         }
         let ready = self.editor.menu_avoidance.observe(&observed, manual, self.preview_mesh.is_some());
         if self.editor.menu_avoidance.settling() {
@@ -393,7 +393,7 @@ impl RingApp {
         ui.spacing_mut().slider_width = (safe.width() - 170.0).clamp(70.0, 200.0);
         let typing = host.keyboard_height() > 1.0;
         if !typing {
-            egui::Panel::bottom(egui::Id::new("studio-navigation"))
+            egui::Panel::bottom(egui::Id::unique("studio-navigation"))
                 .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(6, 3)))
                 .show(ui, |ui| self.nav_bar(ui, host));
         } else {
@@ -401,7 +401,7 @@ impl RingApp {
             // inputs stable when Android opens/closes the keyboard.
             ui.skip_ahead_auto_ids(1);
         }
-        egui::Panel::top(egui::Id::new("studio-header"))
+        egui::Panel::top(egui::Id::unique("studio-header"))
             .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(8, 2)))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -471,9 +471,9 @@ impl RingApp {
                 };
                 if extent >= 42.0 {
                     let panel = if landscape {
-                        egui::Panel::right(egui::Id::new("studio-inspector-side"))
+                        egui::Panel::right(egui::Id::unique("studio-inspector-side"))
                     } else {
-                        egui::Panel::bottom(egui::Id::new("studio-inspector-bottom"))
+                        egui::Panel::bottom(egui::Id::unique("studio-inspector-bottom"))
                     };
                     panel
                         .exact_size(extent)
@@ -526,12 +526,12 @@ impl RingApp {
                     let wide = ui.available_width() > ui.available_height() * 1.15;
                     let (panel, extent) = if wide {
                         (
-                            egui::Panel::left(egui::Id::new("tool-live-preview-side")),
+                            egui::Panel::left(egui::Id::unique("tool-live-preview-side")),
                             ui.available_width() * 0.42,
                         )
                     } else {
                         (
-                            egui::Panel::top(egui::Id::new("tool-live-preview")),
+                            egui::Panel::top(egui::Id::unique("tool-live-preview")),
                             (ui.available_height() * 0.34).clamp(155.0, 270.0),
                         )
                     };
@@ -1037,7 +1037,7 @@ impl RingApp {
             ui.ctx().request_repaint();
         }
         let mut cad_menu_asked = false;
-        egui::Panel::bottom(egui::Id::new("viewport-selection-bar"))
+        egui::Panel::bottom(egui::Id::unique("viewport-selection-bar"))
             .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(4,3)).stroke(egui::Stroke::new(1., crate::theme::AQUA.gamma_multiply(0.45))))
             .show(ui, |ui| {
                 use ringdesign_workbench::icons::{self, Icon};
@@ -1094,12 +1094,12 @@ impl RingApp {
                 });
             });
         if self.tab == Tab::Ring && self.design.cad.as_ref().is_some_and(|d| !d.features.is_empty()) {
-            egui::Panel::bottom(egui::Id::new("viewport-feature-strip"))
+            egui::Panel::bottom(egui::Id::unique("viewport-feature-strip"))
                 .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(4, 2)))
                 .show(ui, |ui| self.feature_strip(ui));
         }
         if self.tab == Tab::Ring {
-            egui::Panel::bottom(egui::Id::new("viewport-status-line"))
+            egui::Panel::bottom(egui::Id::unique("viewport-status-line"))
                 .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(8, 2)))
                 .show(ui, |ui| self.status_line(ui));
         }
@@ -1113,7 +1113,7 @@ impl RingApp {
             }
         }
         let nav = ringdesign_workbench::navigation::show(
-            ui, rect, ui.id().with("phone-view"), &mut self.pane.navigation,
+            ui, rect, ui.scope_id().with("phone-view"), &mut self.pane.navigation,
             [self.pane.camera.yaw, self.pane.camera.pitch, self.pane.camera.roll], self.design.shank.head.theta_deg as f32,
         );
         for (name, r) in &nav.controls { editor::layout::record(ui, format!("navigator/{name}"), *r); }

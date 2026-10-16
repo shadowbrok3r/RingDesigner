@@ -346,7 +346,7 @@ fn crop_canvas(ed: &mut AlphaEditor, ui: &mut egui::Ui, src: &Alpha, view: f32) 
 
     let resp = ui.interact(
         img,
-        egui::Id::new("alpha_editor_crop"),
+        egui::Id::unique("alpha_editor_crop"),
         egui::Sense::click_and_drag(),
     );
     let cr = to_screen(&ed.ops.crop.normalized());

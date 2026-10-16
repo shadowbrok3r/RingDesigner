@@ -160,7 +160,7 @@ fn a_move_reads_the_pointer_under_the_dimension_bar_and_the_bar_holds_still_ther
     hover_side(&mut h, pane, 90.0);
     press(&mut h, Key::G);
     hover_side(&mut h, pane, 90.0);
-    let bar = |h: &Harness<'static, RingDesignerApp>| h.ctx.memory(|m| m.area_rect(egui::Id::new("ring-viewport-dimensions").with("area"))).expect("the bar is shown");
+    let bar = |h: &Harness<'static, RingDesignerApp>| h.ctx.memory(|m| m.area_rect(egui::Id::unique("ring-viewport-dimensions").with("area"))).expect("the bar is shown");
     let (view, r) = (viewport_rect(&h), bar(&h));
     assert!(view.contains_rect(r.shrink(0.5)), "the bar stands inside the view: {r:?} in {view:?}");
     // Carried to a point of the band well inside the bar, clear of egui's 5 px search radius at its edge, snaps freed:
@@ -236,7 +236,7 @@ fn the_tool_inspector_opens_against_the_viewports_right_edge_clear_of_its_middle
     h.state_mut().visual.select(Tool::Measure);
     h.run_steps(3);
     let view = viewport_rect(&h);
-    let r = h.ctx.memory(|m| m.area_rect(egui::Id::new("direct-viewport-inspector"))).expect("the inspector is open");
+    let r = h.ctx.memory(|m| m.area_rect(egui::Id::unique("direct-viewport-inspector"))).expect("the inspector is open");
     assert!(r.right() <= view.right() && r.right() >= view.right() - 30.0 && r.left() > view.center().x, "{r:?} in {view:?}");
 }
 

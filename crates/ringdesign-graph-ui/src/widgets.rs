@@ -66,7 +66,7 @@ pub fn pin_widget(ui: &mut Ui, pin: &PinSpec, literal: &mut Option<Literal>) -> 
         }
         (Widget::Select(names), _) => {
             let mut v = effective.and_then(as_text).unwrap_or_default();
-            let id = ui.id().with(&pin.name);
+            let id = ui.scope_id().with(&pin.name);
             egui::ComboBox::from_id_salt(id).selected_text(if v.is_empty() { "…".to_string() } else { v.clone() }).width(110.0).show_ui(ui, |ui| {
                 for n in names {
                     if ui.selectable_value(&mut v, n.clone(), n).changed() {

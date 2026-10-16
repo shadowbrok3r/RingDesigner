@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.31.1 — 2026-10-16
+
+- Scrolling has momentum and rubber-bands at the ends, and buttons are a little roomier with rounder corners (egui 0.37).
+
 ## 0.31.0 — 2026-10-02
 
 - In a text field you are editing, press and hold a word to select it, and slide to grow the selection a word at a time. Tap, then tap again and hold, to move the cursor without selecting. A magnifier above the finger shows the text under it while you select or place the cursor.

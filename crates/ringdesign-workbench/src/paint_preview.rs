@@ -15,7 +15,7 @@ struct Preview {
     follow_aim: Aim,
 }
 fn id() -> egui::Id {
-    egui::Id::new("paint-surface-preview")
+    egui::Id::unique("paint-surface-preview")
 }
 fn follow_id() -> egui::Id {
     id().with("follow")

@@ -333,7 +333,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
             let mut open = true;
             egui::Window::new(app.visual.tool.label())
                 .frame(egui::Frame::window(ui.style()).fill(theme::FLOAT))
-                .id(egui::Id::new("direct-viewport-inspector"))
+                .id(egui::Id::unique("direct-viewport-inspector"))
                 .open(&mut open)
                 .default_width(180.0).min_width(150.0)
                 .pivot(egui::Align2::RIGHT_TOP)
@@ -425,7 +425,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     let nav = if follow_node {
         ringdesign_workbench::navigation::Response { rect: egui::Rect::NOTHING, action: None, changed: false, controls: Vec::new() }
     } else {
-        ringdesign_workbench::navigation::show(ui, rect, ui.id().with(("desktop-view", pane)),
+        ringdesign_workbench::navigation::show(ui, rect, ui.scope_id().with(("desktop-view", pane)),
             &mut app.panes[pane].navigation, [camera.yaw, camera.pitch, camera.roll], head)
     };
     #[cfg(test)]
@@ -752,7 +752,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         }
         s
     };
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, label.clone()));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Unknown, true, label.clone()));
 
     if active && app.panes[pane].navigation.magnifier && !floating_blocked && !navigating {
         if let Some((contact, reach)) = app.visual.placement_focus(ui, rect) {
@@ -793,7 +793,7 @@ pub fn candidate_view(
 ) -> (egui::Rect, egui::Response) {
     let available = ui.available_rect_before_wrap().intersect(ui.clip_rect()).size().max(egui::vec2(1.,1.));
     let (rect, response) = ui.allocate_exact_size(available, egui::Sense::click_and_drag());
-    let nav = ringdesign_workbench::navigation::show_camera(ui,rect,ui.id().with("cad-cube"),
+    let nav = ringdesign_workbench::navigation::show_camera(ui,rect,ui.scope_id().with("cad-cube"),
         &mut display.navigation,[camera.yaw,camera.pitch,camera.roll],head);
     #[cfg(test)]
     ui.ctx().data_mut(|d| d.insert_temp(navigator_key(None), nav.controls.clone()));
@@ -1257,7 +1257,7 @@ fn act(app: &mut RingDesignerApp, pane: usize, action: MenuAction) {
 /// Where the navigator's controls stood last frame, keyed by the Ring pane they drew in, or `None` for a candidate view.
 #[cfg(test)]
 pub(crate) fn navigator_key(pane: Option<usize>) -> egui::Id {
-    egui::Id::new(("navigator-controls", pane))
+    egui::Id::unique(("navigator-controls", pane))
 }
 
 /// The navigator's controls as last drawn over the Ring pane `pane`, or over a candidate view for `None`.
@@ -1329,7 +1329,7 @@ fn stamp_inspector(app: &mut RingDesignerApp, ui: &egui::Ui) {
     let mut open = true;
     let mut done = ringdesign_workbench::viewport::made::Inspected::default();
     egui::Window::new("Stamp")
-        .id(egui::Id::new("stamp-inspector"))
+        .id(egui::Id::unique("stamp-inspector"))
         .frame(egui::Frame::window(ui.style()).fill(theme::FLOAT))
         .open(&mut open)
         .default_width(220.0)
@@ -1552,7 +1552,7 @@ fn plane_at(shapes: &[PlaneShape], proj: &Projector, painter: &egui::Painter, po
 /// Every plane as a translucent rectangle with its name, the one under the pointer and the chosen one lit, each named for a reader.
 fn draw_planes(app: &RingDesignerApp, ui: &egui::Ui, pane: usize, shapes: &[PlaneShape], painter: &egui::Painter, proj: &Projector) {
     let view = app.command.planes;
-    let reader = ui.ctx().accesskit_node_builder(ui.id(), |_| ()).is_some();
+    let reader = ui.ctx().accesskit_node_builder(ui.scope_id(), |_| ()).is_some();
     for s in shapes {
         let pts = plane_screen(s, proj);
         let lit = view.hot == Some(s.id) || view.menu == Some(s.id);
@@ -1564,9 +1564,9 @@ fn draw_planes(app: &RingDesignerApp, ui: &egui::Ui, pane: usize, shapes: &[Plan
         painter.rect_filled(rect.expand2(egui::vec2(3.0, 1.0)), 3.0, egui::Color32::from_black_alpha(150));
         painter.galley(rect.min, galley, color);
         if reader {
-            let r = ui.interact(rect, ui.id().with(("work-plane", pane, s.id)), egui::Sense::hover());
+            let r = ui.interact(rect, ui.scope_id().with(("work-plane", pane, s.id)), egui::Sense::hover());
             let label = format!("Work plane: {}", s.name);
-            r.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, label.as_str()));
+            r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Unknown, true, label.as_str()));
         }
     }
 }

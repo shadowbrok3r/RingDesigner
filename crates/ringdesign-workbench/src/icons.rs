@@ -497,7 +497,7 @@ impl Icon {
         }
     }
     pub fn image(self, ui: &Ui, side: f32) -> egui::Image<'static> {
-        let id = egui::Id::new(("atelier-svg", self));
+        let id = egui::Id::unique(("atelier-svg", self));
         let texture = ui
             .data_mut(|d| d.get_temp::<egui::TextureHandle>(id))
             .unwrap_or_else(|| {
@@ -626,7 +626,7 @@ pub fn button(ui: &mut Ui, icon: Icon, label: &str, selected: bool, size: Vec2) 
     }.on_hover_cursor(egui::CursorIcon::PointingHand);
     r.widget_info(|| {
         egui::WidgetInfo::labeled(
-            egui::WidgetType::Button,
+            egui::Role::Button,
             ui.is_enabled(),
             if label.is_empty() {
                 icon.hint().0

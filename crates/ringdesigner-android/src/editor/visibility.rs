@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn only_opening_repositions_and_manual_pan_cancels_pending_work() {
         let mut state = MenuAvoidance::default();
-        let menu = [(Id::new("File"), rect(0., 0., 180., 300.))];
+        let menu = [(Id::unique("File"), rect(0., 0., 180., 300.))];
         assert!(!state.observe(&menu, false, true));
         assert!(!state.observe(&menu, false, true));
         assert!(state.observe(&menu, false, true));

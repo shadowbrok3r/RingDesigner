@@ -185,7 +185,7 @@ pub fn closed_because(group: &[MenuItem]) -> Option<&'static str> {
 
 /// The area the menu is drawn in.
 pub fn area() -> egui::Id {
-    egui::Id::new("phone-cad-menu")
+    egui::Id::unique("phone-cad-menu")
 }
 
 /// A long press's menu, open over the ring.
