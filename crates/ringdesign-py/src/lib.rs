@@ -247,10 +247,11 @@ impl Design {
 
     #[setter]
     fn set_size(&mut self, size: f64) -> PyResult<()> {
-        if !(1.0..=20.0).contains(&size) {
-            return Err(bad(format!("{size} is not a US ring size between 1 and 20")));
+        use ringdesign_core::sizing;
+        if !(1.0..=sizing::MAX_SIZE).contains(&size) {
+            return Err(bad(format!("{size} is not a US ring size between 1 and 20, nor a bangle up to {} mm", sizing::MAX_BORE_MM)));
         }
-        self.inner.size = ringdesign_core::sizing::RingSize(size);
+        self.inner.size = sizing::RingSize(size);
         Ok(())
     }
 
@@ -267,6 +268,17 @@ impl Design {
     #[getter]
     fn inner_diameter_mm(&self) -> f64 {
         self.inner.size.inner_diameter_mm()
+    }
+
+    #[setter]
+    fn set_inner_diameter_mm(&mut self, mm: f64) -> PyResult<()> {
+        use ringdesign_core::sizing;
+        let floor = sizing::RingSize(1.0).inner_diameter_mm();
+        if !(floor..=sizing::MAX_BORE_MM).contains(&mm) {
+            return Err(bad(format!("a {mm} mm bore is outside {floor:.2} to {} mm", sizing::MAX_BORE_MM)));
+        }
+        self.inner.size = sizing::RingSize::from_diameter_mm_exact(mm);
+        Ok(())
     }
 
     #[getter]

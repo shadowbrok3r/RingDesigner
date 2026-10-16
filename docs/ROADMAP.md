@@ -554,7 +554,10 @@ width), F137 (nothing reasons about whether a design can be resized — a full e
 (a size change never re-solves stone spacing or live generators, across a 20% circumference change
 from size 5 to 9), F145≡F215, F146, F227 (**bangles are an `S` hiding in a `high|M`** — the sweep
 already works at 60–70 mm; it is a range check on `RingSize`. Do not merge this with M22's torus
-work or a one-day win is buried under a multi-week one).
+work or a one-day win is buried under a multi-week one). **F227 landed** (`m21-bangle-sizes`): a
+size past US 20 is a bangle's bore kept exact on the same scale, a Ring/Bangle switch on the Design
+panel, the guards widened (the kiosk stays ring-only), and such a size fenced at design format 6
+and graph format 2.
 
 Land this after M10.6: wide-band compensation silently changes the bore of every existing design,
 and without the golden corpus the regression is invisible.

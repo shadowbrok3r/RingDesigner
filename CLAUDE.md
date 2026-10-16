@@ -1062,6 +1062,39 @@ The pattern therefore follows the band as it tapers instead of sliding across
 it. `mesh::build` and `castability::section_at` must do this identically — if
 they diverge, the section view lies about the solid.
 
+### A bangle is a size past US 20, kept to the millimetre
+
+`RingSize` is still one `f64` on the US scale, `(inner circumference − 36.5)
+/ 2.55`, and that number is what a file stores, so a finger ring's JSON is
+byte for byte what it was. A finger size is quarter-rounded and held to US 20
+(`RingSize::new`, a 27.9 mm bore). Past `MAX_RING_SIZE` the same scale carries
+a bangle's inside diameter **unrounded** (`RingSize::exact`,
+`from_diameter_mm_exact`), up to `MAX_BORE_MM` — 120 mm, US 133.5 — which is
+also the sanity ceiling every stored size is clamped under. `from_diameter_mm`
+and `from_circumference_mm` read the family: a finger's bore still rounds to
+its quarter, a bangle's is kept.
+
+The diameter is not a second stored field because two truths drift, and every
+`size.0` reader in five crates would have to learn a second unit. What the
+scale costs is the conversion back: within 3e-14 mm, and a 63.5 mm bangle
+round-trips bit for bit. Nothing in the sweep reads the size except through
+`inner_radius_mm`, so a bangle needs no geometry change at all.
+
+`SizeFamily` (Ring, Bangle) is read off the number, never stored. The Design
+panel's "Worn as" switch moves between US 7 and a 63.5 mm bangle, and Bangle
+edits the inside diameter in mm (a 45–90 mm Bore slider whose value box takes 28–120);
+the phone shows a bangle in mm and keeps rings in quarter sizes. MCP
+`set_ring` takes `inner_diameter_mm`, Python's `Design.inner_diameter_mm` is
+settable, graph `design.new` takes a size past 20 (`band.size.fit` makes one
+exactly from a bore), and the CLI names a bangle's files by bore. The kiosk
+stays ring-only: `compose` sells finger rings and holds them to 3–13.
+
+**A size past US 20 writes the design at 6**, and a graph carrying one at 2 —
+a `design.new` or `band.size` literal, a `band.size.fit` bore past 27.9 mm, a
+`/size` patch or a whole serialized design — because an older build clamps
+it to a US 20 ring without a word. A size reaching `design.new` through a
+wire or an expression cannot be read off the file and is not fenced.
+
 ## Two things the model does not yet know
 
 Recorded here because they are doctrine-level, not tickets: a reader of this file will otherwise

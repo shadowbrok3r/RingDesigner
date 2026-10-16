@@ -49,15 +49,16 @@ pub const DESIGN_EXT: &str = "ring.json";
 // earlier build refuses or builds open, untwisted and unscaled; a part placed level, relative to another part or on a
 // side face, which an earlier build seats by the raw normal or cannot read; a ring of parts alone whose parts carry
 // a fillet, which an earlier build leaves unbeaded; a line array or an array along a path, which an earlier build
-// cannot parse; a part left to the bench with no mark, which an earlier build would mark; and an inscription in the
-// Textura face, which an earlier build cannot name.
+// cannot parse; a part left to the bench with no mark, which an earlier build would mark; an inscription in the
+// Textura face, which an earlier build cannot name; and a bangle's size past US 20, which an earlier build would clamp
+// to a US 20 ring.
 // A design with none of these is still written at 5.
 pub const FORMAT_VERSION: u32 = 6;
 
 /// The version a design carrying none of the format-6 features is written at, so builds that read up to it still open the file.
 pub const PLAIN_FORMAT_VERSION: u32 = 5;
 
-/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a line array or an array along a path, a cut or a fillet on a ring of parts alone, a part placed level, relative to a part or on a side face, a stamp a format-5 build cannot strike, a bench part with no mark or a Textura inscription.
+/// The version `design` is written at: the newest when it carries a stored mesh, an in-plane revolution, a profile of several regions, a pattern of several parts, a line array or an array along a path, a cut or a fillet on a ring of parts alone, a part placed level, relative to a part or on a side face, a stamp a format-5 build cannot strike, a bench part with no mark, a Textura inscription or a bangle's size.
 pub fn format_version_for(design: &RingDesign) -> u32 {
     if crate::cad::stored::carried_by(design)
         || crate::cad::turns_in_plane(design)
@@ -80,6 +81,7 @@ pub fn format_version_for(design: &RingDesign) -> u32 {
         || design.crisp_relief
         || design.cad.as_ref().is_some_and(|doc| doc.features.iter().any(|f| !f.component.mark))
         || design.texts.iter().any(|t| t.font == crate::text::TextFont::Textura)
+        || design.size.0 > crate::sizing::MAX_RING_SIZE
     {
         FORMAT_VERSION
     } else {
@@ -121,6 +123,24 @@ fn tiling_features_in_stack(stack: &crate::LayerStack) -> bool {
     })
 }
 
+/// Whether `value` carries a size past the finger sizes: a design's own, a size pin's literal or a `/size` patch.
+fn bangle_size_json(value: &serde_json::Value) -> bool {
+    let past = |v: Option<&serde_json::Value>| v.and_then(serde_json::Value::as_f64).is_some_and(|s| s > crate::sizing::MAX_RING_SIZE);
+    if value.get("profile").is_some() && value.get("shank").is_some() && past(value.get("size")) {
+        return true;
+    }
+    let inputs = value.get("inputs");
+    let input = |pin: &str| inputs.and_then(|i| i.get(pin));
+    match value.get("kind").and_then(serde_json::Value::as_str) {
+        Some("design.new" | "band.size") => past(input("size")),
+        Some("band.size.fit") => input("inner_diameter_mm")
+            .and_then(serde_json::Value::as_f64)
+            .is_some_and(|d| d > crate::RingSize(crate::sizing::MAX_RING_SIZE).inner_diameter_mm()),
+        Some("design.set") => input("pointer").and_then(serde_json::Value::as_str) == Some("/size") && past(input("value")),
+        _ => false,
+    }
+}
+
 /// Source references and template controls whose geometry earlier readers cannot reproduce.
 pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     const PLACEMENT: &[&str] = &["placement", "blend_mm", "theta_deg", "height_mm", "across_mm", "spin_deg", "cant_deg", "tilt_deg", "level", "part", "at", "rotation_deg", "radius_mm", "face"];
@@ -154,6 +174,7 @@ pub fn template_features_in_json(value: &serde_json::Value) -> bool {
     // A part left to the bench with no mark, which an older reader would mark; a face an older reader cannot name.
     if value.get("attach").is_some() && value.get("stage").is_some() && value.get("mark").and_then(serde_json::Value::as_bool) == Some(false) { return true; }
     if value.get("font").and_then(serde_json::Value::as_str) == Some("Textura") { return true; }
+    if bangle_size_json(value) { return true; }
     if let Some(kind) = value.get("kind").and_then(serde_json::Value::as_str) {
         if kind == "layer.curve" && value.get("inputs").and_then(|i| i.get("profile")).and_then(serde_json::Value::as_str) == Some("Tube") { return true; }
         if matches!(kind, "base.preset" | "shank.key" | "stamp" | "stamp.top" | "stamp.row" | "design.stamps" | "cad.features" | "sketch.text")
@@ -471,6 +492,42 @@ mod template_source_tests {
             ("exposure", graph(serde_json::json!({}), none.clone(), serde_json::json!([{"name":"Crisp","node":7,"input":"crisp_relief"}]))),
         ] {
             assert!(fenced(&g), "{form}");
+        }
+    }
+
+    /// A 63.5 mm bangle builds closed, keeps its bore through the file, is written at 6, and fences a graph carrying its size.
+    #[test]
+    fn a_bangle_keeps_its_bore_through_the_file_and_fences_it() {
+        let bangle = RingDesign { size: crate::RingSize::from_diameter_mm_exact(63.5), ..RingDesign::default() };
+        let built = crate::mesh::build(&bangle, &crate::AlphaLibrary::builtin(), crate::BuildParams { theta_steps: 384, profile_steps: 96, ..Default::default() });
+        let v = built.mesh.validate();
+        assert!(v.watertight && v.boundary_edges == 0 && v.non_manifold_edges == 0, "{v:?}");
+        assert!((built.report.inner_diameter_mm - 63.5).abs() < 1e-3, "measured bore {}", built.report.inner_diameter_mm);
+        let text = design_json(&bangle).unwrap();
+        let back = load_design_str(&text).unwrap();
+        assert_eq!(back.size, bangle.size, "the size survives the file bit for bit");
+        assert_eq!(back.inner_radius_mm() * 2.0, 63.5);
+        assert_eq!(format_version_for(&bangle), FORMAT_VERSION);
+        assert!(read_design(&text, PLAIN_FORMAT_VERSION).unwrap_err().to_string().contains("format version 6"));
+        for size in [crate::RingSize(7.0), crate::RingSize(crate::sizing::MAX_RING_SIZE), crate::RingSize(0.5)] {
+            assert_eq!(format_version_for(&RingDesign { size, ..RingDesign::default() }), PLAIN_FORMAT_VERSION, "{size}");
+        }
+        let node = |kind: &str, inputs: serde_json::Value| serde_json::json!({"nodes":[{"id":1,"kind":kind,"inputs":inputs}],"wires":[]});
+        let us = bangle.size.0;
+        for (g, fenced) in [
+            (node("design.new", serde_json::json!({"size": us})), true),
+            (node("design.new", serde_json::json!({"size": 7.0})), false),
+            (node("band.size", serde_json::json!({"size": us})), true),
+            (node("band.size.fit", serde_json::json!({"inner_diameter_mm": 63.5})), true),
+            (node("band.size.fit", serde_json::json!({"inner_diameter_mm": 17.35})), false),
+            (node("design.set", serde_json::json!({"pointer": "/size", "value": us})), true),
+            (node("design.set", serde_json::json!({"pointer": "/size", "value": 9.0})), false),
+            (serde_json::to_value(&bangle).unwrap(), true),
+            (serde_json::to_value(RingDesign::default()).unwrap(), false),
+        ] {
+            assert_eq!(template_features_in_json(&g), fenced, "{g}");
+            let nested = serde_json::json!({"nodes":[{"kind":"cluster","params":{"graph":g}}]});
+            assert_eq!(format_version_for(&RingDesign { graph: Some(nested), ..RingDesign::default() }) == FORMAT_VERSION, fenced);
         }
     }
 }

@@ -1068,7 +1068,14 @@ impl RingApp {
         ui.scope(|ui| {
             ui.label(egui::RichText::new("ring").weak());
             let mut size = self.design.size.0;
-            if ui
+            if self.design.size.is_bangle() {
+                let mut bore = self.design.size.inner_diameter_mm();
+                let range = ringdesign_core::sizing::BANGLE_MIN_MM..=ringdesign_core::sizing::BANGLE_MAX_MM;
+                if ui.add(egui::Slider::new(&mut bore, range).step_by(0.5).suffix(" mm").text("inside")).changed() {
+                    self.design.size = RingSize::from_diameter_mm_exact(bore);
+                    dirty = true;
+                }
+            } else if ui
                 .add(egui::Slider::new(&mut size, 3.0..=13.0).step_by(0.25).text("US size"))
                 .changed()
             {

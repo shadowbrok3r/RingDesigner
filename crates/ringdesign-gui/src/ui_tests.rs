@@ -1522,3 +1522,15 @@ fn a_stored_cad_layout_with_the_old_empty_docks_gains_the_report_once() {
     assert_eq!(h.state().desktop, Desktop::Cad);
     assert!(report(&h), "the stored dock of the desktop in hand catches up too");
 }
+
+#[test]
+fn the_size_family_switch_takes_a_bangle_by_its_bore() {
+    let mut h = harness([1600., 980.]);
+    h.run_steps(3);
+    h.get_by_label("Bangle").click();
+    h.run_steps(2);
+    let size = h.state().design.size;
+    assert!(size.is_bangle(), "{size}");
+    assert_eq!(size.inner_diameter_mm(), 63.5);
+    assert!(h.query_by_label_contains("Bangle 63.5 mm").is_some(), "the panel reads the bangle by its bore");
+}
