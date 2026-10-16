@@ -1638,6 +1638,7 @@ mod tests {
             bench: false,
             along_pull: false,
             fine_cap: false,
+            radial: false,
             tier: 0,
             top: Default::default(),
         });

@@ -734,7 +734,7 @@ mod tests {
         d.texts.push(ringdesign_core::text::TextAlpha { name: "Motto".into(), text: "SIGILLVM".into(), font: ringdesign_core::text::TextFont::Textura, tracking: 0.1 });
         d.stamps.push(Stamp {
             name: "Leaf".into(), theta_deg: 60.0, v_mm: ctx.crest_v_mm, rot_deg: 0.0, outline: ringdesign_core::outline::circle(2.0), height_mm: 0.3,
-            sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Pillow { crown_mm: 0.2 },
+            sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, radial: false, tier: 0, top: StampTop::Pillow { crown_mm: 0.2 },
         });
         let mut doc = Document::default();
         let bench = Component { attach: Attach::Join, stage: Stage::Bench, mark: false, placement: Placement::ring(30.0, 0.3), ..Default::default() };

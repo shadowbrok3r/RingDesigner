@@ -2077,7 +2077,10 @@ rows.** What the second version added, each measured:
   on its shield. A higher tier whose cap leaves the stamp beneath — past a
   joined edge, or over a cut — drapes, and the ray release reads the drape
   as 0.19 mm obstructions: `overhang()` names those outline points,
-  `parting_monotone` fails them and the build notes them. DFM measures
+  `parting_monotone` fails them and the build notes them. A higher tier
+  lying wholly inside every cut it meets stands on that cut's floor and is
+  no drape: the cathedral band's ballflowers are raised back up inside the
+  hollow moulding their pockets cut. DFM measures
   what a higher tier leaves of the stamp beneath (the ledge round a boss,
   the wall beside a cut) by the granulometry, counting a higher stamp only
   on the same ground — drawn into the lower one's plane with the normal
@@ -2108,6 +2111,17 @@ rows.** What the second version added, each measured:
   held to 0.1–0.2 mm instead of `reach / 14` held to 0.12–0.35: about three
   times the cap points (267 to 846 on a 10 × 4 mm dome), so a large domed top
   stops faceting. Off, a stamp builds bit for bit as before.
+- **A radial stamp's walls follow the ring's radius.** A stamp's walls run
+  along its frame's `z`, so on a curved band a wall `d` round the ring from
+  the stamp's centre leans `d/R` off the radius: on a size-9 band a wall
+  2 mm from its cut's centre ends 0.17 mm off the radius 1 mm down,
+  narrowing every bar between two cuts at its foot. `Stamp::radial` offsets
+  each cap point's top and floor along the ring's radius through it instead,
+  so the walls stand where they were drawn at every depth. It is meant for
+  the outer surface (on a side face the radius runs along the face), and a
+  layout drawn in arc length lays its outline's `x` as `r·sin(u/R)` on the
+  floor's radius `r`. Off, a stamp builds bit for bit as before; on, it
+  writes the design at 6 and fences a graph at 2.
 - **`Stamp::parting_monotone`** is the plan rule a stamp on a signet's face
   must pass: every plan line along the pull meets the stamp in one stretch
   across the parting line, its top never rising away from it, resting
@@ -2123,9 +2137,9 @@ rows.** What the second version added, each measured:
   whose do. Over 60–120° the first draft struck ten keels, five of them
   coincident; an uneven 60–104° ×4 later struck two 0.26 mm apart.
 
-**Plain stamps build as a format-5 build struck them.** `tier`, `top` and
-`fine_cap` are skipped when default, so a plain design serializes byte for
-byte; a tier, a shaped top, a fine cap or an outline past `PLAIN_MAX_STAMP_POINTS` (512 —
+**Plain stamps build as a format-5 build struck them.** `tier`, `top`,
+`fine_cap` and `radial` are skipped when default, so a plain design serializes byte for
+byte; a tier, a shaped top, a fine cap, radial walls or an outline past `PLAIN_MAX_STAMP_POINTS` (512 —
 every released build refuses more, and the spiral is 540 at its sheet
 size) writes the design at 6. A design whose *poured* stamps are all plain
 reads every frame as `stones::surface_frame` does — the nearest sample of a

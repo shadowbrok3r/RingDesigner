@@ -149,6 +149,7 @@ fn struck(base: &RingDesign, at: (f64, f64), outline: Vec<[f64; 2]>) -> RingDesi
         bench: false,
         along_pull: false,
         fine_cap: false,
+        radial: false,
         tier: 0,
         top: Default::default(),
     }];

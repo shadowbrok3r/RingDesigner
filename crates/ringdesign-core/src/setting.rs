@@ -1400,6 +1400,9 @@ pub struct Stamp {
     /// so a large domed top stops faceting. Off, the pitch a format-5 build used.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub fine_cap: bool,
+    /// Offset its top and floor along the ring's radius through each cap point, square to the finger's axis, instead of along the frame's `z`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub radial: bool,
 }
 
 fn is_zero(v: &u8) -> bool {
@@ -1902,7 +1905,7 @@ impl Stamp {
         let cap = cap_faces(&self.outline, 10.0, &[])?;
         let flat: Vec<f64> = vec![0.0; cap.0.len()];
         let shape = Shape::new(self.top, &self.outline, self.height_mm, self.top_anchor());
-        Some(self.assemble(&cap.0, &cap.1, &flat, &shape))
+        Some(self.assemble(&cap.0, &cap.1, &flat, &shape, None))
     }
 
     /// The point the top's ridge line, apex or crown passes through.
@@ -1914,9 +1917,9 @@ impl Stamp {
         }
     }
 
-    /// Tier 0, a flat top, the coarse cap and at most [`PLAIN_MAX_STAMP_POINTS`] outline points: what a format-5 build strikes.
+    /// Tier 0, a flat top, the coarse cap, walls along `z` and at most [`PLAIN_MAX_STAMP_POINTS`] outline points: what a format-5 build strikes.
     pub fn is_plain(&self) -> bool {
-        self.tier == 0 && self.top.is_flat() && !self.fine_cap && self.outline.len() <= PLAIN_MAX_STAMP_POINTS
+        self.tier == 0 && self.top.is_flat() && !self.fine_cap && !self.radial && self.outline.len() <= PLAIN_MAX_STAMP_POINTS
     }
 
     /// Spacing of the cap's inner grid for an outline reaching `reach` from the axis.
@@ -1925,15 +1928,25 @@ impl Stamp {
     }
 
     /// Closed solid from cap points, their triangles and the surface height under each.
-    fn assemble(&self, points: &[[f64; 2]], tris: &[[u32; 3]], surface: &[f64], shape: &Shape) -> Solid {
+    fn assemble(&self, points: &[[f64; 2]], tris: &[[u32; 3]], surface: &[f64], shape: &Shape, dirs: Option<&[P3]>) -> Solid {
         let n = self.outline.len();
         let count = points.len() as u32;
         let lean = if self.cut { 0.0 } else { (self.height_mm + self.sink_mm).max(0.0) * self.draft_deg.clamp(0.0, 30.0).to_radians().tan() };
         let flat = self.top.is_flat();
         let mut out = Solid::default();
-        for (p, z) in points.iter().zip(surface) {
+        // The point at height `at` over `p`, reached along its radius when `dirs` carries one.
+        let offset = |i: usize, p: [f64; 2], z: f64, at: f64| -> P3 {
+            match dirs {
+                Some(d) => {
+                    let by = at - z;
+                    [p[0] + d[i][0] * by, p[1] + d[i][1] * by, z + d[i][2] * by]
+                }
+                None => [p[0], p[1], at],
+            }
+        };
+        for (i, (p, z)) in points.iter().zip(surface).enumerate() {
             let top = z + self.height_mm;
-            out.v.push([p[0], p[1], if flat || self.cut { top } else { top + shape.lift(*p) }]);
+            out.v.push(offset(i, *p, *z, if flat || self.cut { top } else { top + shape.lift(*p) }));
         }
         for (i, (p, z)) in points.iter().zip(surface).enumerate() {
             let mut q = *p;
@@ -1950,7 +1963,7 @@ impl Stamp {
                 }
             }
             let floor = z - self.sink_mm;
-            out.v.push([q[0], q[1], if flat || !self.cut { floor } else { floor - shape.lift(*p) }]);
+            out.v.push(offset(i, q, *z, if flat || !self.cut { floor } else { floor - shape.lift(*p) }));
         }
         for t in tris {
             out.f.push(*t);
@@ -2062,7 +2075,16 @@ impl Stamp {
             let hit = first_hit(&near, frame.point([p[0], p[1], ABOVE]), down).ok_or("it runs off the edge of the surface it stands on")?;
             surface.push(ABOVE - hit);
         }
-        Ok(self.assemble(&points, &tris, &surface, shape).placed(frame))
+        // The ring's radius through each surface point, in the frame.
+        let dirs: Option<Vec<P3>> = self.radial.then(|| {
+            points.iter().zip(&surface).map(|(p, z)| {
+                let w = frame.point([p[0], p[1], *z]);
+                let l = w[0].hypot(w[1]).max(1e-12);
+                let r = [w[0] / l, w[1] / l];
+                [r[0] * frame.x[0] + r[1] * frame.x[1], r[0] * frame.y[0] + r[1] * frame.y[1], r[0] * frame.z[0] + r[1] * frame.z[1]]
+            }).collect()
+        });
+        Ok(self.assemble(&points, &tris, &surface, shape, dirs.as_deref()).placed(frame))
     }
 }
 
@@ -2765,8 +2787,12 @@ fn overhang(design: &crate::RingDesign, frames: &mut StampFrames, s: &Stamp, fra
         d(a).total_cmp(&d(b))
     }).unwrap_or(0);
     let mut bad = std::collections::BTreeSet::new();
+    // A stamp wholly inside a cut stands on that cut's floor.
+    let floors: Vec<bool> = cuts.iter().map(|c| own.iter().all(|(q, _)| clear(c, *q))).collect();
+    let standing = joined.is_empty() && floors.iter().any(|f| *f);
     for (q, i) in &own {
-        if !joined.iter().any(|p| clear(p, *q)) || cuts.iter().any(|c| inside_polygon(c, *q)) {
+        let unsupported = !standing && !joined.iter().any(|p| clear(p, *q));
+        if unsupported || cuts.iter().zip(&floors).any(|(c, f)| !f && inside_polygon(c, *q)) {
             bad.insert(*i);
         }
     }
@@ -4063,7 +4089,7 @@ mod tests {
         let boundary: std::collections::HashSet<(u32, u32)> = uses.keys().copied().filter(|(a, b)| !uses.contains_key(&(*b, *a))).collect();
         let want: std::collections::HashSet<(u32, u32)> = (0..n).map(|i| (i, (i + 1) % n)).collect();
         assert_eq!(boundary, want);
-        let stamp = Stamp { name: "Dent".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline, height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat };
+        let stamp = Stamp { name: "Dent".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline, height_mm: 0.4, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, radial: false, tier: 0, top: StampTop::Flat };
         assert_eq!(stamp.prism().unwrap().open_edges(), (0, 0));
     }
 
@@ -4084,7 +4110,7 @@ mod tests {
         assert!((area(&moon_outline(1.6, 0.5, 0.85)) - 0.5 * PI * 2.56).abs() < 0.03);
         assert!(area(&moon_outline(1.6, 0.25, 0.85)) > 0.0 && area(&crescent_cutter(1.6, 0.25, 0.85, 0.2)) > 0.0);
         // A half moon cast as a blank, and the bench's cut that leaves the crescent.
-        let blank = Stamp { name: "Half moon".into(), theta_deg: 60.0, v_mm: v, rot_deg: 0.0, outline: moon_outline(1.6, 0.5, 0.85), height_mm: 0.45, sink_mm: 0.35, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat };
+        let blank = Stamp { name: "Half moon".into(), theta_deg: 60.0, v_mm: v, rot_deg: 0.0, outline: moon_outline(1.6, 0.5, 0.85), height_mm: 0.45, sink_mm: 0.35, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, radial: false, tier: 0, top: StampTop::Flat };
         let cut = Stamp { name: "Crescent cut".into(), outline: crescent_cutter(1.6, 0.25, 0.85, 0.2), height_mm: 0.8, sink_mm: -0.02, cut: true, bench: true, ..blank.clone() };
         d.stamps = vec![blank, cut];
         let finished = crate::mesh::try_build(&d, &lib, params).unwrap();
@@ -4141,7 +4167,7 @@ mod tests {
     }
 
     fn plain(name: &str, theta_deg: f64, v_mm: f64, outline: Vec<[f64; 2]>, height_mm: f64) -> Stamp {
-        Stamp { name: name.into(), theta_deg, v_mm, rot_deg: 0.0, outline, height_mm, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, tier: 0, top: StampTop::Flat }
+        Stamp { name: name.into(), theta_deg, v_mm, rot_deg: 0.0, outline, height_mm, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap: false, radial: false, tier: 0, top: StampTop::Flat }
     }
 
     fn crest_band() -> crate::RingDesign {
@@ -4428,6 +4454,75 @@ mod tests {
         let back = crate::library::load_design_str(&crate::library::design_json(&d).unwrap()).unwrap();
         assert_eq!(back.stamps, d.stamps);
         assert!(crate::library::template_features_in_json(&serde_json::json!({"stamps": [d.stamps[0]]})), "a graph carrying it is fenced");
+    }
+
+    /// A radial cut stands every top and floor point on the ring's radius through it, where a frame-z prism turns by its reach over the radius.
+    #[test]
+    fn a_radial_cut_stands_its_walls_on_the_rings_radius() {
+        use crate::library::{format_version_for, template_features_in_json, FORMAT_VERSION};
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 8.0;
+        d.profile.crown_mm = 0.0;
+        let ctx = d.field_context();
+        let lib = crate::AlphaLibrary::builtin();
+        let mesh = crate::mesh::try_build(&d, &lib, strike()).unwrap().mesh;
+        let band = Solid { v: mesh.vertices.iter().map(|p| [p.0 as f64, p.1 as f64, p.2 as f64]).collect(), f: mesh.faces.clone() };
+        // Six millimetres round the ring by two across, 0.8 deep.
+        let outline: Vec<[f64; 2]> = crate::outline::circle(1.0).iter().map(|p| [3.0 * p[0], p[1]]).collect();
+        let prism = Stamp { cut: true, sink_mm: 0.8, fine_cap: true, ..plain("Slot", 90.0, ctx.crest_v_mm, outline, 0.3) };
+        let radial = Stamp { radial: true, ..prism.clone() };
+        let frame = prism.frame(&d, &ctx);
+        // Worst turn about the ring's axis between a cap point's top and floor, degrees, and the worst error in their radial drop, mm.
+        let lean = |s: &Stamp| {
+            let made = s.solid(&frame, &band).unwrap();
+            sound(&made, &s.name);
+            let count = made.v.len() / 2;
+            (0..count).fold((0.0f64, 0.0f64), |(turn, drop), i| {
+                let (a, b) = (made.v[i], made.v[i + count]);
+                let t = (b[1].atan2(b[0]) - a[1].atan2(a[0])).to_degrees().abs();
+                (turn.max(t), drop.max((a[0].hypot(a[1]) - b[0].hypot(b[1]) - 1.1).abs()))
+            })
+        };
+        let ((was, _), (now, drop)) = (lean(&prism), lean(&radial));
+        assert!(was > 0.5, "a frame-z prism turns {was:.3} deg over its depth at a 3 mm reach");
+        assert!(now < 1e-9 && drop < 1e-9, "a radial cut turns {now:.2e} deg and misses its drop by {drop:.2e} mm");
+        assert!(serde_json::to_value(&prism).unwrap().get("radial").is_none());
+        assert_eq!(serde_json::to_value(&radial).unwrap()["radial"], true);
+        d.stamps = vec![radial];
+        assert!(!d.stamps[0].is_plain());
+        assert_eq!(format_version_for(&d), FORMAT_VERSION, "a format-5 build would cut it as a prism");
+        assert!(template_features_in_json(&serde_json::json!({"stamps": [d.stamps[0]]})), "a graph carrying it is fenced");
+        let built = crate::mesh::try_build(&d, &lib, strike()).unwrap();
+        assert_eq!(built.solids.stamped, 1, "{:?}", built.solids.notes);
+        assert!(built.mesh.validate().watertight);
+        assert_eq!(crate::library::load_design_str(&crate::library::design_json(&d).unwrap()).unwrap().stamps, d.stamps);
+    }
+
+    /// A raised stamp wholly on a cut's floor stands there; one across the cut's edge drapes over it.
+    #[test]
+    fn a_stamp_wholly_inside_a_cut_stands_on_its_floor() {
+        let mut d = crate::RingDesign::default();
+        d.profile.apply_style(crate::ProfileStyle::Flat);
+        d.profile.width_mm = 8.0;
+        d.profile.crown_mm = 0.0;
+        let ctx = d.field_context();
+        let v = 0.5 * ctx.band_v_len_mm;
+        let pit = Stamp { cut: true, sink_mm: 0.4, ..plain("Pit", 90.0, v, crate::outline::circle(1.5), 0.3) };
+        let boss = |at: f64| Stamp { tier: 1, sink_mm: 0.05, ..plain("Boss", at, v, crate::outline::circle(0.4), 0.3) };
+        let spill = |d: &crate::RingDesign| {
+            let mut frames = StampFrames::new(d, &ctx);
+            let frame = frames.get(1);
+            overhang(d, &mut frames, &d.stamps[1], &frame)
+        };
+        d.stamps = vec![pit.clone(), boss(90.0)];
+        assert!(spill(&d).is_empty(), "a boss on the pit's floor stands");
+        let lib = crate::AlphaLibrary::builtin();
+        let notes = crate::mesh::try_build(&d, &lib, strike()).unwrap().solids.notes;
+        assert!(notes.is_empty(), "{notes:?}");
+        d.stamps = vec![pit, boss(90.0 + (0.75 / ctx.crest_radius_mm).to_degrees())];
+        let across = spill(&d);
+        assert!(across.len() > 4, "a boss across the pit's edge drapes over it at {} points", across.len());
     }
 
     /// A pillow is the dome on a circle and creaseless on a holly leaf, where the dome folds along every spine's ray.

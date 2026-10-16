@@ -318,7 +318,7 @@ pub fn list_presets() -> Vec<Preset> {
 mod tests {
     #[test]
     fn a_fine_cap_stamp_fences_the_graph_and_the_preset_carrying_it() {
-        let stamp = |fine_cap: bool| ringdesign_core::setting::Stamp { name: "Dome".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline: ringdesign_core::outline::circle(2.0), height_mm: 0.3, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap, tier: 0, top: Default::default() };
+        let stamp = |fine_cap: bool| ringdesign_core::setting::Stamp { name: "Dome".into(), theta_deg: 90.0, v_mm: 0.0, rot_deg: 0.0, outline: ringdesign_core::outline::circle(2.0), height_mm: 0.3, sink_mm: 0.3, draft_deg: 0.0, cut: false, bench: false, along_pull: false, fine_cap, radial: false, tier: 0, top: Default::default() };
         for (fine_cap, expected) in [(false, PLAIN_GRAPH_FORMAT_VERSION), (true, GRAPH_FORMAT_VERSION)] {
             let mut d = ringdesign_core::RingDesign::default();
             d.stamps.push(stamp(fine_cap));
