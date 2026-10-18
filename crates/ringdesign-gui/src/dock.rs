@@ -20,12 +20,13 @@ pub enum ToolKind {
     Report,
     Library,
     Node,
+    Theme,
 }
 
 impl ToolKind {
     pub fn atelier(self) -> ringdesign_workbench::icons::Icon {
         use ringdesign_workbench::icons::Icon;
-        match self { Self::Design => Icon::Shape, Self::Layers => Icon::Layers, Self::Report => Icon::Casting, Self::Library => Icon::Pattern, Self::Node => Icon::Graph }
+        match self { Self::Design => Icon::Shape, Self::Layers => Icon::Layers, Self::Report => Icon::Casting, Self::Library => Icon::Pattern, Self::Node => Icon::Graph, Self::Theme => Icon::Settings }
     }
     pub const ALL: &'static [ToolKind] = &[
         ToolKind::Design,
@@ -33,6 +34,7 @@ impl ToolKind {
         ToolKind::Report,
         ToolKind::Library,
         ToolKind::Node,
+        ToolKind::Theme,
     ];
 
     pub fn label(self) -> &'static str {
@@ -42,6 +44,7 @@ impl ToolKind {
             ToolKind::Report => "Report",
             ToolKind::Library => "Alphas",
             ToolKind::Node => "Node",
+            ToolKind::Theme => "Theme",
         }
     }
 
@@ -52,6 +55,7 @@ impl ToolKind {
             ToolKind::Report => icon::CLIPBOARD_TEXT,
             ToolKind::Library => icon::GRID_FOUR,
             ToolKind::Node => icon::SLIDERS_HORIZONTAL,
+            ToolKind::Theme => icon::PALETTE,
         }
     }
 }
@@ -208,6 +212,12 @@ impl Dock {
         let tree = self.tree_mut(side);
         let pane = tree.tiles.insert_pane(tool);
         match tree.root() {
+            Some(root) if tool == ToolKind::Theme => {
+                // Give the editor the full dock height, preserving the existing panels in a tab.
+                let mut tabs = egui_tiles::Tabs::new(vec![root, pane]);
+                tabs.set_active(pane);
+                tree.root = Some(tree.tiles.insert_container(tabs));
+            }
             Some(root) => {
                 // Push into the root container so it lands beside its siblings.
                 if let Some(egui_tiles::Tile::Container(c)) = tree.tiles.get_mut(root) {

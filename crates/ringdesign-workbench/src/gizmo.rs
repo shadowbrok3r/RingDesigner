@@ -129,7 +129,11 @@ pub struct Gizmo {
 
 /// How far a placed part's tessellation reaches from `origin`.
 pub fn reach(mesh: &Mesh, origin: [f64; 3]) -> f64 {
-    mesh.vertices.iter().map(|v| (f64::from(v.0) - origin[0]).hypot(f64::from(v.1) - origin[1]).hypot(f64::from(v.2) - origin[2])).fold(0.0, f64::max)
+    let squared = |v: &ringdesign_core::mesh::Vec3| {
+        let (x, y, z) = (f64::from(v.0) - origin[0], f64::from(v.1) - origin[1], f64::from(v.2) - origin[2]);
+        x * x + y * y + z * z
+    };
+    mesh.vertices.iter().map(squared).fold(0.0, f64::max).sqrt()
 }
 
 impl Gizmo {

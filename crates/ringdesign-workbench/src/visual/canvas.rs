@@ -5,9 +5,9 @@ use ringdesign_core::{
     interaction::{mould, picking, section},
 };
 
-pub(super) const AQUA: Color32 = Color32::from_rgb(43, 226, 214);
+pub(super) const AQUA: Color32 = egui_mobile_theme::palette::INFO;
 pub(super) const AMBER: Color32 = Color32::from_rgb(239, 179, 104);
-pub(super) const PINK: Color32 = Color32::from_rgb(255, 61, 139);
+pub(super) const PINK: Color32 = egui_mobile_theme::palette::ACCENT;
 const RED: Color32 = Color32::from_rgb(239, 76, 99);
 
 #[derive(Clone, Copy)]

@@ -8,7 +8,7 @@ use ringdesign_core::{
     field::{Layer, LayerEntry, SeatPadLayer},
     interaction::{
         bvh::Bvh,
-        pick::{Entity, Filter, Pick, Ray, seat_stations},
+        pick::{Entity, Filter, Pick, PickScene, Ray, seat_stations},
     },
     mesh::SOLID_VERTEX,
     sketch::Id,
@@ -344,7 +344,7 @@ fn segment_dist2(p: [f64; 3], a: [f64; 3], b: [f64; 3]) -> f64 {
 }
 
 /// Set `weight` on every fused vertex the entity covers.
-fn paint(w: &mut [f32], built: &BuildResult, target: &Sel, weight: f32) {
+fn paint(w: &mut [f32], built: &BuildResult, scene: Option<&PickScene>, target: &Sel, weight: f32) {
     let mesh = &built.mesh;
     let origin = &mesh.origin;
     let owned = |i: usize, feature: Id| origin.get(i).and_then(|o| built.parts.named_of(*o)) == Some(feature);
@@ -357,6 +357,17 @@ fn paint(w: &mut [f32], built: &BuildResult, target: &Sel, weight: f32) {
             }
         }
         Sel::Face { feature, face } => {
+            // Lights the fused faces the scene assigned to this part face.
+            if let Some(scene) = scene.filter(|s| s.mesh().faces.len() == mesh.faces.len() && s.mesh().vertices.len() == w.len()) {
+                for f in scene.faces_of(*feature, *face) {
+                    for v in mesh.faces[f] {
+                        if owned(v as usize, *feature) {
+                            w[v as usize] = weight;
+                        }
+                    }
+                }
+                return;
+            }
             let Some(c) = component(built, *feature) else { return };
             let faces: Vec<[u32; 3]> = c.mesh.faces.iter().enumerate().filter(|(t, _)| c.trace.tri_face.get(*t) == Some(face)).map(|(_, f)| *f).collect();
             if faces.is_empty() {
@@ -425,16 +436,21 @@ fn paint(w: &mut [f32], built: &BuildResult, target: &Sel, weight: f32) {
 /// One weight per fused-mesh vertex: 0 untouched, 1 selected, 2 hovered (hover wins). Empty when
 /// nothing is chosen or hovered, which clears the channel.
 pub fn tint(sel: &Selection, built: &BuildResult) -> Vec<f32> {
+    tint_in(sel, built, None)
+}
+
+/// [`tint`] lighting a part's face from the fused faces `scene` assigned it; a scene over another mesh is ignored.
+pub fn tint_in(sel: &Selection, built: &BuildResult, scene: Option<&PickScene>) -> Vec<f32> {
     if sel.items.is_empty() && sel.hover.is_none() {
         return Vec::new();
     }
     let mut w = vec![0.0; built.mesh.vertices.len()];
     for item in &sel.items {
-        paint(&mut w, built, item, 1.0);
+        paint(&mut w, built, scene, item, 1.0);
     }
     if let Some(h) = &sel.hover {
         let target = Sel::of(h, |_| (0.0, 0.0));
-        paint(&mut w, built, &target, 2.0);
+        paint(&mut w, built, scene, &target, 2.0);
     }
     w
 }
@@ -844,6 +860,31 @@ mod tests {
         s.boxed(&[Entity::Seat { path: vec![0], station: 0 }, Entity::Band, Entity::Stamp { index: 0 }], Mods::default());
         assert_eq!(s.items, [Sel::Seat { path: vec![0], station: 0 }, Sel::Stamp(0)]);
         assert!(s.is_selected(&Entity::Stamp { index: 0 }) && !s.is_selected(&Entity::Stamp { index: 1 }) && s.one_part().is_none());
+    }
+
+    #[test]
+    fn the_scene_lights_each_face_where_measuring_against_the_face_does() {
+        let design = court_with_bezel();
+        let lib = AlphaLibrary::builtin();
+        let built = mesh::build(&design, &lib, BuildParams { theta_steps: 256, profile_steps: 128, ..Default::default() });
+        let scene = PickScene::build(&built, &design);
+        let faces = component(&built, 1).unwrap().trace.face_kind.len() as u32;
+        assert!(faces >= 3, "a cylinder has a top, a wall and a bottom: {faces}");
+        let mut lit = 0;
+        for face in 0..faces {
+            let mut s = Selection::default();
+            s.click(Some(Sel::Face { feature: 1, face }), Mods::default());
+            s.hovered(vec![pick(Entity::Face { feature: 1, face: (face + 1) % faces })]);
+            let w = tint_in(&s, &built, Some(&scene));
+            assert_eq!(w, tint(&s, &built), "face {face}");
+            lit += w.iter().filter(|v| **v > 0.0).count();
+        }
+        assert!(lit > 100, "the faces light: {lit}");
+        // A scene over another build is passed over.
+        let other = mesh::build(&design, &lib, BuildParams { theta_steps: 128, profile_steps: 64, ..Default::default() });
+        let mut s = Selection::default();
+        s.click(Some(Sel::Face { feature: 1, face: 0 }), Mods::default());
+        assert_eq!(tint_in(&s, &other, Some(&scene)), tint(&s, &other));
     }
 
     /// The viewport's hover path on an export build, timed: `cargo test --release -p

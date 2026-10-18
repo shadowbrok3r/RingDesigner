@@ -62,6 +62,15 @@ impl eframe::App for RingDesignerApp {
         self.poll_export();
         self.updater.poll(ui.ctx());
         panels::render(self, ui);
+        if self.theme_dirty {
+            if let Some(storage) = frame.storage_mut() {
+                if let Ok(json) = serde_json::to_string(&self.theme_config) {
+                    storage.set_string(app::THEME_STORAGE_KEY, json);
+                    storage.flush();
+                    self.theme_dirty = false;
+                }
+            }
+        }
         licences::window(ui.ctx(), &self.occt);
         if std::mem::take(&mut self.install_update) {
             if let Some(storage) = frame.storage_mut() {
@@ -107,6 +116,7 @@ impl RingDesignerApp {
         storage.set_string(app::DESIGN_STORAGE_KEY, design);
         storage.set_string(app::DOCK_STORAGE_KEY, dock);
         storage.set_string(app::WORKSPACE_STORAGE_KEY, workspace);
+        storage.set_string(app::THEME_STORAGE_KEY, serde_json::to_string(&self.theme_config)?);
         Ok(())
     }
 }

@@ -412,7 +412,6 @@ fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 let kind = e.layer.kind_label();
                 let glyph = kind_icon(&e.layer);
                 ui.horizontal(|ui| {
-                    ui.spacing_mut().button_padding = egui::vec2(3.0, 2.0);
                     ui.spacing_mut().item_spacing.x = 3.0;
 
                     // Grip: drag a row anywhere in the stack.
@@ -438,7 +437,11 @@ fn list(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
 
                     let row_h = ui.spacing().interact_size.y;
                     let kind_w = 60.0;
-                    let name_w = (ui.available_width() - 100.0 - kind_w).max(48.0);
+                    let action_w = 4.0
+                        * (ui.text_style_height(&egui::TextStyle::Body)
+                            + 2.0 * ui.spacing().button_padding.x
+                            + ui.spacing().item_spacing.x);
+                    let name_w = (ui.available_width() - action_w - kind_w).max(24.0);
                     let left = egui::Layout::left_to_right(egui::Align::Center);
 
                     ui.allocate_ui_with_layout(egui::vec2(name_w, row_h), left, |ui| {

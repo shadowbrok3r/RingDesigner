@@ -520,6 +520,7 @@ impl Editor {
         let (pan, veto) = self.drag_gate(ui.ctx(), viewport);
         let saved: Option<Vec<(SnarlId, egui::Pos2)>> = veto.then(|| self.snarl.nodes_pos_ids().map(|(id, pos, _)| (id, pos)).collect());
         let mut viewer = Viewer {
+            theme_ctx: ui.ctx().clone(),
             zoom: self.pending_zoom.take(),
             rows: HashMap::new(),
             reg,
@@ -544,6 +545,7 @@ impl Editor {
         // A double tap is not a way to ask for the whole graph on a touch screen: two quick pinches make
         // one. The Fit button does it there; a mouse keeps snarl's double click.
         self.style.centering = Some(!self.pinched && !ui.input(|i| i.has_touch_screen()));
+        self.style.bg_frame = Some(egui::Frame::new().fill(ui.visuals().panel_fill));
         // That app's visuals on everything inside the editor, and nothing outside it.
         ui.scope(|ui| {
             crate::style::apply_visuals(ui.style_mut());
@@ -897,6 +899,7 @@ fn sizes_agree(a: &HashMap<NodeId, egui::Vec2>, b: &HashMap<NodeId, egui::Vec2>)
 }
 
 struct Viewer<'a> {
+    theme_ctx: egui::Context,
     reg: &'a Registry,
     /// The gesture in hand had two fingers: nothing it does is a tap.
     pinched: bool,
@@ -1012,7 +1015,13 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
 
     fn node_frame(&mut self, default: egui::Frame, node: SnarlId, _inputs: &[InPin], _outputs: &[OutPin], snarl: &Snarl<NodeCard>) -> egui::Frame {
         let trouble = snarl.get_node(node).is_some_and(|c| !c.diag.is_empty());
-        crate::style::node_frame(default, self.selected == Some(node), trouble)
+        let ctx = &self.theme_ctx;
+        let visuals = ctx.global_style();
+        let color = if trouble { egui_mobile_theme::color(ctx, egui_mobile_theme::Role::Danger) }
+            else if self.selected == Some(node) { egui_mobile_theme::color(ctx, egui_mobile_theme::Role::Accent) }
+            else { visuals.visuals.window_stroke.color };
+        default.fill(visuals.visuals.window_fill).corner_radius(visuals.visuals.window_corner_radius)
+            .stroke(egui::Stroke::new(if trouble || self.selected == Some(node) { 2. } else { 1. }, color))
     }
 
     fn draw_background(&mut self, _background: Option<&BackgroundPattern>, viewport: &egui::Rect, _snarl_style: &SnarlStyle, _style: &egui::Style, painter: &egui::Painter, snarl: &Snarl<NodeCard>) {
@@ -1285,7 +1294,8 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
-        let mut viewer = Viewer { reg: &reg, editable: true, inline_inputs: true, clicked: None, refused: None, search: String::new(), ids: &ids, groups: &[], focus: None, fit: None, viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)), seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), rows: HashMap::new(), zoom: None, pan: egui::Vec2::ZERO , pinched: false };
+        let mut viewer = Viewer {
+            theme_ctx: egui::Context::default(), reg: &reg, editable: true, inline_inputs: true, clicked: None, refused: None, search: String::new(), ids: &ids, groups: &[], focus: None, fit: None, viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)), seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), rows: HashMap::new(), zoom: None, pan: egui::Vec2::ZERO , pinched: false };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);

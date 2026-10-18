@@ -1655,6 +1655,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-mobile-theme"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "egui-phosphor"
 version = "0.14.0"
 source = "git+https://github.com/shadowbrok3r/egui-phosphor?branch=egui-037#7275d267f6a615004784d57bef7f39d619288739"
@@ -5114,6 +5123,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "egui",
+ "egui-mobile-theme",
  "egui-snarl",
  "egui_kittest",
  "log",
@@ -5126,12 +5136,13 @@ dependencies = [
 
 [[package]]
 name = "ringdesign-gui"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "dotenvy",
  "eframe",
  "egui",
+ "egui-mobile-theme",
  "egui-phosphor",
  "egui_glow",
  "egui_kittest",
@@ -5252,6 +5263,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "egui",
+ "egui-mobile-theme",
  "egui_glow",
  "egui_kittest",
  "image",

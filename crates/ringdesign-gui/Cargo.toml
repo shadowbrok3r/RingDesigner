@@ -1,7 +1,7 @@
 [package]
 name = "ringdesign-gui"
 edition.workspace = true
-version = "0.7.0"
+version = "0.7.1"
 license.workspace = true
 
 [[bin]]
@@ -18,6 +18,7 @@ kernel = ["ringdesign-graph/kernel-manifold", "ringdesign-script/kernel"]
 kernel-occt = []
 
 [dependencies]
+egui-mobile-theme.workspace = true
 ringdesign-occt = { path = "../ringdesign-occt" }
 ringdesign-assets.workspace = true
 ringdesign-core.workspace = true

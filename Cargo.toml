@@ -19,7 +19,7 @@ members = [
     "crates/ringdesigner-android",
 ]
 # Vendored forks are reached through [patch.crates-io], not built as members.
-exclude = ["patches/egui-snarl", "patches/egui-scale", "patches/egui", "patches/egui_tiles"]
+exclude = ["vendor/egui-mobile-theme", "patches/egui-snarl", "patches/egui-scale", "patches/egui", "patches/egui_tiles"]
 
 [workspace.package]
 edition = "2024"
@@ -27,6 +27,7 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+egui-mobile-theme = { path = "vendor/egui-mobile-theme" }
 ringdesign-assets = { path = "crates/ringdesign-assets" }
 ringdesign-core = { path = "crates/ringdesign-core" }
 ringdesign-mcp = { path = "crates/ringdesign-mcp" }

@@ -110,7 +110,7 @@ fn dock_side(app: &mut RingDesignerApp, ui: &mut egui::Ui, side: Side) {
     let width = app.dock.width_of(side);
     let desktop = app.desktop;
     let resp = panel
-        .frame(egui::Frame::NONE.fill(theme::PANEL).stroke(egui::Stroke::new(1.5, theme::HAIRLINE)).inner_margin(6))
+        .frame(egui::Frame::NONE.fill(ui.visuals().panel_fill).stroke(egui::Stroke::new(1.5, theme::HAIRLINE)).inner_margin(6))
         .default_size(width)
         .size_range(egui::Rangef::new(240.0, 680.0))
         .show(ui, |ui| {
@@ -159,6 +159,13 @@ struct ToolBehavior<'a> {
 }
 
 impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
+    fn tab_title_for_tile(&mut self, tiles: &egui_tiles::Tiles<ToolKind>, id: egui_tiles::TileId) -> egui::WidgetText {
+        match tiles.get(id) {
+            Some(egui_tiles::Tile::Pane(pane)) => self.tab_title_for_pane(pane),
+            _ => "Panels".into(),
+        }
+    }
+
     fn tab_title_for_pane(&mut self, pane: &ToolKind) -> egui::WidgetText {
         format!("{} {}", pane.icon(), pane.label()).into()
     }
@@ -186,7 +193,6 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
                 .on_hover_cursor(egui::CursorIcon::Grab);
             drag |= grip.drag_started();
             ui.add(tool.atelier().image(ui, 18.0));
-            ui.spacing_mut().button_padding = egui::vec2(3.0, 1.0);
             let title = ui.add(
                 egui::Label::new(
                     egui::RichText::new(tool.label())
@@ -234,6 +240,12 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
                     ToolKind::Report => report::ui(self.app, ui),
                     ToolKind::Library => library::ui(self.app, ui),
                     ToolKind::Node => node::ui(self.app, ui),
+                    ToolKind::Theme => {
+                        if egui_mobile_theme::editor_with_glass(ui, &mut self.app.theme_config, egui_mobile_theme::Density::Compact, false) {
+                            self.app.theme_config.apply(ui.ctx(), egui_mobile_theme::Density::Compact);
+                            self.app.theme_dirty = true;
+                        }
+                    },
                 });
             });
         });
@@ -323,21 +335,21 @@ impl egui_tiles::Behavior<usize> for ViewportBehavior<'_> {
             app.active_pane = i;
         }
         egui::Panel::top(strip(ui, "pane_head", i))
-            .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 3)))
+            .frame(egui::Frame::NONE.fill(ui.visuals().panel_fill).inner_margin(egui::Margin::symmetric(6, 3)))
             .show(ui, |ui| head = pane_head(app, ui, i, closable));
         if app.panes[i].kind == PaneKind::Solid {
             egui::Panel::bottom(strip(ui, "viewport-footer", i))
-                .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 5)).stroke(egui::Stroke::new(1., theme::HAIRLINE)))
+                .frame(egui::Frame::NONE.fill(ui.visuals().panel_fill).inner_margin(egui::Margin::symmetric(6, 5)).stroke(egui::Stroke::new(1., theme::HAIRLINE)))
                 .show(ui, |ui| viewport_footer(app, ui, i));
             if timeline::shown(app) {
                 egui::Panel::bottom(strip(ui, "viewport-timeline", i))
-                    .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(egui::Margin::symmetric(6, 3)))
+                    .frame(egui::Frame::NONE.fill(ui.visuals().panel_fill).inner_margin(egui::Margin::symmetric(6, 3)))
                     .show(ui, |ui| timeline::bar(app, ui, i));
             }
         }
         if app.panes[i].kind == PaneKind::Unrolled {
             egui::Panel::top(strip(ui, "surface-context", i))
-                .frame(egui::Frame::NONE.fill(theme::PANEL).inner_margin(6))
+                .frame(egui::Frame::NONE.fill(ui.visuals().panel_fill).inner_margin(6))
                 .show(ui, |ui| surface_context(app, ui));
         }
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(theme::VIEWPORT_BG)).show(ui, |ui| {
@@ -442,7 +454,9 @@ fn pane_head(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize, closable: b
         ui.menu_button((ringdesign_workbench::icons::Icon::View.image(ui, 18.), if compact { "Cam" } else { "Camera" }), |ui| {
             camera_menu(app, ui, i);
         });
-        if ui.available_width() >= 128. {
+        // Keep room for the split menu and close button in narrow graph previews.
+        let right_width = if closable { 92. } else { 60. };
+        if ui.available_width() >= 128. + right_width {
             ui.separator();
             let shade = app.panes[i].shade;
             let chip = crate::swatch::shade(ui.ctx(), shade);
@@ -689,7 +703,7 @@ pub(crate) enum Command {
 /// The strip over a panel whose design is driven by a graph.
 fn driven_banner(app: &mut RingDesignerApp, ui: &mut egui::Ui, tool: ToolKind) {
     egui::Frame::NONE
-        .fill(theme::PANEL)
+        .fill(ui.visuals().panel_fill)
         .stroke(egui::Stroke::new(1.0, theme::ACCENT_DIM))
         .inner_margin(egui::Margin::symmetric(8, 6))
         .corner_radius(4.0)
@@ -1097,6 +1111,9 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         });
         workspace.response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &workspace_label));
         ui.menu_button((Icon::Workshop.image(ui, 18.0), "Tools"), |ui| {
+            if icons::button(ui, Icon::Settings, "Theme", false, egui::Vec2::ZERO).clicked() {
+                app.dock.open_on(ToolKind::Theme, Side::Right); ui.close();
+            }
             if icons::button(ui, Icon::Guide, "Workflow guide", false, egui::vec2(0., 28.)).clicked() {
                 ui.data_mut(|d| d.insert_temp(egui::Id::unique("workflow-open"), true)); ui.close();
             }
@@ -1606,7 +1623,7 @@ fn workflow_window(app: &mut RingDesignerApp, ctx: &egui::Context) {
     let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
     let mut action = None;
     egui::Window::new("Jewelry workflow")
-        .frame(egui::Frame::window(&ctx.global_style()).fill(theme::FLOAT))
+        .frame(egui::Frame::window(&ctx.global_style()).fill(ctx.global_style().visuals.window_fill))
         .default_height(600.0)
         .default_pos(egui::pos2(350.0, 140.0))
         .open(&mut open)
@@ -1643,7 +1660,7 @@ fn workflow_window(app: &mut RingDesignerApp, ctx: &egui::Context) {
     let id = egui::Id::unique("guided-export");
     let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
     egui::Window::new("Save & export")
-        .frame(egui::Frame::window(&ctx.global_style()).fill(theme::FLOAT))
+        .frame(egui::Frame::window(&ctx.global_style()).fill(ctx.global_style().visuals.window_fill))
         .open(&mut open)
         .resizable(false)
         .show(ctx, |ui| {

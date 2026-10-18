@@ -1228,7 +1228,7 @@ fn set_attach(app: &mut RingDesignerApp, attach: Attach) {
 
 /// One toolbar button: its mark, its name to a reader and its tooltip.
 fn tool_button(ui: &mut egui::Ui, icon: Icon, label: &str, tip: &str, selected: bool, enabled: bool) -> bool {
-    let button = egui::Button::image(icon.image(ui, 20.0)).selected(selected).min_size(egui::vec2(30.0, 30.0)).image_tint_follows_text_color(false);
+    let button = egui::Button::image(icon.image(ui, ui.spacing().icon_width).tint(Color32::WHITE)).selected(selected).min_size(egui::Vec2::splat(ui.spacing().interact_size.y)).image_tint_follows_text_color(true);
     let r = ui.add_enabled(enabled, button);
     r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
     r.on_hover_text(tip).on_disabled_hover_text(tip).clicked()

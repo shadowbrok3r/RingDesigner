@@ -7,7 +7,7 @@ use ringdesign_core::{
 
 /// One stock in the picker: its table plan drawn to scale beside its name.
 fn stock_row(ui: &mut egui::Ui, preset: &ringdesign_core::imported_base::Preset, selected: bool) -> egui::Response {
-    let height = 30.0;
+    let height = ui.spacing().interact_size.y;
     let (rect, response) = ui.allocate_exact_size(Vec2::new(ui.available_width().max(190.0), height), egui::Sense::click());
     let painter = ui.painter_at(rect);
     let accent = ui.visuals().selection.stroke.color;

@@ -34,11 +34,16 @@ use std::sync::{
 };
 
 mod study;
+mod payload;
+#[cfg(test)]
+pub(crate) mod tests;
 struct View {
     design: RingDesign,
     evaluated: Evaluated,
     pairs: Vec<cad::assembly::PairReport>,
     walls: Vec<cad::measure::Thickness>,
+    /// Each component's bounds and volume.
+    measures: Vec<(Option<(ringdesign_core::mesh::Vec3, ringdesign_core::mesh::Vec3)>, f64)>,
     /// The whole ring as the Ring viewport builds it: band, seats, stamps and the resolved parts.
     built: Option<BuildResult>,
     /// Why the whole ring did not build, while the parts alone still show.
@@ -85,6 +90,8 @@ struct MenuHit {
 pub struct CadState {
     draft: Option<Graph>,
     source: u64,
+    original: Option<Graph>,
+    meshes: payload::Meshes,
     selected: Option<NodeId>,
     tab: usize,
     job: Option<Job>,
@@ -142,6 +149,8 @@ impl Default for CadState {
         Self {
             draft: None,
             source: 0,
+            original: None,
+            meshes: Default::default(),
             selected: None,
             tab: 0,
             job: None,
@@ -318,11 +327,13 @@ fn apply_plain(app: &mut RingDesignerApp, state: &CadState) -> Result<Graph, Str
     Ok(lifted)
 }
 fn source_key(app: &RingDesignerApp) -> u64 {
-    if app.design.graph.is_some() {
-        hash(&(&app.design.graph, Arc::as_ptr(&app.lib) as usize))
-    } else {
-        hash(&(&app.design, Arc::as_ptr(&app.lib) as usize))
-    }
+    hash(&(app.cad_revision, app.graph_ed.as_ref().map(|ed| ed.revision), Arc::as_ptr(&app.lib) as usize))
+}
+/// A single imported body has no feature history to resume editing at startup.
+pub(crate) fn stored_body_only(design: &RingDesign) -> bool {
+    design.graph.is_none() && design.cad.as_ref().is_some_and(|doc| {
+        doc.features.len() == 1 && matches!(&doc.features[0].operation, Operation::Stored { sources, .. } if sources.is_empty())
+    })
 }
 /// Queue a request and bring the CAD pane up to serve it.
 pub fn ask(app: &mut RingDesignerApp, request: CadRequest) {
@@ -346,19 +357,11 @@ pub const PLACEABLE: [&str; 6] = ringdesign_workbench::viewport::menu::PLACEABLE
 pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
     let state = &app.cad;
     ui.strong("CAD candidate");
-    let key = state
-        .draft
-        .as_ref()
-        .map(|g| hash(&(g, state.rollback)))
-        .or_else(|| {
-            app.graph_ed
-                .as_ref()
-                .map(|ed| hash(&(ed.graph(), state.rollback)))
-        });
+    let key = state.draft.as_ref().or(state.original.as_ref()).map(|g| hash(&(g, state.rollback)));
     if let Some(e) = &state.error {
         ui.colored_label(theme::BAD, e);
     }
-    if key != Some(state.view_key) {
+    if state.source != source_key(app) || key != Some(state.view_key) {
         ui.weak("Parameters need evaluation; previous preview remains visible");
         return;
     }
@@ -388,7 +391,8 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
         } else {
             &c.settings.material
         });
-        if let Some((lo, hi)) = c.mesh.bounds() {
+        let (bounds, volume) = v.measures[index];
+        if let Some((lo, hi)) = bounds {
             ui.label(format!(
                 "{:.2} × {:.2} × {:.2} mm",
                 hi.0 - lo.0,
@@ -398,7 +402,7 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
         }
         ui.label(format!(
             "{:.2} mm³ • {} faces • {} edges",
-            c.mesh.volume_mm3(),
+            volume,
             c.brep().map_or(c.trace.patches.len(), |b| b.faces.len()),
             c.brep().map_or(c.edges.len(), |b| b.edges.len())
         ));
@@ -425,6 +429,7 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
         return;
     }
     let rollback = state.rollback;
+    let meshes = state.meshes.clone();
     let key = hash(&(&g, rollback));
     let lib = app.lib.clone();
     let reg = app.graph_reg.clone();
@@ -447,6 +452,7 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
         let _live = live;
         let result =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> anyhow::Result<View> {
+                let g = meshes.expand(&g)?;
                 let mut evaluator =
                     ringdesign_graph::eval::Evaluator::with_exprs(ringdesign_script::engine());
                 let source = if let Some(id) = rollback {
@@ -495,11 +501,13 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
                     })
                     .collect::<anyhow::Result<_>>()?;
                 let gems = built.as_ref().map_or_else(Vec::new, |b| ringdesign_core::gems::built_vertices(&d, &lib, b));
+                let measures = evaluated.components.iter().map(|c| (c.mesh.bounds(), c.mesh.volume_mm3())).collect();
                 Ok(View {
                     design: d,
                     evaluated,
                     pairs,
                     walls,
+                    measures,
                     built,
                     build_error,
                     gems,
@@ -559,6 +567,7 @@ fn add_feature(state: &mut CadState, g: &mut Graph, mut operation: Operation, an
                         f.component.attach = Attach::Join;
                     }
                     node.params = serde_json::to_value(f).unwrap();
+                    state.meshes.compact_value(&mut node.params);
                 }
             }
             state.selected = Some(id);
@@ -628,7 +637,7 @@ fn drawn_part(state: &CadState, id: u64) -> Option<((ringdesign_core::Vec3, ring
     let view = state.view.as_ref()?;
     let (index, c) = view.evaluated.components.iter().enumerate()
         .find(|(_, c)| c.id == id && c.settings.visible && state.isolated.is_none_or(|i| i == c.id))?;
-    let (lo, hi) = c.mesh.bounds()?;
+    let (lo, hi) = view.measures[index].0?;
     let dz = index as f32 * state.explode as f32;
     Some(((ringdesign_core::Vec3(lo.0, lo.1, lo.2 + dz), ringdesign_core::Vec3(hi.0, hi.1, hi.2 + dz)), c.name.clone()))
 }
@@ -695,6 +704,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let source = source_key(app);
     if state.source != source {
         state.draft = None;
+        state.original = None;
+        state.meshes = Default::default();
         state.message.clear();
         state.source = source;
         state.pending.clear();
@@ -712,19 +723,20 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         state.discarded = None;
         state.entity = None;
     }
-    let mut original = match app
-        .graph_ed
-        .as_ref()
-        .map(|ed| Ok(ed.graph().clone()))
-        .unwrap_or_else(|| graph_cad::from_document(&app.design))
-    {
-        Ok(g) => g,
-        Err(e) => {
-            ui.colored_label(theme::BAD, e.to_string());
-            app.cad = state;
-            return;
+    if state.original.is_none() {
+        let original = app.graph_ed.as_ref().map(|ed| Ok(ed.graph().clone()))
+            .unwrap_or_else(|| graph_cad::from_document(&app.design).map_err(Into::into))
+            .and_then(|g| state.meshes.compact(g));
+        match original {
+            Ok(g) => state.original = Some(g),
+            Err(e) => {
+                ui.colored_label(theme::BAD, e.to_string());
+                app.cad = state;
+                return;
+            }
         }
-    };
+    }
+    let mut original = state.original.as_ref().unwrap().clone();
     let mut g = state.draft.clone().unwrap_or_else(|| original.clone());
     let (mut preview_requested, mut apply_requested, mut discard_requested) = (false, false, false);
     let mut isolate_requested = false;
@@ -848,6 +860,10 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         {
             app.history.commit(&app.design);
             let committed = if app.design.graph.is_some() {
+                let expanded = match state.meshes.expand(&g) {
+                    Ok(g) => g,
+                    Err(e) => { state.error = Some(e.to_string()); return; }
+                };
                 if let Some(view) = &state.view {
                     let mut applied = view.design.clone();
                     applied.manufacturing = app.design.manufacturing.clone();
@@ -855,7 +871,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     applied.pins = app.design.pins.clone();
                     app.design = applied;
                 }
-                app.set_graph(g.clone());
+                app.set_graph(expanded);
                 state.message = "Feature edit applied; undo restores its source graph".into();
                 Some(g.clone())
             } else {
@@ -875,10 +891,12 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 // edit now so immediate Undo does not depend on the rebuild timer.
                 app.history.commit(&app.design);
                 // The preview already shows the committed document.
+                let lifted = state.meshes.compact(lifted).expect("a graph serializes");
                 let key = hash(&(&lifted, state.rollback));
                 state.view_key = key;
                 state.requested = key;
                 original = lifted;
+                state.original = Some(original.clone());
                 g = original.clone();
                 state.draft = None;
                 state.discarded = None;
@@ -916,8 +934,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
             state.message.clear();
         }
         if state.job.is_some() {
-            ui.spinner();
-            ui.label("Evaluating solid…");
+            // Progress is shown in the footer; adding toolbar items would move the canvas.
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_millis(60));
         }
@@ -981,7 +998,8 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                 if n.kind == "cad.feature" {
                     if let Ok(mut f) = serde_json::from_value::<Feature>(n.params.clone()) {
                         ui.vertical(|ui|{
-                        ui.add(egui::TextEdit::singleline(&mut f.name).desired_width(f32::INFINITY));
+                        let name = ui.add(egui::TextEdit::singleline(&mut f.name).hint_text("Feature name").desired_width(f32::INFINITY));
+                        name.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, "Feature name"));
                         ui.checkbox(&mut f.enabled,"Enabled");
                         ui.weak(cad_tools::hint(&f.operation));
                         match state.tab {
@@ -989,7 +1007,14 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                             1=>{if bound_operation {ui.weak("Sketch is controlled by the connected operation input");} else if let Some(sketch)=f.operation.sketch_mut() {sketch_controls(ui,sketch,&mut state);} else {ui.weak("Select an extrusion, revolution, sweep, or loft to edit its sketch");}},
                             2=>component_ui(ui,&mut f),
                             _=>{
-                                if state.json_node!=Some(id) {state.json=serde_json::to_string_pretty(&f).unwrap_or_default();state.json_node=Some(id);}
+                                if state.json_node!=Some(id) {
+                                    let mut json = serde_json::to_value(&f).unwrap();
+                                    match state.meshes.expand_value(&mut json) {
+                                        Ok(()) => state.json=serde_json::to_string_pretty(&json).unwrap_or_default(),
+                                        Err(e) => state.error=Some(e.to_string()),
+                                    }
+                                    state.json_node=Some(id);
+                                }
                                 ui.weak("Complete source parameters, including sweep paths, loft sections, and topology selections");
                                 ui.add(egui::TextEdit::multiline(&mut state.json).font(egui::TextStyle::Monospace).desired_rows(7).desired_width(f32::INFINITY));
                                 if ui.button("Read parameters into candidate").clicked() {match serde_json::from_str::<Feature>(&state.json) {Ok(next)=>{f=next;f.id=id.0;},Err(e)=>state.error=Some(e.to_string())}}
@@ -997,6 +1022,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         }
                     });
                         n.params = serde_json::to_value(f).unwrap();
+                        state.meshes.compact_value(&mut n.params);
                     }
                 } else {
                     ui.horizontal_wrapped(|ui| {
@@ -1013,16 +1039,15 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     if state.tab == 2 {
         joints_ui(ui, &mut g, &mut state);
     }
-    let context = state
-        .view
-        .as_ref()
-        .map(|v| v.design.clone())
-        .unwrap_or_else(|| app.design.clone());
-    if state.tab == 4 {
-        study::sizes(app, ui, &mut g, &context, &mut state.sizes);
-    }
-    if state.tab == 5 {
-        study::stages(app, ui, &g, &context, &mut state.stages);
+    if matches!(state.tab, 4 | 5) {
+        let context = state.view.as_ref().map(|v| v.design.clone()).unwrap_or_else(|| app.design.clone());
+        if state.tab == 4 {
+            study::sizes(app, ui, &mut g, &context, &mut state.sizes, &state.meshes);
+            g = state.meshes.compact(std::mem::take(&mut g)).expect("a graph serializes");
+        }
+        if state.tab == 5 {
+            study::stages(app, ui, &g, &context, &mut state.stages, &state.meshes);
+        }
     }
         });
     });
@@ -1146,7 +1171,9 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     }
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.weak(if state.job.is_some() { "Evaluating…" } else if state.view_key != current { "Preview pending" } else if state.draft.is_some() { "Candidate · Apply to save" } else { "Committed · mm" });
+                    // Keep the viewport still when progress text changes during a grip edit.
+                    let status = if state.job.is_some() { "Evaluating…" } else if state.view_key != current { "Preview pending" } else if state.draft.is_some() { "Candidate · Apply to save" } else { "Committed · mm" };
+                    ui.add(egui::Label::new(egui::RichText::new(status).weak()).truncate());
                 });
             });
         });
@@ -1480,6 +1507,7 @@ fn serve(app: &mut RingDesignerApp, state: &mut CadState, g: &mut Graph, origina
             } else if crate::cad_edit::apply(app, &edits).is_ok() {
                 // Keeps the pane's choices across its own commit; the changed candidate re-evaluates.
                 state.source = source_key(app);
+                state.original = None;
             } else {
                 return;
             }

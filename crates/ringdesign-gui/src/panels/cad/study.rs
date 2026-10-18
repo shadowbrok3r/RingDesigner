@@ -46,6 +46,7 @@ pub fn sizes(
     g: &mut Graph,
     d: &RingDesign,
     s: &mut Sizes,
+    meshes: &super::payload::Meshes,
 ) {
     let source = super::hash(&(
         &g,
@@ -131,6 +132,7 @@ pub fn sizes(
                     s.job = Some((key, rx));
                     s.error = None;
                     let graph = g.clone();
+                    let meshes = meshes.clone();
                     let mut source = d.clone();
                     source.manufacturing = app.design.manufacturing.clone();
                     let lib = app.lib.clone();
@@ -146,6 +148,7 @@ pub fn sizes(
                     std::thread::spawn(move || {
                         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
                             || -> anyhow::Result<_> {
+                                let graph = meshes.expand(&graph)?;
                                 let mut ev = ringdesign_graph::eval::Evaluator::with_exprs(
                                     ringdesign_script::engine(),
                                 );
@@ -311,7 +314,7 @@ pub struct Stages {
     error: Option<String>,
     report_key: u64,
 }
-pub fn stages(app: &RingDesignerApp, ui: &mut egui::Ui, g: &Graph, d: &RingDesign, s: &mut Stages) {
+pub fn stages(app: &RingDesignerApp, ui: &mut egui::Ui, g: &Graph, d: &RingDesign, s: &mut Stages, meshes: &super::payload::Meshes) {
     let source = super::hash(&(g, &app.design.manufacturing, Arc::as_ptr(&app.lib) as usize));
     if source != s.source {
         s.source = source;
@@ -360,6 +363,7 @@ pub fn stages(app: &RingDesignerApp, ui: &mut egui::Ui, g: &Graph, d: &RingDesig
         s.job = Some((current, rx));
         s.error = None;
         let g = g.clone();
+        let meshes = meshes.clone();
         let lib = app.lib.clone();
         let reg = app.graph_reg.clone();
         let params = BuildParams {
@@ -372,6 +376,7 @@ pub fn stages(app: &RingDesignerApp, ui: &mut egui::Ui, g: &Graph, d: &RingDesig
         std::thread::spawn(move || {
             let result =
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> anyhow::Result<_> {
+                    let g = meshes.expand(&g)?;
                     let mut ev =
                         ringdesign_graph::eval::Evaluator::with_exprs(ringdesign_script::engine());
                     let out = ringdesign_graph::eval::evaluate_design(&mut ev, &g, &reg, &lib, 0)?;

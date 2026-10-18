@@ -288,7 +288,7 @@ impl Visual {
                     ui.small(p.label());
                 }
                 for r in self.measurement.readings() {
-                    ui.colored_label(egui::Color32::from_rgb(43, 226, 214), r.line());
+                    ui.colored_label(egui_mobile_theme::palette::INFO, r.line());
                 }
                 if ui.button("Clear measurement").clicked() {
                     self.measurement.clear();
@@ -298,7 +298,7 @@ impl Visual {
                 ui.label("Tap two points on the ring to measure their straight-line distance. Tap again to start a new measurement.");
                 if let [a, b] = self.measure.as_slice() {
                     ui.colored_label(
-                        egui::Color32::from_rgb(43, 226, 214),
+                        egui_mobile_theme::palette::INFO,
                         format!(
                             "Distance {:.3} mm",
                             ringdesign_core::interaction::section::distance(*a, *b)
@@ -396,7 +396,7 @@ impl Visual {
                 ui.small("Drag the aqua handle. Tap a cut edge to measure a local wall chord.");
                 if let Some([a, b]) = self.wall {
                     ui.colored_label(
-                        egui::Color32::from_rgb(43, 226, 214),
+                        egui_mobile_theme::palette::INFO,
                         format!(
                             "Section wall {:.2} mm",
                             ringdesign_core::interaction::section::distance(a, b)

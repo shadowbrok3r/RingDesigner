@@ -74,9 +74,10 @@ pub fn picker(
     let id = ui.make_persistent_id(salt);
     let image = lib
         .get(selected)
-        .map(|a| egui::Image::new((texture(ui, a, false, false, 0.0), thumbnail_size(a, 30.0))));
+        .map(|a| {egui::Image::new((texture(ui, a, false, false, 0.0), thumbnail_size(a, (ui.spacing().interact_size.y - 2.0 * ui.spacing().button_padding.y).max(1.0),
+            ),))});
     let response = ui.add_sized(
-        [ui.available_width(), 36.0],
+        [ui.available_width(), ui.spacing().interact_size.y],
         egui::Button::opt_image_and_text(
             image,
             Some(egui::WidgetText::from(if selected.is_empty() {
@@ -196,9 +197,9 @@ pub fn picker(
                                             egui::Stroke::new(
                                                 1.5,
                                                 if chosen {
-                                                    Color32::from_rgb(255, 61, 139)
+                                                    egui_mobile_theme::palette::ACCENT
                                                 } else {
-                                                    Color32::from_rgb(43, 226, 214)
+                                                    egui_mobile_theme::palette::INFO
                                                 },
                                             ),
                                             egui::StrokeKind::Inside,

@@ -11,6 +11,7 @@ description = "The node editor for ringdesign-graph, on egui-snarl"
 shot = ["egui_kittest/wgpu", "egui_kittest/snapshot"]
 
 [dependencies]
+egui-mobile-theme.workspace = true
 ringdesign-core = { path = "../ringdesign-core", default-features = false }
 ringdesign-graph = { path = "../ringdesign-graph", default-features = false }
 ringdesign-workbench = { path = "../ringdesign-workbench" }

@@ -443,7 +443,7 @@ fn one_line(ui: &Ui, text: &str, color: Color32, width: f32) -> std::sync::Arc<e
 }
 
 fn chip_height(ui: &Ui) -> f32 {
-    (ui.spacing().interact_size.y - 4.0).max(20.0)
+    ui.spacing().interact_size.y
 }
 
 /// One chip: allocated, painted, and answering to its label; its bare name rides along as a label node.

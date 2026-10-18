@@ -288,8 +288,8 @@ impl Cube {
 
     fn paint(&self, p: &egui::Painter, hover: Option<CubeHit>) {
         let ink = Color32::from_rgb(143, 137, 156);
-        let aqua = Color32::from_rgb(43, 226, 214);
-        let pink = Color32::from_rgb(255, 61, 139);
+        let aqua = egui_mobile_theme::palette::INFO;
+        let pink = egui_mobile_theme::palette::ACCENT;
         for i in self.visible() {
             let toward = self.facing(i).clamp(0.0, 1.0);
             let shade = (30.0 + 26.0 * toward) as u8;
@@ -346,13 +346,13 @@ fn show_impl(
         .order(egui::Order::Foreground).movable(false)
         .fixed_pos(viewport.right_top() + egui::vec2(-110.0, 7.0))
         .show(ui.ctx(), |ui| {
-            egui::Frame::new().fill(Color32::from_rgba_unmultiplied(24, 22, 32, 238))
-                .stroke(Stroke::new(1.0, Color32::from_rgb(70, 61, 77)))
-                .corner_radius(10).inner_margin(5).show(ui, |ui| {
+            egui::Frame::new().fill(egui_mobile_theme::palette::WINDOW)
+                .stroke(Stroke::new(1.0, egui_mobile_theme::palette::BORDER))
+                .corner_radius(5).inner_margin(5).show(ui, |ui| {
                     ui.spacing_mut().item_spacing = egui::vec2(3.0, 3.0);
                     let (r, _) = ui.allocate_exact_size(egui::vec2(96.0, 92.0), egui::Sense::hover());
                     let ink = Color32::from_rgb(143, 137, 156);
-                    let aqua = Color32::from_rgb(43, 226, 214);
+                    let aqua = egui_mobile_theme::palette::INFO;
                     let cube = Cube::rolled(r.center(), 19.0, angles, head);
                     let body = ui.interact(Rect::from_center_size(r.center(), egui::vec2(62.0, 62.0)), id.with("view-cube"), egui::Sense::click_and_drag());
                     controls.push(("View cube", body.rect));

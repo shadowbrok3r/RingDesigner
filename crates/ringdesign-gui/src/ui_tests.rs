@@ -1330,6 +1330,30 @@ fn relaunch(storage: MemoryStorage) -> Harness<'static, RingDesignerApp> {
 }
 
 #[test]
+fn a_stored_body_reopens_in_model_but_an_authored_cad_history_keeps_its_workspace() {
+    let mut h = harness([1600., 980.]);
+    h.state_mut().design = crate::panels::cad::tests::stored_body();
+    h.state_mut().switch_desktop(Desktop::Cad);
+    let mut saved = MemoryStorage::default();
+    h.state().persist_session(&mut saved).unwrap();
+    let restored = relaunch(saved);
+    assert_eq!(restored.state().desktop, Desktop::Model);
+    assert!(restored.state().showing_a_ring());
+    assert!(restored.state().fit_pending, "the restored body is framed when its mesh arrives");
+    assert_eq!(serde_json::to_value(&restored.state().design.cad).unwrap(), serde_json::to_value(&h.state().design.cad).unwrap());
+
+    let doc = h.state_mut().design.cad.as_mut().unwrap();
+    doc.append(ringdesign_core::cad::Feature {
+        id: 2, name: "Additional feature".into(), enabled: true,
+        operation: ringdesign_core::cad::Operation::Sphere { radius_mm: 1.0 },
+        component: Default::default(),
+    }).unwrap();
+    let mut saved = MemoryStorage::default();
+    h.state().persist_session(&mut saved).unwrap();
+    assert_eq!(relaunch(saved).state().desktop, Desktop::Cad);
+}
+
+#[test]
 fn the_part_edges_and_work_plane_switches_come_back_with_the_workspace() {
     let mut h = harness([1600., 980.]);
     h.run_steps(3);
@@ -1534,4 +1558,40 @@ fn the_size_family_switch_takes_a_bangle_by_its_bore() {
     assert!(size.is_bangle(), "{size}");
     assert_eq!(size.inner_diameter_mm(), 63.5);
     assert!(h.query_by_label_contains("Bangle 63.5 mm").is_some(), "the panel reads the bangle by its bore");
+}
+
+
+#[test]
+fn theme_tab_is_reachable_and_custom_settings_survive_relaunch() {
+    let mut h = harness([1600., 980.]);
+    h.run_steps(3);
+    h.get_by_label("Tools").click();
+    h.run_steps(3);
+    h.get_by_label("Theme").click();
+    h.run_steps(3);
+    assert!(h.state().dock.is_open(ToolKind::Theme));
+    assert!(h.get_by_label("Reset to Mastertech").rect().right() <= 1600.);
+    #[cfg(feature = "ui-shot")]
+    {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/mastertech-theme-review/desktop-theme-config.png");
+        h.render().unwrap().save(path).unwrap();
+    }
+    let custom = egui_mobile_theme::ThemeConfig {
+        control_height: Some(26.), text_scale: 1.1,
+        colors: egui_mobile_theme::Colors { primary: egui::Color32::from_rgb(120, 210, 170), ..Default::default() },
+        ..Default::default()
+    };
+    h.state_mut().theme_config = custom.clone();
+    let mut storage = MemoryStorage::default();
+    h.state().persist_session(&mut storage).unwrap();
+    drop(h);
+    let mut h = relaunch(storage);
+    h.run_steps(3);
+    assert_eq!(h.state().theme_config, custom);
+    assert_eq!(egui_mobile_theme::color(&h.ctx, egui_mobile_theme::Role::Primary), custom.colors.primary);
+    assert_eq!(h.ctx.global_style().spacing.interact_size.y, 26.);
+    h.get_by_label("Reset to Mastertech").click();
+    h.run_steps(3);
+    assert_eq!(h.state().theme_config, egui_mobile_theme::ThemeConfig::default());
+    assert_eq!(h.ctx.global_style().spacing.interact_size.y, egui_mobile_theme::DESKTOP_CONTROL_HEIGHT);
 }

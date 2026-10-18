@@ -572,12 +572,14 @@ fn the_cad_panes_radius_grip_follows_the_pointer_along_its_own_axis() {
     let radius = |h: &Harness<'static, RingDesignerApp>| {
         h.query_all_by_label("Radius mm").find(|n| n.accesskit_node().role() == egui::accesskit::Role::SpinButton).and_then(|n| n.value()).and_then(|v| v.parse::<f64>().ok()).expect("the radius field")
     };
+    let canvas = h.state().cad.canvas_scale();
     let start = radius(&h);
     let (from, before) = (grip(&h), start);
     let drag = egui::vec2(40.0, 12.0);
     drag_through(&mut h, &line(from, from + drag));
     h.run_steps(2);
     let (to, after) = (grip(&h), radius(&h));
+    assert_eq!(h.state().cad.canvas_scale(), canvas, "evaluation progress must not move the canvas after a drag");
     // The grip lands where the pointer's move projects onto its own screen axis.
     let moved = to - from;
     assert!(moved.length() > 5.0 && after > before, "{moved:?} {before} -> {after}");

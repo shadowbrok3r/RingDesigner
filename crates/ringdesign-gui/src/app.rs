@@ -31,6 +31,7 @@ use crate::viewport::GpuMeshRenderer;
 pub const DESIGN_STORAGE_KEY: &str = "ring_design";
 pub const DOCK_STORAGE_KEY: &str = "panel_dock";
 pub const WORKSPACE_STORAGE_KEY: &str = "workspace";
+pub const THEME_STORAGE_KEY: &str = "theme_config";
 
 /// Everything about the working environment that should survive a restart —
 /// the design and dock already do; this carries the rest.
@@ -263,6 +264,8 @@ pub enum Lands {
 }
 
 pub struct RingDesignerApp {
+    pub theme_config: egui_mobile_theme::ThemeConfig,
+    pub theme_dirty: bool,
     pub updater: crate::updater::Updater,
     pub install_update: bool,
     pub desktop: Desktop,
@@ -298,6 +301,8 @@ pub struct RingDesignerApp {
     pub casting: crate::panels::casting::CastingState,
     pub template_library: crate::template_library::State,
     pub cad: crate::panels::cad::CadState,
+    /// Moves at design edits so the CAD pane can cache its source graph.
+    pub(crate) cad_revision: u64,
 
     /// Resolution used for the interactive viewport.
     pub preview_params: BuildParams,
@@ -477,7 +482,12 @@ impl RingDesignerApp {
         ws.active_pane = ws.active_pane.min(ws.layout.count() - 1);
 
         let design_for_history = design.clone();
+        let theme_config = cc.storage.and_then(|s| s.get_string(THEME_STORAGE_KEY))
+            .and_then(|j| serde_json::from_str::<egui_mobile_theme::ThemeConfig>(&j).ok()).unwrap_or_default();
+        theme_config.apply(&cc.egui_ctx, egui_mobile_theme::Density::Compact);
         let mut app = Self {
+            theme_config,
+            theme_dirty: false,
             updater: crate::updater::Updater::new(ws.automatic_updates),
             install_update: false,
             desktop: ws.desktop,
@@ -504,6 +514,7 @@ impl RingDesignerApp {
             casting: Default::default(),
             template_library: Default::default(),
             cad: Default::default(),
+            cad_revision: 0,
             preview_params: ws.preview_params,
             export_params: ws.export_params,
             renderer: Arc::new(Mutex::new(GpuMeshRenderer::default())),
@@ -591,6 +602,10 @@ impl RingDesignerApp {
         };
         app.command.planes.hidden = !ws.show_work_planes;
         app.dock.catch_up(app.desktop);
+        if app.desktop == Desktop::Cad && crate::panels::cad::stored_body_only(&app.design) {
+            app.switch_desktop(Desktop::Model);
+            app.fit_pending = true;
+        }
         app.restore_desktop_view();
         app.carry_legacy_pins();
         app.mark_dirty();
@@ -797,6 +812,7 @@ impl RingDesignerApp {
     /// Queue a rebuild after the debounce window and publish the design to the
     /// MCP engine.
     pub fn mark_dirty(&mut self) {
+        self.cad_revision = self.cad_revision.wrapping_add(1);
         // An edit is the user moving on from a refused session design.
         self.refused_session = None;
         self.notice = None;
@@ -840,6 +856,7 @@ impl RingDesignerApp {
 
     /// Queue a rebuild without pushing the design back to the MCP engine.
     fn queue_rebuild(&mut self) {
+        self.cad_revision = self.cad_revision.wrapping_add(1);
         self.refused_session = None;
         self.notice = None;
         self.visual.invalidate();
@@ -1300,6 +1317,7 @@ impl RingDesignerApp {
     /// Take a design back off the timeline. Goes around `mark_dirty` so the
     /// restore is not itself recorded as an edit.
     fn apply_history(&mut self, design: RingDesign, what: &str) {
+        self.cad_revision = self.cad_revision.wrapping_add(1);
         let named = self.stamps_named();
         self.design = design;
         self.follow_stamps(named);
@@ -2112,7 +2130,13 @@ impl Worker {
                         .map_err(|e| format!("{e:#}"))?;
                         // The pick scene, the ring frame and the selection's channel build on threads of their own beside the verdict and the staging, which read none of them.
                         let (pick, band, judge, select, field, cast, stones, hot_spot, gems, metal, edges) = std::thread::scope(|s| {
-                            let pick = s.spawn(|| PickScene::build(&result, &job.design));
+                            // The selection's channel is staged from the scene's faces.
+                            let pick = s.spawn(|| {
+                                let pick = PickScene::build(&result, &job.design);
+                                let weights = ringdesign_workbench::viewport::tint_in(&job.selection, &result, Some(&pick));
+                                let select = if weights.is_empty() { Vec::new() } else { render::stage_select(&result.mesh, &weights) };
+                                (pick, select)
+                            });
                             // Every design's ring frame over the build's own band; an unchanged band keeps its surface.
                             let last_band = &mut last_band;
                             let band = s.spawn(|| {
@@ -2127,10 +2151,6 @@ impl Worker {
                                         }
                                     }
                                 })
-                            });
-                            let select = s.spawn(|| {
-                                let weights = ringdesign_workbench::viewport::tint(&job.selection, &result);
-                                if weights.is_empty() { Vec::new() } else { render::stage_select(&result.mesh, &weights) }
                             });
                             // The verdict itself comes from the surface, at a fixed
                             // sampling so it cannot wobble with preview quality; any
@@ -2178,9 +2198,8 @@ impl Worker {
                             };
                             let edges = result.parts.evaluated.as_ref().map(render::stage_edges).unwrap_or_default();
                             // A panic on any of them fails this build, as one here does.
-                            let pick = pick.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
+                            let (pick, select) = pick.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
                             let judge = judge.map(|j| j.join().unwrap_or_else(|p| std::panic::resume_unwind(p)));
-                            let select = select.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
                             (Arc::new(pick), band.map(|(_, surface)| surface), judge, select, field, cast, stones, hot_spot, gems, metal, edges)
                         });
                         Ok(Done {

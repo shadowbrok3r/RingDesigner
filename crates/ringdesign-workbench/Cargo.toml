@@ -8,6 +8,7 @@ license.workspace = true
 glow = ["dep:egui_glow"]
 
 [dependencies]
+egui-mobile-theme.workspace = true
 ringdesign-assets.workspace = true
 ringdesign-core = { path = "../ringdesign-core", default-features = false }
 ringdesign-graph = { path = "../ringdesign-graph", default-features = false }

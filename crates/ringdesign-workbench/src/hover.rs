@@ -72,14 +72,14 @@ pub fn show(
 }
 
 /// The hover cue's colour.
-pub const AQUA: Color32 = Color32::from_rgb(103, 217, 213);
+pub const AQUA: Color32 = egui_mobile_theme::palette::HOVER;
 
 /// A fixed viewport caption that doesn't chase every polygon under the mouse.
 pub fn caption(painter: &egui::Painter, rect: Rect, text: &str, color: Color32) {
     let text = painter.layout_no_wrap(text.to_owned(), egui::FontId::proportional(12.), color);
     let origin = egui::pos2(rect.left() + 16., rect.bottom() - text.size().y - 38.);
     let plate = Rect::from_min_size(origin, text.size()).expand(5.);
-    painter.rect_filled(plate, 4., Color32::from_rgb(22, 20, 29));
+    painter.rect_filled(plate, 4., egui_mobile_theme::palette::WINDOW);
     painter.rect_stroke(plate, 4., egui::Stroke::new(1., color), egui::StrokeKind::Inside);
     painter.galley(origin, text, color);
 }

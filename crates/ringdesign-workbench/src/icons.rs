@@ -497,6 +497,9 @@ impl Icon {
         }
     }
     pub fn image(self, ui: &Ui, side: f32) -> egui::Image<'static> {
+        // Legacy callers requested larger marks; keep every control's icon inside
+        // the host density so image buttons cannot grow taller than text buttons.
+        let side = side.min(ui.spacing().icon_width);
         let id = egui::Id::unique(("atelier-svg", self));
         let texture = ui
             .data_mut(|d| d.get_temp::<egui::TextureHandle>(id))
@@ -517,21 +520,24 @@ impl Icon {
                 ui.data_mut(|d| d.insert_temp(id, tex.clone()));
                 tex
             });
-        egui::Image::new((texture.id(), Vec2::splat(side))).tint(self.color())
+        egui::Image::new((texture.id(), Vec2::splat(side))).tint(self.role().map_or_else(|| ui.visuals().text_color(), |r| egui_mobile_theme::color(ui.ctx(), r)))
     }
 
-    /// Semantic colour survives text tinting and is shared by both shells.
-    pub fn color(self) -> egui::Color32 {
+    /// Roles stay stable across shells, while their colors follow the saved theme.
+    pub fn role(self) -> Option<egui_mobile_theme::Role> {
+        use egui_mobile_theme::Role;
         use Icon::*;
-        let rgb = match self {
-            CadBand | CadBox | CadCylinder | CadSphere | CadTorus | CadTwistedRing | CadExtrude | CadRevolve | CadSweep | CadTwist | CadLoft | Shape | Surface | Stamp | Raise | Engrave | Mould => [232, 191, 112],
-            CadUnion | CadSubtract | CadIntersect | CadFillet | CadChamfer | CadShell | Stones | Graph | Pattern | Layers | Duplicate | Array => [190, 161, 255],
-            Files | Save | Export | History | Guide | Help => [123, 188, 245],
-            Check | Casting | Workshop => [111, 211, 156],
-            Delete | Close => [241, 135, 158],
-            _ => [103, 217, 213],
-        };
-        egui::Color32::from_rgb(rgb[0], rgb[1], rgb[2])
+        match self {
+            Save | Export | Add | Duplicate | Rebuild => Some(Role::Primary),
+            Shape | Surface | Stones | Casting | Graph | Workshop | Files | View | Fit | ZoomIn | ZoomOut | Guide | Help | Settings | Search => Some(Role::Info),
+            Check => Some(Role::Success), Delete => Some(Role::Danger), Reset => Some(Role::Warning),
+            _ => None,
+        }
+    }
+
+    /// Neutral icon ink shared by both shells; buttons tint it for their state.
+    pub fn color(self) -> egui::Color32 {
+        egui_mobile_theme::palette::TEXT
     }
 }
 
@@ -609,7 +615,15 @@ pub fn help(r: &Response, title: &str, what: &str, how: &str, when: &str) -> boo
 }
 
 pub fn button(ui: &mut Ui, icon: Icon, label: &str, selected: bool, size: Vec2) -> Action {
-    let image = icon.image(ui, 18.0);
+    let role = if selected { Some(egui_mobile_theme::Role::Accent) } else { icon.role() };
+    if let Some(role) = role {
+        egui_mobile_theme::styled(ui, role, |ui| button_inner(ui, icon, label, selected, size))
+    } else { button_inner(ui, icon, label, selected, size) }
+}
+
+fn button_inner(ui: &mut Ui, icon: Icon, label: &str, selected: bool, size: Vec2) -> Action {
+    let image = icon.image(ui, ui.spacing().icon_width)
+        .tint(egui::Color32::WHITE);
     let button = if label.is_empty() {
         egui::Button::image(image)
     } else {
@@ -618,7 +632,7 @@ pub fn button(ui: &mut Ui, icon: Icon, label: &str, selected: bool, size: Vec2) 
     let button = button
         .selected(selected)
         .truncate()
-        .image_tint_follows_text_color(false);
+        .image_tint_follows_text_color(true);
     let r = if size.x > 0.0 {
         ui.add_sized(egui::vec2(size.x, ui.spacing().interact_size.y), button)
     } else {
@@ -647,7 +661,7 @@ pub fn button(ui: &mut Ui, icon: Icon, label: &str, selected: bool, size: Vec2) 
 }
 
 pub fn compact(ui: &mut Ui, icon: Icon, selected: bool) -> Action {
-    button(ui, icon, "", selected, egui::vec2(30.0, 28.0))
+    button(ui, icon, "", selected, egui::vec2(ui.spacing().interact_size.y, ui.spacing().interact_size.y))
 }
 
 impl Icon {
