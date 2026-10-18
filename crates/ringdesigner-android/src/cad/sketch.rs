@@ -412,7 +412,7 @@ impl Cad {
             let all: Vec<Region> = live.pad.regions().map(<[Region]>::to_vec).unwrap_or_default();
             for r in &all {
                 let lit = swept.iter().any(|s| s == r);
-                fill(&painter, r, chord, if lit { crate::theme::VIOLET.gamma_multiply(0.40) } else { crate::theme::VIOLET.gamma_multiply(0.12) }, &to);
+                fill(&painter, r, chord, if lit { crate::theme::PINK.gamma_multiply(0.40) } else { crate::theme::PINK.gamma_multiply(0.12) }, &to);
             }
             let s = &live.pad.working;
             for e in &s.entities {

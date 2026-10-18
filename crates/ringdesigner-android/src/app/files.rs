@@ -12,22 +12,14 @@ impl RingApp {
         let response = crate::theme::menu_popup(
             ui,
             "File",
-            Some(egui::vec2(60.0, 32.0)),
+            Some(egui::vec2(72.0, ui.spacing().interact_size.y)),
             egui::RectAlign::BOTTOM_START,
             &[egui::RectAlign::BOTTOM_END],
             egui::PopupCloseBehavior::CloseOnClick,
             |ui| {
-                let new = ui.menu_button("New design", |ui| {
-                    crate::theme::menu_row_style(ui);
-                    let height = (crate::theme::content_bounds(ui.ctx()).height() * 0.65)
-                        .clamp(100.0, 440.0);
-                    crate::theme::scroll_vertical()
-                        .max_height(height)
-                        .show(ui, |ui| {
-                            self.new_design_entries(ui);
-                        });
-                });
-                crate::editor::layout::record(ui, "file/New design", new.response.rect);
+                if file_action(ui, "New design...").clicked() {
+                    self.show_templates();
+                }
                 if file_action(ui, "Open saved designs...").clicked() {
                     self.show_files();
                 }
@@ -114,17 +106,27 @@ impl RingApp {
         }
     }
 
-    pub(super) fn new_design_entries(&mut self, ui: &mut egui::Ui) {
-        if file_action(ui, "Blank band").clicked() {
-            self.load_template_design(RingDesign::default(), "new blank design");
-            self.show_new_design();
-            ui.close();
-        }
-        ui.separator();
-        if let Some(template) = ringdesign_workbench::templates::menu(ui) {
-            let opening = template.open(self.graph.reg.clone(), self.lib.clone(), Self::opening_wake(ui.ctx()));
-            self.start_opening(opening, Lands::Template { new_design: true });
-            ui.close();
+    pub(super) fn show_templates(&mut self) {
+        self.show_files();
+        self.tab = Tab::Templates;
+    }
+
+    pub(super) fn templates_tab(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            let back = ui.button("Back to ring");
+            crate::editor::layout::record(ui, "templates/Back to ring", back.rect);
+            if back.clicked() { self.tab = Tab::Ring; }
+        });
+        match crate::editor::catalog::show(ui) {
+            Some(crate::editor::catalog::Choice::Blank) => {
+                self.load_template_design(RingDesign::default(), "new blank design");
+                self.show_new_design();
+            }
+            Some(crate::editor::catalog::Choice::Template(template)) => {
+                let opening = template.open(self.graph.reg.clone(), self.lib.clone(), Self::opening_wake(ui.ctx()));
+                self.start_opening(opening, Lands::Template { new_design: true });
+            }
+            None => {}
         }
     }
 

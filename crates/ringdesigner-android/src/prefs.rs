@@ -21,6 +21,7 @@ pub const FILE: &str = "prefs.json";
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Prefs {
+    pub theme: egui_mobile_theme::ThemeConfig,
     pub sync_host: String,
     /// Stored in the app's private data directory, which is not readable by
     /// other apps without root — the same place the designs live.
@@ -63,6 +64,7 @@ pub struct Prefs {
 impl Default for Prefs {
     fn default() -> Self {
         Self {
+            theme: Default::default(),
             sync_host: String::new(),
             sync_token: String::new(),
             brush_frac: 0.012,

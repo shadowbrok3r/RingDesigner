@@ -59,6 +59,8 @@ enum Tab {
     Alphas,
     Files,
     Bench,
+    Theme,
+    Templates,
 }
 
 impl Tab {
@@ -72,6 +74,8 @@ impl Tab {
             Tab::Alphas => "Patterns",
             Tab::Files => "Files",
             Tab::Bench => "Bench",
+            Tab::Theme => "Theme",
+            Tab::Templates => "New design",
         }
     }
 }
@@ -1671,7 +1675,7 @@ impl RingApp {
         let has_parameters = !ed.graph().exposed.is_empty();
         // From the right, so the tools keep their place at any width and the
         // sentence takes what is left.
-        let row = egui::vec2(ui.available_width(), 28.0);
+        let row = egui::vec2(ui.available_width(), ui.spacing().interact_size.y);
         ui.allocate_ui_with_layout(row, egui::Layout::right_to_left(egui::Align::Center), |ui| {
             use ringdesign_workbench::icons::{self, Icon};
             if docked {
@@ -2818,7 +2822,9 @@ impl RingApp {
         // opens upward so it never lands under the system gesture area.
         ui.horizontal_wrapped(|ui| {
             crate::theme::up_menu(ui, "File", |ui| self.file_entries(ui, host));
-            crate::theme::up_menu(ui, "New", |ui| self.new_design_entries(ui));
+            if ui.button("New design").clicked() {
+                self.show_templates();
+            }
             crate::theme::up_menu(ui, "\u{1F4E4} Export", |ui| {
                 if ui.button("STL — the pattern to cut").clicked() {
                     self.export(ExportKind::Stl, &exports, ui.ctx());
@@ -3368,7 +3374,7 @@ impl RingApp {
 
 impl EguiApp for RingApp {
     fn theme(&self, ctx: &egui::Context) {
-        crate::theme::apply(ctx);
+        crate::theme::apply_config(ctx, &self.prefs.theme);
     }
 
     fn on_start(&mut self, ctx: &egui::Context, host: &Host) {
@@ -3394,6 +3400,7 @@ impl EguiApp for RingApp {
             self.prefs
                 .sanitize(ShadeMode::ALL.len(), ringdesign_core::metal::METALS.len());
             self.apply_prefs();
+            crate::theme::apply_config(ctx, &self.prefs.theme);
             self.data_root = Some(root);
             self.rescan_packs();
         }

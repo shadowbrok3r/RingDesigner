@@ -1,205 +1,43 @@
-//! Galactic-glass theme: an AMOLED-black page, violet glass surfaces, two neon accents.
-//!
-//! The grammar is comfyui-android's, ported the same way surveyor and plugins ported it. Hot pink
-//! is the primary *interaction* signal (selected / pressed / active), aqua is the secondary
-//! (hover, links, live markers), and violet is not a signal at all — it is the ambient light every
-//! surface is tinted by, which is why it can be everywhere without competing with the other two.
-//!
-//! Pane edges are dim WHITE hairlines. A hued outline is what stops a surface reading as glass:
-//! real glass has no colour at its edge, only light catching the bevel.
-//!
-//! Surfaces are translucent and the page is lit from beneath by [`ambience`], so panes read as lit
-//! glass rather than flat dark plastic. This app is on the Glow backend, so [`crate::frost`] adds
-//! the real backdrop blur behind the bottom chrome on top of the simulated glass.
-//!
-//! Glyphs stay ASCII plus mainstream emoji — no icon font is loaded into this Context, so anything
-//! outside egui's default coverage renders as a tofu box.
-
-use egui_mobile::egui;
-
+//! Shared Mastertech chrome with one touch-sized control rhythm.
 use egui::containers::scroll_area::ScrollBarVisibility;
 use egui::{Color32, CornerRadius, Stroke};
+use egui_mobile::egui;
+use egui_mobile_theme::palette;
 
-/// Primary accent — hot pink. Reserved for what is active or chosen.
-pub const PINK: Color32 = Color32::from_rgb(255, 61, 139);
-/// A lifted pink for ink and rings, where the base pink reads dim on pure black.
-pub const PINK_BRIGHT: Color32 = Color32::from_rgb(255, 110, 168);
-/// Secondary accent — aqua. Hover feedback, links, and live/ready markers.
-pub const AQUA: Color32 = Color32::from_rgb(43, 226, 214);
-/// A lifted aqua for text.
-pub const AQUA_BRIGHT: Color32 = Color32::from_rgb(120, 240, 232);
-/// Third colour — violet. Ambient light, not an interaction state.
-pub const VIOLET: Color32 = Color32::from_rgb(163, 140, 255);
-/// Body ink — cool near-white.
-pub const INK: Color32 = Color32::from_rgb(233, 233, 239);
-/// Dimmed ink for secondary lines (readouts, hints).
-pub const INK_DIM: Color32 = Color32::from_rgb(150, 148, 162);
-/// A pane edge: a dim white hairline, never a coloured one.
-pub const RIM: Color32 = Color32::from_rgba_premultiplied(46, 46, 52, 46);
-/// A brighter hairline for surfaces meant to sit closest to the eye.
-pub const RIM_BRIGHT: Color32 = Color32::from_rgba_premultiplied(72, 72, 80, 72);
-
-fn glass(r: u8, g: u8, b: u8, a: u8) -> Color32 {
-    Color32::from_rgba_unmultiplied(r, g, b, a)
-}
-
-/// Widget rest fill: violet-cast translucent glass, raised to compensate for alpha over black.
-fn fill_rest() -> Color32 {
-    glass(25, 22, 32, 185)
-}
-fn fill_weak() -> Color32 {
-    glass(22, 19, 29, 185)
-}
-fn fill_hover() -> Color32 {
-    glass(29, 25, 38, 220)
-}
-fn fill_active() -> Color32 {
-    glass(42, 25, 40, 235)
-}
-
-/// The widget states, shared between [`apply`] and [`menu_row_style`] — egui's
-/// `menu_style` strips the rest fills and accent rims, so popups re-apply this.
-fn widget_palette(w: &mut egui::style::Widgets) {
-    let radius = CornerRadius::same(5);
-
-    w.noninteractive.bg_fill = glass(18, 16, 28, 132);
-    w.noninteractive.weak_bg_fill = glass(14, 12, 22, 120);
-    w.noninteractive.bg_stroke = Stroke::new(1.0, RIM);
-    w.noninteractive.fg_stroke = Stroke::new(1.0, INK);
-    w.noninteractive.corner_radius = radius;
-
-    // Translucent on purpose: these fills sit inside the panes the frost blurs, and an opaque
-    // fill punches a matte hole straight through the glass it stands on.
-    w.inactive.bg_fill = fill_rest();
-    w.inactive.weak_bg_fill = fill_weak();
-    w.inactive.bg_stroke = Stroke::new(1.0, RIM_BRIGHT);
-    w.inactive.fg_stroke = Stroke::new(1.0, INK);
-    w.inactive.corner_radius = radius;
-
-    w.hovered.bg_fill = fill_hover();
-    w.hovered.weak_bg_fill = fill_hover();
-    w.hovered.bg_stroke = Stroke::new(1.5, glass(43, 226, 214, 240));
-    w.hovered.fg_stroke = Stroke::new(1.5, AQUA_BRIGHT);
-    w.hovered.corner_radius = radius;
-
-    w.active.bg_fill = fill_active();
-    w.active.weak_bg_fill = fill_active();
-    w.active.bg_stroke = Stroke::new(1.7, glass(255, 61, 139, 245));
-    w.active.fg_stroke = Stroke::new(2.0, Color32::WHITE);
-    w.active.corner_radius = radius;
-
-    w.open.bg_fill = fill_rest();
-    w.open.weak_bg_fill = fill_weak();
-    w.open.bg_stroke = Stroke::new(1.3, glass(43, 226, 214, 205));
-    w.open.fg_stroke = Stroke::new(1.0, INK);
-    w.open.corner_radius = radius;
-}
+pub const PINK: Color32 = palette::ACCENT;
+pub const PINK_BRIGHT: Color32 = palette::LINK;
+pub const AQUA: Color32 = palette::INFO;
+pub const AQUA_BRIGHT: Color32 = palette::INFO;
+pub const INK: Color32 = palette::TEXT;
+pub const INK_DIM: Color32 = palette::TEXT_DIM;
+pub const RIM: Color32 = palette::BORDER;
+pub const RIM_BRIGHT: Color32 = palette::BORDER;
 
 pub fn apply(ctx: &egui::Context) {
+    apply_config(ctx, &egui_mobile_theme::ThemeConfig::default());
+}
+
+pub fn apply_config(ctx: &egui::Context, config: &egui_mobile_theme::ThemeConfig) {
     ctx.add_plugin(crate::editor::pen::PenHover::default());
-    let mut v = egui::Visuals::dark();
-
-    // Not fully opaque: `ambience` paints below every panel and a solid page would hide it.
-    v.panel_fill = glass(0, 0, 0, 232);
-    v.window_fill = glass(19, 17, 30, 232);
-    v.extreme_bg_color = Color32::from_rgb(8, 7, 13);
-    v.faint_bg_color = Color32::from_rgb(11, 10, 16);
-    v.code_bg_color = Color32::from_rgb(6, 5, 10);
-    v.window_stroke = Stroke::new(1.2, RIM_BRIGHT);
-    v.window_corner_radius = CornerRadius::same(8);
-    v.menu_corner_radius = CornerRadius::same(8);
-    v.window_shadow = egui::epaint::Shadow {
-        offset: [0, 2],
-        blur: 12,
-        spread: 2,
-        color: glass(0, 0, 0, 200),
-    };
-    v.popup_shadow = egui::epaint::Shadow {
-        offset: [0, 2],
-        blur: 10,
-        spread: 1,
-        color: glass(0, 0, 0, 170),
-    };
-
-    v.override_text_color = Some(INK);
-    v.hyperlink_color = AQUA;
-    v.warn_fg_color = AQUA_BRIGHT;
-    v.error_fg_color = PINK;
-    v.selection.bg_fill = glass(59, 40, 69, 245);
-    v.selection.stroke = Stroke::new(1.4, PINK_BRIGHT);
-
-    widget_palette(&mut v.widgets);
-
-    v.striped = true;
-    v.collapsing_header_frame = true;
-    v.indent_has_left_vline = true;
-    ctx.set_visuals(v);
-
+    // Keep the user's text and explicit sizing choices; compact only the app's
+    // default control height and whitespace around otherwise unchanged text.
+    let mut compact = config.clone();
+    compact.control_height = Some(config.control_height.unwrap_or(MENU_ROW_H));
+    compact.apply(ctx, egui_mobile_theme::Density::Touch);
+    // RingDesigner's pen workflow uses taps and explicit keyboard entry for numeric values.
     ctx.all_styles_mut(|s| {
-        s.text_styles
-            .insert(egui::TextStyle::Body, egui::FontId::proportional(13.0));
-        s.text_styles
-            .insert(egui::TextStyle::Button, egui::FontId::proportional(12.0));
-        s.text_styles
-            .insert(egui::TextStyle::Small, egui::FontId::proportional(11.0));
-        s.text_styles
-            .insert(egui::TextStyle::Heading, egui::FontId::proportional(16.0));
-        s.spacing.item_spacing = egui::vec2(4.0, 4.0);
-        s.spacing.button_padding = egui::vec2(4.0, 2.0);
-        s.spacing.interact_size.y = MENU_ROW_H;
-        s.interaction.tooltip_delay = 0.7;
-        s.interaction.tooltip_grace_time = 0.0;
         s.interaction.drag_value_dragging = false;
-        let mut scroll = egui::style::ScrollStyle::solid();
-        scroll.bar_width = 10.0;
-        scroll.handle_min_length = 28.0;
-        scroll.bar_inner_margin = 2.0;
-        s.spacing.scroll = scroll;
+        s.spacing.item_spacing *= 0.8;
+        s.spacing.button_padding *= 0.8;
     });
 }
 
-/// Wide, very-low-alpha light pools beneath everything, so the glass has something to catch.
-///
-/// egui has no radial gradient; each pool is 16 concentric filled circles at alpha 1, which
-/// composites to a smooth falloff. The radii keep black between the pools on purpose — light
-/// everywhere is just a tinted page.
-pub fn ambience(ctx: &egui::Context) {
-    let rect = ctx.content_rect();
-    let d = rect.width().min(rect.height()).max(1.0);
-    egui::Area::new(egui::Id::unique("ringdesigner-ambience"))
-        .order(egui::Order::Background)
-        .fixed_pos(rect.min)
-        .movable(false)
-        .interactable(false)
-        .show(ctx, |ui| {
-            ui.set_clip_rect(rect);
-            let painter = ui.painter();
-            for (fx, fy, fr, color) in [
-                (0.12, 0.14, 0.46, VIOLET),
-                (0.94, 0.38, 0.38, AQUA),
-                (0.46, 0.97, 0.42, PINK),
-            ] {
-                light_pool(painter, rect.lerp_inside(egui::vec2(fx, fy)), d * fr, color);
-            }
-            ui.allocate_space(egui::Vec2::ZERO);
-        });
-}
-
-fn light_pool(painter: &egui::Painter, center: egui::Pos2, radius: f32, color: Color32) {
-    const RINGS: usize = 16;
-    let fill = glass(color.r(), color.g(), color.b(), 1);
-    for i in 0..RINGS {
-        painter.circle_filled(center, radius * (1.0 - i as f32 / RINGS as f32), fill);
-    }
-}
-
-/// Card frame for a content section: violet glass under a white rim.
 pub fn card() -> egui::Frame {
     egui::Frame::new()
-        .fill(glass(20, 18, 34, 140))
+        .fill(palette::WINDOW)
         .stroke(Stroke::new(1.0, RIM))
-        .corner_radius(CornerRadius::same(10))
-        .inner_margin(12)
+        .corner_radius(CornerRadius::same(5))
+        .inner_margin(10)
 }
 
 /// Frame for a bar pinned to a screen edge. Kept transparent where the frost
@@ -214,7 +52,7 @@ pub fn selectable<'a>(selected: bool, atoms: impl egui::IntoAtoms<'a>) -> egui::
     egui::Button::selectable(selected, atoms).frame_when_inactive(true)
 }
 
-/// [`egui::Ui::selectable_label`] at a fixed size, with a persistent frame plus a neon pink rim
+/// [`egui::Ui::selectable_label`] at a fixed size, with a persistent frame plus a selection rim
 /// when selected — egui's `interact_selectable` leaves `bg_stroke` off for the selected state.
 pub fn selectable_label<'a>(
     ui: &mut egui::Ui,
@@ -226,8 +64,8 @@ pub fn selectable_label<'a>(
     if selected {
         ui.painter().rect_stroke(
             resp.rect,
-            CornerRadius::same(5),
-            Stroke::new(1.6, PINK),
+            CornerRadius::same(3),
+            Stroke::new(1.0, egui_mobile_theme::color(ui.ctx(), egui_mobile_theme::Role::Accent)),
             egui::StrokeKind::Inside,
         );
     }
@@ -241,18 +79,14 @@ pub fn scroll_vertical() -> egui::ScrollArea {
 
 // --- Menus -------------------------------------------------------------------
 
-/// Tap height for a menu row — a framed 40px target rather than egui's 18px text line.
+/// Compact default, with unchanged text and configurable sizing in Theme.
 pub const MENU_ROW_H: f32 = 32.0;
 
 /// Give a menu's rows a framed, touch-sized look: egui's `menu_style` strips the rest-state fill
 /// and every accent rim and squashes `button_padding` to 2×0, so an entry otherwise reads as bare
 /// text on an 18px line. Call once at the top of a popup body; children inherit it.
 pub fn menu_row_style(ui: &mut egui::Ui) {
-    let s = ui.style_mut();
-    s.spacing.button_padding = egui::vec2(6.0, 4.0);
-    s.spacing.interact_size.y = MENU_ROW_H;
-    s.spacing.item_spacing.y = 4.0;
-    widget_palette(&mut s.visuals.widgets);
+    egui_mobile_theme::menu_style(ui);
 }
 
 /// A menu / combo-box button whose popup opens *upward* and scrolls.
@@ -325,15 +159,17 @@ pub fn menu_popup<R>(
     use egui::containers::menu::MenuConfig;
     let label = label.into();
     let name = label.text().to_owned();
-    let action = ringdesign_workbench::icons::button(
-        ui,
-        ringdesign_workbench::icons::Icon::for_label(&name),
-        if name == "View" { "" } else { &name },
-        false,
-        min_size.unwrap_or(egui::vec2(0.0, 26.0)),
-    );
-    let clicked = action.clicked();
-    let response = action.response;
+    let response = if name == "Tools" && min_size.is_some_and(|size| size.x < 96.0) {
+        ui.add_sized(min_size.unwrap(), egui::Button::new(&name).truncate())
+    } else {
+        ringdesign_workbench::icons::button(
+            ui, ringdesign_workbench::icons::Icon::for_label(&name),
+            if name == "View" { "" } else { &name }, false,
+            min_size.unwrap_or(egui::vec2(0.0, ui.spacing().interact_size.y)),
+        ).response
+    };
+    let clicked = response.clicked();
+    crate::editor::layout::record(ui, format!("menu/{name}"), response.rect);
     let config = MenuConfig::default().close_behavior(close_behavior);
     let cap = menu_height_cap(ui.ctx(), response.rect, align);
     let width_cap = menu_width_cap(ui.ctx());
@@ -378,49 +214,19 @@ pub fn menu_popup<R>(
             if ui.is_sizing_pass() {
                 ui.set_min_height(cap);
             }
-            // Clamped against the Area's own width so this only ever shrinks — handed the cap
-            // outright, a two-item menu would stretch across the whole phone.
-            let width = (width_cap - ui.spacing().menu_margin.sum().x).min(ui.max_rect().width());
-            ui.set_max_width(width);
+            // A consistent row width makes every action easy to tap, while the
+            // safe-area cap keeps long labels inside narrow phone screens.
+            let width = (width_cap - ui.spacing().menu_margin.sum().x).min(300.0);
+            ui.set_width(width);
             scroll_vertical()
                 .max_height(cap)
                 .max_width(width)
                 .show(ui, |ui| {
-                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
                     menu_row_style(ui);
-                    content(ui)
+                    ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), content).inner
                 })
                 .inner
         });
     response
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// An opaque fill inside a frosted pane punches a matte hole through the glass.
-    #[test]
-    fn floating_surfaces_stay_translucent_so_the_blur_reads_through() {
-        for fill in [
-            fill_rest(),
-            fill_weak(),
-            fill_hover(),
-            fill_active(),
-            card().fill,
-        ] {
-            assert!(fill.a() < 255, "{fill:?} is opaque");
-        }
-    }
-
-    /// Surfaces carry the violet ambient cast: blue over red over green.
-    #[test]
-    fn surfaces_carry_the_violet_cast() {
-        for fill in [fill_rest(), fill_weak(), card().fill] {
-            assert!(
-                fill.b() > fill.r() && fill.r() > fill.g(),
-                "{fill:?} lost the cast"
-            );
-        }
-    }
 }

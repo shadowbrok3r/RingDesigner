@@ -1,5 +1,6 @@
 //! Shared, host-testable interaction model for the mobile visual editor.
 
+pub mod catalog;
 pub mod controls;
 pub mod layout;
 pub mod overlay;
@@ -231,7 +232,6 @@ pub struct HandleDrag {
 pub struct Editor {
     pub workspace: crate::prefs::Workspace,
     pub reflow: workspace::Reflow,
-    pub inspector_height: Option<f32>,
     pub menu_avoidance: visibility::MenuAvoidance,
     pub palette: Option<workspace::Palette>,
     pub floating_rects: Vec<egui::Rect>,
@@ -264,7 +264,6 @@ impl Default for Editor {
         Self {
             workspace: crate::prefs::Workspace::default(),
             reflow: workspace::Reflow::default(),
-            inspector_height: None,
             menu_avoidance: visibility::MenuAvoidance::default(),
             palette: None,
             floating_rects: Vec::new(),

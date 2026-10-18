@@ -49,7 +49,7 @@ impl RingApp {
             "Tools",
             bounds,
             egui::vec2(
-                92.0,
+                112.0,
                 if collapsed {
                     42.0
                 } else {
@@ -125,7 +125,6 @@ impl RingApp {
                         self.editor.sheet = None;
                     } else {
                         self.editor.sheet = Some(Sheet::Edit);
-                        self.editor.workspace.inspector_fraction = [0.32, 0.36];
                     }
                     self.save_prefs();
                 }
@@ -160,8 +159,8 @@ impl RingApp {
         let mut palette_position = self.editor.workspace.palette_position;
         let size = egui::vec2(
             if palette == Palette::Properties && self.visual.is_painting() {
-                (bounds.width() - 100.0).clamp(150.0, 180.0)
-            } else { (bounds.width() - 100.0).clamp(200.0, 250.0) },
+                (bounds.width() - 120.0).clamp(150.0, 180.0)
+            } else { (bounds.width() - 120.0).clamp(200.0, 250.0) },
             bounds.height().min(if palette == Palette::Properties {
                 360.0
             } else {
@@ -174,7 +173,7 @@ impl RingApp {
             title,
             bounds,
             size,
-            egui::vec2(100.0, (bounds.height() - size.y - 8.0).max(0.0)),
+            egui::vec2(120.0, (bounds.height() - size.y - 8.0).max(0.0)),
             &mut palette_position,
             Some("×"),
             |ui| {

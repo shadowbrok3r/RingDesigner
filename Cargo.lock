@@ -151,7 +151,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "android-activity"
 version = "0.6.1"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "android-properties",
  "bitflags 2.13.1",
@@ -526,7 +526,7 @@ dependencies = [
 [[package]]
 name = "backdrop-blur-core"
 version = "0.3.0"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "thiserror 2.0.19",
 ]
@@ -534,7 +534,7 @@ dependencies = [
 [[package]]
 name = "backdrop-blur-egui"
 version = "0.3.0"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "backdrop-blur-core",
  "backdrop-blur-glow",
@@ -547,7 +547,7 @@ dependencies = [
 [[package]]
 name = "backdrop-blur-glow"
 version = "0.3.0"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "backdrop-blur-core",
  "glow",
@@ -1595,7 +1595,7 @@ dependencies = [
 [[package]]
 name = "egui-android"
 version = "0.1.4"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "android-activity",
  "android_logger",
@@ -1612,7 +1612,7 @@ dependencies = [
 [[package]]
 name = "egui-ios"
 version = "0.1.4"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "egui",
  "egui-ios-plugin-abi",
@@ -1625,7 +1625,7 @@ dependencies = [
 [[package]]
 name = "egui-ios-plugin-abi"
 version = "0.1.4"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "bytemuck",
  "egui",
@@ -1638,7 +1638,7 @@ dependencies = [
 [[package]]
 name = "egui-mobile"
 version = "0.1.4"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "egui-android",
  "egui-ios",
@@ -1648,7 +1648,7 @@ dependencies = [
 [[package]]
 name = "egui-mobile-core"
 version = "0.1.4"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "egui",
  "log",
@@ -3351,7 +3351,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 [[package]]
 name = "local-clip"
 version = "0.1.4"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "image",
  "log",
@@ -3364,7 +3364,7 @@ dependencies = [
 [[package]]
 name = "local-sd"
 version = "0.1.4"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "candle-core",
  "candle-nn",
@@ -4559,7 +4559,7 @@ dependencies = [
 [[package]]
 name = "qnn-rs"
 version = "0.1.4"
-source = "git+https://github.com/shadowbrok3r/EguiMobile#df955042eaea0417fbef6d623c333dc21acce388"
+source = "git+https://github.com/shadowbrok3r/EguiMobile?rev=af697fc24aecf917b950244c264c1e10476bfca3#af697fc24aecf917b950244c264c1e10476bfca3"
 dependencies = [
  "libc",
  "libloading 0.9.0",
@@ -5281,12 +5281,13 @@ dependencies = [
 
 [[package]]
 name = "ringdesigner_android"
-version = "0.31.1"
+version = "0.32.0"
 dependencies = [
  "android-activity",
  "backdrop-blur-egui",
  "egui",
  "egui-mobile",
+ "egui-mobile-theme",
  "egui_glow",
  "local-clip",
  "local-sd",

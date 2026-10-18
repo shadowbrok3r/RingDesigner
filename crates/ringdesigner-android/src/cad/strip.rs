@@ -7,7 +7,6 @@ use ringdesign_core::{
 use ringdesign_workbench::{
     icons::Icon,
     timeline::{self, Action},
-    touch,
 };
 
 /// What the strip's gestures come to.
@@ -28,17 +27,13 @@ pub enum Routed {
 /// Draws the strip, its chips and their long-press menu a thumb high; what its gestures asked for.
 pub fn show(ui: &mut egui::Ui, doc: &Document, evaluated: Option<&Evaluated>, selected: &[Id]) -> Vec<Action> {
     let chips = timeline::chips(doc, evaluated, selected);
-    // Chips and their menu's rows stand a thumb high while the strip draws; the context's style is put back after.
-    let before = ui.ctx().global_style().spacing.interact_size.y;
-    ui.ctx().global_style_mut(|s| s.spacing.interact_size.y = touch::TARGET_PT);
-    ui.spacing_mut().interact_size.y = touch::TARGET_PT;
+    // Chips and popup rows inherit the app's shared touch density.
     let actions = ui
         .horizontal(|ui| {
-            ui.add(Icon::History.image(ui, 20.0)).on_hover_text("Feature timeline: tap a feature to choose it, hold it for its menu, drag it to reorder");
+            ui.add(Icon::History.image(ui, ui.spacing().icon_width)).on_hover_text("Feature timeline: tap a feature to choose it, hold it for its menu, drag it to reorder");
             egui::ScrollArea::horizontal().id_salt("phone-feature-strip").auto_shrink([false, true]).show(ui, |ui| timeline::show(ui, &chips, doc.through, false)).inner
         })
         .inner;
-    ui.ctx().global_style_mut(|s| s.spacing.interact_size.y = before);
     actions
 }
 
@@ -98,6 +93,7 @@ mod tests {
     #[test]
     fn the_strip_draws_its_chips_a_thumb_high_and_leaves_the_style_as_it_found_it() {
         let ctx = egui::Context::default();
+        crate::theme::apply(&ctx);
         let d = doc();
         let mut height = 0.0;
         let mut before = 0.0;
@@ -110,7 +106,7 @@ mod tests {
             after = ui.ctx().global_style().spacing.interact_size.y;
         });
         out.textures_delta.clear();
-        assert!(height >= touch::TARGET_PT - 4.0, "the strip stands {height} pt");
+        assert!(height >= crate::theme::MENU_ROW_H, "the strip stands {height} pt");
         assert_eq!(before, after);
     }
 }

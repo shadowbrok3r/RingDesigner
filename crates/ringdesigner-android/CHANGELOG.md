@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.32.0 — 2026-10-18
+
+- Compact 32-point controls and tighter spacing leave more room for the design, while keeping text size and custom theme settings.
+- Drag the inspector handle to resize the bottom panel. Portrait and landscape sizes are remembered independently, including after closing the panel or restarting. Double-tap the handle to reset.
+- New Design opens a searchable template browser with previews and expandable collections. Tools groups editing, checking/export and workspace actions; View options expand in place and stay open while adjusting settings.
+- Preserve App Store update checks and local NPU support, with the framework update bridge pinned for reproducible builds.
+
+## 0.31.4 — 2026-10-17
+
+- Check and open updates through the installed App Store from Theme settings.
+
+## 0.31.3 — 2026-10-17
+
+- Add Tools → Theme with saved colors, sizing, spacing and glass settings, live previews and reset. Use distinct action, navigation and selection colors; reduce default touch controls to 36 points.
+
+## 0.31.2 — 2026-10-17
+
+- Adopt the shared Mastertech theme: neutral dark surfaces, lilac selection, consistent control heights, spacing, icons and popup styling across the editor and graph.
+
 ## 0.31.1 — 2026-10-16
 
 - Scrolling has momentum and rubber-bands at the ends, and buttons are a little roomier with rounder corners (egui 0.37).

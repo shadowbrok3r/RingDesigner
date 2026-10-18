@@ -81,15 +81,15 @@ mod android {
             RepaintPolicy::Bounded(Duration::from_millis(500))
         };
 
+        let glass = egui_mobile_theme::glass(ui.ctx());
         renderer.frost(
             ui,
             Surface {
                 rect: bar,
-                blur_radius: BlurRadius::new(26.0),
-                // Dark violet smoke: matches the galactic identity; light
-                // tints wash the blur out and kill label contrast.
-                tint: Tint::from_srgb_unmultiplied([13, 9, 20, 96]),
-                corner_radius: CornerRadius::new(0.0),
+                blur_radius: BlurRadius::new(glass.blur_radius),
+                // Convert the exported premultiplied tint for the blur renderer.
+                tint: Tint::from_srgb_unmultiplied(glass.tint.to_srgba_unmultiplied()),
+                corner_radius: CornerRadius::new(glass.corner_radius),
                 presence: Presence::new(1.0),
                 repaint,
             },

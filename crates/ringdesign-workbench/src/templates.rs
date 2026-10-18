@@ -612,7 +612,8 @@ thumbnails! {
     "stock-020-escutcheon",
 }
 
-fn thumbnail(ui: &Ui, template: &Template) -> TextureHandle {
+/// Cached bundled preview, shared with the phone's template browser.
+pub fn thumbnail(ui: &Ui, template: &Template) -> TextureHandle {
     let id = egui::Id::unique(("template-thumbnail", template.slug));
     if let Some(texture) = ui.ctx().data(|data| data.get_temp::<TextureHandle>(id)) { return texture; }
     let image = image::load_from_memory(preview_bytes(template.slug).expect("template preview")).expect("valid bundled preview").into_rgba8();

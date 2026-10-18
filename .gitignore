@@ -39,3 +39,5 @@ __pycache__/
 
 # Texture-gate credentials, read at build time and compiled in. Never tracked.
 /.env
+
+/crates/ringdesigner-android/qnn-runtime-libs/

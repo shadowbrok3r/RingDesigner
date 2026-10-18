@@ -48,12 +48,6 @@ pub fn inspector_extent(available: egui::Vec2, landscape: bool, fraction: f32) -
     (axis * fraction.clamp(0.08, 0.75)).clamp(minimum, maximum)
 }
 
-/// The bottom inspector hugs its measured contents; long editors scroll at half height.
-pub fn content_height(available: f32, measured: Option<f32>) -> f32 {
-    let cap = (available * 0.5).max(0.0);
-    measured.filter(|v| v.is_finite()).unwrap_or(cap).clamp(42.0_f32.min(cap), cap)
-}
-
 #[derive(Clone, Copy)]
 struct Grab {
     pointer: egui::Pos2,
@@ -74,6 +68,7 @@ pub fn splitter(
         egui::Sense::click_and_drag(),
     );
     super::layout::record(ui, "inspector/resize", rect);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Splitter, ui.is_enabled(), "Resize panel"));
     let color = if response.dragged() || response.hovered() {
         crate::theme::AQUA
     } else {
@@ -200,20 +195,17 @@ pub fn floating<R>(
             // Area remembers its last content height. Let a newly expanded
             // submenu/parameter grow again, while the scroll area enforces the cap.
             ui.set_max_height(size.y);
-            ui.spacing_mut().item_spacing = egui::vec2(4.0, 3.0);
-            ui.spacing_mut().button_padding = egui::vec2(4.0, 2.0);
-            ui.spacing_mut().interact_size.y = crate::theme::MENU_ROW_H;
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
             let frame = egui::Frame::new()
-                .fill(egui::Color32::from_rgba_unmultiplied(20, 20, 25, 248))
-                .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(67)))
-                .corner_radius(6)
+                .fill(ui.visuals().window_fill)
+                .stroke(egui::Stroke::new(1.0, ui.visuals().window_stroke.color))
+                .corner_radius(ui.visuals().window_corner_radius)
                 .inner_margin(5)
                 .show(ui, |ui| {
                     ui.set_width((size.x - 12.0).max(1.0));
-                    ui.horizontal(|ui| {
+                    let header = ui.horizontal(|ui| {
                         let w =
-                            (ui.available_width() - if close_button { 34.0 } else { 0.0 }).max(1.0);
+                            (ui.available_width() - if close_button { ui.spacing().interact_size.y + ui.spacing().item_spacing.x } else { 0.0 }).max(1.0);
                         let (grip, drag) =
                             ui.allocate_exact_size(egui::vec2(w, 25.0), egui::Sense::drag());
                         super::layout::record(ui, format!("{key}/grip"), grip);
@@ -287,7 +279,7 @@ pub fn floating<R>(
                     egui::ScrollArea::vertical()
                         .id_salt((key, "scroll"))
                         .auto_shrink([false, true])
-                        .max_height((size.y - 42.0).max(1.0))
+                        .max_height((size.y - header.response.rect.height() - ui.spacing().item_spacing.y - 12.0).max(1.0))
                         .min_scrolled_height(1.0)
                         .show(ui, content)
                         .inner

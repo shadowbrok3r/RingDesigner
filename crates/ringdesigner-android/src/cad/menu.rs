@@ -8,7 +8,6 @@ use ringdesign_core::{
 };
 use ringdesign_workbench::{
     icons::Icon,
-    touch,
     viewport::{MenuAction, MenuItem, Sel},
 };
 
@@ -223,16 +222,17 @@ pub enum Choice {
 
 /// A row's button: its mark and its words, a thumb high across the menu.
 pub(super) fn row(ui: &mut egui::Ui, icon: Icon, label: &str, checked: bool, enabled: bool, width: f32) -> egui::Response {
-    let button = egui::Button::selectable(checked, (icon.image(ui, 22.0), label)).min_size(egui::vec2(width, touch::TARGET_PT)).frame_when_inactive(true);
+    let button = egui::Button::selectable(checked, (icon.image(ui, ui.spacing().icon_width), label)).min_size(egui::vec2(width, ui.spacing().interact_size.y)).frame_when_inactive(true);
     ui.add_enabled(enabled, button)
 }
 
 /// A popup of `rows` thumb-high rows under `heading` by the finger at `at`, kept inside `view`, its rows laid out by `body` at the width it passes; the popup's rect.
 pub(super) fn popup(ctx: &egui::Context, at: Pos2, below: &mut Option<bool>, heading: Option<&str>, rows: usize, view: Rect, body: impl FnOnce(&mut egui::Ui, f32)) -> Rect {
     let width = (view.width() - 32.0).clamp(180.0, 300.0);
-    let tall = heading.is_some() as usize as f32 * 22.0 + rows as f32 * (touch::TARGET_PT + 4.0) + 20.0;
+    let gap = ctx.global_style().spacing.item_spacing.y;
+    let tall = heading.is_some() as usize as f32 * 22.0 + rows as f32 * (ctx.global_style().spacing.interact_size.y + gap) + 20.0;
     // Opens below the finger when its first page fits, else above it, and stays there as its pages change.
-    let below = *below.get_or_insert(at.y + tall <= view.bottom());
+    let below = *below.get_or_insert(at.y + 12.0 + tall <= view.bottom());
     let (pivot, pos) = if below { (egui::Align2::LEFT_TOP, at + egui::vec2(-width * 0.25, 12.0)) } else { (egui::Align2::LEFT_BOTTOM, at + egui::vec2(-width * 0.25, -12.0)) };
     let area = egui::Area::new(area())
         .order(egui::Order::Foreground)
@@ -242,15 +242,14 @@ pub(super) fn popup(ctx: &egui::Context, at: Pos2, below: &mut Option<bool>, hea
         .show(ctx, |ui| {
             // Lets a page grow past the size the area last drew at.
             ui.set_max_height(view.height() - 8.0);
-            egui::Frame::popup(ui.style()).fill(egui::Color32::from_rgba_unmultiplied(16, 15, 24, 244)).show(ui, |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
                 ui.set_width(width);
-                ui.spacing_mut().item_spacing.y = 4.0;
-                ui.spacing_mut().interact_size.y = touch::TARGET_PT;
+                crate::theme::menu_row_style(ui);
                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
                 if let Some(h) = heading {
                     ui.label(egui::RichText::new(h).size(12.0).color(crate::theme::INK_DIM));
                 }
-                egui::ScrollArea::vertical().max_height((view.height() - 48.0).max(touch::TARGET_PT * 2.0)).show(ui, |ui| body(ui, width));
+                egui::ScrollArea::vertical().max_height((view.height() - 48.0).max(ctx.global_style().spacing.interact_size.y * 2.0)).show(ui, |ui| body(ui, width));
             });
         });
     area.response.rect
@@ -420,6 +419,7 @@ mod tests {
         let view = Rect::from_min_size(Pos2::ZERO, egui::vec2(420.0, 1000.0));
         let mut menu = Menu::new(egui::pos2(200.0, 700.0), Some("Band at 90°".into()), items);
         let ctx = egui::Context::default();
+        crate::theme::apply(&ctx);
         // An area is sized from its last pass, so a few passes let a new page settle.
         let draw = |menu: &mut Menu| {
             for _ in 0..4 {
@@ -435,7 +435,7 @@ mod tests {
         assert_eq!(menu.below, Some(false));
         assert!((list.bottom() - 688.0).abs() < 1.0, "{list:?}");
         // All ten rows and Close stand at once, not scrolled inside egui's 400-point first guess at an area.
-        assert!(list.height() > 10.0 * (touch::TARGET_PT + 4.0), "{list:?}");
+        assert!(list.height() > 10.0 * (crate::theme::MENU_ROW_H + 4.0), "{list:?}");
         // The parts' page would fit beneath; it keeps the list's side instead of jumping under the finger.
         menu.page = Some("Add CAD part here");
         let page = draw(&mut menu);
