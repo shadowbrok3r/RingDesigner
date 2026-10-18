@@ -1,10 +1,13 @@
 //! Keep saved designs and layouts at one location across desktop releases.
 use std::path::{Path, PathBuf};
 
-pub const APP_ID: &str = "RingDesigner Desktop";
+/// Must match ringdesigner.desktop and its StartupWMClass for Linux icon lookup.
+pub const APP_ID: &str = "ringdesigner";
+/// Keep the existing session directory, independently of the window's identity.
+const STORAGE_ID: &str = "RingDesigner Desktop";
 
 pub fn persistence_path() -> Option<PathBuf> {
-    let destination = eframe::storage_dir(APP_ID)?.join("app.ron");
+    let destination = eframe::storage_dir(STORAGE_ID)?.join("app.ron");
     let names = [
         format!("RingDesigner v{}", env!("CARGO_PKG_VERSION")),
         "RingDesigner v0.3.0".into(),
@@ -64,6 +67,17 @@ fn copy_once(source: &Path, destination: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn desktop_identity_matches_the_launcher_without_moving_saved_sessions() {
+        let desktop = include_str!("../../../packaging/ringdesigner.desktop");
+        assert!(desktop.lines().any(|line| line == format!("StartupWMClass={APP_ID}")));
+        assert!(desktop.lines().any(|line| line == format!("Icon={APP_ID}")));
+        assert_eq!(format!("{APP_ID}.desktop"), "ringdesigner.desktop");
+        assert_eq!(STORAGE_ID, "RingDesigner Desktop");
+        assert_eq!(eframe::storage_dir(STORAGE_ID), eframe::storage_dir("RingDesigner Desktop"));
+        assert_ne!(eframe::storage_dir(STORAGE_ID), eframe::storage_dir(APP_ID));
+    }
+
     #[test]
     fn migrating_preserves_legacy_and_never_overwrites_an_existing_session() {
         let temp = tempfile::tempdir().unwrap();

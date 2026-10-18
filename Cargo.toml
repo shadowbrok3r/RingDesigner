@@ -19,7 +19,7 @@ members = [
     "crates/ringdesigner-android",
 ]
 # Vendored forks are reached through [patch.crates-io], not built as members.
-exclude = ["vendor/egui-mobile-theme", "patches/egui-snarl", "patches/egui-scale", "patches/egui", "patches/egui_tiles"]
+exclude = ["vendor/egui-mobile-theme", "patches/egui-snarl", "patches/egui-scale", "patches/egui", "patches/egui_tiles", "patches/egui-theme-kit"]
 
 [workspace.package]
 edition = "2024"
@@ -95,6 +95,9 @@ egui_tiles = { path = "patches/egui_tiles" }
 # bridge, and the framework repo's fork skips them. A git dependency never brings its own root
 # [patch] table along, so the app's workspace has to carry it.
 android-activity = { git = "https://github.com/shadowbrok3r/EguiMobile", rev = "af697fc24aecf917b950244c264c1e10476bfca3" }
+
+[patch."https://github.com/shadowbrok3r/egui-theme-kit"]
+egui-theme-kit = { path = "patches/egui-theme-kit" }
 
 [profile.dev]
 opt-level = 1

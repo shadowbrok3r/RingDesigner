@@ -264,8 +264,9 @@ pub enum Lands {
 }
 
 pub struct RingDesignerApp {
-    pub theme_config: egui_mobile_theme::ThemeConfig,
+    pub theme: crate::theme::ThemeState,
     pub theme_dirty: bool,
+    pub custom_title_bar: bool,
     pub updater: crate::updater::Updater,
     pub install_update: bool,
     pub desktop: Desktop,
@@ -482,12 +483,11 @@ impl RingDesignerApp {
         ws.active_pane = ws.active_pane.min(ws.layout.count() - 1);
 
         let design_for_history = design.clone();
-        let theme_config = cc.storage.and_then(|s| s.get_string(THEME_STORAGE_KEY))
-            .and_then(|j| serde_json::from_str::<egui_mobile_theme::ThemeConfig>(&j).ok()).unwrap_or_default();
-        theme_config.apply(&cc.egui_ctx, egui_mobile_theme::Density::Compact);
+        let theme = crate::theme::ThemeState::new(cc);
         let mut app = Self {
-            theme_config,
+            theme,
             theme_dirty: false,
+            custom_title_bar: true,
             updater: crate::updater::Updater::new(ws.automatic_updates),
             install_update: false,
             desktop: ws.desktop,

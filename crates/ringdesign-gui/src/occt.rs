@@ -601,7 +601,6 @@ mod tests {
     #[test]
     fn the_opencascade_plate_stands_over_the_canvas_and_clear_of_a_wrapped_footer() {
         let mut h = egui_kittest::Harness::builder().with_size([760., 640.]).build_eframe(|cc| {
-            crate::theme::install(&cc.egui_ctx);
             let mut app = crate::app::RingDesignerApp::new(cc);
             app.updater.automatic = false;
             app.auto_rebuild = false;

@@ -906,6 +906,37 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 Lesser General Public License for more details.
 ```
 
+## egui-theme-kit
+
+The desktop titlebar, theme picker and widget styling use egui-theme-kit,
+<https://github.com/shadowbrok3r/egui-theme-kit>, under MIT OR Apache-2.0.
+The bundled source is at revision `ab708cbe629d4b589e604100936e40688039efe1`,
+with a default-field initializer for RingDesigner's egui fork.
+
+```text
+MIT License
+
+Copyright (c) 2026 shadowbrok3r
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## Fonts
 
 Inscriptions, and text set as sketch outlines, are drawn in three fonts carried
@@ -919,6 +950,11 @@ repository, each under the SIL Open Font License, Version 1.1:
 - UnifrakturMaguntia (`UnifrakturMaguntia-Book.ttf`, the Textura face):
   Copyright (c) 2010, j. 'mach' wust, with Reserved Font Name
   UnifrakturMaguntia. Copyright (c) 2009, Peter Wiegel.
+
+The desktop UI also bundles Inter Regular, Medium and SemiBold through
+egui-theme-kit. Copyright (c) 2016 The Inter Project Authors
+(<https://github.com/rsms/inter>), under the same SIL Open Font License 1.1.
+The kit removes private-use glyph mappings in memory so the icon font can supply them.
 
 ```text
 -----------------------------------------------------------

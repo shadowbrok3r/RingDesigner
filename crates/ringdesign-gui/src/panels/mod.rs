@@ -34,7 +34,7 @@ pub fn render(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     shortcuts(app, ui);
     workflow_window(app, ui.ctx());
     crate::template_library::show(app, ui.ctx());
-    egui::Panel::top(egui::Id::unique("toolbar")).show(ui, |ui| toolbar(app, ui));
+    toolbar(app, ui);
     egui::Panel::bottom(egui::Id::unique("status")).show(ui, |ui| status_bar(app, ui));
 
     if app.construction.open {
@@ -110,7 +110,7 @@ fn dock_side(app: &mut RingDesignerApp, ui: &mut egui::Ui, side: Side) {
     let width = app.dock.width_of(side);
     let desktop = app.desktop;
     let resp = panel
-        .frame(egui::Frame::NONE.fill(ui.visuals().panel_fill).stroke(egui::Stroke::new(1.5, theme::HAIRLINE)).inner_margin(6))
+        .frame(egui::Frame::NONE.fill(ui.visuals().panel_fill).stroke(egui::Stroke::new(1.5, egui_theme_kit::Tokens::get(ui.ctx()).separator)).inner_margin(6))
         .default_size(width)
         .size_range(egui::Rangef::new(240.0, 680.0))
         .show(ui, |ui| {
@@ -180,7 +180,7 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
         let bounds = ui.max_rect();
         let active = tool == ToolKind::Node && self.app.selected_node.is_some();
         let hovered = ui.rect_contains_pointer(bounds);
-        let stroke = if active { theme::ACCENT } else if hovered { theme::ACCENT_DIM } else { theme::HAIRLINE };
+        let stroke = if active { egui_theme_kit::Tokens::get(ui.ctx()).primary } else if hovered { egui_theme_kit::Tokens::get(ui.ctx()).hover } else { egui_theme_kit::Tokens::get(ui.ctx()).separator };
         ui.painter().rect_stroke(bounds.shrink(1.0), 4.0, egui::Stroke::new(if active || hovered { 1.8 } else { 1.0 }, stroke), egui::StrokeKind::Inside);
         let mut drag = false;
         egui::Frame::NONE.inner_margin(8).show(ui, |ui| {
@@ -188,7 +188,7 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
             // The header is the handle: a press on it moves the tool within
             // this side's tree, which is the only tree it can be dropped in.
             let grip = ui
-                .add(egui::Label::new(egui::RichText::new(icon::DOTS_SIX_VERTICAL).color(theme::TEXT_DIM)).selectable(false).sense(egui::Sense::drag()))
+                .add(egui::Label::new(egui::RichText::new(icon::DOTS_SIX_VERTICAL).color(egui_theme_kit::Tokens::get(ui.ctx()).text_dim)).selectable(false).sense(egui::Sense::drag()))
                 .on_hover_text("Drag to rearrange this panel")
                 .on_hover_cursor(egui::CursorIcon::Grab);
             drag |= grip.drag_started();
@@ -197,7 +197,7 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
                 egui::Label::new(
                     egui::RichText::new(tool.label())
                         .strong()
-                        .color(if active { theme::ACCENT } else { theme::TEXT }),
+                        .color(if active { egui_theme_kit::Tokens::get(ui.ctx()).primary } else { egui_theme_kit::Tokens::get(ui.ctx()).text }),
                 )
                 .selectable(false)
                 .sense(egui::Sense::drag()),
@@ -220,34 +220,33 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
                 }
             });
         });
-        egui::ScrollArea::vertical()
-            .id_salt(("tool", tool.label()))
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                // While a graph drives the design these panels only show;
-                // the graph is where edits go.
-                let driven = self.app.graph_driven()
-                    && matches!(
-                        tool,
-                        ToolKind::Design | ToolKind::Layers | ToolKind::Library
-                    );
-                if driven {
-                    driven_banner(self.app, ui, tool);
-                }
-                ui.add_enabled_ui(!driven, |ui| match tool {
-                    ToolKind::Design => design::ui(self.app, ui),
-                    ToolKind::Layers => layers::ui(self.app, ui),
-                    ToolKind::Report => report::ui(self.app, ui),
-                    ToolKind::Library => library::ui(self.app, ui),
-                    ToolKind::Node => node::ui(self.app, ui),
-                    ToolKind::Theme => {
-                        if egui_mobile_theme::editor_with_glass(ui, &mut self.app.theme_config, egui_mobile_theme::Density::Compact, false) {
-                            self.app.theme_config.apply(ui.ctx(), egui_mobile_theme::Density::Compact);
-                            self.app.theme_dirty = true;
-                        }
-                    },
+        if tool == ToolKind::Theme {
+            self.app.theme_dirty |= self.app.theme.show(ui);
+        } else {
+            egui::ScrollArea::vertical()
+                .id_salt(("tool", tool.label()))
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    // While a graph drives the design these panels only show;
+                    // the graph is where edits go.
+                    let driven = self.app.graph_driven()
+                        && matches!(
+                            tool,
+                            ToolKind::Design | ToolKind::Layers | ToolKind::Library
+                        );
+                    if driven {
+                        driven_banner(self.app, ui, tool);
+                    }
+                    ui.add_enabled_ui(!driven, |ui| match tool {
+                        ToolKind::Design => design::ui(self.app, ui),
+                        ToolKind::Layers => layers::ui(self.app, ui),
+                        ToolKind::Report => report::ui(self.app, ui),
+                        ToolKind::Library => library::ui(self.app, ui),
+                        ToolKind::Node => node::ui(self.app, ui),
+                        ToolKind::Theme => unreachable!("the picker owns its scroll area"),
+                    });
                 });
-            });
+        }
         });
         if drag { egui_tiles::UiResponse::DragStarted } else { egui_tiles::UiResponse::None }
     }
@@ -262,8 +261,8 @@ impl egui_tiles::Behavior<ToolKind> for ToolBehavior<'_> {
 
     fn gap_width(&self, _: &egui::Style) -> f32 { 7.0 }
     fn min_size(&self) -> f32 { 96.0 }
-    fn resize_stroke(&self, _: &egui::Style, state: egui_tiles::ResizeState) -> egui::Stroke {
-        let color = match state { egui_tiles::ResizeState::Idle => theme::HAIRLINE, egui_tiles::ResizeState::Hovering => theme::ACCENT_DIM, egui_tiles::ResizeState::Dragging => theme::ACCENT };
+    fn resize_stroke(&self, style: &egui::Style, state: egui_tiles::ResizeState) -> egui::Stroke {
+        let color = match state { egui_tiles::ResizeState::Idle => style.visuals.window_stroke.color, egui_tiles::ResizeState::Hovering => style.visuals.widgets.hovered.bg_stroke.color, egui_tiles::ResizeState::Dragging => style.visuals.selection.bg_fill };
         egui::Stroke::new(2.0, color)
     }
 
@@ -339,7 +338,7 @@ impl egui_tiles::Behavior<usize> for ViewportBehavior<'_> {
             .show(ui, |ui| head = pane_head(app, ui, i, closable));
         if app.panes[i].kind == PaneKind::Solid {
             egui::Panel::bottom(strip(ui, "viewport-footer", i))
-                .frame(egui::Frame::NONE.fill(ui.visuals().panel_fill).inner_margin(egui::Margin::symmetric(6, 5)).stroke(egui::Stroke::new(1., theme::HAIRLINE)))
+                .frame(egui::Frame::NONE.fill(ui.visuals().panel_fill).inner_margin(egui::Margin::symmetric(6, 5)).stroke(egui::Stroke::new(1., egui_theme_kit::Tokens::get(ui.ctx()).separator)))
                 .show(ui, |ui| viewport_footer(app, ui, i));
             if timeline::shown(app) {
                 egui::Panel::bottom(strip(ui, "viewport-timeline", i))
@@ -367,7 +366,7 @@ impl egui_tiles::Behavior<usize> for ViewportBehavior<'_> {
             }
         });
         if app.layout != Layout::Single && app.active_pane == i {
-            ui.painter().rect_stroke(rect.shrink(1.), 0., egui::Stroke::new(1., theme::ACCENT_DIM), egui::StrokeKind::Inside);
+            ui.painter().rect_stroke(rect.shrink(1.), 0., egui::Stroke::new(1., egui_theme_kit::Tokens::get(ui.ctx()).hover), egui::StrokeKind::Inside);
         }
         if head.close { self.closed = Some(tile); }
         if head.drag { egui_tiles::UiResponse::DragStarted } else { egui_tiles::UiResponse::None }
@@ -377,8 +376,8 @@ impl egui_tiles::Behavior<usize> for ViewportBehavior<'_> {
     }
     fn gap_width(&self, _: &egui::Style) -> f32 { GUTTER }
     fn min_size(&self) -> f32 { 140. }
-    fn resize_stroke(&self, _: &egui::Style, state: egui_tiles::ResizeState) -> egui::Stroke {
-        egui::Stroke::new(2., match state { egui_tiles::ResizeState::Idle => theme::HAIRLINE, egui_tiles::ResizeState::Hovering => theme::ACCENT_DIM, egui_tiles::ResizeState::Dragging => theme::ACCENT })
+    fn resize_stroke(&self, style: &egui::Style, state: egui_tiles::ResizeState) -> egui::Stroke {
+        egui::Stroke::new(2., match state { egui_tiles::ResizeState::Idle => style.visuals.window_stroke.color, egui_tiles::ResizeState::Hovering => style.visuals.widgets.hovered.bg_stroke.color, egui_tiles::ResizeState::Dragging => style.visuals.selection.bg_fill })
     }
 }
 
@@ -416,7 +415,7 @@ fn pane_head(app: &mut RingDesignerApp, ui: &mut egui::Ui, i: usize, closable: b
     ui.horizontal(|ui| {
         // The grip is the handle: a press on it moves this view in the tree.
         let grip = ui
-            .add(egui::Label::new(egui::RichText::new(icon::DOTS_SIX_VERTICAL).color(theme::TEXT_DIM)).selectable(false).sense(egui::Sense::drag()))
+            .add(egui::Label::new(egui::RichText::new(icon::DOTS_SIX_VERTICAL).color(egui_theme_kit::Tokens::get(ui.ctx()).text_dim)).selectable(false).sense(egui::Sense::drag()))
             .on_hover_text("Drag to rearrange this view")
             .on_hover_cursor(egui::CursorIcon::Grab);
         head.drag = grip.drag_started();
@@ -704,13 +703,13 @@ pub(crate) enum Command {
 fn driven_banner(app: &mut RingDesignerApp, ui: &mut egui::Ui, tool: ToolKind) {
     egui::Frame::NONE
         .fill(ui.visuals().panel_fill)
-        .stroke(egui::Stroke::new(1.0, theme::ACCENT_DIM))
+        .stroke(egui::Stroke::new(1.0, egui_theme_kit::Tokens::get(ui.ctx()).hover))
         .inner_margin(egui::Margin::symmetric(8, 6))
         .corner_radius(4.0)
         .show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.colored_label(
-                    theme::ACCENT,
+                    egui_theme_kit::Tokens::get(ui.ctx()).primary,
                     format!("{} Driven by the graph", icon::GRAPH),
                 );
                 ui.weak("— edit the graph, or bake it to edit here.");
@@ -1042,10 +1041,10 @@ fn history_controls(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                         egui::RichText::new(label.clone())
                     };
                     let text = if *now {
-                        text.color(theme::ACCENT)
+                        text.color(egui_theme_kit::Tokens::get(ui.ctx()).primary)
                     } else if i > present {
                         // Ahead of the present: still reachable, but undone.
-                        text.color(theme::TEXT_DIM)
+                        text.color(egui_theme_kit::Tokens::get(ui.ctx()).text_dim)
                     } else {
                         text
                     };
@@ -1066,101 +1065,108 @@ fn atelier_button(ui: &mut egui::Ui, icon: Icon, label: &str) -> egui::Response 
 }
 
 fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    use egui_theme_kit::title_bar::{TitleBar, Side as BarSide};
+    let compact = ui.available_width() < 1300.;
+    let document = app.document_path.as_ref().and_then(|p| p.file_name())
+        .map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| app.design.name.clone());
+    let title = format!("RingDesigner — {document}");
+    if ui.input(|i| i.viewport().title.as_deref() != Some(&title)) {
+        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Title(title));
+    }
+    TitleBar::new("ringdesigner.title_bar", &document)
+        .frameless(app.custom_title_bar)
+        .show(ui, |ui, side| {
+            ui.spacing_mut().item_spacing.x = if compact { 3. } else { 6. };
+            match side {
+                BarSide::Left => toolbar_left(app, ui, compact),
+                BarSide::Right => toolbar_right(app, ui),
+            }
+        });
+}
+
+fn toolbar_left(app: &mut RingDesignerApp, ui: &mut egui::Ui, compact: bool) {
     use ringdesign_workbench::icons::{self, Icon};
-    let row = ui.available_rect_before_wrap();
-    let compact = row.width() < 1300.;
-    ui.spacing_mut().item_spacing.x = if compact { 3. } else { 6. };
-    ui.horizontal(|ui| {
-        ui.menu_button((Icon::Files.image(ui, 18.0), "File"), |ui| file_menu(app, ui));
-        ui.menu_button((Icon::View.image(ui, 18.0), "View"), |ui| {
-            ui.menu_button("Panels", |ui| {
-                for &tool in ToolKind::ALL {
-                    let open = app.dock.is_open(tool);
-                    if icons::button(ui, tool.atelier(), tool.label(), open, egui::vec2(160., 28.)).clicked() {
-                        app.dock.toggle(tool, !open);
-                    }
+    ui.menu_button((Icon::Files.image(ui, 18.0), "File"), |ui| file_menu(app, ui));
+    ui.menu_button((Icon::View.image(ui, 18.0), "View"), |ui| {
+        ui.menu_button("Panels", |ui| {
+            for &tool in ToolKind::ALL {
+                let open = app.dock.is_open(tool);
+                if icons::button(ui, tool.atelier(), tool.label(), open, egui::vec2(160., 28.)).clicked() {
+                    app.dock.toggle(tool, !open);
                 }
-            });
-            ui.menu_button("Viewport layout", |ui| layout_controls(app, ui, true));
-            ui.separator();
-            if ui.button("Default layout")
-                .on_hover_text("Put this workspace's panels and views back where they start")
-                .clicked()
-            {
-                app.restore_default_layout();
-                ui.close();
-            }
-            if ui.button("Reset cameras").clicked() {
-                let bounds = app.build.as_ref().and_then(|b| b.mesh.bounds());
-                for pane in &mut app.panes {
-                    if !pane.follow_node { pane.camera.reset(); pane.camera.fit(bounds); }
-                }
-                ui.close();
             }
         });
+        ui.menu_button("Viewport layout", |ui| layout_controls(app, ui, true));
         ui.separator();
-        let workspace_label = format!("{} workspace", app.desktop.label());
-        let workspace = ui.menu_button((app.desktop.icon().image(ui, 18.0), egui::RichText::new(if compact { app.desktop.label() } else { &workspace_label }).strong().color(theme::ACCENT)), |ui| {
-            ui.weak("Workspaces remember their own panels");
-            for desktop in crate::dock::Desktop::ALL {
-                if icons::button(ui, desktop.icon(), desktop.label(), desktop == app.desktop, egui::vec2(180., 30.)).clicked() {
-                    app.switch_desktop(desktop);
-                    ui.close();
-                }
+        if ui.button("Default layout")
+            .on_hover_text("Put this workspace's panels and views back where they start")
+            .clicked()
+        {
+            app.restore_default_layout();
+            ui.close();
+        }
+        if ui.button("Reset cameras").clicked() {
+            let bounds = app.build.as_ref().and_then(|b| b.mesh.bounds());
+            for pane in &mut app.panes {
+                if !pane.follow_node { pane.camera.reset(); pane.camera.fit(bounds); }
             }
-        });
-        workspace.response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &workspace_label));
-        ui.menu_button((Icon::Workshop.image(ui, 18.0), "Tools"), |ui| {
-            if icons::button(ui, Icon::Settings, "Theme", false, egui::Vec2::ZERO).clicked() {
-                app.dock.open_on(ToolKind::Theme, Side::Right); ui.close();
-            }
-            if icons::button(ui, Icon::Guide, "Workflow guide", false, egui::vec2(0., 28.)).clicked() {
-                ui.data_mut(|d| d.insert_temp(egui::Id::unique("workflow-open"), true)); ui.close();
-            }
-            if icons::button(ui, Icon::Shape, "Construction guide", app.construction.open, egui::vec2(0., 28.)).clicked() {
-                app.construction.open = !app.construction.open; ui.close();
-            }
-            ui.separator();
-            ui.menu_button("MCP server", |ui| mcp_control(app, ui));
-            if ui.button("Feature request / bug report…").clicked() { ringdesign_workbench::feedback::open(ui.ctx()); ui.close(); }
-            if ui.button("Command search…  Ctrl+K").clicked() { app.palette_open = true; ui.close(); }
-            if ui.button(Command::Licences.label()).on_hover_text("RingDesigner's licences, and OpenCascade's and the other notices of what it is built on").clicked() { Command::Licences.run(app); ui.close(); }
-        });
-        history_controls(app, ui);
-        let left_end = ui.min_rect().right();
-        let right_start = ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let can_restart = !app.is_building() && app.exporting.is_none();
-            app.install_update |= app.updater.menu(ui, can_restart);
-            let exporting = app.exporting.is_some();
-            ui.add_enabled_ui(!exporting, |ui| {
-                ui.menu_button((Icon::Export.image(ui, 18.0), "Export"), |ui| export_menu(app, ui));
-            }).response.on_disabled_hover_text("An export is running");
-            let shown = app.viewport_layout.shown();
-            let cad_visible = if shown.is_empty() {
-                (0..app.layout.count()).any(|i| app.panes.get(i).is_some_and(|p| p.kind == PaneKind::Cad))
-            } else {
-                shown.into_iter().any(|i| app.panes.get(i).is_some_and(|p| p.kind == PaneKind::Cad))
-            };
-            if app.showing_a_ring() || cad_visible {
-                ui.menu_button((Icon::View.image(ui, 18.0), "Preview"), |ui| preview_menu(app, ui));
-            }
-            let building = app.is_building();
-            let candidate_only = cad_visible && !app.showing_a_ring();
-            ui.add_enabled_ui(!building && !candidate_only, |ui| {
-                if icons::compact(ui, Icon::Rebuild, false).clicked() { app.rebuild_now(); }
-            }).response.on_disabled_hover_text(if candidate_only { "Use Preview in CAD to evaluate the candidate." } else { "Mesh rebuild in progress" });
-            if building || exporting { ui.add(egui::Spinner::new().size(16.)); }
-            ui.min_rect().left()
-        }).inner;
-        let center = row.center().x;
-        let half = (center - left_end - 8.).min(right_start - center - 8.).max(0.);
-        if half > 8. {
-            let title = app.document_path.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| app.design.name.clone());
-            let rect = egui::Rect::from_center_size(egui::pos2(center, ui.min_rect().center().y), egui::vec2(half * 2., ui.spacing().interact_size.y));
-            ui.put(rect, egui::Label::new(egui::RichText::new(&title).strong()).truncate().selectable(false))
-                .on_hover_text(app.document_path.as_ref().map(|p| p.display().to_string()).unwrap_or(title));
+            ui.close();
         }
     });
+    ui.separator();
+    let workspace_label = format!("{} workspace", app.desktop.label());
+    let workspace = ui.menu_button((app.desktop.icon().image(ui, 18.0), egui::RichText::new(if compact { app.desktop.label() } else { &workspace_label }).strong().color(egui_theme_kit::Tokens::get(ui.ctx()).primary)), |ui| {
+        ui.weak("Workspaces remember their own panels");
+        for desktop in crate::dock::Desktop::ALL {
+            if icons::button(ui, desktop.icon(), desktop.label(), desktop == app.desktop, egui::vec2(180., 30.)).clicked() {
+                app.switch_desktop(desktop);
+                ui.close();
+            }
+        }
+    });
+    workspace.response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &workspace_label));
+    ui.menu_button((Icon::Workshop.image(ui, 18.0), "Tools"), |ui| {
+        if icons::button(ui, Icon::Settings, "Theme", false, egui::Vec2::ZERO).clicked() {
+            app.dock.open_on(ToolKind::Theme, Side::Right); ui.close();
+        }
+        if icons::button(ui, Icon::Guide, "Workflow guide", false, egui::vec2(0., 28.)).clicked() {
+            ui.data_mut(|d| d.insert_temp(egui::Id::unique("workflow-open"), true)); ui.close();
+        }
+        if icons::button(ui, Icon::Shape, "Construction guide", app.construction.open, egui::vec2(0., 28.)).clicked() {
+            app.construction.open = !app.construction.open; ui.close();
+        }
+        ui.separator();
+        ui.menu_button("MCP server", |ui| mcp_control(app, ui));
+        if ui.button("Feature request / bug report…").clicked() { ringdesign_workbench::feedback::open(ui.ctx()); ui.close(); }
+        if ui.button("Command search…  Ctrl+K").clicked() { app.palette_open = true; ui.close(); }
+        if ui.button(Command::Licences.label()).on_hover_text("RingDesigner's licences, and OpenCascade's and the other notices of what it is built on").clicked() { Command::Licences.run(app); ui.close(); }
+    });
+    history_controls(app, ui);
+}
+
+fn toolbar_right(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
+    use ringdesign_workbench::icons::{self, Icon};
+    let can_restart = !app.is_building() && app.exporting.is_none();
+    app.install_update |= app.updater.menu(ui, can_restart);
+    let exporting = app.exporting.is_some();
+    ui.add_enabled_ui(!exporting, |ui| {
+        ui.menu_button((Icon::Export.image(ui, 18.0), "Export"), |ui| export_menu(app, ui));
+    }).response.on_disabled_hover_text("An export is running");
+    let shown = app.viewport_layout.shown();
+    let cad_visible = if shown.is_empty() {
+        (0..app.layout.count()).any(|i| app.panes.get(i).is_some_and(|p| p.kind == PaneKind::Cad))
+    } else {
+        shown.into_iter().any(|i| app.panes.get(i).is_some_and(|p| p.kind == PaneKind::Cad))
+    };
+    if app.showing_a_ring() || cad_visible {
+        ui.menu_button((Icon::View.image(ui, 18.0), "Preview"), |ui| preview_menu(app, ui));
+    }
+    let building = app.is_building();
+    let candidate_only = cad_visible && !app.showing_a_ring();
+    ui.add_enabled_ui(!building && !candidate_only, |ui| {
+        if icons::compact(ui, Icon::Rebuild, false).clicked() { app.rebuild_now(); }
+    }).response.on_disabled_hover_text(if candidate_only { "Use Preview in CAD to evaluate the candidate." } else { "Mesh rebuild in progress" });
+    if building || exporting { ui.add(egui::Spinner::new().size(16.)); }
 }
 
 fn file_menu(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
@@ -1429,7 +1435,7 @@ fn mcp_control(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         {
             app.stop_mcp();
         }
-        ui.label(egui::RichText::new(addr.to_string()).color(theme::TEXT_DIM));
+        ui.label(egui::RichText::new(addr.to_string()).color(egui_theme_kit::Tokens::get(ui.ctx()).text_dim));
         return;
     }
 
@@ -1493,7 +1499,7 @@ fn quality_options(ui: &mut egui::Ui, params: &mut BuildParams) -> bool {
     ui.label(
         egui::RichText::new("Swept grid — fixed step count")
             .small()
-            .color(theme::TEXT_DIM),
+            .color(egui_theme_kit::Tokens::get(ui.ctx()).text_dim),
     );
     for &(name, t, p) in BuildParams::PRESETS {
         let at = params.refine.is_none() && params.theta_steps == t && params.profile_steps == p;
@@ -1513,7 +1519,7 @@ fn quality_options(ui: &mut egui::Ui, params: &mut BuildParams) -> bool {
     ui.label(
         egui::RichText::new("Refined — to a tolerance")
             .small()
-            .color(theme::TEXT_DIM),
+            .color(egui_theme_kit::Tokens::get(ui.ctx()).text_dim),
     );
     for &(name, tol, tilt) in RefineParams::PRESETS {
         let at = params.refine.is_some_and(|r| r.tolerance_mm == tol);
@@ -1582,7 +1588,7 @@ fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                     },
                     theme::verdict_color(v),
                 ),
-                None => (icon::CIRCLE_DASHED, theme::TEXT_DIM),
+                None => (icon::CIRCLE_DASHED, egui_theme_kit::Tokens::get(ui.ctx()).text_dim),
             };
             match verdict {
                 Some(v) => {
@@ -1593,7 +1599,7 @@ fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         }
 
         ui.separator();
-        ui.label(egui::RichText::new(&app.status).color(theme::TEXT_DIM));
+        ui.label(egui::RichText::new(&app.status).color(egui_theme_kit::Tokens::get(ui.ctx()).text_dim));
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if let Some(b) = &app.build {
@@ -1610,7 +1616,7 @@ fn status_bar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
                             .map(|m| m.grams)
                             .unwrap_or(0.0)
                     ))
-                    .color(theme::TEXT_DIM),
+                    .color(egui_theme_kit::Tokens::get(ui.ctx()).text_dim),
                 );
             }
         });

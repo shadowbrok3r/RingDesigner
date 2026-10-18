@@ -13,7 +13,6 @@ fn harness(size: [f32; 2]) -> Harness<'static, RingDesignerApp> {
     #[cfg(feature = "ui-shot")]
     let builder = builder.wgpu();
     builder.build_eframe(|cc| {
-        crate::theme::install(&cc.egui_ctx);
         let mut app = RingDesignerApp::new(cc);
         app.updater.automatic = false;
         app.auto_rebuild = false;
@@ -957,18 +956,20 @@ fn ui_thread_costs_on_heavy_designs() {
 }
 
 #[test]
-fn active_document_title_is_centered_and_file_identity_persists() {
+fn active_document_updates_the_window_title_and_file_identity_persists() {
     for width in [1100., 1600.] {
         let mut h = harness([width, 980.]);
         h.state_mut().design.name = "Ophidian — amethyst serpent".into();
         h.run_steps(3);
-        let rect = h.get_by_label("Ophidian — amethyst serpent").rect();
-        assert!((rect.center().x - width * 0.5).abs() < 3., "{width}: {rect:?}");
-        assert!(rect.left() > h.get_by_label("History").rect().right());
-        assert!(rect.right() < h.get_by_label("Preview").rect().left());
+        let window_title = |h: &Harness<'_, RingDesignerApp>| {
+            h.output().viewport_output[&egui::ViewportId::ROOT].commands.iter().find_map(|command| {
+                if let egui::ViewportCommand::Title(title) = command { Some(title.clone()) } else { None }
+            }).unwrap()
+        };
+        assert_eq!(window_title(&h), "RingDesigner — Ophidian — amethyst serpent");
         h.state_mut().document_path = Some("/tmp/custom-serpent.ring.json".into());
         h.run_steps(3);
-        assert!(h.query_by_label("custom-serpent.ring.json").is_some());
+        assert_eq!(window_title(&h), "RingDesigner — custom-serpent.ring.json");
         let saved: crate::app::Workspace = serde_json::from_str(&serde_json::to_string(&h.state().workspace()).unwrap()).unwrap();
         assert_eq!(saved.document_path, h.state().document_path);
     }
@@ -1321,7 +1322,6 @@ fn relaunch(storage: MemoryStorage) -> Harness<'static, RingDesignerApp> {
     let storage: &'static MemoryStorage = Box::leak(Box::new(storage));
     Harness::builder().with_size([1600., 980.]).build_eframe(move |cc| {
         cc.storage = Some(storage);
-        crate::theme::install(&cc.egui_ctx);
         let mut app = RingDesignerApp::new(cc);
         app.updater.automatic = false;
         app.auto_rebuild = false;
@@ -1570,28 +1570,125 @@ fn theme_tab_is_reachable_and_custom_settings_survive_relaunch() {
     h.get_by_label("Theme").click();
     h.run_steps(3);
     assert!(h.state().dock.is_open(ToolKind::Theme));
-    assert!(h.get_by_label("Reset to Mastertech").rect().right() <= 1600.);
-    #[cfg(feature = "ui-shot")]
-    {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/mastertech-theme-review/desktop-theme-config.png");
-        h.render().unwrap().save(path).unwrap();
-    }
-    let custom = egui_mobile_theme::ThemeConfig {
-        control_height: Some(26.), text_scale: 1.1,
-        colors: egui_mobile_theme::Colors { primary: egui::Color32::from_rgb(120, 210, 170), ..Default::default() },
-        ..Default::default()
-    };
-    h.state_mut().theme_config = custom.clone();
+    assert!(h.query_by_label("Presets").is_some());
+    let mut custom = egui_theme_kit::SavedTheme::current(&h.ctx);
+    // kittest disables scrolling with infinity, which JSON cannot represent.
+    // Use the application's finite scroll settings for this persistence check.
+    custom.style.scroll_animation = Default::default();
+    custom.style.visuals.hyperlink_color = egui::Color32::from_rgb(120, 210, 170);
+    custom.density = egui_theme_kit::Density::Regular;
+    custom.text_scale = egui_theme_kit::TextScale::Large;
+    egui_theme_kit::apply_saved_theme(&h.ctx, custom.clone());
+    h.run_steps(3);
+    let expected = egui_theme_kit::SavedTheme::current(&h.ctx);
     let mut storage = MemoryStorage::default();
     h.state().persist_session(&mut storage).unwrap();
     drop(h);
     let mut h = relaunch(storage);
     h.run_steps(3);
-    assert_eq!(h.state().theme_config, custom);
-    assert_eq!(egui_mobile_theme::color(&h.ctx, egui_mobile_theme::Role::Primary), custom.colors.primary);
-    assert_eq!(h.ctx.global_style().spacing.interact_size.y, 26.);
-    h.get_by_label("Reset to Mastertech").click();
+    let restored = egui_theme_kit::SavedTheme::current(&h.ctx);
+    // Relaunch's harness disables animation again after App::new; visual
+    // colours, metrics and text scale are the persisted appearance contract.
+    assert_eq!(expected.style.visuals, restored.style.visuals);
+    assert_eq!(expected.semantic, restored.semantic);
+    assert_eq!(restored.density, egui_theme_kit::Density::Regular);
+    assert_eq!(restored.text_scale, egui_theme_kit::TextScale::Large);
+    assert_eq!(egui_theme_kit::Tokens::get(&h.ctx).primary, custom.style.visuals.hyperlink_color);
+    egui_theme_kit::apply_preset(&h.ctx, egui_theme_kit::PresetStyles::Graphite);
+    let expected = egui_theme_kit::Tokens::get(&h.ctx);
+    let mut storage = MemoryStorage::default();
+    h.state().persist_session(&mut storage).unwrap();
+    drop(h);
+    let h = relaunch(storage);
+    assert_eq!(egui_theme_kit::Tokens::get(&h.ctx), expected, "Graphite must not fall back to the legacy app default");
+}
+
+#[test]
+fn legacy_theme_migrates_once_without_changing_saved_design() {
+    let old = egui_mobile_theme::ThemeConfig {
+        colors: egui_mobile_theme::Colors { primary: egui::Color32::from_rgb(120, 210, 170), ..Default::default() },
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&old).unwrap();
+    let h = harness([1600., 980.]);
+    let mut storage = MemoryStorage::default();
+    h.state().persist_session(&mut storage).unwrap();
+    storage.0.remove("ringdesigner.theme_kit.v1");
+    storage.0.remove(egui_theme_kit::persist::STORAGE_KEY);
+    storage.0.insert(crate::app::THEME_STORAGE_KEY.into(), json.clone());
+    let design = storage.0[crate::app::DESIGN_STORAGE_KEY].clone();
+    drop(h);
+    let h = relaunch(storage);
+    assert_eq!(egui_theme_kit::Tokens::get(&h.ctx).primary, old.colors.primary);
+    let mut saved = MemoryStorage::default();
+    saved.0.insert(crate::app::THEME_STORAGE_KEY.into(), json);
+    h.state().persist_session(&mut saved).unwrap();
+    assert_eq!(saved.0[crate::app::DESIGN_STORAGE_KEY], design);
+    // A reset can remove the active-theme key; the legacy preference must not win again.
+    saved.0.remove(egui_theme_kit::persist::STORAGE_KEY);
+    drop(h);
+    let h = relaunch(saved);
+    assert_ne!(egui_theme_kit::Tokens::get(&h.ctx).primary, old.colors.primary);
+}
+
+#[test]
+fn custom_titlebar_keeps_caption_buttons_clear_of_menus() {
+    let mut h = harness([1100., 700.]);
     h.run_steps(3);
-    assert_eq!(h.state().theme_config, egui_mobile_theme::ThemeConfig::default());
-    assert_eq!(h.ctx.global_style().spacing.interact_size.y, egui_mobile_theme::DESKTOP_CONTROL_HEIGHT);
+    let minimize = h.get_by_label("Minimize").rect();
+    let maximize = h.get_by_label("Maximize").rect();
+    let close = h.get_by_label("Close").rect();
+    assert!(minimize.right() <= maximize.left());
+    assert!(maximize.right() <= close.left());
+    assert_eq!(close.right(), 1100.);
+    for label in ["File", "View", "Model workspace", "Tools", "History", "Export", "Preview", "Updates"] {
+        let rect = h.get_by_label(label).rect();
+        assert!(rect.right() <= minimize.left(), "{label} overlaps the window controls: {rect:?}");
+    }
+    h.state_mut().custom_title_bar = false;
+    h.run_steps(3);
+    assert!(h.query_by_label("Minimize").is_none());
+    assert!(h.query_by_label("Maximize").is_none());
+    assert!(h.query_by_label("File").is_some());
+}
+
+#[test]
+fn custom_titlebar_sends_window_commands_and_edges_resize() {
+    use egui::{Event, PointerButton, ViewportCommand, ViewportId};
+    let mut h = harness([1600., 980.]);
+    h.run_steps(3);
+    let sent = |h: &Harness<'_, RingDesignerApp>, command: ViewportCommand| {
+        assert!(h.output().viewport_output[&ViewportId::ROOT].commands.contains(&command), "missing {command:?}");
+    };
+    for (label, command) in [("Minimize", ViewportCommand::Minimized(true)), ("Maximize", ViewportCommand::Maximized(true))] {
+        h.get_by_label(label).click();
+        h.step();
+        sent(&h, command);
+    }
+    h.input_mut().viewports.get_mut(&ViewportId::ROOT).unwrap().maximized = Some(true);
+    h.run_steps(2);
+    h.get_by_label("Restore down").click();
+    h.step();
+    sent(&h, ViewportCommand::Maximized(false));
+    h.input_mut().viewports.get_mut(&ViewportId::ROOT).unwrap().maximized = Some(false);
+    h.run_steps(2);
+    let press = |pos, pressed| Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers: Default::default() };
+    for (start, end, command) in [
+        (egui::pos2(800., 16.), egui::pos2(825., 16.), ViewportCommand::StartDrag),
+        (egui::pos2(1598., 490.), egui::pos2(1620., 490.), ViewportCommand::BeginResize(egui::ResizeDirection::East)),
+    ] {
+        h.input_mut().events.push(Event::PointerMoved(start));
+        h.step();
+        h.input_mut().events.push(press(start, true));
+        h.step();
+        let started_on_press = h.output().viewport_output[&ViewportId::ROOT].commands.contains(&command);
+        h.input_mut().events.push(Event::PointerMoved(end));
+        h.step();
+        if !started_on_press { sent(&h, command); }
+        h.input_mut().events.push(press(end, false));
+        h.step();
+    }
+    h.get_by_label("Close").click();
+    h.step();
+    sent(&h, ViewportCommand::Close);
 }

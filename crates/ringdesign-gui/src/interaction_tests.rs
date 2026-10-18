@@ -9,7 +9,6 @@ fn sized(size: [f32; 2]) -> Harness<'static, RingDesignerApp> {
     Harness::builder()
         .with_size(size)
         .build_eframe(|cc| {
-            crate::theme::install(&cc.egui_ctx);
             let mut app = RingDesignerApp::new(cc);
             app.updater.automatic = false;
             app.auto_rebuild = false;

@@ -16,7 +16,6 @@ pub(crate) fn stored_body() -> RingDesign {
 
 fn harness(design: RingDesign) -> Harness<'static, RingDesignerApp> {
     Harness::builder().with_size([1600., 980.]).build_eframe(move |cc| {
-        crate::theme::install(&cc.egui_ctx);
         let mut app = RingDesignerApp::new(cc);
         app.updater.automatic = false;
         app.auto_rebuild = false;

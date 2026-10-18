@@ -64,14 +64,15 @@ impl eframe::App for RingDesignerApp {
         panels::render(self, ui);
         if self.theme_dirty {
             if let Some(storage) = frame.storage_mut() {
-                if let Ok(json) = serde_json::to_string(&self.theme_config) {
-                    storage.set_string(app::THEME_STORAGE_KEY, json);
-                    storage.flush();
-                    self.theme_dirty = false;
-                }
+                self.theme.save(ui.ctx(), storage);
+                storage.flush();
+                self.theme_dirty = false;
             }
         }
         licences::window(ui.ctx(), &self.occt);
+        if self.custom_title_bar {
+            egui_theme_kit::title_bar::window_edges(ui);
+        }
         if std::mem::take(&mut self.install_update) {
             if let Some(storage) = frame.storage_mut() {
                 match self.persist_session(storage) {
@@ -116,7 +117,7 @@ impl RingDesignerApp {
         storage.set_string(app::DESIGN_STORAGE_KEY, design);
         storage.set_string(app::DOCK_STORAGE_KEY, dock);
         storage.set_string(app::WORKSPACE_STORAGE_KEY, workspace);
-        storage.set_string(app::THEME_STORAGE_KEY, serde_json::to_string(&self.theme_config)?);
+        self.theme.save(&self.egui_ctx, storage);
         Ok(())
     }
 }
@@ -133,11 +134,13 @@ fn main() -> eframe::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let executable = std::env::current_exe().ok();
+    let custom_title_bar = !std::env::args().any(|arg| arg == "--system-titlebar");
     let result = eframe::run_native(
         &format!("RingDesigner v{}", env!("CARGO_PKG_VERSION")),
         eframe::NativeOptions {
             viewport: eframe::egui::ViewportBuilder::default()
                 .with_app_id(session::APP_ID)
+                .with_decorations(!custom_title_bar)
                 .with_inner_size([1600.0, 980.0])
                 .with_min_inner_size([1100.0, 700.0])
                 .with_icon(app_icon())
@@ -149,9 +152,9 @@ fn main() -> eframe::Result<()> {
             persistence_path: session::persistence_path(),
             ..Default::default()
         },
-        Box::new(|cc| {
-            theme::install(&cc.egui_ctx);
+        Box::new(move |cc| {
             let mut app=RingDesignerApp::new(cc);
+            app.custom_title_bar = custom_title_bar;
             let args:Vec<String>=std::env::args().collect();
             if let Some(path)=args.windows(2).find(|pair|pair[0]=="--open").map(|pair|&pair[1]) {
                 export::open_design_path(&mut app,std::path::Path::new(path));

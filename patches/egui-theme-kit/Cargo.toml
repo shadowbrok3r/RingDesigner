@@ -1,0 +1,64 @@
+[package]
+name = "egui-theme-kit"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/shadowbrok3r/egui-theme-kit"
+readme = "README.md"
+description = "Theme and styling system for egui apps: tokens, density and text scale, Inter fonts, stock-widget theme, dock chrome, presets, frosted glass and a theme picker."
+keywords = ["egui", "theme", "style", "ui", "glassmorphism"]
+categories = ["gui"]
+publish = false
+
+[features]
+default = ["glass", "files", "dock", "toast", "data-table", "picker"]
+# egui_dock chrome built from the tokens (`dock_style`).
+dock = ["dep:egui_dock"]
+# egui-data-table selection colors (`table_style`).
+data-table = ["dep:egui-data-table"]
+# egui-toast notifications in the kit look (`toast`, the debug panel's toast tester).
+toast = ["dep:egui-toast"]
+# GPU backdrop blur through the vendored grab-pass backend; eframe-on-glow only.
+glass = ["dep:backdrop-blur-egui", "eframe/glow"]
+# Native file dialogs and the user config directory for theme import and export.
+files = ["dep:rfd", "dep:directories"]
+# Themed control widgets.
+controls = []
+# Custom window title bar with caption buttons.
+title-bar = ["controls"]
+# In-app log viewer.
+logger = ["controls", "dep:chrono", "dep:regex"]
+# Theme picker window and preset browser.
+picker = []
+
+[dependencies]
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "persistence", "serde"] }
+egui = { version = "0.37", default-features = false, features = ["experimental"] }
+egui_extras = { version = "0.37", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+log = "0.4"
+egui_dock = { git = "https://github.com/shadowbrok3r/egui_dock", branch = "egui-037", features = ["serde"], optional = true }
+egui-data-table = { git = "https://github.com/shadowbrok3r/egui-data-table", branch = "egui-037", optional = true }
+egui-toast = { git = "https://github.com/shadowbrok3r/egui-toast", branch = "egui-037", optional = true }
+backdrop-blur-egui = { git = "https://github.com/shadowbrok3r/egui-theme-kit", rev = "ab708cbe629d4b589e604100936e40688039efe1", default-features = false, features = ["grab-pass"], optional = true }
+rfd = { version = "0.17", optional = true }
+directories = { version = "6", optional = true }
+chrono = { version = "0.4", default-features = false, features = ["clock"], optional = true }
+regex = { version = "1", optional = true }
+
+[dev-dependencies]
+eframe = { version = "0.37", default-features = false, features = ["x11", "wayland", "default_fonts", "glow"] }
+egui_extras = { version = "0.37", default-features = false, features = ["svg"] }
+egui-phosphor = { git = "https://github.com/shadowbrok3r/egui-phosphor", branch = "egui-037", default-features = false, features = ["regular"] }
+regex = "1"
+
+[[example]]
+name = "picker"
+required-features = ["picker", "files"]
+
+[[example]]
+name = "controls"
+required-features = ["controls", "title-bar", "logger"]

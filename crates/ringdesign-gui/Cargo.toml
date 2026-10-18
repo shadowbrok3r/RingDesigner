@@ -18,6 +18,9 @@ kernel = ["ringdesign-graph/kernel-manifold", "ringdesign-script/kernel"]
 kernel-occt = []
 
 [dependencies]
+# Desktop chrome is shared with Mastertech; keep builds independent of local library edits.
+egui-theme-kit = { git = "https://github.com/shadowbrok3r/egui-theme-kit", rev = "ab708cbe629d4b589e604100936e40688039efe1", default-features = false, features = ["title-bar", "picker", "files"] }
+# Retained for importing existing desktop theme preferences and CAD palette constants.
 egui-mobile-theme.workspace = true
 ringdesign-occt = { path = "../ringdesign-occt" }
 ringdesign-assets.workspace = true
