@@ -661,7 +661,10 @@ fn button_inner(ui: &mut Ui, icon: Icon, label: &str, selected: bool, size: Vec2
 }
 
 pub fn compact(ui: &mut Ui, icon: Icon, selected: bool) -> Action {
-    button(ui, icon, "", selected, egui::vec2(ui.spacing().interact_size.y, ui.spacing().interact_size.y))
+    // Floating palette headers reserve 30 points for this control. Follow a
+    // denser host style without widening that established layout contract.
+    let width = ui.spacing().interact_size.y.min(30.0);
+    button(ui, icon, "", selected, egui::vec2(width, ui.spacing().interact_size.y))
 }
 
 impl Icon {
