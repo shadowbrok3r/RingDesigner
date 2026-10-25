@@ -190,8 +190,9 @@ impl Editor {
                 true
             }
             Action::Collapse(i) if exists(i) => {
-                self.graph.groups[i].collapsed = true;
                 self.graph.groups[i].pos = None;
+                self.graph.groups[i].pos = Some(view::group_pos(&self.graph, i));
+                self.graph.groups[i].collapsed = true;
                 self.revision += 1;
                 self.rebuild();
                 true
@@ -256,6 +257,24 @@ impl Editor {
         }
     }
 
+    /// Fold these nodes into one group node; true when the graph changed.
+    pub fn group_nodes(&mut self, ids: &[NodeId], name: &str) -> bool {
+        self.group_selection(ids, name, true)
+    }
+
+    /// The group a node belongs to, by index, the first naming it.
+    pub fn group_of(&self, id: NodeId) -> Option<usize> {
+        self.graph.groups.iter().position(|g| g.nodes.contains(&id))
+    }
+
+    /// Open the group at this index, or leave the one in hand with `None`.
+    pub fn open_group(&mut self, index: Option<usize>) {
+        match index {
+            Some(i) => self.enter_group(i),
+            None => self.leave_group(),
+        }
+    }
+
     /// Group the selection, folded or framed.
     pub(super) fn group_selection(&mut self, ids: &[NodeId], name: &str, collapsed: bool) -> bool {
         self.sync();
@@ -270,6 +289,10 @@ impl Editor {
         let entered_name = self.entered_group().map(|g| g.name.clone());
         self.graph.groups.retain(|gr| !gr.nodes.is_empty());
         self.graph.groups.push(NodeGroup { collapsed, ..NodeGroup::new(name, ids) });
+        let index = self.graph.groups.len() - 1;
+        if collapsed {
+            self.graph.groups[index].pos = Some(view::group_pos(&self.graph, index));
+        }
         if self.view.entered.is_some() {
             self.view.entered = entered_name.and_then(|n| self.graph.groups.iter().position(|g| g.name == n));
         }
@@ -286,7 +309,7 @@ impl Editor {
             self.revision += 1;
             self.view.entered = None;
             self.rebuild();
-            self.arrange_if_tangled();
+            self.arrange_pending = true;
         }
         added > 0
     }
@@ -305,7 +328,7 @@ impl Editor {
             self.view.entered = None;
             self.revision += 1;
             self.rebuild();
-            self.arrange_if_tangled();
+            self.arrange_pending = true;
         }
         changed
     }

@@ -220,7 +220,7 @@ impl Editor {
                     node_help(ui, reg, mode, &key, &mut goto);
                     ui.add_space(8.0);
                     egui::CollapsingHeader::new("How a ring graph fits together").id_salt("help-overview").show(ui, |ui| {
-                        for name in ["overview", "layers", "wiring"] {
+                        for name in ["overview", "layers", "groups", "wiring"] {
                             if let Some(e) = ringdesign_graph::guide::concept(name) {
                                 ui.label(RichText::new(e.line()).strong());
                                 guide_text(ui, e.body);

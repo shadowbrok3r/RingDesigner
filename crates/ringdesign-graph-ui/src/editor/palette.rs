@@ -69,13 +69,17 @@ pub(super) struct Outcome {
     pub close: bool,
 }
 
-/// How well `spec` answers every word typed: higher is better, `None` when a word misses.
-fn score(spec: &NodeSpec, words: &[String]) -> Option<i32> {
+/// Below this a word matched only the node's description.
+const NAME_MATCH: i32 = 20;
+
+/// How well `spec` answers every word typed, and its weakest word's score; `None` when a word misses.
+fn score(spec: &NodeSpec, words: &[String]) -> Option<(i32, i32)> {
     let label = spec.label.to_lowercase();
     let key = spec.key.to_lowercase();
     let cat = spec.category.label().to_lowercase();
     let about = ringdesign_graph::guide::node(&spec.key).map(|g| g.line()).unwrap_or_else(|| spec.doc.clone()).to_lowercase();
     let mut total = 0;
+    let mut weakest = i32::MAX;
     for w in words {
         let s = if label == *w || key == *w {
             100
@@ -95,16 +99,18 @@ fn score(spec: &NodeSpec, words: &[String]) -> Option<i32> {
             return None;
         };
         total += s;
+        weakest = weakest.min(s);
     }
-    Some(total)
+    Some((total, weakest))
 }
 
-/// The nodes matching `query`, best first.
-fn search<'a>(specs: &[&'a NodeSpec], query: &str) -> Vec<&'a NodeSpec> {
+/// The nodes matching `query`, best first, and how many lead on their names before those found only in a description.
+fn search<'a>(specs: &[&'a NodeSpec], query: &str) -> (Vec<&'a NodeSpec>, usize) {
     let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
-    let mut hits: Vec<(i32, &NodeSpec)> = specs.iter().filter_map(|s| score(s, &words).map(|v| (v, *s))).collect();
-    hits.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.label.len().cmp(&b.1.label.len())).then(a.1.label.cmp(&b.1.label)));
-    hits.into_iter().map(|(_, s)| s).collect()
+    let mut hits: Vec<((i32, i32), &NodeSpec)> = specs.iter().filter_map(|s| score(s, &words).map(|v| (v, *s))).collect();
+    hits.sort_by(|a, b| (b.0.1 >= NAME_MATCH).cmp(&(a.0.1 >= NAME_MATCH)).then(b.0.0.cmp(&a.0.0)).then(a.1.label.len().cmp(&b.1.label.len())).then(a.1.label.cmp(&b.1.label)));
+    let named = hits.iter().filter(|(v, _)| v.1 >= NAME_MATCH).count();
+    (hits.into_iter().map(|(_, s)| s).collect(), named)
 }
 
 fn remembered(ui: &Ui, id: egui::Id) -> Vec<String> {
@@ -146,7 +152,9 @@ pub(super) fn body(ui: &mut Ui, reg: &Registry, mode: Mode, st: &mut State, fits
         ui.weak("Up/Down to choose, Enter to add, Esc to close");
     });
     let edit_id = ui.scope_id().with("node-search");
-    let field = ui.add(egui::TextEdit::singleline(&mut st.query).id(edit_id).hint_text("Type a name, a type or what it does").desired_width(if narrow { ui.available_width() } else { 520.0 }));
+    // The arrows walk the list, not focus to the next widget.
+    let keys = egui::EventFilter { tab: false, horizontal_arrows: true, vertical_arrows: true, escape: true };
+    let field = ui.add(egui::TextEdit::singleline(&mut st.query).id(edit_id).event_filter(keys).hint_text("Type a name, a type or what it does").desired_width(if narrow { ui.available_width() } else { 440.0 }));
     if st.focus {
         field.request_focus();
         if let Some(mut s) = egui::TextEdit::load_state(ui.ctx(), edit_id) {
@@ -186,7 +194,13 @@ pub(super) fn body(ui: &mut Ui, reg: &Registry, mode: Mode, st: &mut State, fits
     if !sections.contains(&st.section) {
         st.section = sections.first().copied().unwrap_or_default();
     }
-    let list: Vec<&NodeSpec> = if needle.is_empty() { in_section(st.section) } else { search(&all, &needle) };
+    let (list, named): (Vec<&NodeSpec>, usize) = if needle.is_empty() {
+        let l = in_section(st.section);
+        let n = l.len();
+        (l, n)
+    } else {
+        search(&all, &needle)
+    };
     if !list.is_empty() {
         if down {
             st.hi = (st.hi + 1).min(list.len() - 1);
@@ -212,7 +226,7 @@ pub(super) fn body(ui: &mut Ui, reg: &Registry, mode: Mode, st: &mut State, fits
         if needle.is_empty() {
             ui.horizontal_wrapped(|ui| pick(ui, st));
         }
-        let hit = rows(ui, &list, st.hi, moved, &needle, narrow);
+        let hit = rows(ui, &list, named, st.hi, moved, &needle, narrow);
         if let Some(spec) = list.get(hit.0.unwrap_or(st.hi)) {
             ui.separator();
             summary(ui, spec, fits);
@@ -227,7 +241,7 @@ pub(super) fn body(ui: &mut Ui, reg: &Registry, mode: Mode, st: &mut State, fits
                 });
                 ui.separator();
             }
-            let hit = ui.vertical(|ui| rows(ui, &list, st.hi, moved, &needle, narrow)).inner;
+            let hit = ui.vertical(|ui| rows(ui, &list, named, st.hi, moved, &needle, narrow)).inner;
             ui.separator();
             ui.vertical(|ui| {
                 ui.set_width(280.0);
@@ -247,15 +261,21 @@ pub(super) fn body(ui: &mut Ui, reg: &Registry, mode: Mode, st: &mut State, fits
 }
 
 /// The result rows: the highlighted one ringed, kept in view as the keys move it. Returns the row under the pointer and any row clicked.
-fn rows(ui: &mut Ui, list: &[&NodeSpec], hi: usize, moved: bool, needle: &str, narrow: bool) -> (Option<usize>, Option<String>) {
+fn rows(ui: &mut Ui, list: &[&NodeSpec], named: usize, hi: usize, moved: bool, needle: &str, narrow: bool) -> (Option<usize>, Option<String>) {
     let mut hovered = None;
     let mut clicked = None;
+    let width = if narrow { ui.available_width() } else { 300.0 };
+    ui.set_width(width);
     egui::ScrollArea::vertical().id_salt("node-results").max_height(if narrow { 220.0 } else { 340.0 }).auto_shrink([false, true]).show(ui, |ui| {
-        ui.set_min_width(if narrow { ui.available_width() } else { 250.0 });
+        ui.set_width(width - 12.0);
         if list.is_empty() {
             ui.weak(if needle.is_empty() { "Nothing here in this graph's mode." } else { "No node matches. Try fewer letters, or a type such as window or number." });
         }
         for (i, spec) in list.iter().enumerate() {
+            if i == named && !needle.is_empty() {
+                ui.add_space(4.0);
+                ui.label(RichText::new("Mentioned in descriptions").small().color(crate::style::INK_DIM));
+            }
             let on = i == hi;
             let r = ui
                 .horizontal(|ui| {
@@ -404,7 +424,9 @@ impl Editor {
             return false;
         }
         let touch = ctx.input(|i| i.has_touch_screen());
-        if background.secondary_clicked() || background.long_touched() {
+        // snarl marks a wire dropped on empty canvas as a long touch to open its own menu.
+        let held = background.long_touched() && touch && !egui::Popup::is_any_open(ctx);
+        if background.secondary_clicked() || held {
             let at = ctx.input(|i| i.pointer.interact_pos()).unwrap_or(viewport.center());
             self.open_palette(at, String::new(), !touch);
         }
@@ -459,14 +481,19 @@ mod tests {
     fn a_search_ranks_names_before_descriptions() {
         let reg = Registry::builtin();
         let all = reg.list(Mode::SandRing);
-        let hits = search(&all, "window");
+        let (hits, named) = search(&all, "window");
         assert_eq!(hits.first().map(|s| s.key.as_str()), Some("window"));
-        let hits = search(&all, "seat");
+        assert!(named >= 1 && named <= hits.len());
+        let (hits, _) = search(&all, "seat");
         assert!(hits.first().is_some_and(|s| s.key.starts_with("layer.seat")), "{:?}", hits.iter().map(|s| &s.key).collect::<Vec<_>>());
-        assert!(search(&all, "zzqx").is_empty());
+        assert!(search(&all, "zzqx").0.is_empty());
         // Every word must land somewhere.
-        let hits = search(&all, "tiling fit");
+        let (hits, _) = search(&all, "tiling fit");
         assert_eq!(hits.first().map(|s| s.key.as_str()), Some("layer.tiling.fit"));
+        // A word found only in a description still finds the node, after every name match.
+        let (hits, named) = search(&all, "stone");
+        let seat = hits.iter().position(|s| s.key == "layer.seat").expect("the seat's help mentions stones");
+        assert!(seat >= named || hits[seat].label.to_lowercase().contains("stone"));
     }
 
     #[test]
@@ -494,6 +521,33 @@ mod tests {
         assert!(h.state().palette.is_none(), "choosing closes the popup and clears the search");
         assert_eq!(h.state().graph().nodes.len(), before + 1);
         assert!(h.state().graph().nodes.iter().any(|n| n.kind == "window"));
+    }
+
+    #[test]
+    fn a_right_click_opens_the_popup_with_the_keyboard_in_its_search() {
+        let reg = Registry::builtin();
+        let mut h = Harness::builder().with_size([1100., 700.]).build_ui_state(
+            |ui, ed: &mut Editor| {
+                ed.show(&reg, ui, "palette-click");
+            },
+            Editor::new(ringdesign_graph::templates::simple(), &reg),
+        );
+        h.run();
+        let at = egui::pos2(600., 500.);
+        h.input_mut().events.push(egui::Event::PointerMoved(at));
+        h.input_mut().events.push(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Secondary, pressed: true, modifiers: Default::default() });
+        h.step();
+        h.input_mut().events.push(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Secondary, pressed: false, modifiers: Default::default() });
+        h.run();
+        assert!(h.state().palette.is_some(), "a right-click on empty canvas opens the popup");
+        h.input_mut().events.push(egui::Event::Text("sta".into()));
+        h.run();
+        assert_eq!(h.state().palette.as_ref().map(|p| p.query.as_str()), Some("sta"));
+        h.key_press(egui::Key::ArrowDown);
+        h.run();
+        h.input_mut().events.push(egui::Event::Text("ck".into()));
+        h.run();
+        assert_eq!(h.state().palette.as_ref().map(|p| p.query.as_str()), Some("stack"), "the arrows leave the keyboard in the search");
     }
 
     #[test]

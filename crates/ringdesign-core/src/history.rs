@@ -510,6 +510,16 @@ mod tests {
         renamed["name"] = "h".into();
         assert!(!graph_layout_only(Some(&a), Some(&retyped)) && !graph_layout_only(Some(&a), Some(&renamed)));
         assert!(!graph_layout_only(None, Some(&a)) && !graph_layout_only(Some(&a), None));
+        // Folding a group or moving its node is layout too; changing who is in it is not.
+        let mut grouped = a.clone();
+        grouped["groups"] = serde_json::json!([{"name": "Layer", "nodes": [1, 2]}]);
+        let mut folded = grouped.clone();
+        folded["groups"][0]["collapsed"] = true.into();
+        folded["groups"][0]["pos"] = serde_json::json!([300.0, 10.0]);
+        let mut regrouped = grouped.clone();
+        regrouped["groups"][0]["nodes"] = serde_json::json!([1]);
+        assert!(graph_layout_only(Some(&grouped), Some(&folded)));
+        assert!(!graph_layout_only(Some(&grouped), Some(&regrouped)) && !graph_layout_only(Some(&a), Some(&grouped)));
         let mut before = design();
         before.graph = Some(a);
         let mut h = History::new(&before);

@@ -54,7 +54,7 @@ pub fn kind(label: &str) -> Option<Entry> {
     sections().get(format!("type:{label}").as_str()).copied()
 }
 
-/// The help on a concept: `overview`, `layers`, `wiring`.
+/// The help on a concept: `overview`, `layers`, `wiring`, `groups`.
 pub fn concept(name: &str) -> Option<Entry> {
     sections().get(format!("concept:{name}").as_str()).copied()
 }
@@ -85,7 +85,7 @@ mod tests {
         for k in crate::value::ValueKind::ALL {
             assert!(kind(k.label()).is_some(), "no guide section for the {} type", k.label());
         }
-        for c in ["overview", "layers", "wiring"] {
+        for c in ["overview", "layers", "wiring", "groups"] {
             assert!(concept(c).is_some(), "no {c} concept");
         }
         for key in node_keys() {

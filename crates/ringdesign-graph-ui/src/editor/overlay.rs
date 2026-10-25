@@ -22,7 +22,7 @@ impl Editor {
             self.paint_minimap(ui, &painter, viewport);
         }
         if let Some(h) = self.wire_hint(ui.ctx()) {
-            self.paint_wire_note(ui, &painter, h);
+            self.paint_wire_note(ui, &painter, h, viewport);
         }
     }
 
@@ -70,14 +70,21 @@ impl Editor {
     }
 
     /// Beside the pointer while a wire is dragged: what it carries and where it can go.
-    fn paint_wire_note(&self, ui: &Ui, painter: &egui::Painter, h: WireHint) {
+    fn paint_wire_note(&self, ui: &Ui, painter: &egui::Painter, h: WireHint, viewport: egui::Rect) {
         let Some(p) = ui.input(|i| i.pointer.latest_pos()) else { return };
         let many = if h.spec_access == Access::List { "a list of " } else { "" };
         let (verb, partner) = if h.from.input { ("takes", "an output that gives it") } else { ("gives", "an input that takes it") };
         let text = format!("{verb} {many}{}  —  drop on {partner} (ringed), or on empty canvas to add a node", h.kind.label());
         let font = egui::FontId::proportional(13.0);
         let galley = painter.layout_no_wrap(text, font, crate::style::INK);
-        let at = p + egui::vec2(18.0, 18.0);
+        let mut at = p + egui::vec2(18.0, 18.0);
+        // Kept inside the canvas: flipped to the pointer's other side where it would run off.
+        if at.x + galley.size().x + 8.0 > viewport.right() {
+            at.x = (p.x - 18.0 - galley.size().x).max(viewport.left() + 8.0);
+        }
+        if at.y + galley.size().y + 8.0 > viewport.bottom() {
+            at.y = p.y - 18.0 - galley.size().y;
+        }
         let rect = egui::Rect::from_min_size(at, galley.size()).expand(6.0);
         painter.rect_filled(rect, 4.0, Color32::from_black_alpha(220));
         painter.rect_stroke(rect, 4.0, egui::Stroke::new(1.0, crate::widgets::kind_color(h.kind)), egui::StrokeKind::Inside);

@@ -36,6 +36,10 @@ impl Editor {
         let mut graph = self.graph.clone();
         match fragment.paste(&mut graph, at, reg) {
             Ok(ids) => {
+                // Pasted inside a group, the nodes join it.
+                if let Some(group) = self.view.entered.and_then(|i| graph.groups.get_mut(i)) {
+                    group.nodes.extend(ids.iter().copied());
+                }
                 self.set_graph(graph, reg);
                 self.select(ui.ctx(), &ids);
                 self.command_error = None;
@@ -208,7 +212,8 @@ impl Editor {
                     }
                 });
             });
-            ui.weak("Type or right-click to add a node • Drag to box-select • Right-drag to pan • Scroll to zoom • Double-click a group to open it • F1 for help");
+            let hint = if ui.input(|i| i.has_touch_screen()) { "Long-press to add a node • Double-tap a group to open it • Pinch to zoom" } else { "Type to add a node • Drag selects • Right-drag pans • Wheel zooms • F1 help" };
+            ui.weak(hint).on_hover_text("Type a node's name over the canvas, or right-click, to add one. Drag on empty canvas to box-select (Shift adds, Ctrl removes); right- or middle-drag pans; the wheel zooms (hold Shift to pan instead). Double-click a group to open it, Esc to come back out. F1 over a node opens its help.");
         });
         if let Some(collapsed) = group {
             let name = self.group_name.trim().to_string();
@@ -293,6 +298,30 @@ impl Editor {
 mod tests {
     use super::*;
     use egui_kittest::{Harness, kittest::Queryable};
+
+    #[test]
+    fn a_node_duplicated_inside_a_group_stays_in_it() {
+        let reg = Registry::builtin();
+        let mut ed = Editor::new(ringdesign_graph::templates::graph("Gypsy trio").unwrap(), &reg);
+        ed.enter_group(0);
+        let gem = ed.graph().groups[0].nodes.iter().copied().find(|id| ed.graph().node(*id).unwrap().kind == "gem").unwrap();
+        ed.selected = Some(gem);
+        let before = ed.graph().groups[0].nodes.len();
+        let mut h = Harness::builder().with_size([1100., 700.]).build_ui_state(
+            |ui, ed: &mut Editor| {
+                ed.show(&reg, ui, "group-paste");
+            },
+            ed,
+        );
+        h.run();
+        h.hover_at(egui::pos2(700., 450.));
+        h.run();
+        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::D);
+        h.run();
+        let ed = h.state();
+        assert_eq!(ed.graph().groups[0].nodes.len(), before + 1, "the copy joined the group in hand");
+        assert!(ed.view().graph.nodes.iter().filter(|n| n.kind == "gem").count() == 2, "and shows inside it");
+    }
 
     #[test]
     fn menu_paste_selects_the_new_nodes_and_delete_removes_only_that_selection() {

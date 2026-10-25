@@ -180,7 +180,8 @@ impl Editor {
         if !on_canvas(ctx, viewport, p) {
             return None;
         }
-        let speed = ctx.options(|o| o.input_options.scroll_zoom_speed);
+        // Half of egui's own Ctrl+wheel rate: a notch is a step, not a jump.
+        let speed = 0.5 * ctx.options(|o| o.input_options.scroll_zoom_speed);
         ctx.input_mut(|i| {
             if i.modifiers.shift || i.modifiers.alt || i.modifiers.command {
                 return None;

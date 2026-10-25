@@ -34,12 +34,42 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
     let exposures = ed.graph().exposed.clone();
     let reg = app.graph_reg.clone();
 
+    let mut help = false;
+    let mut open_group = None;
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new(&card.title).strong());
         ui.weak(format!("{}  {}", card.kind, id));
+        help = ui.small_button(format!("{} Help", icon::QUESTION)).on_hover_text("What this node does, what it takes and gives, and what connects to it (F1 on the canvas)").clicked();
     });
-    if !card.doc.is_empty() {
-        ui.label(egui::RichText::new(&card.doc).small().color(theme::TEXT_DIM));
+    match ringdesign_graph::guide::node(&card.kind) {
+        Some(guide) => {
+            ui.label(egui::RichText::new(guide.line()).small().color(theme::TEXT_DIM));
+        }
+        None if !card.doc.is_empty() => {
+            ui.label(egui::RichText::new(&card.doc).small().color(theme::TEXT_DIM));
+        }
+        None => {}
+    }
+    if let Some(index) = ed.group_of(id) {
+        let group = ed.graph().groups[index].name.clone();
+        let inside = ed.entered_group().is_some_and(|g| g.name == group);
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new(format!("{} In the group {group}", icon::SELECTION)).small().color(theme::TEXT_DIM));
+            if !inside && ui.small_button("Open group").clicked() {
+                open_group = Some(index);
+            }
+        });
+    }
+    if help {
+        if let Some(ed) = app.graph_ed.as_mut() {
+            ed.show_help(&card.kind);
+        }
+    }
+    if let Some(index) = open_group {
+        if let Some(ed) = app.graph_ed.as_mut() {
+            ed.open_group(Some(index));
+            ed.focus(id);
+        }
     }
     let mut label = card.label.clone().unwrap_or_default();
     ui.horizontal(|ui| {

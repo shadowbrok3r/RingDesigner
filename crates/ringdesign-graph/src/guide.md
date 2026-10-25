@@ -1219,6 +1219,15 @@ A tiny example, wired left to right:
 
 Positions work the same for every layer: `theta_deg` runs round the ring (90° is the top) and `v_mm` runs across the band, measured over the surface from one edge. Half of `band_v_len_mm` from `design.info` is the middle line.
 
+## concept:groups
+A group folds several nodes into one box, so a long graph reads as a short chain of named steps. Groups never change what the graph makes.
+
+Templates open with each layer, stamp list, keyframe list, chain of parts and settings block already folded. A folded group's pins are the wires that cross its edge: a layer group usually takes the stack so far and gives the stack with its layer added.
+
+- Double-click a group, or press its Open button, to work inside it. The `Group inputs` and `Group outputs` nodes stand for the wires that come in and go out. Press Esc or Back to return.
+- Right-click a group to unfold it in place, rename it, duplicate it with its nodes, ungroup it, or delete it and everything in it.
+- Select nodes and choose Group to fold them yourself. The Groups menu can also fold every layer of an older graph at once.
+
 ## concept:wiring
 Pins are coloured by type: round pins take one value, square pins take a list, and a wire only joins compatible types.
 

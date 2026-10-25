@@ -268,6 +268,8 @@ pub struct Editor {
     layout_changed: bool,
     /// Arrange once measured, if the nodes overlap as placed.
     untangle_pending: bool,
+    /// Arrange at the next frame: folded groups without a place of their own sit where their members happen to be.
+    arrange_pending: bool,
     /// Last frame's measures.
     last_sizes: HashMap<NodeId, egui::Vec2>,
     /// The press in hand and what it is doing.
@@ -328,6 +330,7 @@ impl Editor {
             refine_left: 0,
             layout_changed: false,
             untangle_pending: false,
+            arrange_pending: false,
             last_sizes: HashMap::new(),
             gesture: Gesture::default(),
             pin_rects: Vec::new(),
@@ -384,6 +387,9 @@ impl Editor {
         self.apply_marks();
         self.rebuild();
         self.revision += 1;
+        if self.graph.groups.iter().any(|g| g.collapsed && g.pos.is_none()) {
+            self.arrange_pending = true;
+        }
     }
 
     /// Re-project the graph and rebuild the snarl, keeping the group in hand open if it still exists.
@@ -473,7 +479,7 @@ impl Editor {
         if self.view.entered.is_some() {
             return None;
         }
-        view::claims(&self.graph).get(&id).map(|i| view::group_id(*i))
+        self.view.claimed.get(&id).map(|i| view::group_id(*i))
     }
 
     /// The graph node a view node stands for when it is chosen.
@@ -577,6 +583,11 @@ impl Editor {
         self.card(id).map(|c| c.title.clone()).or_else(|| self.graph.node(id).map(|n| n.kind.clone())).unwrap_or_default()
     }
 
+    /// Whether Escape means something here: leaving a group or closing the add-node popup.
+    pub fn wants_escape(&self) -> bool {
+        self.view.entered.is_some() || self.palette.is_some()
+    }
+
     /// The group whose inside is shown, if any.
     pub fn entered_group(&self) -> Option<&NodeGroup> {
         self.view.entered.and_then(|i| self.graph.groups.get(i))
@@ -590,7 +601,24 @@ impl Editor {
         self.view.entered = Some(index);
         self.rebuild();
         self.clear_selection();
-        self.arrange_if_tangled();
+        if self.sprawled() {
+            self.arrange_pending = true;
+        } else {
+            self.arrange_if_tangled();
+        }
+    }
+
+    /// Whether the view's nodes cover far more ground than a tidy layout of them would.
+    fn sprawled(&self) -> bool {
+        let g = &self.view.graph;
+        let Ok(order) = g.topo() else { return false };
+        let columns = layout_columns(g, &order, |_, _| 0);
+        let tidy = egui::vec2(columns.len() as f32 * (NODE_SIZE.x + 60.0), columns.iter().map(Vec::len).max().unwrap_or(0) as f32 * (NODE_SIZE.y + 24.0));
+        let mut spread = egui::Rect::NOTHING;
+        for n in &g.nodes {
+            spread = spread.union(egui::Rect::from_min_size(egui::pos2(n.pos[0], n.pos[1]), self.sizes.get(&n.id).copied().unwrap_or(NODE_SIZE)));
+        }
+        spread.is_positive() && spread.area() > 2.0 * tidy.x * tidy.y
     }
 
     /// Back to the whole graph.
@@ -648,7 +676,11 @@ impl Editor {
 
     /// Draw the editor and extract any change.
     pub fn show(&mut self, reg: &Registry, ui: &mut Ui, id_salt: &str) -> EditorResponse {
-        let tools_changed = self.tools_ui(reg, ui);
+        let mut tools_changed = self.tools_ui(reg, ui);
+        if std::mem::take(&mut self.arrange_pending) {
+            self.arrange(reg);
+            tools_changed = true;
+        }
         let viewport = ui.available_rect_before_wrap();
         let snarl_id = ui.make_persistent_id(self.view_salt(id_salt));
         self.snarl_id = Some(snarl_id);
@@ -691,6 +723,7 @@ impl Editor {
             pinched: self.pinched,
             pins: pins.clone(),
             hint,
+            out_rows: Vec::new(),
         };
         // A double tap is not a way to ask for the whole graph on a touch screen: two quick pinches make
         // one. The Fit button does it there; a mouse keeps snarl's double click.
@@ -733,6 +766,10 @@ impl Editor {
                 untangled = true;
             }
         } else if self.untangle_pending {
+            ctx.request_repaint();
+        }
+        // Layout passes settle on their own, not on the next input event.
+        if self.refine_left > 0 || self.pending_fit {
             ctx.request_repaint();
         }
         // The frame that laid out has not measured anything since.
@@ -792,6 +829,7 @@ impl Editor {
         if extracted == self.view.graph {
             return false;
         }
+        let entered = self.entered_group().map(|g| g.name.clone());
         let merged = view::merge(&self.graph, &self.view, &extracted);
         // Fresh nodes got ids; give their cards the ids extraction chose.
         self.assign_fresh_ids(&extracted);
@@ -806,6 +844,12 @@ impl Editor {
         self.graph = merged;
         if changed {
             self.revision += 1;
+        }
+        // The group in hand is gone once its last member is.
+        if self.view.entered.is_some() && self.entered_group().map(|g| g.name.clone()) != entered {
+            self.view.entered = None;
+            self.rebuild();
+            return changed;
         }
         let fresh = view::project(&self.graph, self.view.entered, &Store(&self.store));
         let mut expected = fresh.graph.clone();
@@ -1226,6 +1270,17 @@ struct Viewer<'a> {
     frame: gesture::Frame,
     pins: Rc<RefCell<Vec<(PinRef, egui::Rect)>>>,
     hint: Option<WireHint>,
+    /// Each output row as laid out, for its name to be painted at the node's left edge.
+    out_rows: Vec<OutRow>,
+}
+
+/// One output's row: where it landed, and the name painted along it.
+struct OutRow {
+    node: SnarlId,
+    row: egui::Rect,
+    name: String,
+    tint: Color32,
+    tip: String,
 }
 
 /// The footprint a node is assumed to take before it has been drawn.
@@ -1266,22 +1321,6 @@ fn row_width(ui: &Ui, card: &NodeCard) -> f32 {
         })
         .fold(0.0_f32, f32::max)
         .min(crate::style::NODE_FIELD_W)
-}
-
-/// The width a node's content takes, from its own title and pins alone.
-fn content_width(ui: &Ui, card: &NodeCard, edit: bool) -> f32 {
-    let gap = ui.spacing().item_spacing.x;
-    let body = egui::TextStyle::Body.resolve(ui.style());
-    let small = egui::TextStyle::Small.resolve(ui.style());
-    let title = label_width(ui, &card.title, body.clone()) + 56.0;
-    let inputs = card.pins_in.iter().map(|p| label_width(ui, &p.name, body.clone())).fold(0.0_f32, f32::max);
-    let widgets = if edit { row_width(ui, card) } else { 0.0 };
-    let outputs = card
-        .pins_out
-        .iter()
-        .map(|p| label_width(ui, &p.name, output_font(ui)) + card.values.get(&p.name).map_or(0.0, |v| gap * 2.0 + label_width(ui, v, small.clone())))
-        .fold(0.0_f32, f32::max);
-    title.max(inputs).max(widgets).max(outputs).min(crate::style::NODE_FIELD_W.max(title))
 }
 
 fn pin_info(pin: &PinSpec) -> PinInfo {
@@ -1473,23 +1512,24 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn show_output(&mut self, pin: &OutPin, ui: &mut Ui, snarl: &mut Snarl<NodeCard>) -> impl SnarlPin + 'static {
-        let edit = self.editable && self.inline_inputs;
         let card = &snarl[pin.id.node];
         let Some(spec) = card.pins_out.get(pin.id.output).cloned() else { return self.blank_pin(pin.id.node, false, pin.id.output) };
         let mark = self.mark(pin.id.node, false, pin.id.output, &spec);
-        let width = content_width(ui, card, edit);
         let value = card.values.get(&spec.name).cloned();
-        // What the node gives reads from the left edge, bold and in its kind's colour.
-        ui.allocate_ui_with_layout(egui::vec2(width, ui.spacing().interact_size.y), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-            ui.set_min_width(width);
-            let tint = if mark == Mark::Clashes { crate::style::INK_DIM.gamma_multiply(0.6) } else { crate::widgets::kind_color(spec.kind) };
-            ui.add(egui::Label::new(RichText::new(&spec.name).font(output_font(ui)).strong().color(tint)).selectable(false)).on_hover_text(pin_tip(&spec, false));
-            if let Some(v) = value {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        let font = output_font(ui);
+        let name_w = label_width(ui, &spec.name, font.clone());
+        // The name's width is held beside the pin; final_node_rect paints the name at the node's left edge.
+        let row = ui
+            .horizontal(|ui| {
+                if let Some(v) = value {
                     ui.label(RichText::new(v).small().color(crate::style::INK_DIM));
-                });
-            }
-        });
+                }
+                ui.add_space(name_w);
+            })
+            .response
+            .rect;
+        let tint = if mark == Mark::Clashes { crate::style::INK_DIM.gamma_multiply(0.6) } else { crate::widgets::kind_color(spec.kind) };
+        self.out_rows.push(OutRow { node: pin.id.node, row, name: spec.name.clone(), tint, tip: pin_tip(&spec, false) });
         self.pin(&spec, pin.id.node, false, pin.id.output)
     }
 
@@ -1549,10 +1589,18 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         self.seen_transform = Some(*to_global);
     }
 
-    fn final_node_rect(&mut self, node: SnarlId, rect: egui::Rect, ui: &mut Ui, _snarl: &mut Snarl<NodeCard>) {
+    fn final_node_rect(&mut self, node: SnarlId, rect: egui::Rect, ui: &mut Ui, snarl: &mut Snarl<NodeCard>) {
         if let Some(gid) = self.ids.to_graph.get(&node) {
             // Clamped so one pathological measure cannot throw the layout.
             self.sizes.insert(*gid, rect.size().min(egui::vec2(1600.0, 3000.0)));
+        }
+        // What the node gives reads from its left edge, bold and in its kind's colour.
+        let font = output_font(ui);
+        for row in self.out_rows.extract_if(.., |r| r.node == node) {
+            let at = egui::pos2(rect.left() + FRAME_MARGIN + 4.0, row.row.center().y);
+            let text = ui.painter().text(at, egui::Align2::LEFT_CENTER, &row.name, font.clone(), row.tint);
+            ui.painter().text(at + egui::vec2(0.4, 0.0), egui::Align2::LEFT_CENTER, &row.name, font.clone(), row.tint);
+            ui.interact(text, ui.scope_id().with(("output-name", node, row.name.as_str())), egui::Sense::hover()).on_hover_text(row.tip);
         }
         // `rect` is in graph space and the pointer is on the screen: the two
         // only agree at the identity view. Unmapped, a tap anywhere — on the
@@ -1571,7 +1619,7 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
                     }
                 }
                 if ui.input(|i| i.key_pressed(egui::Key::F1)) && self.pseudo(node).is_none() {
-                    self.help_request = Some(_snarl[node].kind.clone());
+                    self.help_request = Some(snarl[node].kind.clone());
                 }
             }
         }
@@ -1776,6 +1824,7 @@ mod tests {
             pinched: false,
             pins: Rc::default(),
             hint: None,
+            out_rows: Vec::new(),
         };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
@@ -2192,3 +2241,4 @@ mod layout_tests {
         assert!(top >= view.top() && top <= view.top() + 40.0, "the title is in sight: {top}");
     }
 }
+

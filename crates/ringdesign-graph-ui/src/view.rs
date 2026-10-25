@@ -61,6 +61,8 @@ pub struct View {
     pub kept: Vec<Wire>,
     /// Graph nodes the view does not show.
     pub hidden: BTreeSet<NodeId>,
+    /// Which collapsed group folds each hidden node, at the top level.
+    pub claimed: BTreeMap<NodeId, usize>,
 }
 
 /// A node's pins and title, as the editor resolved them.
@@ -144,7 +146,7 @@ fn project_top(g: &Graph, cards: &dyn Cards) -> View {
     if claimed.is_empty() {
         return View { graph: g.clone(), ..View::default() };
     }
-    let mut view = View { graph: base_graph(g), hidden: claimed.keys().copied().collect(), ..View::default() };
+    let mut view = View { graph: base_graph(g), hidden: claimed.keys().copied().collect(), claimed: claimed.clone(), ..View::default() };
     view.graph.nodes = g.nodes.iter().filter(|n| !claimed.contains_key(&n.id)).cloned().collect();
     view.graph.nodes.sort_by_key(|n| n.id);
     let collapsed: BTreeSet<usize> = claimed.values().copied().collect();
