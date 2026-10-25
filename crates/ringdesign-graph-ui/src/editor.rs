@@ -1,23 +1,32 @@
-//! The editor widget: build a snarl from the graph, show it, extract it back.
+//! The editor widget: project the graph into a view, show it on a snarl, merge the edits back.
 //!
-//! [`Editor`] owns a [`Graph`] and the `Snarl` that views it. The snarl is
-//! rebuilt whenever the graph is replaced from outside ([`Editor::set_graph`])
-//! and extracted after every frame it is shown; when what comes back differs
-//! from what went in, the graph is updated and the revision moves. Nodes
-//! added in the view carry no id until extraction hands them a fresh one.
+//! [`Editor`] owns a [`Graph`] (the truth), the [`View`] of it being shown and
+//! the `Snarl` that draws that view. The view folds collapsed groups into one
+//! node each, or shows the inside of one entered group; edits made on the
+//! snarl are extracted every frame and merged back into the graph.
 
-use std::collections::{BTreeMap, HashMap};
+use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::rc::Rc;
 
 use egui::{Color32, RichText, Ui};
-use egui_snarl::ui::{AnyPins, BackgroundPattern, PinInfo, SnarlStyle, SnarlViewer};
+use egui_snarl::ui::{AnyPins, BackgroundPattern, PinInfo, PinWireInfo, SnarlPin, SnarlStyle, SnarlViewer};
 use egui_snarl::{InPin, InPinId, NodeId as SnarlId, OutPin, OutPinId, Snarl};
 use ringdesign_graph::graph::{Access, Graph, GraphError, Node, NodeGroup, NodeId, Wire};
-use ringdesign_graph::registry::{Category, NodeSpec, PinSpec, Registry};
+use ringdesign_graph::registry::{NodeSpec, PinSpec, Registry};
 use ringdesign_graph::value::{Literal, ValueKind};
 
+use crate::view::{self, Pseudo, View};
 use crate::widgets::pin_widget;
 mod commands;
+mod gesture;
+mod groups;
+pub mod help;
+mod overlay;
 mod palette;
+
+pub use gesture::{DragKind, classify_point, grab_height};
+use gesture::Gesture;
 
 /// A node as the view holds it: the graph's data plus the pins resolved
 /// from the registry, so drawing needs no registry at all.
@@ -28,6 +37,8 @@ pub struct NodeCard {
     pub kind: String,
     pub label: Option<String>,
     pub title: String,
+    /// The kind's own name, shown when the node carries no label.
+    pub spec_label: String,
     pub params: serde_json::Value,
     pub inputs: BTreeMap<String, Literal>,
     pub pins_in: Vec<PinSpec>,
@@ -43,11 +54,13 @@ impl NodeCard {
     pub fn from_node(node: &Node, reg: &Registry) -> Self {
         let spec = reg.get(&node.kind);
         let (pins_in, pins_out) = reg.node_pins(node).unwrap_or_default();
+        let spec_label = spec.map(|s| s.label.clone()).unwrap_or_else(|| node.kind.clone());
         Self {
             id: node.id.0,
             kind: node.kind.clone(),
             label: node.label.clone(),
-            title: node.label.clone().unwrap_or_else(|| spec.map(|s| s.label.clone()).unwrap_or_else(|| node.kind.clone())),
+            title: node.label.clone().unwrap_or_else(|| spec_label.clone()),
+            spec_label,
             params: node.params.clone(),
             inputs: node.inputs.clone(),
             pins_in,
@@ -68,8 +81,25 @@ impl NodeCard {
         (self.id != 0).then_some(NodeId(self.id))
     }
 
+    /// Whether this card is a view-only node: a collapsed group or a group's ports.
+    pub fn is_pseudo(&self) -> bool {
+        self.kind.starts_with('@')
+    }
+
     fn to_node(&self, id: NodeId, pos: egui::Pos2) -> Node {
         Node { id, kind: self.kind.clone(), params: self.params.clone(), inputs: self.inputs.clone(), pos: [pos.x.round(), pos.y.round()], label: self.label.clone() }
+    }
+
+    /// The card with the graph node's own data over it.
+    fn over(&self, n: &Node) -> Self {
+        Self {
+            id: n.id.0,
+            label: n.label.clone(),
+            title: n.label.clone().unwrap_or_else(|| self.spec_label.clone()),
+            params: n.params.clone(),
+            inputs: n.inputs.clone(),
+            ..self.clone()
+        }
     }
 }
 
@@ -80,12 +110,12 @@ pub struct IdMap {
     pub to_graph: BTreeMap<SnarlId, NodeId>,
 }
 
-/// A snarl viewing `g`, pins resolved through `reg`.
-pub fn build_snarl(g: &Graph, reg: &Registry) -> (Snarl<NodeCard>, IdMap) {
+/// A snarl of `cards`, wired as `g` says, pins found by name.
+fn snarl_of(g: &Graph, card: impl Fn(&Node) -> NodeCard) -> (Snarl<NodeCard>, IdMap) {
     let mut snarl = Snarl::new();
     let mut ids = IdMap::default();
     for n in &g.nodes {
-        let sid = snarl.insert_node(egui::pos2(n.pos[0], n.pos[1]), NodeCard::from_node(n, reg));
+        let sid = snarl.insert_node(egui::pos2(n.pos[0], n.pos[1]), card(n));
         ids.to_snarl.insert(n.id, sid);
         ids.to_graph.insert(sid, n.id);
     }
@@ -100,12 +130,17 @@ pub fn build_snarl(g: &Graph, reg: &Registry) -> (Snarl<NodeCard>, IdMap) {
     (snarl, ids)
 }
 
+/// A snarl viewing `g` as it is, every node shown, pins resolved through `reg`.
+pub fn build_snarl(g: &Graph, reg: &Registry) -> (Snarl<NodeCard>, IdMap) {
+    snarl_of(g, |n| NodeCard::from_node(n, reg))
+}
+
 /// The graph the snarl shows, with `template` supplying everything that is
 /// not a node or a wire (name, mode, exposures, the id counter). Nodes
 /// without an id get fresh ones; exposures of nodes no longer present drop.
 pub fn extract_graph(snarl: &Snarl<NodeCard>, template: &Graph) -> Graph {
     let mut g = Graph::new(&template.name, template.mode);
-    g.next_id = template.next_id.max(template.nodes.iter().map(|n| n.id.0 + 1).max().unwrap_or(1));
+    g.next_id = template.next_id.max(template.nodes.iter().map(|n| n.id).filter(|id| !view::is_pseudo(*id)).map(|id| id.0 + 1).max().unwrap_or(1));
     let mut by_snarl: BTreeMap<SnarlId, NodeId> = BTreeMap::new();
     let mut nodes: Vec<(NodeId, Node)> = Vec::new();
     let mut fresh: Vec<(SnarlId, egui::Pos2, NodeCard)> = Vec::new();
@@ -148,13 +183,20 @@ pub fn extract_graph(snarl: &Snarl<NodeCard>, template: &Graph) -> Graph {
     present.sort_by(|a, b| (a.to, &a.input, a.from, &a.out).cmp(&(b.to, &b.input, b.from, &b.out)));
     wires.extend(present);
     g.wires = wires;
-    let live: std::collections::BTreeSet<NodeId> = g.nodes.iter().map(|n| n.id).collect();
+    let live: BTreeSet<NodeId> = g.nodes.iter().map(|n| n.id).collect();
     g.exposed = template.exposed.iter().filter(|e| live.contains(&e.node)).cloned().collect();
     g.outputs = template.outputs.iter().filter(|e| live.contains(&e.node)).cloned().collect();
     g.groups = template.groups.clone();
-    for group in &mut g.groups { group.nodes.retain(|id| live.contains(id)); }
+    for group in &mut g.groups {
+        group.nodes.retain(|id| live.contains(id));
+    }
     g.groups.retain(|group| !group.nodes.is_empty());
     g
+}
+
+/// Whether an output of `out` may be wired into `input`.
+pub fn fits(out: ValueKind, input: &PinSpec) -> bool {
+    input.kind.accepts(out) || input.kind == ValueKind::List
 }
 
 /// What one frame of the editor reported.
@@ -168,9 +210,24 @@ pub struct EditorResponse {
     pub refused: Option<String>,
 }
 
-/// The editor: a graph, its snarl, and the bookkeeping between them.
+/// Every node's card, for the nodes the view does not show.
+pub(crate) struct Store<'a>(&'a BTreeMap<NodeId, NodeCard>);
+
+impl view::Cards for Store<'_> {
+    fn pins(&self, id: NodeId) -> (Vec<PinSpec>, Vec<PinSpec>) {
+        self.0.get(&id).map(|c| (c.pins_in.clone(), c.pins_out.clone())).unwrap_or_default()
+    }
+    fn title(&self, id: NodeId) -> String {
+        self.0.get(&id).map(|c| c.title.clone()).unwrap_or_default()
+    }
+}
+
+/// The editor: a graph, the view of it, its snarl, and the bookkeeping between them.
 pub struct Editor {
     graph: Graph,
+    view: View,
+    /// Every graph node's card; the snarl's own cards are newer for the nodes it shows.
+    store: BTreeMap<NodeId, NodeCard>,
     snarl: Snarl<NodeCard>,
     ids: IdMap,
     /// Moves whenever the graph changes through the editor or set_graph.
@@ -180,171 +237,113 @@ pub struct Editor {
     /// Hosts with a dedicated inspector can keep node cards compact.
     pub inline_inputs: bool,
     style: SnarlStyle,
-    /// Keep the add-node query while the per-frame viewer is rebuilt.
-    menu_search: String,
+    /// The add-node popup opened on the canvas, if open.
+    palette: Option<palette::State>,
+    /// The add-node menu a dropped wire opens.
+    wire_palette: palette::State,
     group_name: String,
     command_error: Option<String>,
     /// A node to centre the view on at the next frame.
     pending_focus: Option<NodeId>,
     /// Fit every node into the view at the next frame.
     pending_fit: bool,
-    /// A zoom the host asked for, applied about the view's own centre so the
-    /// graph does not slide out from under the reader as the slider moves.
+    /// A zoom the host asked for, applied about the view's centre.
     pending_zoom: Option<f32>,
-    /// The press in hand had two fingers down at some point. egui drives its pointer from the first
-    /// finger alone, so lifting a pinch whose first finger barely moved reads as a tap — which chose
-    /// whatever node was under it, and two quick pinches read as the double click that fits the graph.
+    /// The press in hand had two fingers down at some point; nothing it does is a tap.
     pinched: bool,
-    /// The view's transform as of the last frame, for the minimap.
+    /// The view's transform as of the last frame.
     transform: Option<egui::emath::TSTransform>,
     /// The persistent id the snarl was last shown under, for selection.
     snarl_id: Option<egui::Id>,
     pub show_minimap: bool,
     pub minimap_corner: egui::Align2,
-    /// Every node's drawn size, by graph id so a rebuilt snarl keeps them.
+    /// The minimap's screen rect and its graph-to-screen transform, as last drawn.
+    minimap: Option<(egui::Rect, egui::emath::TSTransform)>,
+    /// Every node's drawn size, by view id so a rebuilt snarl keeps them.
     sizes: HashMap<NodeId, egui::Vec2>,
-    /// The sizes the last arrange laid out from, and how many correction
-    /// passes it may still take: snarl's first frame measures a node before
-    /// its widgets have settled, so a layout is re-run while the measures
-    /// it used disagree with the current ones.
+    /// The sizes the last arrange laid out from, and how many correction passes it may still take.
     arranged_sizes: HashMap<NodeId, egui::Vec2>,
     refine_left: u8,
     /// The editor moved nodes itself this frame; reported as a change.
     layout_changed: bool,
     /// Arrange once measured, if the nodes overlap as placed.
     untangle_pending: bool,
-    /// Last frame's measures: a node's first frame is narrower than its
-    /// second, and a layout from measures still moving overlaps.
+    /// Last frame's measures.
     last_sizes: HashMap<NodeId, egui::Vec2>,
-    /// Where the current drag began, held for the whole drag.
-    drag_kind: DragKind,
+    /// The press in hand and what it is doing.
+    gesture: Gesture,
+    /// Every pin's rect as last drawn, in graph space.
+    pin_rects: Vec<(PinRef, egui::Rect)>,
+    /// Diagnostics and value summaries from the host, by graph node.
+    diag: BTreeMap<NodeId, Vec<String>>,
+    values: BTreeMap<NodeId, BTreeMap<String, String>>,
+    /// The node kind whose help is open.
+    help: Option<String>,
+    /// The browse-all view of the help window.
+    help_browse: help::Browse,
 }
 
-/// Where a canvas press landed — decides whether a drag moves a node, pans,
-/// or wires. A drag that starts on a node's body pans and the node stays
-/// put, so a finger that misses a pin scrolls the view instead of dragging
-/// the node around; only the title bar moves a node.
+/// One pin of one snarl node.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DragKind {
-    None,
-    /// On a node's title bar: the node moves.
-    Header,
-    /// On a node below its title: the view pans, the node's move is vetoed.
-    Body,
-    /// Empty canvas or a pin: left to snarl.
-    Canvas,
+pub(crate) struct PinRef {
+    pub node: SnarlId,
+    pub input: bool,
+    pub index: usize,
 }
 
 /// Graph-space height of a node's title bar, for header-only dragging.
 const NODE_HEADER_H: f32 = 30.0;
-/// The least a title bar may measure on screen and still be grabbed by a
-/// finger, in points.
-const MIN_GRAB_PT: f32 = 36.0;
-
-/// The graph-space height that moves a node at this zoom: the title bar,
-/// grown so it never falls under a fingertip on screen. Zoomed far out that
-/// covers the whole node, which is right — nothing inside it can be read or
-/// touched at that size, so all of it is the handle.
-pub fn grab_height(scale: f32) -> f32 {
-    NODE_HEADER_H.max(MIN_GRAB_PT / scale.max(0.01))
-}
 /// snarl's node frame margin: a node's stored position is its content
 /// origin, the drawn frame starts this far above-left.
 const FRAME_MARGIN: f32 = 6.0;
 
-/// Which region a graph-space point falls on, over the drawn node frames.
-/// Any header wins over any body, so a title-bar grab can always move a
-/// node where nodes overlap.
-pub fn classify_point(gp: egui::Pos2, frames: impl IntoIterator<Item = egui::Rect>, grab_h: f32) -> DragKind {
-    let mut on_body = false;
-    for frame in frames {
-        if !frame.contains(gp) {
-            continue;
-        }
-        let header = egui::Rect::from_min_size(frame.min, egui::vec2(frame.width(), grab_h.min(frame.height())));
-        if header.contains(gp) {
-            return DragKind::Header;
-        }
-        on_body = true;
-    }
-    if on_body { DragKind::Body } else { DragKind::Canvas }
-}
-
 impl Editor {
     pub fn new(graph: Graph, reg: &Registry) -> Self {
-        let (snarl, ids) = build_snarl(&graph, reg);
-        Self {
-            graph,
-            snarl,
-            ids,
+        let mut ed = Self {
+            graph: Graph::default(),
+            view: View::default(),
+            store: BTreeMap::new(),
+            snarl: Snarl::new(),
+            ids: IdMap::default(),
             revision: 0,
             selected: None,
             editable: true,
-            menu_search: String::new(),
-            group_name: "New group".into(),
-            command_error: None,
             inline_inputs: true,
             style: crate::style::snarl_style(),
+            palette: None,
+            wire_palette: palette::State::default(),
+            group_name: "New group".into(),
+            command_error: None,
             pending_focus: None,
             pending_fit: false,
+            pending_zoom: None,
             pinched: false,
             transform: None,
             snarl_id: None,
             show_minimap: true,
             minimap_corner: egui::Align2::LEFT_TOP,
+            minimap: None,
             sizes: HashMap::new(),
             arranged_sizes: HashMap::new(),
             refine_left: 0,
             layout_changed: false,
             untangle_pending: false,
             last_sizes: HashMap::new(),
-            drag_kind: DragKind::None,
-            pending_zoom: None,
-        }
+            gesture: Gesture::default(),
+            pin_rects: Vec::new(),
+            diag: BTreeMap::new(),
+            values: BTreeMap::new(),
+            help: None,
+            help_browse: help::Browse::default(),
+        };
+        ed.adopt(graph, reg);
+        ed.revision = 0;
+        ed
     }
 
     /// The drawn frames of every node, in graph space.
     fn node_frames(&self) -> Vec<egui::Rect> {
-        self.snarl
-            .nodes_pos_ids()
-            .map(|(sid, pos, _)| egui::Rect::from_min_size(pos - egui::vec2(FRAME_MARGIN, FRAME_MARGIN), self.size_of(sid)))
-            .collect()
-    }
-
-    /// Classifies a press this frame and returns `(pan, veto)`: the screen
-    /// delta to pan by, and whether every node move this frame is undone.
-    /// A body drag pans; a locked editor pans on any node drag and vetoes
-    /// every move; header, canvas and pin drags are left to snarl.
-    fn drag_gate(&mut self, ctx: &egui::Context, viewport: egui::Rect) -> (egui::Vec2, bool) {
-        let (pressed, down, origin, delta, zooming) = ctx.input(|i| {
-            (i.pointer.any_pressed(), i.pointer.any_down(), i.pointer.press_origin(), i.pointer.delta(), (i.zoom_delta() - 1.0).abs() > f32::EPSILON || i.multi_touch().is_some())
-        });
-        if pressed {
-            self.pinched = false;
-        }
-        if ctx.input(|i| i.multi_touch().is_some()) {
-            self.pinched = true;
-        }
-        if pressed {
-            self.drag_kind = match (origin, self.transform) {
-                (Some(p), Some(t)) if viewport.contains(p) && ctx.layer_id_at(p).is_none_or(|l| l.order == egui::Order::Background) => {
-                    classify_point(t.inverse() * p, self.node_frames(), grab_height(t.scaling))
-                }
-                _ => DragKind::None,
-            };
-        }
-        if !down {
-            self.drag_kind = DragKind::None;
-        }
-        // During a pinch the primary pointer still reports a delta; adding a
-        // pan on top of the zoom drifts the view.
-        let d = if delta.is_finite() && !zooming { delta } else { egui::Vec2::ZERO };
-        match (self.editable, self.drag_kind) {
-            (false, DragKind::Header | DragKind::Body) => (d, true),
-            (false, _) => (egui::Vec2::ZERO, true),
-            (true, DragKind::Body) => (d, true),
-            (true, _) => (egui::Vec2::ZERO, false),
-        }
+        self.snarl.nodes_pos_ids().map(|(sid, pos, _)| egui::Rect::from_min_size(pos - egui::vec2(FRAME_MARGIN, FRAME_MARGIN), self.size_of(sid))).collect()
     }
 
     /// A node's drawn size, or the nominal footprint before it has been drawn.
@@ -353,7 +352,7 @@ impl Editor {
     }
 
     fn all_measured(&self) -> bool {
-        self.graph.nodes.iter().all(|n| self.sizes.contains_key(&n.id))
+        self.view.graph.nodes.iter().all(|n| self.sizes.contains_key(&n.id))
     }
 
     pub fn graph(&self) -> &Graph {
@@ -364,17 +363,54 @@ impl Editor {
         &self.snarl
     }
 
+    /// The view being shown: the graph with its collapsed groups folded, or one group's inside.
+    pub fn view(&self) -> &View {
+        &self.view
+    }
+
     /// Replace the graph from outside (a file, history, MCP) and rebuild the view.
     pub fn set_graph(&mut self, graph: Graph, reg: &Registry) {
-        let (snarl, ids) = build_snarl(&graph, reg);
-        self.graph = graph;
-        self.snarl = snarl;
-        self.ids = ids;
-        self.revision += 1;
+        self.adopt(graph, reg);
         if let Some(sel) = self.selected {
             if !self.graph.contains(sel) {
                 self.selected = None;
             }
+        }
+    }
+
+    fn adopt(&mut self, graph: Graph, reg: &Registry) {
+        self.store = graph.nodes.iter().map(|n| (n.id, NodeCard::from_node(n, reg))).collect();
+        self.graph = graph;
+        self.apply_marks();
+        self.rebuild();
+        self.revision += 1;
+    }
+
+    /// Re-project the graph and rebuild the snarl, keeping the group in hand open if it still exists.
+    fn rebuild(&mut self) {
+        for (sid, card) in self.snarl.nodes_ids_mut() {
+            if let Some(gid) = self.ids.to_graph.get(&sid).copied().filter(|g| !view::is_pseudo(*g)) {
+                if self.graph.contains(gid) {
+                    self.store.insert(gid, card.clone());
+                }
+            }
+        }
+        self.store.retain(|id, _| self.graph.contains(*id));
+        let entered = self.view.entered.filter(|i| !view::members(&self.graph, *i).is_empty());
+        self.view = view::project(&self.graph, entered, &Store(&self.store));
+        let (snarl, ids) = snarl_of(&self.view.graph, |n| self.view_card(n));
+        self.snarl = snarl;
+        self.ids = ids;
+    }
+
+    /// The card a view node draws as.
+    fn view_card(&self, n: &Node) -> NodeCard {
+        if view::is_pseudo(n.id) {
+            return groups::pseudo_card(&self.view, &self.graph, n, &self.store);
+        }
+        match self.store.get(&n.id) {
+            Some(c) => c.over(n),
+            None => NodeCard { id: n.id.0, kind: n.kind.clone(), label: n.label.clone(), title: n.label.clone().unwrap_or_else(|| n.kind.clone()), spec_label: n.kind.clone(), params: n.params.clone(), inputs: n.inputs.clone(), pins_in: Vec::new(), pins_out: Vec::new(), doc: String::new(), diag: Vec::new(), values: BTreeMap::new() },
         }
     }
 
@@ -386,39 +422,81 @@ impl Editor {
 
     /// Attach diagnostics to the cards they name.
     pub fn set_diagnostics(&mut self, errors: &[GraphError], per_node: &BTreeMap<NodeId, Vec<String>>) {
-        for (sid, card) in self.snarl.nodes_ids_mut() {
-            card.diag.clear();
-            if let Some(gid) = self.ids.to_graph.get(&sid) {
-                card.diag.extend(errors.iter().filter(|e| e.node == Some(*gid)).map(|e| e.message.clone()));
-                if let Some(lines) = per_node.get(gid) {
-                    card.diag.extend(lines.iter().cloned());
-                }
+        self.diag.clear();
+        for e in errors {
+            if let Some(n) = e.node {
+                self.diag.entry(n).or_default().push(e.message.clone());
             }
         }
+        for (n, lines) in per_node {
+            self.diag.entry(*n).or_default().extend(lines.iter().cloned());
+        }
+        self.apply_marks();
     }
 
     /// Attach output value summaries for badges.
     pub fn set_values(&mut self, values: &BTreeMap<NodeId, BTreeMap<String, String>>) {
-        let mut first_values = false;
-        for (sid, card) in self.snarl.nodes_ids_mut() {
-            let was_empty = card.values.is_empty();
-            card.values.clear();
-            if let Some(v) = self.ids.to_graph.get(&sid).and_then(|gid| values.get(gid)) {
-                first_values |= was_empty && !v.is_empty();
-                card.values = v.clone();
-            }
-        }
+        let first_values = self.values.is_empty() && !values.is_empty();
+        self.values = values.clone();
+        self.apply_marks();
         // The first evaluation adds badges that can widen generated cards.
         // Wait for their new measurements, then repair only actual overlaps.
-        if first_values { self.arrange_if_tangled(); }
+        if first_values {
+            self.arrange_if_tangled();
+        }
     }
 
-    /// Centre the view on a node at the next frame, and select it.
-    pub fn focus(&mut self, id: NodeId) {
-        if self.graph.contains(id) {
-            self.pending_focus = Some(id);
-            self.selected = Some(id);
+    /// Diagnostics and values onto every card: the stored ones, the drawn ones, and each group's sum of its members.
+    fn apply_marks(&mut self) {
+        for (id, card) in self.store.iter_mut() {
+            card.diag = self.diag.get(id).cloned().unwrap_or_default();
+            card.values = self.values.get(id).cloned().unwrap_or_default();
         }
+        for (sid, card) in self.snarl.nodes_ids_mut() {
+            let Some(vid) = self.ids.to_graph.get(&sid).copied() else { continue };
+            if view::is_pseudo(vid) {
+                let (diag, values) = groups::pseudo_marks(&self.view, &self.graph, vid, card, &self.diag, &self.values, &self.store);
+                card.diag = diag;
+                card.values = values;
+            } else {
+                card.diag = self.diag.get(&vid).cloned().unwrap_or_default();
+                card.values = self.values.get(&vid).cloned().unwrap_or_default();
+            }
+        }
+    }
+
+    /// The view node that shows graph node `id`: itself, or the collapsed group folding it.
+    fn view_node_of(&self, id: NodeId) -> Option<NodeId> {
+        if self.ids.to_snarl.contains_key(&id) {
+            return Some(id);
+        }
+        if self.view.entered.is_some() {
+            return None;
+        }
+        view::claims(&self.graph).get(&id).map(|i| view::group_id(*i))
+    }
+
+    /// The graph node a view node stands for when it is chosen.
+    fn graph_node_of(&self, vid: NodeId) -> Option<NodeId> {
+        match self.view.pseudo.get(&vid) {
+            None => Some(vid),
+            Some(Pseudo::Group(i)) => view::representative(&self.graph, *i),
+            Some(_) => None,
+        }
+    }
+
+    /// Centre the view on a node at the next frame, and select it. A node folded
+    /// into a collapsed group centres the group; one outside the group in hand leaves it.
+    pub fn focus(&mut self, id: NodeId) {
+        if !self.graph.contains(id) {
+            return;
+        }
+        if self.view_node_of(id).is_none() && self.view.entered.is_some() {
+            self.view.entered = None;
+            self.rebuild();
+        }
+        self.pending_focus = Some(id);
+        self.selected = Some(id);
     }
 
     /// Fit the whole graph into the view at the next frame.
@@ -437,10 +515,16 @@ impl Editor {
         self.pending_zoom = Some(scale.clamp(crate::style::MIN_SCALE, crate::style::MAX_SCALE));
     }
 
-    /// The nodes in the order a reader steps through them: evaluation
-    /// order, so a walk runs from the sources to the output.
+    /// The nodes in the order a reader steps through them: what the view shows, in
+    /// evaluation order, a collapsed group standing as its representative.
     pub fn walk_order(&self) -> Vec<NodeId> {
-        self.graph.topo().unwrap_or_else(|_| self.graph.nodes.iter().map(|n| n.id).collect())
+        let order = self.view.graph.topo().unwrap_or_else(|_| self.view.graph.nodes.iter().map(|n| n.id).collect());
+        order.into_iter().filter_map(|vid| self.graph_node_of(vid)).collect()
+    }
+
+    /// The walk entry standing for `id`: itself, or its collapsed group's representative.
+    fn walk_entry(&self, id: NodeId) -> Option<NodeId> {
+        self.view_node_of(id).and_then(|vid| self.graph_node_of(vid))
     }
 
     /// Focus the node `delta` steps along [`Editor::walk_order`] from the
@@ -451,7 +535,8 @@ impl Editor {
             return None;
         }
         let n = order.len() as isize;
-        let at = match self.selected.and_then(|s| order.iter().position(|id| *id == s)) {
+        let here = self.selected.and_then(|s| self.walk_entry(s));
+        let at = match here.and_then(|s| order.iter().position(|id| *id == s)) {
             Some(i) => (i as isize + delta).rem_euclid(n),
             None if delta < 0 => n - 1,
             None => 0,
@@ -464,31 +549,77 @@ impl Editor {
     /// Where the chosen node sits in the walk, one-based, and the walk's length.
     pub fn walk_position(&self) -> Option<(usize, usize)> {
         let order = self.walk_order();
-        let at = order.iter().position(|id| Some(*id) == self.selected)?;
+        let here = self.selected.and_then(|s| self.walk_entry(s))?;
+        let at = order.iter().position(|id| *id == here)?;
         Some((at + 1, order.len()))
     }
 
-    /// The nodes wired into `id` and out of it, each with the pin on `id`
-    /// the wire uses, in pin order.
+    /// The nodes wired into `id` and out of it as the view shows them, each with the pin on `id` the wire uses.
     pub fn neighbours(&self, id: NodeId) -> (Vec<(String, NodeId)>, Vec<(String, NodeId)>) {
-        let card = self.card(id);
+        let Some(vid) = self.view_node_of(id) else { return Default::default() };
+        let card = self.ids.to_snarl.get(&vid).and_then(|sid| self.snarl.get_node(*sid));
         let pin_rank = |pins: Option<&Vec<PinSpec>>, name: &str| pins.and_then(|p| p.iter().position(|x| x.name == name)).unwrap_or(usize::MAX);
-        let mut ins: Vec<(String, NodeId)> = self.graph.wires_into(id).map(|w| (w.input.clone(), w.from)).collect();
+        let g = &self.view.graph;
+        let mut ins: Vec<(String, NodeId)> = g.wires_into(vid).filter_map(|w| Some((w.input.clone(), self.graph_node_of(w.from)?))).collect();
         ins.sort_by_key(|(pin, from)| (pin_rank(card.map(|c| &c.pins_in), pin), *from));
-        let mut outs: Vec<(String, NodeId)> = self.graph.wires_from(id).map(|w| (w.out.clone(), w.to)).collect();
+        let mut outs: Vec<(String, NodeId)> = g.wires_from(vid).filter_map(|w| Some((w.out.clone(), self.graph_node_of(w.to)?))).collect();
         outs.sort_by_key(|(pin, to)| (pin_rank(card.map(|c| &c.pins_out), pin), *to));
         (ins, outs)
     }
 
-    /// A node's title as the canvas shows it.
+    /// A node's title as the canvas shows it; a node folded into a collapsed group answers with the group.
     pub fn title_of(&self, id: NodeId) -> String {
+        if let Some(vid) = self.view_node_of(id).filter(|v| view::is_pseudo(*v)) {
+            if let Some(Pseudo::Group(i)) = self.view.pseudo.get(&vid) {
+                return format!("{} (group)", self.graph.groups[*i].name);
+            }
+        }
         self.card(id).map(|c| c.title.clone()).or_else(|| self.graph.node(id).map(|n| n.kind.clone())).unwrap_or_default()
     }
 
-    /// The nodes the view has selected (rubber-band or click), as graph ids.
+    /// The group whose inside is shown, if any.
+    pub fn entered_group(&self) -> Option<&NodeGroup> {
+        self.view.entered.and_then(|i| self.graph.groups.get(i))
+    }
+
+    /// Show the inside of group `index`.
+    pub fn enter_group(&mut self, index: usize) {
+        if view::members(&self.graph, index).is_empty() {
+            return;
+        }
+        self.view.entered = Some(index);
+        self.rebuild();
+        self.clear_selection();
+        self.arrange_if_tangled();
+    }
+
+    /// Back to the whole graph.
+    pub fn leave_group(&mut self) {
+        let Some(index) = self.view.entered.take() else { return };
+        self.rebuild();
+        self.clear_selection();
+        if self.graph.groups.get(index).is_some_and(|g| g.collapsed) {
+            self.selected = view::representative(&self.graph, index);
+        }
+    }
+
+    fn clear_selection(&mut self) {
+        self.gesture.clear_selection = true;
+    }
+
+    /// The nodes the view has selected (rubber-band or click), as graph ids; a selected group gives its members.
     pub fn selected_nodes(&self, ctx: &egui::Context) -> Vec<NodeId> {
         let Some(id) = self.snarl_id else { return Vec::new() };
-        egui_snarl::ui::get_selected_nodes(id, ctx).into_iter().filter_map(|sid| self.ids.to_graph.get(&sid).copied()).collect()
+        let mut out = Vec::new();
+        for sid in egui_snarl::ui::get_selected_nodes(id, ctx) {
+            let Some(vid) = self.ids.to_graph.get(&sid).copied() else { continue };
+            match self.view.pseudo.get(&vid) {
+                None => out.push(vid),
+                Some(Pseudo::Group(i)) => out.extend(view::members(&self.graph, *i)),
+                Some(_) => {}
+            }
+        }
+        out
     }
 
     /// Fold nodes into a cluster node and rebuild the view.
@@ -507,20 +638,33 @@ impl Editor {
         self.collapse(&ids, name, reg)
     }
 
+    /// The snarl id salt for the view in hand: the inside of a group keeps its own camera.
+    fn view_salt(&self, id_salt: &str) -> String {
+        match self.view.entered {
+            Some(i) => format!("{id_salt}/group-{i}"),
+            None => id_salt.to_string(),
+        }
+    }
+
     /// Draw the editor and extract any change.
     pub fn show(&mut self, reg: &Registry, ui: &mut Ui, id_salt: &str) -> EditorResponse {
         let tools_changed = self.tools_ui(reg, ui);
-        let focus = self.pending_focus.take().and_then(|id| self.ids.to_snarl.get(&id).copied());
         let viewport = ui.available_rect_before_wrap();
+        let snarl_id = ui.make_persistent_id(self.view_salt(id_salt));
+        self.snarl_id = Some(snarl_id);
+        let ctx = ui.ctx().clone();
+        if std::mem::take(&mut self.gesture.clear_selection) {
+            egui_snarl::ui::set_selected_nodes(snarl_id, &ctx, std::iter::empty());
+        }
+        let frame = self.gesture_begin(&ctx, viewport);
+        let focus = self.pending_focus.take().and_then(|id| self.view_node_of(id)).and_then(|vid| self.ids.to_snarl.get(&vid).copied());
         let fit = std::mem::take(&mut self.pending_fit).then_some(viewport);
-        self.snarl_id = Some(ui.make_persistent_id(id_salt));
-        // Header-only dragging: a body drag pans, and any node move that did
-        // not start on a title bar is undone from this snapshot after the
-        // frame — the same mechanism a locked editor freezes every node with.
-        let (pan, veto) = self.drag_gate(ui.ctx(), viewport);
-        let saved: Option<Vec<(SnarlId, egui::Pos2)>> = veto.then(|| self.snarl.nodes_pos_ids().map(|(id, pos, _)| (id, pos)).collect());
+        let saved: Option<Vec<(SnarlId, egui::Pos2)>> = frame.veto.then(|| self.snarl.nodes_pos_ids().map(|(id, pos, _)| (id, pos)).collect());
+        let pins = Rc::new(RefCell::new(Vec::new()));
+        let hint = self.wire_hint(&ctx);
+        let selected_view = self.selected.and_then(|g| self.view_node_of(g)).and_then(|v| self.ids.to_snarl.get(&v).copied());
         let mut viewer = Viewer {
-            theme_ctx: ui.ctx().clone(),
+            theme_ctx: ctx.clone(),
             zoom: self.pending_zoom.take(),
             rows: HashMap::new(),
             reg,
@@ -528,29 +672,37 @@ impl Editor {
             inline_inputs: self.inline_inputs,
             clicked: None,
             refused: None,
-            search: std::mem::take(&mut self.menu_search),
+            palette: &mut self.wire_palette,
             ids: &self.ids,
-            groups: &self.graph.groups,
+            view: &self.view,
+            groups: groups::frames(&self.graph, &self.view),
+            frame_titles: Vec::new(),
             focus,
             fit,
             viewport,
             seen_transform: None,
             collapse_request: None,
+            group_action: None,
+            help_request: None,
             mode: self.graph.mode,
-            selected: self.selected.and_then(|g| self.ids.to_snarl.get(&g).copied()),
+            selected: selected_view,
             sizes: &mut self.sizes,
-            pan,
+            frame,
             pinched: self.pinched,
+            pins: pins.clone(),
+            hint,
         };
         // A double tap is not a way to ask for the whole graph on a touch screen: two quick pinches make
         // one. The Fit button does it there; a mouse keeps snarl's double click.
         self.style.centering = Some(!self.pinched && !ui.input(|i| i.has_touch_screen()));
         self.style.bg_frame = Some(egui::Frame::new().fill(ui.visuals().panel_fill));
         // That app's visuals on everything inside the editor, and nothing outside it.
-        ui.scope(|ui| {
-            crate::style::apply_visuals(ui.style_mut());
-            self.snarl.show(&mut viewer, &self.style, id_salt, ui);
-        });
+        let background = ui
+            .scope(|ui| {
+                crate::style::apply_visuals(ui.style_mut());
+                egui_snarl::ui::SnarlWidget::new().id(snarl_id).style(self.style).show(&mut self.snarl, &mut viewer, ui)
+            })
+            .inner;
         if let Some(saved) = saved {
             for (id, pos) in saved {
                 if let Some(info) = self.snarl.get_node_info_mut(id) {
@@ -561,8 +713,13 @@ impl Editor {
         let clicked = viewer.clicked;
         let refused = viewer.refused.take();
         let collapse_request = viewer.collapse_request.take();
-        self.menu_search = std::mem::take(&mut viewer.search);
+        let group_action = viewer.group_action.take();
+        let help_request = viewer.help_request.take();
+        let frame_titles = std::mem::take(&mut viewer.frame_titles);
         self.transform = viewer.seen_transform.or(self.transform);
+        drop(viewer);
+        self.pin_rects = pins.take();
+        let title_click = self.gesture_end(&ctx, &frame_titles);
         // The first arrange ran on nominal sizes; once every node has been
         // drawn once, lay them out again from what they really measure.
         let settled = self.all_measured() && sizes_agree(&self.last_sizes, &self.sizes);
@@ -576,7 +733,7 @@ impl Editor {
                 untangled = true;
             }
         } else if self.untangle_pending {
-            ui.ctx().request_repaint();
+            ctx.request_repaint();
         }
         // The frame that laid out has not measured anything since.
         if !untangled && self.refine_left > 0 && self.all_measured() {
@@ -591,47 +748,88 @@ impl Editor {
                 self.layout_changed = true;
             }
         }
-        if self.show_minimap {
-            self.paint_minimap(ui, viewport);
+        self.paint_overlays(ui, viewport);
+        let mut changed = tools_changed | std::mem::take(&mut self.layout_changed);
+        changed |= self.palette_ui(&ctx, reg, viewport, &background);
+        if let Some(kind) = help_request {
+            self.help = Some(kind);
+        }
+        self.help_ui(&ctx, reg);
+        if let Some(action) = group_action.or(title_click.map(groups::Action::Collapse)) {
+            changed |= self.apply_group_action(action, &ctx, reg);
         }
         if let Some(sid) = collapse_request {
-            if let Some(gid) = self.ids.to_graph.get(&sid).copied() {
+            if let Some(gid) = self.ids.to_graph.get(&sid).copied().filter(|g| !view::is_pseudo(*g)) {
                 let name = format!("Cluster {}", self.graph.nodes.iter().filter(|n| n.kind == "cluster").count() + 1);
                 let _ = self.collapse_upstream(gid, &name, reg);
                 return EditorResponse { changed: true, selected: self.selected, refused: None };
             }
         }
-        let mut resp = EditorResponse { refused, changed: tools_changed | std::mem::take(&mut self.layout_changed), ..Default::default() };
+        let mut resp = EditorResponse { refused, changed, ..Default::default() };
         if let Some(sid) = clicked {
-            self.selected = self.ids.to_graph.get(&sid).copied();
-        }
-        resp.selected = self.selected;
-        let extracted = extract_graph(&self.snarl, &self.graph);
-        if extracted != self.graph {
-            self.graph = extracted;
-            self.revision += 1;
-            resp.changed = true;
-            // Fresh nodes got ids; re-key the map without rebuilding the view.
-            let (_, ids) = build_snarl(&self.graph, reg);
-            let _ = ids;
-            self.ids = IdMap::default();
-            for (sid, card) in self.snarl.nodes_ids_mut() {
-                if let Some(gid) = card.graph_id() {
-                    self.ids.to_snarl.insert(gid, sid);
-                    self.ids.to_graph.insert(sid, gid);
+            if let Some(vid) = self.ids.to_graph.get(&sid).copied() {
+                if let Some(g) = self.graph_node_of(vid) {
+                    self.selected = Some(g);
                 }
             }
-            self.assign_fresh_ids();
         }
+        if let Some(cleared) = self.gesture.cleared.take() {
+            if cleared {
+                self.selected = None;
+            }
+        }
+        if let Some(only) = self.gesture.boxed.take() {
+            self.selected = only;
+        }
+        resp.selected = self.selected;
+        resp.changed |= self.sync();
         resp
     }
 
-    /// Cards that were inserted this frame carry id 0 in the snarl; give
-    /// them the ids extraction chose, so the next frame agrees.
-    fn assign_fresh_ids(&mut self) {
+    /// Extract the snarl, merge any edit into the graph, and re-project if the view's shape moved.
+    fn sync(&mut self) -> bool {
+        let extracted = extract_graph(&self.snarl, &self.view.graph);
+        if extracted == self.view.graph {
+            return false;
+        }
+        let merged = view::merge(&self.graph, &self.view, &extracted);
+        // Fresh nodes got ids; give their cards the ids extraction chose.
+        self.assign_fresh_ids(&extracted);
+        for n in &merged.nodes {
+            if !self.store.contains_key(&n.id) {
+                if let Some(card) = self.ids.to_snarl.get(&n.id).and_then(|sid| self.snarl.get_node(*sid)) {
+                    self.store.insert(n.id, card.clone());
+                }
+            }
+        }
+        let changed = merged != self.graph;
+        self.graph = merged;
+        if changed {
+            self.revision += 1;
+        }
+        let fresh = view::project(&self.graph, self.view.entered, &Store(&self.store));
+        let mut expected = fresh.graph.clone();
+        for n in &mut expected.nodes {
+            if matches!(fresh.pseudo.get(&n.id), Some(Pseudo::Inputs | Pseudo::Outputs)) {
+                if let Some(e) = extracted.node(n.id) {
+                    n.pos = e.pos;
+                }
+            }
+        }
+        if expected == extracted {
+            self.view = View { graph: expected, ..fresh };
+        } else {
+            self.rebuild();
+        }
+        changed
+    }
+
+    /// Cards inserted this frame carry id 0 in the snarl; give them the ids extraction chose.
+    fn assign_fresh_ids(&mut self, extracted: &Graph) {
         let mut fresh: Vec<SnarlId> = self.snarl.nodes_ids_mut().filter(|(_, c)| c.id == 0).map(|(sid, _)| sid).collect();
         fresh.sort_by_key(|s| s.0);
-        let unmapped: Vec<NodeId> = self.graph.nodes.iter().map(|n| n.id).filter(|id| !self.ids.to_snarl.contains_key(id)).collect();
+        let known: BTreeSet<NodeId> = self.ids.to_snarl.keys().copied().collect();
+        let unmapped: Vec<NodeId> = extracted.nodes.iter().map(|n| n.id).filter(|id| !known.contains(id)).collect();
         for (sid, gid) in fresh.into_iter().zip(unmapped) {
             if let Some(card) = self.snarl.get_node_mut(sid) {
                 card.id = gid.0;
@@ -639,6 +837,10 @@ impl Editor {
             self.ids.to_snarl.insert(gid, sid);
             self.ids.to_graph.insert(sid, gid);
         }
+        let live: BTreeSet<SnarlId> = self.snarl.node_ids().map(|(sid, _)| sid).collect();
+        self.ids.to_graph.retain(|sid, _| live.contains(sid));
+        let live_graph: BTreeSet<NodeId> = self.ids.to_graph.values().copied().collect();
+        self.ids.to_snarl.retain(|g, _| live_graph.contains(g));
     }
 
     /// Insert a node of `kind` at a view position; it gets its id on the
@@ -650,8 +852,19 @@ impl Editor {
     }
 
     pub fn remove(&mut self, id: NodeId) -> bool {
-        let Some(&sid) = self.ids.to_snarl.get(&id) else { return false };
-        self.snarl.remove_node(sid);
+        if !self.graph.contains(id) {
+            return false;
+        }
+        match self.ids.to_snarl.get(&id).copied() {
+            Some(sid) => {
+                self.snarl.remove_node(sid);
+            }
+            None => {
+                let _ = self.graph.remove(id);
+                self.revision += 1;
+                self.rebuild();
+            }
+        }
         if self.selected == Some(id) {
             self.selected = None;
         }
@@ -661,25 +874,12 @@ impl Editor {
 
     /// Extract the view now and adopt any change; true if the graph moved.
     pub fn commit(&mut self) -> bool {
-        let extracted = extract_graph(&self.snarl, &self.graph);
-        if extracted == self.graph {
-            return false;
-        }
-        self.graph = extracted;
-        self.revision += 1;
-        self.ids = IdMap::default();
-        for (sid, card) in self.snarl.nodes_ids_mut() {
-            if let Some(gid) = card.graph_id() {
-                self.ids.to_snarl.insert(gid, sid);
-                self.ids.to_graph.insert(sid, gid);
-            }
-        }
-        self.assign_fresh_ids();
-        true
+        self.sync()
     }
 
+    /// A node's card: the drawn one where the view shows it, the stored one where it does not.
     pub fn card(&self, id: NodeId) -> Option<&NodeCard> {
-        self.ids.to_snarl.get(&id).and_then(|sid| self.snarl.get_node(*sid))
+        self.ids.to_snarl.get(&id).and_then(|sid| self.snarl.get_node(*sid)).or_else(|| self.store.get(&id))
     }
 
     pub fn node(&self, id: NodeId) -> Option<&Node> {
@@ -689,18 +889,37 @@ impl Editor {
     /// Set (or clear) a literal on a node's input, through the view so the
     /// card and the graph agree.
     pub fn set_input(&mut self, id: NodeId, input: &str, value: Option<Literal>) -> bool {
-        let Some(&sid) = self.ids.to_snarl.get(&id) else { return false };
-        if let Some(card) = self.snarl.get_node_mut(sid) {
-            match value {
-                Some(v) => {
-                    card.inputs.insert(input.to_string(), v);
-                }
-                None => {
-                    card.inputs.remove(input);
+        if let Some(&sid) = self.ids.to_snarl.get(&id) {
+            if let Some(card) = self.snarl.get_node_mut(sid) {
+                match value {
+                    Some(v) => {
+                        card.inputs.insert(input.to_string(), v);
+                    }
+                    None => {
+                        card.inputs.remove(input);
+                    }
                 }
             }
+            return self.commit();
         }
-        self.commit()
+        let Some(node) = self.graph.node_mut(id) else { return false };
+        let before = node.inputs.get(input).cloned();
+        if before == value {
+            return false;
+        }
+        match &value {
+            Some(v) => {
+                node.inputs.insert(input.to_string(), v.clone());
+            }
+            None => {
+                node.inputs.remove(input);
+            }
+        }
+        if let Some(card) = self.store.get_mut(&id) {
+            card.inputs = node.inputs.clone();
+        }
+        self.revision += 1;
+        true
     }
 
     /// The graph's exposed controls, independent of canvas zoom. Both
@@ -724,9 +943,7 @@ impl Editor {
                     let wired = self.graph.wire_into(e.node, &e.input).is_some();
                     let mut literal = node.inputs.get(&e.input).cloned();
                     let name = ui.add(egui::Label::new(&e.name).wrap_mode(egui::TextWrapMode::Extend)).on_hover_text(if e.doc.is_empty() { &pin.doc } else { &e.doc }).id;
-                    let response = ui.push_id((e.node.0, &e.input), |ui| {
-                        ui.label_inputs_by(name, |ui| ui.add_enabled_ui(self.editable && !wired, |ui| pin_widget(ui, &pin, &mut literal)).inner)
-                    });
+                    let response = ui.push_id((e.node.0, &e.input), |ui| ui.label_inputs_by(name, |ui| ui.add_enabled_ui(self.editable && !wired, |ui| pin_widget(ui, &pin, &mut literal)).inner));
                     if wired {
                         response.response.on_hover_text("This input is driven by a wire; edit its source node.");
                     }
@@ -741,12 +958,25 @@ impl Editor {
     }
 
     pub fn set_label(&mut self, id: NodeId, label: Option<String>) -> bool {
-        let Some(&sid) = self.ids.to_snarl.get(&id) else { return false };
-        if let Some(card) = self.snarl.get_node_mut(sid) {
-            card.label = label.clone().filter(|l| !l.trim().is_empty());
-            card.title = card.label.clone().unwrap_or_else(|| card.kind.clone());
+        let label = label.filter(|l| !l.trim().is_empty());
+        if let Some(&sid) = self.ids.to_snarl.get(&id) {
+            if let Some(card) = self.snarl.get_node_mut(sid) {
+                card.title = label.clone().unwrap_or_else(|| card.spec_label.clone());
+                card.label = label;
+            }
+            return self.commit();
         }
-        self.commit()
+        let Some(node) = self.graph.node_mut(id) else { return false };
+        if node.label == label {
+            return false;
+        }
+        node.label = label.clone();
+        if let Some(card) = self.store.get_mut(&id) {
+            card.title = label.clone().unwrap_or_else(|| card.spec_label.clone());
+            card.label = label;
+        }
+        self.revision += 1;
+        true
     }
 
     /// Promote an input to the graph's parameter panel.
@@ -778,7 +1008,7 @@ impl Editor {
         overlapping > (frames.len() / 8).max(1)
     }
 
-    /// Lay the nodes out from their measured sizes — see [`layout_columns`]
+    /// Lay the view's nodes out from their measured sizes — see [`layout_columns`]
     /// — so nothing overlaps. Nodes not yet drawn take the nominal footprint
     /// and a second pass follows once they have been.
     pub fn arrange(&mut self, reg: &Registry) {
@@ -787,14 +1017,14 @@ impl Editor {
         self.pending_fit = true;
     }
 
-    fn lay_out(&mut self, reg: &Registry) {
+    fn lay_out(&mut self, _reg: &Registry) {
         const FLOW_GAP: f32 = 60.0;
         const CROSS_GAP: f32 = 24.0;
-        let Ok(order) = self.graph.topo() else { return };
-        let pin_index = |id: NodeId, input: &str| {
-            self.graph.node(id).and_then(|n| reg.node_pins(n)).and_then(|(pins, _)| pins.iter().position(|p| p.name == input)).unwrap_or(0)
-        };
-        let columns = layout_columns(&self.graph, &order, pin_index);
+        self.sync();
+        let g = &self.view.graph;
+        let Ok(order) = g.topo() else { return };
+        let pin_index = |id: NodeId, input: &str| self.ids.to_snarl.get(&id).and_then(|sid| self.snarl.get_node(*sid)).and_then(|c| c.pins_in.iter().position(|p| p.name == input)).unwrap_or(0);
+        let columns = layout_columns(g, &order, pin_index);
         let size = |id: NodeId| self.sizes.get(&id).copied().unwrap_or(NODE_SIZE);
         let mut x = 0.0f32;
         let mut pos: BTreeMap<NodeId, [f32; 2]> = BTreeMap::new();
@@ -808,14 +1038,28 @@ impl Editor {
             }
             x += column.iter().map(|id| size(*id).x).fold(1.0f32, f32::max) + FLOW_GAP;
         }
-        let mut g = self.graph.clone();
-        for n in g.nodes.iter_mut() {
+        let mut edited = g.clone();
+        for n in edited.nodes.iter_mut() {
             if let Some(p) = pos.get(&n.id) {
                 n.pos = [p[0].round(), p[1].round()];
             }
         }
+        let merged = view::merge(&self.graph, &self.view, &edited);
         self.arranged_sizes = self.sizes.clone();
-        self.set_graph(g, reg);
+        if merged != self.graph {
+            self.graph = merged;
+            self.revision += 1;
+        }
+        let ports: BTreeMap<NodeId, [f32; 2]> = edited.nodes.iter().filter(|n| matches!(self.view.pseudo.get(&n.id), Some(Pseudo::Inputs | Pseudo::Outputs))).map(|n| (n.id, n.pos)).collect();
+        self.rebuild();
+        for (vid, p) in ports {
+            if let Some(info) = self.ids.to_snarl.get(&vid).copied().and_then(|sid| self.snarl.get_node_info_mut(sid)) {
+                info.pos = egui::pos2(p[0], p[1]);
+            }
+            if let Some(n) = self.view.graph.node_mut(vid) {
+                n.pos = p;
+            }
+        }
     }
 }
 
@@ -860,14 +1104,15 @@ pub fn layout_columns(g: &Graph, order: &[NodeId], pin_index: impl Fn(NodeId, &s
     let mut columns: Vec<Vec<NodeId>> = vec![Vec::new(); deepest + 1];
     for id in order {
         let ends_flow = g.wires_from(*id).next().is_none();
-        let is_sink = g.node(*id).is_some_and(|n| n.kind.starts_with("sink."));
+        let is_sink = g.node(*id).is_some_and(|n| n.kind.starts_with("sink.") || n.kind == view::OUTPUTS_KIND);
         // A node nothing consumes is not the end of the flow unless it is a
         // sink: it stays where its own inputs put it.
         let col = if ends_flow && !is_sink { head[id].min(deepest) } else { deepest - tail[id] };
         columns[col].push(*id);
     }
-    let mut spine: std::collections::BTreeSet<NodeId> = std::collections::BTreeSet::new();
-    let mut at = order.iter().copied().filter(|id| tail[id] == 0 && head[id] == deepest).min_by_key(|id| !g.node(*id).is_some_and(|n| n.kind.starts_with("sink.")));
+    let mut spine: BTreeSet<NodeId> = BTreeSet::new();
+    let sinkish = |id: &NodeId| g.node(*id).is_some_and(|n| n.kind.starts_with("sink.") || n.kind == view::OUTPUTS_KIND);
+    let mut at = order.iter().copied().filter(|id| tail[id] == 0 && head[id] == deepest).min_by_key(|id| !sinkish(id));
     while let Some(id) = at {
         spine.insert(id);
         at = g.wires_into(id).filter(|w| head[&w.from] + 1 == head[&id]).min_by_key(|w| pin_index(id, &w.input)).map(|w| w.from);
@@ -898,6 +1143,51 @@ fn sizes_agree(a: &HashMap<NodeId, egui::Vec2>, b: &HashMap<NodeId, egui::Vec2>)
     a.len() == b.len() && a.iter().all(|(id, s)| b.get(id).is_some_and(|p| (*s - *p).abs().max_elem() <= 1.0))
 }
 
+/// A wire being dragged from a pin: what it carries and which way it runs.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct WireHint {
+    pub from: PinRef,
+    /// The kind the dragged end needs a partner for: the output's kind, or the input's.
+    pub kind: ValueKind,
+    pub spec_access: Access,
+}
+
+/// How a pin reads while a wire is being dragged.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Mark {
+    Plain,
+    Fits,
+    Clashes,
+    Source,
+}
+
+/// A pin that records where it was drawn and shows whether a dragged wire fits it.
+struct Pin {
+    info: PinInfo,
+    at: PinRef,
+    mark: Mark,
+    rec: Rc<RefCell<Vec<(PinRef, egui::Rect)>>>,
+}
+
+impl SnarlPin for Pin {
+    fn draw(self, snarl_style: &SnarlStyle, style: &egui::Style, rect: egui::Rect, painter: &egui::Painter) -> PinWireInfo {
+        self.rec.borrow_mut().push((self.at, rect));
+        let fill = self.info.fill.unwrap_or(Color32::GRAY);
+        match self.mark {
+            Mark::Plain => self.info.draw(snarl_style, style, rect, painter),
+            Mark::Fits | Mark::Source => {
+                let ring = if self.mark == Mark::Fits { crate::style::AQUA } else { crate::style::PINK };
+                painter.circle_stroke(rect.center(), rect.width() * 0.5 + 4.0, egui::Stroke::new(2.0, ring));
+                self.info.draw(snarl_style, style, rect.scale_from_center(1.15), painter)
+            }
+            Mark::Clashes => {
+                let faded = self.info.with_fill(fill.gamma_multiply(0.25)).with_wire_color(fill);
+                faded.draw(snarl_style, style, rect.scale_from_center(0.8), painter)
+            }
+        }
+    }
+}
+
 struct Viewer<'a> {
     theme_ctx: egui::Context,
     reg: &'a Registry,
@@ -907,14 +1197,21 @@ struct Viewer<'a> {
     inline_inputs: bool,
     clicked: Option<SnarlId>,
     refused: Option<String>,
-    search: String,
+    /// The dropped-wire menu's search.
+    palette: &'a mut palette::State,
     ids: &'a IdMap,
-    groups: &'a [NodeGroup],
+    view: &'a View,
+    /// Expanded group frames to draw, by group index, members as the view shows them.
+    groups: Vec<(usize, NodeGroup)>,
+    /// Each drawn frame's title strip, graph space, by group index.
+    frame_titles: Vec<(usize, egui::Rect)>,
     focus: Option<SnarlId>,
     fit: Option<egui::Rect>,
     viewport: egui::Rect,
     seen_transform: Option<egui::emath::TSTransform>,
     collapse_request: Option<SnarlId>,
+    group_action: Option<groups::Action>,
+    help_request: Option<String>,
     mode: ringdesign_graph::graph::Mode,
     /// The chosen node, for its rim.
     selected: Option<SnarlId>,
@@ -925,8 +1222,10 @@ struct Viewer<'a> {
     /// Each node's widest pin row, so its widgets share one right edge.
     /// Read off the specs alone, never back from the layout it decides.
     rows: HashMap<SnarlId, f32>,
-    /// Screen delta to pan the view by this frame.
-    pan: egui::Vec2,
+    /// What the gesture in hand does to the view this frame.
+    frame: gesture::Frame,
+    pins: Rc<RefCell<Vec<(PinRef, egui::Rect)>>>,
+    hint: Option<WireHint>,
 }
 
 /// The footprint a node is assumed to take before it has been drawn.
@@ -943,43 +1242,14 @@ fn node_bounds(snarl: &Snarl<NodeCard>, sizes: &HashMap<NodeId, egui::Vec2>, ids
     rect
 }
 
-impl Editor {
-    /// A small map of every node and the current view, in the host's corner.
-    fn paint_minimap(&self, ui: &Ui, viewport: egui::Rect) {
-        let Some(bounds) = node_bounds(&self.snarl, &self.sizes, &self.ids) else { return };
-        if self.snarl.node_ids().count() < 2 || !viewport.is_finite() || viewport.width() < 160.0 || viewport.height() < 160.0 {
-            return;
-        }
-        let pad = bounds.expand(60.0);
-        let w = (viewport.width() * 0.30).clamp(96.0, 200.0);
-        let h = (w * (pad.height() / pad.width().max(1.0)).clamp(0.35, 1.4)).clamp(60.0, 200.0);
-        let map = self.minimap_corner.align_size_within_rect(egui::vec2(w, h), viewport.shrink(10.0));
-        let painter = ui.painter().with_clip_rect(viewport);
-        painter.rect_filled(map, 4.0, Color32::from_black_alpha(170));
-        let scale = (map.size() / pad.size()).min_elem();
-        let tf = egui::emath::TSTransform::new(map.center().to_vec2() - pad.center().to_vec2() * scale, scale);
-        for (sid, pos, card) in self.snarl.nodes_pos_ids() {
-            let mut m = tf * egui::Rect::from_min_size(pos, self.size_of(sid));
-            if m.width() < 2.0 || m.height() < 2.0 {
-                m = egui::Rect::from_center_size(m.center(), m.size().max(egui::vec2(2.0, 2.0)));
-            }
-            let selected = self.ids.to_graph.get(&sid).is_some_and(|g| self.selected == Some(*g));
-            let color = if !card.diag.is_empty() {
-                crate::style::ERROR
-            } else if selected {
-                Color32::from_rgb(110, 170, 255)
-            } else {
-                Color32::from_gray(150)
-            };
-            painter.rect_filled(m.intersect(map), 1.0, color);
-        }
-        if let Some(t) = self.transform {
-            let inv = t.inverse();
-            let view = egui::Rect::from_min_max(inv * viewport.min, inv * viewport.max);
-            painter.rect_stroke((tf * view).intersect(map), 0.0, egui::Stroke::new(1.0, Color32::WHITE), egui::StrokeKind::Inside);
-        }
-        painter.rect_stroke(map, 4.0, egui::Stroke::new(1.0, Color32::from_gray(90)), egui::StrokeKind::Inside);
-    }
+fn label_width(ui: &Ui, text: &str, font: egui::FontId) -> f32 {
+    ui.painter().layout_no_wrap(text.to_owned(), font, crate::style::INK).size().x
+}
+
+/// The font an output's name is drawn in: what the node gives, a little larger and bold.
+fn output_font(ui: &Ui) -> egui::FontId {
+    let base = egui::TextStyle::Body.resolve(ui.style());
+    egui::FontId::new(base.size + 1.5, base.family)
 }
 
 /// The widest label-plus-widget a node's input rows need, capped at the field
@@ -992,15 +1262,73 @@ fn row_width(ui: &Ui, card: &NodeCard) -> f32 {
         .filter_map(|spec| {
             let w = crate::widgets::widget_width(spec, card.inputs.get(&spec.name))?;
             let name = if spec.widget == ringdesign_graph::registry::Widget::Image { "Image" } else { &spec.name };
-            let label = ui.painter().layout_no_wrap(name.to_owned(), font.clone(), crate::style::INK).size().x;
-            Some(label + gap + w)
+            Some(label_width(ui, name, font.clone()) + gap + w)
         })
         .fold(0.0_f32, f32::max)
         .min(crate::style::NODE_FIELD_W)
 }
 
+/// The width a node's content takes, from its own title and pins alone.
+fn content_width(ui: &Ui, card: &NodeCard, edit: bool) -> f32 {
+    let gap = ui.spacing().item_spacing.x;
+    let body = egui::TextStyle::Body.resolve(ui.style());
+    let small = egui::TextStyle::Small.resolve(ui.style());
+    let title = label_width(ui, &card.title, body.clone()) + 56.0;
+    let inputs = card.pins_in.iter().map(|p| label_width(ui, &p.name, body.clone())).fold(0.0_f32, f32::max);
+    let widgets = if edit { row_width(ui, card) } else { 0.0 };
+    let outputs = card
+        .pins_out
+        .iter()
+        .map(|p| label_width(ui, &p.name, output_font(ui)) + card.values.get(&p.name).map_or(0.0, |v| gap * 2.0 + label_width(ui, v, small.clone())))
+        .fold(0.0_f32, f32::max);
+    title.max(inputs).max(widgets).max(outputs).min(crate::style::NODE_FIELD_W.max(title))
+}
+
 fn pin_info(pin: &PinSpec) -> PinInfo {
     crate::style::pin_info(pin.kind, pin.access)
+}
+
+/// How a pin tells what it takes or gives, in words.
+pub fn pin_tip(spec: &PinSpec, input: bool) -> String {
+    let many = if spec.access == Access::List { "a list of" } else { "one" };
+    let kind = spec.kind.label();
+    let mut tip = format!("{} — {many} {kind}", spec.name);
+    if !spec.doc.is_empty() {
+        tip.push('\n');
+        tip.push_str(&spec.doc);
+    }
+    if let Some(about) = ringdesign_graph::guide::kind(kind) {
+        tip.push_str("\n\n");
+        tip.push_str(about.summary);
+    }
+    tip.push_str(if input { "\n\nDrag from this pin to an output that gives it, or to empty space to add one." } else { "\n\nDrag from this pin to an input that takes it, or to empty space to add one." });
+    tip
+}
+
+impl Viewer<'_> {
+    fn mark(&self, node: SnarlId, input: bool, index: usize, spec: &PinSpec) -> Mark {
+        let Some(h) = self.hint else { return Mark::Plain };
+        if h.from == (PinRef { node, input, index }) {
+            return Mark::Source;
+        }
+        if h.from.input == input || h.from.node == node {
+            return Mark::Clashes;
+        }
+        let ok = if input { fits(h.kind, spec) } else { fits(spec.kind, &PinSpec { kind: h.kind, access: h.spec_access, ..PinSpec::item("", h.kind) }) };
+        if ok { Mark::Fits } else { Mark::Clashes }
+    }
+
+    fn pin(&self, spec: &PinSpec, node: SnarlId, input: bool, index: usize) -> Pin {
+        Pin { info: pin_info(spec), at: PinRef { node, input, index }, mark: self.mark(node, input, index, spec), rec: self.pins.clone() }
+    }
+
+    fn blank_pin(&self, node: SnarlId, input: bool, index: usize) -> Pin {
+        Pin { info: PinInfo::circle(), at: PinRef { node, input, index }, mark: Mark::Plain, rec: self.pins.clone() }
+    }
+
+    fn pseudo(&self, node: SnarlId) -> Option<Pseudo> {
+        self.ids.to_graph.get(&node).and_then(|vid| self.view.pseudo.get(vid)).copied()
+    }
 }
 
 impl SnarlViewer<NodeCard> for Viewer<'_> {
@@ -1009,25 +1337,65 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn show_header(&mut self, node: SnarlId, _inputs: &[InPin], _outputs: &[OutPin], ui: &mut Ui, snarl: &mut Snarl<NodeCard>) {
-        // Text selection steals title drags from snarl's header interaction.
-        ui.add(egui::Label::new(&snarl[node].title).selectable(false).sense(egui::Sense::hover()));
+        let card = &snarl[node];
+        match self.pseudo(node) {
+            Some(Pseudo::Group(i)) => {
+                if let Some(a) = groups::header(ui, card, i) {
+                    self.group_action = Some(a);
+                }
+            }
+            Some(_) => {
+                ui.add(egui::Label::new(RichText::new(&card.title).italics()).selectable(false).sense(egui::Sense::hover()));
+            }
+            None => {
+                // Text selection steals title drags from snarl's header interaction.
+                let title = ui.add(egui::Label::new(&card.title).selectable(false).sense(egui::Sense::hover()));
+                let summary = ringdesign_graph::guide::node(&card.kind).map(|g| g.summary.to_string()).unwrap_or_else(|| card.doc.clone());
+                let kind = card.spec_label.clone();
+                title.on_hover_ui(|ui| {
+                    ui.set_max_width(320.0);
+                    ui.label(RichText::new(&kind).strong());
+                    if !summary.is_empty() {
+                        ui.label(&summary);
+                    }
+                    ui.weak("Press F1 or right-click for this node's help.");
+                });
+                let help = ui.add(egui::Button::new(RichText::new("?").small()).small().frame(false)).on_hover_text("What this node does");
+                if help.clicked() {
+                    self.help_request = Some(snarl[node].kind.clone());
+                }
+            }
+        }
     }
 
     fn node_frame(&mut self, default: egui::Frame, node: SnarlId, _inputs: &[InPin], _outputs: &[OutPin], snarl: &Snarl<NodeCard>) -> egui::Frame {
         let trouble = snarl.get_node(node).is_some_and(|c| !c.diag.is_empty());
         let ctx = &self.theme_ctx;
         let visuals = ctx.global_style();
-        let color = if trouble { egui_mobile_theme::color(ctx, egui_mobile_theme::Role::Danger) }
-            else if self.selected == Some(node) { egui_mobile_theme::color(ctx, egui_mobile_theme::Role::Accent) }
-            else { visuals.visuals.window_stroke.color };
-        default.fill(visuals.visuals.window_fill).corner_radius(visuals.visuals.window_corner_radius)
-            .stroke(egui::Stroke::new(if trouble || self.selected == Some(node) { 2. } else { 1. }, color))
+        let chosen = self.selected == Some(node);
+        let boxed = self.frame.boxed.is_some_and(|b| snarl.get_node_info(node).is_some_and(|info| {
+            let size = self.ids.to_graph.get(&node).and_then(|g| self.sizes.get(g)).copied().unwrap_or(NODE_SIZE);
+            b.intersects(egui::Rect::from_min_size(info.pos, size))
+        }));
+        let color = if trouble {
+            egui_mobile_theme::color(ctx, egui_mobile_theme::Role::Danger)
+        } else if chosen || boxed {
+            egui_mobile_theme::color(ctx, egui_mobile_theme::Role::Accent)
+        } else {
+            visuals.visuals.window_stroke.color
+        };
+        let frame = default.fill(visuals.visuals.window_fill).corner_radius(visuals.visuals.window_corner_radius).stroke(egui::Stroke::new(if trouble || chosen || boxed { 2. } else { 1. }, color));
+        match self.pseudo(node) {
+            Some(Pseudo::Group(_)) => groups::group_frame(frame, ctx, trouble || chosen || boxed),
+            Some(_) => frame.fill(crate::style::AQUA.gamma_multiply(0.10)),
+            None => frame,
+        }
     }
 
     fn draw_background(&mut self, _background: Option<&BackgroundPattern>, viewport: &egui::Rect, _snarl_style: &SnarlStyle, _style: &egui::Style, painter: &egui::Painter, snarl: &Snarl<NodeCard>) {
         let scale = self.seen_transform.map(|t| t.scaling).unwrap_or(1.0);
         crate::style::paint_canvas(painter, *viewport, scale);
-        for group in self.groups {
+        for (index, group) in &self.groups {
             let mut bounds: Option<egui::Rect> = None;
             for id in &group.nodes {
                 let Some(info) = self.ids.to_snarl.get(id).and_then(|sid| snarl.get_node_info(*sid)) else { continue };
@@ -1038,7 +1406,9 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
                 rect.min.y -= 26.0;
                 painter.rect_filled(rect, 6.0, Color32::from_rgba_unmultiplied(80, 145, 160, 18));
                 painter.rect_stroke(rect, 6.0, egui::Stroke::new(1.0, crate::style::AQUA.gamma_multiply(0.5)), egui::StrokeKind::Inside);
-                painter.text(rect.min + egui::vec2(10.0, 6.0), egui::Align2::LEFT_TOP, &group.name, egui::FontId::proportional(14.0), crate::style::AQUA);
+                let title = format!("{}   (click to fold)", group.name);
+                let text = painter.text(rect.min + egui::vec2(10.0, 6.0), egui::Align2::LEFT_TOP, title, egui::FontId::proportional(14.0), crate::style::AQUA);
+                self.frame_titles.push((*index, text.expand(4.0)));
             }
         }
     }
@@ -1051,7 +1421,19 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         node.pins_out.len()
     }
 
-    fn show_input(&mut self, pin: &InPin, ui: &mut Ui, snarl: &mut Snarl<NodeCard>) -> impl egui_snarl::ui::SnarlPin + 'static {
+    fn has_body(&mut self, node: &NodeCard) -> bool {
+        node.kind == view::GROUP_KIND
+    }
+
+    fn show_body(&mut self, node: SnarlId, _inputs: &[InPin], _outputs: &[OutPin], ui: &mut Ui, snarl: &mut Snarl<NodeCard>) {
+        if let Some(Pseudo::Group(i)) = self.pseudo(node) {
+            if let Some(a) = groups::body(ui, &snarl[node], i) {
+                self.group_action = Some(a);
+            }
+        }
+    }
+
+    fn show_input(&mut self, pin: &InPin, ui: &mut Ui, snarl: &mut Snarl<NodeCard>) -> impl SnarlPin + 'static {
         // The node's row width is a function of its own specs, so it is
         // measured once per node — on its first pin — and never read back
         // from the layout it decides.
@@ -1060,15 +1442,18 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
             self.rows.insert(pin.id.node, width);
         }
         let row = self.rows.get(&pin.id.node).copied().unwrap_or(0.0);
+        let pseudo = self.pseudo(pin.id.node).is_some();
         let card = &mut snarl[pin.id.node];
-        let Some(spec) = card.pins_in.get(pin.id.input).cloned() else { return PinInfo::circle() };
+        let Some(spec) = card.pins_in.get(pin.id.input).cloned() else { return self.blank_pin(pin.id.node, true, pin.id.input) };
+        let mark = self.mark(pin.id.node, true, pin.id.input, &spec);
         ui.set_max_width(crate::style::NODE_FIELD_W);
         ui.horizontal(|ui| {
-            let label = ui.label(RichText::new(if spec.widget == ringdesign_graph::registry::Widget::Image { "Image" } else { &spec.name }).color(crate::style::INK));
+            let ink = if mark == Mark::Clashes { crate::style::INK_DIM.gamma_multiply(0.6) } else { crate::style::INK };
+            let label = ui.label(RichText::new(if spec.widget == ringdesign_graph::registry::Widget::Image { "Image" } else { &spec.name }).color(ink));
             let label_w = label.rect.width();
             let label_id = label.id;
-            label.on_hover_text(format!("{}\n{}", spec.kind.label(), spec.doc));
-            if pin.remotes.is_empty() && self.editable && self.inline_inputs {
+            label.on_hover_text(pin_tip(&spec, true));
+            if pin.remotes.is_empty() && self.editable && self.inline_inputs && !pseudo {
                 // Temporarily move the literal; a PNG can contain megabytes.
                 let mut lit = card.inputs.remove(&spec.name);
                 // The label stays at the left; a widget of known width is
@@ -1079,22 +1464,33 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
                     ui.add_space((row - label_w - ui.spacing().item_spacing.x - w).max(0.0));
                 }
                 ui.label_inputs_by(label_id, |ui| pin_widget(ui, &spec, &mut lit));
-                if let Some(literal) = lit { card.inputs.insert(spec.name.clone(), literal); }
+                if let Some(literal) = lit {
+                    card.inputs.insert(spec.name.clone(), literal);
+                }
             }
         });
-        pin_info(&spec)
+        self.pin(&spec, pin.id.node, true, pin.id.input)
     }
 
-    fn show_output(&mut self, pin: &OutPin, ui: &mut Ui, snarl: &mut Snarl<NodeCard>) -> impl egui_snarl::ui::SnarlPin + 'static {
+    fn show_output(&mut self, pin: &OutPin, ui: &mut Ui, snarl: &mut Snarl<NodeCard>) -> impl SnarlPin + 'static {
+        let edit = self.editable && self.inline_inputs;
         let card = &snarl[pin.id.node];
-        let Some(spec) = card.pins_out.get(pin.id.output).cloned() else { return PinInfo::circle() };
-        ui.horizontal(|ui| {
-            if let Some(v) = card.values.get(&spec.name) {
-                ui.label(RichText::new(v).small().color(crate::style::INK_DIM));
+        let Some(spec) = card.pins_out.get(pin.id.output).cloned() else { return self.blank_pin(pin.id.node, false, pin.id.output) };
+        let mark = self.mark(pin.id.node, false, pin.id.output, &spec);
+        let width = content_width(ui, card, edit);
+        let value = card.values.get(&spec.name).cloned();
+        // What the node gives reads from the left edge, bold and in its kind's colour.
+        ui.allocate_ui_with_layout(egui::vec2(width, ui.spacing().interact_size.y), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            ui.set_min_width(width);
+            let tint = if mark == Mark::Clashes { crate::style::INK_DIM.gamma_multiply(0.6) } else { crate::widgets::kind_color(spec.kind) };
+            ui.add(egui::Label::new(RichText::new(&spec.name).font(output_font(ui)).strong().color(tint)).selectable(false)).on_hover_text(pin_tip(&spec, false));
+            if let Some(v) = value {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(RichText::new(v).small().color(crate::style::INK_DIM));
+                });
             }
-            ui.label(RichText::new(&spec.name).color(crate::style::INK)).on_hover_text(format!("{}\n{}", spec.kind.label(), spec.doc));
         });
-        pin_info(&spec)
+        self.pin(&spec, pin.id.node, false, pin.id.output)
     }
 
     fn has_on_hover_popup(&mut self, node: &NodeCard) -> bool {
@@ -1108,6 +1504,9 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn current_transform(&mut self, to_global: &mut egui::emath::TSTransform, snarl: &mut Snarl<NodeCard>) {
+        if let Some(t) = self.frame.freeze {
+            *to_global = t;
+        }
         if let Some(viewport) = self.fit.take() {
             if let Some(bounds) = node_bounds(snarl, self.sizes, self.ids) {
                 let pad = bounds.expand(40.0);
@@ -1135,8 +1534,17 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
                 to_global.translation = translation;
             }
         }
-        if self.pan != egui::Vec2::ZERO {
-            to_global.translation += self.pan;
+        if self.frame.pan != egui::Vec2::ZERO {
+            to_global.translation += self.frame.pan;
+        }
+        if let Some((factor, at)) = self.frame.wheel {
+            let scale = (to_global.scaling * factor).clamp(crate::style::MIN_SCALE, crate::style::MAX_SCALE);
+            let k = scale / to_global.scaling;
+            to_global.translation = at.to_vec2() + (to_global.translation - at.to_vec2()) * k;
+            to_global.scaling = scale;
+        }
+        if let Some(centre) = self.frame.centre {
+            to_global.translation = self.viewport.center().to_vec2() - centre.to_vec2() * to_global.scaling;
         }
         self.seen_transform = Some(*to_global);
     }
@@ -1154,7 +1562,17 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
             let on_canvas = self.viewport.contains(p) && ui.ctx().layer_id_at(p).is_none_or(|l| l.order == egui::Order::Background);
             if on_canvas && rect.contains(t.inverse() * p) && !self.pinched {
                 ui.painter().rect_stroke(rect, crate::style::NODE_CORNER, egui::Stroke::new(1.7 / t.scaling.max(0.1), crate::style::AQUA), egui::StrokeKind::Inside);
-                if !ui.ctx().egui_is_using_pointer() { ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand); }
+                if !ui.ctx().egui_is_using_pointer() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+                if ui.input(|i| i.pointer.button_double_clicked(egui::PointerButton::Primary)) {
+                    if let Some(Pseudo::Group(i)) = self.pseudo(node) {
+                        self.group_action = Some(groups::Action::Enter(i));
+                    }
+                }
+                if ui.input(|i| i.key_pressed(egui::Key::F1)) && self.pseudo(node).is_none() {
+                    self.help_request = Some(_snarl[node].kind.clone());
+                }
             }
         }
         let tap = ui.input(|i| if i.pointer.primary_clicked() && !self.pinched { i.pointer.interact_pos() } else { None });
@@ -1173,8 +1591,7 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
         let out_kind = snarl.get_node(from.id.node).and_then(|c| c.pins_out.get(from.id.output)).map(|p| p.kind);
         let in_pin = snarl.get_node(to.id.node).and_then(|c| c.pins_in.get(to.id.input)).cloned();
         let (Some(out_kind), Some(in_pin)) = (out_kind, in_pin) else { return };
-        let ok = in_pin.kind.accepts(out_kind) || in_pin.access == Access::List || in_pin.kind == ValueKind::List;
-        if !ok {
+        if !fits(out_kind, &in_pin) {
             self.refused = Some(format!("{} takes {}, not {}", in_pin.name, in_pin.kind.label(), out_kind.label()));
             return;
         }
@@ -1205,11 +1622,8 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn has_graph_menu(&mut self, _pos: egui::Pos2, _snarl: &mut Snarl<NodeCard>) -> bool {
-        self.editable
-    }
-
-    fn show_graph_menu(&mut self, pos: egui::Pos2, ui: &mut Ui, snarl: &mut Snarl<NodeCard>) {
-        self.palette(pos, ui, snarl, None);
+        // The editor draws its own add-node popup, so typing can open it too.
+        false
     }
 
     fn has_dropped_wire_menu(&mut self, pins: AnyPins<'_>, _: &mut Snarl<NodeCard>) -> bool {
@@ -1217,7 +1631,7 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn show_dropped_wire_menu(&mut self, pos: egui::Pos2, ui: &mut Ui, pins: AnyPins<'_>, snarl: &mut Snarl<NodeCard>) {
-        self.palette(pos, ui, snarl, Some(&pins));
+        self.wire_menu(pos, ui, snarl, &pins);
     }
 
     fn has_node_menu(&mut self, _node: &NodeCard) -> bool {
@@ -1225,6 +1639,24 @@ impl SnarlViewer<NodeCard> for Viewer<'_> {
     }
 
     fn show_node_menu(&mut self, node: SnarlId, inputs: &[InPin], outputs: &[OutPin], ui: &mut Ui, snarl: &mut Snarl<NodeCard>) {
+        match self.pseudo(node) {
+            Some(Pseudo::Group(i)) => {
+                if let Some(a) = groups::menu(ui, &snarl[node], i) {
+                    self.group_action = Some(a);
+                }
+                return;
+            }
+            Some(_) => {
+                ui.weak("The wires that cross into or out of this group.");
+                return;
+            }
+            None => {}
+        }
+        if ui.button("What does this node do?").clicked() {
+            self.help_request = Some(snarl[node].kind.clone());
+            ui.close();
+            return;
+        }
         if ui.button("Delete").clicked() {
             snarl.remove_node(node);
             ui.close();
@@ -1263,6 +1695,13 @@ mod tests {
     use super::*;
     use ringdesign_graph::graph::Mode;
 
+    /// A template with its groups left open, so every node is drawn.
+    pub(crate) fn flat(name: &str) -> Graph {
+        let mut g = ringdesign_graph::templates::graph(name).unwrap_or_else(|| panic!("{name} is bundled"));
+        g.groups.clear();
+        g
+    }
+
     #[test]
     fn extract_of_build_is_the_graph_for_every_template() {
         let reg = Registry::builtin();
@@ -1274,6 +1713,19 @@ mod tests {
         let simple = ringdesign_graph::templates::simple();
         let (snarl, _) = build_snarl(&simple, &reg);
         assert_eq!(extract_graph(&snarl, &simple), simple);
+    }
+
+    #[test]
+    fn a_folded_template_round_trips_through_its_view_untouched() {
+        let reg = Registry::builtin();
+        for (name, g) in ringdesign_graph::templates::all() {
+            let mut ed = Editor::new(g.clone(), &reg);
+            assert!(!ed.commit(), "{name}: drawing the view invents an edit");
+            assert_eq!(ed.graph(), &g, "{name}");
+            if !g.groups.is_empty() {
+                assert!(ed.view().graph.nodes.len() < g.nodes.len(), "{name}: the groups fold");
+            }
+        }
     }
 
     #[test]
@@ -1294,8 +1746,37 @@ mod tests {
 
         // Text -> Number is refused by the viewer; Number -> Number replaces.
         let (mut snarl, ids) = build_snarl(&g, &reg);
+        let view = View { graph: g.clone(), ..View::default() };
+        let mut palette = palette::State::default();
         let mut viewer = Viewer {
-            theme_ctx: egui::Context::default(), reg: &reg, editable: true, inline_inputs: true, clicked: None, refused: None, search: String::new(), ids: &ids, groups: &[], focus: None, fit: None, viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)), seen_transform: None, collapse_request: None, mode: Mode::SandRing , selected: None, sizes: &mut HashMap::new(), rows: HashMap::new(), zoom: None, pan: egui::Vec2::ZERO , pinched: false };
+            theme_ctx: egui::Context::default(),
+            reg: &reg,
+            editable: true,
+            inline_inputs: true,
+            clicked: None,
+            refused: None,
+            palette: &mut palette,
+            ids: &ids,
+            view: &view,
+            groups: Vec::new(),
+            frame_titles: Vec::new(),
+            focus: None,
+            fit: None,
+            viewport: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(900.0, 600.0)),
+            seen_transform: None,
+            collapse_request: None,
+            group_action: None,
+            help_request: None,
+            mode: Mode::SandRing,
+            selected: None,
+            sizes: &mut HashMap::new(),
+            rows: HashMap::new(),
+            zoom: None,
+            frame: gesture::Frame::default(),
+            pinched: false,
+            pins: Rc::default(),
+            hint: None,
+        };
         let text_out = OutPin { id: OutPinId { node: ids.to_snarl[&t], output: 0 }, remotes: vec![] };
         let add_b = InPin { id: InPinId { node: ids.to_snarl[&a], input: 1 }, remotes: vec![] };
         viewer.connect(&text_out, &add_b, &mut snarl);
@@ -1334,9 +1815,48 @@ mod tests {
     }
 
     #[test]
+    fn a_folded_node_edits_through_the_graph_and_shows_its_group() {
+        let reg = Registry::builtin();
+        let g = ringdesign_graph::templates::graph("Gypsy trio").unwrap();
+        let mut ed = Editor::new(g, &reg);
+        let seat = ed.graph().nodes.iter().find(|n| n.kind == "layer.seat").unwrap().id;
+        assert!(ed.view().hidden.contains(&seat), "the seat is folded into its layer's group");
+        assert!(ed.card(seat).is_some_and(|c| c.kind == "layer.seat"), "a folded node still has its card");
+        assert!(ed.set_input(seat, "diameter_mm", Some(Literal::Number(6.1))));
+        assert_eq!(ed.graph().node(seat).unwrap().inputs["diameter_mm"], Literal::Number(6.1));
+        assert_eq!(ed.card(seat).unwrap().inputs["diameter_mm"], Literal::Number(6.1));
+        assert_eq!(ed.title_of(seat), "Centre (group)");
+        assert_eq!(ed.walk_order().len(), ed.view().graph.nodes.len());
+    }
+
+    #[test]
+    fn entering_a_group_shows_its_inside_and_leaving_restores_the_folded_view() {
+        let reg = Registry::builtin();
+        let g = ringdesign_graph::templates::graph("Gypsy trio").unwrap();
+        let mut ed = Editor::new(g.clone(), &reg);
+        let top = ed.view().graph.nodes.len();
+        ed.enter_group(0);
+        assert_eq!(ed.entered_group().map(|g| g.name.as_str()), Some("Centre"));
+        let inside: Vec<String> = ed.view().graph.nodes.iter().map(|n| n.kind.clone()).collect();
+        assert!(inside.contains(&"layer.seat".to_string()) && inside.contains(&view::INPUTS_KIND.to_string()) == false || inside.contains(&view::OUTPUTS_KIND.to_string()), "{inside:?}");
+        // A node added inside joins the group.
+        assert!(ed.insert("number", [0.0, 0.0], &reg));
+        assert!(ed.commit());
+        let added = ed.graph().nodes.iter().find(|n| n.kind == "number").unwrap().id;
+        assert!(ed.graph().groups[0].nodes.contains(&added));
+        ed.leave_group();
+        assert!(ed.entered_group().is_none());
+        assert_eq!(ed.view().graph.nodes.len(), top, "the number is folded into the group");
+        // Focusing a member from outside centres its group.
+        let seat = g.nodes.iter().find(|n| n.kind == "layer.seat").unwrap().id;
+        ed.focus(seat);
+        assert_eq!(ed.view_node_of(seat), Some(view::group_id(0)));
+    }
+
+    #[test]
     fn focus_selects_and_is_consumed_by_a_frame() {
         let reg = Registry::builtin();
-        let g = ringdesign_graph::templates::graph("Braided band").unwrap();
+        let g = flat("Braided band");
         let entries = g.entry_nodes();
         assert_eq!(entries.len(), 2, "two layers, two entry nodes, in stack order");
         assert!(g.node(entries[0]).unwrap().inputs.get("name") == Some(&Literal::Text("Braid".into())));
@@ -1367,7 +1887,7 @@ mod tests {
         assert!(ed.snarl_id.is_some());
 
         // Collapsing a layer's entry with its upstream leaves the graph evaluable.
-        let g = ringdesign_graph::templates::graph("Braided band").unwrap();
+        let g = flat("Braided band");
         let mut ed = Editor::new(g, &reg);
         let entry = ed.graph().entry_nodes()[1];
         let cid = ed.collapse_upstream(entry, "Milgrain cluster", &reg).unwrap();
@@ -1397,14 +1917,18 @@ mod tests {
 #[cfg(all(test, feature = "shot"))]
 mod shot {
     /// `RD_GRAPH_SHOT=/some/dir cargo test -p ringdesign-graph-ui --features shot shot_the_editor`
-    /// renders the editor over the Court band's graph through wgpu and
-    /// writes `graph.png` there, for an eyeball pass on the look.
+    /// renders the editor over a template graph through wgpu and writes
+    /// `graph.png` there, for an eyeball pass on the look.
     #[test]
     fn shot_the_editor() {
         let Some(dir) = std::env::var_os("RD_GRAPH_SHOT") else { return };
         let reg = ringdesign_graph::registry::Registry::builtin();
-        let (_, g) = ringdesign_graph::templates::all().into_iter().next().expect("a template graph");
+        let name = std::env::var("RD_GRAPH_SHOT_TEMPLATE").unwrap_or_else(|_| "Gypsy trio".into());
+        let g = ringdesign_graph::templates::graph(&name).expect("a template graph");
         let mut ed = super::Editor::new(g, &reg);
+        if let Ok(i) = std::env::var("RD_GRAPH_SHOT_ENTER").map(|s| s.parse::<usize>().unwrap_or(0)) {
+            ed.enter_group(i);
+        }
         ed.arrange(&reg);
         ed.fit();
         ed.selected = ed.graph().nodes.get(2).map(|n| n.id);
@@ -1424,47 +1948,13 @@ mod shot {
 }
 
 #[cfg(test)]
-mod drag_tests {
-    use super::*;
-
-    #[test]
-    fn a_press_is_classified_by_where_it_lands() {
-        let a = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 120.0));
-        let b = egui::Rect::from_min_size(egui::pos2(150.0, 100.0), egui::vec2(200.0, 120.0));
-        let frames = || [a, b];
-        let h = grab_height(1.5);
-        assert_eq!(h, NODE_HEADER_H, "zoomed in, the title bar is the handle");
-        assert_eq!(classify_point(egui::pos2(20.0, 10.0), frames(), h), DragKind::Header);
-        assert_eq!(classify_point(egui::pos2(20.0, 80.0), frames(), h), DragKind::Body);
-        assert_eq!(classify_point(egui::pos2(400.0, 400.0), frames(), h), DragKind::Canvas);
-        // Where a's body overlaps b's header, the header wins.
-        assert_eq!(classify_point(egui::pos2(160.0, 110.0), frames(), h), DragKind::Header);
-        assert_eq!(classify_point(egui::pos2(5.0, 5.0), std::iter::empty(), h), DragKind::Canvas);
-    }
-
-    #[test]
-    fn a_title_bar_never_shrinks_under_a_fingertip() {
-        // At a third of full size a 30-unit bar is 10 points on screen; the
-        // handle grows to stay 36, and far enough out it is the whole node.
-        let a = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 120.0));
-        for scale in [0.05_f32, 0.2, 0.33, 0.8, 1.0, 2.5] {
-            assert!(grab_height(scale) * scale >= MIN_GRAB_PT.min(NODE_HEADER_H * scale).max(MIN_GRAB_PT - 0.01) - 0.01 || scale > 1.2, "{scale}");
-            assert!(grab_height(scale) >= NODE_HEADER_H);
-        }
-        assert_eq!(classify_point(egui::pos2(20.0, 80.0), [a], grab_height(0.33)), DragKind::Header);
-        assert_eq!(classify_point(egui::pos2(20.0, 119.0), [a], grab_height(0.2)), DragKind::Header, "the whole node moves it");
-        assert_eq!(classify_point(egui::pos2(20.0, 80.0), [a], grab_height(1.0)), DragKind::Body);
-    }
-}
-
-#[cfg(test)]
 mod layout_tests {
+    use super::tests::flat;
     use super::*;
 
     fn arranged(name: &str) -> (Editor, Registry) {
         let reg = Registry::builtin();
-        let g = ringdesign_graph::templates::graph(name).unwrap_or_else(|| panic!("{name} is bundled"));
-        let mut ed = Editor::new(g, &reg);
+        let mut ed = Editor::new(flat(name), &reg);
         ed.arrange(&reg);
         (ed, reg)
     }
@@ -1472,7 +1962,7 @@ mod layout_tests {
     #[test]
     fn a_source_sits_one_column_before_what_it_feeds() {
         let reg = Registry::builtin();
-        let g = ringdesign_graph::templates::graph("Braided band").expect("bundled");
+        let g = flat("Braided band");
         let order = g.topo().unwrap();
         let cols = layout_columns(&g, &order, |id, input| g.node(id).and_then(|n| reg.node_pins(n)).and_then(|(p, _)| p.iter().position(|x| x.name == input)).unwrap_or(0));
         let col_of = |id: NodeId| cols.iter().position(|c| c.contains(&id)).unwrap();
@@ -1508,9 +1998,20 @@ mod layout_tests {
     }
 
     #[test]
+    fn folded_layers_arrange_as_a_chain_of_groups() {
+        let reg = Registry::builtin();
+        let g = ringdesign_graph::templates::graph("Aster Atelier").unwrap();
+        let mut ed = Editor::new(g, &reg);
+        ed.arrange(&reg);
+        let rows: Vec<f32> = ed.view().graph.nodes.iter().filter(|n| n.kind == view::GROUP_KIND).map(|n| n.pos[1]).collect();
+        assert!(rows.iter().filter(|y| **y == 0.0).count() >= rows.len() / 2, "the layer groups run along the first row: {rows:?}");
+        assert!(ed.graph().groups.iter().all(|gr| gr.pos.is_some()), "arranging the folded view places every group");
+    }
+
+    #[test]
     fn a_grid_the_nodes_overflow_is_untangled_once_and_a_tidy_graph_is_left_alone() {
         let reg = Registry::builtin();
-        let mut g = ringdesign_graph::templates::graph("Shouldered cushion signet").expect("bundled");
+        let mut g = flat("Shouldered cushion signet");
         // The lift's nominal grid: real nodes are several cells tall.
         for (i, n) in g.nodes.iter_mut().enumerate() {
             n.pos = [(i % 3) as f32 * 240.0, (i / 3) as f32 * 150.0];
@@ -1592,6 +2093,8 @@ mod layout_tests {
         g.node_mut(a).unwrap().pos = [40.0, 60.0];
         g.node_mut(b).unwrap().pos = [900.0, 700.0];
         let mut ed = Editor::new(g, &reg);
+        // The minimap takes presses of its own; keep it off the decoy.
+        ed.show_minimap = false;
         // Put `b` in the middle of the view; `a` is now far off screen.
         ed.focus(b);
         let size = egui::vec2(800.0, 600.0);
@@ -1658,7 +2161,7 @@ mod layout_tests {
     #[test]
     fn stepping_walks_the_flow_and_focus_frames_the_node() {
         let reg = Registry::builtin();
-        let g = ringdesign_graph::templates::graph("Braided band").expect("bundled");
+        let g = flat("Braided band");
         let mut ed = Editor::new(g, &reg);
         let order = ed.walk_order();
         assert_eq!(ed.step(1), Some(order[0]));

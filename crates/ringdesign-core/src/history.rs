@@ -251,20 +251,26 @@ impl History {
 
 // --- Naming an edit --------------------------------------------------------
 
-/// Whether two stored graphs differ only in where their nodes sit.
+/// Whether two stored graphs differ only in where nodes and groups sit and which groups are folded.
 pub fn graph_layout_only(a: Option<&Value>, b: Option<&Value>) -> bool {
     let (Some(Value::Object(a)), Some(Value::Object(b))) = (a, b) else { return false };
-    let same_node = |x: &Value, y: &Value| match (x.as_object(), y.as_object()) {
-        (Some(x), Some(y)) => x.len() == y.len() && x.iter().all(|(k, v)| k == "pos" || y.get(k) == Some(v)),
+    // Fields that only say where something sits or whether it is folded.
+    let layout = |k: &str| matches!(k, "pos" | "collapsed");
+    let same_item = |x: &Value, y: &Value| match (x.as_object(), y.as_object()) {
+        (Some(x), Some(y)) => {
+            let keys = |o: &serde_json::Map<String, Value>| o.keys().filter(|k| !layout(k)).cloned().collect::<Vec<_>>();
+            keys(x) == keys(y) && x.iter().all(|(k, v)| layout(k) || y.get(k) == Some(v))
+        }
         _ => x == y,
+    };
+    let same_list = |va: &Value, vb: &Value| match (va.as_array(), vb.as_array()) {
+        (Some(na), Some(nb)) => na.len() == nb.len() && na.iter().zip(nb).all(|(x, y)| same_item(x, y)),
+        _ => va == vb,
     };
     a.len() == b.len()
         && a.iter().all(|(k, va)| match (k.as_str(), b.get(k)) {
             (_, None) => false,
-            ("nodes", Some(vb)) => match (va.as_array(), vb.as_array()) {
-                (Some(na), Some(nb)) => na.len() == nb.len() && na.iter().zip(nb).all(|(x, y)| same_node(x, y)),
-                _ => va == vb,
-            },
+            ("nodes" | "groups", Some(vb)) => same_list(va, vb),
             (_, Some(vb)) => va == vb,
         })
 }
