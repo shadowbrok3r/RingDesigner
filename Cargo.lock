@@ -1679,9 +1679,8 @@ dependencies = [
 name = "egui-mobile-theme"
 version = "0.1.0"
 dependencies = [
- "egui",
- "serde",
- "serde_json",
+ "eframe",
+ "egui-theme-kit",
 ]
 
 [[package]]
@@ -1714,6 +1713,7 @@ dependencies = [
 [[package]]
 name = "egui-theme-kit"
 version = "0.1.0"
+source = "git+https://github.com/shadowbrok3r/egui-theme-kit?rev=09d1e793076357ec5d86df7e1d6771d0306f2e70#09d1e793076357ec5d86df7e1d6771d0306f2e70"
 dependencies = [
  "anyhow",
  "directories",
@@ -1721,9 +1721,11 @@ dependencies = [
  "egui",
  "egui_extras",
  "log",
+ "raw-window-handle",
  "rfd",
  "serde",
  "serde_json",
+ "windows",
 ]
 
 [[package]]
@@ -5349,8 +5351,10 @@ name = "ringdesign-workbench"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "eframe",
  "egui",
  "egui-mobile-theme",
+ "egui-theme-kit",
  "egui_glow",
  "egui_kittest",
  "image",
@@ -5368,13 +5372,14 @@ dependencies = [
 
 [[package]]
 name = "ringdesigner_android"
-version = "0.32.0"
+version = "0.32.2"
 dependencies = [
  "android-activity",
  "backdrop-blur-egui",
  "egui",
  "egui-mobile",
  "egui-mobile-theme",
+ "egui-theme-kit",
  "egui_glow",
  "local-clip",
  "local-sd",

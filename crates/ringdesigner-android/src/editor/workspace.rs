@@ -62,30 +62,70 @@ pub fn splitter(
     available: egui::Vec2,
     landscape: bool,
 ) -> bool {
+    resize_grip(ui, fraction, available, landscape, None)
+}
+
+pub struct Header {
+    pub resized: bool,
+    pub close: bool,
+}
+
+/// The title is also the resize target. Caption actions occupy their own
+/// non-overlapping hit areas, on the same row in both orientations.
+pub fn inspector_header(ui: &mut egui::Ui, title: &str, fraction: &mut f32, available: egui::Vec2, landscape: bool) -> Header {
+    use ringdesign_workbench::icons::{self, Icon};
+    let mut result = Header { resized: false, close: false };
+    ui.horizontal(|ui| {
+        let side = ui.spacing().interact_size.y;
+        let actions = if landscape { 2.0 } else { 1.0 };
+        let width = (ui.available_width() - actions * (side + ui.spacing().item_spacing.x)).max(1.0);
+        ui.allocate_ui(egui::vec2(width, side), |ui| {
+            result.resized = resize_grip(ui, fraction, available, landscape, Some(title));
+        });
+        if landscape {
+            let expand = icons::compact(ui, Icon::Expand, false);
+            super::layout::record(ui, "inspector/expand", expand.rect);
+            if expand.clicked() { *fraction = 0.4; result.resized = true; }
+        }
+        let close = icons::compact(ui, Icon::Close, false);
+        super::layout::record(ui, "inspector/close", close.rect);
+        result.close = close.clicked();
+    });
+    result
+}
+
+fn resize_grip(ui: &mut egui::Ui, fraction: &mut f32, available: egui::Vec2, landscape: bool, title: Option<&str>) -> bool {
     let id = egui::Id::unique(("inspector-resize", landscape));
     let (rect, response) = ui.allocate_exact_size(
-        egui::vec2(ui.available_width(), 24.0),
+        egui::vec2(ui.available_width(), if title.is_some() { ui.spacing().interact_size.y } else { 24.0 }),
         egui::Sense::click_and_drag(),
     );
     super::layout::record(ui, "inspector/resize", rect);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Splitter, ui.is_enabled(), "Resize panel"));
     let color = if response.dragged() || response.hovered() {
-        crate::theme::AQUA
+        ui.visuals().hyperlink_color
     } else {
-        crate::theme::INK_DIM
+        ui.visuals().weak_text_color()
     };
-    let middle = rect.center();
+    let middle = if title.is_some() { rect.left_center() + egui::vec2(10.0, 0.0) } else { rect.center() };
     for dy in [-2.0, 2.0] {
         let endpoints = if landscape {
             [middle + egui::vec2(dy, -5.0), middle + egui::vec2(dy, 5.0)]
         } else {
             [
-                middle + egui::vec2(-20.0, dy),
-                middle + egui::vec2(20.0, dy),
+                middle + egui::vec2(if title.is_some() { -6.0 } else { -20.0 }, dy),
+                middle + egui::vec2(if title.is_some() { 6.0 } else { 20.0 }, dy),
             ]
         };
         ui.painter()
             .line_segment(endpoints, egui::Stroke::new(1.5, color));
+    }
+    if let Some(title) = title {
+        let icon = ringdesign_workbench::icons::Icon::for_label(title);
+        icon.image(ui, 18.0).paint_at(ui, egui::Rect::from_center_size(rect.left_center() + egui::vec2(34.0, 0.0), egui::Vec2::splat(18.0)));
+        let text = egui::Rect::from_min_max(rect.min + egui::vec2(49.0, 0.0), rect.max);
+        ui.painter().with_clip_rect(text).text(text.left_center(), egui::Align2::LEFT_CENTER, title, egui_theme_kit::fonts::semibold(14.0), ui.visuals().strong_text_color());
+        super::layout::record(ui, "inspector/title", text);
     }
     let response = response
         .on_hover_cursor(if landscape {
@@ -210,9 +250,9 @@ pub fn floating<R>(
                             ui.allocate_exact_size(egui::vec2(w, 25.0), egui::Sense::drag());
                         super::layout::record(ui, format!("{key}/grip"), grip);
                         let ink = if drag.dragged() {
-                            crate::theme::AQUA
+                            egui_theme_kit::colors::primary(ui)
                         } else {
-                            crate::theme::INK_DIM
+                            ui.visuals().weak_text_color()
                         };
                         for x in [3.0, 6.0] {
                             ui.painter().line_segment(
@@ -300,3 +340,7 @@ pub fn floating<R>(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "header_tests.rs"]
+mod header_tests;

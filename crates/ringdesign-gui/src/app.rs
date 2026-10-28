@@ -266,7 +266,7 @@ pub enum Lands {
 pub struct RingDesignerApp {
     pub theme: crate::theme::ThemeState,
     pub theme_dirty: bool,
-    pub custom_title_bar: bool,
+    pub chrome: egui_theme_kit::chrome::Chrome,
     pub updater: crate::updater::Updater,
     pub install_update: bool,
     pub desktop: Desktop,
@@ -487,7 +487,7 @@ impl RingDesignerApp {
         let mut app = Self {
             theme,
             theme_dirty: false,
-            custom_title_bar: true,
+            chrome: egui_theme_kit::chrome::Chrome { frameless: true, available: true },
             updater: crate::updater::Updater::new(ws.automatic_updates),
             install_update: false,
             desktop: ws.desktop,

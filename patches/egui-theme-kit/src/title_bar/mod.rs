@@ -1,9 +1,16 @@
 //! App-drawn window top strip: mark, caller content, title, caption buttons, drag area and resize edges.
+//!
+//! Show [`TitleBar`] before any other panel and call [`window_edges`] last in the frame. Choose between
+//! this strip and the system one with [`crate::chrome`], and call [`windows::client_area::install`]
+//! once at startup. `docs/porting-title-bar.md` walks through moving an existing app over.
 
+pub mod windows;
+
+use eframe::egui::emath::GuiRounding as _;
 use eframe::egui::{
-    Align, AsIdSalt, Color32, Context, CursorIcon, Frame, Id, LayerId, Layout, Order, Panel,
-    PointerButton, Rect, ResizeDirection, Role, Sense, Stroke, StrokeKind, TextWrapMode, Ui,
-    UiBuilder, Vec2, ViewportCommand, WidgetInfo, pos2, vec2,
+    Align, AsIdSalt, Color32, Context, CursorIcon, Event, Frame, Id, LayerId, Layout, Modifiers,
+    Order, Panel, Plugin, PointerButton, Pos2, RawInput, Rect, ResizeDirection, Role, Sense,
+    Stroke, StrokeKind, TextWrapMode, Ui, UiBuilder, Vec2, ViewportCommand, WidgetInfo, pos2, vec2,
 };
 
 use crate::controls::{
@@ -13,10 +20,16 @@ use crate::metrics::type_scale;
 
 /// Width of one caption button.
 pub const CAPTION_W: f32 = 46.0;
-/// Depth of an edge resize zone.
+/// Depth of the left, right and bottom resize zones; over empty space a press within egui's interact radius beyond it also resizes.
 pub const EDGE: f32 = 8.0;
+/// Depth of the top resize zone, kept clear of the strip's controls.
+pub const TOP_EDGE: f32 = 5.0;
 /// Side of a corner resize zone.
 pub const CORNER: f32 = 12.0;
+/// Resize margin kept above and beside the caption buttons.
+const CAPTION_MARGIN: f32 = 3.0;
+/// Distance the injected pointer move travels so the injected release is never a click.
+const RELEASE_TRAVEL: f32 = 12.0;
 /// Space kept between the title and the content beside it.
 const TITLE_GAP: f32 = 16.0;
 /// Mark size.
@@ -123,6 +136,9 @@ impl<'a> TitleBar<'a> {
     }
 
     /// Draws the strip; `add` fills [`Side::Right`] and then [`Side::Left`].
+    ///
+    /// The title and the drag area live in the free space between the two ends, so the content must
+    /// not claim the whole width: `egui::MenuBar::ui` does, so put its menu buttons in the slot directly.
     pub fn show<R>(self, ui: &mut Ui, add: impl FnMut(&mut Ui, Side) -> R) -> TitleBarOutput<R> {
         let (t, m) = kit(ui);
         Panel::top(self.id)
@@ -142,9 +158,12 @@ impl<'a> TitleBar<'a> {
         mut add: impl FnMut(&mut Ui, Side) -> R,
     ) -> TitleBarOutput<R> {
         let full = ui.max_rect();
-        let line_y = ui.painter().round_to_pixel_center(full.bottom() - 0.5);
+        let hairline = 1.0 / ui.pixels_per_point();
+        let line_y = ui
+            .painter()
+            .round_to_pixel_center(full.bottom() - hairline / 2.0);
         ui.painter()
-            .hline(full.x_range(), line_y, Stroke::new(1.0, t.separator));
+            .hline(full.x_range(), line_y, Stroke::new(hairline, t.separator));
         let ends = if self.frameless {
             full.right() - Caption::ALL.len() as f32 * CAPTION_W
         } else {
@@ -179,9 +198,9 @@ impl<'a> TitleBar<'a> {
         let gap = Rect::from_x_y_ranges(left_end..=right_start.max(left_end), full.y_range());
         self.paint_title(ui, t, full, gap);
         if self.frameless {
-            drag_area(ui, self.id.with("drag"), gap);
+            drag_area(ui, self.id.with("drag"), gap, self.title);
             let lead = Rect::from_x_y_ranges(full.left()..=start, full.y_range());
-            drag_area(ui, self.id.with("lead"), lead);
+            drag_area(ui, self.id.with("lead"), lead, self.title);
             caption_buttons(ui, full, t);
         }
         TitleBarOutput {
@@ -202,8 +221,9 @@ impl<'a> TitleBar<'a> {
         let Some(x) = title_x(full.center().x, gap.left(), gap.right(), width) else {
             return;
         };
-        let y = (full.center().y - galley.size().y / 2.0).round();
-        ui.painter().galley(pos2(x.round(), y), galley, t.text_dim);
+        let y = full.center().y - galley.size().y / 2.0;
+        let pos = pos2(x, y).round_to_pixels(ui.pixels_per_point());
+        ui.painter().galley(pos, galley, t.text_dim);
     }
 }
 
@@ -249,18 +269,64 @@ fn is_fullscreen(ctx: &Context) -> bool {
 }
 
 /// Empty strip space: a drag moves the window and a double-click maximizes or restores it.
-fn drag_area(ui: &Ui, id: Id, rect: Rect) {
+fn drag_area(ui: &Ui, id: Id, rect: Rect, title: &str) {
     if rect.width() <= 0.0 {
         return;
     }
     let response = ui.interact(rect, id, Sense::click_and_drag());
+    response.widget_info(|| WidgetInfo::labeled(Role::TitleBar, true, title));
     if response.drag_started_by(PointerButton::Primary) {
-        ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
+        hand_to_window_manager(ui.ctx(), ViewportCommand::StartDrag);
     }
     if response.double_clicked() {
         let maximized = is_maximized(ui.ctx());
         ui.ctx()
             .send_viewport_cmd(ViewportCommand::Maximized(!maximized));
+    }
+}
+
+/// Sends a window-manager move or resize `command` and ends egui's pointer press, whose release the window manager takes.
+fn hand_to_window_manager(ctx: &Context, command: ViewportCommand) {
+    let pending = ctx
+        .input(|i| i.pointer.interact_pos())
+        .map(|pos| (ctx.viewport_id(), pos));
+    ctx.add_plugin(PointerRelease::default());
+    ctx.with_plugin::<PointerRelease, _>(|plugin| plugin.pending = pending);
+    ctx.send_viewport_cmd(command);
+}
+
+/// Ends the pointer press a window-manager drag left open.
+///
+/// While the window manager moves or resizes the window it owns the pointer and egui never sees the
+/// button release, so egui keeps the press and the next click lands on the wrong widget.
+#[derive(Default)]
+struct PointerRelease {
+    pending: Option<(eframe::egui::ViewportId, Pos2)>,
+}
+
+impl Plugin for PointerRelease {
+    fn debug_name(&self) -> &'static str {
+        "egui_theme_kit::title_bar::PointerRelease"
+    }
+
+    fn input_hook(&mut self, _ctx: &Context, input: &mut RawInput) {
+        let Some((viewport, pos)) = self.pending else {
+            return;
+        };
+        if input.viewport_id != viewport {
+            return;
+        }
+        self.pending = None;
+        let moved = pos + vec2(RELEASE_TRAVEL, 0.0);
+        let release = Event::PointerButton {
+            pos: moved,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        };
+        input
+            .events
+            .splice(0..0, [Event::PointerMoved(moved), release]);
     }
 }
 
@@ -301,67 +367,116 @@ fn caption_buttons(ui: &Ui, full: Rect, t: &Tokens) {
     ui.ctx().send_viewport_cmd(command);
 }
 
-/// Edge then corner zones of `window`: (zone, direction, cursor).
-fn zones(window: Rect) -> [(Rect, ResizeDirection, CursorIcon); 8] {
+/// One resize zone: where it sits, the resize it starts and the cursor over it.
+type Zone = (Rect, ResizeDirection, CursorIcon);
+
+/// Edge then corner zones of `window`, each shrunk to a third of the window so a small window keeps a middle.
+fn zones(window: Rect) -> [Zone; 8] {
     use ResizeDirection::*;
     let w = window;
+    let third = w.size() / 3.0;
+    let (side, bottom, top) = (EDGE.min(third.x), EDGE.min(third.y), TOP_EDGE.min(third.y));
+    let corner = Vec2::new(CORNER.min(third.x), CORNER.min(third.y));
     [
         (
-            Rect::from_min_max(w.left_top(), pos2(w.right(), w.top() + EDGE)),
+            Rect::from_min_max(w.left_top(), pos2(w.right(), w.top() + top)),
             North,
             CursorIcon::ResizeNorth,
         ),
         (
-            Rect::from_min_max(pos2(w.left(), w.bottom() - EDGE), w.right_bottom()),
+            Rect::from_min_max(pos2(w.left(), w.bottom() - bottom), w.right_bottom()),
             South,
             CursorIcon::ResizeSouth,
         ),
         (
-            Rect::from_min_max(w.left_top(), pos2(w.left() + EDGE, w.bottom())),
+            Rect::from_min_max(w.left_top(), pos2(w.left() + side, w.bottom())),
             West,
             CursorIcon::ResizeWest,
         ),
         (
-            Rect::from_min_max(pos2(w.right() - EDGE, w.top()), w.right_bottom()),
+            Rect::from_min_max(pos2(w.right() - side, w.top()), w.right_bottom()),
             East,
             CursorIcon::ResizeEast,
         ),
         (
-            Rect::from_min_size(w.left_top(), Vec2::splat(CORNER)),
+            Rect::from_min_size(w.left_top(), corner),
             NorthWest,
             CursorIcon::ResizeNwSe,
         ),
         (
-            Rect::from_min_size(w.right_top() - vec2(CORNER, 0.0), Vec2::splat(CORNER)),
+            Rect::from_min_size(w.right_top() - vec2(corner.x, 0.0), corner),
             NorthEast,
             CursorIcon::ResizeNeSw,
         ),
         (
-            Rect::from_min_size(w.left_bottom() - vec2(0.0, CORNER), Vec2::splat(CORNER)),
+            Rect::from_min_size(w.left_bottom() - vec2(0.0, corner.y), corner),
             SouthWest,
             CursorIcon::ResizeNeSw,
         ),
         (
-            Rect::from_min_size(w.right_bottom() - Vec2::splat(CORNER), Vec2::splat(CORNER)),
+            Rect::from_min_size(w.right_bottom() - corner, corner),
             SouthEast,
             CursorIcon::ResizeNwSe,
         ),
     ]
 }
 
+/// The caption buttons' area inside `window`, less the margin that stays a resize border.
+fn caption_hole(window: Rect, bar_h: f32) -> Rect {
+    let width = Caption::ALL.len() as f32 * CAPTION_W;
+    Rect::from_min_max(
+        pos2(window.right() - width, window.top() + CAPTION_MARGIN),
+        pos2(window.right() - CAPTION_MARGIN, window.top() + bar_h),
+    )
+}
+
+/// `zone` without `hole`: up to four disjoint rectangles.
+fn carve(zone: Rect, hole: Rect) -> Vec<Rect> {
+    if !zone.intersects(hole) {
+        return vec![zone];
+    }
+    let h = hole.intersect(zone);
+    [
+        Rect::from_min_max(zone.min, pos2(h.left(), zone.bottom())),
+        Rect::from_min_max(pos2(h.right(), zone.top()), zone.max),
+        Rect::from_min_max(pos2(h.left(), zone.top()), pos2(h.right(), h.top())),
+        Rect::from_min_max(pos2(h.left(), h.bottom()), pos2(h.right(), zone.bottom())),
+    ]
+    .into_iter()
+    .filter(|r| r.width() > 0.0 && r.height() > 0.0)
+    .collect()
+}
+
+/// The pointer-sensitive pieces of every resize zone of `window`, clear of the caption buttons.
+fn resize_pieces(window: Rect, bar_h: f32) -> Vec<Zone> {
+    let hole = caption_hole(window, bar_h);
+    zones(window)
+        .into_iter()
+        .flat_map(|(zone, direction, cursor)| {
+            carve(zone, hole)
+                .into_iter()
+                .map(move |piece| (piece, direction, cursor))
+        })
+        .collect()
+}
+
 /// Resize zones and a one-pixel outline on a frameless window's edges unless maximized.
+///
+/// Call it last in the frame so the zones sit above the content. The zones keep out of the caption
+/// buttons except for a thin margin at the window's border.
 pub fn window_edges(ui: &mut Ui) {
     let ctx = ui.ctx().clone();
     if is_maximized(&ctx) || is_fullscreen(&ctx) {
         return;
     }
     let window = ctx.content_rect();
+    let (t, m) = kit(ui);
     let layer = LayerId::new(
         Order::Foreground,
         Id::unique("egui_theme_kit.title_bar.edges"),
     );
     let edges = ui.new_child(UiBuilder::new().layer_id(layer).max_rect(window));
-    for (i, (rect, direction, cursor)) in zones(window).into_iter().enumerate() {
+    for (i, (rect, direction, cursor)) in resize_pieces(window, m.bar_h).into_iter().enumerate() {
         let response = edges
             .interact(
                 rect,
@@ -370,14 +485,14 @@ pub fn window_edges(ui: &mut Ui) {
             )
             .on_hover_cursor(cursor);
         if response.drag_started_by(PointerButton::Primary) {
-            ctx.send_viewport_cmd(ViewportCommand::BeginResize(direction));
+            hand_to_window_manager(&ctx, ViewportCommand::BeginResize(direction));
         }
     }
-    let (t, _) = kit(ui);
+    let hairline = 1.0 / ctx.pixels_per_point();
     edges.painter().rect_stroke(
         window,
         0,
-        Stroke::new(1.0, t.card_border),
+        Stroke::new(hairline, t.card_border),
         StrokeKind::Inside,
     );
 }
@@ -387,7 +502,7 @@ mod tests {
     use super::*;
     use crate::metrics::{self, Density};
     use eframe::egui::{
-        Event, FontDefinitions, Modifiers, Pos2, RawInput, Style, ViewportId, ViewportInfo,
+        Event, FontDefinitions, Modifiers, Pos2, RawInput, Shape, Style, ViewportId, ViewportInfo,
     };
 
     /// A headless window `width` points wide showing a title strip and the edge zones.
@@ -396,7 +511,12 @@ mod tests {
         width: f32,
         time: f64,
         maximized: bool,
+        fullscreen: bool,
         frameless: bool,
+        /// Names of the left-slot buttons clicked so far.
+        clicked: Vec<&'static str>,
+        /// Shapes of the last frame.
+        shapes: Vec<eframe::egui::epaint::ClippedShape>,
     }
 
     impl Win {
@@ -412,7 +532,10 @@ mod tests {
                 width,
                 time: 0.0,
                 maximized: false,
+                fullscreen: false,
                 frameless: true,
+                clicked: Vec::new(),
+                shapes: Vec::new(),
             }
         }
 
@@ -428,18 +551,23 @@ mod tests {
                 ViewportId::ROOT,
                 ViewportInfo {
                     maximized: Some(self.maximized),
+                    fullscreen: Some(self.fullscreen),
                     ..Default::default()
                 },
             );
             let frameless = self.frameless;
+            let mut clicked = Vec::new();
             let mut out = self.ctx.run_ui(input, |ui| {
                 let _ = TitleBar::new("test.title_bar", "Example App 1.0")
                     .mark(icons::GRID)
                     .frameless(frameless)
                     .show(ui, |ui, side| match side {
                         Side::Left => {
-                            let _ = ui.button("View");
-                            let _ = ui.button("Mode");
+                            for name in ["View", "Mode"] {
+                                if ui.button(name).clicked() {
+                                    clicked.push(name);
+                                }
+                            }
                         }
                         Side::Right => {
                             let _ = ui.button("Account");
@@ -449,6 +577,8 @@ mod tests {
                     window_edges(ui);
                 }
             });
+            self.clicked.extend(clicked);
+            self.shapes = std::mem::take(&mut out.shapes);
             out.textures_delta.clear();
             out.viewport_output
                 .remove(&ViewportId::ROOT)
@@ -586,5 +716,254 @@ mod tests {
         assert_eq!(title_x(400.0, 420.0, 1300.0, 60.0), Some(436.0));
         assert_eq!(title_x(1280.0, 420.0, 1300.0, 60.0), Some(1224.0));
         assert_eq!(title_x(400.0, 420.0, 480.0, 60.0), None);
+    }
+
+    fn has_resize(cmds: &[ViewportCommand]) -> bool {
+        cmds.iter()
+            .any(|c| matches!(c, ViewportCommand::BeginResize(_)))
+    }
+
+    /// Every painted rectangle and line stroke of the last frame as (shape, stroke width, colour).
+    fn strokes(w: &Win) -> Vec<(Shape, f32, Color32)> {
+        fn walk(shape: &Shape, out: &mut Vec<(Shape, f32, Color32)>) {
+            match shape {
+                Shape::Vec(inner) => inner.iter().for_each(|s| walk(s, out)),
+                Shape::Rect(r) if r.stroke.width > 0.0 => {
+                    out.push((shape.clone(), r.stroke.width, r.stroke.color));
+                }
+                Shape::LineSegment { stroke, .. } if stroke.width > 0.0 => {
+                    out.push((shape.clone(), stroke.width, stroke.color));
+                }
+                _ => {}
+            }
+        }
+        let mut out = Vec::new();
+        w.shapes.iter().for_each(|c| walk(&c.shape, &mut out));
+        out
+    }
+
+    #[test]
+    fn caption_buttons_stay_flush_in_narrow_windows() {
+        for width in [360.0, 420.0, 600.0] {
+            let mut w = Win::new(width);
+            w.frame(vec![]);
+            w.frame(vec![]);
+            let [min, max, close] = Caption::ALL.map(|c| w.rect_of(c.id()));
+            assert_eq!((close.right(), close.top()), (width, 0.0), "at {width}");
+            assert_eq!((min.right(), max.right()), (max.left(), close.left()));
+        }
+    }
+
+    #[test]
+    fn caption_labels_follow_the_maximized_state() {
+        assert_eq!(Caption::Maximize.tip(false), "Maximize");
+        assert_eq!(Caption::Maximize.tip(true), "Restore down");
+        assert_eq!(Caption::Minimize.tip(true), "Minimize");
+        assert_eq!(Caption::Close.tip(false), "Close");
+    }
+
+    #[test]
+    fn double_click_restores_a_maximized_window() {
+        let mut w = Win::new(1440.0);
+        w.maximized = true;
+        w.frame(vec![]);
+        let empty = pos2(1000.0, 18.0);
+        let mut cmds = w.click(empty);
+        cmds.extend(w.click(empty));
+        assert!(
+            cmds.contains(&ViewportCommand::Maximized(false)),
+            "{cmds:?}"
+        );
+    }
+
+    #[test]
+    fn widgets_below_the_top_edge_click_and_the_edge_above_them_resizes() {
+        use ResizeDirection::*;
+        let mut w = Win::new(1000.0);
+        w.frame(vec![]);
+        let cmds = w.click(pos2(60.0, TOP_EDGE + 2.0));
+        assert!(!has_resize(&cmds), "{cmds:?}");
+        assert_eq!(w.clicked, ["View"]);
+        let cmds = w.gesture(&[pos2(60.0, 2.0), pos2(60.0, 9.0)]);
+        assert_eq!(cmds, vec![ViewportCommand::BeginResize(North)]);
+        assert_eq!(w.clicked, ["View"], "the edge press clicked a widget");
+    }
+
+    #[test]
+    fn the_close_button_wins_its_top_rows_and_the_window_corner_still_resizes() {
+        use ResizeDirection::*;
+        let mut w = Win::new(1000.0);
+        w.frame(vec![]);
+        let cmds = w.click(pos2(977.0, 4.0));
+        assert!(cmds.contains(&ViewportCommand::Close), "{cmds:?}");
+        assert!(!has_resize(&cmds), "{cmds:?}");
+        for (p, direction) in [
+            (pos2(977.0, 1.0), North),
+            (pos2(999.0, 1.0), NorthEast),
+            (pos2(999.0, 20.0), East),
+        ] {
+            let cmds = w.gesture(&[p, p + vec2(-6.0, 6.0)]);
+            assert_eq!(
+                cmds,
+                vec![ViewportCommand::BeginResize(direction)],
+                "at {p:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn resize_zones_leave_the_middle_of_a_tiny_window_free() {
+        for side in [14.0, 30.0, 60.0] {
+            let window = Rect::from_min_size(Pos2::ZERO, Vec2::splat(side));
+            for (zone, _, _) in zones(window) {
+                assert!(!zone.contains(window.center()), "{zone:?} in {side}");
+                assert!(window.contains_rect(zone), "{zone:?} outside {side}");
+            }
+        }
+    }
+
+    #[test]
+    fn carving_a_hole_out_of_a_zone_keeps_the_rest() {
+        let zone = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 10.0));
+        let far = Rect::from_min_max(pos2(200.0, 0.0), pos2(300.0, 10.0));
+        assert_eq!(carve(zone, far), vec![zone]);
+        assert!(carve(zone, zone.expand(1.0)).is_empty());
+        let pieces = carve(zone, Rect::from_min_max(pos2(40.0, 3.0), pos2(60.0, 20.0)));
+        assert_eq!(pieces.len(), 3);
+        let area: f32 = pieces.iter().map(|r| r.width() * r.height()).sum();
+        assert_eq!(area, 100.0 * 10.0 - 20.0 * 7.0);
+    }
+
+    #[test]
+    fn resize_pieces_never_cover_the_caption_buttons() {
+        let window = Rect::from_min_size(Pos2::ZERO, vec2(1000.0, 600.0));
+        let bar_h = Metrics::for_density(Density::Regular).bar_h;
+        let hole = caption_hole(window, bar_h);
+        for (piece, _, _) in resize_pieces(window, bar_h) {
+            assert!(
+                !piece.intersects(hole.shrink(0.5)),
+                "{piece:?} over {hole:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn edges_are_skipped_in_fullscreen_and_when_maximized() {
+        for (maximized, fullscreen) in [(true, false), (false, true)] {
+            let mut w = Win::new(1000.0);
+            w.maximized = maximized;
+            w.fullscreen = fullscreen;
+            w.frame(vec![]);
+            let cmds = w.gesture(&[pos2(1.0, 300.0), pos2(8.0, 300.0)]);
+            assert!(!has_resize(&cmds), "{maximized} {fullscreen}: {cmds:?}");
+            let outline = Tokens::get(&w.ctx).card_border;
+            let window = Rect::from_min_size(Pos2::ZERO, vec2(1000.0, 600.0));
+            let drawn = strokes(&w).into_iter().any(|(shape, _, color)| {
+                color == outline && matches!(shape, Shape::Rect(r) if r.rect == window)
+            });
+            assert!(!drawn, "outline drawn at {maximized} {fullscreen}");
+        }
+    }
+
+    #[test]
+    fn the_outline_and_the_separator_are_one_physical_pixel() {
+        for ppp in [1.0_f32, 1.25, 1.5, 2.0] {
+            let mut w = Win::new(800.0);
+            w.ctx.set_pixels_per_point(ppp);
+            w.frame(vec![]);
+            w.frame(vec![]);
+            let hairline = 1.0 / ppp;
+            let outline = Tokens::get(&w.ctx).card_border;
+            let separator = Tokens::get(&w.ctx).separator;
+            let found = |color: Color32, rect: bool| {
+                strokes(&w).into_iter().any(|(shape, width, c)| {
+                    c == color
+                        && (width - hairline).abs() < 1e-4
+                        && matches!(shape, Shape::Rect(_)) == rect
+                })
+            };
+            assert!(found(outline, true), "outline at {ppp}");
+            assert!(found(separator, false), "separator at {ppp}");
+        }
+    }
+
+    #[test]
+    fn a_window_manager_drag_does_not_leave_the_next_click_swallowed() {
+        let mut w = Win::new(1440.0);
+        w.frame(vec![]);
+        let empty = pos2(1000.0, 18.0);
+        w.frame(vec![Event::PointerMoved(empty)]);
+        w.frame(vec![button(empty, true)]);
+        let cmds = w.frame(vec![Event::PointerMoved(empty + vec2(14.0, 6.0))]);
+        assert!(cmds.contains(&ViewportCommand::StartDrag), "{cmds:?}");
+        // The window manager now owns the pointer: egui sees it leave and never sees the release.
+        w.frame(vec![Event::PointerGone]);
+        w.frame(vec![]);
+        assert!(
+            !w.ctx.input(|i| i.pointer.any_down()),
+            "egui kept the press"
+        );
+        w.click(pos2(60.0, 18.0));
+        assert_eq!(w.clicked, ["View"]);
+    }
+
+    #[test]
+    fn the_press_that_started_a_resize_is_ended_without_a_click() {
+        let mut w = Win::new(1000.0);
+        w.frame(vec![]);
+        let edge = pos2(998.0, 300.0);
+        w.frame(vec![Event::PointerMoved(edge)]);
+        let mut cmds = w.frame(vec![button(edge, true)]);
+        cmds.extend(w.frame(vec![]));
+        assert!(
+            cmds.contains(&ViewportCommand::BeginResize(ResizeDirection::East)),
+            "{cmds:?}"
+        );
+        let mut clicks = w.ctx.input(|i| i.pointer.any_click());
+        for _ in 0..3 {
+            w.frame(vec![]);
+            clicks |= w.ctx.input(|i| i.pointer.any_click());
+        }
+        assert!(!clicks, "the injected release counted as a click");
+        assert!(!w.ctx.input(|i| i.pointer.any_down()));
+        assert!(w.clicked.is_empty());
+    }
+
+    /// Every filled rectangle of the last frame.
+    fn fills(w: &Win) -> Vec<Color32> {
+        fn walk(shape: &Shape, out: &mut Vec<Color32>) {
+            match shape {
+                Shape::Vec(inner) => inner.iter().for_each(|s| walk(s, out)),
+                Shape::Rect(r) => out.push(r.fill),
+                _ => {}
+            }
+        }
+        let mut out = Vec::new();
+        w.shapes.iter().for_each(|c| walk(&c.shape, &mut out));
+        out
+    }
+
+    #[test]
+    fn caption_buttons_fill_on_hover_and_press_and_close_goes_red() {
+        let mut w = Win::new(1000.0);
+        w.frame(vec![]);
+        w.frame(vec![]);
+        let t = Tokens::get(&w.ctx);
+        let [min, _, close] = Caption::ALL.map(|c| w.rect_of(c.id()).center());
+        assert!(!fills(&w).contains(&CLOSE_HOVER));
+        w.frame(vec![Event::PointerMoved(close)]);
+        w.frame(vec![]);
+        assert!(fills(&w).contains(&CLOSE_HOVER), "no red hover fill");
+        w.frame(vec![button(close, true)]);
+        assert!(fills(&w).contains(&CLOSE_PRESS), "no pressed fill");
+        w.frame(vec![button(close, false)]);
+        w.frame(vec![Event::PointerMoved(min)]);
+        w.frame(vec![]);
+        let fills = fills(&w);
+        assert!(fills.contains(&t.hover), "no neutral hover fill");
+        assert!(
+            !fills.contains(&CLOSE_HOVER),
+            "the red fill stayed after leaving"
+        );
     }
 }

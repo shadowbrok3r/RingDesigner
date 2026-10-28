@@ -1,4 +1,5 @@
 use super::*;
+use crate::icons::{self, Icon};
 use egui::{Color32, RichText, Stroke, pos2, vec2};
 use ringdesign_core::{
     cad::{self, ComponentRole, Feature, Operation, Placement},
@@ -48,39 +49,40 @@ impl Workshop {
             self.worker = None;
         }
         ui.horizontal_wrapped(|ui| {
-            ui.heading("Casting workshop");
-            ui.weak(if self.session.draft.is_some() {
-                "Unapplied changes"
-            } else {
-                "Current design"
+            icons::section(ui, Icon::CastSetup, "Casting");
+            ui.menu_button((Icon::More.image(ui, 18.0), "More"), |ui| {
+                if ui.button("Advanced CAD tools").clicked() { self.tab = 3; self.stage = Stage::Nominal; ui.close(); }
+                ui.separator();
+                if ui.add_enabled(!self.session.undo.is_empty(), egui::Button::new((Icon::Undo.image(ui, 18.0), "Undo"))).clicked() { events.changed |= self.session.undo(source); }
+                if ui.add_enabled(!self.session.redo.is_empty(), egui::Button::new((Icon::Redo.image(ui, 18.0), "Redo"))).clicked() { events.changed |= self.session.redo(source); }
             });
+            if self.session.draft.is_some() { ui.weak("Unapplied changes"); }
             if self.session.busy {
                 ui.spinner();
                 ui.label("Checking the pattern…");
             }
         });
-        ui.weak("Choose how you cast, check the pattern, then export the workshop files.");
-        ui.horizontal_wrapped(|ui| {
-            for (i, label) in ["1 Setup", "2 Check & fix", "3 Export"].into_iter().enumerate() {
-                ui.selectable_value(&mut self.tab, i, label);
+        ui.horizontal(|ui| {
+            let width = ((ui.available_width() - 2.0 * ui.spacing().item_spacing.x) / 3.0).max(48.0);
+            for (i, (icon, label)) in [(Icon::CastSetup, "Setup"), (Icon::CastCheck, "Check"), (Icon::CastPackage, "Export")].into_iter().enumerate() {
+                if icons::button(ui, icon, label, self.tab == i, vec2(width, 32.0)).clicked() {
+                    self.tab = i;
+                    if i == 1 { self.stage = Stage::Pattern; }
+                }
             }
-            ui.menu_button("More", |ui| {
-                if ui.button("Advanced CAD tools").clicked() { self.tab = 3; self.stage = Stage::Nominal; ui.close(); }
-            });
         });
+        if matches!(self.tab, 1 | 3) || self.session.draft.is_some() || self.session.busy {
         ui.horizontal_wrapped(|ui| {
-            if ui
-                .add_enabled(!self.session.busy, egui::Button::new("Check pattern"))
-                .clicked()
-            {
+            if matches!(self.tab, 1 | 3) && ui.add_enabled_ui(!self.session.busy, |ui| icons::primary(ui, Icon::CastCheck, "Check pattern")).inner.clicked() {
                 self.send(ui, source, lib, Action::Inspect);
             }
+            if self.session.draft.is_some() || self.session.busy {
             if ui
                 .add_enabled(
                     self.session.draft.is_some()
                         && self.session.is_current(source)
                         && !self.session.busy,
-                    egui::Button::new("Apply changes"),
+                    egui::Button::new((Icon::Check.image(ui, 18.0), "Apply changes")),
                 )
                 .clicked()
             {
@@ -89,7 +91,7 @@ impl Workshop {
             if ui
                 .add_enabled(
                     self.session.draft.is_some() || self.session.busy,
-                    egui::Button::new("Discard changes"),
+                    egui::Button::new((Icon::Close.image(ui, 18.0), "Discard changes")),
                 )
                 .clicked()
             {
@@ -97,15 +99,9 @@ impl Workshop {
                 self.worker = None;
                 self.feature_text_id = None;
             }
-            ui.menu_button("History", |ui| {
-                if ui.add_enabled(!self.session.undo.is_empty(), egui::Button::new("Undo")).clicked() {
-                    events.changed |= self.session.undo(source);
-                }
-                if ui.add_enabled(!self.session.redo.is_empty(), egui::Button::new("Redo")).clicked() {
-                    events.changed |= self.session.redo(source);
-                }
-            });
+            }
         });
+        }
         if let Some(e) = &self.session.error {
             ui.colored_label(Color32::from_rgb(255, 120, 135), e);
         }
@@ -150,24 +146,22 @@ impl Workshop {
         let mut inspect = false;
         match self.tab {
             0 => {
-                ui.strong("Choose your material and process");
-                ui.label("Start with a recipe and your alloy. The defaults are ready for a first check.");
+                ui.weak("Choose your process and alloy, then check the pattern.");
                 self.casting(ui, d);
-                if ui.add_enabled(!self.session.busy, egui::Button::new("Continue to check & fix")).clicked() {
+                if ui.add_enabled_ui(!self.session.busy, |ui| icons::primary(ui, Icon::CastCheck, "Continue to check & fix")).inner.clicked() {
                     self.tab = 1;
                     self.stage = Stage::Pattern;
                     inspect = true;
                 }
             }
             1 => {
-                ui.strong("Can the pattern leave the mold?");
-                ui.label("Select a problem to locate it. Try a correction, check it, then apply the result when ready.");
+                icons::section(ui, Icon::CastCheck, "Pattern findings");
                 if self.session.view_key != Some(key(d)) && self.session.view.is_some() {
                     ui.colored_label(Color32::from_rgb(240, 190, 100), "Previous findings — use Check pattern to update them.");
                 }
                 self.findings(ui);
                 self.repairs(ui, d);
-                if ui.button("Continue to export").clicked() { self.tab = 2; }
+                if icons::button(ui, Icon::CastPackage, "Continue to export", false, vec2(0.0, 32.0)).clicked() { self.tab = 2; }
             }
             2 => {
                 self.channels(ui, d);
@@ -196,14 +190,11 @@ impl Workshop {
             .unwrap_or_else(|| Setup::from_design(d));
         let old = serde_json::to_vec(&setup).unwrap();
         let old_process = setup.recipe.process;
-        ui.strong("Casting process");
+        icons::section(ui, Icon::Sand, "Casting process");
         ui.horizontal_wrapped(|ui| {
-            ui.selectable_value(
-                &mut setup.recipe.process,
-                CastProcess::SandTwoPart,
-                "Two-part sand",
-            );
-            ui.selectable_value(&mut setup.recipe.process, CastProcess::LostWax, "Lost wax");
+            for (process, icon, name) in [(CastProcess::SandTwoPart, Icon::Sand, "Two-part sand"), (CastProcess::LostWax, Icon::Investment, "Lost wax")] {
+                if icons::button(ui, icon, name, setup.recipe.process == process, vec2(0.0, 32.0)).clicked() { setup.recipe.process = process; }
+            }
         });
         if setup.recipe.process != old_process {
             let mut limits = d.draft.clone();
@@ -215,21 +206,25 @@ impl Workshop {
             setup.recipe.min_detail_mm = limits.min_detail_mm;
             setup.recipe.min_draft_deg = limits.min_draft_deg;
         }
-        ui.horizontal_wrapped(|ui| {
-            if ui.button("Delft starting recipe").clicked() {
-                setup.recipe = Recipe::sand(SandProcess::DelftClay);
-            }
-            if ui.button("Petrobond starting recipe").clicked() {
-                setup.recipe = Recipe::sand(SandProcess::Petrobond);
-            }
-        });
-        egui::ComboBox::from_id_salt("alloy")
+        if setup.recipe.process == CastProcess::SandTwoPart {
+            crate::controls::row(ui, "Sand recipe", |ui| {
+                egui::ComboBox::from_id_salt("sand-recipe")
+                    .selected_text(setup.recipe.sand.map_or("Custom", |s| s.label()))
+                    .show_ui(ui, |ui| {
+                        for sand in [SandProcess::DelftClay, SandProcess::Petrobond] {
+                            if ui.selectable_label(setup.recipe.sand == Some(sand), sand.label()).clicked() { setup.recipe = Recipe::sand(sand); }
+                        }
+                    });
+            });
+        }
+        icons::section(ui, Icon::Alloy, "Metal & allowance");
+        crate::controls::row(ui, "Alloy", |ui| { egui::ComboBox::from_id_salt("alloy")
             .selected_text(&setup.recipe.alloy)
             .show_ui(ui, |ui| {
                 for m in ringdesign_core::metal::METALS {
                     ui.selectable_value(&mut setup.recipe.alloy, m.name.into(), m.name);
                 }
-            });
+            }); });
         number(ui, "Shrink allowance %", &mut setup.recipe.shrink_pct);
         if let Some(doc) = &d.cad {
             let band = doc.band().is_some();
@@ -253,7 +248,7 @@ impl Workshop {
                     }
                 });
         }
-        ui.collapsing("Advanced: mold opening direction", |ui| {
+        ui.collapsing("Mold opening direction", |ui| {
             ui.weak("Choose the direction the pattern lifts out and where the mold halves meet.");
             xyz(ui, "Pull direction", &mut setup.pull);
             ui.horizontal_wrapped(|ui| {
@@ -279,7 +274,7 @@ impl Workshop {
                     }
                 });
         });
-        ui.collapsing("Advanced: finishing stock, mold size & limits", |ui| {
+        ui.collapsing("Finish, mold & limits", |ui| {
             ui.weak("Finishing stock adds metal for later polishing or reaming. The flask is the box holding the sand.");
             for (label, v) in [
                 ("Radial stock mm", &mut setup.radial_stock_mm),

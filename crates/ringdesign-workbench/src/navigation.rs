@@ -153,6 +153,8 @@ impl Action {
 
 pub struct Response {
     pub rect: Rect,
+    /// Actual occupied islands; compact navigation leaves the space beside the cube free.
+    pub obstacles: Vec<Rect>,
     pub action: Option<Action>,
     pub changed: bool,
     /// Exposed to the phone's layout report and device review tools.
@@ -315,7 +317,7 @@ pub fn show(
     angles: [f32; 3],
     head: f32,
 ) -> Response {
-    show_impl(ui, viewport, id, settings, angles, head, true)
+    show_impl(ui, viewport, id, settings, angles, head, true, None)
 }
 
 /// Camera controls without surface-placement tools (CAD and study previews).
@@ -327,29 +329,51 @@ pub fn show_camera(
     angles: [f32; 3],
     head: f32,
 ) -> Response {
-    show_impl(ui, viewport, id, settings, angles, head, false)
+    show_impl(ui, viewport, id, settings, angles, head, false, None)
 }
 
-fn show_impl(
-    ui: &egui::Ui,
-    viewport: Rect,
-    id: egui::Id,
-    settings: &mut Settings,
-    angles: [f32; 3],
-    head: f32,
-    placement: bool,
-) -> Response {
+/// One camera action row and an independently hideable cube on a phone.
+pub fn show_mobile(ui: &egui::Ui, viewport: Rect, id: egui::Id, settings: &mut Settings, angles: [f32; 3], head: f32, cube: bool) -> Response {
+    show_impl(ui, viewport, id, settings, angles, head, true, Some(cube))
+}
+
+fn navigator_frame(ui: &egui::Ui) -> egui::Frame {
+    egui::Frame::new().fill(ui.visuals().window_fill)
+        .stroke(Stroke::new(1.0, ui.visuals().window_stroke.color))
+        .corner_radius(5).inner_margin(4)
+}
+
+fn show_impl(ui: &egui::Ui, viewport: Rect, id: egui::Id, settings: &mut Settings, angles: [f32; 3], head: f32, placement: bool, mobile: Option<bool>) -> Response {
     let before = *settings;
     let mut action = None;
     let mut controls = vec![];
+    let mut obstacles = vec![];
+    let compact = mobile.is_some();
+    let width = if compact { 6.0 * ui.spacing().interact_size.y.min(30.0) + 5.0 * 3.0 + 8.0 } else { 104.0 };
     let area = egui::Area::new(id.with("ring-navigator"))
         .order(egui::Order::Foreground).movable(false)
-        .fixed_pos(viewport.right_top() + egui::vec2(-110.0, 7.0))
+        .fixed_pos(viewport.right_top() + egui::vec2(-width - 3.0, 5.0))
         .show(ui.ctx(), |ui| {
-            egui::Frame::new().fill(egui_mobile_theme::palette::WINDOW)
-                .stroke(Stroke::new(1.0, egui_mobile_theme::palette::BORDER))
-                .corner_radius(5).inner_margin(5).show(ui, |ui| {
-                    ui.spacing_mut().item_spacing = egui::vec2(3.0, 3.0);
+            navigator_frame(ui).show(ui, |ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(3.0, 3.0);
+                if !compact { draw_cube(ui, id, angles, head, &mut action, &mut controls); }
+                camera_buttons(ui, settings, angles, placement, compact, &mut action, &mut controls);
+            });
+        });
+    obstacles.push(area.response.rect);
+    if mobile == Some(true) {
+        let cube = egui::Area::new(id.with("mobile-view-cube"))
+            .order(egui::Order::Foreground).movable(false)
+            .fixed_pos(egui::pos2(viewport.right() - 107.0, area.response.rect.bottom() + 3.0))
+            .show(ui.ctx(), |ui| {
+                navigator_frame(ui).show(ui, |ui| draw_cube(ui, id, angles, head, &mut action, &mut controls));
+            });
+        obstacles.push(cube.response.rect);
+    }
+    Response { rect: obstacles.iter().copied().reduce(Rect::union).unwrap_or(Rect::NOTHING), obstacles, action, changed: before != *settings, controls }
+}
+
+fn draw_cube(ui: &mut egui::Ui, id: egui::Id, angles: [f32; 3], head: f32, action: &mut Option<Action>, controls: &mut Vec<(&'static str, Rect)>) {
                     let (r, _) = ui.allocate_exact_size(egui::vec2(96.0, 92.0), egui::Sense::hover());
                     let ink = Color32::from_rgb(143, 137, 156);
                     let aqua = egui_mobile_theme::palette::INFO;
@@ -361,12 +385,12 @@ fn show_impl(
                     cube.paint(ui.painter(), under.filter(|_| !body.dragged()));
                     let held = icons::help(&body, "View cube", "Turns with the ring: FACE is the head, PALM the underside, BORE and BACK the two openings.", "Tap a face to look straight at it, an edge or a corner to look between faces. Drag the cube to orbit. Double-tap for the home view.", "The arrows step to the face on that side. Mirror shows the same view from the other shoulder.");
                     if body.dragged() {
-                        action = Some(Action::Orbit(body.drag_delta()));
+                        *action = Some(Action::Orbit(body.drag_delta()));
                     } else if body.double_clicked() {
-                        action = Some(Action::View(View::ThreeQuarter));
+                        *action = Some(Action::View(View::ThreeQuarter));
                     } else if body.clicked() && !held {
                         if let Some(hit) = body.interact_pointer_pos().and_then(|p| cube.hit(p)) {
-                            action = Some(Action::Look(cube.look(hit)));
+                            *action = Some(Action::Look(cube.look(hit)));
                         }
                     }
                     // The arrows round the cube: the face on that side.
@@ -380,33 +404,41 @@ fn show_impl(
                         let size = if at.x == 0.0 { egui::vec2(40.0, 14.0) } else { egui::vec2(16.0, 40.0) };
                         let hit = ui.interact(Rect::from_center_size(centre, size), id.with(name), egui::Sense::click());
                         ui.painter().add(egui::Shape::convex_polygon(tip.iter().map(|t| centre + *t).collect(), if hit.hovered() { aqua } else { ink }, Stroke::NONE));
-                        if hit.clicked() { action = Some(command); }
+                        if hit.clicked() { *action = Some(command); }
                         controls.push((name, hit.rect));
                     }
-                    ui.horizontal(|ui| {
+}
+
+fn camera_buttons(ui: &mut egui::Ui, settings: &mut Settings, angles: [f32; 3], placement: bool, compact: bool, action: &mut Option<Action>, controls: &mut Vec<(&'static str, Rect)>) {
+    ui.horizontal(|ui| {
                         for (icon, name, tip, command) in [
                             (Icon::Reset, "Home view", "The three-quarter view of the head.", Action::View(View::ThreeQuarter)),
                             (Icon::Mirror, "Mirror", "The same view from the other shoulder. The face never turns away.", Action::Mirror),
                         ] {
                             let b = icons::compact(ui, icon, false);
                             controls.push((name, b.rect));
-                            if b.response.clone().on_hover_text(tip).clicked() { action = Some(command); }
+                            if b.response.clone().on_hover_text(tip).clicked() { *action = Some(command); }
                         }
                         let menu = icons::compact(ui, Icon::View, false);
                         controls.push(("Views", menu.rect));
                         egui::Popup::menu(&menu.response).open_memory(if menu.clicked() { Some(egui::SetOpenCommand::Toggle) } else { None }).show(|ui| {
                             for view in View::ALL {
-                                if ui.button(view.label()).clicked() { action = Some(Action::View(view)); ui.close(); }
+                                if ui.button(view.label()).clicked() { *action = Some(Action::View(view)); ui.close(); }
                             }
                             ui.separator();
-                            if ui.button("Opposite side").clicked() { action = Some(Action::Opposite); ui.close(); }
+                            if ui.button("Opposite side").clicked() { *action = Some(Action::Opposite); ui.close(); }
                             for (name, command) in [("Roll left 90\u{b0}", Action::Roll(1.0)), ("Roll right 90\u{b0}", Action::Roll(-1.0)), ("Upside down", Action::Roll(2.0))] {
-                                if ui.button(name).clicked() { action = Some(command); ui.close(); }
+                                if ui.button(name).clicked() { *action = Some(command); ui.close(); }
                             }
                             ui.small(if settings.locked { "Locked · empty space pans" } else { "Free · empty space orbits" });
                         });
-                    });
-                    ui.horizontal(|ui| {
+
+        if compact { placement_buttons(ui, settings, angles, placement, action, controls); }
+    });
+    if !compact { ui.horizontal(|ui| placement_buttons(ui, settings, angles, placement, action, controls)); }
+}
+
+fn placement_buttons(ui: &mut egui::Ui, settings: &mut Settings, angles: [f32; 3], placement: bool, action: &mut Option<Action>, controls: &mut Vec<(&'static str, Rect)>) {
                         let lock = icons::compact(ui, if settings.locked { Icon::Locked } else { Icon::Unlocked }, settings.locked);
                         controls.push(("Lock view", lock.rect));
                         if lock.clicked() { settings.locked = !settings.locked; }
@@ -419,16 +451,7 @@ fn show_impl(
                         let upside_down = (angles[2].abs() - PI).abs() < 0.2;
                         let flip = icons::compact(ui, Icon::Rotate, upside_down);
                         controls.push(("Upside down", flip.rect));
-                        if flip.response.clone().on_hover_text("Turn the ring upside down in the view, and back. Two fingers twist it freely.").clicked() { action = Some(Action::Roll(2.0)); }
-                    });
-                });
-        });
-    Response {
-        rect: area.response.rect,
-        action,
-        changed: before != *settings,
-        controls,
-    }
+                        if flip.response.clone().on_hover_text("Turn the ring upside down in the view, and back. Two fingers twist it freely.").clicked() { *action = Some(Action::Roll(2.0)); }
 }
 
 /// Full magnification, and the floor it falls back to for a placement too wide
@@ -510,6 +533,10 @@ pub fn loupe_zoom(lens: Rect, reach: f32) -> f32 {
     }
     (room / reach).clamp(LOUPE_MIN_ZOOM, LOUPE_ZOOM)
 }
+
+#[cfg(test)]
+#[path = "navigation_mobile_tests.rs"]
+mod mobile_tests;
 
 #[cfg(test)]
 mod tests {

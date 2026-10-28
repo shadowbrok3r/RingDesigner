@@ -1074,7 +1074,7 @@ fn toolbar(app: &mut RingDesignerApp, ui: &mut egui::Ui) {
         ui.ctx().send_viewport_cmd(egui::ViewportCommand::Title(title));
     }
     TitleBar::new("ringdesigner.title_bar", &document)
-        .frameless(app.custom_title_bar)
+        .frameless(app.chrome.frameless)
         .show(ui, |ui, side| {
             ui.spacing_mut().item_spacing.x = if compact { 3. } else { 6. };
             match side {
@@ -1098,6 +1098,7 @@ fn toolbar_left(app: &mut RingDesignerApp, ui: &mut egui::Ui, compact: bool) {
         });
         ui.menu_button("Viewport layout", |ui| layout_controls(app, ui, true));
         ui.separator();
+        egui_theme_kit::chrome::toggle_row(ui, &mut app.chrome, "Custom title bar");
         if ui.button("Default layout")
             .on_hover_text("Put this workspace's panels and views back where they start")
             .clicked()

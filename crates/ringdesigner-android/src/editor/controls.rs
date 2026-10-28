@@ -94,9 +94,9 @@ pub fn field(
                 let response = ui.add_sized(
                     [width, 32.0],
                     egui::Button::new(egui::RichText::new(label).color(if active == label {
-                        crate::theme::AQUA_BRIGHT
+                        egui_theme_kit::colors::primary(ui)
                     } else {
-                        crate::theme::INK
+                        ui.visuals().text_color()
                     }))
                     .frame(true)
                     .truncate(),
@@ -135,7 +135,7 @@ pub fn field(
                 ui.label(
                     egui::RichText::new(help)
                         .size(12.0)
-                        .color(crate::theme::INK_DIM),
+                        .color(ui.visuals().weak_text_color()),
                 );
             }
         },
@@ -736,24 +736,20 @@ pub fn stones(
 pub fn casting(ui: &mut egui::Ui, editor: &mut Editor, d: &mut RingDesign) -> Edit {
     let mut edit = Edit::default();
     use ringdesign_core::castability::CastProcess;
-    ui.strong("Prepare a casting pattern");
-    ui.label("Set up your material, check the mold, then export a pattern package.");
-    if ui.button("Open casting workshop").clicked() {
+    use ringdesign_workbench::icons::{self, Icon};
+    if icons::primary(ui, Icon::CastSetup, "Open casting workshop").clicked() {
         edit.action = Some(Action::Workshop);
     }
+    ui.weak("Setup → Check → Export");
     ui.separator();
-    ui.strong("Quick surface checks");
+    crate::theme::section(ui, Icon::CastCheck, "Surface check");
     ui.horizontal(|ui| {
         let width = super::row_width(ui.available_width(), 2, ui.spacing().item_spacing.x);
-        for (process, label) in [
-            (CastProcess::SandTwoPart, "Sand casting"),
-            (CastProcess::LostWax, "Investment"),
+        for (process, icon, label) in [
+            (CastProcess::SandTwoPart, Icon::Sand, "Sand casting"),
+            (CastProcess::LostWax, Icon::Investment, "Investment"),
         ] {
-            if ui
-                .add_sized(
-                    [width, 32.0],
-                    egui::Button::new(label).selected(d.draft.process == process),
-                )
+            if icons::button(ui, icon, label, d.draft.process == process, egui::vec2(width, 32.0))
                 .clicked()
                 && d.draft.process != process
             {
@@ -779,11 +775,8 @@ pub fn casting(ui: &mut egui::Ui, editor: &mut Editor, d: &mut RingDesign) -> Ed
             }
         }
     });
-    ui.label(if d.draft.process == CastProcess::SandTwoPart {
-        "The pattern must lift out without tearing the sand. Tap a surface to inspect it; use the workshop for the complete pattern check."
-    } else { "Undercuts are allowed in investment casting; wall thickness and fine detail still need checking." });
     ui.horizontal_wrapped(|ui| {
-        if ui.button("Surface findings").clicked() {
+        if icons::button(ui, Icon::CastCheck, "Surface findings", false, egui::vec2(0.0, 32.0)).clicked() {
             edit.action = Some(Action::Findings);
         }
     });
@@ -794,6 +787,11 @@ pub fn casting(ui: &mut egui::Ui, editor: &mut Editor, d: &mut RingDesign) -> Ed
         ))
         .small(),
     );
+    ui.collapsing("What does this check?", |ui| {
+        ui.label(if d.draft.process == CastProcess::SandTwoPart {
+            "The pattern must lift out without tearing the sand. Tap a surface to inspect it; use the workshop for the complete pattern check."
+        } else { "Undercuts are allowed in investment casting; wall thickness and fine detail still need checking." });
+    });
     if let Some(hit) = &editor.selection {
         ui.separator();
         ui.label(format!("Picked surface: {:.1}° around ring", hit.theta_deg));

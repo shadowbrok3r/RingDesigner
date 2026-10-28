@@ -27,7 +27,7 @@ const TAG_PT: f32 = 10.0;
 pub(super) fn show(ui: &mut Ui, state: &mut PickerState, store: &dyn ThemeStore) {
     let ctx = ui.ctx().clone();
     let hint = label(state, "search", "Search presets");
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.add(
             TextEdit::singleline(&mut state.search)
                 .hint_text(hint)

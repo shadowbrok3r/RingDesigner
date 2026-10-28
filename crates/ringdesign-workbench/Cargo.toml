@@ -8,6 +8,7 @@ license.workspace = true
 glow = ["dep:egui_glow"]
 
 [dependencies]
+egui-theme-kit = { git = "https://github.com/shadowbrok3r/egui-theme-kit", rev = "09d1e793076357ec5d86df7e1d6771d0306f2e70", default-features = false, features = ["controls"] }
 egui-mobile-theme.workspace = true
 ringdesign-assets.workspace = true
 ringdesign-core = { path = "../ringdesign-core", default-features = false }
@@ -25,6 +26,14 @@ resvg = { version = "0.48.1", default-features = false }
 wasm-bindgen = "0.2"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = ["Worker", "MessageEvent", "ErrorEvent"] }
+
+# The shared kit currently exposes egui through eframe. Host-only tests still
+# need a winit platform; no window or renderer is started by these modules.
+[target.'cfg(target_os = "linux")'.dependencies]
+eframe = { version = "0.37", default-features = false, features = ["x11"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+eframe = { version = "0.37", default-features = false, features = ["android-native-activity"] }
 
 [dev-dependencies]
 egui_kittest = "0.37"

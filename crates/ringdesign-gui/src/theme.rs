@@ -12,19 +12,6 @@ pub struct ThemeState {
     store: Arc<EframeStorageStore>,
 }
 
-// The initial kit release exposes a narrower startup-store trait than its
-// picker store. Bridge the two, including the picker's pinned startup choice.
-struct StartupStore(Arc<EframeStorageStore>);
-impl egui_theme_kit::startup::ThemeStore for StartupStore {
-    fn load_active(&self) -> Option<SavedTheme> {
-        let (theme, source) = egui_theme_kit::persist::resolve_with_store(self.0.as_ref(), None);
-        (!matches!(source, egui_theme_kit::persist::ThemeSource::Embedded)).then_some(theme)
-    }
-    fn save_active(&self, theme: &SavedTheme) {
-        self.0.save_active(theme);
-    }
-}
-
 impl ThemeState {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let store = Arc::new(EframeStorageStore::from_storage(cc.storage));
@@ -51,7 +38,7 @@ impl ThemeState {
                     egui_phosphor::add_to_fonts(fonts, egui_phosphor::Variant::Regular);
                 }))
                 .default_theme(import_legacy(Default::default()))
-                .store(Arc::new(StartupStore(store.clone())))
+                .store(store.clone())
                 .parse_cli(!cfg!(test)),
         );
         Self {
@@ -76,18 +63,7 @@ impl ThemeState {
         if !from_file {
             self.store.save_active(&SavedTheme::current(ctx));
         }
-        self.store.save_to(storage);
-        // The store elides Graphite, its own default. RingDesigner's configured
-        // default is different, so explicitly retain every chosen active theme.
-        if let Some(active) = self.store.load_active() {
-            match egui_theme_kit::saved::theme_to_json(&active) {
-                Ok(json) => storage.set_string(
-                    egui_theme_kit::persist::STORAGE_KEY,
-                    String::from_utf8_lossy(&json).into_owned(),
-                ),
-                Err(error) => log::error!("Cannot save theme: {error}"),
-            }
-        }
+        self.store.save_in(ctx, storage);
         storage.set_string(MIGRATED_KEY, "true".into());
     }
 }

@@ -423,7 +423,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
     let head = app.design.shank.head.theta_deg as f32;
     let camera = app.panes[pane].camera;
     let nav = if follow_node {
-        ringdesign_workbench::navigation::Response { rect: egui::Rect::NOTHING, action: None, changed: false, controls: Vec::new() }
+        ringdesign_workbench::navigation::Response { rect: egui::Rect::NOTHING, obstacles: Vec::new(), action: None, changed: false, controls: Vec::new() }
     } else {
         ringdesign_workbench::navigation::show(ui, rect, ui.scope_id().with(("desktop-view", pane)),
             &mut app.panes[pane].navigation, [camera.yaw, camera.pitch, camera.roll], head)

@@ -25,6 +25,10 @@ impl RingApp {
     }
 
     fn clear_opened_menus(&mut self, ctx: &egui::Context, view: egui::Rect, manual: bool) {
+        if !self.editor.workspace.move_ring_from_menus {
+            self.editor.menu_avoidance.observe(&[], true, false);
+            return;
+        }
         let overlays: Vec<_> = ctx.memory(|m| {
             m.areas().visible_layer_ids().into_iter()
                 .filter(|layer| layer.order == egui::Order::Foreground && !crate::cad::areas().contains(&layer.id))
@@ -127,16 +131,22 @@ impl RingApp {
             let width = editor::row_width(ui.available_width(), 5, 2.0);
             for mode in Mode::ALL {
                 let selected = self.tab == Tab::Ring && self.editor.mode == mode;
+                let font = egui::TextStyle::Button.resolve(ui.style());
+                let text_width = ui.fonts_mut(|f| f.layout_no_wrap(mode.label().into(), font, egui::Color32::WHITE).size().x);
+                let label = if text_width + 2.0 * ui.spacing().button_padding.x + 6.0 > width {
+                    match mode { Mode::Shape => "Ring", Mode::Surface => "Art", Mode::Stones => "Gems", Mode::Casting => "Cast" }
+                } else { mode.label() };
                 // Text remains readable on a phone; icons alongside every
                 // label used to truncate Surface, Stones and Casting.
                 let response = if width < 96.0 {
-                    ui.add_sized([width, ui.spacing().interact_size.y], crate::theme::selectable(selected, mode.label()).truncate())
+                    ui.add_sized([width, ui.spacing().interact_size.y], crate::theme::selectable(selected, label).truncate()).on_hover_text(mode.label())
                 } else {
                     ringdesign_workbench::icons::button(
                         ui, ringdesign_workbench::icons::Icon::for_label(mode.label()),
                         mode.label(), selected, egui::vec2(width, 30.0),
                     ).response
                 };
+                response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected, mode.label()));
                 editor::layout::record(ui, format!("mode/{}", mode.label()), response.rect);
                 if response.clicked() {
                     self.choose_mode(mode);
@@ -151,7 +161,7 @@ impl RingApp {
                 &[egui::RectAlign::BOTTOM_END],
                 egui::PopupCloseBehavior::CloseOnClick,
                 |ui| {
-                    ui.weak("Create & edit");
+                    crate::theme::section(ui, ringdesign_workbench::icons::Icon::Surface, "Create & edit");
                     for (tab, title) in [
                         (Tab::Alphas, "Patterns & alphas"),
                         (Tab::Band, "Paint the band"),
@@ -170,7 +180,7 @@ impl RingApp {
                         }
                     }
                     ui.separator();
-                    ui.weak("Check & export");
+                    crate::theme::section(ui, ringdesign_workbench::icons::Icon::CastCheck, "Check & export");
                     if tool_action(ui, "Casting workshop").clicked() { self.open_tool_tab(Tab::Workshop); }
                     if tool_action(ui, "Measurements & stone report").clicked() {
                         self.tab = Tab::Ring;
@@ -178,7 +188,7 @@ impl RingApp {
                     }
                     if tool_action(ui, "Files & exports").clicked() { self.open_tool_tab(Tab::Files); }
                     ui.separator();
-                    ui.weak("Workspace");
+                    crate::theme::section(ui, ringdesign_workbench::icons::Icon::Panel, "Workspace");
                     if tool_action(ui, "Theme").clicked() { self.open_tool_tab(Tab::Theme); }
                     if tool_action(ui, "Edit history").clicked() {
                         self.tab = Tab::Ring;
@@ -220,7 +230,7 @@ impl RingApp {
     fn status_line(&mut self, ui: &mut egui::Ui) {
         let now = ui.input(|i| i.time);
         let fresh = self.status_seen.fresh(&self.status, now);
-        let color = if fresh { crate::theme::AQUA_BRIGHT } else { crate::theme::INK_DIM };
+        let color = if fresh { egui_theme_kit::colors::info(ui) } else { ui.visuals().weak_text_color() };
         let text = egui::RichText::new(&self.status).size(12.0).color(color);
         let label = if self.status_seen.open { egui::Label::new(text).wrap() } else { egui::Label::new(text).truncate() };
         let r = ui.add(label.sense(egui::Sense::click()));
@@ -268,6 +278,17 @@ impl RingApp {
             &[egui::RectAlign::TOP_END, egui::RectAlign::BOTTOM_START],
             egui::PopupCloseBehavior::CloseOnClickOutside,
             |ui| {
+            crate::theme::section(ui, ringdesign_workbench::icons::Icon::View, "Viewport");
+            let cube = ui.checkbox(&mut self.editor.workspace.show_view_cube, "Show view cube");
+            editor::layout::record(ui, "view/Show view cube", cube.rect);
+            let clearance = ui.checkbox(&mut self.editor.workspace.move_ring_from_menus, "Move ring away from menus");
+            editor::layout::record(ui, "view/Move ring away from menus", clearance.rect);
+            if cube.changed() || clearance.changed() { self.save_prefs(); }
+            if ringdesign_workbench::icons::button(ui, ringdesign_workbench::icons::Icon::Fit, "Fit view", false, egui::vec2(0.0,32.0)).clicked() {
+                self.fit_view();
+                ui.close();
+            }
+            egui::CollapsingHeader::new("Camera angles").show_unindented(ui, |ui| {
             if self.design.shank.kind == ringdesign_core::ShankKind::Signet {
                 if ui.button("Signet face").clicked() {
                     self.frame_head(false);
@@ -285,11 +306,9 @@ impl RingApp {
                     ui.close();
                 }
             }
-            if ui.button("Fit view").clicked() {
-                self.fit_view();
-                ui.close();
-            }
+            });
             ui.separator();
+            crate::theme::section(ui, ringdesign_workbench::icons::Icon::ThemePalette, "Appearance");
             let zoom = egui::CollapsingHeader::new("Zoom").show_unindented(ui, |ui| self.zoom_controls(ui));
             editor::layout::record(ui, "view/Zoom", zoom.header_response.rect);
             egui::CollapsingHeader::new("Mesh detail").show_unindented(ui, |ui| {
@@ -323,6 +342,7 @@ impl RingApp {
                     self.save_prefs();
                 }
             });
+            egui::CollapsingHeader::new("Shading & overlays").show_unindented(ui, |ui| {
             for &mode in ShadeMode::ALL {
                 if ui
                     .selectable_label(self.pane.shade == mode, mode.label())
@@ -368,6 +388,9 @@ impl RingApp {
             {
                 self.request_view_update();
             }
+            });
+            ui.separator();
+            crate::theme::section(ui, ringdesign_workbench::icons::Icon::Panel, "Workspace");
             if self.px_per_mm.is_some() {
                 ui.checkbox(&mut self.pane.actual_size, "Actual size (1:1)");
             }
@@ -482,7 +505,7 @@ impl RingApp {
                         .resizable(false)
                         .frame(
                             egui::Frame::new()
-                                .fill(egui::Color32::from_rgb(20, 20, 25))
+                                .fill(ui.visuals().panel_fill)
                                 .stroke(egui::Stroke::new(1.5, if graph { crate::theme::PINK_BRIGHT } else { crate::theme::AQUA.gamma_multiply(0.55) }))
                                 .inner_margin(6),
                         )
@@ -494,20 +517,27 @@ impl RingApp {
                             } else {
                                 &mut self.editor.workspace.inspector_fraction[landscape as usize]
                             };
-                            if editor::workspace::splitter(ui, share, available, landscape) {
+                            let title = if sheet == Sheet::Edit { self.editor.mode.label() } else { sheet.label() };
+                            let header = editor::workspace::inspector_header(ui, title, share, available, landscape);
+                            if header.resized {
                                 self.save_prefs();
+                            }
+                            if header.close {
+                                self.editor.sheet = None;
+                                self.save_prefs();
+                                return;
                             }
                             if graph {
                                 self.graph_panel(ui, host, true);
                                 return;
                             }
-                            self.inspector(ui, sheet, host, landscape);
+                            self.inspector(ui, sheet, host);
                         });
                 }
             }
         }
         egui::CentralPanel::default()
-            .frame(egui::Frame::new().inner_margin(4))
+            .frame(egui::Frame::new().fill(ui.visuals().panel_fill).inner_margin(4))
             .show(ui, |ui| {
                 if self.sketch_mode.is_some() {
                     self.sketch_pad(ui, host);
@@ -545,7 +575,8 @@ impl RingApp {
                     Tab::Bench => self.bench_tab(ui, host),
                     Tab::Templates => self.templates_tab(ui),
                     Tab::Theme => {
-                        crate::theme::scroll_vertical().id_salt("theme-settings").show(ui, |ui| {
+                        crate::theme::section(ui, ringdesign_workbench::icons::Icon::ThemePalette, "Appearance");
+                        ui.small("Desktop theme presets, custom colors, and startup choices are saved on this device.");
                             if host.store_available(){
                                 ui.horizontal(|ui|{
                                     if ui.button("Check for app updates").clicked(){host.check_store_update();}
@@ -553,14 +584,9 @@ impl RingApp {
                                 });
                                 ui.separator();
                             }
-                            let mut theme = self.prefs.theme.clone();
-                            theme.control_height.get_or_insert(crate::theme::MENU_ROW_H);
-                            if egui_mobile_theme::editor(ui, &mut theme, egui_mobile_theme::Density::Touch) {
-                                self.prefs.theme = theme;
-                                crate::theme::apply_config(ui.ctx(), &self.prefs.theme);
+                            if self.appearance.show(ui) {
                                 self.save_prefs();
                             }
-                        });
                     },
                 }
                 editor::layout::record(ui, "tool/content", ui.min_rect());
@@ -587,6 +613,7 @@ impl RingApp {
                 "undo": self.history.can_undo(),
                 "redo": self.history.can_redo(),
                 "layers": self.design.layers.layers.len(),
+                "feature_offset": ui.data(|d| d.get_temp::<f32>(egui::Id::unique("phone-feature-offset"))).unwrap_or(0.0),
             });
             data["workspace"] = serde_json::json!(self.editor.workspace);
             data["palette"] = serde_json::json!(format!("{:?}", self.editor.palette));
@@ -606,33 +633,7 @@ impl RingApp {
         }
     }
 
-    fn inspector(&mut self, ui: &mut egui::Ui, sheet: Sheet, host: &Host, landscape: bool) {
-        let title = if sheet == Sheet::Edit {
-            self.editor.mode.label()
-        } else {
-            sheet.label()
-        };
-        ui.horizontal(|ui| {
-            let actions = if landscape { 2.0 } else { 1.0 };
-            let actions_width = actions * (ui.spacing().interact_size.y + ui.spacing().item_spacing.x);
-            ui.add_sized(
-                [(ui.available_width() - actions_width).max(0.0), 26.0],
-                egui::Label::new(egui::RichText::new(title).strong()).truncate(),
-            );
-            use ringdesign_workbench::icons::{self, Icon};
-            if landscape {
-                let expand = icons::compact(ui, Icon::Expand, false);
-                editor::layout::record(ui, "inspector/expand", expand.rect);
-                if expand.clicked() {
-                    self.editor.workspace.inspector_fraction[1] = 0.4;
-                    self.save_prefs();
-                }
-            }
-            if icons::compact(ui, Icon::Close, false).clicked() {
-                self.editor.sheet = None;
-                self.save_prefs();
-            }
-        });
+    fn inspector(&mut self, ui: &mut egui::Ui, sheet: Sheet, host: &Host) {
         let width = ui.available_width();
         ui.spacing_mut().slider_width = (width - 150.0).clamp(60.0, 170.0);
         crate::theme::scroll_vertical()
@@ -720,7 +721,7 @@ impl RingApp {
             }
             Sheet::Edit => {
                 if self.driven_banner(ui) {
-                    if self.editor.mode == Mode::Casting && ui.button("Open casting workshop").clicked() {
+                    if self.editor.mode == Mode::Casting && ringdesign_workbench::icons::primary(ui, ringdesign_workbench::icons::Icon::CastSetup, "Open casting workshop").clicked() {
                         self.workshop.open_casting();
                         self.tab = Tab::Workshop;
                     }
@@ -748,7 +749,7 @@ impl RingApp {
                     Mode::Stones => &[VisualTool::Select, VisualTool::Clearance],
                     Mode::Casting => &[VisualTool::Select, VisualTool::Mould],
                 };
-                if !editor::controls::is_compact(ui) {
+                if self.editor.workspace.rail_collapsed && !editor::controls::is_compact(ui) {
                     self.visual.chooser(ui, choices);
                 }
                 if self.visual.tool != VisualTool::Select {
@@ -895,7 +896,7 @@ impl RingApp {
                     let note = self.field.as_ref().and_then(|f| f.parts.iter().find(|p| p.feature == id)).map(|p| p.note.clone());
                     self.status = note.unwrap_or_else(|| format!("#{id} chosen"));
                 }
-                if ui.button("Open casting workshop").clicked() {
+                if ringdesign_workbench::icons::primary(ui, ringdesign_workbench::icons::Icon::CastSetup, "Open casting workshop").clicked() {
                     self.workshop.open_casting();
                     self.tab = Tab::Workshop;
                 }
@@ -1091,7 +1092,7 @@ impl RingApp {
                             cad_menu_asked = true;
                         }
                         let what = ringdesign_workbench::viewport::selection::describe(&chosen, &self.design, self.preview_mesh.as_ref().map(|b| b.0.as_ref()));
-                        ui.add(egui::Label::new(egui::RichText::new(what).small().color(crate::theme::AQUA)).truncate());
+                        ui.add(egui::Label::new(egui::RichText::new(what).small().color(egui_theme_kit::colors::info(ui))).truncate());
                     } else {
                         let hint = if self.visual.tool == VisualTool::Measure {
                             "Tap to measure · drag to orbit · pinch to zoom"
@@ -1101,7 +1102,7 @@ impl RingApp {
                             "Drag to orbit · pinch to zoom · hold for the menu"
                         };
                         ui.add(Icon::Select.image(ui, 16.));
-                        ui.add(egui::Label::new(egui::RichText::new(hint).small().color(crate::theme::INK_DIM)).truncate());
+                        ui.add(egui::Label::new(egui::RichText::new(hint).small().color(ui.visuals().weak_text_color())).truncate());
                     }
                 });
             });
@@ -1124,9 +1125,9 @@ impl RingApp {
                 cam.set_pose(pose); self.camera_turn=None;
             }
         }
-        let nav = ringdesign_workbench::navigation::show(
+        let nav = ringdesign_workbench::navigation::show_mobile(
             ui, rect, ui.scope_id().with("phone-view"), &mut self.pane.navigation,
-            [self.pane.camera.yaw, self.pane.camera.pitch, self.pane.camera.roll], self.design.shank.head.theta_deg as f32,
+            [self.pane.camera.yaw, self.pane.camera.pitch, self.pane.camera.roll], self.design.shank.head.theta_deg as f32, self.editor.workspace.show_view_cube,
         );
         for (name, r) in &nav.controls { editor::layout::record(ui, format!("navigator/{name}"), *r); }
         if let Some(action) = nav.action {
@@ -1154,7 +1155,7 @@ impl RingApp {
         let explicit_navigation = crate::ring::pinch_in(ui, rect).is_some_and(|m| m.num_touches >= 2)
             || crate::paint::barrel(self.probe.buttons).is_some();
         let floating_blocked = self.editor.floating_dragging
-            || pointer.is_some_and(|p| nav.rect.contains(p) || self.editor.floating_rects.iter().any(|r| r.contains(p)))
+            || pointer.is_some_and(|p| nav.obstacles.iter().any(|r| r.contains(p)) || self.editor.floating_rects.iter().any(|r| r.contains(p)))
             || pointer.is_some_and(|p| {
                 ui.ctx().layer_id_at(p).is_some_and(|layer| layer != ui.layer_id())
             });
@@ -1188,7 +1189,7 @@ impl RingApp {
         let blocked = floating_blocked || visual_blocked || overlay_blocked;
         let graph_sheet = self.editor.sheet == Some(Sheet::Graph);
         let mut covered = self.editor.floating_rects.clone();
-        covered.push(nav.rect);
+        covered.extend(nav.obstacles.iter().copied());
         let cad_view = crate::cad::View {
             rect,
             camera: &self.pane.camera,
@@ -1368,7 +1369,7 @@ impl RingApp {
             };
             self.cad.draw(ui, &cad_view, &self.renderer);
             let floating = self.editor.floating_rects.clone();
-            self.stamp_window(ui.ctx(), view_rect, crate::cad::stamp::Over { floating: &floating, rail: self.editor.rail_layer, fixed: &[nav.rect] });
+            self.stamp_window(ui.ctx(), view_rect, crate::cad::stamp::Over { floating: &floating, rail: self.editor.rail_layer, fixed: &nav.obstacles });
         }
         self.serve_cad(host);
         if !self.editor.hold_before && !floating_blocked && !measuring {
@@ -1420,7 +1421,7 @@ impl RingApp {
         }
         if self.pane.navigation.magnifier && !floating_blocked && !navigating && !self.editor.hold_before {
             if let Some((contact, reach)) = self.visual.placement_focus(ui, view.rect) {
-                let mut obstacles = self.editor.floating_rects.clone(); obstacles.push(nav.rect);
+                let mut obstacles = self.editor.floating_rects.clone(); obstacles.extend(nav.obstacles.iter().copied());
                 let lens = ringdesign_workbench::loupe::show(ui, view.rect, contact, reach, &obstacles);
                 editor::layout::record(ui, "viewport/magnifier", lens);
             }
@@ -1439,6 +1440,10 @@ impl RingApp {
             "Updating shape / checking…".to_string()
         } else if self.dfm_pending {
             "Checking fine detail…".to_string()
+        } else if self.editor.help {
+            self.editor.mode.hint().to_string()
+        } else if self.editor.mode == Mode::Casting && self.editor.guides {
+            format!("Mould pull & parting guide · {}", self.design.size.display())
         } else {
             format!(
                 "{}   ·   {:.2} mm opening   ·   {} layers",
@@ -1461,15 +1466,6 @@ impl RingApp {
             ui.painter().rect_filled(plate, 12.0, egui::Color32::from_rgba_unmultiplied(8, 8, 12, 214));
             ui.painter().rect_stroke(plate, 12.0, egui::Stroke::new(1.0, crate::theme::PINK_BRIGHT), egui::StrokeKind::Inside);
             ui.painter().galley(plate.center() - galley.size() * 0.5, galley, crate::theme::INK);
-        }
-        if self.editor.help {
-            editor::overlay::tag(
-                ui,
-                view.rect,
-                view.rect.center_top() + egui::vec2(0.0, 35.0),
-                self.editor.mode.hint(),
-                crate::theme::INK,
-            );
         }
     }
 }

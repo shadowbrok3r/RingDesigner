@@ -112,10 +112,13 @@ fn action_row(ui: &mut Ui, state: &mut PickerState, store: &dyn ThemeStore) {
 fn save_row(ui: &mut Ui, state: &mut PickerState, store: &dyn ThemeStore) {
     let ctx = ui.ctx().clone();
     ui.horizontal(|ui| {
+        let scale = crate::fonts::text_scale(&ctx).factor();
+        let field_width = (NAME_FIELD_W * scale)
+            .min((ui.available_width() - 100.0 * scale - ui.spacing().item_spacing.x).max(40.0));
         let field = ui.add(
             TextEdit::singleline(&mut state.save_name)
                 .hint_text("Name for a new saved theme")
-                .desired_width(NAME_FIELD_W * crate::fonts::text_scale(&ctx).factor()),
+                .desired_width(field_width),
         );
         let entered = field.lost_focus() && ui.input(|i| i.key_pressed(Key::Enter));
         let named = !state.save_name.trim().is_empty();

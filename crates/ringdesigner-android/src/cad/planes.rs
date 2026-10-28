@@ -101,7 +101,7 @@ pub fn show(ctx: &egui::Context, m: &mut PlaneMenu, view: Rect) -> Option<Choice
                 chosen = Some(Choice::Act(r.act));
             }
             if !r.enabled {
-                ui.label(egui::RichText::new(&r.hint).size(11.0).color(crate::theme::INK_DIM));
+                ui.label(egui::RichText::new(&r.hint).size(11.0).color(ui.visuals().weak_text_color()));
             }
         }
         if menu::row(ui, Icon::Close, "Close", false, true, width).clicked() {

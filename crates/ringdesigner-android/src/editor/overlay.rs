@@ -350,13 +350,6 @@ pub fn draw(
                 }));
                 painter.arrow(start, end - start, egui::Stroke::new(2.0, theme::AQUA));
             }
-            tag(
-                ui,
-                rect,
-                rect.center_top() + egui::vec2(0.0, 24.0),
-                "Mould pull & parting guide",
-                theme::AQUA_BRIGHT,
-            );
             if let Some(hit) = &editor.selection {
                 painter.circle_stroke(
                     projection.at(hit.world),

@@ -70,7 +70,10 @@ impl eframe::App for RingDesignerApp {
             }
         }
         licences::window(ui.ctx(), &self.occt);
-        if self.custom_title_bar {
+        if let Some(error) = egui_theme_kit::chrome::take_save_error(ui.ctx()) {
+            self.status = format!("Cannot save title bar preference: {error}");
+        }
+        if self.chrome.frameless {
             egui_theme_kit::title_bar::window_edges(ui);
         }
         if std::mem::take(&mut self.install_update) {
@@ -134,17 +137,16 @@ fn main() -> eframe::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let executable = std::env::current_exe().ok();
-    let custom_title_bar = !std::env::args().any(|arg| arg == "--system-titlebar");
+    let chrome = egui_theme_kit::chrome::resolve_from_process(session::APP_ID);
     let result = eframe::run_native(
         &format!("RingDesigner v{}", env!("CARGO_PKG_VERSION")),
         eframe::NativeOptions {
-            viewport: eframe::egui::ViewportBuilder::default()
+            viewport: egui_theme_kit::chrome::viewport(eframe::egui::ViewportBuilder::default()
                 .with_app_id(session::APP_ID)
-                .with_decorations(!custom_title_bar)
                 .with_inner_size([1600.0, 980.0])
                 .with_min_inner_size([1100.0, 700.0])
                 .with_icon(app_icon())
-                .with_drag_and_drop(true),
+                .with_drag_and_drop(true), &chrome),
             // eframe asks for a 0-bit depth buffer by default, which leaves the
             // window with no depth attachment at all: GL_DEPTH_TEST then does
             // nothing and the far wall of the ring draws over the near one.
@@ -153,8 +155,11 @@ fn main() -> eframe::Result<()> {
             ..Default::default()
         },
         Box::new(move |cc| {
+            if !egui_theme_kit::title_bar::windows::client_area::install(cc) {
+                log::warn!("Could not install the title bar client-area correction");
+            }
             let mut app=RingDesignerApp::new(cc);
-            app.custom_title_bar = custom_title_bar;
+            app.chrome = chrome;
             let args:Vec<String>=std::env::args().collect();
             if let Some(path)=args.windows(2).find(|pair|pair[0]=="--open").map(|pair|&pair[1]) {
                 export::open_design_path(&mut app,std::path::Path::new(path));

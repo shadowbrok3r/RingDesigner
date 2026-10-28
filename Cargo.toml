@@ -96,9 +96,6 @@ egui_tiles = { path = "patches/egui_tiles" }
 # [patch] table along, so the app's workspace has to carry it.
 android-activity = { git = "https://github.com/shadowbrok3r/EguiMobile", rev = "af697fc24aecf917b950244c264c1e10476bfca3" }
 
-[patch."https://github.com/shadowbrok3r/egui-theme-kit"]
-egui-theme-kit = { path = "patches/egui-theme-kit" }
-
 [profile.dev]
 opt-level = 1
 

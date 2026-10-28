@@ -247,7 +247,7 @@ pub(super) fn popup(ctx: &egui::Context, at: Pos2, below: &mut Option<bool>, hea
                 crate::theme::menu_row_style(ui);
                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
                 if let Some(h) = heading {
-                    ui.label(egui::RichText::new(h).size(12.0).color(crate::theme::INK_DIM));
+                    ui.label(egui::RichText::new(h).size(12.0).color(ui.visuals().weak_text_color()));
                 }
                 egui::ScrollArea::vertical().max_height((view.height() - 48.0).max(ctx.global_style().spacing.interact_size.y * 2.0)).show(ui, |ui| body(ui, width));
             });
@@ -271,7 +271,7 @@ pub fn show(ctx: &egui::Context, menu: &mut Menu, view: Rect) -> Option<Choice> 
                     *chosen = Some(Choice::Extra(x.act.clone()));
                 }
                 if !x.enabled {
-                    ui.label(egui::RichText::new(&x.hint).size(11.0).color(crate::theme::INK_DIM));
+                    ui.label(egui::RichText::new(&x.hint).size(11.0).color(ui.visuals().weak_text_color()));
                 }
             }
         };
@@ -294,7 +294,7 @@ pub fn show(ctx: &egui::Context, menu: &mut Menu, view: Rect) -> Option<Choice> 
                         page_to = Some(name);
                     }
                     if let Some(why) = closed {
-                        ui.label(egui::RichText::new(why).size(11.0).color(crate::theme::INK_DIM));
+                        ui.label(egui::RichText::new(why).size(11.0).color(ui.visuals().weak_text_color()));
                     }
                 }
                 Row::Item(k) => {
@@ -303,7 +303,7 @@ pub fn show(ctx: &egui::Context, menu: &mut Menu, view: Rect) -> Option<Choice> 
                         chosen = Some(Choice::Act(item.action.clone()));
                     }
                     if !item.enabled {
-                        ui.label(egui::RichText::new(item.hint).size(11.0).color(crate::theme::INK_DIM));
+                        ui.label(egui::RichText::new(item.hint).size(11.0).color(ui.visuals().weak_text_color()));
                     }
                 }
             }

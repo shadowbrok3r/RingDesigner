@@ -25,8 +25,8 @@ glass = ["dep:backdrop-blur-egui", "eframe/glow"]
 files = ["dep:rfd", "dep:directories"]
 # Themed control widgets.
 controls = []
-# Custom window title bar with caption buttons.
-title-bar = ["controls"]
+# Custom title bar, saved chrome preferences and Windows client-area correction.
+title-bar = ["controls", "dep:windows", "dep:raw-window-handle"]
 # In-app log viewer.
 logger = ["controls", "dep:chrono", "dep:regex"]
 # Theme picker window and preset browser.
@@ -43,11 +43,15 @@ log = "0.4"
 egui_dock = { git = "https://github.com/shadowbrok3r/egui_dock", branch = "egui-037", features = ["serde"], optional = true }
 egui-data-table = { git = "https://github.com/shadowbrok3r/egui-data-table", branch = "egui-037", optional = true }
 egui-toast = { git = "https://github.com/shadowbrok3r/egui-toast", branch = "egui-037", optional = true }
-backdrop-blur-egui = { git = "https://github.com/shadowbrok3r/egui-theme-kit", rev = "ab708cbe629d4b589e604100936e40688039efe1", default-features = false, features = ["grab-pass"], optional = true }
+backdrop-blur-egui = { git = "https://github.com/shadowbrok3r/egui-theme-kit", rev = "2788be59a8aee6cd21e3146aaf2419f39f77d4e4", default-features = false, features = ["grab-pass"], optional = true }
 rfd = { version = "0.17", optional = true }
 directories = { version = "6", optional = true }
 chrono = { version = "0.4", default-features = false, features = ["clock"], optional = true }
 regex = { version = "1", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+raw-window-handle = { version = "0.6", optional = true }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"], optional = true }
 
 [dev-dependencies]
 eframe = { version = "0.37", default-features = false, features = ["x11", "wayland", "default_fonts", "glow"] }

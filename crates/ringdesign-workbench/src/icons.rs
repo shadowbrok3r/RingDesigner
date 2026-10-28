@@ -165,6 +165,13 @@ pub enum Icon {
     NodeChannel,
     NodeImage,
     NodeScript,
+    Sand,
+    Investment,
+    Alloy,
+    CastSetup,
+    CastCheck,
+    CastPackage,
+    ThemePalette,
 }
 impl Icon {
     pub const ALL: &'static [Self] = &[
@@ -329,9 +336,18 @@ impl Icon {
         Self::NodeChannel,
         Self::NodeImage,
         Self::NodeScript,
+        Self::Sand, Self::Investment, Self::Alloy, Self::CastSetup,
+        Self::CastCheck, Self::CastPackage, Self::ThemePalette,
 ];
     pub fn svg(self) -> &'static str {
         match self {
+            Self::Sand => include_str!("../assets/icons/sand.svg"),
+            Self::Investment => include_str!("../assets/icons/investment.svg"),
+            Self::Alloy => include_str!("../assets/icons/alloy.svg"),
+            Self::CastSetup => include_str!("../assets/icons/cast-setup.svg"),
+            Self::CastCheck => include_str!("../assets/icons/cast-check.svg"),
+            Self::CastPackage => include_str!("../assets/icons/cast-package.svg"),
+            Self::ThemePalette => include_str!("../assets/icons/theme-palette.svg"),
             Self::Undo => include_str!("../assets/icons/undo.svg"),
             Self::Redo => include_str!("../assets/icons/redo.svg"),
             Self::Shape => include_str!("../assets/icons/shape.svg"),
@@ -520,7 +536,26 @@ impl Icon {
                 ui.data_mut(|d| d.insert_temp(id, tex.clone()));
                 tex
             });
-        egui::Image::new((texture.id(), Vec2::splat(side))).tint(self.role().map_or_else(|| ui.visuals().text_color(), |r| egui_mobile_theme::color(ui.ctx(), r)))
+        egui::Image::new((texture.id(), Vec2::splat(side))).tint(self.ink(ui))
+    }
+
+    /// Colored marks carry the action family; labels keep ordinary text ink.
+    /// Roles come from the same theme-kit tokens on desktop and Android.
+    pub fn ink(self, ui: &Ui) -> egui::Color32 {
+        use egui_theme_kit::colors as c;
+        use Icon::*;
+        match self {
+            Delete => c::error(ui),
+            Check | CastCheck | NodeVerdict | NodeReport => c::success(ui),
+            Casting | Mould | Sand | Alloy | CastSetup | Reset => c::warn(ui),
+            Surface | Paint | Stamp | Path | Pattern | ThemePalette | NodeBorder | NodeCurve | NodeDecal | NodeFlutes | NodeImage | NodeMilgrain | NodeOpenwork | NodeRemap | NodeText | NodeTiling | NodeWeave | NodeWindow => c::secondary(ui),
+            Stones | Spacing | Investment | Magnifier | NodeSeatrun | NodeSignetpad | NodePave | NodeHalo | NodeChannel => c::tertiary(ui),
+            Save | Export | Add | Duplicate | Rebuild | CastPackage => c::primary(ui),
+            Shape | Graph | Workshop | Files | View | Fit | ZoomIn | ZoomOut | Guide | Help | Settings | Search | CadBand | CadBox | CadCylinder | CadSphere | CadTorus | CadTwistedRing | CadExtrude | CadRevolve | CadSweep | CadLoft | CadSketch | NodeProfile | NodeShank | NodeHead => c::info(ui),
+            CadSubtract | CadIntersect | CadShell | CadChamfer | CadFillet => c::warn(ui),
+            CadUnion | CadPlace | CadTwist | Array | Transform | Move | Rotate | Scale | Mirror => c::secondary(ui),
+            _ => ui.visuals().text_color(),
+        }
     }
 
     /// Roles stay stable across shells, while their colors follow the saved theme.
@@ -615,15 +650,11 @@ pub fn help(r: &Response, title: &str, what: &str, how: &str, when: &str) -> boo
 }
 
 pub fn button(ui: &mut Ui, icon: Icon, label: &str, selected: bool, size: Vec2) -> Action {
-    let role = if selected { Some(egui_mobile_theme::Role::Accent) } else { icon.role() };
-    if let Some(role) = role {
-        egui_mobile_theme::styled(ui, role, |ui| button_inner(ui, icon, label, selected, size))
-    } else { button_inner(ui, icon, label, selected, size) }
+    button_inner(ui, icon, label, selected, size)
 }
 
 fn button_inner(ui: &mut Ui, icon: Icon, label: &str, selected: bool, size: Vec2) -> Action {
-    let image = icon.image(ui, ui.spacing().icon_width)
-        .tint(egui::Color32::WHITE);
+    let image = icon.image(ui, ui.spacing().icon_width);
     let button = if label.is_empty() {
         egui::Button::image(image)
     } else {
@@ -632,7 +663,7 @@ fn button_inner(ui: &mut Ui, icon: Icon, label: &str, selected: bool, size: Vec2
     let button = button
         .selected(selected)
         .truncate()
-        .image_tint_follows_text_color(true);
+        .image_tint_follows_text_color(false);
     let r = if size.x > 0.0 {
         ui.add_sized(egui::vec2(size.x, ui.spacing().interact_size.y), button)
     } else {
@@ -667,10 +698,39 @@ pub fn compact(ui: &mut Ui, icon: Icon, selected: bool) -> Action {
     button(ui, icon, "", selected, egui::vec2(width, ui.spacing().interact_size.y))
 }
 
+/// The next consequential action; secondary tools use ordinary icon buttons.
+pub fn primary(ui: &mut Ui, icon: Icon, label: &str) -> Response {
+    use egui::class::HasClasses as _;
+    ui.scope(|ui| {
+        // Legacy themes force text ink globally. The kit treats that as a
+        // selected button; let its primary class supply contrasting ink here.
+        ui.visuals_mut().override_text_color = None;
+        let image = icon.image(ui, ui.spacing().icon_width).tint(egui::Color32::WHITE);
+        ui.add(egui::Button::image_and_text(image, label)
+            .image_tint_follows_text_color(true)
+            .min_size(egui::vec2(0.0, ui.spacing().interact_size.y))
+            .with_class(egui_theme_kit::widget_theme::PRIMARY))
+    }).inner
+}
+
+pub fn section(ui: &mut Ui, icon: Icon, title: &str) {
+    ui.horizontal(|ui| {
+        ui.add(icon.image(ui, 18.0));
+        ui.label(egui::RichText::new(title).strong().size(15.0).color(ui.visuals().strong_text_color()));
+    });
+}
+
 impl Icon {
     pub fn hint(self) -> (&'static str, &'static str, &'static str, &'static str) {
         use Icon::*;
         match self {
+            Sand => ("Sand casting", "A two-part mold pulled away from the pattern.", "Choose Delft clay or Petrobond.", "Draft and undercuts determine whether the pattern releases."),
+            Investment => ("Investment casting", "A sacrificial wax or resin pattern.", "Choose this process for lost-wax casting.", "Wall thickness and fine detail still need checking."),
+            Alloy => ("Alloy", "The metal and its casting allowance.", "Choose the metal you intend to pour.", "Review shrink allowance for your casting process."),
+            CastSetup => ("Casting setup", "Choose the process, material and mold settings.", "Start here before checking the pattern.", "Advanced mold settings stay available below."),
+            CastCheck => ("Check pattern", "Inspect mold release, walls and detail.", "Run the check and review its findings.", "Check again after changing the design."),
+            CastPackage => ("Export pattern", "Prepare files for the casting bench.", "Review the findings, then export.", "The package includes the design and check report."),
+            ThemePalette => ("Appearance", "Colors, text, density and saved themes.", "Preview a preset or customize its roles.", "Your appearance survives restarting the app."),
             Rebuild => ("Rebuild", "Regenerate the preview from the current design.", "Click to build now.", "Available when the previous build has finished."),
             Four => ("Four", "Show four independent viewports.", "Choose each pane's view and camera from its header.", "Compare several angles or editors together."),
             SplitHorizontal => ("Split Horizontal", "Stack two viewports above and below.", "Choose each pane's view from its header.", "Use when each view needs more width."),
@@ -1097,6 +1157,13 @@ impl Icon {
     pub fn for_label(label: &str) -> Self {
         use Icon::*;
         match label {
+            "Theme" | "Appearance" => ThemePalette,
+            "Casting workshop" | "Open casting workshop" | "Setup" => CastSetup,
+            "Check pattern" | "Surface findings" => CastCheck,
+            "Export pattern" => CastPackage,
+            "Sand casting" | "Two-part sand" => Sand,
+            "Investment" | "Lost wax" => Investment,
+            "Alloy" => Alloy,
             "Undo" => Undo,
             "Redo" => Redo,
             "Shape" | "Signet face" | "Band & fit" | "All shape controls" => Shape,

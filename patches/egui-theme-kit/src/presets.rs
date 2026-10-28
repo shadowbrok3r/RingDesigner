@@ -577,6 +577,8 @@ pub fn themes_equal(a: &SavedTheme, b: &SavedTheme) -> bool {
 pub fn normalized(style: &Style) -> Style {
     let mut style = style.clone();
     apply_metrics(&mut style, &Metrics::for_density(Density::Regular));
+    // A touch host's scroll-vs-edit policy does not make a preset a custom theme.
+    style.interaction.drag_value_dragging = Style::default().interaction.drag_value_dragging;
     style
 }
 

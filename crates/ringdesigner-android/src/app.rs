@@ -170,6 +170,7 @@ pub struct RingApp {
     report: Option<ringdesign_core::mesh::Report>,
     /// Everything remembered between launches that is not the design itself.
     prefs: crate::prefs::Prefs,
+    appearance: crate::theme::Appearance,
     /// Design awaiting a delete confirmation, and one being renamed.
     confirm_delete: Option<std::path::PathBuf>,
     renaming: Option<(std::path::PathBuf, String)>,
@@ -347,6 +348,7 @@ impl RingApp {
             stone: crate::stones::Pick::default(),
             report: None,
             prefs: crate::prefs::Prefs::default(),
+            appearance: Default::default(),
             confirm_delete: None,
             renaming: None,
             overwrite_warned: None,
@@ -548,6 +550,7 @@ impl RingApp {
         let Some(root) = self.data_root.clone() else {
             return;
         };
+        self.prefs.theme_kit = self.appearance.save();
         self.prefs.sync_host = self.sync_host.clone();
         self.prefs.sync_token = self.sync_token.clone();
         self.prefs.brush_frac = self.brush.frac;
@@ -915,13 +918,6 @@ impl RingApp {
 
     /// Every committed step, newest last, with the present marked; a tap jumps.
     fn timeline_sheet(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal_wrapped(|ui| {
-            ui.label(egui::RichText::new("history").small().weak());
-            if ui.small_button("close").clicked() {
-                self.editor.sheet = None;
-            }
-        });
-        ui.separator();
         let mut jump: Option<usize> = None;
         for (i, (label, is_present)) in self.history.timeline().into_iter().enumerate() {
             if ui
@@ -1535,7 +1531,7 @@ impl RingApp {
         egui::Frame::new()
             .inner_margin(egui::Margin::symmetric(8, 6))
             .corner_radius(6.0)
-            .stroke(egui::Stroke::new(1.0, crate::theme::INK_DIM))
+            .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
             .show(ui, |ui| {
                 ui.label(egui::RichText::new("Driven by the graph").strong());
                 ui.label(
@@ -1543,7 +1539,7 @@ impl RingApp {
                         "Open the graph under the ring to edit its nodes, or bake it to edit here.",
                     )
                     .small()
-                    .color(crate::theme::INK_DIM),
+                    .color(ui.visuals().weak_text_color()),
                 );
                 ui.horizontal(|ui| {
                     if ui.button("Open graph").clicked() {
@@ -1595,7 +1591,7 @@ impl RingApp {
                         "Turn the design into nodes you can rewire, or start from a graph.",
                     )
                     .small()
-                    .color(crate::theme::INK_DIM),
+                    .color(ui.visuals().weak_text_color()),
                 );
                 ui.add_space(12.0);
                 if ui.button("Convert this design to a graph").clicked() {
@@ -1656,7 +1652,6 @@ impl RingApp {
             Lock(bool),
             Bake,
             Dock(bool),
-            Close,
         }
         let mut act = None;
         let reg = self.graph.reg.clone();
@@ -1678,13 +1673,6 @@ impl RingApp {
         let row = egui::vec2(ui.available_width(), ui.spacing().interact_size.y);
         ui.allocate_ui_with_layout(row, egui::Layout::right_to_left(egui::Align::Center), |ui| {
             use ringdesign_workbench::icons::{self, Icon};
-            if docked {
-                let r = icons::compact(ui, Icon::Close, false);
-                crate::editor::layout::record(ui, "graph/Close", r.rect);
-                if r.clicked() {
-                    act = Some(Act::Close);
-                }
-            }
             let dock = icons::compact(ui, if docked { Icon::Expand } else { Icon::Collapse }, false);
             crate::editor::layout::record(ui, "graph/Dock", dock.rect);
             if dock
@@ -1702,7 +1690,7 @@ impl RingApp {
                 ui.label(
                     egui::RichText::new(format!("{nodes} nodes"))
                         .small()
-                        .color(crate::theme::INK_DIM),
+                        .color(ui.visuals().weak_text_color()),
                 );
                 if ui.button("Arrange nodes").clicked() {
                     act = Some(Act::Arrange);
@@ -1808,10 +1796,6 @@ impl RingApp {
                         None => ed.fit(),
                     }
                 }
-            }
-            Some(Act::Close) => {
-                self.editor.sheet = None;
-                self.save_prefs();
             }
             _ => {}
         }
@@ -3374,7 +3358,7 @@ impl RingApp {
 
 impl EguiApp for RingApp {
     fn theme(&self, ctx: &egui::Context) {
-        crate::theme::apply_config(ctx, &self.prefs.theme);
+        self.appearance.apply(ctx);
     }
 
     fn on_start(&mut self, ctx: &egui::Context, host: &Host) {
@@ -3400,7 +3384,8 @@ impl EguiApp for RingApp {
             self.prefs
                 .sanitize(ShadeMode::ALL.len(), ringdesign_core::metal::METALS.len());
             self.apply_prefs();
-            crate::theme::apply_config(ctx, &self.prefs.theme);
+            self.appearance = crate::theme::Appearance::restore(self.prefs.theme_kit.as_deref(), &self.prefs.theme);
+            self.appearance.apply(ctx);
             self.data_root = Some(root);
             self.rescan_packs();
         }

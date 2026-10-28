@@ -447,7 +447,7 @@ fn chip_height(ui: &Ui) -> f32 {
 }
 
 /// One chip: allocated, painted, and answering to its label; its bare name rides along as a label node.
-fn chip(ui: &mut Ui, c: &Chip, vertical: bool) -> Response {
+fn chip(ui: &mut Ui, c: &Chip, vertical: bool, drag_to_reorder: bool) -> Response {
     let dim = !c.enabled || c.after_rollback;
     let alpha = if dim { 0.45 } else { 1.0 };
     let marked = !matches!(c.status, Status::Ok | Status::Suppressed);
@@ -456,7 +456,7 @@ fn chip(ui: &mut Ui, c: &Chip, vertical: bool) -> Response {
     let galley = one_line(ui, &c.name, ui.visuals().text_color().gamma_multiply(alpha), room);
     let width = if vertical { ui.available_width().max(fixed + 24.0) } else { fixed + galley.size().x };
     // A finger's drag scrolls the strip; a pointer's drag reorders the chip.
-    let sense = if ui.input(|i| i.any_touches()) { Sense::click() } else { Sense::click_and_drag() };
+    let sense = if drag_to_reorder { Sense::click_and_drag() } else { Sense::click() };
     let (rect, response) = ui.allocate_exact_size(Vec2::new(width, chip_height(ui)), sense);
     let name_rect = Rect::from_min_size(Pos2::new(rect.left() + PAD + ICON + GAP, rect.center().y - galley.size().y * 0.5), galley.size());
     if ui.is_rect_visible(rect) {
@@ -477,7 +477,7 @@ fn chip(ui: &mut Ui, c: &Chip, vertical: bool) -> Response {
         let painter = ui.painter();
         painter.rect(rect, CornerRadius::same(4), fill.gamma_multiply(if dim { 0.6 } else { 1.0 }), stroke, StrokeKind::Inside);
         let icon_rect = Rect::from_center_size(Pos2::new(rect.left() + PAD + ICON * 0.5, rect.center().y), Vec2::splat(ICON));
-        c.icon.image(ui, ICON).tint(c.icon.color().gamma_multiply(alpha)).paint_at(ui, icon_rect);
+        c.icon.image(ui, ICON).tint(c.icon.ink(ui).gamma_multiply(alpha)).paint_at(ui, icon_rect);
         painter.galley(name_rect.min, galley, weak);
         if !c.enabled {
             painter.hline(name_rect.x_range(), name_rect.center().y, Stroke::new(1.0, weak.gamma_multiply(0.8)));
@@ -571,10 +571,10 @@ fn rename_field(ui: &mut Ui, strip: egui::Id, c: &Chip, text: &mut String, focus
 }
 
 /// The rollback marker: a bar between two chips, or a faint one after the last while nothing is rolled back.
-fn marker(ui: &mut Ui, rolled: bool, vertical: bool) -> Response {
+fn marker(ui: &mut Ui, rolled: bool, vertical: bool, draggable: bool) -> Response {
     let h = chip_height(ui);
     let size = if vertical { Vec2::new(ui.available_width(), 8.0) } else { Vec2::new(10.0, h) };
-    let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
+    let (rect, response) = ui.allocate_exact_size(size, if draggable { Sense::drag() } else { Sense::hover() });
     if ui.is_rect_visible(rect) {
         let v = ui.visuals();
         let color = if rolled { v.selection.stroke.color } else { v.weak_text_color().gamma_multiply(0.6) };
@@ -607,6 +607,17 @@ fn ghost(ui: &Ui, strip: egui::Id, text: &str, at: Pos2) {
 
 /// The strip, one row (`vertical` false) or one chip per line. Returns what its gestures ask for.
 pub fn show(ui: &mut Ui, chips: &[Chip], rollback: Option<Id>, vertical: bool) -> Vec<Action> {
+    show_impl(ui, chips, rollback, vertical, !ui.input(|i| i.any_touches()))
+}
+
+/// Mobile strips never register drag targets, including on the idle frame
+/// before the first touch. egui hit-tests that previous frame on pointer down.
+/// Reordering and rollback remain available in each feature's hold menu.
+pub fn show_touch(ui: &mut Ui, chips: &[Chip], rollback: Option<Id>) -> Vec<Action> {
+    show_impl(ui, chips, rollback, false, false)
+}
+
+fn show_impl(ui: &mut Ui, chips: &[Chip], rollback: Option<Id>, vertical: bool, drag_to_reorder: bool) -> Vec<Action> {
     let ctx = ui.ctx().clone();
     ctx.add_plugin(DeleteOverStrip);
     let strip = ui.make_persistent_id("cad-timeline");
@@ -627,7 +638,7 @@ pub fn show(ui: &mut Ui, chips: &[Chip], rollback: Option<Id>, vertical: bool) -
         }
         for (i, c) in chips.iter().enumerate() {
             if i == marker_gap {
-                let m = marker(ui, true, vertical);
+                let m = marker(ui, true, vertical, drag_to_reorder);
                 span = span.union(m.rect);
                 if m.drag_started() {
                     egui::DragAndDrop::set_payload(&ctx, Carried { strip, what: Carry::Marker });
@@ -650,7 +661,7 @@ pub fn show(ui: &mut Ui, chips: &[Chip], rollback: Option<Id>, vertical: bool) -
                 }
                 continue;
             }
-            let r = chip(ui, c, vertical);
+            let r = chip(ui, c, vertical, drag_to_reorder);
             rects.push(r.rect);
             span = span.union(r.rect);
             if r.drag_started() {
@@ -676,7 +687,7 @@ pub fn show(ui: &mut Ui, chips: &[Chip], rollback: Option<Id>, vertical: bool) -
             }
         }
         if marker_gap == chips.len() {
-            let m = marker(ui, false, vertical);
+            let m = marker(ui, false, vertical, drag_to_reorder);
             span = span.union(m.rect);
             if m.drag_started() {
                 egui::DragAndDrop::set_payload(&ctx, Carried { strip, what: Carry::Marker });
@@ -739,6 +750,10 @@ pub fn show(ui: &mut Ui, chips: &[Chip], rollback: Option<Id>, vertical: bool) -
     ui.data_mut(|d| d.insert_temp(strip, memory));
     actions
 }
+
+#[cfg(test)]
+#[path = "timeline_touch_tests.rs"]
+mod touch_tests;
 
 #[cfg(test)]
 mod tests {

@@ -18,18 +18,120 @@ pub fn apply(ctx: &egui::Context) {
 }
 
 pub fn apply_config(ctx: &egui::Context, config: &egui_mobile_theme::ThemeConfig) {
-    ctx.add_plugin(crate::editor::pen::PenHover::default());
-    // Keep the user's text and explicit sizing choices; compact only the app's
-    // default control height and whitespace around otherwise unchanged text.
+    egui_theme_kit::presets::apply_saved_theme(ctx, import_legacy(config));
+    egui_theme_kit::fonts::install_for_context(ctx);
+    egui_theme_kit::widget_theme::install(ctx);
+    touch_metrics(ctx);
+}
+
+fn import_legacy(config: &egui_mobile_theme::ThemeConfig) -> egui_theme_kit::SavedTheme {
+    let ctx = egui::Context::default();
     let mut compact = config.clone();
+    let scale = compact.text_scale;
+    compact.text_scale = 1.0;
     compact.control_height = Some(config.control_height.unwrap_or(MENU_ROW_H));
-    compact.apply(ctx, egui_mobile_theme::Density::Touch);
-    // RingDesigner's pen workflow uses taps and explicit keyboard entry for numeric values.
+    compact.apply(&ctx, egui_mobile_theme::Density::Touch);
+    egui_theme_kit::SavedTheme {
+        style: (*ctx.global_style()).clone(),
+        glass: None,
+        density: egui_theme_kit::Density::Compact,
+        text_scale: if scale >= 1.225 { egui_theme_kit::TextScale::XLarge }
+            else if scale >= 1.075 { egui_theme_kit::TextScale::Large }
+            else if scale < 0.95 { egui_theme_kit::TextScale::Small }
+            else { egui_theme_kit::TextScale::Normal },
+        semantic: Some(egui_theme_kit::saved::SemanticColors {
+            success: config.colors.success,
+            secondary: config.colors.info,
+        }),
+    }
+}
+
+/// Idempotent mobile limits: applying a preset must never shrink tap targets
+/// to desktop density or make scrollbars disappear on a touch-only device.
+fn touch_metrics(ctx: &egui::Context) {
+    ctx.add_plugin(crate::editor::pen::PenHover::default());
+    let (height, gap) = match egui_theme_kit::metrics::density(ctx) {
+        egui_theme_kit::Density::Compact => (32.0, egui::vec2(6.0, 3.0)),
+        egui_theme_kit::Density::Regular => (36.0, egui::vec2(7.0, 4.0)),
+        egui_theme_kit::Density::Comfortable => (40.0, egui::vec2(8.0, 6.0)),
+    };
     ctx.all_styles_mut(|s| {
         s.interaction.drag_value_dragging = false;
-        s.spacing.item_spacing *= 0.8;
-        s.spacing.button_padding *= 0.8;
+        s.spacing.interact_size.y = s.spacing.interact_size.y.max(height);
+        s.spacing.item_spacing = gap;
+        s.spacing.button_padding = egui::vec2(6.0, 4.0);
+        s.spacing.scroll = egui::style::ScrollStyle::solid();
+        s.spacing.scroll.bar_width = 8.0;
+        s.spacing.scroll.foreground_color = true;
     });
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SavedAppearance {
+    active: egui_theme_kit::SavedTheme,
+    users: Vec<(String, egui_theme_kit::SavedTheme, u64)>,
+    startup: egui_theme_kit::store::StartupTheme,
+}
+
+/// The same picker and presets as desktop; Android persists through its own
+/// private prefs file, without desktop file dialogs or an eframe window.
+pub struct Appearance {
+    picker: egui_theme_kit::picker::PickerState,
+    store: egui_theme_kit::store::MemoryStore,
+}
+
+impl Default for Appearance {
+    fn default() -> Self { Self::restore(None, &Default::default()) }
+}
+
+impl Appearance {
+    pub fn restore(json: Option<&str>, legacy: &egui_mobile_theme::ThemeConfig) -> Self {
+        let saved = json.and_then(|s| serde_json::from_str::<SavedAppearance>(s).ok());
+        let snapshot = saved.map(|s| egui_theme_kit::store::StoreSnapshot {
+            active: Some(s.active),
+            user_themes: s.users.into_iter().map(|(name, theme, updated_at)| egui_theme_kit::store::NamedTheme { name, theme, updated_at }).collect(),
+            startup: s.startup,
+            warnings: vec![],
+        }).unwrap_or_else(|| egui_theme_kit::store::StoreSnapshot {
+            active: Some(import_legacy(legacy)), ..Default::default()
+        });
+        let mut picker = egui_theme_kit::picker::PickerState::default();
+        picker.options.glass_available = Some(crate::frost::is_available);
+        picker.options.compact = true;
+        Self { picker, store: egui_theme_kit::store::MemoryStore::with_snapshot(snapshot) }
+    }
+
+    pub fn apply(&self, ctx: &egui::Context) {
+        egui_theme_kit::persist::apply_startup_from_store(ctx, &self.store, None);
+        egui_theme_kit::fonts::install_for_context(ctx);
+        egui_theme_kit::widget_theme::install(ctx);
+        touch_metrics(ctx);
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui) -> bool {
+        use egui_theme_kit::store::ThemeStore;
+        let before = ui.ctx().global_style();
+        let before_material = (egui_theme_kit::glass::params(ui.ctx()), egui_theme_kit::saved::SemanticColors::current(ui.ctx()));
+        let revision = self.store.revision();
+        egui_theme_kit::picker::show(ui, &mut self.picker, &self.store);
+        let style_changed = !std::sync::Arc::ptr_eq(&before, &ui.ctx().global_style())
+            || before_material != (egui_theme_kit::glass::params(ui.ctx()), egui_theme_kit::saved::SemanticColors::current(ui.ctx()));
+        if style_changed {
+            touch_metrics(ui.ctx());
+            self.store.save_active(&egui_theme_kit::SavedTheme::current(ui.ctx()));
+        }
+        style_changed || revision != self.store.revision()
+    }
+
+    pub fn save(&self) -> Option<String> {
+        use egui_theme_kit::store::ThemeStore;
+        let active = self.store.load_active()?;
+        serde_json::to_string(&SavedAppearance {
+            active,
+            users: self.store.user_themes().into_iter().map(|n| (n.name, n.theme, n.updated_at)).collect(),
+            startup: self.store.startup(),
+        }).map_err(|e| log::error!("Cannot save appearance: {e}")).ok()
+    }
 }
 
 pub fn card() -> egui::Frame {
@@ -65,7 +167,7 @@ pub fn selectable_label<'a>(
         ui.painter().rect_stroke(
             resp.rect,
             CornerRadius::same(3),
-            Stroke::new(1.0, egui_mobile_theme::color(ui.ctx(), egui_mobile_theme::Role::Accent)),
+            Stroke::new(1.0, egui_theme_kit::colors::primary(ui)),
             egui::StrokeKind::Inside,
         );
     }
@@ -74,7 +176,9 @@ pub fn selectable_label<'a>(
 
 /// Vertical scroll area; scrollbar only when content overflows.
 pub fn scroll_vertical() -> egui::ScrollArea {
-    egui::ScrollArea::vertical().scroll_bar_visibility(ScrollBarVisibility::VisibleWhenNeeded)
+    egui::ScrollArea::vertical()
+        .scroll_source(egui::scroll_area::ScrollSource::ALL)
+        .scroll_bar_visibility(ScrollBarVisibility::VisibleWhenNeeded)
 }
 
 // --- Menus -------------------------------------------------------------------
@@ -82,11 +186,20 @@ pub fn scroll_vertical() -> egui::ScrollArea {
 /// Compact default, with unchanged text and configurable sizing in Theme.
 pub const MENU_ROW_H: f32 = 32.0;
 
+pub fn section(ui: &mut egui::Ui, icon: ringdesign_workbench::icons::Icon, title: &str) {
+    ui.horizontal(|ui| {
+        ui.add(icon.image(ui, 18.0));
+        ui.label(egui::RichText::new(title).font(egui_theme_kit::fonts::semibold(15.0)).color(ui.visuals().strong_text_color()));
+    });
+}
+
 /// Give a menu's rows a framed, touch-sized look: egui's `menu_style` strips the rest-state fill
 /// and every accent rim and squashes `button_padding` to 2×0, so an entry otherwise reads as bare
 /// text on an 18px line. Call once at the top of a popup body; children inherit it.
 pub fn menu_row_style(ui: &mut egui::Ui) {
-    egui_mobile_theme::menu_style(ui);
+    ui.spacing_mut().interact_size.y = ui.spacing().interact_size.y.max(MENU_ROW_H);
+    ui.spacing_mut().button_padding = egui::vec2(8.0, 4.0);
+    ui.spacing_mut().item_spacing.y = 4.0;
 }
 
 /// A menu / combo-box button whose popup opens *upward* and scrolls.
@@ -230,3 +343,7 @@ pub fn menu_popup<R>(
         });
     response
 }
+
+#[cfg(test)]
+#[path = "theme_tests.rs"]
+mod tests;

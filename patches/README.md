@@ -5,7 +5,6 @@ tables for version compatibility and the mobile numeric-input policy.
 
 | crate | upstream | what changed |
 | --- | --- | --- |
-| `egui-theme-kit` 0.1.0 | https://github.com/shadowbrok3r/egui-theme-kit | default new egui interaction fields; see [patch notes](egui-theme-kit/RINGDESIGNER.md) |
 | `egui` 0.37.0 | https://github.com/emilk/egui | opt-in text-only numeric interaction; see [patch notes](egui/RINGDESIGNER.md) |
 | `egui-snarl` 0.11.0 | https://github.com/zakarumych/egui-snarl | repinned from egui 0.35 to 0.37; graph menus stay open for search and category interaction, with actions closing explicitly; dropped-wire menus use the same policy; public selection setter for paste and groups |
 | `egui-scale` 0.5.0 | https://github.com/zakarumych/egui-scale | repinned from egui 0.35 to 0.37 |
@@ -17,3 +16,5 @@ graph-ui crate's test `vendored_copies_match_the_siblings` checks that
 when a sibling is present. The next egui bump repins all three copies
 together (follow-up: publish the fork to `shadowbrok3r/egui-snarl` and
 use a git patch like egui-phosphor).
+
+The theme-kit mobile changes were upstreamed to `09d1e793076357ec5d86df7e1d6771d0306f2e70`; all RingDesigner targets now use that git revision directly. The old `egui-theme-kit/` directory is an unused historical snapshot.

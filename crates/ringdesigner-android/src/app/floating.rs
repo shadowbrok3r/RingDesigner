@@ -43,20 +43,24 @@ impl RingApp {
         let bounds = crate::theme::content_bounds(ctx).shrink(4.0);
         let collapsed = self.editor.workspace.rail_collapsed;
         let mut rail_position = self.editor.workspace.rail_position;
+        let rail_bounds = bounds.intersect(viewport);
+        let rail_top = if viewport.width() < 350.0 {
+            ctx.global_style().spacing.interact_size.y + 18.0
+        } else { 8.0 };
         let rail = workspace::floating(
             ctx,
             "viewport-rail",
             "Tools",
-            bounds,
+            rail_bounds,
             egui::vec2(
                 112.0,
                 if collapsed {
                     42.0
                 } else {
-                    bounds.height().min(350.0)
+                    (rail_bounds.height() - rail_top - 4.0).max(42.0).min(350.0)
                 },
             ),
-            (viewport.min - bounds.min + egui::vec2(0.0, 8.0)).max(egui::Vec2::ZERO),
+            egui::vec2(0.0, rail_top),
             &mut rail_position,
             Some(if collapsed { "+" } else { "−" }),
             |ui| {

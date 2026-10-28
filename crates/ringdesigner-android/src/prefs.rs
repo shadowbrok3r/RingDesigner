@@ -22,6 +22,8 @@ pub const FILE: &str = "prefs.json";
 #[serde(default)]
 pub struct Prefs {
     pub theme: egui_mobile_theme::ThemeConfig,
+    /// Shared theme-kit state; the old theme is retained for migration.
+    pub theme_kit: Option<String>,
     pub sync_host: String,
     /// Stored in the app's private data directory, which is not readable by
     /// other apps without root — the same place the designs live.
@@ -65,6 +67,7 @@ impl Default for Prefs {
     fn default() -> Self {
         Self {
             theme: Default::default(),
+            theme_kit: None,
             sync_host: String::new(),
             sync_token: String::new(),
             brush_frac: 0.012,
@@ -137,6 +140,9 @@ impl Prefs {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Workspace {
+    /// Keep the framing still unless the user explicitly enables menu clearance.
+    pub move_ring_from_menus: bool,
+    pub show_view_cube: bool,
     pub mode_panels: [Option<crate::editor::Sheet>; 4],
     pub graph_fullscreen: bool,
     /// Portrait height and landscape width as fractions of the available editor.
@@ -154,6 +160,8 @@ pub struct Workspace {
 impl Default for Workspace {
     fn default() -> Self {
         Self {
+            move_ring_from_menus: false,
+            show_view_cube: true,
             mode_panels: [Some(crate::editor::Sheet::Edit), Some(crate::editor::Sheet::Layers), Some(crate::editor::Sheet::Edit), Some(crate::editor::Sheet::Findings)],
             graph_fullscreen: true,
             inspector_fraction: [0.32, 0.36],
@@ -235,8 +243,14 @@ mod tests {
         assert_eq!(p.brush_depth, Prefs::default().brush_depth);
         assert!(p.show_gems, "and a default that is not false survives");
         assert!(p.work_planes, "a file from before the switch draws the work planes");
+        assert!(!p.workspace.move_ring_from_menus, "older sessions should keep the ring still");
+        assert!(p.workspace.show_view_cube);
+        assert!(p.theme_kit.is_none());
         let hidden: Prefs = serde_json::from_str(r#"{"work_planes":false}"#).expect("loads");
         assert!(!hidden.work_planes && hidden.part_edges);
+        let choices: Prefs = serde_json::from_str(r#"{"workspace":{"move_ring_from_menus":true,"show_view_cube":false}}"#).unwrap();
+        let back: Prefs = serde_json::from_str(&serde_json::to_string(&choices).unwrap()).unwrap();
+        assert!(back.workspace.move_ring_from_menus && !back.workspace.show_view_cube);
     }
 
     #[test]

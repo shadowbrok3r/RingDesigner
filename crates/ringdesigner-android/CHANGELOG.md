@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.32.2 — 2026-10-21
+
+Use the shared egui-theme-kit preview gallery for theme selection. Includes searchable preset thumbnails and the central mobile picker fixes, with existing appearance and sizing preferences preserved.
+
+## v0.32.1 — 2026-10-21
+
+Keep Android Appearance aligned with the desktop preset catalog and clarify that presets, custom colors, and startup choices are saved on the device.
+
 ## 0.32.0 — 2026-10-18
 
 - Compact 32-point controls and tighter spacing leave more room for the design, while keeping text size and custom theme settings.

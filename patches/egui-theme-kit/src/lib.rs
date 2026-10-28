@@ -73,11 +73,14 @@
 //! | `data-table` | yes | `table_style` selection colors for `egui-data-table` |
 //! | `picker` | yes | the theme picker window |
 //! | `controls` | no | themed control widgets |
+//! | `title-bar` | no | app-drawn window title bar, caption buttons, resize edges, `chrome` preferences and the Windows client-area fix |
 //! | `logger` | no | in-app log viewer |
 //!
 //! With `default-features = false` the core remains: tokens, metrics, fonts, the widget theme,
 //! presets, saved themes and the debug panel.
 
+#[cfg(feature = "title-bar")]
+pub mod chrome;
 pub mod cli;
 pub mod colors;
 #[cfg(feature = "controls")]

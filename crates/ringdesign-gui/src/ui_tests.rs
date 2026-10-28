@@ -1645,7 +1645,7 @@ fn custom_titlebar_keeps_caption_buttons_clear_of_menus() {
         let rect = h.get_by_label(label).rect();
         assert!(rect.right() <= minimize.left(), "{label} overlaps the window controls: {rect:?}");
     }
-    h.state_mut().custom_title_bar = false;
+    h.state_mut().chrome.frameless = false;
     h.run_steps(3);
     assert!(h.query_by_label("Minimize").is_none());
     assert!(h.query_by_label("Maximize").is_none());

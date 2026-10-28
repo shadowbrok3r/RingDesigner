@@ -1,9 +1,9 @@
-# Mastertech theme
+# Shared appearance facade
 
-Canonical source: `EguiMobile/crates/egui-mobile-theme`.
+All theme implementation lives in [egui-theme-kit](https://github.com/shadowbrok3r/egui-theme-kit), under `egui_theme_kit::appearance`. This crate preserves the existing `egui_mobile_theme` API while pinning the same kit revision used by the apps.
 
-Uses the supplied Mastertech export unchanged for compact desktop controls and the same colors with 36-point touch controls. `apply` installs both theme variants and a widget provider that keeps small buttons at the same height. Apps retain semantic diagnostic colors and their saved font choices.
+The editor uses the same searchable preview cards as RingDesigner desktop. Its 19 presets apply immediately while preserving the host's control height, text scale, spacing and custom font sizes. Palette, glass and sizing edits keep their existing serialized format; older settings retain their appearance.
 
-App repositories vendor an identical snapshot so standalone and CI builds do not depend on another local checkout or an unpublished git revision. Refresh snapshots from EguiMobile with `python3 scripts/sync-mastertech-theme.py <destination> ...`; run the shared theme tests and each app's UI checks after syncing.
+Call `ThemeConfig::apply(ctx, density)` after loading and when `editor(ui, &mut config, density)` reports a change, then persist through the host's settings. The host supplies the outer scroll area; the preset browser scrolls within a bounded area. `PresetGallery` is available for hosts that only need the preview browser without the rest of the editor.
 
-`ThemeConfig` stores palette roles, control height, text scale, spacing, corners and glass. Call `config.apply(ctx, density)` after loading and when `editor(ui, &mut config, density)` reports a change; save using the host app’s preferences. The editor deliberately leaves scrolling to the host. `with_role`, `role_button` and `color` read the live configured role colors. Ordinary widgets stay neutral; main actions use pink, navigation cyan, selection lilac, success mint, warnings amber and destructive actions rose. Existing custom font families/sizes may be applied after the shared style, scaled by `text_scale`.
+App snapshots contain only this facade, not a second implementation. Refresh them with `python3 scripts/sync-mastertech-theme.py <destination> ...`. Test and publish changes in the central theme-kit repository before updating the pinned revision here.

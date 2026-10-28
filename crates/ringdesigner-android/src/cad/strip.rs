@@ -30,8 +30,19 @@ pub fn show(ui: &mut egui::Ui, doc: &Document, evaluated: Option<&Evaluated>, se
     // Chips and popup rows inherit the app's shared touch density.
     let actions = ui
         .horizontal(|ui| {
-            ui.add(Icon::History.image(ui, ui.spacing().icon_width)).on_hover_text("Feature timeline: tap a feature to choose it, hold it for its menu, drag it to reorder");
-            egui::ScrollArea::horizontal().id_salt("phone-feature-strip").auto_shrink([false, true]).show(ui, |ui| timeline::show(ui, &chips, doc.through, false)).inner
+            ui.add(Icon::History.image(ui, ui.spacing().icon_width)).on_hover_text("Swipe to browse features. Tap to select; hold for editing, reordering and rollback.");
+            ui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
+            ui.spacing_mut().scroll.bar_width = 8.0;
+            ui.spacing_mut().scroll.foreground_color = true;
+            let shown = egui::ScrollArea::horizontal()
+                .id_salt("phone-feature-strip")
+                .scroll_source(egui::scroll_area::ScrollSource::ALL)
+                .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
+                .auto_shrink([false, true])
+                .show(ui, |ui| timeline::show_touch(ui, &chips, doc.through));
+            crate::editor::layout::record(ui, "history/scroll", shown.inner_rect);
+            ui.data_mut(|d| d.insert_temp(egui::Id::unique("phone-feature-offset"), shown.state.clamped_offset().x));
+            shown.inner
         })
         .inner;
     actions

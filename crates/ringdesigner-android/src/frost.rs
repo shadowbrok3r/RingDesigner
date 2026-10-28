@@ -13,17 +13,18 @@
 //!    wiring/version-skew canary.
 
 #[cfg(target_os = "android")]
-pub use android::{frost_chrome, remember};
+pub use android::{frost_chrome, remember, is_available};
 
 /// Off Android there is no GL context; the translucent theme fills stand alone.
 #[cfg(not(target_os = "android"))]
 mod stub {
     pub fn remember(_ctx: &egui::Context, _bar: egui::Rect) {}
     pub fn frost_chrome(_ui: &mut egui::Ui) {}
+    pub fn is_available() -> bool { false }
 }
 
 #[cfg(not(target_os = "android"))]
-pub use stub::{frost_chrome, remember};
+pub use stub::{frost_chrome, remember, is_available};
 
 #[cfg(target_os = "android")]
 mod android {
@@ -60,6 +61,8 @@ mod android {
             .as_ref()
     }
 
+    pub fn is_available() -> bool { renderer().is_some() }
+
     /// Stash this frame's nav-bar rect for the next frame's frost.
     pub fn remember(_ctx: &egui::Context, bar: egui::Rect) {
         *BAR.lock().unwrap() = Some(bar);
@@ -81,7 +84,8 @@ mod android {
             RepaintPolicy::Bounded(Duration::from_millis(500))
         };
 
-        let glass = egui_mobile_theme::glass(ui.ctx());
+        let glass = egui_theme_kit::glass::params(ui.ctx());
+        if !glass.enabled { return; }
         renderer.frost(
             ui,
             Surface {
@@ -90,7 +94,7 @@ mod android {
                 // Convert the exported premultiplied tint for the blur renderer.
                 tint: Tint::from_srgb_unmultiplied(glass.tint.to_srgba_unmultiplied()),
                 corner_radius: CornerRadius::new(glass.corner_radius),
-                presence: Presence::new(1.0),
+                presence: Presence::new(glass.presence),
                 repaint,
             },
         );
