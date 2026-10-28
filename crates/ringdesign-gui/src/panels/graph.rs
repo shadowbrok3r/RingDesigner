@@ -28,7 +28,15 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
                 if ui.button("Save as template…").clicked() { crate::template_library::publish(app); }
                 if ui.button("My templates…").clicked() { app.template_library.open(ui.ctx()); }
                 let selection = app.graph_ed.as_ref().map(|ed| ed.selected_nodes(ui.ctx())).unwrap_or_default();
-                if ui.add_enabled(!selection.is_empty(), egui::Button::new(format!("{} Collapse {}", icon::PACKAGE, selection.len()))).on_hover_text("Fold the selected nodes into one cluster node").clicked() {
+                if ui.add_enabled(!selection.is_empty(), egui::Button::new(format!("{} Group {}", icon::SELECTION_PLUS, selection.len()))).on_hover_text("Fold the selected nodes into a group: one box you can double-click to open").clicked() {
+                    if let Some(ed) = app.graph_ed.as_mut() {
+                        let name = format!("Group {}", ed.graph().groups.len() + 1);
+                        if ed.group_nodes(&selection, &name) {
+                            app.graph_changed();
+                        }
+                    }
+                }
+                if ui.add_enabled(!selection.is_empty(), egui::Button::new(format!("{} Cluster {}", icon::PACKAGE, selection.len()))).on_hover_text("Turn the selected nodes into one cluster node: a sub-graph with its own parameters, reusable as a node").clicked() {
                     app.collapse_nodes(&selection);
                 }
                 if ui.add_enabled(app.is_current(), egui::Button::new(format!("{} Bake", icon::FIRE))).on_hover_text("Drop the graph; keep the design as last evaluated").clicked() {

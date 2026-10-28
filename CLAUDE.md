@@ -3275,6 +3275,55 @@ renders the editor through wgpu offscreen to `graph.png` for an eyeball
 pass; the `shot` feature keeps wgpu out of every other build, because it
 unifies `egui/bytemuck` into the whole UI stack and costs a full rebuild.
 
+### Groups fold the graph, and the editor shows a projection of it
+
+A `NodeGroup` with `collapsed` set draws as **one node** whose pins are the
+wires crossing its edge, and opens (double-click, Open, the node menu) into a
+view of its members alone, with `Group inputs` and `Group outputs` nodes
+standing for the outside. Groups are view data — membership never changes
+evaluation — so this is a projection, not a cluster: `view::project` builds
+the graph the snarl shows (real nodes keep their ids, view-only nodes live at
+and above `PSEUDO_BASE`), and `view::merge` writes the edited view back,
+translating a wire on a group's pin to the member pin it stands for and
+keeping every wire the view does not show. `Editor::graph()` is always the
+whole graph; node ids, the inspector, MCP and the ring focus all see real
+nodes, and a group stands for its layer (`view::representative`) when chosen.
+A folded node centres its group on `focus`; `card`, `set_input` and
+`set_label` work on nodes the view hides. Each view keeps its own snarl id,
+so leaving a group restores the camera it left.
+
+`Graph::auto_group` (`grouping.rs`) folds what lifted graphs repeat — each
+`stack` link with what only it reads, stamp lists, keyframe lists, CAD part
+chains, artwork lists, settings blocks — taking a node only when everything
+reading it is in the same group, so shared sources stay visible. Templates
+are grouped as they load (`TemplateGraph::load`) and "Convert to graph"
+groups its lift; the committed template files are not regrouped, so their
+golden tests are untouched. Oriel opens as 57 top-level nodes, not 250.
+A folded group with no `pos` of its own triggers a full arrange of the
+folded view on adoption: its members' flat-layout positions are no layout.
+`collapsed` and group `pos` are layout to History (`graph_layout_only`).
+
+The rest of the editor's input, mouse first and touch unchanged: the wheel
+zooms about the pointer at half egui's Ctrl+wheel rate (Shift or Alt pans),
+right- or middle-drag pans anywhere, a left drag on empty canvas draws a
+selection box (snarl's pan for it is discarded through `Frame::freeze`), a
+body drag moves the node with a mouse and pans with a finger, and the
+minimap draws on an overlay sublayer above the nodes and steers the view.
+Pins record where they are drawn, so a dragged wire rings every pin it
+`fits` and dims the rest. The add-node popup is the editor's own `Area`
+(snarl's graph menu is off): a right-click, a long touch or typing over the
+canvas opens it with the search focused — its field claims the arrow keys,
+or egui walks focus with them — and Enter adds the highlighted match.
+The host's global Escape yields while `Editor::wants_escape`.
+
+Every node kind, value type and three concepts have plain-language help in
+`crates/ringdesign-graph/src/guide.md`, read by `ringdesign_graph::guide`;
+`every_node_and_type_has_its_help` fails on a registry key it does not
+cover. The popup, the header tooltips, pin tips, the inspector and the help
+window (F1, `?`, the node menu) all read it. Output names are painted at a
+node's left edge in their kind's colour after layout (`OutRow`), never laid
+out from the node's width, which would ratchet.
+
 ### Paint-on-band: pressure is millimetres, the ceiling is the draft
 
 `paint.rs` (core) is the brush both apps share: `bite()` resolves a press

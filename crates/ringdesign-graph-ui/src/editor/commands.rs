@@ -21,12 +21,8 @@ impl Editor {
     fn select(&mut self, ctx: &egui::Context, ids: &[NodeId]) {
         self.selected = ids.first().copied();
         if let Some(snarl) = self.snarl_id {
-            egui_snarl::ui::set_selected_nodes(
-                snarl,
-                ctx,
-                ids.iter()
-                    .filter_map(|id| self.ids.to_snarl.get(id).copied()),
-            );
+            let shown: BTreeSet<SnarlId> = ids.iter().filter_map(|id| self.view_node_of(*id)).filter_map(|v| self.ids.to_snarl.get(&v).copied()).collect();
+            egui_snarl::ui::set_selected_nodes(snarl, ctx, shown);
         }
     }
 
@@ -40,6 +36,10 @@ impl Editor {
         let mut graph = self.graph.clone();
         match fragment.paste(&mut graph, at, reg) {
             Ok(ids) => {
+                // Pasted inside a group, the nodes join it.
+                if let Some(group) = self.view.entered.and_then(|i| graph.groups.get_mut(i)) {
+                    group.nodes.extend(ids.iter().copied());
+                }
                 self.set_graph(graph, reg);
                 self.select(ui.ctx(), &ids);
                 self.command_error = None;
@@ -61,6 +61,9 @@ impl Editor {
         let mut all = false;
         let mut changed = false;
         let mut pasted_text = None;
+        let mut group: Option<bool> = None;
+        let mut auto = false;
+        let mut fold: Option<bool> = None;
         let canvas = ui.available_rect_before_wrap();
         let pointer = ui.input(|i| i.pointer.hover_pos());
         let keyboard = self.editable
@@ -73,11 +76,15 @@ impl Editor {
                         .is_none_or(|layer| layer == ui.layer_id())
             })
             && !egui::Popup::is_any_open(ui.ctx());
+        let mut leave = false;
+        let mut help = false;
         if keyboard {
             ui.input_mut(|i| {
                 duplicate = i.consume_key(egui::Modifiers::COMMAND, egui::Key::D);
                 all = i.consume_key(egui::Modifiers::COMMAND, egui::Key::A);
                 delete = i.consume_key(egui::Modifiers::NONE, egui::Key::Delete);
+                leave = self.view.entered.is_some() && self.palette.is_none() && i.consume_key(egui::Modifiers::NONE, egui::Key::Escape);
+                help = i.consume_key(egui::Modifiers::NONE, egui::Key::F1);
                 i.events.retain(|event| match event {
                     egui::Event::Copy => {
                         copy = true;
@@ -91,10 +98,28 @@ impl Editor {
                 });
             });
         }
+        let mut action: Option<super::groups::Action> = None;
+        if let Some(group) = self.entered_group() {
+            let (name, count) = (group.name.clone(), group.nodes.len());
+            egui::Frame::new().fill(crate::style::AQUA.gamma_multiply(0.12)).corner_radius(4.0).inner_margin(egui::Margin::symmetric(8, 4)).show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    if ui.button("Back to the whole graph").on_hover_text("Leave this group (Esc)").clicked() {
+                        action = Some(super::groups::Action::Leave);
+                    }
+                    ui.label(RichText::new(format!("Inside the group {name}")).strong().color(crate::style::AQUA));
+                    ui.weak(format!("{count} nodes. The Group inputs and Group outputs nodes stand for the wires that cross its edge."));
+                    if let Some(i) = self.view.entered {
+                        if ui.small_button("Show its nodes in the whole graph").clicked() {
+                            action = Some(super::groups::Action::Expand(i));
+                        }
+                    }
+                });
+            });
+        }
         ui.horizontal_wrapped(|ui| {
             ui.add_enabled_ui(self.editable, |ui| {
                 ui.menu_button("Selection", |ui| {
-                    ui.weak("Shift-click titles to select several nodes.");
+                    ui.weak("Drag on empty canvas to box-select; Shift adds, Ctrl removes.");
                     copy |= ui
                         .add_enabled(!ids.is_empty(), egui::Button::new("Copy nodes  Ctrl+C"))
                         .clicked();
@@ -122,52 +147,95 @@ impl Editor {
                     }
                 });
                 ui.menu_button("Groups", |ui| {
-                    ui.weak("Frames organize nodes without changing their wires.");
+                    ui.weak("A group folds nodes into one box you can open. Evaluation never depends on groups.");
                     ui.text_edit_singleline(&mut self.group_name).accessible_name("New group name");
-                    if ui
-                        .add_enabled(
-                            !ids.is_empty() && !self.group_name.trim().is_empty(),
-                            egui::Button::new("Group selected nodes"),
-                        )
-                        .clicked()
-                    {
-                        self.graph.groups.push(NodeGroup {
-                            name: self.group_name.trim().to_string(),
-                            nodes: ids.clone(),
-                        });
-                        self.revision += 1;
-                        changed = true;
+                    ui.horizontal(|ui| {
+                        let can = !ids.is_empty() && !self.group_name.trim().is_empty();
+                        if ui.add_enabled(can, egui::Button::new("Group selected nodes")).on_hover_text("Fold the selection into one group node").clicked() {
+                            group = Some(true);
+                            ui.close();
+                        }
+                        if ui.add_enabled(can, egui::Button::new("Frame them")).on_hover_text("Draw a named frame round the selection, nodes left in view").clicked() {
+                            group = Some(false);
+                            ui.close();
+                        }
+                    });
+                    if ui.button("Group every layer automatically").on_hover_text("One group per layer, stamp list, part chain and settings block not grouped yet").clicked() {
+                        auto = true;
                         ui.close();
                     }
+                    ui.horizontal(|ui| {
+                        if ui.add_enabled(!self.graph.groups.is_empty(), egui::Button::new("Fold all")).clicked() {
+                            fold = Some(true);
+                            ui.close();
+                        }
+                        if ui.add_enabled(!self.graph.groups.is_empty(), egui::Button::new("Unfold all")).clicked() {
+                            fold = Some(false);
+                            ui.close();
+                        }
+                    });
+                    if !self.graph.groups.is_empty() {
+                        ui.separator();
+                    }
                     let mut selected = None;
-                    let mut remove = None;
-                    for (index, group) in self.graph.groups.iter_mut().enumerate() {
-                        ui.push_id(index, |ui| {
-                            ui.horizontal(|ui| {
-                                if ui.text_edit_singleline(&mut group.name).accessible_name("Group name").changed() {
-                                    changed = true;
-                                }
-                                if ui.small_button("Select group").clicked() {
-                                    selected = Some(group.nodes.clone());
-                                }
-                                if ui.small_button("Remove frame").clicked() {
-                                    remove = Some(index);
-                                }
+                    egui::ScrollArea::vertical().id_salt("group-list").max_height(320.0).show(ui, |ui| {
+                        for (index, group) in self.graph.groups.iter_mut().enumerate() {
+                            ui.push_id(index, |ui| {
+                                ui.horizontal(|ui| {
+                                    if ui.add(egui::TextEdit::singleline(&mut group.name).desired_width(140.0)).on_hover_text("Group name").changed() {
+                                        changed = true;
+                                    }
+                                    ui.weak(format!("{}", group.nodes.len()));
+                                    if ui.small_button("Open").clicked() {
+                                        action = Some(super::groups::Action::Enter(index));
+                                        ui.close();
+                                    }
+                                    let fold_label = if group.collapsed { "Unfold" } else { "Fold" };
+                                    if ui.small_button(fold_label).clicked() {
+                                        action = Some(if group.collapsed { super::groups::Action::Expand(index) } else { super::groups::Action::Collapse(index) });
+                                        ui.close();
+                                    }
+                                    if ui.small_button("Select").clicked() {
+                                        selected = Some(group.nodes.clone());
+                                    }
+                                    if ui.small_button("Ungroup").clicked() {
+                                        action = Some(super::groups::Action::Ungroup(index));
+                                        ui.close();
+                                    }
+                                });
                             });
-                        });
-                    }
-                    if let Some(index) = remove {
-                        self.graph.groups.remove(index);
-                        changed = true;
-                    }
+                        }
+                    });
                     if let Some(ids) = selected {
                         self.select(ui.ctx(), &ids);
                         ui.close();
                     }
                 });
             });
-            ui.weak("Right-click to add • Drag a wire to empty space to connect a new node");
+            let hint = if ui.input(|i| i.has_touch_screen()) { "Long-press to add a node • Double-tap a group to open it • Pinch to zoom" } else { "Type to add a node • Drag selects • Right-drag pans • Wheel zooms • F1 help" };
+            ui.weak(hint).on_hover_text("Type a node's name over the canvas, or right-click, to add one. Drag on empty canvas to box-select (Shift adds, Ctrl removes); right- or middle-drag pans; the wheel zooms (hold Shift to pan instead). Double-click a group to open it, Esc to come back out. F1 over a node opens its help.");
         });
+        if let Some(collapsed) = group {
+            let name = self.group_name.trim().to_string();
+            changed |= self.group_selection(&ids, &name, collapsed);
+        }
+        if auto {
+            changed |= self.auto_group();
+        }
+        if let Some(collapsed) = fold {
+            changed |= self.fold_all(collapsed);
+        }
+        if leave {
+            action = Some(super::groups::Action::Leave);
+        }
+        if let Some(a) = action {
+            changed |= self.apply_group_action(a, &ui.ctx().clone(), reg);
+        }
+        if help {
+            if let Some(kind) = self.selected.and_then(|id| self.graph.node(id)).map(|n| n.kind.clone()) {
+                self.help = Some(kind);
+            }
+        }
         if all {
             let ids = self.graph.nodes.iter().map(|n| n.id).collect::<Vec<_>>();
             self.select(ui.ctx(), &ids);
@@ -230,6 +298,30 @@ impl Editor {
 mod tests {
     use super::*;
     use egui_kittest::{Harness, kittest::Queryable};
+
+    #[test]
+    fn a_node_duplicated_inside_a_group_stays_in_it() {
+        let reg = Registry::builtin();
+        let mut ed = Editor::new(ringdesign_graph::templates::graph("Gypsy trio").unwrap(), &reg);
+        ed.enter_group(0);
+        let gem = ed.graph().groups[0].nodes.iter().copied().find(|id| ed.graph().node(*id).unwrap().kind == "gem").unwrap();
+        ed.selected = Some(gem);
+        let before = ed.graph().groups[0].nodes.len();
+        let mut h = Harness::builder().with_size([1100., 700.]).build_ui_state(
+            |ui, ed: &mut Editor| {
+                ed.show(&reg, ui, "group-paste");
+            },
+            ed,
+        );
+        h.run();
+        h.hover_at(egui::pos2(700., 450.));
+        h.run();
+        h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::D);
+        h.run();
+        let ed = h.state();
+        assert_eq!(ed.graph().groups[0].nodes.len(), before + 1, "the copy joined the group in hand");
+        assert!(ed.view().graph.nodes.iter().filter(|n| n.kind == "gem").count() == 2, "and shows inside it");
+    }
 
     #[test]
     fn menu_paste_selects_the_new_nodes_and_delete_removes_only_that_selection() {
