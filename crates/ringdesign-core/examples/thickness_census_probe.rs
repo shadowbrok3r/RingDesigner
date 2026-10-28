@@ -117,6 +117,7 @@ fn summary(t: &Thickness, ms: f64) -> serde_json::Value {
         "ms": ms, "clean": t.clean(), "assessed": t.assessed, "pitch_mm": t.pitch_mm, "area_mm2": t.area_mm2,
         "samples": t.rays, "unresolved": t.unresolved, "internal": t.internal, "sampled_min_mm": t.sampled_min_mm, "at": t.point,
         "wall_samples": t.below_limit, "wall_area_mm2": t.wall_area_mm2, "edge_samples": t.edge_below_limit, "edge_area_mm2": t.edge_area_mm2,
+        "noise_samples": t.noise_below_limit, "noise_area_mm2": t.noise_area_mm2, "noise": t.noise.iter().map(zone).collect::<Vec<_>>(),
         "walls": t.walls.iter().map(zone).collect::<Vec<_>>(),
         "edges": t.edges.iter().map(zone).collect::<Vec<_>>(),
     })
