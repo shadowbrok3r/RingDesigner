@@ -88,11 +88,23 @@ pub struct Exposed {
     pub range: Option<[f64; 2]>,
 }
 
-/// A visual group; evaluation does not depend on membership.
+/// A visual group; evaluation does not depend on membership. A collapsed
+/// group is drawn as one node carrying the wires that cross its boundary.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NodeGroup {
     pub name: String,
     pub nodes: Vec<NodeId>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub collapsed: bool,
+    /// Where the collapsed node stands; the members' top-left corner if unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pos: Option<[f32; 2]>,
+}
+
+impl NodeGroup {
+    pub fn new(name: impl Into<String>, nodes: Vec<NodeId>) -> Self {
+        Self { name: name.into(), nodes, collapsed: false, pos: None }
+    }
 }
 
 /// An output promoted to the graph's own — what a cluster hands out when
@@ -490,7 +502,7 @@ impl Graph {
         let parent_groups = self.groups.clone();
         inner.groups = parent_groups.iter().filter_map(|g| {
             let nodes: Vec<_> = g.nodes.iter().copied().filter(|id| set.contains(id)).collect();
-            (!nodes.is_empty()).then(|| NodeGroup { name: g.name.clone(), nodes })
+            (!nodes.is_empty()).then(|| NodeGroup { nodes, ..g.clone() })
         }).collect();
         let centroid = {
             let pts: Vec<[f32; 2]> = self.nodes.iter().filter(|n| set.contains(&n.id)).map(|n| n.pos).collect();

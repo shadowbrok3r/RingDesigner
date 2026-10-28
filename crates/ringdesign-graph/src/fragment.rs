@@ -36,10 +36,7 @@ mod tests {
         graph.node_mut(b).unwrap().pos = [210., 80.];
         graph.connect(a, "out", b, "a").unwrap();
         graph.connect(b, "out", outside, "a").unwrap();
-        graph.groups.push(NodeGroup {
-            name: "Sizing".into(),
-            nodes: vec![a, b],
-        });
+        graph.groups.push(NodeGroup::new("Sizing", vec![a, b]));
         let fragment = Fragment::capture(&graph, &[a, b]);
         let fragment: Fragment =
             serde_json::from_str(&serde_json::to_string(&fragment).unwrap()).unwrap();
@@ -92,10 +89,7 @@ mod tests {
             .find(|e| e.name == "Width")
             .unwrap()
             .range = Some([2., 12.]);
-        graph.groups.push(NodeGroup {
-            name: "Band".into(),
-            nodes: vec![id],
-        });
+        graph.groups.push(NodeGroup::new("Band", vec![id]));
         let cluster = graph.collapse(&[id], "Profile").unwrap();
         assert_eq!(
             graph
@@ -139,10 +133,7 @@ impl Fragment {
                         .copied()
                         .filter(|id| ids.contains(id))
                         .collect();
-                    (!nodes.is_empty()).then(|| NodeGroup {
-                        name: g.name.clone(),
-                        nodes,
-                    })
+                    (!nodes.is_empty()).then(|| NodeGroup { nodes, ..g.clone() })
                 })
                 .collect(),
         }
@@ -206,10 +197,8 @@ impl Fragment {
                 .filter_map(|id| remap.get(id).copied())
                 .collect();
             if !nodes.is_empty() {
-                result.groups.push(NodeGroup {
-                    name: group.name.clone(),
-                    nodes,
-                });
+                let pos = group.pos.map(|p| [at[0] + p[0] - origin[0], at[1] + p[1] - origin[1]]);
+                result.groups.push(NodeGroup { nodes, pos, ..group.clone() });
             }
         }
         // Only reject new structural failures; incomplete existing graphs remain editable.

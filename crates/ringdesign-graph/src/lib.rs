@@ -41,6 +41,8 @@ pub mod fragment;
 pub mod personal;
 pub mod focus;
 pub mod graph;
+pub mod guide;
+pub mod grouping;
 pub mod lift;
 pub mod nodes;
 pub mod registry;

@@ -14,6 +14,7 @@ pub mod editor;
 pub mod alpha_picker;
 pub mod navigator;
 pub mod style;
+pub mod view;
 pub mod widgets;
 
 pub use editor::{Editor, EditorResponse, NodeCard, build_snarl, extract_graph};

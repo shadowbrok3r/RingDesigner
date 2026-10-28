@@ -55,8 +55,11 @@ impl TemplateGraph {
             .text()
     }
 
+    /// The template's graph, its layers and other repeated chains folded into collapsed groups.
     pub fn load(&self) -> Graph {
-        crate::file::load_graph_str(&self.json(), None).expect("bundled graph parses")
+        let mut g = crate::file::load_graph_str(&self.json(), None).expect("bundled graph parses");
+        g.auto_group();
+        g
     }
 
     /// Start a project from the whole template, including its title and

@@ -480,18 +480,117 @@ fn pinned_rod(dia: f64, long: f64) -> Mesh {
     lathe(&[[0.0, 0.0], [1.5, 0.0], [1.5, 3.0], [r, 3.0], [r, 3.0 + long], [0.0, 3.0 + long]], 96)
 }
 
+/// A 6 x 6 x 2 block carrying a fin `thick` wide and `tall` high whose top closes to a right-angled point.
+fn pointed_fin_block(thick: f64, tall: f64) -> Mesh {
+    let (a, b, h) = (3.0 - 0.5 * thick, 3.0 + 0.5 * thick, 0.5 * thick);
+    prism(&[[0.0, 0.0], [6.0, 0.0], [6.0, 2.0], [b, 2.0], [b, 2.0 + tall - h], [3.0, 2.0 + tall], [a, 2.0 + tall - h], [a, 2.0], [0.0, 2.0]], 6.0)
+}
+
+/// Half a circle of radius `r` about (`x`, `z`), from 0 to 180°, in 16 chords.
+fn arc(x: f64, z: f64, r: f64) -> Vec<[f64; 2]> {
+    (0..=16).map(|k| std::f64::consts::PI * k as f64 / 16.0).map(|a| [x + r * a.cos(), z + r * a.sin()]).collect()
+}
+
+/// A 6 x 6 x 2 block carrying a fin `thick` wide and `tall` high whose top is rounded to a half circle.
+fn rounded_fin_block(thick: f64, tall: f64) -> Mesh {
+    let r = 0.5 * thick;
+    let mut outline = vec![[0.0, 0.0], [6.0, 0.0], [6.0, 2.0], [3.0 + r, 2.0]];
+    outline.extend(arc(3.0, 2.0 + tall - r, r));
+    outline.extend([[3.0 - r, 2.0], [0.0, 2.0]]);
+    prism(&outline, 6.0)
+}
+
+/// A 3 mm rod carrying a pin `dia` across and `long` high on its end, its tip a half sphere.
+fn rounded_pin_rod(dia: f64, long: f64) -> Mesh {
+    let r = 0.5 * dia;
+    let mut profile = vec![[0.0, 0.0], [1.5, 0.0], [1.5, 3.0], [r, 3.0]];
+    profile.extend(arc(0.0, 3.0 + long - r, r).into_iter().take(8));
+    profile.push([0.0, 3.0 + long]);
+    lathe(&profile, 96)
+}
+
+/// A 6 x 6 x 2 block carrying `feature`, an outline from the block's top at the right over to its top at the left.
+fn on_block(feature: &[[f64; 2]]) -> Mesh {
+    let mut outline = vec![[0.0, 0.0], [6.0, 0.0], [6.0, 2.0]];
+    outline.extend_from_slice(feature);
+    outline.push([0.0, 2.0]);
+    prism(&outline, 6.0)
+}
+
+/// A fin `base` wide at the block and `top` wide at its flat top `tall` higher, that top moved `lean` along x.
+fn drafted(top: f64, base: f64, tall: f64, lean: f64) -> Mesh {
+    on_block(&[[3.0 + 0.5 * base, 2.0], [3.0 + lean + 0.5 * top, 2.0 + tall], [3.0 + lean - 0.5 * top, 2.0 + tall], [3.0 - 0.5 * base, 2.0]])
+}
+
+/// Quarter circle of radius `r` about (`x`, `z`) from `from` to `to` degrees, in 12 chords.
+fn quarter(x: f64, z: f64, r: f64, from: f64, to: f64) -> Vec<[f64; 2]> {
+    (0..=12).map(|k| (from + (to - from) * k as f64 / 12.0).to_radians()).map(|a| [x + r * a.cos(), z + r * a.sin()]).collect()
+}
+
+/// A fin `thick` wide and `tall` high meeting the block in concave fillets of radius `r`, or in 45° chamfers `r` wide when `chamfer`.
+fn footed(thick: f64, tall: f64, r: f64, chamfer: bool) -> Mesh {
+    let (a, b) = (3.0 - 0.5 * thick, 3.0 + 0.5 * thick);
+    let mut f = if chamfer { vec![[b + r, 2.0], [b, 2.0 + r]] } else { quarter(b + r, 2.0 + r, r, 270.0, 180.0) };
+    f.extend([[b, 2.0 + tall], [a, 2.0 + tall]]);
+    f.extend(if chamfer { vec![[a, 2.0 + r], [a - r, 2.0]] } else { quarter(a - r, 2.0 + r, r, 0.0, -90.0) });
+    on_block(&f)
+}
+
+/// A 3 mm rod carrying a cone `base` across and `long` high on its end, meeting the rod in a fillet of radius `r`.
+fn cone_rod(base: f64, long: f64, r: f64) -> Mesh {
+    let half = (0.5 * base / long).atan().to_degrees();
+    let mut profile = vec![[0.0, 0.0], [1.5, 0.0], [1.5, 3.0]];
+    if r > 0.0 {
+        let h = half.to_radians();
+        profile.extend(quarter(0.5 * base + r * (1.0 - h.sin()) / h.cos(), 3.0 + r, r, 270.0, 180.0 + half));
+    } else {
+        profile.push([0.5 * base, 3.0]);
+    }
+    profile.push([0.0, 3.0 + long]);
+    lathe(&profile, 96)
+}
+
 #[test]
 fn a_fin_pin_or_lip_taller_than_it_is_thick_is_a_wall() {
-    for (what, m) in [
-        ("0.05 mm fin 0.7 mm tall", fin_block(0.05, 0.7, 0.0)),
-        ("0.3 mm lip 0.82 mm tall", fin_block(0.3, 0.82, 0.0)),
-        ("0.3 mm lip 0.5 mm tall", fin_block(0.3, 0.5, 0.0)),
-        ("0.1 mm pin 0.6 mm long", pinned_rod(0.1, 0.6)),
-        ("0.15 mm pin 0.7 mm long", pinned_rod(0.15, 0.7)),
+    let pin = |dia: f64, long: f64| std::f64::consts::PI * dia * long;
+    let cone = |base: f64, long: f64| std::f64::consts::PI * 0.5 * base * (long * long + 0.25 * base * base).sqrt();
+    let flanks = |a: [f64; 2], b: [f64; 2], c: [f64; 2], d: [f64; 2]| 6.0 * ((b[0] - a[0]).hypot(b[1] - a[1]) + (d[0] - c[0]).hypot(d[1] - c[1]));
+    let drafted_flanks = |top: f64, base: f64, tall: f64, lean: f64| flanks([0.5 * base, 0.0], [lean + 0.5 * top, tall], [-0.5 * base, 0.0], [lean - 0.5 * top, tall]);
+    let razor = |deg: f64, proud: f64| {
+        let half = proud * (0.5 * deg).to_radians().tan();
+        (on_block(&[[3.0 + half, 2.0], [3.0, 2.0 + proud], [3.0 - half, 2.0]]), 2.0 * 6.0 * proud.hypot(half))
+    };
+    // Each, with the area of its straight flanks or sides.
+    for (what, m, sides) in [
+        ("0.05 mm fin 0.7 mm tall", fin_block(0.05, 0.7, 0.0), 2.0 * 6.0 * 0.7),
+        ("0.3 mm lip 0.82 mm tall", fin_block(0.3, 0.82, 0.0), 2.0 * 6.0 * 0.82),
+        ("0.3 mm lip 0.5 mm tall", fin_block(0.3, 0.5, 0.0), 2.0 * 6.0 * 0.5),
+        ("0.1 mm pin 0.6 mm long", pinned_rod(0.1, 0.6), pin(0.1, 0.6)),
+        ("0.15 mm pin 0.7 mm long", pinned_rod(0.15, 0.7), pin(0.15, 0.7)),
+        ("0.05 mm fin 0.7 mm tall to a point", pointed_fin_block(0.05, 0.7), 2.0 * 6.0 * 0.675),
+        ("0.3 mm lip 0.5 mm tall to a point", pointed_fin_block(0.3, 0.5), 2.0 * 6.0 * 0.35),
+        ("0.3 mm lip 0.5 mm tall, rounded", rounded_fin_block(0.3, 0.5), 2.0 * 6.0 * 0.35),
+        ("0.6 mm lip 0.75 mm tall, rounded", rounded_fin_block(0.6, 0.75), 2.0 * 6.0 * 0.45),
+        ("0.3 mm pin 0.7 mm long, rounded", rounded_pin_rod(0.3, 0.7), pin(0.3, 0.55)),
+        ("5° ridge 0.75 mm proud", razor(5.0, 0.75).0, razor(5.0, 0.75).1),
+        ("10° ridge 0.75 mm proud", razor(10.0, 0.75).0, razor(10.0, 0.75).1),
+        ("needle 0.1 mm across 0.75 mm long", cone_rod(0.1, 0.75, 0.0), cone(0.1, 0.75)),
+        ("needle 0.08 mm across 0.6 mm long", cone_rod(0.08, 0.6, 0.0), cone(0.08, 0.6)),
+        ("fin drafted 0.05 to 0.3 mm, 0.75 mm tall", drafted(0.05, 0.3, 0.75, 0.0), drafted_flanks(0.05, 0.3, 0.75, 0.0)),
+        ("fin drafted 0.1 to 0.25 mm, 0.6 mm tall", drafted(0.1, 0.25, 0.6, 0.0), drafted_flanks(0.1, 0.25, 0.6, 0.0)),
+        ("fin drafted 0.15 to 0.4 mm, 0.7 mm tall", drafted(0.15, 0.4, 0.7, 0.0), drafted_flanks(0.15, 0.4, 0.7, 0.0)),
+        ("fin drafted 0.2 to 0.45 mm, 0.6 mm tall, leaning 0.5", drafted(0.2, 0.45, 0.6, 0.5), drafted_flanks(0.2, 0.45, 0.6, 0.5)),
+        ("0.2 mm fin 0.6 mm tall on 0.2 mm fillets", footed(0.2, 0.6, 0.2, false), 2.0 * 6.0 * 0.4),
+        ("0.3 mm fin 0.6 mm tall on 0.25 mm fillets", footed(0.3, 0.6, 0.25, false), 2.0 * 6.0 * 0.35),
+        ("0.3 mm fin 0.6 mm tall on 0.3 mm fillets", footed(0.3, 0.6, 0.3, false), 2.0 * 6.0 * 0.3),
+        ("0.25 mm fin 0.6 mm tall on 0.25 mm chamfers", footed(0.25, 0.6, 0.25, true), 2.0 * 6.0 * 0.35),
+        ("cone 0.4 mm across 0.75 mm long on a 0.3 mm fillet", cone_rod(0.4, 0.75, 0.3), cone(0.4 * 0.4 / 0.75, 0.4)),
     ] {
         let t = at_floor(&m);
         assert!(!t.clean() && !t.walls.is_empty(), "{what}: {t:?}");
         assert!(t.walls.iter().all(|z| z.point[2] > 2.0 - 1e-6), "{what}: {:?}", t.walls);
+        // Four fifths of its flanks read as wall, not just a few samples.
+        assert!(t.wall_area_mm2 > 0.8 * sides, "{what}: {} mm² of wall on {sides} mm² of flank, {} mm² of edge", t.wall_area_mm2, t.edge_area_mm2);
     }
     // A lip no taller than it is thick is fed from the body behind it.
     let t = at_floor(&fin_block(0.4, 0.3, 0.0));
@@ -536,4 +635,104 @@ fn a_plate_between_flush_pairs_reads_its_own_section() {
         assert!(!t.clean() && (t.walls[0].thinnest_mm - 0.3).abs() < 1e-3, "{t:?}");
     }
     assert!((sandwich.wall_area_mm2 - alone.wall_area_mm2).abs() < 1e-6, "{} against {}", sandwich.wall_area_mm2, alone.wall_area_mm2);
+}
+
+/// Outline points of a crest of `deg` included angle standing `proud` over `top` at x = 3, its flanks meeting `top` in concave fillets of radius `r`, from the right over to the left.
+fn crest(top: f64, deg: f64, proud: f64, r: f64) -> Vec<[f64; 2]> {
+    let a = (0.5 * deg).to_radians();
+    let root = 3.0 + proud * a.tan();
+    let mut right = if r > 0.0 { quarter(root + r * (1.0 - a.sin()) / a.cos(), top + r, r, 270.0, 180.0 + (0.5 * deg)) } else { vec![[root, top]] };
+    let left: Vec<[f64; 2]> = right.iter().rev().map(|p| [6.0 - p[0], p[1]]).collect();
+    right.push([3.0, top + proud]);
+    right.extend(left);
+    right
+}
+
+#[test]
+fn a_crest_that_flares_into_its_body_is_relief() {
+    for deg in [25.0, 30.0, 40.0] {
+        for proud in [0.4, 0.5] {
+            let what = format!("{deg}° crest {proud} mm proud");
+            // Flaring into a 2 mm body through 0.3 mm fillets, it is relief.
+            let flared = at_floor(&on_block(&crest(2.0, deg, proud, 0.3)));
+            assert!(flared.clean() && flared.walls.is_empty() && flared.edge_area_mm2 > 2.0, "{what}, flared: {flared:?}");
+            assert!(flared.edges.iter().all(|z| z.point[2] > 2.0 - 1e-6), "{what}, flared: {:?}", flared.edges);
+            // Standing on the body at a sharp root, it is a fin.
+            let standing = at_floor(&on_block(&crest(2.0, deg, proud, 0.0)));
+            assert!(!standing.clean() && standing.wall_area_mm2 > 2.0, "{what}, standing: {standing:?}");
+        }
+    }
+    // Narrower than 20° it is a fin however it meets the body.
+    let razor = at_floor(&on_block(&crest(2.0, 15.0, 0.5, 0.3)));
+    assert!(!razor.clean() && razor.wall_area_mm2 > 2.0, "{razor:?}");
+}
+
+#[test]
+fn a_crest_standing_further_than_the_reach_is_a_wall() {
+    let tall = on_block(&crest(2.0, 30.0, 1.2, 0.3));
+    let t = at_floor(&tall);
+    assert!(!t.clean() && !t.walls.is_empty(), "{t:?}");
+    assert!(t.walls.iter().all(|z| z.point[2] > 2.0 - 1e-6), "{:?}", t.walls);
+    // With the reach opened to the crest's height it is relief again.
+    let wide = census(&tall, &CensusOptions { edge_reach_mm: Some(1.6), ..CensusOptions::floor(FLOOR) });
+    assert!(wide.clean(), "{wide:?}");
+}
+
+#[test]
+fn relief_on_a_thin_web_over_a_hollow_is_a_wall() {
+    // On a 3 mm block the crest is relief.
+    let block = {
+        let mut o = vec![[0.0, 0.0], [6.0, 0.0], [6.0, 3.0]];
+        o.extend(crest(3.0, 40.0, 0.5, 0.3));
+        o.push([0.0, 3.0]);
+        at_floor(&prism(&o, 6.0))
+    };
+    assert!(block.clean() && block.edge_area_mm2 > 2.0, "{block:?}");
+    // Two 1.5 mm legs bridged by a 0.5 mm web over a 3 mm hollow, bare and carrying the same crest.
+    let arch = [[0.0, 0.0], [1.5, 0.0], [1.5, 2.5], [4.5, 2.5], [4.5, 0.0], [6.0, 0.0], [6.0, 3.0]];
+    let mut bare = arch.to_vec();
+    bare.push([0.0, 3.0]);
+    let mut carried = arch.to_vec();
+    carried.extend(crest(3.0, 40.0, 0.5, 0.3));
+    carried.push([0.0, 3.0]);
+    let (bare, carried) = (at_floor(&prism(&bare, 6.0)), at_floor(&prism(&carried, 6.0)));
+    assert!(!bare.clean() && !carried.clean(), "{carried:?}");
+    // The crest's flanks gain no edge on the web save near its two cut ends: the metal under them is half a floor.
+    assert!(carried.edge_area_mm2 - bare.edge_area_mm2 < 0.25 * block.edge_area_mm2, "{} mm² of edge against {} bare, {} on the block", carried.edge_area_mm2, bare.edge_area_mm2, block.edge_area_mm2);
+}
+
+/// A band `band` thick and 3 mm tall turned about its axis at radius 3.5, carrying at mid-height a 40° lip `long` pointing in, on 0.4 mm fillets.
+fn lipped_band(band: f64, long: f64) -> Mesh {
+    let a = 20f64.to_radians();
+    let (root, half, r) = (3.5, long * a.tan(), 0.4);
+    let rise = half + r * (1.0 - a.sin()) / a.cos();
+    // Round the band from the bottom of its inside face, up its outside and back down its inside face, over the lip.
+    let mut p = vec![[root, 0.0], [root + band, 0.0], [root + band, 3.0], [root, 3.0]];
+    p.extend(quarter(root - r, 1.5 + rise, r, 0.0, -70.0));
+    p.push([root - long, 1.5]);
+    p.extend(quarter(root - r, 1.5 - rise, r, 70.0, 0.0));
+    lathe(&p, 256)
+}
+
+#[test]
+fn relief_on_a_band_under_the_floor_is_a_wall_by_any_march() {
+    let thick = at_floor(&lipped_band(1.2, 0.5));
+    assert!(thick.clean() && thick.edge_area_mm2 > 3.0, "{thick:?}");
+    // On a 0.7 mm band the lip gains no edge: straight through the band is 0.7 mm, a march slanting round it reads 1.0.
+    let thin = at_floor(&lipped_band(0.7, 0.5));
+    assert!(!thin.clean(), "{thin:?}");
+    assert!(thin.edge_area_mm2 < 0.15 * thick.edge_area_mm2, "{} mm² of edge against {} on the thick band: {:?}", thin.edge_area_mm2, thick.edge_area_mm2, thin.edges);
+}
+
+#[test]
+fn a_fold_thinner_than_a_hundredth_is_mesh_noise_reported_apart() {
+    // A flap 5 µm thick and 0.3 mm tall off a 2 mm block: a fold of the mesh, not metal.
+    let fold = at_floor(&fin_block(0.005, 0.3, 0.0));
+    assert!(fold.clean() && fold.walls.is_empty(), "{fold:?}");
+    assert!(fold.noise_below_limit > 0 && fold.noise_area_mm2 > 0.8 * 2.0 * 6.0 * 0.3, "{fold:?}");
+    assert!(fold.noise.iter().all(|z| z.kind == ThinKind::Noise && z.point[2] > 2.0 - 1e-6), "{:?}", fold.noise);
+    assert_eq!(serde_json::to_value(&fold).unwrap()["noise"][0]["kind"], "noise");
+    // At 20 µm it is metal, and a wall.
+    let flap = at_floor(&fin_block(0.02, 0.3, 0.0));
+    assert!(!flap.clean() && flap.noise_below_limit == 0 && flap.wall_area_mm2 > 0.8 * 2.0 * 6.0 * 0.3, "{flap:?}");
 }

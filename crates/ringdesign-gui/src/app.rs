@@ -1704,7 +1704,8 @@ impl RingDesignerApp {
     /// show it.
     pub fn convert_to_graph(&mut self) {
         match ringdesign_graph::lift::from_design(&self.design, &self.graph_reg, &self.lib) {
-            Ok(g) => {
+            Ok(mut g) => {
+                g.auto_group();
                 self.design.graph = serde_json::to_value(&g).ok();
                 self.sync_graph();
                 self.show_graph_pane();

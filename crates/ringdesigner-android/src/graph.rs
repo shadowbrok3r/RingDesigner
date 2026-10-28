@@ -115,7 +115,8 @@ impl GraphState {
 
     /// Lifts the design into a graph that evaluates back to it exactly.
     pub fn convert(&mut self, design: &mut RingDesign, lib: &AlphaLibrary) -> Result<(), String> {
-        let g = ringdesign_graph::lift::from_design(design, &self.reg, lib).map_err(|e| e.to_string())?;
+        let mut g = ringdesign_graph::lift::from_design(design, &self.reg, lib).map_err(|e| e.to_string())?;
+        g.auto_group();
         self.open(design, g);
         Ok(())
     }
