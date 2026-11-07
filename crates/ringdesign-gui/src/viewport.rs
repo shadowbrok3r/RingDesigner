@@ -708,7 +708,7 @@ pub fn ui(app: &mut RingDesignerApp, ui: &mut egui::Ui, pane: usize) {
         if app.selection.needs_stage(key) {
             #[cfg(test)]
             SELECT_STAGED_HERE.with(|c| c.set(c.get() + 1));
-            let weights = ringdesign_workbench::viewport::tint(&app.selection, build);
+            let weights = ringdesign_workbench::viewport::tint_in(&app.selection, build, app.pick_scene.as_deref());
             let staged = if weights.is_empty() { Vec::new() } else { GpuMeshRenderer::stage_select(&build.mesh, &weights) };
             if let Ok(mut r) = app.renderer.lock() {
                 r.prepare_select(staged);
@@ -1140,8 +1140,11 @@ fn select_click(app: &mut RingDesignerApp, camera: crate::camera::OrbitCamera, r
     let picks = app.picks_now(ringdesign_workbench::hover::pick_at(&scene, pos, &ray, APERTURE_PX, app.selection.filter));
     app.selection.hovered(picks);
     let (origin, direction) = ray(pos);
-    let chart = app.build.as_ref().and_then(|b| ringdesign_core::interaction::picking::hit(&app.design, &app.lib, &b.mesh, origin, direction)).map(|h| (h.theta_deg, h.v_mm));
-    app.selection.choose(mods, |w| chart.unwrap_or_else(|| (w[1].atan2(w[0]).to_degrees(), 0.0)));
+    // The chart is read only for a band pick.
+    app.selection.choose(mods, |w| {
+        let chart = app.build.as_ref().and_then(|b| ringdesign_core::interaction::picking::hit(&app.design, &app.lib, &b.mesh, origin, direction)).map(|h| (h.theta_deg, h.v_mm));
+        chart.unwrap_or_else(|| (w[1].atan2(w[0]).to_degrees(), 0.0))
+    });
     let plain = !mods.shift && !mods.ctrl;
     match app.selection.items.last() {
         None if plain => app.clear_selection(),

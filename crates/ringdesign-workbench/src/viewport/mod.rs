@@ -11,4 +11,4 @@ pub mod stones;
 
 pub use made::{StampEdit, Switches};
 pub use menu::{MenuAction, MenuItem, context_items, context_items_in, heading};
-pub use selection::{Mods, Sel, Selection, box_planes, label, tint};
+pub use selection::{Mods, Sel, Selection, box_planes, label, tint, tint_in};

@@ -358,6 +358,12 @@ impl PickScene {
         (owner < SEAT).then(|| self.parts[owner as usize].feature)
     }
 
+    /// The fused faces that pick as face `face` of part `feature`.
+    pub fn faces_of(&self, feature: Id, face: u32) -> impl Iterator<Item = usize> + '_ {
+        let part = self.parts.iter().position(|p| p.feature == feature).map(|i| i as u32);
+        self.owner.iter().zip(&self.ordinal).enumerate().filter(move |(_, (o, d))| Some(**o) == part && **d == face).map(|(f, _)| f)
+    }
+
     /// The seat's solid or the stamp behind a fused face, when one made it.
     pub fn made_of_face(&self, face: usize) -> Option<Entity> {
         self.made(*self.owner.get(face)?)

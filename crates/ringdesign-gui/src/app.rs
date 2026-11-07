@@ -2112,7 +2112,13 @@ impl Worker {
                         .map_err(|e| format!("{e:#}"))?;
                         // The pick scene, the ring frame and the selection's channel build on threads of their own beside the verdict and the staging, which read none of them.
                         let (pick, band, judge, select, field, cast, stones, hot_spot, gems, metal, edges) = std::thread::scope(|s| {
-                            let pick = s.spawn(|| PickScene::build(&result, &job.design));
+                            // The selection's channel is staged from the scene's faces.
+                            let pick = s.spawn(|| {
+                                let pick = PickScene::build(&result, &job.design);
+                                let weights = ringdesign_workbench::viewport::tint_in(&job.selection, &result, Some(&pick));
+                                let select = if weights.is_empty() { Vec::new() } else { render::stage_select(&result.mesh, &weights) };
+                                (pick, select)
+                            });
                             // Every design's ring frame over the build's own band; an unchanged band keeps its surface.
                             let last_band = &mut last_band;
                             let band = s.spawn(|| {
@@ -2127,10 +2133,6 @@ impl Worker {
                                         }
                                     }
                                 })
-                            });
-                            let select = s.spawn(|| {
-                                let weights = ringdesign_workbench::viewport::tint(&job.selection, &result);
-                                if weights.is_empty() { Vec::new() } else { render::stage_select(&result.mesh, &weights) }
                             });
                             // The verdict itself comes from the surface, at a fixed
                             // sampling so it cannot wobble with preview quality; any
@@ -2178,9 +2180,8 @@ impl Worker {
                             };
                             let edges = result.parts.evaluated.as_ref().map(render::stage_edges).unwrap_or_default();
                             // A panic on any of them fails this build, as one here does.
-                            let pick = pick.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
+                            let (pick, select) = pick.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
                             let judge = judge.map(|j| j.join().unwrap_or_else(|p| std::panic::resume_unwind(p)));
-                            let select = select.join().unwrap_or_else(|p| std::panic::resume_unwind(p));
                             (Arc::new(pick), band.map(|(_, surface)| surface), judge, select, field, cast, stones, hot_spot, gems, metal, edges)
                         });
                         Ok(Done {

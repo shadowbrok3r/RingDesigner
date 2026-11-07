@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use egui::{Event, EventFilter, Id, Key, Pos2, Rect};
 use ringdesign_core::cad::edit::CadEdit;
-use ringdesign_core::cad::{Attach, Component, Feature, Operation, Placement, Stage};
+use ringdesign_core::cad::{Attach, Component, EvaluatedComponent, Feature, Operation, Placement, Stage};
 use ringdesign_core::castability::CastProcess;
 use ringdesign_core::castability::ghost::{GhostJudge, GhostRead};
 use ringdesign_core::interaction::pick::{Filter, Ray, ViewScale};
@@ -100,6 +100,8 @@ pub struct CommandState {
     gizmo_drag: Option<GizmoDrag>,
     /// The gizmo handle under the pointer.
     gizmo_hot: Option<Handle>,
+    /// The gizmo's part measured: its bounds' centre and its reach about an origin, by build and part.
+    gizmo_part: Option<GizmoPart>,
     /// An added primitive's press on the ring, held down: the step it began on.
     add_press: Option<usize>,
     /// The work planes drawn over the ring, and which of them the pointer, a click and a right-click took.
@@ -131,10 +133,19 @@ impl Default for CommandState {
             open_menu: false,
             gizmo_drag: None,
             gizmo_hot: None,
+            gizmo_part: None,
             add_press: None,
             planes: crate::viewport::PlaneView::default(),
         }
     }
+}
+
+/// A part's bounds' centre and its reach about an origin, as measured on `build`.
+struct GizmoPart {
+    build: std::sync::Weak<BuildResult>,
+    feature: FeatureId,
+    centre: Option<[f64; 3]>,
+    reach: Option<([u64; 3], f64)>,
 }
 
 /// The carried ghost read for castability: the judge by build, where the ghost was read, and what it says.
@@ -910,26 +921,59 @@ fn gizmo_of(app: &mut RingDesignerApp) -> Option<(FeatureId, Gizmo)> {
         placement @ Placement::Ring { .. } => {
             let g = Gizmo::on_ring(&app.design, band.as_deref(), placement, 0.0)?;
             // Reach about the part's built origin.
-            let reach_mm = part.map_or(0.0, |c| gizmo::reach(&c.mesh, c.frame.origin));
+            let reach_mm = part.map_or(0.0, |c| part_reach(app, &build, c, c.frame.origin));
             Gizmo { reach_mm, ..g }
         }
         // A stone on a part's face gets the face's own arrows, its spin, and the dial through its foot.
         Placement::Free if on_face(&target) => {
             let (c, hold) = (part?, face_hold(app, &target)?);
-            return Some((id, hold.gizmo(gizmo::reach(&c.mesh, hold.origin))));
+            return Some((id, hold.gizmo(part_reach(app, &build, c, hold.origin))));
         }
         // A part round a stone standing free of the ring has nothing to drag until the stone is placed.
         Placement::Free if carried.is_some() => return None,
         // No gizmo for a part placed relative to another part or on a side face.
         Placement::Relative { .. } | Placement::Side { .. } => return None,
         Placement::Free => {
-            let (lo, hi) = part?.mesh.bounds()?;
-            let centre = [(lo.0 + hi.0) as f64 * 0.5, (lo.1 + hi.1) as f64 * 0.5, (lo.2 + hi.2) as f64 * 0.5];
-            Gizmo::free(centre, part.map_or(0.0, |c| gizmo::reach(&c.mesh, centre)))
+            let c = part?;
+            let centre = part_centre(app, &build, c)?;
+            Gizmo::free(centre, part_reach(app, &build, c, centre))
         }
     };
     let rise = ringdesign_workbench::grips::rise_on(&app.design, &build, &f.operation);
     Some((id, gizmo.with_grips_on(&f.operation, rise)))
+}
+
+/// The centre of `c`'s bounds, kept while `build` is on screen.
+fn part_centre(app: &mut RingDesignerApp, build: &Arc<BuildResult>, c: &EvaluatedComponent) -> Option<[f64; 3]> {
+    let kept = gizmo_part(app, build, c);
+    if kept.centre.is_none() {
+        let (lo, hi) = c.mesh.bounds()?;
+        kept.centre = Some([(lo.0 + hi.0) as f64 * 0.5, (lo.1 + hi.1) as f64 * 0.5, (lo.2 + hi.2) as f64 * 0.5]);
+    }
+    kept.centre
+}
+
+/// How far `c` reaches about `origin`, kept while `build` is on screen and the origin holds.
+fn part_reach(app: &mut RingDesignerApp, build: &Arc<BuildResult>, c: &EvaluatedComponent, origin: [f64; 3]) -> f64 {
+    let bits = origin.map(f64::to_bits);
+    let kept = gizmo_part(app, build, c);
+    match kept.reach {
+        Some((at, reach_mm)) if at == bits => reach_mm,
+        _ => {
+            let reach_mm = gizmo::reach(&c.mesh, origin);
+            kept.reach = Some((bits, reach_mm));
+            reach_mm
+        }
+    }
+}
+
+/// The measures kept for `c` on `build`, started afresh for another build or part.
+fn gizmo_part<'a>(app: &'a mut RingDesignerApp, build: &Arc<BuildResult>, c: &EvaluatedComponent) -> &'a mut GizmoPart {
+    let kept = &mut app.command.gizmo_part;
+    if !kept.as_ref().is_some_and(|k| std::ptr::eq(k.build.as_ptr(), Arc::as_ptr(build)) && k.feature == c.id) {
+        *kept = Some(GizmoPart { build: Arc::downgrade(build), feature: c.id, centre: None, reach: None });
+    }
+    kept.as_mut().expect("kept above")
 }
 
 /// The gizmo on the pane's screen.

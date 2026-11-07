@@ -39,6 +39,8 @@ struct View {
     evaluated: Evaluated,
     pairs: Vec<cad::assembly::PairReport>,
     walls: Vec<cad::measure::Thickness>,
+    /// Each component's bounds and volume.
+    measures: Vec<(Option<(ringdesign_core::mesh::Vec3, ringdesign_core::mesh::Vec3)>, f64)>,
     /// The whole ring as the Ring viewport builds it: band, seats, stamps and the resolved parts.
     built: Option<BuildResult>,
     /// Why the whole ring did not build, while the parts alone still show.
@@ -388,7 +390,8 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
         } else {
             &c.settings.material
         });
-        if let Some((lo, hi)) = c.mesh.bounds() {
+        let (bounds, volume) = v.measures[index];
+        if let Some((lo, hi)) = bounds {
             ui.label(format!(
                 "{:.2} × {:.2} × {:.2} mm",
                 hi.0 - lo.0,
@@ -398,7 +401,7 @@ pub fn report_panel(app: &RingDesignerApp, ui: &mut egui::Ui) {
         }
         ui.label(format!(
             "{:.2} mm³ • {} faces • {} edges",
-            c.mesh.volume_mm3(),
+            volume,
             c.brep().map_or(c.trace.patches.len(), |b| b.faces.len()),
             c.brep().map_or(c.edges.len(), |b| b.edges.len())
         ));
@@ -495,11 +498,13 @@ fn launch(state: &mut CadState, g: Graph, app: &RingDesignerApp, ctx: egui::Cont
                     })
                     .collect::<anyhow::Result<_>>()?;
                 let gems = built.as_ref().map_or_else(Vec::new, |b| ringdesign_core::gems::built_vertices(&d, &lib, b));
+                let measures = evaluated.components.iter().map(|c| (c.mesh.bounds(), c.mesh.volume_mm3())).collect();
                 Ok(View {
                     design: d,
                     evaluated,
                     pairs,
                     walls,
+                    measures,
                     built,
                     build_error,
                     gems,
