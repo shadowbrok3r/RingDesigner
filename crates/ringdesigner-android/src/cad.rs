@@ -569,7 +569,8 @@ impl Cad {
         if let Some(build) = v.build
             && self.selection.needs_stage(build.key())
         {
-            let weights = ringdesign_workbench::viewport::tint(&self.selection, &build.0);
+            let scene = self.scene.as_deref().filter(|_| self.build_key == build.key());
+            let weights = ringdesign_workbench::viewport::tint_in(&self.selection, &build.0, scene);
             let staged = if weights.is_empty() { Vec::new() } else { crate::viewport::GpuMeshRenderer::stage_select(build, &weights) };
             if let Ok(mut r) = renderer.lock() {
                 r.set_pending_select(staged);
