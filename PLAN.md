@@ -2,12 +2,12 @@
 
 ## Context
 
-Logan asked for the next moves on the CAD section ("very limited"), pointed at OpenCADStudio as
+shadowbroker asked for the next moves on the CAD section ("very limited"), pointed at OpenCADStudio as
 the Rust CAD reference, asked me to drive the real GUI to find the limits, and added mid-session
 that there is "just about no way to drive the cad from the 3d viewport, like blender or fusion
 360, or rhino" — tools should be mouse / right-click / snap driven.
 
-Decisions Logan made this session:
+Decisions shadowbroker made this session:
 
 | Question | Answer |
 | --- | --- |
@@ -16,7 +16,7 @@ Decisions Logan made this session:
 | Order | Unblock first, then the viewport tool framework, then builders |
 | Phone | Shared core/workbench, desktop UI first, touch a milestone or two behind |
 
-Added 2026-09-22 (Logan):
+Added 2026-09-22 (shadowbroker):
 
 - **Plain sketches**: a sketch is a feature of its own that extrude/revolve/sweep/loft consume, and
   a sketch can be drawn **on a face**. Schema landed in M1 (`Operation::Sketch`, `Profile`,
@@ -97,7 +97,7 @@ spot-verified against the code):
 
 ## Milestones (merged order from three plans + sequencing critic)
 
-| # | Milestone | Size | What Logan can do after |
+| # | Milestone | Size | What shadowbroker can do after |
 | --- | --- | --- | --- |
 | M0 | **Safety, reachability, first right-click** | 1 wk | Not lose work to a key; stop a bad boolean; right-click "Add primitive here" on the ring |
 | M1 | **v5 schema + traced tessellation + risk spikes** | 1 wk | (foundation) |
@@ -196,7 +196,7 @@ it on Escape) in `Memory::begin_pass`, before any UI runs, so a field cannot con
 egui **0.36.2** (emilk/egui#8530, 2026-09-08) adds `TextEdit::event_filter(EventFilter { tab: true,
 escape: true, .. })` for exactly this: the field keeps focus and receives the Tab/Escape events, and
 the tool reads `Event::Key { key: Tab, .. }` from `input_mut` and calls `request_focus` on the next
-of its own ids. Logan is bumping the vendored `patches/egui` (0.36.0 + the numeric-input policy) to
+of its own ids. shadowbroker is bumping the vendored `patches/egui` (0.36.0 + the numeric-input policy) to
 0.36.2 for it; on 0.36.0 the same thing is `set_focus_lock_filter` by hand. A field with text is a locked degree of freedom (the mouse stops driving it);
 **Enter** commits the step, Escape empties the field first, then leaves the step. The same fields
 answer to AccessKit so kittest and `egui_drive.py` can type into them.
@@ -936,7 +936,7 @@ No ring was authored; the Bestiarium starts on this.
   selection tint re-stages on the UI thread (4.5 ms at export); the Part edges switch lives in egui's
   data, mirrored into the workspace; a session design bypasses the version ladder; the phone has no
   sketching, work-plane creation, status line or numeric keyboard; a driven design still carries a
-  stored mesh twice; OpenCascade's LGPL and Windows shipping remain Logan's call.
+  stored mesh twice; OpenCascade's LGPL and Windows shipping remain shadowbroker's call.
 
 ### Batch 9 status — 2026-09-23 (on master: `m12-shared-renderer`, `m13-cutters`, `m13-occt-spike` merged, and their integration)
 
@@ -974,7 +974,7 @@ No ring was authored; the Bestiarium starts on this.
   locked workspace clean with zero warnings; the desktop live-checked (edges drawn, seams gone).
 - Open: the sand pattern seats a stone on its own bench parts' raised marks (+0.259 mm and 23.65° on
   the claw solitaire), which is why shoulders default Bench; the CAD pane's view draws no edges; edge
-  staging runs on the UI thread; OpenCascade's LGPL and one-file shipping are Logan's call (it stays a
+  staging runs on the UI thread; OpenCascade's LGPL and one-file shipping are shadowbroker's call (it stays a
   separate worker), the Windows CRT needs OCCT built from source with the static CRT or a separate
   worker, and a Stored feature needs a `format_version` step and paired releases (0.6.0 and 0.29.0
   refuse it); a driven design carries a stored mesh twice.

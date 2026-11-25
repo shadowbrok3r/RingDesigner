@@ -1,6 +1,6 @@
 # Cataphracta — *Reptilia II*
 
-> **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
+> **shadowbroker's decisions after this file was written (2026-09-24) — these override the text below:**
 > - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
 > - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
 > - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
@@ -12,10 +12,10 @@
 
 *Cataphracta* means "the mail-clad", after *Ouroborus cataphractus*, the lizard that bites its own tail to become a ring.
 
-This is collection 2 of 4 (Bestiarium, Cataphracta, Tenebrae, Vepres). In the director's plan it is **batch 4**. It starts after the Bestiarium has been packaged and reviewed by Logan (batch 3), and after this collection's own enablers C-R1..C-R8 have landed (batch 3C).
+This is collection 2 of 4 (Bestiarium, Cataphracta, Tenebrae, Vepres). In the director's plan it is **batch 4**. It starts after the Bestiarium has been packaged and reviewed by shadowbroker (batch 3), and after this collection's own enablers C-R1..C-R8 have landed (batch 3C).
 
 **Sources and precedence.** The source documents are in `docs/collections/source/` on branch `collections-handoff`:
-- `plan.md`, the director's plan. Its section 1 verdicts, its base-allocation table and its section 7 ("Logan's answers") override the brief.
+- `plan.md`, the director's plan. Its section 1 verdicts, its base-allocation table and its section 7 ("shadowbroker's answers") override the brief.
 - `brief-reptilia2.md`, the original brief. It carries more prose per ring.
 
 This file is written to stand alone. Where the brief and this file disagree, this file wins. The rings are Draco (replaced by Gekko), the Sphenodon epithet, the stone count, the base sizes and the enabler names.
@@ -49,7 +49,7 @@ Totals:
 Compared with the brief:
 - The ruby is gone with the brief's Draco.
 - Gekko carries no stone and has no wings.
-- Sphenodon's epithet is "the parietal". Logan's no-eyes rule applies, so no copy anywhere may say "third eye".
+- Sphenodon's epithet is "the parietal". shadowbroker's no-eyes rule applies, so no copy anywhere may say "third eye".
 
 ---
 
@@ -94,7 +94,7 @@ These are recorded in master `CLAUDE.md` under "The skin is core, and so is the 
 
 ## Build order inside the collection, and why
 
-The plan allows at most two lanes in flight, and gives each lane one GitHub issue, one branch and one PR (Logan's workflow). Pairs below are listed in the order to run them.
+The plan allows at most two lanes in flight, and gives each lane one GitHub issue, one branch and one PR (shadowbroker's workflow). Pairs below are listed in the order to run them.
 
 1. **Sphenodon.** It is the safest ring: no stamps, no clamp, and thickness-only keys that keep the reference side gate on its face. The sail is where C-R2's cosine grade gets calibrated.
 2. **Heloderma.** It brings in C-R1 (the live group clamp), C-R3 and P5's Draft gate, on a procedural body where the atlas is exact. The clamp is proven here before any signet depends on it.
@@ -105,7 +105,7 @@ The plan allows at most two lanes in flight, and gives each lane one GitHub issu
 5. **Chelonia and Phrynosoma** (paired). They need C-R4's hide-space tilings, a proven clamp, and the base decisions below.
 6. **Chamaeleo.** It is last because it reuses everything: the clamp, hide space, spiral and cone stamps, the warp, and Caiman's boss seat.
 
-**Do this first, before batch 4 and without any new code:** run the three bare-base studies at the rings' own sizes (step 0 under Chelonia, Phrynosoma and Chamaeleo), and put the numbers in front of Logan. They decide two of the eight bases.
+**Do this first, before batch 4 and without any new code:** run the three bare-base studies at the rings' own sizes (step 0 under Chelonia, Phrynosoma and Chamaeleo), and put the numbers in front of shadowbroker. They decide two of the eight bases.
 
 ---
 
@@ -510,7 +510,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
   - Profile: `ProfileStyle::Flat`, 7.0 × 3.6, `crown_mm` 1.4, `flatten_sides()`, `comfort_fit_mm` 0.15, bore 18.6.
   - Shank: `Keyframes`, **thickness only**: 1.50 at 90°, 1.25 at 60° and 120°, 1.00 at 15° and 165°, 1.00 at 270°.
   - The reference is the palm.
-- **Process:** **Petrobond**, which Logan confirmed he pours: 0.40 mm detail, 2.5° draft, 0.6 mm section, `mf::Recipe::sand(SandProcess::Petrobond)`. Every feature is ≥ 0.5 mm.
+- **Process:** **Petrobond**, which shadowbroker confirmed he pours: 0.40 mm detail, 2.5° draft, 0.6 mm section, `mf::Recipe::sand(SandProcess::Petrobond)`. Every feature is ≥ 0.5 mm.
 - **Stones:** none. The thorns are the jewel.
 - **Build, step by step:**
   1. **"Thorn rosettes":**
@@ -541,7 +541,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
      - One per side face, at 90°. `v` is the middle of the station's own face: find it on `Atlas::of`, in the 90° column, among rows with |n.z| > 0.98. The reference face's middle also lands inside it, because the reference is the tightest station.
      - `outline::rounded_triangle(3.0, 2.6, 0.4)`, `along_pull: true`, `draft_deg` 4, `sink_mm` 0.3.
      - `top: StampTop::Cone { apex_mm: 1.6, at: [0.0, 0.2] /* tunable: leans the tip toward the crest */, tip_mm: 0.35 }`.
-     - They stand 1.6 mm proud of the band along the finger, which is the ring's silhouette and close to Logan's Odin and Valkyrie spikes.
+     - They stand 1.6 mm proud of the band along the finger, which is the ring's silhouette and close to shadowbroker's Odin and Valkyrie spikes.
 - **What it shows off:**
   - Cone-topped stamp rows on the parting line (P4 at count).
   - Along-pull horns, a silhouette the height field cannot make.
@@ -648,7 +648,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
   - Also needs **C-R1** (the head shield; a painted fallback exists) and **C-R7**, plus P7 for its keys as nodes.
   - There is no build of the side-face spines without P5.
 - **Concept:** The lizard named for the ring. Threatened, it takes its own tail in its mouth and becomes a wheel of spines. The band is its body: an armoured head, girdled whorls graded from nape to tail, and the tail's tip meeting the head at the top.
-  - It is a sequel to Serpentarium's Ouroboros (a snake in warped mail, which Logan loved); here the reptile is a lizard and the skin is whorls.
+  - It is a sequel to Serpentarium's Ouroboros (a snake in warped mail, which shadowbroker loved); here the reptile is a lizard and the skin is whorls.
   - The head is plates only: no eyes, no nostrils, no teeth.
 - **Theme face to palm, going round:**
   - **93° → 125°:** the head shield, terraced cephalic plates stepping down from the crest.
@@ -673,7 +673,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
     | 82 | 0.55 | 0.70 | 1.0 |
 
   - Thickness stays at or above width at every key, but the tail runs thinner than the reference, which shrinks the side face (to about 0.94 mm at 82°). The reference-only gate therefore spills onto the fillet at the tail.
-- **Process:** **Petrobond** (Logan confirmed). The whorls are ≥ 1 mm.
+- **Process:** **Petrobond** (shadowbroker confirmed). The whorls are ≥ 1 mm.
 - **Stones:** none.
 - **Build, step by step:**
   1. **"Whorls":**
@@ -760,9 +760,9 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
     - Build both `dome = suggest_dome(v)` and `dome = 0` (pure loft), and keep whichever reads better with the flippers.
     - Per the doctrine, every bundled outline fields 0.000% on a bare head.
     - The loft is CrossGems' own construction, within 0.04–0.05 mm of their cached meshes on the head. It is not the stock mesh, though: the wall-to-face angle becomes the loft's rim roll.
-    - Ask Logan whether that meets his "factory stock for signets" rule.
+    - Ask shadowbroker whether that meets his "factory stock for signets" rule.
   - **Fallback B:** the real 007 stock, unmirrored, in lost wax, the route the upright plans take. It keeps the exact mesh, but the collection's "all poured in sand" claim drops to seven rings.
-  - Do not choose silently. Logan's standing rule is that signet preset choices go to him first.
+  - Do not choose silently. shadowbroker's standing rule is that signet preset choices go to him first.
   - Then **gate on drag** before a single scute: the bare table's (marginal + vertical) / total must be under 12%. If it is over, add `table_dome_mm` 0.7–0.8 (procedural head), which took a flat-table signet from 13–23% drag to 5.3% (Palisade), or raise the sand master's crown term (stock).
 - **Process:** Delft.
 - **Stones:** none. The carapace is the jewel.
@@ -805,7 +805,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
 - **Template:**
   - Stock path: `base.preset("007", sand)` (P7) → `layer.group(clamp)` → hide-space `layer.tiling` nodes → `remap.terrace`. Expose "Scute pitch", "Growth rings" and "Tier drop". About 50 KB after P7; before P7 the stock rides a ~3 MB `/imported_base` patch.
   - Fallback A path: `shank.signet` + `outline.library("CG Quatrefoil")`, with no imported base at all. About 50 KB even before P7.
-- **Risk:** very high difficulty, medium-high risk. It depends on C-R1, C-R4, C-R8 and the base decision, and it is the ring most likely to become Logan's favourite. Fallbacks:
+- **Risk:** very high difficulty, medium-high risk. It depends on C-R1, C-R4, C-R8 and the base decision, and it is the ring most likely to become shadowbroker's favourite. Fallbacks:
   - For the base: Fallback A, then B.
   - For C-R4: the painted method.
   - If the lobes cannot carry tiers cleanly: polish the flippers and keep the tiers to the shell.
@@ -835,7 +835,7 @@ In practice each Bestiarium ring became one file (`bestiarium_draco.rs`, `bestia
   - *Measure* the bare master at 17 × 17 (probe as for Chelonia), and use the field notes to find where its undercut sits.
   - If it stays NotCastable, take **Fallback A**: a procedural lofted signet on **"CG Star"**. `suggest_dome` is likely 1.0 for a six-point star (unverified); build pure loft as well and compare.
   - **Fallback B:** 016 stock in lost wax.
-  - Take the choice to Logan.
+  - Take the choice to shadowbroker.
 - **Process:** Delft.
 - **Stones:** none. The horns are the crown.
 - **Build, step by step:**

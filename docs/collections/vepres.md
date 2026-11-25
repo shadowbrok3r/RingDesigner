@@ -1,6 +1,6 @@
 # Vepres — *the thorned botanical collection*
 
-> **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
+> **shadowbroker's decisions after this file was written (2026-09-24) — these override the text below:**
 > - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
 > - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
 > - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
@@ -28,7 +28,7 @@ Every ring has one plant from face to palm. Vepres is the fourth collection in t
 ## 0. Read this first
 
 **Sources.** This file was written from these sources:
-- the director's plan, `docs/collections/source/plan.md`. Its section 1 verdicts, its base-allocation table and its section 7 "Logan's answers" override the brief;
+- the director's plan, `docs/collections/source/plan.md`. Its section 1 verdicts, its base-allocation table and its section 7 "shadowbroker's answers" override the brief;
 - the botanical brief, `docs/collections/source/brief-botanical.md`;
 - the code at master `30f0506`, 2026-09-24.
 
@@ -42,7 +42,7 @@ A `file:line` reference means the fact was checked in source on that date.
 
 **Not in this file.** The Bestiarium's Arachne and Draco are being authored now, on branches `bestiarium-arachne` and `bestiarium-draco`. Arachne sets the working per-ring precedent that Vepres copies: `ex/bestiarium_arachne.rs`, output in `showcase/bestiarium/arachne/`.
 
-### Logan's decisions (binding)
+### shadowbroker's decisions (binding)
 
 - **Collection size.** Four collections, eight rings each.
 - **Process.** Process is mixed across the collection. Each ring is judged against its own `DraftSettings::process`.
@@ -92,11 +92,11 @@ These four examples print the numbers the collection is gated on. The commit mes
 | `ex/side_gate_probe.rs` | "Reference-only side-face gates spill 0.1–0.8 mm onto the crown fillet and fail once full strength passes the station's face." Rubus's base is one of the two bodies it tests. | Rubus's keyframes need P5, or keys that never shrink the station's side-face share below the reference's (see Rubus). |
 | `ex/stock_spike.rs` | "003 and 007 need 4.2 mm of sand envelope and are refused; 005 and 016 are rewritten by 0.8 and 0.44 mm; 013 to 16 mm needs a baked 130% step." | **Viscum's base, 003 Clover, is refused in sand.** The plan moved Viscum to 003 in sand before this was measured. See the decision below. |
 
-### One decision Logan must make: Viscum's process
+### One decision shadowbroker must make: Viscum's process
 
 003 is a sculpted four-leaf clover whose lobes overhang the shank. The render is `scratchpad/b15/skin/renders/003-clover-master-hero.png` from the batch-15 session. The sand master would need 4.2 mm of fill, so it is refused. There are two routes:
 
-1. **Recommended: lost wax on native 003.** It keeps the factory stock and its lobes, which are the point of the ring and of Logan's taste, and it needs no new enabler. Vepres then pours 3 in sand and 5 in wax. The plan's section heading says "5 sand, 3 wax", but its own per-ring verdicts give 4 and 4; with this change the count is 3 and 5.
+1. **Recommended: lost wax on native 003.** It keeps the factory stock and its lobes, which are the point of the ring and of shadowbroker's taste, and it needs no new enabler. Vepres then pours 3 in sand and 5 in wax. The plan's section heading says "5 sand, 3 wax", but its own per-ring verdicts give 4 and 4; with this change the count is 3 and 5.
 2. **Sand on a procedural clover.** The bundled `CG Clover` outline (`bundled/outlines/CG Clover.outline.json`) goes on a lofted signet. `ShankStyle::suggest_dome` sends it to the cut dome, which fields 0.000% by construction. The cost is that the factory recipe replaces the factory stock.
 
 This file writes Viscum for route 1 and lists the deltas for route 2.
@@ -112,7 +112,7 @@ This file writes Viscum for route 1 and lists the deltas for route 2.
 | 3 | Rosa mortua | *the dead rose* | Procedural `ShankKind::Bypass`, HighDome 3.6 × 2.7 | Lost wax | Ruby pear 7 × 5 (bud); **garnet round cabochon 6.0** (hip) | Not started; blocked on P6 (Sepal), C-B2 (pear) and C-V1 (`Relative`) for full fidelity |
 | 4 | Hedera | *the strangling ivy* | Procedural `Uniform` DShape 5.5 × 2.0 host, plus a CAD vine | Lost wax | 7 black spinel round cabochons 2.2 | Not started; blocked on C-V2 for the rootlets (stamp fallback) |
 | 5 | Ilex | *the Holly King's standard* | Factory **006 Square**, resized to 16 × 17, sand master | Sand (Delft) | 8 garnet round cabochons (2 × 2.0, 6 × 1.8) | Not started; **buildable now** |
-| 6 | Viscum | *the golden bough* | Factory **003 Clover** 18 × 18, native (route 1) | Lost wax (route 1) | 21 moonstone round cabochons | Not started; **blocked on Logan's process decision**, then buildable now |
+| 6 | Viscum | *the golden bough* | Factory **003 Clover** 18 × 18, native (route 1) | Lost wax (route 1) | 21 moonstone round cabochons | Not started; **blocked on shadowbroker's process decision**, then buildable now |
 | 7 | Prunus | *Straif, the blackthorn* | Factory **012 Cushion** 10 × 10, sand master | Sand (Delft) | Onyx **round** cabochon 7.0 (the sloe); 4 diamonds 1.3 | Not started; buildable now at draft; final verdict gated on C-V1 `level` or a 012 prickle-probe row |
 | 8 | Datura | *the thorn-apple* | Factory **011 Badge** 18 × 20, native | Lost wax | 8 black spinel round 1.5 | Not started; blocked on C-V1 (`Relative`) for a template that survives resize |
 
@@ -133,7 +133,7 @@ At most two lanes run at a time (the global rule). One branch, issue and PR per 
 |---|---|---|
 | 1 | **Rubus** | Needs nothing new. The prickle probe already cleared its only new claim: a CAD part poured in sand. It calibrates seam beads, ring arrays on a keyframed body, and leaf stamps on side faces. Every later ring reuses these. |
 | 2 | **Ilex** with **Prunus** | Both are sand stock rings on landed P3/P4. Ilex proves `parting_monotone` and `stamp_row` on the parting line. Prunus proves straight CAD spurs poured on a stock, and it is where C-V1 `level` is confirmed or shown unneeded. |
-| 3 | **Viscum** | The heaviest stone count (21 seats on a stock), so it comes after the stock workflow is proven. It waits on Logan's process decision. |
+| 3 | **Viscum** | The heaviest stone count (21 seats on a stock), so it comes after the stock workflow is proven. It waits on shadowbroker's process decision. |
 | 4 | **Datura** | First ring that needs C-V1 `Relative` (spines seated in the capsule's frame). |
 | 5 | **Rosa mortua** with **Hedera** | Both need the most enablers: P6 Sepal, C-B2 pear and C-V1 for Rosa; C-V2 and C-V3 for Hedera. Both are lost wax, so they cannot block a sand verdict. |
 | 6 | **Sentis** | CAD-only csg with crossing sweeps is the riskiest assembly. It needs C-V4 (beads in CAD-only assembly) and P6 Thorn. The plan's fallback is three canes. |
@@ -676,7 +676,7 @@ That is expected for most Vepres rings. Say so in each README line.
 
 ## Viscum — *the golden bough*
 
-- **Status:** Not started. **Blocked on Logan's process decision** (§0). After that it is buildable now: route 1 needs nothing unlanded.
+- **Status:** Not started. **Blocked on shadowbroker's process decision** (§0). After that it is buildable now: route 1 needs nothing unlanded.
 
 - **Concept:** Aeneas's golden bough, his passport into the underworld, which Frazer identified as mistletoe. The factory clover's four lobes are the mistletoe's two crossed leaf pairs, each cut in intaglio at the bench like a seal. Three moonstone berries sit in the fork where the lobes meet. Forked twigs with paired leaves fill the cheeks. Graded moonstone berries run down both shoulders on the crest line, and the shank is the host oak, with bark on its walls.
 
@@ -737,7 +737,7 @@ That is expected for most Vepres rings. Say so in each README line.
   - **Build time:** 21 seats and about 14 stamps at 1536 × 448. Expect several seconds; P1's phase-two progress should show it.
 
 - **Needs:**
-  - Logan's decision.
+  - shadowbroker's decision.
   - Nothing unlanded for route 1.
   - C-R1 and C-R4 would make the bark a light template.
   - P7.
@@ -829,7 +829,7 @@ That is expected for most Vepres rings. Say so in each README line.
 
 - **Status:** Not started. Buildable now for a fixed size. It is **blocked on C-V1 `Relative`** for a template whose spines follow the capsule on resize.
 
-- **Concept:** The devil's thorn-apple, a thorned nightshade. A spined seed capsule stands on the badge face as on a calyx. It is split into four gaping valves, with black seeds spilling in the splits. Sinuate datura leaves climb the cheeks, and the palm is the smooth stem. This is Logan's heaviest, most sculptural register, in plant form.
+- **Concept:** The devil's thorn-apple, a thorned nightshade. A spined seed capsule stands on the badge face as on a calyx. It is split into four gaping valves, with black seeds spilling in the splits. Sinuate datura leaves climb the cheeks, and the palm is the smooth stem. This is shadowbroker's heaviest, most sculptural register, in plant form.
 
 - **Theme face to palm:**
   - **Head:** the capsule on the badge calyx.

@@ -3482,7 +3482,7 @@ its rolled rim.
 
 ## One theme per ring, on the factory's signets
 
-Logan's standing preference, set on 2026-09-18: a signet starts from a
+shadowbroker's standing preference, set on 2026-09-18: a signet starts from a
 decoded factory preset (`bases/signets/*.ringbase.json`, packaged from
 `assets/decoded/presets/Signet Ring/` by `tools/audit_preset_bases.py` and
 `tools/package_signet_bases.py`) because those have the hard angles where

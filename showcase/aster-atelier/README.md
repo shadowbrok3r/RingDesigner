@@ -15,7 +15,7 @@ corrected renders, measurements and release verification.
 | Manufacturing package | [Pattern STL](pattern-package/pattern.stl), [3MF](pattern-package/pattern.3mf), [moulding sheet](pattern-package/molding-sheet.html) | Compensated pattern, recipe and report |
 
 Both creation MP4s and all three final PNGs were sent successfully by Taildrop to
-Logan's S26 Ultra on 2026-09-12. The [transfer receipt](review/taildrop-receipt.json)
+shadowbroker's S26 Ultra on 2026-09-12. The [transfer receipt](review/taildrop-receipt.json)
 records file names, sizes, SHA-256 hashes and successful command results. The
 earlier Android/desktop studio preview clips were sent before these creation reels.
 

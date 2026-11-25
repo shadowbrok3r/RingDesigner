@@ -4,14 +4,14 @@ As of 2026-09-25. Baseline: pushed master `56ccad4` (P7 complete); remaining Bat
 
 **71 active deliverables: 32 master rings + 33 starters + 6 Officina lessons.** Draco remains a cut archive, and Wishbone remains a tracked optional return after C-S6. All later collection scope is preserved.
 
-The Bestiarium package still stops for Logan’s review. The latest request authorizes useful parallel agents; it does not explicitly waive that stop.
+The Bestiarium package still stops for shadowbroker’s review. The latest request authorizes useful parallel agents; it does not explicitly waive that stop.
 
 ## Immediate assignments
 
 1. Finish P5–P8 reviews and validation, integrate compatibility fences, then run every crate and platform check. Arachne is art-approved at 7.5/10; Draco is archived at 5.8.
 2. Finish starter part 1 (fixtures → stocks → cameras → settings → split starters → thumbnails/golden), in parallel with disjoint platform work.
 3. Continue Phoenix round two and Basiliscus crease-safe relief; finish Harpyia’s active one-wing spike. C-S2/C-S3 and Officina’s first Rivet proof may use a disjoint enabler lane.
-4. Continue Corvus/Manticora, then Fenrir/Kraken after C-B1, then Harpyia. Package eight, send the final render ZIP by Taildrop, and stop for Logan.
+4. Continue Corvus/Manticora, then Fenrir/Kraken after C-B1, then Harpyia. Package eight, send the final render ZIP by Taildrop, and stop for shadowbroker.
 
 ## Entire master-ring queue
 
@@ -70,7 +70,7 @@ The complete shared menu reaches **89** entries: 33 starters + 6 Officina + 18 r
 - P5 touches field context and station tables plus exhaustive gate consumers. Reserve `graph/nodes/layer.rs` before C-B1 or any Cataphracta layer work.
 - P8 owns only `render_collection.py`, `catalog_collection.py`, and `collection_templates.rs`. The starter lane owns the workbench thumbnail macro.
 - C-B1 precedes Kraken. Phoenix’s contour stays local until Corvus becomes its second consumer.
-- After Logan’s Bestiarium review: C-B2 true stone plans, then C-R enablers because both touch `field.rs`; re-render Manticora/Trilogy/Toi et moi after their pear upgrades.
+- After shadowbroker’s Bestiarium review: C-B2 true stone plans, then C-R enablers because both touch `field.rs`; re-render Manticora/Trilogy/Toi et moi after their pear upgrades.
 - Cataphracta order: Sphenodon → Heloderma → Moloch/Gekko → Ouroborus → Chelonia/Phrynosoma → Chamaeleo. Pair core field integration with disjoint SVG generation/plan-mask work, not another `field.rs` owner.
 - Tenebrae enablers: C-T1/C-T6 → C-T3/C-V2 → C-T4/C-T5/C-T7; C-T2 clusters before packaging. C-V2 must serve both Porta’s sketch path and Vepres surface/part paths.
 - Vepres C-V1 and C-V3 are **not wholly disjoint**: both eventually edit `cad.rs` and `library.rs`. Split ownership explicitly or serialize those edits; afterward C-V4 parts and C-V5 graph paths can pair.
@@ -86,7 +86,7 @@ The complete shared menu reaches **89** entries: 33 starters + 6 Officina + 18 r
 - Chamaeleo’s face is 17 × 14.5; 13 mm is outside the stock guard.
 - Never publish, tag, or bump versions, regardless of old packaging prose. Master push requires all suites, NDK, wasm, and locked checks green.
 
-## Choices still reserved for Logan
+## Choices still reserved for shadowbroker
 
 - Bestiarium package review and any resulting count change.
 - Capsa: actual bench hinge/Separate lid versus cast shut.

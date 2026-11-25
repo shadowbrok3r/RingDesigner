@@ -1,6 +1,6 @@
 // Where a signet actually has edges: dihedral turn per unit length, mapped.
 //
-// The claim under test (Logan's): on the reference heart the face outline is
+// The claim under test (shadowbroker's): on the reference heart the face outline is
 // the ONLY edge, sharp just at the point and the cleft; everything else is
 // smooth. Run on the reference and on ours, same classifier, so the columns
 // compare.
@@ -131,7 +131,7 @@ fn probe(name: &str, s: &scan::Scan) {
     }
 
     // Regions: the face outline (borders a table facet), the bore's own edge
-    // break (at bore radius), and everything else — which Logan says is empty.
+    // break (at bore radius), and everything else — which shadowbroker says is empty.
     let bore = s.bore_r;
     let (mut t_len, mut b_len, mut o_len) = (0.0f64, 0.0f64, 0.0f64);
     let mut others: Vec<&Sharp> = Vec::new();
@@ -225,7 +225,7 @@ fn probe(name: &str, s: &scan::Scan) {
     println!("   rim belt: {turn_sum:.0} deg of turn within 1.2 mm of the plane, >8 deg turns reach {depth_max:.2} mm deep");
 }
 
-/// The wall Logan is describing: outer r per z through the head, finely, so
+/// The wall shadowbroker is describing: outer r per z through the head, finely, so
 /// the point wall and the cleft wall show their whole profile.
 fn flank(name: &str, s: &scan::Scan) {
     println!("{name} wall profiles (outer r per z across the band):");

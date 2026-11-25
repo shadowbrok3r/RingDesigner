@@ -1,6 +1,6 @@
 # Tenebrae — the Gothic cathedral collection
 
-> **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
+> **shadowbroker's decisions after this file was written (2026-09-24) — these override the text below:**
 > - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
 > - **Capsa (2026-09-28):** the relic is the memento-mori **skull**, since faces are allowed (crossed bones under an hourglass was only the no-faces substitute), and the lid is a Separate cast lid on a bench hinge (`Joint`), as this file already defaults. Open questions 1 and 2 are settled.
 > - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
@@ -12,7 +12,7 @@ Sheet subtitle: `FOUR SIGNETS · TWO BANDS · A SOLITAIRE · A RELIQUARY · TWEN
 
 **Primary side of the app: CAD modelling.** The collection shows sketches with regions on work planes and part faces, extrude and cut with draft, press-pull, revolve, loft, the twisted sweep, ring/About/mirror patterns of several parts, the builders (`head.basket`, `head.bezel`, `seat.bur`, `cutter.pierce`, `cutter.azure`, `shank.cathedral`), stones on part faces, Separate parts with a joint, bench stages and seam beads. Every ring is one building, and the stones are its stained glass: calibrated coloured stones in collets and baskets, most set *à jour* so light passes through them.
 
-This file is self-contained. It was written on 2026-09-24 against `master` at `30f0506`. Where the source brief (`source/brief-gothic.md`) and the director's plan (`source/plan.md`) disagree, the plan and Logan's answers win, and this file already applies them. Every API name below was checked against that commit; `file:line` references are relative to `crates/ringdesign-core/src/` unless another crate is named. Anything not verified is marked **(unverified)**.
+This file is self-contained. It was written on 2026-09-24 against `master` at `30f0506`. Where the source brief (`source/brief-gothic.md`) and the director's plan (`source/plan.md`) disagree, the plan and shadowbroker's answers win, and this file already applies them. Every API name below was checked against that commit; `file:line` references are relative to `crates/ringdesign-core/src/` unless another crate is named. Anything not verified is marked **(unverified)**.
 
 ## The eight rings
 
@@ -27,11 +27,11 @@ This file is self-contained. It was written on 2026-09-24 against `master` at `3
 | 7 | Capsa | the reliquary | Procedural Flat 4.6 × 2.3, Cathedral 0.5 | Lost wax, two castings | 6 cabochons | Not started; buildable now (native only) |
 | 8 | Lanterna | the octagon lantern | Factory 015 Octagon 16 × 16 | Lost wax | 9 | Not started; built last |
 
-Three sand rings, five lost-wax rings, 26 stones (9 + 1 + 1 + 6 + 9). Every sand ring is Delft clay; Petrobond belongs to Moloch and Ouroborus only. Nominal bore is 18.6 mm (r = 9.3) throughout. Final renders are studio gold throughout (Logan, 2026-09-24).
+Three sand rings, five lost-wax rings, 26 stones (9 + 1 + 1 + 6 + 9). Every sand ring is Delft clay; Petrobond belongs to Moloch and Ouroborus only. Nominal bore is 18.6 mm (r = 9.3) throughout. Final renders are studio gold throughout (shadowbroker, 2026-09-24).
 
 ## Where this collection sits in the whole plan
 
-- Tenebrae is **batch 5** of plan section 4: after the Bestiarium (batches 2–3, with a stop for Logan's review at the end of batch 3) and Cataphracta (batch 4), and before Vepres. Nothing here starts before that review unless Logan reorders.
+- Tenebrae is **batch 5** of plan section 4: after the Bestiarium (batches 2–3, with a stop for shadowbroker's review at the end of batch 3) and Cataphracta (batch 4), and before Vepres. Nothing here starts before that review unless shadowbroker reorders.
 - The Bestiarium's Draco and Arachne are being authored on the branches `bestiarium-draco` and `bestiarium-arachne`; they are not part of this file.
 - Global rules: at most **two lanes in flight**; one GitHub issue, branch and PR per lane; a lane merges when `systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --workspace --offline` and the wasm check (`cargo check --no-default-features --target wasm32-unknown-unknown` for core and the configurator) pass. The lead alone edits registration files (`ringdesign-graph/src/templates.rs`, `ringdesign-workbench/src/templates.rs`, `showcase/tenebrae/README.md`, the sheet).
 
@@ -150,7 +150,7 @@ pub fn list_sketches() -> Vec<(String, crate::sketch::Sketch)>;
   - fleur-de-lis;
   - fleur cresting strip;
   - nave arcade tile (3 bays);
-  - gargoyle **silhouette** (no eye, no mouth detail: Logan's no-faces rule);
+  - gargoyle **silhouette** (no eye, no mouth detail: shadowbroker's no-faces rule);
   - crossed bones under an hourglass (Capsa's memento mori without a face);
   - a cross pattée (Sigillum's legend cross).
 
@@ -254,11 +254,11 @@ pub enum PatternKind {
    - `CUT_CLEAR_MM` (0.05, `cad.rs:2034`) already lifts a cut's entry side.
 8. **Native only.** OpenCascade has no Windows build, and a `Stored` mesh forces format 6 and goes stale on upstream edits. No Tenebrae ring uses it (plan verdict on Capsa).
 9. **The feature tree is the lesson.** Feature names are sentences ("Pierce the eight spandrel lights to the bore"). The CAD workspace's rollback (`Document::through`, `cad.rs:1297`) steps through them.
-10. **No flat, blocky CAD** (Logan's complaint about the Workshop set).
+10. **No flat, blocky CAD** (shadowbroker's complaint about the Workshop set).
     - Every joined part carries a seam bead (`blend_mm` 0.1–0.35).
     - Piers and plinths get a chamfer or a moulding.
     - A render that reads as stacked boxes fails the review round.
-11. **No faces and no eyes** (Logan). A gargoyle is a silhouette with no eye; Capsa's memento mori is bones and an hourglass, not a skull.
+11. **No faces and no eyes** (shadowbroker). A gargoyle is a silhouette with no eye; Capsa's memento mori is bones and an hourglass, not a skull.
 
 ## How every ring is judged (plan section 5, applied)
 
@@ -270,7 +270,7 @@ Iterate each ring for at most three review rounds. A ring still failing after ro
    - **Wax rings:** fill ≥ 0.8 section. The author asserts the CAD lands (C-T4 later) and calls `cad::measure::thickness(&mesh, 0.8)` (`cad/measure.rs:50`) on the built mesh, because the field cannot see walls under CAD cuts.
    - **Stones:** the P2 stone record's count equals the gem preview's; the crowding census is clean or explained.
 2. **Render set in studio gold with stones set:** hero, face, palm, side, a stone close-up, bare stock against finished; `section.png` for Oculus and Ogiva.
-3. **Review round.** A fresh reviewer scores the renders against Caiman's hero, the Reptilia sheet and Logan's ZBrush sheet (`b15/zbrush_top.png`):
+3. **Review round.** A fresh reviewer scores the renders against Caiman's hero, the Reptilia sheet and shadowbroker's ZBrush sheet (`b15/zbrush_top.png`):
    - one theme face to palm;
    - figurative motifs as stamps with true outlines;
    - no faces or eyes;
@@ -586,7 +586,7 @@ fn shoulder_roundels(d: &RingDesign) -> Result<Vec<Stamp>>              // side-
   - **Palm:** plain.
 - **Base:**
   - Factory **009 Drop** (plan: 002 went to Draco). Native face 17 round the ring × 22.3 across; resize to **14.5 × 19**. Its long axis runs across the band, so the portal stands upright along the finger.
-  - Unmirrored: 009 is upright (2.5 mm asymmetry across the parting plane, plan F2), so it is lost wax only (Logan's answer 1).
+  - Unmirrored: 009 is upright (2.5 mm asymmetry across the parting plane, plan F2), so it is lost wax only (shadowbroker's answer 1).
   - The portal's apex, hood and finial go toward the drop's point, and the crypt toward its round end. Read which band edge the point is on from the stock (`Preset::plan`, 48 radii) and mirror the sketch in y if needed.
   - Bore 18.6.
 - **Process:** lost wax, Gold 18k, investment section 0.8. The crockets and hood stand proud of a zero-draft table, which is lost-wax-only work.
@@ -880,7 +880,7 @@ python3 tools/catalog_collection.py tenebrae NEW_DIRECTORY
 
 **Phone.** Bump `crates/ringdesigner-android/Cargo.toml`'s version and add the `CHANGELOG.md` entry. Verify with `cargo test -p ringdesigner_android`, the ndk check (`cargo ndk -t arm64-v8a check -p ringdesigner_android`), and on the rdsmoke AVD: open each Tenebrae template and watch the staged progress plate.
 
-## Open questions still with Logan
+## Open questions still with shadowbroker
 
 1. **Capsa's inner motif.** The brief's memento-mori skull is a face, and the review rule is "no faces, no eyes". This file substitutes crossed bones under an hourglass. Confirm, or name another relic.
 2. **Capsa's lid.** Should it be a real bench hinge (the default here: a Separate cast lid with a `Joint`), or cast shut with the relic seen through pierced gables? (Brief question 3; still unanswered.)

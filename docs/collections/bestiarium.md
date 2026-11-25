@@ -1,20 +1,20 @@
 # Bestiarium — the dark bestiary
 
-> **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
+> **shadowbroker's decisions after this file was written (2026-09-24) — these override the text below:**
 > - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
 > - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
 > - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
 
 
-**Sheet subtitle (nine authored):** NINE BEASTS · THREE IN SAND · SIX IN WAX · THIRTY-FIVE STONES. After the first render round the weakest ring is dropped and the subtitle is recomputed from the eight that remain (Logan, 2026-09-24).
+**Sheet subtitle (nine authored):** NINE BEASTS · THREE IN SAND · SIX IN WAX · THIRTY-FIVE STONES. After the first render round the weakest ring is dropped and the subtitle is recomputed from the eight that remain (shadowbroker, 2026-09-24).
 
 **What the collection shows:** the app's sculpting side. Hides and plumage are painted in metal millimetres on the bare-surface atlas (`core/skin.rs`), on factory stock and on keyframed and bypass bodies. Emblems are struck as true outlines (stamps v2: `core/outline.rs`, tiers, tops and rows). Every stone is in a made setting, and the creatures' weapons are CAD parts: fang, talon and tentacle claws, a twisted-sweep stinger, lofted feathers. Each ring is judged against its own `DraftSettings::process`.
 
-**Sources.** This file is built from `docs/collections/source/plan.md` (the director's plan) and `docs/collections/source/brief-bestiary.md`. Where they differ, the plan's §1 verdicts, its base-allocation table and its §7 "Logan's answers" win. API names were checked against master at `30f0506` on 2026-09-24. Anything not checked is marked **unverified**.
+**Sources.** This file is built from `docs/collections/source/plan.md` (the director's plan) and `docs/collections/source/brief-bestiary.md`. Where they differ, the plan's §1 verdicts, its base-allocation table and its §7 "shadowbroker's answers" win. API names were checked against master at `30f0506` on 2026-09-24. Anything not checked is marked **unverified**.
 
 **Paths.** `core/` = `crates/ringdesign-core/src/`, `ex/` = `crates/ringdesign-core/examples/`, `graph/` = `crates/ringdesign-graph/src/`, `wb/` = `crates/ringdesign-workbench/src/`. "Doctrine" is the project `CLAUDE.md`.
 
-**Logan's binding decisions:**
+**shadowbroker's binding decisions:**
 - Four collections with eight rings each. The Bestiarium authors nine and drops the weakest after round 1.
 - Mixed processes.
 - The nine upright factory plans (004, 008, 009, 010, 011, 014, 018, 019, 020) are **lost wax only**. The sand master, which mirrors the upper half, is used only on 001, 002, 003, 005, 006, 007, 012, 013, 015, 016 and 017.
@@ -217,7 +217,7 @@ pub fn feather_loft(spec: &FeatherSpec) -> cad::Operation; // Loft through five 
   - no flat, blocky CAD;
   - factory walls keep their hard angles;
   - a distinct silhouette;
-  - density and legibility at least equal to Caiman's hero, the Reptilia sheet and Logan's ZBrush sheet (`b15/zbrush_top.png`).
+  - density and legibility at least equal to Caiman's hero, the Reptilia sheet and shadowbroker's ZBrush sheet (`b15/zbrush_top.png`).
 - **Stock folds** (Draco's lesson). Painted relief over the stock's own facet folds can make the mesh cross itself; Draco found folds on 002 at 181° and 357°. Search a draft build for self-crossings and cap the relief there, as Draco's `crossing_spots` and `fold_caps` do.
 
 ---
@@ -237,7 +237,7 @@ pub fn feather_loft(spec: &FeatherSpec) -> cad::Operation; // Loft through five 
 - **Status:** not started; buildable now (P3 and P4 are on master). A light template waits on P7.
 
 - **Concept:** The cockatrice, the serpent-king hatched from a cock's egg. Rooster hackles pour off an heraldic escutcheon and down both shoulders, turning into a serpent's keeled scales and then its belly. Its comb, the crown that names it, runs down the shield's pale through a flush marquise.
-  - **What changed from the brief:** Logan moved it to **lost wax on the unmirrored 020**, and the mirrored-020 spike is dropped. The plan also has the hackles own the table and both shoulders, so the ring reads as plumage before scales, since Cataphracta owns scale hides.
+  - **What changed from the brief:** shadowbroker moved it to **lost wax on the unmirrored 020**, and the mirrored-020 spike is dropped. The plan also has the hackles own the table and both shoulders, so the ring reads as plumage before scales, since Cataphracta owns scale hides.
 
 - **Theme face to palm:**
 
@@ -327,7 +327,7 @@ pub fn feather_loft(spec: &FeatherSpec) -> cad::Operation; // Loft through five 
 - **Status:** not started; blocked on **P6** (Fang style, Jaws grouping). Everything else is buildable now, and the fallback is plain wire claws.
 
 - **Concept:** Fenrir's line swallows the moon. Two toothed jaws close fore and aft on a moonstone, and four fangs curve over its dome. A fur ruff streams from the jaws over the head's walls and down both shoulders. At the palm the wolf is bound by Gleipnir, the silken fetter.
-  - **What changed from the brief:** the jaws are drawn as jaws, arcs with tooth notches (`outline::jaw`), **not** as crescent moons (`moon_outline`). Two crescents round a moonstone read as celestial, which is what Logan disliked in Zenith.
+  - **What changed from the brief:** the jaws are drawn as jaws, arcs with tooth notches (`outline::jaw`), **not** as crescent moons (`moon_outline`). Two crescents round a moonstone read as celestial, which is what shadowbroker disliked in Zenith.
 
 - **Theme face to palm:**
 
@@ -715,7 +715,7 @@ pub fn feather_loft(spec: &FeatherSpec) -> cad::Operation; // Loft through five 
   7. **Runs "Venom spinels, east" and "Venom spinels, west"**:
      - `SeatRunLayer { gem: princess 2.0, tilt_deg: 45.0, taper: 0.55, taper_theta_deg: 90.0, bridge_mm: 0.8, seat: SeatPadLayer { style: GypsyMound, height_mm: 0.45, solid: SolidKind::Bead, v_mm: crest, .. }, .. }`;
      - then `solve_spacing`, with windows `around(20, 90)` and `around(160, 90)`;
-     - this is Diamondback's construction (`ex/serpentarium.rs:637`), which Logan loved.
+     - this is Diamondback's construction (`ex/serpentarium.rs:637`), which shadowbroker loved.
   8. **CAD document:**
      - F1 `Band`.
      - F2 `stone_feature(2, ruby, Placement::ring(90.0, stand_off_mm(BEZEL, ruby)))`.
@@ -762,10 +762,10 @@ pub fn feather_loft(spec: &FeatherSpec) -> cad::Operation; // Loft through five 
 
 - **Status:** not started. The lofted wings are buildable now (`Operation::Loft`, multi-source `Pattern`). The talons are blocked on **P6**, with six wire claws as the fallback. She is the highest-risk ring in the collection and one of nine; the weakest after round 1 is dropped.
 
-- **What changed from the brief** (Logan, 2026-09-24):
+- **What changed from the brief** (shadowbroker, 2026-09-24):
   - She is **restored.** The plan had replaced her with Arachne; both now stay.
   - **Wings are lofted feathers.** Each feather is its own `Operation::Loft` through five cambered sections along a curved rachis. They overlap in three tiers, and one multi-source `Pattern` mirrors them all.
-    - This replaces the brief's F6–F20: one work plane, one region sketch, eleven flat region extrudes at 1.55 / 1.15 / 0.95–0.75 mm with 2° draft, a kernel union and one mirror. Flat tiers read blocky, which was Logan's complaint about the Workshop set, and the review checklist forbids flat, blocky CAD.
+    - This replaces the brief's F6–F20: one work plane, one region sketch, eleven flat region extrudes at 1.55 / 1.15 / 0.95–0.75 mm with 2° draft, a kernel union and one mirror. Flat tiers read blocky, which was shadowbroker's complaint about the Workshop set, and the review checklist forbids flat, blocky CAD.
     - The kernel union is gone, so the 500-face kernel-operand limit no longer matters: each loft is tessellated and joined to the band by `csg`.
     - The region sketch survives only as an optional plan guide and is not built.
   - **Unchanged:** the base, process, stone, talon head, cathedral legs, seat bur and the three height-field layers.

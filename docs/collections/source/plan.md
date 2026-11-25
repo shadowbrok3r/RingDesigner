@@ -1,6 +1,6 @@
 # Director's plan: Bestiarium, Cataphracta, Tenebrae, Vepres, and the starter gallery
 
-The plan builds async template loading first, then eight shared platform pieces, then the Bestiarium, with a review by Logan before any other collection starts.
+The plan builds async template loading first, then eight shared platform pieces, then the Bestiarium, with a review by shadowbroker before any other collection starts.
 
 The five briefs cite the code accurately: every file:line I checked matched. Their problems are elsewhere:
 - Six sand rings are on factory plans that the sand master rewrites.
@@ -68,12 +68,12 @@ Paths: `core/` = `crates/ringdesign-core/src/`, `graph/` = `crates/ringdesign-gr
 |---|---|---|---|
 | Draco | K | **Theme:** yes. **Caiman:** yes if the table membrane reads. **Cast:** 002 is symmetric (F2); stepped panels descend from the spine, which is doctrine ("On a signet's face, anything proud off the parting line is an undercut") and is enforced by the draft clamp. **APIs:** `stock_masterworks.rs` Atlas at :40, draft_clamp :1303, Hide :1573, crest_at :1645, Joints :1667, clamped :1700 and hide_layer :1716 all verified. **Lift:** 5 PNG atlases (~2.5 MB), a 3 MB `/imported_base` patch and a `/stamps` patch. | Drop the "head tucked under the tail" at the palm and keep the spade alone: small heads blur (the Serpentarium hydra lesson). Build one wing-membrane tile first and render the face 1:1 before painting the shoulders. The clamp may bite at most 0.05 mm, as the brief itself says. |
 | Basiliscus | R | **Theme:** yes. **Caiman:** close cousin (keel stamps, belly scutes, round scales). **Cast:** 020 is upright (4.1 mm, F2), so `sand_stock` rewrites it (F1). **APIs:** verified (`reptile.rs:9/32/55`; marquise `plan_pow` 1.5, `gem.rs:163`). | Run the mirrored-020 spike (batch 0C). If the mirrored cartouche still reads as heraldic, keep sand. Otherwise go lost wax on the unmirrored 020, Fenrir's route. Either way, let the hackles own the table and both shoulders, so the ring reads as plumage before scales. |
-| Fenrir | K | **Theme:** yes (wolf, moon, fetter). **Cast:** 010 in wax without a sand master is fine. **APIs:** the claw path is a 2-D polyline per claw fed to `tube()` (`setting.rs:737-840`), so a fang form is a local change. | Needs P6. Draw the jaws as jaw outlines with tooth notches, **not** with `moon_outline`: two crescents round a moonstone reads as celestial, the theme Logan disliked in Zenith. |
+| Fenrir | K | **Theme:** yes (wolf, moon, fetter). **Cast:** 010 in wax without a sand master is fine. **APIs:** the claw path is a 2-D polyline per claw fed to `tube()` (`setting.rs:737-840`), so a fang form is a local change. | Needs P6. Draw the jaws as jaw outlines with tooth notches, **not** with `moon_outline`: two crescents round a moonstone reads as celestial, the theme shadowbroker disliked in Zenith. |
 | Phoenix | R | **Theme:** yes. **Cast:** at the 90° key, width 1.45 against thickness 1.22 shrinks the side-face share, and the gate is reference-only (F4), so the wing decals spill onto the crown fillet in sand. | Land P5 first, or re-key so `thickness_scale ≥ width_scale` wherever the wings sit (90°: 1.35 w / 1.45 t). A taller breast also gives the wings more face. Everything else stands: crest runs sit on the parting line, and the collet is a bench part under sand. |
 | Corvus | K | **Theme:** yes. **Cast:** a bypass measured 0.0085% (doctrine). **APIs:** a correct atlas on a bypass needs P3, because `examples/reptilia.rs:46` samples only the reference loop. | The beaks (5.2 × 2 mm) carry the whole identity. Render-review them in round 1, before any feathers. If they do not read, grow them to 7 mm and drop the tail interleave. The P4 gable top gives the culmen. |
 | Kraken | K | **Theme:** yes. **Cast:** wax. **Lift:** entirely nodes (~30 kB), the collection's best teaching template. | Needs P6 (tentacle) and C-B1 (per-point widths and bead rows; `curve.rs:62-79` has neither today). Side-face spill on keyframes is cosmetic in wax, so P5 is only nice to have. |
 | Manticora | K | **Theme:** yes. **APIs:** pear `plan_pow` 2.0 (`gem.rs:156`) is an ellipse; `Attach::Separate` plus `Joint` exist. | Use an oval until C-B2 lands. The tergites use P3's `Joints::eccentric`. The 40 quills use P4 rows, not 40 hand-placed stamps. |
-| Harpyia | X | It is the fourth winged beast. Its lesson, the CAD pipeline, is Tenebrae's job. Tiered flat region extrudes risk "flat and blocky", which was Logan's complaint about the Workshop set. It is the highest risk (4.5/5) in the first collection to ship. | Replace with **Arachne** (below). The Hypnos homage survives in Officina's "Aile". |
+| Harpyia | X | It is the fourth winged beast. Its lesson, the CAD pipeline, is Tenebrae's job. Tiered flat region extrudes risk "flat and blocky", which was shadowbroker's complaint about the Workshop set. It is the highest risk (4.5/5) in the first collection to ship. | Replace with **Arachne** (below). The Hypnos homage survives in Officina's "Aile". |
 
 **Arachne, *the weaver* (lost wax):**
 - **Base:** LowDome 5.6 × 2.4 with five keys, 90°: 1.35 w / 1.25 t, falling to 0.92 / 0.95 at 270°, so the legs have a swell to grip.
@@ -122,7 +122,7 @@ Paths: `core/` = `crates/ringdesign-core/src/`, `graph/` = `crates/ringdesign-gr
 |---|---|---|---|
 | Heloderma | K | **Theme:** yes. **Caiman:** yes (two-height beadwork). | Needs C-R1, C-R2, C-R3 and P5. |
 | Moloch | K | **Cast:** horns thrust along ±Z out of the side faces follow G1. | Needs P4 crowns and rows. Petrobond depends on Q2. |
-| Sphenodon | K | The safest ring; it calibrates grading. | Build it first in Cataphracta. Rename the epithet "the parietal", with no eye language (Logan's no-eyes rule). |
+| Sphenodon | K | The safest ring; it calibrates grading. | Build it first in Cataphracta. Rename the epithet "the parietal", with no eye language (shadowbroker's no-eyes rule). |
 | Ouroborus | K | It *requires* P5: the body runs both wider and narrower than the reference. | Needs P5 and C-R2 (Spiral law). |
 | Draco (rib-winged) | X | The name clashes with the Bestiarium's Draco. It would be the sixth winged creature across the collections, and it depends on six enablers. | Replace with **Gekko** (below). |
 | Chelonia | K | Keeps 007. | Gate on drag first, measured on the bare 007 stock (the brief's own rule). |
@@ -143,7 +143,7 @@ Paths: `core/` = `crates/ringdesign-core/src/`, `graph/` = `crates/ringdesign-gr
 
 | Entry | V | Change |
 |---|---|---|
-| Async template open | K | This is P1. It lands first (Logan's standing request). |
+| Async template open | K | This is P1. It lands first (shadowbroker's standing request). |
 | Court band, Braided band | K | Re-render in studio gold; the braid thumbnail at pitch 0.6. |
 | Wishbone wave | R | Take it off the menu until C-S6 `ShankKey::slide`. Do not ship "Saddle wave": the name collides with `ShankKind::Saddle`. |
 | Split shank (Y, wax); Split gallery (sand) | K | Keep both; the sand version teaches the pull doctrine. Rails are measured by `manufacturing::inspect`, since the field verdict cannot see them. |
@@ -183,7 +183,7 @@ Paths: `core/` = `crates/ringdesign-core/src/`, `graph/` = `crates/ringdesign-gr
 
 | ID | Capability | Merges | API sketch | Needed by | Size | Risk |
 |---|---|---|---|---|---|---|
-| **P1** | **Async template open with staged progress** (Logan's request) | Bestiarium E12, Vepres E9, Tenebrae E1, Starters E1, F7–F10 | See P1 in detail below | every template; the 13 MB ones stall today | M | M: UI-state races, phone |
+| **P1** | **Async template open with staged progress** (shadowbroker's request) | Bestiarium E12, Vepres E9, Tenebrae E1, Starters E1, F7–F10 | See P1 in detail below | every template; the 13 MB ones stall today | M | M: UI-state races, phone |
 | **P2** | **CAD stones are stones** | Starters E2+E3, Tenebrae E2+E8 | `StoneSource::Cad{feature}`, with `SetStone` gaining a frame. `set_stones` walks reference `Builder{stone}` outputs. Pattern copies keep a per-copy `gem` (fixing `pattern.rs:518`), and `Pattern{sources: Vec<Id>}` is accepted (serde still reads `source`). The stone schema gains `tint`, which `render::Part::stone` reads instead of `GEM_TINT`. `render::finished(design, lib, params) -> Finished{metal, stones}` | ~22 rings plus every stone-settings starter; all thumbnails | M | M: every stone consumer (report, census, stonemap, section view, reel) |
 | **P3** | **Skin in core** | Bestiarium E1+E11, Vepres E4, Cataphracta E2 (chart half)+E8 (master half) | `core/skin.rs`: `Atlas::of(design, w, h)` (stock through `field_surface`; procedural, keyframed and bypass bodies through `stones::surface_frame`, `stones.rs:465`), `Hide{at, crest_at, folds}`, `Joints{new, eccentric}`, `draft_clamp -> ClampReport{texels_cut, worst_mm}`, `hide_layer`. `imported_base::sand_master(Arc<Source>)`, deterministic, promoted from `sand_stock.rs`. | Draco, Basiliscus, Phoenix, Corvus, Manticora, Ilex, Viscum, Prunus, Chelonia, Phrynosoma, Chamaeleo | M | M. Pin: the atlas matches `mesh::try_build` vertices to within a texel on a keyframed band and on a bypass. |
 | **P4** | **Stamps, second version** | Bestiarium E2+E14, Cataphracta E3+E4 (presets and rows), Vepres E3 | `Stamp{tier: u8, top: StampTop{Flat, Gable, Ridge, Cone{apex, at, tip}, Dome, Taper}}`. `apply` joins each tier onto the solid built so far (F5). `core/outline.rs`: keel, lanceolate, leaf family, blossom, fork, spiral, rounded triangle, comb lobe, quill. `Stamp::parting_monotone`; `hull_and_bays` (generalising `crescent_cutter`); `stamp_row(RowPath::{PartingLine, ChartV, SideFace}, taper, fold_clear, crest-exact, mirror_shoulders)` | ~16 rings | M–L | M: cone facets must be constraint chords in `cap_faces` |
@@ -245,7 +245,7 @@ Paths: `core/` = `crates/ringdesign-core/src/`, `graph/` = `crates/ringdesign-gr
 ## 4. Build order
 
 **Rules for every batch:**
-- **Branches:** one GitHub issue, branch and PR per lane (Logan's workflow). A lane merges when `systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --workspace --offline` and the wasm check pass.
+- **Branches:** one GitHub issue, branch and PR per lane (shadowbroker's workflow). A lane merges when `systemd-run --user --scope -p MemoryMax=4G --quiet -- cargo test --workspace --offline` and the wasm check pass.
 - **Concurrency:** the global rule allows at most **two lanes in flight**. Lanes are listed in the order to pair them.
 - **File ownership:** each lane owns its files exclusively.
   - `lib.rs` `mod` lines are append-only one-liners, and the second merger resolves them.
@@ -263,13 +263,13 @@ Paths: `core/` = `crates/ringdesign-core/src/`, `graph/` = `crates/ringdesign-gr
 | | **1D P8** tooling | `tools/render_collection.py`, `tools/catalog_collection.py`, `graph/examples/collection_templates.rs` | It regenerates the Reptilia sheet identically. |
 | | **1E Starters**, part 1 | `core/templates.rs`, new `core/templates/settings.rs` and `fixtures.rs`, `wb/templates.rs` (starter groups and the `thumbnails!` macro), `ringdesign-core/tests/golden.rs`, `ringdesign-py/tests/test_smoke.py`, and the fixture call sites the brief lists | 20 stocks (process chosen by symmetry) and 8 settings, with studio-gold thumbnails showing stones; the menu test count is updated. |
 | **2. Bestiarium authoring** | A lead scaffold goes first: `core/examples/bestiarium/main.rs` + `common.rs` (CLI `--draft/--verify/SLUG`, `write_ring`, gates), with one pre-declared stub module per ring. Then pairs: (Draco, Arachne) → (Phoenix, Basiliscus) → (Corvus, Manticora) → (Fenrir, Kraken). In parallel: Starters part 2 (`cutter.split`/`cutter.window` in `cad/builders/cutters.rs` plus their `SPECS` rows, after 1A merges) and `core/examples/officina/`. | Each ring lane owns only `examples/bestiarium/<ring>.rs` and `examples/bestiarium/art/<ring>/`. Kraken's lane also owns `core/curve.rs` (C-B1). | Every ring passes the section 5 gates. |
-| **3. Bestiarium packaging, and Logan's review** | **3A** (lead): package it. **3B:** C-B2 true plans (`setting.rs` Plan, `gem.rs`, `field.rs:1302`). **Then 3C:** Cataphracta enablers C-R1..R8 (`field.rs`, `tiling.rs`, `lib.rs` `bake_clamps`, `dfm.rs`, `reptile.rs`, `castability.rs` drag). 3C waits for 3B because both touch `field.rs`. | as listed | Logan has seen the Bestiarium sheet and reel. **Stop here for his answer**: he said he may trim to fewer rings per collection after the first. |
+| **3. Bestiarium packaging, and shadowbroker's review** | **3A** (lead): package it. **3B:** C-B2 true plans (`setting.rs` Plan, `gem.rs`, `field.rs:1302`). **Then 3C:** Cataphracta enablers C-R1..R8 (`field.rs`, `tiling.rs`, `lib.rs` `bake_clamps`, `dfm.rs`, `reptile.rs`, `castability.rs` drag). 3C waits for 3B because both touch `field.rs`. | as listed | shadowbroker has seen the Bestiarium sheet and reel. **Stop here for his answer**: he said he may trim to fewer rings per collection after the first. |
 | **4. Cataphracta** | Order: Sphenodon (calibrates C-R2) → Heloderma → (Moloch, Gekko) → Ouroborus → (Chelonia, Phrynosoma) → Chamaeleo. Layout: `examples/cataphracta/` with one module per ring. Templates are **authored builders** where the SVG is text (the brief's ≤ 200 KB bar), lifted otherwise. | per ring module | Section 5 gates, and the collection is packaged. |
 | **5. Tenebrae** | Enablers first: (C-T1 sketch tracery and regions: `sketch/edit.rs`, `cad.rs` Profile) with (C-T6 text: `text.rs`, new `sketch/text.rs`); then (C-T3 cutters and outlines: `cutters.rs`, `tools/harvest`) with (C-V2 Along: `cad/pattern.rs`); then C-T4/T5/T7. Rings: Oculus and Ogiva first (they need nothing) → Rosa → Sigillum → Porta → Arcus → Capsa → Lanterna. | per ring module in `examples/tenebrae/`; clusters in `graphs/clusters/` owned by the C-T2 lane | Section 5 gates; clusters open through P1 with expressions. |
 | **6. Vepres** | Enablers: (C-V1 placement: `cad.rs` Placement) with (C-V3 3-D twist: `cad/twist.rs`); then C-V4 (`parts.rs`) and C-V5 graph path nodes. Rings: Rubus (after the 0C probe) → (Ilex, Prunus) → Viscum → Datura → (Rosa mortua, Hedera) → Sentis. | per ring module in `examples/vepres/` | Section 5 gates. |
 
 **Why this order:**
-- **P1 first:** Logan asked for it in this run, it touches no ring, and every later template (the heaviest yet) benefits.
+- **P1 first:** shadowbroker asked for it in this run, it touches no ring, and every later template (the heaviest yet) benefits.
 - **Bestiarium second:** it is his business line (Kings of Alchemy, dark-mythology cast rings). With Harpyia swapped out, all its rings sit on P2/P3/P4/P6 plus one small curve change.
 - **Cataphracta third:** reptiles are the theme that has landed with him (Caiman).
 - **Tenebrae fourth:** it needs only moderate new CAD.
@@ -289,7 +289,7 @@ Paths: `core/` = `crates/ringdesign-core/src/`, `graph/` = `crates/ringdesign-gr
    - **DFM:** `dfm::findings_in` returns **0 findings** (F11: Caiman had 2).
    - **Stones:** the P2 stone report agrees with the gem preview count; the crowding census is clean or explained.
 2. **Render set**, in studio gold with stones set: hero, face, palm, side, a stone close-up, and bare stock against finished.
-3. **Review round.** A fresh reviewer agent scores the renders against Caiman's hero, the Reptilia sheet and Logan's ZBrush sheet (`b15/zbrush_top.png`), using this checklist:
+3. **Review round.** A fresh reviewer agent scores the renders against Caiman's hero, the Reptilia sheet and shadowbroker's ZBrush sheet (`b15/zbrush_top.png`), using this checklist:
    - one theme face to palm, with no scattered motifs (the Palisade rule);
    - figurative motifs are stamps with true outlines, not painted relief (the Zenith lesson);
    - no faces and no eyes;
@@ -329,7 +329,7 @@ Paths: `core/` = `crates/ringdesign-core/src/`, `graph/` = `crates/ringdesign-gr
 
 ---
 
-## 6. Questions only Logan can answer
+## 6. Questions only shadowbroker can answer
 
 1. **Upright factory plans in sand.** Shield, Heart, Drop, Trillion, Badge, Heater, Butterfly, Jewel and Escutcheon cannot pour in two-part sand without being rewritten, because the sand master mirrors the upper half. The plan uses them only for lost-wax rings, and opens their bare starters as lost wax. Is that acceptable, or should an off-centre parting study (a real enabler, several days) come first, so that shields can be poured?
 2. **Your sands.** Do you pour Delft clay only, or Petrobond as well? Moloch and Ouroborus were written to Petrobond's rules; with Delft only, both are re-tuned to 0.30 mm detail and 3° draft.
@@ -337,7 +337,7 @@ Paths: `core/` = `crates/ringdesign-core/src/`, `graph/` = `crates/ringdesign-gr
 
 ---
 
-## 7. Logan's answers (2026-09-24) — these override the questions above
+## 7. shadowbroker's answers (2026-09-24) — these override the questions above
 
 1. **Upright factory plans are lost wax only.** No off-centre parting study. The nine upright plans (004, 008, 009, 010, 011, 014, 018, 019, 020) are used only by lost-wax rings, and their bare starters open as lost wax, badged "upright". Basiliscus on 020 therefore goes **lost wax** (unmirrored), and the 0C mirrored-020 spike is dropped.
 2. **He pours Delft and Petrobond.** Moloch and Ouroborus keep Petrobond's rules (0.40 mm detail, 2.5° draft); the rest stay Delft.

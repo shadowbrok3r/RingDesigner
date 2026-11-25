@@ -70,4 +70,4 @@ Published Android 0.18.0 (versionCode `16781824`) to
 changelog and downloaded APK match the verified ARM64 package, SHA256
 `223f22358ce9a70ac269f28d144dedb408f90bee04b1ce515258160c01039223`.
 The existing signer is unchanged. Source merge: `43ff2de` on `master`.
-Five review images were delivered to Logan's S26 Ultra by Tailscale file copy.
+Five review images were delivered to shadowbroker's S26 Ultra by Tailscale file copy.
