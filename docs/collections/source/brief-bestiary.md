@@ -545,7 +545,7 @@ With E5 and E6 it becomes `base.preset` + `stamp.*` + `alpha.hide` nodes and wei
   - Princess 2.0, `tilt_deg 45`, `taper 0.55`, `taper_theta 90`, `bridge 0.8`;
   - seat GypsyMound 0.45, `solid Bead`;
   - windowed `around(90 ± 70, 90)`.
-  - This is Diamondback's construction (`ex/serpentarium.rs:648-668`), which Logan loved.
+  - This is Diamondback's construction (`ex/serpentarium.rs:648-668`), which shadowbroker loved.
 
 **CAD.**
 - F1 `Band`.

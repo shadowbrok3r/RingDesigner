@@ -1,15 +1,15 @@
 # Brief: the starter gallery and the Workshop set (File > New from template)
 
-This brief covers four things: the three starter collections (Starter bands, Starter signets, Stone settings), a replacement for the Workshop collection, and opening templates off the UI thread with a progress bar, which Logan asked for. It is based on reading the code only: nothing was built or run. Unless a path is given, `file:line` references are relative to `crates/`. Where the text says "the doctrine", it means the project CLAUDE.md.
+This brief covers four things: the three starter collections (Starter bands, Starter signets, Stone settings), a replacement for the Workshop collection, and opening templates off the UI thread with a progress bar, which shadowbroker asked for. It is based on reading the code only: nothing was built or run. Unless a path is given, `file:line` references are relative to `crates/`. Where the text says "the doctrine", it means the project CLAUDE.md.
 
 ---
 
 ## 0. What is wrong today
 
-| Entry | What Logan sees | Cause |
+| Entry | What shadowbroker sees | Cause |
 | --- | --- | --- |
 | Split shank | "not even sure what I'm looking at" | `ShankKind::Split` widens the band by 55% and cuts a groove of up to 1.6 mm into each side face (`ringdesign-core/src/profile.rs:2683-2695`), on a 5.5 × 2.0 band (`ringdesign-core/src/templates.rs:178-187`). The thumbnail camera, yaw 0.55 and pitch 1.12 (`ringdesign-core/examples/template_shots.rs:13`), looks down at the crest. The grooves are on the ±Z faces, so they never show. |
-| Cathedral solitaire stock | claws visible, no stone | The prongs are height-field bumps on a gypsy mound (`templates.rs:137-163`), which Logan rejected as "quite awful". `template_shots` renders only the metal mesh (`template_shots.rs:10-14`), so no stone is ever drawn. |
+| Cathedral solitaire stock | claws visible, no stone | The prongs are height-field bumps on a gypsy mound (`templates.rs:137-163`), which shadowbroker rejected as "quite awful". `template_shots` renders only the metal mesh (`template_shots.rs:10-14`), so no stone is ever drawn. |
 | Toi et moi | two signet plates (oval and heart) | `templates.rs:188-204`. It carries no stones. |
 | Heart / Waved hexagon signets | parametric heads, which he finds rough | These are replaced by the 20 factory bases. |
 | **Wishbone wave (broken)** | reads as a plain court band | With `waves = 1`, `z_center_frac = 0.6·k·sin(θ−90°)` (`profile.rs:2613-2625`). One sine period in θ puts each edge on a *planar* circle, tilted by about atan(0.76/10.5) ≈ 4°. The band looks like a plain band seen at a slight angle, and no camera can make it read as a wave. |
@@ -24,7 +24,7 @@ Other existing bugs found:
 
 ---
 
-## 1. Opening a template without stalling the app (Logan's request)
+## 1. Opening a template without stalling the app (shadowbroker's request)
 
 ### Where the time goes, in order, all on the UI thread
 
@@ -341,7 +341,7 @@ Per ring: traps, what it shows, what it needs, and risk.
   - Risk: native `brep::fillet_edges` on a drafted prism (`cad.rs:1941-1953`); fall back to `Chamfer`.
 - Risk medium.
 
-### 5.4 Aile: wings clasping a bezel (homage to Logan's Hypnos)
+### 5.4 Aile: wings clasping a bezel (homage to shadowbroker's Hypnos)
 
 - **Base:** DShape 2.4 × 1.8, `ReverseTaper` 0.4.
 - **Features:**
@@ -412,7 +412,7 @@ Per ring: traps, what it shows, what it needs, and risk.
 
 | Rank | Enabler | API sketch | Unblocks |
 | --- | --- | --- | --- |
-| E1 ✱ | **Async template open with progress** | section 1: `Template::open`, `Loading`, `Progress`, `Evaluator::evaluate_observed`, `bake_all_observed`, `evaluate_design_unjudged`, the returned `Arc<AlphaLibrary>` | Logan's request; every collection, since the stock and art templates are 4–13 MB |
+| E1 ✱ | **Async template open with progress** | section 1: `Template::open`, `Loading`, `Progress`, `Evaluator::evaluate_observed`, `bake_all_observed`, `evaluate_design_unjudged`, the returned `Arc<AlphaLibrary>` | shadowbroker's request; every collection, since the stock and art templates are 4–13 MB |
 | E2 ✱ | **Finished-ring render parts** | `render::finished(design, lib, params) -> Result<Finished { metal: Mesh, stones: Option<Mesh> }>`. `metal` is `try_build(..).mesh` (heads joined, seats cut). `stones` is `gems::preview_mesh` (`ringdesign-core/src/gems.rs:36`) plus every reference `stone` component (the pattern at `cad/examples.rs:229-238`). Also fix `cad_thumbnails.rs` | every stone thumbnail and hero; `template_shots`; configurator |
 | E3 ✱ | **CAD stones in the one stone record** | `StoneSource::Cad { feature: Id }`. `SetStone.seat` becomes `Option<SeatPadLayer>` or gains a `frame: StoneFrame`. `set_stones` walks enabled reference `Builder{stone}` features in the outputs, taking the gem from `builders::gem_of` (`builders.rs:248`) and the frame from the evaluated placement | stones report, crowding, casting sheet, stone map (which refuses today), carat totals, reel |
 | E4 ✱ | **`base.stock` graph node and lift recognition** | Pins: `design`, `stock` (select "001"…"020"), `sand_envelope`. Eval: `PRESETS…load()` and `ImportedBase::attach`. The lift emits it when `source.name == preset.stock_name()` and the fingerprints match. `attach` resets the dimensions from calibration, so place the node before `band.profile` and `head`, or give it a no-reset mode. A differing chart stays a small `/imported_base/chart` patch | stock starters as light graphs; Sigil; about 3 MB less in each of 9 bundled templates |
@@ -454,7 +454,7 @@ Starters go first because a new user reaches for a blank before a masterwork. Th
 
 ---
 
-## 8. Risks to raise with Logan before building
+## 8. Risks to raise with shadowbroker before building
 
 - **Split gallery's shape.** It is honest sand, but it reads as a split only from the side. Confirm he wants it offered beside the lost-wax Y split, rather than instead of it.
 - **Bezel solitaire's process.** It is sand plus a soldered collet by default. Confirm, or make it lost wax for consistency with the other heads.

@@ -3,7 +3,7 @@
 Written 2026-09-24 so this work can be picked up from another account with no session history.
 Everything needed to continue is in this folder and the repo.
 
-Logan asked for four new master collections, eight rings each, "the most complex, well thought
+shadowbroker asked for four new master collections, eight rings each, "the most complex, well thought
 out, most insane rings we've done", reproducible as templates (File > New from template, editable
 graphs people can learn from, like the Reptilia collection and the Stock masterworks). He also asked
 for the starter gallery to be rebuilt, the Workshop collection replaced, and templates to open
@@ -16,13 +16,13 @@ without stalling the app.
 | `tenebrae.md` | Gothic cathedral: all eight rings |
 | `vepres.md` | Thorned botanical: all eight rings |
 | `starters-and-officina.md` | Starter bands, stone settings, the 20 factory signets, Officina (replaces Workshop), and platform enablers P5–P8 |
-| `source/plan.md` | The design director's plan: verified facts, verdicts per ring, base allocation, enablers, build order, quality loop, and Logan's answers (section 7, binding) |
+| `source/plan.md` | The design director's plan: verified facts, verdicts per ring, base allocation, enablers, build order, quality loop, and shadowbroker's answers (section 7, binding) |
 | `source/brief-*.md` | The five original design briefs, with every API cited by file and line |
 
 Where a collection file and a brief disagree, the collection file wins: it already folds in the
-director's changes and Logan's answers.
+director's changes and shadowbroker's answers.
 
-## Logan's decisions (binding)
+## shadowbroker's decisions (binding)
 
 - **Themes:** all four, one collection each: **Bestiarium** (dark mythology, closest to his
   business, Kings of Alchemy), **Cataphracta** (Reptilia II), **Tenebrae** (Gothic),
@@ -72,7 +72,7 @@ Check before resuming:
 
 ## Decisions made after the collection files were written
 
-Logan answered the open questions on 2026-09-24; each collection file carries them in a note at
+shadowbroker answered the open questions on 2026-09-24; each collection file carries them in a note at
 its top, and they override the text under it:
 
 1. **Faces are allowed.** He had ruled them out only because earlier attempts were poor: "feel
@@ -97,7 +97,7 @@ Oculus's weight (about 18 g of silver).
 3. **The rest of the Bestiarium.** Buildable once batch 15 is merged: Corvus, Basiliscus,
    Manticora, Harpyia, Phoenix (with its keys adjusted or after P5). Fenrir and Kraken wait for
    P6 claw styles, and Kraken also for C-B1 curve widths.
-4. **Package the Bestiarium, then stop for Logan's review.** Drop the weakest of the nine.
+4. **Package the Bestiarium, then stop for shadowbroker's review.** Drop the weakest of the nine.
 5. **Cataphracta, then Tenebrae, then Vepres**, each with its own enablers first.
 
 ## How one ring is built
@@ -164,7 +164,7 @@ static per collection in `ringdesign-graph/src/templates.rs`; a menu group in
 - New serde fields default so saved designs stay byte-identical. Geometry an older build would
   ignore is fenced: `library::format_version_for` returns 6 (unreleased; desktop 0.6.0 reads up to 5).
 - Commit messages end with a `Co-Authored-By:` line for the model doing the work.
-- Never publish (app store, releases, tags) or bump versions unless Logan asks. Push `master` after
+- Never publish (app store, releases, tags) or bump versions unless shadowbroker asks. Push `master` after
   each batch is merged and green.
 - Emulators: the AVD named `s26ultra` belongs to other apps, never touch it. `rdsmoke` is this
   project's throwaway AVD; its serial moves (emulator-5554 when s26ultra is off), so check
@@ -183,7 +183,7 @@ These are the prompts the ring lanes and reviewers ran with. Fill in the angle b
 
 > You are authoring one ring of the <Collection>, a new master collection for RingDesigner (repo
 > path; the CLAUDE.md casting doctrine applies). Read docs/collections/<collection>.md (your ring's
-> section) and docs/collections/source/plan.md sections 0, 1, 5 and 7. Logan's taste: one theme face
+> section) and docs/collections/source/plan.md sections 0, 1, 5 and 7. shadowbroker's taste: one theme face
 > to palm; figurative motifs as stamps with true outlines; no faces or eyes; stones in made settings;
 > no flat, blocky CAD; stand beside Caiman and his ZBrush rings. Work in your own worktree on branch
 > <collection>-<slug> at <commit>. Put the ring in ONE example file
@@ -199,9 +199,9 @@ These are the prompts the ring lanes and reviewers ran with. Fill in the angle b
 **Art-director review** (returns verdict ship / revise / cut, a score out of 10 with Caiman at 7,
 and a numbered punch list):
 
-> You are a demanding jewellery art director reviewing one ring for Logan (Kings of Alchemy,
+> You are a demanding jewellery art director reviewing one ring for shadowbroker (Kings of Alchemy,
 > dark-mythology cast rings). Look at every render the author lists, plus Caiman, the Reptilia
-> sheet and Logan's ZBrush rings. Score it against the checklist above and check the gate numbers
+> sheet and shadowbroker's ZBrush rings. Score it against the checklist above and check the gate numbers
 > (any failed gate is an automatic revise). Ship only at ≥ 7.5 with every gate green; cut if it
 > cannot get there. The punch list must be concrete: what to change, where, by how much.
 

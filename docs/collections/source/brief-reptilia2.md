@@ -10,7 +10,7 @@
 
 ## 0. The bar: how this beats Caiman
 
-Caiman is the reference Logan loved. Here is where it stands, measured from the repo:
+Caiman is the reference shadowbroker loved. Here is where it stands, measured from the repo:
 
 | | Caiman (shipped) | Reptilia II target, every ring |
 |---|---|---|
@@ -200,7 +200,7 @@ The two Petrobond rings have bold features. Petrobond's floor is 0.40 mm and its
    - Circle outlines with a point every 0.1 mm, `crown: Cone { apex_mm, tip_mm 0.3 }` (E3), `sink 0.3`, `draft_deg 4`, clear of each other by 0.6 mm.
 6. **Stamps: "False-head horn, fingertip" / "…knuckle"**: one per side face at TOP, mid-face v, `along_pull: true`.
    - Rounded-triangle root 3.0 × 2.6, `Cone { apex_mm 1.6, at: 0.2 mm toward TOP-side, tip 0.35 }`.
-   - They thrust 1.6 mm beyond the band along the finger. This is the ring's silhouette, close to Logan's Odin and Valkyrie spikes.
+   - They thrust 1.6 mm beyond the band along the finger. This is the ring's silhouette, close to shadowbroker's Odin and Valkyrie spikes.
 
 **Showcases.** Stamp rows with cone crowns, graded side-face fields, a u-only SmoothMax handover, a thickness-only keyframed hump, flutes as grooves, a knife keel.
 
@@ -239,7 +239,7 @@ The two Petrobond rings have bold features. Petrobond's floor is 0.40 mm and its
 **Process.** Delft two-part. The sail's teeth need the finer floor.
 
 **Stone.** Peridot, `GemCut::Round 3.0`, `GypsyMound` at `(TOP, crest_v)`, `Flush`, `through`, `crown 1.0`, height 0.6.
-- *Naming risk:* "third eye" is a lizard's parietal organ, and the stone has no lid or pupil. If Logan reads it as an eye, drop the word from the copy. The ring works without the stone too.
+- *Naming risk:* "third eye" is a lizard's parietal organ, and the stone has no lid or pupil. If shadowbroker reads it as an eye, drop the word from the copy. The ring works without the stone too.
 
 **Construction.**
 1. **"The sail"**: `TilingLayer` of SVG *sail* (E12 `sail_svg`): u-profile triangular teeth with 0.35 mm blunted tips and rounded 0.4 mm valleys; v-profile a gable peaked on the crest.
@@ -277,7 +277,7 @@ The two Petrobond rings have bold features. Petrobond's floor is 0.40 mm and its
 
 **Concept.** The lizard that is named for the ring. Threatened, it takes its own tail in its mouth and becomes a wheel of spines. The band is its body: an armoured head, girdled whorls graded from nape to tail, and the tail's tip meeting the jaw at the top.
 
-This is a sequel to Serpentarium's Ouroboros, which was a snake with warped mail and which Logan loved. Here the reptile is a lizard, and the skin is whorls.
+This is a sequel to Serpentarium's Ouroboros, which was a snake with warped mail and which shadowbroker loved. Here the reptile is a lizard, and the skin is whorls.
 
 **Face to palm, going round.**
 - **TOP + 3° → TOP + 35°:** the head shield, terraced cephalic plates stepping down from the crest.
@@ -336,7 +336,7 @@ This is a sequel to Serpentarium's Ouroboros, which was a snake with warped mail
 
 **Concept.** The only dragon that flies, and it does so on its ribs: patagia folded along the shoulders, five ribs to a wing. A ruby sits at the wing root, where the heart is.
 
-This echoes Logan's own Hypnos: wings wrapping the band.
+This echoes shadowbroker's own Hypnos: wings wrapping the band.
 
 **Face to palm.**
 - **Top:** the body's back at the wing root. The ruby sits on the crest, with the rib roots either side.
@@ -441,7 +441,7 @@ This echoes Logan's own Hypnos: wings wrapping the band.
 
 **Template.** `base.preset("007", sand)` (E8) → `layer.group(clamp)` → hide-space `layer.tiling` nodes → `remap.terrace`. Expose "Scute pitch", "Growth rings", "Tier drop". About 50 KB instead of about 10 MB.
 
-**Difficulty / risk.** Very high / medium-high. It depends on E1, E2 and E8, and it is the ring most likely to become Logan's favourite.
+**Difficulty / risk.** Very high / medium-high. It depends on E1, E2 and E8, and it is the ring most likely to become shadowbroker's favourite.
 
 ---
 
@@ -591,7 +591,7 @@ This echoes Logan's own Hypnos: wings wrapping the band.
 - **Sheet:** `tools/catalog_reptilia.py NEW_DIR --title "Reptilia II" --subtitle "EIGHT HIDES · FIVE BANDS · THREE SIGNETS · FOUR STONES · ALL POURED IN SAND"`.
 - **README:** reproduce commands under `systemd-run --user --scope -p MemoryMax=4G`, as in `showcase/reptilia/README.md`.
 
-## 6. Open questions for Logan
+## 6. Open questions for shadowbroker
 
 1. Sphenodon's peridot: is "third eye" acceptable copy, given his "no snake eyes" rule? The stone has no lid or pupil. Otherwise it is "the parietal stone".
 2. Should Draco's wings stay on the side faces (sand-safe, echoes Hypnos)? Or does he want them to rise off the band? That would be lost-wax CAD and outside this collection's brief.

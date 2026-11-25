@@ -1,6 +1,6 @@
 # Starters and Officina: handoff plan
 
-> **Logan's decisions after this file was written (2026-09-24) — these override the text below:**
+> **shadowbroker's decisions after this file was written (2026-09-24) — these override the text below:**
 > - **Faces are allowed.** He only ruled them out because earlier attempts were poor: "feel free to impress me with a face." Skulls, creature heads and gargoyle faces are welcome when they read well; hold them to the render review's bar and cut any that do not.
 > - **Viscum goes lost wax on the native factory 003 Clover** (no sand envelope, the factory lobes kept).
 > - **Chelonia (007 Quatrefoil) and Phrynosoma (016 Star) go lost wax on the real factory stock**, not procedural heads: he prefers factory stock for its hard wall-to-face angles, and lost wax frees the carapace tiers and horns from the sand draft clamp. Cataphracta pours six rings in sand and two in wax.
@@ -18,7 +18,7 @@ This file is the plan for the File > New from template starter gallery (Starter 
 
 ## 0. What binds this file
 
-### Logan's decisions (2026-09-24)
+### shadowbroker's decisions (2026-09-24)
 
 - **Process:** the collections use a mix of sand and lost wax, and each ring is judged against its own `DraftSettings::process`. He pours both **Delft clay** and **Petrobond**. Every sand entry in this file is Delft.
 - **Upright factory plans (004, 008, 009, 010, 011, 014, 018, 019, 020) are lost wax only.** The sand master mirrors the upper half of the stock, so it is used only on 001, 002, 003, 005, 006, 007, 012, 013, 015, 016 and 017. Bare starters follow the same split: sand-safe plans open as Delft sand, and upright plans open as lost wax with an "upright" badge. No off-centre parting study will be done.
@@ -378,7 +378,7 @@ Rules common to all eight:
 ## Cathedral solitaire — *six claws on two arches*
 
 - **Status:** not started. Buildable now.
-- **Concept:** a carat round in six claws, carried on cathedral arches over a fine tapered band. It is the plain member of the cathedral chain; Arcus (Tenebrae) is the rich one. It replaces "Cathedral solitaire stock", whose height-field prongs Logan rejected and whose thumbnail showed no stone.
+- **Concept:** a carat round in six claws, carried on cathedral arches over a fine tapered band. It is the plain member of the cathedral chain; Arcus (Tenebrae) is the rich one. It replaces "Cathedral solitaire stock", whose height-field prongs shadowbroker rejected and whose thumbnail showed no stone.
 - **Theme face to palm:**
   - Head: stone and claws.
   - Shoulders: the two arches and four teardrop azures under the stone.
@@ -583,7 +583,7 @@ Rules common to all eight:
 ## The twenty factory stocks — *hard angles, ready for a theme*
 
 - **Status:** not started. C-S1 is part 1's first task after the fixtures.
-- **Concept:** every decoded factory signet, bare, as a starting blank. These presets keep the hard angles where wall meets face, which is Logan's standing preference for signets. Each opens ready for one theme face to palm.
+- **Concept:** every decoded factory signet, bare, as a starting blank. These presets keep the hard angles where wall meets face, which is shadowbroker's standing preference for signets. Each opens ready for one theme face to palm.
 - **Theme face to palm:** bare stock. The theme is the user's.
 - **Base:** `templates::stock(&PRESETS[i])` (C-S1 above), at the master's calibrated bore and face.
 - **Process:** chosen by plan symmetry.
@@ -700,7 +700,7 @@ Rules common to all eight:
 - Replace `crates/ringdesign-core/examples/workshop_collection.rs` with `examples/officina/`.
 - Retire `tools/catalog_workshop_collection.py` and `tools/check_workshop_collection.py`.
 - This also ends the three-"Aster" collision.
-- Leave the `showcase/workshop-collection/` folder in place until Logan says otherwise.
+- Leave the `showcase/workshop-collection/` folder in place until shadowbroker says otherwise.
 
 ---
 
@@ -805,7 +805,7 @@ Officina has no C-* enabler of its own. It depends on:
   - Whether two concentric `Circle`s form one region with a hole is **(unverified)**. The fallback is two loops of four arcs each.
   - Bench cuts on a sand-master stock: `pull::build` envelopes only the cast stack, and CAD cuts resolve after it, so the envelope cannot fill them. Check the render.
 - **Needs:** the spike; P7 `base.preset`.
-- **Template:** lift into a `cad.feature` chain. Today that carries a 3 MB `/imported_base` patch; after P7 it is `base.preset {id: "013", sand: true}` + 7 `cad.feature`s, under 1 MB (the plan §5 stock budget). Do not bundle before P7 unless Logan accepts the size.
+- **Template:** lift into a `cad.feature` chain. Today that carries a 3 MB `/imported_base` patch; after P7 it is `base.preset {id: "013", sand: true}` + 7 `cad.feature`s, under 1 MB (the plan §5 stock budget). Do not bundle before P7 unless shadowbroker accepts the size.
 - **Risk:** medium. Fallback: if the tangent plane will not seat on stock, a `Plane { Section { theta_deg: 90 } }` rotated by hand is **not** a fallback, because it stands on the wrong axis. Instead, ship Sigil on a procedural lofted round signet (`signet(SignetOutline::Oval, 10.0, 1.8)` at aspect 1) and note that.
 
 ## Keystone — *a drafted cartouche*
@@ -836,7 +836,7 @@ Officina has no C-* enabler of its own. It depends on:
 ## Aile — *wings clasping a bezel*
 
 - **Status:** not started. Buildable now.
-- **Concept:** an oval in a collet, clasped by two three-feather wings that lift off the band toward their tips. It is a lesson-sized homage to Logan's Hypnos. The plan keeps it beside the Bestiarium's winged beasts (plan §2).
+- **Concept:** an oval in a collet, clasped by two three-feather wings that lift off the band toward their tips. It is a lesson-sized homage to shadowbroker's Hypnos. The plan keeps it beside the Bestiarium's winged beasts (plan §2).
 - **Theme face to palm:** the stone and wings over the top 70°; a plain tapering shank to the palm.
 - **Base:** DShape 2.4 × 1.8, `ShankKind::ReverseTaper` 0.4, bore 18.2 mm.
 - **Process:** lost wax. In sand, wings off the crest lean or overhang (doctrine: off-crest rails).
@@ -856,7 +856,7 @@ Officina has no C-* enabler of its own. It depends on:
   12. `Pattern { sources: [11], kind: Mirror { plane: MirrorPlane::Section { theta_deg: 90.0 } } }`, Join.
 - **What it shows off:** building round a stone; regions from T-junctions; one sketch with three heights; union into one part; mirroring round the ring.
 - **Traps and how they are avoided:**
-  - **Flat tiers read "flat and blocky".** That was Logan's complaint about the Workshop set, and why Harpyia returns with lofted feathers. The brief's extrusions had 0° draft; the 10° draft above is this file's change, to soften the steps. If the round-1 render still reads blocky, the upgrade is Harpyia's lofted-feather construction, once the Bestiarium proves it.
+  - **Flat tiers read "flat and blocky".** That was shadowbroker's complaint about the Workshop set, and why Harpyia returns with lofted feathers. The brief's extrusions had 0° draft; the 10° draft above is this file's change, to soften the steps. If the round-1 render still reads blocky, the upgrade is Harpyia's lofted-feather construction, once the Bestiarium proves it.
   - Feather tips must be ≥ 0.15 mm detail and 0.5 mm section under investment.
 - **Needs:** nothing new.
 - **Template:** lift into a `cad.feature` chain. About 25 KB, because the Bezier sketch is inline JSON.
@@ -1086,7 +1086,7 @@ The starters have no showcase folder. Their deliverables are:
 - **Thumbnails:**
   - Starters and settings: `cargo run -p ringdesign-core --release --example template_shots -- target/template-library-review/starter-renders`. It renders `render::finished` in studio gold, stones set, at each template's C-S5 view, plus the 20 stocks.
   - Pad to 160 px with `python3 tools/template_thumbnails.py` after adding every new slug to `crates/ringdesign-workbench/assets/templates/sources.json`.
-- **Review sheet for Logan:** `python3 tools/catalog_collection.py target/template-library-review/starter-renders --title "Starters"` (P8).
+- **Review sheet for shadowbroker:** `python3 tools/catalog_collection.py target/template-library-review/starter-renders --title "Starters"` (P8).
 - **Graphs:** regenerate the 13 bundled starter graphs with `RD_WRITE_TEMPLATE_GRAPHS=1`. Delete `heart-signet`, `waved-hexagon-signet`, `cathedral-solitaire-stock` and `wishbone-wave` from `graphs/templates/`: the menu test fails on any authored graph that is not in the menu.
 - **Golden corpus:** regenerate with `RD_WRITE_GOLDEN=1`.
 - **Phone:**

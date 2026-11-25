@@ -401,7 +401,7 @@ Plants covered: briar, bramble, rose stem, blackthorn, holly, mistletoe, nightsh
 
 | | |
 |---|---|
-| Concept | The devil's thorn-apple, a thorned nightshade. A spined seed capsule stands on the star-shaped calyx, which is the factory star face. It is split into four gaping valves with black seeds spilling in the splits. Sinuate datura leaves climb the shoulders, and the palm is the smooth stem. It is Logan's heaviest, most sculptural register, in plant form. |
+| Concept | The devil's thorn-apple, a thorned nightshade. A spined seed capsule stands on the star-shaped calyx, which is the factory star face. It is split into four gaping valves with black seeds spilling in the splits. Sinuate datura leaves climb the shoulders, and the palm is the smooth stem. It is shadowbroker's heaviest, most sculptural register, in plant form. |
 | Base | **Factory 016 Star**, 19 × 20 (`core/imported_base.rs:1110`), taken as the investment stock with no sand envelope. The recipe is set as `base()` sets it for non-sand stock: `CastProcess::LostWax`, `min_draft` 0, `min_detail` 0.15, `min_section` 0.8 (`ex/stock_masterworks.rs:477-483`). |
 | Process | **Lost wax.** Spines radiate from a dome. Under two-part sand only spines within (half-angle − draft) of the pull would release, about a quarter of them. |
 | Stones | 8 black spinel rounds of 1.5 (the seeds). |
